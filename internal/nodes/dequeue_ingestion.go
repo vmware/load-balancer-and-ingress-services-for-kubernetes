@@ -499,8 +499,8 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 			break
 		}
 
-		if infraSettingAnnotation, ok := svcObj.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok &&
-			(infraSettingAnnotation == "" || infraSettingAnnotation != sharedVipInfraSetting) {
+		infraSettingAnnotation, _ := svcObj.GetAnnotations()[lib.InfraSettingNameAnnotation]
+		if i != 0 && infraSettingAnnotation != sharedVipInfraSetting {
 			utils.AviLog.Errorf("Service AviInfraSetting annotation value is not consistent with Services grouped using shared-vip annotation. Conflict found for Services [%s: %s %s: %s]", serviceNSName, infraSettingAnnotation, serviceNSNames[0], sharedVipInfraSetting)
 			isShareVipKeyDelete = true
 			break
