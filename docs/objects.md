@@ -247,7 +247,7 @@ vsName = clusterName + "--" + namespace + "-" + svcName`
 The following formula is used to derive the L4 pool names:
 
 ```
-poolName = vsName + "-" + listener_port`
+poolName = clusterName + "--" + namespace + "-" + svcName + "-" + "protocol" + "-" + listener_port`
 ```
 
 Here the `listener_port` refers to the service port on which the virtualservice listens on. As it can be intepreted that the number of pools will be directly associated with the number of listener ports configured in the kubernetes service object.

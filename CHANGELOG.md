@@ -258,3 +258,14 @@ All notable changes to this project will be documented in this file. The format 
  - Fixes LoadBalancer service creation with named ports in NodePortLocal deployment.
  - Fix: Every SEGroup used in the AviInfraSetting is getting configured with the labels even when `disableStaticRouteSync` is set to `true`.
  - Fix: AKO pod keeps getting error "panic: runtime error: slice bounds out of range" then goes into CrashLoopBackOff state.
+
+
+ ## AKO-1.7.2-beta
+
+ ### Added
+ - Support for AviInfraSetting CRD for Shared Virtual Service of type LoadBalancer
+
+ ### Known Issues
+ - HTTP Rule will be rejected if `pkiProfile` or `destinationCA` is not defined while defining `tls` section of rule.
+ - L4 Pools, with new naming conventions, will not be attached to L4 VS if LoadBalancer kubernetes services, without annotation `ako.vmware.com/enable-shared-vip`, are migrated from older AKO version to AKO-1.7.2-beta.
+ - Issue: VRF context issue when AKO is deployed in NodePort mode for non-admin tenant.
