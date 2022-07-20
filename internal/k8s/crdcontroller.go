@@ -49,19 +49,26 @@ func NewCRDInformers(cs akocrd.Interface) {
 	})
 }
 
+func isHostRuleUpdated(oldHostRule, newHostRule *akov1alpha1.HostRule) bool {
+	if oldHostRule.ResourceVersion == newHostRule.ResourceVersion {
+		return false
+	}
+
+	oldSpecHash := utils.Hash(utils.Stringify(oldHostRule.Spec) + oldHostRule.Status.Status)
+	newSpecHash := utils.Hash(utils.Stringify(newHostRule.Spec) + newHostRule.Status.Status)
+
+	return oldSpecHash != newSpecHash
+}
+
 func isHTTPRuleUpdated(oldHTTPRule, newHTTPRule *akov1alpha1.HTTPRule) bool {
 	if oldHTTPRule.ResourceVersion == newHTTPRule.ResourceVersion {
 		return false
 	}
 
-	oldSpecHash := utils.Hash(utils.Stringify(oldHTTPRule.Spec))
-	newSpecHash := utils.Hash(utils.Stringify(newHTTPRule.Spec))
+	oldSpecHash := utils.Hash(utils.Stringify(oldHTTPRule.Spec) + oldHTTPRule.Status.Status)
+	newSpecHash := utils.Hash(utils.Stringify(newHTTPRule.Spec) + newHTTPRule.Status.Status)
 
-	if oldSpecHash != newSpecHash {
-		return true
-	}
-
-	return false
+	return oldSpecHash != newSpecHash
 }
 
 func isAviInfraUpdated(oldAviInfra, newAviInfra *akov1alpha1.AviInfraSetting) bool {
@@ -69,14 +76,10 @@ func isAviInfraUpdated(oldAviInfra, newAviInfra *akov1alpha1.AviInfraSetting) bo
 		return false
 	}
 
-	oldSpecHash := utils.Hash(utils.Stringify(oldAviInfra.Spec))
-	newSpecHash := utils.Hash(utils.Stringify(newAviInfra.Spec))
+	oldSpecHash := utils.Hash(utils.Stringify(oldAviInfra.Spec) + oldAviInfra.Status.Status)
+	newSpecHash := utils.Hash(utils.Stringify(newAviInfra.Spec) + newAviInfra.Status.Status)
 
-	if oldSpecHash != newSpecHash {
-		return true
-	}
-
-	return false
+	return oldSpecHash != newSpecHash
 }
 
 // SetupAKOCRDEventHandlers handles setting up of AKO CRD event handlers
@@ -98,7 +101,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
 				key := lib.HostRule + "/" + utils.ObjKey(hostrule)
 				if err := validateHostRuleObj(key, hostrule); err != nil {
-					utils.AviLog.Warnf("key: %s, msg: Error retrieved during validation of HostRule: %v", key, err)
+					utils.AviLog.Warnf("key: %s, Error retrieved during validation of HostRule: %v", key, err)
 				}
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -110,7 +113,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				}
 				oldObj := old.(*akov1alpha1.HostRule)
 				hostrule := new.(*akov1alpha1.HostRule)
-				if !reflect.DeepEqual(oldObj.Spec, hostrule.Spec) {
+				if isHostRuleUpdated(oldObj, hostrule) {
 					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
 					key := lib.HostRule + "/" + utils.ObjKey(hostrule)
 					if err := validateHostRuleObj(key, hostrule); err != nil {
@@ -160,7 +163,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httprule))
 				key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
 				if err := validateHTTPRuleObj(key, httprule); err != nil {
-					utils.AviLog.Warnf("Error retrieved during validation of HTTPRule: %v", err)
+					utils.AviLog.Warnf("key: %s, Error retrieved during validation of HTTPRule: %v", key, err)
 				}
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -178,7 +181,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httprule))
 					key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
 					if err := validateHTTPRuleObj(key, httprule); err != nil {
-						utils.AviLog.Warnf("Error retrieved during validation of HTTPRule: %v", err)
+						utils.AviLog.Warnf("key: %s, Error retrieved during validation of HTTPRule: %v", key, err)
 					}
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 					bkt := utils.Bkt(namespace, numWorkers)
@@ -225,7 +228,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviinfra))
 				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviinfra)
 				if err := validateAviInfraSetting(key, aviinfra); err != nil {
-					utils.AviLog.Warnf("Error retrieved during validation of AviInfraSetting: %v", err)
+					utils.AviLog.Warnf("key: %s, Error retrieved during validation of AviInfraSetting: %v", key, err)
 				}
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 				bkt := utils.Bkt(namespace, numWorkers)
@@ -241,7 +244,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviInfra))
 					key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfra)
 					if err := validateAviInfraSetting(key, aviInfra); err != nil {
-						utils.AviLog.Warnf("Error retrieved during validation of AviInfraSetting: %v", err)
+						utils.AviLog.Warnf("key: %s, Error retrieved during validation of AviInfraSetting: %v", key, err)
 					}
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 					bkt := utils.Bkt(namespace, numWorkers)
@@ -310,16 +313,6 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 			Error:  err.Error(),
 		})
 		return err
-	}
-	if hostrule.Spec.VirtualHost.Gslb.Fqdn != "" {
-		if fqdn == hostrule.Spec.VirtualHost.Gslb.Fqdn {
-			err = fmt.Errorf("GSLB FQDN and local FQDN are same")
-			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{
-				Status: lib.StatusRejected,
-				Error:  err.Error(),
-			})
-			return err
-		}
 	}
 
 	refData := map[string]string{

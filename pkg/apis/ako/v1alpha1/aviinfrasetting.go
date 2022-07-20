@@ -62,7 +62,7 @@ type AviInfraL7Settings struct {
 // AviInfraSettingStatus holds the status of the AviInfraSetting
 type AviInfraSettingStatus struct {
 	Status string `json:"status,omitempty"`
-	Error  string `json:"error,omitempty"`
+	Error  string `json:"error"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
