@@ -37,6 +37,7 @@ import (
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
@@ -174,7 +175,7 @@ func TestAviSvcCreationSinglePort(t *testing.T) {
 		Name:         SINGLEPORTSVC,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
 	}).Service()
 	svcExample.ResourceVersion = "2"
 	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
@@ -192,7 +193,7 @@ func TestAviSvcCreationSinglePort(t *testing.T) {
 		Name:         SINGLEPORTSVC,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
 	}).Service()
 	svcExample.ResourceVersion = "3"
 	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
@@ -671,7 +672,7 @@ func TestAviSvcCreationWithStaticIP(t *testing.T) {
 		Namespace:      NAMESPACE,
 		Type:           corev1.ServiceTypeLoadBalancer,
 		LoadBalancerIP: staticIP,
-		ServicePorts:   []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts:   []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
 	}).Service()
 	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
 	if err != nil {
@@ -708,7 +709,7 @@ func TestWithInfraSettingStatusUpdates(t *testing.T) {
 		Name:         SINGLEPORTSVC,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
 	}).Service()
 	svcExample.Annotations = map[string]string{lib.InfraSettingNameAnnotation: settingName}
 	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
@@ -850,7 +851,7 @@ func TestInfraSettingDelete(t *testing.T) {
 		Name:         SINGLEPORTSVC,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
 	}).Service()
 	svcExample.Annotations = map[string]string{lib.InfraSettingNameAnnotation: settingName}
 	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
@@ -908,7 +909,7 @@ func TestInfraSettingChangeMapping(t *testing.T) {
 		Name:         SINGLEPORTSVC,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
 	}).Service()
 	svcExample.Annotations = map[string]string{lib.InfraSettingNameAnnotation: settingName1}
 	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
@@ -938,7 +939,7 @@ func TestInfraSettingChangeMapping(t *testing.T) {
 		Name:         SINGLEPORTSVC,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
 	}).Service()
 	svcUpdate.Annotations = map[string]string{lib.InfraSettingNameAnnotation: settingName2}
 	svcUpdate.ResourceVersion = "2"

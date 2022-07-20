@@ -27,6 +27,7 @@ import (
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func SetUpTestForIngressInNodePortMode(t *testing.T, model_Name string) {
@@ -108,7 +109,7 @@ func TestMultiIngressToSameClusterIPSvcInNodePort(t *testing.T) {
 		Name:         "avisvc",
 		Namespace:    "default",
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
 	}).Service()
 
 	_, err := KubeClient.CoreV1().Services("default").Create(context.TODO(), svcExample, metav1.CreateOptions{})
@@ -285,7 +286,7 @@ func TestMultiIngressToSameNodePortSvcInNodePort(t *testing.T) {
 		Name:         "avisvc",
 		Namespace:    "default",
 		Type:         corev1.ServiceTypeNodePort,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080, NodePort: nodePort}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080), NodePort: nodePort}},
 	}).Service()
 
 	_, err := KubeClient.CoreV1().Services("default").Create(context.TODO(), svcExample, metav1.CreateOptions{})

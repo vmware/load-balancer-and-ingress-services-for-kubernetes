@@ -26,7 +26,6 @@ import (
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -308,7 +307,7 @@ func buildPoolNode(key, poolName, ingName, namespace, priorityLabel, hostname st
 		Tenant:        lib.GetTenant(),
 		PriorityLabel: priorityLabel,
 		Port:          obj.Port,
-		TargetPort:    intstr.FromInt(int(obj.TargetPort)),
+		TargetPort:    obj.TargetPort,
 		ServiceMetadata: lib.ServiceMetadataObj{
 			IngressName:           ingName,
 			Namespace:             namespace,

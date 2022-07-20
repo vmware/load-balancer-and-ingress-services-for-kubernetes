@@ -32,6 +32,7 @@ import (
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func SetupDomain() {
@@ -287,7 +288,7 @@ func TestUpdatePoolCacheSync(t *testing.T) {
 		Name:         "avisvc",
 		Namespace:    "default",
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo0", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo0", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
 	}).Service()
 	svcExample.ResourceVersion = "3"
 	_, err = KubeClient.CoreV1().Services("default").Update(context.TODO(), svcExample, metav1.UpdateOptions{})
@@ -304,7 +305,7 @@ func TestUpdatePoolCacheSync(t *testing.T) {
 		Name:         "avisvc",
 		Namespace:    "default",
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo0", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo0", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
 	}).Service()
 	svcExample.ResourceVersion = "4"
 	_, err = KubeClient.CoreV1().Services("default").Update(context.TODO(), svcExample, metav1.UpdateOptions{})

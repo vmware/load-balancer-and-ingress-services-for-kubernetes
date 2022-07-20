@@ -36,6 +36,7 @@ import (
 	"github.com/vmware/alb-sdk/go/models"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
@@ -632,7 +633,7 @@ func TestNPLLBSvc(t *testing.T) {
 		Name:         integrationtest.SINGLEPORTSVC,
 		Namespace:    defaultNS,
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
 	}).Service()
 	svcExample.Annotations = make(map[string]string)
 	svcExample.Annotations[lib.NPLSvcAnnotation] = "true"
@@ -653,7 +654,7 @@ func TestNPLLBSvc(t *testing.T) {
 		Name:         integrationtest.SINGLEPORTSVC,
 		Namespace:    defaultNS,
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
 	}).Service()
 	svcExample.Annotations = make(map[string]string)
 	svcExample.Annotations[lib.NPLSvcAnnotation] = "true"
