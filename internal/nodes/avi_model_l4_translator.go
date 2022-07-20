@@ -33,6 +33,7 @@ import (
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string) *AviVsNode {
@@ -135,7 +136,7 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 		utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Gateway %s", key, err.Error())
 		return
 	}
-
+	protocolSet := sets.NewString()
 	for _, portProto := range vsNode.PortProto {
 		filterPort := portProto.Port
 		poolNode := &AviPoolNode{
@@ -147,7 +148,7 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 			TargetPort: portProto.TargetPort,
 			VrfContext: lib.GetVrf(),
 		}
-
+		protocolSet.Insert(portProto.Protocol)
 		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
 
 		if lib.GetT1LRPath() != "" {
@@ -192,9 +193,13 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 	}
 
 	l4policyNode := &AviL4PolicyNode{Name: vsNode.Name, Tenant: lib.GetTenant(), PortPool: portPoolSet}
-	l4policyNode.AviMarkers = lib.PopulateL4VSNodeMarkers(svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name)
+	sort.Strings(protocolSet.List())
+	protocols := strings.Join(protocolSet.List(), ",")
+	l4policyNode.AviMarkers = lib.PopulateL4PolicysetMarkers(svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, protocols)
 	l4Policies = append(l4Policies, l4policyNode)
 	vsNode.L4PolicyRefs = l4Policies
+	//As pool naming covention changed for L4 pools marking flag, so that cksum will be changed
+	vsNode.IsL4VS = true
 	utils.AviLog.Infof("key: %s, msg: evaluated L4 pool policies :%v", key, utils.Stringify(vsNode.L4PolicyRefs))
 }
 
