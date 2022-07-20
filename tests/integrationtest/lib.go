@@ -615,7 +615,7 @@ type Serviceport struct {
 	PortNumber int32
 	NodePort   int32
 	Protocol   corev1.Protocol
-	TargetPort int
+	TargetPort intstr.IntOrString
 }
 
 func (svc FakeService) Service() *corev1.Service {
@@ -625,7 +625,7 @@ func (svc FakeService) Service() *corev1.Service {
 			Name:       svcport.PortName,
 			Port:       svcport.PortNumber,
 			Protocol:   svcport.Protocol,
-			TargetPort: intstr.FromInt(svcport.TargetPort),
+			TargetPort: svcport.TargetPort,
 			NodePort:   svcport.NodePort,
 		})
 	}
@@ -798,7 +798,7 @@ func ConstructService(ns string, Name string, Type corev1.ServiceType, multiPort
 			PortName:   fmt.Sprintf("foo%d", i),
 			PortNumber: int32(mPort),
 			Protocol:   "TCP",
-			TargetPort: mPort,
+			TargetPort: intstr.FromInt(mPort),
 		}
 		if Type != corev1.ServiceTypeClusterIP {
 			// set nodeport value in case of LoadBalancer and NodePort service type

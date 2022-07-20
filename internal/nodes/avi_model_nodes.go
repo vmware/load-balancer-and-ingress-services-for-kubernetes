@@ -1516,7 +1516,7 @@ type IngressHostPathSvc struct {
 	Port           int32
 	weight         int32 //required for alternate backends in openshift route
 	PortName       string
-	TargetPort     int32
+	TargetPort     intstr.IntOrString
 	clusterContext string // required for Multi-cluster ingress
 	svcNamespace   string // required for Multi-cluster ingress
 }
