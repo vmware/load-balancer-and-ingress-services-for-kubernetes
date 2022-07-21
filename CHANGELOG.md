@@ -187,7 +187,12 @@ All notable changes to this project will be documented in this file. The format 
  - Add tenant and api version for fetching authtoken
  - AKO is not updating the pool members correctly in case of duplicate path present for the host.
 
- ## AKO-1.5.4
- ### Changed
+## AKO-1.5.4
+### Changed
  - In EVH deployment, AKO processes next host if current host does not fail with error where error status code is between 500 to 599 or status code is 408 which indicates there is an issue with controller session timeout or status code is 400 with error no free IP available or status code is 403 with error configuration not allowed during controller upgrade or status code is 401 with invalid credential error
 
+## AKO-1.5.5
+### Changed
+ - Hostrule will be accepted if GSLB FQDN and local FQDN in hostrule is same.
+### Bugs fixed
+ - Fixed the issue of predefined health monitors not getting assigned to a pool.
