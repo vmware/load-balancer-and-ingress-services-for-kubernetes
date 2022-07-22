@@ -968,6 +968,14 @@ func checkRefOnController(key, refKey, refValue string) error {
 func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 	refData := make(map[string]string)
 	for _, path := range httprule.Spec.Paths {
+		if path.TLS.PKIProfile != "" && path.TLS.DestinationCA != "" {
+			//if both pkiProfile and destCA set, reject httprule
+			status.UpdateHTTPRuleStatus(key, httprule, status.UpdateCRDStatusOptions{
+				Status: lib.StatusRejected,
+				Error:  lib.HttpRulePkiAndDestCASetErr,
+			})
+			return fmt.Errorf("key: %s, msg: %s", key, lib.HttpRulePkiAndDestCASetErr)
+		}
 		refData[path.TLS.SSLProfile] = "SslProfile"
 		refData[path.ApplicationPersistence] = "ApplicationPersistence"
 		if path.TLS.PKIProfile != "" {
