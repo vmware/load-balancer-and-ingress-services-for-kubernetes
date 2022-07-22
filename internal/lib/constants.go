@@ -172,6 +172,7 @@ const (
 	IPAMProviderInfoblox                       = "IPAMDNS_TYPE_INFOBLOX"
 	IPAMProviderCustom                         = "IPAMDNS_TYPE_CUSTOM"
 	SharedVipServiceKey                        = "SharedVipService"
+	HttpRulePkiAndDestCASetErr                 = "PKIProfile and DestinationCA fields are set in the HTTPRule. Only one of the field should be set."
 
 	// AKO Event constants
 	AKOEventComponent      = "avi-kubernetes-operator"
