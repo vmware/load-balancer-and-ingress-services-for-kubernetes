@@ -64,7 +64,7 @@ type HTTPRuleTLS struct {
 // HTTPRuleStatus holds the status of the HTTPRule
 type HTTPRuleStatus struct {
 	Status string `json:"status,omitempty"`
-	Error  string `json:"error,omitempty"`
+	Error  string `json:"error"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
