@@ -563,11 +563,7 @@ func GetVrfUuid() string {
 
 func GetVrf() string {
 	if VRFContext == "" {
-		if GetTenant() == GetAdminTenant() {
-			return utils.GlobalVRF
-		} else {
-			return GetTenant() + "-default"
-		}
+		return utils.GlobalVRF
 	}
 	return VRFContext
 }
