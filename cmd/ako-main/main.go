@@ -39,6 +39,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
 	svcapi "sigs.k8s.io/service-apis/pkg/client/clientset/versioned"
 )
 
@@ -65,6 +66,10 @@ func InitializeAKC() {
 	var err error
 	kubeCluster := false
 	utils.AviLog.Info("AKO is running with version: ", version)
+
+	// set the logger for k8s as AviLogger.
+	klog.SetLogger(utils.AviLog)
+
 	// Check if we are running inside kubernetes. Hence try authenticating with service token
 	cfg, err := rest.InClusterConfig()
 	if err != nil {

@@ -455,7 +455,7 @@ func (c *AviController) ValidAviSecret() bool {
 			utils.AviLog.Infof("Successfully connected to AVI controller using existing AKO secret")
 			return true
 		} else {
-			utils.AviLog.Error("AVI controller initialization failed with err: %v", err)
+			utils.AviLog.Errorf("AVI controller initialization failed with err: %v", err)
 		}
 	} else {
 		utils.AviLog.Infof("Got error while fetching avi-secret: %v", err)

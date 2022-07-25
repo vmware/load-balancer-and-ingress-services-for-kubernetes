@@ -233,7 +233,7 @@ func (c *VCFK8sController) handleNamespaceDelete() {
 func (c *VCFK8sController) getWorkloadNamespaceCount() (int, error) {
 	nsList, err := c.informers.NSInformer.Lister().List(labels.Set(nil).AsSelector())
 	if err != nil {
-		utils.AviLog.Error(err)
+		utils.AviLog.Error(nil, err.Error())
 		return 0, err
 	}
 
@@ -336,7 +336,7 @@ func (c *VCFK8sController) HandleVCF(informers K8sinformers, stopCh <-chan struc
 			}
 			utils.AviLog.Warnf("Failed to fetch transportzone from bootstrap CR status")
 		} else {
-			utils.AviLog.Error("AVI controller initialization failed with err: %v", err)
+			utils.AviLog.Errorf("AVI controller initialization failed with err: %v", err)
 		}
 	} else {
 		utils.AviLog.Infof("Got error while fetching avi-secret: %v", err)

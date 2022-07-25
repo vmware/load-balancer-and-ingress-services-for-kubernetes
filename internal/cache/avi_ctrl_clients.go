@@ -63,7 +63,7 @@ func SharedAVIClients() *utils.AviRestClientPool {
 		connectionStatus = utils.AVIAPI_CONNECTED
 		if err != nil {
 			connectionStatus = utils.AVIAPI_DISCONNECTED
-			utils.AviLog.Error("AVI controller initilization failed")
+			utils.AviLog.Errorf("AVI controller initialization failed")
 			return nil
 		}
 
