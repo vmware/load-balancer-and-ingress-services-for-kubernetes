@@ -49,6 +49,8 @@ import (
 )
 
 func PopulateCache() error {
+	startTime := time.Now()
+	defer utils.AviLog.Infof("Populate cache took %0.2v minutes", time.Since(startTime).Minutes())
 	var parentKeys []avicache.NamespaceName
 	var err error
 	avi_rest_client_pool := avicache.SharedAVIClients()
@@ -577,6 +579,10 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		lib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigSet, "AKO is in disable sync state")
 	} else {
 		lib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKOReady, "AKO is now listening for Object updates in the cluster")
+		bootupTime := time.Since(lib.AKOStartTime).Minutes()
+		msg := fmt.Sprintf("AKO took %0.2v minutes to become fully functional", bootupTime)
+		lib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, "BootupTime", msg)
+		utils.AviLog.Infof(msg)
 	}
 
 	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
@@ -709,6 +715,8 @@ func (c *AviController) FullSync() {
 }
 
 func (c *AviController) FullSyncK8s() error {
+	startTime := time.Now()
+	defer utils.AviLog.Infof("Bootup sync took %0.2v minutes", time.Since(startTime).Minutes())
 	if c.DisableSync {
 		utils.AviLog.Infof("Sync disabled, skipping full sync")
 		return nil
@@ -772,6 +780,7 @@ func (c *AviController) FullSyncK8s() error {
 		}
 	}
 
+	start := time.Now()
 	for namespace := range acceptedNamespaces {
 		svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).List(labels.Set(nil).AsSelector())
 		if err != nil {
@@ -803,6 +812,7 @@ func (c *AviController) FullSyncK8s() error {
 			nodes.DequeueIngestion(key, true)
 		}
 	}
+	utils.AviLog.Infof("Processing of services took %0.2v minutes", time.Since(start).Minutes())
 
 	if lib.GetServiceType() == lib.NodePortLocal {
 		podObjs, err := utils.GetInformers().PodInformer.Lister().Pods(metav1.NamespaceAll).List(labels.Everything())
@@ -869,6 +879,7 @@ func (c *AviController) FullSyncK8s() error {
 
 	}
 	if !lib.GetAdvancedL4() {
+		start := time.Now()
 		hostRuleObjs, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the hostrules during full sync: %s", err)
@@ -886,6 +897,9 @@ func (c *AviController) FullSyncK8s() error {
 				nodes.DequeueIngestion(key, true)
 			}
 		}
+
+		utils.AviLog.Infof("Processing of hostrules took %0.2v minutes", time.Since(start).Minutes())
+		start = time.Now()
 
 		httpRuleObjs, err := lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Lister().HTTPRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
@@ -905,6 +919,9 @@ func (c *AviController) FullSyncK8s() error {
 			}
 		}
 
+		utils.AviLog.Infof("Processing of httprules took %0.2v minutes", time.Since(start).Minutes())
+		start = time.Now()
+
 		aviInfraObjs, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the avinfrasettings during full sync: %s", err)
@@ -922,6 +939,9 @@ func (c *AviController) FullSyncK8s() error {
 				nodes.DequeueIngestion(key, true)
 			}
 		}
+
+		utils.AviLog.Infof("Processing of aviinfrasetting took %0.2v minutes", time.Since(start).Minutes())
+		start = time.Now()
 
 		// IngressClass Section
 		if utils.GetInformers().IngressClassInformer != nil {
@@ -941,6 +961,9 @@ func (c *AviController) FullSyncK8s() error {
 				}
 			}
 		}
+
+		utils.AviLog.Infof("Processing of ingressclass took %0.2v minutes", time.Since(start).Minutes())
+		start = time.Now()
 
 		// Ingress Section
 		if utils.GetInformers().IngressInformer != nil {
@@ -962,6 +985,10 @@ func (c *AviController) FullSyncK8s() error {
 				}
 			}
 		}
+
+		utils.AviLog.Infof("Processing of ingresses took %0.2v minutes", time.Since(start).Minutes())
+		start = time.Now()
+
 		//Route Section
 		if utils.GetInformers().RouteInformer != nil {
 			routeObjs, err := utils.GetInformers().RouteInformer.Lister().List(labels.Set(nil).AsSelector())
@@ -983,6 +1010,10 @@ func (c *AviController) FullSyncK8s() error {
 				}
 			}
 		}
+
+		utils.AviLog.Infof("Processing of routes took %0.2v minutes", time.Since(start).Minutes())
+		start = time.Now()
+
 		if lib.UseServicesAPI() {
 			gatewayObjs, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 			if err != nil {

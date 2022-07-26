@@ -27,6 +27,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
@@ -1729,3 +1730,5 @@ func GetThrottle(key string) *int32 {
 	throttle := int32(throttle[key])
 	return &throttle
 }
+
+var AKOStartTime = time.Now()
