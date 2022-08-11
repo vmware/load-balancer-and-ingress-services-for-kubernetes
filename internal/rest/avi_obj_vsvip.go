@@ -484,6 +484,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 
 		var vsvipVips []string
 		var vsvipFips []string
+		var vsvipV6ip string
 		var networkNames []string
 		if _, found := resp["vip"]; found {
 			if vips, ok := resp["vip"].([]interface{}); ok {
@@ -524,6 +525,17 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 							vsvipFips = append(vsvipFips, fip_addr)
 						}
 					}
+					ip6_address, valid := vip["ip6_address"].(map[string]interface{})
+					if !valid {
+						utils.AviLog.Warnf("key: %s, msg: invalid type for ip6_address in vsvip: %s", key, name)
+					} else {
+						v6_addr, valid := ip6_address["addr"].(string)
+						if !valid {
+							utils.AviLog.Warnf("key: %s, msg: invalid type for v6 addr in vsvip: %s", key, name)
+							continue
+						}
+						vsvipV6ip = v6_addr
+					}
 					if ipamNetworkSubnet, ipamOk := vip["ipam_network_subnet"].(map[string]interface{}); ipamOk {
 						if networkRef, netRefOk := ipamNetworkSubnet["network_ref"].(string); netRefOk {
 							if networkRefName := strings.Split(networkRef, "#"); len(networkRefName) == 2 {
@@ -547,6 +559,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 			FQDNs:        vsvipFQDNs,
 			Vips:         vsvipVips,
 			Fips:         vsvipFips,
+			V6IP:         vsvipV6ip,
 			NetworkNames: networkNames,
 		}
 

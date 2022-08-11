@@ -50,7 +50,7 @@ type AviInfraSettingNetwork struct {
 type AviInfraSettingVipNetwork struct {
 	NetworkName string `json:"networkName,omitempty"`
 	Cidr        string `json:"cidr,omitempty"`
-	V6Cidr      string `json:"v6_cidr,omitempty"`
+	V6Cidr      string `json:"v6cidr,omitempty"`
 }
 
 type AviInfraSettingNodeNetwork struct {

@@ -1321,11 +1321,15 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 
 		var vips []string
 		var fips []string
+		var vsvipV6ip string
 		var networkNames []string
 		for _, vip := range vsvip.Vip {
 			vips = append(vips, *vip.IPAddress.Addr)
 			if vip.FloatingIP != nil {
 				fips = append(vips, *vip.FloatingIP.Addr)
+			}
+			if vip.Ip6Address != nil {
+				vsvipV6ip = *vip.Ip6Address.Addr
 			}
 			if ipamNetworkSubnet := vip.IPAMNetworkSubnet; ipamNetworkSubnet != nil {
 				if networkRef := *ipamNetworkSubnet.NetworkRef; networkRef != "" {
@@ -1350,6 +1354,7 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 			LastModified:     *vsvip.LastModified,
 			Vips:             vips,
 			Fips:             fips,
+			V6IP:             vsvipV6ip,
 			NetworkNames:     networkNames,
 			CloudConfigCksum: checksum,
 		}
