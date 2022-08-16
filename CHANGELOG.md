@@ -272,4 +272,4 @@ All notable changes to this project will be documented in this file. The format 
  - Fix: Empty Ingress pool when named ports are used
 
 ### Known Issues:
- - `hostrule` with `sslKeyCertificate` of type `secret` will not work in namespaces other than `avi-system` in OpenShift clusters.
+ - `hostrule` with `sslKeyCertificate` of type `secret` will work only in AKO installed namespace in OpenShift clusters.
