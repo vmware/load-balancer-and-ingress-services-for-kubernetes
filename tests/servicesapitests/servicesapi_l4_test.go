@@ -36,6 +36,7 @@ import (
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	servicesapi "sigs.k8s.io/service-apis/apis/v1alpha1"
 )
@@ -262,7 +263,7 @@ func SetupSvcApiService(t *testing.T, svcname, namespace, gwname, gwnamespace st
 			lib.SvcApiGatewayNamespaceLabelKey: gwnamespace,
 		},
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8081, TargetPort: 8081}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8081, TargetPort: intstr.FromInt(8081)}},
 	}
 
 	svcCreate := svc.Service()
@@ -568,7 +569,7 @@ func TestServicesAPIProtocolChangeInService(t *testing.T) {
 			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolUDP, PortNumber: 8081, TargetPort: 8081}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolUDP, PortNumber: 8081, TargetPort: intstr.FromInt(8081)}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
 	if _, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcUpdate, metav1.UpdateOptions{}); err != nil {
@@ -622,7 +623,7 @@ func TestServicesAPIPortChangeInService(t *testing.T) {
 			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8080, TargetPort: 8081}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8080, TargetPort: intstr.FromInt(8081)}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
 	if _, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcUpdate, metav1.UpdateOptions{}); err != nil {
@@ -675,7 +676,7 @@ func TestServicesAPILabelUpdatesInService(t *testing.T) {
 			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8081, TargetPort: 8081}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8081, TargetPort: intstr.FromInt(8081)}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
 	if _, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcUpdate, metav1.UpdateOptions{}); err != nil {
@@ -815,7 +816,7 @@ func TestServicesAPIGatewayListenerPortUpdate(t *testing.T) {
 			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8080, TargetPort: 8081}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8080, TargetPort: intstr.FromInt(8081)}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
 	if _, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcUpdate, metav1.UpdateOptions{}); err != nil {
@@ -903,7 +904,7 @@ func TestServicesAPIGatewayListenerProtocolUpdate(t *testing.T) {
 			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolUDP, PortNumber: 8081, TargetPort: 8081}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolUDP, PortNumber: 8081, TargetPort: intstr.FromInt(8081)}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
 	if _, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcUpdate, metav1.UpdateOptions{}); err != nil {
@@ -965,7 +966,7 @@ func TestServicesAPIMultiGatewayServiceUpdate(t *testing.T) {
 			lib.SvcApiGatewayNamespaceLabelKey: ns,
 		},
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8081, TargetPort: 8081}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8081, TargetPort: intstr.FromInt(8081)}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
 	if _, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcUpdate, metav1.UpdateOptions{}); err != nil {
@@ -1083,7 +1084,7 @@ func TestServicesAPIMultiServiceMultiProtocol(t *testing.T) {
 		Namespace:    ns,
 		Labels:       labels,
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8081, TargetPort: 80}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8081, TargetPort: intstr.FromInt(80)}},
 	}
 	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc1.Service(), metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Service: %v", err)
@@ -1095,7 +1096,7 @@ func TestServicesAPIMultiServiceMultiProtocol(t *testing.T) {
 		Namespace:    ns,
 		Labels:       labels,
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "fooudp", Protocol: "UDP", PortNumber: 8082, TargetPort: 80}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "fooudp", Protocol: "UDP", PortNumber: 8082, TargetPort: intstr.FromInt(80)}},
 	}
 
 	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc2.Service(), metav1.CreateOptions{}); err != nil {
@@ -1180,7 +1181,7 @@ func TestServicesAPISvcHostnameStatusUpdate(t *testing.T) {
 		Namespace:    ns,
 		Labels:       labels,
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8081, TargetPort: 80}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8081, TargetPort: intstr.FromInt(80)}},
 	}
 	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc1.Service(), metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Service: %v", err)
@@ -1191,7 +1192,7 @@ func TestServicesAPISvcHostnameStatusUpdate(t *testing.T) {
 		Namespace:    ns,
 		Labels:       labels,
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8082, TargetPort: 80}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8082, TargetPort: intstr.FromInt(80)}},
 	}
 	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc2.Service(), metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Service: %v", err)

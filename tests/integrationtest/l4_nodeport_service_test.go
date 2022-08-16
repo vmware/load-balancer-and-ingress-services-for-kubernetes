@@ -30,6 +30,7 @@ import (
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // TestNodeAddInNodePortMode tests if VRF creation is skipped in NodePort mode for node addition
@@ -79,7 +80,7 @@ func TestSinglePortL4SvcNodePort(t *testing.T) {
 		Name:         SINGLEPORTSVC,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080}},
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
 	}).Service()
 	svcExample.ResourceVersion = "2"
 	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
@@ -97,7 +98,7 @@ func TestSinglePortL4SvcNodePort(t *testing.T) {
 		Name:         SINGLEPORTSVC,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080, NodePort: 31031}},
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080), NodePort: 31031}},
 	}).Service()
 	svcExample.ResourceVersion = "3"
 	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
@@ -146,7 +147,7 @@ func TestSinglePortL4SvcSkipNodePort(t *testing.T) {
 		Name:         SINGLEPORTSVC,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []Serviceport{{PortName: "foo0", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080, NodePort: 31031}},
+		ServicePorts: []Serviceport{{PortName: "foo0", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080), NodePort: 31031}},
 		Annotations:  skipNodePort,
 	}).Service()
 	svcExample.ResourceVersion = "3"
@@ -166,7 +167,7 @@ func TestSinglePortL4SvcSkipNodePort(t *testing.T) {
 		Name:         SINGLEPORTSVC,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []Serviceport{{PortName: "foo0", Protocol: "TCP", PortNumber: 8080, TargetPort: 8080, NodePort: 31031}},
+		ServicePorts: []Serviceport{{PortName: "foo0", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080), NodePort: 31031}},
 		Annotations:  skipNodePort,
 	}).Service()
 	svcExample.ResourceVersion = "4"

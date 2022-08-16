@@ -26,7 +26,6 @@ import (
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
 	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -409,7 +408,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				Tenant:        lib.GetTenant(),
 				PriorityLabel: priorityLabel,
 				Port:          path.Port,
-				TargetPort:    intstr.FromInt(int(path.TargetPort)),
+				TargetPort:    path.TargetPort,
 				ServiceMetadata: lib.ServiceMetadataObj{
 					IngressName: ingName,
 					Namespace:   namespace,

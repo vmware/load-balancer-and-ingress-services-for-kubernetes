@@ -34,6 +34,7 @@ import (
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
@@ -237,7 +238,7 @@ func SetupAdvLBService(t *testing.T, svcname, namespace, gwname, gwnamespace str
 			lib.GatewayTypeLabelKey:      "direct",
 		},
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8081, TargetPort: 8081}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8081, TargetPort: intstr.FromInt(8081)}},
 	}
 
 	svcCreate := svc.Service()
@@ -547,7 +548,7 @@ func TestAdvL4ProtocolChangeInService(t *testing.T) {
 			lib.GatewayTypeLabelKey:      "direct",
 		},
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolUDP, PortNumber: 8081, TargetPort: 8081}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolUDP, PortNumber: 8081, TargetPort: intstr.FromInt(8081)}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
 	if _, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcUpdate, metav1.UpdateOptions{}); err != nil {
@@ -602,7 +603,7 @@ func TestAdvL4PortChangeInService(t *testing.T) {
 			lib.GatewayTypeLabelKey:      "direct",
 		},
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8080, TargetPort: 8081}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8080, TargetPort: intstr.FromInt(8081)}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
 	if _, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcUpdate, metav1.UpdateOptions{}); err != nil {
@@ -656,7 +657,7 @@ func TestAdvL4LabelUpdatesInService(t *testing.T) {
 			lib.GatewayTypeLabelKey:      "direct",
 		},
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8081, TargetPort: 8081}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8081, TargetPort: intstr.FromInt(8081)}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
 	if _, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcUpdate, metav1.UpdateOptions{}); err != nil {
@@ -799,7 +800,7 @@ func TestAdvL4GatewayListenerPortUpdate(t *testing.T) {
 			lib.GatewayTypeLabelKey:      "direct",
 		},
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8080, TargetPort: 8081}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8080, TargetPort: intstr.FromInt(8081)}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
 	if _, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcUpdate, metav1.UpdateOptions{}); err != nil {
@@ -889,7 +890,7 @@ func TestAdvL4GatewayListenerProtocolUpdate(t *testing.T) {
 			lib.GatewayTypeLabelKey:      "direct",
 		},
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolUDP, PortNumber: 8081, TargetPort: 8081}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolUDP, PortNumber: 8081, TargetPort: intstr.FromInt(8081)}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
 	if _, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcUpdate, metav1.UpdateOptions{}); err != nil {
@@ -952,7 +953,7 @@ func TestAdvL4MultiGatewayServiceUpdate(t *testing.T) {
 			lib.GatewayTypeLabelKey:      "direct",
 		},
 		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8081, TargetPort: 8081}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.ProtocolTCP, PortNumber: 8081, TargetPort: intstr.FromInt(8081)}},
 	}.Service()
 	svcUpdate.ResourceVersion = "2"
 	if _, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcUpdate, metav1.UpdateOptions{}); err != nil {

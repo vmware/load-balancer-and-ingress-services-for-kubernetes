@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/util/intstr"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -145,7 +143,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 		poolNode.IngressName = objName
 		poolNode.PortName = obj.PortName
 		poolNode.Port = obj.Port
-		poolNode.TargetPort = intstr.FromInt(int(obj.TargetPort))
+		poolNode.TargetPort = obj.TargetPort
 		poolNode.ServiceMetadata = lib.ServiceMetadataObj{
 			IngressName: objName, Namespace: namespace, PoolRatio: obj.weight,
 			HostNames: []string{hostname},

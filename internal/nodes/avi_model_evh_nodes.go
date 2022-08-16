@@ -30,7 +30,6 @@ import (
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -842,7 +841,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			Tenant:     lib.GetTenant(),
 			VrfContext: lib.GetVrf(),
 			Port:       path.Port,
-			TargetPort: intstr.FromInt(int(path.TargetPort)),
+			TargetPort: path.TargetPort,
 			ServiceMetadata: lib.ServiceMetadataObj{
 				IngressName: ingName,
 				Namespace:   namespace,
