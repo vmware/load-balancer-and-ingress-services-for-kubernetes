@@ -3109,11 +3109,20 @@ func checkNodeNetwork(client *clients.AviClient, returnErr *error) bool {
 
 func checkAndSetVRFFromNetwork(client *clients.AviClient, returnErr *error) bool {
 	if lib.IsPublicCloud() {
-		// Need not set VRFContext for public clouds.
+		if lib.GetCloudType() == lib.CLOUD_OPENSTACK {
+			if lib.GetTenant() == lib.GetAdminTenant() {
+				lib.SetVrf(utils.GlobalVRF)
+			} else {
+				lib.SetVrf(lib.GetTenant() + "-default")
+			}
+		} else {
+			lib.SetVrf(utils.GlobalVRF)
+		}
 		return true
 	}
 	if lib.IsNodePortMode() {
 		utils.AviLog.Infof("Using global VRF for NodePort mode")
+		lib.SetVrf(utils.GlobalVRF)
 		return true
 	}
 
