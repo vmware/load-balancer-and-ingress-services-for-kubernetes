@@ -1087,6 +1087,14 @@ func PopulateL4VSNodeMarkers(namespace, serviceName string) utils.AviObjectMarke
 	return markers
 }
 
+func PopulateL4PolicysetMarkers(namespace, serviceName string, protocols string) utils.AviObjectMarkers {
+	var markers utils.AviObjectMarkers
+	markers.Namespace = namespace
+	markers.ServiceName = serviceName
+	markers.Protocol = protocols
+	return markers
+}
+
 func PopulateAdvL4VSNodeMarkers(namespace, gatewayName string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Namespace = namespace

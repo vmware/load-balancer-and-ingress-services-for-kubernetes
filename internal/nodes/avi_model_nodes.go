@@ -389,6 +389,7 @@ type AviVsNode struct {
 	IngressNames          []string
 	AnalyticsPolicy       *avimodels.AnalyticsPolicy
 	Dedicated             bool
+	IsL4VS                bool
 }
 
 // Implementing AviVsEvhSniModel
@@ -869,6 +870,12 @@ func (v *AviVsNode) CalculateCheckSum() {
 
 	for _, vhdomain := range v.VHDomainNames {
 		checksumStringSlice = append(checksumStringSlice, "VHDomain"+vhdomain)
+	}
+	if v.IsL4VS {
+		// As pool naming convention changed in 1.7.1, added pool name to checksum calculation
+		for _, poolref := range v.PoolRefs {
+			checksumStringSlice = append(checksumStringSlice, "Pool"+poolref.Name)
+		}
 	}
 
 	// Note: Changing the order of strings being appended, while computing vsRefs and checksum,
