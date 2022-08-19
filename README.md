@@ -1,4 +1,4 @@
-## Load Balancer and Ingress Services for Kubernetes
+# Load Balancer and Ingress Services for Kubernetes
 
 ## Architecture
 
