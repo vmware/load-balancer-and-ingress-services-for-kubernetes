@@ -798,3 +798,38 @@ func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (
 	utils.AviLog.Infof("key: %s, msg: ShardVSNames: %v %v", key, oldVsName, newVsName)
 	return oldVsName, newVsName
 }
+
+func DerivePassthroughVS(hostname string, key string, routeIgrObj RouteIngressModel) (string, string) {
+	utils.AviLog.Debugf("key: %s, msg: hostname for sharding: %s", key, hostname)
+	var newInfraPrefix, oldInfraPrefix string
+	oldShardSize, newShardSize := lib.PassthroughShardSize(), lib.PassthroughShardSize()
+
+	// get stored infrasetting from ingress/route
+	// figure out the current infrasetting via class/annotation
+	var oldSettingName string
+	var found bool
+	if found, oldSettingName = objects.InfraSettingL7Lister().GetIngRouteToInfraSetting(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName()); found {
+		if found, shardSize := objects.InfraSettingL7Lister().GetInfraSettingToShardSize(oldSettingName); found && shardSize != "" {
+			oldShardSize = lib.ShardSizeMap[shardSize]
+		}
+		oldInfraPrefix = oldSettingName
+	} else {
+		utils.AviLog.Debugf("AviInfraSetting %s not found in cache", oldSettingName)
+	}
+
+	newSetting := routeIgrObj.GetAviInfraSetting()
+	if !routeIgrObj.Exists() {
+		// get the old ones.
+		newShardSize = oldShardSize
+		newInfraPrefix = oldInfraPrefix
+	} else if newSetting != nil {
+		if newSetting.Spec.L7Settings != (akov1alpha1.AviInfraL7Settings{}) {
+			newShardSize = lib.ShardSizeMap[newSetting.Spec.L7Settings.ShardSize]
+		}
+		newInfraPrefix = newSetting.Name
+	}
+	oldVsName, newVsName := lib.GetPassthroughShardVSName(hostname, oldInfraPrefix, key, oldShardSize), lib.GetPassthroughShardVSName(hostname, newInfraPrefix, key, newShardSize)
+
+	utils.AviLog.Infof("key: %s, msg: Shard Passthrough VSNames: %v %v", key, oldVsName, newVsName)
+	return oldVsName, newVsName
+}

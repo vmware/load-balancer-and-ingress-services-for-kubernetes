@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
@@ -80,7 +81,7 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 	return avi_vs_meta
 }
 
-func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, objName, hostname, namespace, key string, redirect bool) {
+func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, objName, hostname, namespace, key string, redirect bool, infraSetting *akov1alpha1.AviInfraSetting) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	vsList := o.GetAviVS()
@@ -95,14 +96,18 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 		return
 	}
 	dsNode := datascriptList[0]
-
+	var infrasettingName string
+	var pgName string
+	if infraSetting != nil {
+		infrasettingName = infraSetting.Name
+	}
 	// Get Poolgroup Node, create if not present
-	pgName := lib.GetClusterName() + "--" + hostname
+	pgName = lib.GetPassthroughPGName(hostname, infrasettingName)
 	pgNode := o.GetPoolGroupByName(pgName)
 	if pgNode == nil {
 		pgNode = &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
 		o.AddModelNode(pgNode)
-		pgNode.AviMarkers = lib.PopulatePassthroughPGMarkers(hostname)
+		pgNode.AviMarkers = lib.PopulatePassthroughPGMarkers(hostname, infrasettingName)
 		utils.AviLog.Infof("key: %s, msg: adding PG %s for the passthrough VS: %s", key, pgName, secureSharedVS.Name)
 		utils.AviLog.Debugf("key: %s, Number of PGs %d, Added PG node %s", key, len(dsNode.PoolGroupRefs), utils.Stringify(pgNode.Members))
 	}
@@ -126,7 +131,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 		vrfContext = lib.GetVrf()
 	}
 	for _, obj := range svclist {
-		poolName := lib.GetClusterName() + "--" + hostname + "-" + obj.ServiceName
+		poolName := lib.GetPassthroughPoolName(hostname, obj.ServiceName, infrasettingName)
 		poolNode := o.GetAviPoolNodeByName(poolName)
 		if poolNode == nil {
 			poolNode = &AviPoolNode{
@@ -138,7 +143,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 			if lib.GetT1LRPath() != "" {
 				poolNode.T1Lr = lib.GetT1LRPath()
 			}
-			poolNode.AviMarkers = lib.PopulatePassthroughPoolMarkers(hostname, obj.ServiceName)
+			poolNode.AviMarkers = lib.PopulatePassthroughPoolMarkers(hostname, obj.ServiceName, infrasettingName)
 		}
 		poolNode.IngressName = objName
 		poolNode.PortName = obj.PortName
@@ -164,6 +169,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 				poolNode.Servers = servers
 			}
 		}
+		buildPoolWithInfraSetting(key, poolNode, infraSetting)
 		poolNode.CalculateCheckSum()
 		tmpPoolList = append(tmpPoolList, poolNode)
 	}
@@ -211,6 +217,9 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 		}
 
 		passChildVS.VSVIPRefs = append(passChildVS.VSVIPRefs, secureSharedVS.VSVIPRefs...)
+		if infraSetting != nil {
+			buildWithInfraSetting(key, passChildVS, passChildVS.VSVIPRefs[0], infraSetting)
+		}
 		secureSharedVS.PassthroughChildNodes = append(secureSharedVS.PassthroughChildNodes, passChildVS)
 
 		passChildVS.ServiceMetadata.PassthroughParentRef = secureSharedVS.Name
@@ -237,10 +246,10 @@ func (o *AviObjectGraph) ConstructL4DataScript(vsName string, key string, vsNode
 	return dsScriptNode
 }
 
-func (o *AviObjectGraph) DeleteObjectsForPassthroughHost(vsName, hostname string, routeIgrObj RouteIngressModel, pathSvc map[string][]string, key string, removeFqdn, removeRedir, secure bool) {
+func (o *AviObjectGraph) DeleteObjectsForPassthroughHost(vsName, hostname string, routeIgrObj RouteIngressModel, pathSvc map[string][]string, infraSettingName, key string, removeFqdn, removeRedir, secure bool) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
-	pgName := lib.GetClusterName() + "--" + hostname
+	pgName := lib.GetPassthroughPGName(hostname, infraSettingName)
 	pgNode := o.GetPoolGroupByName(pgName)
 	if pgNode == nil {
 		return
