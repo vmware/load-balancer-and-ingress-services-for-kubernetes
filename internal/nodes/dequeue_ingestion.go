@@ -314,7 +314,7 @@ func handleHostRuleForSharedVS(key string, fullsync bool) {
 // handlePod populates NPL annotations for a pod in store.
 // It also stores a mapping of Pod to Services for future use
 func handlePod(key, namespace, podName string, fullsync bool) {
-	utils.AviLog.Debugf("key: %s, msg: handing Pod", key)
+	utils.AviLog.Debugf("key: %s, msg: handling Pod", key)
 	podKey := namespace + "/" + podName
 	pod, err := utils.GetInformers().PodInformer.Lister().Pods(namespace).Get(podName)
 	if err != nil {
@@ -345,29 +345,24 @@ func handlePod(key, namespace, podName string, fullsync bool) {
 	}
 	ann := pod.GetAnnotations()
 	var annotations []lib.NPLAnnotation
-	if val, ok := ann[lib.NPLPodAnnotation]; ok {
-		if err := json.Unmarshal([]byte(val), &annotations); err != nil {
-			utils.AviLog.Infof("key: %s, got error while unmarshaling NPL annotations: %v", err)
+	if err := json.Unmarshal([]byte(ann[lib.NPLPodAnnotation]), &annotations); err != nil {
+		utils.AviLog.Infof("key: %s, got error while unmarshaling NPL annotations: %v", key, err)
+	}
+	objects.SharedNPLLister().Save(podKey, annotations)
+	if utils.IsServiceNSValid(namespace) {
+		services, lbSvcs := lib.GetServicesForPod(pod)
+		if len(services) != 0 {
+			objects.SharedPodToSvcLister().Save(podKey, services)
 		}
-		objects.SharedNPLLister().Save(podKey, annotations)
-		if utils.IsServiceNSValid(namespace) {
-			services, lbSvcs := lib.GetServicesForPod(pod)
-			if len(services) != 0 {
-				objects.SharedPodToSvcLister().Save(podKey, services)
-			}
-			if len(lbSvcs) != 0 {
-				objects.SharedPodToLBSvcLister().Save(podKey, lbSvcs)
-			}
-			for _, lbSvc := range lbSvcs {
-				lbSvcKey := utils.L4LBService + "/" + lbSvc
-				utils.AviLog.Debugf("key: %s, msg: handling l4 svc %s", key, lbSvcKey)
-				handleL4Service(lbSvcKey, fullsync)
-			}
-			utils.AviLog.Infof("key: %s, msg: NPL Services retrieved: %s", key, services)
+		if len(lbSvcs) != 0 {
+			objects.SharedPodToLBSvcLister().Save(podKey, lbSvcs)
 		}
-	} else {
-		utils.AviLog.Infof("key: %s, NPL annotation not found for Pod", key)
-		objects.SharedNPLLister().Delete(podKey)
+		for _, lbSvc := range lbSvcs {
+			lbSvcKey := utils.L4LBService + "/" + lbSvc
+			utils.AviLog.Debugf("key: %s, msg: handling l4 svc %s", key, lbSvcKey)
+			handleL4Service(lbSvcKey, fullsync)
+		}
+		utils.AviLog.Infof("key: %s, msg: NPL Services retrieved: %s", key, services)
 	}
 }
 
