@@ -16,6 +16,8 @@ package lib
 
 import (
 	"context"
+	"sort"
+	"strings"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,6 +59,11 @@ type IstioCRDInformers struct {
 	VirtualServiceInformer  istioInformer.VirtualServiceInformer
 	DestinationRuleInformer istioInformer.DestinationRuleInformer
 	GatewayInformer         istioInformer.GatewayInformer
+}
+
+type BlockedNamespaces struct {
+	BlockedNSMap map[string]struct{}
+	nsChecksum   uint32
 }
 
 // akoControlConfig struct is intended to store all AKO related global
@@ -104,6 +111,9 @@ type akoControlConfig struct {
 	// primaryaAKO is set to true/false if as per primaryaAKO value
 	//in values.yaml
 	primaryaAKO bool
+
+	//blockedNS contains map of blocked namespaces and checksum of it
+	blockedNS BlockedNamespaces
 }
 
 var akoControlConfigInstance *akoControlConfig
@@ -121,7 +131,22 @@ func (c *akoControlConfig) SetAKOInstanceFlag(flag bool) {
 func (c *akoControlConfig) GetAKOInstanceFlag() bool {
 	return c.primaryaAKO
 }
-
+func (c *akoControlConfig) SetAKOBlackListedNamespaces(nsList []string) {
+	sort.Strings(nsList)
+	val := strings.Join(nsList, ":")
+	cksum := utils.Hash(val)
+	if c.blockedNS.nsChecksum != cksum {
+		nsMap := make(map[string]struct{})
+		for _, ns := range nsList {
+			nsMap[ns] = struct{}{}
+		}
+		c.blockedNS.nsChecksum = cksum
+		c.blockedNS.BlockedNSMap = nsMap
+	}
+}
+func (c *akoControlConfig) GetAKOBlackListedNamespaces() map[string]struct{} {
+	return c.blockedNS.BlockedNSMap
+}
 func (c *akoControlConfig) SetAdvL4Clientset(cs advl4crd.Interface) {
 	c.advL4Clientset = cs
 }

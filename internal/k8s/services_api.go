@@ -192,11 +192,12 @@ func (c *AviController) SetupSvcApiEventHandlers(numWorkers uint32) {
 			}
 			gw := obj.(*servicesapi.Gateway)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
-			if !utils.CheckIfNamespaceAccepted(namespace) {
-				utils.AviLog.Debugf("Gateway add event. Namespace %s didn't qualify filter. Not adding gateway.", namespace)
+			key := lib.Gateway + "/" + utils.ObjKey(gw)
+			if lib.IsNamespaceBlackListed(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
+				utils.AviLog.Debugf("key: %s, msg: Gateway add event. Namespace %s didn't qualify filter. Not adding gateway.", key, namespace)
 				return
 			}
-			key := lib.Gateway + "/" + utils.ObjKey(gw)
+
 			utils.AviLog.Infof("key: %s, msg: ADD", key)
 
 			InformerStatusUpdatesForSvcApiGateway(key, gw)
@@ -214,11 +215,12 @@ func (c *AviController) SetupSvcApiEventHandlers(numWorkers uint32) {
 
 			if !reflect.DeepEqual(oldObj.Spec, gw.Spec) || gw.GetDeletionTimestamp() != nil {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
-				if !utils.CheckIfNamespaceAccepted(namespace) {
-					utils.AviLog.Debugf("Gateway update event. Namespace %s didn't qualify filter. Not updating gateway.", namespace)
+				key := lib.Gateway + "/" + utils.ObjKey(gw)
+				if lib.IsNamespaceBlackListed(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
+					utils.AviLog.Debugf("key: %s, msg: Gateway update event. Namespace %s didn't qualify filter. Not updating gateway.", key, namespace)
 					return
 				}
-				key := lib.Gateway + "/" + utils.ObjKey(gw)
+
 				utils.AviLog.Infof("key: %s, msg: UPDATE", key)
 
 				InformerStatusUpdatesForSvcApiGateway(key, gw)
@@ -246,11 +248,11 @@ func (c *AviController) SetupSvcApiEventHandlers(numWorkers uint32) {
 				}
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
-			if !utils.CheckIfNamespaceAccepted(namespace) {
-				utils.AviLog.Debugf("Gateway delete event. Namespace %s didn't qualify filter. Not deleting gateway.", namespace)
+			key := lib.Gateway + "/" + utils.ObjKey(gw)
+			if lib.IsNamespaceBlackListed(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
+				utils.AviLog.Debugf("key: %s, msg: Gateway delete event. Namespace %s didn't qualify filter. Not deleting gateway.", key, namespace)
 				return
 			}
-			key := lib.Gateway + "/" + utils.ObjKey(gw)
 			utils.AviLog.Infof("key: %s, msg: DELETE", key)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)

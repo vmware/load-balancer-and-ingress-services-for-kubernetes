@@ -767,7 +767,7 @@ func (c *AviController) FullSyncK8s() error {
 		return err
 	}
 	for _, ns := range allNamespaces.Items {
-		if utils.CheckIfNamespaceAccepted(ns.GetName(), ns.GetLabels(), false) {
+		if !lib.IsNamespaceBlackListed(ns.GetName()) || utils.CheckIfNamespaceAccepted(ns.GetName(), ns.GetLabels(), false) {
 			acceptedNamespaces[ns.GetName()] = struct{}{}
 		}
 	}
@@ -811,7 +811,12 @@ func (c *AviController) FullSyncK8s() error {
 			return err
 		}
 		for _, podObj := range podObjs {
-			key := utils.Pod + "/" + utils.ObjKey(podObj)
+			podLabel := utils.ObjKey(podObj)
+			ns := strings.Split(podLabel, "/")
+			if lib.IsNamespaceBlackListed(ns[0]) {
+				continue
+			}
+			key := utils.Pod + "/" + podLabel
 			if _, ok := podObj.GetAnnotations()[lib.NPLPodAnnotation]; !ok {
 				utils.AviLog.Warnf("key : %s, msg: 'nodeportlocal.antrea.io' annotation not found, ignoring the pod", key)
 				continue
@@ -828,6 +833,7 @@ func (c *AviController) FullSyncK8s() error {
 	// Section for Istio
 	if lib.IsIstioEnabled() {
 		// If Istio is enabled, we need to listen to few of the Istio CRDs.
+		//TODO: Apply blocked ns filter on namespaces.
 		virtualServiceObjs, err := lib.AKOControlConfig().IstioCRDInformers().VirtualServiceInformer.Lister().VirtualServices(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the Istio virtualservices during full sync: %s", err)
@@ -996,8 +1002,8 @@ func (c *AviController) FullSyncK8s() error {
 			for _, gatewayObj := range gatewayObjs {
 				gatewayLabel := utils.ObjKey(gatewayObj)
 				ns := strings.Split(gatewayLabel, "/")
-				if utils.CheckIfNamespaceAccepted(ns[0]) {
-					key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
+				if !lib.IsNamespaceBlackListed(ns[0]) && utils.CheckIfNamespaceAccepted(ns[0]) {
+					key := lib.Gateway + "/" + gatewayLabel
 					meta, err := meta.Accessor(gatewayObj)
 					if err == nil {
 						resVer := meta.GetResourceVersion()
@@ -1032,7 +1038,7 @@ func (c *AviController) FullSyncK8s() error {
 			for _, mciObj := range mciObjs {
 				mciLabel := utils.ObjKey(mciObj)
 				ns := strings.Split(mciLabel, "/")
-				if utils.CheckIfNamespaceAccepted(ns[0]) {
+				if !lib.IsNamespaceBlackListed(ns[0]) && utils.CheckIfNamespaceAccepted(ns[0]) {
 					key := lib.MultiClusterIngress + "/" + mciLabel
 					meta, err := meta.Accessor(mciObj)
 					if err == nil {
@@ -1050,7 +1056,7 @@ func (c *AviController) FullSyncK8s() error {
 			for _, siObj := range siObjs {
 				siLabel := utils.ObjKey(siObj)
 				ns := strings.Split(siLabel, "/")
-				if utils.CheckIfNamespaceAccepted(ns[0]) {
+				if !lib.IsNamespaceBlackListed(ns[0]) && utils.CheckIfNamespaceAccepted(ns[0]) {
 					key := lib.MultiClusterIngress + "/" + siLabel
 					meta, err := meta.Accessor(siObj)
 					if err == nil {
@@ -1070,6 +1076,11 @@ func (c *AviController) FullSyncK8s() error {
 			return err
 		}
 		for _, gatewayObj := range gatewayObjs {
+			gatewayLabel := utils.ObjKey(gatewayObj)
+			ns := strings.Split(gatewayLabel, "/")
+			if lib.IsNamespaceBlackListed(ns[0]) {
+				continue
+			}
 			key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
 			InformerStatusUpdatesForGateway(key, gatewayObj)
 			nodes.DequeueIngestion(key, true)

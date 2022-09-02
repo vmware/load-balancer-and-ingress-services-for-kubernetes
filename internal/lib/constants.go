@@ -36,6 +36,7 @@ const (
 	VIP_NETWORK_LIST                           = "VIP_NETWORK_LIST"
 	BGP_PEER_LABELS                            = "BGP_PEER_LABELS"
 	SEG_NAME                                   = "SEG_NAME"
+	BLOCKED_NS_LIST                            = "BLOCKED_NS_LIST"
 	DEFAULT_SE_GROUP                           = "Default-Group"
 	NODE_NETWORK_LIST                          = "NODE_NETWORK_LIST"
 	NODE_NETWORK_MAX_ENTRIES                   = 5
