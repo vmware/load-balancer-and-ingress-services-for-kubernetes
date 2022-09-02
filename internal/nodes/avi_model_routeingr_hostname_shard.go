@@ -260,6 +260,7 @@ func ProcessSecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng Ing
 func ProcessPassthroughHosts(routeIgrObj RouteIngressModel, key string, parsedIng IngressConfig, modelList *[]string,
 	Storedhosts map[string]*objects.RouteIngrhost, hostsMap map[string]*objects.RouteIngrhost) {
 	utils.AviLog.Debugf("key: %s, msg: Storedhosts before processing passthrough hosts: %v", key, Storedhosts)
+	infraSetting := routeIgrObj.GetAviInfraSetting()
 	for host, pass := range parsedIng.PassthroughCollection {
 		hostData, found := Storedhosts[host]
 		if found && hostData.SecurePolicy == lib.PolicyPass {
@@ -273,19 +274,25 @@ func ProcessPassthroughHosts(routeIgrObj RouteIngressModel, key string, parsedIn
 		}
 		hostsMap[host].SecurePolicy = lib.PolicyPass
 		redirect := false
-		if pass.redirect == true {
+		if pass.redirect {
 			redirect = true
 			hostsMap[host].InsecurePolicy = lib.PolicyRedirect
 		}
-
-		shardVsName := lib.GetPassthroughShardVSName(host, key)
+		_, shardVsName := DerivePassthroughVS(host, key, routeIgrObj)
 		modelName := lib.GetModelName(lib.GetTenant(), shardVsName)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {
 			aviModel = NewAviObjectGraph()
 			aviModel.(*AviObjectGraph).BuildVSForPassthrough(shardVsName, routeIgrObj.GetNamespace(), host, key)
 		}
-		aviModel.(*AviObjectGraph).BuildGraphForPassthrough(pass.PathSvc, routeIgrObj.GetName(), host, routeIgrObj.GetNamespace(), key, redirect)
+		vsNode := aviModel.(*AviObjectGraph).GetAviVS()
+		if len(vsNode) < 1 {
+			return
+		}
+		if infraSetting != nil {
+			buildWithInfraSetting(key, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
+		}
+		aviModel.(*AviObjectGraph).BuildGraphForPassthrough(pass.PathSvc, routeIgrObj.GetName(), host, routeIgrObj.GetNamespace(), key, redirect, infraSetting)
 
 		changedModel := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
 		if !utils.HasElem(modelList, modelName) && changedModel {
@@ -307,7 +314,7 @@ func DeleteStaleData(routeIgrObj RouteIngressModel, key string, modelList *[]str
 		utils.AviLog.Debugf("host to del: %s, data : %s", host, utils.Stringify(hostData))
 		_, shardVsName := DeriveShardVS(host, key, routeIgrObj)
 		if hostData.SecurePolicy == lib.PolicyPass {
-			shardVsName.Name = lib.GetPassthroughShardVSName(host, key)
+			_, shardVsName.Name = DerivePassthroughVS(host, key, routeIgrObj)
 		}
 
 		modelName := lib.GetModelName(lib.GetTenant(), shardVsName.Name)
@@ -332,7 +339,7 @@ func DeleteStaleData(routeIgrObj RouteIngressModel, key string, modelList *[]str
 		if hostData.SecurePolicy == lib.PolicyEdgeTerm {
 			aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, removeFqdn, removeRedir, true)
 		} else if hostData.SecurePolicy == lib.PolicyPass {
-			aviModel.(*AviObjectGraph).DeleteObjectsForPassthroughHost(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, removeFqdn, removeRedir, true)
+			aviModel.(*AviObjectGraph).DeleteObjectsForPassthroughHost(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, infraSettingName, key, removeFqdn, removeRedir, true)
 		}
 		if hostData.InsecurePolicy != lib.PolicyNone {
 			aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, removeFqdn, removeRedir, false)
@@ -351,10 +358,15 @@ func DeleteStaleDataForModelChange(routeIgrObj RouteIngressModel, namespace, obj
 		utils.AviLog.Warnf("key: %s, msg: nothing to delete for route: %s", key, objname)
 		return
 	}
-
-	utils.AviLog.Debugf("key: %s, msg: hosts to delete %s", key, utils.Stringify(hostMap))
+	var shardVsName lib.VSNameMetadata
+	var newShardVsName lib.VSNameMetadata
 	for host, hostData := range hostMap {
-		shardVsName, newShardVsName := DeriveShardVS(host, key, routeIgrObj)
+
+		if hostData.SecurePolicy == lib.PolicyPass {
+			shardVsName.Name, newShardVsName.Name = DerivePassthroughVS(host, key, routeIgrObj)
+		} else {
+			shardVsName, newShardVsName = DeriveShardVS(host, key, routeIgrObj)
+		}
 		if shardVsName == newShardVsName {
 			continue
 		}
@@ -370,6 +382,8 @@ func DeleteStaleDataForModelChange(routeIgrObj RouteIngressModel, namespace, obj
 		// Delete the pool corresponding to this host
 		if hostData.SecurePolicy == lib.PolicyEdgeTerm {
 			aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, true)
+		} else if hostData.SecurePolicy == lib.PolicyPass {
+			aviModel.(*AviObjectGraph).DeleteObjectsForPassthroughHost(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, infraSettingName, key, true, true, true)
 		}
 		if hostData.InsecurePolicy != lib.PolicyNone {
 			aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, false)
@@ -401,7 +415,7 @@ func RouteIngrDeletePoolsByHostname(routeIgrObj RouteIngressModel, namespace, ob
 		_, shardVsName := DeriveShardVS(host, key, routeIgrObj)
 
 		if hostData.SecurePolicy == lib.PolicyPass {
-			shardVsName.Name = lib.GetPassthroughShardVSName(host, key)
+			_, shardVsName.Name = DerivePassthroughVS(host, key, routeIgrObj)
 		}
 
 		modelName := lib.GetModelName(lib.GetTenant(), shardVsName.Name)
@@ -415,7 +429,7 @@ func RouteIngrDeletePoolsByHostname(routeIgrObj RouteIngressModel, namespace, ob
 		if hostData.SecurePolicy == lib.PolicyEdgeTerm {
 			deleteVS = aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, true)
 		} else if hostData.SecurePolicy == lib.PolicyPass {
-			aviModel.(*AviObjectGraph).DeleteObjectsForPassthroughHost(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, true, true, true)
+			aviModel.(*AviObjectGraph).DeleteObjectsForPassthroughHost(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, infraSettingName, key, true, true, true)
 		}
 		if hostData.InsecurePolicy == lib.PolicyAllow {
 			deleteVS = aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, false)

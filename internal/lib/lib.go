@@ -369,6 +369,26 @@ func GetL7SharedPGName(vsName string) string {
 	return l7PGName
 }
 
+func GetPassthroughPGName(hostname, infrasettingName string) string {
+	var pgName string
+	if infrasettingName != "" {
+		pgName = GetClusterName() + "--" + infrasettingName + "-" + hostname
+	} else {
+		pgName = GetClusterName() + "--" + hostname
+	}
+	return pgName
+}
+
+func GetPassthroughPoolName(hostname, serviceName, infrasettingName string) string {
+	var poolName string
+	if infrasettingName != "" {
+		poolName = GetClusterName() + "--" + infrasettingName + "-" + hostname + "-" + serviceName
+	} else {
+		poolName = GetClusterName() + "--" + hostname + "-" + serviceName
+	}
+	return poolName
+}
+
 func GetL7PoolName(priorityLabel, namespace, ingName, infrasetting string, args ...string) string {
 	priorityLabel = strings.ReplaceAll(priorityLabel, "/", "_")
 	var poolName string
@@ -1146,16 +1166,18 @@ func PopulateL4PoolNodeMarkers(namespace, svcName, port string) utils.AviObjectM
 	return markers
 }
 
-func PopulatePassthroughPGMarkers(host string) utils.AviObjectMarkers {
+func PopulatePassthroughPGMarkers(host, infrasettingName string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Host = []string{host}
+	markers.InfrasettingName = infrasettingName
 	return markers
 }
 
-func PopulatePassthroughPoolMarkers(host, svcName string) utils.AviObjectMarkers {
+func PopulatePassthroughPoolMarkers(host, svcName, infrasettingName string) utils.AviObjectMarkers {
 	var markers utils.AviObjectMarkers
 	markers.Host = []string{host}
 	markers.ServiceName = svcName
+	markers.InfrasettingName = infrasettingName
 	return markers
 }
 
@@ -1375,12 +1397,13 @@ func GetAKOIDPrefix() string {
 	}
 	return akoID
 }
-func GetPassthroughShardVSName(s string, key string) string {
+func GetPassthroughShardVSName(s, aviInfraSettingName, key string, shardSize uint32) string {
 	var vsNum uint32
-	shardSize := PassthroughShardSize()
-
 	shardVsPrefix := GetClusterName() + "--" + GetAKOIDPrefix() + PassthroughPrefix
 	vsNum = utils.Bkt(s, shardSize)
+	if aviInfraSettingName != "" {
+		shardVsPrefix += aviInfraSettingName + "-"
+	}
 	vsName := shardVsPrefix + strconv.Itoa(int(vsNum))
 	utils.AviLog.Infof("key: %s, msg: Passthrough ShardVSName: %s", key, vsName)
 	return vsName
