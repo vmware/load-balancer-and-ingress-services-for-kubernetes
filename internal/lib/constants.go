@@ -26,6 +26,7 @@ const (
 	INGRESS_API               = "INGRESS_API"
 	AviConfigMap              = "avi-k8s-config"
 	AviSecret                 = "avi-secret"
+	AviInitSecret             = "avi-init-secret"
 	VLAN_TRANSPORT_ZONE       = "VLAN"
 	OVERLAY_TRANSPORT_ZONE    = "OVERLAY"
 	IP_FAMILY                 = "IP_FAMILY"
