@@ -1601,11 +1601,11 @@ func IsAviLBDefaultIngressClassWithClient() (string, bool) {
 	return "", false
 }
 
-func GetAviSecretWithRetry(kc kubernetes.Interface, retryCount int) (*v1.Secret, error) {
+func GetAviSecretWithRetry(kc kubernetes.Interface, retryCount int, secret string) (*v1.Secret, error) {
 	var aviSecret *v1.Secret
 	var err error
 	for retry := 0; retry < retryCount; retry++ {
-		aviSecret, err = kc.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), AviSecret, metav1.GetOptions{})
+		aviSecret, err = kc.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), secret, metav1.GetOptions{})
 		if err == nil {
 			return aviSecret, nil
 		}
@@ -1663,7 +1663,11 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 		return
 	}
 	token := newTokenResp.(map[string]interface{})["token"].(string)
-	aviSecret, err := GetAviSecretWithRetry(kc, retryCount)
+	secret := AviSecret
+	if utils.IsVCFCluster() {
+		secret = AviInitSecret
+	}
+	aviSecret, err := GetAviSecretWithRetry(kc, retryCount, secret)
 	if err != nil {
 		utils.AviLog.Errorf("Failed to get secret, err: %+v", err)
 		return
