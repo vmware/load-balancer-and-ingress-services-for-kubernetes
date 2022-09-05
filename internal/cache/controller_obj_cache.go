@@ -2755,7 +2755,7 @@ func DeConfigureSeGroupLabels() {
 	SetTenant := session.SetTenant(lib.GetTenant())
 	seGroup, err := GetAviSeGroup(client, segName)
 	if err != nil {
-		utils.AviLog.Error(err)
+		utils.AviLog.Errorf("Failed to get SE group. Error: %v", err)
 		return
 	}
 	clusterLabel := lib.GetLabels()[0]

@@ -1083,7 +1083,7 @@ func addSeGroupLabel(key, segName string) {
 	// configure labels on SeGroup if not present already.
 	seGroup, err := avicache.GetAviSeGroup(clients.AviClient[aviClientLen], segName)
 	if err != nil {
-		utils.AviLog.Error(err)
+		utils.AviLog.Errorf("Failed to get SE group")
 		return
 	}
 

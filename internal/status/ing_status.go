@@ -60,7 +60,7 @@ func UpdateIngressStatus(options []UpdateOptions, bulk bool) {
 	for _, option := range updateIngressOptions {
 		if ingress := ingressMap[option.IngSvc]; ingress != nil {
 			if err = updateObject(ingress, option); err != nil {
-				utils.AviLog.Error("key: %s, msg: updating Ingress object failed: %v", option.Key, err)
+				utils.AviLog.Errorf("key: %s, msg: updating Ingress object failed: %v", option.Key, err)
 			}
 			skipDelete[option.IngSvc] = true
 		}
