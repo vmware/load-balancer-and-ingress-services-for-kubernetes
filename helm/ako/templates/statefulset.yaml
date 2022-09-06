@@ -222,7 +222,7 @@ spec:
             valueFrom:
               configMapKeyRef:
                 name: avi-k8s-config
-                key: blackListedNamespaces
+                key: blockedNamespaceList
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:

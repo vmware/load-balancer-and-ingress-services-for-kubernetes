@@ -30,8 +30,8 @@ AKOSettings:
                      # with the advancedL4 APIs which uses a fork and a version of v1alpha1pre1 
   vipPerNamespace: "false" # Enabling this flag would tell AKO to create Parent VS per Namespace in EVH mode
   # This is the list of system namespaces from which AKO will not listen any Kubernetes or Openshift object event.
-  blackListedNamespaces: []
-  # blackListedNamespaces:
+  blockedNamespaceList: []
+  # blockedNamespaceList  :
   #   - kube-system
   #   - kube-public
 

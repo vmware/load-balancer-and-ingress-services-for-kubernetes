@@ -767,7 +767,7 @@ func (c *AviController) FullSyncK8s() error {
 		return err
 	}
 	for _, ns := range allNamespaces.Items {
-		if !lib.IsNamespaceBlackListed(ns.GetName()) || utils.CheckIfNamespaceAccepted(ns.GetName(), ns.GetLabels(), false) {
+		if !lib.IsNamespaceBlocked(ns.GetName()) || utils.CheckIfNamespaceAccepted(ns.GetName(), ns.GetLabels(), false) {
 			acceptedNamespaces[ns.GetName()] = struct{}{}
 		}
 	}
@@ -813,7 +813,7 @@ func (c *AviController) FullSyncK8s() error {
 		for _, podObj := range podObjs {
 			podLabel := utils.ObjKey(podObj)
 			ns := strings.Split(podLabel, "/")
-			if lib.IsNamespaceBlackListed(ns[0]) {
+			if lib.IsNamespaceBlocked(ns[0]) {
 				continue
 			}
 			key := utils.Pod + "/" + podLabel
@@ -1002,7 +1002,7 @@ func (c *AviController) FullSyncK8s() error {
 			for _, gatewayObj := range gatewayObjs {
 				gatewayLabel := utils.ObjKey(gatewayObj)
 				ns := strings.Split(gatewayLabel, "/")
-				if !lib.IsNamespaceBlackListed(ns[0]) && utils.CheckIfNamespaceAccepted(ns[0]) {
+				if !lib.IsNamespaceBlocked(ns[0]) && utils.CheckIfNamespaceAccepted(ns[0]) {
 					key := lib.Gateway + "/" + gatewayLabel
 					meta, err := meta.Accessor(gatewayObj)
 					if err == nil {
@@ -1038,7 +1038,7 @@ func (c *AviController) FullSyncK8s() error {
 			for _, mciObj := range mciObjs {
 				mciLabel := utils.ObjKey(mciObj)
 				ns := strings.Split(mciLabel, "/")
-				if !lib.IsNamespaceBlackListed(ns[0]) && utils.CheckIfNamespaceAccepted(ns[0]) {
+				if !lib.IsNamespaceBlocked(ns[0]) && utils.CheckIfNamespaceAccepted(ns[0]) {
 					key := lib.MultiClusterIngress + "/" + mciLabel
 					meta, err := meta.Accessor(mciObj)
 					if err == nil {
@@ -1056,7 +1056,7 @@ func (c *AviController) FullSyncK8s() error {
 			for _, siObj := range siObjs {
 				siLabel := utils.ObjKey(siObj)
 				ns := strings.Split(siLabel, "/")
-				if !lib.IsNamespaceBlackListed(ns[0]) && utils.CheckIfNamespaceAccepted(ns[0]) {
+				if !lib.IsNamespaceBlocked(ns[0]) && utils.CheckIfNamespaceAccepted(ns[0]) {
 					key := lib.MultiClusterIngress + "/" + siLabel
 					meta, err := meta.Accessor(siObj)
 					if err == nil {
@@ -1078,7 +1078,7 @@ func (c *AviController) FullSyncK8s() error {
 		for _, gatewayObj := range gatewayObjs {
 			gatewayLabel := utils.ObjKey(gatewayObj)
 			ns := strings.Split(gatewayLabel, "/")
-			if lib.IsNamespaceBlackListed(ns[0]) {
+			if lib.IsNamespaceBlocked(ns[0]) {
 				continue
 			}
 			key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)

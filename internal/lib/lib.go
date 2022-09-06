@@ -1408,8 +1408,8 @@ func GetAKOIDPrefix() string {
 }
 
 //TODO: Optimize
-func IsNamespaceBlackListed(namespace string) bool {
-	nsBlockedList := AKOControlConfig().GetAKOBlackListedNamespaces()
+func IsNamespaceBlocked(namespace string) bool {
+	nsBlockedList := AKOControlConfig().GetAKOBlockedNSList()
 	_, ok := nsBlockedList[namespace]
 	return ok
 }

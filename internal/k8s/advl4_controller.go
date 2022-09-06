@@ -61,7 +61,7 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 			gw := obj.(*advl4v1alpha1pre1.Gateway)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 			key := lib.Gateway + "/" + utils.ObjKey(gw)
-			if lib.IsNamespaceBlackListed(namespace) {
+			if lib.IsNamespaceBlocked(namespace) {
 				utils.AviLog.Debugf("key: %s, msg: Gateway add event: namespace %s didn't qualify filter.", key, namespace)
 				return
 			}
@@ -84,7 +84,7 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 				key := lib.Gateway + "/" + utils.ObjKey(gw)
 				utils.AviLog.Infof("key: %s, msg: UPDATE", key)
-				if lib.IsNamespaceBlackListed(namespace) {
+				if lib.IsNamespaceBlocked(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: Gateway update event: namespace %s didn't qualify filter.", key, namespace)
 					return
 				}
@@ -114,7 +114,7 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 			key := lib.Gateway + "/" + utils.ObjKey(gw)
-			if lib.IsNamespaceBlackListed(namespace) {
+			if lib.IsNamespaceBlocked(namespace) {
 				utils.AviLog.Debugf("key: %s, msg: Gateway delete event: namespace %s didn't qualify filter.", key, namespace)
 				return
 			}

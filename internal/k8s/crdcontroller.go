@@ -516,7 +516,7 @@ func (c *AviController) SetupMultiClusterIngressEventHandlers(numWorkers uint32)
 			mci := obj.(*akov1alpha1.MultiClusterIngress)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(mci))
 			key := lib.MultiClusterIngress + "/" + utils.ObjKey(mci)
-			if lib.IsNamespaceBlackListed(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
+			if lib.IsNamespaceBlocked(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
 				utils.AviLog.Debugf("key: %s, msg: Multi-cluster Ingress add event: Namespace: %s didn't qualify filter. Not adding multi-cluster ingress", key, namespace)
 				return
 			}
@@ -537,7 +537,7 @@ func (c *AviController) SetupMultiClusterIngressEventHandlers(numWorkers uint32)
 			if !reflect.DeepEqual(oldObj.Spec, mci.Spec) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(mci))
 				key := lib.MultiClusterIngress + "/" + utils.ObjKey(mci)
-				if lib.IsNamespaceBlackListed(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
+				if lib.IsNamespaceBlocked(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: Multi-cluster Ingress update event: Namespace: %s didn't qualify filter. Not updating multi-cluster ingress", key, namespace)
 					return
 				}
@@ -569,7 +569,7 @@ func (c *AviController) SetupMultiClusterIngressEventHandlers(numWorkers uint32)
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(mci))
 			key := lib.MultiClusterIngress + "/" + utils.ObjKey(mci)
-			if lib.IsNamespaceBlackListed(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
+			if lib.IsNamespaceBlocked(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
 				utils.AviLog.Debugf("key: %s, msg: Multi-cluster Ingress delete event: Namespace: %s didn't qualify filter. Not deleting multi-cluster ingress", key, namespace)
 				return
 			}
@@ -594,7 +594,7 @@ func (c *AviController) SetupServiceImportEventHandlers(numWorkers uint32) {
 			si := obj.(*akov1alpha1.ServiceImport)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(si))
 			key := lib.ServiceImport + "/" + utils.ObjKey(si)
-			if lib.IsNamespaceBlackListed(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
+			if lib.IsNamespaceBlocked(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
 				utils.AviLog.Debugf("key: %s, msg: Service Import add event: Namespace: %s didn't qualify filter. Not adding Service Import", key, namespace)
 				return
 			}
@@ -615,7 +615,7 @@ func (c *AviController) SetupServiceImportEventHandlers(numWorkers uint32) {
 			if !reflect.DeepEqual(oldObj.Spec, si.Spec) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(si))
 				key := lib.ServiceImport + "/" + utils.ObjKey(si)
-				if lib.IsNamespaceBlackListed(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
+				if lib.IsNamespaceBlocked(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: Service Import update event: Namespace: %s didn't qualify filter. Not updating Service Import", key, namespace)
 					return
 				}
@@ -647,7 +647,7 @@ func (c *AviController) SetupServiceImportEventHandlers(numWorkers uint32) {
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(si))
 			key := lib.ServiceImport + "/" + utils.ObjKey(si)
-			if lib.IsNamespaceBlackListed(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
+			if lib.IsNamespaceBlocked(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
 				utils.AviLog.Debugf("key: %s, msg: Service Import delete event: Namespace: %s didn't qualify filter. Not deleting Service Import", key, namespace)
 				return
 			}

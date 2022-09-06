@@ -131,7 +131,7 @@ func (c *akoControlConfig) SetAKOInstanceFlag(flag bool) {
 func (c *akoControlConfig) GetAKOInstanceFlag() bool {
 	return c.primaryaAKO
 }
-func (c *akoControlConfig) SetAKOBlackListedNamespaces(nsList []string) {
+func (c *akoControlConfig) SetAKOBlockedNSList(nsList []string) {
 	sort.Strings(nsList)
 	val := strings.Join(nsList, ":")
 	cksum := utils.Hash(val)
@@ -144,7 +144,7 @@ func (c *akoControlConfig) SetAKOBlackListedNamespaces(nsList []string) {
 		c.blockedNS.BlockedNSMap = nsMap
 	}
 }
-func (c *akoControlConfig) GetAKOBlackListedNamespaces() map[string]struct{} {
+func (c *akoControlConfig) GetAKOBlockedNSList() map[string]struct{} {
 	return c.blockedNS.BlockedNSMap
 }
 func (c *akoControlConfig) SetAdvL4Clientset(cs advl4crd.Interface) {

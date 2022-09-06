@@ -384,7 +384,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			route := obj.(*routev1.Route)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(route))
 			key := utils.OshiftRoute + "/" + utils.ObjKey(route)
-			if lib.IsNamespaceBlackListed(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
+			if lib.IsNamespaceBlocked(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
 				utils.AviLog.Debugf("key: %s, msg: Route add event: Namespace: %s didn't qualify filter. Not adding route", key, namespace)
 				return
 			}
@@ -419,7 +419,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(route))
 			key := utils.OshiftRoute + "/" + utils.ObjKey(route)
-			if lib.IsNamespaceBlackListed(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
+			if lib.IsNamespaceBlocked(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
 				utils.AviLog.Debugf("key: %s, msg: Route delete event: Namespace: %s didn't qualify filter. Not deleting route", key, namespace)
 				return
 			}
@@ -437,7 +437,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			if oldRoute.ResourceVersion != newRoute.ResourceVersion || !reflect.DeepEqual(newRoute.Annotations, oldRoute.Annotations) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newRoute))
 				key := utils.OshiftRoute + "/" + utils.ObjKey(newRoute)
-				if lib.IsNamespaceBlackListed(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
+				if lib.IsNamespaceBlocked(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: Route update event: Namespace: %s didn't qualify filter. Not updating route", key, namespace)
 					return
 				}
@@ -462,7 +462,7 @@ func AddPodEventHandler(numWorkers uint32, c *AviController) cache.ResourceEvent
 			pod := obj.(*corev1.Pod)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(pod))
 			key := utils.Pod + "/" + utils.ObjKey(pod)
-			if lib.IsNamespaceBlackListed(namespace) {
+			if lib.IsNamespaceBlocked(namespace) {
 				utils.AviLog.Debugf("key : %s, msg: Pod Add event: Namespace: %s didn't qualify filter", key, namespace)
 				return
 			}
@@ -498,7 +498,7 @@ func AddPodEventHandler(numWorkers uint32, c *AviController) cache.ResourceEvent
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(pod))
 			key := utils.Pod + "/" + utils.ObjKey(pod)
-			if lib.IsNamespaceBlackListed(namespace) {
+			if lib.IsNamespaceBlocked(namespace) {
 				utils.AviLog.Debugf("key: %s, msg: Pod Delete event: Namespace: %s didn't qualify filter", key, namespace)
 				return
 			}
@@ -520,7 +520,7 @@ func AddPodEventHandler(numWorkers uint32, c *AviController) cache.ResourceEvent
 			if !reflect.DeepEqual(newPod, oldPod) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newPod))
 				key := utils.Pod + "/" + utils.ObjKey(oldPod)
-				if lib.IsNamespaceBlackListed(namespace) {
+				if lib.IsNamespaceBlocked(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: Pod Update event: Namespace: %s didn't qualify filter", key, namespace)
 					return
 				}
@@ -550,7 +550,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			ep := obj.(*corev1.Endpoints)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
 			key := utils.Endpoints + "/" + utils.ObjKey(ep)
-			if lib.IsNamespaceBlackListed(namespace) {
+			if lib.IsNamespaceBlocked(namespace) {
 				utils.AviLog.Debugf("key: %s, msg: Endpoint Add event: Namespace: %s didn't qualify filter", key, namespace)
 				return
 			}
@@ -578,7 +578,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
 			key := utils.Endpoints + "/" + utils.ObjKey(ep)
-			if lib.IsNamespaceBlackListed(namespace) {
+			if lib.IsNamespaceBlocked(namespace) {
 				utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
 				return
 			}
@@ -595,7 +595,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if !reflect.DeepEqual(cep.Subsets, oep.Subsets) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(cep))
 				key := utils.Endpoints + "/" + utils.ObjKey(cep)
-				if lib.IsNamespaceBlackListed(namespace) {
+				if lib.IsNamespaceBlocked(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
 					return
 				}
@@ -618,7 +618,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if isSvcLb && !lib.GetLayer7Only() {
 				//L4 Namespace sync not applicable for advance L4 and service API
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
-				if lib.IsNamespaceBlackListed(namespace) || !utils.IsServiceNSValid(namespace) {
+				if lib.IsNamespaceBlocked(namespace) || !utils.IsServiceNSValid(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: L4 Service add event: Namespace: %s didn't qualify filter. Not adding service.", key, namespace)
 					return
 				}
@@ -632,7 +632,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
 				}
 			} else {
-				if lib.IsNamespaceBlackListed(namespace) || lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
+				if lib.IsNamespaceBlocked(namespace) || lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 					return
 				}
 				if lib.UseServicesAPI() {
@@ -672,7 +672,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
 			if isSvcLb && !lib.GetLayer7Only() {
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
-				if lib.IsNamespaceBlackListed(namespace) || !utils.IsServiceNSValid(namespace) {
+				if lib.IsNamespaceBlocked(namespace) || !utils.IsServiceNSValid(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: L4 Service delete event: Namespace: %s didn't qualify filter. Not deleting service.", key, namespace)
 					return
 				}
@@ -683,7 +683,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
 				}
 			} else {
-				if lib.IsNamespaceBlackListed(namespace) || lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
+				if lib.IsNamespaceBlocked(namespace) || lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 					return
 				}
 				key = utils.Service + "/" + utils.ObjKey(svc)
@@ -706,7 +706,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				var key string
 				if isSvcLb && !lib.GetLayer7Only() {
 					key = utils.L4LBService + "/" + utils.ObjKey(svc)
-					if lib.IsNamespaceBlackListed(namespace) || !utils.IsServiceNSValid(namespace) {
+					if lib.IsNamespaceBlocked(namespace) || !utils.IsServiceNSValid(namespace) {
 						utils.AviLog.Debugf("key: %s, msg: L4 Service update event: Namespace: %s didn't qualify filter. Not updating service.", key, namespace)
 						return
 					}
@@ -718,7 +718,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 						key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
 					}
 				} else {
-					if lib.IsNamespaceBlackListed(namespace) || lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
+					if lib.IsNamespaceBlocked(namespace) || lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 						return
 					}
 					if lib.UseServicesAPI() {
@@ -837,7 +837,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			secret := obj.(*corev1.Secret)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
 			key := "Secret" + "/" + utils.ObjKey(secret)
-			if lib.IsNamespaceBlackListed(namespace) {
+			if lib.IsNamespaceBlocked(namespace) {
 				utils.AviLog.Debugf("key: %s, msg: secret add event. namespace: %s didn't qualify filter", key, namespace)
 				return
 			}
@@ -865,7 +865,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if checkAviSecretUpdateAndShutdown(secret) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
 				key := "Secret" + "/" + utils.ObjKey(secret)
-				if lib.IsNamespaceBlackListed(namespace) {
+				if lib.IsNamespaceBlocked(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: secret delete event. namespace: %s didn't qualify filter", key, namespace)
 					return
 				}
@@ -885,7 +885,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					// Only add the key if the resource versions have changed.
 					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
 					key := "Secret" + "/" + utils.ObjKey(secret)
-					if lib.IsNamespaceBlackListed(namespace) {
+					if lib.IsNamespaceBlocked(namespace) {
 						utils.AviLog.Debugf("key: %s, msg: secret update event. namespace: %s didn't qualify filter", key, namespace)
 						return
 					}
@@ -919,7 +919,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			ingress := obj.(*networkingv1.Ingress)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
 			key := utils.Ingress + "/" + utils.ObjKey(ingress)
-			if lib.IsNamespaceBlackListed(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
+			if lib.IsNamespaceBlocked(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
 				utils.AviLog.Debugf("key: %s, msg: Ingress add event: Namespace: %s didn't qualify filter. Not adding ingress", key, namespace)
 				return
 			}
@@ -953,7 +953,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			key := utils.Ingress + "/" + utils.ObjKey(ingress)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
-			if lib.IsNamespaceBlackListed(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
+			if lib.IsNamespaceBlocked(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
 				utils.AviLog.Debugf("key: %s, msg: Ingress Delete event: Namespace: %s didn't qualify filter. Not deleting ingress", key, namespace)
 				return
 			}
@@ -972,7 +972,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if isIngressUpdated(oldobj, ingress) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ingress))
 				key := utils.Ingress + "/" + utils.ObjKey(ingress)
-				if lib.IsNamespaceBlackListed(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
+				if lib.IsNamespaceBlocked(namespace) || !utils.CheckIfNamespaceAccepted(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: Ingress Update event: Namespace: %s didn't qualify filter. Not updating ingress", key, namespace)
 					return
 				}

@@ -95,7 +95,7 @@ func InitializeAKC() {
 		isPrimaryAKO = true
 	}
 	akoControlConfig.SetAKOInstanceFlag(isPrimaryAKO)
-	akoControlConfig.SetAKOBlackListedNamespaces(lib.GetGlobalBlockedNSList())
+	akoControlConfig.SetAKOBlockedNSList(lib.GetGlobalBlockedNSList())
 	var crdClient *crd.Clientset
 	var advl4Client *advl4.Clientset
 	var svcAPIClient *svcapi.Clientset
