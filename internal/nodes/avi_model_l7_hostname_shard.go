@@ -305,7 +305,7 @@ func buildPoolNode(key, poolName, ingName, namespace, priorityLabel, hostname st
 		IngressName:   ingName,
 		PortName:      obj.PortName,
 		Tenant:        lib.GetTenant(),
-		PriorityLabel: priorityLabel,
+		PriorityLabel: strings.ToLower(priorityLabel),
 		Port:          obj.Port,
 		TargetPort:    obj.TargetPort,
 		ServiceMetadata: lib.ServiceMetadataObj{
