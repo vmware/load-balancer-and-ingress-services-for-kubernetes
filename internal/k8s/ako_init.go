@@ -812,6 +812,10 @@ func (c *AviController) FullSyncK8s() error {
 		}
 		for _, podObj := range podObjs {
 			key := utils.Pod + "/" + utils.ObjKey(podObj)
+			if _, ok := podObj.GetAnnotations()[lib.NPLPodAnnotation]; !ok {
+				utils.AviLog.Warnf("key : %s, msg: 'nodeportlocal.antrea.io' annotation not found, ignoring the pod", key)
+				continue
+			}
 			meta, err := meta.Accessor(podObj)
 			if err == nil {
 				resVer := meta.GetResourceVersion()

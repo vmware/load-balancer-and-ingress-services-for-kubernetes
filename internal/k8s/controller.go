@@ -467,6 +467,10 @@ func AddPodEventHandler(numWorkers uint32, c *AviController) cache.ResourceEvent
 				utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
 				return
 			}
+			if _, ok := pod.GetAnnotations()[lib.NPLPodAnnotation]; !ok {
+				utils.AviLog.Warnf("key : %s, msg: 'nodeportlocal.antrea.io' annotation not found, ignoring the pod", key)
+				return
+			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
@@ -490,6 +494,10 @@ func AddPodEventHandler(numWorkers uint32, c *AviController) cache.ResourceEvent
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(pod))
 			key := utils.Pod + "/" + utils.ObjKey(pod)
+			if _, ok := pod.GetAnnotations()[lib.NPLPodAnnotation]; !ok {
+				utils.AviLog.Warnf("key : %s, msg: 'nodeportlocal.antrea.io' annotation not found, ignoring the pod", key)
+				return
+			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			objects.SharedResourceVerInstanceLister().Delete(key)
 			c.workqueue[bkt].AddRateLimited(key)
@@ -504,6 +512,10 @@ func AddPodEventHandler(numWorkers uint32, c *AviController) cache.ResourceEvent
 			if !reflect.DeepEqual(newPod, oldPod) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newPod))
 				key := utils.Pod + "/" + utils.ObjKey(oldPod)
+				if _, ok := newPod.GetAnnotations()[lib.NPLPodAnnotation]; !ok {
+					utils.AviLog.Warnf("key : %s, msg: 'nodeportlocal.antrea.io' annotation not found, ignoring the pod", key)
+					return
+				}
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)

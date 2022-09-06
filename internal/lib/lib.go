@@ -1188,7 +1188,6 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 		utils.EndpointInformer,
 		utils.SecretInformer,
 		utils.ConfigMapInformer,
-		utils.PodInformer,
 	}
 
 	if GetServiceType() == NodePortLocal {
