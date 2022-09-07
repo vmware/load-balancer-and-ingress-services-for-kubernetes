@@ -180,6 +180,31 @@ func TestEndpoint(t *testing.T) {
 	waitAndverify(t, "Endpoints/red-ns/testep")
 }
 
+func TestIngressClass(t *testing.T) {
+	apiGroup := "ako.vmware.com"
+	ingrClassExample := &networkingv1.IngressClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "avi-lb",
+			Annotations: map[string]string{
+				"ingressclass.kubernetes.io/is-default-class": "true",
+			},
+		},
+		Spec: networkingv1.IngressClassSpec{
+			Controller: "ako.vmware.com/avi-lb",
+			Parameters: &networkingv1.IngressClassParametersReference{
+				APIGroup: &apiGroup,
+				Kind:     "IngressParameters",
+				Name:     "external-lb",
+			},
+		},
+	}
+	_, err := kubeClient.NetworkingV1().IngressClasses().Create(context.TODO(), ingrClassExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding IngressClass: %v", err)
+	}
+	waitAndverify(t, "IngressClass/avi-lb")
+}
+
 func TestIngress(t *testing.T) {
 	ingrExample := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{

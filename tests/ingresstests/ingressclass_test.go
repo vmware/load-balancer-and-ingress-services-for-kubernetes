@@ -53,7 +53,9 @@ func TestWrongClassMappingInIngress(t *testing.T) {
 
 	SetUpTestForIngress(t, modelName)
 	integrationtest.RemoveDefaultIngressClass()
+	integrationtest.AddIngressClassWithName("xyz")
 	defer integrationtest.AddDefaultIngressClass()
+	defer integrationtest.RemoveIngressClassWithName("xyz")
 
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, "")
 	ingressCreate := (integrationtest.FakeIngress{
@@ -181,6 +183,70 @@ func TestDefaultIngressClassChange(t *testing.T) {
 		ingress, _ := KubeClient.NetworkingV1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
 		return len(ingress.Status.LoadBalancer.Ingress)
 	}, 40*time.Second).Should(gomega.Equal(0))
+
+	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	TearDownTestForIngress(t, modelName)
+	integrationtest.TeardownIngressClass(t, ingClassName)
+	VerifyPoolDeletionFromVsNode(g, modelName)
+}
+
+func TestIngressWithNonAVILBIngressClass(t *testing.T) {
+	// create ingress with ingressClass avi-lb
+	// update ingress with non-avi-lb ingressClass, observe VS delete
+	g := gomega.NewGomegaWithT(t)
+
+	ingClassName, ingressName, ns := "non-avi-lb", "foo-with-class", "default"
+	modelName := "admin/cluster--Shared-L7-1"
+
+	SetUpTestForIngress(t, modelName)
+	integrationtest.AddIngressClassWithName(ingClassName)
+	defer integrationtest.RemoveIngressClassWithName(ingClassName)
+
+	ingressCreate := (integrationtest.FakeIngress{
+		Name:        ingressName,
+		Namespace:   ns,
+		ClassName:   ingClassName,
+		DnsNames:    []string{"bar.com"},
+		ServiceName: "avisvc",
+	}).Ingress()
+	_, err := KubeClient.NetworkingV1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 40*time.Second).Should(gomega.Equal(false))
+
+	g.Eventually(func() int {
+		ingress, _ := KubeClient.NetworkingV1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
+		return len(ingress.Status.LoadBalancer.Ingress)
+	}, 10*time.Second).Should(gomega.Equal(0))
+
+	ingressUpdate := (integrationtest.FakeIngress{
+		Name:        ingressName,
+		Namespace:   ns,
+		ClassName:   "avi-lb",
+		DnsNames:    []string{"bar.com"},
+		ServiceName: "avisvc",
+	}).Ingress()
+	ingressUpdate.ResourceVersion = "2"
+	if _, err := KubeClient.NetworkingV1().Ingresses(ns).Update(context.TODO(), ingressUpdate, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("error in updating Ingress: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 40*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() int {
+		ingress, _ := KubeClient.NetworkingV1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
+		return len(ingress.Status.LoadBalancer.Ingress)
+	}, 40*time.Second).Should(gomega.Equal(1))
 
 	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {

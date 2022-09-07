@@ -929,6 +929,10 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
 				return
 			}
+			// optimization to check if ingress belongs to ingressClass handled by AKO.
+			if !lib.ValidateIngressForClass(key, ingress) {
+				return
+			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
@@ -958,6 +962,10 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				return
 			}
 
+			// optimization to check if ingress belongs to ingressClass handled by AKO.
+			if !lib.ValidateIngressForClass(key, ingress) {
+				return
+			}
 			objects.SharedResourceVerInstanceLister().Delete(key)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
