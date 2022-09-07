@@ -218,6 +218,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: enableMCI
+          - name: BLOCKED_NS_LIST
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: blockedNamespaceList
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:

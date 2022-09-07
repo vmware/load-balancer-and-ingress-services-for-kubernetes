@@ -698,6 +698,16 @@ func GetGlobalBgpPeerLabels() []string {
 	return bgpPeerLabels
 }
 
+func GetGlobalBlockedNSList() []string {
+	var blockedNs []string
+	blockedNSStr := os.Getenv(BLOCKED_NS_LIST)
+	err := json.Unmarshal([]byte(blockedNSStr), &blockedNs)
+	if err != nil {
+		utils.AviLog.Warnf("Unable to fetch Blocked namespaces from environment variables. %v", err)
+	}
+	return blockedNs
+}
+
 var t1LrPath string
 
 func SetT1LRPath(lr string) {
@@ -1396,6 +1406,14 @@ func GetAKOIDPrefix() string {
 	}
 	return akoID
 }
+
+//TODO: Optimize
+func IsNamespaceBlocked(namespace string) bool {
+	nsBlockedList := AKOControlConfig().GetAKOBlockedNSList()
+	_, ok := nsBlockedList[namespace]
+	return ok
+}
+
 func GetPassthroughShardVSName(s, aviInfraSettingName, key string, shardSize uint32) string {
 	var vsNum uint32
 	shardVsPrefix := GetClusterName() + "--" + GetAKOIDPrefix() + PassthroughPrefix
