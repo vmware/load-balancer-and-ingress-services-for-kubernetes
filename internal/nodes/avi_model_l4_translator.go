@@ -148,6 +148,9 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 			TargetPort: portProto.TargetPort,
 			VrfContext: lib.GetVrf(),
 		}
+		if lib.IsIstioEnabled() {
+			poolNode.UpdatePoolNodeForIstio()
+		}
 		protocolSet.Insert(portProto.Protocol)
 		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
 

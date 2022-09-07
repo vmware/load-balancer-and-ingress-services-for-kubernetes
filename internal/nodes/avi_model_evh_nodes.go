@@ -849,6 +849,9 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 				PoolRatio:   path.weight,
 			},
 		}
+		if lib.IsIstioEnabled() {
+			poolNode.UpdatePoolNodeForIstio()
+		}
 
 		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
 

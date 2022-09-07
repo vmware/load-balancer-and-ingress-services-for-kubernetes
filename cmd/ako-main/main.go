@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -33,7 +34,6 @@ import (
 	advl4 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned"
 
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
-	istiocrd "istio.io/client-go/pkg/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -41,6 +41,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	svcapi "sigs.k8s.io/service-apis/pkg/client/clientset/versioned"
+
+	"github.com/fsnotify/fsnotify"
 )
 
 var (
@@ -99,7 +101,8 @@ func InitializeAKC() {
 	var crdClient *crd.Clientset
 	var advl4Client *advl4.Clientset
 	var svcAPIClient *svcapi.Clientset
-	var istioClient *istiocrd.Clientset
+	//var istioClient *istiocrd.Clientset //removed support
+
 	if lib.GetAdvancedL4() {
 		advl4Client, err = advl4.NewForConfig(cfg)
 		if err != nil {
@@ -120,15 +123,17 @@ func InitializeAKC() {
 			utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
 		}
 		akoControlConfig.SetCRDClientset(crdClient)
+		/*
+			// Handle Istio code.
 
-		// Handle Istio code.
-		if lib.IsIstioEnabled() {
-			istioClient, err = istiocrd.NewForConfig(cfg)
-			if err != nil {
-				utils.AviLog.Fatalf("Error building Istio CRD clientset: %s", err.Error())
+			if lib.IsIstioEnabled() { //removed support
+				istioClient, err = istiocrd.NewForConfig(cfg)
+				if err != nil {
+					utils.AviLog.Fatalf("Error building Istio CRD clientset: %s", err.Error())
+				}
+				akoControlConfig.SetIstioClientset(istioClient)
 			}
-			akoControlConfig.SetIstioClientset(istioClient)
-		}
+		*/
 	}
 
 	dynamicClient, err := lib.NewDynamicClientSet(cfg)
@@ -191,7 +196,32 @@ func InitializeAKC() {
 	}
 	// Set Istio Informers
 	if lib.IsIstioEnabled() {
-		k8s.NewIstioCRDInformers(istioClient)
+		//k8s.NewIstioCRDInformers(istioClient) //removed support
+
+		utils.AviLog.Infof("Adding certificate watcher for Istio")
+		istioCertWatcher, err := fsnotify.NewWatcher()
+		defer istioCertWatcher.Close()
+		if err != nil {
+			utils.AviLog.Fatal(err)
+		}
+
+		go istioWatcherEvents(*istioCertWatcher, kubeClient)
+
+		_, err = os.Stat(lib.IstioCertOutputPath)
+		if err == nil {
+			err := istioCertWatcher.Add(lib.IstioCertOutputPath)
+			if err != nil {
+				utils.AviLog.Fatal(err)
+			}
+			utils.AviLog.Infof("Added path to %s to Istio watcher", lib.IstioCertOutputPath)
+			initIstioSecrets(kubeClient)
+		} else if os.IsNotExist(err) {
+			err := istioCertWatcher.Add("/etc")
+			utils.AviLog.Infof("Added path to /etc to Istio watcher")
+			if err != nil {
+				utils.AviLog.Fatal(err)
+			}
+		}
 	}
 
 	informers := k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient, OshiftClient: oshiftClient}
@@ -293,6 +323,10 @@ func InitializeAKC() {
 			break
 		}
 	}
+	if lib.IsIstioEnabled() {
+		startSyncCh := make(chan struct{})
+		c.AddIstioSecretEventHandler(informers, stopCh, startSyncCh)
+	}
 
 	c.InitializeNamespaceSync()
 	k8s.PopulateNodeCache(kubeClient)
@@ -334,4 +368,40 @@ func init() {
 	def_kube_config := os.Getenv("HOME") + "/.kube/config"
 	flag.StringVar(&kubeconfig, "kubeconfig", def_kube_config, "Path to a kubeconfig. Only required if out-of-cluster.")
 	flag.StringVar(&masterURL, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+}
+
+func istioWatcherEvents(watcher fsnotify.Watcher, kc *kubernetes.Clientset) {
+	for {
+		select {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
+			}
+			if event.Op == fsnotify.Write || event.Op == fsnotify.Create {
+				utils.AviLog.Infof("Istio watcher event, modified file:", event.Name)
+
+				if strings.HasSuffix(event.Name, "istio-output-certs") {
+					watcher.Remove("/etc")
+					utils.AviLog.Infof("removed path to /etc to istio watcher")
+					watcher.Add(lib.IstioCertOutputPath)
+					utils.AviLog.Infof("added path to %s to istio watcher", lib.IstioCertOutputPath)
+					initIstioSecrets(kc)
+				} else {
+					lib.CreateIstioSecretFromCert(event.Name, kc)
+				}
+			}
+
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				return
+			}
+			utils.AviLog.Infof("Istio watcher event, error:", err)
+		}
+	}
+}
+
+func initIstioSecrets(kc *kubernetes.Clientset) {
+	lib.CreateIstioSecretFromCert(lib.IstioCertOutputPath+"/cert-chain.pem", kc)
+	lib.CreateIstioSecretFromCert(lib.IstioCertOutputPath+"/key.pem", kc)
+	lib.CreateIstioSecretFromCert(lib.IstioCertOutputPath+"/root-cert.pem", kc)
 }

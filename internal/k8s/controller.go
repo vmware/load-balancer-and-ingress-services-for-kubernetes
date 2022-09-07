@@ -1148,9 +1148,11 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	// Add CRD handlers HostRule/HTTPRule/AviInfraSettings
 	c.SetupAKOCRDEventHandlers(numWorkers)
 
-	if lib.IsIstioEnabled() {
-		c.SetupIstioCRDEventHandlers(numWorkers)
-	}
+	/*
+		if lib.IsIstioEnabled() { //removed support
+			c.SetupIstioCRDEventHandlers(numWorkers)
+		}
+	*/
 
 	// Add MultiClusterIngress and ServiceImport CRD event handlers
 	if utils.IsMultiClusterIngressEnabled() {
@@ -1272,14 +1274,16 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 			go lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Informer().Run(stopCh)
 			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Informer().HasSynced)
 		}
-		if lib.IsIstioEnabled() {
-			go lib.AKOControlConfig().IstioCRDInformers().VirtualServiceInformer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.AKOControlConfig().IstioCRDInformers().VirtualServiceInformer.Informer().HasSynced)
-			go lib.AKOControlConfig().IstioCRDInformers().DestinationRuleInformer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.AKOControlConfig().IstioCRDInformers().DestinationRuleInformer.Informer().HasSynced)
-			go lib.AKOControlConfig().IstioCRDInformers().GatewayInformer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.AKOControlConfig().IstioCRDInformers().GatewayInformer.Informer().HasSynced)
-		}
+		/*
+			if lib.IsIstioEnabled() { //removed support
+				go lib.AKOControlConfig().IstioCRDInformers().VirtualServiceInformer.Informer().Run(stopCh)
+				informersList = append(informersList, lib.AKOControlConfig().IstioCRDInformers().VirtualServiceInformer.Informer().HasSynced)
+				go lib.AKOControlConfig().IstioCRDInformers().DestinationRuleInformer.Informer().Run(stopCh)
+				informersList = append(informersList, lib.AKOControlConfig().IstioCRDInformers().DestinationRuleInformer.Informer().HasSynced)
+				go lib.AKOControlConfig().IstioCRDInformers().GatewayInformer.Informer().Run(stopCh)
+				informersList = append(informersList, lib.AKOControlConfig().IstioCRDInformers().GatewayInformer.Informer().HasSynced)
+			}
+		*/
 
 		if utils.IsMultiClusterIngressEnabled() {
 			go c.informers.MultiClusterIngressInformer.Informer().Run(stopCh)

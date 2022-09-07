@@ -320,6 +320,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		if lib.UseServicesAPI() {
 			poolName = lib.GetSvcApiL4PoolName(svcNSName[1], namespace, gwName, portProto[0], int32(port))
 		}
+
 		poolNode := &AviPoolNode{
 			Name:     poolName,
 			Tenant:   lib.GetTenant(),
@@ -329,6 +330,9 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 				NamespaceServiceName: []string{svc[0]},
 			},
 			VrfContext: lib.GetVrf(),
+		}
+		if lib.IsIstioEnabled() {
+			poolNode.UpdatePoolNodeForIstio()
 		}
 		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
 
@@ -546,6 +550,9 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 					NamespaceServiceName: []string{serviceNSName},
 				},
 				VrfContext: lib.GetVrf(),
+			}
+			if lib.IsIstioEnabled() {
+				poolNode.UpdatePoolNodeForIstio()
 			}
 			poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
 

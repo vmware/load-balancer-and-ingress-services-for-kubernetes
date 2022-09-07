@@ -317,6 +317,9 @@ func buildPoolNode(key, poolName, ingName, namespace, priorityLabel, hostname st
 		},
 		VrfContext: lib.GetVrf(),
 	}
+	if lib.IsIstioEnabled() {
+		poolNode.UpdatePoolNodeForIstio()
+	}
 
 	poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
 

@@ -1392,6 +1392,7 @@ type AviPoolNode struct {
 	ServiceMetadata          lib.ServiceMetadataObj
 	SniEnabled               bool
 	SslProfileRef            string
+	SslKeyAndCertificateRef  string
 	PkiProfileRef            string
 	PkiProfile               *AviPkiProfileNode
 	NetworkPlacementSettings map[string][]string
@@ -1426,6 +1427,7 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		v.LbAlgoHostHeader,
 		utils.Stringify(v.SniEnabled),
 		v.SslProfileRef,
+		v.SslKeyAndCertificateRef,
 		v.PriorityLabel,
 		utils.Stringify(v.NetworkPlacementSettings),
 	}
@@ -1485,7 +1487,11 @@ func (v *AviPoolNode) CopyNode() AviModelNode {
 	}
 	return &newNode
 }
-
+func (v *AviPoolNode) UpdatePoolNodeForIstio() {
+	v.PkiProfileRef = fmt.Sprintf("/api/pkiprofile?name=istio-pki")
+	v.SslProfileRef = fmt.Sprintf("/api/sslprofile?name=%s", lib.DefaultPoolSSLProfile)
+	v.SslKeyAndCertificateRef = fmt.Sprintf("/api/sslkeyandcertificate?name=istio-workload")
+}
 func (o *AviObjectGraph) GetAviPoolNodesByIngress(tenant string, ingName string) []*AviPoolNode {
 	var aviPool []*AviPoolNode
 	for _, model := range o.modelNodes {
