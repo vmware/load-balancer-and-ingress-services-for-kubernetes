@@ -62,7 +62,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 	var dns_info_arr []*avimodels.DNSInfo
 	var path string
 	var rest_op utils.RestOp
-	vipId, ipType := "0", "V4"
+	vipId, ipType, ip6Type := "0", "V4", "V6"
 
 	cksum := vsvip_meta.CloudConfigCksum
 	cksumstr := strconv.Itoa(int(cksum))
@@ -183,24 +183,32 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 				vip.IPAMNetworkSubnet.NetworkRef = &networkRef
 
 				// setting IPAMNetworkSubnet.Subnet value in case subnetCIDR is provided
-				if vipNetwork.Cidr == "" {
+				if vipNetwork.Cidr == "" && vipNetwork.V6Cidr == "" {
 					utils.AviLog.Warnf("key: %s, msg: Incomplete values provided for CIDR, will not use IPAMNetworkSubnet in vsvip", key)
 				} else {
-					ipPrefixSlice := strings.Split(vipNetwork.Cidr, "/")
-					mask, _ := strconv.Atoi(ipPrefixSlice[1])
-					if lib.IsPublicCloud() && lib.GetCloudType() == lib.CLOUD_GCP {
-						vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{
-							Subnet: &avimodels.IPAddrPrefix{
+					var ipPrefixSlice, ip6PrefixSlice []string
+					var mask, mask6 int
+					if vipNetwork.Cidr != "" {
+						ipPrefixSlice = strings.Split(vipNetwork.Cidr, "/")
+						mask, _ = strconv.Atoi(ipPrefixSlice[1])
+					}
+					if vipNetwork.V6Cidr != "" {
+						ip6PrefixSlice = strings.Split(vipNetwork.V6Cidr, "/")
+						mask6, _ = strconv.Atoi(ip6PrefixSlice[1])
+					}
+					if (lib.IsPublicCloud() && lib.GetCloudType() == lib.CLOUD_GCP) || (!lib.GetAdvancedL4()) {
+						vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
+						if vipNetwork.Cidr != "" {
+							vip.IPAMNetworkSubnet.Subnet = &avimodels.IPAddrPrefix{
 								IPAddr: &avimodels.IPAddr{Type: &ipType, Addr: &ipPrefixSlice[0]},
 								Mask:   proto.Int32(int32(mask)),
-							},
+							}
 						}
-					} else if !lib.GetAdvancedL4() {
-						vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{
-							Subnet: &avimodels.IPAddrPrefix{
-								IPAddr: &avimodels.IPAddr{Type: &ipType, Addr: &ipPrefixSlice[0]},
-								Mask:   proto.Int32(int32(mask)),
-							},
+						if vipNetwork.V6Cidr != "" {
+							vip.IPAMNetworkSubnet.Subnet6 = &avimodels.IPAddrPrefix{
+								IPAddr: &avimodels.IPAddr{Type: &ip6Type, Addr: &ip6PrefixSlice[0]},
+								Mask:   proto.Int32(int32(mask6)),
+							}
 						}
 					}
 				}
@@ -494,8 +502,14 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 						utils.AviLog.Infof("key: %s, msg: invalid type for vip in vsvip: %s", key, name)
 						continue
 					}
+					ipType := "V4_ONLY"
+					V4, V6, V4_V6 := "V4_ONLY", "V6_ONLY", "V4_V6"
+					auto_allocate_ip_type, ok := vip["auto_allocate_ip_type"]
+					if ok {
+						ipType = auto_allocate_ip_type.(string)
+					}
 					ip_address, valid := vip["ip_address"].(map[string]interface{})
-					if !valid {
+					if !valid && (ipType == V4 || ipType == V4_V6) {
 						utils.AviLog.Infof("key: %s, msg: invalid type for ip_address in vsvip: %s", key, name)
 						continue
 					}
@@ -505,15 +519,26 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 						continue
 					}
 					vsvipVips = append(vsvipVips, addr)
+
+					ip6_address, valid := vip["ip6_address"].(map[string]interface{})
+					if !valid && (ipType == V6 || ipType == V4_V6) {
+						utils.AviLog.Warnf("key: %s, msg: invalid type for ip6_address in vsvip: %s", key, name)
+						continue
+					}
+					v6_addr, valid := ip6_address["addr"].(string)
+					if !valid {
+						utils.AviLog.Warnf("key: %s, msg: invalid type for v6 addr in vsvip: %s", key, name)
+						continue
+					}
+					vsvipV6ip = v6_addr
+
 					fipEnabled := false
 					auto_allocate_floating_ip, ok := vip["auto_allocate_floating_ip"]
 					if ok {
 						fipEnabled = auto_allocate_floating_ip.(bool)
 					}
-
 					if fipEnabled {
 						floating_ip, valid := vip["floating_ip"].(map[string]interface{})
-
 						if !valid {
 							utils.AviLog.Warnf("key: %s, msg: invalid type for floating_ip in vsvip: %s", key, name)
 						} else {
@@ -525,17 +550,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 							vsvipFips = append(vsvipFips, fip_addr)
 						}
 					}
-					ip6_address, valid := vip["ip6_address"].(map[string]interface{})
-					if !valid {
-						utils.AviLog.Warnf("key: %s, msg: invalid type for ip6_address in vsvip: %s", key, name)
-					} else {
-						v6_addr, valid := ip6_address["addr"].(string)
-						if !valid {
-							utils.AviLog.Warnf("key: %s, msg: invalid type for v6 addr in vsvip: %s", key, name)
-							continue
-						}
-						vsvipV6ip = v6_addr
-					}
+
 					if ipamNetworkSubnet, ipamOk := vip["ipam_network_subnet"].(map[string]interface{}); ipamOk {
 						if networkRef, netRefOk := ipamNetworkSubnet["network_ref"].(string); netRefOk {
 							if networkRefName := strings.Split(networkRef, "#"); len(networkRefName) == 2 {

@@ -1321,15 +1321,15 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 
 		var vips []string
 		var fips []string
-		var vsvipV6ip string
+		var v6ip string
 		var networkNames []string
 		for _, vip := range vsvip.Vip {
 			vips = append(vips, *vip.IPAddress.Addr)
 			if vip.FloatingIP != nil {
-				fips = append(vips, *vip.FloatingIP.Addr)
+				fips = append(fips, *vip.FloatingIP.Addr)
 			}
 			if vip.Ip6Address != nil {
-				vsvipV6ip = *vip.Ip6Address.Addr
+				v6ip = *vip.Ip6Address.Addr
 			}
 			if ipamNetworkSubnet := vip.IPAMNetworkSubnet; ipamNetworkSubnet != nil {
 				if networkRef := *ipamNetworkSubnet.NetworkRef; networkRef != "" {
@@ -1354,7 +1354,7 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 			LastModified:     *vsvip.LastModified,
 			Vips:             vips,
 			Fips:             fips,
-			V6IP:             vsvipV6ip,
+			V6IP:             v6ip,
 			NetworkNames:     networkNames,
 			CloudConfigCksum: checksum,
 		}
@@ -3277,8 +3277,8 @@ func validateNetworkNames(client *clients.AviClient, vipNetworkList []akov1alpha
 			}
 		}
 		if vipNetwork.V6Cidr != "" {
-			re := regexp.MustCompile(lib.IPCIDRRegex)
-			if !re.MatchString(vipNetwork.Cidr) {
+			re := regexp.MustCompile(lib.IPV6CIDRRegex)
+			if !re.MatchString(vipNetwork.V6Cidr) {
 				utils.AviLog.Errorf("invalid IPv6 CIDR configuration %s detected for networkName %s in vipNetworkList", vipNetwork.V6Cidr, vipNetwork.NetworkName)
 				return false
 			}

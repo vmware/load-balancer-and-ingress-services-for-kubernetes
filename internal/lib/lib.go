@@ -40,7 +40,6 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	"github.com/vmware/alb-sdk/go/models"
-	avimodels "github.com/vmware/alb-sdk/go/models"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -1772,17 +1771,21 @@ func GetThrottle(key string) *int32 {
 	return &throttle
 }
 
-func UpdateV6(vip *avimodels.Vip, vipNetwork *akov1alpha1.AviInfraSettingVipNetwork) {
+func UpdateV6(vip *models.Vip, vipNetwork *akov1alpha1.AviInfraSettingVipNetwork) {
 	v6addr := strings.Split(vipNetwork.V6Cidr, "/")[0]
 	v6mask, _ := strconv.Atoi(strings.Split(vipNetwork.V6Cidr, "/")[1])
 
-	v6cidr := avimodels.IPAddrPrefix{
-		IPAddr: &avimodels.IPAddr{
+	v6cidr := models.IPAddrPrefix{
+		IPAddr: &models.IPAddr{
 			Addr: &v6addr,
 			Type: proto.String("V6"),
 		},
 		Mask: proto.Int32(int32(v6mask)),
 	}
-	vip.AutoAllocateIPType = proto.String("V4_V6")
+	if vipNetwork.Cidr != "" {
+		vip.AutoAllocateIPType = proto.String("V4_V6")
+	} else {
+		vip.AutoAllocateIPType = proto.String("V6_ONLY")
+	}
 	vip.Subnet6 = &v6cidr
 }
