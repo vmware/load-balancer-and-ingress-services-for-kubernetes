@@ -101,7 +101,6 @@ func InitializeAKC() {
 	var crdClient *crd.Clientset
 	var advl4Client *advl4.Clientset
 	var svcAPIClient *svcapi.Clientset
-	//var istioClient *istiocrd.Clientset //removed support
 
 	if lib.GetAdvancedL4() {
 		advl4Client, err = advl4.NewForConfig(cfg)
@@ -123,17 +122,6 @@ func InitializeAKC() {
 			utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
 		}
 		akoControlConfig.SetCRDClientset(crdClient)
-		/*
-			// Handle Istio code.
-
-			if lib.IsIstioEnabled() { //removed support
-				istioClient, err = istiocrd.NewForConfig(cfg)
-				if err != nil {
-					utils.AviLog.Fatalf("Error building Istio CRD clientset: %s", err.Error())
-				}
-				akoControlConfig.SetIstioClientset(istioClient)
-			}
-		*/
 	}
 
 	dynamicClient, err := lib.NewDynamicClientSet(cfg)
@@ -194,10 +182,8 @@ func InitializeAKC() {
 			k8s.NewSvcApiInformers(svcAPIClient)
 		}
 	}
-	// Set Istio Informers
-	if lib.IsIstioEnabled() {
-		//k8s.NewIstioCRDInformers(istioClient) //removed support
 
+	if lib.IsIstioEnabled() {
 		utils.AviLog.Infof("Adding certificate watcher for Istio")
 		istioCertWatcher, err := fsnotify.NewWatcher()
 		defer istioCertWatcher.Close()

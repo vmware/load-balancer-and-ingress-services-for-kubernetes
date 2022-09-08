@@ -858,55 +858,7 @@ func (c *AviController) FullSyncK8s() error {
 			nodes.DequeueIngestion(key, true)
 		}
 	}
-	/*
-		   // Section for Istio
-		   if lib.IsIstioEnabled() {
-		   	// If Istio is enabled, we need to listen to few of the Istio CRDs.
-		   	//TODO: Apply blocked ns filter on namespaces.
-		   	virtualServiceObjs, err := lib.AKOControlConfig().IstioCRDInformers().VirtualServiceInformer.Lister().VirtualServices(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
-		   	if err != nil {
-		   		utils.AviLog.Errorf("Unable to retrieve the Istio virtualservices during full sync: %s", err)
-		   	} else {
-		   		for _, vsObj := range virtualServiceObjs {
-		   			key := lib.IstioVirtualService + "/" + utils.ObjKey(vsObj)
-		   			meta, err := meta.Accessor(vsObj)
-		   			if err == nil {
-		   				resVer := meta.GetResourceVersion()
-		   				objects.SharedResourceVerInstanceLister().Save(key, resVer)
-		   			}
-		   			nodes.DequeueIngestion(key, true)
-		   		}
-		   	}
-		   	destinationRuleObjs, err := lib.AKOControlConfig().IstioCRDInformers().DestinationRuleInformer.Lister().DestinationRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
-		   	if err != nil {
-		   		utils.AviLog.Errorf("Unable to retrieve the Istio DestinationRules during full sync: %s", err)
-		   	} else {
-		   		for _, drObj := range destinationRuleObjs {
-		   			key := lib.IstioDestinationRule + "/" + utils.ObjKey(drObj)
-		   			meta, err := meta.Accessor(drObj)
-		   			if err == nil {
-		   				resVer := meta.GetResourceVersion()
-		   				objects.SharedResourceVerInstanceLister().Save(key, resVer)
-		   			}
-		   			nodes.DequeueIngestion(key, true)
-		   		}
-		   	}
-		   	gatewayObjs, err := lib.AKOControlConfig().IstioCRDInformers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
-		   	if err != nil {
-		   		utils.AviLog.Errorf("Unable to retrieve the Istio Gateways during full sync: %s", err)
-		   	} else {
-		   		for _, gwObj := range gatewayObjs {
-		   			key := lib.IstioGateway + "/" + utils.ObjKey(gwObj)
-		   			meta, err := meta.Accessor(gwObj)
-		   			if err == nil {
-		   				resVer := meta.GetResourceVersion()
-		   				objects.SharedResourceVerInstanceLister().Save(key, resVer)
-		   			}
-		   			nodes.DequeueIngestion(key, true)
-		   		}
-		   	}
-		}
-	*/
+
 	if !lib.GetAdvancedL4() {
 		hostRuleObjs, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
