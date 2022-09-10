@@ -431,35 +431,6 @@ func (c *AviController) AddBootupSecretEventHandler(k8sinfo K8sinformers, stopCh
 	}
 }
 
-func (c *AviController) AddIstioSecretEventHandler(k8sinfo K8sinformers, stopCh <-chan struct{}, startSyncCh chan struct{}) {
-	istioSecretHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			data, ok := obj.(*corev1.Secret)
-			if !ok || data.Name != lib.IstioSecret {
-				return
-			}
-			utils.AviLog.Infof("Istio Secret handler event, added istio secret")
-			istioRestOP(obj)
-		},
-		UpdateFunc: func(old, obj interface{}) {
-			newData, ok := obj.(*corev1.Secret)
-			if !ok || newData.Name != lib.IstioSecret {
-				return
-			}
-			utils.AviLog.Infof("Istio Secret handler event, updated istio secret")
-			istioRestOP(obj)
-		},
-	}
-	c.informers.SecretInformer.Informer().AddEventHandler(istioSecretHandler)
-
-	go c.informers.SecretInformer.Informer().Run(stopCh)
-	if !cache.WaitForCacheSync(stopCh, c.informers.SecretInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
-	} else {
-		utils.AviLog.Info("Caches synced for istio Secret informer")
-	}
-}
-
 func (c *AviController) ValidAviSecret() bool {
 	cs := c.informers.ClientSet
 	aviSecret, err := cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), lib.AviSecret, metav1.GetOptions{})
@@ -1306,68 +1277,40 @@ func populateNamespaceList() {
 	}
 }
 
-func istioRestOP(obj interface{}) {
-	cache := avicache.SharedAviObjCache()
-	aviclient := avicache.SharedAVIClients()
-	restlayer := rest.NewRestOperations(cache, aviclient)
-
-	var restOps []*utils.RestOp
-	newData, _ := obj.(*corev1.Secret)
-
-	if newRootCA, ok := newData.Data["root-cert"]; ok {
-		utils.AviLog.Infof("Istio Op, Creating PKI profile, istio-pki")
-		pkinode := nodes.AviPkiProfileNode{
-			Name:   "istio-pki",
+func (c *AviController) IstioBootstrap() {
+	cs := c.informers.ClientSet
+	istioSecret, err := cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), lib.IstioSecret, metav1.GetOptions{})
+	if err == nil {
+		rootCA := istioSecret.Data["root-cert"]
+		sslKey := istioSecret.Data["key"]
+		sslCert := istioSecret.Data["cert-chain"]
+		newAviModel := nodes.NewAviObjectGraph()
+		newAviModel.IsVrf = false
+		pkinode := &nodes.AviPkiProfileNode{
+			Name:   lib.IstioPKIProfile,
 			Tenant: lib.GetTenant(),
-			CACert: string(newRootCA),
+			CACert: string(rootCA),
 		}
-		_, restOps = restlayer.PkiProfileCU(&pkinode, nil, "default", restOps, "")
-
-	}
-	if newSSLkey, ok := newData.Data["key"]; ok {
-		if newSSLcert, ok := newData.Data["cert-chain"]; ok {
-			utils.AviLog.Infof("Istio Op, Creating sslkeycert, istio-workload")
-			sslNode := nodes.AviTLSKeyCertNode{
-				Name:   "istio-workload",
-				Tenant: lib.GetTenant(),
-				Type:   lib.CertTypeVS,
-				Cert:   newSSLcert,
-				Key:    newSSLkey,
-			}
-			_, restOps = restlayer.SSLKeyCertCU([]*nodes.AviTLSKeyCertNode{&sslNode}, nil, "default", restOps, "")
+		newAviModel.AddModelNode(pkinode)
+		sslNode := &nodes.AviTLSKeyCertNode{
+			Name:   lib.IstioWorkloadCertificate,
+			Tenant: lib.GetTenant(),
+			Type:   lib.CertTypeVS,
+			Cert:   sslCert,
+			Key:    sslKey,
 		}
+		newAviModel.AddModelNode(sslNode)
+		newAviModel.CalculateCheckSum()
+		objects.SharedAviGraphLister().Save(lib.IstioModel, newAviModel)
+		key := utils.Secret + "/" + utils.GetAKONamespace() + "/" + lib.IstioSecret
 
-	}
-	if len(restOps) != 0 {
-		restlayer.ExecuteRestAndPopulateCache(restOps, avicache.NamespaceName{}, nil, "", false)
+		cache := avicache.SharedAviObjCache()
+		aviclient := avicache.SharedAVIClients()
+		restlayer := rest.NewRestOperations(cache, aviclient)
 
-		utils.AviLog.Infof("Istio Op, Updating Pools")
-		allModelsMap := objects.SharedAviGraphLister().GetAll()
-		var allModels []string
-		for modelName := range allModelsMap.(map[string]interface{}) {
-			allModels = append(allModels, modelName)
-		}
-		for _, modelName := range allModels {
-			found, avimodelIntf := objects.SharedAviGraphLister().Get(modelName)
-			var poolRestOps []*utils.RestOp
-			if found && avimodelIntf != nil {
-				avimodel, _ := avimodelIntf.(*nodes.AviObjectGraph)
-				vsNodes := avimodel.GetAviVS()
-				for _, vsNode := range vsNodes {
-					poolNodes := vsNode.GetPoolRefs()
-					for _, poolNode := range poolNodes {
-						utils.AviLog.Infof("for poolnode %+v, %+v", poolNode.Name, poolNode)
-						poolNode.PkiProfileRef = fmt.Sprintf("/api/pkiprofile?name=istio-pki")
-						poolNode.SslProfileRef = fmt.Sprintf("/api/sslprofile?name=%s", lib.DefaultPoolSSLProfile)
-						poolNode.SslKeyAndCertificateRef = fmt.Sprintf("/api/sslkeyandcertificate?name=istio-workload")
+		restlayer.IstioCU(key, newAviModel, true)
 
-						_, poolRestOps = restlayer.PoolCU([]*nodes.AviPoolNode{poolNode}, nil, poolNode.ServiceMetadata.Namespace, poolRestOps, "")
-					}
-
-				}
-				restlayer.ExecuteRestAndPopulateCache(poolRestOps, avicache.NamespaceName{}, avimodel, "", false)
-
-			}
-		}
+	} else {
+		utils.AviLog.Fatalf("Could not fetch secret: %s, %v", lib.IstioSecret, err)
 	}
 }

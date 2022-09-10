@@ -1833,10 +1833,10 @@ func CreateIstioSecretFromCert(name string, kc kubernetes.Interface) {
 	}
 	data := make(map[string][]byte)
 	var istioSecret *v1.Secret
-	istioSecret, err = kc.CoreV1().Secrets("default").Get(context.TODO(), IstioSecret, metav1.GetOptions{})
+	istioSecret, err = kc.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), IstioSecret, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Infof("%s not found, creating new empty secret", IstioSecret)
-		istioSecret, err = kc.CoreV1().Secrets("default").Create(context.TODO(), &corev1.Secret{
+		istioSecret, err = kc.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: IstioSecret,
 			},
@@ -1855,7 +1855,7 @@ func CreateIstioSecretFromCert(name string, kc kubernetes.Interface) {
 		istioSecret.Data = make(map[string][]byte)
 	}
 	istioSecret.Data[dataName] = fileData
-	_, err = kc.CoreV1().Secrets("default").Update(context.TODO(), istioSecret, metav1.UpdateOptions{})
+	_, err = kc.CoreV1().Secrets(utils.GetAKONamespace()).Update(context.TODO(), istioSecret, metav1.UpdateOptions{})
 
 	if err != nil {
 		utils.AviLog.Errorf("Failed to update %s %s", IstioSecret, err.Error())

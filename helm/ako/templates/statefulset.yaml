@@ -13,7 +13,7 @@ spec:
       {{- include "ako.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{if .Values.istioEnabled }}
+      {{ if .Values.AKOSettings.istioEnabled }}
       annotations:
         sidecar.istio.io/inject: "true"
         traffic.sidecar.istio.io/includeInboundPorts: ""
@@ -38,13 +38,13 @@ spec:
       {{ end }}
       containers:
         - name: {{ .Chart.Name }}
-          {{ if or .Values.persistentVolumeClaim .Values.istioEnabled }}
+          {{ if or .Values.persistentVolumeClaim .Values.AKOSettings.istioEnabled }}
           volumeMounts:
             {{ if .Values.persistentVolumeClaim}}
           - mountPath: {{ .Values.mountPath }}
             name: ako-pv-storage
             {{ end }}
-            {{ if .Values.istioEnabled}}
+            {{ if .Values.AKOSettings.istioEnabled}}
           - mountPath: /etc/istio-output-certs/
             name: istio-certs
             {{ end }}

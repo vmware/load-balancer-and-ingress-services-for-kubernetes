@@ -63,6 +63,14 @@ func (rest *RestOperations) DequeueNodes(key string) {
 	vsKey := avicache.NamespaceName{Namespace: namespace, Name: name}
 	vs_cache_obj := rest.getVsCacheObj(vsKey, key)
 	if !ok || avimodelIntf == nil {
+		if name == lib.IstioSecret && avimodelIntf != nil {
+			avimodel, ok := avimodelIntf.(*nodes.AviObjectGraph)
+			if ok {
+				utils.AviLog.Infof("key: %s, msg: processing istio object", key)
+				rest.IstioCU(key, avimodel, false)
+				return
+			}
+		}
 		if lib.StaticRouteSyncChan != nil {
 			close(lib.StaticRouteSyncChan)
 			lib.StaticRouteSyncChan = nil
@@ -88,6 +96,11 @@ func (rest *RestOperations) DequeueNodes(key string) {
 			return
 		}
 		utils.AviLog.Debugf("key: %s, msg: VS create/update.", key)
+		if name == lib.IstioSecret {
+			utils.AviLog.Infof("key: %s, msg: processing istio object", key)
+			rest.IstioCU(key, avimodel, false)
+			return
+		}
 
 		if strings.Contains(name, "-EVH") && lib.IsEvhEnabled() {
 			if len(avimodel.GetAviEvhVS()) != 1 {
@@ -107,7 +120,42 @@ func (rest *RestOperations) DequeueNodes(key string) {
 	}
 
 }
+func (rest *RestOperations) IstioCU(key string, avimodel *nodes.AviObjectGraph, firstSync bool) {
+	var restOps []*utils.RestOp
+	pkiNode, sslNode := avimodel.GetIstioNodes()
+	pkiCacheObj, ok := rest.cache.PKIProfileCache.AviCacheGet(key)
+	var istioKey avicache.NamespaceName
+	if firstSync {
+		istioKey = avicache.NamespaceName{Namespace: lib.GetTenant(), Name: lib.DummyVSForStaleData}
+	} else {
+		istioKey = avicache.NamespaceName{Namespace: lib.GetTenant(), Name: lib.IstioModel}
+	}
 
+	if !ok {
+		restOp := rest.AviPkiProfileBuild(pkiNode, nil)
+		restOps = []*utils.RestOp{restOp}
+	} else {
+		pkiCache := pkiCacheObj.(avicache.AviPkiProfileCache)
+		if pkiCache.CloudConfigCksum != pkiNode.GetCheckSum() {
+			restOp := rest.AviPkiProfileBuild(pkiNode, &pkiCache)
+			restOps = []*utils.RestOp{restOp}
+		}
+	}
+	rest.ExecuteRestAndPopulateCache(restOps, istioKey, avimodel, key, false)
+	sslCacheObj, ok := rest.cache.SSLKeyCache.AviCacheGet(key)
+	if !ok {
+		restOp := rest.AviSSLBuild(sslNode, nil)
+		restOps = []*utils.RestOp{restOp}
+	} else {
+		sslCache := sslCacheObj.(avicache.AviSSLCache)
+		if sslCache.CloudConfigCksum != sslNode.GetCheckSum() {
+			restOp := rest.AviSSLBuild(sslNode, &sslCache)
+			restOps = []*utils.RestOp{restOp}
+		}
+	}
+	rest.ExecuteRestAndPopulateCache(restOps, istioKey, avimodel, key, false)
+
+}
 func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObjectGraph) {
 	if lib.GetDisableStaticRoute() {
 		utils.AviLog.Debugf("key: %s, msg: static route sync disabled", key)
@@ -532,7 +580,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 				}
 
 			} else if aviObjKey.Name == lib.DummyVSForStaleData {
-				utils.AviLog.Warnf("key: %s, msg: error in rest request %v, for %s, won't retry", key, err.Error(), lib.DummyVSForStaleData)
+				utils.AviLog.Warnf("key: %s, msg: error in rest request %v, for %s, won't retry", key, err.Error(), aviObjKey.Name)
 				return false, processNextObj
 			} else {
 				var publishKey string
