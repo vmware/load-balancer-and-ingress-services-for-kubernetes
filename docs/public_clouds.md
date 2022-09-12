@@ -113,6 +113,27 @@ Following lists the Day 0 preparation work required to set up AKO in Azure
         * `save`
     * Similarly override the `se_subnet_id` for the `cluster2` .
 
+## AKO in OpenStack
+
+AKO can be deployed with AVI in an Openstack cloud.
+
+### AVI side configuration
+
+Configure Openstack cloud on AVI controller. [link](https://avinetworks.com/docs/21.1/installing-avi-vantage-for-openstack/)
+
+The Openstack tenants are synced with AVI tenants automatically.
+
+### AKO side configuration
+
+The vipNetworkList requires Network ID to be specified and not the name of the network. The values.yaml can be updated as follows
+```
+  vipNetworkList:
+    - networkName: 123ab456-1234-1abc-1234-1ab34cde5678
+      cidr: 10.1.2.0/24
+```
+
+User must also specify the tenant to be used with AKO using the `tenantName` field. If not specified, AKO will use the admin tenant as configured in the AVI controller by default.
+
 ## AKO deployment in GKE, AKS and EKS.
 
 In all of the deployments the cluster is deployed such that Pod IP addresses are natively routable. Set `AKOSettings.disableStaticRouteSync` to `true` in AKO for each of the deployment.
