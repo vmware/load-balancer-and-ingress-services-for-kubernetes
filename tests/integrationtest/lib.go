@@ -115,6 +115,21 @@ func RemoveDefaultIngressClass() {
 	KubeClient.NetworkingV1().IngressClasses().Delete(context.TODO(), DefaultIngressClass, metav1.DeleteOptions{})
 }
 
+func AddIngressClassWithName(name string) {
+	ingClass := &networking.IngressClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: networking.IngressClassSpec{},
+	}
+
+	KubeClient.NetworkingV1().IngressClasses().Create(context.TODO(), ingClass, metav1.CreateOptions{})
+}
+
+func RemoveIngressClassWithName(ingClassName string) {
+	KubeClient.NetworkingV1().IngressClasses().Delete(context.TODO(), ingClassName, metav1.DeleteOptions{})
+}
+
 //Fake Namespace
 type FakeNamespace struct {
 	Name   string

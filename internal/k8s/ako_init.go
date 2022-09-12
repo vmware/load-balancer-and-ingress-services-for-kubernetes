@@ -961,6 +961,10 @@ func (c *AviController) FullSyncK8s() error {
 				} else {
 					for _, ingObj := range ingObjs {
 						key := utils.Ingress + "/" + utils.ObjKey(ingObj)
+						// optimization to check if ingress belongs to ingressClass handled by AKO.
+						if !lib.ValidateIngressForClass(key, ingObj) {
+							continue
+						}
 						meta, err := meta.Accessor(ingObj)
 						if err == nil {
 							resVer := meta.GetResourceVersion()
