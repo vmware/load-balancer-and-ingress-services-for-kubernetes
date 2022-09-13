@@ -331,9 +331,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 			},
 			VrfContext: lib.GetVrf(),
 		}
-		if lib.IsIstioEnabled() {
-			poolNode.UpdatePoolNodeForIstio()
-		}
+
 		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
 
 		if svcFQDN != "" {
@@ -383,6 +381,9 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		portPoolSet = append(portPoolSet, portPool)
 
 		buildPoolWithInfraSetting(key, poolNode, infraSetting)
+		if lib.IsIstioEnabled() {
+			poolNode.UpdatePoolNodeForIstio()
+		}
 
 		vsNode.PoolRefs = append(vsNode.PoolRefs, poolNode)
 		utils.AviLog.Infof("key: %s, msg: evaluated L4 pool values :%v", key, utils.Stringify(poolNode))
@@ -551,9 +552,7 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 				},
 				VrfContext: lib.GetVrf(),
 			}
-			if lib.IsIstioEnabled() {
-				poolNode.UpdatePoolNodeForIstio()
-			}
+
 			poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
 
 			if svcFQDN != "" {
@@ -574,6 +573,9 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 			portPoolSet = append(portPoolSet, portPool)
 
 			buildPoolWithInfraSetting(key, poolNode, infraSetting)
+			if lib.IsIstioEnabled() {
+				poolNode.UpdatePoolNodeForIstio()
+			}
 
 			vsNode.PoolRefs = append(vsNode.PoolRefs, poolNode)
 			utils.AviLog.Infof("key: %s, msg: evaluated L4 pool values :%v", key, utils.Stringify(poolNode))

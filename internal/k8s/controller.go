@@ -20,7 +20,6 @@ import (
 	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -835,7 +834,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if lib.IsIstioEnabled() {
 				secret := obj.(*corev1.Secret)
 				if secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.IstioSecret {
-					handleIstioSecret(secret)
 					key := utils.Secret + "/" + utils.GetAKONamespace() + "/" + lib.IstioSecret
 					bkt := utils.Bkt(utils.GetAKONamespace(), numWorkers)
 					c.workqueue[bkt].AddRateLimited(key)
@@ -895,7 +893,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if lib.IsIstioEnabled() {
 				secret := cur.(*corev1.Secret)
 				if secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.IstioSecret {
-					handleIstioSecret(secret)
 					key := utils.Secret + "/" + utils.GetAKONamespace() + "/" + lib.IstioSecret
 					bkt := utils.Bkt(utils.GetAKONamespace(), numWorkers)
 					c.workqueue[bkt].AddRateLimited(key)
@@ -1331,37 +1328,4 @@ func (c *AviController) Run(stopCh <-chan struct{}) error {
 	utils.AviLog.Info("Shutting down the Kubernetes Controller")
 
 	return nil
-}
-
-func handleIstioSecret(secret *corev1.Secret) {
-	rootCA := secret.Data["root-cert"]
-	sslKey := secret.Data["key"]
-	sslCert := secret.Data["cert-chain"]
-	modelName := lib.IstioModel
-	newAviModel := nodes.NewAviObjectGraph()
-	newAviModel.IsVrf = false
-	pkinode := &nodes.AviPkiProfileNode{
-		Name:   lib.IstioPKIProfile,
-		Tenant: lib.GetTenant(),
-		CACert: string(rootCA),
-	}
-	newAviModel.AddModelNode(pkinode)
-	sslNode := &nodes.AviTLSKeyCertNode{
-		Name:   lib.IstioWorkloadCertificate,
-		Tenant: lib.GetTenant(),
-		Type:   lib.CertTypeVS,
-		Cert:   sslCert,
-		Key:    sslKey,
-	}
-	newAviModel.AddModelNode(sslNode)
-	newAviModel.CalculateCheckSum()
-	found, avimodelIntf := objects.SharedAviGraphLister().Get(modelName)
-	if found && avimodelIntf != nil {
-		avimodel, ok := avimodelIntf.(*nodes.AviObjectGraph)
-		if ok {
-			if avimodel.GetCheckSum() != newAviModel.GetCheckSum() {
-				objects.SharedAviGraphLister().Save(modelName, newAviModel)
-			}
-		}
-	}
 }

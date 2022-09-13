@@ -186,12 +186,12 @@ func InitializeAKC() {
 	if lib.IsIstioEnabled() {
 		utils.AviLog.Infof("Adding certificate watcher for Istio")
 		istioCertWatcher, err := fsnotify.NewWatcher()
-		defer istioCertWatcher.Close()
 		if err != nil {
 			utils.AviLog.Fatal(err)
 		}
+		defer istioCertWatcher.Close()
 
-		go istioWatcherEvents(*istioCertWatcher, kubeClient, istioUpdateCh)
+		go istioWatcherEvents(istioCertWatcher, kubeClient, &istioUpdateCh)
 
 		_, err = os.Stat(lib.IstioCertOutputPath)
 		if err == nil {
@@ -200,7 +200,7 @@ func InitializeAKC() {
 				utils.AviLog.Fatal(err)
 			}
 			utils.AviLog.Infof("Added path to %s to Istio watcher", lib.IstioCertOutputPath)
-			initIstioSecrets(kubeClient, istioUpdateCh)
+			initIstioSecrets(kubeClient, &istioUpdateCh)
 		} else if os.IsNotExist(err) {
 			err := istioCertWatcher.Add("/etc")
 			utils.AviLog.Infof("Added path to /etc to Istio watcher")
@@ -359,7 +359,7 @@ func init() {
 	flag.StringVar(&masterURL, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
 }
 
-func istioWatcherEvents(watcher fsnotify.Watcher, kc *kubernetes.Clientset, istioUpdateCh chan struct{}) {
+func istioWatcherEvents(watcher *fsnotify.Watcher, kc *kubernetes.Clientset, istioUpdateCh *chan struct{}) {
 	for {
 		select {
 		case event, ok := <-watcher.Events:
@@ -390,9 +390,9 @@ func istioWatcherEvents(watcher fsnotify.Watcher, kc *kubernetes.Clientset, isti
 	}
 }
 
-func initIstioSecrets(kc *kubernetes.Clientset, istioUpdateCh chan struct{}) {
+func initIstioSecrets(kc *kubernetes.Clientset, istioUpdateCh *chan struct{}) {
 	lib.CreateIstioSecretFromCert(lib.IstioCertOutputPath+"/cert-chain.pem", kc)
 	lib.CreateIstioSecretFromCert(lib.IstioCertOutputPath+"/key.pem", kc)
 	lib.CreateIstioSecretFromCert(lib.IstioCertOutputPath+"/root-cert.pem", kc)
-	close(istioUpdateCh)
+	close(*istioUpdateCh)
 }
