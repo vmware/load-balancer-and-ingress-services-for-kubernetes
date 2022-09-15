@@ -184,6 +184,8 @@ func InitializeAKC() {
 	}
 	istioUpdateCh := make(chan struct{})
 	if lib.IsIstioEnabled() {
+		lib.SetIstioInitialized(false)
+		akoControlConfig.PodEventf(corev1.EventTypeNormal, "IstioEnabled", "Adding certificate watcher for Istio")
 		utils.AviLog.Infof("Adding certificate watcher for Istio")
 		istioCertWatcher, err := fsnotify.NewWatcher()
 		if err != nil {
@@ -199,11 +201,11 @@ func InitializeAKC() {
 			if err != nil {
 				utils.AviLog.Fatal(err)
 			}
-			utils.AviLog.Infof("Added path to %s to Istio watcher", lib.IstioCertOutputPath)
+			akoControlConfig.PodEventf(corev1.EventTypeNormal, "IstioWatcher", "Added path to %s to Istio watcher", lib.IstioCertOutputPath)
 			initIstioSecrets(kubeClient, &istioUpdateCh)
 		} else if os.IsNotExist(err) {
 			err := istioCertWatcher.Add("/etc")
-			utils.AviLog.Infof("Added path to /etc to Istio watcher")
+			akoControlConfig.PodEventf(corev1.EventTypeNormal, "IstioWatcher", "Added path to /etc to Istio watcher")
 			if err != nil {
 				utils.AviLog.Fatal(err)
 			}
@@ -327,7 +329,6 @@ func InitializeAKC() {
 
 	if lib.IsIstioEnabled() {
 		<-istioUpdateCh
-		c.IstioBootstrap()
 	}
 
 	go c.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)

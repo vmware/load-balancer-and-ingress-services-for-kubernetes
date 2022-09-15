@@ -1863,3 +1863,17 @@ func CreateIstioSecretFromCert(name string, kc kubernetes.Interface) {
 		return
 	}
 }
+
+var istioInitialized bool
+
+func SetIstioInitialized(b bool) {
+	istioInitialized = b
+}
+
+func IsIstioInitialized() bool {
+	return istioInitialized
+}
+
+func IsIstioKey(key string) bool {
+	return key == IstioPKIProfile || key == IstioWorkloadCertificate
+}

@@ -1458,13 +1458,15 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		v.LbAlgoHostHeader,
 		utils.Stringify(v.SniEnabled),
 		v.SslProfileRef,
-		v.SslKeyAndCertificateRef,
 		v.PriorityLabel,
 		utils.Stringify(v.NetworkPlacementSettings),
 	}
 
 	if v.PkiProfileRef != "" {
 		checksumStringSlice = append(checksumStringSlice, v.PkiProfileRef)
+	}
+	if v.SslKeyAndCertificateRef != "" {
+		checksumStringSlice = append(checksumStringSlice, v.SslKeyAndCertificateRef)
 	}
 
 	if len(v.ServiceMetadata.NamespaceServiceName) > 0 {

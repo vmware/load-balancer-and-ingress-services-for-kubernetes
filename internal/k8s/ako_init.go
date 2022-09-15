@@ -519,7 +519,9 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		utils.AviLog.Errorf("failed to populate cache, disabling sync")
 		lib.ShutdownApi()
 	}
-
+	if lib.IsIstioEnabled() {
+		c.IstioBootstrap()
+	}
 	// Setup and start event handlers for objects.
 	c.addIndexers()
 	c.AddCrdIndexer()
@@ -1060,7 +1062,7 @@ func (c *AviController) FullSyncK8s() error {
 	var allModels []string
 	for modelName := range allModelsMap.(map[string]interface{}) {
 		// ignore vrf model, as it has been published already
-		if modelName != vrfModelName {
+		if modelName != vrfModelName && !lib.IsIstioKey(modelName) {
 			allModels = append(allModels, modelName)
 		}
 	}
@@ -1286,6 +1288,7 @@ func (c *AviController) IstioBootstrap() {
 		sslCert := istioSecret.Data["cert-chain"]
 		newAviModel := nodes.NewAviObjectGraph()
 		newAviModel.IsVrf = false
+		newAviModel.Name = lib.IstioModel
 		pkinode := &nodes.AviPkiProfileNode{
 			Name:   lib.IstioPKIProfile,
 			Tenant: lib.GetTenant(),
@@ -1300,15 +1303,14 @@ func (c *AviController) IstioBootstrap() {
 			Key:    sslKey,
 		}
 		newAviModel.AddModelNode(sslNode)
-		newAviModel.CalculateCheckSum()
-		objects.SharedAviGraphLister().Save(lib.IstioModel, newAviModel)
-		key := utils.Secret + "/" + utils.GetAKONamespace() + "/" + lib.IstioSecret
 
 		cache := avicache.SharedAviObjCache()
 		aviclient := avicache.SharedAVIClients()
 		restlayer := rest.NewRestOperations(cache, aviclient)
 
-		restlayer.IstioCU(key, newAviModel, true)
+		key := utils.Secret + "/" + utils.GetAKONamespace() + "/" + lib.IstioSecret
+		restlayer.IstioCU(key, newAviModel)
+		lib.SetIstioInitialized(true)
 
 	} else {
 		utils.AviLog.Fatalf("Could not fetch secret: %s, %v", lib.IstioSecret, err)
