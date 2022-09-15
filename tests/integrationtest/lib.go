@@ -1060,17 +1060,21 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": vipAddress, "type": "V4"}}}
 			if strings.Contains(rName, "public") {
 				fipAddress := "35.250.250.1"
+				resp["vip"].([]interface{})[0].(map[string]interface{})["auto_allocate_floating_ip"] = true
 				resp["vip"].([]interface{})[0].(map[string]interface{})["floating_ip"] = map[string]string{"addr": fipAddress, "type": "V4"}
 			}
 			if strings.Contains(rName, "multivip") {
 				if strings.Contains(rName, "public") {
 					resp["vip"] = []interface{}{
 						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"},
-							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".1", "type": "V4"}},
+							"auto_allocate_floating_ip": true,
+							"floating_ip":               map[string]string{"addr": publicAddrPrefix + ".1", "type": "V4"}},
 						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".2", "type": "V4"},
-							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".2", "type": "V4"}},
+							"auto_allocate_floating_ip": true,
+							"floating_ip":               map[string]string{"addr": publicAddrPrefix + ".2", "type": "V4"}},
 						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".3", "type": "V4"},
-							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".3", "type": "V4"}},
+							"auto_allocate_floating_ip": true,
+							"floating_ip":               map[string]string{"addr": publicAddrPrefix + ".3", "type": "V4"}},
 					}
 				} else {
 					resp["vip"] = []interface{}{
@@ -1125,16 +1129,20 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			resp["vip"] = []interface{}{map[string]interface{}{"ip_address": map[string]string{"addr": vipAddress, "type": "V4"}}}
 
 			if strings.Contains(url, "public") {
+				resp["vip"].([]interface{})[0].(map[string]interface{})["auto_allocate_floating_ip"] = true
 				resp["vip"].([]interface{})[0].(map[string]interface{})["floating_ip"] = map[string]string{"addr": publicAddrPrefix + ".1", "type": "V4"}
 			} else if strings.Contains(url, "multivip") {
 				if strings.Contains(url, "public") {
 					resp["vip"] = []interface{}{
 						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".1", "type": "V4"},
-							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".1", "type": "V4"}},
+							"auto_allocate_floating_ip": true,
+							"floating_ip":               map[string]string{"addr": publicAddrPrefix + ".1", "type": "V4"}},
 						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".2", "type": "V4"},
-							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".2", "type": "V4"}},
+							"auto_allocate_floating_ip": true,
+							"floating_ip":               map[string]string{"addr": publicAddrPrefix + ".2", "type": "V4"}},
 						map[string]interface{}{"ip_address": map[string]string{"addr": addrPrefix + ".3", "type": "V4"},
-							"floating_ip": map[string]string{"addr": publicAddrPrefix + ".3", "type": "V4"}},
+							"auto_allocate_floating_ip": true,
+							"floating_ip":               map[string]string{"addr": publicAddrPrefix + ".3", "type": "V4"}},
 					}
 				} else {
 					resp["vip"] = []interface{}{

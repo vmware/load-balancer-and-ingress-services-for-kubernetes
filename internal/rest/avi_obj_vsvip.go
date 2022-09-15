@@ -503,17 +503,20 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 					if ok {
 						fipEnabled = auto_allocate_floating_ip.(bool)
 					}
-					floating_ip, valid := vip["floating_ip"].(map[string]interface{})
 
-					if fipEnabled && !valid {
-						utils.AviLog.Warnf("key: %s, msg: invalid type for floating_ip in vsvip: %s", key, name)
-					} else {
-						fip_addr, valid := floating_ip["addr"].(string)
+					if fipEnabled {
+						floating_ip, valid := vip["floating_ip"].(map[string]interface{})
+
 						if !valid {
-							utils.AviLog.Warnf("key: %s, msg: invalid type for addr in vsvip: %s", key, name)
-							continue
+							utils.AviLog.Warnf("key: %s, msg: invalid type for floating_ip in vsvip: %s", key, name)
+						} else {
+							fip_addr, valid := floating_ip["addr"].(string)
+							if !valid {
+								utils.AviLog.Warnf("key: %s, msg: invalid type for addr in vsvip: %s", key, name)
+								continue
+							}
+							vsvipFips = append(vsvipFips, fip_addr)
 						}
-						vsvipFips = append(vsvipFips, fip_addr)
 					}
 					if ipamNetworkSubnet, ipamOk := vip["ipam_network_subnet"].(map[string]interface{}); ipamOk {
 						if networkRef, netRefOk := ipamNetworkSubnet["network_ref"].(string); netRefOk {
