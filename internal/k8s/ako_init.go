@@ -1290,13 +1290,13 @@ func (c *AviController) IstioBootstrap() {
 		newAviModel.IsVrf = false
 		newAviModel.Name = lib.IstioModel
 		pkinode := &nodes.AviPkiProfileNode{
-			Name:   lib.IstioPKIProfile,
+			Name:   lib.GetIstioPKIProfileName(),
 			Tenant: lib.GetTenant(),
 			CACert: string(rootCA),
 		}
 		newAviModel.AddModelNode(pkinode)
 		sslNode := &nodes.AviTLSKeyCertNode{
-			Name:   lib.IstioWorkloadCertificate,
+			Name:   lib.GetIstioWorkloadCertificateName(),
 			Tenant: lib.GetTenant(),
 			Type:   lib.CertTypeVS,
 			Cert:   sslCert,

@@ -1875,5 +1875,13 @@ func IsIstioInitialized() bool {
 }
 
 func IsIstioKey(key string) bool {
-	return key == IstioPKIProfile || key == IstioWorkloadCertificate
+	return strings.HasPrefix(key, "istio-pki-") || strings.HasPrefix(key, "istio-workload-")
+}
+
+func GetIstioPKIProfileName() string {
+	return "istio-pki-" + GetClusterName() + "-" + utils.GetAKONamespace()
+}
+
+func GetIstioWorkloadCertificateName() string {
+	return "istio-workload-" + GetClusterName() + "-" + utils.GetAKONamespace()
 }

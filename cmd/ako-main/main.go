@@ -368,7 +368,7 @@ func istioWatcherEvents(watcher *fsnotify.Watcher, kc *kubernetes.Clientset, ist
 				return
 			}
 			if event.Op == fsnotify.Write || event.Op == fsnotify.Create {
-				utils.AviLog.Infof("Istio watcher event, modified file:", event.Name)
+				utils.AviLog.Infof("Istio watcher event, modified file: %s", event.Name)
 
 				if strings.HasSuffix(event.Name, "istio-output-certs") {
 					watcher.Remove("/etc")
@@ -386,7 +386,7 @@ func istioWatcherEvents(watcher *fsnotify.Watcher, kc *kubernetes.Clientset, ist
 			if !ok {
 				return
 			}
-			utils.AviLog.Infof("Istio watcher event, error:", err)
+			utils.AviLog.Warnf("Istio watcher event, error: %s", err.Error())
 		}
 	}
 }

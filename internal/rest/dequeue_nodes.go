@@ -124,10 +124,10 @@ func (rest *RestOperations) IstioCU(key string, avimodel *nodes.AviObjectGraph) 
 	var restOps []*utils.RestOp
 	var pkiSuccess, sslSuccess bool
 
-	pkiKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: lib.IstioPKIProfile}
-	sslKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: lib.IstioWorkloadCertificate}
+	pkiKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: lib.GetIstioPKIProfileName()}
+	sslKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: lib.GetIstioWorkloadCertificateName()}
 	pkiNode, sslNode := avimodel.GetIstioNodes()
-	pkiCacheObj, ok := rest.cache.PKIProfileCache.AviCacheGet(lib.IstioPKIProfile)
+	pkiCacheObj, ok := rest.cache.PKIProfileCache.AviCacheGet(lib.GetIstioPKIProfileName())
 	if !ok {
 		restOp := rest.AviPkiProfileBuild(pkiNode, nil)
 		restOps = []*utils.RestOp{restOp}
@@ -141,7 +141,7 @@ func (rest *RestOperations) IstioCU(key string, avimodel *nodes.AviObjectGraph) 
 		}
 	}
 
-	sslCacheObj, ok := rest.cache.SSLKeyCache.AviCacheGet(lib.IstioWorkloadCertificate)
+	sslCacheObj, ok := rest.cache.SSLKeyCache.AviCacheGet(lib.GetIstioWorkloadCertificateName())
 	if !ok {
 		restOp := rest.AviSSLBuild(sslNode, nil)
 		restOps = []*utils.RestOp{restOp}
@@ -1688,7 +1688,7 @@ func (rest *RestOperations) SSLKeyCertDelete(ssl_to_delete []avicache.NamespaceN
 	for _, del_ssl := range ssl_to_delete {
 		ssl_key := avicache.NamespaceName{Namespace: namespace, Name: del_ssl.Name}
 		ssl_cache, ok := rest.cache.SSLKeyCache.AviCacheGet(ssl_key)
-		if ok && ssl_key.Name != lib.IstioWorkloadCertificate {
+		if ok && ssl_key.Name != lib.GetIstioWorkloadCertificateName() {
 			ssl_cache_obj, _ := ssl_cache.(*avicache.AviSSLCache)
 			restOp := rest.AviSSLKeyCertDel(ssl_cache_obj.Uuid, namespace)
 			restOp.ObjName = del_ssl.Name
@@ -1755,7 +1755,7 @@ func (rest *RestOperations) PkiProfileDelete(pkiProfileDelete []avicache.Namespa
 	for _, delPki := range pkiProfileDelete {
 		pkiProfile := avicache.NamespaceName{Namespace: namespace, Name: delPki.Name}
 		pkiCache, ok := rest.cache.PKIProfileCache.AviCacheGet(pkiProfile)
-		if ok && pkiProfile.Name != lib.IstioPKIProfile {
+		if ok && pkiProfile.Name != lib.GetIstioPKIProfileName() {
 			pkiCacheObj, _ := pkiCache.(*avicache.AviPkiProfileCache)
 			restOp := rest.AviPkiProfileDel(pkiCacheObj.Uuid, namespace)
 			restOp.ObjName = delPki.Name

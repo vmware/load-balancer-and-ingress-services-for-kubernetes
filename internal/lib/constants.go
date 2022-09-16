@@ -179,8 +179,6 @@ const (
 	IPTypeV4V6                                 = "V4_V6"
 	IstioCertOutputPath                        = "/etc/istio-output-certs"
 	IstioSecret                                = "istio-secret"
-	IstioPKIProfile                            = "istio-pki"
-	IstioWorkloadCertificate                   = "istio-workload"
 	IstioModel                                 = "istioModel"
 
 	// AKO Event constants

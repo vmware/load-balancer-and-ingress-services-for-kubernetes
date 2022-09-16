@@ -50,13 +50,13 @@ func DequeueIngestion(key string, fullsync bool) {
 		newAviModel := NewAviObjectGraph()
 		newAviModel.IsVrf = false
 		pkinode := &AviPkiProfileNode{
-			Name:   lib.IstioPKIProfile,
+			Name:   lib.GetIstioPKIProfileName(),
 			Tenant: lib.GetTenant(),
 			CACert: string(rootCA),
 		}
 		newAviModel.AddModelNode(pkinode)
 		sslNode := &AviTLSKeyCertNode{
-			Name:   lib.IstioWorkloadCertificate,
+			Name:   lib.GetIstioWorkloadCertificateName(),
 			Tenant: lib.GetTenant(),
 			Type:   lib.CertTypeVS,
 			Cert:   sslCert,

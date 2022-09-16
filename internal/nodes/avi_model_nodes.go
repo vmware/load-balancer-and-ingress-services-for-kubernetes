@@ -1521,8 +1521,8 @@ func (v *AviPoolNode) CopyNode() AviModelNode {
 	return &newNode
 }
 func (v *AviPoolNode) UpdatePoolNodeForIstio() {
-	v.PkiProfileRef = fmt.Sprintf("/api/pkiprofile?name=%s", lib.IstioPKIProfile)
-	v.SslKeyAndCertificateRef = fmt.Sprintf("/api/sslkeyandcertificate?name=%s", lib.IstioWorkloadCertificate)
+	v.PkiProfileRef = fmt.Sprintf("/api/pkiprofile?name=%s", lib.GetIstioPKIProfileName())
+	v.SslKeyAndCertificateRef = fmt.Sprintf("/api/sslkeyandcertificate?name=%s", lib.GetIstioWorkloadCertificateName())
 }
 func (o *AviObjectGraph) GetAviPoolNodesByIngress(tenant string, ingName string) []*AviPoolNode {
 	var aviPool []*AviPoolNode
