@@ -503,13 +503,12 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 						continue
 					}
 					ipType := "V4_ONLY"
-					V4, V6, V4_V6 := "V4_ONLY", "V6_ONLY", "V4_V6"
 					auto_allocate_ip_type, ok := vip["auto_allocate_ip_type"]
 					if ok {
 						ipType = auto_allocate_ip_type.(string)
 					}
 					ip_address, valid := vip["ip_address"].(map[string]interface{})
-					if !valid && (ipType == V4 || ipType == V4_V6) {
+					if !valid && (ipType == lib.IPTypeV4Only || ipType == lib.IPTypeV4V6) {
 						utils.AviLog.Infof("key: %s, msg: invalid type for ip_address in vsvip: %s", key, name)
 						continue
 					}
@@ -521,7 +520,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 					vsvipVips = append(vsvipVips, addr)
 
 					ip6_address, valid := vip["ip6_address"].(map[string]interface{})
-					if !valid && (ipType == V6 || ipType == V4_V6) {
+					if !valid && (ipType == lib.IPTypeV6Only || ipType == lib.IPTypeV4V6) {
 						utils.AviLog.Warnf("key: %s, msg: invalid type for ip6_address in vsvip: %s", key, name)
 						continue
 					}

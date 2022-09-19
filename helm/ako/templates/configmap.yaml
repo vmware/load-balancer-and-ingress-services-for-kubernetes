@@ -46,3 +46,4 @@ data:
   enableMCI: {{ .Values.L7Settings.enableMCI | quote }}
   blockedNamespaceList: |-
     {{ .Values.AKOSettings.blockedNamespaceList | mustToJson }}
+  ipFamily: {{ .Values.AKOSettings.ipFamily | quote }}

@@ -1408,7 +1408,7 @@ func GetAKOIDPrefix() string {
 	return akoID
 }
 
-//TODO: Optimize
+// TODO: Optimize
 func IsNamespaceBlocked(namespace string) bool {
 	nsBlockedList := AKOControlConfig().GetAKOBlockedNSList()
 	_, ok := nsBlockedList[namespace]
@@ -1772,8 +1772,9 @@ func GetThrottle(key string) *int32 {
 }
 
 func UpdateV6(vip *models.Vip, vipNetwork *akov1alpha1.AviInfraSettingVipNetwork) {
-	v6addr := strings.Split(vipNetwork.V6Cidr, "/")[0]
-	v6mask, _ := strconv.Atoi(strings.Split(vipNetwork.V6Cidr, "/")[1])
+	v6slice := strings.Split(vipNetwork.V6Cidr, "/")
+	v6addr := v6slice[0]
+	v6mask, _ := strconv.Atoi(v6slice[1])
 
 	v6cidr := models.IPAddrPrefix{
 		IPAddr: &models.IPAddr{
@@ -1788,4 +1789,24 @@ func UpdateV6(vip *models.Vip, vipNetwork *akov1alpha1.AviInfraSettingVipNetwork
 		vip.AutoAllocateIPType = proto.String("V6_ONLY")
 	}
 	vip.Subnet6 = &v6cidr
+}
+
+func GetIPFamily() string {
+	ipFamily := os.Getenv(IP_FAMILY)
+	if ipFamily != "" {
+		utils.AviLog.Debugf("ipFamily is set to %s", ipFamily)
+		return ipFamily
+	}
+	utils.AviLog.Debugf("ipFamily is not set, default is V4")
+	ipFamily = "V4"
+	return ipFamily
+}
+
+func IsValidIPFamily(returnErr *error) bool {
+	ipFamily := GetIPFamily()
+	if ipFamily == "V4" || ipFamily == "V6" {
+		return true
+	}
+	*returnErr = fmt.Errorf("ipFamily is not one of (V4, V6)")
+	return false
 }

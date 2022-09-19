@@ -82,6 +82,7 @@ func findRoutePrefix(nodeRoutes, aviRoutes []*models.StaticRoute, key string) bo
 func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid int) ([]*models.StaticRoute, error) {
 	var nodeIP string
 	var nodeRoutes []*models.StaticRoute
+	ipFamily := lib.GetIPFamily()
 
 	nodeAddrs := node.Status.Addresses
 	for _, addr := range nodeAddrs {
@@ -103,7 +104,15 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 
 	nodeipType := "V4"
 	re := regexp.MustCompile(lib.IPCIDRRegex)
-	if !re.MatchString(nodeIP + "/32") {
+	if re.MatchString(nodeIP + "/32") {
+		if ipFamily != "V4" {
+			return nil, errors.New("cannot add V4 node for ipFamily")
+		}
+		nodeipType = "V4"
+	} else {
+		if lib.GetIPFamily() != "V6" {
+			return nil, errors.New("cannot add V6 node for ipFamily")
+		}
 		nodeipType = "V6"
 	}
 	for _, podCIDR := range podCIDRs {

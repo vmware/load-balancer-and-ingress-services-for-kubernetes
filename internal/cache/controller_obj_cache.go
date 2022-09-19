@@ -158,8 +158,8 @@ func (c *AviObjCache) AviObjCachePopulate(client []*clients.AviClient, version s
 	return vsCacheCopy, allVsKeys, nil
 }
 
-//TODO: Deperecate this function in future release.
-//This function list EVH child VS to be deleted which contain namespace in its un-encoded name.
+// TODO: Deperecate this function in future release.
+// This function list EVH child VS to be deleted which contain namespace in its un-encoded name.
 func (c *AviObjCache) listEVHChildrenToDelete(vs_cache_obj *AviVsCache, childUuids []string) ([]NamespaceName, []string) {
 	var childNSNameToDelete []NamespaceName
 	var childUuidToDelete []string
@@ -2569,6 +2569,7 @@ func ValidateUserInput(client *clients.AviClient) (bool, error) {
 	isPublicCloudConfigValid := checkPublicCloud(client, &err)
 	checkedAndSetVRFConfig := checkAndSetVRFFromNetwork(client, &err)
 	isCNIConfigValid := lib.IsValidCni(&err)
+	isValidIPFamily := lib.IsValidIPFamily(&err)
 
 	isValid := isTenantValid &&
 		isCloudValid &&
@@ -2578,7 +2579,8 @@ func ValidateUserInput(client *clients.AviClient) (bool, error) {
 		isPublicCloudConfigValid &&
 		checkedAndSetVRFConfig &&
 		isCNIConfigValid &&
-		isBGPConfigurationValid
+		isBGPConfigurationValid &&
+		isValidIPFamily
 
 	if !isValid {
 		if !isCloudValid || !isSegroupValid || !isNodeNetworkValid || !isBGPConfigurationValid {

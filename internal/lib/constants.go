@@ -28,6 +28,7 @@ const (
 	AviSecret                 = "avi-secret"
 	VLAN_TRANSPORT_ZONE       = "VLAN"
 	OVERLAY_TRANSPORT_ZONE    = "OVERLAY"
+	IP_FAMILY                 = "IP_FAMILY"
 
 	AVI_INGRESS_CLASS                          = "avi"
 	NETWORK_NAME                               = "NETWORK_NAME"
@@ -173,6 +174,9 @@ const (
 	IPAMProviderCustom                         = "IPAMDNS_TYPE_CUSTOM"
 	SharedVipServiceKey                        = "SharedVipService"
 	HttpRulePkiAndDestCASetErr                 = "PKIProfile and DestinationCA fields are set in the HTTPRule. Only one of the field should be set."
+	IPTypeV4Only                               = "V4_ONLY"
+	IPTypeV6Only                               = "V6_ONLY"
+	IPTypeV4V6                                 = "V4_V6"
 
 	// AKO Event constants
 	AKOEventComponent      = "avi-kubernetes-operator"
@@ -260,7 +264,7 @@ const (
 	AviSettingRouteIndex = "aviSettingRoute"
 )
 
-//Passthrough deployment same in EVH and SNI. Not changing log messages.
+// Passthrough deployment same in EVH and SNI. Not changing log messages.
 const (
 	PassthroughDatascript = `local avi_tls = require "Default-TLS"
 	buffered = avi.l4.collect(20)

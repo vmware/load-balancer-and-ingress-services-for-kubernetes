@@ -34,6 +34,7 @@ AKOSettings:
   # blockedNamespaceList:
   #   - kube-system
   #   - kube-public
+  ipFamily: "" # This flag can take values V4 or V6 (default V4)
 
 ### This section outlines the network settings for virtualservices. 
 NetworkSettings:

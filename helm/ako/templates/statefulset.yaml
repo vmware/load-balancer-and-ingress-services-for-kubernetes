@@ -223,6 +223,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: blockedNamespaceList
+          - name: IP_FAMILY
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: ipFamily
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:
