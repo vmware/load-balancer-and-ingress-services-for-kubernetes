@@ -38,8 +38,20 @@ Values and their corresponding index can be found [here](#parameters)
 
 Step 4: Install AKO
 
+With AKO-1.7.1 and onwards, multiple AKO instances can be installed in a cluster.
+> **Note**: <br>
+    1. Out of multiple AKO instances, only one AKO instance should be `Primary`. <br>
+    2. Each AKO instance should be installed in a different namespace.
+
+<b>Primary AKO installation</b>
 ```
-helm install  ako/ako  --generate-name --version 1.8.1 -f /path/to/values.yaml --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --namespace=avi-system
+helm install  ako/ako  --generate-name --version 1.8.1 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=true --namespace=avi-system
+```
+
+<b>Secondary AKO installation</b>
+```
+helm install  ako/ako  --generate-name --version 1.8.1 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=false --namespace=avi-system
+
 ```
 
 Step 5: Check the installation
@@ -135,6 +147,7 @@ The following table lists the configurable parameters of the AKO chart and their
 | `ControllerSettings.controllerHost` | Specify Avi controller IP or Hostname | `nil` |
 | `ControllerSettings.cloudName` | Name of the cloud managed in Avi | Default-Cloud |
 | `ControllerSettings.tenantName` | Name of the tenant where all the AKO objects will be created in AVI. | admin |
+| `ControllerSettings.primaryInstance` | Specify AKO instance is primary or not | true |
 | `L7Settings.shardVSSize` | Shard VS size enum values: LARGE, MEDIUM, SMALL, DEDICATED | LARGE |
 | `AKOSettings.fullSyncFrequency` | Full sync frequency | 1800 |
 | `L7Settings.defaultIngController` | AKO is the default ingress controller | true |

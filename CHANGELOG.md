@@ -214,3 +214,47 @@ All notable changes to this project will be documented in this file. The format 
  - Fix for attaching applicationProfile, datascripts, httpPolicies to Parent VS via HostRule.
  - Set non-significant log duration to infinite, when configuring analyticsPolicy via HostRule.
  - Fix for auth-token renewal after token expiration.
+
+## AKO-1.6.4
+
+### Bugs fixed
+ - Problem in creating LoadBalancer Service with named ports.
+ - Issue: FQDN aliases not getting added to all the HTTP policies.
+ - Fixes improper dedicated VS creation of Service of type LB when Gateways and ServiceLB used at the same time.
+ - Fixes an issue of an empty string fqdn programming in L4 VSVIP when autoFqdn is disabled and no subDomains are configured in the dnsProfile.
+ - Fixes an issue of SEG label configuration during AviInfraSetting validation if static route sync is disabled.
+
+
+## AKO-1.7.1
+
+### Added
+ - AKO now claims support for Kubernetes 1.23
+ - [Multiple AKO instances](docs/multiple-ako.md) can be deployed in K8/Openshift cluster.
+ - [Support for Shared VIP with Service of type LoadBalancer](docs/shared_vip.md) (Tech-preview)
+ - Multiple certificate support for ingresses/routes through HostRule CRD.
+ - Support for PKI profile reference, secrete reference through HostRule CRD.
+ - Support for Openshift on Openstack
+ - Optimization in nodeport mode using nodefilters.
+
+### Changed
+ - Control AKO Event broadcasting using ConfigMap `enableEvents` flag.
+ - Allow AKO to continue clean up of avi objects when AKO boots up with `deleteConfig` flag set to true.
+ - In EVH deployment, if AKO is processing two hosts, that belongs to same parent virtual service, AKO continues to process the next host even if the current host has errors except if the error code is:
+    1. Between 500 to 509
+    2. 408, indicating session timeout
+    3. 403, Controller upgrade is in progress
+    4. 401, invalid credentials
+ - Set `Network Profile` to `System-TCP-Proxy` for L4 virtual services if Avi Controller has Enterprise License.
+
+### Fixed
+ - Fix: Donot program fqdn for L4 via external dns when autoFQDN is disabled.
+ - Fix: Empty fqdn in L4 VSVIP when autoFqdn is disabled.
+ - Fix: Dedicated VS creation of service type LB if Gateways and ServiceLB is used at same time.
+ - Fix: HTTP rule is not getting applied on a route with empty path.
+ - Fix: Ingress fails if client adds port to host header.
+ - Fixes security vulnerability caused due to third party package import in AKO.
+ - Fix: FQDN aliases not getting added to all the HTTP policies.
+ - Fix: AKO is not updating the ingress status when annotation `passthrough.ako.vmware.com/enabled: "true"` is added to the ingress.
+ - Fixes LoadBalancer service creation with named ports in NodePortLocal deployment.
+ - Fix: Every SEGroup used in the AviInfraSetting is getting configured with the labels even when `disableStaticRouteSync` is set to `true`.
+ - Fix: AKO pod keeps getting error "panic: runtime error: slice bounds out of range" then goes into CrashLoopBackOff state.
