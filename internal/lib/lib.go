@@ -34,7 +34,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/Masterminds/semver"
 	routev1 "github.com/openshift/api/route/v1"
@@ -46,6 +45,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+
+	"google.golang.org/protobuf/proto"
 )
 
 var ShardSchemeMap = map[string]string{
@@ -1772,41 +1773,43 @@ func GetThrottle(key string) *int32 {
 }
 
 func UpdateV6(vip *models.Vip, vipNetwork *akov1alpha1.AviInfraSettingVipNetwork) {
-	v6slice := strings.Split(vipNetwork.V6Cidr, "/")
-	v6addr := v6slice[0]
-	v6mask, _ := strconv.Atoi(v6slice[1])
-
-	v6cidr := models.IPAddrPrefix{
-		IPAddr: &models.IPAddr{
-			Addr: &v6addr,
-			Type: proto.String("V6"),
-		},
-		Mask: proto.Int32(int32(v6mask)),
-	}
 	if vipNetwork.Cidr != "" {
 		vip.AutoAllocateIPType = proto.String("V4_V6")
 	} else {
 		vip.AutoAllocateIPType = proto.String("V6_ONLY")
 	}
-	vip.Subnet6 = &v6cidr
 }
 
 func GetIPFamily() string {
 	ipFamily := os.Getenv(IP_FAMILY)
-	if ipFamily != "" {
-		utils.AviLog.Debugf("ipFamily is set to %s", ipFamily)
-		return ipFamily
+	if GetCloudType() == CLOUD_VCENTER {
+		if ipFamily != "" {
+			utils.AviLog.Debugf("ipFamily is set to %s", ipFamily)
+			return ipFamily
+		} else {
+			utils.AviLog.Debugf("ipFamily is not set, default is V4")
+			ipFamily = "V4"
+		}
+	} else {
+		ipFamily = "V4"
 	}
-	utils.AviLog.Debugf("ipFamily is not set, default is V4")
-	ipFamily = "V4"
 	return ipFamily
 }
 
-func IsValidIPFamily(returnErr *error) bool {
+func IsValidV6Config(returnErr *error) bool {
 	ipFamily := GetIPFamily()
-	if ipFamily == "V4" || ipFamily == "V6" {
-		return true
+	if !(ipFamily == "V4" || ipFamily == "V6") {
+		*returnErr = fmt.Errorf("ipFamily is not one of (V4, V6)")
+		return false
 	}
-	*returnErr = fmt.Errorf("ipFamily is not one of (V4, V6)")
-	return false
+
+	vipNetworkList := GetVipNetworkList()
+	isCloudVCenter := (GetCloudType() == CLOUD_VCENTER)
+	for _, vipNetwork := range vipNetworkList {
+		if !isCloudVCenter && vipNetwork.V6Cidr != "" {
+			*returnErr = fmt.Errorf("IPv6 CIDR is only supported for vCenter Clouds")
+			return false
+		}
+	}
+	return true
 }

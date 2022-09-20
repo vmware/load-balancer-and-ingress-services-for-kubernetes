@@ -507,30 +507,32 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 					if ok {
 						ipType = auto_allocate_ip_type.(string)
 					}
-					ip_address, valid := vip["ip_address"].(map[string]interface{})
-					if !valid && (ipType == lib.IPTypeV4Only || ipType == lib.IPTypeV4V6) {
-						utils.AviLog.Infof("key: %s, msg: invalid type for ip_address in vsvip: %s", key, name)
-						continue
+					if ipType == lib.IPTypeV4Only || ipType == lib.IPTypeV4V6 {
+						ip_address, valid := vip["ip_address"].(map[string]interface{})
+						if !valid {
+							utils.AviLog.Infof("key: %s, msg: invalid type for ip_address in vsvip: %s", key, name)
+							continue
+						}
+						addr, valid := ip_address["addr"].(string)
+						if !valid {
+							utils.AviLog.Infof("key: %s, msg: invalid type for addr in vsvip: %s", key, name)
+							continue
+						}
+						vsvipVips = append(vsvipVips, addr)
 					}
-					addr, valid := ip_address["addr"].(string)
-					if !valid {
-						utils.AviLog.Infof("key: %s, msg: invalid type for addr in vsvip: %s", key, name)
-						continue
+					if ipType == lib.IPTypeV6Only || ipType == lib.IPTypeV4V6 {
+						ip6_address, valid := vip["ip6_address"].(map[string]interface{})
+						if !valid {
+							utils.AviLog.Warnf("key: %s, msg: invalid type for ip6_address in vsvip: %s", key, name)
+							continue
+						}
+						v6_addr, valid := ip6_address["addr"].(string)
+						if !valid {
+							utils.AviLog.Warnf("key: %s, msg: invalid type for v6 addr in vsvip: %s", key, name)
+							continue
+						}
+						vsvipV6ip = v6_addr
 					}
-					vsvipVips = append(vsvipVips, addr)
-
-					ip6_address, valid := vip["ip6_address"].(map[string]interface{})
-					if !valid && (ipType == lib.IPTypeV6Only || ipType == lib.IPTypeV4V6) {
-						utils.AviLog.Warnf("key: %s, msg: invalid type for ip6_address in vsvip: %s", key, name)
-						continue
-					}
-					v6_addr, valid := ip6_address["addr"].(string)
-					if !valid {
-						utils.AviLog.Warnf("key: %s, msg: invalid type for v6 addr in vsvip: %s", key, name)
-						continue
-					}
-					vsvipV6ip = v6_addr
-
 					fipEnabled := false
 					auto_allocate_floating_ip, ok := vip["auto_allocate_floating_ip"]
 					if ok {
