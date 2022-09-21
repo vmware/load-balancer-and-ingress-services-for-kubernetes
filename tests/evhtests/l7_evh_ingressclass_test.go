@@ -75,6 +75,7 @@ func TestEVHWrongClassMappingInIngress(t *testing.T) {
 	defer integrationtest.AddDefaultIngressClass()
 
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, "")
+	integrationtest.VerifyIngressClassProcessed(t, g, ingClassName)
 	ingressCreate := (integrationtest.FakeIngress{
 		Name:        ingressName,
 		Namespace:   ns,
@@ -238,6 +239,7 @@ func TestEVHAviInfraSettingNamingConvention(t *testing.T) {
 	evhKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--my-infrasetting-baz.com", lib.EVHVS)}
 	integrationtest.SetupAviInfraSetting(t, settingName, "SMALL")
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
+	integrationtest.VerifyIngressClassProcessed(t, g, ingClassName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 
 	ingressCreate := (integrationtest.FakeIngress{
@@ -321,6 +323,7 @@ func TestEVHAddRemoveInfraSettingInIngressClass(t *testing.T) {
 	defer integrationtest.AddDefaultIngressClass()
 
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, "")
+	integrationtest.VerifyIngressClassProcessed(t, g, ingClassName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 	ingressCreate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -414,6 +417,7 @@ func TestEVHUpdateInfraSettingInIngressClass(t *testing.T) {
 	settingModelName2 := "admin/cluster--Shared-L7-EVH-my-infrasetting2-0"
 
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName1)
+	integrationtest.VerifyIngressClassProcessed(t, g, ingClassName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 	ingressCreate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -498,6 +502,7 @@ func TestEVHAddIngressClassWithInfraSetting(t *testing.T) {
 	settingModelName := "admin/cluster--Shared-L7-EVH-my-infrasetting-0"
 
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
+	integrationtest.VerifyIngressClassProcessed(t, g, ingClassName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 	ingressCreate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -591,7 +596,9 @@ func TestEVHUpdateIngressClassWithInfraSetting(t *testing.T) {
 	integrationtest.SetupAviInfraSetting(t, settingName2, "MEDIUM")
 
 	integrationtest.SetupIngressClass(t, ingClassName1, lib.AviIngressController, settingName1)
+	integrationtest.VerifyIngressClassProcessed(t, g, ingClassName1)
 	integrationtest.SetupIngressClass(t, ingClassName2, lib.AviIngressController, settingName2)
+	integrationtest.VerifyIngressClassProcessed(t, g, ingClassName2)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 	ingressCreate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -678,6 +685,7 @@ func TestEVHUpdateWithInfraSetting(t *testing.T) {
 	defer integrationtest.AddDefaultIngressClass()
 
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
+	integrationtest.VerifyIngressClassProcessed(t, g, ingClassName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 	ingressCreate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -804,7 +812,9 @@ func TestEVHUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 	integrationtest.SetupAviInfraSetting(t, settingName, "MEDIUM")
 
 	integrationtest.SetupIngressClass(t, ingClassName1, lib.AviIngressController, settingName)
+	integrationtest.VerifyIngressClassProcessed(t, g, ingClassName1)
 	integrationtest.SetupIngressClass(t, ingClassName2, lib.AviIngressController, "")
+	integrationtest.VerifyIngressClassProcessed(t, g, ingClassName2)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 	ingressCreate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -900,6 +910,7 @@ func TestEVHBGPConfigurationWithInfraSetting(t *testing.T) {
 
 	integrationtest.SetupAviInfraSetting(t, settingName, "LARGE")
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
+	integrationtest.VerifyIngressClassProcessed(t, g, ingClassName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-my-infrasetting-1"}
@@ -986,6 +997,7 @@ func TestEVHBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
 
 	integrationtest.SetupAviInfraSetting(t, settingName, "LARGE")
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
+	integrationtest.VerifyIngressClassProcessed(t, g, ingClassName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 
 	ingressCreate := (integrationtest.FakeIngress{
@@ -1065,6 +1077,7 @@ func TestEVHCRDWithAviInfraSetting(t *testing.T) {
 
 	integrationtest.SetupAviInfraSetting(t, settingName, "LARGE")
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
+	integrationtest.VerifyIngressClassProcessed(t, g, ingClassName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 
 	httpRulePath := "/"

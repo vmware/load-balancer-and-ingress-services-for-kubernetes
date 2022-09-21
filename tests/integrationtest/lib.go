@@ -1577,6 +1577,22 @@ func SetupIngressClass(t *testing.T, ingclassName, controller, infraSetting stri
 	}
 }
 
+func VerifyIngressClassProcessed(t *testing.T, g *gomega.WithT, ingClassName string) {
+	g.Eventually(func() bool {
+		key := utils.IngressClass + "/" + ingClassName
+		ok, _ := objects.SharedResourceVerInstanceLister().Get(key)
+		return ok
+	}, 40*time.Second).Should(gomega.BeTrue())
+}
+
+func VerifyIngressClassDeleted(t *testing.T, g *gomega.WithT, ingClassName string) {
+	g.Eventually(func() bool {
+		key := utils.IngressClass + "/" + ingClassName
+		ok, _ := objects.SharedResourceVerInstanceLister().Get(key)
+		return ok
+	}, 40*time.Second).Should(gomega.BeFalse())
+}
+
 func TeardownIngressClass(t *testing.T, ingClassName string) {
 	if err := KubeClient.NetworkingV1().IngressClasses().Delete(context.TODO(), ingClassName, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting IngressClass: %v", err)

@@ -262,7 +262,7 @@ multiclusteringresstests:
 
 .PHONY: int_test
 int_test:
-	make -j 1 k8stest integrationtest ingresstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests evhtests misc vcftests dedicatedvstests infratests multiclusteringresstests
+	make -j 1 k8stest integrationtest ingresstests evhtests vcftests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc dedicatedvstests infratests multiclusteringresstests
 
 .PHONY: scale_test
 scale_test:
