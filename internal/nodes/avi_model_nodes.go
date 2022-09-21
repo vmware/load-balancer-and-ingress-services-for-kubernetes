@@ -1196,7 +1196,12 @@ func (v *AviVSVIPNode) CalculateCheckSum() {
 	if len(v.VipNetworks) > 0 {
 		var vipNetworkStringList []string
 		for _, vipNetwork := range v.VipNetworks {
-			vipNetworkStringList = append(vipNetworkStringList, vipNetwork.NetworkName+":"+vipNetwork.Cidr+":"+vipNetwork.V6Cidr)
+			chksumstr := vipNetwork.NetworkName + ":" + vipNetwork.Cidr
+			if vipNetwork.V6Cidr != "" {
+				chksumstr += ":" + vipNetwork.V6Cidr
+			}
+			vipNetworkStringList = append(vipNetworkStringList, chksumstr)
+
 		}
 		sort.Strings(vipNetworkStringList)
 		checksum += utils.Hash(utils.Stringify(vipNetworkStringList))

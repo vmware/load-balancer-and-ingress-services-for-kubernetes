@@ -1780,12 +1780,15 @@ func UpdateV6(vip *models.Vip, vipNetwork *akov1alpha1.AviInfraSettingVipNetwork
 	}
 }
 
-func GetIPFamily() string {
+var IPfamily string
+
+func SetIPFamily() {
 	ipFamily := os.Getenv(IP_FAMILY)
 	if GetCloudType() == CLOUD_VCENTER {
 		if ipFamily != "" {
 			utils.AviLog.Debugf("ipFamily is set to %s", ipFamily)
-			return ipFamily
+			IPfamily = ipFamily
+			return
 		} else {
 			utils.AviLog.Debugf("ipFamily is not set, default is V4")
 			ipFamily = "V4"
@@ -1793,7 +1796,14 @@ func GetIPFamily() string {
 	} else {
 		ipFamily = "V4"
 	}
-	return ipFamily
+	IPfamily = ipFamily
+}
+
+func GetIPFamily() string {
+	if IPfamily == "" {
+		SetIPFamily()
+	}
+	return IPfamily
 }
 
 func IsValidV6Config(returnErr *error) bool {

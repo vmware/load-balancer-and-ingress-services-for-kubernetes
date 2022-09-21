@@ -2569,6 +2569,7 @@ func ValidateUserInput(client *clients.AviClient) (bool, error) {
 	isPublicCloudConfigValid := checkPublicCloud(client, &err)
 	checkedAndSetVRFConfig := checkAndSetVRFFromNetwork(client, &err)
 	isCNIConfigValid := lib.IsValidCni(&err)
+	lib.SetIPFamily()
 	isValidV6Config := lib.IsValidV6Config(&err)
 
 	isValid := isTenantValid &&

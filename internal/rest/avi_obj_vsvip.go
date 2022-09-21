@@ -502,7 +502,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 						utils.AviLog.Infof("key: %s, msg: invalid type for vip in vsvip: %s", key, name)
 						continue
 					}
-					ipType := "V4_ONLY"
+					ipType := lib.IPTypeV4Only
 					auto_allocate_ip_type, ok := vip["auto_allocate_ip_type"]
 					if ok {
 						ipType = auto_allocate_ip_type.(string)
