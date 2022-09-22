@@ -287,13 +287,13 @@ func (o *AviObjectGraph) DeleteObjectsForPassthroughHost(vsName, hostname string
 	if removeRedir {
 		if len(vsNode[0].PassthroughChildNodes) > 0 {
 			passChild := vsNode[0].PassthroughChildNodes[0]
-			utils.AviLog.Infof("key: %s, msg: Removing redierct policy for %s from passthrough VS %s", key, hostname, passChild.Name)
+			utils.AviLog.Infof("key: %s, msg: Removing redirect policy for %s from passthrough VS %s", key, hostname, passChild.Name)
 			var hostnameSlice []string
 			hostnameSlice = append(hostnameSlice, hostname)
 			RemoveRedirectHTTPPolicyInModel(passChild, hostnameSlice, key)
 		}
 	}
 
-	utils.AviLog.Debugf("key: %s, msg: passthrough pg refs %s", utils.Stringify(dsNode[0].PoolGroupRefs))
-	utils.AviLog.Debugf("key: %s, msg: passthrough datascript %s", utils.Stringify(o.GetAviHTTPDSNode()))
+	utils.AviLog.Debugf("key: %s, msg: passthrough pg refs %s", key, utils.Stringify(dsNode[0].PoolGroupRefs))
+	utils.AviLog.Debugf("key: %s, msg: passthrough datascript %s", key, utils.Stringify(o.GetAviHTTPDSNode()))
 }
