@@ -124,6 +124,9 @@ func DeleteConfigMap(t *testing.T) {
 
 func ValidateIngress(t *testing.T) {
 
+	integrationtest.AddDefaultIngressClass()
+	waitAndverify(t, "IngressClass/avi-lb")
+
 	// validate svc first
 	svcExample := &corev1.Service{
 		Spec: corev1.ServiceSpec{
@@ -170,6 +173,8 @@ func ValidateIngress(t *testing.T) {
 	}
 	waitAndverify(t, "Ingress/red-ns/testingr")
 
+	integrationtest.RemoveDefaultIngressClass()
+	waitAndverify(t, "IngressClass/avi-lb")
 }
 
 func ValidateNode(t *testing.T) {
@@ -269,8 +274,6 @@ func TestMain(m *testing.M) {
 	AddCMap()
 	ctrl.SetSEGroupCloudName()
 	integrationtest.KubeClient = kubeClient
-	integrationtest.AddDefaultIngressClass()
-	defer integrationtest.RemoveDefaultIngressClass()
 	ctrl.HandleConfigMap(k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}, ctrlCh, stopCh, quickSyncCh)
 	ctrl.SetupEventHandlers(k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient})
 	setupQueue(stopCh)
@@ -373,7 +376,6 @@ func TestGCPCloudInClusterIPMode(t *testing.T) {
 // TestAzureCloudInNodePortMode tests case where Azure cloud is configured in NodePort mode. Sync should be enabled.
 func TestAzureCloudInNodePortMode(t *testing.T) {
 	waitAndverify(t, fmt.Sprintf("Secret/%s/avi-secret", utils.GetAKONamespace()))
-	waitAndverify(t, "IngressClass/avi-lb")
 	os.Setenv("CLOUD_NAME", "CLOUD_AZURE")
 	utils.SetCloudName("CLOUD_AZURE")
 	os.Setenv("SERVICE_TYPE", "NodePort")

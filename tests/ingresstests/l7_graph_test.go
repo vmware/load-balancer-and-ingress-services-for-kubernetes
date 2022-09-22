@@ -47,6 +47,7 @@ var KubeClient *k8sfake.Clientset
 var CRDClient *crdfake.Clientset
 var ctrl *k8s.AviController
 var akoApiServer *api.FakeApiServer
+var keyChan chan string
 
 func TestMain(m *testing.M) {
 	os.Setenv("INGRESS_API", "extensionv1")
@@ -116,7 +117,7 @@ func TestMain(m *testing.M) {
 
 	integrationtest.AddConfigMap(KubeClient)
 	integrationtest.PollForSyncStart(ctrl, 10)
-
+	keyChan = make(chan string)
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	integrationtest.KubeClient = KubeClient
 	integrationtest.AddDefaultIngressClass()
