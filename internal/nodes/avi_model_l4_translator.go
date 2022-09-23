@@ -204,6 +204,7 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 }
 
 func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string, ingress bool, key string) []AviPoolMetaServer {
+	ipFamily := lib.GetIPFamily()
 	if ingress {
 		found, _ := objects.SharedClusterIpLister().Get(ns + "/" + serviceName)
 		if !found {
@@ -229,8 +230,16 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 		for _, a := range annotations {
 			var atype string
 			if utils.IsV4(a.NodeIP) {
+				if ipFamily != "V4" {
+					utils.AviLog.Infof("Skipping server %s, ipFamily is %s", a.NodeIP, ipFamily)
+					continue
+				}
 				atype = "V4"
 			} else {
+				if ipFamily != "V6" {
+					utils.AviLog.Infof("Skipping server %s, ipFamily is %s", a.NodeIP, ipFamily)
+					continue
+				}
 				atype = "V6"
 			}
 			if (poolNode.TargetPort.Type == intstr.Int && a.PodPort == poolNode.TargetPort.IntValue()) ||
@@ -251,6 +260,7 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 
 func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName string, ingress bool, key string) []AviPoolMetaServer {
 
+	ipFamily := lib.GetIPFamily()
 	// Get all nodes which match nodePortSelector
 	nodePortSelector := lib.GetNodePortsSelector()
 	nodePortFilter := map[string]string{}
@@ -308,9 +318,18 @@ func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName st
 				utils.AviLog.Warnf("key: %s,msg: NodeInternalIP not found for node: %s", key, node.Name)
 				return nil
 			}
+
 			if utils.IsV4(ip) {
+				if ipFamily != "V4" {
+					utils.AviLog.Infof("Skipping server %s, ipFamily is %s", ip, ipFamily)
+					continue
+				}
 				atype = "V4"
 			} else {
+				if ipFamily != "V6" {
+					utils.AviLog.Infof("Skipping server %s, ipFamily is %s", ip, ipFamily)
+					continue
+				}
 				atype = "V6"
 			}
 
@@ -324,6 +343,8 @@ func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName st
 }
 
 func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingress bool, key string) []AviPoolMetaServer {
+
+	ipFamily := lib.GetIPFamily()
 	// Find the servers that match the port.
 	if ingress {
 		// If it's an ingress case, check if the service of type clusterIP or not.
@@ -360,8 +381,16 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 
 				ip := addr.IP
 				if utils.IsV4(addr.IP) {
+					if ipFamily != "V4" {
+						utils.AviLog.Infof("Skipping server %s, ipFamily is %s", addr.IP, ipFamily)
+						continue
+					}
 					atype = "V4"
 				} else {
+					if ipFamily != "V6" {
+						utils.AviLog.Infof("Skipping server %s, ipFamily is %s", addr.IP, ipFamily)
+						continue
+					}
 					atype = "V6"
 				}
 				a := avimodels.IPAddr{Type: &atype, Addr: &ip}
@@ -378,6 +407,8 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 }
 
 func PopulateServersForMultiClusterIngress(poolNode *AviPoolNode, ns, cluster, serviceNamespace, serviceName string, key string) []AviPoolMetaServer {
+
+	ipFamily := lib.GetIPFamily()
 	var servers []AviPoolMetaServer
 	svcName := generateMultiClusterKey(cluster, serviceNamespace, serviceName)
 	success, siNames := objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(ns).GetSvcToSI(svcName)
@@ -397,8 +428,16 @@ func PopulateServersForMultiClusterIngress(poolNode *AviPoolNode, ns, cluster, s
 				addr := ep.IP
 				var addrType string
 				if utils.IsV4(addr) {
+					if ipFamily != "V4" {
+						utils.AviLog.Infof("Skipping server %s, ipFamily is %s", addr, ipFamily)
+						continue
+					}
 					addrType = "V4"
 				} else {
+					if ipFamily != "V6" {
+						utils.AviLog.Infof("Skipping server %s, ipFamily is %s", addr, ipFamily)
+						continue
+					}
 					addrType = "V6"
 				}
 				Ip := avimodels.IPAddr{

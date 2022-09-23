@@ -45,6 +45,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+
+	"google.golang.org/protobuf/proto"
 )
 
 var ShardSchemeMap = map[string]string{
@@ -1407,7 +1409,7 @@ func GetAKOIDPrefix() string {
 	return akoID
 }
 
-//TODO: Optimize
+// TODO: Optimize
 func IsNamespaceBlocked(namespace string) bool {
 	nsBlockedList := AKOControlConfig().GetAKOBlockedNSList()
 	_, ok := nsBlockedList[namespace]
@@ -1768,4 +1770,56 @@ var throttle = map[string]uint32{
 func GetThrottle(key string) *int32 {
 	throttle := int32(throttle[key])
 	return &throttle
+}
+
+func UpdateV6(vip *models.Vip, vipNetwork *akov1alpha1.AviInfraSettingVipNetwork) {
+	if vipNetwork.Cidr != "" {
+		vip.AutoAllocateIPType = proto.String("V4_V6")
+	} else {
+		vip.AutoAllocateIPType = proto.String("V6_ONLY")
+	}
+}
+
+var IPfamily string
+
+func SetIPFamily() {
+	ipFamily := os.Getenv(IP_FAMILY)
+	if GetCloudType() == CLOUD_VCENTER {
+		if ipFamily != "" {
+			utils.AviLog.Debugf("ipFamily is set to %s", ipFamily)
+			IPfamily = ipFamily
+			return
+		} else {
+			utils.AviLog.Debugf("ipFamily is not set, default is V4")
+			ipFamily = "V4"
+		}
+	} else {
+		ipFamily = "V4"
+	}
+	IPfamily = ipFamily
+}
+
+func GetIPFamily() string {
+	if IPfamily == "" {
+		SetIPFamily()
+	}
+	return IPfamily
+}
+
+func IsValidV6Config(returnErr *error) bool {
+	ipFamily := GetIPFamily()
+	if !(ipFamily == "V4" || ipFamily == "V6") {
+		*returnErr = fmt.Errorf("ipFamily is not one of (V4, V6)")
+		return false
+	}
+
+	vipNetworkList := GetVipNetworkList()
+	isCloudVCenter := (GetCloudType() == CLOUD_VCENTER)
+	for _, vipNetwork := range vipNetworkList {
+		if !isCloudVCenter && vipNetwork.V6Cidr != "" {
+			*returnErr = fmt.Errorf("IPv6 CIDR is only supported for vCenter Clouds")
+			return false
+		}
+	}
+	return true
 }

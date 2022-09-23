@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"errors"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -79,14 +80,31 @@ func findRoutePrefix(nodeRoutes, aviRoutes []*models.StaticRoute, key string) bo
 }
 
 func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid int) ([]*models.StaticRoute, error) {
-	var nodeIP string
+	var nodeIP, nodeIP6 string
 	var nodeRoutes []*models.StaticRoute
+	ipFamily := lib.GetIPFamily()
+
+	v4Type, v6Type := "V4", "V6"
 
 	nodeAddrs := node.Status.Addresses
 	for _, addr := range nodeAddrs {
 		if addr.Type == "InternalIP" {
 			nodeIP = addr.Address
 			break
+		}
+	}
+	if ipFamily == v6Type {
+		if lib.GetCNIPlugin() == lib.CALICO_CNI {
+			if ip, ok := node.Annotations["projectcalico.org/IPv6Address"]; ok {
+				nodeIP6 = strings.Split(ip, "/")[0]
+			}
+			if nodeIP6 == "" {
+				utils.AviLog.Errorf("Error in fetching nodeIPv6 for %v", node.ObjectMeta.Name)
+				return nil, errors.New("nodeipv6 not found")
+			}
+			if ip, ok := node.Annotations["projectcalico.org/IPv4Address"]; ok {
+				nodeIP = strings.Split(ip, "/")[0]
+			}
 		}
 	}
 	if nodeIP == "" {
@@ -99,7 +117,6 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 		utils.AviLog.Errorf("Error in fetching Pod CIDR for %v: %s", node.ObjectMeta.Name, err.Error())
 		return nil, errors.New("podcidr not found")
 	}
-	nodeipType := "V4"
 
 	for _, podCIDR := range podCIDRs {
 		s := strings.Split(podCIDR, "/")
@@ -116,7 +133,20 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 
 		clusterName := lib.GetClusterName()
 		labels := lib.GetLabels()
-		prefixipType := "V4"
+		prefixipType := v4Type
+		nextHopIP := nodeIP
+		nextHopIPType := v4Type
+		re := regexp.MustCompile(lib.IPCIDRRegex)
+		if !re.MatchString(podCIDR) {
+			if ipFamily == v6Type {
+				prefixipType = v6Type
+				nextHopIP = nodeIP6
+				nextHopIPType = v6Type
+			} else {
+				continue
+			}
+		}
+
 		mask := int32(m)
 		routeIDString := clusterName + "-" + strconv.Itoa(routeid)
 		nodeRoute := models.StaticRoute{
@@ -129,8 +159,8 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 				Mask: &mask,
 			},
 			NextHop: &models.IPAddr{
-				Addr: &nodeIP,
-				Type: &nodeipType,
+				Addr: &nextHopIP,
+				Type: &nextHopIPType,
 			},
 			Labels: labels,
 		}

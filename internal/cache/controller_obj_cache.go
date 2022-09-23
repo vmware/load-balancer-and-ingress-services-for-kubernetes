@@ -158,8 +158,8 @@ func (c *AviObjCache) AviObjCachePopulate(client []*clients.AviClient, version s
 	return vsCacheCopy, allVsKeys, nil
 }
 
-//TODO: Deperecate this function in future release.
-//This function list EVH child VS to be deleted which contain namespace in its un-encoded name.
+// TODO: Deperecate this function in future release.
+// This function list EVH child VS to be deleted which contain namespace in its un-encoded name.
 func (c *AviObjCache) listEVHChildrenToDelete(vs_cache_obj *AviVsCache, childUuids []string) ([]NamespaceName, []string) {
 	var childNSNameToDelete []NamespaceName
 	var childUuidToDelete []string
@@ -731,11 +731,15 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 		}
 		var vips []string
 		var fips []string
+		var v6ip string
 		var networkNames []string
 		for _, vip := range vsvip.Vip {
 			vips = append(vips, *vip.IPAddress.Addr)
 			if vip.FloatingIP != nil {
 				fips = append(fips, *vip.FloatingIP.Addr)
+			}
+			if vip.Ip6Address != nil {
+				v6ip = *vip.Ip6Address.Addr
 			}
 			if ipamNetworkSubnet := vip.IPAMNetworkSubnet; ipamNetworkSubnet != nil {
 				if networkRef := *ipamNetworkSubnet.NetworkRef; networkRef != "" {
@@ -762,6 +766,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 			LastModified:     *vsvip.LastModified,
 			Vips:             vips,
 			Fips:             fips,
+			V6IP:             v6ip,
 			CloudConfigCksum: checksum,
 		}
 		*vsVipData = append(*vsVipData, vsVipCacheObj)
@@ -1316,11 +1321,15 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 
 		var vips []string
 		var fips []string
+		var v6ip string
 		var networkNames []string
 		for _, vip := range vsvip.Vip {
 			vips = append(vips, *vip.IPAddress.Addr)
 			if vip.FloatingIP != nil {
-				fips = append(vips, *vip.FloatingIP.Addr)
+				fips = append(fips, *vip.FloatingIP.Addr)
+			}
+			if vip.Ip6Address != nil {
+				v6ip = *vip.Ip6Address.Addr
 			}
 			if ipamNetworkSubnet := vip.IPAMNetworkSubnet; ipamNetworkSubnet != nil {
 				if networkRef := *ipamNetworkSubnet.NetworkRef; networkRef != "" {
@@ -1345,6 +1354,7 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 			LastModified:     *vsvip.LastModified,
 			Vips:             vips,
 			Fips:             fips,
+			V6IP:             v6ip,
 			NetworkNames:     networkNames,
 			CloudConfigCksum: checksum,
 		}
@@ -2559,6 +2569,8 @@ func ValidateUserInput(client *clients.AviClient) (bool, error) {
 	isPublicCloudConfigValid := checkPublicCloud(client, &err)
 	checkedAndSetVRFConfig := checkAndSetVRFFromNetwork(client, &err)
 	isCNIConfigValid := lib.IsValidCni(&err)
+	lib.SetIPFamily()
+	isValidV6Config := lib.IsValidV6Config(&err)
 
 	isValid := isTenantValid &&
 		isCloudValid &&
@@ -2568,7 +2580,8 @@ func ValidateUserInput(client *clients.AviClient) (bool, error) {
 		isPublicCloudConfigValid &&
 		checkedAndSetVRFConfig &&
 		isCNIConfigValid &&
-		isBGPConfigurationValid
+		isBGPConfigurationValid &&
+		isValidV6Config
 
 	if !isValid {
 		if !isCloudValid || !isSegroupValid || !isNodeNetworkValid || !isBGPConfigurationValid {
@@ -3263,6 +3276,13 @@ func validateNetworkNames(client *clients.AviClient, vipNetworkList []akov1alpha
 			re := regexp.MustCompile(lib.IPCIDRRegex)
 			if !re.MatchString(vipNetwork.Cidr) {
 				utils.AviLog.Errorf("invalid CIDR configuration %s detected for networkName %s in vipNetworkList", vipNetwork.Cidr, vipNetwork.NetworkName)
+				return false
+			}
+		}
+		if vipNetwork.V6Cidr != "" {
+			re := regexp.MustCompile(lib.IPV6CIDRRegex)
+			if !re.MatchString(vipNetwork.V6Cidr) {
+				utils.AviLog.Errorf("invalid IPv6 CIDR configuration %s detected for networkName %s in vipNetworkList", vipNetwork.V6Cidr, vipNetwork.NetworkName)
 				return false
 			}
 		}

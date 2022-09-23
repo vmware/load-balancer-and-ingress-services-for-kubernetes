@@ -1033,6 +1033,17 @@ func validateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetti
 				return err
 			}
 		}
+		if vipNetwork.V6Cidr != "" {
+			re := regexp.MustCompile(lib.IPV6CIDRRegex)
+			if !re.MatchString(vipNetwork.V6Cidr) {
+				err := fmt.Errorf("invalid IPv6 CIDR configuration %s detected for networkName %s in vipNetworkList", vipNetwork.V6Cidr, vipNetwork.NetworkName)
+				status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
+					Status: lib.StatusRejected,
+					Error:  err.Error(),
+				})
+				return err
+			}
+		}
 		refData[vipNetwork.NetworkName] = "Network"
 	}
 
