@@ -81,6 +81,14 @@ Use this flag to enable AKO to watch over Gateway API CRDs i.e. GatewayClasses a
 
 Multiple AKO instances can be deployed in a given cluster. This knob is used to specify current AKO instance is primary or not. Setting this to `true` would make current AKO as a primary instance. In a given cluster, there should be only one primary instance. Default value is `true`.
 
+### AKOSettings.blockedNamespaceList
+
+The `blockedNamespaceList` lists the Kubernetes/Openshift namespaces blocked by AKO. AKO will not process any K8s/Openshift object update from these namespaces. Default value is `empty list`.
+
+    blockedNamespaceList:
+      - kube-system
+      - kube-public
+
 ### NetworkSettings.nodeNetworkList
 
 The `nodeNetworkList` lists the Networks and Node CIDR's where the k8s Nodes are created. This is only used in the ClusterIP deployment of AKO and in vCenter cloud and only when disableStaticRouteSync is set to false.

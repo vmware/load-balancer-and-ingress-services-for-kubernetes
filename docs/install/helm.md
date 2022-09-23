@@ -171,6 +171,7 @@ The following table lists the configurable parameters of the AKO chart and their
 | `AKOSettings.disableStaticRouteSync` | Disables static route syncing if set to true | false |
 | `AKOSettings.apiServerPort` | Internal port for AKO's API server for the liveness probe of the AKO pod | 8080 |
 | `AKOSettings.layer7Only` | Operate AKO as a pure layer 7 ingress controller | false |
+| `AKOSettings.blockedNamespaceList` | List of K8s/Openshift namespaces blocked by AKO | `Empty List` |
 | `avicredentials.username` | Avi controller username | empty |
 | `avicredentials.password` | Avi controller password | empty |
 | `avicredentials.authtoken` | Avi controller authentication token | empty |
