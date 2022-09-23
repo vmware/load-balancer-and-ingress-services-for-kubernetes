@@ -1,6 +1,4 @@
-AKO provides support for sharing VIP among multiple kubernetes Services of type LoadBalancer. Generally, with LoadBalancer Services, AKO creates dedicated L4 Virtual Services in the Avi Controller, but multiple LoadBalancer Services can also be combined to share a single VIP.
-
-> **Note**: The ability to share a single VIP among multiple LoadBalancer Services is released as tech-preview as part of AKO release-1.7.1
+AKO provides support for sharing VIP among multiple kubernetes Services of type LoadBalancer deployed in the same namespace. Generally, with LoadBalancer Services, AKO creates dedicated L4 Virtual Services in the Avi Controller, but multiple LoadBalancer Services can also be combined to share a single VIP.
 
 This can be achieved by providing an annotation to multiple LoadBalancer Services, where VIP sharing is intended.
 The annotation to be applied is `ako.vmware.com/enable-shared-vip` with a string value as shown below:
@@ -98,3 +96,9 @@ There are a few things that must be considered while configuring the Services wi
 1. Make sure that LoadBalancer Services which are intended to share a VIP, must have the **same** annotation value. As shown in the example above, the annotation value `shared-vip-key-1` is same for both Services.
 2. In order to avoid any errors while configuring the Virtual Service on the Avi controller, it is required that there is no conflicting Port-Protocol pairs in the LB Services that share the Annotation value. With the example shown above both Services are exposing a unique, non-conflicting Port-Protocol for the backend application i.e. 80/TCP and 80/UDP. Explicit checks will be added around this to ensure misconfigurations in future AKO releases.
 3. The annotation must be provided only on Service of type LoadBalancers.
+
+## AviInfrasetting Support
+
+AviInfraSetting resources can be attached to LoadBalancer kubernetes services using annotation `aviinfrasetting.ako.vmware.com/name: <aviinfra-crd-name>`. Details can be found out [here](crds/avinfrasetting.md)
+
+> ***Note***: Make sure that LoadBalancer services which are intended to share a VIP, must have **same** avinfrasetting annotation value.
