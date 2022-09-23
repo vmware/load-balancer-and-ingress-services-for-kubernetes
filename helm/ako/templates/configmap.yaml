@@ -47,3 +47,4 @@ data:
   blockedNamespaceList: |-
     {{ .Values.AKOSettings.blockedNamespaceList | mustToJson }}
   ipFamily: {{ .Values.AKOSettings.ipFamily | quote }}
+  istioEnabled: {{ .Values.AKOSettings.istioEnabled | quote }}

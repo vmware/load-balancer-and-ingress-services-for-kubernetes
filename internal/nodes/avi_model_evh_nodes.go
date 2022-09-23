@@ -890,6 +890,9 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 		}
 
 		buildPoolWithInfraSetting(key, poolNode, infraSetting)
+		if lib.IsIstioEnabled() {
+			poolNode.UpdatePoolNodeForIstio()
+		}
 
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		ratio := path.weight

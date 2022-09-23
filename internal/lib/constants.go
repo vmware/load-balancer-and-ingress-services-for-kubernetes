@@ -177,6 +177,9 @@ const (
 	IPTypeV4Only                               = "V4_ONLY"
 	IPTypeV6Only                               = "V6_ONLY"
 	IPTypeV4V6                                 = "V4_V6"
+	IstioCertOutputPath                        = "/etc/istio-output-certs"
+	IstioSecret                                = "istio-secret"
+	IstioModel                                 = "istioModel"
 
 	// AKO Event constants
 	AKOEventComponent      = "avi-kubernetes-operator"

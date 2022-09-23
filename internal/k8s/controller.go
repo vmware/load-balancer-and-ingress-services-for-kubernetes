@@ -831,6 +831,15 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 
 	secretEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
+			if lib.IsIstioEnabled() {
+				secret := obj.(*corev1.Secret)
+				if secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.IstioSecret {
+					key := utils.Secret + "/" + utils.GetAKONamespace() + "/" + lib.IstioSecret
+					bkt := utils.Bkt(utils.GetAKONamespace(), numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+					utils.AviLog.Debugf("key: %s, msg: ADD", key)
+				}
+			}
 			if c.DisableSync {
 				return
 			}
@@ -846,6 +855,12 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 		},
 		DeleteFunc: func(obj interface{}) {
+			if lib.IsIstioEnabled() {
+				secret := obj.(*corev1.Secret)
+				if secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.IstioSecret {
+					utils.AviLog.Warnf("Istio secret deleted")
+				}
+			}
 			if c.DisableSync {
 				return
 			}
@@ -875,6 +890,15 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 		},
 		UpdateFunc: func(old, cur interface{}) {
+			if lib.IsIstioEnabled() {
+				secret := cur.(*corev1.Secret)
+				if secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.IstioSecret {
+					key := utils.Secret + "/" + utils.GetAKONamespace() + "/" + lib.IstioSecret
+					bkt := utils.Bkt(utils.GetAKONamespace(), numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				}
+			}
 			if c.DisableSync {
 				return
 			}
@@ -1148,10 +1172,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	// Add CRD handlers HostRule/HTTPRule/AviInfraSettings
 	c.SetupAKOCRDEventHandlers(numWorkers)
 
-	if lib.IsIstioEnabled() {
-		c.SetupIstioCRDEventHandlers(numWorkers)
-	}
-
 	// Add MultiClusterIngress and ServiceImport CRD event handlers
 	if utils.IsMultiClusterIngressEnabled() {
 		c.SetupMultiClusterIngressEventHandlers(numWorkers)
@@ -1271,14 +1291,6 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 		if lib.AKOControlConfig().HttpRuleEnabled() {
 			go lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Informer().Run(stopCh)
 			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Informer().HasSynced)
-		}
-		if lib.IsIstioEnabled() {
-			go lib.AKOControlConfig().IstioCRDInformers().VirtualServiceInformer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.AKOControlConfig().IstioCRDInformers().VirtualServiceInformer.Informer().HasSynced)
-			go lib.AKOControlConfig().IstioCRDInformers().DestinationRuleInformer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.AKOControlConfig().IstioCRDInformers().DestinationRuleInformer.Informer().HasSynced)
-			go lib.AKOControlConfig().IstioCRDInformers().GatewayInformer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.AKOControlConfig().IstioCRDInformers().GatewayInformer.Informer().HasSynced)
 		}
 
 		if utils.IsMultiClusterIngressEnabled() {

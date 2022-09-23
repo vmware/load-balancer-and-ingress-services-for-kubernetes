@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"regexp"
@@ -1822,4 +1823,65 @@ func IsValidV6Config(returnErr *error) bool {
 		}
 	}
 	return true
+}
+
+func CreateIstioSecretFromCert(name string, kc kubernetes.Interface) {
+
+	fileData, err := ioutil.ReadFile(name)
+	if err != nil {
+		utils.AviLog.Errorf("%s", err)
+		return
+	}
+	data := make(map[string][]byte)
+	var istioSecret *v1.Secret
+	istioSecret, err = kc.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), IstioSecret, metav1.GetOptions{})
+	if err != nil {
+		utils.AviLog.Infof("%s not found, creating new empty secret", IstioSecret)
+		istioSecret, err = kc.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: IstioSecret,
+			},
+			Data: data,
+			Type: corev1.SecretTypeOpaque,
+		}, metav1.CreateOptions{})
+		if err != nil {
+			utils.AviLog.Errorf("Failed to create %s %s", IstioSecret, err.Error())
+			return
+		}
+	}
+	nameSplit := strings.Split(name, "/")
+	dataName := nameSplit[len(nameSplit)-1]
+	dataName = dataName[:len(dataName)-4]
+	if istioSecret.Data == nil {
+		istioSecret.Data = make(map[string][]byte)
+	}
+	istioSecret.Data[dataName] = fileData
+	_, err = kc.CoreV1().Secrets(utils.GetAKONamespace()).Update(context.TODO(), istioSecret, metav1.UpdateOptions{})
+
+	if err != nil {
+		utils.AviLog.Errorf("Failed to update %s %s", IstioSecret, err.Error())
+		return
+	}
+}
+
+var istioInitialized bool
+
+func SetIstioInitialized(b bool) {
+	istioInitialized = b
+}
+
+func IsIstioInitialized() bool {
+	return istioInitialized
+}
+
+func IsIstioKey(key string) bool {
+	return strings.HasPrefix(key, "istio-pki-") || strings.HasPrefix(key, "istio-workload-")
+}
+
+func GetIstioPKIProfileName() string {
+	return "istio-pki-" + GetClusterName() + "-" + utils.GetAKONamespace()
+}
+
+func GetIstioWorkloadCertificateName() string {
+	return "istio-workload-" + GetClusterName() + "-" + utils.GetAKONamespace()
 }

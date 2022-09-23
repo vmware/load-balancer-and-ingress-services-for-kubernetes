@@ -88,16 +88,17 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	}
 
 	pool := avimodels.Pool{
-		Name:              &name,
-		CloudConfigCksum:  &cksumString,
-		CreatedBy:         &cr,
-		TenantRef:         &tenant,
-		CloudRef:          &cloudRef,
-		ServiceMetadata:   &svc_mdata,
-		SniEnabled:        &pool_meta.SniEnabled,
-		SslProfileRef:     &pool_meta.SslProfileRef,
-		PkiProfileRef:     &pool_meta.PkiProfileRef,
-		PlacementNetworks: placementNetworks,
+		Name:                    &name,
+		CloudConfigCksum:        &cksumString,
+		CreatedBy:               &cr,
+		TenantRef:               &tenant,
+		CloudRef:                &cloudRef,
+		ServiceMetadata:         &svc_mdata,
+		SniEnabled:              &pool_meta.SniEnabled,
+		SslProfileRef:           &pool_meta.SslProfileRef,
+		SslKeyAndCertificateRef: &pool_meta.SslKeyAndCertificateRef,
+		PkiProfileRef:           &pool_meta.PkiProfileRef,
+		PlacementNetworks:       placementNetworks,
 	}
 
 	var vrfContextRef string

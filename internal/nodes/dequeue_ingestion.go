@@ -42,6 +42,32 @@ func DequeueIngestion(key string, fullsync bool) {
 		handlePod(key, namespace, name, fullsync)
 	}
 
+	if objType == utils.Secret && namespace == utils.GetAKONamespace() && name == lib.IstioSecret {
+		secret, _ := utils.GetInformers().SecretInformer.Lister().Secrets(namespace).Get(name)
+		rootCA := secret.Data["root-cert"]
+		sslKey := secret.Data["key"]
+		sslCert := secret.Data["cert-chain"]
+		newAviModel := NewAviObjectGraph()
+		newAviModel.IsVrf = false
+		pkinode := &AviPkiProfileNode{
+			Name:   lib.GetIstioPKIProfileName(),
+			Tenant: lib.GetTenant(),
+			CACert: string(rootCA),
+		}
+		newAviModel.AddModelNode(pkinode)
+		sslNode := &AviTLSKeyCertNode{
+			Name:   lib.GetIstioWorkloadCertificateName(),
+			Tenant: lib.GetTenant(),
+			Type:   lib.CertTypeVS,
+			Cert:   sslCert,
+			Key:    sslKey,
+		}
+		newAviModel.AddModelNode(sslNode)
+		ok := saveAviModel(lib.IstioModel, newAviModel, key)
+		if ok {
+			PublishKeyToRestLayer(lib.IstioModel, key, sharedQueue)
+		}
+	}
 	schema, valid := ConfigDescriptor().GetByType(objType)
 	if valid {
 		// If it's an ingress related change, let's process that.

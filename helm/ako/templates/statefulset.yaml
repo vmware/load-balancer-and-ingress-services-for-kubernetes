@@ -13,6 +13,17 @@ spec:
       {{- include "ako.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      {{ if .Values.AKOSettings.istioEnabled }}
+      annotations:
+        sidecar.istio.io/inject: "true"
+        traffic.sidecar.istio.io/includeInboundPorts: ""
+        traffic.sidecar.istio.io/includeOutboundIPRanges: ""
+        proxy.istio.io/config: |
+          proxyMetadata:
+            OUTPUT_CERTS: /etc/istio-output-certs
+        sidecar.istio.io/userVolume: '[{"name": "istio-certs", "emptyDir": {"medium":"Memory"}}]'
+        sidecar.istio.io/userVolumeMount: '[{"name": "istio-certs", "mountPath": "/etc/istio-output-certs"}]'
+      {{ end }}
       labels:
         {{- include "ako.selectorLabels" . | nindent 8 }}
     spec:
@@ -27,10 +38,16 @@ spec:
       {{ end }}
       containers:
         - name: {{ .Chart.Name }}
-          {{ if .Values.persistentVolumeClaim }}
+          {{ if or .Values.persistentVolumeClaim .Values.AKOSettings.istioEnabled }}
           volumeMounts:
+            {{ if .Values.persistentVolumeClaim}}
           - mountPath: {{ .Values.mountPath }}
             name: ako-pv-storage
+            {{ end }}
+            {{ if .Values.AKOSettings.istioEnabled}}
+          - mountPath: /etc/istio-output-certs/
+            name: istio-certs
+            {{ end }}
           {{ end }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
@@ -63,6 +80,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: cniPlugin
+          - name: ISTIO_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: istioEnabled
           - name: VIP_PER_NAMESPACE
             valueFrom:
               configMapKeyRef:

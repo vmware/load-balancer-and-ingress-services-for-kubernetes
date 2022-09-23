@@ -519,7 +519,9 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		utils.AviLog.Errorf("failed to populate cache, disabling sync")
 		lib.ShutdownApi()
 	}
-
+	if lib.IsIstioEnabled() {
+		c.IstioBootstrap()
+	}
 	// Setup and start event handlers for objects.
 	c.addIndexers()
 	c.AddCrdIndexer()
@@ -830,54 +832,6 @@ func (c *AviController) FullSyncK8s() error {
 		}
 	}
 
-	// Section for Istio
-	if lib.IsIstioEnabled() {
-		// If Istio is enabled, we need to listen to few of the Istio CRDs.
-		//TODO: Apply blocked ns filter on namespaces.
-		virtualServiceObjs, err := lib.AKOControlConfig().IstioCRDInformers().VirtualServiceInformer.Lister().VirtualServices(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the Istio virtualservices during full sync: %s", err)
-		} else {
-			for _, vsObj := range virtualServiceObjs {
-				key := lib.IstioVirtualService + "/" + utils.ObjKey(vsObj)
-				meta, err := meta.Accessor(vsObj)
-				if err == nil {
-					resVer := meta.GetResourceVersion()
-					objects.SharedResourceVerInstanceLister().Save(key, resVer)
-				}
-				nodes.DequeueIngestion(key, true)
-			}
-		}
-		destinationRuleObjs, err := lib.AKOControlConfig().IstioCRDInformers().DestinationRuleInformer.Lister().DestinationRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the Istio DestinationRules during full sync: %s", err)
-		} else {
-			for _, drObj := range destinationRuleObjs {
-				key := lib.IstioDestinationRule + "/" + utils.ObjKey(drObj)
-				meta, err := meta.Accessor(drObj)
-				if err == nil {
-					resVer := meta.GetResourceVersion()
-					objects.SharedResourceVerInstanceLister().Save(key, resVer)
-				}
-				nodes.DequeueIngestion(key, true)
-			}
-		}
-		gatewayObjs, err := lib.AKOControlConfig().IstioCRDInformers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the Istio Gateways during full sync: %s", err)
-		} else {
-			for _, gwObj := range gatewayObjs {
-				key := lib.IstioGateway + "/" + utils.ObjKey(gwObj)
-				meta, err := meta.Accessor(gwObj)
-				if err == nil {
-					resVer := meta.GetResourceVersion()
-					objects.SharedResourceVerInstanceLister().Save(key, resVer)
-				}
-				nodes.DequeueIngestion(key, true)
-			}
-		}
-
-	}
 	if !lib.GetAdvancedL4() {
 		hostRuleObjs, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
@@ -1108,7 +1062,7 @@ func (c *AviController) FullSyncK8s() error {
 	var allModels []string
 	for modelName := range allModelsMap.(map[string]interface{}) {
 		// ignore vrf model, as it has been published already
-		if modelName != vrfModelName {
+		if modelName != vrfModelName && !lib.IsIstioKey(modelName) {
 			allModels = append(allModels, modelName)
 		}
 	}
@@ -1322,5 +1276,43 @@ func populateNamespaceList() {
 			utils.AddNamespaceToFilter(ns.GetName())
 			utils.AviLog.Debugf("Namespace passed filter, added to valid Namespace list: %s", ns.GetName())
 		}
+	}
+}
+
+func (c *AviController) IstioBootstrap() {
+	cs := c.informers.ClientSet
+	istioSecret, err := cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), lib.IstioSecret, metav1.GetOptions{})
+	if err == nil {
+		rootCA := istioSecret.Data["root-cert"]
+		sslKey := istioSecret.Data["key"]
+		sslCert := istioSecret.Data["cert-chain"]
+		newAviModel := nodes.NewAviObjectGraph()
+		newAviModel.IsVrf = false
+		newAviModel.Name = lib.IstioModel
+		pkinode := &nodes.AviPkiProfileNode{
+			Name:   lib.GetIstioPKIProfileName(),
+			Tenant: lib.GetTenant(),
+			CACert: string(rootCA),
+		}
+		newAviModel.AddModelNode(pkinode)
+		sslNode := &nodes.AviTLSKeyCertNode{
+			Name:   lib.GetIstioWorkloadCertificateName(),
+			Tenant: lib.GetTenant(),
+			Type:   lib.CertTypeVS,
+			Cert:   sslCert,
+			Key:    sslKey,
+		}
+		newAviModel.AddModelNode(sslNode)
+
+		cache := avicache.SharedAviObjCache()
+		aviclient := avicache.SharedAVIClients()
+		restlayer := rest.NewRestOperations(cache, aviclient)
+
+		key := utils.Secret + "/" + utils.GetAKONamespace() + "/" + lib.IstioSecret
+		restlayer.IstioCU(key, newAviModel)
+		lib.SetIstioInitialized(true)
+
+	} else {
+		utils.AviLog.Fatalf("Could not fetch secret: %s, %v", lib.IstioSecret, err)
 	}
 }

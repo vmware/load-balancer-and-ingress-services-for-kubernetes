@@ -344,6 +344,21 @@ func (o *AviObjectGraph) GetAviVRF() []*AviVrfNode {
 	}
 	return aviVrf
 }
+func (o *AviObjectGraph) GetIstioNodes() (*AviPkiProfileNode, *AviTLSKeyCertNode) {
+	var pkiNode *AviPkiProfileNode
+	var sslNode *AviTLSKeyCertNode
+	for _, model := range o.modelNodes {
+		node1, ok := model.(*AviPkiProfileNode)
+		if ok {
+			pkiNode = node1
+		}
+		node2, ok := model.(*AviTLSKeyCertNode)
+		if ok {
+			sslNode = node2
+		}
+	}
+	return pkiNode, sslNode
+}
 
 type AviVsNode struct {
 	Name                  string
@@ -1364,6 +1379,22 @@ type AviPkiProfileNode struct {
 	AviMarkers       utils.AviObjectMarkers
 }
 
+func (v *AviPkiProfileNode) GetNodeType() string {
+	return "PkiProfileNode"
+}
+
+func (v *AviPkiProfileNode) CopyNode() AviModelNode {
+	newNode := AviPkiProfileNode{}
+	bytes, err := json.Marshal(v)
+	if err != nil {
+		utils.AviLog.Warnf("Unable to marshal AviPkiProfileNode: %s", err)
+	}
+	err = json.Unmarshal(bytes, &newNode)
+	if err != nil {
+		utils.AviLog.Warnf("Unable to unmarshal AviPkiProfileNode: %s", err)
+	}
+	return &newNode
+}
 func (v *AviPkiProfileNode) GetCheckSum() uint32 {
 	// Calculate checksum and return
 	v.CalculateCheckSum()
@@ -1392,6 +1423,7 @@ type AviPoolNode struct {
 	ServiceMetadata          lib.ServiceMetadataObj
 	SniEnabled               bool
 	SslProfileRef            string
+	SslKeyAndCertificateRef  string
 	PkiProfileRef            string
 	PkiProfile               *AviPkiProfileNode
 	NetworkPlacementSettings map[string][]string
@@ -1432,6 +1464,9 @@ func (v *AviPoolNode) CalculateCheckSum() {
 
 	if v.PkiProfileRef != "" {
 		checksumStringSlice = append(checksumStringSlice, v.PkiProfileRef)
+	}
+	if v.SslKeyAndCertificateRef != "" {
+		checksumStringSlice = append(checksumStringSlice, v.SslKeyAndCertificateRef)
 	}
 
 	if len(v.ServiceMetadata.NamespaceServiceName) > 0 {
@@ -1485,7 +1520,10 @@ func (v *AviPoolNode) CopyNode() AviModelNode {
 	}
 	return &newNode
 }
-
+func (v *AviPoolNode) UpdatePoolNodeForIstio() {
+	v.PkiProfileRef = fmt.Sprintf("/api/pkiprofile?name=%s", lib.GetIstioPKIProfileName())
+	v.SslKeyAndCertificateRef = fmt.Sprintf("/api/sslkeyandcertificate?name=%s", lib.GetIstioWorkloadCertificateName())
+}
 func (o *AviObjectGraph) GetAviPoolNodesByIngress(tenant string, ingName string) []*AviPoolNode {
 	var aviPool []*AviPoolNode
 	for _, model := range o.modelNodes {
