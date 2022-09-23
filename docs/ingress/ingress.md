@@ -157,3 +157,8 @@ spec:
 For each passthrough host, one unique Poolgroup is created and the Poolgroup is attached to the datascript of the VS derived by the sharding logic. One pool is also attached to the corresponding PoolGroup.
 
 For passthrough hosts in Ingress, another Virtual Service is created for each shared L4 VS, to handle insecure traffic on port 80. HTTP Request polices would be added in this VS for each passthrough hosts to send a HTTP redirect response for insecure traffic. Both the Virtual Services listening on port 443 and 80 have a common VSVip. This allows DNS VS to resolve the hostname to one IP address consistently. The name of the insecure shared VS would be of the format clustername--'Shared-Passthrough'-shard-number-'insecure'.
+
+#### AviInfrasetting Support in Passthrough Ingress
+
+AviInfraSetting can be applied to the passthrough ingress through ingress class as shown [here](../crds/avinfrasetting.md#ingress). After applying AviInfrasetting to the ingress, a new set of L4 shared virtual services will be mapped to the host of the ingress.<br>
+Name of the VS, that would listen on port 443, would be of the format `<cluster-name>--Shared-Passthrough-<aviinfrasetting-name>-<shardnumber>`. Name of the VS, that would listen for insecure traffic, would be of the format `<cluster-name>--Shared-Passthrough-<aviinfrasetting-name>-<shardnumber>-insecure`. For each Fqdn, a new unique poolgroup and pool will be created. Name of the poolgroup would be of the format `<cluster-name>--<aviinfrasetting-name>-<hostname>`. Name of the pool would be of the format `<cluster-name>--<aviinfrasetting-name>-<hostname>-<servicename>`.

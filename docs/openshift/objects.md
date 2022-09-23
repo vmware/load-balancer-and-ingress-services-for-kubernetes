@@ -189,6 +189,9 @@ If insecureEdgeTerminationPolicy is redirect, another Virtual Service is created
 
 For passthrough routes, insecureEdgeTerminationPolicy: Allow is not supported in openshift.
 
+#### AviInfrasetting Support in Passthrough Routes
+AviInfraSetting can be applied to the passthrough route through the annotation as shown [here](../crds/avinfrasetting.md#openshift-routes). After applying AviInfrasetting to the route, a new set of L4 shared virtual services will be mapped to the host of the route.<br>
+Name of the VS, that would listen on port 443, would be of the format `<cluster-name>--Shared-Passthrough-<aviinfrasetting-name>-<shardnumber>`. Name of the VS, that would listen for insecure traffic, would be of the format `<cluster-name>--Shared-Passthrough-<aviinfrasetting-name>-<shardnumber>-insecure`. For each Fqdn, a new unique poolgroup and pool will be created. Name of the poolgroup would be of the format `<cluster-name>--<aviinfrasetting-name>-<hostname>`. Name of the pool would be of the format `<cluster-name>--<aviinfrasetting-name>-<hostname>-<servicename>`.
 
 ##### Multi-Port Service Support in Openshift
 

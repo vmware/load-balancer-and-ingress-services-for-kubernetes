@@ -164,3 +164,6 @@ AviInfraSetting CRD can be used to allocate a dedicated vip per Ingress FQDN.
 
 For the subset of ingresses, that refer to an ingress class which in turn refers to an AviInfraSetting CRD setting that has shardSize as DEDICATED, will get vip per Ingress FQDN.
 
+For passthrough routes/ingresses, setting `l7Settings:shardSize` present in AviInfrasetting CRD overrides setting `L7Settings.passthroughShardSize` present in values.yaml. <br>
+**Note**:  Value `DEDICATED` is not supported when AviInfrasetting CRD is applied to the passthrough route/ingress.
+
