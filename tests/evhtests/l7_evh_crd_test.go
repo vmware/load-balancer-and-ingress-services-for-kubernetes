@@ -46,6 +46,7 @@ var KubeClient *k8sfake.Clientset
 var CRDClient *crdfake.Clientset
 var ctrl *k8s.AviController
 var akoApiServer *api.FakeApiServer
+var keyChan chan string
 
 var isVCF = flag.String("isVCF", "false", "is vcf enabled")
 
@@ -141,6 +142,7 @@ func TestMain(m *testing.M) {
 	integrationtest.KubeClient = KubeClient
 	integrationtest.AddDefaultIngressClass()
 	ctrl.SetSEGroupCloudName()
+	keyChan = make(chan string)
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
 }

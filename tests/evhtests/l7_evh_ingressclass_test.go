@@ -16,6 +16,7 @@ package evhtests
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -23,9 +24,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	utils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 )
 
@@ -57,6 +61,31 @@ func VerifyEvhNodeDeletionFromVsNode(g *gomega.WithT, modelName string, parentVS
 	}
 }
 
+func syncFromIngestionLayerWrapper(key interface{}, wg *sync.WaitGroup) error {
+	keyStr, ok := key.(string)
+	if !ok {
+		utils.AviLog.Warnf("Unexpected object type: expected string, got %T", key)
+		return nil
+	}
+	objType, _, name := lib.ExtractTypeNameNamespace(keyStr)
+	if objType == utils.IngressClass {
+		keyChan <- name
+	}
+	nodes.DequeueIngestion(keyStr, false)
+	return nil
+}
+
+func waitAndVerify(t *testing.T, key string, opt ...string) {
+	select {
+	case data := <-keyChan:
+		if data != key {
+			t.Fatalf("error in match expected: %v, got: %v", key, data)
+		}
+	case <-time.After(20 * time.Second):
+		t.Fatalf("timed out waiting for %v, %v", key, opt)
+	}
+}
+
 // Ingress - IngressClass mapping tests
 
 func TestEVHWrongClassMappingInIngress(t *testing.T) {
@@ -65,6 +94,11 @@ func TestEVHWrongClassMappingInIngress(t *testing.T) {
 	// fix class in ingress, VS created
 	g := gomega.NewGomegaWithT(t)
 
+	// SyncFunc is replaced with a wrapper to make sure that ingressClass
+	// is processed first and then ingress.
+	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
+	ingestionQueue.SyncFunc = syncFromIngestionLayerWrapper
+
 	ingClassName, ingressName, ns := "avi-lb", "foo-with-class", "default"
 	modelName, _ := GetModelName("bar.com", "default")
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-1"}
@@ -72,9 +106,10 @@ func TestEVHWrongClassMappingInIngress(t *testing.T) {
 
 	SetUpTestForIngress(t, modelName)
 	integrationtest.RemoveDefaultIngressClass()
-	defer integrationtest.AddDefaultIngressClass()
+	waitAndVerify(t, integrationtest.DefaultIngressClass)
 
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, "")
+	waitAndVerify(t, ingClassName)
 	ingressCreate := (integrationtest.FakeIngress{
 		Name:        ingressName,
 		Namespace:   ns,
@@ -147,6 +182,7 @@ func TestEVHWrongClassMappingInIngress(t *testing.T) {
 	}
 	TearDownTestForIngress(t, modelName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
+	waitAndVerify(t, ingClassName)
 	VerifyEvhNodeDeletionFromVsNode(g, modelName, vsKey, evhKey)
 }
 
@@ -166,8 +202,6 @@ func TestEVHDefaultIngressClassChange(t *testing.T) {
 	mcache.VsCacheMeta.AviCacheDelete(vsKey)
 
 	SetUpTestForIngress(t, modelName)
-	integrationtest.RemoveDefaultIngressClass()
-	defer integrationtest.AddDefaultIngressClass()
 
 	ingClass := (integrationtest.FakeIngressClass{
 		Name:       ingClassName,
@@ -177,6 +211,7 @@ func TestEVHDefaultIngressClassChange(t *testing.T) {
 	if _, err := KubeClient.NetworkingV1().IngressClasses().Create(context.TODO(), ingClass, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding IngressClass: %v", err)
 	}
+	waitAndVerify(t, ingClassName)
 
 	// ingress with no IngressClass
 	ingressCreate := (integrationtest.FakeIngress{
@@ -201,6 +236,7 @@ func TestEVHDefaultIngressClassChange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in updating IngressClass: %v", err)
 	}
+	waitAndVerify(t, ingClassName)
 
 	g.Eventually(func() int {
 		ingress, _ := KubeClient.NetworkingV1().Ingresses(ns).Get(context.TODO(), ingressName, metav1.GetOptions{})
@@ -213,6 +249,7 @@ func TestEVHDefaultIngressClassChange(t *testing.T) {
 	}
 	TearDownTestForIngress(t, modelName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
+	waitAndVerify(t, ingClassName)
 	VerifyEvhNodeDeletionFromVsNode(g, modelName, vsKey, evhKey)
 }
 
@@ -230,14 +267,13 @@ func TestEVHAviInfraSettingNamingConvention(t *testing.T) {
 	modelName := "admin/cluster--Shared-L7-EVH-1"
 
 	SetUpTestForIngress(t, modelName)
-	integrationtest.RemoveDefaultIngressClass()
-	defer integrationtest.AddDefaultIngressClass()
 
 	settingModelName := "admin/cluster--Shared-L7-EVH-my-infrasetting-0"
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-my-infrasetting-0"}
 	evhKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--my-infrasetting-baz.com", lib.EVHVS)}
 	integrationtest.SetupAviInfraSetting(t, settingName, "SMALL")
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
+	waitAndVerify(t, ingClassName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 
 	ingressCreate := (integrationtest.FakeIngress{
@@ -298,6 +334,7 @@ func TestEVHAviInfraSettingNamingConvention(t *testing.T) {
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	TearDownTestForIngress(t, modelName, settingModelName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
+	waitAndVerify(t, ingClassName)
 	VerifyEvhNodeDeletionFromVsNode(g, modelName, vsKey, evhKey)
 }
 
@@ -317,10 +354,9 @@ func TestEVHAddRemoveInfraSettingInIngressClass(t *testing.T) {
 	evhKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--my-infrasetting-baz.com", lib.EVHVS)}
 
 	SetUpTestForIngress(t, modelName)
-	integrationtest.RemoveDefaultIngressClass()
-	defer integrationtest.AddDefaultIngressClass()
 
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, "")
+	waitAndVerify(t, ingClassName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 	ingressCreate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -360,6 +396,7 @@ func TestEVHAddRemoveInfraSettingInIngressClass(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error updating IngressClass")
 	}
+	waitAndVerify(t, ingClassName)
 
 	g.Eventually(func() bool {
 		if found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName); found {
@@ -380,6 +417,7 @@ func TestEVHAddRemoveInfraSettingInIngressClass(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error updating IngressClass")
 	}
+	waitAndVerify(t, ingClassName)
 
 	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
@@ -389,6 +427,7 @@ func TestEVHAddRemoveInfraSettingInIngressClass(t *testing.T) {
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	TearDownTestForIngress(t, modelName, settingModelName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
+	waitAndVerify(t, ingClassName)
 	VerifyEvhNodeDeletionFromVsNode(g, modelName, vsKey, evhKey)
 }
 
@@ -400,20 +439,19 @@ func TestEVHUpdateInfraSettingInIngressClass(t *testing.T) {
 	// update infrasetting ref in ingressclass, model changes
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName1, settingName2 := "avi-lb", "foo-with-class", "default", "my-infrasetting", "my-infrasetting2"
+	ingClassName, ingressName, ns, settingName1, settingName2 := "avi-lb", "foo-with-class", "default", "my-infrasetting1", "my-infrasetting2"
 	modelName := "admin/cluster--Shared-L7-EVH-1"
 	secretName := "my-secret"
 
 	SetUpTestForIngress(t, modelName)
-	integrationtest.RemoveDefaultIngressClass()
-	defer integrationtest.AddDefaultIngressClass()
 
 	integrationtest.SetupAviInfraSetting(t, settingName1, "SMALL")
 	integrationtest.SetupAviInfraSetting(t, settingName2, "SMALL")
-	settingModelName1 := "admin/cluster--Shared-L7-EVH-my-infrasetting-0"
+	settingModelName1 := "admin/cluster--Shared-L7-EVH-my-infrasetting1-0"
 	settingModelName2 := "admin/cluster--Shared-L7-EVH-my-infrasetting2-0"
 
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName1)
+	waitAndVerify(t, ingClassName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 	ingressCreate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -434,7 +472,7 @@ func TestEVHUpdateInfraSettingInIngressClass(t *testing.T) {
 			}
 		}
 		return ""
-	}, 40*time.Second).Should(gomega.Equal(lib.Encode("cluster--my-infrasetting-bar.com", lib.EVHVS)))
+	}, 40*time.Second).Should(gomega.Equal(lib.Encode("cluster--my-infrasetting1-bar.com", lib.EVHVS)))
 
 	ingClassUpdate := (integrationtest.FakeIngressClass{
 		Name:            ingClassName,
@@ -447,6 +485,7 @@ func TestEVHUpdateInfraSettingInIngressClass(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error updating IngressClass")
 	}
+	waitAndVerify(t, ingClassName)
 
 	g.Eventually(func() int {
 		if found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName2); found {
@@ -468,6 +507,7 @@ func TestEVHUpdateInfraSettingInIngressClass(t *testing.T) {
 	integrationtest.TeardownAviInfraSetting(t, settingName1)
 	integrationtest.TeardownAviInfraSetting(t, settingName2)
 	integrationtest.TeardownIngressClass(t, ingClassName)
+	waitAndVerify(t, ingClassName)
 	TearDownTestForIngress(t, modelName, settingModelName1)
 	TearDownTestForIngress(t, modelName, settingModelName2)
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-my-infrasetting2-0"}
@@ -491,13 +531,12 @@ func TestEVHAddIngressClassWithInfraSetting(t *testing.T) {
 	evhKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--my-infrasetting-bar.com", lib.EVHVS)}
 
 	SetUpTestForIngress(t, modelName)
-	integrationtest.RemoveDefaultIngressClass()
-	defer integrationtest.AddDefaultIngressClass()
 
 	integrationtest.SetupAviInfraSetting(t, settingName, "SMALL")
 	settingModelName := "admin/cluster--Shared-L7-EVH-my-infrasetting-0"
 
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
+	waitAndVerify(t, ingClassName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 	ingressCreate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -561,6 +600,7 @@ func TestEVHAddIngressClassWithInfraSetting(t *testing.T) {
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	TearDownTestForIngress(t, modelName, settingModelName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
+	waitAndVerify(t, ingClassName)
 	VerifyEvhNodeDeletionFromVsNode(g, settingModelName, vsKey, evhKey)
 }
 
@@ -584,14 +624,14 @@ func TestEVHUpdateIngressClassWithInfraSetting(t *testing.T) {
 	secretName := "my-secret"
 
 	SetUpTestForIngress(t, modelName)
-	integrationtest.RemoveDefaultIngressClass()
-	defer integrationtest.AddDefaultIngressClass()
 
 	integrationtest.SetupAviInfraSetting(t, settingName1, "SMALL")
 	integrationtest.SetupAviInfraSetting(t, settingName2, "MEDIUM")
 
 	integrationtest.SetupIngressClass(t, ingClassName1, lib.AviIngressController, settingName1)
+	waitAndVerify(t, ingClassName1)
 	integrationtest.SetupIngressClass(t, ingClassName2, lib.AviIngressController, settingName2)
+	waitAndVerify(t, ingClassName2)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 	ingressCreate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -654,7 +694,9 @@ func TestEVHUpdateIngressClassWithInfraSetting(t *testing.T) {
 	integrationtest.TeardownAviInfraSetting(t, settingName2)
 	TearDownTestForIngress(t, modelName, settingModelName1, settingModelName2)
 	integrationtest.TeardownIngressClass(t, ingClassName1)
+	waitAndVerify(t, ingClassName1)
 	integrationtest.TeardownIngressClass(t, ingClassName2)
+	waitAndVerify(t, ingClassName2)
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-my-infrasetting2-1"}
 	evhKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--my-infrasetting2-bar.com", lib.EVHVS)}
 	VerifyEvhNodeDeletionFromVsNode(g, settingModelName2, vsKey, evhKey)
@@ -674,10 +716,9 @@ func TestEVHUpdateWithInfraSetting(t *testing.T) {
 	secretName := "my-secret"
 
 	SetUpTestForIngress(t, modelName)
-	integrationtest.RemoveDefaultIngressClass()
-	defer integrationtest.AddDefaultIngressClass()
 
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
+	waitAndVerify(t, ingClassName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 	ingressCreate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -779,6 +820,7 @@ func TestEVHUpdateWithInfraSetting(t *testing.T) {
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	TearDownTestForIngress(t, modelName, settingModelName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
+	waitAndVerify(t, ingClassName)
 }
 
 func TestEVHUpdateIngressClassWithoutInfraSetting(t *testing.T) {
@@ -798,13 +840,13 @@ func TestEVHUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 	evhKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--my-infrasetting-bar.com", lib.EVHVS)}
 
 	SetUpTestForIngress(t, modelName, settingModelName)
-	integrationtest.RemoveDefaultIngressClass()
-	defer integrationtest.AddDefaultIngressClass()
 
 	integrationtest.SetupAviInfraSetting(t, settingName, "MEDIUM")
 
 	integrationtest.SetupIngressClass(t, ingClassName1, lib.AviIngressController, settingName)
+	waitAndVerify(t, ingClassName1)
 	integrationtest.SetupIngressClass(t, ingClassName2, lib.AviIngressController, "")
+	waitAndVerify(t, ingClassName2)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 	ingressCreate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -879,7 +921,9 @@ func TestEVHUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	TearDownTestForIngress(t, modelName, settingModelName)
 	integrationtest.TeardownIngressClass(t, ingClassName1)
+	waitAndVerify(t, ingClassName1)
 	integrationtest.TeardownIngressClass(t, ingClassName2)
+	waitAndVerify(t, ingClassName2)
 	VerifyEvhNodeDeletionFromVsNode(g, modelName, vsKey, evhKey)
 }
 
@@ -895,11 +939,10 @@ func TestEVHBGPConfigurationWithInfraSetting(t *testing.T) {
 	settingModelName := "admin/cluster--Shared-L7-EVH-my-infrasetting-1"
 
 	SetUpTestForIngress(t, modelName, settingModelName)
-	integrationtest.RemoveDefaultIngressClass()
-	defer integrationtest.AddDefaultIngressClass()
 
 	integrationtest.SetupAviInfraSetting(t, settingName, "LARGE")
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
+	waitAndVerify(t, ingClassName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-my-infrasetting-1"}
@@ -951,6 +994,7 @@ func TestEVHBGPConfigurationWithInfraSetting(t *testing.T) {
 
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
+	waitAndVerify(t, ingClassName)
 	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
@@ -981,11 +1025,10 @@ func TestEVHBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-my-infrasetting-1"}
 
 	SetUpTestForIngress(t, modelName, settingModelName)
-	integrationtest.RemoveDefaultIngressClass()
-	defer integrationtest.AddDefaultIngressClass()
 
 	integrationtest.SetupAviInfraSetting(t, settingName, "LARGE")
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
+	waitAndVerify(t, ingClassName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 
 	ingressCreate := (integrationtest.FakeIngress{
@@ -1027,6 +1070,7 @@ func TestEVHBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
 
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
+	waitAndVerify(t, ingClassName)
 	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
@@ -1044,6 +1088,16 @@ func TestEVHBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
 }
 
 func TestEVHCRDWithAviInfraSetting(t *testing.T) {
+
+	defer func() {
+		integrationtest.AddDefaultIngressClass()
+		waitAndVerify(t, integrationtest.DefaultIngressClass)
+
+		// Reverting the syncFunc of ingestion Queue.
+		ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
+		ingestionQueue.SyncFunc = k8s.SyncFromIngestionLayer
+	}()
+
 	if lib.VIPPerNamespace() {
 		t.Skip()
 	}
@@ -1060,11 +1114,10 @@ func TestEVHCRDWithAviInfraSetting(t *testing.T) {
 	poolKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--my-infrasetting-default-baz.com_foo-foo-with-class-avisvc", lib.Pool)}
 
 	SetUpTestForIngress(t, modelName, settingModelName)
-	integrationtest.RemoveDefaultIngressClass()
-	defer integrationtest.AddDefaultIngressClass()
 
 	integrationtest.SetupAviInfraSetting(t, settingName, "LARGE")
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
+	waitAndVerify(t, ingClassName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 
 	httpRulePath := "/"
@@ -1098,6 +1151,10 @@ func TestEVHCRDWithAviInfraSetting(t *testing.T) {
 	// check for values set in graph layer.
 	integrationtest.VerifyMetadataHostRule(t, g, evhKey, "default/"+hrname, true)
 	integrationtest.VerifyMetadataHTTPRule(t, g, poolKey, "default/"+rrname+"/"+httpRulePath, true)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(settingModelName)
+		return found
+	}, 40*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(settingModelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].EvhNodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(1))
@@ -1112,6 +1169,7 @@ func TestEVHCRDWithAviInfraSetting(t *testing.T) {
 	integrationtest.TeardownHTTPRule(t, rrname)
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
+	waitAndVerify(t, ingClassName)
 	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
