@@ -685,6 +685,10 @@ func checkVsVipUpdateErrors(key string, rest_op *utils.RestOp) bool {
 }
 
 func (rest *RestOperations) PopulateOneCache(rest_op *utils.RestOp, aviObjKey avicache.NamespaceName, key string) {
+	aviErr, ok := rest_op.Err.(session.AviError)
+	if !ok && rest_op.Err != nil {
+		utils.AviLog.Warnf("Error in rest operation is not of type AviError, err: %v, %T", rest_op.Err, rest_op.Err)
+	}
 	if (rest_op.Err == nil || rest_op.Message != "") &&
 		(rest_op.Method == utils.RestPost ||
 			rest_op.Method == utils.RestPut ||
@@ -712,7 +716,8 @@ func (rest *RestOperations) PopulateOneCache(rest_op *utils.RestOp, aviObjKey av
 			rest.AviVsVipCacheAdd(rest_op, aviObjKey, key)
 		}
 
-	} else if rest_op.Err == nil && rest_op.Method == utils.RestDelete {
+	} else if (rest_op.Err == nil || aviErr.HttpStatusCode == 404) &&
+		rest_op.Method == utils.RestDelete {
 		utils.AviLog.Infof("key: %s, msg: deleting %s cache", key, rest_op.Model)
 		if rest_op.Model == "PKIprofile" {
 			rest.AviPkiProfileCacheDel(rest_op, aviObjKey, key)
