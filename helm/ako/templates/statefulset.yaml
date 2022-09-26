@@ -44,7 +44,7 @@ spec:
           - mountPath: {{ .Values.mountPath }}
             name: ako-pv-storage
             {{ end }}
-            {{ if .Values.AKOSettings.istioEnabled}}
+            {{ if .Values.AKOSettings.istioEnabled }}
           - mountPath: /etc/istio-output-certs/
             name: istio-certs
             {{ end }}
