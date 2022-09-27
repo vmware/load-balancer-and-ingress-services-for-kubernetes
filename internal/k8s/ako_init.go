@@ -769,7 +769,8 @@ func (c *AviController) FullSyncK8s() error {
 		return err
 	}
 	for _, ns := range allNamespaces.Items {
-		if !lib.IsNamespaceBlocked(ns.GetName()) || utils.CheckIfNamespaceAccepted(ns.GetName(), ns.GetLabels(), false) {
+		if !lib.IsNamespaceBlocked(ns.GetName()) &&
+			utils.CheckIfNamespaceAccepted(ns.GetName(), ns.GetLabels(), false) {
 			acceptedNamespaces[ns.GetName()] = struct{}{}
 		}
 	}
