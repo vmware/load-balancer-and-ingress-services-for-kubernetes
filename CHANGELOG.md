@@ -258,3 +258,23 @@ All notable changes to this project will be documented in this file. The format 
  - Fixes LoadBalancer service creation with named ports in NodePortLocal deployment.
  - Fix: Every SEGroup used in the AviInfraSetting is getting configured with the labels even when `disableStaticRouteSync` is set to `true`.
  - Fix: AKO pod keeps getting error "panic: runtime error: slice bounds out of range" then goes into CrashLoopBackOff state.
+
+## AKO-1.8.1
+
+### Added
+ - AKO now claims support for Kubernetes 1.24.
+ - Support for `AviInfraSetting` CRD in Passthrough Routes.
+ - Support for ISTIO mTLS authentication.
+ - Support for IPv4/IPv6 dual-stack networking.
+
+### Changed
+ - Added a knob to block the processing of objects in system namespaces in OpenShift and K8s clusters.
+ - For Insecure Ingress deployments, priority labels associated with pools will be case insensitive.
+ - In `NodePortLocal` deployment, AKO processes only the PODs with the annotation `nodeportlocal.antrea.io`.
+ - AKO rejects the ingresses without the `ingressClassName` in its specification when `ako.vmware.com/avi-lb` is not the default ingress controller.
+
+### Fixed
+ - `hostrule` with `sslKeyCertificate` of type `secret` can now be configured in all namespaces in OpenShift clusters.
+ - Fixed an issue of VS creation failing with 470 Ingress with a single path giving a 470 error.
+ - Fixed an AKO restart issue when `AviInfraSetting` is attached to a passthrough ingress.
+ - Fixed an issue where the AKO fails to clear the cache during VS deletion.
