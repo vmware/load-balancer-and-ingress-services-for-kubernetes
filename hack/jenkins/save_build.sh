@@ -18,14 +18,16 @@
 set -xe
 
 
-if [ $# -lt 2 ] ; then
-    echo "Usage: ./save_build.sh <BRANCH> <BUILD_NUMBER>";
+if [ $# -lt 5 ] ; then
+    echo "Usage: ./save_build.sh <BRANCH> <BUILD_NUMBER> <WORKSPACE> <JENKINS_JOB_NAME> <JENKINS_URL>";
     exit 1
 fi
 
 BRANCH=$1
 BUILD_NUMBER=$2
-
+WORKSPACE=$3
+JENKINS_JOB_NAME=$4
+JENKINS_URL=$5
 
 SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
@@ -35,6 +37,12 @@ function get_git_ws {
     [ -z "$git_ws" ] && echo "Couldn't find git workspace root" && exit 1
     echo $git_ws
 }
+
+BRANCH_VERSION_SCRIPT=$SCRIPTPATH/get_branch_version.sh
+# Compute base_build_num
+base_build_num=$(cat $(get_git_ws)/base_build_num)
+version_build_num=$(expr "$base_build_num" + "$BUILD_NUMBER")
+branch_version=$(bash $BRANCH_VERSION_SCRIPT)
 
 BUILD_VERSION_SCRIPT=$SCRIPTPATH/get_build_version.sh
 CHARTS_PATH="$(get_git_ws)/helm/ako"
@@ -62,3 +70,25 @@ fi
 set -e
 
 sudo sed -i --regexp-extended "s/^(\s*)(appVersion\s*:\s*latest\s*$)/\1appVersion: $build_version/" $target_path/Chart.yaml
+
+#collecting source provenance data
+PRODUCT_NAME="Avi Kubernetes Operator"
+JENKINS_INSTANCE=$(echo $JENKINS_URL | sed -E 's/^\s*.*:\/\///g' | sed -E 's/:.*//g')
+COMP_UID="uid.obj.build.jenkins(instance='$JENKINS_INSTANCE',job_name='$JENKINS_JOB_NAME',build_number='$BUILD_NUMBER')"
+output=( $(find $WORKSPACE/ -type d  -not -path "$WORKSPACE/build/*" -name '.git') )
+provenance_source_file="$WORKSPACE/provenance/source.json"
+for line in "${output[@]}"
+do
+    cd $(dirname $line)
+    if [ -f  $provenance_source_file ]
+    then
+        sudo /srp-tools/srp provenance source --scm-type git --name "$PRODUCT_NAME" --path ./ --saveto $provenance_source_file --comp-uid $COMP_UID --build-number ${version_build_num} --version $branch_version --all-ephemeral true --build-type release --append
+    else
+        sudo /srp-tools/srp provenance source --scm-type git --name "$PRODUCT_NAME" --path ./ --saveto $provenance_source_file --comp-uid $COMP_UID --build-number ${version_build_num} --version $branch_version --all-ephemeral true --build-type release
+    fi
+done
+cd $WORKSPACE
+sudo /srp-tools/srp provenance merge --source ./provenance/source.json --network ./provenance/provenance.json --saveto ./provenance/merged.json
+provenance_path=$target_path/provenance
+sudo mkdir -p $provenance_path
+sudo cp $WORKSPACE/provenance/*json $provenance_path/;
