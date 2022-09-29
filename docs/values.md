@@ -89,6 +89,18 @@ The `blockedNamespaceList` lists the Kubernetes/Openshift namespaces blocked by 
       - kube-system
       - kube-public
 
+### AKOSetttings.istioEnabled (Tech Preview)
+
+AKO can be deployed in Istio environment. Setting this to `true` indicates to AKO that the environment is Istio. Default value is `false`.
+
+### AKOSetttings.ipFamily (Tech Preview)
+
+`V6` is currently supported only for `vCenter` cloud with `calico` CNI.
+
+AKO can be deployed with ipFamily as `V4` or `V6`. When ipFamily is set to `V6`, AKO looks for `V6` IP for nodes from calico annotation and creates routes on controller. Only servers with `V6` IP will get added to Pools.
+
+Default value is `V4`.
+
 ### NetworkSettings.nodeNetworkList
 
 The `nodeNetworkList` lists the Networks and Node CIDR's where the k8s Nodes are created. This is only used in the ClusterIP deployment of AKO and in vCenter cloud and only when disableStaticRouteSync is set to false.
@@ -111,6 +123,9 @@ In addition to the networkName, we can also provide CIDR information that allows
     vipNetworkLists:
       - networkName: net1
         cidr: 10.1.1.0/24
+        v6cidr: 2002::1234:abcd:ffff:c0a8:101/64
+
+`v6cidr` may only work for Enterprise license with AVI controller. We can provide either `cidr` or `v6cidr` or both.
 
 For all Public clouds, vipNetworkList must be have at least one networkName. For other cloud types too, it is suggested that networkName should be specified in vipNetworkList. With AVI IPAM, if networkName is not specified in vipNetworkList, an IP can be allocated from the IPAM of the cloud.
 
