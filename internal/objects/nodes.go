@@ -51,7 +51,7 @@ func (o *K8sNodeStore) PopulateAllNodes(cs *kubernetes.Clientset, isNodePort boo
 	}
 	//filter out nodes if labels are set for nodeport mode
 	allNodes, err := cs.CoreV1().Nodes().List(context.TODO(), labelOption)
-	if err != nil {
+	if err == nil {
 		utils.AviLog.Infof("Got %d nodes", len(allNodes.Items))
 		for i, node := range allNodes.Items {
 			o.AddOrUpdate(node.Name, &allNodes.Items[i])
