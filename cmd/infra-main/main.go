@@ -46,7 +46,7 @@ func InitializeAKOInfra() {
 
 	var err error
 	kubeCluster := false
-	utils.AviLog.Info("AKO-Infra is running with version: ", version)
+	utils.AviLog.Infof("AKO-Infra is running with version: %s", version)
 	// Check if we are running inside kubernetes. Hence try authenticating with service token
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
