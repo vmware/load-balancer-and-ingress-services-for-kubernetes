@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"reflect"
 	"strconv"
 	"strings"
@@ -128,6 +129,10 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 					if vsvip_meta.VipNetworks[0].V6Cidr != "" {
 						lib.UpdateV6(vip, &vsvip_meta.VipNetworks[0])
 					}
+					if lib.GetCloudType() == lib.CLOUD_NSXT &&
+						lib.GetNSXTTransportZone() == lib.VLAN_TRANSPORT_ZONE {
+						setVipPlacementNetwork(vip, vsvip_meta.VipNetworks[0].Cidr, &networkRef)
+					}
 					vsvip.Vip = []*avimodels.Vip{vip}
 				}
 			}
@@ -210,6 +215,11 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 								Mask:   proto.Int32(int32(mask6)),
 							}
 						}
+					}
+					if lib.GetCloudType() == lib.CLOUD_NSXT &&
+						lib.GetNSXTTransportZone() == lib.VLAN_TRANSPORT_ZONE {
+						setVipPlacementNetwork(&vip, vipNetwork.Cidr, &networkRef)
+
 					}
 				}
 				if vipNetwork.V6Cidr != "" {
@@ -696,4 +706,23 @@ func networkNamesToVips(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork, ena
 	}
 
 	return vipList
+}
+
+func setVipPlacementNetwork(vip *avimodels.Vip, cidr string, networkRef *string) {
+	_, ipnet, _ := net.ParseCIDR(cidr)
+	addr := ipnet.IP.String()
+	mask := strings.Split(cidr, "/")[1]
+	intMask, _ := strconv.ParseInt(mask, 10, 32)
+	int32Mask := int32(intMask)
+	placementNetwork := &avimodels.VipPlacementNetwork{
+		NetworkRef: networkRef,
+		Subnet: &avimodels.IPAddrPrefix{
+			IPAddr: &avimodels.IPAddr{
+				Type: proto.String("V4"),
+				Addr: &addr,
+			},
+			Mask: &int32Mask,
+		},
+	}
+	vip.PlacementNetworks = []*avimodels.VipPlacementNetwork{placementNetwork}
 }
