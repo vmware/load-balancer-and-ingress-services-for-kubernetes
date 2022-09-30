@@ -172,6 +172,8 @@ The following table lists the configurable parameters of the AKO chart and their
 | `AKOSettings.apiServerPort` | Internal port for AKO's API server for the liveness probe of the AKO pod | 8080 |
 | `AKOSettings.layer7Only` | Operate AKO as a pure layer 7 ingress controller | false |
 | `AKOSettings.blockedNamespaceList` | List of K8s/Openshift namespaces blocked by AKO | `Empty List` |
+| `AKOSettings.istioEnabled` | set to true if user wants to deploy AKO in istio environment (tech preview)| false |
+| `AKOSettings.ipFamily` | set to V6 if user wants to deploy AKO with V6 backend (vCenter cloud with calico CNI only) (tech preview)| V4 |
 | `avicredentials.username` | Avi controller username | empty |
 | `avicredentials.password` | Avi controller password | empty |
 | `avicredentials.authtoken` | Avi controller authentication token | empty |
