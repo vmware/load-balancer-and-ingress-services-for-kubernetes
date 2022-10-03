@@ -273,3 +273,22 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Known Issues:
  - `hostrule` with `sslKeyCertificate` of type `secret` will work only in AKO installed namespace in OpenShift clusters.
+
+
+## AKO-1.8.1
+
+### Added
+ - AKO now claims support for Kubernetes 1.24.
+ - Support for `AviInfraSetting` CRD in Passthrough Ingresses/Routes.
+ - Support for ISTIO mTLS authentication. (Tech-preview)
+ - Support for IPv6 networking. (Tech-preview)
+ - Added a knob to block the processing of objects in system namespaces in OpenShift and K8s clusters.
+ - Support for placement network for VIP in NSX-T VLAN deployments.
+
+### Changed
+ - For Insecure Ingress deployments, priority labels associated with pools will be case insensitive.
+
+### Fixed
+ - `hostrule` with `sslKeyCertificate` of type `secret` can now be configured in all namespaces in OpenShift clusters.
+ - Fixed an issue of VS creation failing with 470 Ingress with a single path giving a 470 error.
+ - `nodeNetworkList` is not mandatory for NSX-T Overlay deployments.
