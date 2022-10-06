@@ -27,6 +27,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -99,11 +100,14 @@ func (c *VCFK8sController) AddNamespaceEventHandler(stopCh <-chan struct{}) {
 		},
 		DeleteFunc: func(obj interface{}) {
 			utils.AviLog.Infof("Namespace Delete Event")
-			crd := obj.(*unstructured.Unstructured)
-			_, found, err := unstructured.NestedStringMap(crd.UnstructuredContent(), "spec")
-			if err != nil || !found {
-				utils.AviLog.Warnf("Namespace spec not found: %+v", err)
-				return
+			_, ok := obj.(*corev1.Namespace)
+			if !ok {
+				crd, _ := obj.(*unstructured.Unstructured)
+				_, found, err := unstructured.NestedStringMap(crd.UnstructuredContent(), "spec")
+				if err != nil || !found {
+					utils.AviLog.Warnf("Namespace spec not found: %+v", err)
+					return
+				}
 			}
 			c.handleNamespaceDelete()
 		},
