@@ -160,6 +160,7 @@ func DeleteSegment(obj interface{}) {
 	objKey := "Netinfo" + utils.ObjKey(obj)
 	utils.AviLog.Debugf("key:%s, Network Info DELETE Event", objKey)
 	crd := obj.(*unstructured.Unstructured)
+	utils.AviLog.Infof("%+v", crd)
 
 	spec := crd.Object["topology"].(map[string]interface{})
 	lr, ok := spec["gatewayPath"].(string)
@@ -176,7 +177,6 @@ func DeleteSegment(obj interface{}) {
 	cidrIntf, ok := spec["ingressCIDRs"].([]interface{})
 	if !ok {
 		utils.AviLog.Infof("key: %s, cidr not found from NetInfo CR", objKey)
-		return
 	} else {
 		for _, cidr := range cidrIntf {
 			cidrs[cidr.(string)] = struct{}{}
@@ -213,7 +213,9 @@ func DeleteSegment(obj interface{}) {
 	} else {
 		utils.AviLog.Infof("key: %s, LSLR update not required in cloud: %s", objKey, utils.CloudName)
 	}
-	delCIDRFromNetwork(objKey, cidrs)
+	if len(cidrs) > 0 {
+		delCIDRFromNetwork(objKey, cidrs)
+	}
 }
 
 func matchCidrInNetwork(subnets []*models.Subnet, cidrs map[string]struct{}) bool {
