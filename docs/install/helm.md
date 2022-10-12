@@ -38,9 +38,9 @@ Values and their corresponding index can be found [here](#parameters)
 
 Step 4: Install AKO
 
-With AKO-1.7.1 and onwards, multiple AKO instances can be installed in a cluster.
+Starting AKO-1.7.1, multiple AKO instances can be installed in a cluster.
 > **Note**: <br>
-    1. Out of multiple AKO instances, only one AKO instance should be `Primary`. <br>
+    1. Only one AKO instance, out of multiple AKO instances, should be `Primary`. <br>
     2. Each AKO instance should be installed in a different namespace.
 
 <b>Primary AKO installation</b>
@@ -136,6 +136,9 @@ Upgrade the helm chart
 helm upgrade ako-1593523840 ako/ako -f /path/to/values.yaml --version 1.9.1 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username> --namespace=avi-system
 
 ```
+
+***Note***
+1. In multiple AKO deployment scenario, all AKO instances should be on the same version.
 
 ## Parameters
 
