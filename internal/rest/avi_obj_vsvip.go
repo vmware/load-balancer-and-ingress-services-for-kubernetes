@@ -214,6 +214,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 								IPAddr: &avimodels.IPAddr{Type: &ip6Type, Addr: &ip6PrefixSlice[0]},
 								Mask:   proto.Int32(int32(mask6)),
 							}
+						}
 					}
 					if lib.GetCloudType() == lib.CLOUD_NSXT &&
 						lib.GetNSXTTransportZone() == lib.VLAN_TRANSPORT_ZONE {

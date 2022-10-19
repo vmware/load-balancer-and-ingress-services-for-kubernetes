@@ -102,7 +102,7 @@ func InitializeAKC() {
 	var crdClient *crd.Clientset
 	var advl4Client *advl4.Clientset
 	var svcAPIClient *svcapi.Clientset
-	var istioClient *istiocrd.Clientset
+
 	if lib.IsWCP() {
 		advl4Client, err = advl4.NewForConfig(cfg)
 		if err != nil {
