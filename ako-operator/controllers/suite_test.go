@@ -47,6 +47,11 @@ func getTestDefaultAKOConfig() akov1alpha1.AKOConfig {
 			EnableEVH:              false,
 			Layer7Only:             false,
 			ServicesAPI:            false,
+			EnableEvents:           true,
+			IPFamily:               "V4",
+			IstioEnabled:           false,
+			VipPerNamespace:        false,
+			BlockedNamespaceList:   []string{},
 		},
 
 		NetworkSettings: akov1alpha1.NetworkSettings{
@@ -57,6 +62,15 @@ func getTestDefaultAKOConfig() akov1alpha1.AKOConfig {
 				},
 			},
 			EnableRHI: false,
+			VipNetworkList: []akov1alpha1.VipNetwork{
+				{
+					NetworkName: "test-nw",
+					Cidr:        "10.10.10.0/24",
+					V6Cidr:      "",
+				},
+			},
+			BGPPeerLabels: []string{},
+			NsxtT1LR:      "",
 		},
 
 		L7Settings: akov1alpha1.L7Settings{
@@ -77,6 +91,7 @@ func getTestDefaultAKOConfig() akov1alpha1.AKOConfig {
 			ControllerVersion:      "1.1",
 			CloudName:              "test-cloud",
 			ControllerIP:           "10.10.10.11",
+			TenantName:             "admin",
 		},
 
 		NodePortSelector: akov1alpha1.NodePortSelector{
@@ -86,12 +101,12 @@ func getTestDefaultAKOConfig() akov1alpha1.AKOConfig {
 
 		Resources: akov1alpha1.Resources{
 			Limits: akov1alpha1.ResourceLimits{
-				CPU:    "250m",
-				Memory: "300Mi",
+				CPU:    "350m",
+				Memory: "400Mi",
 			},
 			Requests: akov1alpha1.ResourceRequests{
-				CPU:    "100m",
-				Memory: "200Mi",
+				CPU:    "200m",
+				Memory: "300Mi",
 			},
 		},
 
@@ -153,8 +168,19 @@ func TestConfigmap(t *testing.T) {
 
 	t.Log("updating nodeNetworkList and verifying")
 	akoConfig.Spec.NetworkSettings.NodeNetworkList = []akov1alpha1.NodeNetwork{}
-	buildConfigMapAndVerify(cmDisable, akoConfig, true, false, t)
+	cmNodeNetwork := buildConfigMapAndVerify(cmDisable, akoConfig, true, false, t)
 
+	t.Log("updating ipFamily and verifying")
+	akoConfig.Spec.AKOSettings.IPFamily = "V6"
+	cmIPFamily := buildConfigMapAndVerify(cmNodeNetwork, akoConfig, true, false, t)
+
+	t.Log("updating istioEnabled and verifying")
+	akoConfig.Spec.AKOSettings.IstioEnabled = true
+	cmIstioEnabled := buildConfigMapAndVerify(cmIPFamily, akoConfig, true, false, t)
+
+	t.Log("updating blockedNamespaceList and verifying")
+	akoConfig.Spec.AKOSettings.BlockedNamespaceList = []string{"blocked-ns"}
+	buildConfigMapAndVerify(cmIstioEnabled, akoConfig, true, false, t)
 }
 
 func TestStatefulset(t *testing.T) {
@@ -190,5 +216,13 @@ func TestStatefulset(t *testing.T) {
 	// fix the image pull policy first
 	akoConfig.Spec.ImagePullPolicy = "Always"
 	akoConfig.Spec.AKOSettings.APIServerPort = 9090
-	buildStatefulSetAndVerify(sfRes, akoConfig, true, false, t)
+	sfPort := buildStatefulSetAndVerify(sfRes, akoConfig, true, false, t)
+
+	t.Log("updating istioEnabled to true and verifying statefulset update")
+	akoConfig.Spec.IstioEnabled = true
+	sfIstio := buildStatefulSetAndVerify(sfPort, akoConfig, true, false, t)
+
+	t.Log("verifying the volume mounts after setting istioEnabled to true")
+	container = sfIstio.Spec.Template.Spec.Containers[0]
+	g.Expect(container.VolumeMounts[1].MountPath).To(gomega.Equal("/etc/istio-output-certs/"))
 }

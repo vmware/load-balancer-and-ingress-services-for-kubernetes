@@ -10,7 +10,7 @@ metadata:
   name: ako-sample
   namespace: avi-system
 spec:
-  imageRepository: projects.registry.vmware.com/ako/ako:1.6.1
+  imageRepository: projects.registry.vmware.com/ako/ako:1.8.1
   imagePullPolicy: "IfNotPresent"
   akoSettings:
     enableEvents: true
@@ -28,6 +28,9 @@ spec:
       labelValue: ""
     servicesAPI: false
     vipPerNamespace: false
+    istioEnabled: false
+    ipFamily: ""
+    blockedNamespaceList: []
 
   networkSettings:
     nodeNetworkList: []
@@ -37,6 +40,7 @@ spec:
     vipNetworkList:
      - networkName: net1
        cidr: 100.1.1.0/24
+       v6Cidr: 2002::1234:abcd:ffff:c0a8:101/64
 
   l7Settings:
     defaultIngController: true
@@ -62,11 +66,11 @@ spec:
 
   resources:
     limits:
-      cpu: "250m"
-      memory: "300Mi"
+      cpu: "350m"
+      memory: "400Mi"
     requests:
-      cpu: "100m"
-      memory: "200Mi"
+      cpu: "200m"
+      memory: "300Mi"
 
   rbac:
     pspEnable: false
@@ -94,7 +98,10 @@ spec:
     * `namespaceSelector.labelKey`: Set the key of a namespace's label, if the requirement is to sync k8s objects from that namespace.
     * `namespaceSelector.labelValue`: Set the value of a namespace's label, if the requirement is to sync k8s objects from that namespace.
     * `servicesAPI`: Flag that enables AKO in services API mode: https://kubernetes-sigs.github.io/service-apis/. Currently implemented only for L4. This flag uses the upstream GA APIs which are not backward compatible with the advancedL4 APIs which uses a fork and a version of v1alpha1pre1
-    * `vipPerNamespace`: # Enabling this flag would tell AKO to create Parent VS per Namespace in EVH mode
+    * `vipPerNamespace`: Enabling this flag would tell AKO to create Parent VS per Namespace in EVH mode
+    * `istioEnabled`: This flag needs to be enabled when AKO is be to brought up in an Istio environment.
+    * `ipFamily`: IPFamily specifies IP family to be used. This flag can take values `V4` or `V6` (default `V4`). This is for the backend pools to use ipv6 or ipv4. For frontside VS, use v6cidr
+    * `blockedNamespaceList`: This is the list of system namespaces from which AKO will not listen any Kubernetes or Openshift object event.
   - `networkSettings`: Data network setting
     * `nodeNetworkList`: This list of network and cidrs are used in pool placement network for vcenter cloud. Node Network details are not needed when in nodeport mode / static routes are disabled / non vcenter clouds.
     * `enableRHI`: This is a cluster wide setting for BGP peering.

@@ -41,6 +41,13 @@ spec:
                     description: APIServerPort is the port at which the AKO API server
                       runs
                     type: integer
+                  blockedNamespaceList:
+                    description: BlockedNamespaceList is the list of system namespaces
+                      from which AKO will not listen any Kubernetes or Openshift object
+                      event.
+                    items:
+                      type: string
+                    type: array
                   clusterName:
                     description: ClusterName is used to identify a cluster
                     type: string
@@ -58,17 +65,26 @@ spec:
                     description: EnableEVH enables the Enhanced Virtual Hosting Model
                       in Avi Controller for the Virtual Services
                     type: boolean
+                  enableEvents:
+                    description: EnableEvents controls whether AKO broadcasts Events
+                      in the cluster or not
+                    type: boolean
                   fullSyncFrequency:
                     description: FullSyncFrequency defines the interval at which full
                       sync is carried out by the AKO controller
                     type: string
+                  ipFamily:
+                    description: IPFamily specifies IP family to be used. This flag
+                      can take values V4 or V6 (default V4). This is for the backend
+                      pools to use ipv6 or ipv4. For frontside VS, use v6cidr.
+                    type: string
+                  istioEnabled:
+                    description: IstioEnabled flag needs to be enabled when AKO is
+                      be to brought up in an Istio environment
+                    type: boolean
                   layer7Only:
                     description: Layer7Only enables AKO to do Layer 7 loadbalancing
                       only
-                    type: boolean
-                  enableEvents:
-                    description: EnableEvents controls whether AKO broadcasts Events in 
-                      the cluster or not
                     type: boolean
                   logLevel:
                     description: LogLevel defines the log level to be used by the
@@ -93,7 +109,8 @@ spec:
                       using Services API
                     type: boolean
                   vipPerNamespace:
-                    description: VipPerNamespace enables AKO to create Parent VS per Namespace in EVH mode
+                    description: VipPerNamespace enables AKO to create Parent VS per
+                      Namespace in EVH mode
                     type: boolean
                 type: object
               controllerSettings:
@@ -227,6 +244,9 @@ spec:
                         cidr:
                           type: string
                         networkName:
+                          type: string
+                        v6cidr:
+                          description: V6Cidr will enable the VS networks to use ipv6
                           type: string
                       type: object
                     type: array
