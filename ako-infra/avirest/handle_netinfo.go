@@ -160,7 +160,6 @@ func DeleteSegment(obj interface{}) {
 	objKey := "Netinfo" + utils.ObjKey(obj)
 	utils.AviLog.Debugf("key:%s, Network Info DELETE Event", objKey)
 	crd := obj.(*unstructured.Unstructured)
-	utils.AviLog.Infof("%+v", crd)
 
 	spec := crd.Object["topology"].(map[string]interface{})
 	lr, ok := spec["gatewayPath"].(string)
@@ -633,6 +632,7 @@ func executeRestOp(key string, client *clients.AviClient, restOp *utils.RestOp, 
 	}
 	switch restOp.Model {
 	case "cloud":
+		AviCloudCachePopulate(client, utils.CloudName)
 	case "ipamdnsproviderprofile":
 		AviCloudCachePopulate(client, utils.CloudName)
 	case "network":
