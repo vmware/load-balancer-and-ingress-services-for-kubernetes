@@ -194,12 +194,9 @@ func (c *VCFK8sController) getWorkloadNamespaceCount() (int, error) {
 		utils.AviLog.Error(err)
 		return 0, err
 	}
-	utils.AviLog.Infof("%+v", nsList)
 	count := 0
 	for _, ns := range nsList {
-		val, ok := ns.Labels[VSphereClusterIDLabelKey]
-		if ok {
-			utils.AviLog.Infof("%s: %s", ns.Name, val)
+		if _, ok := ns.Labels[VSphereClusterIDLabelKey]; ok {
 			count += 1
 		}
 	}
