@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"reflect"
 	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
@@ -366,4 +367,46 @@ func setTranzportZone(tzPath string) {
 		utils.AviLog.Infof("TransportZone to use for AKO is set to %s", tzPath)
 		transportZone = tzPath
 	})
+}
+
+func (c *VCFK8sController) AddSecretEventHandler(stopCh <-chan struct{}) {
+	secretEventHandler := cache.ResourceEventHandlerFuncs{
+		DeleteFunc: func(obj interface{}) {
+			secret, ok := obj.(*corev1.Secret)
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				secret, ok = tombstone.Obj.(*corev1.Secret)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not a Secret: %#v", obj)
+					return
+				}
+			}
+			if secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.AviSecret {
+				utils.AviLog.Fatalf("Avi Secret object %s/%s updated/deleted, shutting down AKO", secret.Namespace, secret.Name)
+			}
+		},
+		UpdateFunc: func(old, cur interface{}) {
+			oldobj := old.(*corev1.Secret)
+			secret := cur.(*corev1.Secret)
+			if oldobj.ResourceVersion != secret.ResourceVersion && !reflect.DeepEqual(secret.Data, oldobj.Data) {
+				if secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.AviSecret {
+					utils.AviLog.Fatalf("Avi Secret object %s/%s updated/deleted, shutting down AKO", secret.Namespace, secret.Name)
+				}
+			}
+		},
+	}
+
+	if c.informers.SecretInformer != nil {
+		c.informers.SecretInformer.Informer().AddEventHandler(secretEventHandler)
+	}
+	go c.informers.SecretInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh, c.informers.SecretInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
+	} else {
+		utils.AviLog.Info("Caches synced for Secret informer")
+	}
 }
