@@ -113,6 +113,7 @@ func InitializeAKOInfra() {
 	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName)
 	c.AddNetworkInfoEventHandler(stopCh)
 	c.AddNamespaceEventHandler(stopCh)
+	c.AddSecretEventHandler(stopCh)
 
 	<-stopCh
 	close(ctrlCh)
