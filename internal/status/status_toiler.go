@@ -36,6 +36,12 @@ func PublishToStatusQueue(key string, statusOption StatusOptions) {
 }
 
 func DequeueStatus(objIntf interface{}) error {
+
+	if !lib.AKOControlConfig().IsLeader() {
+		utils.AviLog.Debugf("AKO is not a leader, not updating the status")
+		return nil
+	}
+
 	obj, ok := objIntf.(StatusOptions)
 	if !ok {
 		utils.AviLog.Warnf("key: %s, object is not of type StatusOptions, %T", obj.Options.Key, objIntf)

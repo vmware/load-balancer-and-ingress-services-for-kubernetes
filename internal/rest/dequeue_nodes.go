@@ -557,6 +557,14 @@ func (rest *RestOperations) deleteSniVs(vsKey avicache.NamespaceName, vs_cache_o
 }
 
 func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp, aviObjKey avicache.NamespaceName, avimodel *nodes.AviObjectGraph, key string, isEvh bool, sslKey ...utils.NamespaceName) (bool, bool) {
+
+	if !lib.AKOControlConfig().IsLeader() {
+		<-time.After(500 * time.Millisecond)
+		for i := range rest_ops {
+			rest_ops[i].Method = utils.RestGet
+		}
+	}
+
 	// Choose a avi client based on the model name hash. This would ensure that the same worker queue processes updates for a given VS all the time.
 	shardSize := lib.GetshardSize()
 	if shardSize == 0 {
@@ -692,7 +700,8 @@ func (rest *RestOperations) PopulateOneCache(rest_op *utils.RestOp, aviObjKey av
 	if (rest_op.Err == nil || rest_op.Message != "") &&
 		(rest_op.Method == utils.RestPost ||
 			rest_op.Method == utils.RestPut ||
-			rest_op.Method == utils.RestPatch) {
+			rest_op.Method == utils.RestPatch ||
+			rest_op.Method == utils.RestGet) {
 		utils.AviLog.Infof("key: %s, msg: creating/updating %s cache, method: %s", key, rest_op.Model, rest_op.Method)
 		if rest_op.Model == "PKIprofile" {
 			rest.AviPkiProfileAdd(rest_op, aviObjKey, key)
@@ -1424,6 +1433,14 @@ func (rest *RestOperations) DatascriptCU(ds_nodes []*nodes.AviHTTPDataScriptNode
 							if restOp != nil {
 								rest_ops = append(rest_ops, restOp)
 							}
+						}
+					}
+				} else {
+					// If the DS Is not found - let's do a POST call.
+					for _, ds := range ds_nodes {
+						restOp := rest.AviDSBuild(ds, nil, key)
+						if restOp != nil {
+							rest_ops = append(rest_ops, restOp)
 						}
 					}
 				}

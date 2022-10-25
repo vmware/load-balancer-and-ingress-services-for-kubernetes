@@ -24,7 +24,7 @@ type FullSyncThread struct {
 	QuickSyncChan     chan string
 	Interval          time.Duration
 	SyncFunction      func()
-	QuickSyncFunction func() error
+	QuickSyncFunction func(chan struct{}) error
 }
 
 func NewFullSyncThread(interval time.Duration) *FullSyncThread {
@@ -48,7 +48,7 @@ func (w *FullSyncThread) Run() {
 			// First the regular sync function - that syncs the cache
 			w.SyncFunction()
 			// Second the function that syncs the k8s objects.
-			w.QuickSyncFunction()
+			w.QuickSyncFunction(nil)
 			break
 		case <-time.After(w.Interval):
 			// Just the cache sync functions.

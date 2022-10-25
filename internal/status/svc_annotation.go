@@ -79,6 +79,12 @@ func UpdateNPLAnnotation(key, namespace, name string) {
 }
 
 func DeleteNPLAnnotation(key, namespace, name string) {
+
+	if !lib.AKOControlConfig().IsLeader() {
+		utils.AviLog.Debug("AKO is running as a follower, not updating the annotation")
+		return
+	}
+
 	service, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
 	if err != nil {
 		return

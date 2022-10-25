@@ -130,10 +130,16 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 
 	for _, resp := range resp_elems {
 		name, ok := resp["name"].(string)
-		if !ok {
+		if !ok && rest_op.ObjName == "" {
 			utils.AviLog.Warnf("Name not present in response %v", resp)
 			continue
 		}
+
+		if name == "" {
+			name = rest_op.ObjName
+			utils.AviLog.Warnf("key %s: Name is empty and it is filled with name %s from the request", key, name)
+		}
+
 		uuid, ok := resp["uuid"].(string)
 		if !ok {
 			utils.AviLog.Warnf("Uuid not present in response %v", resp)
@@ -151,6 +157,9 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 			SSLKeyAndCertificate = rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.SSLKeyAndCertificate)
 		case avimodels.SSLKeyAndCertificate:
 			SSLKeyAndCertificate = rest_op.Obj.(avimodels.SSLKeyAndCertificate)
+		}
+		if SSLKeyAndCertificate.Certificate == nil {
+			continue
 		}
 		cert = *SSLKeyAndCertificate.Certificate.Certificate
 		hasCA := false
@@ -289,9 +298,13 @@ func (rest *RestOperations) AviPkiProfileAdd(rest_op *utils.RestOp, poolKey avic
 
 	for _, resp := range resp_elems {
 		name, ok := resp["name"].(string)
-		if !ok {
+		if !ok && rest_op.ObjName == "" {
 			utils.AviLog.Warnf("Name not present in response %v", resp)
 			continue
+		}
+		if name == "" {
+			name = rest_op.ObjName
+			utils.AviLog.Warnf("key %s: Name is empty and it is filled with name %s from the request", key, name)
 		}
 
 		uuid, ok := resp["uuid"].(string)

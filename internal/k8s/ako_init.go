@@ -79,7 +79,9 @@ func PopulateCache() error {
 	}
 	if aviclient != nil && len(aviclient.AviClient) > 0 {
 		utils.AviLog.Infof("Starting clean up of stale objects")
-		restlayer.CleanupVS(staleVSKey, true)
+		if lib.AKOControlConfig().IsLeader() {
+			restlayer.CleanupVS(staleVSKey, true)
+		}
 		staleCacheKey := avicache.NamespaceName{
 			Name:      lib.DummyVSForStaleData,
 			Namespace: lib.GetTenant(),
@@ -463,7 +465,7 @@ func (c *AviController) ValidAviSecret() bool {
 	return false
 }
 
-func (c *AviController) InitController(informers K8sinformers, registeredInformers []string, ctrlCh <-chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}, waitGroupMap ...map[string]*sync.WaitGroup) {
+func (c *AviController) InitController(informers K8sinformers, registeredInformers []string, ctrlCh <-chan struct{}, stopCh <-chan struct{}, quickSyncCh, leReadyCh chan struct{}, waitGroupMap ...map[string]*sync.WaitGroup) {
 	// set up signals so we handle the first shutdown signal gracefully
 	var worker *utils.FullSyncThread
 	var tokenWorker *utils.FullSyncThread
@@ -549,7 +551,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		utils.AviLog.Errorf("Cannot convert full sync interval value to integer, pls correct the value and restart AKO. Error: %s", err)
 	} else {
 		// First boot sync
-		err = c.FullSyncK8s()
+		err = c.FullSyncK8s(leReadyCh)
 		if ctrlAuthToken, ok := utils.SharedCtrlProp().AviCacheGet(utils.ENV_CTRL_AUTHTOKEN); ok && ctrlAuthToken != nil && ctrlAuthToken.(string) != "" {
 			c.RefreshAuthToken()
 		}
@@ -710,7 +712,7 @@ func (c *AviController) FullSync() {
 	}
 }
 
-func (c *AviController) FullSyncK8s() error {
+func (c *AviController) FullSyncK8s(ready chan struct{}) error {
 	if c.DisableSync {
 		utils.AviLog.Infof("Sync disabled, skipping full sync")
 		return nil
@@ -1055,18 +1057,26 @@ func (c *AviController) FullSyncK8s() error {
 			nodes.DequeueIngestion(key, true)
 		}
 	}
+	if ready != nil {
+		close(ready)
+	}
+	return nil
+}
 
+func (c *AviController) publishAllVSKeysToRestLayer() {
 	cache := avicache.SharedAviObjCache()
 	vsKeys := cache.VsCacheMeta.AviCacheGetAllParentVSKeys()
 	utils.AviLog.Debugf("Got the VS keys: %s", vsKeys)
 	allModelsMap := objects.SharedAviGraphLister().GetAll()
-	var allModels []string
+	allModels := make(map[string]struct{})
+	vrfModelName := lib.GetModelName(lib.GetTenant(), lib.GetVrf())
 	for modelName := range allModelsMap.(map[string]interface{}) {
 		// ignore vrf model, as it has been published already
 		if modelName != vrfModelName && !lib.IsIstioKey(modelName) {
-			allModels = append(allModels, modelName)
+			allModels[modelName] = struct{}{}
 		}
 	}
+	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	syncNamespace := lib.GetNamespaceToSync()
 	for _, vsCacheKey := range vsKeys {
 		modelName := vsCacheKey.Namespace + "/" + vsCacheKey.Name
@@ -1075,25 +1085,19 @@ func (c *AviController) FullSyncK8s() error {
 			shardVsPrefix := lib.ShardVSPrefix
 			if shardVsPrefix != "" {
 				if strings.HasPrefix(vsCacheKey.Name, shardVsPrefix) {
-					if utils.HasElem(allModels, modelName) {
-						allModels = utils.Remove(allModels, modelName)
-					}
+					delete(allModels, modelName)
 					utils.AviLog.Infof("Model published L7 VS during namespace based sync: %s", modelName)
 					nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
 				}
 			}
 			// For namespace based syncs, the L4 VSes would be named: clusterName + "--" + namespace
 			if strings.HasPrefix(vsCacheKey.Name, lib.GetNamePrefix()+syncNamespace) {
-				if utils.HasElem(allModels, modelName) {
-					allModels = utils.Remove(allModels, modelName)
-				}
+				delete(allModels, modelName)
 				utils.AviLog.Infof("Model published L4 VS during namespace based sync: %s", modelName)
 				nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
 			}
 		} else {
-			if utils.HasElem(allModels, modelName) {
-				allModels = utils.Remove(allModels, modelName)
-			}
+			delete(allModels, modelName)
 			utils.AviLog.Infof("Model published in full sync %s", modelName)
 			nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
 		}
@@ -1101,12 +1105,9 @@ func (c *AviController) FullSyncK8s() error {
 	// Now also publish the newly generated models (if any)
 	// Publish all the models to REST layer.
 	utils.AviLog.Debugf("Newly generated models that do not exist in cache %s", utils.Stringify(allModels))
-	if allModels != nil {
-		for _, modelName := range allModels {
-			nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
-		}
+	for modelName := range allModels {
+		nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
 	}
-	return nil
 }
 
 // DeleteModels : Delete models and add the model name in the queue.

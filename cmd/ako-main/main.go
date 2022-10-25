@@ -313,6 +313,16 @@ func InitializeAKC() {
 		}
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	// TOCHECK: kubeClient for openshift as well?
+	leaderElector, err := utils.NewLeaderElector(kubeClient, c.OnStartedLeading, c.OnStoppedLeading, c.OnNewLeader)
+	if err != nil {
+		utils.AviLog.Fatalf("Leader election failed, shutting down AKO", err)
+	}
+	leaderElectionWG := &sync.WaitGroup{}
+	leReadyCh := leaderElector.Run(ctx, leaderElectionWG)
+
 	c.InitializeNamespaceSync()
 	k8s.PopulateNodeCache(kubeClient)
 	waitGroupMap := make(map[string]*sync.WaitGroup)
@@ -331,12 +341,18 @@ func InitializeAKC() {
 		<-istioUpdateCh
 	}
 
-	go c.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
+	go c.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, leReadyCh, waitGroupMap)
 	<-stopCh
 	close(ctrlCh)
+
+	// Cancel the Leader election goroutines
+	cancel()
+	<-ctx.Done()
+
 	doneChan := make(chan struct{})
 	go func() {
 		defer close(doneChan)
+		leaderElectionWG.Wait()
 		wgIngestion.Wait()
 		wgGraph.Wait()
 		wgFastRetry.Wait()

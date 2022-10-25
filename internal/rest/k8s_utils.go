@@ -27,6 +27,12 @@ import (
 // based on the service metadata objects it finds in the cache
 // This is executed once AKO is done with populating the L3 cache in reboot scenarios
 func (rest *RestOperations) SyncObjectStatuses() {
+
+	if !lib.AKOControlConfig().IsLeader() {
+		utils.AviLog.Debug("AKO is running as a follower, not updating the status")
+		return
+	}
+
 	vsKeys := rest.cache.VsCacheMeta.AviGetAllKeys()
 	utils.AviLog.Debugf("Ingress status sync for vsKeys %+v", utils.Stringify(vsKeys))
 

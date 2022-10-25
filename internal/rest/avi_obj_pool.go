@@ -238,9 +238,14 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 
 	for _, resp := range resp_elems {
 		name, ok := resp["name"].(string)
-		if !ok {
+		if !ok && rest_op.ObjName == "" {
 			utils.AviLog.Warnf("key: %s, msg: Name not present in response %v", key, resp)
 			continue
+		}
+
+		if name == "" {
+			name = rest_op.ObjName
+			utils.AviLog.Warnf("key %s: Name is empty and it is filled with name %s from the request", key, name)
 		}
 
 		uuid, ok := resp["uuid"].(string)

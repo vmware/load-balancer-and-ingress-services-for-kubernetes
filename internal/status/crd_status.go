@@ -36,6 +36,12 @@ type UpdateCRDStatusOptions struct {
 
 // UpdateHostRuleStatus HostRule status updates
 func UpdateHostRuleStatus(key string, hr *akov1alpha1.HostRule, updateStatus UpdateCRDStatusOptions, retryNum ...int) {
+
+	if !lib.AKOControlConfig().IsLeader() {
+		utils.AviLog.Debug("AKO is running as a follower, not updating the status")
+		return
+	}
+
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
@@ -106,6 +112,12 @@ func HostRuleEventBroadcast(vsName string, vsCacheMetadataOld, vsMetadataNew lib
 
 // UpdateHTTPRuleStatus HttpRule status updates
 func UpdateHTTPRuleStatus(key string, rr *akov1alpha1.HTTPRule, updateStatus UpdateCRDStatusOptions, retryNum ...int) {
+
+	if !lib.AKOControlConfig().IsLeader() {
+		utils.AviLog.Debug("AKO is running as a follower, not updating the status")
+		return
+	}
+
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
@@ -176,6 +188,12 @@ func HttpRuleEventBroadcast(poolName string, poolCacheMetadataOld, vsMetadataNew
 
 // UpdateAviInfraSettingStatus AviInfraSetting status updates
 func UpdateAviInfraSettingStatus(key string, infraSetting *akov1alpha1.AviInfraSetting, updateStatus UpdateCRDStatusOptions, retryNum ...int) {
+
+	if !lib.AKOControlConfig().IsLeader() {
+		utils.AviLog.Debug("AKO is running as a follower, not updating the status")
+		return
+	}
+
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]

@@ -305,9 +305,13 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 
 	for _, resp := range resp_elems {
 		name, ok := resp["name"].(string)
-		if !ok {
+		if !ok && rest_op.ObjName == "" {
 			utils.AviLog.Warnf("Name not present in response %v", resp)
 			continue
+		}
+		if name == "" {
+			name = rest_op.ObjName
+			utils.AviLog.Warnf("key %s: Name is empty and it is filled with name %s from the request", key, name)
 		}
 
 		uuid, ok := resp["uuid"].(string)
