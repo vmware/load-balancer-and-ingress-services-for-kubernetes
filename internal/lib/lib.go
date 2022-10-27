@@ -1538,6 +1538,9 @@ func GetDefaultSecretForRoutes() string {
 }
 
 func ValidateIngressForClass(key string, ingress *networkingv1.Ingress) bool {
+	if IsWCP() {
+		return true
+	}
 	// see whether ingress class resources are present or not
 	if ingress.Spec.IngressClassName == nil {
 		// check whether avi-lb ingress class is set as the default ingress class
