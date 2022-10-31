@@ -663,6 +663,12 @@ func (c *AviController) SetupServiceImportEventHandlers(numWorkers uint32) {
 // validateHostRuleObj would do validation checks
 // update internal CRD caches, and push relevant ingresses to ingestion
 func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
+
+	if !lib.AKOControlConfig().IsLeader() {
+		utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating hostrule object", key)
+		return nil
+	}
+
 	var err error
 	fqdn := hostrule.Spec.VirtualHost.Fqdn
 	foundHost, foundHR := objects.SharedCRDLister().GetFQDNToHostruleMapping(fqdn)
@@ -808,6 +814,11 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 
 // validateMultiClusterIngressObj validates the MCI CRD changes before pushing it to ingestion
 func validateMultiClusterIngressObj(key string, multiClusterIngress *akov1alpha1.MultiClusterIngress) error {
+
+	if !lib.AKOControlConfig().IsLeader() {
+		utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating MCI object", key)
+		return nil
+	}
 
 	var err error
 	statusToUpdate := &akov1alpha1.MultiClusterIngressStatus{}
@@ -966,6 +977,12 @@ func checkRefOnController(key, refKey, refValue string) error {
 // validateHTTPRuleObj would do validation checks
 // update internal CRD caches, and push relevant ingresses to ingestion
 func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
+
+	if !lib.AKOControlConfig().IsLeader() {
+		utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating httprule object", key)
+		return nil
+	}
+
 	refData := make(map[string]string)
 	for _, path := range httprule.Spec.Paths {
 		if path.TLS.PKIProfile != "" && path.TLS.DestinationCA != "" {
@@ -1010,6 +1027,12 @@ func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 // validateAviInfraSetting would do validaion checks on the
 // ingested AviInfraSetting objects
 func validateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetting) error {
+
+	if !lib.AKOControlConfig().IsLeader() {
+		utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating AviInfraSetting object", key)
+		return nil
+	}
+
 	if ((infraSetting.Spec.Network.EnableRhi != nil && !*infraSetting.Spec.Network.EnableRhi) || infraSetting.Spec.Network.EnableRhi == nil) &&
 		len(infraSetting.Spec.Network.BgpPeerLabels) > 0 {
 		err := fmt.Errorf("BGPPeerLabels cannot be set if EnableRhi is false.")
