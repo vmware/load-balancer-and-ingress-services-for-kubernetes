@@ -234,23 +234,25 @@ func matchCidrInNetwork(subnets []*models.Subnet, cidrs map[string]struct{}) boo
 }
 
 func findAndRemoveCidrInNetwork(subnets []*models.Subnet, cidrs map[string]struct{}) ([]*models.Subnet, bool) {
-	subnetsCopy := make([]*models.Subnet, len(subnets))
-	copy(subnetsCopy, subnets)
+	var subnetsCopy []*models.Subnet
 	cidrsLen := len(cidrs)
 	if cidrsLen == 0 {
+		subnetsCopy = make([]*models.Subnet, len(subnets))
+		copy(subnetsCopy, subnets)
 		return subnetsCopy, true
 	}
-	for i, subnet := range subnets {
+	for _, subnet := range subnets {
 		addr := *subnet.Prefix.IPAddr.Addr
 		mask := *subnet.Prefix.Mask
 		cidr := fmt.Sprintf("%s/%d", addr, mask)
 		if _, found := cidrs[cidr]; found {
-			subnetsCopy = append(subnetsCopy[:i], subnetsCopy[i+1:]...)
 			cidrsLen -= 1
-			if cidrsLen == 0 {
-				return subnetsCopy, true
-			}
+		} else {
+			subnetsCopy = append(subnetsCopy, subnet)
 		}
+	}
+	if cidrsLen == 0 {
+		return subnetsCopy, true
 	}
 	return subnetsCopy, false
 }
