@@ -476,6 +476,9 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				}
 			}
 			BuildPoolHTTPRule(host, path.Path, ingName, namespace, infraSettingName, key, tlsNode, true, vsNode[0].Dedicated)
+			if lib.IsIstioEnabled() {
+				poolNode.UpdatePoolNodeForIstio()
+			}
 		}
 		sniFQDNs = append(sniFQDNs, pathFQDNs...)
 	}
