@@ -5,6 +5,7 @@ import argparse
 import os.path
 from pprint import pprint
 
+IP_ANNOTATION = 'load-balancer-ips'
 def update_annot(v1, svc):    
     '''
     ************************************************************************
@@ -19,7 +20,7 @@ def update_annot(v1, svc):
     ************************************************************************
     '''
     
-    svc['metadata']['annotations']['load-balancer-ips'] = svc['status']['load_balancer']['ingress'][0]['ip']
+    svc['metadata']['annotations'][IP_ANNOTATION] = svc['status']['load_balancer']['ingress'][0]['ip']
     service = client.V1Service()
     service.api_version = "v1"
     service.kind = "Service"
@@ -28,13 +29,8 @@ def update_annot(v1, svc):
     service.status = svc['status']
     try:
         api_response = v1.patch_namespaced_service(name = svc["metadata"]["name"], namespace="avi-system", body=service)
-        print("API RESPONSE:")
-        pprint(api_response)
-        '''updated_service = v1.read_namespaced_service(name = svc["metadata"]["name"], namespace="avi-system")
-        pprint(updated_service)'''
-        print("Service updated")
+        #updated_service = v1.read_namespaced_service(name = svc["metadata"]["name"], namespace="avi-system")
     except ApiException as e:
-        print("Service not updated")
         print(e)
 
 def get_svc(config_file):
@@ -61,19 +57,25 @@ def get_svc(config_file):
     v1 = client.CoreV1Api()
     ret = v1.list_service_for_all_namespaces()
     svc_dict = {}
+    updated_svc = []
+    not_updated_svc = []
     for svc in ret.items:
         svc_dict[svc.metadata.name] = {'name':svc.metadata.name, 'namespace':svc.metadata.namespace, 'cluster_ip':svc.spec.cluster_ip, 'type':svc.spec.type}
         if svc.spec.type == 'LoadBalancer':
             if 'load-balancer-ips' not in svc.metadata.annotations:
+                updated_svc.append(svc.metadata.name)
                 new_lb = copy.deepcopy(svc.to_dict())
                 update_annot(v1, new_lb)
+            else:
+                not_updated_svc.append(svc.metadata.name)
+    print("Services updated: ", updated_svc)
+    print("Services not updated: ", not_updated_svc)
     return svc_dict
 
 def main():
     parser = argparse.ArgumentParser(description="Script to read all namespaced services and add external IP to service annotation for LoadBalancer type services")
     parser.add_argument('kubeconfig_file', help="Path of kubeconfig file in local directory")
     args = parser.parse_args()
-    print("File path: {}".format(args.kubeconfig_file))
     config_file = args.kubeconfig_file
     while not os.path.isfile(config_file):
         config_file = input("Give valid kubeconfig filepath (Input \'End\' to exit program): ")
@@ -81,7 +83,7 @@ def main():
             break
     if os.path.isfile(config_file):
         services = get_svc(config_file)
-        print(services)
+        pprint(services)
     
 if __name__ == '__main__':
     main()
