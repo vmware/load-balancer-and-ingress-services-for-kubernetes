@@ -17,7 +17,6 @@ package k8s
 import (
 	v1 "k8s.io/api/core/v1"
 
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
@@ -26,31 +25,14 @@ func (c *AviController) OnStartedLeading() {
 	lib.AKOControlConfig().SetIsLeaderFlag(true)
 	utils.AviLog.Debugf("AKO became a leader")
 	lib.AKOControlConfig().PodEventf(v1.EventTypeNormal, "LeaderElection", "AKO became a leader")
-	cache := avicache.SharedAviObjCache()
-	avi_rest_client_pool := avicache.SharedAVIClients()
-	client := avi_rest_client_pool.AviClient
-	lib.AKOControlConfig().PodEventf(v1.EventTypeNormal, "Debugging", "Started refreshing objects")
-	// Populate the VS cache
-	utils.AviLog.Infof("Refreshing all object cache")
-	cache.AviRefreshObjectCache(client, utils.CloudName)
-	utils.AviLog.Infof("Finished Refreshing all object cache")
-	allVsKeys := cache.VsCacheMeta.AviGetAllKeys()
-	err := cache.AviObjVSCachePopulate(client[0], utils.CloudName, &allVsKeys)
-	if err != nil {
-		return
-	}
-
-	// Populate the SNI VS keys to their respective parents
-	// cache.PopulateVsMetaCache()
 	c.publishAllParentVSKeysToRestLayer()
-	lib.AKOControlConfig().PodEventf(v1.EventTypeNormal, "Debugging", "Finished refreshing objects")
 }
 
 func (c *AviController) OnNewLeader() {
 	lib.AKOControlConfig().SetIsLeaderFlag(false)
 	utils.AviLog.Debugf("AKO became a follower")
 	lib.AKOControlConfig().PodEventf(v1.EventTypeNormal, "LeaderElection", "AKO became a follower")
-	// c.publishAllVSKeysToRestLayer()
+	c.publishAllParentVSKeysToRestLayer()
 }
 
 func (c *AviController) OnStoppedLeading() {

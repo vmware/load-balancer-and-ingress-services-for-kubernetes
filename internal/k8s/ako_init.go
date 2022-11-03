@@ -1097,7 +1097,6 @@ func (c *AviController) FullSyncK8s() error {
 			nodes.DequeueIngestion(key, true)
 		}
 	}
-	c.publishAllParentVSKeysToRestLayer()
 	return nil
 }
 
