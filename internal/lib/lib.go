@@ -45,6 +45,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 
 	"google.golang.org/protobuf/proto"
@@ -1830,7 +1831,7 @@ func CreateIstioSecretFromCert(name string, kc kubernetes.Interface) {
 
 	fileData, err := ioutil.ReadFile(name)
 	if err != nil {
-		utils.AviLog.Errorf("%s", err)
+		utils.AviLog.Warnf("%s", err)
 		return
 	}
 	data := make(map[string][]byte)
@@ -1846,7 +1847,7 @@ func CreateIstioSecretFromCert(name string, kc kubernetes.Interface) {
 			Type: corev1.SecretTypeOpaque,
 		}, metav1.CreateOptions{})
 		if err != nil {
-			utils.AviLog.Errorf("Failed to create %s %s", IstioSecret, err.Error())
+			utils.AviLog.Warnf("Failed to create %s %s", IstioSecret, err.Error())
 			return
 		}
 	}
@@ -1860,9 +1861,11 @@ func CreateIstioSecretFromCert(name string, kc kubernetes.Interface) {
 	_, err = kc.CoreV1().Secrets(utils.GetAKONamespace()).Update(context.TODO(), istioSecret, metav1.UpdateOptions{})
 
 	if err != nil {
-		utils.AviLog.Errorf("Failed to update %s %s", IstioSecret, err.Error())
+		utils.AviLog.Warnf("Failed to update %s %s", IstioSecret, err.Error())
 		return
 	}
+	updateIstioCertSet(name)
+	utils.AviLog.Infof("Updated %s with resource %s", IstioSecret, name)
 }
 
 var istioInitialized bool
@@ -1885,4 +1888,26 @@ func GetIstioPKIProfileName() string {
 
 func GetIstioWorkloadCertificateName() string {
 	return "istio-workload-" + GetClusterName() + "-" + utils.GetAKONamespace()
+}
+
+var istioCertSet sets.String
+
+func updateIstioCertSet(s string) {
+	if istioCertSet == nil {
+		istioCertSet = sets.NewString()
+	}
+	istioCertSet.Insert(s)
+}
+
+func GetIstioCertSet() sets.String {
+	return istioCertSet
+}
+
+func IsChanClosed(ch <-chan struct{}) bool {
+	select {
+	case <-ch:
+		return true
+	default:
+	}
+	return false
 }
