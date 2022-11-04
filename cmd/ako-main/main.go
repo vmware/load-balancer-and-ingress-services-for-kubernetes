@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -328,6 +329,7 @@ func InitializeAKC() {
 	waitGroupMap["status"] = wgStatus
 
 	if lib.IsIstioEnabled() {
+		utils.AviLog.Infof("Waiting on Istio resources creation")
 		<-istioUpdateCh
 	}
 
@@ -376,9 +378,17 @@ func istioWatcherEvents(watcher *fsnotify.Watcher, kc *kubernetes.Clientset, ist
 					watcher.Add(lib.IstioCertOutputPath)
 					utils.AviLog.Infof("added path to %s to istio watcher", lib.IstioCertOutputPath)
 					initIstioSecrets(kc, istioUpdateCh)
-
 				} else {
-					lib.CreateIstioSecretFromCert(event.Name, kc)
+					if strings.HasSuffix(event.Name, "cert-chain.pem") ||
+						strings.HasSuffix(event.Name, "key.pem") ||
+						strings.HasSuffix(event.Name, "root-cert.pem") {
+						lib.CreateIstioSecretFromCert(event.Name, kc)
+						if !lib.IsChanClosed(*istioUpdateCh) {
+							if lib.GetIstioCertSet().Len() == 3 {
+								close(*istioUpdateCh)
+							}
+						}
+					}
 				}
 			}
 
@@ -392,8 +402,23 @@ func istioWatcherEvents(watcher *fsnotify.Watcher, kc *kubernetes.Clientset, ist
 }
 
 func initIstioSecrets(kc *kubernetes.Clientset, istioUpdateCh *chan struct{}) {
-	lib.CreateIstioSecretFromCert(lib.IstioCertOutputPath+"/cert-chain.pem", kc)
-	lib.CreateIstioSecretFromCert(lib.IstioCertOutputPath+"/key.pem", kc)
-	lib.CreateIstioSecretFromCert(lib.IstioCertOutputPath+"/root-cert.pem", kc)
+	files, err := ioutil.ReadDir(lib.IstioCertOutputPath + "/")
+	if err != nil {
+		utils.AviLog.Warnf("Cannot read %s, error: %s", lib.IstioCertOutputPath, err.Error())
+		return
+	}
+	if len(files) == 0 {
+		utils.AviLog.Infof("%s is empty", lib.IstioCertOutputPath)
+		return
+	} else {
+		for _, file := range files {
+			if file.Name() == "cert-chain.pem" ||
+				file.Name() == "key.pem" ||
+				file.Name() == "root-cert.pem" {
+				lib.CreateIstioSecretFromCert(lib.IstioCertOutputPath+"/"+file.Name(), kc)
+			}
+		}
+	}
+	utils.AviLog.Infof("%s initialized", lib.IstioSecret)
 	close(*istioUpdateCh)
 }
