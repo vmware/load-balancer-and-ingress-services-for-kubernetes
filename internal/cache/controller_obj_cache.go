@@ -1166,7 +1166,7 @@ func (c *AviObjCache) AviPopulateOneVsDSCache(client *clients.AviClient,
 	var uri string
 	akoUser := lib.AKOUser
 
-	uri = "/api/vsdatascript?name=" + objName + "&created_by=" + akoUser
+	uri = "/api/vsdatascriptset?name=" + objName + "&created_by=" + akoUser
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {

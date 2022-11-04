@@ -1039,7 +1039,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				switch rest_op.Obj.(type) {
 				case utils.AviRestObjMacro:
 					VSDataScriptSet = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.VSDataScriptSet).Name
-				case avimodels.VSDataScript:
+				case avimodels.VSDataScriptSet:
 					VSDataScriptSet = *rest_op.Obj.(avimodels.VSDataScriptSet).Name
 				}
 				aviObjCache.AviPopulateOneVsDSCache(c, utils.CloudName, VSDataScriptSet)
