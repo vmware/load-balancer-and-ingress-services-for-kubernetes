@@ -258,3 +258,6 @@ All notable changes to this project will be documented in this file. The format 
  - Fixes LoadBalancer service creation with named ports in NodePortLocal deployment.
  - Fix: Every SEGroup used in the AviInfraSetting is getting configured with the labels even when `disableStaticRouteSync` is set to `true`.
  - Fix: AKO pod keeps getting error "panic: runtime error: slice bounds out of range" then goes into CrashLoopBackOff state.
+
+### Known Issues
+ - AKO mandates `nodeNetworkList` to be configured for NSX-T Overlay deployments.
