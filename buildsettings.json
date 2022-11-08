@@ -1,7 +1,7 @@
 {
-    "version": "1.8.1",
+    "version": "1.8.2",
     "avi": {
-        "maxVersion": "22.1.1",
+        "maxVersion": "22.1.2",
         "minVersion": "21.1.3"
     },
     "kubernetes": {
