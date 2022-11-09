@@ -61,12 +61,15 @@ const (
 	TenantName             = "tenantName"
 	NoPGForSni             = "noPGForSni"
 	NsxtT1LR               = "nsxtT1LR"
+	PrimaryInstance        = "primaryInstance"
+	IstioEnabled           = "istioEnabled"
+	BlockedNamespaceList   = "blockedNamespaceList"
+	IPFamily               = "ipFamily"
+	EnableMCI              = "enableMCI"
 )
 
 var SecretEnvVars = map[string]string{
-	"CTRL_USERNAME": "username",
-	"CTRL_PASSWORD": "password",
-	"CTRL_CA_DATA":  "certificateAuthorityData",
+	"CTRL_CA_DATA": "certificateAuthorityData",
 }
 
 var ConfigMapEnvVars = map[string]string{
@@ -97,6 +100,12 @@ var ConfigMapEnvVars = map[string]string{
 	"NAMESPACE_SYNC_LABEL_KEY":   NSSyncLabelKey,
 	"NAMESPACE_SYNC_LABEL_VALUE": NSSyncLabelValue,
 	"NSXT_T1_LR":                 NsxtT1LR,
+	"PRIMARY_AKO_FLAG":           PrimaryInstance,
+	"ISTIO_ENABLED":              IstioEnabled,
+	"IP_FAMILY":                  IPFamily,
+	"MCI_ENABLED":                EnableMCI,
+	"BLOCKED_NS_LIST":            BlockedNamespaceList,
+	"VIP_PER_NAMESPACE":          VipPerNamespace,
 }
 
 func getSFNamespacedName() types.NamespacedName {
@@ -204,6 +213,9 @@ func isSfUpdateRequired(existingSf appsv1.StatefulSet, newSf appsv1.StatefulSet)
 		if newContainer.LivenessProbe.HTTPGet.Port != akoContainer.LivenessProbe.HTTPGet.Port {
 			return true
 		}
+		if len(akoContainer.VolumeMounts) != 0 && !reflect.DeepEqual(akoContainer.VolumeMounts, newContainer.VolumeMounts) {
+			return true
+		}
 	} else {
 		return true
 	}
@@ -281,8 +293,13 @@ func getEnvVars(ako akov1alpha1.AKOConfig, aviSecret v1.Secret) []v1.EnvVar {
 		Value: ako.Spec.LogFile,
 	})
 	envVars = append(envVars, v1.EnvVar{
-		Name:  "POD_NAMESPACE",
-		Value: AviSystemNS,
+		Name: "POD_NAMESPACE",
+		ValueFrom: &v1.EnvVarSource{
+			FieldRef: &v1.ObjectFieldSelector{
+				FieldPath:  "metadata.namespace",
+				APIVersion: "v1",
+			},
+		},
 	})
 	return envVars
 }

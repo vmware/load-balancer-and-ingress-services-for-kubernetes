@@ -145,6 +145,29 @@ func createHostRuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.L
 															{
 																Raw: []byte("\"ref\""),
 															},
+															{
+																Raw: []byte("\"secret\""),
+															},
+														},
+													},
+													"alternateCertificate": {
+														Type:     "object",
+														Required: []string{"name", "type"},
+														Properties: map[string]apiextensionv1.JSONSchemaProps{
+															"name": {
+																Type: "string",
+															},
+															"type": {
+																Type: "string",
+																Enum: []apiextensionv1.JSON{
+																	{
+																		Raw: []byte("\"ref\""),
+																	},
+																	{
+																		Raw: []byte("\"secret\""),
+																	},
+																},
+															},
 														},
 													},
 												},
@@ -398,6 +421,9 @@ func createHttpRuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.L
 												Type:     "object",
 												Required: []string{"type"},
 												Properties: map[string]apiextensionv1.JSONSchemaProps{
+													"pkiProfile": {
+														Type: "string",
+													},
 													"destinationCA": {
 														Type: "string",
 													},
@@ -517,6 +543,9 @@ func createAviInfraSettingCRD(clientset *apiextension.ApiextensionsV1Client, log
 														Type: "string",
 													},
 													"cidr": {
+														Type: "string",
+													},
+													"v6cidr": {
 														Type: "string",
 													},
 												},

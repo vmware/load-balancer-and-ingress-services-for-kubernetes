@@ -68,6 +68,12 @@ type AKOSettings struct {
 	ServicesAPI bool `json:"servicesAPI,omitempty"`
 	// VipPerNamespace enables AKO to create Parent VS per Namespace in EVH mode
 	VipPerNamespace bool `json:"vipPerNamespace,omitempty"`
+	// IstioEnabled flag needs to be enabled when AKO is be to brought up in an Istio environment
+	IstioEnabled bool `json:"istioEnabled,omitempty"`
+	// BlockedNamespaceList is the list of system namespaces from which AKO will not listen any Kubernetes or Openshift object event.
+	BlockedNamespaceList []string `json:"blockedNamespaceList,omitempty"`
+	// IPFamily specifies IP family to be used. This flag can take values V4 or V6 (default V4). This is for the backend pools to use ipv6 or ipv4. For frontside VS, use v6cidr.
+	IPFamily string `json:"ipFamily,omitempty"`
 }
 
 type NodeNetwork struct {
@@ -78,6 +84,8 @@ type NodeNetwork struct {
 type VipNetwork struct {
 	NetworkName string `json:"networkName,omitempty"`
 	Cidr        string `json:"cidr,omitempty"`
+	//V6Cidr will enable the VS networks to use ipv6
+	V6Cidr string `json:"v6cidr,omitempty"`
 }
 
 // NetworkSettings defines the network details required for the AKO controller
