@@ -181,6 +181,7 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	type VipNetworkListRow struct {
 		Cidr        string `json:"cidr"`
 		NetworkName string `json:"networkName"`
+		V6Cidr      string `json:"v6cidr"`
 	}
 
 	vipListRows := []VipNetworkListRow{}
@@ -189,6 +190,7 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 		vipListRows = append(vipListRows, VipNetworkListRow{
 			Cidr:        row.Cidr,
 			NetworkName: row.NetworkName,
+			V6Cidr:      row.V6Cidr,
 		})
 	}
 	if len(vipListRows) != 0 {
@@ -205,9 +207,13 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	}
 	cm.Data[BgpPeerLabels] = string(bgpPeerLabelsBytes)
 
-	cm.Data[ServiceType] = string(ako.Spec.L7Settings.ServiceType)
-	cm.Data[NodeKey] = ako.Spec.NodePortSelector.Key
-	cm.Data[NodeValue] = ako.Spec.NodePortSelector.Value
+	serviceType := string(ako.Spec.L7Settings.ServiceType)
+	cm.Data[ServiceType] = serviceType
+	if serviceType == "NodePort" {
+		cm.Data[NodeKey] = ako.Spec.NodePortSelector.Key
+		cm.Data[NodeValue] = ako.Spec.NodePortSelector.Value
+	}
+
 	cm.Data[ServiceEngineGroupName] = ako.Spec.ControllerSettings.ServiceEngineGroupName
 	apiServerPort := ako.Spec.AKOSettings.APIServerPort
 	if apiServerPort > 0 {
@@ -249,6 +255,31 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	cm.Data[TenantName] = ako.Spec.ControllerSettings.TenantName
 	cm.Data[AutoFQDN] = ako.Spec.L4Settings.AutoFQDN
 
+	enableEvents := "true"
+	if !ako.Spec.AKOSettings.EnableEvents {
+		enableEvents = "false"
+	}
+	cm.Data[EnableEvents] = enableEvents
+
+	primaryInstance := "true"
+	cm.Data[PrimaryInstance] = primaryInstance
+
+	istioEnabled := "false"
+	if ako.Spec.AKOSettings.IstioEnabled {
+		istioEnabled = "true"
+	}
+	cm.Data[IstioEnabled] = istioEnabled
+
+	blockedNamespaceListBytes, err := json.Marshal(ako.Spec.AKOSettings.BlockedNamespaceList)
+	if err != nil {
+		return cm, err
+	}
+	cm.Data[BlockedNamespaceList] = string(blockedNamespaceListBytes)
+	cm.Data[IPFamily] = ako.Spec.AKOSettings.IPFamily
+
+	enableMCI := "false"
+	cm.Data[EnableMCI] = enableMCI
+
 	return cm, nil
 }
 
@@ -259,5 +290,9 @@ func checkDeprecatedFields(ako akov1alpha1.AKOConfig, log logr.Logger) {
 
 	if ako.Spec.L7Settings.SyncNamespace != "" {
 		log.V(0).Info("", "WARN: ", "akoconfig.Spec.L7Settings.SyncNamespace will be deprecated")
+	}
+
+	if ako.Spec.ControllerSettings.TenantsPerCluster {
+		log.V(0).Info("", "WARN: ", "akoconfig.Spec.ControllerSettings.TenantsPerCluster will be deprecated")
 	}
 }
