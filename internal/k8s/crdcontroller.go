@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"regexp"
 	"time"
 
 	istiov1alpha3 "istio.io/client-go/pkg/apis/networking/v1alpha3"
@@ -29,7 +28,6 @@ import (
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
 	akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions"
@@ -120,7 +118,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				hostrule := obj.(*akov1alpha1.HostRule)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
 				key := lib.HostRule + "/" + utils.ObjKey(hostrule)
-				if err := validateHostRuleObj(key, hostrule); err != nil {
+				if err := c.GetValidator().ValidateHostRuleObj(key, hostrule); err != nil {
 					utils.AviLog.Warnf("key: %s, msg: Error retrieved during validation of HostRule: %v", key, err)
 				}
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
@@ -136,7 +134,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				if isHostRuleUpdated(oldObj, hostrule) {
 					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
 					key := lib.HostRule + "/" + utils.ObjKey(hostrule)
-					if err := validateHostRuleObj(key, hostrule); err != nil {
+					if err := c.GetValidator().ValidateHostRuleObj(key, hostrule); err != nil {
 						utils.AviLog.Warnf("key: %s, Error retrieved during validation of HostRule: %v", key, err)
 					}
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
@@ -182,7 +180,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				httprule := obj.(*akov1alpha1.HTTPRule)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httprule))
 				key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
-				if err := validateHTTPRuleObj(key, httprule); err != nil {
+				if err := c.GetValidator().ValidateHTTPRuleObj(key, httprule); err != nil {
 					utils.AviLog.Warnf("Error retrieved during validation of HTTPRule: %v", err)
 				}
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
@@ -200,7 +198,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				if isHTTPRuleUpdated(oldObj, httprule) {
 					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httprule))
 					key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
-					if err := validateHTTPRuleObj(key, httprule); err != nil {
+					if err := c.GetValidator().ValidateHTTPRuleObj(key, httprule); err != nil {
 						utils.AviLog.Warnf("Error retrieved during validation of HTTPRule: %v", err)
 					}
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
@@ -247,7 +245,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				aviinfra := obj.(*akov1alpha1.AviInfraSetting)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviinfra))
 				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviinfra)
-				if err := validateAviInfraSetting(key, aviinfra); err != nil {
+				if err := c.GetValidator().ValidateAviInfraSetting(key, aviinfra); err != nil {
 					utils.AviLog.Warnf("Error retrieved during validation of AviInfraSetting: %v", err)
 				}
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
@@ -263,7 +261,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				if isAviInfraUpdated(oldObj, aviInfra) {
 					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviInfra))
 					key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfra)
-					if err := validateAviInfraSetting(key, aviInfra); err != nil {
+					if err := c.GetValidator().ValidateAviInfraSetting(key, aviInfra); err != nil {
 						utils.AviLog.Warnf("Error retrieved during validation of AviInfraSetting: %v", err)
 					}
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
@@ -520,7 +518,7 @@ func (c *AviController) SetupMultiClusterIngressEventHandlers(numWorkers uint32)
 				utils.AviLog.Debugf("key: %s, msg: Multi-cluster Ingress add event: Namespace: %s didn't qualify filter. Not adding multi-cluster ingress", key, namespace)
 				return
 			}
-			if err := validateMultiClusterIngressObj(key, mci); err != nil {
+			if err := c.GetValidator().ValidateMultiClusterIngressObj(key, mci); err != nil {
 				utils.AviLog.Warnf("key: %s, msg: Validation of MultiClusterIngress failed: %v", key, err)
 				return
 			}
@@ -541,7 +539,7 @@ func (c *AviController) SetupMultiClusterIngressEventHandlers(numWorkers uint32)
 					utils.AviLog.Debugf("key: %s, msg: Multi-cluster Ingress update event: Namespace: %s didn't qualify filter. Not updating multi-cluster ingress", key, namespace)
 					return
 				}
-				if err := validateMultiClusterIngressObj(key, mci); err != nil {
+				if err := c.GetValidator().ValidateMultiClusterIngressObj(key, mci); err != nil {
 					utils.AviLog.Warnf("key: %s, msg: Validation of MultiClusterIngress failed: %v", key, err)
 					return
 				}
@@ -598,7 +596,7 @@ func (c *AviController) SetupServiceImportEventHandlers(numWorkers uint32) {
 				utils.AviLog.Debugf("key: %s, msg: Service Import add event: Namespace: %s didn't qualify filter. Not adding Service Import", key, namespace)
 				return
 			}
-			if err := validateServiceImportObj(key, si); err != nil {
+			if err := c.GetValidator().ValidateServiceImportObj(key, si); err != nil {
 				utils.AviLog.Warnf("key: %s, msg: Validation of ServiceImport failed: %v", key, err)
 				return
 			}
@@ -619,7 +617,7 @@ func (c *AviController) SetupServiceImportEventHandlers(numWorkers uint32) {
 					utils.AviLog.Debugf("key: %s, msg: Service Import update event: Namespace: %s didn't qualify filter. Not updating Service Import", key, namespace)
 					return
 				}
-				if err := validateServiceImportObj(key, si); err != nil {
+				if err := c.GetValidator().ValidateServiceImportObj(key, si); err != nil {
 					utils.AviLog.Warnf("key: %s, msg: Validation of ServiceImport failed: %v", key, err)
 					return
 				}
@@ -658,208 +656,6 @@ func (c *AviController) SetupServiceImportEventHandlers(numWorkers uint32) {
 		},
 	}
 	c.informers.ServiceImportInformer.Informer().AddEventHandler(serviceImportEventHandler)
-}
-
-// validateHostRuleObj would do validation checks
-// update internal CRD caches, and push relevant ingresses to ingestion
-func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
-
-	if !lib.AKOControlConfig().IsLeader() {
-		utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating hostrule object", key)
-		return nil
-	}
-
-	var err error
-	fqdn := hostrule.Spec.VirtualHost.Fqdn
-	foundHost, foundHR := objects.SharedCRDLister().GetFQDNToHostruleMapping(fqdn)
-	if foundHost && foundHR != hostrule.Namespace+"/"+hostrule.Name {
-		err = fmt.Errorf("duplicate fqdn %s found in %s", fqdn, foundHR)
-		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-		return err
-	}
-
-	// If it is not a Shared VS but TCP Settings are provided, then we reject it since these
-	// TCP settings are not valid for the child VS.
-	// TODO: move to translator?
-	// if !strings.Contains(fqdn, lib.ShardVSSubstring) && hostrule.Spec.VirtualHost.TCPSettings != nil {
-	// 	err = fmt.Errorf("Hostrule tcpSettings with fqdn %s cannot be applied to child Virtualservices", fqdn)
-	// 	status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-	// 	return err
-	// }
-
-	if hostrule.Spec.VirtualHost.TCPSettings != nil && hostrule.Spec.VirtualHost.TCPSettings.LoadBalancerIP != "" {
-		re := regexp.MustCompile(lib.IPRegex)
-		if !re.MatchString(hostrule.Spec.VirtualHost.TCPSettings.LoadBalancerIP) {
-			err = fmt.Errorf("loadBalancerIP %s is not a valid IP", hostrule.Spec.VirtualHost.TCPSettings.LoadBalancerIP)
-			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-			return err
-		}
-	}
-
-	if hostrule.Spec.VirtualHost.Gslb.Fqdn != "" {
-		if fqdn == hostrule.Spec.VirtualHost.Gslb.Fqdn {
-			err = fmt.Errorf("GSLB FQDN and local FQDN are same")
-			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-			return err
-		}
-	}
-
-	if hostrule.Spec.VirtualHost.TCPSettings != nil && len(hostrule.Spec.VirtualHost.TCPSettings.Listeners) > 0 {
-		sslEnabled := false
-		for _, listener := range hostrule.Spec.VirtualHost.TCPSettings.Listeners {
-			if listener.EnableSSL {
-				sslEnabled = true
-				break
-			}
-		}
-		if !sslEnabled {
-			err = fmt.Errorf("Hosting parent virtualservice must have SSL enabled")
-			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-			return err
-		}
-	}
-
-	if hostrule.Spec.VirtualHost.Aliases != nil {
-		if hostrule.Spec.VirtualHost.FqdnType != akov1alpha1.Exact {
-			err = fmt.Errorf("Aliases is supported only when FQDN type is set as Exact")
-			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-			return err
-		}
-
-		if utils.HasElem(hostrule.Spec.VirtualHost.Aliases, fqdn) {
-			err = fmt.Errorf("Duplicate entry found. Aliases field has same entry as the FQDN field")
-			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-			return err
-		}
-
-		if utils.ContainsDuplicate(hostrule.Spec.VirtualHost.Aliases) {
-			err = fmt.Errorf("Aliases must be unique")
-			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-			return err
-		}
-
-		if hostrule.Spec.VirtualHost.Gslb.Fqdn != "" &&
-			utils.HasElem(hostrule.Spec.VirtualHost.Aliases, hostrule.Spec.VirtualHost.Gslb.Fqdn) {
-			err = fmt.Errorf("Aliases must not contain GSLB FQDN")
-			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-			return err
-		}
-
-		for cachedFQDN, cachedAliases := range objects.SharedCRDLister().GetAllFQDNToAliasesMapping() {
-			if cachedFQDN == fqdn {
-				continue
-			}
-			aliases := cachedAliases.([]string)
-			for _, alias := range hostrule.Spec.VirtualHost.Aliases {
-				if utils.HasElem(aliases, alias) {
-					err = fmt.Errorf("%s is already in use by hostrule %s", alias, cachedFQDN)
-					status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-					return err
-				}
-			}
-		}
-	}
-
-	refData := map[string]string{
-		hostrule.Spec.VirtualHost.WAFPolicy:          "WafPolicy",
-		hostrule.Spec.VirtualHost.ApplicationProfile: "AppProfile",
-		hostrule.Spec.VirtualHost.TLS.SSLProfile:     "SslProfile",
-		hostrule.Spec.VirtualHost.AnalyticsProfile:   "AnalyticsProfile",
-		hostrule.Spec.VirtualHost.ErrorPageProfile:   "ErrorPageProfile",
-	}
-	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference {
-		refData[hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name] = "SslKeyCert"
-	}
-
-	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
-		_, err := utils.GetInformers().SecretInformer.Lister().Secrets(hostrule.Namespace).Get(hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name)
-		if err != nil {
-			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-			return err
-		}
-	}
-	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference {
-		refData[hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name] = "SslKeyCert"
-	}
-
-	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
-		_, err := utils.GetInformers().SecretInformer.Lister().Secrets(hostrule.Namespace).Get(hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name)
-		if err != nil {
-			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-			return err
-		}
-	}
-
-	for _, policy := range hostrule.Spec.VirtualHost.HTTPPolicy.PolicySets {
-		refData[policy] = "HttpPolicySet"
-	}
-
-	for _, script := range hostrule.Spec.VirtualHost.Datascripts {
-		refData[script] = "VsDatascript"
-	}
-
-	if err := checkRefsOnController(key, refData); err != nil {
-		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-		return err
-	}
-
-	// No need to update status of hostrule object as accepted since it was accepted before.
-	if hostrule.Status.Status == lib.StatusAccepted {
-		return nil
-	}
-
-	status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusAccepted, Error: ""})
-	return nil
-}
-
-// validateMultiClusterIngressObj validates the MCI CRD changes before pushing it to ingestion
-func validateMultiClusterIngressObj(key string, multiClusterIngress *akov1alpha1.MultiClusterIngress) error {
-
-	if !lib.AKOControlConfig().IsLeader() {
-		utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating MCI object", key)
-		return nil
-	}
-
-	var err error
-	statusToUpdate := &akov1alpha1.MultiClusterIngressStatus{}
-	defer func() {
-		if err == nil {
-			statusToUpdate.Status.Accepted = true
-			status.UpdateMultiClusterIngressStatus(key, multiClusterIngress, statusToUpdate)
-			return
-		}
-		statusToUpdate.Status.Accepted = false
-		statusToUpdate.Status.Reason = err.Error()
-		status.UpdateMultiClusterIngressStatus(key, multiClusterIngress, statusToUpdate)
-	}()
-
-	// Currently, we support only NodePort ServiceType.
-	if !lib.IsNodePortMode() {
-		err = fmt.Errorf("ServiceType must be of type NodePort")
-		return err
-	}
-
-	// Currently, we support EVH mode only.
-	if !lib.IsEvhEnabled() {
-		err = fmt.Errorf("AKO must be in EVH mode")
-		return err
-	}
-
-	if len(multiClusterIngress.Spec.Config) == 0 {
-		err = fmt.Errorf("config must not be empty")
-		return err
-	}
-
-	return nil
-}
-
-// validateServiceImportObj validates the SI CRD changes before pushing it to ingestion
-func validateServiceImportObj(key string, serviceImport *akov1alpha1.ServiceImport) error {
-
-	// CHECK ME: AMKO creates this and validation required?
-	// TODO: validations needs a status field
-
-	return nil
 }
 
 func checkRefsOnController(key string, refMap map[string]string) error {
@@ -971,133 +767,6 @@ func checkRefOnController(key, refKey, refValue string) error {
 	}
 
 	utils.AviLog.Infof("key: %s, msg: Ref found for %s/%s", key, refModelMap[refKey], refValue)
-	return nil
-}
-
-// validateHTTPRuleObj would do validation checks
-// update internal CRD caches, and push relevant ingresses to ingestion
-func validateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
-
-	if !lib.AKOControlConfig().IsLeader() {
-		utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating httprule object", key)
-		return nil
-	}
-
-	refData := make(map[string]string)
-	for _, path := range httprule.Spec.Paths {
-		if path.TLS.PKIProfile != "" && path.TLS.DestinationCA != "" {
-			//if both pkiProfile and destCA set, reject httprule
-			status.UpdateHTTPRuleStatus(key, httprule, status.UpdateCRDStatusOptions{
-				Status: lib.StatusRejected,
-				Error:  lib.HttpRulePkiAndDestCASetErr,
-			})
-			return fmt.Errorf("key: %s, msg: %s", key, lib.HttpRulePkiAndDestCASetErr)
-		}
-		refData[path.TLS.SSLProfile] = "SslProfile"
-		refData[path.ApplicationPersistence] = "ApplicationPersistence"
-		if path.TLS.PKIProfile != "" {
-			refData[path.TLS.PKIProfile] = "PKIProfile"
-		}
-
-		for _, hm := range path.HealthMonitors {
-			refData[hm] = "HealthMonitor"
-		}
-	}
-
-	if err := checkRefsOnController(key, refData); err != nil {
-		status.UpdateHTTPRuleStatus(key, httprule, status.UpdateCRDStatusOptions{
-			Status: lib.StatusRejected,
-			Error:  err.Error(),
-		})
-		return err
-	}
-
-	// No need to update status of httprule object as accepted since it was accepted before.
-	if httprule.Status.Status == lib.StatusAccepted {
-		return nil
-	}
-
-	status.UpdateHTTPRuleStatus(key, httprule, status.UpdateCRDStatusOptions{
-		Status: lib.StatusAccepted,
-		Error:  "",
-	})
-	return nil
-}
-
-// validateAviInfraSetting would do validaion checks on the
-// ingested AviInfraSetting objects
-func validateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetting) error {
-
-	if !lib.AKOControlConfig().IsLeader() {
-		utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating AviInfraSetting object", key)
-		return nil
-	}
-
-	if ((infraSetting.Spec.Network.EnableRhi != nil && !*infraSetting.Spec.Network.EnableRhi) || infraSetting.Spec.Network.EnableRhi == nil) &&
-		len(infraSetting.Spec.Network.BgpPeerLabels) > 0 {
-		err := fmt.Errorf("BGPPeerLabels cannot be set if EnableRhi is false.")
-		status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
-			Status: lib.StatusRejected,
-			Error:  err.Error(),
-		})
-		return err
-	}
-
-	refData := make(map[string]string)
-	for _, vipNetwork := range infraSetting.Spec.Network.VipNetworks {
-		if vipNetwork.Cidr != "" {
-			re := regexp.MustCompile(lib.IPCIDRRegex)
-			if !re.MatchString(vipNetwork.Cidr) {
-				err := fmt.Errorf("invalid CIDR configuration %s detected for networkName %s in vipNetworkList", vipNetwork.Cidr, vipNetwork.NetworkName)
-				status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
-					Status: lib.StatusRejected,
-					Error:  err.Error(),
-				})
-				return err
-			}
-		}
-		if vipNetwork.V6Cidr != "" {
-			re := regexp.MustCompile(lib.IPV6CIDRRegex)
-			if !re.MatchString(vipNetwork.V6Cidr) {
-				err := fmt.Errorf("invalid IPv6 CIDR configuration %s detected for networkName %s in vipNetworkList", vipNetwork.V6Cidr, vipNetwork.NetworkName)
-				status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
-					Status: lib.StatusRejected,
-					Error:  err.Error(),
-				})
-				return err
-			}
-		}
-		refData[vipNetwork.NetworkName] = "Network"
-	}
-
-	if infraSetting.Spec.SeGroup.Name != "" {
-		refData[infraSetting.Spec.SeGroup.Name] = "ServiceEngineGroup"
-	}
-
-	if err := checkRefsOnController(key, refData); err != nil {
-		status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
-			Status: lib.StatusRejected,
-			Error:  err.Error(),
-		})
-		return err
-	}
-
-	// This would add SEG labels only if they are not configured yet. In case there is a label mismatch
-	// to any pre-existing SEG labels, the AviInfraSettig CR will get Rejected from the checkRefsOnController
-	// step before this.
-	if infraSetting.Spec.SeGroup.Name != "" {
-		addSeGroupLabel(key, infraSetting.Spec.SeGroup.Name)
-	}
-
-	// No need to update status of infra setting object as accepted since it was accepted before.
-	if infraSetting.Status.Status == lib.StatusAccepted {
-		return nil
-	}
-
-	status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
-		Status: lib.StatusAccepted,
-		Error:  "",
-	})
 	return nil
 }
 

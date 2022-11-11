@@ -887,7 +887,7 @@ func (c *AviController) FullSyncK8s() error {
 					resVer := meta.GetResourceVersion()
 					objects.SharedResourceVerInstanceLister().Save(key, resVer)
 				}
-				if err := validateHostRuleObj(key, hostRuleObj); err != nil {
+				if err := c.GetValidator().ValidateHostRuleObj(key, hostRuleObj); err != nil {
 					utils.AviLog.Warnf("key: %s, Error retrieved during validation of HostRule: %v", key, err)
 				}
 				nodes.DequeueIngestion(key, true)
@@ -905,7 +905,7 @@ func (c *AviController) FullSyncK8s() error {
 					resVer := meta.GetResourceVersion()
 					objects.SharedResourceVerInstanceLister().Save(key, resVer)
 				}
-				if err := validateHTTPRuleObj(key, httpRuleObj); err != nil {
+				if err := c.GetValidator().ValidateHTTPRuleObj(key, httpRuleObj); err != nil {
 					utils.AviLog.Warnf("key: %s, Error retrieved during validation of HTTPRule: %v", key, err)
 				}
 				nodes.DequeueIngestion(key, true)
@@ -923,7 +923,7 @@ func (c *AviController) FullSyncK8s() error {
 					resVer := meta.GetResourceVersion()
 					objects.SharedResourceVerInstanceLister().Save(key, resVer)
 				}
-				if err := validateAviInfraSetting(key, aviInfraObj); err != nil {
+				if err := c.GetValidator().ValidateAviInfraSetting(key, aviInfraObj); err != nil {
 					utils.AviLog.Warnf("key: %s, Error retrieved during validation of AviInfraSetting: %v", key, err)
 				}
 				nodes.DequeueIngestion(key, true)
