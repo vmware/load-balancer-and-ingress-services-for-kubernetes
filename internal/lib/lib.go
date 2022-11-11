@@ -1378,7 +1378,8 @@ func IsPublicCloud() bool {
 
 func IsNodeNetworkAllowedCloud() bool {
 	cloudType := GetCloudType()
-	if cloudType == CLOUD_NSXT || cloudType == CLOUD_VCENTER {
+	if (cloudType == CLOUD_NSXT && GetNSXTTransportZone() == VLAN_TRANSPORT_ZONE) ||
+		cloudType == CLOUD_VCENTER {
 		return true
 	}
 	return false

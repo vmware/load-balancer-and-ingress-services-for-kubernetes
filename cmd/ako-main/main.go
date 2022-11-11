@@ -67,7 +67,7 @@ func InitializeAKOApi() {
 func InitializeAKC() {
 	var err error
 	kubeCluster := false
-	utils.AviLog.Info("AKO is running with version: ", version)
+	utils.AviLog.Infof("AKO is running with version: %s", version)
 
 	// set the logger for k8s as AviLogger.
 	klog.SetLogger(utils.AviLog)
