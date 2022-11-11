@@ -20,9 +20,34 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
-func RestRespArrToObjByType(rest_op *utils.RestOp, obj_type string, key string) []map[string]interface{} {
+func (l *leader) RestRespArrToObjByType(rest_op *utils.RestOp, obj_type string, key string) []map[string]interface{} {
 	var resp_elems []map[string]interface{}
 	if restResponse, ok := rest_op.Response.(map[string]interface{}); ok {
+		resp_elems = append(resp_elems, restResponse)
+		return resp_elems
+	}
+	return nil
+}
+
+func (l *follower) RestRespArrToObjByType(rest_op *utils.RestOp, obj_type string, key string) []map[string]interface{} {
+	var resp_elems []map[string]interface{}
+	if restResponse, ok := rest_op.Response.(map[string]interface{}); ok {
+		if rest_op.Method == utils.RestPost {
+			// response has format {count:1, results:[{}]}
+			response, ok := restResponse["results"].([]interface{})
+			if !ok {
+				return resp_elems
+			}
+			if len(response) == 0 {
+				return resp_elems
+			}
+			restResponse, ok = response[0].(map[string]interface{})
+			if !ok {
+				return resp_elems
+			}
+			utils.AviLog.Debugf("Got a response path %v tenant %v response %v",
+				rest_op.Path, rest_op.Tenant, utils.Stringify(restResponse))
+		}
 		resp_elems = append(resp_elems, restResponse)
 		return resp_elems
 	}

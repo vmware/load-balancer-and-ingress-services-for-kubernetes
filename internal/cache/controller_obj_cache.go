@@ -3337,3 +3337,12 @@ func ExtractUuidWithoutHash(word, pattern string) string {
 	}
 	return ""
 }
+
+func ExtractVSNameFromKey(word, pattern string) string {
+	r, _ := regexp.Compile(pattern)
+	result := r.FindAllString(word, -1)
+	if len(result) == 1 {
+		return result[0][:len(result[0])]
+	}
+	return ""
+}

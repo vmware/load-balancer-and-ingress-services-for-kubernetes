@@ -128,7 +128,7 @@ func (rest *RestOperations) AviVrfCacheAdd(restOp *utils.RestOp, vrfKey avicache
 		utils.AviLog.Warnf("key: %s, rest_op has err or no response for vrfcontext, err: %s, response: %v", key, restOp.Err, utils.Stringify(restOp.Response))
 		return errors.New("Errored rest_op")
 	}
-	respElems := RestRespArrToObjByType(restOp, "vrfcontext", key)
+	respElems := rest.restOperator.RestRespArrToObjByType(restOp, "vrfcontext", key)
 	if respElems == nil {
 		utils.AviLog.Warnf("key: %s, msg: unable to find vrfcontext obj in resp %v", key, restOp.Response)
 		return errors.New("vrfcontext not found")

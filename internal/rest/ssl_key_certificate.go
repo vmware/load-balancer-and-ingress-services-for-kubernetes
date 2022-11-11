@@ -122,7 +122,7 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 		return errors.New("errored rest_op")
 	}
 
-	resp_elems := RestRespArrToObjByType(rest_op, "sslkeyandcertificate", key)
+	resp_elems := rest.restOperator.RestRespArrToObjByType(rest_op, "sslkeyandcertificate", key)
 	if resp_elems == nil {
 		utils.AviLog.Warnf("Unable to find SSLKeyCert obj in resp %v", rest_op.Response)
 		return errors.New("SSLKeyCert not found")
@@ -151,6 +151,9 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 			SSLKeyAndCertificate = rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.SSLKeyAndCertificate)
 		case avimodels.SSLKeyAndCertificate:
 			SSLKeyAndCertificate = rest_op.Obj.(avimodels.SSLKeyAndCertificate)
+		}
+		if SSLKeyAndCertificate.Certificate == nil {
+			continue
 		}
 		cert = *SSLKeyAndCertificate.Certificate.Certificate
 		hasCA := false
@@ -281,7 +284,7 @@ func (rest *RestOperations) AviPkiProfileAdd(rest_op *utils.RestOp, poolKey avic
 		return errors.New("Errored rest_op")
 	}
 
-	resp_elems := RestRespArrToObjByType(rest_op, "pkiprofile", key)
+	resp_elems := rest.restOperator.RestRespArrToObjByType(rest_op, "pkiprofile", key)
 	if resp_elems == nil {
 		utils.AviLog.Warnf("Unable to find PkiProfile obj in resp %v", rest_op.Response)
 		return errors.New("PkiProfile not found")
