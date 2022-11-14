@@ -38,9 +38,12 @@ func TestHostruleFQDNAliasesForDedicatedVS(t *testing.T) {
 	integrationtest.SetupHostRule(t, hrname, "foo.com", false)
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return len(nodes)
-	}, 10*time.Second).Should(gomega.Equal(1))
+		nodes, ok := aviModel.(*avinodes.AviObjectGraph)
+		if !ok {
+			return 0
+		}
+		return len(nodes.GetAviVS())
+	}, 20*time.Second).Should(gomega.Equal(1))
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
 	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/fqdn-aliases-hr-foo", true)
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
