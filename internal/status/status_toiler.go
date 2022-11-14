@@ -35,7 +35,7 @@ func PublishToStatusQueue(key string, statusOption StatusOptions) {
 	statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
 }
 
-func DequeueStatus(objIntf interface{}) error {
+func (l *leader) DequeueStatus(objIntf interface{}) error {
 	obj, ok := objIntf.(StatusOptions)
 	if !ok {
 		utils.AviLog.Warnf("key: %s, object is not of type StatusOptions, %T", obj.Options.Key, objIntf)
@@ -44,46 +44,56 @@ func DequeueStatus(objIntf interface{}) error {
 	switch obj.ObjType {
 	case utils.L4LBService:
 		if obj.Op == lib.UpdateStatus {
-			UpdateL4LBStatus([]UpdateOptions{*obj.Options}, false)
+			l.UpdateL4LBStatus([]UpdateOptions{*obj.Options}, false)
 		} else if obj.Op == lib.DeleteStatus {
-			DeleteL4LBStatus(obj.Options.ServiceMetadata, "", obj.Options.Key)
+			l.DeleteL4LBStatus(obj.Options.ServiceMetadata, "", obj.Options.Key)
 		}
 	case utils.Ingress:
 		if obj.Op == lib.UpdateStatus {
-			UpdateIngressStatus([]UpdateOptions{*obj.Options}, false)
+			l.UpdateIngressStatus([]UpdateOptions{*obj.Options}, false)
 		} else if obj.Op == lib.DeleteStatus {
-			DeleteIngressStatus([]UpdateOptions{*obj.Options}, obj.IsVSDel, obj.Options.Key)
+			l.DeleteIngressStatus([]UpdateOptions{*obj.Options}, obj.IsVSDel, obj.Options.Key)
 		}
 	case utils.OshiftRoute:
 		if obj.Op == lib.UpdateStatus {
-			UpdateRouteStatus([]UpdateOptions{*obj.Options}, false)
+			l.UpdateRouteStatus([]UpdateOptions{*obj.Options}, false)
 		} else if obj.Op == lib.DeleteStatus {
-			DeleteRouteStatus([]UpdateOptions{*obj.Options}, obj.IsVSDel, obj.Options.Key)
+			l.DeleteRouteStatus([]UpdateOptions{*obj.Options}, obj.IsVSDel, obj.Options.Key)
 		}
 	case lib.Gateway:
 		if obj.Op == lib.UpdateStatus {
-			UpdateGatewayStatusAddress([]UpdateOptions{*obj.Options}, false)
+			l.UpdateGatewayStatusAddress([]UpdateOptions{*obj.Options}, false)
 		} else if obj.Op == lib.DeleteStatus {
-			DeleteGatewayStatusAddress(obj.Options.ServiceMetadata, "")
+			l.DeleteGatewayStatusAddress(obj.Options.ServiceMetadata, "")
 		}
 	case lib.SERVICES_API:
 		if obj.Op == lib.UpdateStatus {
-			UpdateSvcApiGatewayStatusAddress([]UpdateOptions{*obj.Options}, false)
+			l.UpdateSvcApiGatewayStatusAddress([]UpdateOptions{*obj.Options}, false)
 		} else if obj.Op == lib.DeleteStatus {
-			DeleteSvcApiGatewayStatusAddress(obj.Options.Key, obj.Options.ServiceMetadata)
+			l.DeleteSvcApiGatewayStatusAddress(obj.Options.Key, obj.Options.ServiceMetadata)
 		}
 	case lib.NPLService:
 		if obj.Op == lib.UpdateStatus {
-			UpdateNPLAnnotation(obj.Key, obj.Namespace, obj.ObjName)
+			l.UpdateNPLAnnotation(obj.Key, obj.Namespace, obj.ObjName)
 		} else if obj.Op == lib.DeleteStatus {
-			DeleteNPLAnnotation(obj.Key, obj.Namespace, obj.ObjName)
+			l.DeleteNPLAnnotation(obj.Key, obj.Namespace, obj.ObjName)
 		}
 	case lib.MultiClusterIngress:
 		if obj.Op == lib.UpdateStatus {
-			UpdateMultiClusterIngressStatusAndAnnotation(obj.Key, obj.Options)
+			l.UpdateMultiClusterIngressStatusAndAnnotation(obj.Key, obj.Options)
 		} else if obj.Op == lib.DeleteStatus {
-			DeleteMultiClusterIngressStatusAndAnnotation(obj.Key, obj.Options)
+			l.DeleteMultiClusterIngressStatusAndAnnotation(obj.Key, obj.Options)
 		}
 	}
+	return nil
+}
+
+func (f *follower) DequeueStatus(objIntf interface{}) error {
+	obj, ok := objIntf.(StatusOptions)
+	if !ok {
+		utils.AviLog.Warnf("key: %s, object is not of type StatusOptions, %T", obj.Options.Key, objIntf)
+		return nil
+	}
+	utils.AviLog.Debugf("key: %s, AKO is not running as a leader", obj.Options.Key)
 	return nil
 }
