@@ -326,6 +326,8 @@ func InitializeAKC() {
 	waitGroupMap["graph"] = wgGraph
 	wgStatus := &sync.WaitGroup{}
 	waitGroupMap["status"] = wgStatus
+	wgLeaderElection := &sync.WaitGroup{}
+	waitGroupMap["leaderElection"] = wgLeaderElection
 
 	if lib.IsIstioEnabled() {
 		<-istioUpdateCh
@@ -341,6 +343,7 @@ func InitializeAKC() {
 		wgGraph.Wait()
 		wgFastRetry.Wait()
 		wgStatus.Wait()
+		wgLeaderElection.Wait()
 	}()
 	// Timeout after 60 seconds.
 	timeout := 60 * time.Second
