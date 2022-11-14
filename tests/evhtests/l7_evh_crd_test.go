@@ -136,6 +136,8 @@ func TestMain(m *testing.M) {
 	waitGroupMap["graph"] = wgGraph
 	wgStatus := &sync.WaitGroup{}
 	waitGroupMap["status"] = wgStatus
+	wgLeaderElection := &sync.WaitGroup{}
+	waitGroupMap["leaderElection"] = wgLeaderElection
 
 	integrationtest.AddConfigMap(KubeClient)
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
@@ -218,7 +220,7 @@ func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 	g.Eventually(func() string {
 		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
 		return hostrule.Status.Status
-	}, 10*time.Second).Should(gomega.Equal("Accepted"))
+	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
 	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
