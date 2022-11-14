@@ -117,6 +117,8 @@ func TestMain(m *testing.M) {
 	waitGroupMap["graph"] = wgGraph
 	wgStatus := &sync.WaitGroup{}
 	waitGroupMap["status"] = wgStatus
+	wgLeaderElection := &sync.WaitGroup{}
+	waitGroupMap["leaderElection"] = wgLeaderElection
 
 	integrationtest.AddConfigMap(KubeClient)
 	integrationtest.PollForSyncStart(ctrl, 10)
@@ -306,7 +308,7 @@ func TestL7ModelForEvh(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
-	}, 5*time.Second).Should(gomega.Equal(true))
+	}, 20*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(len(nodes)).To(gomega.Equal(1))

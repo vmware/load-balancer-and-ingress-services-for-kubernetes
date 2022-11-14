@@ -116,6 +116,8 @@ func TestMain(m *testing.M) {
 	waitGroupMap["graph"] = wgGraph
 	wgStatus := &sync.WaitGroup{}
 	waitGroupMap["status"] = wgStatus
+	wgLeaderElection := &sync.WaitGroup{}
+	waitGroupMap["leaderElection"] = wgLeaderElection
 
 	integrationtest.AddConfigMap(KubeClient)
 	ctrl.SetSEGroupCloudName()
