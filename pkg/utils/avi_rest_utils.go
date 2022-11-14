@@ -93,6 +93,10 @@ func NewAviRestClientPool(num uint32, api_ep, username,
 
 	wg.Wait()
 
+	if globalErr != nil {
+		return &clientPool, controllerVersion, globalErr
+	}
+
 	// Get the controller version if it is not present in env variable.
 	if controllerVersion == "" {
 		version, err := clientPool.AviClient[0].AviSession.GetControllerVersion()
@@ -105,10 +109,11 @@ func NewAviRestClientPool(num uint32, api_ep, username,
 			}
 			controllerVersion = version
 		}
-	}
-
-	if globalErr != nil {
-		return &clientPool, controllerVersion, globalErr
+		if err != nil {
+			return &clientPool, controllerVersion, err
+		}
+		AviLog.Infof("Setting the client version to the current controller version %v", version)
+		controllerVersion = version
 	}
 
 	return &clientPool, controllerVersion, nil
