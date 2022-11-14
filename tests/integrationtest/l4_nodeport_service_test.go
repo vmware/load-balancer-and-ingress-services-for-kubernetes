@@ -38,8 +38,8 @@ func TestNodeAddInNodePortMode(t *testing.T) {
 	SetNodePortMode()
 	defer SetClusterIPMode()
 	nodeIP := "10.1.1.2"
-	CreateNode(t, "testNodeNP", nodeIP)
-	defer DeleteNode(t, "testNodeNP")
+	CreateNode(t, "testNode1", nodeIP)
+	defer DeleteNode(t, "testNode1")
 	modelName := "admin/global"
 	found, _ := objects.SharedAviGraphLister().Get(modelName)
 	if found {
