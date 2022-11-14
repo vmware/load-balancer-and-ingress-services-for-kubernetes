@@ -93,21 +93,24 @@ func NewAviRestClientPool(num uint32, api_ep, username,
 
 	wg.Wait()
 
+	if globalErr != nil {
+		return &clientPool, controllerVersion, globalErr
+	}
+
 	// Get the controller version if it is not present in env variable.
 	if controllerVersion == "" {
 		version, err := clientPool.AviClient[0].AviSession.GetControllerVersion()
-		if err == nil {
-			AviLog.Infof("Setting the client version to the current controller version %v", version)
-			CtrlVersion = version
-			// For AKO-1.9.1, if controller version is 22.1.3, set api version as 22.1.2
-			if CtrlVersion == CTRL_VERSION_22_1_3 {
-				CtrlVersion = CTRL_VERSION_22_1_2
-			}
+		if err != nil {
+			return &clientPool, controllerVersion, err
 		}
-	}
-
-	if globalErr != nil {
-		return &clientPool, controllerVersion, globalErr
+		AviLog.Infof("Setting the client version to the current controller version %v", version)
+		CtrlVersion = version
+		// For AKO-1.9.1, if controller version is 22.1.3, set api version as 22.1.2
+		if CtrlVersion == CTRL_VERSION_22_1_3 {
+			CtrlVersion = CTRL_VERSION_22_1_2
+		}
+		AviLog.Infof("Setting the client version to the current controller version %v", version)
+		controllerVersion = version
 	}
 
 	return &clientPool, controllerVersion, nil

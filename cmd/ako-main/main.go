@@ -250,6 +250,18 @@ func InitializeAKC() {
 
 	akoControlConfig.SetLicenseType(aviRestClientPool.AviClient[0])
 
+	if lib.GetAdvancedL4() {
+		err, seGroupToUse := lib.FetchSEGroupWithMarkerSet(aviRestClientPool.AviClient[0])
+		if err != nil {
+			utils.AviLog.Warnf("Setting SEGroup with markerset failed: %s", err)
+		}
+		if seGroupToUse == "" {
+			utils.AviLog.Infof("Continuing with Default-Group SEGroup")
+			seGroupToUse = lib.DEFAULT_SE_GROUP
+		}
+		lib.SetSEGName(seGroupToUse)
+	}
+
 	err = c.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	if err != nil {
 		utils.AviLog.Errorf("Handle configmap error during reboot, shutting down AKO. Error is: %v", err)
