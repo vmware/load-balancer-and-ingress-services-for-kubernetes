@@ -607,9 +607,6 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 		if found_parent {
 			// the uuid is expected to be in the format: "https://IP:PORT/api/virtualservice/virtualservice-88fd9718-f4f9-4e2b-9552-d31336330e0e#mygateway"
 			vs_uuid := avicache.ExtractUuid(vh_parent_uuid.(string), "virtualservice-.*.#")
-			if !lib.AKOControlConfig().IsLeader() {
-				vs_uuid = avicache.ExtractUuidWithoutHash(vh_parent_uuid.(string), "virtualservice-.*.")
-			}
 			utils.AviLog.Debugf("key: %s, msg: extracted the vs uuid from parent ref: %s", key, vs_uuid)
 			// Now let's get the VS key from this uuid
 			var foundvscache bool
@@ -620,9 +617,6 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				parentVsObj.AddToSNIChildCollection(uuid)
 			} else {
 				parentVSName := ExtractVsName(vh_parent_uuid.(string))
-				if !lib.AKOControlConfig().IsLeader() {
-					parentVSName = avicache.ExtractVSNameFromKey(key, fmt.Sprintf("%s/.*", lib.GetTenant()))
-				}
 				parentKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: ExtractVsName(parentVSName)}
 				vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(parentKey)
 				vs_cache_obj.AddToSNIChildCollection(uuid)

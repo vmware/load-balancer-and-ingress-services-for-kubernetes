@@ -20,14 +20,10 @@ import (
 	"strings"
 	"time"
 
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
-	"k8s.io/apimachinery/pkg/util/runtime"
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
 )
@@ -251,12 +247,20 @@ type AviRestClientPool struct {
 }
 
 type RestOperator interface {
-	AviRestOperateWrapper(aviClient *clients.AviClient, rest_ops []*utils.RestOp, key string) error
 	AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, key string) error
-	ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp, aviObjKey avicache.NamespaceName, avimodel *nodes.AviObjectGraph, key string, isEvh bool, sslKey ...utils.NamespaceName) (bool, bool)
+	isRetryRequired(key string, err error) bool
 	SyncObjectStatuses()
 	RestRespArrToObjByType(rest_op *utils.RestOp, obj_type string, key string) []map[string]interface{}
 }
+
+type (
+	leader struct {
+		restOp *RestOperations
+	}
+	follower struct {
+		restOp *RestOperations
+	}
+)
 
 func NewRestOperator(restOp *RestOperations) RestOperator {
 	if lib.AKOControlConfig().IsLeader() {
@@ -265,134 +269,11 @@ func NewRestOperator(restOp *RestOperations) RestOperator {
 	return &follower{restOp: restOp}
 }
 
-type leader struct {
-	restOp *RestOperations
-}
-
-func (l *leader) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp, aviObjKey avicache.NamespaceName, avimodel *nodes.AviObjectGraph, key string, isEvh bool, sslKey ...utils.NamespaceName) (bool, bool) {
-	// Choose a avi client based on the model name hash. This would ensure that the same worker queue processes updates for a given VS all the time.
-	shardSize := lib.GetshardSize()
-	if shardSize == 0 {
-		// Dedicated VS case
-		shardSize = 8
+func (l *leader) isRetryRequired(key string, err error) bool {
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: aborted the rest operation due to an error. err %s", key, err.Error())
 	}
-	var retry, fastRetry, processNextObj bool
-	bkt := utils.Bkt(key, shardSize)
-	if len(l.restOp.aviRestPoolClient.AviClient) > 0 && len(rest_ops) > 0 {
-		utils.AviLog.Infof("key: %s, msg: processing in rest queue number: %v, caller %v", key, bkt, runtime.GetCaller())
-		aviclient := l.restOp.aviRestPoolClient.AviClient[bkt]
-		err := l.AviRestOperateWrapper(aviclient, rest_ops, key)
-		if err == nil {
-			models.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
-			utils.AviLog.Debugf("key: %s, msg: rest call executed successfully, will update cache", key)
-
-			// Add to local obj caches
-			for _, rest_op := range rest_ops {
-				l.restOp.PopulateOneCache(rest_op, aviObjKey, key)
-			}
-
-		} else if aviObjKey.Name == lib.DummyVSForStaleData {
-			utils.AviLog.Warnf("key: %s, msg: error in rest request %v, for %s, won't retry", key, err.Error(), aviObjKey.Name)
-			return false, processNextObj
-		} else {
-			var publishKey string
-			if avimodel != nil && isEvh && len(avimodel.GetAviEvhVS()) > 0 {
-				publishKey = avimodel.GetAviEvhVS()[0].Name
-			} else if avimodel != nil && !isEvh && len(avimodel.GetAviVS()) > 0 {
-				publishKey = avimodel.GetAviVS()[0].Name
-			}
-
-			if publishKey == "" {
-				// This is a delete case for the virtualservice. Derive the virtualservice from the 'key'
-				splitKeys := strings.Split(key, "/")
-				if len(splitKeys) == 2 {
-					publishKey = splitKeys[1]
-				}
-			}
-
-			if l.restOp.CheckAndPublishForRetry(err, publishKey, key, avimodel) {
-				return false, processNextObj
-			}
-			utils.AviLog.Warnf("key: %s, msg: there was an error sending the macro %v", key, err.Error())
-			models.RestStatus.UpdateAviApiRestStatus("", err)
-			for i := len(rest_ops) - 1; i >= 0; i-- {
-				// Go over each of the failed requests and enqueue them to the worker queue for retry.
-				if rest_ops[i].Err != nil {
-					// check for VSVIP errors for blocked IP address updates
-					if checkVsVipUpdateErrors(key, rest_ops[i]) {
-						l.restOp.PopulateOneCache(rest_ops[i], aviObjKey, key)
-						continue
-					}
-
-					// If it's for a SNI child, publish the parent VS's key
-					refreshCacheForRetry := false
-					if avimodel != nil && isEvh && len(avimodel.GetAviEvhVS()) > 0 {
-						refreshCacheForRetry = true
-					} else if avimodel != nil && !isEvh && len(avimodel.GetAviVS()) > 0 {
-						refreshCacheForRetry = true
-					}
-					if refreshCacheForRetry {
-						utils.AviLog.Warnf("key: %s, msg: Retrieved key for Retry:%s, object: %s", key, publishKey, rest_ops[i].ObjName)
-						aviError, ok := rest_ops[i].Err.(session.AviError)
-						if !ok {
-							utils.AviLog.Infof("key: %s, msg: Error is not of type AviError, err: %v, %T", key, rest_ops[i].Err, rest_ops[i].Err)
-							continue
-						}
-						retryable, fastRetryable, nextObj := l.restOp.RefreshCacheForRetryLayer(publishKey, aviObjKey, rest_ops[i], aviError, aviclient, avimodel, key, isEvh)
-						retry = retry || retryable
-						processNextObj = processNextObj || nextObj
-						if avimodel.GetRetryCounter() != 0 {
-							fastRetry = fastRetry || fastRetryable
-						} else {
-							fastRetry = false
-							utils.AviLog.Warnf("key: %s, msg: retry count exhausted, would be added to slow retry queue", key)
-						}
-					} else {
-						utils.AviLog.Warnf("key: %s, msg: Avi model not set, possibly a DELETE call", key)
-						aviError, ok := rest_ops[i].Err.(session.AviError)
-						// If it's 404, don't retry
-						if ok {
-							statuscode := aviError.HttpStatusCode
-							if statuscode != 404 {
-								l.restOp.PublishKeyToSlowRetryLayer(publishKey, key)
-								//Here as it is 404 for specific object in a current child, AKO can go ahead with next child
-								return false, true
-							} else {
-								l.restOp.AviVsCacheDel(rest_ops[i], aviObjKey, key)
-							}
-						}
-					}
-				} else {
-					l.restOp.PopulateOneCache(rest_ops[i], aviObjKey, key)
-				}
-			}
-
-			if retry {
-				if fastRetry {
-					l.restOp.PublishKeyToRetryLayer(publishKey, key)
-				} else {
-					l.restOp.PublishKeyToSlowRetryLayer(publishKey, key)
-				}
-			}
-			return false, processNextObj
-		}
-	}
-	return true, true
-}
-
-func (l *leader) AviRestOperateWrapper(aviClient *clients.AviClient, rest_ops []*utils.RestOp, key string) error {
-	restTimeoutChan := make(chan error, 1)
-	go func() {
-		err := l.AviRestOperate(aviClient, rest_ops, key)
-		restTimeoutChan <- err
-	}()
-	select {
-	case err := <-restTimeoutChan:
-		return err
-	case <-time.After(lib.ControllerReqWaitTime * time.Second):
-		utils.AviLog.Warnf("key: %s, msg: timed out waiting for rest response after %d seconds", key, lib.ControllerReqWaitTime)
-		return errors.New("timed out waiting for rest response")
-	}
+	return false
 }
 
 func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, key string) error {
@@ -461,148 +342,24 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 	return nil
 }
 
-type follower struct {
-	restOp *RestOperations
+func (f *follower) isRetryRequired(key string, err error) bool {
+	if err == nil {
+		return false
+	}
+	switch err.Error() {
+	case "Got empty response for non-delete operation",
+		"Got non-empty response for delete operation":
+		utils.AviLog.Warnf("key: %s, msg: aborted the rest operation due to an error. err %s", key, err.Error())
+		return true
+	}
+	return false
 }
 
-func (f *follower) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp, aviObjKey avicache.NamespaceName, avimodel *nodes.AviObjectGraph, key string, isEvh bool, sslKey ...utils.NamespaceName) (bool, bool) {
+func (f *follower) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, key string) error {
 
 	// Delay the REST calls in the follower.
 	<-time.After(500 * time.Millisecond)
 
-	// Choose a avi client based on the model name hash. This would ensure that the same worker queue processes updates for a given VS all the time.
-	shardSize := lib.GetshardSize()
-	if shardSize == 0 {
-		// Dedicated VS case
-		shardSize = 8
-	}
-	var retry, fastRetry, processNextObj bool
-	bkt := utils.Bkt(key, shardSize)
-	if len(f.restOp.aviRestPoolClient.AviClient) > 0 && len(rest_ops) > 0 {
-		utils.AviLog.Infof("key: %s, msg: processing in rest queue number: %v, caller %v", key, bkt, runtime.GetCaller())
-		aviclient := f.restOp.aviRestPoolClient.AviClient[bkt]
-		err := f.AviRestOperateWrapper(aviclient, rest_ops, key)
-		if err == nil {
-			models.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
-			utils.AviLog.Debugf("key: %s, msg: rest call executed successfully, will update cache", key)
-
-			// Add to local obj caches
-			for _, rest_op := range rest_ops {
-				f.restOp.PopulateOneCache(rest_op, aviObjKey, key)
-			}
-
-		} else if aviObjKey.Name == lib.DummyVSForStaleData {
-			utils.AviLog.Warnf("key: %s, msg: error in rest request %v, for %s, won't retry", key, err.Error(), aviObjKey.Name)
-			return false, processNextObj
-		} else {
-			var publishKey string
-			if avimodel != nil && isEvh && len(avimodel.GetAviEvhVS()) > 0 {
-				publishKey = avimodel.GetAviEvhVS()[0].Name
-			} else if avimodel != nil && !isEvh && len(avimodel.GetAviVS()) > 0 {
-				publishKey = avimodel.GetAviVS()[0].Name
-			}
-
-			if publishKey == "" {
-				// This is a delete case for the virtualservice. Derive the virtualservice from the 'key'
-				splitKeys := strings.Split(key, "/")
-				if len(splitKeys) == 2 {
-					publishKey = splitKeys[1]
-				}
-			}
-
-			if err.Error() == "Got empty response for non-delete operation" ||
-				err.Error() == "Got non-empty response for delete operation" {
-				utils.AviLog.Warnf("key: %s, aborted the rest operation due to an error. err %s", key, err.Error())
-				f.restOp.PublishKeyToRetryLayer(publishKey, key)
-				return false, processNextObj
-			}
-
-			if f.restOp.CheckAndPublishForRetry(err, publishKey, key, avimodel) {
-				return false, processNextObj
-			}
-			utils.AviLog.Warnf("key: %s, msg: there was an error sending the macro %v", key, err.Error())
-			models.RestStatus.UpdateAviApiRestStatus("", err)
-			for i := len(rest_ops) - 1; i >= 0; i-- {
-				// Go over each of the failed requests and enqueue them to the worker queue for retry.
-				if rest_ops[i].Err != nil {
-					// check for VSVIP errors for blocked IP address updates
-					if checkVsVipUpdateErrors(key, rest_ops[i]) {
-						f.restOp.PopulateOneCache(rest_ops[i], aviObjKey, key)
-						continue
-					}
-
-					// If it's for a SNI child, publish the parent VS's key
-					refreshCacheForRetry := false
-					if avimodel != nil && isEvh && len(avimodel.GetAviEvhVS()) > 0 {
-						refreshCacheForRetry = true
-					} else if avimodel != nil && !isEvh && len(avimodel.GetAviVS()) > 0 {
-						refreshCacheForRetry = true
-					}
-					if refreshCacheForRetry {
-						utils.AviLog.Warnf("key: %s, msg: Retrieved key for Retry:%s, object: %s", key, publishKey, rest_ops[i].ObjName)
-						aviError, ok := rest_ops[i].Err.(session.AviError)
-						if !ok {
-							utils.AviLog.Infof("key: %s, msg: Error is not of type AviError, err: %v, %T", key, rest_ops[i].Err, rest_ops[i].Err)
-							continue
-						}
-						retryable, fastRetryable, nextObj := f.restOp.RefreshCacheForRetryLayer(publishKey, aviObjKey, rest_ops[i], aviError, aviclient, avimodel, key, isEvh)
-						retry = retry || retryable
-						processNextObj = processNextObj || nextObj
-						if avimodel.GetRetryCounter() != 0 {
-							fastRetry = fastRetry || fastRetryable
-						} else {
-							fastRetry = false
-							utils.AviLog.Warnf("key: %s, msg: retry count exhausted, would be added to slow retry queue", key)
-						}
-					} else {
-						utils.AviLog.Warnf("key: %s, msg: Avi model not set, possibly a DELETE call", key)
-						aviError, ok := rest_ops[i].Err.(session.AviError)
-						// If it's 404, don't retry
-						if ok {
-							statuscode := aviError.HttpStatusCode
-							if statuscode != 404 {
-								f.restOp.PublishKeyToSlowRetryLayer(publishKey, key)
-								//Here as it is 404 for specific object in a current child, AKO can go ahead with next child
-								return false, true
-							} else {
-								f.restOp.AviVsCacheDel(rest_ops[i], aviObjKey, key)
-							}
-						}
-					}
-				} else {
-					f.restOp.PopulateOneCache(rest_ops[i], aviObjKey, key)
-				}
-			}
-
-			if retry {
-				if fastRetry {
-					f.restOp.PublishKeyToRetryLayer(publishKey, key)
-				} else {
-					f.restOp.PublishKeyToSlowRetryLayer(publishKey, key)
-				}
-			}
-			return false, processNextObj
-		}
-	}
-	return true, true
-}
-
-func (f *follower) AviRestOperateWrapper(aviClient *clients.AviClient, rest_ops []*utils.RestOp, key string) error {
-	restTimeoutChan := make(chan error, 1)
-	go func() {
-		err := f.AviRestOperate(aviClient, rest_ops, key)
-		restTimeoutChan <- err
-	}()
-	select {
-	case err := <-restTimeoutChan:
-		return err
-	case <-time.After(lib.ControllerReqWaitTime * time.Second):
-		utils.AviLog.Warnf("key: %s, msg: timed out waiting for rest response after %d seconds", key, lib.ControllerReqWaitTime)
-		return errors.New("timed out waiting for rest response")
-	}
-}
-
-func (f *follower) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, key string) error {
 	for i, op := range rest_ops {
 		SetTenant := session.SetTenant(op.Tenant)
 		SetTenant(c.AviSession)
@@ -610,7 +367,10 @@ func (f *follower) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp
 			SetVersion := session.SetVersion(op.Version)
 			SetVersion(c.AviSession)
 		}
-		op.Path += "?name=" + op.ObjName
+
+		op.Path += "?name=" + op.ObjName + "&include_name=true&cloud_ref.name=" +
+			utils.CloudName + "&created_by=" + lib.AKOUser
+
 		utils.AviLog.Debugf("key: %s, msg: Got a REST operation: %s, %s", op.ObjName, op.Path)
 		op.Err = c.AviSession.Get(op.Path, &op.Response)
 		if op.Err != nil {
