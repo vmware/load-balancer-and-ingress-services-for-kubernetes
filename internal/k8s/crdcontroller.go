@@ -698,7 +698,7 @@ func validateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 		}
 	}
 
-	if hostrule.Spec.VirtualHost.TCPSettings != nil {
+	if hostrule.Spec.VirtualHost.TCPSettings != nil && len(hostrule.Spec.VirtualHost.TCPSettings.Listeners) > 0 {
 		sslEnabled := false
 		for _, listener := range hostrule.Spec.VirtualHost.TCPSettings.Listeners {
 			if listener.EnableSSL {
