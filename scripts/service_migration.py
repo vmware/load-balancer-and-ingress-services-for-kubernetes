@@ -5,8 +5,8 @@ import argparse
 import os.path
 from pprint import pprint
 
-IP_ANNOTATION = 'load-balancer-ips'
-def update_annot(v1, svc):    
+IP_ANNOTATION = 'ako.vmware.com/load-balancer-ip'
+def update_annotation(v1, svc):    
     '''
     ************************************************************************
     Take dictionary of original service, copies Service.status.load_balancer.ingress[0].ip to Service.metadata.annotations and patches Service
@@ -20,7 +20,10 @@ def update_annot(v1, svc):
     ************************************************************************
     '''
     
-    svc['metadata']['annotations'][IP_ANNOTATION] = svc['status']['load_balancer']['ingress'][0]['ip']
+    if 'status' in svc.keys() and 'load_balancer' in svc['status'].keys() and 'ingress' in svc['status']['load_balancer'].keys():
+        if svc['status']['load_balancer']['ingress'] is not None:
+            if 'ip' in svc['status']['load_balancer']['ingress'][0].keys() and svc['status']['load_balancer']['ingress'][0]['ip'] != '':
+                svc['metadata']['annotations'][IP_ANNOTATION] = svc['status']['load_balancer']['ingress'][0]['ip']
     service = client.V1Service()
     service.api_version = "v1"
     service.kind = "Service"
@@ -29,14 +32,15 @@ def update_annot(v1, svc):
     service.status = svc['status']
     try:
         api_response = v1.patch_namespaced_service(name = svc["metadata"]["name"], namespace="avi-system", body=service)
-        #updated_service = v1.read_namespaced_service(name = svc["metadata"]["name"], namespace="avi-system")
+        return True
     except ApiException as e:
         print(e)
+        return False
 
-def get_svc(config_file):
+def fetch_lbsvc_for_update(config_file):
     '''
     ************************************************************************
-    Takes a kubeconfig file and retrieves all services found in all namespaces. If service if of type LoadBalancer, then calls update_annot() to patch service
+    Takes a kubeconfig file and retrieves all services found in all namespaces. If service if of type LoadBalancer, then calls update_annotation() to patch service
     --------------
     Arguements:
     config_file :: kubeconfig file path
@@ -62,10 +66,13 @@ def get_svc(config_file):
     for svc in ret.items:
         svc_dict[svc.metadata.name] = {'name':svc.metadata.name, 'namespace':svc.metadata.namespace, 'cluster_ip':svc.spec.cluster_ip, 'type':svc.spec.type}
         if svc.spec.type == 'LoadBalancer':
-            if 'load-balancer-ips' not in svc.metadata.annotations:
-                updated_svc.append(svc.metadata.name)
+            if IP_ANNOTATION not in svc.metadata.annotations:
                 new_lb = copy.deepcopy(svc.to_dict())
-                update_annot(v1, new_lb)
+                error_msg = update_annotation(v1, new_lb)
+                if not error_msg:
+                    not_updated_svc.append(svc.metadata.name)
+                else:
+                    updated_svc.append(svc.metadata.name)
             else:
                 not_updated_svc.append(svc.metadata.name)
     print("Services updated: ", updated_svc)
@@ -82,7 +89,7 @@ def main():
         if config_file == 'End' or config_file=='end':
             break
     if os.path.isfile(config_file):
-        services = get_svc(config_file)
+        services = fetch_lbsvc_for_update(config_file)
         pprint(services)
     
 if __name__ == '__main__':
