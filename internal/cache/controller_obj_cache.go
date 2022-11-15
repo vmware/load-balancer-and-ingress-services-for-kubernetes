@@ -1166,7 +1166,7 @@ func (c *AviObjCache) AviPopulateOneVsDSCache(client *clients.AviClient,
 	var uri string
 	akoUser := lib.AKOUser
 
-	uri = "/api/vsdatascript?name=" + objName + "&created_by=" + akoUser
+	uri = "/api/vsdatascriptset?name=" + objName + "&created_by=" + akoUser
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -3071,7 +3071,7 @@ func checkPublicCloud(client *clients.AviClient, returnErr *error) bool {
 }
 
 func checkNodeNetwork(client *clients.AviClient, returnErr *error) bool {
-	// Not applicable for NodePort mode and non vcenter and nsx-t clouds
+	// Not applicable for NodePort mode and non vcenter and nsx-t clouds (overlay)
 	if lib.IsNodePortMode() || !lib.IsNodeNetworkAllowedCloud() {
 		utils.AviLog.Infof("Skipping the check for Node Network ")
 		return true
