@@ -507,17 +507,31 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 
 		// Initializing the preferred VIP from the first Service we get, so any other Service
 		// that wishes for static IP allocation differently conflicts with this.
+		//added check for spec.LoadBalancerIP depreciation and annotations[lib.LoadBalancerIP] availability
 		if i == 0 {
-			sharedVipLBIP = svcObj.Spec.LoadBalancerIP
+			if svcObj.Spec.LoadBalancerIP != "" {
+				sharedVipLBIP = svcObj.Spec.LoadBalancerIP
+			} else if svcObj.Spec.LoadBalancerIP == "" && svcObj.Annotations[lib.LoadBalancerIP] != "" {
+				sharedVipLBIP = svcObj.Annotations[lib.LoadBalancerIP]
+			}
+
 			if infraSettingAnnotation, ok := svcObj.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
 				sharedVipInfraSetting = infraSettingAnnotation
 			}
 		}
-
-		if svcObj.Spec.LoadBalancerIP != sharedVipLBIP {
-			utils.AviLog.Errorf("Service loadBalancerIP is not consistent with Services grouped using shared-vip annotation. Conflict found for Services [%s: %s %s: %s]", serviceNSName, svcObj.Spec.LoadBalancerIP, serviceNSNames[0], sharedVipLBIP)
-			isShareVipKeyDelete = true
-			break
+		//added check for spec.LoadBalancerIP depreciation and annotations[lib.LoadBalancerIP] availability
+		if svcObj.Spec.LoadBalancerIP != "" {
+			if svcObj.Spec.LoadBalancerIP != sharedVipLBIP {
+				utils.AviLog.Errorf("Service loadBalancerIP is not consistent with Services grouped using shared-vip annotation. Conflict found for Services [%s: %s %s: %s]", serviceNSName, svcObj.Spec.LoadBalancerIP, serviceNSNames[0], sharedVipLBIP)
+				isShareVipKeyDelete = true
+				break
+			}
+		} else if svcObj.Spec.LoadBalancerIP == "" && svcObj.Annotations[lib.LoadBalancerIP] != "" {
+			if svcObj.Annotations[lib.LoadBalancerIP] != sharedVipLBIP {
+				utils.AviLog.Errorf("Service loadBalancerIP is not consistent with Services grouped using shared-vip annotation. Conflict found for Services [%s: %s %s: %s]", serviceNSName, svcObj.Spec.LoadBalancerIP, serviceNSNames[0], sharedVipLBIP)
+				isShareVipKeyDelete = true
+				break
+			}
 		}
 
 		infraSettingAnnotation, _ := svcObj.GetAnnotations()[lib.InfraSettingNameAnnotation]
