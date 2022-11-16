@@ -270,9 +270,6 @@ func NewRestOperator(restOp *RestOperations) RestOperator {
 }
 
 func (l *leader) isRetryRequired(key string, err error) bool {
-	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: aborted the rest operation due to an error. err %s", key, err.Error())
-	}
 	return false
 }
 
@@ -349,7 +346,7 @@ func (f *follower) isRetryRequired(key string, err error) bool {
 	switch err.Error() {
 	case "Got empty response for non-delete operation",
 		"Got non-empty response for delete operation":
-		utils.AviLog.Warnf("key: %s, msg: aborted the rest operation due to an error. err %s", key, err.Error())
+		utils.AviLog.Debugf("key: %s, msg: aborted the rest operation due the reason: %s", key, err.Error())
 		return true
 	}
 	return false
@@ -357,7 +354,10 @@ func (f *follower) isRetryRequired(key string, err error) bool {
 
 func (f *follower) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, key string) error {
 
-	// Delay the REST calls in the follower.
+	// Adding a delay of 500ms before doing a GET operation in the follower AKO.
+	// 500ms is selected to give leader AKO enough time to create the objects in the controller,
+	// before the follower AKO does a GET operation. In case of a 404(object not found) error, the
+	// follower AKO pushes the key to retry layer for retry.
 	<-time.After(500 * time.Millisecond)
 
 	for i, op := range rest_ops {
@@ -368,23 +368,30 @@ func (f *follower) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp
 			SetVersion(c.AviSession)
 		}
 
-		op.Path += "?name=" + op.ObjName + "&include_name=true&cloud_ref.name=" +
-			utils.CloudName + "&created_by=" + lib.AKOUser
+		// Path for GET operation is appended with include_name and created_by to make
+		// the result unique. But in case of VS VIP objects, the created_by is not required
+		// because of this reason, it is omitted.
+		op.Path += "?name=" + op.ObjName + "&include_name=true"
+		if op.Model == "VsVip" {
+			op.Path += "&cloud_ref.name=" + utils.CloudName
+		} else {
+			op.Path += "&created_by=" + lib.AKOUser
+		}
 
-		utils.AviLog.Debugf("key: %s, msg: Got a REST operation: %s, %s", op.ObjName, op.Path)
+		utils.AviLog.Debugf("key: %s, msg: Got a REST operation: %s, %s", key, op.ObjName, op.Path)
 		op.Err = c.AviSession.Get(op.Path, &op.Response)
 		if op.Err != nil {
-			utils.AviLog.Warnf("key: %s msg: RestOp method %v path %v tenant %v Obj %s returned err %s with response %s",
+			utils.AviLog.Warnf("key: %s, msg: RestOp method %v path %v tenant %v Obj %s returned err %s with response %s",
 				key, op.Method, op.Path, op.Tenant, utils.Stringify(op.Obj), utils.Stringify(op.Err), utils.Stringify(op.Response))
 			// Wrap the error into a websync error.
 			err := &utils.WebSyncError{Err: op.Err, Operation: string(op.Method)}
 			aviErr, ok := op.Err.(session.AviError)
 			if !ok {
-				utils.AviLog.Warnf("key: %s msg: Error in rest operation is not of type AviError, err: %v, %T", key, op.Err, op.Err)
+				utils.AviLog.Warnf("key: %s, msg: Error in rest operation is not of type AviError, err: %v, %T", key, op.Err, op.Err)
 			} else if op.Model == "VsVip" && op.Method == utils.RestPut {
-				utils.AviLog.Debugf("key: %s msg: Error in rest operation for VsVip Put request.", key)
+				utils.AviLog.Debugf("key: %s, msg: Error in rest operation for VsVip Put request.", key)
 			} else if aviErr.HttpStatusCode == 404 && op.Method == utils.RestDelete {
-				utils.AviLog.Warnf("key: %s msg: Error during rest operation: %v, object of type %s not found in the controller. Ignoring err: %v", key, op.Method, op.Model, op.Err)
+				utils.AviLog.Warnf("key: %s, msg: Error during rest operation: %v, object of type %s not found in the controller. Ignoring err: %v", key, op.Method, op.Model, op.Err)
 				continue
 			} else if !isErrorRetryable(aviErr.HttpStatusCode, *aviErr.Message) {
 				if op.Method != utils.RestPost {
@@ -400,7 +407,7 @@ func (f *follower) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp
 			}
 			return err
 		} else {
-			utils.AviLog.Debugf("key: %s msg: RestOp method %v path %v tenant %v response %v objName %v",
+			utils.AviLog.Debugf("key: %s, msg: RestOp method %v path %v tenant %v response %v objName %v",
 				key, op.Method, op.Path, op.Tenant, utils.Stringify(op.Response), op.ObjName)
 			if op.Method == utils.RestDelete && op.Response != nil {
 				return errors.New("Got non-empty response for delete operation")

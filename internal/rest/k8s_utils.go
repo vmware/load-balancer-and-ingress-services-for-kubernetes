@@ -164,5 +164,4 @@ func (l *leader) SyncObjectStatuses() {
 // SyncObjectStatuses in follower does nothing.
 func (f *follower) SyncObjectStatuses() {
 	utils.AviLog.Debug("AKO is running as a follower, not updating the status")
-	return
 }

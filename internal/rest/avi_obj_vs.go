@@ -616,8 +616,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				parentVsObj = rest.getVsCacheObj(vhParentKey.(avicache.NamespaceName), key)
 				parentVsObj.AddToSNIChildCollection(uuid)
 			} else {
-				parentVSName := ExtractVsName(vh_parent_uuid.(string))
-				parentKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: ExtractVsName(parentVSName)}
+				parentKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: ExtractVsName(vh_parent_uuid.(string))}
 				vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(parentKey)
 				vs_cache_obj.AddToSNIChildCollection(uuid)
 				utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during SNI update %v val %v", key, parentKey,

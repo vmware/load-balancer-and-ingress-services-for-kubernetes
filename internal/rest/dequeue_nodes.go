@@ -1054,7 +1054,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 			}
 		} else if statuscode == 408 {
 			// This status code refers to a problem with the controller timeouts. We need to re-init the session object.
-			utils.AviLog.Infof("key :%s, msg: Controller request timed out, will re-init session by retrying", key)
+			utils.AviLog.Infof("key: %s, msg: Controller request timed out, will re-init session by retrying", key)
 			processNextObj = false
 		} else if statuscode == 400 && strings.Contains(*aviError.Message, lib.NoFreeIPError) {
 			utils.AviLog.Infof("key: %s, msg:  msg: Got no free IP error, would be added to slow retry queue", key)

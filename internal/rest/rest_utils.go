@@ -45,8 +45,8 @@ func (l *follower) RestRespArrToObjByType(rest_op *utils.RestOp, obj_type string
 			if !ok {
 				return resp_elems
 			}
-			utils.AviLog.Debugf("Got a response path %v tenant %v response %v",
-				rest_op.Path, rest_op.Tenant, utils.Stringify(restResponse))
+			utils.AviLog.Debugf("key: %s, msg: Got a response path %v tenant %v response %v",
+				key, rest_op.Path, rest_op.Tenant, utils.Stringify(restResponse))
 		}
 		resp_elems = append(resp_elems, restResponse)
 		return resp_elems

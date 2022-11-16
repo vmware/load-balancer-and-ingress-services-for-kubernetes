@@ -293,13 +293,13 @@ func (rest *RestOperations) AviPkiProfileAdd(rest_op *utils.RestOp, poolKey avic
 	for _, resp := range resp_elems {
 		name, ok := resp["name"].(string)
 		if !ok {
-			utils.AviLog.Warnf("Name not present in response %v", resp)
+			utils.AviLog.Warnf("key: %s, msg: Name not present in response %v", key, resp)
 			continue
 		}
 
 		uuid, ok := resp["uuid"].(string)
 		if !ok {
-			utils.AviLog.Warnf("Uuid not present in response %v", resp)
+			utils.AviLog.Warnf("key: %s, msg: Uuid not present in response %v", key, resp)
 			continue
 		}
 
