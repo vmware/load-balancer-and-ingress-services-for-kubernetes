@@ -1538,7 +1538,7 @@ func GetDefaultSecretForRoutes() string {
 }
 
 func ValidateIngressForClass(key string, ingress *networkingv1.Ingress) bool {
-	if IsWCP() {
+	if utils.IsVCFCluster() {
 		return true
 	}
 	// see whether ingress class resources are present or not
