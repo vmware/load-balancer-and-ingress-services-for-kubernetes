@@ -630,7 +630,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
 				}
 			} else {
-				if lib.IsNamespaceBlocked(namespace) || lib.IsWCP() || !utils.CheckIfNamespaceAccepted(namespace) {
+				if lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 					return
 				}
 				if lib.UseServicesAPI() {
@@ -681,7 +681,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
 				}
 			} else {
-				if lib.IsNamespaceBlocked(namespace) || lib.IsWCP() || !utils.CheckIfNamespaceAccepted(namespace) {
+				if lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 					return
 				}
 				key = utils.Service + "/" + utils.ObjKey(svc)
@@ -716,8 +716,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 						key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
 					}
 				} else {
-
-					if lib.IsNamespaceBlocked(namespace) || lib.IsWCP() || !utils.CheckIfNamespaceAccepted(namespace) {
+					if lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 						return
 					}
 					if lib.UseServicesAPI() {
