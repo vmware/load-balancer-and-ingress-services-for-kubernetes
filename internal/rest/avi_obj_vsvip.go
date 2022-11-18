@@ -502,7 +502,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 
 		var vsvipVips []string
 		var vsvipFips []string
-		var vsvipV6ip string
+		var vsvipV6ips []string
 		var networkNames []string
 		if _, found := resp["vip"]; found {
 			if vips, ok := resp["vip"].([]interface{}); ok {
@@ -541,7 +541,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 							utils.AviLog.Warnf("key: %s, msg: invalid type for v6 addr in vsvip: %s", key, name)
 							continue
 						}
-						vsvipV6ip = v6_addr
+						vsvipV6ips = append(vsvipV6ips, v6_addr)
 					}
 					fipEnabled := false
 					auto_allocate_floating_ip, ok := vip["auto_allocate_floating_ip"]
@@ -585,7 +585,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 			FQDNs:        vsvipFQDNs,
 			Vips:         vsvipVips,
 			Fips:         vsvipFips,
-			V6IP:         vsvipV6ip,
+			V6IPs:        vsvipV6ips,
 			NetworkNames: networkNames,
 		}
 
@@ -605,12 +605,13 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
 				oldVsVipCache, oldVsVipFound := rest.cache.VSVIPCache.AviCacheGet(k)
-				var oldVsVips, oldVsFips []string
+				var oldVsVips, oldVsFips, oldVsV6ips []string
 				if oldVsVipFound {
 					oldVsVipCacheObj, ok := oldVsVipCache.(*avicache.AviVSVIPCache)
 					if ok {
 						oldVsVips = oldVsVipCacheObj.Vips
 						oldVsFips = oldVsVipCacheObj.Fips
+						oldVsV6ips = oldVsVipCacheObj.V6IPs
 					}
 				}
 
@@ -625,7 +626,9 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 								childObj, _ := rest.cache.VsCacheMeta.AviCacheGet(childVSKey)
 								child_cache_obj, vs_found := childObj.(*avicache.AviVsCache)
 								if vs_found {
-									if !reflect.DeepEqual(vsvip_cache_obj.Vips, oldVsVips) || !reflect.DeepEqual(vsvip_cache_obj.Fips, oldVsFips) {
+									if !reflect.DeepEqual(vsvip_cache_obj.Vips, oldVsVips) ||
+										!reflect.DeepEqual(vsvip_cache_obj.Fips, oldVsFips) ||
+										!reflect.DeepEqual(vsvip_cache_obj.V6IPs, oldVsV6ips) {
 										rest.StatusUpdateForPool(rest_op.Method, child_cache_obj, key)
 										// rest.StatusUpdateForVS(child_cache_obj, key)
 									}
@@ -633,7 +636,9 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 							}
 						}
 					}
-					if !reflect.DeepEqual(vsvip_cache_obj.Vips, oldVsVips) || !reflect.DeepEqual(vsvip_cache_obj.Fips, oldVsFips) {
+					if !reflect.DeepEqual(vsvip_cache_obj.Vips, oldVsVips) ||
+						!reflect.DeepEqual(vsvip_cache_obj.Fips, oldVsFips) ||
+						!reflect.DeepEqual(vsvip_cache_obj.V6IPs, oldVsV6ips) {
 						rest.StatusUpdateForPool(rest_op.Method, vs_cache_obj, key)
 						// rest.StatusUpdateForVS(vs_cache_obj, key)
 					}
