@@ -591,7 +591,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					checkSvcForSvcApiGatewayPortConflict(svc, key)
 				}
 			} else {
-				if lib.IsWCP() || !utils.CheckIfNamespaceAccepted(namespace) {
+				if lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 					return
 				}
 				key = utils.Service + "/" + utils.ObjKey(svc)
@@ -633,7 +633,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				}
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
 			} else {
-				if lib.IsWCP() || !utils.CheckIfNamespaceAccepted(namespace) {
+				if lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 					return
 				}
 				key = utils.Service + "/" + utils.ObjKey(svc)
@@ -667,7 +667,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 						checkSvcForSvcApiGatewayPortConflict(svc, key)
 					}
 				} else {
-					if lib.IsWCP() || !utils.CheckIfNamespaceAccepted(namespace) {
+					if lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 						return
 					}
 					key = utils.Service + "/" + utils.ObjKey(svc)
