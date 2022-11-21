@@ -6,6 +6,12 @@ metadata:
   labels:
     {{- include "ako.labels" . | nindent 4 }}
 spec:
+  {{ if gt .Values.replicaCount 2.0 }}
+  {{ fail "ReplicaCount more than 2 is not supported." }}
+  {{ end }}
+  {{ if and (gt .Values.replicaCount 1.0) (eq .Values.AKOSettings.primaryInstance false) }}
+  {{ fail "ReplicaCount more than 1 is not supported for secondary AKO." }}
+  {{ end }}
   replicas: {{ .Values.replicaCount }}
   serviceName: ako
   selector:
@@ -263,10 +269,16 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-    {{- with .Values.affinity }}
       affinity:
-        {{- toYaml . | nindent 8 }}
-    {{- end }}
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                - ako
+            topologyKey: "kubernetes.io/hostname"
     {{- with .Values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
