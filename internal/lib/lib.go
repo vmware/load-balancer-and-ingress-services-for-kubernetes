@@ -870,7 +870,7 @@ func IsEvhEnabled() bool {
 	if evh == "true" {
 		return true
 	}
-	return false
+	return utils.IsVCFCluster()
 }
 
 // If this flag is set to true, then AKO uses services API. Currently the support is limited for layer 4 Virtualservices
