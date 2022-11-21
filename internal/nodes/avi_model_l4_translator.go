@@ -121,6 +121,8 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 
 	if svcObj.Spec.LoadBalancerIP != "" {
 		vsVipNode.IPAddress = svcObj.Spec.LoadBalancerIP
+	} else if svcObj.Spec.LoadBalancerIP == "" && svcObj.Annotations[lib.LoadBalancerIP] != "" {
+		vsVipNode.IPAddress = svcObj.Annotations[lib.LoadBalancerIP]
 	}
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
