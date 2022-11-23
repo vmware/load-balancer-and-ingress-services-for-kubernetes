@@ -97,7 +97,7 @@ AKO can be deployed in Istio environment. Setting this to `true` indicates to AK
 
 `V6` is currently supported only for `vCenter` cloud with `calico` CNI.
 
-AKO can be deployed with ipFamily as `V4` or `V6`. When ipFamily is set to `V6`, AKO looks for `V6` IP for nodes from calico annotation and creates routes on controller. Only servers with `V6` IP will get added to Pools. This setting is for the backend pools, to use ipv6 or ipv4. For frontside VS, use v6cidr.
+AKO can be deployed with ipFamily as `V4` or `V6`. When ipFamily is set to `V6`, AKO looks for `V6` IP for nodes from calico annotation and creates routes on controller. Only servers with `V6` IP will get added to Pools. This setting is for the backend pools, to use ipv6 or ipv4. For frontend VS, use v6cidr.
 
 Default value is `V4`.
 

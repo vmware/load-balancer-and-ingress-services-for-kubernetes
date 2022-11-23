@@ -35,7 +35,7 @@ AKOSettings:
   # blockedNamespaceList:
   #   - kube-system
   #   - kube-public
-  ipFamily: "" # This flag can take values V4 or V6 (default V4). This is for the backend pools to use ipv6 or ipv4. For frontside VS, use v6cidr.
+  ipFamily: "" # This flag can take values V4 or V6 (default V4). This is for the backend pools to use ipv6 or ipv4. For frontend VS, use v6cidr.
 
 
 ### This section outlines the network settings for virtualservices. 

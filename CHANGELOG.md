@@ -297,10 +297,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Changed
 - Logs, from Istio file watcher, are changed from `Error` level to `Warn` level.
-- Status of ingress/route will be populated with IPV6 address in IPV6 deployments instead of IPV4 ips.
+- Status of ingress/route will be populated with IPV6 address in IPV6 deployments instead of IPV4 ips except public IP is configured.
 
  ### Fixed
  - Fix: Error in passthrough VS datascript execution when avi-infrasetting is applied to the passthrough ingress/route.
  - Fix: Secure ingress is not working with Istio.
  - Validate `enableSSL` on `listener Port` only when listener settings are configured on the `hostrule`.
- - Fix: Security vulnerabilities in the go-lang packages and the base image.
+ - Fix: Security vulnerabilities in the Golang packages and the base image.
