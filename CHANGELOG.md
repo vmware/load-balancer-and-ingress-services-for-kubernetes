@@ -292,3 +292,15 @@ All notable changes to this project will be documented in this file. The format 
  - `hostrule` with `sslKeyCertificate` of type `secret` can now be configured in all namespaces in OpenShift clusters.
  - Fixed an issue of VS creation failing with 470 Ingress with a single path giving a 470 error.
  - `nodeNetworkList` is not mandatory for NSX-T Overlay deployments.
+
+ ## AKO-1.8.2
+
+### Changed
+- Logs, from Istio file watcher, are changed from `Error` level to `Warn` level.
+- Status of ingress/route will be populated with IPV6 address in IPV6 deployments instead of IPV4 ips except public IP is configured.
+
+ ### Fixed
+ - Fix: Error in passthrough VS datascript execution when avi-infrasetting is applied to the passthrough ingress/route.
+ - Fix: Secure ingress is not working with Istio.
+ - Validate `enableSSL` on `listener Port` only when listener settings are configured on the `hostrule`.
+ - Fix: Security vulnerabilities in the Golang packages and the base image.
