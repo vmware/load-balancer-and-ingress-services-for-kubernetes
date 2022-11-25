@@ -30,7 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
+func (l *leader) UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 	var servicesToUpdate []string
 	var updateServiceOptions []UpdateOptions
 
@@ -106,7 +106,7 @@ func UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 			if val, ok := skipDelete[svcNSName]; ok && val {
 				continue
 			}
-			DeleteL4LBStatus(lib.ServiceMetadataObj{
+			l.DeleteL4LBStatus(lib.ServiceMetadataObj{
 				NamespaceServiceName: []string{svcNSName},
 			}, "", lib.SyncStatusKey)
 		}
@@ -155,7 +155,7 @@ func updateSvcAnnotations(svc *corev1.Service, updateOption UpdateOptions, oldSv
 	return nil
 }
 
-func DeleteL4LBStatus(svc_mdata_obj lib.ServiceMetadataObj, vsName, key string) error {
+func (l *leader) DeleteL4LBStatus(svc_mdata_obj lib.ServiceMetadataObj, vsName, key string) error {
 	serviceMap := getServices(svc_mdata_obj.NamespaceServiceName, false)
 	for _, service := range svc_mdata_obj.NamespaceServiceName {
 		serviceNSName := strings.Split(service, "/")
@@ -261,4 +261,15 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 		serviceMap[serviceLB.Namespace+"/"+serviceLB.Name] = serviceLB.DeepCopy()
 	}
 	return serviceMap
+}
+
+func (f *follower) UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
+	for _, option := range options {
+		utils.AviLog.Debugf("key: %s, AKO is not a leader, not updating the L4 LB status", option.Key)
+	}
+}
+
+func (f *follower) DeleteL4LBStatus(svc_mdata_obj lib.ServiceMetadataObj, vsName, key string) error {
+	utils.AviLog.Debugf("key: %s, AKO is not a leader, not deleting the L4 LB status", key)
+	return nil
 }

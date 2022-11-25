@@ -142,17 +142,18 @@ func (l *leader) SyncObjectStatuses() {
 		}
 	}
 
+	publisher := status.NewStatusPublisher()
 	if lib.GetAdvancedL4() {
-		status.UpdateGatewayStatusAddress(allGatewayUpdateOptions, true)
-		status.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
+		publisher.UpdateGatewayStatusAddress(allGatewayUpdateOptions, true)
+		publisher.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
 	} else {
 		if lib.UseServicesAPI() {
-			status.UpdateSvcApiGatewayStatusAddress(allGatewayUpdateOptions, true)
-			status.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
+			publisher.UpdateSvcApiGatewayStatusAddress(allGatewayUpdateOptions, true)
+			publisher.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
 		}
-		status.UpdateRouteIngressStatus(allIngressUpdateOptions, true)
+		publisher.UpdateRouteIngressStatus(allIngressUpdateOptions, true)
 		if !lib.GetLayer7Only() {
-			status.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
+			publisher.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
 		}
 	}
 

@@ -99,28 +99,28 @@ func ParseOptionsFromMetadata(options []UpdateOptions, bulk bool) ([]string, map
 // Currently there are too many api calls, which are different for routes and ingresses,
 // to have them under same function.
 
-func UpdateRouteIngressStatus(options []UpdateOptions, bulk bool) {
+func (l *leader) UpdateRouteIngressStatus(options []UpdateOptions, bulk bool) {
 	if utils.GetInformers().IngressInformer != nil {
-		UpdateIngressStatus(options, bulk)
+		l.UpdateIngressStatus(options, bulk)
 	} else if utils.GetInformers().RouteInformer != nil {
-		UpdateRouteStatus(options, bulk)
+		l.UpdateRouteStatus(options, bulk)
 	} else {
 		utils.AviLog.Errorf("Status update failed, no suitable informers found")
 	}
 }
 
-func DeleteRouteIngressStatus(options []UpdateOptions, isVSDelete bool, key string) error {
+func (l *leader) DeleteRouteIngressStatus(options []UpdateOptions, isVSDelete bool, key string) error {
 	if utils.GetInformers().IngressInformer != nil {
-		return DeleteIngressStatus(options, isVSDelete, key)
+		return l.DeleteIngressStatus(options, isVSDelete, key)
 	} else if utils.GetInformers().RouteInformer != nil {
-		return DeleteRouteStatus(options, isVSDelete, key)
+		return l.DeleteRouteStatus(options, isVSDelete, key)
 	} else {
 		utils.AviLog.Errorf("key: %s, msg: Status delete failed, no suitable informers found", key)
 		return errors.New("Status delete failed, no suitable informers found")
 	}
 }
 
-func UpdateRouteStatus(options []UpdateOptions, bulk bool) {
+func (l *leader) UpdateRouteStatus(options []UpdateOptions, bulk bool) {
 	var err error
 	routesToUpdate, updateRouteOptions := ParseOptionsFromMetadata(options, bulk)
 
@@ -143,7 +143,7 @@ func UpdateRouteStatus(options []UpdateOptions, bulk bool) {
 			if val, ok := skipDelete[routeNSName]; ok && val {
 				continue
 			}
-			DeleteRouteStatus([]UpdateOptions{{
+			l.DeleteRouteStatus([]UpdateOptions{{
 				ServiceMetadata: lib.ServiceMetadataObj{
 					NamespaceIngressName: []string{routeNSName},
 					HostNames:            []string{route.Spec.Host},
@@ -497,7 +497,7 @@ func compareRouteStatus(oldStatus, newStatus []routev1.RouteIngress) (bool, stri
 	return *diff, beforeHost, afterHost
 }
 
-func DeleteRouteStatus(options []UpdateOptions, isVSDelete bool, key string) error {
+func (l *leader) DeleteRouteStatus(options []UpdateOptions, isVSDelete bool, key string) error {
 	if len(options) == 0 {
 		return fmt.Errorf("Length of options is zero")
 	}
@@ -643,5 +643,27 @@ func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta lib.ServiceMetadataO
 		utils.AviLog.Debugf("key: %s, msg: annotations updated for route", key)
 	}
 
+	return nil
+}
+
+func (f *follower) UpdateRouteStatus(options []UpdateOptions, bulk bool) {
+	for _, option := range options {
+		utils.AviLog.Debugf("key: %s, AKO is not a leader, not updating the Route status", option.Key)
+	}
+}
+
+func (f *follower) DeleteRouteStatus(options []UpdateOptions, isVSDelete bool, key string) error {
+	utils.AviLog.Debugf("key: %s, AKO is not a leader, not deleting the Route status", key)
+	return nil
+}
+
+func (f *follower) UpdateRouteIngressStatus(options []UpdateOptions, bulk bool) {
+	for _, option := range options {
+		utils.AviLog.Debugf("key: %s, AKO is not a leader, not updating the Route status", option.Key)
+	}
+}
+
+func (f *follower) DeleteRouteIngressStatus(options []UpdateOptions, isVSDelete bool, key string) error {
+	utils.AviLog.Debugf("key: %s, AKO is not a leader, not deleting the Route status", key)
 	return nil
 }
