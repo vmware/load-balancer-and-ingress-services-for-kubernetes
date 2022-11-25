@@ -1211,6 +1211,7 @@ func DeleteNPLAnnotations() {
 	if !lib.AutoAnnotateNPLSvc() {
 		return
 	}
+	publisher := status.NewStatusPublisher()
 	// Delete NPL annotations from the Services
 	allSvcIntf := objects.SharedClusterIpLister().GetAll()
 	allSvcs, ok := allSvcIntf.(map[string]interface{})
@@ -1219,7 +1220,7 @@ func DeleteNPLAnnotations() {
 	} else {
 		for nsSvc := range allSvcs {
 			ns, _, svc := lib.ExtractTypeNameNamespace(nsSvc)
-			status.DeleteNPLAnnotation(nsSvc, ns, svc)
+			publisher.DeleteNPLAnnotation(nsSvc, ns, svc)
 		}
 	}
 	objects.SharedlbLister().GetAll()
@@ -1230,7 +1231,7 @@ func DeleteNPLAnnotations() {
 	} else {
 		for nsSvc := range allLBSvcs {
 			ns, _, svc := lib.ExtractTypeNameNamespace(nsSvc)
-			status.DeleteNPLAnnotation(nsSvc, ns, svc)
+			publisher.DeleteNPLAnnotation(nsSvc, ns, svc)
 		}
 	}
 }
@@ -1285,7 +1286,8 @@ func SyncFromNodesLayer(key interface{}, wg *sync.WaitGroup) error {
 }
 
 func SyncFromStatusQueue(key interface{}, wg *sync.WaitGroup) error {
-	status.DequeueStatus(key)
+	publisher := status.NewStatusPublisher()
+	publisher.DequeueStatus(key)
 	return nil
 }
 
