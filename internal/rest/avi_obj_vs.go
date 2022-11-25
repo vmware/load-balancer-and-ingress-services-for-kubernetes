@@ -570,7 +570,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 		return errors.New("Error rest_op")
 	}
 
-	resp_elems := RestRespArrToObjByType(rest_op, "virtualservice", key)
+	resp_elems := rest.restOperator.RestRespArrToObjByType(rest_op, "virtualservice", key)
 	if resp_elems == nil {
 		utils.AviLog.Warnf("key: %s, msg: unable to find vs obj in resp %v", key, rest_op.Response)
 		return errors.New("vs not found")
@@ -619,7 +619,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				parentKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: ExtractVsName(vh_parent_uuid.(string))}
 				vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(parentKey)
 				vs_cache_obj.AddToSNIChildCollection(uuid)
-				utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during SNI update %v val %v", key, vhParentKey,
+				utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during SNI update %v val %v", key, parentKey,
 					vs_cache_obj))
 			}
 		}
