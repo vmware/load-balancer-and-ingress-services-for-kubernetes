@@ -30,7 +30,7 @@ import (
 
 // DeleteMultiClusterIngressStatusAndAnnotation is a wrapper function which gets the Multi-cluster ingress object and deletes the
 // status/annotations.
-func DeleteMultiClusterIngressStatusAndAnnotation(key string, option *UpdateOptions) {
+func (l *leader) DeleteMultiClusterIngressStatusAndAnnotation(key string, option *UpdateOptions) {
 	ns := option.ServiceMetadata.Namespace
 	ingName := option.ServiceMetadata.IngressName
 	mciObj, err := utils.GetInformers().MultiClusterIngressInformer.Lister().MultiClusterIngresses(ns).Get(ingName)
@@ -50,7 +50,7 @@ func DeleteMultiClusterIngressStatusAndAnnotation(key string, option *UpdateOpti
 
 // UpdateMultiClusterIngressStatusAndAnnotation is a wrapper function which gets the Multi-cluster ingress object and updates the
 // status/annotations.
-func UpdateMultiClusterIngressStatusAndAnnotation(key string, option *UpdateOptions) {
+func (l *leader) UpdateMultiClusterIngressStatusAndAnnotation(key string, option *UpdateOptions) {
 	ns := option.ServiceMetadata.Namespace
 	ingName := option.ServiceMetadata.IngressName
 	mciObj, err := utils.GetInformers().MultiClusterIngressInformer.Lister().MultiClusterIngresses(ns).Get(ingName)
@@ -126,4 +126,12 @@ func UpdateMultiClusterIngressAnnotations(mci *akov1alpha1.MultiClusterIngress, 
 		return err
 	}
 	return nil
+}
+
+func (f *follower) UpdateMultiClusterIngressStatusAndAnnotation(key string, option *UpdateOptions) {
+	utils.AviLog.Debugf("key: %s, AKO is not a leader, not updating the Multi-Cluster Ingress status", option.Key)
+}
+
+func (f *follower) DeleteMultiClusterIngressStatusAndAnnotation(key string, option *UpdateOptions) {
+	utils.AviLog.Debugf("key: %s, AKO is not a leader, not deleting the Multi-Cluster Ingress status", key)
 }
