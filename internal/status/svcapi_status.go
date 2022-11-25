@@ -38,7 +38,7 @@ type UpdateSvcApiGWStatusConditionOptions struct {
 	Reason  string                 // reason for transition
 }
 
-func UpdateSvcApiGatewayStatusAddress(options []UpdateOptions, bulk bool) {
+func (l *leader) UpdateSvcApiGatewayStatusAddress(options []UpdateOptions, bulk bool) {
 	gatewaysToUpdate, updateGWOptions := parseOptionsFromMetadata(options, bulk)
 
 	// gatewayMap: {ns/gateway: gatewayObj}
@@ -75,7 +75,7 @@ func UpdateSvcApiGatewayStatusAddress(options []UpdateOptions, bulk bool) {
 			if val, ok := skipDelete[gwNSName]; ok && val {
 				continue
 			}
-			DeleteSvcApiGatewayStatusAddress("", lib.ServiceMetadataObj{
+			l.DeleteSvcApiGatewayStatusAddress("", lib.ServiceMetadataObj{
 				Gateway: gwNSName,
 			})
 		}
@@ -159,7 +159,7 @@ func getSvcApiGateways(gwNSNames []string, bulk bool, retryNum ...int) map[strin
 	return gwMap
 }
 
-func DeleteSvcApiGatewayStatusAddress(key string, svcMetadataObj lib.ServiceMetadataObj) error {
+func (l *leader) DeleteSvcApiGatewayStatusAddress(key string, svcMetadataObj lib.ServiceMetadataObj) error {
 	gwNSName := strings.Split(svcMetadataObj.Gateway, "/")
 	gw, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
 	if err != nil {
@@ -423,4 +423,15 @@ func compareSvcApiGatewayStatuses(old, new *svcapiv1alpha1.GatewayStatus) bool {
 	}
 
 	return reflect.DeepEqual(oldStatus, newStatus)
+}
+
+func (f *follower) UpdateSvcApiGatewayStatusAddress(options []UpdateOptions, bulk bool) {
+	for _, option := range options {
+		utils.AviLog.Debugf("key: %s, AKO is not a leader, not updating the L4 LB status", option.Key)
+	}
+}
+
+func (f *follower) DeleteSvcApiGatewayStatusAddress(key string, svcMetadataObj lib.ServiceMetadataObj) error {
+	utils.AviLog.Debugf("key: %s, AKO is not a leader, not deleting the L4 LB status", key)
+	return nil
 }
