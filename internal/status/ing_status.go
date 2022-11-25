@@ -46,8 +46,7 @@ type UpdateOptions struct {
 }
 
 // VSUuidAnnotation is maps a hostname to the UUID of the virtual service where it is placed.
-
-func UpdateIngressStatus(options []UpdateOptions, bulk bool) {
+func (l *leader) UpdateIngressStatus(options []UpdateOptions, bulk bool) {
 	var err error
 	ingressesToUpdate, updateIngressOptions := ParseOptionsFromMetadata(options, bulk)
 
@@ -78,7 +77,7 @@ func UpdateIngressStatus(options []UpdateOptions, bulk bool) {
 			for _, rule := range ing.Spec.Rules {
 				hostnames = append(hostnames, rule.Host)
 			}
-			DeleteIngressStatus([]UpdateOptions{{
+			l.DeleteIngressStatus([]UpdateOptions{{
 				ServiceMetadata: lib.ServiceMetadataObj{
 					NamespaceIngressName: []string{ingNSName},
 					HostNames:            hostnames,
@@ -307,7 +306,7 @@ func patchIngressAnnotations(ingObj *networkingv1.Ingress, vsAnnotations map[str
 	return nil
 }
 
-func DeleteIngressStatus(options []UpdateOptions, isVSDelete bool, key string) error {
+func (l *leader) DeleteIngressStatus(options []UpdateOptions, isVSDelete bool, key string) error {
 	if len(options) == 0 {
 		return fmt.Errorf("Length of options is zero")
 	}
@@ -584,4 +583,15 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 	}
 
 	return ingressMap
+}
+
+func (f *follower) UpdateIngressStatus(options []UpdateOptions, bulk bool) {
+	for _, option := range options {
+		utils.AviLog.Debugf("key: %s, AKO is not a leader, not updating the Ingress status", option.Key)
+	}
+}
+
+func (f *follower) DeleteIngressStatus(options []UpdateOptions, isVSDelete bool, key string) error {
+	utils.AviLog.Debugf("key: %s, AKO is not a leader, not deleting the Ingress status", key)
+	return nil
 }
