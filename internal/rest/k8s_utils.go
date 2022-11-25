@@ -27,7 +27,15 @@ import (
 // based on the service metadata objects it finds in the cache
 // This is executed once AKO is done with populating the L3 cache in reboot scenarios
 func (rest *RestOperations) SyncObjectStatuses() {
-	vsKeys := rest.cache.VsCacheMeta.AviGetAllKeys()
+	rest.restOperator.SyncObjectStatuses()
+}
+
+// SyncObjectStatuses gets data from L3 cache and does a status update on the ingress objects
+// based on the service metadata objects it finds in the cache
+// This is executed once AKO is done with populating the L3 cache in reboot scenarios
+func (l *leader) SyncObjectStatuses() {
+
+	vsKeys := l.restOp.cache.VsCacheMeta.AviGetAllKeys()
 	utils.AviLog.Debugf("Ingress status sync for vsKeys %+v", utils.Stringify(vsKeys))
 
 	var allIngressUpdateOptions []status.UpdateOptions
@@ -37,7 +45,7 @@ func (rest *RestOperations) SyncObjectStatuses() {
 		if vsKey.Name == lib.DummyVSForStaleData {
 			continue
 		}
-		vsCache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
+		vsCache, ok := l.restOp.cache.VsCacheMeta.AviCacheGet(vsKey)
 		if !ok {
 			continue
 		}
@@ -49,7 +57,7 @@ func (rest *RestOperations) SyncObjectStatuses() {
 
 		parentVsKey := vsCacheObj.ParentVSRef
 		vsSvcMetadataObj := vsCacheObj.ServiceMetadataObj
-		IPAddrs := rest.GetIPAddrsFromCache(vsCacheObj)
+		IPAddrs := l.restOp.GetIPAddrsFromCache(vsCacheObj)
 		if vsSvcMetadataObj.Gateway != "" {
 			// gateway based VSes
 			allGatewayUpdateOptions = append(allGatewayUpdateOptions,
@@ -60,7 +68,7 @@ func (rest *RestOperations) SyncObjectStatuses() {
 				})
 		} else if parentVsKey != (avicache.NamespaceName{}) {
 			// secure VSes handler
-			parentVs, found := rest.cache.VsCacheMeta.AviCacheGet(parentVsKey)
+			parentVs, found := l.restOp.cache.VsCacheMeta.AviCacheGet(parentVsKey)
 			if !found {
 				continue
 			}
@@ -68,7 +76,7 @@ func (rest *RestOperations) SyncObjectStatuses() {
 			parentVsObj, _ := parentVs.(*avicache.AviVsCache)
 			if (vsSvcMetadataObj.IngressName != "" || len(vsSvcMetadataObj.NamespaceIngressName) > 0) && vsSvcMetadataObj.Namespace != "" && parentVsObj != nil {
 				for _, poolKey := range vsCacheObj.PoolKeyCollection {
-					poolCache, ok := rest.cache.PoolCache.AviCacheGet(poolKey)
+					poolCache, ok := l.restOp.cache.PoolCache.AviCacheGet(poolKey)
 					if !ok {
 						continue
 					}
@@ -91,7 +99,7 @@ func (rest *RestOperations) SyncObjectStatuses() {
 		} else {
 			// insecure VSes handler
 			for _, poolKey := range vsCacheObj.PoolKeyCollection {
-				poolCache, ok := rest.cache.PoolCache.AviCacheGet(poolKey)
+				poolCache, ok := l.restOp.cache.PoolCache.AviCacheGet(poolKey)
 				if !ok {
 					continue
 				}
@@ -123,7 +131,7 @@ func (rest *RestOperations) SyncObjectStatuses() {
 		}
 
 		if len(vsSvcMetadataObj.NamespaceServiceName) > 0 {
-			IPAddrsSvc := rest.GetIPAddrsFromCache(vsCacheObj)
+			IPAddrsSvc := l.restOp.GetIPAddrsFromCache(vsCacheObj)
 			allServiceLBUpdateOptions = append(allServiceLBUpdateOptions,
 				status.UpdateOptions{
 					Vip:                IPAddrsSvc,
@@ -151,4 +159,9 @@ func (rest *RestOperations) SyncObjectStatuses() {
 	utils.AviLog.Infof("Status syncing completed")
 	lib.AKOControlConfig().PodEventf(v1.EventTypeNormal, lib.StatusSync, "Status syncing completed")
 
+}
+
+// SyncObjectStatuses in follower does nothing.
+func (f *follower) SyncObjectStatuses() {
+	utils.AviLog.Debug("AKO is running as a follower, not updating the status")
 }
