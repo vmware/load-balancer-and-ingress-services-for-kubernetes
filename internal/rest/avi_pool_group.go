@@ -130,7 +130,7 @@ func (rest *RestOperations) AviPGCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 		return errors.New("Errored rest_op")
 	}
 
-	resp_elems := RestRespArrToObjByType(rest_op, "poolgroup", key)
+	resp_elems := rest.restOperator.RestRespArrToObjByType(rest_op, "poolgroup", key)
 	if resp_elems == nil {
 		utils.AviLog.Warnf("key: %s, msg: unable to find pool group obj in resp %v", key, rest_op.Response)
 		return errors.New("poolgroup not found")
