@@ -392,8 +392,11 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		} else {
 			_, rest_ops = rest.SNINodeCU(sni_node, nil, namespace, sni_to_delete, rest_ops, key)
 		}
-		if success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, false); !success {
-			return
+		if success, processNextChild := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, false); !success {
+			if !processNextChild {
+				utils.AviLog.Infof("key: %s, msg: Failure in processing SNI node: %s. Not processing other child nodes.", key, sni_node.Name)
+				return
+			}
 		}
 	}
 
