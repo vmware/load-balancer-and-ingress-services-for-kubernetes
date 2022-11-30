@@ -276,7 +276,7 @@ func createHostRuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.L
 				},
 			},
 		},
-		Subresources: &apiextensionv1.CustomResourceSubresources{},
+		Subresources: &apiextensionv1.CustomResourceSubresources{Status: &apiextensionv1.CustomResourceSubresourceStatus{}},
 		AdditionalPrinterColumns: []apiextensionv1.CustomResourceColumnDefinition{
 			{
 				Description: "virtualhost for which the hostrule is valid",
@@ -460,7 +460,7 @@ func createHttpRuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.L
 				},
 			},
 		},
-		Subresources: &apiextensionv1.CustomResourceSubresources{},
+		Subresources: &apiextensionv1.CustomResourceSubresources{Status: &apiextensionv1.CustomResourceSubresourceStatus{}},
 		AdditionalPrinterColumns: []apiextensionv1.CustomResourceColumnDefinition{
 			{
 				Description: "fqdn associated with the httprule",
@@ -638,7 +638,7 @@ func createAviInfraSettingCRD(clientset *apiextension.ApiextensionsV1Client, log
 				},
 			},
 		},
-		Subresources: &apiextensionv1.CustomResourceSubresources{},
+		Subresources: &apiextensionv1.CustomResourceSubresources{Status: &apiextensionv1.CustomResourceSubresourceStatus{}},
 		AdditionalPrinterColumns: []apiextensionv1.CustomResourceColumnDefinition{
 			{
 				Description: "status of the nas object",
