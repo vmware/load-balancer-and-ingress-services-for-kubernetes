@@ -926,7 +926,9 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	if lib.IsWCP() {
 		// servicesAPI handlers GW/GWClass
 		c.SetupAdvL4EventHandlers(numWorkers)
-		return
+		if lib.GetAdvancedL4() {
+			return
+		}
 	}
 
 	if lib.UseServicesAPI() {
