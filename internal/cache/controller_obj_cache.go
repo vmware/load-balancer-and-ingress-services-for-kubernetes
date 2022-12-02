@@ -2715,6 +2715,11 @@ func validateAndConfigureSeGroup(client *clients.AviClient, returnErr *error) bo
 
 // ConfigureSeGroupLabels configures labels on the SeGroup if not present already
 func ConfigureSeGroupLabels(client *clients.AviClient, seGroup *models.ServiceEngineGroup) error {
+
+	if !lib.AKOControlConfig().IsLeader() {
+		return nil
+	}
+
 	labels := seGroup.Labels
 	segName := *seGroup.Name
 	SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
@@ -2753,6 +2758,11 @@ func ConfigureSeGroupLabels(client *clients.AviClient, seGroup *models.ServiceEn
 
 // DeConfigureSeGroupLabels deconfigures labels on the SeGroup.
 func DeConfigureSeGroupLabels() {
+
+	if !lib.AKOControlConfig().IsLeader() {
+		return
+	}
+
 	if len(lib.GetLabels()) == 0 {
 		return
 	}

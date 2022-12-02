@@ -1252,7 +1252,7 @@ func TestFullSyncCacheNoOp(t *testing.T) {
 
 	//call fullsync
 	ctrl.FullSync()
-	ctrl.FullSyncK8s()
+	ctrl.FullSyncK8s(true)
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	integrationtest.PollForCompletion(t, modelName, 5)
