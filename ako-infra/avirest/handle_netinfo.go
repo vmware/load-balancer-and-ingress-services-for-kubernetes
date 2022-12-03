@@ -19,8 +19,9 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
+	"time"
 
-	avimodels "github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -37,6 +38,8 @@ import (
 var CloudCache *models.Cloud
 var NetCache *models.Network
 var IPAMCache *models.IPAMDNSProviderProfile
+var instantiateFullSyncWorker sync.Once
+var worker *utils.FullSyncThread
 
 // SyncLSLRNetwork fetches all networkinfo CR objects, compares them with the data network configured in the cloud,
 // and updates the cloud if any LS-LR data is missing. It also creates or updates the VCF network with the CIDRs
@@ -380,7 +383,7 @@ func addNetworkInIPAM(key string, client *clients.AviClient) {
 			})
 		}
 	} else {
-		ipam.InternalProfile = &avimodels.IPAMDNSInternalProfile{
+		ipam.InternalProfile = &models.IPAMDNSInternalProfile{
 			UsableNetworks: []*models.IPAMUsableNetwork{{NwRef: proto.String(networkRef)}},
 		}
 	}
@@ -617,6 +620,9 @@ func executeRestOp(key string, client *clients.AviClient, restOp *utils.RestOp, 
 	}
 	restLayer := rest.NewRestOperations(nil, nil, true)
 	err := restLayer.AviRestOperateWrapper(client, []*utils.RestOp{restOp}, key)
+	if restOp.Err != nil {
+		err = restOp.Err
+	}
 	if err != nil {
 		if checkAndRetry(key, err) {
 			executeRestOp(key, client, restOp, retry+1)
@@ -627,19 +633,15 @@ func executeRestOp(key string, client *clients.AviClient, restOp *utils.RestOp, 
 			SetAdminTenant(client.AviSession)
 			defer SetTenant(client.AviSession)
 			executeRestOp(key, client, restOp)
+		} else if strings.Contains(err.Error(), "Concurrent Update Error") {
+			refreshCache(restOp.Model, client)
+			scheduleQuickSync()
 		} else {
 			utils.AviLog.Warnf("key %s, Got error in executing rest request: %v", key, err)
 			return
 		}
 	}
-	switch restOp.Model {
-	case "cloud":
-		AviCloudCachePopulate(client, utils.CloudName)
-	case "ipamdnsproviderprofile":
-		AviCloudCachePopulate(client, utils.CloudName)
-	case "network":
-		AviNetCachePopulate(client, lib.GetVCFNetworkName(), utils.CloudName)
-	}
+	refreshCache(restOp.Model, client)
 	utils.AviLog.Infof("key: %s, Successfully executed rest operation to sync object: %v", key, utils.Stringify(restOp))
 }
 
@@ -658,4 +660,29 @@ func checkAndRetry(key string, err error) bool {
 		}
 	}
 	return false
+}
+
+func NewLRLSFullSyncWorker() *utils.FullSyncThread {
+	instantiateFullSyncWorker.Do(func() {
+		worker = utils.NewFullSyncThread(time.Duration(300) * time.Second)
+		worker.SyncFunction = SyncLSLRNetwork
+	})
+	return worker
+}
+
+func scheduleQuickSync() {
+	if worker != nil {
+		worker.QuickSync()
+	}
+}
+
+func refreshCache(cacheModel string, client *clients.AviClient) {
+	switch cacheModel {
+	case "cloud":
+		AviCloudCachePopulate(client, utils.CloudName)
+	case "ipamdnsproviderprofile":
+		AviCloudCachePopulate(client, utils.CloudName)
+	case "network":
+		AviNetCachePopulate(client, lib.GetVCFNetworkName(), utils.CloudName)
+	}
 }

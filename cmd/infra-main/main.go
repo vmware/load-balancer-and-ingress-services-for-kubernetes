@@ -115,7 +115,11 @@ func InitializeAKOInfra() {
 	c.AddNamespaceEventHandler(stopCh)
 	c.AddSecretEventHandler(stopCh)
 
+	worker := avirest.NewLRLSFullSyncWorker()
+	go worker.Run()
+
 	<-stopCh
+	worker.Shutdown()
 	close(ctrlCh)
 }
 
