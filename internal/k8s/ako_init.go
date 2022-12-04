@@ -67,15 +67,18 @@ func PopulateCache() error {
 	return nil
 }
 
-func cleanupStaleVSes() {
+func (c *AviController) cleanupStaleVSes() {
 
 	aviRestClientPool := avicache.SharedAVIClients()
 	aviObjCache := avicache.SharedAviObjCache()
 
-	if lib.GetDeleteConfigMap() {
+	delModels := deleteConfigFromConfigmap(c.informers.ClientSet)
+	if delModels {
 		go SetDeleteSyncChannel()
 		parentKeys := aviObjCache.VsCacheMeta.AviCacheGetAllParentVSKeys()
 		deleteAviObjects(parentKeys, aviObjCache, aviRestClientPool)
+	} else {
+		status.NewStatusPublisher().ResetStatefulSetAnnotation()
 	}
 
 	// Delete Stale objects by deleting model for dummy VS
@@ -96,12 +99,12 @@ func cleanupStaleVSes() {
 	}
 
 	vsKeysPending := aviObjCache.VsCacheMeta.AviGetAllKeys()
-	if lib.GetDeleteConfigMap() {
+	if delModels {
 		//Delete NPL annotations
 		DeleteNPLAnnotations()
 	}
 
-	if lib.GetDeleteConfigMap() && len(vsKeysPending) == 0 && lib.ConfigDeleteSyncChan != nil {
+	if delModels && len(vsKeysPending) == 0 && lib.ConfigDeleteSyncChan != nil {
 		close(lib.ConfigDeleteSyncChan)
 		lib.ConfigDeleteSyncChan = nil
 	}
@@ -322,9 +325,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			lib.SetNoPGForSNI(cm.Data[lib.NO_PG_FOR_SNI])
 
 			delModels := delConfigFromData(cm.Data)
-			if !delModels {
-				status.NewStatusPublisher().ResetStatefulSetAnnotation()
-			}
+
 			validateUserInput, err := avicache.ValidateUserInput(aviclient)
 			if err != nil {
 				utils.AviLog.Errorf("Error while validating input: %s", err.Error())
@@ -374,6 +375,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 					}
 				} else {
 					status.NewStatusPublisher().ResetStatefulSetAnnotation()
+					lib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigUnset, "DeleteConfig unset in configmap, sync would be enabled")
 					quickSyncCh <- struct{}{}
 				}
 			}
@@ -588,7 +590,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	leReadyCh := leaderElector.Run(ctx, leaderElectionWG)
 	<-leReadyCh
 
-	cleanupStaleVSes()
+	c.cleanupStaleVSes()
 
 	// once the l3 cache is populated, we can call the updatestatus functions from here
 	restlayer := rest.NewRestOperations(avicache.SharedAviObjCache(), avicache.SharedAVIClients())

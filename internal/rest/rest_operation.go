@@ -262,8 +262,9 @@ type (
 	}
 )
 
-func NewRestOperator(restOp *RestOperations) RestOperator {
-	if lib.AKOControlConfig().IsLeader() {
+func NewRestOperator(restOp *RestOperations, overrideLeaderFlag ...bool) RestOperator {
+	if lib.AKOControlConfig().IsLeader() ||
+		len(overrideLeaderFlag) > 0 && overrideLeaderFlag[0] {
 		return &leader{restOp: restOp}
 	}
 	return &follower{restOp: restOp}

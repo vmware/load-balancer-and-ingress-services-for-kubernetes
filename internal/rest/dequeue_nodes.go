@@ -39,11 +39,11 @@ type RestOperations struct {
 	restOperator      RestOperator
 }
 
-func NewRestOperations(cache *avicache.AviObjCache, aviRestPoolClient *utils.AviRestClientPool) RestOperations {
+func NewRestOperations(cache *avicache.AviObjCache, aviRestPoolClient *utils.AviRestClientPool, overrideLeaderFlag ...bool) RestOperations {
 	restOp := RestOperations{}
 	restOp.cache = cache
 	restOp.aviRestPoolClient = aviRestPoolClient
-	restOp.restOperator = NewRestOperator(&restOp)
+	restOp.restOperator = NewRestOperator(&restOp, overrideLeaderFlag...)
 	return restOp
 }
 
@@ -614,7 +614,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 			models.RestStatus.UpdateAviApiRestStatus("", err)
 			for i := len(rest_ops) - 1; i >= 0; i-- {
 				// Go over each of the failed requests and enqueue them to the worker queue for retry.
-				if rest_ops[i].Err != nil {
+				if rest_ops[i].Err != nil || rest_ops[i].Model == "VirtualService" {
 					// check for VSVIP errors for blocked IP address updates
 					if checkVsVipUpdateErrors(key, rest_ops[i]) {
 						rest.PopulateOneCache(rest_ops[i], aviObjKey, key)
