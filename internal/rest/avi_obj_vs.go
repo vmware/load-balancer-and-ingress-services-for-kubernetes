@@ -680,6 +680,9 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 			if lastModifiedStr == "" {
 				vs_cache_obj.InvalidData = true
 			}
+			if vhParentKey != nil {
+				vs_cache_obj.ParentVSRef = vhParentKey.(avicache.NamespaceName)
+			}
 
 			rest.cache.VsCacheMeta.AviCacheAdd(k, vs_cache_obj)
 			status.HostRuleEventBroadcast(vs_cache_obj.Name, lib.CRDMetadata{}, svc_mdata_obj.CRDStatus)
@@ -847,8 +850,12 @@ func (rest *RestOperations) isHostPresentInSharedPool(hostname string, parentVs 
 
 func (rest *RestOperations) GetIPAddrsFromCache(vsCache *avicache.AviVsCache) []string {
 	var IPAddrs []string
-	if len(vsCache.VSVipKeyCollection) == 0 {
-		parentVSKey := vsCache.ParentVSRef
+	vsCacheCopy, ok := vsCache.GetVSCopy()
+	if !ok {
+		return IPAddrs
+	}
+	if len(vsCacheCopy.VSVipKeyCollection) == 0 {
+		parentVSKey := vsCacheCopy.ParentVSRef
 		parentCache, ok := rest.cache.VsCacheMeta.AviCacheGet(parentVSKey)
 		if ok {
 			parentCacheObj, _ := parentCache.(*avicache.AviVsCache)
@@ -863,12 +870,12 @@ func (rest *RestOperations) GetIPAddrsFromCache(vsCache *avicache.AviVsCache) []
 				// donot arrive at this step and go ahead fetching IP addresses from it's VSVIP
 				// Collection itself.
 				utils.AviLog.Infof("Getting IP Address from parent VS %v", parentCacheObj.Name)
-				vsCache = parentCacheObj
+				vsCacheCopy = parentCacheObj
 			}
 		}
 	}
 
-	for _, vsvipkey := range vsCache.VSVipKeyCollection {
+	for _, vsvipkey := range vsCacheCopy.VSVipKeyCollection {
 		vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvipkey)
 		if ok {
 			vsvip_cache_obj, found := vsvip_cache.(*avicache.AviVSVIPCache)
