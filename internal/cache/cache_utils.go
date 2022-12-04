@@ -314,7 +314,7 @@ type AviVSVIPCache struct {
 	CloudConfigCksum string
 	LastModified     string
 	InvalidData      bool
-	V6IPs            []string
+	V6IP             string
 	Vips             []string
 	Fips             []string
 	NetworkNames     []string

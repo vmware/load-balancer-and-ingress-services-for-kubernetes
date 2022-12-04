@@ -73,20 +73,6 @@ func IsServiceClusterIPType(svcObj *corev1.Service) bool {
 	return false
 }
 
-func HasSpecLoadBalancerIP(svcObj *corev1.Service) bool {
-	if svcObj.Spec.LoadBalancerIP != "" {
-		return true
-	}
-	return false
-}
-
-func HasLoadBalancerIPAnnotation(svcObj *corev1.Service) bool {
-	if svcObj.Annotations[LoadBalancerIP] != "" {
-		return true
-	}
-	return false
-}
-
 func GetSvcKeysForNodeCRUD() (svcl4Keys []string, svcl7Keys []string) {
 	// For NodePort if the node matches the  selector update all L4 services.
 

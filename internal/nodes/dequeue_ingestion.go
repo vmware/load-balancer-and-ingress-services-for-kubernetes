@@ -508,28 +508,16 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 		// Initializing the preferred VIP from the first Service we get, so any other Service
 		// that wishes for static IP allocation differently conflicts with this.
 		if i == 0 {
-			if lib.HasSpecLoadBalancerIP(svcObj) {
-				sharedVipLBIP = svcObj.Spec.LoadBalancerIP
-			} else if lib.HasLoadBalancerIPAnnotation(svcObj) {
-				sharedVipLBIP = svcObj.Annotations[lib.LoadBalancerIP]
-			}
-
+			sharedVipLBIP = svcObj.Spec.LoadBalancerIP
 			if infraSettingAnnotation, ok := svcObj.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
 				sharedVipInfraSetting = infraSettingAnnotation
 			}
 		}
-		if lib.HasSpecLoadBalancerIP(svcObj) {
-			if svcObj.Spec.LoadBalancerIP != sharedVipLBIP {
-				utils.AviLog.Errorf("Service loadBalancerIP is not consistent with Services grouped using shared-vip annotation. Conflict found for Services [%s: %s %s: %s]", serviceNSName, svcObj.Spec.LoadBalancerIP, serviceNSNames[0], sharedVipLBIP)
-				isShareVipKeyDelete = true
-				break
-			}
-		} else if lib.HasLoadBalancerIPAnnotation(svcObj) {
-			if svcObj.Annotations[lib.LoadBalancerIP] != sharedVipLBIP {
-				utils.AviLog.Errorf("Service loadBalancerIP is not consistent with Services grouped using shared-vip annotation. Conflict found for Services [%s: %s %s: %s]", serviceNSName, svcObj.Annotations[lib.LoadBalancerIP], serviceNSNames[0], sharedVipLBIP)
-				isShareVipKeyDelete = true
-				break
-			}
+
+		if svcObj.Spec.LoadBalancerIP != sharedVipLBIP {
+			utils.AviLog.Errorf("Service loadBalancerIP is not consistent with Services grouped using shared-vip annotation. Conflict found for Services [%s: %s %s: %s]", serviceNSName, svcObj.Spec.LoadBalancerIP, serviceNSNames[0], sharedVipLBIP)
+			isShareVipKeyDelete = true
+			break
 		}
 
 		infraSettingAnnotation, _ := svcObj.GetAnnotations()[lib.InfraSettingNameAnnotation]

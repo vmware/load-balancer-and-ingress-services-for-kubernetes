@@ -97,14 +97,10 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 	}
 	dsNode := datascriptList[0]
 	var infrasettingName string
-	var infraSettingNameWithSuffix string
 	var pgName string
 	if infraSetting != nil {
 		infrasettingName = infraSetting.Name
-		infraSettingNameWithSuffix = infrasettingName + "-"
 	}
-	//Replace AVIINFRA with infrasettingname if present
-	dsNode.Script = strings.Replace(dsNode.Script, "AVIINFRA", infraSettingNameWithSuffix, 1)
 	// Get Poolgroup Node, create if not present
 	pgName = lib.GetPassthroughPGName(hostname, infrasettingName)
 	pgNode := o.GetPoolGroupByName(pgName)
