@@ -35,7 +35,7 @@ import (
 
 const VSVIP_NOTFOUND = "VsVip object not found"
 
-//TODO: convert it to generalized function to be used by evh and sni both.
+// TODO: convert it to generalized function to be used by evh and sni both.
 func setDedicatedVSNodeProperties(vs *avimodels.VirtualService, vs_meta *nodes.AviVsNode) {
 	var datascriptCollection []*avimodels.VSDataScripts
 	// this overwrites the sslkeycert created from the Secret object, with the one mentioned in HostRule.TLS
@@ -873,10 +873,12 @@ func (rest *RestOperations) GetIPAddrsFromCache(vsCache *avicache.AviVsCache) []
 		if ok {
 			vsvip_cache_obj, found := vsvip_cache.(*avicache.AviVSVIPCache)
 			if found {
-				if len(vsvip_cache_obj.Fips) == 0 {
-					IPAddrs = vsvip_cache_obj.Vips
-				} else {
+				if len(vsvip_cache_obj.Fips) != 0 {
 					IPAddrs = vsvip_cache_obj.Fips
+				} else if len(vsvip_cache_obj.V6IPs) != 0 {
+					IPAddrs = vsvip_cache_obj.V6IPs
+				} else {
+					IPAddrs = vsvip_cache_obj.Vips
 				}
 			}
 		}

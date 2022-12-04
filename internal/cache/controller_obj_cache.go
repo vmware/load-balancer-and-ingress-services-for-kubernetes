@@ -731,7 +731,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 		}
 		var vips []string
 		var fips []string
-		var v6ip string
+		var v6ips []string
 		var networkNames []string
 		for _, vip := range vsvip.Vip {
 			vips = append(vips, *vip.IPAddress.Addr)
@@ -739,7 +739,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 				fips = append(fips, *vip.FloatingIP.Addr)
 			}
 			if vip.Ip6Address != nil {
-				v6ip = *vip.Ip6Address.Addr
+				v6ips = append(v6ips, *vip.Ip6Address.Addr)
 			}
 			if ipamNetworkSubnet := vip.IPAMNetworkSubnet; ipamNetworkSubnet != nil {
 				if networkRef := *ipamNetworkSubnet.NetworkRef; networkRef != "" {
@@ -766,7 +766,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 			LastModified:     *vsvip.LastModified,
 			Vips:             vips,
 			Fips:             fips,
-			V6IP:             v6ip,
+			V6IPs:            v6ips,
 			CloudConfigCksum: checksum,
 		}
 		*vsVipData = append(*vsVipData, vsVipCacheObj)
@@ -1321,7 +1321,7 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 
 		var vips []string
 		var fips []string
-		var v6ip string
+		var v6ips []string
 		var networkNames []string
 		for _, vip := range vsvip.Vip {
 			vips = append(vips, *vip.IPAddress.Addr)
@@ -1329,7 +1329,7 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 				fips = append(fips, *vip.FloatingIP.Addr)
 			}
 			if vip.Ip6Address != nil {
-				v6ip = *vip.Ip6Address.Addr
+				v6ips = append(v6ips, *vip.Ip6Address.Addr)
 			}
 			if ipamNetworkSubnet := vip.IPAMNetworkSubnet; ipamNetworkSubnet != nil {
 				if networkRef := *ipamNetworkSubnet.NetworkRef; networkRef != "" {
@@ -1354,7 +1354,7 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 			LastModified:     *vsvip.LastModified,
 			Vips:             vips,
 			Fips:             fips,
-			V6IP:             v6ip,
+			V6IPs:            v6ips,
 			NetworkNames:     networkNames,
 			CloudConfigCksum: checksum,
 		}

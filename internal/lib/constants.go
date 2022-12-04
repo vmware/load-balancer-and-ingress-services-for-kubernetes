@@ -180,6 +180,7 @@ const (
 	IstioCertOutputPath                        = "/etc/istio-output-certs"
 	IstioSecret                                = "istio-secret"
 	IstioModel                                 = "istioModel"
+	LoadBalancerIP                             = "ako.vmware.com/load-balancer-ip"
 
 	// AKO Event constants
 	AKOEventComponent      = "avi-kubernetes-operator"
@@ -284,7 +285,7 @@ const (
 		  avi.vs.close_conn()
 	   else
 		  avi.vs.log("SNI=".. sname)
-		  pg_name = "CLUSTER--"..sname
+		  pg_name = "CLUSTER--AVIINFRA"..sname
 		  avi.poolgroup.select(pg_name)
 	   end
 	else
