@@ -447,11 +447,7 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 		}
 
 		if i == 0 {
-			if lib.HasSpecLoadBalancerIP(svcObj) {
-				sharedPreferredVIP = svcObj.Spec.LoadBalancerIP
-			} else if lib.HasLoadBalancerIPAnnotation(svcObj) {
-				sharedPreferredVIP = svcObj.Annotations[lib.LoadBalancerIP]
-			}
+			sharedPreferredVIP = svcObj.Spec.LoadBalancerIP
 			if infraSettingAnnotation, ok := svcObj.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
 				serviceObject = svcObj.DeepCopy()
 			}

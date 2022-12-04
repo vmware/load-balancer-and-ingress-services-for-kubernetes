@@ -6,7 +6,7 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/apparentlymart/go-cidr v1.1.0
 	github.com/davecgh/go-spew v1.1.1
-	github.com/fsnotify/fsnotify v1.4.9
+	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-logr/logr v0.4.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/google/gofuzz v1.2.0 // indirect
@@ -17,7 +17,7 @@ require (
 	github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
 	github.com/vmware/alb-sdk v0.0.0-20210721142023-8e96475b833b
 	go.uber.org/zap v1.18.1
-	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
+	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
 	golang.org/x/oauth2 v0.0.0-20201109201403-9fd604954f58 // indirect
 	google.golang.org/protobuf v1.26.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
@@ -40,9 +40,7 @@ replace (
 	github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
 	go.uber.org/zap => go.uber.org/zap v1.18.1
 	golang.org/x/crypto => golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
-	golang.org/x/net => golang.org/x/net v0.0.0-20220906165146-f3363e06e74c
 	golang.org/x/oauth2 => golang.org/x/oauth2 v0.0.0-20201109201403-9fd604954f58
-	golang.org/x/text => golang.org/x/text v0.4.0
 	google.golang.org/protobuf => google.golang.org/protobuf v1.26.0
 	k8s.io/api => k8s.io/api v0.21.3
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.21.3
