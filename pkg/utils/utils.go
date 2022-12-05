@@ -419,7 +419,7 @@ func CheckIfNamespaceAccepted(namespace string, opts ...interface{}) bool {
 }
 func IsServiceNSValid(namespace string) bool {
 	// L4 Namespace sync not applicable for advance L4
-	if !GetAdvancedL4() {
+	if !GetAdvancedL4() && !IsVCFCluster() {
 		if !CheckIfNamespaceAccepted(namespace) {
 			return false
 		}

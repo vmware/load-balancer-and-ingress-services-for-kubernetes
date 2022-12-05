@@ -26,7 +26,9 @@ AKOSettings:
   namespaceSelector:
     labelKey: ""
     labelValue: ""
-  servicesAPI: false # Flag that enables AKO in services API mode: https://kubernetes-sigs.github.io/service-apis/. Currently implemented only for L4.
+  servicesAPI: false # Flag that enables AKO in services API mode: https://kubernetes-sigs.github.io/service-apis/. Currently implemented only for L4. This flag uses the upstream GA APIs which are not backward compatible
+                     # with the advancedL4 APIs which uses a fork and a version of v1alpha1pre1
+  vipPerNamespace: "false" # Enabling this flag would tell AKO to create Parent VS per Namespace in EVH mode
   istioEnabled: false # This flag needs to be enabled when AKO is be to brought up in an Istio environment
   # This is the list of system namespaces from which AKO will not listen any Kubernetes or Openshift object event.
   blockedNamespaceList: []
@@ -34,6 +36,7 @@ AKOSettings:
   #   - kube-system
   #   - kube-public
   ipFamily: "" # This flag can take values V4 or V6 (default V4). This is for the backend pools to use ipv6 or ipv4. For frontside VS, use v6cidr
+
 
 ### This section outlines the network settings for virtualservices. 
 NetworkSettings:

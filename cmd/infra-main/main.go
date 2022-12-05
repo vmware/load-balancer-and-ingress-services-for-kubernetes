@@ -75,7 +75,7 @@ func InitializeAKOInfra() {
 
 	utils.AviLog.Infof("Successfully created kube client for ako-infra")
 
-	registeredInformers, err := lib.InformersToRegister(kubeClient, nil, true)
+	registeredInformers, err := lib.InformersToRegister(kubeClient, nil)
 	if err != nil {
 		utils.AviLog.Fatalf("Failed to initialize informers: %v, shutting down AKO-Infra, going to reboot", err)
 	}

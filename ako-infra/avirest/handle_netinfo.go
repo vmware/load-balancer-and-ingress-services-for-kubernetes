@@ -112,7 +112,7 @@ func AddSegment(obj interface{}) bool {
 	cidrs := make(map[string]struct{})
 	cidrIntf, ok := spec["ingressCIDRs"].([]interface{})
 	if !ok {
-		utils.AviLog.Infof("cidr not found in networkinfo object")
+		utils.AviLog.Infof("key: %s, cidr not found in networkinfo object", objKey)
 		// If not found, try fetching from cluster network info CRD
 		var clusterNetworkCIDRFound bool
 		if cidrIntf, clusterNetworkCIDRFound = lib.GetClusterNetworkInfoCRData(lib.GetDynamicClientSet()); !clusterNetworkCIDRFound {
@@ -483,7 +483,7 @@ func constructLsLrInCloud(lslrList []*models.Tier1LogicalRouterInfo, lslrMap map
 		}
 	}
 	for ls, lr := range cloudLSLRMap {
-		cloudLSLRList = append(lslrList, &models.Tier1LogicalRouterInfo{
+		cloudLSLRList = append(cloudLSLRList, &models.Tier1LogicalRouterInfo{
 			SegmentID: &ls,
 			Tier1LrID: &lr,
 		})
@@ -664,7 +664,7 @@ func checkAndRetry(key string, err error) bool {
 
 func NewLRLSFullSyncWorker() *utils.FullSyncThread {
 	instantiateFullSyncWorker.Do(func() {
-		worker = utils.NewFullSyncThread(time.Duration(300) * time.Second)
+		worker = utils.NewFullSyncThread(time.Duration(lib.FullSyncInterval) * time.Second)
 		worker.SyncFunction = SyncLSLRNetwork
 	})
 	return worker

@@ -241,7 +241,6 @@ func (c *VCFK8sController) AddNetworkInfoEventHandler(stopCh <-chan struct{}) {
 	c.dynamicInformers.VCFNetworkInfoInformer.Informer().AddEventHandler(networkInfoHandler)
 	go c.dynamicInformers.VCFNetworkInfoInformer.Informer().Run(stopCh)
 
-	go c.dynamicInformers.VCFClusterNetworkInformer.Informer().Run(stopCh)
 	ClusterNetworkInfoHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			utils.AviLog.Infof("NCP Cluster Network Info ADD Event")
@@ -254,6 +253,7 @@ func (c *VCFK8sController) AddNetworkInfoEventHandler(stopCh <-chan struct{}) {
 		},
 	}
 	c.dynamicInformers.VCFClusterNetworkInformer.Informer().AddEventHandler(ClusterNetworkInfoHandler)
+	go c.dynamicInformers.VCFClusterNetworkInformer.Informer().Run(stopCh)
 	if !cache.WaitForCacheSync(stopCh,
 		c.dynamicInformers.VCFNetworkInfoInformer.Informer().HasSynced,
 		c.dynamicInformers.VCFClusterNetworkInformer.Informer().HasSynced) {
@@ -290,7 +290,7 @@ func (c *VCFK8sController) HandleVCF(stopCh <-chan struct{}, ctrlCh chan struct{
 
 func (c *VCFK8sController) ValidBootStrapData() bool {
 	cs := c.informers.ClientSet
-	configmap, err := cs.CoreV1().ConfigMaps("vmware-system-ako").Get(context.TODO(), "avi-k8s-config", metav1.GetOptions{})
+	configmap, err := cs.CoreV1().ConfigMaps(utils.VMWARE_SYSTEM_AKO).Get(context.TODO(), "avi-k8s-config", metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Failed to get ConfigMap, got err: %v", err)
 		return false

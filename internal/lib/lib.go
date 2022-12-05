@@ -1193,7 +1193,7 @@ func PopulatePassthroughPoolMarkers(host, svcName, infrasettingName string) util
 	return markers
 }
 
-func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Clientset, akoInfra bool) ([]string, error) {
+func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Clientset) ([]string, error) {
 	var isOshift bool
 	// Initialize the following informers in all AKO deployments. Provide AKO the ability to watch over
 	// Services, Endpoints, Secrets, ConfigMaps and Namespaces.
@@ -1216,11 +1216,11 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 		allInformers = append(allInformers, utils.IngressClassInformer)
 	}
 
-	// For all deployments excluding AKO in VDS, watch over
+	// For all deployments excluding AKO in WCP, watch over
 	// Nodes, Ingresses, IngressClasses, Routes, MultiClusterIngress and ServiceImports.
 	// Routes should be watched over in Openshift environments only.
 	// MultiClusterIngress and ServiceImport should be watched over only when MCI is enabled.
-	if !GetAdvancedL4() {
+	if !IsWCP() {
 		allInformers = append(allInformers, utils.NodeInformer)
 
 		informerTimeout := int64(120)

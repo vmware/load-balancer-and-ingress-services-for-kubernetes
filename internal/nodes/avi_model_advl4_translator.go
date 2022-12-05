@@ -282,10 +282,6 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
 	}
 
-	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
-		vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
-	}
-
 	// configures VS and VsVip nodes using infraSetting object (via CRD).
 	if infraSetting, err := getL4InfraSetting(key, nil, &gw.Spec.GatewayClassName); err == nil {
 		buildWithInfraSetting(key, avi_vs_meta, vsVipNode, infraSetting)

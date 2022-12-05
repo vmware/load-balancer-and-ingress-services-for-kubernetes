@@ -148,7 +148,7 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 			return nil, *cloud.Name, *defaultSEG.UUID
 		}
 	}
-	return errors.New("Cloud not found"), "", ""
+	return errors.New("cloud not found"), "", ""
 }
 
 func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
@@ -203,22 +203,8 @@ func fetchSEGroup(client *clients.AviClient, overrideUri ...lib.NextPage) (error
 	var result session.AviCollectionResult
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
-		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
-			//SE in provider context no read access
-			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
-			SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-			SetTenant := session.SetTenant(lib.GetTenant())
-			SetAdminTenant(client.AviSession)
-			defer SetTenant(client.AviSession)
-			result, err = lib.AviGetCollectionRaw(client, uri)
-			if err != nil {
-				utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-				return err, nil
-			}
-		} else {
-			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-			return err, nil
-		}
+		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+		return err, nil
 	}
 
 	elems := make([]json.RawMessage, result.Count)
@@ -291,7 +277,7 @@ func (a *AviControllerInfra) AnnotateSystemNamespace(seGroup string, cloudName s
 	nsName := utils.GetAKONamespace()
 	nsObj, err := a.cs.CoreV1().Namespaces().Get(context.TODO(), nsName, metav1.GetOptions{})
 	if err != nil {
-		utils.AviLog.Warnf("Failed to GET the vmware-system-ako namespace details due to the following error :%v", err.Error())
+		utils.AviLog.Warnf("Failed to GET the namespace details due to the following error, namespace:%s, err:%v", nsName, err.Error())
 		return false
 	}
 	if nsObj.Annotations == nil {

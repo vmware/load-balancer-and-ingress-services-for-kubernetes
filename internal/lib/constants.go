@@ -183,6 +183,7 @@ const (
 	IstioSecret                                = "istio-secret"
 	IstioModel                                 = "istioModel"
 	CTRL_VERSION_21_1_3                        = "21.1.3"
+	FullSyncInterval                           = 300
 
 	// AKO Event constants
 	AKOEventComponent      = "avi-kubernetes-operator"

@@ -313,13 +313,13 @@ func GetCNIPlugin() string {
 // is complicated business right now.
 func WaitForInitSecretRecreateAndReboot() {
 	cs := utils.GetInformers().ClientSet
-	if err := cs.CoreV1().Secrets("vmware-system-ako").Delete(context.TODO(), AviInitSecret, metav1.DeleteOptions{}); err != nil {
+	if err := cs.CoreV1().Secrets(utils.VMWARE_SYSTEM_AKO).Delete(context.TODO(), AviInitSecret, metav1.DeleteOptions{}); err != nil {
 		utils.AviLog.Errorf("Error while deleting the init Secret for Secret refresh.")
 		return
 	}
 
 	var checkForInitSecretRecreate = func(cs kubernetes.Interface) error {
-		_, err := cs.CoreV1().Secrets("vmware-system-ako").Get(context.TODO(), AviInitSecret, metav1.GetOptions{})
+		_, err := cs.CoreV1().Secrets(utils.VMWARE_SYSTEM_AKO).Get(context.TODO(), AviInitSecret, metav1.GetOptions{})
 		return err
 	}
 

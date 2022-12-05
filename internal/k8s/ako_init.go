@@ -108,7 +108,7 @@ func (c *AviController) cleanupStaleVSes() {
 	}
 
 	vsKeysPending := aviObjCache.VsCacheMeta.AviGetAllKeys()
-	if lib.GetDeleteConfigMap() {
+	if delModels {
 		//Delete NPL annotations
 		DeleteNPLAnnotations()
 	}
@@ -236,37 +236,6 @@ func (c *AviController) AddBootupNSEventHandler(stopCh <-chan struct{}, startSyn
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
 		utils.AviLog.Info("Caches synced for NS informer")
-	}
-}
-
-func (c *AviController) AddConfigMapEventHandler(stopCh <-chan struct{}, startSyncCh chan struct{}) {
-	configmapHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			utils.AviLog.Infof("ConfigMap Add")
-			cm := obj.(*corev1.ConfigMap)
-			if controllerIP := cm.Data["controllerIP"]; controllerIP != "" && startSyncCh != nil {
-				lib.SetControllerIP(controllerIP)
-				startSyncCh <- struct{}{}
-				startSyncCh = nil
-			}
-		},
-		UpdateFunc: func(old, obj interface{}) {
-			utils.AviLog.Infof("ConfigMap Update")
-			cm := obj.(*corev1.ConfigMap)
-			if controllerIP := cm.Data["controllerIP"]; controllerIP != "" && startSyncCh != nil {
-				lib.SetControllerIP(controllerIP)
-				startSyncCh <- struct{}{}
-				startSyncCh = nil
-			}
-		},
-	}
-
-	c.informers.ConfigMapInformer.Informer().AddEventHandler(configmapHandler)
-	go c.informers.ConfigMapInformer.Informer().Run(stopCh)
-	if !cache.WaitForCacheSync(stopCh, c.informers.ConfigMapInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
-	} else {
-		utils.AviLog.Info("Caches synced for ConfigMap informer")
 	}
 }
 
@@ -437,7 +406,7 @@ func (c *AviController) InitVCFHandlers(kubeClient kubernetes.Interface, ctrlCh 
 	}
 	utils.AviLog.Infof("SEgroup name found, continuing ..")
 
-	configmap, err := c.informers.ClientSet.CoreV1().ConfigMaps("vmware-system-ako").Get(context.TODO(), "avi-k8s-config", metav1.GetOptions{})
+	configmap, err := c.informers.ClientSet.CoreV1().ConfigMaps(utils.VMWARE_SYSTEM_AKO).Get(context.TODO(), "avi-k8s-config", metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Failed to get ConfigMap, got err: %v", err)
 	}
@@ -519,7 +488,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	if lib.GetNamespaceToSync() != "" {
 		informersArg[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
 	}
-	if lib.IsWCP() {
+	if !utils.IsVCFCluster() && lib.GetAdvancedL4() {
 		informersArg[utils.INFORMERS_ADVANCED_L4] = true
 	}
 	c.informers = utils.NewInformers(utils.KubeClientIntf{ClientSet: informers.Cs}, registeredInformers, informersArg)
@@ -616,15 +585,19 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		}
 	}
 
-	// Leader election happens after populating controller cache and fullsynck8s.
 	ctx, cancel := context.WithCancel(context.Background())
-	leaderElector, err := utils.NewLeaderElector(informers.Cs, c.OnStartedLeading, c.OnStoppedLeading, c.OnNewLeader)
-	if err != nil {
-		utils.AviLog.Fatalf("Leader election failed with error %v, shutting down AKO.", err)
-	}
+	if lib.IsWCP() {
+		lib.AKOControlConfig().SetIsLeaderFlag(true)
+	} else {
+		// Leader election happens after populating controller cache and fullsynck8s.
+		leaderElector, err := utils.NewLeaderElector(informers.Cs, c.OnStartedLeading, c.OnStoppedLeading, c.OnNewLeader)
+		if err != nil {
+			utils.AviLog.Fatalf("Leader election failed with error %v, shutting down AKO.", err)
+		}
 
-	leReadyCh := leaderElector.Run(ctx, leaderElectionWG)
-	<-leReadyCh
+		leReadyCh := leaderElector.Run(ctx, leaderElectionWG)
+		<-leReadyCh
+	}
 
 	graphQueue.SyncFunc = SyncFromNodesLayer
 	graphQueue.Run(stopCh, graphwg)
@@ -665,9 +638,11 @@ LABEL:
 		worker.Shutdown()
 	}
 
-	// Cancel the Leader election goroutines
 	cancel()
-	<-ctx.Done()
+	if !lib.IsWCP() {
+		// Cancel the Leader election goroutines
+		<-ctx.Done()
+	}
 
 	ingestionQueue.StopWorkers(stopCh)
 	graphQueue.StopWorkers(stopCh)
@@ -936,54 +911,6 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			}
 			nodes.DequeueIngestion(key, true)
 		}
-	}
-
-	// Section for Istio
-	if lib.IsIstioEnabled() {
-		// If Istio is enabled, we need to listen to few of the Istio CRDs.
-		virtualServiceObjs, err := lib.AKOControlConfig().IstioCRDInformers().VirtualServiceInformer.Lister().VirtualServices(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the Istio virtualservices during full sync: %s", err)
-		} else {
-			for _, vsObj := range virtualServiceObjs {
-				key := lib.IstioVirtualService + "/" + utils.ObjKey(vsObj)
-				meta, err := meta.Accessor(vsObj)
-				if err == nil {
-					resVer := meta.GetResourceVersion()
-					objects.SharedResourceVerInstanceLister().Save(key, resVer)
-				}
-				nodes.DequeueIngestion(key, true)
-			}
-		}
-		destinationRuleObjs, err := lib.AKOControlConfig().IstioCRDInformers().DestinationRuleInformer.Lister().DestinationRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the Istio DestinationRules during full sync: %s", err)
-		} else {
-			for _, drObj := range destinationRuleObjs {
-				key := lib.IstioDestinationRule + "/" + utils.ObjKey(drObj)
-				meta, err := meta.Accessor(drObj)
-				if err == nil {
-					resVer := meta.GetResourceVersion()
-					objects.SharedResourceVerInstanceLister().Save(key, resVer)
-				}
-				nodes.DequeueIngestion(key, true)
-			}
-		}
-		gatewayObjs, err := lib.AKOControlConfig().IstioCRDInformers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the Istio Gateways during full sync: %s", err)
-		} else {
-			for _, gwObj := range gatewayObjs {
-				key := lib.IstioGateway + "/" + utils.ObjKey(gwObj)
-				meta, err := meta.Accessor(gwObj)
-				if err == nil {
-					resVer := meta.GetResourceVersion()
-					objects.SharedResourceVerInstanceLister().Save(key, resVer)
-				}
-				nodes.DequeueIngestion(key, true)
-			}
-		}
-
 	}
 
 	if utils.GetInformers().IngressInformer != nil {

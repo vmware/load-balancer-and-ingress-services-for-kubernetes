@@ -42,10 +42,6 @@ import (
 	advl4informer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/informers/externalversions/apis/v1alpha1pre1"
 )
 
-func init() {
-
-}
-
 type AdvL4Informers struct {
 	GatewayInformer      advl4informer.GatewayInformer
 	GatewayClassInformer advl4informer.GatewayClassInformer
@@ -270,7 +266,7 @@ func (c *akoControlConfig) SetControllerVersion(v string) {
 
 func initControllerVersion() string {
 	version := os.Getenv("CTRL_VERSION")
-	if version != "" {
+	if version == "" {
 		return version
 	}
 

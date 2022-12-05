@@ -620,7 +620,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					utils.AviLog.Debugf("key: %s, msg: L4 Service add event: Namespace: %s didn't qualify filter. Not adding service.", key, namespace)
 					return
 				}
-				key = utils.L4LBService + "/" + utils.ObjKey(svc)
 				if lib.IsWCP() {
 					checkSvcForGatewayPortConflict(svc, key)
 				}
@@ -630,7 +629,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
 				}
 			} else {
-				if lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
+				if lib.IsNamespaceBlocked(namespace) || lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 					return
 				}
 				if lib.UseServicesAPI() {
@@ -681,7 +680,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
 				}
 			} else {
-				if lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
+				if lib.IsNamespaceBlocked(namespace) || lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 					return
 				}
 				key = utils.Service + "/" + utils.ObjKey(svc)
@@ -708,7 +707,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 						utils.AviLog.Debugf("key: %s, msg: L4 Service update event: Namespace: %s didn't qualify filter. Not updating service.", key, namespace)
 						return
 					}
-					key = utils.L4LBService + "/" + utils.ObjKey(svc)
 					if lib.IsWCP() {
 						checkSvcForGatewayPortConflict(svc, key)
 					}
@@ -716,7 +714,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 						key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
 					}
 				} else {
-					if lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
+					if lib.IsNamespaceBlocked(namespace) || lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 						return
 					}
 					if lib.UseServicesAPI() {

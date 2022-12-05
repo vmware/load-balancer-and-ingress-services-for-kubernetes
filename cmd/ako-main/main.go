@@ -160,7 +160,7 @@ func InitializeAKC() {
 		utils.AviLog.Warnf("Error in creating openshift clientset")
 	}
 
-	registeredInformers, err := lib.InformersToRegister(kubeClient, oshiftClient, false)
+	registeredInformers, err := lib.InformersToRegister(kubeClient, oshiftClient)
 	if err != nil {
 		utils.AviLog.Fatalf("Failed to initialize informers: %v, shutting down AKO, going to reboot", err)
 	}
