@@ -17,6 +17,7 @@ spec:
     vipNetworks:
       - networkName: vip-network-10-10-10-0-24
         cidr: 10.10.10.0/24
+        v6cidr: 2002::1234:abcd:ffff:c0a8:101/64
     nodeNetworks:
       - networkName: node-network-10-10-20-0-24
         cidrs:
@@ -167,3 +168,12 @@ For the subset of ingresses, that refer to an ingress class which in turn refers
 For passthrough routes/ingresses, setting `l7Settings:shardSize` present in AviInfrasetting CRD overrides setting `L7Settings.passthroughShardSize` present in values.yaml. <br>
 **Note**:  Value `DEDICATED` is not supported when AviInfrasetting CRD is applied to the passthrough route/ingress.
 
+#### Configure IPv6 (Tech Preview)
+
+AviInfraSetting CRD can be used to enable IPv6, IPv4 or both IPv4 and IPv6 vips on virtualservices created by AKO. 
+
+        network:
+          vipNetworks:
+            - networkName: vip-network-10-10-10-0-24
+              cidr: 10.10.10.0/24
+              v6cidr: 2002::1234:abcd:ffff:c0a8:101/64
