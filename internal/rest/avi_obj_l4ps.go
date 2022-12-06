@@ -89,6 +89,9 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 			} else if hppmap.Protocol == utils.UDP {
 				udpString := "PROTOCOL_UDP"
 				l4Protocol.Protocol = &udpString
+			} else if hppmap.Protocol == utils.SCTP {
+				sctpString := "PROTOCOL_SCTP"
+				l4Protocol.Protocol = &sctpString
 			}
 			ruleMatchTarget.Port = portMatch
 			ruleMatchTarget.Protocol = l4Protocol
