@@ -91,7 +91,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 
 	avi_vs_meta.AviMarkers = lib.PopulateAdvL4VSNodeMarkers(namespace, gatewayName)
 
-	isTCP, isUDP := false, false
+	isTCP, isUDP, isSCTP := false, false, false
 	var portProtocols []AviPortHostProtocol
 	for _, listener := range listeners {
 		portProto := strings.Split(listener, "/") // format: protocol/port
@@ -102,6 +102,8 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 			isTCP = true
 		} else if portProto[0] == utils.UDP {
 			isUDP = true
+		} else if portProto[0] == utils.SCTP {
+			isSCTP = true
 		}
 	}
 
@@ -113,7 +115,9 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 	// and override required services with UDP Fast Path. Having a separate
 	// internally used network profile (MIXED_NET_PROFILE) helps ensure PUT calls
 	// on existing VSes.
-	if isTCP && !isUDP {
+	if isSCTP {
+		avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
+	} else if isTCP && !isUDP {
 		avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
 	} else if isUDP && !isTCP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
@@ -203,7 +207,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		EnableRhi:          proto.Bool(lib.GetEnableRHI()),
 	}
 
-	isTCP, isUDP := false, false
+	isTCP, isUDP, isSCTP := false, false, false
 	avi_vs_meta.AviMarkers = lib.PopulateAdvL4VSNodeMarkers(namespace, gatewayName)
 	var portProtocols []AviPortHostProtocol
 	for _, listener := range listeners {
@@ -215,6 +219,8 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			isTCP = true
 		} else if portProto[0] == utils.UDP {
 			isUDP = true
+		} else if portProto[0] == utils.SCTP {
+			isSCTP = true
 		}
 	}
 
@@ -226,7 +232,9 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 	// and override required services with UDP Fast Path. Having a separate
 	// internally used network profile (MIXED_NET_PROFILE) helps ensure PUT calls
 	// on existing VSes.
-	if isTCP && !isUDP {
+	if isSCTP {
+		avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
+	} else if isTCP && !isUDP {
 		avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
 	} else if isUDP && !isTCP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
@@ -433,7 +441,7 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 		EnableRhi:          proto.Bool(lib.GetEnableRHI()),
 	}
 
-	isTCP, isUDP := false, false
+	isTCP, isUDP, isSCTP := false, false, false
 	avi_vs_meta.AviMarkers = lib.PopulateAdvL4VSNodeMarkers(namespace, sharedVipKey)
 	var portProtocols []AviPortHostProtocol
 	var sharedPreferredVIP string
@@ -465,6 +473,8 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 				isTCP = true
 			} else if protocol == utils.UDP {
 				isUDP = true
+			} else if protocol == utils.SCTP {
+				isSCTP = true
 			}
 		}
 	}
@@ -472,7 +482,9 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 	avi_vs_meta.PortProto = portProtocols
 	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
 
-	if isTCP && !isUDP {
+	if isSCTP {
+		avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
+	} else if isTCP && !isUDP {
 		avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
 	} else if isUDP && !isTCP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH

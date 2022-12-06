@@ -159,6 +159,8 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		var hm string
 		if pool_meta.Protocol == utils.UDP {
 			hm = fmt.Sprintf("/api/healthmonitor/?name=%s", utils.AVI_DEFAULT_UDP_HM)
+		} else if pool_meta.Protocol == utils.SCTP {
+			hm = fmt.Sprintf("/api/healthmonitor/?name=%s", utils.AVI_DEFAULT_SCTP_HM)
 		} else {
 			hm = fmt.Sprintf("/api/healthmonitor/?name=%s", utils.AVI_DEFAULT_TCP_HM)
 		}
