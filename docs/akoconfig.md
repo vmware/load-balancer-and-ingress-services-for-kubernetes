@@ -10,7 +10,7 @@ metadata:
   name: ako-sample
   namespace: avi-system
 spec:
-  imageRepository: projects.registry.vmware.com/ako/ako:1.8.1
+  imageRepository: projects.registry.vmware.com/ako/ako:1.8.2
   imagePullPolicy: "IfNotPresent"
   akoSettings:
     enableEvents: true

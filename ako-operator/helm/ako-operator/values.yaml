@@ -11,7 +11,7 @@ operatorImage:
 
 # AKO Controller image settings
 akoImage:
-  repository: projects.registry.vmware.com/ako/ako:1.8.1
+  repository: projects.registry.vmware.com/ako/ako:1.8.2
   pullPolicy: IfNotPresent
 
 ### This section outlines the generic AKO controller settings
