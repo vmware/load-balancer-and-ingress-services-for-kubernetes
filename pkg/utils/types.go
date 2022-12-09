@@ -46,8 +46,9 @@ const (
 )
 
 const (
-	AVI_DEFAULT_TCP_HM string = "System-TCP"
-	AVI_DEFAULT_UDP_HM string = "System-UDP"
+	AVI_DEFAULT_TCP_HM  string = "System-TCP"
+	AVI_DEFAULT_UDP_HM  string = "System-UDP"
+	AVI_DEFAULT_SCTP_HM string = "System-SCTP"
 )
 
 const (

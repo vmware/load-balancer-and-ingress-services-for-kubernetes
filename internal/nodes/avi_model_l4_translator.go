@@ -74,20 +74,27 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		avi_vs_meta.VrfContext = vrfcontext
 	}
 	avi_vs_meta.AviMarkers = lib.PopulateL4VSNodeMarkers(svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name)
-	isTCP := false
+	isTCP, isSCTP := false, false
 	var portProtocols []AviPortHostProtocol
 	for _, port := range svcObj.Spec.Ports {
 		pp := AviPortHostProtocol{Port: int32(port.Port), Protocol: fmt.Sprint(port.Protocol), Name: port.Name, TargetPort: port.TargetPort}
 		portProtocols = append(portProtocols, pp)
 		if port.Protocol == "" || port.Protocol == utils.TCP {
 			isTCP = true
+		} else if port.Protocol == utils.SCTP {
+			isSCTP = true
 		}
 	}
 	avi_vs_meta.PortProto = portProtocols
 	// Default case.
 	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
 	if !isTCP {
-		avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
+		if isSCTP {
+			avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
+		} else {
+			avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
+		}
+
 	} else {
 		license := lib.AKOControlConfig().GetLicenseType()
 
