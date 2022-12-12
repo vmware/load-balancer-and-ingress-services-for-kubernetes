@@ -2134,14 +2134,11 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 				if vs["vsvip_ref"] != nil {
 					// find the vsvip name from the vsvip cache
 					vsVipUuid := ExtractUuidWithoutHash(vs["vsvip_ref"].(string), "vsvip-.*.")
-					vsVip, foundVip := c.VSVIPCache.AviCacheGet(vsVipUuid)
+					vsVipName, foundVip := c.VSVIPCache.AviCacheGetNameByUuid(vsVipUuid)
 
 					if foundVip {
-						vsVipData, ok := vsVip.(*AviVSVIPCache)
-						if ok {
-							vipKey := NamespaceName{Namespace: lib.GetTenant(), Name: vsVipData.Name}
-							vsVipKey = append(vsVipKey, vipKey)
-						}
+						vipKey := NamespaceName{Namespace: lib.GetTenant(), Name: vsVipName.(string)}
+						vsVipKey = append(vsVipKey, vipKey)
 					}
 				}
 
