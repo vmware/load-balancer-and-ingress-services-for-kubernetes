@@ -389,8 +389,6 @@ func (f *follower) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp
 			aviErr, ok := op.Err.(session.AviError)
 			if !ok {
 				utils.AviLog.Warnf("key: %s, msg: Error in rest operation is not of type AviError, err: %v, %T", key, op.Err, op.Err)
-			} else if op.Model == "VsVip" && op.Method == utils.RestPut {
-				utils.AviLog.Debugf("key: %s, msg: Error in rest operation for VsVip Put request.", key)
 			} else if aviErr.HttpStatusCode == 404 && op.Method == utils.RestDelete {
 				utils.AviLog.Warnf("key: %s, msg: Error during rest operation: %v, object of type %s not found in the controller. Ignoring err: %v", key, op.Method, op.Model, op.Err)
 				continue
