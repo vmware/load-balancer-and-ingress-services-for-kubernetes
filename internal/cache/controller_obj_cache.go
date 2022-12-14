@@ -355,7 +355,12 @@ func (c *AviObjCache) DeleteUnmarked(childCollection []string) {
 	for _, objkey := range c.SSLKeyCache.AviGetAllKeys() {
 		intf, _ := c.SSLKeyCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviSSLCache); ok {
-			if obj.HasReference == false && obj.Name != lib.GetIstioWorkloadCertificateName() {
+			if obj.HasReference == false {
+				// if deleteConfig is false and istio is enabled, do not delete istio sslkeycert
+				if obj.Name == lib.GetIstioWorkloadCertificateName() &&
+					lib.IsIstioEnabled() && !lib.GetDeleteConfigMap() {
+					continue
+				}
 				utils.AviLog.Infof("Reference Not found for ssl key: %s", objkey)
 				sslKeys = append(sslKeys, objkey)
 			}
