@@ -167,8 +167,8 @@ func (v *AviVsNode) CalculateForGraphChecksum() uint32 {
 		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(sslkey.GetCheckSum()))
 	}
 	for _, sslkey := range v.SSLKeyCertAviRef {
- 		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(utils.Hash(sslkey)))
- 	}
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(utils.Hash(sslkey)))
+	}
 	for _, httppol := range v.HttpPolicyRefs {
 		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(httppol.GetCheckSum()))
 	}
@@ -879,9 +879,9 @@ func (v *AviVsNode) CalculateCheckSum() {
 	}
 
 	for _, sslkeycert := range v.SSLKeyCertAviRef {
- 		checksumStringSlice = append(checksumStringSlice, "SSLKeyCertAvi"+sslkeycert)
- 	}
-	
+		checksumStringSlice = append(checksumStringSlice, "SSLKeyCertAvi"+sslkeycert)
+	}
+
 	for _, vsvipref := range v.VSVIPRefs {
 		checksumStringSlice = append(checksumStringSlice, "VSVIP"+vsvipref.Name)
 	}
