@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -56,7 +55,7 @@ func ResetStatefulSetStatus() {
 	utils.AviLog.Debugf("Successfully reset ako statefulset: %v", u)
 }
 
-func ResetStatefulSetAnnotation() {
+func (l *leader) ResetStatefulSetAnnotation() {
 	ss, err := utils.GetInformers().ClientSet.AppsV1().StatefulSets(utils.GetAKONamespace()).Get(context.TODO(), lib.AKOStatefulSet, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error in getting ako statefulset: %v", err)
@@ -86,13 +85,12 @@ func ResetStatefulSetAnnotation() {
 		return
 	}
 	utils.AviLog.Infof("Successfully removed annotation %s from ako statefulset", ObjectDeletionStatus)
-	lib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigUnset, "DeleteConfig unset in configmap, sync would be enabled")
 
 	//Remove any status from previous versions of AKO
 	ResetStatefulSetStatus()
 }
 
-func AddStatefulSetAnnotation(reason string) {
+func (l *leader) AddStatefulSetAnnotation(reason string) {
 	ss, err := utils.GetInformers().ClientSet.AppsV1().StatefulSets(utils.GetAKONamespace()).Get(context.TODO(), lib.AKOStatefulSet, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error in getting ako statefulset: %v", err)
@@ -122,4 +120,12 @@ func AddStatefulSetAnnotation(reason string) {
 		return
 	}
 	utils.AviLog.Debugf("Successfully updated annotation %s in ako statefulset", ObjectDeletionStatus)
+}
+
+func (f *follower) AddStatefulSetAnnotation(reason string) {
+	utils.AviLog.Debugf("key: %s, AKO is not a leader, not updating the StatefulSet Annotation")
+}
+
+func (f *follower) ResetStatefulSetAnnotation() {
+	utils.AviLog.Debugf("key: %s, AKO is not a leader, not deleting the StatefulSet Annotation")
 }
