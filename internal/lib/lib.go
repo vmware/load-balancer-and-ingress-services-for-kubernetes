@@ -761,6 +761,65 @@ type NextPage struct {
 	Collection interface{}
 }
 
+func FetchNwWithLSPath(client *clients.AviClient, ls string, overrideUri ...NextPage) (error, models.Network) {
+	var uri string
+	if len(overrideUri) == 1 {
+		uri = overrideUri[0].NextURI
+	} else {
+		uri = "/api/network/?include_name&page_size=100&cloud_ref.name=" + utils.CloudName
+	}
+	var result session.AviCollectionResult
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			//SE in provider context no read access
+			utils.AviLog.Debugf("Switching to admin context from  %s", GetTenant())
+			SetAdminTenant := session.SetTenant(GetAdminTenant())
+			SetTenant := session.SetTenant(GetTenant())
+			SetAdminTenant(client.AviSession)
+			defer SetTenant(client.AviSession)
+			result, err = AviGetCollectionRaw(client, uri)
+			if err != nil {
+				utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+				return err, models.Network{}
+			}
+		} else {
+			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+			return err, models.Network{}
+		}
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+		return err, models.Network{}
+	}
+	for _, elem := range elems {
+		nw := models.Network{}
+		err = json.Unmarshal(elem, &nw)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+			continue
+		}
+		for _, attr := range nw.Attrs {
+			if *attr.Key == "segmentid" && *attr.Value == ls {
+				return nil, nw
+			}
+		}
+	}
+	if result.Next != "" {
+		// It has a next page, let's recursively call the same method.
+		next_uri := strings.Split(result.Next, "/api/network")
+		if len(next_uri) > 1 {
+			overrideUri := "/api/network" + next_uri[1]
+			nextPage := NextPage{NextURI: overrideUri}
+			return FetchNwWithLSPath(client, ls, nextPage)
+		}
+	}
+	utils.AviLog.Infof("No Network with LS path %s found.", ls)
+	return nil, models.Network{}
+}
+
 func FetchSEGroupWithMarkerSet(client *clients.AviClient, overrideUri ...NextPage) (error, string) {
 	var uri string
 	if len(overrideUri) == 1 {

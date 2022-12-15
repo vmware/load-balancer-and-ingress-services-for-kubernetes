@@ -212,6 +212,7 @@ func DeleteSegment(obj interface{}) {
 			Model:   "cloud",
 		}
 		executeRestOp(objKey, client, &restOp)
+		delLSNetwork(objKey, ls, client)
 	} else {
 		utils.AviLog.Infof("key: %s, LSLR update not required in cloud: %s", objKey, utils.CloudName)
 	}
@@ -258,6 +259,26 @@ func findAndRemoveCidrInNetwork(subnets []*models.Subnet, cidrs map[string]struc
 		return subnetsCopy, true
 	}
 	return subnetsCopy, false
+}
+
+func delLSNetwork(objKey, ls string, client *clients.AviClient) {
+	err, netModel := lib.FetchNwWithLSPath(client, ls)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, Failed to get Network data using LS %s : %s", objKey, ls, err)
+		return
+	}
+	method := utils.RestDelete
+	path := "/api/network/" + *netModel.UUID
+	restOp := utils.RestOp{
+		ObjName: utils.CloudName,
+		Path:    path,
+		Method:  method,
+		Obj:     &netModel,
+		Tenant:  "admin",
+		Model:   "network",
+	}
+	utils.AviLog.Infof("key: %s, Deleting network in AVI: %v", objKey, utils.Stringify(restOp))
+	executeRestOp(objKey, client, &restOp)
 }
 
 func addNetworkInCloud(objKey string, cidrs map[string]struct{}, client *clients.AviClient) {
