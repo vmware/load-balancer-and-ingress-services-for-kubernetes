@@ -1433,13 +1433,13 @@ func (rest *RestOperations) DatascriptCU(ds_nodes []*nodes.AviHTTPDataScriptNode
 							rest_ops = append(rest_ops, restOp)
 						}
 					}
-				} else {
-					// If the DS Is not found - let's do a POST call.
-					for _, ds := range ds_nodes {
-						restOp := rest.AviDSBuild(ds, nil, key)
-						if restOp != nil {
-							rest_ops = append(rest_ops, restOp)
-						}
+				}
+			} else {
+				// If the DS Is not found - let's do a POST call.
+				for _, ds := range ds_nodes {
+					restOp := rest.AviDSBuild(ds, nil, key)
+					if restOp != nil {
+						rest_ops = append(rest_ops, restOp)
 					}
 				}
 			}
