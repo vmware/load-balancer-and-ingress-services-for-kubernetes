@@ -14,6 +14,8 @@
 
 package utils
 
+import "time"
+
 const (
 	GraphLayer                    = "GraphLayer"
 	ObjectIngestionLayer          = "ObjectIngestionLayer"
@@ -99,4 +101,10 @@ const (
 	AVIAPI_INITIATING   = "INITIATING"
 	AVIAPI_CONNECTED    = "CONNECTED"
 	AVIAPI_DISCONNECTED = "DISCONNECTED"
+
+	// Constants used for leader election
+	leaseDuration = 15 * time.Second
+	renewDeadline = 10 * time.Second
+	retryPeriod   = 2 * time.Second
+	leaseLockName = "ako-lease-lock"
 )
