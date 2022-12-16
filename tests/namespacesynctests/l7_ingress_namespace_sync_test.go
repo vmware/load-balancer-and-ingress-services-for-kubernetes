@@ -358,7 +358,7 @@ func TestNSTransitionInvalidToInvalid(t *testing.T) {
 	checkNSTransition(t, oldLabels, newLabels, false, false, namespace, modelName)
 }
 
-//Hostname ShardScheme test case
+// Hostname ShardScheme test case
 func TestNSTransitionValidToInvalidHostName(t *testing.T) {
 	oldLabels := map[string]string{
 		"app": "migrate",

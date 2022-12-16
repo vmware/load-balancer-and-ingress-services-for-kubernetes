@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"regexp"
@@ -1829,7 +1828,7 @@ func IsValidV6Config(returnErr *error) bool {
 
 func CreateIstioSecretFromCert(name string, kc kubernetes.Interface) {
 
-	fileData, err := ioutil.ReadFile(name)
+	fileData, err := os.ReadFile(name)
 	if err != nil {
 		utils.AviLog.Warnf("%s", err)
 		return

@@ -18,7 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -130,7 +130,7 @@ func RemoveIngressClassWithName(ingClassName string) {
 	KubeClient.NetworkingV1().IngressClasses().Delete(context.TODO(), ingClassName, metav1.DeleteOptions{})
 }
 
-//Fake Namespace
+// Fake Namespace
 type FakeNamespace struct {
 	Name   string
 	Labels map[string]string
@@ -768,9 +768,11 @@ func DeleteNode(t *testing.T, nodeName string) {
 CreateSVC creates a sample service of type: Type
 if multiPort: True, the service gets created with 3 ports as follows
 ServicePorts: [
+
 	{Name: "foo0", Port: 8080, Protocol: "TCP", TargetPort: 8080},
 	{Name: "foo1", Port: 8081, Protocol: "TCP", TargetPort: 8081},
 	{Name: "foo2", Port: 8082, Protocol: "TCP", TargetPort: 8082},
+
 ]
 */
 func CreateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool) {
@@ -837,14 +839,21 @@ func DelSVC(t *testing.T, ns string, Name string) {
 /*
 CreateEP creates a sample Endpoint object
 if multiPort: False and multiAddress: False
+
 	1.1.1.1:8080
+
 if multiPort: True and multiAddress: False
+
 	1.1.1.1:8080,
 	1.1.1.2:8081,
 	1.1.1.3:8082
+
 if multiPort: False and multiAddress: True
+
 	1.1.1.1:8080, 1.1.1.2:8080, 1.1.1.2:8080
+
 if multiPort: True and multiAddress: True
+
 	1.1.1.1:8080, 1.1.1.2:8080, 1.1.1.3:8080,
 	1.1.1.4:8081, 1.1.1.5:8081,
 	1.1.1.6:8082
@@ -926,7 +935,7 @@ func InitializeFakeAKOAPIServer() *api.FakeApiServer {
 	return akoApi
 }
 
-//s: namespace or hostname
+// s: namespace or hostname
 func GetShardVSNumber(s string) string {
 	var vsNum uint32
 	shardSize := lib.GetshardSize()
@@ -1013,7 +1022,7 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 	reg, _ := regexp.Compile("[^.0-9]+")
 
 	if r.Method == "POST" && !strings.Contains(url, "login") {
-		data, _ := ioutil.ReadAll(r.Body)
+		data, _ := io.ReadAll(r.Body)
 		json.Unmarshal(data, &resp)
 		rName := resp["name"].(string)
 		objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s-%s#%s", object, object, rName, RANDOMUUID, rName)
@@ -1090,7 +1099,7 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 		w.Write(finalResponse)
 
 	} else if r.Method == "PUT" {
-		data, _ := ioutil.ReadAll(r.Body)
+		data, _ := io.ReadAll(r.Body)
 		json.Unmarshal(data, &resp)
 		resp["uuid"] = strings.Split(strings.Trim(url, "/"), "/")[2]
 
@@ -1165,14 +1174,14 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 		// This won't help in checking for Cache values, since we are sending back static content
 		// It is only to remove API call warning related to vrfcontext PATCH calls.
 		w.WriteHeader(http.StatusOK)
-		data, _ := ioutil.ReadFile(fmt.Sprintf("%s/vrfcontext_uuid_mock.json", mockFilePath))
+		data, _ := os.ReadFile(fmt.Sprintf("%s/vrfcontext_uuid_mock.json", mockFilePath))
 		w.Write(data)
 
 	} else if r.Method == "GET" && strings.Contains(r.URL.RawQuery, "aviref") {
 		// block to handle
 		if strings.Contains(r.URL.RawQuery, "thisisaviref") {
 			w.WriteHeader(http.StatusOK)
-			data, _ := ioutil.ReadFile(fmt.Sprintf("%s/crd_mock.json", mockFilePath))
+			data, _ := os.ReadFile(fmt.Sprintf("%s/crd_mock.json", mockFilePath))
 			w.Write(data)
 		} else if strings.Contains(r.URL.RawQuery, "thisisBADaviref") {
 			w.WriteHeader(http.StatusOK)
@@ -1182,15 +1191,15 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 	} else if r.Method == "GET" && strings.Contains(url, "/api/cloud/") {
 		var data []byte
 		if strings.HasSuffix(r.URL.RawQuery, "CLOUD_NONE") {
-			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_NONE"))
+			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_NONE"))
 		} else if strings.HasSuffix(r.URL.RawQuery, "CLOUD_AZURE") {
-			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_AZURE"))
+			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_AZURE"))
 		} else if strings.HasSuffix(r.URL.RawQuery, "CLOUD_AWS") {
-			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_AWS"))
+			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_AWS"))
 		} else if strings.HasSuffix(r.URL.RawQuery, "CLOUD_NSXT") {
-			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_NSXT"))
+			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_NSXT"))
 		} else {
-			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_VCENTER"))
+			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_VCENTER"))
 		}
 		w.WriteHeader(http.StatusOK)
 		w.Write(data)
@@ -1232,10 +1241,10 @@ func FeedMockCollectionData(w http.ResponseWriter, r *http.Request, mockFilePath
 	if r.Method == "GET" {
 		var data []byte
 		if len(splitURL) == 2 {
-			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, splitURL[1]))
+			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, splitURL[1]))
 		} else if len(splitURL) == 3 {
 			// with uuid
-			data, _ = ioutil.ReadFile(fmt.Sprintf("%s/%s_uuid_mock.json", mockFilePath, splitURL[1]))
+			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_uuid_mock.json", mockFilePath, splitURL[1]))
 		}
 		w.WriteHeader(http.StatusOK)
 		w.Write(data)
@@ -1246,9 +1255,9 @@ func FeedMockCollectionData(w http.ResponseWriter, r *http.Request, mockFilePath
 	}
 }
 
-//UpdateIngress wrapper over ingress update call.
-//internally calls Ingress() for fakeIngress object
-//performs a get for ingress object so it will update only if ingress exists
+// UpdateIngress wrapper over ingress update call.
+// internally calls Ingress() for fakeIngress object
+// performs a get for ingress object so it will update only if ingress exists
 func (ing FakeIngress) UpdateIngress() (*networking.Ingress, error) {
 
 	//check if resource already exists

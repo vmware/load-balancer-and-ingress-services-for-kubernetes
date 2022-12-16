@@ -202,7 +202,7 @@ func (err AviError) Error() string {
 		err.Verb, err.Url, msg)
 }
 
-//AviSession maintains a session to the specified Avi Controller
+// AviSession maintains a session to the specified Avi Controller
 type AviSession struct {
 	// host specifies the hostname or IP address of the Avi Controller
 	host string
@@ -277,7 +277,7 @@ const DEFAULT_API_TENANT = "admin"
 const DEFAULT_MAX_API_RETRIES = 3
 const DEFAULT_API_RETRY_INTERVAL = 500
 
-//NewAviSession initiates a session to AviController and returns it
+// NewAviSession initiates a session to AviController and returns it
 func NewAviSession(host string, username string, options ...func(*AviSession) error) (*AviSession, error) {
 	if flag.Parsed() == false {
 		flag.Parse()
@@ -992,7 +992,7 @@ func debug(data []byte, err error) {
 	}
 }
 
-//Checking for controller up state.
+// Checking for controller up state.
 // Flexible to wait on controller status infinitely or for fixed time span.
 func (avisess *AviSession) CheckControllerStatus() (bool, *http.Response, error) {
 	url := avisess.prefix + "/api/cluster/status"
@@ -1030,7 +1030,7 @@ func (avisess *AviSession) CheckControllerStatus() (bool, *http.Response, error)
 	return isControllerUp, &http.Response{Status: "408 Request Timeout", StatusCode: 408}, nil
 }
 
-//getMinTimeDuration returns the minimum time duration between two time values.
+// getMinTimeDuration returns the minimum time duration between two time values.
 func getMinTimeDuration(durationFirst, durationSecond time.Duration) time.Duration {
 	if durationFirst <= durationSecond {
 		return durationFirst

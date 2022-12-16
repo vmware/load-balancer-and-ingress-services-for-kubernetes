@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"os"
 	"strconv"
@@ -92,9 +92,12 @@ func ExitWithError(message string, err ...interface{}) {
 	os.Exit(1)
 }
 
-/* Basic Setup including parsing of parameters from command line
+/*
+	Basic Setup including parsing of parameters from command line
+
 And assignment of global variables fetched from the testbed
-Aviclients, Deployment and Services used by the test are created */
+Aviclients, Deployment and Services used by the test are created
+*/
 func Setup() {
 	var testbedParams lib.TestbedFields
 	var err error
@@ -116,7 +119,7 @@ func Setup() {
 		ExitWithError("ERROR : Error opening testbed file "+testbedFileName+" with error : ", er)
 	}
 	defer testbed.Close()
-	byteValue, err := ioutil.ReadAll(testbed)
+	byteValue, err := io.ReadAll(testbed)
 	if err != nil {
 		ExitWithError("ERROR : Failed to read the testbed file with error : ", err)
 	}
@@ -170,8 +173,11 @@ func ExitWithErrorf(t *testing.T, template string, args ...interface{}) {
 	os.Exit(1)
 }
 
-/* Need to be executed for each test case
-Fetches the Avi controller state before the testing starts */
+/*
+	Need to be executed for each test case
+
+Fetches the Avi controller state before the testing starts
+*/
 func SetupForTesting(t *testing.T) {
 	pools := lib.FetchPools(t, AviClients[0])
 	initialNumOfPools = len(pools)
@@ -270,7 +276,7 @@ func CheckReboot(t *testing.T) {
 			ExitWithErrorf(t, "ERROR : Error opening testbed file %s with error : %s", testbedFileName, err)
 		}
 		defer testbed.Close()
-		byteValue, err := ioutil.ReadAll(testbed)
+		byteValue, err := io.ReadAll(testbed)
 		if err != nil {
 			ExitWithErrorf(t, "ERROR : Failed to read the testbed file with error : %s", err)
 		}
@@ -517,7 +523,7 @@ func Verify(t *testing.T) bool {
 	return false
 }
 
-//Check that no VS tracked by Scale Test is in OPER_DOWN state
+// Check that no VS tracked by Scale Test is in OPER_DOWN state
 func CheckVSOperDown(t *testing.T, OPERDownVSes []lib.VirtualServiceInventoryRuntime) bool {
 	OperDownVSes := []string{}
 	for _, vs := range OPERDownVSes {

@@ -18,7 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io/fs"
 	"os"
 	"strconv"
 	"strings"
@@ -402,11 +402,22 @@ func istioWatcherEvents(watcher *fsnotify.Watcher, kc *kubernetes.Clientset, ist
 }
 
 func initIstioSecrets(kc *kubernetes.Clientset, istioUpdateCh *chan struct{}) {
-	files, err := ioutil.ReadDir(lib.IstioCertOutputPath + "/")
+
+	entries, err := os.ReadDir(lib.IstioCertOutputPath + "/")
 	if err != nil {
 		utils.AviLog.Warnf("Cannot read %s, error: %s", lib.IstioCertOutputPath, err.Error())
 		return
 	}
+	files := make([]fs.FileInfo, 0, len(entries))
+	for _, entry := range entries {
+		info, error := entry.Info()
+		if error != nil {
+			utils.AviLog.Warnf("Cannot read %s, error: %s", lib.IstioCertOutputPath, err.Error())
+			return
+		}
+		files = append(files, info)
+	}
+
 	if len(files) == 0 {
 		utils.AviLog.Infof("%s is empty", lib.IstioCertOutputPath)
 		return

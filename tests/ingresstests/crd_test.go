@@ -581,7 +581,7 @@ func TestValidToInvalidHostSwitch(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
-//This tc tests hostrule state if GSLB FQDN is same as that of Local FQDN/ Host.
+// This tc tests hostrule state if GSLB FQDN is same as that of Local FQDN/ Host.
 func TestCreateHostRuleWithGSLBFqdn(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 

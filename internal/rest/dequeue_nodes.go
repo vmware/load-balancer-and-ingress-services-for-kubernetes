@@ -1067,7 +1067,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 	return retry, fastRetry, processNextObj
 }
 
-//Candidate for container-lib
+// Candidate for container-lib
 func ExtractStatusCode(word string) string {
 	r, _ := regexp.Compile("HTTP code: .*.;")
 	result := r.FindAllString(word, -1)
@@ -1172,47 +1172,47 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 		cache_pool_nodes = make([]avicache.NamespaceName, len(vs_cache_obj.PoolKeyCollection))
 		copy(cache_pool_nodes, vs_cache_obj.PoolKeyCollection)
 		utils.AviLog.Debugf("key: %s, msg: the cached pools are: %v", key, utils.Stringify(cache_pool_nodes))
-		if cache_pool_nodes != nil {
-			for _, pool := range pool_nodes {
-				// check in the pool cache to see if this pool exists in AVI
-				pool_key := avicache.NamespaceName{Namespace: namespace, Name: pool.Name}
-				found := utils.HasElem(cache_pool_nodes, pool_key)
-				utils.AviLog.Debugf("key: %s, msg: processing pool key: %v", key, pool_key)
-				if found {
-					cache_pool_nodes = avicache.RemoveNamespaceName(cache_pool_nodes, pool_key)
-					utils.AviLog.Debugf("key: %s, key: the cache pool nodes are: %v", key, cache_pool_nodes)
-					pool_cache, ok := rest.cache.PoolCache.AviCacheGet(pool_key)
-					if ok {
-						pool_cache_obj, _ := pool_cache.(*avicache.AviPoolCache)
-						pool_pkiprofile_delete, rest_ops = rest.PkiProfileCU(pool.PkiProfile, pool_cache_obj, namespace, rest_ops, key)
 
-						// Cache found. Let's compare the checksums
-						utils.AviLog.Debugf("key: %s, msg: poolcache: %v", key, pool_cache_obj)
-						if pool_cache_obj.CloudConfigCksum == strconv.Itoa(int(pool.GetCheckSum())) {
-							utils.AviLog.Debugf("key: %s, msg: the checksums are same for pool %s, not doing anything", key, pool.Name)
-						} else {
-							utils.AviLog.Debugf("key: %s, msg: the checksums are different for pool %s, operation: PUT", key, pool.Name)
-							// The checksums are different, so it should be a PUT call.
-							restOp := rest.AviPoolBuild(pool, pool_cache_obj, key)
-							if restOp != nil {
-								rest_ops = append(rest_ops, restOp)
-							}
+		for _, pool := range pool_nodes {
+			// check in the pool cache to see if this pool exists in AVI
+			pool_key := avicache.NamespaceName{Namespace: namespace, Name: pool.Name}
+			found := utils.HasElem(cache_pool_nodes, pool_key)
+			utils.AviLog.Debugf("key: %s, msg: processing pool key: %v", key, pool_key)
+			if found {
+				cache_pool_nodes = avicache.RemoveNamespaceName(cache_pool_nodes, pool_key)
+				utils.AviLog.Debugf("key: %s, key: the cache pool nodes are: %v", key, cache_pool_nodes)
+				pool_cache, ok := rest.cache.PoolCache.AviCacheGet(pool_key)
+				if ok {
+					pool_cache_obj, _ := pool_cache.(*avicache.AviPoolCache)
+					pool_pkiprofile_delete, rest_ops = rest.PkiProfileCU(pool.PkiProfile, pool_cache_obj, namespace, rest_ops, key)
+
+					// Cache found. Let's compare the checksums
+					utils.AviLog.Debugf("key: %s, msg: poolcache: %v", key, pool_cache_obj)
+					if pool_cache_obj.CloudConfigCksum == strconv.Itoa(int(pool.GetCheckSum())) {
+						utils.AviLog.Debugf("key: %s, msg: the checksums are same for pool %s, not doing anything", key, pool.Name)
+					} else {
+						utils.AviLog.Debugf("key: %s, msg: the checksums are different for pool %s, operation: PUT", key, pool.Name)
+						// The checksums are different, so it should be a PUT call.
+						restOp := rest.AviPoolBuild(pool, pool_cache_obj, key)
+						if restOp != nil {
+							rest_ops = append(rest_ops, restOp)
 						}
 					}
-				} else {
-					utils.AviLog.Debugf("key: %s, msg: pool %s not found in cache, operation: POST", key, pool.Name)
-					_, rest_ops = rest.PkiProfileCU(pool.PkiProfile, nil, namespace, rest_ops, key)
-					// Not found - it should be a POST call.
-					restOp := rest.AviPoolBuild(pool, nil, key)
-					if restOp != nil {
-						rest_ops = append(rest_ops, restOp)
-					}
 				}
-				if len(pool_pkiprofile_delete) > 0 {
-					rest_ops = rest.PkiProfileDelete(pool_pkiprofile_delete, namespace, rest_ops, key)
+			} else {
+				utils.AviLog.Debugf("key: %s, msg: pool %s not found in cache, operation: POST", key, pool.Name)
+				_, rest_ops = rest.PkiProfileCU(pool.PkiProfile, nil, namespace, rest_ops, key)
+				// Not found - it should be a POST call.
+				restOp := rest.AviPoolBuild(pool, nil, key)
+				if restOp != nil {
+					rest_ops = append(rest_ops, restOp)
 				}
 			}
+			if len(pool_pkiprofile_delete) > 0 {
+				rest_ops = rest.PkiProfileDelete(pool_pkiprofile_delete, namespace, rest_ops, key)
+			}
 		}
+
 	} else {
 		// Everything is a POST call
 		for _, pool := range pool_nodes {
@@ -1349,36 +1349,36 @@ func (rest *RestOperations) PoolGroupCU(pg_nodes []*nodes.AviPoolGroupNode, vs_c
 		copy(cache_pg_nodes, vs_cache_obj.PGKeyCollection)
 		utils.AviLog.Debugf("key: %s, msg: cached poolgroups before CU :%v", key, cache_pg_nodes)
 		// Default is POST
-		if cache_pg_nodes != nil {
-			for _, pg := range pg_nodes {
-				pg_key := avicache.NamespaceName{Namespace: namespace, Name: pg.Name}
-				found := utils.HasElem(cache_pg_nodes, pg_key)
-				if found {
-					cache_pg_nodes = avicache.RemoveNamespaceName(cache_pg_nodes, pg_key)
-					pg_cache, ok := rest.cache.PgCache.AviCacheGet(pg_key)
-					if ok {
-						pg_cache_obj, _ := pg_cache.(*avicache.AviPGCache)
-						// Cache found. Let's compare the checksums
-						if pg_cache_obj.CloudConfigCksum == strconv.Itoa(int(pg.GetCheckSum())) {
-							utils.AviLog.Debugf("key: %s, msg: the checksums are same for PG %s, not doing anything", key, pg_cache_obj.Name)
-						} else {
-							// The checksums are different, so it should be a PUT call.
-							restOp := rest.AviPoolGroupBuild(pg, pg_cache_obj, key)
-							if restOp != nil {
-								rest_ops = append(rest_ops, restOp)
-							}
+
+		for _, pg := range pg_nodes {
+			pg_key := avicache.NamespaceName{Namespace: namespace, Name: pg.Name}
+			found := utils.HasElem(cache_pg_nodes, pg_key)
+			if found {
+				cache_pg_nodes = avicache.RemoveNamespaceName(cache_pg_nodes, pg_key)
+				pg_cache, ok := rest.cache.PgCache.AviCacheGet(pg_key)
+				if ok {
+					pg_cache_obj, _ := pg_cache.(*avicache.AviPGCache)
+					// Cache found. Let's compare the checksums
+					if pg_cache_obj.CloudConfigCksum == strconv.Itoa(int(pg.GetCheckSum())) {
+						utils.AviLog.Debugf("key: %s, msg: the checksums are same for PG %s, not doing anything", key, pg_cache_obj.Name)
+					} else {
+						// The checksums are different, so it should be a PUT call.
+						restOp := rest.AviPoolGroupBuild(pg, pg_cache_obj, key)
+						if restOp != nil {
+							rest_ops = append(rest_ops, restOp)
 						}
 					}
-				} else {
-					// Not found - it should be a POST call.
-					restOp := rest.AviPoolGroupBuild(pg, nil, key)
-					if restOp != nil {
-						rest_ops = append(rest_ops, restOp)
-					}
 				}
-
+			} else {
+				// Not found - it should be a POST call.
+				restOp := rest.AviPoolGroupBuild(pg, nil, key)
+				if restOp != nil {
+					rest_ops = append(rest_ops, restOp)
+				}
 			}
+
 		}
+
 	} else {
 		// Everything is a POST call
 		for _, pg := range pg_nodes {
@@ -1402,33 +1402,33 @@ func (rest *RestOperations) DatascriptCU(ds_nodes []*nodes.AviHTTPDataScriptNode
 		copy(cache_ds_nodes, vs_cache_obj.DSKeyCollection)
 
 		// Default is POST
-		if cache_ds_nodes != nil {
-			for _, ds := range ds_nodes {
-				// check in the ds cache to see if this ds exists in AVI
-				ds_key := avicache.NamespaceName{Namespace: namespace, Name: ds.Name}
-				found := utils.HasElem(cache_ds_nodes, ds_key)
-				if found {
-					cache_ds_nodes = avicache.RemoveNamespaceName(cache_ds_nodes, ds_key)
-					ds_cache, ok := rest.cache.DSCache.AviCacheGet(ds_key)
-					if !ok {
-						// If the DS Is not found - let's do a POST call.
-						restOp := rest.AviDSBuild(ds, nil, key)
+
+		for _, ds := range ds_nodes {
+			// check in the ds cache to see if this ds exists in AVI
+			ds_key := avicache.NamespaceName{Namespace: namespace, Name: ds.Name}
+			found := utils.HasElem(cache_ds_nodes, ds_key)
+			if found {
+				cache_ds_nodes = avicache.RemoveNamespaceName(cache_ds_nodes, ds_key)
+				ds_cache, ok := rest.cache.DSCache.AviCacheGet(ds_key)
+				if !ok {
+					// If the DS Is not found - let's do a POST call.
+					restOp := rest.AviDSBuild(ds, nil, key)
+					if restOp != nil {
+						rest_ops = append(rest_ops, restOp)
+					}
+				} else {
+					dsCacheObj := ds_cache.(*avicache.AviDSCache)
+					if dsCacheObj.CloudConfigCksum != ds.GetCheckSum() {
+						utils.AviLog.Debugf("key: %s, msg: datascript checksum changed, updating - %s", key, ds.Name)
+						restOp := rest.AviDSBuild(ds, dsCacheObj, key)
 						if restOp != nil {
 							rest_ops = append(rest_ops, restOp)
-						}
-					} else {
-						dsCacheObj := ds_cache.(*avicache.AviDSCache)
-						if dsCacheObj.CloudConfigCksum != ds.GetCheckSum() {
-							utils.AviLog.Debugf("key: %s, msg: datascript checksum changed, updating - %s", key, ds.Name)
-							restOp := rest.AviDSBuild(ds, dsCacheObj, key)
-							if restOp != nil {
-								rest_ops = append(rest_ops, restOp)
-							}
 						}
 					}
 				}
 			}
 		}
+
 	} else {
 		// Everything is a POST call
 		for _, ds := range ds_nodes {
@@ -1450,43 +1450,43 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 		cache_vsvip_nodes = make([]avicache.NamespaceName, len(vs_cache_obj.VSVipKeyCollection))
 		copy(cache_vsvip_nodes, vs_cache_obj.VSVipKeyCollection)
 		// Default is POST
-		if cache_vsvip_nodes != nil {
-			for _, vsvip := range vsvip_nodes {
-				vsvip_key := avicache.NamespaceName{Namespace: namespace, Name: vsvip.Name}
-				found := utils.HasElem(cache_vsvip_nodes, vsvip_key)
-				if found {
-					cache_vsvip_nodes = avicache.RemoveNamespaceName(cache_vsvip_nodes, vsvip_key)
-					vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvip_key)
-					if ok {
-						vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
-						sort.Strings(vsvip_cache_obj.FQDNs)
-						// Cache found. Let's compare the checksums
-						utils.AviLog.Debugf("key: %s, msg: the model FQDNs: %s, cache_FQDNs: %s", key, vsvip.FQDNs, vsvip_cache_obj.FQDNs)
 
-						if vsvip_cache_obj.CloudConfigCksum == strconv.Itoa(int(vsvip.GetCheckSum())) {
-							utils.AviLog.Debugf("key: %s, msg: the checksums are same for VSVIP %s, not doing anything", key, vsvip_cache_obj.Name)
+		for _, vsvip := range vsvip_nodes {
+			vsvip_key := avicache.NamespaceName{Namespace: namespace, Name: vsvip.Name}
+			found := utils.HasElem(cache_vsvip_nodes, vsvip_key)
+			if found {
+				cache_vsvip_nodes = avicache.RemoveNamespaceName(cache_vsvip_nodes, vsvip_key)
+				vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvip_key)
+				if ok {
+					vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
+					sort.Strings(vsvip_cache_obj.FQDNs)
+					// Cache found. Let's compare the checksums
+					utils.AviLog.Debugf("key: %s, msg: the model FQDNs: %s, cache_FQDNs: %s", key, vsvip.FQDNs, vsvip_cache_obj.FQDNs)
+
+					if vsvip_cache_obj.CloudConfigCksum == strconv.Itoa(int(vsvip.GetCheckSum())) {
+						utils.AviLog.Debugf("key: %s, msg: the checksums are same for VSVIP %s, not doing anything", key, vsvip_cache_obj.Name)
+					} else {
+						// The checksums are different, so it should be a PUT call.
+						restOp, err := rest.AviVsVipBuild(vsvip, vs_cache_obj, vsvip_cache_obj, key)
+						if err == nil && restOp != nil {
+							rest_ops = append(rest_ops, restOp)
 						} else {
-							// The checksums are different, so it should be a PUT call.
-							restOp, err := rest.AviVsVipBuild(vsvip, vs_cache_obj, vsvip_cache_obj, key)
-							if err == nil && restOp != nil {
-								rest_ops = append(rest_ops, restOp)
-							} else {
-								return cache_vsvip_nodes, rest_ops, err
-							}
+							return cache_vsvip_nodes, rest_ops, err
 						}
 					}
-				} else {
-					// Not found - it should be a POST call.
-					restOp, err := rest.AviVsVipBuild(vsvip, vs_cache_obj, nil, key)
-					if err == nil && restOp != nil {
-						rest_ops = append(rest_ops, restOp)
-					} else {
-						return cache_vsvip_nodes, rest_ops, err
-					}
 				}
-
+			} else {
+				// Not found - it should be a POST call.
+				restOp, err := rest.AviVsVipBuild(vsvip, vs_cache_obj, nil, key)
+				if err == nil && restOp != nil {
+					rest_ops = append(rest_ops, restOp)
+				} else {
+					return cache_vsvip_nodes, rest_ops, err
+				}
 			}
+
 		}
+
 	} else {
 		// Everything is a POST call
 		for _, vsvip := range vsvip_nodes {

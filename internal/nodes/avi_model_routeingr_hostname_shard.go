@@ -302,7 +302,7 @@ func ProcessPassthroughHosts(routeIgrObj RouteIngressModel, key string, parsedIn
 	utils.AviLog.Debugf("key: %s, msg: Storedhosts after processing passthrough hosts: %s", key, utils.Stringify(Storedhosts))
 }
 
-//DeleteStaleData : delete pool, fqdn and redirect policy which are present in the object store but no longer required.
+// DeleteStaleData : delete pool, fqdn and redirect policy which are present in the object store but no longer required.
 func DeleteStaleData(routeIgrObj RouteIngressModel, key string, modelList *[]string, Storedhosts map[string]*objects.RouteIngrhost, hostsMap map[string]*objects.RouteIngrhost) {
 	var infraSettingName string
 

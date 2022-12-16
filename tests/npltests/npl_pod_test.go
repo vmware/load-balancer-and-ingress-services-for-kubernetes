@@ -238,7 +238,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-//TestIngressAddPod creates a POD with NPL annotation and corresponding Service and Ingress, then verifies the model.
+// TestIngressAddPod creates a POD with NPL annotation and corresponding Service and Ingress, then verifies the model.
 func TestIngressAddPod(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
@@ -294,8 +294,8 @@ func TestIngressAddPod(t *testing.T) {
 	TearDownTestForIngress(t, defaultL7Model)
 }
 
-//TestIngressDelPod creates a POD with NPL annotation and corresponding Service and Ingress, then verifies the model.
-//Then the Pod is deleted and it is verified that the server is removed from the model
+// TestIngressDelPod creates a POD with NPL annotation and corresponding Service and Ingress, then verifies the model.
+// Then the Pod is deleted and it is verified that the server is removed from the model
 func TestIngressDelPod(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
@@ -361,8 +361,8 @@ func TestIngressDelPod(t *testing.T) {
 	TearDownTestForIngress(t, defaultL7Model)
 }
 
-//TestIngressAddPodWithoutLabel creates a Service, an Ingress, and a Pod without matching label,
-//then verifies in the model that no server is added.
+// TestIngressAddPodWithoutLabel creates a Service, an Ingress, and a Pod without matching label,
+// then verifies in the model that no server is added.
 func TestIngressAddPodWithoutLabel(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
@@ -409,8 +409,8 @@ func TestIngressAddPodWithoutLabel(t *testing.T) {
 	TearDownTestForIngress(t, defaultL7Model)
 }
 
-//TestIngressUpdatePodWithLabel creates a Service, an Ingress, and a Pod without matching label.
-//Then the Pod is updated with correct label and then the model is verified.
+// TestIngressUpdatePodWithLabel creates a Service, an Ingress, and a Pod without matching label.
+// Then the Pod is updated with correct label and then the model is verified.
 func TestIngressUpdatePodWithLabel(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
@@ -472,8 +472,8 @@ func TestIngressUpdatePodWithLabel(t *testing.T) {
 	TearDownTestForIngress(t, defaultL7Model)
 }
 
-//TestIngressUpdatePodWithoutLabel creates a Service, an Ingress, and a Pod with matching label.
-//Then the Pod is updated with the label removed and then the model is verified.
+// TestIngressUpdatePodWithoutLabel creates a Service, an Ingress, and a Pod with matching label.
+// Then the Pod is updated with the label removed and then the model is verified.
 func TestIngressUpdatePodWithoutLabel(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
@@ -537,8 +537,8 @@ func TestIngressUpdatePodWithoutLabel(t *testing.T) {
 	TearDownTestForIngress(t, defaultL7Model)
 }
 
-//TestIngressDelSvc creates a POD with NPL annotation and corresponding Service and Ingress, then verifies the model.
-//Then the Service is deleted and it is verified that corresponding servers are deleted from the model.
+// TestIngressDelSvc creates a POD with NPL annotation and corresponding Service and Ingress, then verifies the model.
+// Then the Service is deleted and it is verified that corresponding servers are deleted from the model.
 func TestIngressDelSvc(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
@@ -601,7 +601,7 @@ func TestIngressDelSvc(t *testing.T) {
 	TearDownTestForIngress(t, defaultL7Model)
 }
 
-//TestNPLLBSvc creates a Service type LB and a Pod with matching label, then the model is verified.
+// TestNPLLBSvc creates a Service type LB and a Pod with matching label, then the model is verified.
 func TestNPLLBSvc(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	selectors := make(map[string]string)
@@ -671,8 +671,8 @@ func TestNPLLBSvc(t *testing.T) {
 	tearDownTestForSvcLB(t, g)
 }
 
-//TestNPLLBSvcDelPod creates a Service type LB and a Pod with matching label and the model is verified.
-//Then the Pod is deleted, and it is verified that the Server is deleted from model
+// TestNPLLBSvcDelPod creates a Service type LB and a Pod with matching label and the model is verified.
+// Then the Pod is deleted, and it is verified that the Server is deleted from model
 func TestNPLLBSvcDelPod(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	selectors := make(map[string]string)
@@ -717,8 +717,8 @@ func TestNPLLBSvcDelPod(t *testing.T) {
 	tearDownTestForSvcLB(t, g)
 }
 
-//TestNPLLBSvcNoLabel creates a Service of type LB with no Label and a Pod with NPL annotation.
-//Then it is verified that no server is getting added in the model.
+// TestNPLLBSvcNoLabel creates a Service of type LB with no Label and a Pod with NPL annotation.
+// Then it is verified that no server is getting added in the model.
 func TestNPLLBSvcNoLabel(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	labels := make(map[string]string)
@@ -753,8 +753,8 @@ func TestNPLLBSvcNoLabel(t *testing.T) {
 	tearDownTestForSvcLB(t, g)
 }
 
-//TestNPLUpdateLBSvcCorrectSelector creates a Service of type LB with no Label and a Pod with NPL annotation.
-//Then the service is updated with required selector and the model is verified.
+// TestNPLUpdateLBSvcCorrectSelector creates a Service of type LB with no Label and a Pod with NPL annotation.
+// Then the service is updated with required selector and the model is verified.
 func TestNPLUpdateLBSvcCorrectSelector(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	labels := make(map[string]string)
@@ -792,9 +792,9 @@ func TestNPLUpdateLBSvcCorrectSelector(t *testing.T) {
 	tearDownTestForSvcLB(t, g)
 }
 
-//TestSvcIngressAddDel creates a Service and an Ingress which uses that Service.
-//It verifies that the Service gets annotated with the NPL annotation, and the annotation
-//is removed when the service is deleted
+// TestSvcIngressAddDel creates a Service and an Ingress which uses that Service.
+// It verifies that the Service gets annotated with the NPL annotation, and the annotation
+// is removed when the service is deleted
 func TestNPLSvcIngressAddDel(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
@@ -848,8 +848,8 @@ func TestNPLSvcIngressAddDel(t *testing.T) {
 	TearDownTestForIngress(t, defaultL7Model)
 }
 
-//TestSvcIngressUpdate creates a Service and an Ingress which doesn't use that Service.
-//Then the ingress is updated with correct Service and annotation of the Service is Verified.
+// TestSvcIngressUpdate creates a Service and an Ingress which doesn't use that Service.
+// Then the ingress is updated with correct Service and annotation of the Service is Verified.
 func TestNPLSvcIngressUpdate(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
@@ -913,9 +913,9 @@ func TestNPLSvcIngressUpdate(t *testing.T) {
 	TearDownTestForIngress(t, defaultL7Model)
 }
 
-//TestSvcIngressUpdateWrongSvc creates a Service and an Ingress which uses that Service.
-//Then the ingress is updated with a different Service and it is verified that
-//annotation of the original Service is deleted.
+// TestSvcIngressUpdateWrongSvc creates a Service and an Ingress which uses that Service.
+// Then the ingress is updated with a different Service and it is verified that
+// annotation of the original Service is deleted.
 func TestNPLSvcIngressUpdateWrongSvc(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
@@ -981,11 +981,11 @@ func TestNPLSvcIngressUpdateWrongSvc(t *testing.T) {
 	TearDownTestForIngress(t, defaultL7Model)
 }
 
-//TestNPLSvcIngressUpdateClass creates a Service and an Ingress which uses that Service.
-//Then the Ingress is updated with a wrong Ingress Class name,
-//and it is verified that the NPL annotation is removed from the Service.
-//Then the Ingress is updated with correct Ingress Class name,
-//and it is verified that the NPL annotation is added in the Service.
+// TestNPLSvcIngressUpdateClass creates a Service and an Ingress which uses that Service.
+// Then the Ingress is updated with a wrong Ingress Class name,
+// and it is verified that the NPL annotation is removed from the Service.
+// Then the Ingress is updated with correct Ingress Class name,
+// and it is verified that the NPL annotation is added in the Service.
 func TestNPLSvcIngressUpdateClass(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
@@ -1060,9 +1060,9 @@ func TestNPLSvcIngressUpdateClass(t *testing.T) {
 	TearDownTestForIngress(t, defaultL7Model)
 }
 
-//TestNPLSvcIngressRemoveAddClass creates a Service and an Ingress which uses that Service.
-//Then the Ingress Class is removed and it is verified that the NPL annotation is removed from the Service.
-//Then the Ingress Class is added back, and it is verified that the NPL annotation is added in the Service.
+// TestNPLSvcIngressRemoveAddClass creates a Service and an Ingress which uses that Service.
+// Then the Ingress Class is removed and it is verified that the NPL annotation is removed from the Service.
+// Then the Ingress Class is added back, and it is verified that the NPL annotation is added in the Service.
 func TestNPLSvcIngressRemoveAddClass(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
@@ -1124,8 +1124,8 @@ func TestNPLSvcIngressRemoveAddClass(t *testing.T) {
 	TearDownTestForIngress(t, defaultL7Model)
 }
 
-//TestNPLLBSvcNoLabel creates a Service of type LB with no Label and a Pod with NPL annotation.
-//Then it is verified that no server is getting added in the model.
+// TestNPLLBSvcNoLabel creates a Service of type LB with no Label and a Pod with NPL annotation.
+// Then it is verified that no server is getting added in the model.
 func TestNPLAutoAnnotationLBSvc(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	labels := make(map[string]string)
@@ -1147,8 +1147,8 @@ func TestNPLAutoAnnotationLBSvc(t *testing.T) {
 	tearDownTestForSvcLB(t, g)
 }
 
-//TestNPLSvcNodePort creates a Service and an Ingress which uses that Service.
-//Then the service type is changed to NodePort, and it is verified that the NPL annotation is removed from the Service.
+// TestNPLSvcNodePort creates a Service and an Ingress which uses that Service.
+// Then the service type is changed to NodePort, and it is verified that the NPL annotation is removed from the Service.
 func TestNPLSvcNodePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
