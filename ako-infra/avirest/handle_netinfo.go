@@ -551,11 +551,12 @@ func executeRestOp(key string, client *clients.AviClient, restOp *utils.RestOp, 
 		utils.AviLog.Infof("key: %s, Retrying to execute rest request", key)
 		retry = retryNum[0]
 		if retry >= 3 {
-			utils.AviLog.Errorf("key %s, rest request execution aborted after reqtrying 3 times", key)
+			utils.AviLog.Errorf("key %s, rest request execution aborted after retrying 3 times", key)
 			return
 		}
 	}
-	err := rest.AviRestOperateWrapper(client, []*utils.RestOp{restOp})
+	restLayer := rest.NewRestOperations(nil, nil, true)
+	err := restLayer.AviRestOperateWrapper(client, []*utils.RestOp{restOp}, key)
 	if err != nil {
 		utils.AviLog.Infof("key %s, Got error in executing rest request: %v", key, err)
 		if checkAndRetry(key, err) {

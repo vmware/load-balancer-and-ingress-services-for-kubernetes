@@ -42,7 +42,7 @@ func CheckNPLSvcAnnotation(key, namespace, name string) bool {
 
 // UpdateSvcAnnotation updates a Service with NPL annotation, if not already annotated.
 // If the annotation is already pressent return true
-func UpdateNPLAnnotation(key, namespace, name string) {
+func (l *leader) UpdateNPLAnnotation(key, namespace, name string) {
 	service, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
 	if err != nil {
 		utils.AviLog.Infof("key: %s, returning without updating NPL annotation, err %v", key, err)
@@ -78,7 +78,7 @@ func UpdateNPLAnnotation(key, namespace, name string) {
 	return
 }
 
-func DeleteNPLAnnotation(key, namespace, name string) {
+func (l *leader) DeleteNPLAnnotation(key, namespace, name string) {
 	service, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
 	if err != nil {
 		return
@@ -108,4 +108,12 @@ func DeleteNPLAnnotation(key, namespace, name string) {
 		return
 	}
 	utils.AviLog.Infof("key: %s, msg: Deleted NPL annotation from Service: %s/%s", key, namespace, name)
+}
+
+func (f *follower) UpdateNPLAnnotation(key, namespace, name string) {
+	utils.AviLog.Debugf("key: %s, AKO is not a leader, not updating the NPL Annotation", key)
+}
+
+func (f *follower) DeleteNPLAnnotation(key, namespace, name string) {
+	utils.AviLog.Debugf("key: %s, AKO is not a leader, not deleting the NPL Annotation", key)
 }
