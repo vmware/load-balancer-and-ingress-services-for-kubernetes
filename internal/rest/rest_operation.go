@@ -128,14 +128,8 @@ func (v *virtualserviceSchema) removeCertRef(op *utils.RestOp, objRef string) bo
 		utils.AviLog.Infof("Failed to remove SSL Cert ref, object is not of type Virtualservice")
 		return false
 	}
-	for i, v := range vs.SslKeyAndCertificateRefs {
-		if strings.EqualFold(v, objRef) {
-			vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs[:i], vs.SslKeyAndCertificateRefs[i+1:]...)
-			utils.AviLog.Infof("Successfully removed SSl Cert ref %s from VS: %s", objRef, *vs.Name)
-		}
-	}
 	op.Obj = vs
-	return true
+	return false
 }
 
 func (v *virtualserviceSchema) removePoolRef(op *utils.RestOp, objRef string) bool {

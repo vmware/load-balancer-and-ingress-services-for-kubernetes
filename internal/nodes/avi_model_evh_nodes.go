@@ -1212,7 +1212,7 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 		}
 		altCert, ok := keycertMap[utils.K8S_TLS_SECRET_ALT_CERT]
 		if ok {
-			altKey, ok := keycertMap[utils.K8S_TLS_SECRET_ALT_CERT]
+			altKey, ok := keycertMap[utils.K8S_TLS_SECRET_ALT_KEY]
 			if ok {
 				foundTLSKeyCertNode := false
 				for _, ssl := range tlsNode.SSLKeyCertRefs {

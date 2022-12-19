@@ -397,8 +397,11 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		} else {
 			_, rest_ops = rest.SNINodeCU(sni_node, nil, namespace, sni_to_delete, rest_ops, key)
 		}
-		if success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, false); !success {
-			return
+		if success, processNextChild := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, false); !success {
+			if !processNextChild {
+				utils.AviLog.Infof("key: %s, msg: Failure in processing SNI node: %s. Not processing other child nodes.", key, sni_node.Name)
+				return
+			}
 		}
 	}
 
@@ -1709,7 +1712,12 @@ func (rest *RestOperations) SSLKeyCertDelete(ssl_to_delete []avicache.NamespaceN
 	for _, del_ssl := range ssl_to_delete {
 		ssl_key := avicache.NamespaceName{Namespace: namespace, Name: del_ssl.Name}
 		ssl_cache, ok := rest.cache.SSLKeyCache.AviCacheGet(ssl_key)
-		if ok && ssl_key.Name != lib.GetIstioWorkloadCertificateName() {
+		if ok {
+			// if deleteConfig is false and istio is enabled, do not delete istio sslkeycert
+			if ssl_key.Name == lib.GetIstioWorkloadCertificateName() &&
+				lib.IsIstioEnabled() && !lib.GetDeleteConfigMap() {
+				continue
+			}
 			ssl_cache_obj, _ := ssl_cache.(*avicache.AviSSLCache)
 			restOp := rest.AviSSLKeyCertDel(ssl_cache_obj.Uuid, namespace)
 			restOp.ObjName = del_ssl.Name
@@ -1776,11 +1784,18 @@ func (rest *RestOperations) PkiProfileDelete(pkiProfileDelete []avicache.Namespa
 	for _, delPki := range pkiProfileDelete {
 		pkiProfile := avicache.NamespaceName{Namespace: namespace, Name: delPki.Name}
 		pkiCache, ok := rest.cache.PKIProfileCache.AviCacheGet(pkiProfile)
-		if ok && pkiProfile.Name != lib.GetIstioPKIProfileName() {
+		if ok {
+			// if deleteConfig is false and istio is enabled, do not delete istio pkiprofile
+			if pkiProfile.Name == lib.GetIstioPKIProfileName() &&
+				lib.IsIstioEnabled() && !lib.GetDeleteConfigMap() {
+
+				continue
+			}
 			pkiCacheObj, _ := pkiCache.(*avicache.AviPkiProfileCache)
 			restOp := rest.AviPkiProfileDel(pkiCacheObj.Uuid, namespace)
 			restOp.ObjName = delPki.Name
 			rest_ops = append(rest_ops, restOp)
+
 		}
 	}
 	return rest_ops

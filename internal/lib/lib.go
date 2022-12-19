@@ -550,6 +550,9 @@ func GetTLSKeyCertNodeName(infrasetting, sniHostName, secretName string) string 
 	if infrasetting != "" {
 		namePrefix += infrasetting + "-"
 	}
+	if strings.HasSuffix(secretName, "-alt") {
+		return Encode(namePrefix+sniHostName+"-alt", TLSKeyCert)
+	}
 	return Encode(namePrefix+sniHostName, TLSKeyCert)
 }
 
