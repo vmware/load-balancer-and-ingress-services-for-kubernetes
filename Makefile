@@ -260,9 +260,16 @@ multiclusteringresstests:
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multiclusteringresstests -failfast
 
+.PHONY: hatests
+hatests:
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/hatests -failfast
+
 .PHONY: int_test
 int_test:
-	make -j 1 k8stest integrationtest ingresstests evhtests vcftests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc dedicatedvstests infratests multiclusteringresstests
+	make -j 1 k8stest integrationtest ingresstests evhtests vcftests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc dedicatedvstests infratests multiclusteringresstests hatests
 
 .PHONY: scale_test
 scale_test:
