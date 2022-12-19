@@ -270,4 +270,4 @@ By default, AKO prints all the logs to stdout. Instead, persistentVolumeClaim(PV
 
 ### podSecurityContext
 
-This can be used to set securityContext of AKO pod, if necessary. For example, in openshift environment, if a persistent storage with hostpath is used for logging, then securityContext must have privileged: true (Reference - https://docs.openshift.com/container-platform/4.4/storage/persistent\_storage/persistent-storage-hostpath.html)
+This can be used to set securityContext of AKO pod, if necessary. For example, in openshift environment, if a persistent storage with hostpath is used for logging, then securityContext must have privileged: true (Reference - https://docs.openshift.com/container-platform/4.11/storage/persistent_storage/persistent-storage-hostpath.html)
