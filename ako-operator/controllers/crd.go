@@ -145,6 +145,29 @@ func createHostRuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.L
 															{
 																Raw: []byte("\"ref\""),
 															},
+															{
+																Raw: []byte("\"secret\""),
+															},
+														},
+													},
+													"alternateCertificate": {
+														Type:     "object",
+														Required: []string{"name", "type"},
+														Properties: map[string]apiextensionv1.JSONSchemaProps{
+															"name": {
+																Type: "string",
+															},
+															"type": {
+																Type: "string",
+																Enum: []apiextensionv1.JSON{
+																	{
+																		Raw: []byte("\"ref\""),
+																	},
+																	{
+																		Raw: []byte("\"secret\""),
+																	},
+																},
+															},
 														},
 													},
 												},
@@ -253,7 +276,7 @@ func createHostRuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.L
 				},
 			},
 		},
-		Subresources: &apiextensionv1.CustomResourceSubresources{},
+		Subresources: &apiextensionv1.CustomResourceSubresources{Status: &apiextensionv1.CustomResourceSubresourceStatus{}},
 		AdditionalPrinterColumns: []apiextensionv1.CustomResourceColumnDefinition{
 			{
 				Description: "virtualhost for which the hostrule is valid",
@@ -398,6 +421,9 @@ func createHttpRuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.L
 												Type:     "object",
 												Required: []string{"type"},
 												Properties: map[string]apiextensionv1.JSONSchemaProps{
+													"pkiProfile": {
+														Type: "string",
+													},
 													"destinationCA": {
 														Type: "string",
 													},
@@ -434,7 +460,7 @@ func createHttpRuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.L
 				},
 			},
 		},
-		Subresources: &apiextensionv1.CustomResourceSubresources{},
+		Subresources: &apiextensionv1.CustomResourceSubresources{Status: &apiextensionv1.CustomResourceSubresourceStatus{}},
 		AdditionalPrinterColumns: []apiextensionv1.CustomResourceColumnDefinition{
 			{
 				Description: "fqdn associated with the httprule",
@@ -517,6 +543,9 @@ func createAviInfraSettingCRD(clientset *apiextension.ApiextensionsV1Client, log
 														Type: "string",
 													},
 													"cidr": {
+														Type: "string",
+													},
+													"v6cidr": {
 														Type: "string",
 													},
 												},
@@ -609,7 +638,7 @@ func createAviInfraSettingCRD(clientset *apiextension.ApiextensionsV1Client, log
 				},
 			},
 		},
-		Subresources: &apiextensionv1.CustomResourceSubresources{},
+		Subresources: &apiextensionv1.CustomResourceSubresources{Status: &apiextensionv1.CustomResourceSubresourceStatus{}},
 		AdditionalPrinterColumns: []apiextensionv1.CustomResourceColumnDefinition{
 			{
 				Description: "status of the nas object",

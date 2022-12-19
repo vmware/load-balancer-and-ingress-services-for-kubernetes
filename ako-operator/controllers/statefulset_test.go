@@ -68,15 +68,6 @@ var sfJson = `
                                 }
                             },
                             {
-                                "name": "NETWORK_NAME",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "networkName",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
                                 "name": "SEG_NAME",
                                 "valueFrom": {
                                     "configMapKeyRef": {
@@ -221,33 +212,6 @@ var sfJson = `
                                 }
                             },
                             {
-                                "name": "CTRL_USERNAME",
-                                "valueFrom": {
-                                    "secretKeyRef": {
-                                        "key": "username",
-                                        "name": "avi-secret"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "CTRL_PASSWORD",
-                                "valueFrom": {
-                                    "secretKeyRef": {
-                                        "key": "password",
-                                        "name": "avi-secret"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "CTRL_CA_DATA",
-                                "valueFrom": {
-                                    "secretKeyRef": {
-                                        "key": "certificateAuthorityData",
-                                        "name": "avi-secret"
-                                    }
-                                }
-                            },
-                            {
                                 "name": "POD_NAME",
                                 "valueFrom": {
                                     "fieldRef": {
@@ -257,10 +221,136 @@ var sfJson = `
                                 }
                             },
                             {
+                                "name": "POD_NAMESPACE",
+                                "valueFrom": {
+                                    "fieldRef": {
+                                        "apiVersion": "v1",
+                                        "fieldPath": "metadata.namespace"
+                                    }
+                                }
+                            },
+                            {
                                 "name": "NSXT_T1_LR",
                                 "valueFrom": {
                                     "configMapKeyRef": {
                                         "key": "nsxtT1LR",
+                                        "name": "avi-k8s-config"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "ISTIO_ENABLED",
+                                "valueFrom": {
+                                    "configMapKeyRef": {
+                                        "key": "istioEnabled",
+                                        "name": "avi-k8s-config"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "VIP_PER_NAMESPACE",
+                                "valueFrom": {
+                                    "configMapKeyRef": {
+                                        "key": "vipPerNamespace",
+                                        "name": "avi-k8s-config"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "PRIMARY_AKO_FLAG",
+                                "valueFrom": {
+                                    "configMapKeyRef": {
+                                        "key": "primaryInstance",
+                                        "name": "avi-k8s-config"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "TENANT_NAME",
+                                "valueFrom": {
+                                    "configMapKeyRef": {
+                                        "key": "tenantName",
+                                        "name": "avi-k8s-config"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "ENABLE_EVH",
+                                "valueFrom": {
+                                    "configMapKeyRef": {
+                                        "key": "enableEVH",
+                                        "name": "avi-k8s-config"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "SERVICES_API",
+                                "valueFrom": {
+                                    "configMapKeyRef": {
+                                        "key": "servicesAPI",
+                                        "name": "avi-k8s-config"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "NAMESPACE_SYNC_LABEL_KEY",
+                                "valueFrom": {
+                                    "configMapKeyRef": {
+                                        "key": "nsSyncLabelKey",
+                                        "name": "avi-k8s-config"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "NAMESPACE_SYNC_LABEL_VALUE",
+                                "valueFrom": {
+                                    "configMapKeyRef": {
+                                        "key": "nsSyncLabelValue",
+                                        "name": "avi-k8s-config"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "BGP_PEER_LABELS",
+                                "valueFrom": {
+                                    "configMapKeyRef": {
+                                        "key": "bgpPeerLabels",
+                                        "name": "avi-k8s-config"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "VIP_NETWORK_LIST",
+                                "valueFrom": {
+                                    "configMapKeyRef": {
+                                        "key": "vipNetworkList",
+                                        "name": "avi-k8s-config"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "MCI_ENABLED",
+                                "valueFrom": {
+                                    "configMapKeyRef": {
+                                        "key": "enableMCI",
+                                        "name": "avi-k8s-config"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "BLOCKED_NS_LIST",
+                                "valueFrom": {
+                                    "configMapKeyRef": {
+                                        "key": "blockedNamespaceList",
+                                        "name": "avi-k8s-config"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "IP_FAMILY",
+                                "valueFrom": {
+                                    "configMapKeyRef": {
+                                        "key": "ipFamily",
                                         "name": "avi-k8s-config"
                                     }
                                 }
@@ -308,12 +398,12 @@ var sfJson = `
                         ],
                         "resources": {
                             "limits": {
-                                "cpu": "250m",
-                                "memory": "300Mi"
+                                "cpu": "350m",
+                                "memory": "400Mi"
                             },
                             "requests": {
-                                "cpu": "100m",
-                                "memory": "200Mi"
+                                "cpu": "200m",
+                                "memory": "300Mi"
                             }
                         },
                         "terminationMessagePath": "/dev/termination-log",
