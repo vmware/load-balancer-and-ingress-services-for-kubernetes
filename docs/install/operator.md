@@ -101,6 +101,13 @@ The following table lists the configurable parameters of the AKO chart and their
 | `AKOSettings.clusterName` | Unique identifier for the running AKO instance. AKO identifies objects it created on Avi Controller using this param. | **required** |
 | `AKOSettings.cniPlugin` | CNI Plugin being used in kubernetes cluster. Specify one of: calico, canal, flannel, ncp | **required** for calico, openshift, ncp setups |
 | `AKOSettings.layer7Only` | Operate AKO as a pure layer 7 ingress controller | false |
+| `AKOSettings.enableEVH` | Enables the Enhanced Virtual Hosting Model in Avi Controller for the Virtual Services  | false |
+| `AKOSettings.vipPerNamespace` | Enabling this flag would tell AKO to create Parent VS per Namespace in EVH mode  | false |
+| `AKOSettings.namespaceSelector` | namespaceSelector contains label key and value used for namespacemigration. same label has to be present on namespace/s which needs migration/sync to AKO  | false |
+| `AKOSettings.servicesAPI` | servicesAPI enables AKO in services API mode. Currently implemented only for L4 | false |
+| `AKOSettings.blockedNamespaceList` | List of K8s/Openshift namespaces blocked by AKO | `Empty List` |
+| `AKOSettings.istioEnabled` | set to true if user wants to deploy AKO in istio environment (tech preview)| false |
+| `AKOSettings.ipFamily` | set to V6 if user wants to deploy AKO with V6 backend (vCenter cloud with calico CNI only) (tech preview)| V4 |
 | `NetworkSettings.nodeNetworkList` | List of Networks and corresponding CIDR mappings for the K8s nodes. | `Empty List` |
 | `NetworkSettings.enableRHI` | Publish route information to BGP peers | false |
 | `NetworkSettings.nsxtT1LR` | Specify the T1 router for data backend network, applicable only for NSX-T based deployments| `Empty string` |

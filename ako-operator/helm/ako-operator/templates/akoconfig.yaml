@@ -25,6 +25,12 @@ spec:
       labelKey: {{ .Values.AKOSettings.namespaceSelector.labelKey | quote }}
       labelValue: {{ .Values.AKOSettings.namespaceSelector.labelValue | quote }}
     vipPerNamespace: {{ .Values.AKOSettings.vipPerNamespace }}
+    istioEnabled: {{ .Values.AKOSettings.istioEnabled }}
+    ipFamily: {{ .Values.AKOSettings.ipFamily | quote}}
+{{- with .Values.AKOSettings.blockedNamespaceList }}
+    blockedNamespaceList:
+{{- toYaml . | nindent 4 }}
+{{- end }}
 
   networkSettings:
     enableRHI: {{ .Values.NetworkSettings.enableRHI }}
