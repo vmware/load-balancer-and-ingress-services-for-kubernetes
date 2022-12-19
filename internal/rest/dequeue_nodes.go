@@ -1078,7 +1078,6 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 	return retry, fastRetry, processNextObj
 }
 
-// Candidate for container-lib
 func ExtractStatusCode(word string) string {
 	r, _ := regexp.Compile("HTTP code: .*.;")
 	result := r.FindAllString(word, -1)

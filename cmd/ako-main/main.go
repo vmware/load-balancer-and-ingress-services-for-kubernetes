@@ -411,6 +411,10 @@ func initIstioSecrets(kc *kubernetes.Clientset, istioUpdateCh *chan struct{}) {
 		utils.AviLog.Warnf("Cannot read %s, error: %s", lib.IstioCertOutputPath, err.Error())
 		return
 	}
+	if len(entries) == 0 {
+		utils.AviLog.Infof("%s is empty", lib.IstioCertOutputPath)
+		return
+	}
 	files := make([]fs.FileInfo, 0, len(entries))
 	for _, entry := range entries {
 		info, error := entry.Info()
