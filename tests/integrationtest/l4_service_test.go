@@ -18,7 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -443,7 +443,7 @@ func TestCreateServiceLBWithFaultCacheSync(t *testing.T) {
 
 		rModelName := ""
 		if r.Method == "POST" && !strings.Contains(url, "login") {
-			data, _ := ioutil.ReadAll(r.Body)
+			data, _ := io.ReadAll(r.Body)
 			json.Unmarshal(data, &resp)
 			if strings.Contains(url, "virtualservice") && injectFault {
 				injectFault = false
@@ -582,8 +582,8 @@ func TestUpdateAndDeleteServiceLBCacheSync(t *testing.T) {
 	}, 5*time.Second).Should(gomega.Equal(false))
 }
 
-//TestScaleUpAndDownServiceLBCacheSync tests the avi node graph and rest layer functionality when the
-//multiport serviceLB is increased from 1 to 5 and then decreased back to 1
+// TestScaleUpAndDownServiceLBCacheSync tests the avi node graph and rest layer functionality when the
+// multiport serviceLB is increased from 1 to 5 and then decreased back to 1
 func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var model, service string

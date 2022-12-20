@@ -665,7 +665,7 @@ func TestSecureRouteInsecureAllow(t *testing.T) {
 	TearDownTestForRoute(t, defaultModelName)
 }
 
-//Transition insecureEdgeTerminationPolicy from Allow to Redirect
+// Transition insecureEdgeTerminationPolicy from Allow to Redirect
 func TestSecureRouteInsecureAllowToRedirect(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
@@ -697,7 +697,7 @@ func TestSecureRouteInsecureAllowToRedirect(t *testing.T) {
 	TearDownTestForRoute(t, defaultModelName)
 }
 
-//Transition insecureEdgeTerminationPolicy from Allow to None
+// Transition insecureEdgeTerminationPolicy from Allow to None
 func TestSecureRouteInsecureAllowToNone(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
@@ -729,7 +729,7 @@ func TestSecureRouteInsecureAllowToNone(t *testing.T) {
 	TearDownTestForRoute(t, defaultModelName)
 }
 
-//Transition insecureEdgeTerminationPolicy from Redirect to Allow
+// Transition insecureEdgeTerminationPolicy from Redirect to Allow
 func TestSecureRouteInsecureRedirectToAllow(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
@@ -785,7 +785,7 @@ func TestSecureRouteInsecureRedirectToAllow(t *testing.T) {
 	TearDownTestForRoute(t, defaultModelName)
 }
 
-//Transition insecureEdgeTerminationPolicy from Redirect to None
+// Transition insecureEdgeTerminationPolicy from Redirect to None
 func TestSecureRouteInsecureRedirectToNone(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)

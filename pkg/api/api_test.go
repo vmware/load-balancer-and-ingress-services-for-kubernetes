@@ -16,7 +16,7 @@ package api
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"testing"
@@ -42,7 +42,7 @@ func TestApiServerStatusModel(t *testing.T) {
 		t.Fail()
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fail()
 	}

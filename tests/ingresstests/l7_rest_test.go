@@ -18,7 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -171,7 +171,7 @@ func TestCreateIngressWithFaultCacheSync(t *testing.T) {
 		url := r.URL.EscapedPath()
 
 		if strings.Contains(url, "macro") && r.Method == "POST" {
-			data, _ := ioutil.ReadAll(r.Body)
+			data, _ := io.ReadAll(r.Body)
 			json.Unmarshal(data, &resp)
 			rData, rModelName := resp["data"].(map[string]interface{}), strings.ToLower(resp["model_name"].(string))
 			if rModelName == "virtualservice" && injectFault {
@@ -190,7 +190,7 @@ func TestCreateIngressWithFaultCacheSync(t *testing.T) {
 				fmt.Fprintln(w, string(finalResponse))
 			}
 		} else if r.Method == "PUT" {
-			data, _ := ioutil.ReadAll(r.Body)
+			data, _ := io.ReadAll(r.Body)
 			json.Unmarshal(data, &resp)
 			resp["uuid"] = strings.Split(strings.Trim(url, "/"), "/")[2]
 			finalResponse, _ = json.Marshal(resp)

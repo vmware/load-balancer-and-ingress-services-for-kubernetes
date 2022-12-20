@@ -360,7 +360,7 @@ func InitializeNSSync(labelKey, labelVal string) {
 	globalNSFilterObj.validNSList.nsList = make(map[string]struct{})
 }
 
-//Get namespace label filter key and value
+// Get namespace label filter key and value
 func GetNSFilter(obj *K8ValidNamespaces) (string, string) {
 	var key string
 	var value string

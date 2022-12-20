@@ -56,7 +56,7 @@ func SharedWorkQueue(queueParams ...*WorkerQueue) *WorkQueueWrapper {
 	return queueInstance
 }
 
-//Common utils like processing worker queue, that is common for all objects.
+// Common utils like processing worker queue, that is common for all objects.
 type WorkerQueue struct {
 	NumWorkers    uint32
 	Workqueue     []workqueue.RateLimitingInterface

@@ -476,7 +476,7 @@ func (vsNode *AviEvhVsNode) AddSSLPort(key string) {
 	vsNode.PortProto = append(vsNode.PortProto, httpsPort)
 }
 
-//TODO: Next PR Opt: make part of Avivsevhsni model interface
+// TODO: Next PR Opt: make part of Avivsevhsni model interface
 func (vsNode *AviEvhVsNode) DeleteSSLPort(key string) {
 	for i, port := range vsNode.PortProto {
 		if port.Port == lib.SSLPort {
@@ -485,7 +485,7 @@ func (vsNode *AviEvhVsNode) DeleteSSLPort(key string) {
 	}
 }
 
-//TODO: Next PR opt: make part of Avivs model interface
+// TODO: Next PR opt: make part of Avivs model interface
 func (vsNode *AviEvhVsNode) DeletSSLRefInDedicatedNode(key string) {
 	vsNode.SSLKeyCertRefs = []*AviTLSKeyCertNode{}
 	vsNode.SSLProfileRef = ""
@@ -1578,7 +1578,7 @@ func RemoveRedirectHTTPPolicyInModelForEvh(vsNode *AviEvhVsNode, hostnames []str
 	}
 }
 
-//DeleteStaleData : delete pool, EVH VS and redirect policy which are present in the object store but no longer required.
+// DeleteStaleData : delete pool, EVH VS and redirect policy which are present in the object store but no longer required.
 func DeleteStaleDataForEvh(routeIgrObj RouteIngressModel, key string, modelList *[]string, Storedhosts map[string]*objects.RouteIngrhost, hostsMap map[string]*objects.RouteIngrhost) {
 	utils.AviLog.Debugf("key: %s, msg: About to delete stale data EVH Stored hosts: %v, hosts map: %v", key, utils.Stringify(Storedhosts), utils.Stringify(hostsMap))
 	var infraSettingName string
