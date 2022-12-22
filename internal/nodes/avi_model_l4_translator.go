@@ -318,35 +318,27 @@ func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName st
 				}
 
 			}
-			addresses := node.Status.Addresses
-			ip := ""
+			nodeIP, nodeIP6 := lib.GetIPFromNode(node)
 			var atype string
-			for _, address := range addresses {
-				if address.Type == corev1.NodeInternalIP {
-					ip = address.Address
+			var serverIP avimodels.IPAddr
+			if ipFamily == "V4" {
+				if nodeIP == "" {
+					utils.AviLog.Warnf("key: %s,msg: NodeIP not found for node: %s", key, node.Name)
+					return nil
+				} else {
+					atype = "V4"
+					serverIP = avimodels.IPAddr{Type: &atype, Addr: &nodeIP}
 				}
-			}
-			if ip == "" {
-				utils.AviLog.Warnf("key: %s,msg: NodeInternalIP not found for node: %s", key, node.Name)
-				return nil
-			}
-
-			if utils.IsV4(ip) {
-				if ipFamily != "V4" {
-					utils.AviLog.Infof("Skipping server %s, ipFamily is %s", ip, ipFamily)
-					continue
-				}
-				atype = "V4"
 			} else {
-				if ipFamily != "V6" {
-					utils.AviLog.Infof("Skipping server %s, ipFamily is %s", ip, ipFamily)
-					continue
+				if nodeIP6 == "" {
+					utils.AviLog.Warnf("key: %s,msg: NodeIP6 not found for node: %s", key, node.Name)
+				} else {
+					atype = "V6"
+					serverIP = avimodels.IPAddr{Type: &atype, Addr: &nodeIP6}
 				}
-				atype = "V6"
 			}
 
-			a := avimodels.IPAddr{Type: &atype, Addr: &ip}
-			server := AviPoolMetaServer{Ip: a}
+			server := AviPoolMetaServer{Ip: serverIP}
 			poolMeta = append(poolMeta, server)
 		}
 	}

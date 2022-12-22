@@ -85,31 +85,18 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 	ipFamily := lib.GetIPFamily()
 
 	v4Type, v6Type := "V4", "V6"
+	nodeIP, nodeIP6 = lib.GetIPFromNode(node)
 
-	nodeAddrs := node.Status.Addresses
-	for _, addr := range nodeAddrs {
-		if addr.Type == "InternalIP" {
-			nodeIP = addr.Address
-			break
-		}
-	}
 	if ipFamily == v6Type {
-		if lib.GetCNIPlugin() == lib.CALICO_CNI {
-			if ip, ok := node.Annotations["projectcalico.org/IPv6Address"]; ok {
-				nodeIP6 = strings.Split(ip, "/")[0]
-			}
-			if nodeIP6 == "" {
-				utils.AviLog.Errorf("Error in fetching nodeIPv6 for %v", node.ObjectMeta.Name)
-				return nil, errors.New("nodeipv6 not found")
-			}
-			if ip, ok := node.Annotations["projectcalico.org/IPv4Address"]; ok {
-				nodeIP = strings.Split(ip, "/")[0]
-			}
+		if nodeIP6 == "" {
+			utils.AviLog.Errorf("Error in fetching nodeIPv6 for %v", node.ObjectMeta.Name)
+			return nil, errors.New("nodeipv6 not found")
 		}
-	}
-	if nodeIP == "" {
-		utils.AviLog.Errorf("Error in fetching nodeIP for %v", node.ObjectMeta.Name)
-		return nil, errors.New("nodeip not found")
+	} else {
+		if nodeIP == "" {
+			utils.AviLog.Errorf("Error in fetching nodeIP for %v", node.ObjectMeta.Name)
+			return nil, errors.New("nodeip not found")
+		}
 	}
 
 	podCIDRs, err := lib.GetPodCIDR(node)
@@ -133,16 +120,21 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 
 		clusterName := lib.GetClusterName()
 		labels := lib.GetLabels()
-		prefixipType := v4Type
-		nextHopIP := nodeIP
-		nextHopIPType := v4Type
-		re := regexp.MustCompile(lib.IPCIDRRegex)
-		if !re.MatchString(podCIDR) {
-			if ipFamily == v6Type {
-				prefixipType = v6Type
-				nextHopIP = nodeIP6
-				nextHopIPType = v6Type
-			} else {
+		var prefixipType, nextHopIP, nextHopIPType string
+		if ipFamily == v4Type {
+			prefixipType = v4Type
+			nextHopIP = nodeIP
+			nextHopIPType = v4Type
+			re := regexp.MustCompile(lib.IPCIDRRegex)
+			if !re.MatchString(podCIDR) {
+				continue
+			}
+		} else {
+			prefixipType = v6Type
+			nextHopIP = nodeIP6
+			nextHopIPType = v6Type
+			re := regexp.MustCompile(lib.IPV6CIDRRegex)
+			if !re.MatchString(podCIDR) {
 				continue
 			}
 		}
