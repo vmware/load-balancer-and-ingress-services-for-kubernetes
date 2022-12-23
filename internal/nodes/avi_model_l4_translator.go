@@ -332,6 +332,7 @@ func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName st
 			} else {
 				if nodeIP6 == "" {
 					utils.AviLog.Warnf("key: %s,msg: NodeIP6 not found for node: %s", key, node.Name)
+					return nil
 				} else {
 					atype = "V6"
 					serverIP = avimodels.IPAddr{Type: &atype, Addr: &nodeIP6}

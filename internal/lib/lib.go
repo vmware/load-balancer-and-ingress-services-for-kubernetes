@@ -1918,7 +1918,7 @@ func GetIPFromNode(node *v1.Node) (string, string) {
 	var nodeV4, nodeV6 string
 	nodeAddrs := node.Status.Addresses
 	for _, addr := range nodeAddrs {
-		if addr.Type == "InternalIP" {
+		if addr.Type == corev1.NodeInternalIP {
 			nodeIP := addr.Address
 			if utils.IsV4(nodeIP) {
 				nodeV4 = nodeIP
