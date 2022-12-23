@@ -38,9 +38,10 @@ func PublishToStatusQueue(key string, statusOption StatusOptions) {
 func (l *leader) DequeueStatus(objIntf interface{}) error {
 	obj, ok := objIntf.(StatusOptions)
 	if !ok {
-		utils.AviLog.Warnf("key: %s, object is not of type StatusOptions, %T", obj.Options.Key, objIntf)
+		utils.AviLog.Warnf("Object is not of type StatusOptions, %T", objIntf)
 		return nil
 	}
+	utils.AviLog.Infof("key: %s, msg: start status layer sync.", obj.Key)
 	switch obj.ObjType {
 	case utils.L4LBService:
 		if obj.Op == lib.UpdateStatus {
@@ -91,9 +92,9 @@ func (l *leader) DequeueStatus(objIntf interface{}) error {
 func (f *follower) DequeueStatus(objIntf interface{}) error {
 	obj, ok := objIntf.(StatusOptions)
 	if !ok {
-		utils.AviLog.Warnf("key: %s, object is not of type StatusOptions, %T", obj.Options.Key, objIntf)
+		utils.AviLog.Warnf("Object is not of type StatusOptions, %T", objIntf)
 		return nil
 	}
-	utils.AviLog.Debugf("key: %s, AKO is not running as a leader", obj.Options.Key)
+	utils.AviLog.Debugf("key: %s, AKO is not running as a leader", obj.Key)
 	return nil
 }

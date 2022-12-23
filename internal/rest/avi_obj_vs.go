@@ -473,6 +473,7 @@ func (rest *RestOperations) StatusUpdateForPool(restMethod utils.RestMethod, vs_
 						statusOption := status.StatusOptions{
 							ObjType: utils.L4LBService,
 							Op:      lib.UpdateStatus,
+							Key:     key,
 							Options: &updateOptions,
 						}
 						utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.NamespaceServiceName[0], utils.Stringify(statusOption))
@@ -488,6 +489,7 @@ func (rest *RestOperations) StatusUpdateForPool(restMethod utils.RestMethod, vs_
 						statusOption := status.StatusOptions{
 							ObjType: utils.Ingress,
 							Op:      lib.UpdateStatus,
+							Key:     key,
 							Options: &updateOptions,
 						}
 						if utils.GetInformers().RouteInformer != nil {
@@ -519,6 +521,7 @@ func (rest *RestOperations) StatusUpdateForVS(restMethod utils.RestMethod, vsCac
 		statusOption := status.StatusOptions{
 			ObjType: lib.Gateway,
 			Op:      lib.UpdateStatus,
+			Key:     key,
 			Options: &updateOptions,
 		}
 		if lib.UseServicesAPI() {
@@ -537,6 +540,7 @@ func (rest *RestOperations) StatusUpdateForVS(restMethod utils.RestMethod, vsCac
 		statusOption := status.StatusOptions{
 			ObjType: utils.L4LBService,
 			Op:      lib.UpdateStatus,
+			Key:     key,
 			Options: &updateOptions,
 		}
 		utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.NamespaceServiceName[0], utils.Stringify(statusOption))
@@ -742,6 +746,7 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 				statusOption := status.StatusOptions{
 					ObjType: lib.Gateway,
 					Op:      lib.DeleteStatus,
+					Key:     key,
 					Options: &updateOptions,
 				}
 				utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.Gateway, utils.Stringify(statusOption))
@@ -761,6 +766,7 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 				statusOption := status.StatusOptions{
 					ObjType: utils.L4LBService,
 					Op:      lib.DeleteStatus,
+					Key:     key,
 					Options: &updateOptions,
 				}
 				utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", vs_cache_obj.ServiceMetadataObj.NamespaceServiceName[0], utils.Stringify(statusOption))
