@@ -121,6 +121,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 						} else {
 							vip.IPAMNetworkSubnet = vsvip.Vip[0].IPAMNetworkSubnet
 						}
+						vip.DiscoveredNetworks = vsvip.Vip[0].DiscoveredNetworks
 					} else {
 						vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
 					}
