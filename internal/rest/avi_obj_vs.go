@@ -560,6 +560,8 @@ func (rest *RestOperations) StatusUpdateForVS(restMethod utils.RestMethod, vsCac
 		// }
 		// utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
 		// status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
+	default:
+		rest.StatusUpdateForPool(restMethod, vsCacheObj, key)
 
 	}
 }
