@@ -8,9 +8,9 @@ package models
 // swagger:model AuthnRuleMatch
 type AuthnRuleMatch struct {
 
-	// Name of the executed Authentication rule Action. Enum options - SKIP_AUTHENTICATION, USE_DEFAULT_AUTHENTICATION. Field introduced in 20.1.3.
+	// Name of the executed Authentication rule Action. Enum options - SKIP_AUTHENTICATION, USE_DEFAULT_AUTHENTICATION. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	RuleAction *string `json:"rule_action,omitempty"`
 
-	// Name of the matched Authentication rule. Field introduced in 20.1.3.
+	// Name of the matched Authentication rule. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	RuleName *string `json:"rule_name,omitempty"`
 }

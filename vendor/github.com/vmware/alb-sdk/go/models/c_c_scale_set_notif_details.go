@@ -8,12 +8,12 @@ package models
 // swagger:model CCScaleSetNotifDetails
 type CCScaleSetNotifDetails struct {
 
-	// Cloud id. Field introduced in 18.2.5.
+	// Cloud id. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CcID *string `json:"cc_id,omitempty"`
 
-	// Detailed reason for the scale set notification. Field introduced in 18.2.5.
+	// Detailed reason for the scale set notification. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reason *string `json:"reason,omitempty"`
 
-	// Names of scale sets for which polling failed. Field introduced in 18.2.5.
+	// Names of scale sets for which polling failed. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ScalesetNames []string `json:"scaleset_names,omitempty"`
 }

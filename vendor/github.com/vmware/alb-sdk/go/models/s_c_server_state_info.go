@@ -8,12 +8,12 @@ package models
 // swagger:model SCServerStateInfo
 type SCServerStateInfo struct {
 
-	//  Field introduced in 17.1.1.
+	//  Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	OperStatus *OperationalStatus `json:"oper_status,omitempty"`
 
-	//  Field introduced in 17.1.1.
+	//  Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ServerIP *IPAddr `json:"server_ip,omitempty"`
 
-	//  Allowed values are 1-65535. Field introduced in 17.1.1.
+	//  Allowed values are 1-65535. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ServerPort *int32 `json:"server_port,omitempty"`
 }

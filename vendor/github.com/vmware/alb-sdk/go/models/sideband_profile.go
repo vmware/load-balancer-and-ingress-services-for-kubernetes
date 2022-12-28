@@ -8,9 +8,9 @@ package models
 // swagger:model SidebandProfile
 type SidebandProfile struct {
 
-	// IP Address of the sideband server.
+	// IP Address of the sideband server. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IP []*IPAddr `json:"ip,omitempty"`
 
-	// Maximum size of the request body that will be sent on the sideband. Allowed values are 0-16384. Unit is BYTES.
+	// Maximum size of the request body that will be sent on the sideband. Allowed values are 0-16384. Unit is BYTES. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SidebandMaxRequestBodySize *int32 `json:"sideband_max_request_body_size,omitempty"`
 }

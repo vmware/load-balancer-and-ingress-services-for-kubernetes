@@ -8,18 +8,18 @@ package models
 // swagger:model AvgUptimeChangeDetails
 type AvgUptimeChangeDetails struct {
 
-	// Placeholder for description of property current_value of obj type AvgUptimeChangeDetails field type str  type number
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CurrentValue *float64 `json:"current_value,omitempty"`
 
-	// metric_id of AvgUptimeChangeDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MetricID *string `json:"metric_id,omitempty"`
 
-	// metric_name of AvgUptimeChangeDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MetricName *string `json:"metric_name,omitempty"`
 
-	// resource_str of AvgUptimeChangeDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ResourceStr *string `json:"resource_str,omitempty"`
 
-	// Placeholder for description of property threshold of obj type AvgUptimeChangeDetails field type str  type number
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Threshold *float64 `json:"threshold,omitempty"`
 }

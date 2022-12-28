@@ -8,11 +8,11 @@ package models
 // swagger:model MetricsMissingDataInterval
 type MetricsMissingDataInterval struct {
 
-	// end of MetricsMissingDataInterval.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	End *string `json:"end"`
 
-	// start of MetricsMissingDataInterval.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Start *string `json:"start"`
 }

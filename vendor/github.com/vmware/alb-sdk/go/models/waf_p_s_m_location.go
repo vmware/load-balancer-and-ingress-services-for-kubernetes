@@ -8,20 +8,20 @@ package models
 // swagger:model WafPSMLocation
 type WafPSMLocation struct {
 
-	// Free-text comment about this location. Field introduced in 18.2.3.
+	// Free-text comment about this location. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Description *string `json:"description,omitempty"`
 
-	// Location index, this is used to determine the order of the locations. Field introduced in 18.2.3.
+	// Location index, this is used to determine the order of the locations. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Index *int32 `json:"index"`
 
-	// Apply these rules only if the request is matching this description. Field introduced in 18.2.3.
+	// Apply these rules only if the request is matching this description. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Match *WafPSMLocationMatch `json:"match,omitempty"`
 
-	// User defined name for this location, it must be unique in the group. Field introduced in 18.2.3.
+	// User defined name for this location, it must be unique in the group. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Name *string `json:"name"`
 
-	// A list of rules which should be applied on this location. Field introduced in 18.2.3. Maximum of 1024 items allowed.
+	// A list of rules which should be applied on this location. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Rules []*WafPSMRule `json:"rules,omitempty"`
 }

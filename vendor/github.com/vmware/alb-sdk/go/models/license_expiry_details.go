@@ -8,45 +8,45 @@ package models
 // swagger:model LicenseExpiryDetails
 type LicenseExpiryDetails struct {
 
-	// Number of backend_servers.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	BackendServers *int32 `json:"backend_servers,omitempty"`
 
-	// Number of burst_cores.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	BurstCores *int32 `json:"burst_cores,omitempty"`
 
-	// Number of cores.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Cores *int32 `json:"cores,omitempty"`
 
-	// Placeholder for description of property cpu_cores of obj type LicenseExpiryDetails field type str  type number
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CPUCores *float64 `json:"cpu_cores,omitempty"`
 
-	// expiry_at of LicenseExpiryDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ExpiryAt *string `json:"expiry_at,omitempty"`
 
-	// license_id of LicenseExpiryDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LicenseID *string `json:"license_id,omitempty"`
 
-	// license_tier of LicenseExpiryDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LicenseTier []string `json:"license_tier,omitempty"`
 
-	// license_type of LicenseExpiryDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LicenseType *string `json:"license_type,omitempty"`
 
-	// Number of max_apps.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxApps *int32 `json:"max_apps,omitempty"`
 
-	// Number of max_ses.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxSes *int32 `json:"max_ses,omitempty"`
 
-	// Name of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`
 
-	// Placeholder for description of property service_cores of obj type LicenseExpiryDetails field type str  type number
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ServiceCores *float64 `json:"service_cores,omitempty"`
 
-	// Number of sockets.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Sockets *int32 `json:"sockets,omitempty"`
 
-	// Number of throughput.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Throughput *int32 `json:"throughput,omitempty"`
 }

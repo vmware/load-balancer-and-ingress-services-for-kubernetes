@@ -8,18 +8,18 @@ package models
 // swagger:model SchedulerActionDetails
 type SchedulerActionDetails struct {
 
-	// backup_uri of SchedulerActionDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	BackupURI []string `json:"backup_uri,omitempty"`
 
-	// control_script_output of SchedulerActionDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ControlScriptOutput *string `json:"control_script_output,omitempty"`
 
-	// execution_datestamp of SchedulerActionDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ExecutionDatestamp *string `json:"execution_datestamp,omitempty"`
 
-	// Unique object identifier of scheduler.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SchedulerUUID *string `json:"scheduler_uuid,omitempty"`
 
-	// status of SchedulerActionDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Status *string `json:"status,omitempty"`
 }

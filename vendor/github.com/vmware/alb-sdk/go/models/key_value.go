@@ -8,10 +8,10 @@ package models
 // swagger:model KeyValue
 type KeyValue struct {
 
-	// Key.
+	// Key. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Key *string `json:"key"`
 
-	// Value.
+	// Value. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Value *string `json:"value,omitempty"`
 }

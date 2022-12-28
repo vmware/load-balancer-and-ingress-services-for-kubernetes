@@ -8,16 +8,16 @@ package models
 // swagger:model IpAddrPort
 type IPAddrPort struct {
 
-	// Hostname of server. One of IP address or hostname should be set.
+	// Hostname of server. One of IP address or hostname should be set. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Hostname *string `json:"hostname,omitempty"`
 
-	// IP Address of host. One of IP address or hostname should be set.
+	// IP Address of host. One of IP address or hostname should be set. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IP *IPAddr `json:"ip,omitempty"`
 
-	// Name of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`
 
-	// Port number of server. Allowed values are 1-65535.
+	// Port number of server. Allowed values are 1-65535. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Port *int32 `json:"port"`
 }

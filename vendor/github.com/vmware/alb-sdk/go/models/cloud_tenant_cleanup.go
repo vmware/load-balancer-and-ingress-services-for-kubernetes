@@ -8,21 +8,21 @@ package models
 // swagger:model CloudTenantCleanup
 type CloudTenantCleanup struct {
 
-	// id of CloudTenantCleanup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ID *string `json:"id,omitempty"`
 
-	// Name of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`
 
-	// Number of num_ports.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumPorts *int32 `json:"num_ports,omitempty"`
 
-	// Number of num_se.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumSe *int32 `json:"num_se,omitempty"`
 
-	// Number of num_secgrp.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumSecgrp *int32 `json:"num_secgrp,omitempty"`
 
-	// Number of num_svrgrp.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumSvrgrp *int32 `json:"num_svrgrp,omitempty"`
 }

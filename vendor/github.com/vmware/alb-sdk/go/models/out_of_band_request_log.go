@@ -8,6 +8,6 @@ package models
 // swagger:model OutOfBandRequestLog
 type OutOfBandRequestLog struct {
 
-	// Logs for out-of-band requests sent from the DataScript. Field introduced in 20.1.3.
+	// Logs for out-of-band requests sent from the DataScript. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	DsReqLogs []*DSRequestLog `json:"ds_req_logs,omitempty"`
 }

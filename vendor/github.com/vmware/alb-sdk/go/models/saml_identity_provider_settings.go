@@ -8,6 +8,6 @@ package models
 // swagger:model SamlIdentityProviderSettings
 type SamlIdentityProviderSettings struct {
 
-	// SAML IDP metadata. Field introduced in 17.2.3.
+	// SAML IDP metadata. Field introduced in 17.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Metadata *string `json:"metadata,omitempty"`
 }

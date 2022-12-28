@@ -12,41 +12,41 @@ type User struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
-	// Placeholder for description of property access of obj type User field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Access []*UserRole `json:"access,omitempty"`
 
-	//  It is a reference to an object of type Tenant.
+	//  It is a reference to an object of type Tenant. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DefaultTenantRef *string `json:"default_tenant_ref,omitempty"`
 
-	// email of User.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Email *string `json:"email,omitempty"`
 
-	// full_name of User.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FullName *string `json:"full_name,omitempty"`
 
-	// Placeholder for description of property is_superuser of obj type User field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IsSuperuser *bool `json:"is_superuser,omitempty"`
 
-	// Placeholder for description of property local of obj type User field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Local *bool `json:"local,omitempty"`
 
-	// Name of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Name *string `json:"name"`
 
-	// password of User.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Password *string `json:"password,omitempty"`
 
 	// url
 	// Read Only: true
 	URL *string `json:"url,omitempty"`
 
-	//  It is a reference to an object of type UserAccountProfile.
+	//  It is a reference to an object of type UserAccountProfile. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UserProfileRef *string `json:"user_profile_ref,omitempty"`
 
-	// username of User.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Username *string `json:"username,omitempty"`
 
-	// Unique object identifier of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UUID *string `json:"uuid,omitempty"`
 }

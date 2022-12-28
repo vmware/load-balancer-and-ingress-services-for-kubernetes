@@ -8,10 +8,10 @@ package models
 // swagger:model MetricsDataSeries
 type MetricsDataSeries struct {
 
-	// Placeholder for description of property data of obj type MetricsDataSeries field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Data []*MetricsData `json:"data,omitempty"`
 
-	// Placeholder for description of property header of obj type MetricsDataSeries field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Header *MetricsDataHeader `json:"header"`
 }

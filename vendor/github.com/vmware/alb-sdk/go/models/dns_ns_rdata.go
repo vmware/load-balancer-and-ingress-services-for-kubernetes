@@ -8,13 +8,13 @@ package models
 // swagger:model DnsNsRdata
 type DNSNsRdata struct {
 
-	// IPv6 address for Name Server. Field introduced in 18.1.1.
+	// IPv6 address for Name Server. Field introduced in 18.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Ip6Address *IPAddr `json:"ip6_address,omitempty"`
 
-	// IP address for Name Server. Field introduced in 17.1.1.
+	// IP address for Name Server. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IPAddress *IPAddr `json:"ip_address,omitempty"`
 
-	// Name Server name. Field introduced in 17.1.1.
+	// Name Server name. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Nsname *string `json:"nsname"`
 }

@@ -8,9 +8,9 @@ package models
 // swagger:model SSLRevokedDetails
 type SSLRevokedDetails struct {
 
-	// Name of SSL Certificate. Field introduced in 20.1.1.
+	// Name of SSL Certificate. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`
 
-	// Certificate revocation reason provided by OCSP Responder. Field introduced in 20.1.1.
+	// Certificate revocation reason provided by OCSP Responder. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reason *string `json:"reason,omitempty"`
 }

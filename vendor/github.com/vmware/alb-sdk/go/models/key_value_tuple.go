@@ -8,10 +8,10 @@ package models
 // swagger:model KeyValueTuple
 type KeyValueTuple struct {
 
-	// Key. Field introduced in 20.1.3.
+	// Key. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	// Required: true
 	Key *string `json:"key"`
 
-	// Value. Field introduced in 20.1.3.
+	// Value. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Value *string `json:"value,omitempty"`
 }

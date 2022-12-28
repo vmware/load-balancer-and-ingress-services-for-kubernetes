@@ -8,18 +8,18 @@ package models
 // swagger:model ConfigUserLogout
 type ConfigUserLogout struct {
 
-	// client ip.
+	// client ip. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ClientIP *string `json:"client_ip,omitempty"`
 
-	// error message if logging out failed.
+	// error message if logging out failed. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ErrorMessage *string `json:"error_message,omitempty"`
 
-	// Local user. Field introduced in 17.1.1.
+	// Local user. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Local *bool `json:"local,omitempty"`
 
-	// Status.
+	// Status. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Status *string `json:"status,omitempty"`
 
-	// Request user.
+	// Request user. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	User *string `json:"user,omitempty"`
 }

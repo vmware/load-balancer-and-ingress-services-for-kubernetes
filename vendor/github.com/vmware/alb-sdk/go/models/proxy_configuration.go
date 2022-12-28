@@ -8,17 +8,17 @@ package models
 // swagger:model ProxyConfiguration
 type ProxyConfiguration struct {
 
-	// Proxy hostname or IP address.
+	// Proxy hostname or IP address. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Host *string `json:"host"`
 
-	// Password for proxy.
+	// Password for proxy. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Password *string `json:"password,omitempty"`
 
-	// Proxy port.
+	// Proxy port. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Port *int32 `json:"port"`
 
-	// Username for proxy.
+	// Username for proxy. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Username *string `json:"username,omitempty"`
 }

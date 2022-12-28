@@ -8,12 +8,12 @@ package models
 // swagger:model AuthTacacsPlusAttributeValuePair
 type AuthTacacsPlusAttributeValuePair struct {
 
-	// mandatory.
+	// mandatory. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Mandatory *bool `json:"mandatory,omitempty"`
 
-	// attribute name.
+	// attribute name. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`
 
-	// attribute value.
+	// attribute value. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Value *string `json:"value,omitempty"`
 }

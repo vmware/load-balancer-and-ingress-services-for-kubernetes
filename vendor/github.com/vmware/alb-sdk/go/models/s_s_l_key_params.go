@@ -8,13 +8,13 @@ package models
 // swagger:model SSLKeyParams
 type SSLKeyParams struct {
 
-	//  Enum options - SSL_KEY_ALGORITHM_RSA, SSL_KEY_ALGORITHM_EC.
+	//  Enum options - SSL_KEY_ALGORITHM_RSA, SSL_KEY_ALGORITHM_EC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Algorithm *string `json:"algorithm"`
 
-	// Placeholder for description of property ec_params of obj type SSLKeyParams field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EcParams *SSLKeyECParams `json:"ec_params,omitempty"`
 
-	// Placeholder for description of property rsa_params of obj type SSLKeyParams field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	RsaParams *SSLKeyRSAParams `json:"rsa_params,omitempty"`
 }

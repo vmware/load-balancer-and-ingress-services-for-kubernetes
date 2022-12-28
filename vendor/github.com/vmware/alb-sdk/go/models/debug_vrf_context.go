@@ -8,12 +8,12 @@ package models
 // swagger:model DebugVrfContext
 type DebugVrfContext struct {
 
-	// Vrf config command buffer process interval. Allowed values are 1-4. Field introduced in 17.2.13,18.1.5,18.2.1. Unit is SECONDS.
+	// Vrf config command buffer process interval. Allowed values are 1-4. Field introduced in 17.2.13,18.1.5,18.2.1. Unit is SECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CommandBufferInterval *int32 `json:"command_buffer_interval,omitempty"`
 
-	// Vrf config command buffer size. Allowed values are 1-32768. Field introduced in 17.2.13,18.1.5,18.2.1. Unit is BYTES.
+	// Vrf config command buffer size. Allowed values are 1-32768. Field introduced in 17.2.13,18.1.5,18.2.1. Unit is BYTES. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CommandBufferSize *int32 `json:"command_buffer_size,omitempty"`
 
-	//  Field introduced in 17.1.1.
+	//  Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Flags []*DebugVrf `json:"flags,omitempty"`
 }

@@ -8,6 +8,6 @@ package models
 // swagger:model HdrPersistenceProfile
 type HdrPersistenceProfile struct {
 
-	// Header name for custom header persistence.
+	// Header name for custom header persistence. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PrstHdrName *string `json:"prst_hdr_name,omitempty"`
 }

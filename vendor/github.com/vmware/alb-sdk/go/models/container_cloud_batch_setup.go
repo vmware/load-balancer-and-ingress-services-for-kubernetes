@@ -8,6 +8,6 @@ package models
 // swagger:model ContainerCloudBatchSetup
 type ContainerCloudBatchSetup struct {
 
-	// Placeholder for description of property ccs of obj type ContainerCloudBatchSetup field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Ccs []*ContainerCloudSetup `json:"ccs,omitempty"`
 }

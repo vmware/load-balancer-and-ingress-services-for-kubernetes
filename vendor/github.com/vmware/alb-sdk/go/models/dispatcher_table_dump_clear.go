@@ -8,6 +8,6 @@ package models
 // swagger:model DispatcherTableDumpClear
 type DispatcherTableDumpClear struct {
 
-	// Unique object identifier of se.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeUUID *string `json:"se_uuid,omitempty"`
 }

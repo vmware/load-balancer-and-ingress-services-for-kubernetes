@@ -8,12 +8,12 @@ package models
 // swagger:model GslbPoolRuntime
 type GslbPoolRuntime struct {
 
-	// Placeholder for description of property members of obj type GslbPoolRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Members []*GslbPoolMemberRuntimeInfo `json:"members,omitempty"`
 
-	// Name of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`
 
-	// Gslb Pool's consolidated operational status . Field introduced in 18.2.3.
+	// Gslb Pool's consolidated operational status . Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	OperStatus *OperationalStatus `json:"oper_status,omitempty"`
 }

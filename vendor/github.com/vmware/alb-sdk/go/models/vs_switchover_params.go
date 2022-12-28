@@ -8,13 +8,13 @@ package models
 // swagger:model VsSwitchoverParams
 type VsSwitchoverParams struct {
 
-	// Unique object identifier of se.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeUUID *string `json:"se_uuid,omitempty"`
 
-	// Unique object identifier of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UUID *string `json:"uuid,omitempty"`
 
-	//  Field introduced in 17.1.1.
+	//  Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	VipID *string `json:"vip_id"`
 }

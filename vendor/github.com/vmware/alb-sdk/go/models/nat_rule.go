@@ -8,26 +8,26 @@ package models
 // swagger:model NatRule
 type NatRule struct {
 
-	// Nat rule Action Information. Field introduced in 18.2.3.
+	// Nat rule Action Information. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Action *NatPolicyAction `json:"action"`
 
-	// Creator name. Field introduced in 18.2.3.
+	// Creator name. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CreatedBy *string `json:"created_by,omitempty"`
 
-	// Nat rule enable flag. Field introduced in 18.2.3.
+	// Nat rule enable flag. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Enable *bool `json:"enable"`
 
-	// Nat rule Index. Field introduced in 18.2.3.
+	// Nat rule Index. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Index *int32 `json:"index"`
 
-	// Nat rule Match Criteria. Field introduced in 18.2.3.
+	// Nat rule Match Criteria. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Match *NatMatchTarget `json:"match"`
 
-	// Nat rule Name. Field introduced in 18.2.3.
+	// Nat rule Name. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Name *string `json:"name"`
 }

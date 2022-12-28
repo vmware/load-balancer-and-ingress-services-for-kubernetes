@@ -8,11 +8,11 @@ package models
 // swagger:model IpAddrRange
 type IPAddrRange struct {
 
-	// Starting IP address of the range.
+	// Starting IP address of the range. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Begin *IPAddr `json:"begin"`
 
-	// Ending IP address of the range.
+	// Ending IP address of the range. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	End *IPAddr `json:"end"`
 }

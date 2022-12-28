@@ -8,44 +8,44 @@ package models
 // swagger:model CloudFlavor
 type CloudFlavor struct {
 
-	// cost of CloudFlavor.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Cost *string `json:"cost,omitempty"`
 
-	// Number of disk_gb.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DiskGb *int32 `json:"disk_gb,omitempty"`
 
-	// Placeholder for description of property enhanced_nw of obj type CloudFlavor field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EnhancedNw *bool `json:"enhanced_nw,omitempty"`
 
-	// id of CloudFlavor.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	ID *string `json:"id"`
 
-	// If a vm flavor is recommended for requested se_usage_type.Set to True if the chosen VM flavor is recommended for requested se_usage_type.Else set to False. Field introduced in 18.1.4, 18.2.1.
+	// If a vm flavor is recommended for requested se_usage_type.Set to True if the chosen VM flavor is recommended for requested se_usage_type.Else set to False. Field introduced in 18.1.4, 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IsRecommended *bool `json:"is_recommended,omitempty"`
 
-	// Maximum number of IPv6 addresses that can be configured per NIC. Field introduced in 18.1.1.
+	// Maximum number of IPv6 addresses that can be configured per NIC. Field introduced in 18.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxIP6SPerNic *int32 `json:"max_ip6s_per_nic,omitempty"`
 
-	// Number of max_ips_per_nic.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxIpsPerNic *int32 `json:"max_ips_per_nic,omitempty"`
 
-	// Number of max_nics.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxNics *int32 `json:"max_nics,omitempty"`
 
-	// Placeholder for description of property meta of obj type CloudFlavor field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Meta []*CloudMeta `json:"meta,omitempty"`
 
-	// Name of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Name *string `json:"name"`
 
-	// Placeholder for description of property public of obj type CloudFlavor field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Public *bool `json:"public,omitempty"`
 
-	// Number of ram_mb.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	RAMMb *int32 `json:"ram_mb,omitempty"`
 
-	// Number of vcpus.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Vcpus *int32 `json:"vcpus,omitempty"`
 }

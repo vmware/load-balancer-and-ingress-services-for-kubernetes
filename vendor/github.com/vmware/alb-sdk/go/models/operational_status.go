@@ -8,18 +8,18 @@ package models
 // swagger:model OperationalStatus
 type OperationalStatus struct {
 
-	// Placeholder for description of property last_changed_time of obj type OperationalStatus field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LastChangedTime *TimeStamp `json:"last_changed_time,omitempty"`
 
-	// reason of OperationalStatus.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reason []string `json:"reason,omitempty"`
 
-	// Number of reason_code.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ReasonCode *int64 `json:"reason_code,omitempty"`
 
-	// reason_code_string of OperationalStatus.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ReasonCodeString *string `json:"reason_code_string,omitempty"`
 
-	//  Enum options - OPER_UP, OPER_DOWN, OPER_CREATING, OPER_RESOURCES, OPER_INACTIVE, OPER_DISABLED, OPER_UNUSED, OPER_UNKNOWN, OPER_PROCESSING, OPER_INITIALIZING, OPER_ERROR_DISABLED, OPER_AWAIT_MANUAL_PLACEMENT, OPER_UPGRADING, OPER_SE_PROCESSING, OPER_PARTITIONED, OPER_DISABLING, OPER_FAILED, OPER_UNAVAIL.
+	//  Enum options - OPER_UP, OPER_DOWN, OPER_CREATING, OPER_RESOURCES, OPER_INACTIVE, OPER_DISABLED, OPER_UNUSED, OPER_UNKNOWN, OPER_PROCESSING, OPER_INITIALIZING, OPER_ERROR_DISABLED, OPER_AWAIT_MANUAL_PLACEMENT, OPER_UPGRADING, OPER_SE_PROCESSING, OPER_PARTITIONED, OPER_DISABLING, OPER_FAILED, OPER_UNAVAIL. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	State *string `json:"state,omitempty"`
 }

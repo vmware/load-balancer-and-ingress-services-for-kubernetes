@@ -8,60 +8,60 @@ package models
 // swagger:model SSLCertificate
 type SSLCertificate struct {
 
-	// certificate of SSLCertificate.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Certificate *string `json:"certificate,omitempty"`
 
-	// certificate_signing_request of SSLCertificate.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CertificateSigningRequest *string `json:"certificate_signing_request,omitempty"`
 
-	// Placeholder for description of property chain_verified of obj type SSLCertificate field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ChainVerified *bool `json:"chain_verified,omitempty"`
 
-	// Number of days_until_expire.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DaysUntilExpire *int32 `json:"days_until_expire,omitempty"`
 
-	//  Enum options - SSL_CERTIFICATE_GOOD, SSL_CERTIFICATE_EXPIRY_WARNING, SSL_CERTIFICATE_EXPIRED.
+	//  Enum options - SSL_CERTIFICATE_GOOD, SSL_CERTIFICATE_EXPIRY_WARNING, SSL_CERTIFICATE_EXPIRED. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ExpiryStatus *string `json:"expiry_status,omitempty"`
 
-	// fingerprint of SSLCertificate.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Fingerprint *string `json:"fingerprint,omitempty"`
 
-	// Placeholder for description of property issuer of obj type SSLCertificate field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Issuer *SSLCertificateDescription `json:"issuer,omitempty"`
 
-	// Placeholder for description of property key_params of obj type SSLCertificate field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	KeyParams *SSLKeyParams `json:"key_params,omitempty"`
 
-	// not_after of SSLCertificate.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NotAfter *string `json:"not_after,omitempty"`
 
-	// not_before of SSLCertificate.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NotBefore *string `json:"not_before,omitempty"`
 
-	// public_key of SSLCertificate.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PublicKey *string `json:"public_key,omitempty"`
 
-	// Placeholder for description of property self_signed of obj type SSLCertificate field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SelfSigned *bool `json:"self_signed,omitempty"`
 
-	// serial_number of SSLCertificate.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SerialNumber *string `json:"serial_number,omitempty"`
 
-	// signature of SSLCertificate.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Signature *string `json:"signature,omitempty"`
 
-	// signature_algorithm of SSLCertificate.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SignatureAlgorithm *string `json:"signature_algorithm,omitempty"`
 
-	// Placeholder for description of property subject of obj type SSLCertificate field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Subject *SSLCertificateDescription `json:"subject,omitempty"`
 
-	// subjectAltName that provides additional subject identities.
+	// subjectAltName that provides additional subject identities. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SubjectAltNames []string `json:"subject_alt_names,omitempty"`
 
-	// text of SSLCertificate.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Text *string `json:"text,omitempty"`
 
-	// version of SSLCertificate.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Version *string `json:"version,omitempty"`
 }

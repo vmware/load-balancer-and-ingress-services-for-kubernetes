@@ -8,9 +8,9 @@ package models
 // swagger:model SSLIgnoredDetails
 type SSLIgnoredDetails struct {
 
-	// Name of SSL Certificate.
+	// Name of SSL Certificate. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`
 
-	// Reason for ignoring certificate.
+	// Reason for ignoring certificate. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reason *string `json:"reason,omitempty"`
 }

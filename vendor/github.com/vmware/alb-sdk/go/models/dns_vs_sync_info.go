@@ -8,9 +8,9 @@ package models
 // swagger:model DNSVsSyncInfo
 type DNSVsSyncInfo struct {
 
-	// error of DNSVsSyncInfo.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Error *string `json:"error,omitempty"`
 
-	// Number of total_records.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TotalRecords *int32 `json:"total_records,omitempty"`
 }

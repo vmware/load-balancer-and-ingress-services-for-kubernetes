@@ -8,9 +8,9 @@ package models
 // swagger:model VssPlacement
 type VssPlacement struct {
 
-	// Degree of core non-affinity for VS placement. Allowed values are 1-256. Field introduced in 17.2.5.
+	// Degree of core non-affinity for VS placement. Allowed values are 1-256. Field introduced in 17.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CoreNonaffinity *int32 `json:"core_nonaffinity,omitempty"`
 
-	// Number of sub-cores that comprise a CPU core. Allowed values are 1-128. Field introduced in 17.2.5.
+	// Number of sub-cores that comprise a CPU core. Allowed values are 1-128. Field introduced in 17.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumSubcores *int32 `json:"num_subcores,omitempty"`
 }

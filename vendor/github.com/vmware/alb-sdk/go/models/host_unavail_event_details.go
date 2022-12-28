@@ -8,12 +8,12 @@ package models
 // swagger:model HostUnavailEventDetails
 type HostUnavailEventDetails struct {
 
-	// Name of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`
 
-	// reasons of HostUnavailEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reasons []string `json:"reasons,omitempty"`
 
-	// vs_name of HostUnavailEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VsName *string `json:"vs_name,omitempty"`
 }

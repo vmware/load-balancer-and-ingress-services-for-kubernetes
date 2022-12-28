@@ -8,15 +8,15 @@ package models
 // swagger:model NsxtSetup
 type NsxtSetup struct {
 
-	// cc_id of NsxtSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CcID *string `json:"cc_id,omitempty"`
 
-	// reason of NsxtSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reason *string `json:"reason,omitempty"`
 
-	// status of NsxtSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Status *string `json:"status,omitempty"`
 
-	// transportzone_id of NsxtSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TransportzoneID *string `json:"transportzone_id,omitempty"`
 }

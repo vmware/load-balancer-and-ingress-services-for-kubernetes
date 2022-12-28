@@ -8,19 +8,19 @@ package models
 // swagger:model VsScaleinParams
 type VsScaleinParams struct {
 
-	// Placeholder for description of property admin_down of obj type VsScaleinParams field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AdminDown *bool `json:"admin_down,omitempty"`
 
-	//  It is a reference to an object of type ServiceEngine.
+	//  It is a reference to an object of type ServiceEngine. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FromSeRef *string `json:"from_se_ref,omitempty"`
 
-	// Placeholder for description of property scalein_primary of obj type VsScaleinParams field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ScaleinPrimary *bool `json:"scalein_primary,omitempty"`
 
-	// Unique object identifier of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UUID *string `json:"uuid,omitempty"`
 
-	//  Field introduced in 17.1.1.
+	//  Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	VipID *string `json:"vip_id"`
 }

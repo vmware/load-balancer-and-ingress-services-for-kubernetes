@@ -8,18 +8,18 @@ package models
 // swagger:model LicenseDetails
 type LicenseDetails struct {
 
-	// Number of backend_servers.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	BackendServers *int32 `json:"backend_servers,omitempty"`
 
-	// expiry_at of LicenseDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ExpiryAt *string `json:"expiry_at,omitempty"`
 
-	// license_id of LicenseDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LicenseID *string `json:"license_id,omitempty"`
 
-	// license_type of LicenseDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LicenseType *string `json:"license_type,omitempty"`
 
-	// Name of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`
 }

@@ -8,7 +8,7 @@ package models
 // swagger:model FailActionBackupPool
 type FailActionBackupPool struct {
 
-	// Specifies the UUID of the Pool acting as backup pool. It is a reference to an object of type Pool.
+	// Specifies the UUID of the Pool acting as backup pool. It is a reference to an object of type Pool. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	BackupPoolRef *string `json:"backup_pool_ref"`
 }

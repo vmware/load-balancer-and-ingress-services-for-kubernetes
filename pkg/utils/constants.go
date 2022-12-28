@@ -92,6 +92,8 @@ const (
 	POD_NAMESPACE                 = "POD_NAMESPACE"
 	VCF_CLUSTER                   = "VCF_CLUSTER"
 	MCI_ENABLED                   = "MCI_ENABLED"
+	CTRL_VERSION_22_1_3           = "22.1.3"
+	CTRL_VERSION_22_1_2           = "22.1.2"
 
 	RefreshAuthTokenInterval = 12  //hours
 	AuthTokenExpiry          = 240 //hours

@@ -8,20 +8,20 @@ package models
 // swagger:model VsAwaitingSeEventDetails
 type VsAwaitingSeEventDetails struct {
 
-	// Number of awaitingse_timeout.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	AwaitingseTimeout *int32 `json:"awaitingse_timeout"`
 
-	// ip of VsAwaitingSeEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IP *string `json:"ip,omitempty"`
 
-	// Placeholder for description of property se_assigned of obj type VsAwaitingSeEventDetails field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeAssigned []*VipSeAssigned `json:"se_assigned,omitempty"`
 
-	// Placeholder for description of property se_requested of obj type VsAwaitingSeEventDetails field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeRequested *VirtualServiceResource `json:"se_requested,omitempty"`
 
-	// Unique object identifier of vs.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	VsUUID *string `json:"vs_uuid"`
 }

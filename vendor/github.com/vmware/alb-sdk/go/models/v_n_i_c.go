@@ -8,94 +8,94 @@ package models
 // swagger:model vNIC
 type VNIC struct {
 
-	// adapter of vNIC.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Adapter *string `json:"adapter,omitempty"`
 
-	//  Field introduced in 17.2.7.
+	//  Field introduced in 17.2.7. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AggregatorChgd *bool `json:"aggregator_chgd,omitempty"`
 
-	// Placeholder for description of property can_se_dp_takeover of obj type vNIC field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CanSeDpTakeover *bool `json:"can_se_dp_takeover,omitempty"`
 
-	// Placeholder for description of property connected of obj type vNIC field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Connected *bool `json:"connected,omitempty"`
 
-	// Placeholder for description of property del_pending of obj type vNIC field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DelPending *bool `json:"del_pending,omitempty"`
 
-	// Delete this VNIC. Please confirm dp_deletion_done before removing the VNIC from the cloud. Field introduced in 18.2.5.
+	// Delete this VNIC. Please confirm dp_deletion_done before removing the VNIC from the cloud. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DeleteVnic *bool `json:"delete_vnic,omitempty"`
 
-	// Placeholder for description of property dhcp_enabled of obj type vNIC field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DhcpEnabled *bool `json:"dhcp_enabled,omitempty"`
 
-	// The VNIC has been cleaned up in the datapath. Field introduced in 18.2.3.
+	// The VNIC has been cleaned up in the datapath. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DpDeletionDone *bool `json:"dp_deletion_done,omitempty"`
 
-	// Placeholder for description of property enabled of obj type vNIC field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// if_name of vNIC.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IfName *string `json:"if_name,omitempty"`
 
-	// Enable IPv6 auto configuration. Field introduced in 18.1.1.
+	// Enable IPv6 auto configuration. Field introduced in 18.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Ip6AutocfgEnabled *bool `json:"ip6_autocfg_enabled,omitempty"`
 
-	// Placeholder for description of property is_asm of obj type vNIC field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IsAsm *bool `json:"is_asm,omitempty"`
 
-	// Placeholder for description of property is_avi_internal_network of obj type vNIC field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IsAviInternalNetwork *bool `json:"is_avi_internal_network,omitempty"`
 
-	// Placeholder for description of property is_hsm of obj type vNIC field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IsHsm *bool `json:"is_hsm,omitempty"`
 
-	// Placeholder for description of property is_mgmt of obj type vNIC field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IsMgmt *bool `json:"is_mgmt,omitempty"`
 
-	// Placeholder for description of property is_portchannel of obj type vNIC field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IsPortchannel *bool `json:"is_portchannel,omitempty"`
 
-	// The link is operationally up. Field introduced in 18.2.8, 20.1.1.
+	// The link is operationally up. Field introduced in 18.2.8, 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LinkUp *bool `json:"link_up,omitempty"`
 
-	// linux_name of vNIC.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LinuxName *string `json:"linux_name,omitempty"`
 
-	// mac_address of vNIC.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	MacAddress *string `json:"mac_address"`
 
-	// Placeholder for description of property members of obj type vNIC field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Members []*MemberInterface `json:"members,omitempty"`
 
-	// Number of mtu.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Mtu *int32 `json:"mtu,omitempty"`
 
-	// network_name of vNIC.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NetworkName *string `json:"network_name,omitempty"`
 
-	//  It is a reference to an object of type Network.
+	//  It is a reference to an object of type Network. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NetworkRef *string `json:"network_ref,omitempty"`
 
-	// pci_id of vNIC.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PciID *string `json:"pci_id,omitempty"`
 
-	// Unique object identifier of port.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PortUUID *string `json:"port_uuid,omitempty"`
 
-	// Number of vlan_id.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VlanID *int32 `json:"vlan_id,omitempty"`
 
-	// Placeholder for description of property vlan_interfaces of obj type vNIC field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VlanInterfaces []*VlanInterface `json:"vlan_interfaces,omitempty"`
 
-	// Placeholder for description of property vnic_networks of obj type vNIC field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VnicNetworks []*VNICNetwork `json:"vnic_networks,omitempty"`
 
-	// Number of vrf_id.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VrfID *int32 `json:"vrf_id,omitempty"`
 
-	//  It is a reference to an object of type VrfContext.
+	//  It is a reference to an object of type VrfContext. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VrfRef *string `json:"vrf_ref,omitempty"`
 }

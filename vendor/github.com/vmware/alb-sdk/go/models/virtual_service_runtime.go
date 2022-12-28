@@ -8,102 +8,87 @@ package models
 // swagger:model VirtualServiceRuntime
 type VirtualServiceRuntime struct {
 
-	// Placeholder for description of property apic_extension of obj type VirtualServiceRuntime field type str  type object
-	ApicExtension *VsApicExtension `json:"apic_extension,omitempty"`
-
-	// controller_ip of VirtualServiceRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ControllerIP *string `json:"controller_ip,omitempty"`
 
-	// Placeholder for description of property datapath_debug of obj type VirtualServiceRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DatapathDebug *DebugVirtualService `json:"datapath_debug,omitempty"`
 
-	// Placeholder for description of property east_west of obj type VirtualServiceRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EastWest *bool `json:"east_west,omitempty"`
 
-	// Deprecated, handled by SE Datastore. Field deprecated in 18.1.5, 18.2.1. Field introduced in 17.1.1.
-	GslbDNSGeoUpdate *GslbDNSGeoUpdate `json:"gslb_dns_geo_update,omitempty"`
-
-	// Placeholder for description of property gslb_dns_update of obj type VirtualServiceRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	GslbDNSUpdate *GslbDNSUpdate `json:"gslb_dns_update,omitempty"`
 
-	// Placeholder for description of property ipam_dns_records of obj type VirtualServiceRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IPAMDNSRecords []*DNSRecord `json:"ipam_dns_records,omitempty"`
 
-	// Placeholder for description of property is_dns_vs of obj type VirtualServiceRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IsDNSVs *bool `json:"is_dns_vs,omitempty"`
 
-	// Number of times keys have been rotated. Field introduced in 18.2.2.
+	// Number of times keys have been rotated. Field introduced in 18.2.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	KeyRotationCount *int64 `json:"key_rotation_count,omitempty"`
 
-	// Placeholder for description of property last_changed_time of obj type VirtualServiceRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LastChangedTime *TimeStamp `json:"last_changed_time,omitempty"`
 
-	// Timestamp of the last key rotation. Field introduced in 18.2.2.
+	// Timestamp of the last key rotation. Field introduced in 18.2.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LastKeyRotationTime *TimeStamp `json:"last_key_rotation_time,omitempty"`
 
-	// lif of VirtualServiceRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Lif []string `json:"lif,omitempty"`
 
-	// Placeholder for description of property manual_placement of obj type VirtualServiceRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ManualPlacement *bool `json:"manual_placement,omitempty"`
 
-	// Placeholder for description of property marked_for_delete of obj type VirtualServiceRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MarkedForDelete *bool `json:"marked_for_delete,omitempty"`
 
-	//  Enum options - METRICS_MGR_PORT_0, METRICS_MGR_PORT_1, METRICS_MGR_PORT_2, METRICS_MGR_PORT_3.
+	//  Enum options - METRICS_MGR_PORT_0, METRICS_MGR_PORT_1, METRICS_MGR_PORT_2, METRICS_MGR_PORT_3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MetricsMgrPort *string `json:"metrics_mgr_port,omitempty"`
 
-	// Number of num_additional_se.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumAdditionalSe *int32 `json:"num_additional_se,omitempty"`
 
-	// Placeholder for description of property one_plus_one_ha of obj type VirtualServiceRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	OnePlusOneHa *bool `json:"one_plus_one_ha,omitempty"`
 
-	// prev_controller_ip of VirtualServiceRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PrevControllerIP *string `json:"prev_controller_ip,omitempty"`
 
-	//  Enum options - METRICS_MGR_PORT_0, METRICS_MGR_PORT_1, METRICS_MGR_PORT_2, METRICS_MGR_PORT_3.
+	//  Enum options - METRICS_MGR_PORT_0, METRICS_MGR_PORT_1, METRICS_MGR_PORT_2, METRICS_MGR_PORT_3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PrevMetricsMgrPort *string `json:"prev_metrics_mgr_port,omitempty"`
 
-	// Number of redis_db.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	RedisDb *int32 `json:"redis_db,omitempty"`
 
-	//  Field deprecated in 18.1.5, 18.2.1.
-	RedisIP *string `json:"redis_ip,omitempty"`
-
-	// Number of redis_port.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	RedisPort *int32 `json:"redis_port,omitempty"`
 
-	//  Field deprecated in 18.2.5.
-	RulesConfigured *bool `json:"rules_configured,omitempty"`
-
-	// Runtime info from security_manager. Field introduced in 18.2.5.
+	// Runtime info from security_manager. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SecMgrInfo *SecurityMgrRuntime `json:"sec_mgr_info,omitempty"`
 
-	// Enable Service Engines to elect a primary amongst themselves in the absence of connectivity to controller. Field introduced in 18.1.2.
+	// Enable Service Engines to elect a primary amongst themselves in the absence of connectivity to controller. Field introduced in 18.1.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SelfSeElection *bool `json:"self_se_election,omitempty"`
 
-	//  Field deprecated in 18.2.5.
-	ServersConfigured *bool `json:"servers_configured,omitempty"`
-
-	// Placeholder for description of property tls_ticket_key of obj type VirtualServiceRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TLSTicketKey []*TLSTicket `json:"tls_ticket_key,omitempty"`
 
-	//  Enum options - VS_TYPE_NORMAL, VS_TYPE_VH_PARENT, VS_TYPE_VH_CHILD.
+	//  Enum options - VS_TYPE_NORMAL, VS_TYPE_VH_PARENT, VS_TYPE_VH_CHILD. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Type *string `json:"type,omitempty"`
 
-	// Unique object identifier of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UUID *string `json:"uuid,omitempty"`
 
-	// Version number of the SE List update.
+	// Version number of the SE List update. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Version *int64 `json:"version,omitempty"`
 
-	//  It is a reference to an object of type VirtualService.
+	//  It is a reference to an object of type VirtualService. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VhChildVsRef []string `json:"vh_child_vs_ref,omitempty"`
 
-	// Placeholder for description of property vip_runtime of obj type VirtualServiceRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VipRuntime []*VipRuntime `json:"vip_runtime,omitempty"`
 
-	// VS update request received before warmstart finished. Field introduced in 18.1.4, 18.2.1.
+	// VS update request received before warmstart finished. Field introduced in 18.1.4, 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VsUpdatePending *VirtualService `json:"vs_update_pending,omitempty"`
 }

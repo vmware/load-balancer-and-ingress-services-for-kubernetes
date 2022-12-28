@@ -8,36 +8,36 @@ package models
 // swagger:model CompressionFilter
 type CompressionFilter struct {
 
-	//  It is a reference to an object of type StringGroup.
+	//  It is a reference to an object of type StringGroup. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DevicesRef *string `json:"devices_ref,omitempty"`
 
-	// Number of index.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Index *int32 `json:"index"`
 
-	// Placeholder for description of property ip_addr_prefixes of obj type CompressionFilter field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IPAddrPrefixes []*IPAddrPrefix `json:"ip_addr_prefixes,omitempty"`
 
-	// Placeholder for description of property ip_addr_ranges of obj type CompressionFilter field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IPAddrRanges []*IPAddrRange `json:"ip_addr_ranges,omitempty"`
 
-	// Placeholder for description of property ip_addrs of obj type CompressionFilter field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IPAddrs []*IPAddr `json:"ip_addrs,omitempty"`
 
-	//  It is a reference to an object of type IpAddrGroup.
+	//  It is a reference to an object of type IpAddrGroup. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IPAddrsRef *string `json:"ip_addrs_ref,omitempty"`
 
-	//  Enum options - AGGRESSIVE_COMPRESSION, NORMAL_COMPRESSION, NO_COMPRESSION.
+	//  Enum options - AGGRESSIVE_COMPRESSION, NORMAL_COMPRESSION, NO_COMPRESSION. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Level *string `json:"level"`
 
-	// Whether to apply Filter when group criteria is matched or not. Enum options - IS_IN, IS_NOT_IN.
+	// Whether to apply Filter when group criteria is matched or not. Enum options - IS_IN, IS_NOT_IN. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Match *string `json:"match,omitempty"`
 
-	// Name of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Name *string `json:"name"`
 
-	// user_agent of CompressionFilter.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UserAgent []string `json:"user_agent,omitempty"`
 }

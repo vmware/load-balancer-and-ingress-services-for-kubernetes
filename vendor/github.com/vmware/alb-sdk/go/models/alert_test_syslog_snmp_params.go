@@ -8,10 +8,10 @@ package models
 // swagger:model AlertTestSyslogSnmpParams
 type AlertTestSyslogSnmpParams struct {
 
-	// The contents of the Syslog message/SNMP Trap contents.
+	// The contents of the Syslog message/SNMP Trap contents. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Text *string `json:"text"`
 
-	// Unique object identifier of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UUID *string `json:"uuid,omitempty"`
 }

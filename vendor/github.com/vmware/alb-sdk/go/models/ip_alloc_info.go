@@ -8,15 +8,15 @@ package models
 // swagger:model IpAllocInfo
 type IPAllocInfo struct {
 
-	// Placeholder for description of property ip of obj type IpAllocInfo field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	IP *IPAddr `json:"ip"`
 
-	// mac of IpAllocInfo.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Mac *string `json:"mac"`
 
-	// Unique object identifier of se.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	SeUUID *string `json:"se_uuid"`
 }

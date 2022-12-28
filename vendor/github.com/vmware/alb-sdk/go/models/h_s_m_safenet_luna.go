@@ -8,22 +8,22 @@ package models
 // swagger:model HSMSafenetLuna
 type HSMSafenetLuna struct {
 
-	// Group Number of generated HA Group.
+	// Group Number of generated HA Group. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	HaGroupNum *int64 `json:"ha_group_num,omitempty"`
 
-	// Set to indicate HA across more than one servers.
+	// Set to indicate HA across more than one servers. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	IsHa *bool `json:"is_ha"`
 
-	// Node specific information.
+	// Node specific information. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NodeInfo []*HSMSafenetClientInfo `json:"node_info,omitempty"`
 
-	// SafeNet/Gemalto HSM Servers used for crypto operations.
+	// SafeNet/Gemalto HSM Servers used for crypto operations. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Server []*HSMSafenetLunaServer `json:"server,omitempty"`
 
-	// Generated File - server.pem.
+	// Generated File - server.pem. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ServerPem *string `json:"server_pem,omitempty"`
 
-	// If enabled, dedicated network is used to communicate with HSM,else, the management network is used.
+	// If enabled, dedicated network is used to communicate with HSM,else, the management network is used. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UseDedicatedNetwork *bool `json:"use_dedicated_network,omitempty"`
 }

@@ -8,11 +8,11 @@ package models
 // swagger:model PlacementNetwork
 type PlacementNetwork struct {
 
-	//  It is a reference to an object of type Network.
+	//  It is a reference to an object of type Network. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	NetworkRef *string `json:"network_ref"`
 
-	// Placeholder for description of property subnet of obj type PlacementNetwork field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Subnet *IPAddrPrefix `json:"subnet"`
 }

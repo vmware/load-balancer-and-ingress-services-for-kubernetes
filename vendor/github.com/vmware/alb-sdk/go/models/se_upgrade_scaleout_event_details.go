@@ -8,10 +8,10 @@ package models
 // swagger:model SeUpgradeScaleoutEventDetails
 type SeUpgradeScaleoutEventDetails struct {
 
-	// Placeholder for description of property scaleout_params of obj type SeUpgradeScaleoutEventDetails field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ScaleoutParams *VsScaleoutParams `json:"scaleout_params,omitempty"`
 
-	// Unique object identifier of vs.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	VsUUID *string `json:"vs_uuid"`
 }

@@ -8,21 +8,21 @@ package models
 // swagger:model RmModifyNetworksEventDetails
 type RmModifyNetworksEventDetails struct {
 
-	// Placeholder for description of property networks of obj type RmModifyNetworksEventDetails field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Networks []*RmModifyVnic `json:"networks,omitempty"`
 
-	// reason of RmModifyNetworksEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reason *string `json:"reason,omitempty"`
 
-	// se_name of RmModifyNetworksEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeName *string `json:"se_name,omitempty"`
 
-	// Unique object identifier of se.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeUUID *string `json:"se_uuid,omitempty"`
 
-	// vs_name of RmModifyNetworksEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VsName []string `json:"vs_name,omitempty"`
 
-	// Unique object identifier of vs.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VsUUID []string `json:"vs_uuid,omitempty"`
 }

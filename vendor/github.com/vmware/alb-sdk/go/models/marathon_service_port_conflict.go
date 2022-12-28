@@ -8,17 +8,17 @@ package models
 // swagger:model MarathonServicePortConflict
 type MarathonServicePortConflict struct {
 
-	// app_name of MarathonServicePortConflict.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AppName *string `json:"app_name,omitempty"`
 
-	// cc_id of MarathonServicePortConflict.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CcID *string `json:"cc_id,omitempty"`
 
-	// marathon_url of MarathonServicePortConflict.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	MarathonURL *string `json:"marathon_url"`
 
-	// Number of port.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Port *int32 `json:"port"`
 }

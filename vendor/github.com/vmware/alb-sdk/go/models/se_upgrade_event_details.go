@@ -8,16 +8,16 @@ package models
 // swagger:model SeUpgradeEventDetails
 type SeUpgradeEventDetails struct {
 
-	// notes of SeUpgradeEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Notes []string `json:"notes,omitempty"`
 
-	// Number of num_vs.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumVs *int32 `json:"num_vs,omitempty"`
 
-	// Unique object identifier of se_grp.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeGrpUUID *string `json:"se_grp_uuid,omitempty"`
 
-	// Unique object identifier of se.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	SeUUID *string `json:"se_uuid"`
 }

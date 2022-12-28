@@ -8,6 +8,6 @@ package models
 // swagger:model DebugVirtualServiceSeParams
 type DebugVirtualServiceSeParams struct {
 
-	//  It is a reference to an object of type ServiceEngine.
+	//  It is a reference to an object of type ServiceEngine. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeRefs []string `json:"se_refs,omitempty"`
 }

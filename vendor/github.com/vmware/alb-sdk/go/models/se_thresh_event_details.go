@@ -8,11 +8,11 @@ package models
 // swagger:model SeThreshEventDetails
 type SeThreshEventDetails struct {
 
-	// Number of curr_value.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	CurrValue *int64 `json:"curr_value"`
 
-	// Number of thresh.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Thresh *int64 `json:"thresh"`
 }

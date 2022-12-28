@@ -8,12 +8,12 @@ package models
 // swagger:model DebugIpAddr
 type DebugIPAddr struct {
 
-	// Placeholder for description of property addrs of obj type DebugIpAddr field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Addrs []*IPAddr `json:"addrs,omitempty"`
 
-	// Placeholder for description of property prefixes of obj type DebugIpAddr field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Prefixes []*IPAddrPrefix `json:"prefixes,omitempty"`
 
-	// Placeholder for description of property ranges of obj type DebugIpAddr field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Ranges []*IPAddrRange `json:"ranges,omitempty"`
 }

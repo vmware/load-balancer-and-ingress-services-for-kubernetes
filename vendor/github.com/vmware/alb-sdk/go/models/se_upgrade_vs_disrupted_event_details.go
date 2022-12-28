@@ -8,16 +8,16 @@ package models
 // swagger:model SeUpgradeVsDisruptedEventDetails
 type SeUpgradeVsDisruptedEventDetails struct {
 
-	// ip of SeUpgradeVsDisruptedEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IP *string `json:"ip,omitempty"`
 
-	// notes of SeUpgradeVsDisruptedEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Notes []string `json:"notes,omitempty"`
 
-	// vip_id of SeUpgradeVsDisruptedEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VipID *string `json:"vip_id,omitempty"`
 
-	// Unique object identifier of vs.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	VsUUID *string `json:"vs_uuid"`
 }

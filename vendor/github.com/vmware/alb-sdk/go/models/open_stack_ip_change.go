@@ -8,19 +8,19 @@ package models
 // swagger:model OpenStackIpChange
 type OpenStackIPChange struct {
 
-	// error_string of OpenStackIpChange.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ErrorString *string `json:"error_string,omitempty"`
 
-	// Placeholder for description of property ip of obj type OpenStackIpChange field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	IP *IPAddr `json:"ip"`
 
-	// mac_addr of OpenStackIpChange.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MacAddr *string `json:"mac_addr,omitempty"`
 
-	// Unique object identifier of port.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PortUUID *string `json:"port_uuid,omitempty"`
 
-	// Unique object identifier of se_vm.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeVMUUID *string `json:"se_vm_uuid,omitempty"`
 }

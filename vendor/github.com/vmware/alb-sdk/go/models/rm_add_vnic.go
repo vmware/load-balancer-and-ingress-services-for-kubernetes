@@ -8,15 +8,15 @@ package models
 // swagger:model RmAddVnic
 type RmAddVnic struct {
 
-	// mac_addr associated with the network. Field introduced in 21.1.1.
+	// mac_addr associated with the network. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	MacAddr *string `json:"mac_addr,omitempty"`
 
-	// network_name of RmAddVnic.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NetworkName *string `json:"network_name,omitempty"`
 
-	// Unique object identifier of network.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NetworkUUID *string `json:"network_uuid,omitempty"`
 
-	// subnet of RmAddVnic.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Subnet *string `json:"subnet,omitempty"`
 }

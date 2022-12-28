@@ -8,21 +8,21 @@ package models
 // swagger:model RmUnbindVsSeEventDetails
 type RmUnbindVsSeEventDetails struct {
 
-	// ip of RmUnbindVsSeEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IP *string `json:"ip,omitempty"`
 
-	// ip6 of RmUnbindVsSeEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Ip6 *string `json:"ip6,omitempty"`
 
-	// reason of RmUnbindVsSeEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reason *string `json:"reason,omitempty"`
 
-	// se_name of RmUnbindVsSeEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeName *string `json:"se_name,omitempty"`
 
-	// vs_name of RmUnbindVsSeEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VsName *string `json:"vs_name,omitempty"`
 
-	// Unique object identifier of vs.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VsUUID *string `json:"vs_uuid,omitempty"`
 }

@@ -8,9 +8,9 @@ package models
 // swagger:model HTTPCookieData
 type HTTPCookieData struct {
 
-	// Cookie name.
+	// Cookie name. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`
 
-	// Cookie value.
+	// Cookie value. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Value *string `json:"value,omitempty"`
 }

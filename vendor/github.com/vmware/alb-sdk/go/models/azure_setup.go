@@ -8,33 +8,33 @@ package models
 // swagger:model AzureSetup
 type AzureSetup struct {
 
-	// alb_id of AzureSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AlbID *string `json:"alb_id,omitempty"`
 
-	// cc_id of AzureSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CcID *string `json:"cc_id,omitempty"`
 
-	// nic_id of AzureSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NicID *string `json:"nic_id,omitempty"`
 
-	// reason of AzureSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reason *string `json:"reason,omitempty"`
 
-	// resource_group of AzureSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ResourceGroup *string `json:"resource_group,omitempty"`
 
-	// status of AzureSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Status *string `json:"status,omitempty"`
 
-	// subscription_id of AzureSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SubscriptionID *string `json:"subscription_id,omitempty"`
 
-	// Placeholder for description of property vips of obj type AzureSetup field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Vips []*IPAddr `json:"vips,omitempty"`
 
-	// vnet_id of AzureSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VnetID *string `json:"vnet_id,omitempty"`
 
-	// Unique object identifiers of vss.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VsUuids []string `json:"vs_uuids,omitempty"`
 }

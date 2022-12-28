@@ -8,15 +8,15 @@ package models
 // swagger:model VipAutoscalePolicy
 type VipAutoscalePolicy struct {
 
-	// The amount of time, in seconds, when a Vip is withdrawn before a scaling activity starts. Field introduced in 17.2.12, 18.1.2. Unit is SECONDS.
+	// The amount of time, in seconds, when a Vip is withdrawn before a scaling activity starts. Field introduced in 17.2.12, 18.1.2. Unit is SECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DNSCooldown *int32 `json:"dns_cooldown,omitempty"`
 
-	// The maximum size of the group. Field introduced in 17.2.12, 18.1.2.
+	// The maximum size of the group. Field introduced in 17.2.12, 18.1.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxSize *int32 `json:"max_size,omitempty"`
 
-	// The minimum size of the group. Field introduced in 17.2.12, 18.1.2.
+	// The minimum size of the group. Field introduced in 17.2.12, 18.1.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MinSize *int32 `json:"min_size,omitempty"`
 
-	// When set, scaling is suspended. Field introduced in 17.2.12, 18.1.2.
+	// When set, scaling is suspended. Field introduced in 17.2.12, 18.1.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Suspend *bool `json:"suspend,omitempty"`
 }

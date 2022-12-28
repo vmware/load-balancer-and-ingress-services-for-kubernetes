@@ -8,9 +8,9 @@ package models
 // swagger:model BMSetup
 type BMSetup struct {
 
-	// cc_id of BMSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CcID *string `json:"cc_id,omitempty"`
 
-	// error_string of BMSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ErrorString *string `json:"error_string,omitempty"`
 }

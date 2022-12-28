@@ -8,21 +8,21 @@ package models
 // swagger:model SeHmEventGslbPoolDetails
 type SeHmEventGslbPoolDetails struct {
 
-	// GslbService Pool name.
+	// GslbService Pool name. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Gsgroup *string `json:"gsgroup,omitempty"`
 
-	// Gslb service name. It is a reference to an object of type GslbService.
+	// Gslb service name. It is a reference to an object of type GslbService. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	GslbService *string `json:"gslb_service,omitempty"`
 
-	// GslbService member details.
+	// GslbService member details. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Gsmember *SeHmEventGslbPoolMemberDetails `json:"gsmember,omitempty"`
 
-	// HA Compromised reason.
+	// HA Compromised reason. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	HaReason *string `json:"ha_reason,omitempty"`
 
-	// Service Engine.
+	// Service Engine. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeName *string `json:"se_name,omitempty"`
 
-	// UUID of the event generator.
+	// UUID of the event generator. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SrcUUID *string `json:"src_uuid,omitempty"`
 }

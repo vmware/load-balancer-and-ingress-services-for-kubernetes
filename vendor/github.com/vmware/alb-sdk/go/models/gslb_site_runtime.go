@@ -8,33 +8,33 @@ package models
 // swagger:model GslbSiteRuntime
 type GslbSiteRuntime struct {
 
-	// This field shadows glb_cfg.clear_on_max_retries. Field introduced in 17.2.5.
+	// This field shadows glb_cfg.clear_on_max_retries. Field introduced in 17.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ClearOnMaxRetries *int32 `json:"clear_on_max_retries,omitempty"`
 
-	// This field tracks the glb-uuid. Field introduced in 17.2.5.
+	// This field tracks the glb-uuid. Field introduced in 17.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	GlbUUID *string `json:"glb_uuid,omitempty"`
 
-	// Carries replication stats for a given site. Field introduced in 20.1.1.
+	// Carries replication stats for a given site. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ReplicationStats *GslbReplicationStats `json:"replication_stats,omitempty"`
 
-	// Placeholder for description of property rxed_site_hs of obj type GslbSiteRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	RxedSiteHs *GslbSiteHealthStatus `json:"rxed_site_hs,omitempty"`
 
-	// Frequency with which group members communicate. This field shadows glb_cfg.send_interval. Field introduced in 17.2.5.
+	// Frequency with which group members communicate. This field shadows glb_cfg.send_interval. Field introduced in 17.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SendInterval *int32 `json:"send_interval,omitempty"`
 
-	// Placeholder for description of property site_cfg of obj type GslbSiteRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SiteCfg *GslbSiteRuntimeCfg `json:"site_cfg,omitempty"`
 
-	// Placeholder for description of property site_info of obj type GslbSiteRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SiteInfo *GslbSiteRuntimeInfo `json:"site_info,omitempty"`
 
-	// Placeholder for description of property site_stats of obj type GslbSiteRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SiteStats *GslbSiteRuntimeStats `json:"site_stats,omitempty"`
 
-	// Remap the tenant_uuid to its tenant-name so that we can use the tenant_name directly in remote-site ops. . Field introduced in 17.2.5.
+	// Remap the tenant_uuid to its tenant-name so that we can use the tenant_name directly in remote-site ops. . Field introduced in 17.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TenantName *string `json:"tenant_name,omitempty"`
 
-	// This field shadows the glb_cfg.view_id.  . Field introduced in 17.2.5.
+	// This field shadows the glb_cfg.view_id.  . Field introduced in 17.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ViewID *int64 `json:"view_id,omitempty"`
 }

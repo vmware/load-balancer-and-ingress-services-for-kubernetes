@@ -103,7 +103,9 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 		}
 		vtype := *cloud.Vtype
 		if vtype == lib.CLOUD_NSXT && cloud.NsxtConfiguration != nil {
-			if cloud.NsxtConfiguration.TransportZone != nil && *cloud.NsxtConfiguration.TransportZone == tz {
+			//cloud.NsxtConfiguration.TransportZone field is deprecated in 20.1.5
+			// As AKO deals with configuration of data plane, dataNetworkConfig is used.
+			if cloud.NsxtConfiguration.DataNetworkConfig != nil && cloud.NsxtConfiguration.DataNetworkConfig.TransportZone != nil && *cloud.NsxtConfiguration.DataNetworkConfig.TransportZone == tz {
 				utils.AviLog.Infof("Found NSX-T cloud :%s match Transport Zone : %s", *cloud.Name, tz)
 				if *cloud.SeGroupTemplateRef != "" {
 					tokenized := strings.Split(*cloud.SeGroupTemplateRef, "/api/serviceenginegroup/")

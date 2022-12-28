@@ -8,28 +8,28 @@ package models
 // swagger:model CloudStackConfiguration
 type CloudStackConfiguration struct {
 
-	// CloudStack API Key.
+	// CloudStack API Key. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	AccessKeyID *string `json:"access_key_id"`
 
-	// CloudStack API URL.
+	// CloudStack API URL. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	APIURL *string `json:"api_url"`
 
-	// If controller's management IP is in a private network, a publicly accessible IP to reach the controller.
+	// If controller's management IP is in a private network, a publicly accessible IP to reach the controller. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CntrPublicIP *string `json:"cntr_public_ip,omitempty"`
 
-	// Default hypervisor type. Enum options - DEFAULT, VMWARE_ESX, KVM, VMWARE_VSAN, XEN.
+	// Default hypervisor type. Enum options - DEFAULT, VMWARE_ESX, KVM, VMWARE_VSAN, XEN. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Hypervisor *string `json:"hypervisor,omitempty"`
 
-	// Avi Management network name.
+	// Avi Management network name. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	MgmtNetworkName *string `json:"mgmt_network_name"`
 
-	// Avi Management network name.
+	// Avi Management network name. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MgmtNetworkUUID *string `json:"mgmt_network_uuid,omitempty"`
 
-	// CloudStack Secret Key.
+	// CloudStack Secret Key. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	SecretAccessKey *string `json:"secret_access_key"`
 }

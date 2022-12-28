@@ -8,20 +8,20 @@ package models
 // swagger:model L4Rule
 type L4Rule struct {
 
-	// Action to be performed upon successful rule match. Field introduced in 17.2.7.
+	// Action to be performed upon successful rule match. Field introduced in 17.2.7. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Action *L4RuleAction `json:"action,omitempty"`
 
-	// Enable or disable the rule. Field introduced in 17.2.7.
+	// Enable or disable the rule. Field introduced in 17.2.7. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Enable *bool `json:"enable,omitempty"`
 
-	// Index of the rule. Field introduced in 17.2.7.
+	// Index of the rule. Field introduced in 17.2.7. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Index *int32 `json:"index"`
 
-	// Match criteria of the rule. Field introduced in 17.2.7.
+	// Match criteria of the rule. Field introduced in 17.2.7. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Match *L4RuleMatchTarget `json:"match,omitempty"`
 
-	// Name of the rule. Field introduced in 17.2.7.
+	// Name of the rule. Field introduced in 17.2.7. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Name *string `json:"name"`
 }

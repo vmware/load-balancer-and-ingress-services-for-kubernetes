@@ -8,13 +8,13 @@ package models
 // swagger:model Hypervisor_Properties
 type HypervisorProperties struct {
 
-	//  Enum options - DEFAULT, VMWARE_ESX, KVM, VMWARE_VSAN, XEN.
+	//  Enum options - DEFAULT, VMWARE_ESX, KVM, VMWARE_VSAN, XEN. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Htype *string `json:"htype"`
 
-	// Number of max_ips_per_nic.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxIpsPerNic *int32 `json:"max_ips_per_nic,omitempty"`
 
-	// Number of max_nics.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxNics *int32 `json:"max_nics,omitempty"`
 }

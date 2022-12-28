@@ -8,12 +8,12 @@ package models
 // swagger:model VipPlacementNetwork
 type VipPlacementNetwork struct {
 
-	// Network to use for vip placement. It is a reference to an object of type Network. Field introduced in 18.2.5.
+	// Network to use for vip placement. It is a reference to an object of type Network. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NetworkRef *string `json:"network_ref,omitempty"`
 
-	// IPv4 Subnet to use for vip placement. Field introduced in 18.2.5.
+	// IPv4 Subnet to use for vip placement. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Subnet *IPAddrPrefix `json:"subnet,omitempty"`
 
-	// IPv6 subnet to use for vip placement. Field introduced in 18.2.5.
+	// IPv6 subnet to use for vip placement. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Subnet6 *IPAddrPrefix `json:"subnet6,omitempty"`
 }

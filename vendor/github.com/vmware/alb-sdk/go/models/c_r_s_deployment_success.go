@@ -8,6 +8,6 @@ package models
 // swagger:model CRSDeploymentSuccess
 type CRSDeploymentSuccess struct {
 
-	// List of all installed CRS updates. Field introduced in 20.1.1.
+	// List of all installed CRS updates. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CrsInfo []*CRSDetails `json:"crs_info,omitempty"`
 }

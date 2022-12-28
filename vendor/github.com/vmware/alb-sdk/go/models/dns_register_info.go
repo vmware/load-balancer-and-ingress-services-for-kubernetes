@@ -8,27 +8,27 @@ package models
 // swagger:model DNSRegisterInfo
 type DNSRegisterInfo struct {
 
-	// Placeholder for description of property dns_info of obj type DNSRegisterInfo field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DNSInfo []*DNSInfo `json:"dns_info,omitempty"`
 
-	// error of DNSRegisterInfo.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Error *string `json:"error,omitempty"`
 
-	// Placeholder for description of property fip of obj type DNSRegisterInfo field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Fip *IPAddr `json:"fip,omitempty"`
 
-	// Number of total_records.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TotalRecords *int32 `json:"total_records,omitempty"`
 
-	// Placeholder for description of property vip of obj type DNSRegisterInfo field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Vip *IPAddr `json:"vip,omitempty"`
 
-	// vip_id of DNSRegisterInfo.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VipID *string `json:"vip_id,omitempty"`
 
-	// vs_names of DNSRegisterInfo.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VsNames []string `json:"vs_names,omitempty"`
 
-	// Unique object identifiers of vss.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VsUuids []string `json:"vs_uuids,omitempty"`
 }

@@ -8,12 +8,12 @@ package models
 // swagger:model BfdProfile
 type BfdProfile struct {
 
-	// Default required minimum receive interval (in ms) used in BFD. Allowed values are 500-4000000. Field introduced in 20.1.1. Unit is MILLISECONDS.
+	// Default required minimum receive interval (in ms) used in BFD. Allowed values are 500-4000000. Field introduced in 20.1.1. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Minrx *int32 `json:"minrx,omitempty"`
 
-	// Default desired minimum transmit interval (in ms) used in BFD. Allowed values are 500-4000000. Field introduced in 20.1.1. Unit is MILLISECONDS.
+	// Default desired minimum transmit interval (in ms) used in BFD. Allowed values are 500-4000000. Field introduced in 20.1.1. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Mintx *int32 `json:"mintx,omitempty"`
 
-	// Default detection multiplier used in BFD. Allowed values are 3-255. Field introduced in 20.1.1.
+	// Default detection multiplier used in BFD. Allowed values are 3-255. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Multi *int32 `json:"multi,omitempty"`
 }

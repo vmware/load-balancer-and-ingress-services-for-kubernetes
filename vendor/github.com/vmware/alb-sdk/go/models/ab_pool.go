@@ -8,10 +8,10 @@ package models
 // swagger:model AbPool
 type AbPool struct {
 
-	// Pool configured as B pool for A/B testing. It is a reference to an object of type Pool.
+	// Pool configured as B pool for A/B testing. It is a reference to an object of type Pool. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	PoolRef *string `json:"pool_ref"`
 
-	// Ratio of traffic diverted to the B pool, for A/B testing. Allowed values are 0-100.
+	// Ratio of traffic diverted to the B pool, for A/B testing. Allowed values are 0-100. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Ratio *int32 `json:"ratio,omitempty"`
 }

@@ -8,24 +8,24 @@ package models
 // swagger:model MetricsDbQueueFullEventDetails
 type MetricsDbQueueFullEventDetails struct {
 
-	// Number of high.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	High *int64 `json:"high,omitempty"`
 
-	// Number of instanceport.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Instanceport *int64 `json:"instanceport,omitempty"`
 
-	// Number of low.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Low *int64 `json:"low,omitempty"`
 
-	// nodeid of MetricsDbQueueFullEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Nodeid *string `json:"nodeid,omitempty"`
 
-	// period of MetricsDbQueueFullEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Period *string `json:"period,omitempty"`
 
-	// Placeholder for description of property runtime of obj type MetricsDbQueueFullEventDetails field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Runtime *MetricsDbRuntime `json:"runtime,omitempty"`
 
-	// Number of watermark.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Watermark *int64 `json:"watermark,omitempty"`
 }

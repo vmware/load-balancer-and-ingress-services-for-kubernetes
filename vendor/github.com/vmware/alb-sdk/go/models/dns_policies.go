@@ -8,11 +8,11 @@ package models
 // swagger:model DnsPolicies
 type DNSPolicies struct {
 
-	// UUID of the dns policy. It is a reference to an object of type DnsPolicy. Field introduced in 17.1.1.
+	// UUID of the dns policy. It is a reference to an object of type DnsPolicy. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	DNSPolicyRef *string `json:"dns_policy_ref"`
 
-	// Index of the dns policy. Field introduced in 17.1.1.
+	// Index of the dns policy. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Index *int32 `json:"index"`
 }

@@ -8,11 +8,11 @@ package models
 // swagger:model TencentCredentials
 type TencentCredentials struct {
 
-	// Tencent secret ID. Field introduced in 18.2.3.
+	// Tencent secret ID. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	SecretID *string `json:"secret_id"`
 
-	// Tencent secret key. Field introduced in 18.2.3.
+	// Tencent secret key. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	SecretKey *string `json:"secret_key"`
 }

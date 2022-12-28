@@ -12,75 +12,75 @@ type VIMgrVMRuntime struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
-	// availability_zone of VIMgrVMRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AvailabilityZone *string `json:"availability_zone,omitempty"`
 
-	//  It is a reference to an object of type Cloud.
+	//  It is a reference to an object of type Cloud. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CloudRef *string `json:"cloud_ref,omitempty"`
 
-	// connection_state of VIMgrVMRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ConnectionState *string `json:"connection_state,omitempty"`
 
-	// Unique object identifier of controller_cluster.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ControllerClusterUUID *string `json:"controller_cluster_uuid,omitempty"`
 
-	// controller_ip_addr of VIMgrVMRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ControllerIPAddr *string `json:"controller_ip_addr,omitempty"`
 
-	// Placeholder for description of property controller_vm of obj type VIMgrVMRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ControllerVM *bool `json:"controller_vm,omitempty"`
 
-	// Number of cpu_reservation.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CPUReservation *int64 `json:"cpu_reservation,omitempty"`
 
-	// Number of cpu_shares.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CPUShares *int32 `json:"cpu_shares,omitempty"`
 
-	// Placeholder for description of property creation_in_progress of obj type VIMgrVMRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CreationInProgress *bool `json:"creation_in_progress,omitempty"`
 
-	// Placeholder for description of property guest_nic of obj type VIMgrVMRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	GuestNic []*VIMgrGuestNicRuntime `json:"guest_nic,omitempty"`
 
-	// host of VIMgrVMRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Host *string `json:"host,omitempty"`
 
-	// Number of init_vnics.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	InitVnics *int32 `json:"init_vnics,omitempty"`
 
-	// managed_object_id of VIMgrVMRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	ManagedObjectID *string `json:"managed_object_id"`
 
-	// Number of mem_shares.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MemShares *int32 `json:"mem_shares,omitempty"`
 
-	// Number of memory.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Memory *int64 `json:"memory,omitempty"`
 
-	// Number of memory_reservation.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MemoryReservation *int64 `json:"memory_reservation,omitempty"`
 
-	// Name of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Name *string `json:"name"`
 
-	// Number of num_cpu.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumCPU *int32 `json:"num_cpu,omitempty"`
 
-	//  Field introduced in 17.1.1,17.1.3.
+	//  Field introduced in 17.1.1,17.1.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	OvfAvisetypeField *string `json:"ovf_avisetype_field,omitempty"`
 
-	// powerstate of VIMgrVMRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Powerstate *string `json:"powerstate,omitempty"`
 
-	// Number of se_ver.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeVer *int32 `json:"se_ver,omitempty"`
 
-	//  It is a reference to an object of type Tenant.
+	//  It is a reference to an object of type Tenant. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
-	//  Enum options - CLOUD_NONE, CLOUD_VCENTER, CLOUD_OPENSTACK, CLOUD_AWS, CLOUD_VCA, CLOUD_APIC, CLOUD_MESOS, CLOUD_LINUXSERVER, CLOUD_DOCKER_UCP, CLOUD_RANCHER, CLOUD_OSHIFT_K8S, CLOUD_AZURE, CLOUD_GCP, CLOUD_NSXT.
+	//  Enum options - CLOUD_NONE, CLOUD_VCENTER, CLOUD_OPENSTACK, CLOUD_AWS, CLOUD_VCA, CLOUD_APIC, CLOUD_MESOS, CLOUD_LINUXSERVER, CLOUD_DOCKER_UCP, CLOUD_RANCHER, CLOUD_OSHIFT_K8S, CLOUD_AZURE, CLOUD_GCP, CLOUD_NSXT. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Type *string `json:"type"`
 
@@ -88,33 +88,33 @@ type VIMgrVMRuntime struct {
 	// Read Only: true
 	URL *string `json:"url,omitempty"`
 
-	// Unique object identifier of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UUID *string `json:"uuid,omitempty"`
 
-	// Unique object identifier of vcenter_datacenter.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VcenterDatacenterUUID *string `json:"vcenter_datacenter_uuid,omitempty"`
 
-	// vcenter_rm_cookie of VIMgrVMRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VcenterRmCookie *string `json:"vcenter_rm_cookie,omitempty"`
 
-	//  Enum options - VIMGR_SE_NETWORK_ADMIN, VIMGR_SE_UNIFIED_ADMIN.
+	//  Enum options - VIMGR_SE_NETWORK_ADMIN, VIMGR_SE_UNIFIED_ADMIN. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VcenterSeType *string `json:"vcenter_se_type,omitempty"`
 
-	// Placeholder for description of property vcenter_template_vm of obj type VIMgrVMRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VcenterTemplateVM *bool `json:"vcenter_template_vm,omitempty"`
 
-	// vcenter_vAppName of VIMgrVMRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VcenterVAppName *string `json:"vcenter_vAppName,omitempty"`
 
-	// vcenter_vAppVendor of VIMgrVMRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VcenterVAppVendor *string `json:"vcenter_vAppVendor,omitempty"`
 
-	//  Enum options - VMTYPE_SE_VM, VMTYPE_POOL_SRVR.
+	//  Enum options - VMTYPE_SE_VM, VMTYPE_POOL_SRVR. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VcenterVMType *string `json:"vcenter_vm_type,omitempty"`
 
-	// Placeholder for description of property vcenter_vnic_discovered of obj type VIMgrVMRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VcenterVnicDiscovered *bool `json:"vcenter_vnic_discovered,omitempty"`
 
-	// Number of vm_lb_weight.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VMLbWeight *int32 `json:"vm_lb_weight,omitempty"`
 }

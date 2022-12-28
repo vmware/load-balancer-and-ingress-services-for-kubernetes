@@ -8,12 +8,12 @@ package models
 // swagger:model VsEvStatus
 type VsEvStatus struct {
 
-	// notes of VsEvStatus.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Notes []string `json:"notes,omitempty"`
 
-	// request of VsEvStatus.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Request *string `json:"request,omitempty"`
 
-	// result of VsEvStatus.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Result *string `json:"result,omitempty"`
 }

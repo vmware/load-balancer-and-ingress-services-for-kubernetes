@@ -8,6 +8,6 @@ package models
 // swagger:model ArpTableFilter
 type ArpTableFilter struct {
 
-	// IP address.
+	// IP address. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IPAddress *IPAddr `json:"ip_address,omitempty"`
 }

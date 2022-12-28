@@ -8,10 +8,10 @@ package models
 // swagger:model SeUpgradeScaleinEventDetails
 type SeUpgradeScaleinEventDetails struct {
 
-	// Placeholder for description of property scalein_params of obj type SeUpgradeScaleinEventDetails field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ScaleinParams *VsScaleinParams `json:"scalein_params,omitempty"`
 
-	// Unique object identifier of vs.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	VsUUID *string `json:"vs_uuid"`
 }

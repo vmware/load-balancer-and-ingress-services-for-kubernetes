@@ -8,22 +8,22 @@ package models
 // swagger:model VinfraVcenterBadCredentials
 type VinfraVcenterBadCredentials struct {
 
-	// Name of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`
 
-	// Number of previous_count.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PreviousCount *int64 `json:"previous_count,omitempty"`
 
-	// user of VinfraVcenterBadCredentials.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	User *string `json:"user,omitempty"`
 
-	// vcenter of VinfraVcenterBadCredentials.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Vcenter *string `json:"vcenter"`
 
-	// vcenter_name of VinfraVcenterBadCredentials.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VcenterName *string `json:"vcenter_name,omitempty"`
 
-	// vcenter_object of VinfraVcenterBadCredentials.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VcenterObject *string `json:"vcenter_object,omitempty"`
 }

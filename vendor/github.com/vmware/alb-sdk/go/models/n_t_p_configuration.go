@@ -8,12 +8,12 @@ package models
 // swagger:model NTPConfiguration
 type NTPConfiguration struct {
 
-	// NTP Authentication keys.
+	// NTP Authentication keys. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NtpAuthenticationKeys []*NTPAuthenticationKey `json:"ntp_authentication_keys,omitempty"`
 
-	// List of NTP server hostnames or IP addresses.
+	// List of NTP server hostnames or IP addresses. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NtpServerList []*IPAddr `json:"ntp_server_list,omitempty"`
 
-	// List of NTP Servers.
+	// List of NTP Servers. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NtpServers []*NTPServer `json:"ntp_servers,omitempty"`
 }

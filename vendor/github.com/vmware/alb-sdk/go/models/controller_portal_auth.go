@@ -8,12 +8,12 @@ package models
 // swagger:model ControllerPortalAuth
 type ControllerPortalAuth struct {
 
-	// Access Token to authenticate Customer Portal REST calls. Field introduced in 18.2.6.
+	// Access Token to authenticate Customer Portal REST calls. Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AccessToken *string `json:"access_token,omitempty"`
 
-	// Salesforce instance URL. Field introduced in 18.2.6.
+	// Salesforce instance URL. Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	InstanceURL *string `json:"instance_url,omitempty"`
 
-	// Signed JWT to refresh the access token. Field introduced in 18.2.6.
+	// Signed JWT to refresh the access token. Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	JwtToken *string `json:"jwt_token,omitempty"`
 }

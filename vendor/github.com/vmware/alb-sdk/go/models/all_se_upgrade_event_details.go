@@ -8,16 +8,16 @@ package models
 // swagger:model AllSeUpgradeEventDetails
 type AllSeUpgradeEventDetails struct {
 
-	// notes of AllSeUpgradeEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Notes []string `json:"notes,omitempty"`
 
-	// Number of num_se.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	NumSe *int32 `json:"num_se"`
 
-	// Number of num_vs.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumVs *int32 `json:"num_vs,omitempty"`
 
-	// Placeholder for description of property request of obj type AllSeUpgradeEventDetails field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Request *SeUpgradeParams `json:"request,omitempty"`
 }

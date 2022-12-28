@@ -8,12 +8,12 @@ package models
 // swagger:model SeVsPktBufHighEventDetails
 type SeVsPktBufHighEventDetails struct {
 
-	// Current packet buffer usage of the VS.
+	// Current packet buffer usage of the VS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CurrentValue *int32 `json:"current_value,omitempty"`
 
-	// Buffer usage threshold value.
+	// Buffer usage threshold value. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Threshold *int32 `json:"threshold,omitempty"`
 
-	// Virtual Service name. It is a reference to an object of type VirtualService.
+	// Virtual Service name. It is a reference to an object of type VirtualService. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VirtualService *string `json:"virtual_service,omitempty"`
 }

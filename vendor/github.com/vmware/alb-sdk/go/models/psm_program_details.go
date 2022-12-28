@@ -8,9 +8,9 @@ package models
 // swagger:model PsmProgramDetails
 type PsmProgramDetails struct {
 
-	// error of PsmProgramDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Error *string `json:"error,omitempty"`
 
-	// Name of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`
 }

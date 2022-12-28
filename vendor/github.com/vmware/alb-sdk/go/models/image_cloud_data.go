@@ -8,9 +8,9 @@ package models
 // swagger:model ImageCloudData
 type ImageCloudData struct {
 
-	// Cloud Data specific to a particular cloud. Field introduced in 20.1.1.
+	// Cloud Data specific to a particular cloud. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CloudDataValues []*ImageCloudSpecificData `json:"cloud_data_values,omitempty"`
 
-	// Contains the name of the cloud. Field introduced in 20.1.1.
+	// Contains the name of the cloud. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CloudName *string `json:"cloud_name,omitempty"`
 }

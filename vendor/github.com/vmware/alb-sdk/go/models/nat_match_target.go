@@ -8,12 +8,12 @@ package models
 // swagger:model NatMatchTarget
 type NatMatchTarget struct {
 
-	// Destination IP of the packet. Field introduced in 18.2.3.
+	// Destination IP of the packet. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DestinationIP *IPAddrMatch `json:"destination_ip,omitempty"`
 
-	// Services like port-matching and protocol. Field introduced in 18.2.5.
+	// Services like port-matching and protocol. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Services *ServiceMatch `json:"services,omitempty"`
 
-	// Source IP of the packet. Field introduced in 18.2.3.
+	// Source IP of the packet. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SourceIP *IPAddrMatch `json:"source_ip,omitempty"`
 }

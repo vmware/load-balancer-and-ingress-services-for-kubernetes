@@ -8,21 +8,21 @@ package models
 // swagger:model IpamDnsOpenstackProfile
 type IPAMDNSOpenstackProfile struct {
 
-	// Keystone's hostname or IP address.
+	// Keystone's hostname or IP address. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	KeystoneHost *string `json:"keystone_host,omitempty"`
 
-	// The password Avi Vantage will use when authenticating to Keystone.
+	// The password Avi Vantage will use when authenticating to Keystone. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Password *string `json:"password,omitempty"`
 
-	// Region name.
+	// Region name. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Region *string `json:"region,omitempty"`
 
-	// OpenStack tenant name.
+	// OpenStack tenant name. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Tenant *string `json:"tenant,omitempty"`
 
-	// The username Avi Vantage will use when authenticating to Keystone.
+	// The username Avi Vantage will use when authenticating to Keystone. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Username *string `json:"username,omitempty"`
 
-	// Network to be used for VIP allocation.
+	// Network to be used for VIP allocation. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VipNetworkName *string `json:"vip_network_name,omitempty"`
 }

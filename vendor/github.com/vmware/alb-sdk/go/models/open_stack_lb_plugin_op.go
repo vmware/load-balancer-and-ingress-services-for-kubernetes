@@ -8,27 +8,27 @@ package models
 // swagger:model OpenStackLbPluginOp
 type OpenStackLbPluginOp struct {
 
-	// cc_id of OpenStackLbPluginOp.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CcID *string `json:"cc_id,omitempty"`
 
-	// command of OpenStackLbPluginOp.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Command *string `json:"command"`
 
-	// detail of OpenStackLbPluginOp.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Detail *string `json:"detail,omitempty"`
 
-	// Number of elapsed.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Elapsed *int32 `json:"elapsed,omitempty"`
 
-	// id of OpenStackLbPluginOp.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	ID *string `json:"id"`
 
-	// prov of OpenStackLbPluginOp.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Prov *string `json:"prov"`
 
-	// result of OpenStackLbPluginOp.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Result *string `json:"result,omitempty"`
 }

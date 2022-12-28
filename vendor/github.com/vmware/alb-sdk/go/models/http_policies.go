@@ -8,11 +8,11 @@ package models
 // swagger:model HTTPPolicies
 type HTTPPolicies struct {
 
-	// UUID of the virtual service HTTP policy collection. It is a reference to an object of type HTTPPolicySet.
+	// UUID of the virtual service HTTP policy collection. It is a reference to an object of type HTTPPolicySet. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	HTTPPolicySetRef *string `json:"http_policy_set_ref"`
 
-	// Index of the virtual service HTTP policy collection.
+	// Index of the virtual service HTTP policy collection. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Index *int32 `json:"index"`
 }

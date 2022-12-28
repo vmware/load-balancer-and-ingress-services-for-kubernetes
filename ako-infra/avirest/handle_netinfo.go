@@ -345,9 +345,28 @@ func addNetworkInIPAM() {
 	}
 	netName := lib.GetVCFNetworkName()
 	networkRef := "/api/network/?name=" + netName
-
-	if !utils.HasElem(ipam.InternalProfile.UsableNetworkRefs, networkRef) {
-		ipam.InternalProfile.UsableNetworkRefs = append(ipam.InternalProfile.UsableNetworkRefs, networkRef)
+	// ipam.InternalProfile.UsableNetworkRefs field is deprecated in 20.1.3
+	// Once verified commented code should be removed.
+	/*
+		if !utils.HasElem(ipam.InternalProfile.UsableNetworkRefs, networkRef) {
+			ipam.InternalProfile.UsableNetworkRefs = append(ipam.InternalProfile.UsableNetworkRefs, networkRef)
+		}
+	*/
+	networkRefFound := false
+	for _, oldNetworkRef := range ipam.InternalProfile.UsableNetworks {
+		if *oldNetworkRef.NwRef == networkRef {
+			networkRefFound = true
+			break
+		}
+	}
+	//TODO: Check with Abishek
+	// Problem with this field is: it is applicable in Enterprise license only.
+	if !networkRefFound {
+		newUsableNetwork := &models.IPAMUsableNetwork{
+			NwRef: &networkRef,
+		}
+		newUsableNetwork.NwRef = &networkRef
+		ipam.InternalProfile.UsableNetworks = append(ipam.InternalProfile.UsableNetworks, newUsableNetwork)
 	}
 }
 

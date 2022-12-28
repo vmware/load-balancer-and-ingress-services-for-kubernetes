@@ -8,24 +8,24 @@ package models
 // swagger:model ConfigDeleteDetails
 type ConfigDeleteDetails struct {
 
-	// Error message if request failed.
+	// Error message if request failed. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ErrorMessage *string `json:"error_message,omitempty"`
 
-	// API path.
+	// API path. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Path *string `json:"path,omitempty"`
 
-	// Deleted data of the resource.
+	// Deleted data of the resource. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ResourceData *string `json:"resource_data,omitempty"`
 
-	// Name of the deleted resource.
+	// Name of the deleted resource. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ResourceName *string `json:"resource_name,omitempty"`
 
-	// Config type of the deleted resource.
+	// Config type of the deleted resource. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ResourceType *string `json:"resource_type,omitempty"`
 
-	// Status.
+	// Status. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Status *string `json:"status,omitempty"`
 
-	// Request user.
+	// Request user. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	User *string `json:"user,omitempty"`
 }

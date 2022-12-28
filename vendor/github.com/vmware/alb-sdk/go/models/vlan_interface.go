@@ -8,28 +8,28 @@ package models
 // swagger:model VlanInterface
 type VlanInterface struct {
 
-	// Placeholder for description of property dhcp_enabled of obj type VlanInterface field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DhcpEnabled *bool `json:"dhcp_enabled,omitempty"`
 
-	// Enable the interface. Field introduced in 18.2.5.
+	// Enable the interface. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// if_name of VlanInterface.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	IfName *string `json:"if_name"`
 
-	// Enable IPv6 auto configuration. Field introduced in 18.1.1.
+	// Enable IPv6 auto configuration. Field introduced in 18.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Ip6AutocfgEnabled *bool `json:"ip6_autocfg_enabled,omitempty"`
 
-	// Placeholder for description of property is_mgmt of obj type VlanInterface field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IsMgmt *bool `json:"is_mgmt,omitempty"`
 
-	// VLAN ID. Allowed values are 0-4096.
+	// VLAN ID. Allowed values are 0-4096. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VlanID *int32 `json:"vlan_id,omitempty"`
 
-	// Placeholder for description of property vnic_networks of obj type VlanInterface field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VnicNetworks []*VNICNetwork `json:"vnic_networks,omitempty"`
 
-	//  It is a reference to an object of type VrfContext.
+	//  It is a reference to an object of type VrfContext. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VrfRef *string `json:"vrf_ref,omitempty"`
 }

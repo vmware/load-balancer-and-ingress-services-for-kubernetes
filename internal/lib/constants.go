@@ -180,7 +180,7 @@ const (
 	IstioCertOutputPath                        = "/etc/istio-output-certs"
 	IstioSecret                                = "istio-secret"
 	IstioModel                                 = "istioModel"
-	LoadBalancerIP                             = "ako.vmware.com/load-balancer-ip"
+	CTRL_VERSION_21_1_3                        = "21.1.3"
 
 	// AKO Event constants
 	AKOEventComponent      = "avi-kubernetes-operator"
@@ -227,6 +227,7 @@ const (
 	VSAnnotation                   = "ako.vmware.com/host-fqdn-vs-uuid-map"
 	ControllerAnnotation           = "ako.vmware.com/controller-cluster-uuid"
 	SharedVipSvcLBAnnotation       = "ako.vmware.com/enable-shared-vip"
+	LoadBalancerIP                 = "ako.vmware.com/load-balancer-ip"
 
 	// Specifies command used in namespace event handler
 	NsFilterAdd                    = "ADD"
