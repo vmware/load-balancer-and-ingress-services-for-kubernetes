@@ -750,7 +750,6 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 	} else {
 		isPrimaryAKO := lib.AKOControlConfig().GetAKOInstanceFlag()
 		if isPrimaryAKO {
-			lib.SetStaticRouteSyncHandler()
 			var labelSelectorMap map[string]string
 			//Apply filter to nodes in NodePort mode
 			if lib.IsNodePortMode() {
@@ -774,17 +773,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			vrfModelName = lib.GetModelName(lib.GetTenant(), lib.GetVrf())
 			utils.AviLog.Infof("Processing model for vrf context in full sync: %s", vrfModelName)
 			nodes.PublishKeyToRestLayer(vrfModelName, "fullsync", sharedQueue)
-			timeout := make(chan bool, 1)
-			go func() {
-				time.Sleep(20 * time.Second)
-				timeout <- true
-			}()
-			select {
-			case <-lib.StaticRouteSyncChan:
-				utils.AviLog.Infof("Processing done for VRF")
-			case <-timeout:
-				utils.AviLog.Warnf("Timed out while waiting for rest layer to respond, moving on with bootup")
-			}
+			utils.AviLog.Infof("Processing done for VRF")
 		} else {
 			utils.AviLog.Warnf("AKO is not primary instance, skipping vrf context publish in full sync.")
 		}
