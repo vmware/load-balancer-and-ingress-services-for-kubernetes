@@ -334,26 +334,28 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 						utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.NamespaceServiceName[0], utils.Stringify(statusOption))
 						status.PublishToStatusQueue(updateOptions.ServiceMetadata.NamespaceServiceName[0], statusOption)
 					case lib.SNIInsecureOrEVHPool:
-						updateOptions := status.UpdateOptions{
-							Vip:                IPAddrs,
-							ServiceMetadata:    svc_mdata_obj,
-							Key:                key,
-							VirtualServiceUUID: vs_cache_obj.Uuid,
-							VSName:             vs_cache_obj.Name,
+						if vs_cache_obj.Uuid != "" {
+							updateOptions := status.UpdateOptions{
+								Vip:                IPAddrs,
+								ServiceMetadata:    svc_mdata_obj,
+								Key:                key,
+								VirtualServiceUUID: vs_cache_obj.Uuid,
+								VSName:             vs_cache_obj.Name,
+							}
+							statusOption := status.StatusOptions{
+								ObjType: utils.Ingress,
+								Op:      lib.UpdateStatus,
+								Options: &updateOptions,
+							}
+							if utils.GetInformers().RouteInformer != nil {
+								statusOption.ObjType = utils.OshiftRoute
+							}
+							if pool_cache_obj.ServiceMetadataObj.IsMCIIngress {
+								statusOption.ObjType = lib.MultiClusterIngress
+							}
+							utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
+							status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 						}
-						statusOption := status.StatusOptions{
-							ObjType: utils.Ingress,
-							Op:      lib.UpdateStatus,
-							Options: &updateOptions,
-						}
-						if utils.GetInformers().RouteInformer != nil {
-							statusOption.ObjType = utils.OshiftRoute
-						}
-						if pool_cache_obj.ServiceMetadataObj.IsMCIIngress {
-							statusOption.ObjType = lib.MultiClusterIngress
-						}
-						utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
-						status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 					}
 				}
 			}
