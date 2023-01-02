@@ -87,16 +87,12 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 	v4Type, v6Type := "V4", "V6"
 	nodeIP, nodeIP6 = lib.GetIPFromNode(node)
 
-	if ipFamily == v6Type {
-		if nodeIP6 == "" {
-			utils.AviLog.Errorf("Error in fetching nodeIPv6 for %v", node.ObjectMeta.Name)
-			return nil, errors.New("nodeipv6 not found")
-		}
-	} else {
-		if nodeIP == "" {
-			utils.AviLog.Errorf("Error in fetching nodeIP for %v", node.ObjectMeta.Name)
-			return nil, errors.New("nodeip not found")
-		}
+	if ipFamily == v6Type && nodeIP6 == "" {
+		utils.AviLog.Errorf("Error in fetching nodeIPv6 for %v", node.ObjectMeta.Name)
+		return nil, errors.New("nodeipv6 not found")
+	} else if ipFamily == v4Type && nodeIP == "" {
+		utils.AviLog.Errorf("Error in fetching nodeIP for %v", node.ObjectMeta.Name)
+		return nil, errors.New("nodeip not found")
 	}
 
 	podCIDRs, err := lib.GetPodCIDR(node)
@@ -121,22 +117,19 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 		clusterName := lib.GetClusterName()
 		labels := lib.GetLabels()
 		var prefixipType, nextHopIP, nextHopIPType string
-		if ipFamily == v4Type {
+		rev4 := regexp.MustCompile(lib.IPCIDRRegex)
+		rev6 := regexp.MustCompile(lib.IPV6CIDRRegex)
+		if ipFamily == v4Type && rev4.MatchString(podCIDR) {
 			prefixipType = v4Type
 			nextHopIP = nodeIP
 			nextHopIPType = v4Type
-			re := regexp.MustCompile(lib.IPCIDRRegex)
-			if !re.MatchString(podCIDR) {
-				continue
-			}
-		} else {
+		} else if ipFamily == v6Type && rev6.MatchString(podCIDR) {
 			prefixipType = v6Type
 			nextHopIP = nodeIP6
 			nextHopIPType = v6Type
-			re := regexp.MustCompile(lib.IPV6CIDRRegex)
-			if !re.MatchString(podCIDR) {
-				continue
-			}
+		} else {
+			utils.AviLog.Warnf("Skipping PodCIDR %s, ipfamily is %s", podCIDR, ipFamily)
+			continue
 		}
 
 		mask := int32(m)

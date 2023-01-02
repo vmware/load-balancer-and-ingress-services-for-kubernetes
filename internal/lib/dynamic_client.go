@@ -418,7 +418,7 @@ func GetPodCIDR(node *v1.Node) ([]string, error) {
 				utils.AviLog.Errorf("Error in fetching Pod CIDR from NodeSpec %v", node.ObjectMeta.Name)
 				return nil, errors.New("podcidr not found")
 			}
-			podCIDRs = append(podCIDRs, node.Spec.PodCIDR)
+			podCIDRs = append(podCIDRs, node.Spec.PodCIDRs...)
 		}
 	}
 
