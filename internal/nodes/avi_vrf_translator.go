@@ -17,12 +17,10 @@ package nodes
 import (
 	"errors"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -31,40 +29,126 @@ import (
 )
 
 // BuildVRFGraph : build vrf graph from k8s nodes
-func (o *AviObjectGraph) BuildVRFGraph(key string, vrfName string) error {
+func (o *AviObjectGraph) BuildVRFGraph(key, vrfName, nodeName string, deleteFlag bool) error {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
-	aviVrfNode := &AviVrfNode{
-		Name: vrfName,
+	//fetch vrf Node
+	aviVrfNodes := o.GetAviVRF()
+	if len(aviVrfNodes) == 0 {
+		vrfNode := &AviVrfNode{
+			Name: vrfName,
+		}
+		o.AddModelNode(vrfNode)
+		aviVrfNodes = append(aviVrfNodes, vrfNode)
 	}
+	// Each AKO should have single VRF node as it deals with single cluster only.
+	aviVrfNode := aviVrfNodes[0]
 
-	allNodes := objects.SharedNodeLister().CopyAllObjects()
-	// We need to sort the node list so that the staticroutes are in same order always
-	var nodeKeys []string
-	for k := range allNodes {
-		nodeKeys = append(nodeKeys, k)
-	}
-	sort.Strings(nodeKeys)
-
-	utils.AviLog.Debugf("key: %s, All Nodes %v", key, allNodes)
 	routeid := 1
-	for _, k := range nodeKeys {
-		node := allNodes[k].(*v1.Node)
-		nodeRoutes, err := o.addRouteForNode(node, vrfName, routeid)
+	if len(aviVrfNode.StaticRoutes) != 0 {
+		routeid = len(aviVrfNode.StaticRoutes) + 1
+	} else {
+		aviVrfNode.NodeStaticRoutes = make(map[string]StaticRouteDetails)
+	}
+	var nodeRoutes []*models.StaticRoute
+	if !deleteFlag {
+		node, err := utils.GetInformers().NodeInformer.Lister().Get(nodeName)
 		if err != nil {
-			utils.AviLog.Errorf("key: %s, Error Adding vrf for node %s: %v", key, node.Name, err)
-			continue
+			utils.AviLog.Errorf("key: %s, Error in fetching node details: %s: %v", key, nodeName, err)
+			return err
 		}
+		nodeRoutes, err = o.addRouteForNode(node, vrfName, routeid)
+		if err != nil {
+			utils.AviLog.Errorf("key: %s, Error Adding vrf for node %s: %v", key, nodeName, err)
+			return err
+		}
+	}
+	// For new node addition (coming from ingestion layer), nodes static routes will be attahced at the end
+	// During reboot of AKO, nodes will be sorted. So this will give rest call
+	// HA case has to be checked: As Active and passive node, after failover, will not have same ordering of static
+	// routes
+	nodeStaticRouteDetails, ok := aviVrfNode.NodeStaticRoutes[nodeName]
+	if !ok {
+		//node not found, check overlapping and then add case
 		if !findRoutePrefix(nodeRoutes, aviVrfNode.StaticRoutes, key) {
+			// node is not present and no overlapping of cidr, append at last
 			aviVrfNode.StaticRoutes = append(aviVrfNode.StaticRoutes, nodeRoutes...)
-			routeid += len(nodeRoutes)
+			nodeStaticRoute := StaticRouteDetails{}
+			// start index shows at what index of StaticRoutes, nodes routes start (index based zero)
+			nodeStaticRoute.StartIndex = routeid - 1
+			nodeStaticRoute.Count = len(nodeRoutes)
+			aviVrfNode.NodeStaticRoutes[nodeName] = nodeStaticRoute
+			aviVrfNode.Nodes = append(aviVrfNode.Nodes, nodeName)
 		}
+	} else if !deleteFlag {
+		// update case
+		// Assumption: updated routes (values) for given node will not overlap with other nodes.
+		// So only updating existing routes of that node.
+		startIndex := nodeStaticRouteDetails.StartIndex
+		lenNewNodeRoutes := len(nodeRoutes)
+		diff := lenNewNodeRoutes - nodeStaticRouteDetails.Count
+
+		var staticRouteCopy []*models.StaticRoute
+		staticRouteCopy = append(staticRouteCopy, aviVrfNode.StaticRoutes[:startIndex]...)
+		staticRouteCopy = append(staticRouteCopy, nodeRoutes...)
+
+		staticRouteCopy = append(staticRouteCopy, aviVrfNode.StaticRoutes[startIndex+nodeStaticRouteDetails.Count:]...)
+		aviVrfNode.StaticRoutes = staticRouteCopy
+
+		//if diff is 0, there is no change in number of routes previously exist and newly created.
+		if diff != 0 {
+			updateNodeStaticRoutes(aviVrfNode, deleteFlag, nodeName, lenNewNodeRoutes, diff)
+		}
+
+	} else {
+		//delete case
+		startIndex := nodeStaticRouteDetails.StartIndex
+		count := nodeStaticRouteDetails.Count
+		var staticRouteCopy []*models.StaticRoute
+		staticRouteCopy = append(staticRouteCopy, aviVrfNode.StaticRoutes[:startIndex]...)
+		staticRouteCopy = append(staticRouteCopy, aviVrfNode.StaticRoutes[startIndex+count:]...)
+		aviVrfNode.StaticRoutes = staticRouteCopy
+		countToSubstract := aviVrfNode.NodeStaticRoutes[nodeName].Count
+		updateNodeStaticRoutes(aviVrfNode, deleteFlag, nodeName, 0, -countToSubstract)
 	}
 	aviVrfNode.CalculateCheckSum()
-	o.AddModelNode(aviVrfNode)
 	utils.AviLog.Infof("key: %s, Added vrf node %s", key, vrfName)
 	utils.AviLog.Infof("key: %s, Number of static routes %v", key, len(aviVrfNode.StaticRoutes))
 	return nil
+}
+
+func updateNodeStaticRoutes(aviVrfNode *AviVrfNode, isDelete bool, nodeName string, lenNewNodeRoutes, diff int) {
+	//get index of nodename in node array
+	index := -1
+	for i := 0; i < len(aviVrfNode.Nodes); i++ {
+		if aviVrfNode.Nodes[i] == nodeName {
+			index = i
+			if !isDelete {
+				nodeNameToUpdate := aviVrfNode.Nodes[index]
+				nodeDetails := aviVrfNode.NodeStaticRoutes[nodeNameToUpdate]
+				nodeDetails.Count = lenNewNodeRoutes
+				aviVrfNode.NodeStaticRoutes[nodeNameToUpdate] = nodeDetails
+			}
+			break
+		}
+	}
+	if index != -1 {
+		//Change nodemap entries till index
+		for i := len(aviVrfNode.Nodes) - 1; i > index; i-- {
+			nodeNameToUpdate := aviVrfNode.Nodes[i]
+			nodeDetails := aviVrfNode.NodeStaticRoutes[nodeNameToUpdate]
+			nodeDetails.StartIndex = nodeDetails.StartIndex + diff
+			aviVrfNode.NodeStaticRoutes[nodeNameToUpdate] = nodeDetails
+		}
+		if isDelete {
+			// now remove nodename from Nodes list
+			updateNodeList := aviVrfNode.Nodes[:index]
+			if index+1 < len(aviVrfNode.Nodes) {
+				updateNodeList = append(updateNodeList, aviVrfNode.Nodes[index+1:]...)
+			}
+			aviVrfNode.Nodes = updateNodeList
+		}
+	}
 }
 
 func findRoutePrefix(nodeRoutes, aviRoutes []*models.StaticRoute, key string) bool {

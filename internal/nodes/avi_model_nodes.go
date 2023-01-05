@@ -303,10 +303,16 @@ func (o *AviObjectGraph) GetOrderedNodes() []AviModelNode {
 	return o.modelNodes
 }
 
+type StaticRouteDetails struct {
+	StartIndex int
+	Count      int
+}
 type AviVrfNode struct {
 	Name             string
 	StaticRoutes     []*avimodels.StaticRoute
 	CloudConfigCksum uint32
+	NodeStaticRoutes map[string]StaticRouteDetails
+	Nodes            []string
 }
 
 func (v *AviVrfNode) GetCheckSum() uint32 {
