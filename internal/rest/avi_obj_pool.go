@@ -329,6 +329,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 						statusOption := status.StatusOptions{
 							ObjType: utils.L4LBService,
 							Op:      lib.UpdateStatus,
+							Key:     key,
 							Options: &updateOptions,
 						}
 						utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.NamespaceServiceName[0], utils.Stringify(statusOption))
@@ -411,6 +412,7 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 				statusOption := status.StatusOptions{
 					ObjType: utils.L4LBService,
 					Op:      lib.DeleteStatus,
+					Key:     key,
 					Options: &updateOptions,
 				}
 				utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", pool_cache_obj.ServiceMetadataObj.NamespaceServiceName[0], utils.Stringify(statusOption))
@@ -425,6 +427,7 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 					ObjType: utils.Ingress,
 					Op:      lib.DeleteStatus,
 					IsVSDel: isVSDelete,
+					Key:     key,
 					Options: &updateOptions,
 				}
 				if utils.GetInformers().RouteInformer != nil {
