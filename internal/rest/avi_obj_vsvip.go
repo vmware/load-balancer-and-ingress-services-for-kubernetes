@@ -279,7 +279,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 			vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
 			vsvip_avi, err := rest.AviVsVipGet(key, vsvip_cache_obj.Uuid, name)
 			if err != nil {
-				if strings.Contains(err.Error(), VSVIP_NOTFOUND) {
+				if strings.Contains(err.Error(), lib.VSVIPNotFoundError) {
 					// Clear the cache for this key
 					rest.cache.VSVIPCache.AviCacheDelete(vsvip_key)
 					utils.AviLog.Warnf("key: %s, Removed the vsvip object from the cache", key)

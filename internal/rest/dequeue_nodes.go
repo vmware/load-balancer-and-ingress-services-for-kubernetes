@@ -617,7 +617,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 			models.RestStatus.UpdateAviApiRestStatus("", err)
 			for i := len(rest_ops) - 1; i >= 0; i-- {
 				// Go over each of the failed requests and enqueue them to the worker queue for retry.
-				if rest_ops[i].Err != nil || rest_ops[i].Model == "VirtualService" {
+				if rest_ops[i].Err != nil {
 					// check for VSVIP errors for blocked IP address updates
 					if checkVsVipUpdateErrors(key, rest_ops[i]) {
 						rest.PopulateOneCache(rest_ops[i], aviObjKey, key)
@@ -979,6 +979,16 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 					poolObjName = *rest_op.Obj.(avimodels.Pool).Name
 				}
 				aviObjCache.AviPopulateOnePoolCache(c, utils.CloudName, poolObjName)
+				vsObjMeta, ok := rest.cache.VsCacheMeta.AviCacheGet(aviObjKey)
+				if !ok {
+					// VS Object not present
+					utils.AviLog.Warnf("key: %s, msg: VS object not present during retry of pool", key)
+				} else {
+					vsCopy, done := vsObjMeta.(*avicache.AviVsCache).GetVSCopy()
+					if done {
+						rest.StatusUpdateForPool(rest_op.Method, vsCopy, key)
+					}
+				}
 			case "PoolGroup":
 				var pgObjName string
 				switch rest_op.Obj.(type) {
@@ -1043,6 +1053,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 					vsCopy, done := vsObjMeta.(*avicache.AviVsCache).GetVSCopy()
 					if done {
 						rest.cache.VsCacheMeta.AviCacheAdd(aviObjKey, vsCopy)
+						rest.StatusUpdateForVS(rest_op.Method, vsCopy, key)
 					}
 				}
 			case "VSDataScriptSet":
