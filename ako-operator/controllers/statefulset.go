@@ -210,6 +210,22 @@ func BuildStatefulSet(ako akov1alpha1.AKOConfig, aviSecret corev1.Secret) (appsv
 	}
 	template := corev1.PodTemplateSpec{}
 	template.SetLabels(akoLabels)
+	if ako.Spec.IstioEnabled {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "istio-certs",
+			MountPath: "/etc/istio-output-certs/",
+		})
+		template.Annotations = map[string]string{
+			"sidecar.istio.io/inject":                          "true",
+			"traffic.sidecar.istio.io/includeInboundPorts":     "",
+			"traffic.sidecar.istio.io/includeOutboundIPRanges": "",
+			"proxy.istio.io/config": `proxyMetadata:
+  OUTPUT_CERTS: /etc/istio-output-certs
+`,
+			"sidecar.istio.io/userVolume":      `[{"name": "istio-certs", "emptyDir": {"medium":"Memory"}}]`,
+			"sidecar.istio.io/userVolumeMount": `[{"name": "istio-certs", "mountPath": "/etc/istio-output-certs"}]`,
+		}
+	}
 	template.Spec = corev1.PodSpec{
 		ServiceAccountName: ServiceAccountName,
 		Volumes:            volumes,
