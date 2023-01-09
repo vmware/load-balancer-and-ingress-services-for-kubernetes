@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
@@ -237,6 +238,31 @@ func DequeueIngestion(key string, fullsync bool) {
 			}
 		}
 	}
+	if objType == utils.Namespace && lib.IsWCP() && isNamespaceDeleted(name) {
+		cache := avicache.SharedAviObjCache()
+		vsKeys := cache.VsCacheMeta.AviCacheGetAllParentVSKeys()
+		for _, vsKey := range vsKeys {
+			if strings.HasSuffix(vsKey.Name, name) {
+				modelName := lib.GetModelName(lib.GetTenant(), vsKey.Name)
+				if found, _ := objects.SharedAviGraphLister().Get(modelName); found {
+					objects.SharedAviGraphLister().Save(modelName, nil)
+				}
+				PublishKeyToRestLayer(modelName, vsKey.Namespace+"/"+vsKey.Name, sharedQueue)
+				break
+			}
+		}
+	}
+
+}
+
+func isNamespaceDeleted(name string) bool {
+	ns, err := utils.GetInformers().NSInformer.Lister().Get(name)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return true
+		}
+	}
+	return ns.DeletionTimestamp != nil
 }
 
 func handleHostRuleForSharedVS(key string, fullsync bool) {
