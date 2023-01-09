@@ -68,38 +68,39 @@ func (o *AviObjectGraph) BuildVRFGraph(key, vrfName, nodeName string, deleteFlag
 	// HA case has to be checked: As Active and passive node, after failover, will not have same ordering of static
 	// routes
 	nodeStaticRouteDetails, ok := aviVrfNode.NodeStaticRoutes[nodeName]
-	if !ok {
-		//node not found, check overlapping and then add case
-		if !findRoutePrefix(nodeRoutes, aviVrfNode.StaticRoutes, key) {
-			// node is not present and no overlapping of cidr, append at last
-			aviVrfNode.StaticRoutes = append(aviVrfNode.StaticRoutes, nodeRoutes...)
-			nodeStaticRoute := StaticRouteDetails{}
-			// start index shows at what index of StaticRoutes, nodes routes start (index based zero)
-			nodeStaticRoute.StartIndex = routeid - 1
-			nodeStaticRoute.Count = len(nodeRoutes)
-			aviVrfNode.NodeStaticRoutes[nodeName] = nodeStaticRoute
-			aviVrfNode.Nodes = append(aviVrfNode.Nodes, nodeName)
+	if !deleteFlag {
+		if !ok {
+			//node not found, check overlapping and then add case
+			if !findRoutePrefix(nodeRoutes, aviVrfNode.StaticRoutes, key) {
+				// node is not present and no overlapping of cidr, append at last
+				aviVrfNode.StaticRoutes = append(aviVrfNode.StaticRoutes, nodeRoutes...)
+				nodeStaticRoute := StaticRouteDetails{}
+				// start index shows at what index of StaticRoutes, nodes routes start (index based zero)
+				nodeStaticRoute.StartIndex = routeid - 1
+				nodeStaticRoute.Count = len(nodeRoutes)
+				aviVrfNode.NodeStaticRoutes[nodeName] = nodeStaticRoute
+				aviVrfNode.Nodes = append(aviVrfNode.Nodes, nodeName)
+			}
+		} else {
+			// update case
+			// Assumption: updated routes (values) for given node will not overlap with other nodes.
+			// So only updating existing routes of that node.
+			startIndex := nodeStaticRouteDetails.StartIndex
+			lenNewNodeRoutes := len(nodeRoutes)
+			diff := lenNewNodeRoutes - nodeStaticRouteDetails.Count
+
+			var staticRouteCopy []*models.StaticRoute
+			staticRouteCopy = append(staticRouteCopy, aviVrfNode.StaticRoutes[:startIndex]...)
+			staticRouteCopy = append(staticRouteCopy, nodeRoutes...)
+
+			staticRouteCopy = append(staticRouteCopy, aviVrfNode.StaticRoutes[startIndex+nodeStaticRouteDetails.Count:]...)
+			aviVrfNode.StaticRoutes = staticRouteCopy
+
+			//if diff is 0, there is no change in number of routes previously exist and newly created.
+			if diff != 0 {
+				updateNodeStaticRoutes(aviVrfNode, deleteFlag, nodeName, lenNewNodeRoutes, diff)
+			}
 		}
-	} else if !deleteFlag {
-		// update case
-		// Assumption: updated routes (values) for given node will not overlap with other nodes.
-		// So only updating existing routes of that node.
-		startIndex := nodeStaticRouteDetails.StartIndex
-		lenNewNodeRoutes := len(nodeRoutes)
-		diff := lenNewNodeRoutes - nodeStaticRouteDetails.Count
-
-		var staticRouteCopy []*models.StaticRoute
-		staticRouteCopy = append(staticRouteCopy, aviVrfNode.StaticRoutes[:startIndex]...)
-		staticRouteCopy = append(staticRouteCopy, nodeRoutes...)
-
-		staticRouteCopy = append(staticRouteCopy, aviVrfNode.StaticRoutes[startIndex+nodeStaticRouteDetails.Count:]...)
-		aviVrfNode.StaticRoutes = staticRouteCopy
-
-		//if diff is 0, there is no change in number of routes previously exist and newly created.
-		if diff != 0 {
-			updateNodeStaticRoutes(aviVrfNode, deleteFlag, nodeName, lenNewNodeRoutes, diff)
-		}
-
 	} else {
 		//delete case
 		startIndex := nodeStaticRouteDetails.StartIndex
@@ -110,6 +111,7 @@ func (o *AviObjectGraph) BuildVRFGraph(key, vrfName, nodeName string, deleteFlag
 		aviVrfNode.StaticRoutes = staticRouteCopy
 		countToSubstract := aviVrfNode.NodeStaticRoutes[nodeName].Count
 		updateNodeStaticRoutes(aviVrfNode, deleteFlag, nodeName, 0, -countToSubstract)
+		delete(aviVrfNode.NodeStaticRoutes, nodeName)
 	}
 	aviVrfNode.CalculateCheckSum()
 	utils.AviLog.Infof("key: %s, Added vrf node %s", key, vrfName)
