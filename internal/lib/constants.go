@@ -169,6 +169,7 @@ const (
 	SSLPort                                    = 443
 	IPAMProviderInfoblox                       = "IPAMDNS_TYPE_INFOBLOX"
 	IPAMProviderCustom                         = "IPAMDNS_TYPE_CUSTOM"
+	Namespace                                  = "Namespace"
 
 	// AKO Event constants
 	AKOEventComponent      = "avi-kubernetes-operator"
