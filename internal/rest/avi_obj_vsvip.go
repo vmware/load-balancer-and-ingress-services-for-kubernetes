@@ -115,15 +115,14 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 			} else {
 				// Set the IPAM network subnet for all clouds except AWS and Azure
 				if len(vsvip_meta.VipNetworks) != 0 {
+					vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
 					if len(vsvip.Vip) == 1 {
-						if vsvip.Vip[0].IPAMNetworkSubnet == nil {
-							vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
-						} else {
-							vip.IPAMNetworkSubnet = vsvip.Vip[0].IPAMNetworkSubnet
+						if vsvip.Vip[0].IPAMNetworkSubnet != nil && vsvip.Vip[0].IPAMNetworkSubnet.NetworkRef != nil {
+							ipamNetworkRefSplit := strings.Split(*vsvip.Vip[0].IPAMNetworkSubnet.NetworkRef, "#")
+							if len(ipamNetworkRefSplit) > 1 && ipamNetworkRefSplit[1] == vsvip_meta.VipNetworks[0].NetworkName {
+								vip.IPAMNetworkSubnet = vsvip.Vip[0].IPAMNetworkSubnet
+							}
 						}
-						vip.DiscoveredNetworks = vsvip.Vip[0].DiscoveredNetworks
-					} else {
-						vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
 					}
 					networkRef := "/api/network/?name=" + vsvip_meta.VipNetworks[0].NetworkName
 					vip.IPAMNetworkSubnet.NetworkRef = &networkRef
