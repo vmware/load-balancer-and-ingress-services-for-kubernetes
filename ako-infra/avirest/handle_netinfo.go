@@ -332,42 +332,30 @@ func addNetworkInCloud(objKey string, cidrs map[string]struct{}, replaceAll bool
 }
 
 func addNetworkInIPAM() {
+	// Commenting out code. Another PR is taking care of it.
+
 	client := avicache.SharedAVIClients().AviClient[0]
 	found, cloudModel := getAviCloudFromCache(client, utils.CloudName)
 	if !found {
 		utils.AviLog.Warnf("Failed to get Cloud data from cache")
 		return
 	}
-	found, ipam := getAviIPAMFromCache(client, *cloudModel.IPAMProviderRef)
+	found, _ = getAviIPAMFromCache(client, *cloudModel.IPAMProviderRef)
 	if !found {
 		utils.AviLog.Warnf("Failed to get IPAM data from cache")
 		return
 	}
-	netName := lib.GetVCFNetworkName()
-	networkRef := "/api/network/?name=" + netName
-	// ipam.InternalProfile.UsableNetworkRefs field is deprecated in 20.1.3
-	// Once verified commented code should be removed.
 	/*
-		if !utils.HasElem(ipam.InternalProfile.UsableNetworkRefs, networkRef) {
-			ipam.InternalProfile.UsableNetworkRefs = append(ipam.InternalProfile.UsableNetworkRefs, networkRef)
-		}
+		netName := lib.GetVCFNetworkName()
+		networkRef := "/api/network/?name=" + netName
+		// ipam.InternalProfile.UsableNetworkRefs field is deprecated in 20.1.3
+		// Once verified commented code should be removed.
+		/*
+			if !utils.HasElem(ipam.InternalProfile.UsableNetworkRefs, networkRef) {
+				ipam.InternalProfile.UsableNetworkRefs = append(ipam.InternalProfile.UsableNetworkRefs, networkRef)
+			}
 	*/
-	networkRefFound := false
-	for _, oldNetworkRef := range ipam.InternalProfile.UsableNetworks {
-		if *oldNetworkRef.NwRef == networkRef {
-			networkRefFound = true
-			break
-		}
-	}
-	//TODO: Check with Abishek
-	// Problem with this field is: it is applicable in Enterprise license only.
-	if !networkRefFound {
-		newUsableNetwork := &models.IPAMUsableNetwork{
-			NwRef: &networkRef,
-		}
-		newUsableNetwork.NwRef = &networkRef
-		ipam.InternalProfile.UsableNetworks = append(ipam.InternalProfile.UsableNetworks, newUsableNetwork)
-	}
+	return
 }
 
 func delCIDRFromNetwork(objKey string, cidrs map[string]struct{}) {
