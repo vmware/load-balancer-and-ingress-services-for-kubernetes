@@ -71,8 +71,8 @@ func SyncLSLRNetwork() {
 	}
 
 	if len(lslrmap) > 0 {
-		dataNetworkTier1Lrs := removeStaleLRLSEntries(client, cloudModel, lslrmap)
-		if !matchSegmentInCloud(dataNetworkTier1Lrs, lslrmap) {
+		dataNetworkTier1Lrs, updateRequired := removeStaleLRLSEntries(client, cloudModel, lslrmap)
+		if !matchSegmentInCloud(dataNetworkTier1Lrs, lslrmap) || updateRequired {
 			cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs = constructLsLrInCloud(dataNetworkTier1Lrs, lslrmap)
 			path := "/api/cloud/" + *cloudModel.UUID
 			restOp := utils.RestOp{
@@ -474,6 +474,12 @@ func matchSegmentInCloud(lslrList []*models.Tier1LogicalRouterInfo, lslrMap map[
 func constructLsLrInCloud(lslrList []*models.Tier1LogicalRouterInfo, lslrMap map[string]string) []*models.Tier1LogicalRouterInfo {
 	var cloudLSLRList []*models.Tier1LogicalRouterInfo
 	cloudLSLRMap := make(map[string]string)
+	addLRInfo := func(ls, lr string) {
+		cloudLSLRList = append(cloudLSLRList, &models.Tier1LogicalRouterInfo{
+			SegmentID: &ls,
+			Tier1LrID: &lr,
+		})
+	}
 	for i := range lslrList {
 		cloudLSLRMap[*lslrList[i].SegmentID] = *lslrList[i].Tier1LrID
 	}
@@ -483,10 +489,7 @@ func constructLsLrInCloud(lslrList []*models.Tier1LogicalRouterInfo, lslrMap map
 		}
 	}
 	for ls, lr := range cloudLSLRMap {
-		cloudLSLRList = append(cloudLSLRList, &models.Tier1LogicalRouterInfo{
-			SegmentID: &ls,
-			Tier1LrID: &lr,
-		})
+		addLRInfo(ls, lr)
 	}
 	return cloudLSLRList
 }
@@ -676,53 +679,67 @@ func scheduleQuickSync() {
 	}
 }
 
-func GetClusterSpecificNSXTSegmentsinCloud(client *clients.AviClient) (map[string]string, error) {
-	lsLRMap := make(map[string]string)
+func getClusterSpecificNSXTSegmentsinCloud(client *clients.AviClient, lsLRMap map[string]string, next ...string) error {
 	uri := fmt.Sprintf("/api/nsxtsegmentruntime/?cloud_ref.name=%s", utils.CloudName)
+	if len(next) > 0 {
+		uri = next[0]
+	}
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
-		return lsLRMap, err
+		return err
 	}
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
 		utils.AviLog.Warnf("Failed to unmarshal nsxt segment runtime result, err: %v", err)
-		return lsLRMap, err
+		return err
 	}
 	for i := 0; i < len(elems); i++ {
 		sg := models.NsxtSegmentRuntime{}
 		err = json.Unmarshal(elems[i], &sg)
 		if err != nil {
 			utils.AviLog.Warnf("Failed to unmarshal nsxt segment runtime data, err: %v", err)
-			return lsLRMap, err
+			return err
 		}
 		if strings.HasPrefix(*sg.Name, fmt.Sprintf("avi-%s", lib.GetClusterName())) {
 			lsLRMap[*sg.SegmentID] = *sg.Tier1ID
 		}
 	}
-	return lsLRMap, nil
-}
-
-func removeStaleLRLSEntries(client *clients.AviClient, cloudModel models.Cloud, lslrmap map[string]string) []*models.Tier1LogicalRouterInfo {
-	cloudTier1Lrs := cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs
-	dataNetworkTier1Lrs := make([]*models.Tier1LogicalRouterInfo, 0)
-	copy(dataNetworkTier1Lrs, cloudTier1Lrs)
-	cloudLRLSMap, err := GetClusterSpecificNSXTSegmentsinCloud(client)
-	if err != nil {
-		utils.AviLog.Warnf("Failed to get LR to LS Map from cloud, err: %s", err)
-		return dataNetworkTier1Lrs
-	}
-	if len(cloudLRLSMap) > 0 {
-		for i := 0; i < len(cloudTier1Lrs); i++ {
-			if _, ok := lslrmap[*cloudTier1Lrs[i].SegmentID]; !ok {
-				if _, present := cloudLRLSMap[*cloudTier1Lrs[i].SegmentID]; present {
-					//Removing this LS-LR entry, as it is present in cloud config, but not in WCP clutser
-					dataNetworkTier1Lrs = append(dataNetworkTier1Lrs[:i], dataNetworkTier1Lrs[i+1:]...)
-				}
+	if result.Next != "" {
+		next_uri := strings.Split(result.Next, "/api/nsxtsegmentruntime")
+		if len(next_uri) > 1 {
+			nextPage := "/api/nsxtsegmentruntime" + next_uri[1]
+			err = getClusterSpecificNSXTSegmentsinCloud(client, lsLRMap, nextPage)
+			if err != nil {
+				return err
 			}
 		}
 	}
-	return dataNetworkTier1Lrs
+	return nil
+}
+
+func removeStaleLRLSEntries(client *clients.AviClient, cloudModel models.Cloud, lslrmap map[string]string) ([]*models.Tier1LogicalRouterInfo, bool) {
+	updatedRequired := false
+	cloudTier1Lrs := cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs
+	dataNetworkTier1Lrs := make([]*models.Tier1LogicalRouterInfo, 0)
+	cloudLRLSMap := make(map[string]string)
+	err := getClusterSpecificNSXTSegmentsinCloud(client, cloudLRLSMap)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to get LR to LS Map from cloud, err: %s", err)
+		copy(dataNetworkTier1Lrs, cloudTier1Lrs)
+		return dataNetworkTier1Lrs, updatedRequired
+	}
+	for i := 0; i < len(cloudTier1Lrs); i++ {
+		if _, ok := lslrmap[*cloudTier1Lrs[i].SegmentID]; !ok {
+			if _, present := cloudLRLSMap[*cloudTier1Lrs[i].SegmentID]; present {
+				// Skipping this LS-LR entry, as it is present in cloud config, but not in WCP clutser
+				updatedRequired = true
+				continue
+			}
+		}
+		dataNetworkTier1Lrs = append(dataNetworkTier1Lrs, cloudTier1Lrs[i])
+	}
+	return dataNetworkTier1Lrs, updatedRequired
 }
 
 func refreshCache(cacheModel string, client *clients.AviClient) {
