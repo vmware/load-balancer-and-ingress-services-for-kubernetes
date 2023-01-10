@@ -17,7 +17,6 @@ package oshiftroutetests
 import (
 	"context"
 	"os"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -33,86 +32,15 @@ import (
 	utils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/onsi/gomega"
-	routev1 "github.com/openshift/api/route/v1"
 	oshiftfake "github.com/openshift/client-go/route/clientset/versioned/fake"
-	"github.com/vmware/alb-sdk/go/models"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
 var KubeClient *k8sfake.Clientset
-var OshiftClient *oshiftfake.Clientset
 var CRDClient *crdfake.Clientset
 var ctrl *k8s.AviController
-
-var defaultRouteName, defaultNamespace, defaultHostname, defaultService string
-var defaultModelName string
-var defaultKey, defaultValue string
-
-// Candidate to move to lib
-type FakeRoute struct {
-	Name        string
-	Namespace   string
-	Hostname    string
-	Path        string
-	ServiceName string
-	Backend2    string
-}
-
-func (rt FakeRoute) Route() *routev1.Route {
-	if rt.Name == "" {
-		rt.Name = defaultRouteName
-	}
-	if rt.Namespace == "" {
-		rt.Namespace = defaultNamespace
-	}
-	if rt.Hostname == "" {
-		rt.Hostname = defaultHostname
-	}
-	if rt.ServiceName == "" {
-		rt.ServiceName = defaultService
-	}
-	weight := int32(100)
-	routeExample := &routev1.Route{
-		TypeMeta: metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       rt.Namespace,
-			Name:            rt.Name,
-			ResourceVersion: "1",
-		},
-		Spec: routev1.RouteSpec{
-			Host: rt.Hostname,
-			To: routev1.RouteTargetReference{
-				Kind:   "Service",
-				Name:   rt.ServiceName,
-				Weight: &weight,
-			},
-		},
-	}
-	if rt.Path != "" {
-		routeExample.Spec.Path = rt.Path
-	}
-	return routeExample
-}
-
-func (rt FakeRoute) ABRoute(ratio ...int) *routev1.Route {
-	routeExample := rt.Route()
-	if rt.Backend2 == "" {
-		rt.Backend2 = "absvc2"
-	}
-	weight2 := int32(200)
-	if len(ratio) > 0 {
-		weight2 = int32(ratio[0])
-	}
-	backend2 := routev1.RouteTargetReference{
-		Kind:   "Service",
-		Name:   rt.Backend2,
-		Weight: &weight2,
-	}
-	routeExample.Spec.AlternateBackends = append(routeExample.Spec.AlternateBackends, backend2)
-	return routeExample
-}
 
 func TestMain(m *testing.M) {
 	os.Setenv("INGRESS_API", "extensionv1")
@@ -190,88 +118,11 @@ func TestMain(m *testing.M) {
 	integrationtest.AddDefaultIngressClass()
 	ctrl.SetSEGroupCloudName()
 
-	defaultKey = "app"
-	defaultValue = "migrate"
 	SetupRouteNamespaceSync(defaultKey, defaultValue)
 
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 
-	defaultRouteName = "foo"
-	defaultNamespace = "default"
-	defaultHostname = "foo.com"
-	defaultService = "avisvc"
-	defaultModelName = "admin/cluster--Shared-L7-0"
-
 	os.Exit(m.Run())
-}
-
-func AddLabelToNamespace(key, value, namespace, modelName string, t *testing.T) {
-	nsLabel := map[string]string{
-		key: value,
-	}
-	integrationtest.AddNamespace(t, namespace, nsLabel)
-}
-
-func SetUpTestForRoute(t *testing.T, modelName string, models ...string) {
-	AddLabelToNamespace(defaultKey, defaultValue, defaultNamespace, modelName, t)
-	objects.SharedAviGraphLister().Delete(modelName)
-	for _, model := range models {
-		objects.SharedAviGraphLister().Delete(model)
-	}
-
-	integrationtest.CreateSVC(t, defaultNamespace, "avisvc", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, defaultNamespace, "avisvc", false, false, "1.1.1")
-	integrationtest.PollForCompletion(t, modelName, 5)
-}
-
-func TearDownTestForRoute(t *testing.T, modelName string) {
-	objects.SharedAviGraphLister().Delete(modelName)
-	integrationtest.DelSVC(t, "default", "avisvc")
-	integrationtest.DelEP(t, "default", "avisvc")
-}
-
-func VerifyRouteDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, poolCount int, nsname ...string) {
-	namespace, name := defaultNamespace, defaultRouteName
-	if len(nsname) > 0 {
-		namespace, name = strings.Split(nsname[0], "/")[0], strings.Split(nsname[0], "/")[1]
-	}
-
-	err := OshiftClient.RouteV1().Routes(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the route %v", err)
-	}
-	var nodes []*avinodes.AviVsNode
-	g.Eventually(func() []*avinodes.AviPoolNode {
-		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return nodes[0].PoolRefs
-	}, 50*time.Second).Should(gomega.HaveLen(poolCount))
-
-	g.Eventually(func() []*models.PoolGroupMember {
-		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return nodes[0].PoolGroupRefs[0].Members
-	}, 50*time.Second).Should(gomega.HaveLen(poolCount))
-}
-
-func ValidateModelCommon(t *testing.T, g *gomega.GomegaWithT) interface{} {
-
-	g.Eventually(func() bool {
-		found, _ := objects.SharedAviGraphLister().Get(defaultModelName)
-		return found
-	}, 30*time.Second).Should(gomega.Equal(true))
-	_, aviModel := objects.SharedAviGraphLister().Get(defaultModelName)
-	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-
-	g.Expect(len(nodes)).To(gomega.Equal(1))
-	g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
-	g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-
-	g.Expect(nodes[0].SharedVS).To(gomega.Equal(true))
-	dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
-	g.Expect(len(dsNodes)).To(gomega.Equal(1))
-
-	g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
-
-	return aviModel
 }
 
 func TestRouteNoPath(t *testing.T) {

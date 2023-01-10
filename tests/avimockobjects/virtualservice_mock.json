@@ -121,6 +121,7 @@
         "type": "VS_TYPE_NORMAL",
         "enable_autogw": true,
         "enabled": true,
+        "cloud_config_cksum": "496a4fa92c22ee563b3a63ae11b82bcc",
         "remove_listening_port_on_vs_down": false,
         "tls_ticket_key": [
           {

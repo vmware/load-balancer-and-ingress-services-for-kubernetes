@@ -21,7 +21,6 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
@@ -30,106 +29,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-func (rt FakeRoute) SecureRoute() *routev1.Route {
-	routeExample := rt.Route()
-	routeExample.Spec.TLS = &routev1.TLSConfig{
-		Certificate:   "cert",
-		CACertificate: "cacert",
-		Key:           "key",
-		Termination:   routev1.TLSTerminationEdge,
-	}
-	return routeExample
-}
-
-func (rt FakeRoute) SecureABRoute(ratio ...int) *routev1.Route {
-	var routeExample *routev1.Route
-	if len(ratio) > 0 {
-		routeExample = rt.ABRoute(ratio[0])
-	} else {
-		routeExample = rt.ABRoute()
-	}
-	routeExample.Spec.TLS = &routev1.TLSConfig{
-		Certificate:   "cert",
-		CACertificate: "cacert",
-		Key:           "key",
-		Termination:   routev1.TLSTerminationEdge,
-	}
-	return routeExample
-}
-
-func (rt FakeRoute) SecureRouteNoCertKey() *routev1.Route {
-	routeExample := rt.Route()
-	routeExample.Spec.TLS = &routev1.TLSConfig{
-		Termination: routev1.TLSTerminationEdge,
-	}
-	return routeExample
-}
-
-func (rt FakeRoute) SecureABRouteNoCertKey(ratio ...int) *routev1.Route {
-	var routeExample *routev1.Route
-	if len(ratio) > 0 {
-		routeExample = rt.ABRoute(ratio[0])
-	} else {
-		routeExample = rt.ABRoute()
-	}
-	routeExample.Spec.TLS = &routev1.TLSConfig{
-		Termination: routev1.TLSTerminationEdge,
-	}
-	return routeExample
-}
-
-func VerifySecureRouteDeletion(t *testing.T, g *gomega.WithT, modelName string, poolCount, snicount int, nsname ...string) {
-	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	VerifyRouteDeletion(t, g, aviModel, poolCount, nsname...)
-	g.Eventually(func() int {
-		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return len(nodes[0].SniNodes)
-	}, 20*time.Second).Should(gomega.Equal(snicount))
-}
-
-func VerifySniNodeNoCA(g *gomega.WithT, sniVS *avinodes.AviVsNode) {
-	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
-	g.Expect(sniVS.PoolGroupRefs).To(gomega.HaveLen(1))
-	g.Expect(sniVS.PoolRefs).To(gomega.HaveLen(1))
-	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(1))
-}
-
-func VerifySniNode(g *gomega.WithT, sniVS *avinodes.AviVsNode) {
-	g.Expect(sniVS.CACertRefs).To(gomega.HaveLen(1))
-	VerifySniNodeNoCA(g, sniVS)
-}
-
-func ValidateSniModel(t *testing.T, g *gomega.GomegaWithT, modelName string, redirect ...bool) interface{} {
-	g.Eventually(func() bool {
-		found, _ := objects.SharedAviGraphLister().Get(modelName)
-		return found
-	}, 50*time.Second).Should(gomega.Equal(true))
-	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-
-	g.Eventually(func() int {
-		return len(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes)
-	}, 50*time.Second).Should(gomega.Equal(1))
-	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-
-	g.Expect(len(nodes)).To(gomega.Equal(1))
-	g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
-	g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-
-	g.Expect(nodes[0].SharedVS).To(gomega.Equal(true))
-	redirectPol := 0
-	if len(redirect) > 0 {
-		if redirect[0] == true {
-			redirectPol = 1
-		}
-	}
-	g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(redirectPol))
-	dsNodes := aviModel.(*avinodes.AviObjectGraph).GetAviHTTPDSNode()
-	g.Expect(len(dsNodes)).To(gomega.Equal(1))
-
-	return aviModel
-}
 
 func CheckMultiSNIMultiNS(t *testing.T, g *gomega.GomegaWithT, aviModel interface{}, httpsCount, hppmapCount int) {
 	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))

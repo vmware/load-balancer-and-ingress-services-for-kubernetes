@@ -129,22 +129,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func SetUpTestForIngress(t *testing.T, modelNames ...string) {
-	for _, model := range modelNames {
-		objects.SharedAviGraphLister().Delete(model)
-	}
-	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, "default", "avisvc", false, false, "1.1.1")
-}
-
-func TearDownTestForIngress(t *testing.T, modelNames ...string) {
-	for _, model := range modelNames {
-		objects.SharedAviGraphLister().Delete(model)
-	}
-	integrationtest.DelSVC(t, "default", "avisvc")
-	integrationtest.DelEP(t, "default", "avisvc")
-}
-
 func VerifyIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, poolCount int) {
 	var nodes []*avinodes.AviVsNode
 	g.Eventually(func() []*avinodes.AviPoolNode {

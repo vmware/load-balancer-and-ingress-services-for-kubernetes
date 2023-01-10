@@ -40,6 +40,7 @@ import (
 
 	"github.com/onsi/gomega"
 	"github.com/vmware/alb-sdk/go/models"
+	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -965,6 +966,7 @@ var FakeAviObjects = []string{
 	"serviceenginegroup",
 	"tenant",
 	"vsvip",
+	"l4policyset",
 }
 
 type InjectFault func(w http.ResponseWriter, r *http.Request)
@@ -1754,4 +1756,29 @@ func (si FakeServiceImport) Create() *akov1alpha1.ServiceImport {
 	}
 	siObj.Spec.SvcPorts = append(siObj.Spec.SvcPorts, backendPort)
 	return siObj
+}
+
+func CreateOrUpdateLease(ns, podName string) error {
+	t := metav1.MicroTime{}
+	t.Time = time.Now()
+	leaseObj := &coordinationv1.Lease{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: ns,
+			Name:      "ako-lease-lock",
+		},
+		Spec: coordinationv1.LeaseSpec{
+			HolderIdentity: &podName,
+			RenewTime:      &t,
+		},
+	}
+	_, err := KubeClient.CoordinationV1().Leases(ns).Update(context.TODO(), leaseObj, metav1.UpdateOptions{})
+	if k8serrors.IsNotFound(err) {
+		_, err = KubeClient.CoordinationV1().Leases(ns).Create(context.TODO(), leaseObj, metav1.CreateOptions{})
+	}
+	return err
+}
+
+func DeleteLease(ns string) error {
+	err := KubeClient.CoordinationV1().Leases(ns).Delete(context.TODO(), "ako-lease-lock", metav1.DeleteOptions{})
+	return err
 }
