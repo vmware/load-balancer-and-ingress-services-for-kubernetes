@@ -100,7 +100,6 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 		utils.AviLog.Errorf("Error in fetching Pod CIDR for %v: %s", node.ObjectMeta.Name, err.Error())
 		return nil, errors.New("podcidr not found")
 	}
-
 	for _, podCIDR := range podCIDRs {
 		s := strings.Split(podCIDR, "/")
 		if len(s) != 2 {
@@ -113,7 +112,6 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 			utils.AviLog.Errorf("Error in getting mask %v", err)
 			return nil, err
 		}
-
 		clusterName := lib.GetClusterName()
 		labels := lib.GetLabels()
 		var prefixipType, nextHopIP, nextHopIPType string
@@ -131,7 +129,6 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 			utils.AviLog.Warnf("Skipping PodCIDR %s, ipfamily is %s", podCIDR, ipFamily)
 			continue
 		}
-
 		mask := int32(m)
 		routeIDString := clusterName + "-" + strconv.Itoa(routeid)
 		nodeRoute := models.StaticRoute{

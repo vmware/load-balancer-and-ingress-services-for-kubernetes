@@ -929,10 +929,11 @@ func TestUpdateNodeInNodePort(t *testing.T) {
 	// Update the Node's resource version
 	objects.SharedAviGraphLister().Delete(modelName)
 	nodeExample := (integrationtest.FakeNode{
-		Name:    nodeName,
-		PodCIDR: "10.244.0.0/24",
-		Version: "1",
-		NodeIP:  nodeIP,
+		Name:     nodeName,
+		PodCIDR:  "10.244.0.0/24",
+		PodCIDRs: []string{"10.244.0.0/24"},
+		Version:  "1",
+		NodeIP:   nodeIP,
 	}).Node()
 	nodeExample.ResourceVersion = "2"
 
@@ -950,10 +951,11 @@ func TestUpdateNodeInNodePort(t *testing.T) {
 	// Update the Node's IP
 	objects.SharedAviGraphLister().Delete(modelName)
 	nodeExample = (integrationtest.FakeNode{
-		Name:    nodeName,
-		PodCIDR: "10.244.0.0/24",
-		Version: "1",
-		NodeIP:  "10.1.1.3",
+		Name:     nodeName,
+		PodCIDR:  "10.244.0.0/24",
+		PodCIDRs: []string{"10.244.0.0/24"},
+		Version:  "1",
+		NodeIP:   "10.1.1.3",
 	}).Node()
 	nodeExample.ResourceVersion = "3"
 

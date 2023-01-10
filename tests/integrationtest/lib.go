@@ -665,6 +665,7 @@ func (svc FakeService) Service() *corev1.Service {
 type FakeNode struct {
 	Name               string
 	PodCIDR            string
+	PodCIDRs           []string
 	NodeIP             string
 	Version            string
 	PodCIDRsAnnotation string
@@ -677,7 +678,8 @@ func (node FakeNode) Node() *corev1.Node {
 			ResourceVersion: node.Version,
 		},
 		Spec: corev1.NodeSpec{
-			PodCIDR: node.PodCIDR,
+			PodCIDR:  node.PodCIDR,
+			PodCIDRs: node.PodCIDRs,
 		},
 		Status: corev1.NodeStatus{
 			Addresses: []corev1.NodeAddress{
@@ -741,10 +743,11 @@ func CreateNode(t *testing.T, nodeName string, nodeIP string) {
 	modelName := "admin/global"
 	objects.SharedAviGraphLister().Delete(modelName)
 	nodeExample := (FakeNode{
-		Name:    nodeName,
-		PodCIDR: "10.244.0.0/24",
-		Version: "1",
-		NodeIP:  nodeIP,
+		Name:     nodeName,
+		PodCIDR:  "10.244.0.0/24",
+		PodCIDRs: []string{"10.244.0.0/24"},
+		Version:  "1",
+		NodeIP:   nodeIP,
 	}).Node()
 
 	_, err := KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample, metav1.CreateOptions{})

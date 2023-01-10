@@ -33,10 +33,11 @@ func TestNodeAdd(t *testing.T) {
 	nodeip := "10.1.1.2"
 	objects.SharedAviGraphLister().Delete(modelName)
 	nodeExample := (FakeNode{
-		Name:    "testNode1",
-		PodCIDR: "10.244.0.0/24",
-		Version: "1",
-		NodeIP:  nodeip,
+		Name:     "testNode1",
+		PodCIDR:  "10.244.0.0/24",
+		PodCIDRs: []string{"10.244.0.0/24"},
+		Version:  "1",
+		NodeIP:   nodeip,
 	}).Node()
 
 	_, err := KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample, metav1.CreateOptions{})
@@ -66,14 +67,16 @@ func TestNodeUpdate(t *testing.T) {
 	nodeip := "10.1.1.2"
 	objects.SharedAviGraphLister().Delete(modelName)
 	nodeExample := (FakeNode{
-		Name:    "testNode1",
-		PodCIDR: "10.244.0.0/24",
-		Version: "1",
-		NodeIP:  nodeip,
+		Name:     "testNode1",
+		PodCIDR:  "10.244.0.0/24",
+		PodCIDRs: []string{"10.244.0.0/24"},
+		Version:  "1",
+		NodeIP:   nodeip,
 	}).Node()
 
 	nodeExample.ObjectMeta.ResourceVersion = "2"
 	nodeExample.Spec.PodCIDR = "10.245.0.0/24"
+	nodeExample.Spec.PodCIDRs = []string{"10.245.0.0/24"}
 
 	_, err := KubeClient.CoreV1().Nodes().Update(context.TODO(), nodeExample, metav1.UpdateOptions{})
 	if err != nil {
@@ -154,16 +157,18 @@ func TestMultiNodeAdd(t *testing.T) {
 	nodeip2 := "10.1.1.2"
 	objects.SharedAviGraphLister().Delete(modelName)
 	nodeExample1 := (FakeNode{
-		Name:    "testNode1",
-		PodCIDR: "10.244.1.0/24",
-		Version: "1",
-		NodeIP:  nodeip1,
+		Name:     "testNode1",
+		PodCIDR:  "10.244.1.0/24",
+		PodCIDRs: []string{"10.244.1.0/24"},
+		Version:  "1",
+		NodeIP:   nodeip1,
 	}).Node()
 	nodeExample2 := (FakeNode{
-		Name:    "testNode2",
-		PodCIDR: "10.244.2.0/24",
-		Version: "1",
-		NodeIP:  nodeip2,
+		Name:     "testNode2",
+		PodCIDR:  "10.244.2.0/24",
+		PodCIDRs: []string{"10.244.2.0/24"},
+		Version:  "1",
+		NodeIP:   nodeip2,
 	}).Node()
 
 	_, err := KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample1, metav1.CreateOptions{})
@@ -213,6 +218,7 @@ func TestNodeCIDRInAnnotation(t *testing.T) {
 	nodeExample := (FakeNode{
 		Name:               "testNodeAnnotation",
 		PodCIDR:            "10.244.0.0/24",
+		PodCIDRs:           []string{"10.244.0.0/24"},
 		PodCIDRsAnnotation: "192.168.1.0/24, 192.168.2.0/24 ,",
 		Version:            "1",
 		NodeIP:             nodeip,
@@ -238,6 +244,7 @@ func TestNodeCIDRInAnnotation(t *testing.T) {
 	nodeExample = (FakeNode{
 		Name:               "testNodeAnnotation",
 		PodCIDR:            "10.244.0.0/24",
+		PodCIDRs:           []string{"10.244.0.0/24"},
 		PodCIDRsAnnotation: "  192.168.1.0/24,  192.168.2.0/24   ",
 		Version:            "1",
 		NodeIP:             nodeip,
