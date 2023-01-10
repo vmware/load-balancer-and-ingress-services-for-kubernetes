@@ -1763,6 +1763,10 @@ func GetControllerVersion() string {
 }
 
 func VIPPerNamespace() bool {
+	vipPerNS := os.Getenv(VIP_PER_NAMESPACE)
+	if vipPerNS == "true" {
+		return true
+	}
 	return utils.IsVCFCluster()
 }
 

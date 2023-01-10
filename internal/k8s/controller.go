@@ -924,6 +924,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	if lib.IsWCP() {
 		// servicesAPI handlers GW/GWClass
 		c.SetupAdvL4EventHandlers(numWorkers)
+		c.SetupNamespaceDeletionEventHandler(numWorkers)
 		if lib.GetAdvancedL4() {
 			return
 		}
@@ -1216,10 +1217,12 @@ func checkAviSecretUpdateAndShutdown(secret *corev1.Secret) bool {
 func (c *AviController) Start(stopCh <-chan struct{}) {
 	go c.informers.ServiceInformer.Informer().Run(stopCh)
 	go c.informers.EpInformer.Informer().Run(stopCh)
+	go c.informers.NSInformer.Informer().Run(stopCh)
 
 	informersList := []cache.InformerSynced{
 		c.informers.EpInformer.Informer().HasSynced,
 		c.informers.ServiceInformer.Informer().HasSynced,
+		c.informers.NSInformer.Informer().HasSynced,
 	}
 
 	if !lib.AviSecretInitialized {
@@ -1280,9 +1283,6 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 			go c.informers.RouteInformer.Informer().Run(stopCh)
 			informersList = append(informersList, c.informers.RouteInformer.Informer().HasSynced)
 		}
-
-		go c.informers.NSInformer.Informer().Run(stopCh)
-		informersList = append(informersList, c.informers.NSInformer.Informer().HasSynced)
 
 		go c.informers.NodeInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.informers.NodeInformer.Informer().HasSynced)

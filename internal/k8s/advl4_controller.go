@@ -177,8 +177,22 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 
 	informer.GatewayInformer.Informer().AddEventHandler(gatewayEventHandler)
 	informer.GatewayClassInformer.Informer().AddEventHandler(gatewayClassEventHandler)
+}
 
-	return
+func (c *AviController) SetupNamespaceDeletionEventHandler(numWorkers uint32) {
+	nsHandler := cache.ResourceEventHandlerFuncs{
+		DeleteFunc: func(obj interface{}) {
+			ns, ok := obj.(*corev1.Namespace)
+			if !ok {
+				return
+			}
+			key := lib.Namespace + "/" + utils.ObjKey(ns)
+			utils.AviLog.Infof("key: %s, msg: DELETE", key)
+			bkt := utils.Bkt(ns.Name, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+		},
+	}
+	c.informers.NSInformer.Informer().AddEventHandler(nsHandler)
 }
 
 func InformerStatusUpdatesForGateway(key string, gateway *advl4v1alpha1pre1.Gateway) {
