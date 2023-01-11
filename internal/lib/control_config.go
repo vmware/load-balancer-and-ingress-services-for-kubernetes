@@ -228,7 +228,7 @@ func (c *akoControlConfig) SetControllerVersion(v string) {
 
 func initControllerVersion() string {
 	version := os.Getenv("CTRL_VERSION")
-	if version != "" {
+	if version == "" {
 		return version
 	}
 

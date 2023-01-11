@@ -103,6 +103,18 @@ func NewAviRestClientPool(num uint32, api_ep, username,
 		if err != nil {
 			return &clientPool, controllerVersion, err
 		}
+		maxVersion, err := NewVersion(MaxAviVersion)
+		if err != nil {
+			return &clientPool, controllerVersion, err
+		}
+		curVersion, err := NewVersion(version)
+		if err != nil {
+			return &clientPool, controllerVersion, err
+		}
+		if curVersion.Compare(maxVersion) > 0 {
+			AviLog.Infof("Overwriting the controller version %s to max Avi version %s", version, MaxAviVersion)
+			version = MaxAviVersion
+		}
 		AviLog.Infof("Setting the client version to the current controller version %v", version)
 		controllerVersion = version
 	}

@@ -90,6 +90,7 @@ const (
 	VCF_CLUSTER                   = "VCF_CLUSTER"
 	MCI_ENABLED                   = "MCI_ENABLED"
 	Namespace                     = "Namespace"
+	MaxAviVersion                 = "22.1.2"
 
 	RefreshAuthTokenInterval = 12  //hours
 	AuthTokenExpiry          = 240 //hours
