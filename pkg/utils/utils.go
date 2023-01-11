@@ -541,3 +541,50 @@ func IsMultiClusterIngressEnabled() bool {
 	AviLog.Debugf("Multi-cluster ingress is not enabled")
 	return false
 }
+
+type Version struct {
+	subversions []int
+}
+
+func (v *Version) Compare(v1 *Version) int {
+	/*
+		return 0 if v and v1 are equal
+		return -1 if v is less than v1
+		return 1 if v is greater than 1
+	*/
+	length := len(v.subversions)
+	if len(v1.subversions) < length {
+		length = len(v1.subversions)
+	}
+	for i := 0; i < length; i++ {
+		if v.subversions[i] == v1.subversions[i] {
+			continue
+		}
+		if v.subversions[i] < v1.subversions[i] {
+			return -1
+		}
+		return 1
+	}
+	if len(v.subversions) == len(v1.subversions) {
+		return 0
+	}
+	if len(v.subversions) < len(v1.subversions) {
+		return -1
+	}
+	return 1
+}
+
+func NewVersion(version string) (*Version, error) {
+	substrings := strings.Split(version, ".")
+	v := &Version{
+		subversions: make([]int, 0),
+	}
+	for _, substr := range substrings {
+		val, err := strconv.Atoi(substr)
+		if err != nil {
+			return nil, err
+		}
+		v.subversions = append(v.subversions, val)
+	}
+	return v, nil
+}

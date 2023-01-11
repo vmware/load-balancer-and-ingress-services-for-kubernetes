@@ -1666,21 +1666,25 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 		return
 	}
 	token := newTokenResp.(map[string]interface{})["token"].(string)
-	secret := AviSecret
+	secrets := []string{
+		AviSecret,
+	}
 	if utils.IsVCFCluster() {
-		secret = AviInitSecret
+		secrets = append(secrets, AviInitSecret)
 	}
-	aviSecret, err := GetAviSecretWithRetry(kc, retryCount, secret)
-	if err != nil {
-		utils.AviLog.Errorf("Failed to get secret, err: %+v", err)
-		return
-	}
-	aviSecret.Data["authtoken"] = []byte(token)
+	for _, secret := range secrets {
+		aviSecret, err := GetAviSecretWithRetry(kc, retryCount, secret)
+		if err != nil {
+			utils.AviLog.Errorf("Failed to get secret, err: %+v", err)
+			return
+		}
+		aviSecret.Data["authtoken"] = []byte(token)
 
-	err = UpdateAviSecretWithRetry(kc, aviSecret, retryCount)
-	if err != nil {
-		utils.AviLog.Errorf("Failed to update secret, err: %+v", err)
-		return
+		err = UpdateAviSecretWithRetry(kc, aviSecret, retryCount)
+		if err != nil {
+			utils.AviLog.Errorf("Failed to update secret, err: %+v", err)
+			return
+		}
 	}
 	utils.AviLog.Infof("Successfully updated authtoken")
 	if oldTokenID != "" {

@@ -341,10 +341,25 @@ func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, se
 	ctrlVersion := lib.GetControllerVersion()
 	if ctrlVersion == "" {
 		version, err := aviClient.AviSession.GetControllerVersion()
-		if err == nil {
-			utils.AviLog.Infof("Setting the client version to the current controller version %v", version)
-			ctrlVersion = version
+		if err != nil {
+			utils.AviLog.Infof("Failed to get controller version from Avi session, err: %s", err)
+			return false
 		}
+		maxVersion, err := utils.NewVersion(utils.MaxAviVersion)
+		if err != nil {
+			utils.AviLog.Errorf("Failed to create Version object, err: %s", err)
+			return false
+		}
+		curVersion, err := utils.NewVersion(version)
+		if err != nil {
+			utils.AviLog.Errorf("Failed to create Version object, err: %s", err)
+			return false
+		}
+		if curVersion.Compare(maxVersion) > 0 {
+			utils.AviLog.Infof("Overwriting the controller version %s to max Avi version %s", version, utils.MaxAviVersion)
+			version = utils.MaxAviVersion
+		}
+		ctrlVersion = version
 	}
 	SetVersion := session.SetVersion(ctrlVersion)
 	SetVersion(aviClient.AviSession)
