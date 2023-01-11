@@ -85,29 +85,12 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 	ipFamily := lib.GetIPFamily()
 
 	v4Type, v6Type := "V4", "V6"
+	nodeIP, nodeIP6 = lib.GetIPFromNode(node)
 
-	nodeAddrs := node.Status.Addresses
-	for _, addr := range nodeAddrs {
-		if addr.Type == "InternalIP" {
-			nodeIP = addr.Address
-			break
-		}
-	}
-	if ipFamily == v6Type {
-		if lib.GetCNIPlugin() == lib.CALICO_CNI {
-			if ip, ok := node.Annotations["projectcalico.org/IPv6Address"]; ok {
-				nodeIP6 = strings.Split(ip, "/")[0]
-			}
-			if nodeIP6 == "" {
-				utils.AviLog.Errorf("Error in fetching nodeIPv6 for %v", node.ObjectMeta.Name)
-				return nil, errors.New("nodeipv6 not found")
-			}
-			if ip, ok := node.Annotations["projectcalico.org/IPv4Address"]; ok {
-				nodeIP = strings.Split(ip, "/")[0]
-			}
-		}
-	}
-	if nodeIP == "" {
+	if ipFamily == v6Type && nodeIP6 == "" {
+		utils.AviLog.Errorf("Error in fetching nodeIPv6 for %v", node.ObjectMeta.Name)
+		return nil, errors.New("nodeipv6 not found")
+	} else if ipFamily == v4Type && nodeIP == "" {
 		utils.AviLog.Errorf("Error in fetching nodeIP for %v", node.ObjectMeta.Name)
 		return nil, errors.New("nodeip not found")
 	}
@@ -117,7 +100,6 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 		utils.AviLog.Errorf("Error in fetching Pod CIDR for %v: %s", node.ObjectMeta.Name, err.Error())
 		return nil, errors.New("podcidr not found")
 	}
-
 	for _, podCIDR := range podCIDRs {
 		s := strings.Split(podCIDR, "/")
 		if len(s) != 2 {
@@ -130,23 +112,23 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 			utils.AviLog.Errorf("Error in getting mask %v", err)
 			return nil, err
 		}
-
 		clusterName := lib.GetClusterName()
 		labels := lib.GetLabels()
-		prefixipType := v4Type
-		nextHopIP := nodeIP
-		nextHopIPType := v4Type
-		re := regexp.MustCompile(lib.IPCIDRRegex)
-		if !re.MatchString(podCIDR) {
-			if ipFamily == v6Type {
-				prefixipType = v6Type
-				nextHopIP = nodeIP6
-				nextHopIPType = v6Type
-			} else {
-				continue
-			}
+		var prefixipType, nextHopIP, nextHopIPType string
+		rev4 := regexp.MustCompile(lib.IPCIDRRegex)
+		rev6 := regexp.MustCompile(lib.IPV6CIDRRegex)
+		if ipFamily == v4Type && rev4.MatchString(podCIDR) {
+			prefixipType = v4Type
+			nextHopIP = nodeIP
+			nextHopIPType = v4Type
+		} else if ipFamily == v6Type && rev6.MatchString(podCIDR) {
+			prefixipType = v6Type
+			nextHopIP = nodeIP6
+			nextHopIPType = v6Type
+		} else {
+			utils.AviLog.Warnf("Skipping PodCIDR %s, ipfamily is %s", podCIDR, ipFamily)
+			continue
 		}
-
 		mask := int32(m)
 		routeIDString := clusterName + "-" + strconv.Itoa(routeid)
 		nodeRoute := models.StaticRoute{

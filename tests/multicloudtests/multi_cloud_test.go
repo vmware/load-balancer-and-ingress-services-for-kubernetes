@@ -184,7 +184,8 @@ func ValidateNode(t *testing.T) {
 			ResourceVersion: "1",
 		},
 		Spec: corev1.NodeSpec{
-			PodCIDR: "10.244.0.0/24",
+			PodCIDR:  "10.244.0.0/24",
+			PodCIDRs: []string{"10.244.0.0/24"},
 		},
 		Status: corev1.NodeStatus{
 			Addresses: []corev1.NodeAddress{

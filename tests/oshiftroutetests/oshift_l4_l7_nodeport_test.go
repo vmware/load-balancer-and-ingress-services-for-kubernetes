@@ -447,10 +447,11 @@ func TestNodeCUDForOshiftRouteInNodePort(t *testing.T) {
 	// Update the Node's resource version
 	objects.SharedAviGraphLister().Delete(defaultModelName)
 	nodeExample := (integrationtest.FakeNode{
-		Name:    "testNodeNP",
-		PodCIDR: "10.244.0.0/24",
-		Version: "1",
-		NodeIP:  nodeIP,
+		Name:     "testNodeNP",
+		PodCIDR:  "10.244.0.0/24",
+		PodCIDRs: []string{"10.244.0.0/24"},
+		Version:  "1",
+		NodeIP:   nodeIP,
 	}).Node()
 	nodeExample.ResourceVersion = "2"
 

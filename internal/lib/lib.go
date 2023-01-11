@@ -1913,3 +1913,29 @@ func IsChanClosed(ch <-chan struct{}) bool {
 	}
 	return false
 }
+
+func GetIPFromNode(node *v1.Node) (string, string) {
+	var nodeV4, nodeV6 string
+	nodeAddrs := node.Status.Addresses
+	for _, addr := range nodeAddrs {
+		if addr.Type == corev1.NodeInternalIP {
+			nodeIP := addr.Address
+			if utils.IsV4(nodeIP) {
+				nodeV4 = nodeIP
+			} else {
+				nodeV6 = nodeIP
+			}
+		}
+	}
+	if IPfamily == "V6" {
+		if GetCNIPlugin() == CALICO_CNI {
+			if nodeIP, ok := node.Annotations["projectcalico.org/IPv4Address"]; ok {
+				nodeV4 = strings.Split(nodeIP, "/")[0]
+			}
+			if nodeIP, ok := node.Annotations["projectcalico.org/IPv6Address"]; ok {
+				nodeV6 = strings.Split(nodeIP, "/")[0]
+			}
+		}
+	}
+	return nodeV4, nodeV6
+}
