@@ -27,6 +27,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
@@ -1636,26 +1637,39 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 	ctrlAuthToken := ctrlProp[utils.ENV_CTRL_AUTHTOKEN]
 	ctrlCAData := ctrlProp[utils.ENV_CTRL_CADATA]
 	ctrlIpAddress := GetControllerIP()
+	oldTokenID := ""
 
 	aviClient := NewAviRestClientWithToken(ctrlIpAddress, ctrlUsername, ctrlAuthToken, ctrlCAData)
 	if aviClient == nil {
 		utils.AviLog.Errorf("Failed to initialize AVI client")
 		return
 	}
-	userTokensListResp, err := utils.GetAuthTokenWithRetry(aviClient, retryCount)
+	tokens := make(map[string]interface{})
+	err := utils.GetAuthTokenMapWithRetry(aviClient, tokens, retryCount)
 	if err != nil {
 		utils.AviLog.Errorf("Failed to get existing tokens from controller, err: %+v", err)
 		return
 	}
-	oldTokenID, refresh, err := utils.GetTokenFromRestObj(userTokensListResp, ctrlAuthToken)
-	if err != nil {
-		utils.AviLog.Errorf("Failed to find token on controller, err: %+v", err)
-		return
+	aviToken, ok := tokens[ctrlAuthToken]
+	if ok {
+		expiry, ok := aviToken.(map[string]interface{})["expires_at"].(string)
+		if !ok {
+			utils.AviLog.Errorf("Failed to parse token object")
+			return
+		}
+		layout := "2006-01-02T15:04:05.000000+00:00"
+		expiryTime, err := time.Parse(layout, expiry)
+		if err != nil {
+			utils.AviLog.Errorf("Unable to parse token expiry time, err: %+v", err)
+			return
+		}
+		if time.Until(expiryTime) > (utils.RefreshAuthTokenPeriod*utils.AuthTokenExpiry)*time.Hour {
+			utils.AviLog.Infof("Skipping AuthToken Refresh")
+			return
+		}
+		oldTokenID, _ = aviToken.(map[string]interface{})["uuid"].(string)
 	}
-	if !refresh {
-		utils.AviLog.Infof("Skipping AuthToken Refresh")
-		return
-	}
+
 	newTokenResp, err := utils.CreateAuthTokenWithRetry(aviClient, retryCount)
 	if err != nil {
 		utils.AviLog.Errorf("Failed to post new token, err: %+v", err)
@@ -1666,11 +1680,16 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 		return
 	}
 	token := newTokenResp.(map[string]interface{})["token"].(string)
-	secrets := []string{
-		AviSecret,
-	}
+	var secrets []string
 	if utils.IsVCFCluster() {
-		secrets = append(secrets, AviInitSecret)
+		secrets = []string{
+			AviInitSecret,
+			AviSecret,
+		}
+	} else {
+		secrets = []string{
+			AviSecret,
+		}
 	}
 	for _, secret := range secrets {
 		aviSecret, err := GetAviSecretWithRetry(kc, retryCount, secret)

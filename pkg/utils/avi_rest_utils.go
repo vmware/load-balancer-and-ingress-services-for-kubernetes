@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
@@ -190,8 +191,48 @@ func AviModelToUrl(model string) string {
 	}
 }
 
-func GetAuthTokenWithRetry(c *clients.AviClient, retryCount int) (interface{}, error) {
+func GetAuthTokenMapWithRetry(c *clients.AviClient, tokens map[string]interface{}, retryCount int, overrideURI ...string) error {
 	tokenPath := "api/user-token"
+	if len(overrideURI) > 0 {
+		tokenPath = overrideURI[0]
+	}
+	robj, err := GetAuthTokenWithRetry(c, retryCount, tokenPath)
+	if err != nil {
+		return err
+	}
+	parseError := errors.New("failed to parse token response obj")
+
+	if _, ok := robj.(map[string]interface{}); !ok {
+		return parseError
+	}
+	tokenList, ok := robj.(map[string]interface{})["results"].([]interface{})
+	if !ok {
+		return parseError
+	}
+	for _, aviToken := range tokenList {
+		if _, ok := aviToken.(map[string]interface{}); !ok {
+			return parseError
+		}
+		token, ok := aviToken.(map[string]interface{})["token"].(string)
+		if !ok {
+			return parseError
+		}
+		tokens[token] = aviToken
+	}
+	next, ok := robj.(map[string]interface{})["next"].(string)
+	if !ok {
+		return nil
+	}
+	nextURI := strings.Split(next, "api/user-token")
+	nextPage := "api/user-token" + nextURI[1]
+	return GetAuthTokenMapWithRetry(c, tokens, retryCount, nextPage)
+}
+
+func GetAuthTokenWithRetry(c *clients.AviClient, retryCount int, nextPage ...string) (interface{}, error) {
+	tokenPath := "api/user-token"
+	if len(nextPage) > 0 {
+		tokenPath = nextPage[0]
+	}
 	var robj interface{}
 	var err error
 	for retry := 0; retry < retryCount; retry++ {
