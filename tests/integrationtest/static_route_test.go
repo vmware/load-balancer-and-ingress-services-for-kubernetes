@@ -141,13 +141,7 @@ func TestNodeAddNoPodCIDR(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
-	}, 10*time.Second).Should(gomega.Equal(true))
-	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	g.Expect(aviModel.(*avinodes.AviObjectGraph).IsVrf).To(gomega.Equal(true))
-	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
-	g.Expect(len(nodes)).To(gomega.Equal(1))
-
-	g.Expect(len(nodes[0].StaticRoutes)).To(gomega.Equal(0))
+	}, 10*time.Second).Should(gomega.Equal(false))
 }
 
 func TestMultiNodeAdd(t *testing.T) {

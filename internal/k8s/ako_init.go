@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -759,8 +760,17 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 					labelSelectorMap[nodeLabels["key"]] = nodeLabels["value"]
 				}
 			}
-			nodeObjects, _ := utils.GetInformers().NodeInformer.Lister().List(labels.Set(labelSelectorMap).AsSelector())
-			for _, node := range nodeObjects {
+			//send sorted list of nodes from here.
+			allNodes := objects.SharedNodeLister().CopyAllObjects()
+			var nodeKeys []string
+			for k := range allNodes {
+				nodeKeys = append(nodeKeys, k)
+			}
+			sort.Strings(nodeKeys)
+			//Send sorted list to create VRF graph
+			for _, nodeName := range nodeKeys {
+				node, _ := utils.GetInformers().NodeInformer.Lister().Get(nodeName)
+
 				key := utils.NodeObj + "/" + node.Name
 				meta, err := meta.Accessor(node)
 				if err == nil {

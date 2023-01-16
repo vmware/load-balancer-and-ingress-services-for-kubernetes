@@ -683,12 +683,14 @@ func saveAviModel(modelName string, aviGraph *AviObjectGraph, key string) bool {
 func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsync bool) {
 	utils.AviLog.Debugf("key: %s, Got node Object %s", key, nodename)
 	nodeObj, err := utils.GetInformers().NodeInformer.Lister().Get(nodename)
+	var deleteFlag bool
 	if err == nil {
 		utils.AviLog.Debugf("key: %s, Node Object %v", key, nodeObj)
 		objects.SharedNodeLister().AddOrUpdate(nodename, nodeObj)
 	} else if errors.IsNotFound(err) {
 		utils.AviLog.Debugf("key: %s, msg: Node Deleted", key)
 		objects.SharedNodeLister().Delete(nodename)
+		deleteFlag = true
 	} else {
 		utils.AviLog.Errorf("key: %s, msg: Error getting node: %v", key, err)
 		return
@@ -702,16 +704,22 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsy
 	if !isPrimaryAKO {
 		return
 	}
-	aviModel := NewAviObjectGraph()
-	aviModel.IsVrf = true
+
 	vrfcontext := lib.GetVrf()
-	err = aviModel.BuildVRFGraph(key, vrfcontext)
+	model_name := lib.GetModelName(lib.GetTenant(), vrfcontext)
+	found, aviModel := objects.SharedAviGraphLister().Get(model_name)
+	if !found || aviModel == nil {
+		aviModel = NewAviObjectGraph()
+	}
+	aviModelGraph := aviModel.(*AviObjectGraph)
+	aviModelGraph.IsVrf = true
+	err = aviModelGraph.BuildVRFGraph(key, vrfcontext, nodename, deleteFlag)
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: Error creating vrf graph: %v", key, err)
 		return
 	}
-	model_name := lib.GetModelName(lib.GetTenant(), vrfcontext)
-	ok := saveAviModel(model_name, aviModel, key)
+
+	ok := saveAviModel(model_name, aviModelGraph, key)
 	if ok && !fullsync {
 		PublishKeyToRestLayer(model_name, key, sharedQueue)
 	}
