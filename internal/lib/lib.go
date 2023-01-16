@@ -1927,13 +1927,25 @@ func GetIPFromNode(node *v1.Node) (string, string) {
 			}
 		}
 	}
-	if IPfamily == "V6" {
+	if GetIPFamily() == "V6" {
 		if GetCNIPlugin() == CALICO_CNI {
 			if nodeIP, ok := node.Annotations["projectcalico.org/IPv4Address"]; ok {
 				nodeV4 = strings.Split(nodeIP, "/")[0]
 			}
 			if nodeIP, ok := node.Annotations["projectcalico.org/IPv6Address"]; ok {
 				nodeV6 = strings.Split(nodeIP, "/")[0]
+			}
+		}
+		if GetCNIPlugin() == ANTREA_CNI {
+			if nodeIPstr, ok := node.Annotations["node.antrea.io/transport-addresses"]; ok {
+				nodeIPlist := strings.Split(nodeIPstr, ",")
+				for _, nodeIP := range nodeIPlist {
+					if utils.IsV4(nodeIP) {
+						nodeV4 = nodeIP
+					} else {
+						nodeV6 = nodeIP
+					}
+				}
 			}
 		}
 	}
