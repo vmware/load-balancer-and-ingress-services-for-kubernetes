@@ -67,6 +67,24 @@ Check connectivity between AKO Pod and Avi controller.
     If it's impossible to make your data networks routable via the default gateway, disableStaticRoute sync in AKO and edit your
     static routes with the correct network.
 
+#### Helm install throws a warning "would violate PodSecurity"
+
+#### Possible Reasons/Solutions
+
+  Check if the `securityContext` is set correctly in `values.yaml`
+
+  A sample securityContext is given below:
+
+    securityContext:
+      seccompProfile:
+          type: 'RuntimeDefault'
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+
+  Refer the [document](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.25/#securitycontext-v1-core) to select the best suitable configuration.
+
 ## Log Collection
 
 For every log collection, also collect the following information:

@@ -283,6 +283,10 @@ It might not be desirable to have all the nodes of a kubernetes cluster to parti
 
 By default, AKO prints all the logs to stdout. Instead, persistentVolumeClaim(PVC) can be used for publishing logs of AKO pod to a file in PVC. To use this, the user has to create a PVC (and a persistent volume, if required) and specify the name of the PVC as the value of persistentVolumeClaim.
 
+### securityContext
+
+SecurityContext holds security configuration that will be applied to the AKO pod. Some fields are present in both SecurityContext and PodSecurityContext. When both are set, the values in SecurityContext take precedence.(Reference - https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#securitycontext-v1-core)
+
 ### podSecurityContext
 
 This can be used to set securityContext of AKO pod, if necessary. For example, in openshift environment, if a persistent storage with hostpath is used for logging, then securityContext must have privileged: true (Reference - https://docs.openshift.com/container-platform/4.11/storage/persistent_storage/persistent-storage-hostpath.html)
