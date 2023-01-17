@@ -241,6 +241,21 @@ The generated authtoken from the Avi controller can be specified with this flag 
 and maintained by secret object. The token refresh is managed by AKO. In case of token refresh failure, a new token needs to be generated and updated
 into the secret object.
 
+A few ways to properly encode a token generated from controller to directly patch `avi-secret`
+1. Shell
+
+```
+echo -n '<authtoken>' | base64
+```
+
+2. Python
+
+```
+import base64
+authtoken = "<authtoken>"
+print(base64.b64encode(authtoken.encode("ascii")))
+```
+
 ### avicredentials.certificateAuthorityData
 
 This field allows setting the rootCA of the Avi controller, that AKO uses to verify the server certificate provided by the Avi Controller during the TLS handshake. This also enables AKO to connect securely over SSL with the Avi Controller, which is not possible in case the field is not provided.
