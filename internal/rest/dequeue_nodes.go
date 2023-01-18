@@ -979,16 +979,6 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 					poolObjName = *rest_op.Obj.(avimodels.Pool).Name
 				}
 				aviObjCache.AviPopulateOnePoolCache(c, utils.CloudName, poolObjName)
-				vsObjMeta, ok := rest.cache.VsCacheMeta.AviCacheGet(aviObjKey)
-				if !ok {
-					// VS Object not present
-					utils.AviLog.Warnf("key: %s, msg: VS object not present during retry of pool", key)
-				} else {
-					vsCopy, done := vsObjMeta.(*avicache.AviVsCache).GetVSCopy()
-					if done {
-						rest.StatusUpdateForPool(rest_op.Method, vsCopy, key)
-					}
-				}
 			case "PoolGroup":
 				var pgObjName string
 				switch rest_op.Obj.(type) {

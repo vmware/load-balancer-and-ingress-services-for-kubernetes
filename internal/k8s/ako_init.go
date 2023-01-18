@@ -589,8 +589,6 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	leReadyCh := leaderElector.Run(ctx, leaderElectionWG)
 	<-leReadyCh
 
-	c.cleanupStaleVSes()
-
 	graphQueue.SyncFunc = SyncFromNodesLayer
 	graphQueue.Run(stopCh, graphwg)
 
