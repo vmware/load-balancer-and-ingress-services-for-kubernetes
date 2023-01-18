@@ -8,13 +8,13 @@ package models
 // swagger:model AlertRuleMetric
 type AlertRuleMetric struct {
 
-	// Evaluation window for the Metrics. Unit is SEC.
+	// Evaluation window for the Metrics. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Duration *int32 `json:"duration,omitempty"`
 
-	// Metric Id for the Alert. Eg. l4_client.avg_complete_conns.
+	// Metric Id for the Alert. Eg. l4_client.avg_complete_conns. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MetricID *string `json:"metric_id,omitempty"`
 
-	// Placeholder for description of property metric_threshold of obj type AlertRuleMetric field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	MetricThreshold *AlertMetricThreshold `json:"metric_threshold"`
 }

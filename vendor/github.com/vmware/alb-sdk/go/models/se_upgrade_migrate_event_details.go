@@ -8,10 +8,10 @@ package models
 // swagger:model SeUpgradeMigrateEventDetails
 type SeUpgradeMigrateEventDetails struct {
 
-	// Placeholder for description of property migrate_params of obj type SeUpgradeMigrateEventDetails field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MigrateParams *VsMigrateParams `json:"migrate_params,omitempty"`
 
-	// Unique object identifier of vs.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	VsUUID *string `json:"vs_uuid"`
 }

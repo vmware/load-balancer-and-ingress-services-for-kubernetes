@@ -8,9 +8,9 @@ package models
 // swagger:model SecureChannelMetadata
 type SecureChannelMetadata struct {
 
-	// key of SecureChannelMetadata.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Key *string `json:"key,omitempty"`
 
-	// val of SecureChannelMetadata.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Val *string `json:"val,omitempty"`
 }

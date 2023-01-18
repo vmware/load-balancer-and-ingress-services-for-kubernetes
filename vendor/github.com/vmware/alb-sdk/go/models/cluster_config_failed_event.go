@@ -8,6 +8,6 @@ package models
 // swagger:model ClusterConfigFailedEvent
 type ClusterConfigFailedEvent struct {
 
-	// Failure reason.
+	// Failure reason. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reason *string `json:"reason,omitempty"`
 }

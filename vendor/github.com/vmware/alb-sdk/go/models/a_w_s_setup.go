@@ -8,22 +8,22 @@ package models
 // swagger:model AWSSetup
 type AWSSetup struct {
 
-	// access_key_id of AWSSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AccessKeyID *string `json:"access_key_id,omitempty"`
 
-	// cc_id of AWSSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CcID *string `json:"cc_id,omitempty"`
 
-	// error_string of AWSSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ErrorString *string `json:"error_string,omitempty"`
 
-	//  Enum options - NO_ACCESS, READ_ACCESS, WRITE_ACCESS.
+	//  Enum options - NO_ACCESS, READ_ACCESS, WRITE_ACCESS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Privilege *string `json:"privilege,omitempty"`
 
-	// region of AWSSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Region *string `json:"region"`
 
-	//  Field introduced in 17.1.3.
+	//  Field introduced in 17.1.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VpcID *string `json:"vpc_id,omitempty"`
 }

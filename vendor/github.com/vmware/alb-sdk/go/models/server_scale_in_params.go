@@ -8,12 +8,12 @@ package models
 // swagger:model ServerScaleInParams
 type ServerScaleInParams struct {
 
-	// Reason for the manual scalein.
+	// Reason for the manual scale-in. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reason *string `json:"reason,omitempty"`
 
-	// List of server IDs that should be scaled in.
+	// List of server IDs that should be scaled in. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Servers []*ServerID `json:"servers,omitempty"`
 
-	// Unique object identifier of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UUID *string `json:"uuid,omitempty"`
 }

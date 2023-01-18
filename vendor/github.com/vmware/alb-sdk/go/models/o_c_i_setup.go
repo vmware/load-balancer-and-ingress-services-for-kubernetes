@@ -8,21 +8,21 @@ package models
 // swagger:model OCISetup
 type OCISetup struct {
 
-	// cc_id of OCISetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CcID *string `json:"cc_id,omitempty"`
 
-	// compartment_id of OCISetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CompartmentID *string `json:"compartment_id,omitempty"`
 
-	// reason of OCISetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reason *string `json:"reason,omitempty"`
 
-	// status of OCISetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Status *string `json:"status,omitempty"`
 
-	// tenancy of OCISetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Tenancy *string `json:"tenancy,omitempty"`
 
-	// vcn_id of OCISetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VcnID *string `json:"vcn_id,omitempty"`
 }

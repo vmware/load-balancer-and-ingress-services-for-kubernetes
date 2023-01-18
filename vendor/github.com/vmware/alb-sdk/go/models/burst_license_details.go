@@ -8,18 +8,18 @@ package models
 // swagger:model BurstLicenseDetails
 type BurstLicenseDetails struct {
 
-	// Number of cores.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Cores *int32 `json:"cores,omitempty"`
 
-	// end_time of BurstLicenseDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EndTime *string `json:"end_time,omitempty"`
 
-	// se_name of BurstLicenseDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeName *string `json:"se_name,omitempty"`
 
-	// Unique object identifier of se.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeUUID *string `json:"se_uuid,omitempty"`
 
-	// start_time of BurstLicenseDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	StartTime *string `json:"start_time,omitempty"`
 }

@@ -8,14 +8,14 @@ package models
 // swagger:model vNICNetwork
 type VNICNetwork struct {
 
-	// Placeholder for description of property ctlr_alloc of obj type vNICNetwork field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CtlrAlloc *bool `json:"ctlr_alloc,omitempty"`
 
-	// Placeholder for description of property ip of obj type vNICNetwork field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	IP *IPAddrPrefix `json:"ip"`
 
-	//  Enum options - DHCP, STATIC, VIP, DOCKER_HOST.
+	//  Enum options - DHCP, STATIC, VIP, DOCKER_HOST. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Mode *string `json:"mode"`
 }

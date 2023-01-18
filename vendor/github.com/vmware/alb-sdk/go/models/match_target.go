@@ -8,36 +8,45 @@ package models
 // swagger:model MatchTarget
 type MatchTarget struct {
 
-	// Configure client ip addresses.
+	// Configure the bot classification result. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	BotDetectionResult *BotDetectionMatch `json:"bot_detection_result,omitempty"`
+
+	// Configure client ip addresses. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ClientIP *IPAddrMatch `json:"client_ip,omitempty"`
 
-	// Configure HTTP cookie(s).
+	// Configure HTTP cookie(s). Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Cookie *CookieMatch `json:"cookie,omitempty"`
 
-	// Configure HTTP header(s).
+	// Configure the geo information. Field introduced in 21.1.1. Maximum of 1 items allowed. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	GeoMatches []*GeoMatch `json:"geo_matches,omitempty"`
+
+	// Configure HTTP header(s). All configured headers must match. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Hdrs []*HdrMatch `json:"hdrs,omitempty"`
 
-	// Configure the host header.
+	// Configure the host header. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	HostHdr *HostHdrMatch `json:"host_hdr,omitempty"`
 
-	// Configure IP reputation. Field introduced in 20.1.3.
+	// Configure IP reputation. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	IPReputationType *IPReputationTypeMatch `json:"ip_reputation_type,omitempty"`
 
-	// Configure HTTP methods.
+	// Configure HTTP methods. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Method *MethodMatch `json:"method,omitempty"`
 
-	// Configure request paths.
+	// Configure request paths. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Path *PathMatch `json:"path,omitempty"`
 
-	// Configure the type of HTTP protocol.
+	// Configure the type of HTTP protocol. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Protocol *ProtocolMatch `json:"protocol,omitempty"`
 
-	// Configure request query.
+	// Configure request query. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Query *QueryMatch `json:"query,omitempty"`
 
-	// Configure versions of the HTTP protocol.
+	// Configure source ip addresses. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	SourceIP *IPAddrMatch `json:"source_ip,omitempty"`
+
+	// Configure versions of the HTTP protocol. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Version *HTTPVersionMatch `json:"version,omitempty"`
 
-	// Configure virtual service ports.
+	// Configure virtual service ports. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VsPort *PortMatch `json:"vs_port,omitempty"`
 }

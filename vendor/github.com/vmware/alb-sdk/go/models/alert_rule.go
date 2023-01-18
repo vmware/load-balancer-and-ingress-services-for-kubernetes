@@ -8,18 +8,18 @@ package models
 // swagger:model AlertRule
 type AlertRule struct {
 
-	// Placeholder for description of property conn_app_log_rule of obj type AlertRule field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ConnAppLogRule *AlertFilter `json:"conn_app_log_rule,omitempty"`
 
-	// event_match_filter of AlertRule.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EventMatchFilter *string `json:"event_match_filter,omitempty"`
 
-	// Placeholder for description of property metrics_rule of obj type AlertRule field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MetricsRule []*AlertRuleMetric `json:"metrics_rule,omitempty"`
 
-	//  Enum options - OPERATOR_AND, OPERATOR_OR.
+	//  Enum options - OPERATOR_AND, OPERATOR_OR. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Operator *string `json:"operator,omitempty"`
 
-	// Placeholder for description of property sys_event_rule of obj type AlertRule field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SysEventRule []*AlertRuleEvent `json:"sys_event_rule,omitempty"`
 }

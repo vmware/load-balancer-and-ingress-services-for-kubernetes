@@ -8,9 +8,9 @@ package models
 // swagger:model ServerScaleOutParams
 type ServerScaleOutParams struct {
 
-	// Reason for the manual scaleout.
+	// Reason for the manual scale-out. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reason *string `json:"reason,omitempty"`
 
-	// Unique object identifier of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UUID *string `json:"uuid,omitempty"`
 }

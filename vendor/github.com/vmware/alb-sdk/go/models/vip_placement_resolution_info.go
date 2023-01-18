@@ -8,12 +8,12 @@ package models
 // swagger:model VipPlacementResolutionInfo
 type VipPlacementResolutionInfo struct {
 
-	// Placeholder for description of property ip of obj type VipPlacementResolutionInfo field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IP *IPAddr `json:"ip,omitempty"`
 
-	// Placeholder for description of property networks of obj type VipPlacementResolutionInfo field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Networks []*DiscoveredNetwork `json:"networks,omitempty"`
 
-	// Unique object identifier of pool.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PoolUUID *string `json:"pool_uuid,omitempty"`
 }

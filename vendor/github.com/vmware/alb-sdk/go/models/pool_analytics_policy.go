@@ -8,6 +8,6 @@ package models
 // swagger:model PoolAnalyticsPolicy
 type PoolAnalyticsPolicy struct {
 
-	// Enable real time metrics for server and pool metrics eg. l4_server.xxx, l7_server.xxx. Field introduced in 18.1.5, 18.2.1.
+	// Enable real time metrics for server and pool metrics eg. l4_server.xxx, l7_server.xxx. Field introduced in 18.1.5, 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EnableRealtimeMetrics *bool `json:"enable_realtime_metrics,omitempty"`
 }

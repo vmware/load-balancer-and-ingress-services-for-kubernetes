@@ -8,38 +8,38 @@ package models
 // swagger:model VIMgrGuestNicRuntime
 type VIMgrGuestNicRuntime struct {
 
-	// Placeholder for description of property avi_internal_network of obj type VIMgrGuestNicRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AviInternalNetwork *bool `json:"avi_internal_network,omitempty"`
 
-	// Placeholder for description of property connected of obj type VIMgrGuestNicRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Connected *bool `json:"connected,omitempty"`
 
-	// Placeholder for description of property del_pending of obj type VIMgrGuestNicRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DelPending *bool `json:"del_pending,omitempty"`
 
-	// Placeholder for description of property guest_ip of obj type VIMgrGuestNicRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	GuestIP []*VIMgrIPSubnetRuntime `json:"guest_ip,omitempty"`
 
-	// label of VIMgrGuestNicRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Label *string `json:"label,omitempty"`
 
-	// mac_addr of VIMgrGuestNicRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	MacAddr *string `json:"mac_addr"`
 
-	// Placeholder for description of property mgmt_vnic of obj type VIMgrGuestNicRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MgmtVnic *bool `json:"mgmt_vnic,omitempty"`
 
-	// network_name of VIMgrGuestNicRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NetworkName *string `json:"network_name,omitempty"`
 
-	// Unique object identifier of network.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NetworkUUID *string `json:"network_uuid,omitempty"`
 
-	// Unique object identifier of os_port.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	OsPortUUID *string `json:"os_port_uuid,omitempty"`
 
-	//  Enum options - CLOUD_NONE, CLOUD_VCENTER, CLOUD_OPENSTACK, CLOUD_AWS, CLOUD_VCA, CLOUD_APIC, CLOUD_MESOS, CLOUD_LINUXSERVER, CLOUD_DOCKER_UCP, CLOUD_RANCHER, CLOUD_OSHIFT_K8S, CLOUD_AZURE, CLOUD_GCP, CLOUD_NSXT.
+	//  Enum options - CLOUD_NONE, CLOUD_VCENTER, CLOUD_OPENSTACK, CLOUD_AWS, CLOUD_VCA, CLOUD_APIC, CLOUD_MESOS, CLOUD_LINUXSERVER, CLOUD_DOCKER_UCP, CLOUD_RANCHER, CLOUD_OSHIFT_K8S, CLOUD_AZURE, CLOUD_GCP, CLOUD_NSXT. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Type *string `json:"type"`
 }

@@ -8,30 +8,30 @@ package models
 // swagger:model SeResources
 type SeResources struct {
 
-	// Number of cores_per_socket.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CoresPerSocket *int32 `json:"cores_per_socket,omitempty"`
 
-	// Number of disk.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Disk *int32 `json:"disk"`
 
-	// Placeholder for description of property hyper_threading of obj type SeResources field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	HyperThreading *bool `json:"hyper_threading,omitempty"`
 
-	// Indicates that the SE is running on a Virtual Machine. Field introduced in 20.1.1.
+	// Indicates that the SE is running on a Virtual Machine. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	HypervisorMode *bool `json:"hypervisor_mode,omitempty"`
 
-	// Number of memory.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Memory *int32 `json:"memory"`
 
-	// Indicates the number of datapath processes spawned. Field introduced in 20.1.1.
+	// Indicates the number of active datapath processes. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumDatapathProcesses *int32 `json:"num_datapath_processes,omitempty"`
 
-	// Number of num_vcpus.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	NumVcpus *int32 `json:"num_vcpus"`
 
-	// Number of sockets.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Sockets *int32 `json:"sockets,omitempty"`
 }

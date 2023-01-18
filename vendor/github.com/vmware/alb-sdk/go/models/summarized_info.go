@@ -8,6 +8,6 @@ package models
 // swagger:model SummarizedInfo
 type SummarizedInfo struct {
 
-	// Placeholder for description of property subnet_info of obj type SummarizedInfo field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SubnetInfo []*SummarizedSubnetInfo `json:"subnet_info,omitempty"`
 }

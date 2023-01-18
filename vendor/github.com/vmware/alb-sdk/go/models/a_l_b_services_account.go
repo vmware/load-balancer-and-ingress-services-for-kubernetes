@@ -8,12 +8,12 @@ package models
 // swagger:model ALBServicesAccount
 type ALBServicesAccount struct {
 
-	// ID of an Account in the customer portal. Field introduced in 20.1.1.
+	// ID of an Account in the customer portal. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ID *string `json:"id,omitempty"`
 
-	// Account to which the customer portal user belongs. Field introduced in 20.1.1.
+	// Account to which the customer portal user belongs. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`
 
-	// Information about users within the account in the customer portal. Field introduced in 20.1.1.
+	// Information about users within the account in the customer portal. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Users []*ALBServicesAccountUser `json:"users,omitempty"`
 }

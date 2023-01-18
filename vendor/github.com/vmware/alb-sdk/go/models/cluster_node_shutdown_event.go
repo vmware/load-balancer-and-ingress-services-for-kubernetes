@@ -8,12 +8,12 @@ package models
 // swagger:model ClusterNodeShutdownEvent
 type ClusterNodeShutdownEvent struct {
 
-	// IP address of the controller VM.
+	// IP address of the controller VM. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IP *IPAddr `json:"ip,omitempty"`
 
-	// Name of controller node.
+	// Name of controller node. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NodeName *string `json:"node_name,omitempty"`
 
-	// Reason for controller node shutdown.
+	// Reason for controller node shutdown. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reason *string `json:"reason,omitempty"`
 }

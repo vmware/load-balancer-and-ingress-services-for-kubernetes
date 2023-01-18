@@ -12,10 +12,13 @@ type LabelGroup struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
-	// List of allowed or suggested labels for the label group. Field introduced in 20.1.5.
+	// Protobuf versioning for config pbs. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
+	ConfigpbAttributes *ConfigPbAttributes `json:"configpb_attributes,omitempty"`
+
+	// List of allowed or suggested labels for the label group. Field introduced in 20.1.5. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Labels []*RoleMatchOperationMatchLabel `json:"labels,omitempty"`
 
-	// Name of the Label Group. Field introduced in 20.1.5.
+	// Name of the Label Group. Field introduced in 20.1.5. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	// Required: true
 	Name *string `json:"name"`
 
@@ -23,6 +26,6 @@ type LabelGroup struct {
 	// Read Only: true
 	URL *string `json:"url,omitempty"`
 
-	// UUID of the Label Group. Field introduced in 20.1.5.
+	// UUID of the Label Group. Field introduced in 20.1.5. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	UUID *string `json:"uuid,omitempty"`
 }

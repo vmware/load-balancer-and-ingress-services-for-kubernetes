@@ -8,15 +8,15 @@ package models
 // swagger:model VinfraVcenterConnectivityStatus
 type VinfraVcenterConnectivityStatus struct {
 
-	// cloud of VinfraVcenterConnectivityStatus.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Cloud *string `json:"cloud"`
 
-	// datacenter of VinfraVcenterConnectivityStatus.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Datacenter *string `json:"datacenter"`
 
-	// vcenter of VinfraVcenterConnectivityStatus.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Vcenter *string `json:"vcenter"`
 }

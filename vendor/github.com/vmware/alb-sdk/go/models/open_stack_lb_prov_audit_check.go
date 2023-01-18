@@ -8,27 +8,27 @@ package models
 // swagger:model OpenStackLbProvAuditCheck
 type OpenStackLbProvAuditCheck struct {
 
-	// cc_id of OpenStackLbProvAuditCheck.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CcID *string `json:"cc_id,omitempty"`
 
-	// detail of OpenStackLbProvAuditCheck.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Detail *string `json:"detail,omitempty"`
 
-	// Number of elapsed.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Elapsed *int32 `json:"elapsed,omitempty"`
 
-	// id of OpenStackLbProvAuditCheck.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	ID *string `json:"id"`
 
-	// result of OpenStackLbProvAuditCheck.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Result *string `json:"result,omitempty"`
 
-	// tenant of OpenStackLbProvAuditCheck.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Tenant *string `json:"tenant"`
 
-	// user of OpenStackLbProvAuditCheck.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	User *string `json:"user"`
 }

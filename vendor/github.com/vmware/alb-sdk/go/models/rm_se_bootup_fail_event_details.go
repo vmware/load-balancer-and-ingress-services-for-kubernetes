@@ -8,12 +8,12 @@ package models
 // swagger:model RmSeBootupFailEventDetails
 type RmSeBootupFailEventDetails struct {
 
-	// host_name of RmSeBootupFailEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	HostName *string `json:"host_name,omitempty"`
 
-	// reason of RmSeBootupFailEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reason *string `json:"reason,omitempty"`
 
-	// se_name of RmSeBootupFailEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeName *string `json:"se_name,omitempty"`
 }

@@ -8,9 +8,9 @@ package models
 // swagger:model ContentLibConfig
 type ContentLibConfig struct {
 
-	// Content Library Id. Field introduced in 20.1.1.
+	// Content Library Id. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ID *string `json:"id,omitempty"`
 
-	// Content Library name. Field introduced in 20.1.1.
+	// Content Library name. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`
 }

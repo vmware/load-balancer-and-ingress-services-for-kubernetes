@@ -8,90 +8,87 @@ package models
 // swagger:model VipRuntime
 type VipRuntime struct {
 
-	// ev of VipRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Ev []string `json:"ev,omitempty"`
 
-	// Placeholder for description of property ev_status of obj type VipRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EvStatus *VsEvStatus `json:"ev_status,omitempty"`
 
-	// Placeholder for description of property first_se_assigned_time of obj type VipRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FirstSeAssignedTime *TimeStamp `json:"first_se_assigned_time,omitempty"`
 
-	// Placeholder for description of property first_time_placement of obj type VipRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FirstTimePlacement *bool `json:"first_time_placement,omitempty"`
 
-	// fsm_state_id of VipRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FsmStateID *string `json:"fsm_state_id,omitempty"`
 
-	// fsm_state_name of VipRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FsmStateName *string `json:"fsm_state_name,omitempty"`
 
-	// Placeholder for description of property last_changed_time of obj type VipRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LastChangedTime *TimeStamp `json:"last_changed_time,omitempty"`
 
-	// Placeholder for description of property last_scale_status of obj type VipRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LastScaleStatus *ScaleStatus `json:"last_scale_status,omitempty"`
 
-	// Placeholder for description of property marked_for_delete of obj type VipRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MarkedForDelete *bool `json:"marked_for_delete,omitempty"`
 
-	//  Enum options - METRICS_MGR_PORT_0, METRICS_MGR_PORT_1, METRICS_MGR_PORT_2, METRICS_MGR_PORT_3.
+	//  Enum options - METRICS_MGR_PORT_0, METRICS_MGR_PORT_1, METRICS_MGR_PORT_2, METRICS_MGR_PORT_3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MetricsMgrPort *string `json:"metrics_mgr_port,omitempty"`
 
-	// Placeholder for description of property migrate_in_progress of obj type VipRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MigrateInProgress *bool `json:"migrate_in_progress,omitempty"`
 
-	// Placeholder for description of property migrate_request of obj type VipRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MigrateRequest *VsMigrateParams `json:"migrate_request,omitempty"`
 
-	// Placeholder for description of property migrate_scalein_pending of obj type VipRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MigrateScaleinPending *bool `json:"migrate_scalein_pending,omitempty"`
 
-	// Placeholder for description of property migrate_scaleout_pending of obj type VipRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MigrateScaleoutPending *bool `json:"migrate_scaleout_pending,omitempty"`
 
-	// Number of num_additional_se.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumAdditionalSe *int32 `json:"num_additional_se,omitempty"`
 
-	//  Enum options - METRICS_MGR_PORT_0, METRICS_MGR_PORT_1, METRICS_MGR_PORT_2, METRICS_MGR_PORT_3.
+	//  Enum options - METRICS_MGR_PORT_0, METRICS_MGR_PORT_1, METRICS_MGR_PORT_2, METRICS_MGR_PORT_3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PrevMetricsMgrPort *string `json:"prev_metrics_mgr_port,omitempty"`
 
-	// Number of progress_percent.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ProgressPercent *int32 `json:"progress_percent,omitempty"`
 
-	// Placeholder for description of property requested_resource of obj type VipRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	RequestedResource *VirtualServiceResource `json:"requested_resource,omitempty"`
 
-	// Placeholder for description of property scale_status of obj type VipRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ScaleStatus *ScaleStatus `json:"scale_status,omitempty"`
 
-	// Placeholder for description of property scalein_in_progress of obj type VipRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ScaleinInProgress *bool `json:"scalein_in_progress,omitempty"`
 
-	// Placeholder for description of property scalein_request of obj type VipRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ScaleinRequest *VsScaleinParams `json:"scalein_request,omitempty"`
 
-	// Placeholder for description of property scaleout_in_progress of obj type VipRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ScaleoutInProgress *bool `json:"scaleout_in_progress,omitempty"`
 
-	// Placeholder for description of property se_list of obj type VipRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeList []*SeList `json:"se_list,omitempty"`
 
-	//  Field deprecated in 18.2.5.
-	ServersConfigured *bool `json:"servers_configured,omitempty"`
-
-	// Placeholder for description of property supp_runtime_status of obj type VipRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SuppRuntimeStatus *OperationalStatus `json:"supp_runtime_status,omitempty"`
 
-	// Placeholder for description of property user_scaleout_pending of obj type VipRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UserScaleoutPending *bool `json:"user_scaleout_pending,omitempty"`
 
-	// vip_id of VipRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VipID *string `json:"vip_id,omitempty"`
 
-	// VIP finished resyncing with resource manager. Field introduced in 18.1.4, 18.2.1.
+	// VIP finished resyncing with resource manager. Field introduced in 18.1.4, 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	WarmstartResyncDone *bool `json:"warmstart_resync_done,omitempty"`
 
-	// RPC sent to resource manager for warmstart resync. Field introduced in 18.1.4, 18.2.1.
+	// RPC sent to resource manager for warmstart resync. Field introduced in 18.1.4, 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	WarmstartResyncSent *bool `json:"warmstart_resync_sent,omitempty"`
 }

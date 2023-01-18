@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/vmware/alb-sdk/go/models"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -103,15 +102,20 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 		}
 		vtype := *cloud.Vtype
 		if vtype == lib.CLOUD_NSXT && cloud.NsxtConfiguration != nil {
-			if cloud.NsxtConfiguration.TransportZone != nil && *cloud.NsxtConfiguration.TransportZone == tz {
-				utils.AviLog.Infof("Found NSX-T cloud :%s match Transport Zone : %s", *cloud.Name, tz)
-				if *cloud.SeGroupTemplateRef != "" {
-					tokenized := strings.Split(*cloud.SeGroupTemplateRef, "/api/serviceenginegroup/")
-					if len(tokenized) == 2 {
-						return nil, *cloud.Name, tokenized[1]
+			// Commenting out code as it is taken care by another PR.
+			/*
+				//cloud.NsxtConfiguration.TransportZone field is deprecated in 20.1.5
+				// As AKO deals with configuration of data plane, dataNetworkConfig is used.
+				if cloud.NsxtConfiguration.DataNetworkConfig != nil && cloud.NsxtConfiguration.DataNetworkConfig.TransportZone != nil && *cloud.NsxtConfiguration.DataNetworkConfig.TransportZone == tz {
+					utils.AviLog.Infof("Found NSX-T cloud :%s match Transport Zone : %s", *cloud.Name, tz)
+					if *cloud.SeGroupTemplateRef != "" {
+						tokenized := strings.Split(*cloud.SeGroupTemplateRef, "/api/serviceenginegroup/")
+						if len(tokenized) == 2 {
+							return nil, *cloud.Name, tokenized[1]
+						}
 					}
 				}
-			}
+			*/
 			return nil, *cloud.Name, ""
 		}
 	}

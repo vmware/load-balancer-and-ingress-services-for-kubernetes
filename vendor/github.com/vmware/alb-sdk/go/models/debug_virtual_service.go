@@ -12,50 +12,53 @@ type DebugVirtualService struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
-	// Placeholder for description of property capture of obj type DebugVirtualService field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Capture *bool `json:"capture,omitempty"`
 
-	// Per packet capture filters for Debug Virtual Service. Applies to both frontend and backend packets. Field introduced in 18.2.7.
+	// Per packet capture filters for Debug Virtual Service. Applies to both frontend and backend packets. Field introduced in 18.2.7. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CaptureFilters *CaptureFilters `json:"capture_filters,omitempty"`
 
-	// Placeholder for description of property capture_params of obj type DebugVirtualService field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CaptureParams *DebugVirtualServiceCapture `json:"capture_params,omitempty"`
 
-	//  It is a reference to an object of type Cloud.
+	//  It is a reference to an object of type Cloud. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CloudRef *string `json:"cloud_ref,omitempty"`
 
-	// This option controls the capture of Health Monitor flows. Enum options - DEBUG_VS_HM_NONE, DEBUG_VS_HM_ONLY, DEBUG_VS_HM_INCLUDE.
+	// This option controls the capture of Health Monitor flows. Enum options - DEBUG_VS_HM_NONE, DEBUG_VS_HM_ONLY, DEBUG_VS_HM_INCLUDE. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DebugHm *string `json:"debug_hm,omitempty"`
 
-	// Filters all packets of a complete transaction (client and server side), based on client ip.
+	// Filters all packets of a complete transaction (client and server side), based on client ip. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DebugIP *DebugIPAddr `json:"debug_ip,omitempty"`
 
-	// Dns debug options. Field introduced in 18.2.1.
+	// Dns debug options. Field introduced in 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DNSOptions *DebugDNSOptions `json:"dns_options,omitempty"`
 
-	// Placeholder for description of property flags of obj type DebugVirtualService field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Flags []*DebugVsDataplane `json:"flags,omitempty"`
 
-	// Name of the object.
+	// Deprecated in 22.1.1. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	LatencyAuditFilters *CaptureFilters `json:"latency_audit_filters,omitempty"`
+
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Name *string `json:"name"`
 
-	// Object sync debug options. Field introduced in 20.1.3.
+	// Object sync debug options. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Objsync *DebugVirtualServiceObjSync `json:"objsync,omitempty"`
 
-	// This option re-synchronizes flows between Active-Standby service engines for all the virtual services placed on them. It should be used with caution because as it can cause a flood between Active-Standby. Field introduced in 18.1.3,18.2.1.
+	// This option re-synchronizes flows between Active-Standby service engines for all the virtual services placed on them. It should be used with caution because as it can cause a flood between Active-Standby. Field introduced in 18.1.3,18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ResyncFlows *bool `json:"resync_flows,omitempty"`
 
-	// Placeholder for description of property se_params of obj type DebugVirtualService field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeParams *DebugVirtualServiceSeParams `json:"se_params,omitempty"`
 
-	//  It is a reference to an object of type Tenant.
+	//  It is a reference to an object of type Tenant. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
 	// url
 	// Read Only: true
 	URL *string `json:"url,omitempty"`
 
-	// Unique object identifier of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UUID *string `json:"uuid,omitempty"`
 }

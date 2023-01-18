@@ -8,10 +8,10 @@ package models
 // swagger:model TenantLabel
 type TenantLabel struct {
 
-	// Label key string. Field introduced in 20.1.2.
+	// Label key string. Field introduced in 20.1.2. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	// Required: true
 	Key *string `json:"key"`
 
-	// Label value string. Field introduced in 20.1.2.
+	// Label value string. Field introduced in 20.1.2. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Value *string `json:"value,omitempty"`
 }

@@ -8,10 +8,10 @@ package models
 // swagger:model NatPolicyAction
 type NatPolicyAction struct {
 
-	// Pool of IP Addresses used for Nat. Field introduced in 18.2.5.
+	// Pool of IP Addresses used for Nat. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NatInfo []*NatAddrInfo `json:"nat_info,omitempty"`
 
-	// Nat Action Type. Enum options - NAT_POLICY_ACTION_TYPE_DYNAMIC_IP_PORT. Field introduced in 18.2.5.
+	// Nat Action Type. Enum options - NAT_POLICY_ACTION_TYPE_DYNAMIC_IP_PORT. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Type *string `json:"type"`
 }

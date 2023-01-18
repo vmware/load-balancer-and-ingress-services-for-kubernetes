@@ -8,11 +8,11 @@ package models
 // swagger:model AppInfo
 type AppInfo struct {
 
-	// app_hdr_name of AppInfo.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	AppHdrName *string `json:"app_hdr_name"`
 
-	// app_hdr_value of AppInfo.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	AppHdrValue *string `json:"app_hdr_value"`
 }

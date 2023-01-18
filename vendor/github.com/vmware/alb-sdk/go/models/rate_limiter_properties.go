@@ -8,9 +8,9 @@ package models
 // swagger:model RateLimiterProperties
 type RateLimiterProperties struct {
 
-	// Number of stages in msf rate limiter. Allowed values are 1-2. Field introduced in 20.1.1.
+	// Number of stages in msf rate limiter. Allowed values are 1-2. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MsfNumStages *int32 `json:"msf_num_stages,omitempty"`
 
-	// Each stage size in msf rate limiter. Field introduced in 20.1.1.
+	// Each stage size in msf rate limiter. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MsfStageSize *int64 `json:"msf_stage_size,omitempty"`
 }

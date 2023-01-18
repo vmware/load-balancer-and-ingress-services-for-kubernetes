@@ -12,19 +12,19 @@ type LicenseLedgerDetails struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
-	// Maintain information about reservation against cookie. Field introduced in 20.1.1.
+	// Maintain information about reservation against cookie. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EscrowInfos []*LicenseInfo `json:"escrow_infos,omitempty"`
 
-	// Maintain information about consumed licenses against se_uuid. Field introduced in 20.1.1.
+	// Maintain information about consumed licenses against se_uuid. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeInfos []*LicenseInfo `json:"se_infos,omitempty"`
 
-	// License usage per tier. Field introduced in 20.1.1.
+	// License usage per tier. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TierUsages []*LicenseTierUsage `json:"tier_usages,omitempty"`
 
 	// url
 	// Read Only: true
 	URL *string `json:"url,omitempty"`
 
-	// Uuid for reference. Field introduced in 20.1.1.
+	// Uuid for reference. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UUID *string `json:"uuid,omitempty"`
 }

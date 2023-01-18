@@ -8,11 +8,11 @@ package models
 // swagger:model VlanRange
 type VlanRange struct {
 
-	// Number of end.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	End *int32 `json:"end"`
 
-	// Number of start.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Start *int32 `json:"start"`
 }

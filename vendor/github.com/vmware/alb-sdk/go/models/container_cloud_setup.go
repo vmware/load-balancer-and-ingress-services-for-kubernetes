@@ -8,39 +8,39 @@ package models
 // swagger:model ContainerCloudSetup
 type ContainerCloudSetup struct {
 
-	// cc_id of ContainerCloudSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CcID *string `json:"cc_id,omitempty"`
 
-	// Placeholder for description of property cloud_access of obj type ContainerCloudSetup field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CloudAccess *bool `json:"cloud_access,omitempty"`
 
-	// failed_hosts of ContainerCloudSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FailedHosts []string `json:"failed_hosts,omitempty"`
 
-	// fleet_endpoint of ContainerCloudSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FleetEndpoint *string `json:"fleet_endpoint,omitempty"`
 
-	// hosts of ContainerCloudSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Hosts []string `json:"hosts,omitempty"`
 
-	// master_nodes of ContainerCloudSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MasterNodes []string `json:"master_nodes,omitempty"`
 
-	// missing_hosts of ContainerCloudSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MissingHosts []string `json:"missing_hosts,omitempty"`
 
-	// new_hosts of ContainerCloudSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NewHosts []string `json:"new_hosts,omitempty"`
 
-	// reason of ContainerCloudSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reason *string `json:"reason,omitempty"`
 
-	// Placeholder for description of property se_deploy_method_access of obj type ContainerCloudSetup field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeDeployMethodAccess *bool `json:"se_deploy_method_access,omitempty"`
 
-	// se_name of ContainerCloudSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeName *string `json:"se_name,omitempty"`
 
-	// version of ContainerCloudSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Version *string `json:"version,omitempty"`
 }

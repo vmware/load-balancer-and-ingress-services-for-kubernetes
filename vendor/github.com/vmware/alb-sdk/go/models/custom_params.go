@@ -8,16 +8,16 @@ package models
 // swagger:model CustomParams
 type CustomParams struct {
 
-	// Placeholder for description of property is_dynamic of obj type CustomParams field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IsDynamic *bool `json:"is_dynamic,omitempty"`
 
-	// Placeholder for description of property is_sensitive of obj type CustomParams field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IsSensitive *bool `json:"is_sensitive,omitempty"`
 
-	// Name of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Name *string `json:"name"`
 
-	// value of CustomParams.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Value *string `json:"value,omitempty"`
 }

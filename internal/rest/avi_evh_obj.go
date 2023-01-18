@@ -499,8 +499,13 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 	vh_type := utils.VS_TYPE_VH_CHILD
 	evhChild.Type = &vh_type
 	vhParentUuid := "/api/virtualservice/?name=" + vs_meta.VHParentName
-	evhChild.VhParentVsUUID = &vhParentUuid
-	// evhChild.VhDomainName = vs_meta.VHDomainNames
+	if utils.CtrlVersion == lib.CTRL_VERSION_21_1_3 {
+		// TODO: Remove if loop once AKO support controller version > 21.1.3
+		// Remove `VhParentVsUUID` field from VS model
+		evhChild.VhParentVsUUID = &vhParentUuid
+	} else {
+		evhChild.VhParentVsRef = &vhParentUuid
+	}
 	ignPool := false
 	evhChild.IgnPoolNetReach = &ignPool
 	// Fill vhmatch information

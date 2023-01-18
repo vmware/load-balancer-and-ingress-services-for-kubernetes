@@ -8,15 +8,15 @@ package models
 // swagger:model VsPoolNwFilterEventDetails
 type VsPoolNwFilterEventDetails struct {
 
-	// filter of VsPoolNwFilterEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Filter *string `json:"filter"`
 
-	// Name of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Name *string `json:"name"`
 
-	// network of VsPoolNwFilterEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Network *string `json:"network"`
 }

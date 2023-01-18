@@ -8,39 +8,39 @@ package models
 // swagger:model MesosSetup
 type MesosSetup struct {
 
-	// cc_id of MesosSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CcID *string `json:"cc_id,omitempty"`
 
-	// failed_hosts of MesosSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FailedHosts []string `json:"failed_hosts,omitempty"`
 
-	// fleet_endpoint of MesosSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FleetEndpoint *string `json:"fleet_endpoint,omitempty"`
 
-	// hosts of MesosSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Hosts []string `json:"hosts,omitempty"`
 
-	// Placeholder for description of property mesos_access of obj type MesosSetup field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MesosAccess *bool `json:"mesos_access,omitempty"`
 
-	// mesos_url of MesosSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MesosURL *string `json:"mesos_url,omitempty"`
 
-	// missing_hosts of MesosSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MissingHosts []string `json:"missing_hosts,omitempty"`
 
-	// new_hosts of MesosSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NewHosts []string `json:"new_hosts,omitempty"`
 
-	// reason of MesosSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reason *string `json:"reason,omitempty"`
 
-	// Placeholder for description of property se_deploy_method_access of obj type MesosSetup field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeDeployMethodAccess *bool `json:"se_deploy_method_access,omitempty"`
 
-	// se_name of MesosSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeName *string `json:"se_name,omitempty"`
 
-	// version of MesosSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Version *string `json:"version,omitempty"`
 }

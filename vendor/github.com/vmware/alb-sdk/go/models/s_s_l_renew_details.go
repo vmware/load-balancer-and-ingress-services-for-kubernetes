@@ -8,6 +8,6 @@ package models
 // swagger:model SSLRenewDetails
 type SSLRenewDetails struct {
 
-	// Name of SSL Certificate.
+	// Name of SSL Certificate. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`
 }

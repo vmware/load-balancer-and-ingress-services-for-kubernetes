@@ -8,30 +8,30 @@ package models
 // swagger:model LicenseTransactionDetails
 type LicenseTransactionDetails struct {
 
-	// cookie of LicenseTransactionDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Cookie *string `json:"cookie,omitempty"`
 
-	// User defined description for the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Description *string `json:"description,omitempty"`
 
-	// id of LicenseTransactionDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ID *string `json:"id,omitempty"`
 
-	// Placeholder for description of property licensed_service_cores of obj type LicenseTransactionDetails field type str  type number
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LicensedServiceCores *float64 `json:"licensed_service_cores,omitempty"`
 
-	// operation of LicenseTransactionDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Operation *string `json:"operation,omitempty"`
 
-	// Placeholder for description of property overdraft of obj type LicenseTransactionDetails field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Overdraft *bool `json:"overdraft,omitempty"`
 
-	// Placeholder for description of property service_cores of obj type LicenseTransactionDetails field type str  type number
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ServiceCores *float64 `json:"service_cores,omitempty"`
 
-	// Unique object identifier of tenant.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TenantUUID *string `json:"tenant_uuid,omitempty"`
 
-	// tier of LicenseTransactionDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Tier *string `json:"tier,omitempty"`
 }

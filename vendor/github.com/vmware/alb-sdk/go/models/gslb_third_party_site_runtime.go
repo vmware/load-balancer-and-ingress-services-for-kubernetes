@@ -8,6 +8,6 @@ package models
 // swagger:model GslbThirdPartySiteRuntime
 type GslbThirdPartySiteRuntime struct {
 
-	//  Field introduced in 17.1.1.
+	//  Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SiteInfo *GslbSiteRuntimeInfo `json:"site_info,omitempty"`
 }

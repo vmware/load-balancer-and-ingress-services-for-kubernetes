@@ -12,78 +12,78 @@ type VIMgrHostRuntime struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
-	//  It is a reference to an object of type Cloud.
+	//  It is a reference to an object of type Cloud. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CloudRef *string `json:"cloud_ref,omitempty"`
 
-	// cluster_name of VIMgrHostRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ClusterName *string `json:"cluster_name,omitempty"`
 
-	// Unique object identifier of cluster.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ClusterUUID *string `json:"cluster_uuid,omitempty"`
 
-	// Placeholder for description of property cntlr_accessible of obj type VIMgrHostRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CntlrAccessible *bool `json:"cntlr_accessible,omitempty"`
 
-	// connection_state of VIMgrHostRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ConnectionState *string `json:"connection_state,omitempty"`
 
-	// Number of cpu_hz.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CPUHz *int64 `json:"cpu_hz,omitempty"`
 
-	// Placeholder for description of property maintenance_mode of obj type VIMgrHostRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaintenanceMode *bool `json:"maintenance_mode,omitempty"`
 
-	// managed_object_id of VIMgrHostRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	ManagedObjectID *string `json:"managed_object_id"`
 
-	// Number of mem.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Mem *int64 `json:"mem,omitempty"`
 
-	// mgmt_portgroup of VIMgrHostRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MgmtPortgroup *string `json:"mgmt_portgroup,omitempty"`
 
-	// Name of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Name *string `json:"name"`
 
-	// Unique object identifiers of networks.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NetworkUuids []string `json:"network_uuids,omitempty"`
 
-	// Number of num_cpu_cores.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumCPUCores *int32 `json:"num_cpu_cores,omitempty"`
 
-	// Number of num_cpu_packages.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumCPUPackages *int32 `json:"num_cpu_packages,omitempty"`
 
-	// Number of num_cpu_threads.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumCPUThreads *int32 `json:"num_cpu_threads,omitempty"`
 
-	// Placeholder for description of property pnics of obj type VIMgrHostRuntime field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Pnics []*CdpLldpInfo `json:"pnics,omitempty"`
 
-	// powerstate of VIMgrHostRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Powerstate *string `json:"powerstate,omitempty"`
 
-	// quarantine_start_ts of VIMgrHostRuntime.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	QuarantineStartTs *string `json:"quarantine_start_ts,omitempty"`
 
-	// Placeholder for description of property quarantined of obj type VIMgrHostRuntime field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Quarantined *bool `json:"quarantined,omitempty"`
 
-	// Number of quarantined_periods.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	QuarantinedPeriods *int32 `json:"quarantined_periods,omitempty"`
 
-	// Number of se_fail_cnt.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeFailCnt *int32 `json:"se_fail_cnt,omitempty"`
 
-	// Number of se_success_cnt.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeSuccessCnt *int32 `json:"se_success_cnt,omitempty"`
 
-	//  It is a reference to an object of type Tenant.
+	//  It is a reference to an object of type Tenant. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
-	//  Enum options - CLOUD_NONE, CLOUD_VCENTER, CLOUD_OPENSTACK, CLOUD_AWS, CLOUD_VCA, CLOUD_APIC, CLOUD_MESOS, CLOUD_LINUXSERVER, CLOUD_DOCKER_UCP, CLOUD_RANCHER, CLOUD_OSHIFT_K8S, CLOUD_AZURE, CLOUD_GCP, CLOUD_NSXT.
+	//  Enum options - CLOUD_NONE, CLOUD_VCENTER, CLOUD_OPENSTACK, CLOUD_AWS, CLOUD_VCA, CLOUD_APIC, CLOUD_MESOS, CLOUD_LINUXSERVER, CLOUD_DOCKER_UCP, CLOUD_RANCHER, CLOUD_OSHIFT_K8S, CLOUD_AZURE, CLOUD_GCP, CLOUD_NSXT. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Type *string `json:"type"`
 
@@ -91,9 +91,9 @@ type VIMgrHostRuntime struct {
 	// Read Only: true
 	URL *string `json:"url,omitempty"`
 
-	// Unique object identifier of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UUID *string `json:"uuid,omitempty"`
 
-	//  It is a reference to an object of type VIMgrVMRuntime.
+	//  It is a reference to an object of type VIMgrVMRuntime. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VMRefs []string `json:"vm_refs,omitempty"`
 }

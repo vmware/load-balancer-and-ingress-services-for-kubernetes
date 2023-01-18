@@ -8,34 +8,34 @@ package models
 // swagger:model IptableRule
 type IptableRule struct {
 
-	//  Enum options - ACCEPT, DROP, REJECT, DNAT, MASQUERADE.
+	//  Enum options - ACCEPT, DROP, REJECT, DNAT, MASQUERADE. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Action *string `json:"action"`
 
-	// Placeholder for description of property dnat_ip of obj type IptableRule field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DnatIP *IPAddr `json:"dnat_ip,omitempty"`
 
-	// Placeholder for description of property dst_ip of obj type IptableRule field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DstIP *IPAddrPrefix `json:"dst_ip,omitempty"`
 
-	// Placeholder for description of property dst_port of obj type IptableRule field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DstPort *PortRange `json:"dst_port,omitempty"`
 
-	// input_interface of IptableRule.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	InputInterface *string `json:"input_interface,omitempty"`
 
-	// output_interface of IptableRule.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	OutputInterface *string `json:"output_interface,omitempty"`
 
-	//  Enum options - PROTO_TCP, PROTO_UDP, PROTO_ICMP, PROTO_ALL.
+	//  Enum options - PROTO_TCP, PROTO_UDP, PROTO_ICMP, PROTO_ALL. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Proto *string `json:"proto,omitempty"`
 
-	// Placeholder for description of property src_ip of obj type IptableRule field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SrcIP *IPAddrPrefix `json:"src_ip,omitempty"`
 
-	// Placeholder for description of property src_port of obj type IptableRule field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SrcPort *PortRange `json:"src_port,omitempty"`
 
-	// tag of IptableRule.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Tag *string `json:"tag,omitempty"`
 }

@@ -8,11 +8,11 @@ package models
 // swagger:model CloudMeta
 type CloudMeta struct {
 
-	// key of CloudMeta.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Key *string `json:"key"`
 
-	// value of CloudMeta.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Value *string `json:"value"`
 }

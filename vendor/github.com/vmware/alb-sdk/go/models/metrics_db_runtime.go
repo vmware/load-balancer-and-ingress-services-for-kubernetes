@@ -8,27 +8,27 @@ package models
 // swagger:model MetricsDbRuntime
 type MetricsDbRuntime struct {
 
-	// Number of db_num_client_queries.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DbNumClientQueries *int32 `json:"db_num_client_queries,omitempty"`
 
-	// Number of db_num_client_resp.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DbNumClientResp *int32 `json:"db_num_client_resp,omitempty"`
 
-	// Number of db_num_db_queries.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DbNumDbQueries *int32 `json:"db_num_db_queries,omitempty"`
 
-	// Number of db_num_db_resp.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DbNumDbResp *int32 `json:"db_num_db_resp,omitempty"`
 
-	// Number of db_num_oom.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DbNumOom *int32 `json:"db_num_oom,omitempty"`
 
-	// Number of db_queue_size.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DbQueueSize *int32 `json:"db_queue_size,omitempty"`
 
-	// Number of db_rum_queries.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DbRumQueries *int32 `json:"db_rum_queries,omitempty"`
 
-	// Number of db_rum_rows.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DbRumRows *int32 `json:"db_rum_rows,omitempty"`
 }

@@ -8,12 +8,12 @@ package models
 // swagger:model RmModifyVnic
 type RmModifyVnic struct {
 
-	// mac_addr of RmModifyVnic.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MacAddr *string `json:"mac_addr,omitempty"`
 
-	// network_name of RmModifyVnic.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NetworkName *string `json:"network_name,omitempty"`
 
-	// Unique object identifier of network.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NetworkUUID *string `json:"network_uuid,omitempty"`
 }

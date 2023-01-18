@@ -8,7 +8,7 @@ package models
 // swagger:model DnsAAAARdata
 type DNSAAAARdata struct {
 
-	// IPv6 address for FQDN. Field introduced in 18.1.1.
+	// IPv6 address for FQDN. Field introduced in 18.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Ip6Address *IPAddr `json:"ip6_address"`
 }

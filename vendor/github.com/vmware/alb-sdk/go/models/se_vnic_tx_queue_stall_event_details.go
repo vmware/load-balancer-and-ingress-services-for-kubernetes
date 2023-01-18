@@ -8,15 +8,15 @@ package models
 // swagger:model SeVnicTxQueueStallEventDetails
 type SeVnicTxQueueStallEventDetails struct {
 
-	// Vnic name.
+	// Vnic name. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IfName *string `json:"if_name,omitempty"`
 
-	// Vnic Linux name.
+	// Vnic Linux name. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LinuxName *string `json:"linux_name,omitempty"`
 
-	// Queue number.
+	// Queue number. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Queue *int32 `json:"queue,omitempty"`
 
-	// UUID of the SE responsible for this event. It is a reference to an object of type ServiceEngine.
+	// UUID of the SE responsible for this event. It is a reference to an object of type ServiceEngine. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeRef *string `json:"se_ref,omitempty"`
 }

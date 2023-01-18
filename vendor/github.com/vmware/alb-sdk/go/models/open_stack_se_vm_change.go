@@ -8,9 +8,9 @@ package models
 // swagger:model OpenStackSeVmChange
 type OpenStackSeVMChange struct {
 
-	// error_string of OpenStackSeVmChange.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ErrorString *string `json:"error_string,omitempty"`
 
-	// Unique object identifier of se_vm.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeVMUUID *string `json:"se_vm_uuid,omitempty"`
 }

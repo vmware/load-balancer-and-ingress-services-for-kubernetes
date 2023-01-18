@@ -8,22 +8,22 @@ package models
 // swagger:model OpenStackClusterSetup
 type OpenStackClusterSetup struct {
 
-	// admin_tenant of OpenStackClusterSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AdminTenant *string `json:"admin_tenant,omitempty"`
 
-	// auth_url of OpenStackClusterSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AuthURL *string `json:"auth_url,omitempty"`
 
-	// cc_id of OpenStackClusterSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CcID *string `json:"cc_id,omitempty"`
 
-	// error_string of OpenStackClusterSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ErrorString *string `json:"error_string,omitempty"`
 
-	// keystone_host of OpenStackClusterSetup.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	KeystoneHost *string `json:"keystone_host"`
 
-	//  Enum options - NO_ACCESS, READ_ACCESS, WRITE_ACCESS.
+	//  Enum options - NO_ACCESS, READ_ACCESS, WRITE_ACCESS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Privilege *string `json:"privilege,omitempty"`
 }

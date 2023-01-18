@@ -8,25 +8,25 @@ package models
 // swagger:model MetricThresoldUpDetails
 type MetricThresoldUpDetails struct {
 
-	// Placeholder for description of property current_value of obj type MetricThresoldUpDetails field type str  type number
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CurrentValue *float64 `json:"current_value,omitempty"`
 
-	// ID of the object whose metric has hit the threshold.
+	// ID of the object whose metric has hit the threshold. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EntityUUID *string `json:"entity_uuid,omitempty"`
 
-	// metric_id of MetricThresoldUpDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MetricID *string `json:"metric_id,omitempty"`
 
-	// metric_name of MetricThresoldUpDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	MetricName *string `json:"metric_name"`
 
-	// Identity of the Pool.
+	// Identity of the Pool. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PoolUUID *string `json:"pool_uuid,omitempty"`
 
-	// Server IP Port on which event was generated.
+	// Server IP Port on which event was generated. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Server *string `json:"server,omitempty"`
 
-	// Placeholder for description of property threshold of obj type MetricThresoldUpDetails field type str  type number
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Threshold *float64 `json:"threshold,omitempty"`
 }

@@ -8,24 +8,27 @@ package models
 // swagger:model WafRuleLog
 type WafRuleLog struct {
 
-	// Transaction data that matched the rule. Field introduced in 17.2.1.
+	// Transaction data that matched the rule. Field introduced in 17.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Matches []*WafRuleMatchData `json:"matches,omitempty"`
 
-	// Rule's msg *string per ModSec language. Field introduced in 17.2.1.
+	// Rule's msg *string per ModSec language. Field introduced in 17.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Msg *string `json:"msg,omitempty"`
 
-	// Phase in which transaction matched the Rule - for instance, Request Header Phase. Field introduced in 17.2.1.
+	// The count of omitted match element logs in the current rule. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	OmittedMatchElements *int32 `json:"omitted_match_elements,omitempty"`
+
+	// Phase in which transaction matched the Rule - for instance, Request Header Phase. Field introduced in 17.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Phase *string `json:"phase,omitempty"`
 
-	// Rule Group for the matching rule. Field introduced in 17.2.1.
+	// Rule Group for the matching rule. Field introduced in 17.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	RuleGroup *string `json:"rule_group,omitempty"`
 
-	// ID of the matching rule per ModSec language. Field introduced in 17.2.1.
+	// ID of the matching rule per ModSec language. Field introduced in 17.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	RuleID *int64 `json:"rule_id,omitempty"`
 
-	// Name of the rule. Field introduced in 17.2.3.
+	// Name of the rule. Field introduced in 17.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	RuleName *string `json:"rule_name,omitempty"`
 
-	// Rule's tags per ModSec language. Field introduced in 17.2.1.
+	// Rule's tags per ModSec language. Field introduced in 17.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Tags []string `json:"tags,omitempty"`
 }

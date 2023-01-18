@@ -12,22 +12,28 @@ type UserAccountProfile struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
-	// Lock timeout period (in minutes). Default is 30 minutes. Unit is MIN.
+	// Lock timeout period (in minutes). Default is 30 minutes. Unit is MIN. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AccountLockTimeout *int32 `json:"account_lock_timeout,omitempty"`
 
-	// The time period after which credentials expire. Default is 180 days. Unit is DAYS.
+	// Protobuf versioning for config pbs. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
+	ConfigpbAttributes *ConfigPbAttributes `json:"configpb_attributes,omitempty"`
+
+	// The time period after which credentials expire. Default is 180 days. Unit is DAYS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CredentialsTimeoutThreshold *int32 `json:"credentials_timeout_threshold,omitempty"`
 
-	// Maximum number of concurrent sessions allowed. There are unlimited sessions by default.
+	// The configurable time window beyond which we need to pop all the login failure timestamps from the login_failure_timestamps. Special values are 0 - Do not reset login_failure_counts on the basis of time.. Field introduced in 22.1.1. Unit is MIN. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	LoginFailureCountExpiryWindow *int32 `json:"login_failure_count_expiry_window,omitempty"`
+
+	// Maximum number of concurrent sessions allowed. There are unlimited sessions by default. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxConcurrentSessions *int32 `json:"max_concurrent_sessions,omitempty"`
 
-	// Number of login attempts before lockout. Default is 3 attempts. Allowed values are 3-20. Special values are 0 - 'Unlimited login attempts allowed.'.
+	// Number of login attempts before lockout. Default is 3 attempts. Allowed values are 3-20. Special values are 0- Unlimited login attempts allowed.. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxLoginFailureCount *int32 `json:"max_login_failure_count,omitempty"`
 
-	// Maximum number of passwords to be maintained in the password history. Default is 4 passwords.
+	// Maximum number of passwords to be maintained in the password history. Default is 4 passwords. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxPasswordHistoryCount *int32 `json:"max_password_history_count,omitempty"`
 
-	// Name of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Name *string `json:"name"`
 
@@ -35,6 +41,6 @@ type UserAccountProfile struct {
 	// Read Only: true
 	URL *string `json:"url,omitempty"`
 
-	// Unique object identifier of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UUID *string `json:"uuid,omitempty"`
 }

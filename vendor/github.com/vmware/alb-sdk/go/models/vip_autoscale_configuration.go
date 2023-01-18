@@ -8,6 +8,6 @@ package models
 // swagger:model VipAutoscaleConfiguration
 type VipAutoscaleConfiguration struct {
 
-	// This is the list of AZ+Subnet in which Vips will be spawned. Field introduced in 17.2.12, 18.1.2.
+	// This is the list of AZ+Subnet in which Vips will be spawned. Field introduced in 17.2.12, 18.1.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Zones []*VipAutoscaleZones `json:"zones,omitempty"`
 }

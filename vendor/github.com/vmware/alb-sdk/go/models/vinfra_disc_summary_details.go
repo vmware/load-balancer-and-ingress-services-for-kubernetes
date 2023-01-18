@@ -8,22 +8,22 @@ package models
 // swagger:model VinfraDiscSummaryDetails
 type VinfraDiscSummaryDetails struct {
 
-	// Number of num_clusters.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumClusters *int64 `json:"num_clusters,omitempty"`
 
-	// Number of num_dcs.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumDcs *int64 `json:"num_dcs,omitempty"`
 
-	// Number of num_hosts.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumHosts *int64 `json:"num_hosts,omitempty"`
 
-	// Number of num_nws.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumNws *int64 `json:"num_nws,omitempty"`
 
-	// Number of num_vms.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumVms *int64 `json:"num_vms,omitempty"`
 
-	// vcenter of VinfraDiscSummaryDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Vcenter *string `json:"vcenter"`
 }

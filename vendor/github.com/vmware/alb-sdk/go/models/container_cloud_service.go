@@ -8,18 +8,18 @@ package models
 // swagger:model ContainerCloudService
 type ContainerCloudService struct {
 
-	// cc_id of ContainerCloudService.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CcID *string `json:"cc_id,omitempty"`
 
-	// object of ContainerCloudService.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Object *string `json:"object,omitempty"`
 
-	// reason of ContainerCloudService.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reason *string `json:"reason,omitempty"`
 
-	// service of ContainerCloudService.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Service *string `json:"service,omitempty"`
 
-	// status of ContainerCloudService.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Status *string `json:"status,omitempty"`
 }

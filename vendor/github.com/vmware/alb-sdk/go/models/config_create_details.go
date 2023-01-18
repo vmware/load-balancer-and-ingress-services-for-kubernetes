@@ -8,27 +8,27 @@ package models
 // swagger:model ConfigCreateDetails
 type ConfigCreateDetails struct {
 
-	// Error message if request failed.
+	// Error message if request failed. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ErrorMessage *string `json:"error_message,omitempty"`
 
-	// API path.
+	// API path. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Path *string `json:"path,omitempty"`
 
-	// Request data if request failed.
+	// Request data if request failed. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	RequestData *string `json:"request_data,omitempty"`
 
-	// Data of the created resource.
+	// Data of the created resource. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ResourceData *string `json:"resource_data,omitempty"`
 
-	// Name of the created resource.
+	// Name of the created resource. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ResourceName *string `json:"resource_name,omitempty"`
 
-	// Config type of the created resource.
+	// Config type of the created resource. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ResourceType *string `json:"resource_type,omitempty"`
 
-	// Status.
+	// Status. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Status *string `json:"status,omitempty"`
 
-	// Request user.
+	// Request user. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	User *string `json:"user,omitempty"`
 }

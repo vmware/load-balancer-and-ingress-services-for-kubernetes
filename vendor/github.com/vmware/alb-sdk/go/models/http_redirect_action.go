@@ -8,22 +8,25 @@ package models
 // swagger:model HTTPRedirectAction
 type HTTPRedirectAction struct {
 
-	// Host config.
+	// Add a query *string to the redirect URI. If keep_query is set, concatenates the add_string to the query of the incoming request. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	AddString *string `json:"add_string,omitempty"`
+
+	// Host config. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Host *URIParam `json:"host,omitempty"`
 
-	// Keep or drop the query of the incoming request URI in the redirected URI.
+	// Keep or drop the query of the incoming request URI in the redirected URI. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	KeepQuery *bool `json:"keep_query,omitempty"`
 
-	// Path config.
+	// Path config. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Path *URIParam `json:"path,omitempty"`
 
-	// Port to which redirect the request. Allowed values are 1-65535.
+	// Port to which redirect the request. Allowed values are 1-65535. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Port *int32 `json:"port,omitempty"`
 
-	// Protocol type. Enum options - HTTP, HTTPS.
+	// Protocol type. Enum options - HTTP, HTTPS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Protocol *string `json:"protocol"`
 
-	// HTTP redirect status code. Enum options - HTTP_REDIRECT_STATUS_CODE_301, HTTP_REDIRECT_STATUS_CODE_302, HTTP_REDIRECT_STATUS_CODE_307.
+	// HTTP redirect status code. Enum options - HTTP_REDIRECT_STATUS_CODE_301, HTTP_REDIRECT_STATUS_CODE_302, HTTP_REDIRECT_STATUS_CODE_307. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	StatusCode *string `json:"status_code,omitempty"`
 }

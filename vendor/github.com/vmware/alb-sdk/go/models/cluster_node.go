@@ -8,31 +8,37 @@ package models
 // swagger:model ClusterNode
 type ClusterNode struct {
 
-	// Optional service categories that a node can be assigned (e.g. SYSTEM, INFRASTRUCTURE or ANALYTICS). Field introduced in 18.1.1.
+	// Optional service categories that a node can be assigned (e.g. SYSTEM, INFRASTRUCTURE or ANALYTICS). Field introduced in 18.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Categories []string `json:"categories,omitempty"`
 
-	// IP address of controller VM.
+	// Interface details of the controller node. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	Interfaces []*ControllerInterface `json:"interfaces,omitempty"`
+
+	// IP address of controller VM. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	IP *IPAddr `json:"ip"`
 
-	// Name of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`
 
-	// The password we will use when authenticating with this node (Not persisted). Field introduced in 18.2.3.
+	// The password we will use when authenticating with this node (Not persisted). Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Password *string `json:"password,omitempty"`
 
-	// Public IP address or hostname of the controller VM. Field introduced in 17.2.3.
+	// Public IP address or hostname of the controller VM. Field introduced in 17.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PublicIPOrName *IPAddr `json:"public_ip_or_name,omitempty"`
 
-	// Hostname assigned to this controller VM.
+	// Static routes configured on the controller node. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	StaticRoutes []*StaticRoute `json:"static_routes,omitempty"`
+
+	// Hostname assigned to this controller VM. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VMHostname *string `json:"vm_hostname,omitempty"`
 
-	// Managed object reference of this controller VM.
+	// Managed object reference of this controller VM. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VMMor *string `json:"vm_mor,omitempty"`
 
-	// Name of the controller VM.
+	// Name of the controller VM. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VMName *string `json:"vm_name,omitempty"`
 
-	// UUID on the controller VM.
+	// UUID on the controller VM. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VMUUID *string `json:"vm_uuid,omitempty"`
 }

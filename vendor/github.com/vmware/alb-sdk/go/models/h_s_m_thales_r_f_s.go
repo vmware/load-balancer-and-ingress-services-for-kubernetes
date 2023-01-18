@@ -8,10 +8,10 @@ package models
 // swagger:model HSMThalesRFS
 type HSMThalesRFS struct {
 
-	// IP address of the RFS server from where to sync the Thales encrypted private key.
+	// IP address of the RFS server from where to sync the Thales encrypted private key. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	IP *IPAddr `json:"ip"`
 
-	// Port at which the RFS server accepts the sync request from clients for Thales encrypted private key. Allowed values are 1-65535.
+	// Port at which the RFS server accepts the sync request from clients for Thales encrypted private key. Allowed values are 1-65535. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Port *int32 `json:"port,omitempty"`
 }

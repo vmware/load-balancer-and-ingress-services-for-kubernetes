@@ -8,18 +8,18 @@ package models
 // swagger:model SeReconcileDetails
 type SeReconcileDetails struct {
 
-	// Placeholder for description of property new_service_cores of obj type SeReconcileDetails field type str  type number
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NewServiceCores *float64 `json:"new_service_cores,omitempty"`
 
-	// Placeholder for description of property old_service_cores of obj type SeReconcileDetails field type str  type number
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	OldServiceCores *float64 `json:"old_service_cores,omitempty"`
 
-	// Unique object identifier of se.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeUUID *string `json:"se_uuid,omitempty"`
 
-	// Unique object identifier of tenant.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TenantUUID *string `json:"tenant_uuid,omitempty"`
 
-	// tier of SeReconcileDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Tier *string `json:"tier,omitempty"`
 }

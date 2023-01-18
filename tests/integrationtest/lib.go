@@ -1043,7 +1043,7 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			resp["uuid"] = fmt.Sprintf("%s-%s-%s", object, rName, RANDOMUUID)
 			if vsType, ok := resp["type"]; ok {
 				if vsType == "VS_TYPE_VH_CHILD" {
-					parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
+					parentVSName := strings.Split(resp["vh_parent_vs_ref"].(string), "name=")[1]
 					resp["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
 				} else {
 					resp["vsvip_ref"] = fmt.Sprintf("https://localhost/api/vsvip/vsvip-%s-%s#%s", rName, RANDOMUUID, rName)
@@ -1112,7 +1112,7 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			rName := resp["name"].(string)
 			if vsType, ok := resp["type"]; ok {
 				if vsType == "VS_TYPE_VH_CHILD" {
-					parentVSName := strings.Split(resp["vh_parent_vs_uuid"].(string), "name=")[1]
+					parentVSName := strings.Split(resp["vh_parent_vs_ref"].(string), "name=")[1]
 					resp["vh_parent_vs_ref"] = fmt.Sprintf("https://localhost/api/virtualservice/virtualservice-%s-%s#%s", parentVSName, RANDOMUUID, parentVSName)
 				} else {
 					resp["vsvip_ref"] = fmt.Sprintf("https://localhost/api/vsvip/vsvip-%s-%s#%s", rName, RANDOMUUID, rName)
@@ -1218,7 +1218,7 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 		w.Write([]byte(`{"success": "true"}`))
 	} else if strings.Contains(url, "initial-data") {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"version": {"Version": "20.1.2"}}`))
+		w.Write([]byte(`{"version": {"Version": "22.1.2"}}`))
 	} else if strings.Contains(url, "/api/cluster/runtime") {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"node_states": [{"name": "10.79.169.60","role": "CLUSTER_LEADER","up_since": "2020-10-28 04:58:48"}],"cluster_state": {"state": "CLUSTER_UP_NO_HA"}}`))

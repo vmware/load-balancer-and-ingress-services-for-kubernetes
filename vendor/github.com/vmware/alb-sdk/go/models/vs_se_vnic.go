@@ -8,14 +8,14 @@ package models
 // swagger:model VsSeVnic
 type VsSeVnic struct {
 
-	// lif of VsSeVnic.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Lif *string `json:"lif,omitempty"`
 
-	// mac of VsSeVnic.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Mac *string `json:"mac"`
 
-	//  Enum options - VNIC_TYPE_FE, VNIC_TYPE_BE.
+	//  Enum options - VNIC_TYPE_FE, VNIC_TYPE_BE. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Type *string `json:"type"`
 }

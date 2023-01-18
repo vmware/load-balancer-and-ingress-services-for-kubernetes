@@ -8,33 +8,33 @@ package models
 // swagger:model RmBindVsSeEventDetails
 type RmBindVsSeEventDetails struct {
 
-	// ip of RmBindVsSeEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IP *string `json:"ip,omitempty"`
 
-	// ip6 of RmBindVsSeEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Ip6 *string `json:"ip6,omitempty"`
 
-	// List of placement_networks configured on this interface. Field introduced in 20.1.5.
+	// List of placement_networks configured on this interface. Field introduced in 20.1.5. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Networks []string `json:"networks,omitempty"`
 
-	// Placeholder for description of property primary of obj type RmBindVsSeEventDetails field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Primary *bool `json:"primary,omitempty"`
 
-	// se_name of RmBindVsSeEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeName *string `json:"se_name,omitempty"`
 
-	// Placeholder for description of property standby of obj type RmBindVsSeEventDetails field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Standby *bool `json:"standby,omitempty"`
 
-	// type of RmBindVsSeEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Type *string `json:"type,omitempty"`
 
-	// vip_vnics of RmBindVsSeEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VipVnics []string `json:"vip_vnics,omitempty"`
 
-	// vs_name of RmBindVsSeEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VsName *string `json:"vs_name,omitempty"`
 
-	// Unique object identifier of vs.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VsUUID *string `json:"vs_uuid,omitempty"`
 }

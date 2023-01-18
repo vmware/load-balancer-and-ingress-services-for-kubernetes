@@ -8,27 +8,27 @@ package models
 // swagger:model SSLCertificateDescription
 type SSLCertificateDescription struct {
 
-	// common_name of SSLCertificateDescription.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CommonName *string `json:"common_name,omitempty"`
 
-	// country of SSLCertificateDescription.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Country *string `json:"country,omitempty"`
 
-	// distinguished_name of SSLCertificateDescription.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DistinguishedName *string `json:"distinguished_name,omitempty"`
 
-	// email_address of SSLCertificateDescription.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EmailAddress *string `json:"email_address,omitempty"`
 
-	// locality of SSLCertificateDescription.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Locality *string `json:"locality,omitempty"`
 
-	// organization of SSLCertificateDescription.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Organization *string `json:"organization,omitempty"`
 
-	// organization_unit of SSLCertificateDescription.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	OrganizationUnit *string `json:"organization_unit,omitempty"`
 
-	// state of SSLCertificateDescription.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	State *string `json:"state,omitempty"`
 }

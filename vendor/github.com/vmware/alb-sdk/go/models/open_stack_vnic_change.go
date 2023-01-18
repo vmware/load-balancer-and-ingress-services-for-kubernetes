@@ -8,16 +8,16 @@ package models
 // swagger:model OpenStackVnicChange
 type OpenStackVnicChange struct {
 
-	// error_string of OpenStackVnicChange.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ErrorString *string `json:"error_string,omitempty"`
 
-	// mac_addrs of OpenStackVnicChange.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MacAddrs []string `json:"mac_addrs,omitempty"`
 
-	// networks of OpenStackVnicChange.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Networks []string `json:"networks,omitempty"`
 
-	// Unique object identifier of se_vm.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	SeVMUUID *string `json:"se_vm_uuid"`
 }

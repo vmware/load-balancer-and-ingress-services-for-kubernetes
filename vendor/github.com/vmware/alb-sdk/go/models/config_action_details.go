@@ -8,27 +8,27 @@ package models
 // swagger:model ConfigActionDetails
 type ConfigActionDetails struct {
 
-	// Name of the action.
+	// Name of the action. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ActionName *string `json:"action_name,omitempty"`
 
-	// Error message if request failed.
+	// Error message if request failed. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ErrorMessage *string `json:"error_message,omitempty"`
 
-	// Parameter data.
+	// Parameter data. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ParameterData *string `json:"parameter_data,omitempty"`
 
-	// API path.
+	// API path. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Path *string `json:"path,omitempty"`
 
-	// Name of the resource.
+	// Name of the resource. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ResourceName *string `json:"resource_name,omitempty"`
 
-	// Config type of the resource.
+	// Config type of the resource. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ResourceType *string `json:"resource_type,omitempty"`
 
-	// Status.
+	// Status. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Status *string `json:"status,omitempty"`
 
-	// Request user.
+	// Request user. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	User *string `json:"user,omitempty"`
 }

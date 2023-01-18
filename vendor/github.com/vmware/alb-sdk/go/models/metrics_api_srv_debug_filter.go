@@ -8,6 +8,6 @@ package models
 // swagger:model MetricsApiSrvDebugFilter
 type MetricsAPISrvDebugFilter struct {
 
-	// uuid of the entity. It is a reference to an object of type Virtualservice. Field introduced in 18.2.3.
+	// uuid of the entity. It is a reference to an object of type Virtualservice. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EntityRef *string `json:"entity_ref,omitempty"`
 }

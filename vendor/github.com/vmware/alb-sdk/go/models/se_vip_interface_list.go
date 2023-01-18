@@ -8,22 +8,22 @@ package models
 // swagger:model SeVipInterfaceList
 type SeVipInterfaceList struct {
 
-	// Placeholder for description of property is_portchannel of obj type SeVipInterfaceList field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IsPortchannel *bool `json:"is_portchannel,omitempty"`
 
-	// List of placement_networks reachable from this interface. Field introduced in 20.1.5.
+	// List of placement_networks reachable from this interface. Field introduced in 20.1.5. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Networks []*DiscoveredNetwork `json:"networks,omitempty"`
 
-	// Placeholder for description of property vip_intf_ip of obj type SeVipInterfaceList field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VipIntfIP *IPAddr `json:"vip_intf_ip,omitempty"`
 
-	// Placeholder for description of property vip_intf_ip6 of obj type SeVipInterfaceList field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VipIntfIp6 *IPAddr `json:"vip_intf_ip6,omitempty"`
 
-	// vip_intf_mac of SeVipInterfaceList.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	VipIntfMac *string `json:"vip_intf_mac"`
 
-	// Number of vlan_id.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VlanID *int32 `json:"vlan_id,omitempty"`
 }

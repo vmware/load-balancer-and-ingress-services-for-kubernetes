@@ -14,7 +14,7 @@ require (
 	github.com/openshift/api v0.0.0-20201019163320-c6a5ec25f267
 	github.com/openshift/client-go v0.0.0-20201020082437-7737f16e53fc
 	github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
-	github.com/vmware/alb-sdk v0.0.0-20210721142023-8e96475b833b
+	github.com/vmware/alb-sdk v0.0.0-20221125101019-1edb021a121b
 	go.uber.org/zap v1.18.1
 	golang.org/x/crypto v0.0.0-20220314234659-1baeb1ce4c0b
 	google.golang.org/protobuf v1.26.0

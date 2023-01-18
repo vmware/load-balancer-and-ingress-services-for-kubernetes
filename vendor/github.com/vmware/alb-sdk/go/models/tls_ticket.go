@@ -8,15 +8,15 @@ package models
 // swagger:model TLSTicket
 type TLSTicket struct {
 
-	// aes_key of TLSTicket.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	AesKey *string `json:"aes_key"`
 
-	// hmac_key of TLSTicket.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	HmacKey *string `json:"hmac_key"`
 
-	// Name of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Name *string `json:"name"`
 }

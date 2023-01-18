@@ -8,23 +8,23 @@ package models
 // swagger:model MetricLog
 type MetricLog struct {
 
-	// Placeholder for description of property end_timestamp of obj type MetricLog field type str  type number
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EndTimestamp *float64 `json:"end_timestamp,omitempty"`
 
-	// metric_id of MetricLog.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	MetricID *string `json:"metric_id"`
 
-	// Placeholder for description of property report_timestamp of obj type MetricLog field type str  type number
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ReportTimestamp *float64 `json:"report_timestamp,omitempty"`
 
-	// Number of step.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Step *int32 `json:"step,omitempty"`
 
-	// Placeholder for description of property time_series of obj type MetricLog field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TimeSeries *MetricsQueryResponse `json:"time_series,omitempty"`
 
-	// Placeholder for description of property value of obj type MetricLog field type str  type number
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Value *float64 `json:"value"`
 }

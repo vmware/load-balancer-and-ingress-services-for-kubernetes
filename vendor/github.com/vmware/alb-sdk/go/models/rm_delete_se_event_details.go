@@ -8,36 +8,36 @@ package models
 // swagger:model RmDeleteSeEventDetails
 type RmDeleteSeEventDetails struct {
 
-	// cloud_name of RmDeleteSeEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CloudName *string `json:"cloud_name,omitempty"`
 
-	// Unique object identifier of cloud.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CloudUUID *string `json:"cloud_uuid,omitempty"`
 
-	// host_name of RmDeleteSeEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	HostName *string `json:"host_name,omitempty"`
 
-	// Unique object identifier of host.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	HostUUID *string `json:"host_uuid,omitempty"`
 
-	// reason of RmDeleteSeEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reason *string `json:"reason,omitempty"`
 
-	// se_cookie of RmDeleteSeEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeCookie *string `json:"se_cookie,omitempty"`
 
-	// se_grp_name of RmDeleteSeEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeGrpName *string `json:"se_grp_name,omitempty"`
 
-	// Unique object identifier of se_grp.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeGrpUUID *string `json:"se_grp_uuid,omitempty"`
 
-	// se_name of RmDeleteSeEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeName *string `json:"se_name,omitempty"`
 
-	// Unique object identifier of se.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeUUID *string `json:"se_uuid,omitempty"`
 
-	// Number of status_code.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	StatusCode *int64 `json:"status_code,omitempty"`
 }

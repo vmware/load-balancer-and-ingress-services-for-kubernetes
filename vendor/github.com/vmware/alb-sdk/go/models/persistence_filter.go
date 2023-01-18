@@ -8,27 +8,27 @@ package models
 // swagger:model PersistenceFilter
 type PersistenceFilter struct {
 
-	// Persistence cookie.
+	// Persistence cookie. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PersistenceCookie *string `json:"persistence_cookie,omitempty"`
 
-	// Placeholder for description of property persistence_end_ip of obj type PersistenceFilter field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PersistenceEndIP *IPAddr `json:"persistence_end_ip,omitempty"`
 
-	// Placeholder for description of property persistence_ip of obj type PersistenceFilter field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PersistenceIP *IPAddr `json:"persistence_ip,omitempty"`
 
-	// Number of persistence_mask.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PersistenceMask *int32 `json:"persistence_mask,omitempty"`
 
-	// Placeholder for description of property server_end_ip of obj type PersistenceFilter field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ServerEndIP *IPAddr `json:"server_end_ip,omitempty"`
 
-	// Placeholder for description of property server_ip of obj type PersistenceFilter field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ServerIP *IPAddr `json:"server_ip,omitempty"`
 
-	// Number of server_mask.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ServerMask *int32 `json:"server_mask,omitempty"`
 
-	// Number of server_port.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ServerPort *int32 `json:"server_port,omitempty"`
 }

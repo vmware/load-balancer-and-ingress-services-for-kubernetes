@@ -46,6 +46,10 @@ var runtimeScheme = k8sruntime.NewScheme()
 func init() {
 	//Setting the package-wide version
 	CtrlVersion = os.Getenv("CTRL_VERSION")
+	// For AKO 1.9.1, if ctrl version is 22.1.3, make it 22.1.2
+	if CtrlVersion == CTRL_VERSION_22_1_3 {
+		CtrlVersion = CTRL_VERSION_22_1_2
+	}
 	networkingv1.AddToScheme(runtimeScheme)
 }
 

@@ -8,22 +8,25 @@ package models
 // swagger:model VsInitialPlacementEventDetails
 type VsInitialPlacementEventDetails struct {
 
-	// error_message of VsInitialPlacementEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ErrorMessage *string `json:"error_message,omitempty"`
 
-	// ip of VsInitialPlacementEventDetails.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IP *string `json:"ip,omitempty"`
 
-	// Number of rpc_status.
+	// VIP IPv6 address. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	Ip6 *string `json:"ip6,omitempty"`
+
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	RPCStatus *int64 `json:"rpc_status,omitempty"`
 
-	// Placeholder for description of property se_assigned of obj type VsInitialPlacementEventDetails field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeAssigned []*VipSeAssigned `json:"se_assigned,omitempty"`
 
-	// Placeholder for description of property se_requested of obj type VsInitialPlacementEventDetails field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeRequested *VirtualServiceResource `json:"se_requested,omitempty"`
 
-	// Unique object identifier of vs.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	VsUUID *string `json:"vs_uuid"`
 }

@@ -8,27 +8,27 @@ package models
 // swagger:model ClientLogFilter
 type ClientLogFilter struct {
 
-	// Placeholder for description of property all_headers of obj type ClientLogFilter field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AllHeaders *bool `json:"all_headers,omitempty"`
 
-	// Placeholder for description of property client_ip of obj type ClientLogFilter field type str  type object
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ClientIP *IPAddrMatch `json:"client_ip,omitempty"`
 
-	//  Special values are 0 - 'infinite'. Unit is MIN.
+	//  Special values are 0 - infinite. Unit is MIN. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Duration *int32 `json:"duration,omitempty"`
 
-	// Placeholder for description of property enabled of obj type ClientLogFilter field type str  type boolean
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Enabled *bool `json:"enabled"`
 
-	// Number of index.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Index *int32 `json:"index"`
 
-	// Name of the object.
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Name *string `json:"name"`
 
-	// Placeholder for description of property uri of obj type ClientLogFilter field type str  type object
+	//  Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	URI *StringMatch `json:"uri,omitempty"`
 }

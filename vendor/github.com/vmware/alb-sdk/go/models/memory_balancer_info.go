@@ -8,21 +8,36 @@ package models
 // swagger:model MemoryBalancerInfo
 type MemoryBalancerInfo struct {
 
-	// Child Process information.
+	// Child process information. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Child []*ChildProcessInfo `json:"child,omitempty"`
 
-	// Controller memory.
+	// Current controller memory (in GB) usage. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ControllerMemory *int32 `json:"controller_memory,omitempty"`
 
-	// Limit on the memory (in MB) for the Process.
+	// Percent usage of total controller memory. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	ControllerMemoryUsagePercent *float64 `json:"controller_memory_usage_percent,omitempty"`
+
+	// Holder for debug message. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	DebugMessage *string `json:"debug_message,omitempty"`
+
+	// Limit on the memory (in KB) for the Process. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Limit *int32 `json:"limit,omitempty"`
 
-	// Amount of memory (in MB) used by the Process.
+	// Amount of memory (in KB) used by the Process. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MemoryUsed *int32 `json:"memory_used,omitempty"`
 
-	// PID of the Process.
+	// PID of the Process. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Pid *int32 `json:"pid,omitempty"`
 
-	// Name of the Process.
+	// Name of the Process. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Process *string `json:"process,omitempty"`
+
+	// Current mode of the process. Enum options - REGULAR, DEBUG, DEGRADED, STOP. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	ProcessMode *string `json:"process_mode,omitempty"`
+
+	// Current usage trend of the process. Enum options - UPWARD, DOWNWARD, NEUTRAL. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	ProcessTrend *string `json:"process_trend,omitempty"`
+
+	// Percent usage of the process limit. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	ThresholdPercent *float64 `json:"threshold_percent,omitempty"`
 }
