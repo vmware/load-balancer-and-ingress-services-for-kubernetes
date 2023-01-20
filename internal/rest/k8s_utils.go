@@ -66,6 +66,28 @@ func (l *leader) SyncObjectStatuses() {
 					ServiceMetadata: vsSvcMetadataObj,
 					Key:             lib.SyncStatusKey,
 				})
+			for _, poolKey := range vsCacheObj.PoolKeyCollection {
+				poolCache, ok := l.restOp.cache.PoolCache.AviCacheGet(poolKey)
+				if !ok {
+					continue
+				}
+
+				poolCacheObj, found := poolCache.(*avicache.AviPoolCache)
+				if !found {
+					continue
+				}
+
+				if len(poolCacheObj.ServiceMetadataObj.NamespaceServiceName) > 0 {
+					allServiceLBUpdateOptions = append(allServiceLBUpdateOptions,
+						status.UpdateOptions{
+							Vip:                IPAddrs,
+							ServiceMetadata:    poolCacheObj.ServiceMetadataObj,
+							Key:                lib.SyncStatusKey,
+							VSName:             vsCacheObj.Name,
+							VirtualServiceUUID: vsCacheObj.Uuid,
+						})
+				}
+			}
 		} else if parentVsKey != (avicache.NamespaceName{}) {
 			// secure VSes handler
 			parentVs, found := l.restOp.cache.VsCacheMeta.AviCacheGet(parentVsKey)
@@ -150,11 +172,10 @@ func (l *leader) SyncObjectStatuses() {
 		if lib.UseServicesAPI() {
 			publisher.UpdateSvcApiGatewayStatusAddress(allGatewayUpdateOptions, true)
 			publisher.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
-		}
-		publisher.UpdateRouteIngressStatus(allIngressUpdateOptions, true)
-		if !lib.GetLayer7Only() {
+		} else if !lib.GetLayer7Only() {
 			publisher.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
 		}
+		publisher.UpdateRouteIngressStatus(allIngressUpdateOptions, true)
 	}
 
 	utils.AviLog.Infof("Status syncing completed")
