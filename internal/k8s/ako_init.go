@@ -560,9 +560,6 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	} else {
 		// First boot sync
 		err = c.FullSyncK8s(false)
-		if ctrlAuthToken, ok := utils.SharedCtrlProp().AviCacheGet(utils.ENV_CTRL_AUTHTOKEN); ok && ctrlAuthToken != nil && ctrlAuthToken.(string) != "" {
-			c.RefreshAuthToken()
-		}
 		if err != nil {
 			// Something bad sync. We need to return and shutdown the API server
 			utils.AviLog.Errorf("Couldn't run full sync successfully on bootup, going to shutdown AKO")
@@ -578,11 +575,6 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 			utils.AviLog.Warnf("Full sync interval set to 0, will not run full sync")
 		}
 
-		if ctrlAuthToken, ok := utils.SharedCtrlProp().AviCacheGet(utils.ENV_CTRL_AUTHTOKEN); ok && ctrlAuthToken != nil && ctrlAuthToken.(string) != "" {
-			tokenWorker = utils.NewFullSyncThread(time.Duration(utils.RefreshAuthTokenInterval) * time.Hour)
-			tokenWorker.SyncFunction = c.RefreshAuthToken
-			go tokenWorker.Run()
-		}
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -603,6 +595,14 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	graphQueue.Run(stopCh, graphwg)
 
 	c.SetupEventHandlers(informers)
+	if ctrlAuthToken, ok := utils.SharedCtrlProp().AviCacheGet(utils.ENV_CTRL_AUTHTOKEN); ok && ctrlAuthToken != nil && ctrlAuthToken.(string) != "" {
+		c.RefreshAuthToken()
+	}
+	if ctrlAuthToken, ok := utils.SharedCtrlProp().AviCacheGet(utils.ENV_CTRL_AUTHTOKEN); ok && ctrlAuthToken != nil && ctrlAuthToken.(string) != "" {
+		tokenWorker = utils.NewFullSyncThread(time.Duration(utils.RefreshAuthTokenInterval) * time.Hour)
+		tokenWorker.SyncFunction = c.RefreshAuthToken
+		go tokenWorker.Run()
+	}
 	if lib.DisableSync {
 		lib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigSet, "AKO is in disable sync state")
 	} else {
