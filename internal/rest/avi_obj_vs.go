@@ -33,8 +33,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const VSVIP_NOTFOUND = "VsVip object not found"
-
 // TODO: convert it to generalized function to be used by evh and sni both.
 func setDedicatedVSNodeProperties(vs *avimodels.VirtualService, vs_meta *nodes.AviVsNode) {
 	var datascriptCollection []*avimodels.VSDataScripts

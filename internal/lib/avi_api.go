@@ -94,8 +94,11 @@ func AviGetRaw(client *clients.AviClient, uri string, retryNum ...int) ([]byte, 
 		utils.AviLog.Warnf("msg: Unable to fetch data from uri %s %v", uri, err)
 		checkForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
-		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
-			return nil, err
+		if aviError, ok := err.(session.AviError); ok {
+			if aviError.HttpStatusCode == 403 ||
+				strings.Contains(aviError.Error(), VSVIPNotFoundError) {
+				return nil, err
+			}
 		}
 		return AviGetRaw(client, uri, retry+1)
 	}

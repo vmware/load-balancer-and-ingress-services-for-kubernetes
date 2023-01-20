@@ -269,8 +269,15 @@ func (l *leader) isRetryRequired(key string, err error) bool {
 }
 
 func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, key string) error {
-	var failure bool
 	for i, op := range rest_ops {
+		// This condition check is introduced to prevent any keys which is already present in the Graph
+		// Queue from doing any POST/PUT/PATCH/GET operations at the controller when the `deleteConfig` is set.
+		if lib.DisableSync &&
+			op.Method != utils.RestDelete &&
+			op.Model != lib.GetModelName(lib.GetTenant(), lib.GetVrf()) {
+			utils.AviLog.Warnf("key: %s, msg: Sync is disabled, Only DELETE operation is allowed for models other than VRF model", key)
+			continue
+		}
 		SetTenant := session.SetTenant(op.Tenant)
 		SetTenant(c.AviSession)
 		if op.Version != "" {
@@ -306,10 +313,6 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 			} else if aviErr.HttpStatusCode == 404 && op.Method == utils.RestDelete {
 				utils.AviLog.Warnf("key: %s, msg: Error during rest operation: %v, object of type %s not found in the controller. Ignoring err: %v", key, op.Method, op.Model, op.Err)
 				continue
-			} else if aviErr.HttpStatusCode == 409 && op.Method == utils.RestPost {
-				utils.AviLog.Warnf("key: %s, msg: Error during rest operation: %v, object of type %s found in the controller. Ignoring err: %v", key, op.Method, op.Model, op.Err)
-				failure = true
-				continue
 			} else if !isErrorRetryable(aviErr.HttpStatusCode, *aviErr.Message) {
 				if op.Method != utils.RestPost {
 					continue
@@ -327,9 +330,6 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 			utils.AviLog.Debugf("key: %s, msg: RestOp method %v path %v tenant %v response %v objName %v",
 				key, op.Method, op.Path, op.Tenant, utils.Stringify(op.Response), op.ObjName)
 		}
-	}
-	if failure {
-		return errors.New("required to populate cache and then retry")
 	}
 	return nil
 }

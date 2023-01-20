@@ -590,12 +590,6 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	leReadyCh := leaderElector.Run(ctx, leaderElectionWG)
 	<-leReadyCh
 
-	c.cleanupStaleVSes()
-
-	// once the l3 cache is populated, we can call the updatestatus functions from here
-	restlayer := rest.NewRestOperations(avicache.SharedAviObjCache(), avicache.SharedAVIClients())
-	restlayer.SyncObjectStatuses()
-
 	graphQueue.SyncFunc = SyncFromNodesLayer
 	graphQueue.Run(stopCh, graphwg)
 
