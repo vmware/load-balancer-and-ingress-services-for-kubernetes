@@ -551,6 +551,7 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 		for _, listener := range svcObj.Spec.Ports {
 			protocol := string(listener.Protocol)
 			port := listener.Port
+			targetPort := listener.TargetPort
 
 			var svcFQDN string
 			if lib.GetL4FqdnFormat() != lib.AutoFQDNDisabled && svcFQDN == "" {
@@ -567,6 +568,8 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 					NamespaceServiceName: []string{serviceNSName},
 				},
 				VrfContext: lib.GetVrf(),
+				Port:       port,
+				TargetPort: targetPort,
 			}
 
 			poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
@@ -575,8 +578,24 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 				poolNode.ServiceMetadata.HostNames = []string{svcFQDN}
 			}
 
-			if servers := PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
-				poolNode.Servers = servers
+			serviceType := lib.GetServiceType()
+			if serviceType == lib.NodePortLocal {
+				if servers := PopulateServersForNPL(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
+					poolNode.Servers = servers
+				}
+			} else if _, ok := svcObj.GetAnnotations()[lib.SkipNodePortAnnotation]; ok {
+				// This annotation's presence on the svc object means that the node ports should be skipped.
+				if servers := PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
+					poolNode.Servers = servers
+				}
+			} else if serviceType == lib.NodePort {
+				if servers := PopulateServersForNodePort(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
+					poolNode.Servers = servers
+				}
+			} else {
+				if servers := PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
+					poolNode.Servers = servers
+				}
 			}
 
 			poolNode.AviMarkers = lib.PopulateSvcApiL4PoolNodeMarkers(namespace, svcNSName[1], sharedVipKey, protocol, int(port))
