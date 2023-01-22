@@ -82,6 +82,10 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		if port.Protocol == "" || port.Protocol == utils.TCP {
 			isTCP = true
 		} else if port.Protocol == utils.SCTP {
+			if lib.GetServiceType() == lib.NodePortLocal {
+				utils.AviLog.Warnf("key: %s, msg: SCTP protocol is not supported for service type NodePortLocal", key)
+				return nil
+			}
 			isSCTP = true
 		}
 	}
@@ -470,10 +474,12 @@ func (o *AviObjectGraph) BuildL4LBGraph(namespace string, svcName string, key st
 		return
 	}
 	VsNode = o.ConstructAviL4VsNode(svcObj, key)
-	o.ConstructAviL4PolPoolNodes(svcObj, VsNode, key)
-	o.AddModelNode(VsNode)
-	utils.AviLog.Infof("key: %s, msg: checksum  for AVI VS object %v", key, VsNode.GetCheckSum())
-	utils.AviLog.Infof("key: %s, msg: computed Graph checksum for VS is: %v", key, o.GraphChecksum)
+	if VsNode != nil {
+		o.ConstructAviL4PolPoolNodes(svcObj, VsNode, key)
+		o.AddModelNode(VsNode)
+		utils.AviLog.Infof("key: %s, msg: checksum  for AVI VS object %v", key, VsNode.GetCheckSum())
+		utils.AviLog.Infof("key: %s, msg: computed Graph checksum for VS is: %v", key, o.GraphChecksum)
+	}
 }
 
 func getAutoFQDNForService(svcNamespace, svcName string) string {

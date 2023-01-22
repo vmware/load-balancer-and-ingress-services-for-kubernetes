@@ -103,6 +103,10 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		} else if portProto[0] == utils.UDP {
 			isUDP = true
 		} else if portProto[0] == utils.SCTP {
+			if lib.GetServiceType() == lib.NodePortLocal {
+				utils.AviLog.Warnf("key: %s, msg: SCTP protocol is not supported for service type NodePortLocal", key)
+				return nil
+			}
 			isSCTP = true
 		}
 	}
@@ -220,6 +224,10 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		} else if portProto[0] == utils.UDP {
 			isUDP = true
 		} else if portProto[0] == utils.SCTP {
+			if lib.GetServiceType() == lib.NodePortLocal {
+				utils.AviLog.Warnf("key: %s, msg: SCTP protocol is not supported for service type NodePortLocal", key)
+				return nil
+			}
 			isSCTP = true
 		}
 	}
@@ -474,6 +482,10 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 			} else if protocol == utils.UDP {
 				isUDP = true
 			} else if protocol == utils.SCTP {
+				if lib.GetServiceType() == lib.NodePortLocal {
+					utils.AviLog.Warnf("key: %s, msg: SCTP protocol is not supported for service type NodePortLocal", key)
+					return nil
+				}
 				isSCTP = true
 			}
 		}
