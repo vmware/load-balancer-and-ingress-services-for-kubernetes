@@ -250,3 +250,19 @@ Sample command with output:
     | allow_invalid_client_cert          | False                                                                            |
     | vh_type                            | VS_TYPE_VH_ENHANCED                                                              |
     +------------------------------------+----------------------------------------------------------------------------------+
+
+#### What is differnce between `AKOSetttings.namespaceSelector` and `AKOSettings.blockedNamespaceList`? What are the scenarios to use one of it?
+
+`AKOSetttings.namespaceSelector` allows AKO to process Ingress/Routes, L4 services from the namespaces that have given labels. For namespaces, that doesn't have given labels, AKO blocks processing Ingress/Routes and L4 services thus prevents Avi object creation. But AKO processes other objects like secrets, endpoints etc from wrongly/unlabelled namespaces.
+
+`AKOSettings.blockedNamespaceList` is list of namespaces, specified upfront, from which AKO does not process any objects like ingress/route, L4 services, secrets, endpoints etc. So `AKOSettings.blockedNamespaceList` is broader way of blocking processing unwanted objects compared to `AKOSetttings.namespaceSelector`. With current implementation, `AKOSettings.blockedNamespaceList` does not support regex so user has to specify each and every namespace.
+
+Few scenarios to consider `AKOSettings.blockedNamespaceList` are:
+*  If list of namespaces, to be blocked, is known to user upfront. For example, system-namespaces where normally user does not deploy any app. Any new addition of namespace, to this list, will require AKO reboot.
+
+* There are too many secret, pods, endpoint etc. objects in unwanted namespaces that are consuming AKO processing time.
+
+Few scenarios to consider `AKOSetttings.namespaceSelector` are:
+* In cluster, namespace churn is more frequent. So using namespace selector is better way of dealing with processing only wanted namespaces.
+
+One of the way to use both settings `AKOSetttings.namespaceSelector` and `AKOSettings.blockedNamespaceList` effectively is: use `AKOSettings.blockedNamespaceList` for system generated namespaces (where there is no app deployment from user) and use `AKOSetttings.namespaceSelector` for user-defined namespaces.
