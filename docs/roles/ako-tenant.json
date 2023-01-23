@@ -186,11 +186,11 @@
         "resource": "PERMISSION_USER_CREDENTIAL"
     },
     {
-        "type": "NO_ACCESS",
+        "type": "READ_ACCESS",
         "resource": "PERMISSION_SYSTEMCONFIGURATION"
     },
     {
-        "type": "NO_ACCESS",
+        "type": "READ_ACCESS",
         "resource": "PERMISSION_CONTROLLER"
     },
     {
