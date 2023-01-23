@@ -18,7 +18,7 @@ RUN GOARCH=amd64 \
 
 FROM ${photon_src_repo}
 RUN yum install -y tar.x86_64
-COPY --from=build /go/bin/akc .
+COPY --from=build /go/bin/akc /usr/bin/
 COPY ./scripts/pre_stop_hook.sh /var/pre_stop_hook.sh
 EXPOSE 8080
-ENTRYPOINT ["./akc"]
+ENTRYPOINT ["/usr/bin/akc"]

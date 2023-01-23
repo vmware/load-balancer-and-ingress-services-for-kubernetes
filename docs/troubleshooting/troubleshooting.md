@@ -76,12 +76,16 @@ Check connectivity between AKO Pod and Avi controller.
   A sample securityContext is given below:
 
     securityContext:
+      runAsNonRoot: true
+      runAsGroup: 1000
+      readOnlyRootFilesystem: false
+      runAsUser: 1000
       seccompProfile:
-          type: 'RuntimeDefault'
+        type: 'RuntimeDefault'
       allowPrivilegeEscalation: false
       capabilities:
         drop:
-          - ALL
+        - ALL
 
   Refer the [document](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.25/#securitycontext-v1-core) to select the best suitable configuration.
 
