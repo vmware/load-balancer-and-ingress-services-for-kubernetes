@@ -250,3 +250,15 @@ Sample command with output:
     | allow_invalid_client_cert          | False                                                                            |
     | vh_type                            | VS_TYPE_VH_ENHANCED                                                              |
     +------------------------------------+----------------------------------------------------------------------------------+
+
+#### What is the minimum stable Kubernetes version which supports SCTP protocol?
+
+The minimum stable Kubernetes version which supports SCTP protocol is 1.20.
+
+#### What is the minimum AVI Controller version which supports SCTP protocol?
+
+The minimum AVI Controller version which supports SCTP protocol is 22.1.3.
+
+#### What is the minimum AKO version which supports SCTP protocol?
+
+The minimum AKO version which supports SCTP protocol is 1.9.1.
