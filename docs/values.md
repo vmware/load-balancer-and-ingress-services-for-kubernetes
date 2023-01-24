@@ -266,6 +266,12 @@ The field can be set as follows:
       ...
       -----END CERTIFICATE-----
 
+### replicaCount
+This option specifies the number of replicas of the AKO pod.
+**Note:** From release v1.9.1 onwards, two instances of AKO are supported.
+
+One AKO runs in active mode, and the second in passive mode. The AKO, which is running in passive mode, will be ready to take over once the active AKO goes down.
+
 ### image.repository
 
 If you are using a private container registry and you'd like to override the default dockerhub settings, then this field can be edited
