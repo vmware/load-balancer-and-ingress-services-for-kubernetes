@@ -94,6 +94,8 @@ resources:
     cpu: 200m
     memory: 300Mi
 
+securityContext: {}
+
 podSecurityContext: {}
 
 rbac:
