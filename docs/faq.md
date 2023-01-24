@@ -251,6 +251,7 @@ Sample command with output:
     | vh_type                            | VS_TYPE_VH_ENHANCED                                                              |
     +------------------------------------+----------------------------------------------------------------------------------+
 
+
 #### What is differnce between `AKOSetttings.namespaceSelector` and `AKOSettings.blockedNamespaceList`? What are the scenarios to use one of it?
 
 `AKOSetttings.namespaceSelector` allows AKO to process Ingress/Routes, L4 services from the namespaces that have given labels. For namespaces, that doesn't have given labels, AKO blocks processing Ingress/Routes and L4 services thus prevents Avi object creation. But AKO processes other objects like secrets, endpoints etc from wrongly/unlabelled namespaces.
@@ -266,3 +267,15 @@ Few scenarios to consider `AKOSetttings.namespaceSelector` are:
 * In cluster, namespace churn is more frequent. So using namespace selector is better way of dealing with processing only wanted namespaces.
 
 One of the way to use both settings `AKOSetttings.namespaceSelector` and `AKOSettings.blockedNamespaceList` effectively is: use `AKOSettings.blockedNamespaceList` for system generated namespaces (where there is no app deployment from user) and use `AKOSetttings.namespaceSelector` for user-defined namespaces.
+
+#### What is the minimum stable Kubernetes version which supports SCTP protocol?
+
+The minimum stable Kubernetes version which supports SCTP protocol is 1.20.
+
+#### What is the minimum AVI Controller version which supports SCTP protocol?
+
+The minimum AVI Controller version which supports SCTP protocol is 22.1.3.
+
+#### What is the minimum AKO version which supports SCTP protocol?
+
+The minimum AKO version which supports SCTP protocol is 1.9.1.
