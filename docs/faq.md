@@ -279,3 +279,15 @@ The minimum AVI Controller version which supports SCTP protocol is 22.1.3.
 #### What is the minimum AKO version which supports SCTP protocol?
 
 The minimum AKO version which supports SCTP protocol is 1.9.1.
+
+#### How to manually override the Active AKO when HA is enabled?
+
+Trigger a deletion of the Active AKO pod, and the passive AKO pod automatically comes up as the new active AKO.
+
+#### Can we scale beyond two instances of AKO in HA?
+
+Currently, AKO beyond two has not been tested. Hence we don't claim the support.
+
+#### What happens during a Split brain scenario in HA?
+
+AKO detects this during the periodic refresh of the lease lock object and makes itself a passive AKO.

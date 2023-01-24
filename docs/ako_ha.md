@@ -42,16 +42,3 @@ Helm upgrade ako-1593523840 ako/ako -f /path/to/values.yaml --version 1.9.1 --se
 **Note:**
 1. Currently, more than two replicas are not supported.
 2. Both instances of AKO should be on the same version.
-
-#### FAQ
-1. How to manually override the Active AKO?
-
-Trigger a deletion of the Active AKO pod, and the passive AKO pod automatically comes up as the new active AKO.
-
-2. Can we scale beyond two instances of AKO?
-
-Currently, AKO beyond two has not been tested. Hence we don't claim the support.
-
-3. What happens during a Split brain scenario?
-
-AKO detects this during the periodic refresh of the lease lock object and makes itself a passive AKO.
