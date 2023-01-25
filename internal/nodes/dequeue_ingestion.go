@@ -356,11 +356,7 @@ func handlePod(key, namespace, podName string, fullsync bool) {
 			if ok {
 				//If namespace valid, do L4 service handling
 				if utils.IsServiceNSValid(namespace) {
-					utils.AviLog.Debugf("key: %s, msg: handling l4 Services %v", key, lbSvcs)
-					for _, lbSvc := range lbSvcs {
-						lbSvcKey := utils.L4LBService + "/" + lbSvc
-						handleL4Service(lbSvcKey, fullsync)
-					}
+					handleLBSvcUpdateForPod(key, lbSvcs, fullsync)
 				}
 			} else {
 				utils.AviLog.Warnf("key: %s, msg: list services for pod is not of type []string", key)
@@ -382,13 +378,28 @@ func handlePod(key, namespace, podName string, fullsync bool) {
 		}
 		if len(lbSvcs) != 0 {
 			objects.SharedPodToLBSvcLister().Save(podKey, lbSvcs)
+			handleLBSvcUpdateForPod(key, lbSvcs, fullsync)
 		}
-		for _, lbSvc := range lbSvcs {
+		utils.AviLog.Infof("key: %s, msg: NPL Services retrieved: %s", key, services)
+	}
+}
+
+func handleLBSvcUpdateForPod(key string, lbSvcs []string, fullsync bool) {
+	for _, lbSvc := range lbSvcs {
+		lbSvcSplit := strings.Split(lbSvc, "/")
+		lbSvcNS, lbSvcName := lbSvcSplit[0], lbSvcSplit[1]
+		sharedVipLBSvcKey := lib.SharedVipServiceKey + "/" + lbSvc
+		sharedVipKeys, _ := ServiceChanges(lbSvcName, lbSvcNS, sharedVipLBSvcKey)
+		if len(sharedVipKeys) != 0 {
+			utils.AviLog.Debugf("key: %s, msg: handling l4 svc %s", key, sharedVipLBSvcKey)
+			for _, sharedVipKey := range sharedVipKeys {
+				handleL4SharedVipService(sharedVipKey, sharedVipLBSvcKey, fullsync)
+			}
+		} else {
 			lbSvcKey := utils.L4LBService + "/" + lbSvc
 			utils.AviLog.Debugf("key: %s, msg: handling l4 svc %s", key, lbSvcKey)
 			handleL4Service(lbSvcKey, fullsync)
 		}
-		utils.AviLog.Infof("key: %s, msg: NPL Services retrieved: %s", key, services)
 	}
 }
 
@@ -485,7 +496,7 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 	}
 
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	_, namespace, _ := lib.ExtractTypeNameNamespace(key)
+	_, namespace, name := lib.ExtractTypeNameNamespace(key)
 	modelName := lib.GetModelName(lib.GetTenant(), lib.Encode(lib.GetNamePrefix()+strings.ReplaceAll(namespacedVipKey, "/", "-"), lib.ADVANCED_L4))
 
 	found, serviceNSNames := objects.SharedlbLister().GetSharedVipKeyToServices(namespacedVipKey)
@@ -549,6 +560,20 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 			}
 		}
 	} else {
+		if lib.AutoAnnotateNPLSvc() {
+			if !status.CheckNPLSvcAnnotation(key, namespace, name) {
+				statusOption := status.StatusOptions{
+					ObjType:   lib.NPLService,
+					Op:        lib.UpdateStatus,
+					ObjName:   name,
+					Namespace: namespace,
+					Key:       key,
+				}
+				utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", name, utils.Stringify(statusOption))
+				status.PublishToStatusQueue(name, statusOption)
+				return
+			}
+		}
 		aviModelGraph := NewAviObjectGraph()
 		vipKey := strings.Split(namespacedVipKey, "/")[1]
 		aviModelGraph.BuildAdvancedL4Graph(namespace, vipKey, key, true)
