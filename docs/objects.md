@@ -25,7 +25,7 @@ AKO creates a dedicated virtual service for this object in kubernetes that refer
 
 #### Service of type loadbalancer with preferred IP
 
-Kubernetes' service objects allow controllers/cloud providers to create services with user-specified IPs using the `loadBalancerIP` field. AKO supports the `loadBalancerIP` field usage where-in the corresponding Layer 4 virtualservice objects are created with the user provided IP. Example usage for this could look something like this:
+Till Kubernetes version 1.23, Kubernetes' service objects allow controllers/cloud providers to create services with user-specified IPs using the `loadBalancerIP` field. AKO supports the `loadBalancerIP` field usage where-in the corresponding Layer 4 virtualservice objects are created with the user provided IP. Example usage for this could look something like this:
 
 ```
 apiVersion: v1
@@ -43,11 +43,36 @@ spec:
   selector:
     app: avi-server
 ```
+As `spec.loadBalancerIP` field has been deprecated from kubernetes version 1.24 onwards, AKO has introduced a new annotation `ako.vmware.com/load-balancer-ip` to L4 service that will be used to specify preferred IP. Example usage could look something like this:
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: avisvc-lb
+  namespace: red
+  annotations:
+    ako.vmware.com/load-balancer-ip: "10.20.10.100"
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+    name: eighty
+  selector:
+    app: avi-server
+```
+
+***Note***:
+1. If customer is upgrading to Kubernetes version 1.24+, user has to manually update L4 service definition with above annotation in case user wants to use preferred IP feature.
+2. User should specify either `ako.vmware.com/load-balancer-ip` annotation or `spec.loadBalancerIP` field in service definition if kubernetes version is less than 1.24.
+3. User should specify same IP address to the service when transitioning from `spec.loadBalancerIP` to `ako.vmware.com/load-balancer-ip` annotation.
 
 Avi does not allow users to update preferred virtual IPs bound to a particular virtualservice. Therefore in order to update the user preferred IP, it is required to re-create the Service object, failing which Avi/AKO throws an error. The following transition cases should be kept in mind, and for these, an explicit Service re-create with changed configuration is required.
  - updating loadBalancerIP value, from `loadBalancerIP: 10.10.10.11` to `loadBalancerIP: 10.10.10.22`.
- - adding `loadBalancerIP` value after the Service is assigned an IP from Avi.
- - removing `loadBalancerIP` value after the Service is assigned an IP from Avi.
+ - updating annotation `ako.vmware.com/load-balancer-ip` value, from `ako.vmware.com/load-balancer-ip: 10.20.10.100` to `ako.vmware.com/load-balancer-ip: 10.20.10.110`
+ - adding `loadBalancerIP` value or annotation `ako.vmware.com/load-balancer-ip` value after the Service is assigned an IP from Avi.
+ - removing `loadBalancerIP` value or `ako.vmware.com/load-balancer-ip` value after the Service is assigned an IP from Avi.
 
 Recreating the Service object deletes the Layer 4 virtualservice in Avi, frees up the applied virtual IP and post that the Service creation with update configuration should result in the intended virtualservice configuration.
 
