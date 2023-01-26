@@ -258,6 +258,7 @@ func setDedicatedEvhVSNodeProperties(vs *avimodels.VirtualService, vs_meta *node
 		vs.ApplicationProfileRef = &vs_meta.AppProfileRef
 	}
 	vs.WafPolicyRef = &vs_meta.WafPolicyRef
+	vs.IcapRequestProfileRefs = vs_meta.IcapProfileRefs
 	vs.ErrorPageProfileRef = &vs_meta.ErrorPageProfileRef
 	vs.AnalyticsProfileRef = &vs_meta.AnalyticsProfileRef
 	vs.EastWestPlacement = proto.Bool(false)
@@ -475,21 +476,22 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 	svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 	svc_mdata := string(svc_mdata_json)
 	evhChild := &avimodels.VirtualService{
-		Name:                  &name,
-		CloudConfigCksum:      &checksumstr,
-		CreatedBy:             &cr,
-		NetworkProfileRef:     &network_prof,
-		ApplicationProfileRef: &app_prof,
-		EastWestPlacement:     proto.Bool(false),
-		CloudRef:              &cloudRef,
-		SeGroupRef:            &seGroupRef,
-		ServiceMetadata:       &svc_mdata,
-		WafPolicyRef:          &vs_meta.WafPolicyRef,
-		SslProfileRef:         &vs_meta.SSLProfileRef,
-		AnalyticsProfileRef:   &vs_meta.AnalyticsProfileRef,
-		ErrorPageProfileRef:   &vs_meta.ErrorPageProfileRef,
-		Enabled:               vs_meta.Enabled,
-		VhType:                proto.String(utils.VS_TYPE_VH_ENHANCED),
+		Name:                   &name,
+		CloudConfigCksum:       &checksumstr,
+		CreatedBy:              &cr,
+		NetworkProfileRef:      &network_prof,
+		ApplicationProfileRef:  &app_prof,
+		EastWestPlacement:      proto.Bool(false),
+		CloudRef:               &cloudRef,
+		SeGroupRef:             &seGroupRef,
+		ServiceMetadata:        &svc_mdata,
+		WafPolicyRef:           &vs_meta.WafPolicyRef,
+		IcapRequestProfileRefs: vs_meta.IcapProfileRefs,
+		SslProfileRef:          &vs_meta.SSLProfileRef,
+		AnalyticsProfileRef:    &vs_meta.AnalyticsProfileRef,
+		ErrorPageProfileRef:    &vs_meta.ErrorPageProfileRef,
+		Enabled:                vs_meta.Enabled,
+		VhType:                 proto.String(utils.VS_TYPE_VH_ENHANCED),
 	}
 
 	if vs_meta.VrfContext != "" {

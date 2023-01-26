@@ -66,6 +66,9 @@ type AviVsEvhSniModel interface {
 	GetWafPolicyRef() string
 	SetWafPolicyRef(string)
 
+	GetIcapProfileRefs() []string
+	SetIcapProfileRefs([]string)
+
 	GetHttpPolicySetRefs() []string
 	SetHttpPolicySetRefs([]string)
 
@@ -129,6 +132,7 @@ type AviEvhVsNode struct {
 	ServiceMetadata     lib.ServiceMetadataObj
 	VrfContext          string
 	WafPolicyRef        string
+	IcapProfileRefs     []string
 	AppProfileRef       string
 	AnalyticsProfileRef string
 	ErrorPageProfileRef string
@@ -222,6 +226,14 @@ func (v *AviEvhVsNode) GetWafPolicyRef() string {
 
 func (v *AviEvhVsNode) SetWafPolicyRef(wafPolicyRef string) {
 	v.WafPolicyRef = wafPolicyRef
+}
+
+func (v *AviEvhVsNode) GetIcapProfileRefs() []string {
+	return v.IcapProfileRefs
+}
+
+func (v *AviEvhVsNode) SetIcapProfileRefs(icapProfileRefs []string) {
+	v.IcapProfileRefs = icapProfileRefs
 }
 
 func (v *AviEvhVsNode) GetHttpPolicySetRefs() []string {
@@ -612,6 +624,7 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 	// keep the order of these policies
 	policies := v.HttpPolicySetRefs
 	scripts := v.VsDatascriptRefs
+	profiles := v.IcapProfileRefs
 
 	vsRefs := v.WafPolicyRef +
 		v.AppProfileRef +
@@ -625,6 +638,10 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 
 	if len(policies) > 0 {
 		vsRefs += utils.Stringify(policies)
+	}
+
+	if len(profiles) > 0 {
+		vsRefs += utils.Stringify(profiles)
 	}
 
 	sort.Strings(checksumStringSlice)

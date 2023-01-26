@@ -658,6 +658,7 @@ var refModelMap = map[string]string{
 	"SslKeyCert":             "sslkeyandcertificate",
 	"WafPolicy":              "wafpolicy",
 	"HttpPolicySet":          "httppolicyset",
+	"IcapProfile":            "icapprofile",
 	"SslProfile":             "sslprofile",
 	"AppProfile":             "applicationprofile",
 	"AnalyticsProfile":       "analyticsprofile",

@@ -125,6 +125,14 @@ func createHostRuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.L
 									"wafPolicy": {
 										Type: "string",
 									},
+									"icapProfiles": {
+										Type: "array",
+										Items: &apiextensionv1.JSONSchemaPropsOrArray{
+											Schema: &apiextensionv1.JSONSchemaProps{
+												Type: "string",
+											},
+										},
+									},
 									"tls": {
 										Type:     "object",
 										Required: []string{"sslKeyCertificate"},

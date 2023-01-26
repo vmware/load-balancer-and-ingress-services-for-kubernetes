@@ -55,7 +55,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 
 	// host specific
 	var vsWafPolicy, vsAppProfile, vsErrorPageProfile, vsAnalyticsProfile, vsSslProfile, lbIP string
-	var vsSslKeyCertificates []string
+	var vsSslKeyCertificates, vsIcapProfiles []string
 	var vsEnabled *bool
 	var crdStatus lib.CRDMetadata
 
@@ -122,6 +122,12 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 			}
 		}
 
+		for _, profile := range hostrule.Spec.VirtualHost.ICAPProfiles {
+			if !utils.HasElem(vsIcapProfiles, fmt.Sprintf("/api/icapprofile?name=%s", profile)) {
+				vsIcapProfiles = append(vsIcapProfiles, fmt.Sprintf("/api/icapprofile?name=%s", profile))
+			}
+		}
+
 		if hostrule.Spec.VirtualHost.TCPSettings != nil {
 			if vsNode.IsSharedVS() || vsNode.IsDedicatedVS() {
 				portProtocols = []AviPortHostProtocol{}
@@ -181,6 +187,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 
 	vsNode.SetSSLKeyCertAviRef(vsSslKeyCertificates)
 	vsNode.SetWafPolicyRef(vsWafPolicy)
+	vsNode.SetIcapProfileRefs(vsIcapProfiles)
 	vsNode.SetHttpPolicySetRefs(vsHTTPPolicySets)
 	vsNode.SetAppProfileRef(vsAppProfile)
 	vsNode.SetAnalyticsProfileRef(vsAnalyticsProfile)

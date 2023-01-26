@@ -70,6 +70,7 @@ type HostRuleVirtualHost struct {
 	HTTPPolicy         HostRuleHTTPPolicy       `json:"httpPolicy,omitempty"`
 	Gslb               HostRuleGSLB             `json:"gslb,omitempty"`
 	TLS                HostRuleTLS              `json:"tls,omitempty"`
+	ICAPProfiles       []string                 `json:"icapProfiles,omitempty"`
 	WAFPolicy          string                   `json:"wafPolicy,omitempty"`
 	AnalyticsPolicy    *HostRuleAnalyticsPolicy `json:"analyticsPolicy,omitempty"`
 	TCPSettings        *HostRuleTCPSettings     `json:"tcpSettings,omitempty"`

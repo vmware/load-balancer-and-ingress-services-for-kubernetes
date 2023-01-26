@@ -401,6 +401,7 @@ type AviVsNode struct {
 	ServiceMetadata       lib.ServiceMetadataObj
 	VrfContext            string
 	WafPolicyRef          string
+	IcapProfileRefs       []string
 	AppProfileRef         string
 	AnalyticsProfileRef   string
 	ErrorPageProfileRef   string
@@ -496,6 +497,14 @@ func (v *AviVsNode) GetWafPolicyRef() string {
 
 func (v *AviVsNode) SetWafPolicyRef(wafPolicyRef string) {
 	v.WafPolicyRef = wafPolicyRef
+}
+
+func (v *AviVsNode) GetIcapProfileRefs() []string {
+	return v.IcapProfileRefs
+}
+
+func (v *AviVsNode) SetIcapProfileRefs(icapProfileRefs []string) {
+	v.IcapProfileRefs = icapProfileRefs
 }
 
 func (v *AviVsNode) GetHttpPolicySetRefs() []string {
@@ -910,6 +919,7 @@ func (v *AviVsNode) CalculateCheckSum() {
 	// keep the order of these policies
 	policies := v.HttpPolicySetRefs
 	scripts := v.VsDatascriptRefs
+	profiles := v.IcapProfileRefs
 
 	vsRefs := v.WafPolicyRef +
 		v.AppProfileRef +
@@ -923,6 +933,10 @@ func (v *AviVsNode) CalculateCheckSum() {
 
 	if len(policies) > 0 {
 		vsRefs += utils.Stringify(policies)
+	}
+
+	if len(profiles) > 0 {
+		vsRefs += utils.Stringify(profiles)
 	}
 
 	if len(v.ServiceMetadata.HostNames) > 0 {
