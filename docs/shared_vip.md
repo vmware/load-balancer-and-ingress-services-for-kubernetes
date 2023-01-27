@@ -91,9 +91,45 @@ sharedvip-avisvc-lb1      LoadBalancer   10.108.153.227   100.64.196.75   80:316
 sharedvip-avisvc-lb2      LoadBalancer   10.102.147.29    100.64.196.75   80:31331/UDP   6d23h
 ```
 
+As `spec.loadBalancerIP` field has been deprecated from kubernetes version 1.24 onwards, AKO has introduced a new annotation `ako.vmware.com/load-balancer-ip` to L4 service that will be used to specify preferred IP. Example usage could look something like this:
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    ako.vmware.com/enable-shared-vip: "shared-vip-key-1"
+    ako.vmware.com/load-balancer-ip: "100.64.196.75"
+  name: sharedvip-avisvc-lb1
+  namespace: default
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+  selector:
+    app: avi-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    ako.vmware.com/enable-shared-vip: "shared-vip-key-1"
+    ako.vmware.com/load-balancer-ip: "100.64.196.75"
+  name: sharedvip-avisvc-lb2
+  namespace: default
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    protocol: UDP
+    targetPort: 8080
+  selector:
+    app: avi-server
+```
 
 There are a few things that must be considered while configuring the Services with the aforementioned annotation:
-1. Make sure that LoadBalancer Services which are intended to share a VIP, must have the **same** annotation value. As shown in the example above, the annotation value `shared-vip-key-1` is same for both Services.
+1. Make sure that LoadBalancer Services which are intended to share a VIP, must have the **same** annotation values. As shown in the example above, the annotation values `shared-vip-key-1` and `100.64.196.75` are same for both Services.
 2. In order to avoid any errors while configuring the Virtual Service on the Avi controller, it is required that there is no conflicting Port-Protocol pairs in the LB Services that share the Annotation value. With the example shown above both Services are exposing a unique, non-conflicting Port-Protocol for the backend application i.e. 80/TCP and 80/UDP. Explicit checks will be added around this to ensure misconfigurations in future AKO releases.
 3. The annotation must be provided only on Service of type LoadBalancers.
 
