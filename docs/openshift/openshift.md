@@ -78,3 +78,34 @@ Regarding the default secret, following points have to be notes.
 - caCertificate can not be specified as part of the default secret.
 - `router-certs-default` present in `openshift-ingress` namespace is not used by AKO. Users have to create `router-certs-default` in `avi-system` namespace.
 
+### OVN-Kubernetes Support
+OVN-Kubernetes is supported by changing the AKOSettings.cniPlugin value to `ovn-kubernetes`. 
+
+- NodePort mode works without any further changes
+- ClusterIP mode requires the changes detailed below
+
+#### OVN ClusterIP Support
+By default the routing gateway (OVS) is performing Source NAT for traffic from PODs leaving the nodes. The changes below will disable this SNAT functionality for the namespaces that require Ingress/Route support. This will break the ability for pods to route externally with the Node's IP Address. NodePort mode should be leveraged if disabling SNAT is not desired.
+
+1. Create ConfigMap to set disable-snat-multiple-gws for cluster network.operator. Create a file named cm_gateway-mode-config.yaml with the following content:
+```
+apiVersion: v1
+kind: ConfigMap
+metadata:
+    name: gateway-mode-config
+    namespace: openshift-network-operator
+data:
+    disable-snat-multiple-gws: "true"
+    mode: "shared"
+immutable: true
+```
+2. Create ConfigMap with `oc apply -f cm_gateway-mode-config.yaml`
+3. Add k8s.ovn.org/routing-external-gws annotation to namespaces that require Ingress/Routes.
+- Edit any namespace with `oc edit namespace <name-of-namespace>` and add the `k8s.ovn.org/routing-external-gws` annotation as shown below:
+``` 
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    k8s.ovn.org/routing-external-gws: <ip-of-node-gateway>
+```
