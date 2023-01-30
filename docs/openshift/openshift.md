@@ -3,10 +3,9 @@
 
 Follow the steps 1 to 2, given in section [Pre-requisites](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs#pre-requisites). Additionally, the following points have to be noted for openshift environment.
 1. Make Sure Openshift version is >= 4.4
-2. Openshift routes and services of type load balancer are supported in AKO
-3. Ingresses, if created in the openshift cluster won't be handled by AKO.
-4. cniPlugin should be set to **openshift**
-5. Set `state_based_dns_registration` to false in AVI cloud configuration. Follow the instructions mentioned in https://avinetworks.com/docs/20.1/dns-record-additions-independent-of-vs-state/.
+2. Openshift routes, Ingress, and Services of type LoadBalancer are supported in AKO
+3. cniPlugin should be set to **openshift**
+4. Set `state_based_dns_registration` to false in AVI cloud configuration. Follow the instructions mentioned in https://avinetworks.com/docs/20.1/dns-record-additions-independent-of-vs-state/.
 
 #### Features of Openshift Route supported in AKO
 AKO supports the following Layer 7 functions of the OpenShift Route object:
