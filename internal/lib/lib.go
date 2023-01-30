@@ -1198,7 +1198,6 @@ func PopulatePassthroughPoolMarkers(host, svcName, infrasettingName string) util
 }
 
 func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Clientset, akoInfra bool) ([]string, error) {
-	var isOshift bool
 	allInformers := []string{
 		utils.ServiceInformer,
 		utils.EndpointInformer,
@@ -1222,15 +1221,13 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 		if oclient != nil {
 			_, err = oclient.RouteV1().Routes(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &informerTimeout})
 			if err == nil {
-				// Openshift cluster with route support, we will just add route informer
+				// Openshift cluster with route support, we will add route informer
 				allInformers = append(allInformers, utils.RouteInformer)
-				isOshift = true
 			}
 		}
-		if !isOshift {
-			allInformers = append(allInformers, utils.IngressInformer)
-			allInformers = append(allInformers, utils.IngressClassInformer)
-		}
+		
+		allInformers = append(allInformers, utils.IngressInformer)
+		allInformers = append(allInformers, utils.IngressClassInformer)
 
 		// Add MultiClusterIngress and ServiceImport informers if enabled.
 		if utils.IsMultiClusterIngressEnabled() {

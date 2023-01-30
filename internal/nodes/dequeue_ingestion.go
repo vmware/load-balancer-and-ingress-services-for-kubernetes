@@ -73,7 +73,9 @@ func DequeueIngestion(key string, fullsync bool) {
 		// If it's an ingress related change, let's process that.
 		if utils.GetInformers().IngressInformer != nil && schema.GetParentIngresses != nil {
 			ingressNames, ingressFound = schema.GetParentIngresses(name, namespace, key)
-		} else if utils.GetInformers().RouteInformer != nil && schema.GetParentRoutes != nil {
+		}
+		// If it's a route related change, let's process that.
+		if utils.GetInformers().RouteInformer != nil && schema.GetParentRoutes != nil {
 			routeNames, routeFound = schema.GetParentRoutes(name, namespace, key)
 		}
 		// CHECKME: both ingress and mci processing?
