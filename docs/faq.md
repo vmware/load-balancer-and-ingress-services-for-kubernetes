@@ -138,9 +138,9 @@ If you have such a configuration where the ingress objects are pointing to servi
 
 AKO would stop processing kubernetes objects and no update would be made to the AVI Controller. After the connection to AVI Controller is restored, AKO pod has to be rebooted. This can be done by deleting the exiting POD and ako deployment would bring up a new POD, which would start processing kubernetes objects after verifying connectivity to AVI Controller.  
 
-#### What happens if we create ingress objects in openshift environment ?
+#### What happens if we create ingress objects in Openshift environment ?
 
-AKO does not process ingress objects in openshift environment. If any route corresponding to the ingress object is found, AKO would process that route.
+AKO will process both Ingress and Route objects in Openshift environments.
 
 #### What are the virtual services for passthrough routes or ingresses?
 
