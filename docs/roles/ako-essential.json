@@ -190,7 +190,7 @@
         "resource": "PERMISSION_SYSTEMCONFIGURATION"
     },
     {
-        "type": "NO_ACCESS",
+        "type": "READ_ACCESS",
         "resource": "PERMISSION_CONTROLLER"
     },
     {
