@@ -228,7 +228,7 @@ func matchCidrInNetwork(subnets []*models.Subnet, cidrs map[string]struct{}) boo
 		addr := *subnet.Prefix.IPAddr.Addr
 		mask := *subnet.Prefix.Mask
 		cidr := fmt.Sprintf("%s/%d", addr, mask)
-		if !utils.HasElem(cidrs, cidr) {
+		if _, ok := cidrs[cidr]; !ok {
 			utils.AviLog.Infof("could not find addr %s", cidr)
 			return false
 		}
@@ -376,6 +376,9 @@ func addNetworkInIPAM(key string, client *clients.AviClient) {
 			if strings.Contains(*ntw.NwRef, netName) {
 				exists = true
 			}
+		}
+		if exists {
+			return
 		}
 		if !exists {
 			ipam.InternalProfile.UsableNetworks = append(ipam.InternalProfile.UsableNetworks, &models.IPAMUsableNetwork{
@@ -668,6 +671,7 @@ func NewLRLSFullSyncWorker() *utils.FullSyncThread {
 	instantiateFullSyncWorker.Do(func() {
 		worker = utils.NewFullSyncThread(time.Duration(300) * time.Second)
 		worker.SyncFunction = SyncLSLRNetwork
+		worker.QuickSyncFunction = func() error { return nil }
 	})
 	return worker
 }
