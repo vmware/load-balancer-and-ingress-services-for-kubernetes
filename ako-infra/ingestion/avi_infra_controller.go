@@ -151,6 +151,21 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 	return errors.New("cloud not found"), "", ""
 }
 
+func isPlacementScopeConfigured(configuredSEGroup *avimodels.ServiceEngineGroup) bool {
+	configured := false
+	for _, vc := range configuredSEGroup.Vcenters {
+		if vc.NsxtClusters == nil {
+			continue
+		}
+		for _, clusterID := range vc.NsxtClusters.ClusterIds {
+			if clusterID == lib.GetClusterName() && *vc.NsxtClusters.Include {
+				configured = true
+			}
+		}
+	}
+	return configured
+}
+
 func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
 	err, cloudName, segTemplateUuid := a.DeriveCloudNameAndSEGroupTmpl(tz)
 	if err != nil {
@@ -167,7 +182,8 @@ func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
 		if len(configuredSEGroup.Markers) == 1 &&
 			*configuredSEGroup.Markers[0].Key == lib.ClusterNameLabelKey &&
 			len(configuredSEGroup.Markers[0].Values) == 1 &&
-			configuredSEGroup.Markers[0].Values[0] == clusterName {
+			configuredSEGroup.Markers[0].Values[0] == clusterName &&
+			isPlacementScopeConfigured(configuredSEGroup) {
 			utils.AviLog.Infof("SE Group: %s already configured with the markers: %s", *configuredSEGroup.Name, utils.Stringify(configuredSEGroup.Markers))
 			cloudName := strings.Split(*configuredSEGroup.CloudRef, "#")[1]
 			utils.AviLog.Infof("Obtained matching cloud to be used: %s", cloudName)
@@ -243,6 +259,28 @@ func fetchSEGroup(client *clients.AviClient, overrideUri ...lib.NextPage) (error
 	return nil, nil
 }
 
+func fetchVcenterServer(client *clients.AviClient) (string, error) {
+	uri := "/api/vcenterserver"
+	result, err := lib.AviGetCollectionRaw(client, uri)
+	if err != nil {
+		return "", err
+	}
+	if result.Count == 0 {
+		return "", fmt.Errorf("vcenterServer object not found")
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		return "", err
+	}
+	vc := avimodels.VCenterServer{}
+	err = json.Unmarshal(elems[0], &vc)
+	if err != nil {
+		return "", err
+	}
+	return *vc.Name, nil
+}
+
 // ConfigureSeGroup creates the SE group with the supplied properties, alters just the SE group name and the markers.
 func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGroup, segExists bool) bool {
 	// Change the name of the SE group, and add markers
@@ -252,9 +290,24 @@ func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGr
 		Values: []string{lib.GetClusterID()},
 	}}
 	seGroup.Markers = markers
-
+	include := true
+	vcenterServerName, err := fetchVcenterServer(client)
+	if err != nil {
+		utils.AviLog.Warnf("Error during API call to fetch Vcenter Server Info, err: %s", err.Error())
+		return false
+	}
+	vcRef := fmt.Sprintf("/api/vcenterserver/?name=%s", vcenterServerName)
+	seGroup.Vcenters = append(seGroup.Vcenters,
+		&avimodels.PlacementScopeConfig{
+			VcenterRef: &vcRef,
+			NsxtClusters: &avimodels.NsxtClusters{
+				ClusterIds: []string{
+					lib.GetClusterName(),
+				},
+				Include: &include,
+			},
+		})
 	response := models.ServiceEngineGroupAPIResponse{}
-	var err error
 	var uri string
 	if segExists {
 		uri = "/api/serviceenginegroup/" + *seGroup.UUID

@@ -580,6 +580,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	ctx, cancel := context.WithCancel(context.Background())
 	if lib.IsWCP() {
 		lib.AKOControlConfig().SetIsLeaderFlag(true)
+		c.cleanupStaleVSes()
 	} else {
 		// Leader election happens after populating controller cache and fullsynck8s.
 		leaderElector, err := utils.NewLeaderElector(informers.Cs, c.OnStartedLeading, c.OnStoppedLeading, c.OnNewLeader)
