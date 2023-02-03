@@ -70,7 +70,7 @@ func (rest *RestOperations) DequeueNodes(key string) {
 	if !ok || avimodelIntf == nil {
 		if avimodelIntf != nil {
 			avimodel, ok := avimodelIntf.(*nodes.AviObjectGraph)
-			if ok && avimodel.Name == lib.IstioModel {
+			if ok && key == lib.IstioModel {
 				utils.AviLog.Infof("key: %s, msg: processing istio object", key)
 				rest.IstioCU(key, avimodel)
 				return
@@ -101,7 +101,7 @@ func (rest *RestOperations) DequeueNodes(key string) {
 			return
 		}
 		utils.AviLog.Debugf("key: %s, msg: VS create/update.", key)
-		if avimodel.Name == lib.IstioModel {
+		if key == lib.IstioModel {
 			utils.AviLog.Infof("key: %s, msg: processing istio object", key)
 			rest.IstioCU(key, avimodel)
 			return

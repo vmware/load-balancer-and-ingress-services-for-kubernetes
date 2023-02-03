@@ -530,9 +530,6 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		utils.AviLog.Errorf("failed to populate cache, disabling sync")
 		lib.ShutdownApi()
 	}
-	if lib.IsIstioEnabled() {
-		c.IstioBootstrap()
-	}
 	// Setup and start event handlers for objects.
 	c.addIndexers()
 	c.AddCrdIndexer()
@@ -590,6 +587,9 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	leReadyCh := leaderElector.Run(ctx, leaderElectionWG)
 	<-leReadyCh
 
+	if lib.IsIstioEnabled() {
+		c.IstioBootstrap()
+	}
 	graphQueue.SyncFunc = SyncFromNodesLayer
 	graphQueue.Run(stopCh, graphwg)
 
