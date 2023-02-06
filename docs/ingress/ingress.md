@@ -82,22 +82,13 @@ metadata:
 type: kubernetes.io/tls
 data:
   tls.key: 
-    -----BEGIN PRIVATE KEY-----
-    [...]
-    -----END PRIVATE KEY-----
+    paste here content of PRIVATE KEY
   tls.crt:
-    -----BEGIN CERTIFICATE-----
-    [...]
-    -----END CERTIFICATE-----
+    paste here content of CERTIFICATE
   alt.key:
-    -----BEGIN PRIVATE KEY-----
-    [...]
-    -----END PRIVATE KEY-----
+    paste here content of ALTERNATE PRIVATE KEY
   alt.crt:
-    -----BEGIN CERTIFICATE-----
-    [...]
-    -----END CERTIFICATE-----
-
+    paste here content of ALTERNATE CERTIFICATE
 ```
 
 Example of an Ingress using this default secret via annotation is given bellow:
