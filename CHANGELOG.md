@@ -292,3 +292,38 @@ All notable changes to this project will be documented in this file. The format 
  - `hostrule` with `sslKeyCertificate` of type `secret` can now be configured in all namespaces in OpenShift clusters.
  - Fixed an issue of VS creation failing with 470 Ingress with a single path giving a 470 error.
  - `nodeNetworkList` is not mandatory for NSX-T Overlay deployments.
+
+## AKO-1.8.2
+
+### Changed
+ - Logs, from Istio file watcher, are changed from Error level to Warn level.
+ - Status of ingress/route will be populated with IPV6 address in IPV6 deployments instead of IPV4 ips except public IP is configured.
+
+### Fixed
+ - Fix: Error in passthrough VS datascript execution when avi-infrasetting is applied to the passthrough ingress/route.
+ - Fix: Secure ingress is not working with Istio.
+ - Validate enableSSL on listener Port only when listener settings are configured on the hostrule.
+ - Fix: Security vulnerabilities in the Golang packages and the base image.
+
+
+## AKO-1.9.1
+
+### Added
+ - AKO now claims support for Kubernetes 1.25, OCP 4.11.
+ - AKO can be deployed in [HA mode](docs/ako_ha.md)
+ - [Support for SCTP protocol on L4 virtual services](docs/sctp.md)
+ - Support for IPV6 networking for Calico and Antrea CNI.
+ - Bootup time optimization.
+
+### Changed
+ - [Annotation `ako.vmware.com/load-balancer-ip` support](docs/objects.md#service-of-type-loadbalancer-with-preferred-ip) to specify preferred IP for L4 services.
+
+### Fixed
+ - Fixed: In nodeport deployment, pool servers are populated with IPV4 IP addresses even if IPFamily is set as `V6`.
+ - Fixed: AKO is not cleaning up ISTIO resources even if istio is disabled or `deleteConfig` is set to `true`.
+ - Fixed: Virtual service is not getting updated if alternate cert is updated or deleted in hostrule CRD.
+ - Fixed: AVI controller requires SSL profile to be set to enable SSL on pool for controller versions lower than 22.x.
+
+### Known Issues
+- When AKO is deployed in HA, 409 status code error messages will be seen in active AKO if failover happens during bulk object addition.
+- When AKO is running in `dedicated mode`, virtual service and VIP is not deleted from AVI controller when ingress/route, with aviinfrasetting applied to ingress/route, is deleted.
