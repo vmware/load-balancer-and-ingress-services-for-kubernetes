@@ -134,7 +134,6 @@ func TestMain(m *testing.M) {
 	integrationtest.KubeClient = KubeClient
 	go createAndPeriodicallyRenewLease()
 	integrationtest.AddDefaultIngressClass()
-	followerCtrl.SetSEGroupCloudName()
 	go followerCtrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
 }

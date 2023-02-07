@@ -201,7 +201,7 @@ func GetClusterNetworkInfoCRData(clientSet dynamic.Interface) ([]interface{}, bo
 	}
 
 	if len(crList.Items) == 0 {
-		utils.AviLog.Error("No Cluster Network Info CRs found.")
+		utils.AviLog.Errorf("No Cluster Network Info CRs found.")
 		return cidrs, false
 	}
 

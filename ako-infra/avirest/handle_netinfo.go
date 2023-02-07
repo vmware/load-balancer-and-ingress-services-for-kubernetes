@@ -672,7 +672,7 @@ func NewLRLSFullSyncWorker() *utils.FullSyncThread {
 	instantiateFullSyncWorker.Do(func() {
 		worker = utils.NewFullSyncThread(time.Duration(300) * time.Second)
 		worker.SyncFunction = SyncLSLRNetwork
-		worker.QuickSyncFunction = func() error { return nil }
+		worker.QuickSyncFunction = func(qSync bool) error { return nil }
 	})
 	return worker
 }
