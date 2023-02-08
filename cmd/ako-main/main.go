@@ -267,9 +267,10 @@ func InitializeAKC() {
 		utils.AviLog.Errorf("Handle configmap error during reboot, shutting down AKO. Error is: %v", err)
 		return
 	}
-
-	if _, err := lib.GetVipNetworkListEnv(); !utils.IsVCFCluster() && err != nil {
-		utils.AviLog.Fatalf("Error in getting VIP network %s, shutting down AKO", err)
+	if !utils.IsVCFCluster() {
+		if _, err := lib.GetVipNetworkListEnv(); err != nil {
+			utils.AviLog.Fatalf("Error in getting VIP network %s, shutting down AKO", err)
+		}
 	}
 
 	c.InitializeNamespaceSync()

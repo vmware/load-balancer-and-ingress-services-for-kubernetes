@@ -371,20 +371,14 @@ func addNetworkInIPAM(key string, client *clients.AviClient) {
 	if ipam.InternalProfile != nil &&
 		ipam.InternalProfile.UsableNetworks != nil &&
 		len(ipam.InternalProfile.UsableNetworks) > 0 {
-		exists := false
 		for _, ntw := range ipam.InternalProfile.UsableNetworks {
 			if strings.Contains(*ntw.NwRef, netName) {
-				exists = true
+				return
 			}
 		}
-		if exists {
-			return
-		}
-		if !exists {
-			ipam.InternalProfile.UsableNetworks = append(ipam.InternalProfile.UsableNetworks, &models.IPAMUsableNetwork{
-				NwRef: proto.String(networkRef),
-			})
-		}
+		ipam.InternalProfile.UsableNetworks = append(ipam.InternalProfile.UsableNetworks, &models.IPAMUsableNetwork{
+			NwRef: proto.String(networkRef),
+		})
 	} else {
 		ipam.InternalProfile = &models.IPAMDNSInternalProfile{
 			UsableNetworks: []*models.IPAMUsableNetwork{{NwRef: proto.String(networkRef)}},
@@ -642,6 +636,7 @@ func executeRestOp(key string, client *clients.AviClient, restOp *utils.RestOp, 
 		} else if strings.Contains(err.Error(), "Concurrent Update Error") {
 			refreshCache(restOp.Model, client)
 			scheduleQuickSync()
+			return
 		} else {
 			utils.AviLog.Warnf("key %s, Got error in executing rest request: %v", key, err)
 			return

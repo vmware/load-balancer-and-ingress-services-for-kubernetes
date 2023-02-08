@@ -184,7 +184,16 @@ func (c *AviController) SetupNamespaceDeletionEventHandler(numWorkers uint32) {
 		DeleteFunc: func(obj interface{}) {
 			ns, ok := obj.(*corev1.Namespace)
 			if !ok {
-				return
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				ns, ok = tombstone.Obj.(*corev1.Namespace)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not a Namespace: %#v", obj)
+					return
+				}
 			}
 			key := lib.Namespace + "/" + utils.ObjKey(ns)
 			utils.AviLog.Infof("key: %s, msg: DELETE", key)
