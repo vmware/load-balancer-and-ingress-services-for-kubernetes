@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
@@ -530,6 +531,12 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 				sharedVipInfraSetting = infraSettingAnnotation
 			}
 			if appProfileAnnotation, ok := svcObj.GetAnnotations()[lib.LBSvcAppProfileAnnotation]; ok && appProfileAnnotation != "" {
+				err := lib.CheckL4RefOnController(key, lib.AppProfile, appProfileAnnotation, avicache.SharedAVIClients())
+				if err != nil {
+					utils.AviLog.Warnf("key: %v, msg: Not processing L4 service", key)
+					isShareVipKeyDelete = true
+					break
+				}
 				appProfile = appProfileAnnotation
 			}
 		}
