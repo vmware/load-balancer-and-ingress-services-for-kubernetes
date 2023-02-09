@@ -89,11 +89,14 @@ const (
 	ENV_CTRL_PASSWORD             = "CTRL_PASSWORD"
 	ENV_CTRL_AUTHTOKEN            = "CTRL_AUTHTOKEN"
 	ENV_CTRL_IPADDRESS            = "CTRL_IPADDRESS"
+	ENV_CTRL_CADATA               = "CTRL_CA_DATA"
 	POD_NAMESPACE                 = "POD_NAMESPACE"
 	VCF_CLUSTER                   = "VCF_CLUSTER"
 	MCI_ENABLED                   = "MCI_ENABLED"
 	CTRL_VERSION_22_1_3           = "22.1.3"
 	CTRL_VERSION_22_1_2           = "22.1.2"
+	Namespace                     = "Namespace"
+	MaxAviVersion                 = "22.1.2"
 
 	RefreshAuthTokenInterval = 12  //hours
 	AuthTokenExpiry          = 240 //hours

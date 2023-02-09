@@ -123,7 +123,7 @@ func TestMain(m *testing.M) {
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	integrationtest.KubeClient = KubeClient
 	integrationtest.AddDefaultIngressClass()
-	ctrl.SetSEGroupCloudName()
+	ctrl.SetSEGroupCloudNameFromNSAnnotations()
 
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())

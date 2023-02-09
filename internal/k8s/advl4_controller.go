@@ -177,8 +177,31 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 
 	informer.GatewayInformer.Informer().AddEventHandler(gatewayEventHandler)
 	informer.GatewayClassInformer.Informer().AddEventHandler(gatewayClassEventHandler)
+}
 
-	return
+func (c *AviController) SetupNamespaceDeletionEventHandler(numWorkers uint32) {
+	nsHandler := cache.ResourceEventHandlerFuncs{
+		DeleteFunc: func(obj interface{}) {
+			ns, ok := obj.(*corev1.Namespace)
+			if !ok {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				ns, ok = tombstone.Obj.(*corev1.Namespace)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not a Namespace: %#v", obj)
+					return
+				}
+			}
+			key := lib.Namespace + "/" + utils.ObjKey(ns)
+			utils.AviLog.Infof("key: %s, msg: DELETE", key)
+			bkt := utils.Bkt(ns.Name, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+		},
+	}
+	c.informers.NSInformer.Informer().AddEventHandler(nsHandler)
 }
 
 func InformerStatusUpdatesForGateway(key string, gateway *advl4v1alpha1pre1.Gateway) {

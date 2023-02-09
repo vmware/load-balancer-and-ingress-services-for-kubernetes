@@ -20,8 +20,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
@@ -34,13 +34,13 @@ type AviRestClientPool struct {
 
 var AviClientInstance *AviRestClientPool
 
-func NewAviRestClientPool(num uint32, api_ep string, username string,
-	password string, authToken string) (*AviRestClientPool, error) {
+func NewAviRestClientPool(num uint32, api_ep, username,
+	password, authToken, controllerVersion, ctrlCAData string) (*AviRestClientPool, string, error) {
 	var clientPool AviRestClientPool
 	var wg sync.WaitGroup
 	var globalErr error
 
-	rootPEMCerts := os.Getenv("CTRL_CA_DATA")
+	rootPEMCerts := ctrlCAData
 	var transport *http.Transport
 	if rootPEMCerts != "" {
 		caCertPool := x509.NewCertPool()
@@ -94,24 +94,34 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 
 	wg.Wait()
 
-	// Get the controller version if it is not present in env variable.
-	if CtrlVersion == "" {
-		version, err := clientPool.AviClient[0].AviSession.GetControllerVersion()
-		if err == nil {
-			AviLog.Infof("Setting the client version to the current controller version %v", version)
-			CtrlVersion = version
-			// For AKO-1.9.1, if controller version is 22.1.3, set api version as 22.1.2
-			if CtrlVersion == CTRL_VERSION_22_1_3 {
-				CtrlVersion = CTRL_VERSION_22_1_2
-			}
-		}
-	}
-
 	if globalErr != nil {
-		return &clientPool, globalErr
+		return &clientPool, controllerVersion, globalErr
 	}
 
-	return &clientPool, nil
+	// Get the controller version if it is not present in env variable.
+	if controllerVersion == "" {
+		version, err := clientPool.AviClient[0].AviSession.GetControllerVersion()
+		if err != nil {
+			return &clientPool, controllerVersion, err
+		}
+		maxVersion, err := NewVersion(MaxAviVersion)
+		if err != nil {
+			return &clientPool, controllerVersion, err
+		}
+		curVersion, err := NewVersion(version)
+		if err != nil {
+			return &clientPool, controllerVersion, err
+		}
+		if curVersion.Compare(maxVersion) > 0 {
+			AviLog.Infof("Overwriting the controller version %s to max Avi version %s", version, MaxAviVersion)
+			version = MaxAviVersion
+		}
+		AviLog.Infof("Setting the client version to the current controller version %v", version)
+		CtrlVersion = version
+		controllerVersion = version
+	}
+
+	return &clientPool, controllerVersion, nil
 }
 
 func (p *AviRestClientPool) AviRestOperate(c *clients.AviClient, rest_ops []*RestOp) error {
@@ -177,8 +187,48 @@ func AviModelToUrl(model string) string {
 	}
 }
 
-func GetAuthTokenWithRetry(c *clients.AviClient, retryCount int) (interface{}, error) {
+func GetAuthTokenMapWithRetry(c *clients.AviClient, tokens map[string]interface{}, retryCount int, overrideURI ...string) error {
 	tokenPath := "api/user-token"
+	if len(overrideURI) > 0 {
+		tokenPath = overrideURI[0]
+	}
+	robj, err := GetAuthTokenWithRetry(c, retryCount, tokenPath)
+	if err != nil {
+		return err
+	}
+	parseError := errors.New("failed to parse token response obj")
+
+	if _, ok := robj.(map[string]interface{}); !ok {
+		return parseError
+	}
+	tokenList, ok := robj.(map[string]interface{})["results"].([]interface{})
+	if !ok {
+		return parseError
+	}
+	for _, aviToken := range tokenList {
+		if _, ok := aviToken.(map[string]interface{}); !ok {
+			return parseError
+		}
+		token, ok := aviToken.(map[string]interface{})["token"].(string)
+		if !ok {
+			return parseError
+		}
+		tokens[token] = aviToken
+	}
+	next, ok := robj.(map[string]interface{})["next"].(string)
+	if !ok {
+		return nil
+	}
+	nextURI := strings.Split(next, "api/user-token")
+	nextPage := "api/user-token" + nextURI[1]
+	return GetAuthTokenMapWithRetry(c, tokens, retryCount, nextPage)
+}
+
+func GetAuthTokenWithRetry(c *clients.AviClient, retryCount int, nextPage ...string) (interface{}, error) {
+	tokenPath := "api/user-token"
+	if len(nextPage) > 0 {
+		tokenPath = nextPage[0]
+	}
 	var robj interface{}
 	var err error
 	for retry := 0; retry < retryCount; retry++ {

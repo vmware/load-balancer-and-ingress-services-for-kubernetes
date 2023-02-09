@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
@@ -157,7 +158,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		}
 	}
 
-	if !ingressFound && !lib.GetAdvancedL4() && !mciFound {
+	if !ingressFound && !lib.IsWCP() && !mciFound {
 		// If ingress is not found, let's do the other checks.
 		if objType == lib.SharedVipServiceKey {
 			sharedVipKeys, keysFound := schema.GetParentServices(name, namespace, key)
@@ -202,9 +203,9 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 
 	// handle the services APIs
-	if (lib.GetAdvancedL4() && objType == utils.L4LBService) ||
+	if (lib.IsWCP() && objType == utils.L4LBService) ||
 		(lib.UseServicesAPI() && (objType == utils.Service || objType == utils.L4LBService)) ||
-		((lib.GetAdvancedL4() || lib.UseServicesAPI()) && (objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints || objType == lib.AviInfraSetting)) {
+		((lib.IsWCP() || lib.UseServicesAPI()) && (objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints || objType == lib.AviInfraSetting)) {
 		if !valid && objType == utils.L4LBService {
 			// Required for advl4 schemas.
 			schema, _ = ConfigDescriptor().GetByType(utils.Service)
@@ -237,6 +238,31 @@ func DequeueIngestion(key string, fullsync bool) {
 			}
 		}
 	}
+	if objType == utils.Namespace && lib.IsWCP() && isNamespaceDeleted(name) {
+		cache := avicache.SharedAviObjCache()
+		vsKeys := cache.VsCacheMeta.AviCacheGetAllParentVSKeys()
+		for _, vsKey := range vsKeys {
+			if strings.HasSuffix(vsKey.Name, name) {
+				modelName := lib.GetModelName(lib.GetTenant(), vsKey.Name)
+				if found, _ := objects.SharedAviGraphLister().Get(modelName); found {
+					objects.SharedAviGraphLister().Save(modelName, nil)
+				}
+				PublishKeyToRestLayer(modelName, vsKey.Namespace+"/"+vsKey.Name, sharedQueue)
+				break
+			}
+		}
+	}
+
+}
+
+func isNamespaceDeleted(name string) bool {
+	ns, err := utils.GetInformers().NSInformer.Lister().Get(name)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return true
+		}
+	}
+	return ns.DeletionTimestamp != nil
 }
 
 func handleHostRuleForSharedVS(key string, fullsync bool) {
@@ -406,7 +432,7 @@ func handleLBSvcUpdateForPod(key string, lbSvcs []string, fullsync bool) {
 func isGatewayDelete(gatewayKey, key string) bool {
 	// parse the gateway name and namespace
 	namespace, _, gwName := lib.ExtractTypeNameNamespace(gatewayKey)
-	if lib.GetAdvancedL4() {
+	if lib.IsWCP() {
 		gateway, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
 		if err != nil && errors.IsNotFound(err) {
 			return true
@@ -414,13 +440,14 @@ func isGatewayDelete(gatewayKey, key string) bool {
 
 		// check if deletiontimesttamp is present to see intended delete
 		if gateway.GetDeletionTimestamp() != nil {
-			utils.AviLog.Infof("key: %s, deletionTimestamp set on gateway, will be deleting VS", key)
+			utils.AviLog.Infof("key: %s, msg: deletionTimestamp set on gateway, will be deleting VS", key)
 			return true
 		}
 
 		// Check if the gateway has a valid gateway class
 		err = validateGatewayForClass(key, gateway)
 		if err != nil {
+			utils.AviLog.Infof("key: %s, msg: Valid GatewayClass for gateway %s not found", key, gateway)
 			return true
 		}
 	} else if lib.UseServicesAPI() {
@@ -443,15 +470,12 @@ func isGatewayDelete(gatewayKey, key string) bool {
 		// Check if the gateway has a valid gateway class
 		err = validateSvcApiGatewayForClass(key, gateway)
 		if err != nil {
+			utils.AviLog.Infof("key: %s, msg: Valid GatewayClass for gateway %s not found", key, gateway)
 			return true
 		}
 	}
 	found, _ := objects.ServiceGWLister().GetGWListeners(namespace + "/" + gwName)
-	if !found {
-		return true
-	}
-
-	return false
+	return !found
 }
 
 func handleRoute(key string, fullsync bool, routeNames []string) {
@@ -755,7 +779,6 @@ func PublishKeyToRestLayer(modelName string, key string, sharedQueue *utils.Work
 	bkt := utils.Bkt(modelName, sharedQueue.NumWorkers)
 	sharedQueue.Workqueue[bkt].AddRateLimited(modelName)
 	utils.AviLog.Infof("key: %s, msg: Published key with modelName: %s", key, modelName)
-
 }
 
 func isServiceDelete(svcName string, namespace string, key string) bool {

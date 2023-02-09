@@ -120,7 +120,7 @@ func TestMain(m *testing.M) {
 	waitGroupMap["leaderElection"] = wgLeaderElection
 
 	integrationtest.AddConfigMap(KubeClient)
-	ctrl.SetSEGroupCloudName()
+	ctrl.SetSEGroupCloudNameFromNSAnnotations()
 
 	integrationtest.PollForSyncStart(ctrl, 10)
 

@@ -63,7 +63,7 @@ func InitializeAKOInfra() {
 		}
 	}
 
-	dynamicClient, err := lib.NewVCFDynamicClientSet(cfg)
+	dynamicClient, err := lib.NewDynamicClientSet(cfg)
 	if err != nil {
 		utils.AviLog.Warnf("Error while creating dynamic client %v", err)
 	}
@@ -75,7 +75,7 @@ func InitializeAKOInfra() {
 
 	utils.AviLog.Infof("Successfully created kube client for ako-infra")
 
-	registeredInformers, err := lib.InformersToRegister(kubeClient, nil, true)
+	registeredInformers, err := lib.InformersToRegister(kubeClient, nil)
 	if err != nil {
 		utils.AviLog.Fatalf("Failed to initialize informers: %v, shutting down AKO-Infra, going to reboot", err)
 	}
@@ -83,14 +83,13 @@ func InitializeAKOInfra() {
 	informersArg := make(map[string]interface{})
 
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
-	lib.NewVCFDynamicInformers(dynamicClient)
+	lib.NewDynamicInformers(dynamicClient, true)
 
-	informers := ingestion.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}
 	c := ingestion.SharedVCFK8sController()
 	stopCh := utils.SetupSignalHandler()
 	ctrlCh := make(chan struct{})
 
-	transportZone := c.HandleVCF(informers, stopCh, ctrlCh)
+	transportZone := c.HandleVCF(stopCh, ctrlCh)
 	lib.VCFInitialized = true
 
 	// Checking/Setting up Avi pre-reqs
@@ -112,10 +111,15 @@ func InitializeAKOInfra() {
 	a.SetupSEGroup(transportZone)
 	avirest.SyncLSLRNetwork()
 	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName)
-	c.AddNetworkInfoEventHandler(informers, stopCh)
-	c.AddNamespaceEventHandler(informers, stopCh)
+	c.AddNetworkInfoEventHandler(stopCh)
+	c.AddNamespaceEventHandler(stopCh)
+	c.AddSecretEventHandler(stopCh)
+
+	worker := avirest.NewLRLSFullSyncWorker()
+	go worker.Run()
 
 	<-stopCh
+	worker.Shutdown()
 	close(ctrlCh)
 }
 

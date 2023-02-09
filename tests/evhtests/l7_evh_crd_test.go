@@ -48,12 +48,11 @@ var ctrl *k8s.AviController
 var akoApiServer *api.FakeApiServer
 var keyChan chan string
 
-var isVCF = flag.String("isVCF", "false", "is vcf enabled")
+var isVipPerNS = flag.String("isVipPerNS", "false", "is vip per namespace enabled")
 
-func setVCF(isvcf string) {
-	if isvcf == "true" {
+func setVipPerNS(vipPerNS string) {
+	if vipPerNS == "true" {
 		os.Setenv("VIP_PER_NAMESPACE", "true")
-		os.Setenv("VCF_CLUSTER", "true")
 	}
 }
 
@@ -69,7 +68,7 @@ func GetModelName(hostname, namespace string) (string, string) {
 
 func TestMain(m *testing.M) {
 	flag.Parse()
-	setVCF(*isVCF)
+	setVipPerNS(*isVipPerNS)
 
 	os.Setenv("INGRESS_API", "extensionv1")
 	os.Setenv("VIP_NETWORK_LIST", `[{"networkName":"net123"}]`)
@@ -143,8 +142,8 @@ func TestMain(m *testing.M) {
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	integrationtest.KubeClient = KubeClient
 	integrationtest.AddDefaultIngressClass()
-	ctrl.SetSEGroupCloudName()
 	keyChan = make(chan string)
+	ctrl.SetSEGroupCloudNameFromNSAnnotations()
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
 }

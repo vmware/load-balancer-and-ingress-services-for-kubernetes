@@ -273,8 +273,9 @@ func TestMain(m *testing.M) {
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
 	AddCMap()
-	ctrl.SetSEGroupCloudName()
 	integrationtest.KubeClient = kubeClient
+	ctrl.SetSEGroupCloudNameFromNSAnnotations()
+
 	ctrl.HandleConfigMap(k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}, ctrlCh, stopCh, quickSyncCh)
 	ctrl.SetupEventHandlers(k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient})
 	setupQueue(stopCh)

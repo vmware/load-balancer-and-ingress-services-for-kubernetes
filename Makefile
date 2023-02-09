@@ -232,12 +232,12 @@ evhtests:
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/evhtests -failfast
 
-.PHONY: vcftests
-vcftests:
+.PHONY: vippernstests
+vippernstests:
 	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/evhtests -failfast -isVCF=true
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/evhtests -failfast -isVipPerNS=true
 
 .PHONY: dedicatedvstests
 dedicatedvstests:
@@ -269,7 +269,7 @@ hatests:
 
 .PHONY: int_test
 int_test:
-	make -j 1 k8stest integrationtest ingresstests evhtests vcftests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc dedicatedvstests infratests multiclusteringresstests hatests
+	make -j 1 k8stest integrationtest ingresstests evhtests vippernstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc dedicatedvstests multiclusteringresstests hatests
 
 .PHONY: scale_test
 scale_test:

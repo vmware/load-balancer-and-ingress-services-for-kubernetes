@@ -26,6 +26,7 @@ const (
 	INGRESS_API               = "INGRESS_API"
 	AviConfigMap              = "avi-k8s-config"
 	AviSecret                 = "avi-secret"
+	AviInitSecret             = "avi-init-secret"
 	VLAN_TRANSPORT_ZONE       = "VLAN"
 	OVERLAY_TRANSPORT_ZONE    = "OVERLAY"
 	IP_FAMILY                 = "IP_FAMILY"
@@ -182,6 +183,8 @@ const (
 	IstioSecret                                = "istio-secret"
 	IstioModel                                 = "istioModel"
 	CTRL_VERSION_21_1_3                        = "21.1.3"
+	FullSyncInterval                           = 300
+	Namespace                                  = "Namespace"
 
 	// AKO Event constants
 	AKOEventComponent      = "avi-kubernetes-operator"
