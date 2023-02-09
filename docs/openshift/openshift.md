@@ -6,7 +6,7 @@ Follow the steps 1 to 2, given in section [Pre-requisites](https://github.com/vm
 2. Openshift routes and services of type load balancer are supported in AKO
 3. Ingresses, if created in the openshift cluster won't be handled by AKO.
 4. cniPlugin should be set to **openshift**
-5. Set `state_based_dns_registration` to false in AVI cloud configuration. Follow the instructions mentioned in https://avinetworks.com/docs/20.1/dns-record-additions-independent-of-vs-state/.
+5. Set `state_based_dns_registration` to false in AVI cloud configuration. Follow the instructions mentioned in https://avinetworks.com/docs/21.1/dns-record-additions-independent-of-vs-state/.
 
 #### Features of Openshift Route supported in AKO
 AKO supports the following Layer 7 functions of the OpenShift Route object:
@@ -38,21 +38,13 @@ metadata:
 type: kubernetes.io/tls
 data:
   tls.crt: 
-    -----BEGIN CERTIFICATE-----
-    [...]
-    -----END CERTIFICATE-----
+    paste here content of CERTIFICATE
   tls.key:
-    -----BEGIN PRIVATE KEY-----
-    [...]
-    -----END PRIVATE KEY-----
+    paste here content of PRIVATE KEY
   alt.key:
-    -----BEGIN PRIVATE KEY-----
-    [...]
-    -----END PRIVATE KEY-----
+    paste here content of ALTERNATE PRIVATE KEY
   alt.crt:
-    -----BEGIN CERTIFICATE-----
-    [...]
-    -----END CERTIFICATE-----
+    paste here content of ALTERNATE CERTIFICATE
 ```
 
 After creating the secret, we can add a secure route without without key or cert in the spec, for example:

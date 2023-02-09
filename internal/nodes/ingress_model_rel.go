@@ -577,6 +577,7 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 		return nil, false
 	} else {
 		if hostrule.Status.Status != lib.StatusAccepted {
+			utils.AviLog.Errorf("key: %s, msg: Hostrule is not in accepted state", key)
 			return []string{}, false
 		}
 		fqdn = hostrule.Spec.VirtualHost.Fqdn
@@ -659,6 +660,7 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 		return nil, false
 	} else {
 		if httprule.Status.Status != lib.StatusAccepted {
+			utils.AviLog.Errorf("key: %s, msg: HTTPRule is not in accepted state", key)
 			return allIngresses, false
 		}
 

@@ -26,6 +26,8 @@ This service name should be used when updating the auth policy crd for istio.
 
 AKO prioritizes istio pkiprofile over any other pkiprofile reference added using httprule.
 
+**Note** AKO works only with L7.
+
 ## Workarounds and Fixes 
 
 ### Sidecar injection for AKO is not working
