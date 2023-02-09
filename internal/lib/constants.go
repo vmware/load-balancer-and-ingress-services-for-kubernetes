@@ -232,6 +232,7 @@ const (
 	ControllerAnnotation           = "ako.vmware.com/controller-cluster-uuid"
 	SharedVipSvcLBAnnotation       = "ako.vmware.com/enable-shared-vip"
 	LoadBalancerIP                 = "ako.vmware.com/load-balancer-ip"
+	LBSvcAppProfileAnnotation      = "ako.vmware.com/application-profile"
 
 	// Specifies command used in namespace event handler
 	NsFilterAdd                    = "ADD"

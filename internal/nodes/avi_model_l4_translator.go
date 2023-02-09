@@ -91,8 +91,13 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		}
 	}
 	avi_vs_meta.PortProto = portProtocols
-	// Default case.
-	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
+
+	if appProfile, ok := svcObj.GetAnnotations()[lib.LBSvcAppProfileAnnotation]; ok && appProfile != "" {
+		avi_vs_meta.ApplicationProfile = appProfile
+	} else {
+		// Default case
+		avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
+	}
 	if !isTCP {
 		if isSCTP {
 			avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY

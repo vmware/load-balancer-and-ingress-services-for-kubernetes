@@ -481,6 +481,7 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 	avi_vs_meta.AviMarkers = lib.PopulateAdvL4VSNodeMarkers(namespace, sharedVipKey)
 	var portProtocols []AviPortHostProtocol
 	var sharedPreferredVIP string
+	var appProfile string
 	var serviceObject *v1.Service
 	for i, serviceNSName := range serviceNSNames {
 		svcNSName := strings.Split(serviceNSName, "/")
@@ -498,6 +499,9 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 			}
 			if infraSettingAnnotation, ok := svcObj.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
 				serviceObject = svcObj.DeepCopy()
+			}
+			if appProfileAnnotation, ok := svcObj.GetAnnotations()[lib.LBSvcAppProfileAnnotation]; ok && appProfileAnnotation != "" {
+				appProfile = appProfileAnnotation
 			}
 		}
 
@@ -520,7 +524,11 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 	}
 
 	avi_vs_meta.PortProto = portProtocols
-	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
+	if appProfile != "" {
+		avi_vs_meta.ApplicationProfile = appProfile
+	} else {
+		avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
+	}
 
 	if isSCTP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
