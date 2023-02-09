@@ -8,6 +8,7 @@ metadata:
 spec:
   imageRepository: {{ .Values.akoImage.repository }}
   imagePullPolicy: {{ .Values.akoImage.pullPolicy }}
+  replicaCount: {{ .Values.replicaCount }}
   akoSettings:
     enableEvents: {{ .Values.AKOSettings.enableEvents }}
     logLevel: {{ .Values.AKOSettings.logLevel }}
