@@ -100,6 +100,7 @@ const (
 	StatusRejected                             = "Rejected"
 	StatusAccepted                             = "Accepted"
 	AllowedApplicationProfile                  = "APPLICATION_PROFILE_TYPE_HTTP"
+	AllowedL4ApplicationProfile                = "APPLICATION_PROFILE_TYPE_L4"
 	TypeTLSReencrypt                           = "reencrypt"
 	DefaultPoolSSLProfile                      = "System-Standard"
 	LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER = "LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER"
@@ -129,6 +130,7 @@ const (
 	ConfigDisallowedDuringUpgradeError         = "Configuration is disallowed during upgrade"
 	VSVIPNotFoundError                         = "VsVip object not found"
 	DataScript                                 = "Vsdatascript"
+	AppProfile                                 = "applicationprofile"
 	EVHVS                                      = "EVH VirtualService"
 	HTTPPS                                     = "HTTPPolicySet"
 	HPPMAP                                     = "HTTP Policyset Map"
@@ -229,6 +231,7 @@ const (
 	ControllerAnnotation           = "ako.vmware.com/controller-cluster-uuid"
 	SharedVipSvcLBAnnotation       = "ako.vmware.com/enable-shared-vip"
 	LoadBalancerIP                 = "ako.vmware.com/load-balancer-ip"
+	LBSvcAppProfileAnnotation      = "ako.vmware.com/application-profile"
 
 	// Specifies command used in namespace event handler
 	NsFilterAdd                    = "ADD"
