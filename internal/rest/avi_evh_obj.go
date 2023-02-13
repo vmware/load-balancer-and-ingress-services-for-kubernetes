@@ -499,13 +499,9 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 	vh_type := utils.VS_TYPE_VH_CHILD
 	evhChild.Type = &vh_type
 	vhParentUuid := "/api/virtualservice/?name=" + vs_meta.VHParentName
-	if utils.CtrlVersion == lib.CTRL_VERSION_21_1_3 {
-		// TODO: Remove if loop once AKO support controller version > 21.1.3
-		// Remove `VhParentVsUUID` field from VS model
-		evhChild.VhParentVsUUID = &vhParentUuid
-	} else {
-		evhChild.VhParentVsRef = &vhParentUuid
-	}
+
+	evhChild.VhParentVsRef = &vhParentUuid
+
 	ignPool := false
 	evhChild.IgnPoolNetReach = &ignPool
 	// Fill vhmatch information
@@ -513,15 +509,22 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 	for _, Vhostname := range vs_meta.VHDomainNames {
 		match_case := "SENSITIVE"
 		matchCriteria := "BEGINS_WITH"
-		pathMatches := make([]*avimodels.PathMatch, 0)
 		path_match := avimodels.PathMatch{
 			MatchCriteria: &matchCriteria,
 			MatchCase:     &match_case,
 			MatchStr:      []string{"/"},
 		}
-		pathMatches = append(pathMatches, &path_match)
+		vHMatchRules := make([]*avimodels.VHMatchRule, 0)
+		matchTarget := &avimodels.MatchTarget{
+			Path: &path_match,
+		}
+		vHMatchRule := &avimodels.VHMatchRule{
+			Matches: matchTarget,
+		}
+		vHMatchRules = append(vHMatchRules, vHMatchRule)
+
 		hostname := Vhostname
-		vhMatch := &avimodels.VHMatch{Host: &hostname, Path: pathMatches}
+		vhMatch := &avimodels.VHMatch{Host: &hostname, Rules: vHMatchRules}
 		vhMatches = append(vhMatches, vhMatch)
 	}
 

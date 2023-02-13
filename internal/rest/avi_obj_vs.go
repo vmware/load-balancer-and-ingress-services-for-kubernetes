@@ -314,11 +314,8 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	vh_type := utils.VS_TYPE_VH_CHILD
 	sniChild.Type = &vh_type
 	vhParentUuid := "/api/virtualservice/?name=" + vs_meta.VHParentName
-	if utils.CtrlVersion == lib.CTRL_VERSION_21_1_3 {
-		sniChild.VhParentVsUUID = &vhParentUuid
-	} else {
-		sniChild.VhParentVsRef = &vhParentUuid
-	}
+
+	sniChild.VhParentVsRef = &vhParentUuid
 
 	sniChild.VhDomainName = vs_meta.VHDomainNames
 	ignPool := false
