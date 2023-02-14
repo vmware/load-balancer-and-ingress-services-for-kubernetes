@@ -260,7 +260,7 @@ func EPToGateway(epName string, namespace string, key string) ([]string, bool) {
 func GatewayChanges(gwName string, namespace string, key string) ([]string, bool) {
 	var allGateways []string
 	allGateways = append(allGateways, namespace+"/"+gwName)
-	if lib.GetAdvancedL4() {
+	if lib.IsWCP() {
 		gateway, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
 		if err != nil && k8serrors.IsNotFound(err) {
 			// Remove all the Gateway to Services mapping.
@@ -577,6 +577,7 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 		return nil, false
 	} else {
 		if hostrule.Status.Status != lib.StatusAccepted {
+			utils.AviLog.Errorf("key: %s, msg: Hostrule is not in accepted state", key)
 			return []string{}, false
 		}
 		fqdn = hostrule.Spec.VirtualHost.Fqdn
@@ -659,6 +660,7 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 		return nil, false
 	} else {
 		if httprule.Status.Status != lib.StatusAccepted {
+			utils.AviLog.Errorf("key: %s, msg: HTTPRule is not in accepted state", key)
 			return allIngresses, false
 		}
 
@@ -882,7 +884,7 @@ func ParseL4ServiceForGateway(svc *corev1.Service, key string) (string, []string
 	}
 
 	var gwNameLabel, gwNamespaceLabel string
-	if lib.GetAdvancedL4() {
+	if lib.IsWCP() {
 		gwNameLabel = lib.GatewayNameLabelKey
 		gwNamespaceLabel = lib.GatewayNamespaceLabelKey
 	} else if lib.UseServicesAPI() {

@@ -27,6 +27,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
@@ -153,7 +154,7 @@ func GetNamePrefix() string {
 }
 
 func Encode(s, objType string) string {
-	if !IsEvhEnabled() || GetAdvancedL4() {
+	if !IsEvhEnabled() || IsWCP() {
 		CheckObjectNameLength(s, objType)
 		return s
 	}
@@ -295,7 +296,7 @@ func GetAKOUser() string {
 }
 
 func GetshardSize() uint32 {
-	if GetAdvancedL4() {
+	if IsWCP() {
 		// shard to 8 go routines in the REST layer
 		return ShardSizeMap["LARGE"]
 	}
@@ -309,7 +310,7 @@ func GetshardSize() uint32 {
 }
 
 func GetL4FqdnFormat() string {
-	if GetAdvancedL4() {
+	if IsWCP() {
 		// disable for advancedL4
 		return AutoFQDNDisabled
 	}
@@ -672,8 +673,8 @@ func GetVipNetworkList() []akov1alpha1.AviInfraSettingVipNetwork {
 
 func GetVipNetworkListEnv() ([]akov1alpha1.AviInfraSettingVipNetwork, error) {
 	var vipNetworkList []akov1alpha1.AviInfraSettingVipNetwork
-	if GetAdvancedL4() || utils.IsVCFCluster() {
-		// do not return error in case of advancedL4 (wcp)
+	if IsWCP() {
+		// do not return error in case of WCP deployments.
 		return vipNetworkList, nil
 	}
 	vipNetworkListStr := os.Getenv(VIP_NETWORK_LIST)
@@ -714,17 +715,8 @@ func GetGlobalBlockedNSList() []string {
 	return blockedNs
 }
 
-var t1LrPath string
-
-func SetT1LRPath(lr string) {
-	t1LrPath = lr
-}
-
 func GetT1LRPath() string {
-	if t1LrPath == "" {
-		t1LrPath = os.Getenv("NSXT_T1_LR")
-	}
-	return t1LrPath
+	return os.Getenv("NSXT_T1_LR")
 }
 
 var SEGroupName string
@@ -786,22 +778,27 @@ func GetDomain() string {
 // the user requires advanced L4 functionality
 func GetAdvancedL4() bool {
 	advanceL4 := os.Getenv(ADVANCED_L4)
-	if advanceL4 == "true" {
+	return advanceL4 == "true"
+}
 
+// Wrapper function for AKO running in either VDS
+// or VCF (WCP with NSX).
+func IsWCP() bool {
+	if GetAdvancedL4() || utils.IsVCFCluster() {
 		return true
 	}
 	return false
 }
 
 type NextPage struct {
-	Next_uri   string
+	NextURI    string
 	Collection interface{}
 }
 
 func FetchSEGroupWithMarkerSet(client *clients.AviClient, overrideUri ...NextPage) (error, string) {
 	var uri string
 	if len(overrideUri) == 1 {
-		uri = overrideUri[0].Next_uri
+		uri = overrideUri[0].NextURI
 	} else {
 		uri = "/api/serviceenginegroup/?include_name&page_size=100&cloud_ref.name=" + utils.CloudName
 	}
@@ -858,7 +855,7 @@ func FetchSEGroupWithMarkerSet(client *clients.AviClient, overrideUri ...NextPag
 		next_uri := strings.Split(result.Next, "/api/serviceenginegroup")
 		if len(next_uri) > 1 {
 			overrideUri := "/api/serviceenginegroup" + next_uri[1]
-			nextPage := NextPage{Next_uri: overrideUri}
+			nextPage := NextPage{NextURI: overrideUri}
 			return FetchSEGroupWithMarkerSet(client, nextPage)
 		}
 	}
@@ -874,7 +871,7 @@ func IsEvhEnabled() bool {
 	if evh == "true" {
 		return true
 	}
-	return false
+	return utils.IsVCFCluster()
 }
 
 // If this flag is set to true, then AKO uses services API. Currently the support is limited for layer 4 Virtualservices
@@ -906,7 +903,7 @@ func IsValidCni(returnErr *error) bool {
 
 func GetDisableStaticRoute() bool {
 	// We don't need the static routes for NSX-T cloud
-	if GetAdvancedL4() || (GetCloudType() == CLOUD_NSXT && GetCNIPlugin() == NCP_CNI) {
+	if IsWCP() || (GetCloudType() == CLOUD_NSXT && GetCNIPlugin() == NCP_CNI) {
 		return true
 	}
 	if ok, _ := strconv.ParseBool(os.Getenv(DISABLE_STATIC_ROUTE_SYNC)); ok {
@@ -919,7 +916,7 @@ func GetDisableStaticRoute() bool {
 }
 
 func GetClusterName() string {
-	if GetAdvancedL4() {
+	if IsWCP() {
 		return GetClusterIDSplit()
 	}
 	clusterName := os.Getenv(CLUSTER_NAME)
@@ -1197,21 +1194,34 @@ func PopulatePassthroughPoolMarkers(host, svcName, infrasettingName string) util
 	return markers
 }
 
-func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Clientset, akoInfra bool) ([]string, error) {
+func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Clientset) ([]string, error) {
 	var isOshift bool
+	// Initialize the following informers in all AKO deployments. Provide AKO the ability to watch over
+	// Services, Endpoints, Secrets, ConfigMaps and Namespaces.
 	allInformers := []string{
 		utils.ServiceInformer,
 		utils.EndpointInformer,
 		utils.SecretInformer,
 		utils.ConfigMapInformer,
+		utils.NSInformer,
 	}
 
+	// AKO must watch over Pods in case of NodePortLocal, to get Antrea annotation values.
 	if GetServiceType() == NodePortLocal {
 		allInformers = append(allInformers, utils.PodInformer)
 	}
 
-	if !GetAdvancedL4() {
-		allInformers = append(allInformers, utils.NSInformer)
+	// Watch over Ingresses for AKO deployment in WCP with NSX.
+	if utils.IsVCFCluster() {
+		allInformers = append(allInformers, utils.IngressInformer)
+		allInformers = append(allInformers, utils.IngressClassInformer)
+	}
+
+	// For all deployments excluding AKO in WCP, watch over
+	// Nodes, Ingresses, IngressClasses, Routes, MultiClusterIngress and ServiceImports.
+	// Routes should be watched over in Openshift environments only.
+	// MultiClusterIngress and ServiceImport should be watched over only when MCI is enabled.
+	if !IsWCP() {
 		allInformers = append(allInformers, utils.NodeInformer)
 
 		informerTimeout := int64(120)
@@ -1237,10 +1247,6 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 			allInformers = append(allInformers, utils.MultiClusterIngressInformer)
 			allInformers = append(allInformers, utils.ServiceImportInformer)
 		}
-	}
-
-	if akoInfra {
-		allInformers = append(allInformers, utils.NSInformer)
 	}
 
 	return allInformers, nil
@@ -1527,6 +1533,9 @@ func GetDefaultSecretForRoutes() string {
 }
 
 func ValidateIngressForClass(key string, ingress *networkingv1.Ingress) bool {
+	if utils.IsVCFCluster() {
+		return true
+	}
 	// see whether ingress class resources are present or not
 	if ingress.Spec.IngressClassName == nil {
 		// check whether avi-lb ingress class is set as the default ingress class
@@ -1596,11 +1605,11 @@ func IsAviLBDefaultIngressClassWithClient() (string, bool) {
 	return "", false
 }
 
-func GetAviSecretWithRetry(kc kubernetes.Interface, retryCount int) (*v1.Secret, error) {
+func GetAviSecretWithRetry(kc kubernetes.Interface, retryCount int, secret string) (*v1.Secret, error) {
 	var aviSecret *v1.Secret
 	var err error
 	for retry := 0; retry < retryCount; retry++ {
-		aviSecret, err = kc.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), AviSecret, metav1.GetOptions{})
+		aviSecret, err = kc.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), secret, metav1.GetOptions{})
 		if err == nil {
 			return aviSecret, nil
 		}
@@ -1626,27 +1635,41 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 	ctrlProp := utils.SharedCtrlProp().GetAllCtrlProp()
 	ctrlUsername := ctrlProp[utils.ENV_CTRL_USERNAME]
 	ctrlAuthToken := ctrlProp[utils.ENV_CTRL_AUTHTOKEN]
+	ctrlCAData := ctrlProp[utils.ENV_CTRL_CADATA]
 	ctrlIpAddress := GetControllerIP()
+	oldTokenID := ""
 
-	aviClient := NewAviRestClientWithToken(ctrlIpAddress, ctrlUsername, ctrlAuthToken)
+	aviClient := NewAviRestClientWithToken(ctrlIpAddress, ctrlUsername, ctrlAuthToken, ctrlCAData)
 	if aviClient == nil {
 		utils.AviLog.Errorf("Failed to initialize AVI client")
 		return
 	}
-	userTokensListResp, err := utils.GetAuthTokenWithRetry(aviClient, retryCount)
+	tokens := make(map[string]interface{})
+	err := utils.GetAuthTokenMapWithRetry(aviClient, tokens, retryCount)
 	if err != nil {
 		utils.AviLog.Errorf("Failed to get existing tokens from controller, err: %+v", err)
 		return
 	}
-	oldTokenID, refresh, err := utils.GetTokenFromRestObj(userTokensListResp, ctrlAuthToken)
-	if err != nil {
-		utils.AviLog.Errorf("Failed to find token on controller, err: %+v", err)
-		return
+	aviToken, ok := tokens[ctrlAuthToken]
+	if ok {
+		expiry, ok := aviToken.(map[string]interface{})["expires_at"].(string)
+		if !ok {
+			utils.AviLog.Errorf("Failed to parse token object")
+			return
+		}
+		layout := "2006-01-02T15:04:05.000000+00:00"
+		expiryTime, err := time.Parse(layout, expiry)
+		if err != nil {
+			utils.AviLog.Errorf("Unable to parse token expiry time, err: %+v", err)
+			return
+		}
+		if time.Until(expiryTime) > (utils.RefreshAuthTokenPeriod*utils.AuthTokenExpiry)*time.Hour {
+			utils.AviLog.Infof("Skipping AuthToken Refresh")
+			return
+		}
+		oldTokenID, _ = aviToken.(map[string]interface{})["uuid"].(string)
 	}
-	if !refresh {
-		utils.AviLog.Infof("Skipping AuthToken Refresh")
-		return
-	}
+
 	newTokenResp, err := utils.CreateAuthTokenWithRetry(aviClient, retryCount)
 	if err != nil {
 		utils.AviLog.Errorf("Failed to post new token, err: %+v", err)
@@ -1657,17 +1680,30 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 		return
 	}
 	token := newTokenResp.(map[string]interface{})["token"].(string)
-	aviSecret, err := GetAviSecretWithRetry(kc, retryCount)
-	if err != nil {
-		utils.AviLog.Errorf("Failed to get secret, err: %+v", err)
-		return
+	var secrets []string
+	if utils.IsVCFCluster() {
+		secrets = []string{
+			AviInitSecret,
+			AviSecret,
+		}
+	} else {
+		secrets = []string{
+			AviSecret,
+		}
 	}
-	aviSecret.Data["authtoken"] = []byte(token)
+	for _, secret := range secrets {
+		aviSecret, err := GetAviSecretWithRetry(kc, retryCount, secret)
+		if err != nil {
+			utils.AviLog.Errorf("Failed to get secret, err: %+v", err)
+			return
+		}
+		aviSecret.Data["authtoken"] = []byte(token)
 
-	err = UpdateAviSecretWithRetry(kc, aviSecret, retryCount)
-	if err != nil {
-		utils.AviLog.Errorf("Failed to update secret, err: %+v", err)
-		return
+		err = UpdateAviSecretWithRetry(kc, aviSecret, retryCount)
+		if err != nil {
+			utils.AviLog.Errorf("Failed to update secret, err: %+v", err)
+			return
+		}
 	}
 	utils.AviLog.Infof("Successfully updated authtoken")
 	if oldTokenID != "" {
@@ -1682,6 +1718,7 @@ func GetControllerPropertiesFromSecret(cs kubernetes.Interface) (map[string]stri
 	ctrlProps := make(map[string]string)
 	aviSecret, err := cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), AviSecret, metav1.GetOptions{})
 	if err != nil {
+		utils.AviLog.Error(err, err.Error())
 		return ctrlProps, err
 	}
 	ctrlProps[utils.ENV_CTRL_USERNAME] = string(aviSecret.Data["username"])
@@ -1694,6 +1731,11 @@ func GetControllerPropertiesFromSecret(cs kubernetes.Interface) (map[string]stri
 		ctrlProps[utils.ENV_CTRL_AUTHTOKEN] = string(aviSecret.Data["authtoken"])
 	} else {
 		ctrlProps[utils.ENV_CTRL_AUTHTOKEN] = ""
+	}
+	if aviSecret.Data["certificateAuthorityData"] != nil {
+		ctrlProps[utils.ENV_CTRL_CADATA] = string(aviSecret.Data["certificateAuthorityData"])
+	} else {
+		ctrlProps[utils.ENV_CTRL_CADATA] = ""
 	}
 	return ctrlProps, nil
 }
@@ -1726,7 +1768,7 @@ func GetK8sMaxSupportedVersion() string {
 }
 
 func GetControllerVersion() string {
-	controllerVersion := utils.CtrlVersion
+	controllerVersion := AKOControlConfig().ControllerVersion()
 	// Ensure that the controllerVersion is less than the supported Avi maxVersion and more than minVersion.
 	if CompareVersions(controllerVersion, ">", GetAviMaxSupportedVersion()) {
 		utils.AviLog.Infof("Setting the client version to AVI Max supported version %s", GetAviMaxSupportedVersion())
@@ -1745,7 +1787,10 @@ func GetControllerVersion() string {
 
 func VIPPerNamespace() bool {
 	vipPerNS := os.Getenv(VIP_PER_NAMESPACE)
-	return vipPerNS == "true"
+	if vipPerNS == "true" {
+		return true
+	}
+	return utils.IsVCFCluster()
 }
 
 var controllerIP string
@@ -1950,4 +1995,12 @@ func GetIPFromNode(node *v1.Node) (string, string) {
 		}
 	}
 	return nodeV4, nodeV6
+}
+
+func init() {
+	seGroupToUse := os.Getenv(SEG_NAME)
+	if seGroupToUse == "" {
+		seGroupToUse = DEFAULT_SE_GROUP
+	}
+	SEGroupName = seGroupToUse
 }

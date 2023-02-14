@@ -21,23 +21,24 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	v1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
 var dynamicInformerInstance *DynamicInformers
 var dynamicClientSet dynamic.Interface
 
-var vcfDynamicInformerInstance *VCFDynamicInformers
-var vcfDynamicClientSet dynamic.Interface
 var (
 	// CalicoBlockaffinityGVR : Calico's BlockAffinity CRD resource identifier
 	CalicoBlockaffinityGVR = schema.GroupVersionResource{
@@ -53,16 +54,16 @@ var (
 		Resource: "hostsubnets",
 	}
 
-	BootstrapGVR = schema.GroupVersionResource{
-		Group:    "ncp.vmware.com",
-		Version:  "v1alpha1",
-		Resource: "akobootstrapconditions",
-	}
-
 	NetworkInfoGVR = schema.GroupVersionResource{
 		Group:    "nsx.vmware.com",
 		Version:  "v1alpha1",
 		Resource: "namespacenetworkinfos",
+	}
+
+	ClusterNetworkGVR = schema.GroupVersionResource{
+		Group:    "nsx.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "clusternetworkinfos",
 	}
 )
 
@@ -73,7 +74,7 @@ type BootstrapCRData struct {
 // NewDynamicClientSet initializes dynamic client set instance
 func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
 	// do not instantiate the dynamic client set if the CNI being used is NOT calico
-	if GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI && !utils.IsVCFCluster() {
+	if !utils.IsVCFCluster() && GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI {
 		return nil, nil
 	}
 
@@ -88,10 +89,15 @@ func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
 	return dynamicClientSet, nil
 }
 
+// SetDynamicClientSet is used for Unit tests.
+func SetDynamicClientSet(c dynamic.Interface) {
+	dynamicClientSet = c
+}
+
 // GetDynamicClientSet returns dynamic client set instance
 func GetDynamicClientSet() dynamic.Interface {
 	if dynamicClientSet == nil {
-		utils.AviLog.Warn("Cannot retrieve the dynamic informers since it's not initialized yet.")
+		utils.AviLog.Warn("Cannot retrieve the dynamic clientset since it's not initialized yet.")
 		return nil
 	}
 	return dynamicClientSet
@@ -101,11 +107,13 @@ func GetDynamicClientSet() dynamic.Interface {
 type DynamicInformers struct {
 	CalicoBlockAffinityInformer informers.GenericInformer
 	HostSubnetInformer          informers.GenericInformer
-	NCPBootstrapInformer        informers.GenericInformer
+
+	VCFNetworkInfoInformer    informers.GenericInformer
+	VCFClusterNetworkInformer informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
-func NewDynamicInformers(client dynamic.Interface) *DynamicInformers {
+func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInformers {
 	informers := &DynamicInformers{}
 	f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, 0, v1.NamespaceAll, nil)
 
@@ -115,11 +123,14 @@ func NewDynamicInformers(client dynamic.Interface) *DynamicInformers {
 	case OPENSHIFT_CNI:
 		informers.HostSubnetInformer = f.ForResource(HostSubnetGVR)
 	default:
-		utils.AviLog.Infof("Skipped initializing dynamic informers %s ", GetCNIPlugin())
+		utils.AviLog.Infof("Skipped initializing dynamic informers for cniPlugin %s", GetCNIPlugin())
 	}
 
 	if utils.IsVCFCluster() {
-		informers.NCPBootstrapInformer = f.ForResource(BootstrapGVR)
+		informers.VCFNetworkInfoInformer = f.ForResource(NetworkInfoGVR)
+		if akoInfra {
+			informers.VCFClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
+		}
 	}
 
 	dynamicInformerInstance = informers
@@ -135,181 +146,18 @@ func GetDynamicInformers() *DynamicInformers {
 	return dynamicInformerInstance
 }
 
-func NewVCFDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
-	ds, err := dynamic.NewForConfig(config)
-	if err != nil {
-		utils.AviLog.Infof("Error while creating dynamic client %v", err)
-		return nil, err
-	}
-	if vcfDynamicClientSet == nil {
-		vcfDynamicClientSet = ds
-	}
-	return vcfDynamicClientSet, nil
-}
-
-func SetVCFVCFDynamicClientSet(dc dynamic.Interface) {
-	vcfDynamicClientSet = dc
-}
-
-func GetVCFDynamicClientSet() dynamic.Interface {
-	if vcfDynamicClientSet == nil {
-		utils.AviLog.Warn("Cannot retrieve the dynamic informers since it's not initialized yet.")
-		return nil
-	}
-	return vcfDynamicClientSet
-}
-
-type VCFDynamicInformers struct {
-	NCPBootstrapInformer informers.GenericInformer
-	NetworkInfoInformer  informers.GenericInformer
-}
-
-func NewVCFDynamicInformers(client dynamic.Interface) *VCFDynamicInformers {
-	informers := &VCFDynamicInformers{}
-	f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, 0, v1.NamespaceAll, nil)
-
-	informers.NCPBootstrapInformer = f.ForResource(BootstrapGVR)
-	informers.NetworkInfoInformer = f.ForResource(NetworkInfoGVR)
-
-	vcfDynamicInformerInstance = informers
-	return vcfDynamicInformerInstance
-}
-
-func GetVCFDynamicInformers() *VCFDynamicInformers {
-	if vcfDynamicInformerInstance == nil {
-		utils.AviLog.Warn("Cannot retrieve the dynamic informers since it's not initialized yet.")
-		return nil
-	}
-	return vcfDynamicInformerInstance
-}
-
-func GetBootstrapCRData() (BootstrapCRData, bool) {
-	var boostrapdata BootstrapCRData
-	dynamicClient := GetVCFDynamicClientSet()
-	crdClient := dynamicClient.Resource(BootstrapGVR)
-	crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		utils.AviLog.Errorf("Error getting CRD %v", err)
-		return boostrapdata, false
-	}
-
-	if len(crdList.Items) != 1 {
-		utils.AviLog.Errorf("Expected only one object for NCP bootstrap but found: %d", len(crdList.Items))
-		return boostrapdata, false
-	}
-
-	obj := crdList.Items[0]
-	spec, ok := obj.Object["spec"].(map[string]interface{})
-	if !ok {
-		utils.AviLog.Errorf("spec is not found in NCP bootstrap object")
-		return boostrapdata, false
-	}
-	secretref, ok := spec["albCredentialSecretRef"].(map[string]interface{})
-	if !ok {
-		utils.AviLog.Errorf("albCredentialSecretRef is not found in NCP bootstrap object")
-		return boostrapdata, false
-	}
-	albtoken, ok := spec["albTokenProperty"].(map[string]interface{})
-	if !ok {
-		utils.AviLog.Errorf("albTokenProperty is not found in NCP bootstrap object")
-		return boostrapdata, false
-	}
-
-	secretName, ok := secretref["name"].(string)
-	if !ok {
-		utils.AviLog.Errorf("secretName is not of type string")
-		return boostrapdata, false
-	}
-	secretNamespace, ok := secretref["namespace"].(string)
-	if !ok {
-		utils.AviLog.Errorf("secretNamespace is not of type string")
-		return boostrapdata, false
-	}
-	userName, ok := albtoken["userName"].(string)
-	if !ok {
-		utils.AviLog.Errorf("userName is not of type string")
-		return boostrapdata, false
-	}
-
-	status, ok := obj.Object["status"].(map[string]interface{})
-	if !ok {
-		utils.AviLog.Errorf("Status not found in bootstrap CR")
-		return boostrapdata, false
-	}
-	tzone, ok := status["transportZone"].(map[string]interface{})
-	if !ok {
-		utils.AviLog.Errorf("transportZone not found in status of bootstrap CR")
-		return boostrapdata, false
-	}
-	tzPath, ok := tzone["path"].(string)
-	if !ok {
-		utils.AviLog.Errorf("transportZone path not found in status of bootstrap CR")
-		return boostrapdata, false
-	}
-
-	albEndpoint, ok := status["albEndpoint"].(map[string]interface{})
-	if !ok {
-		utils.AviLog.Errorf("albEndpoint not found in status of bootstrap CR")
-		return boostrapdata, false
-	}
-	hostUrl, ok := albEndpoint["hostUrl"].(string)
-	if !ok {
-		utils.AviLog.Errorf("hostUrl path not found in status of bootstrap CR")
-		return boostrapdata, false
-	}
-	boostrapdata.SecretName = secretName
-	boostrapdata.SecretNamespace = secretNamespace
-	boostrapdata.UserName = userName
-	boostrapdata.TZPath = tzPath
-	boostrapdata.AviURL = hostUrl
-
-	return boostrapdata, true
-}
-
-func GetControllerURLFromBootstrapCR() string {
-	dynamicClient := GetVCFDynamicClientSet()
-	crdClient := dynamicClient.Resource(BootstrapGVR)
-	crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		utils.AviLog.Errorf("Error getting CRD %v", err)
-		return ""
-	}
-
-	if len(crdList.Items) != 1 {
-		utils.AviLog.Errorf("Expected only one object for NCP bootstrap but found: %d", len(crdList.Items))
-		return ""
-	}
-
-	obj := crdList.Items[0]
-
-	status, ok := obj.Object["status"].(map[string]interface{})
-	if !ok {
-		utils.AviLog.Errorf("Status not found in bootstrap CR")
-		return ""
-	}
-
-	albEndpoint, ok := status["albEndpoint"].(map[string]interface{})
-	if !ok {
-		utils.AviLog.Errorf("albEndpoint not found in status of bootstrap CR")
-		return ""
-	}
-	hostUrl, ok := albEndpoint["hostUrl"].(string)
-	if !ok {
-		utils.AviLog.Errorf("hostUrl path not found in status of bootstrap CR")
-		return ""
-	}
-
-	return hostUrl
-}
-
-func GetNetinfoCRData() (map[string]string, map[string]struct{}) {
+func GetNetworkInfoCRData(clientSet dynamic.Interface) (map[string]string, map[string]struct{}) {
 	lslrMap := make(map[string]string)
 	cidrs := make(map[string]struct{})
-	dynamicClient := GetVCFDynamicClientSet()
-	crdClient := dynamicClient.Resource(NetworkInfoGVR)
-	crList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
+
+	crList, err := clientSet.Resource(NetworkInfoGVR).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		utils.AviLog.Errorf("Error getting Networkinfo CR %v", err)
+		return lslrMap, cidrs
+	}
+
+	if len(crList.Items) == 0 {
+		utils.AviLog.Infof("No Networkinfo CRs found.")
 		return lslrMap, cidrs
 	}
 
@@ -329,15 +177,42 @@ func GetNetinfoCRData() (map[string]string, map[string]struct{}) {
 		cidrIntf, ok := spec["ingressCIDRs"].([]interface{})
 		if !ok {
 			utils.AviLog.Infof("cidr not found in networkinfo object")
-			continue
-		} else {
-			for _, cidr := range cidrIntf {
-				cidrs[cidr.(string)] = struct{}{}
+			// If not found, try fetching from cluster network info CRD
+			var clusterNetworkCIDRFound bool
+			if cidrIntf, clusterNetworkCIDRFound = GetClusterNetworkInfoCRData(clientSet); !clusterNetworkCIDRFound {
+				continue
 			}
+			utils.AviLog.Infof("Ingress CIDR found from Cluster Network Info %v", cidrIntf)
+		}
+		for _, cidr := range cidrIntf {
+			cidrs[cidr.(string)] = struct{}{}
 		}
 	}
 
 	return lslrMap, cidrs
+}
+
+func GetClusterNetworkInfoCRData(clientSet dynamic.Interface) ([]interface{}, bool) {
+	var cidrs []interface{}
+	crList, err := clientSet.Resource(ClusterNetworkGVR).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		utils.AviLog.Errorf("Error getting Cluster Network Info CR %v", err)
+		return cidrs, false
+	}
+
+	if len(crList.Items) == 0 {
+		utils.AviLog.Errorf("No Cluster Network Info CRs found.")
+		return cidrs, false
+	}
+
+	crObj := crList.Items[0]
+	spec := crObj.Object["topology"].(map[string]interface{})
+	cidrIntf, ok := spec["ingressCIDRs"].([]interface{})
+	if !ok {
+		utils.AviLog.Infof("cidr not found in Cluster Network Info object")
+		return cidrs, false
+	}
+	return cidrIntf, true
 }
 
 // GetPodCIDR returns the node's configured PodCIDR
@@ -428,4 +303,38 @@ func GetPodCIDR(node *v1.Node) ([]string, error) {
 // GetCNIPlugin returns the user provided CNI plugin - oneof (calico|canal|flannel)
 func GetCNIPlugin() string {
 	return strings.ToLower(os.Getenv(CNI_PLUGIN))
+}
+
+// WaitForInitSecretRecreateAndReboot Deletes the avi-init-secret provided by NCP,
+// in order for NCP to generate the token and recreate the Secret. After Secret deletion,
+// once AKO finds a new Secret created, it reboots in order to refresh the Client and
+// Session to the Avi Controller.
+// This can be further improved to update Avi Controller Session during runtime, but
+// is complicated business right now.
+func WaitForInitSecretRecreateAndReboot() {
+	cs := utils.GetInformers().ClientSet
+	if err := cs.CoreV1().Secrets(utils.VMWARE_SYSTEM_AKO).Delete(context.TODO(), AviInitSecret, metav1.DeleteOptions{}); err != nil {
+		utils.AviLog.Errorf("Error while deleting the init Secret for Secret refresh.")
+		return
+	}
+
+	var checkForInitSecretRecreate = func(cs kubernetes.Interface) error {
+		_, err := cs.CoreV1().Secrets(utils.VMWARE_SYSTEM_AKO).Get(context.TODO(), AviInitSecret, metav1.GetOptions{})
+		return err
+	}
+
+	defer utils.AviLog.Fatalf("Found new init secret, rebooting AKO")
+	// This waits for AKO to get a new refreshed Secret for a total of 75 seconds.
+	for retry := 0; retry < 15; retry++ {
+		err := checkForInitSecretRecreate(cs)
+		if err == nil {
+			return
+		}
+		if k8serrors.IsNotFound(err) {
+			utils.AviLog.Infof("init Secret not found, retrying...")
+		} else {
+			utils.AviLog.Fatalf(err.Error())
+		}
+		time.Sleep(5 * time.Second)
+	}
 }

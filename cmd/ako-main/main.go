@@ -103,7 +103,7 @@ func InitializeAKC() {
 	var advl4Client *advl4.Clientset
 	var svcAPIClient *svcapi.Clientset
 
-	if lib.GetAdvancedL4() {
+	if lib.IsWCP() {
 		advl4Client, err = advl4.NewForConfig(cfg)
 		if err != nil {
 			utils.AviLog.Fatalf("Error building service-api v1alpha1pre1 clientset: %s", err.Error())
@@ -160,7 +160,7 @@ func InitializeAKC() {
 		utils.AviLog.Warnf("Error in creating openshift clientset")
 	}
 
-	registeredInformers, err := lib.InformersToRegister(kubeClient, oshiftClient, false)
+	registeredInformers, err := lib.InformersToRegister(kubeClient, oshiftClient)
 	if err != nil {
 		utils.AviLog.Fatalf("Failed to initialize informers: %v, shutting down AKO, going to reboot", err)
 	}
@@ -172,10 +172,16 @@ func InitializeAKC() {
 	if lib.GetNamespaceToSync() != "" {
 		informersArg[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
 	}
-	informersArg[utils.INFORMERS_ADVANCED_L4] = lib.GetAdvancedL4()
+
+	// Namespace bound Secret informers should be initialized for AKO in VDS,
+	// For AKO in VCF, we will need to watch on Secrets across all namespaces.
+	if !utils.IsVCFCluster() && lib.GetAdvancedL4() {
+		informersArg[utils.INFORMERS_ADVANCED_L4] = true
+	}
+
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
-	lib.NewDynamicInformers(dynamicClient)
-	if lib.GetAdvancedL4() {
+	lib.NewDynamicInformers(dynamicClient, false)
+	if lib.IsWCP() {
 		k8s.NewAdvL4Informers(advl4Client)
 	} else {
 		k8s.NewCRDInformers(crdClient)
@@ -184,6 +190,8 @@ func InitializeAKC() {
 		}
 	}
 	istioUpdateCh := make(chan struct{})
+
+	// Set Istio Informers.
 	if lib.IsIstioEnabled() {
 		lib.SetIstioInitialized(false)
 		akoControlConfig.PodEventf(corev1.EventTypeNormal, "IstioEnabled", "Adding certificate watcher for Istio")
@@ -220,64 +228,11 @@ func InitializeAKC() {
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
 
-	lib.NewVCFDynamicClientSet(cfg)
-	// In VCF environment, avi controller details have to be fetched from the Bootstrap CR
-	if lib.GetControllerIP() == "" {
-		utils.AviLog.Infof("Unable to find Avi Controller endpoint, trying to fetch from bootstrap Resource.")
-		ctrlIP := lib.GetControllerURLFromBootstrapCR()
-		if ctrlIP != "" {
-			lib.SetControllerIP(ctrlIP)
-		} else {
-			utils.AviLog.Infof("Valid Avi Controller details not found, waiting .. ")
-			startSyncCh := make(chan struct{})
-			c.AddNCPBootstrapEventHandler(informers, stopCh, startSyncCh)
-		L1:
-			for {
-				select {
-				case <-startSyncCh:
-					break L1
-				case <-ctrlCh:
-					return
-				}
-			}
-		}
+	if utils.IsVCFCluster() {
+		c.InitVCFHandlers(kubeClient, ctrlCh, stopCh)
 	}
-
-	if !c.ValidAviSecret() {
-		utils.AviLog.Infof("Valid Avi Secret not found, waiting .. ")
-		startSyncCh := make(chan struct{})
-		c.AddBootupSecretEventHandler(informers, stopCh, startSyncCh)
-	L2:
-		for {
-			select {
-			case <-startSyncCh:
-				lib.AviSecretInitialized = true
-				break L2
-			case <-ctrlCh:
-				return
-			}
-		}
-	}
-	utils.AviLog.Infof("Valid Avi Secret found, continuing .. ")
 
 	err = k8s.PopulateControllerProperties(kubeClient)
-	if !c.SetSEGroupCloudName() {
-		utils.AviLog.Infof("SEgroup name not found, waiting ..")
-		startSyncCh := make(chan struct{})
-		c.AddBootupNSEventHandler(informers, stopCh, startSyncCh)
-	L3:
-		for {
-			select {
-			case <-startSyncCh:
-				lib.AviSEInitialized = true
-				break L3
-			case <-ctrlCh:
-				return
-			}
-		}
-	}
-	utils.AviLog.Infof("SEgroup name found, continuing ..")
-
 	if err != nil {
 		utils.AviLog.Warnf("Error while fetching secret for AKO bootstrap %s", err)
 		lib.ShutdownApi()
@@ -295,22 +250,26 @@ func InitializeAKC() {
 
 	akoControlConfig.SetLicenseType(aviRestClientPool.AviClient[0])
 
+	if lib.GetAdvancedL4() {
+		err, seGroupToUse := lib.FetchSEGroupWithMarkerSet(aviRestClientPool.AviClient[0])
+		if err != nil {
+			utils.AviLog.Warnf("Setting SEGroup with markerset failed: %s", err)
+		}
+		if seGroupToUse == "" {
+			utils.AviLog.Infof("Continuing with Default-Group SEGroup")
+			seGroupToUse = lib.DEFAULT_SE_GROUP
+		}
+		lib.SetSEGName(seGroupToUse)
+	}
+
 	err = c.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	if err != nil {
 		utils.AviLog.Errorf("Handle configmap error during reboot, shutting down AKO. Error is: %v", err)
 		return
 	}
-
 	if !utils.IsVCFCluster() {
 		if _, err := lib.GetVipNetworkListEnv(); err != nil {
 			utils.AviLog.Fatalf("Error in getting VIP network %s, shutting down AKO", err)
-		}
-	} else {
-		lib.NewVCFDynamicClientSet(cfg)
-		lslrMap, _ := lib.GetNetinfoCRData()
-		for _, lr := range lslrMap {
-			lib.SetT1LRPath(lr)
-			break
 		}
 	}
 

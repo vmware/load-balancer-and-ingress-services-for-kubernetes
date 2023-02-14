@@ -314,34 +314,3 @@ func (c *AviController) SetupSvcApiEventHandlers(numWorkers uint32) {
 	informer.GatewayClassInformer.Informer().AddEventHandler(gatewayClassEventHandler)
 	return
 }
-
-func (c *AviController) AddSvcApiIndexers() {
-	informer := lib.AKOControlConfig().SvcAPIInformers()
-	informer.GatewayInformer.Informer().AddIndexers(
-		cache.Indexers{
-			lib.GatewayClassGatewayIndex: func(obj interface{}) ([]string, error) {
-				gw, ok := obj.(*servicesapi.Gateway)
-				if !ok {
-					return []string{}, nil
-				}
-				return []string{gw.Spec.GatewayClassName}, nil
-			},
-		},
-	)
-	informer.GatewayClassInformer.Informer().AddIndexers(
-		cache.Indexers{
-			lib.AviSettingGWClassIndex: func(obj interface{}) ([]string, error) {
-				gwclass, ok := obj.(*servicesapi.GatewayClass)
-				if !ok {
-					return []string{}, nil
-				}
-				if gwclass.Spec.ParametersRef != nil {
-					// sample settingKey: ako.vmware.com/AviInfraSetting/avi-1
-					settingKey := gwclass.Spec.ParametersRef.Group + "/" + gwclass.Spec.ParametersRef.Kind + "/" + gwclass.Spec.ParametersRef.Name
-					return []string{settingKey}, nil
-				}
-				return []string{}, nil
-			},
-		},
-	)
-}

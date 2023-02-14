@@ -165,9 +165,10 @@ func (l *leader) SyncObjectStatuses() {
 	}
 
 	publisher := status.NewStatusPublisher()
-	if lib.GetAdvancedL4() {
+	if lib.IsWCP() {
 		publisher.UpdateGatewayStatusAddress(allGatewayUpdateOptions, true)
 		publisher.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
+		publisher.UpdateRouteIngressStatus(allIngressUpdateOptions, true)
 	} else {
 		if lib.UseServicesAPI() {
 			publisher.UpdateSvcApiGatewayStatusAddress(allGatewayUpdateOptions, true)
@@ -180,7 +181,6 @@ func (l *leader) SyncObjectStatuses() {
 
 	utils.AviLog.Infof("Status syncing completed")
 	lib.AKOControlConfig().PodEventf(v1.EventTypeNormal, lib.StatusSync, "Status syncing completed")
-
 }
 
 // SyncObjectStatuses in follower does nothing.

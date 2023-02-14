@@ -78,15 +78,21 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 	}
 
 	avi_vs_meta := &AviVsNode{
-		Name:       vsName,
-		Tenant:     lib.GetTenant(),
-		VrfContext: lib.GetVrf(),
+		Name:   vsName,
+		Tenant: lib.GetTenant(),
 		ServiceMetadata: lib.ServiceMetadataObj{
 			NamespaceServiceName: serviceNSNames,
 			Gateway:              namespace + "/" + gatewayName,
 		},
 		ServiceEngineGroup: lib.GetSEGName(),
 		EnableRhi:          proto.Bool(lib.GetEnableRHI()),
+	}
+
+	var vrfcontext string
+	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
+	if t1lr == "" {
+		vrfcontext = lib.GetVrf()
+		avi_vs_meta.VrfContext = vrfcontext
 	}
 
 	avi_vs_meta.AviMarkers = lib.PopulateAdvL4VSNodeMarkers(namespace, gatewayName)
@@ -132,8 +138,12 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 	vsVipNode := &AviVSVIPNode{
 		Name:        lib.GetL4VSVipName(gatewayName, namespace),
 		Tenant:      lib.GetTenant(),
-		VrfContext:  lib.GetVrf(),
+		VrfContext:  vrfcontext,
 		VipNetworks: lib.GetVipNetworkList(),
+	}
+
+	if t1lr != "" {
+		vsVipNode.T1Lr = t1lr
 	}
 
 	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
@@ -200,15 +210,21 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 	}
 
 	avi_vs_meta := &AviVsNode{
-		Name:       vsName,
-		Tenant:     lib.GetTenant(),
-		VrfContext: lib.GetVrf(),
+		Name:   vsName,
+		Tenant: lib.GetTenant(),
 		ServiceMetadata: lib.ServiceMetadataObj{
 			Gateway:   namespace + "/" + gatewayName,
 			HostNames: fqdns,
 		},
 		ServiceEngineGroup: lib.GetSEGName(),
 		EnableRhi:          proto.Bool(lib.GetEnableRHI()),
+	}
+
+	var vrfcontext string
+	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
+	if t1lr == "" {
+		vrfcontext = lib.GetVrf()
+		avi_vs_meta.VrfContext = vrfcontext
 	}
 
 	isTCP, isUDP, isSCTP := false, false, false
@@ -253,9 +269,13 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 	vsVipNode := &AviVSVIPNode{
 		Name:        lib.GetL4VSVipName(gatewayName, namespace),
 		Tenant:      lib.GetTenant(),
-		VrfContext:  lib.GetVrf(),
+		VrfContext:  vrfcontext,
 		FQDNs:       fqdns,
 		VipNetworks: lib.GetVipNetworkList(),
+	}
+
+	if t1lr != "" {
+		vsVipNode.T1Lr = t1lr
 	}
 
 	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
@@ -314,6 +334,8 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		}
 	}
 
+	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
+
 	var portPoolSet []AviHostPathPortPoolPG
 	for listener, svc := range svcListeners {
 		if !utils.HasElem(gwListeners, listener) || len(svc) != 1 {
@@ -346,6 +368,12 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 				NamespaceServiceName: []string{svc[0]},
 			},
 			VrfContext: lib.GetVrf(),
+		}
+
+		// Unset the poolnode's vrfcontext.
+		if t1lr != "" {
+			poolNode.T1Lr = t1lr
+			poolNode.VrfContext = ""
 		}
 
 		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
@@ -453,6 +481,7 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 	avi_vs_meta.AviMarkers = lib.PopulateAdvL4VSNodeMarkers(namespace, sharedVipKey)
 	var portProtocols []AviPortHostProtocol
 	var sharedPreferredVIP string
+	var appProfile string
 	var serviceObject *v1.Service
 	for i, serviceNSName := range serviceNSNames {
 		svcNSName := strings.Split(serviceNSName, "/")
@@ -470,6 +499,9 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 			}
 			if infraSettingAnnotation, ok := svcObj.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
 				serviceObject = svcObj.DeepCopy()
+			}
+			if appProfileAnnotation, ok := svcObj.GetAnnotations()[lib.LBSvcAppProfileAnnotation]; ok && appProfileAnnotation != "" {
+				appProfile = appProfileAnnotation
 			}
 		}
 
@@ -492,7 +524,11 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 	}
 
 	avi_vs_meta.PortProto = portProtocols
-	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
+	if appProfile != "" {
+		avi_vs_meta.ApplicationProfile = appProfile
+	} else {
+		avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
+	}
 
 	if isSCTP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY

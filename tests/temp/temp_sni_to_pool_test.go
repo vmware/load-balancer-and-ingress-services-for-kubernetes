@@ -106,7 +106,7 @@ func TestMain(m *testing.M) {
 	integrationtest.PollForSyncStart(ctrl, 10)
 
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
-	ctrl.SetSEGroupCloudName()
+	ctrl.SetSEGroupCloudNameFromNSAnnotations()
 
 	integrationtest.KubeClient = KubeClient
 	integrationtest.AddDefaultIngressClass()
