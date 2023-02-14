@@ -23,6 +23,9 @@ type EmailConfiguration struct {
 	// Email address in From field. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FromEmail *string `json:"from_email,omitempty"`
 
+	// Friendly name in From field. Field introduced in 21.1.4. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	FromName *string `json:"from_name,omitempty"`
+
 	// Mail server host. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MailServerName *string `json:"mail_server_name,omitempty"`
 

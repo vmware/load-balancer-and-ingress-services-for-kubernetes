@@ -20,6 +20,9 @@ type L7limits struct {
 	// Number of Matches per Rule. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	NumMatchesPerRule *int32 `json:"num_matches_per_rule,omitempty"`
 
+	// Number of rules per EVH Host. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	NumRulesPerEvhHost *int32 `json:"num_rules_per_evh_host,omitempty"`
+
 	// Number of rules per HTTPRequest/HTTPResponse/HTTPSecurity Policy. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	NumRulesPerHTTPPolicy *int32 `json:"num_rules_per_http_policy,omitempty"`
 

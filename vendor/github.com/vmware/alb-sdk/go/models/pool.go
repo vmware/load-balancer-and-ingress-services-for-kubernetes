@@ -115,7 +115,7 @@ type Pool struct {
 	// Use list of servers from Ip Address Group. It is a reference to an object of type IpAddrGroup. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IpaddrgroupRef *string `json:"ipaddrgroup_ref,omitempty"`
 
-	// Do Round Robin load load balancing at SE level instead of the default per core load balancing. Field introduced in 21.1.5, 22.1.2. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Do Round Robin load load balancing at SE level instead of the default per core load balancing. Field introduced in 21.1.5, 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	LbAlgoRrPerSe *bool `json:"lb_algo_rr_per_se,omitempty"`
 
 	// The load balancing algorithm will pick a server within the pool's list of available servers. Values LB_ALGORITHM_NEAREST_SERVER and LB_ALGORITHM_TOPOLOGY are only allowed for GSLB pool. Enum options - LB_ALGORITHM_LEAST_CONNECTIONS, LB_ALGORITHM_ROUND_ROBIN, LB_ALGORITHM_FASTEST_RESPONSE, LB_ALGORITHM_CONSISTENT_HASH, LB_ALGORITHM_LEAST_LOAD, LB_ALGORITHM_FEWEST_SERVERS, LB_ALGORITHM_RANDOM, LB_ALGORITHM_FEWEST_TASKS, LB_ALGORITHM_NEAREST_SERVER, LB_ALGORITHM_CORE_AFFINITY, LB_ALGORITHM_TOPOLOGY. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- LB_ALGORITHM_LEAST_CONNECTIONS,LB_ALGORITHM_ROUND_ROBIN,LB_ALGORITHM_CONSISTENT_HASH), Basic edition(Allowed values- LB_ALGORITHM_LEAST_CONNECTIONS,LB_ALGORITHM_ROUND_ROBIN,LB_ALGORITHM_CONSISTENT_HASH), Enterprise with Cloud Services edition.
@@ -206,6 +206,9 @@ type Pool struct {
 	// Enable TLS SNI for server connections. If disabled, Avi will not send the SNI extension as part of the handshake. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SniEnabled *bool `json:"sni_enabled,omitempty"`
 
+	// GSLB service associated with the site persistence pool. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
+	SpGsInfo *SpGslbServiceInfo `json:"sp_gs_info,omitempty"`
+
 	// Service Engines will present a client SSL certificate to the server. It is a reference to an object of type SSLKeyAndCertificate. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SslKeyAndCertificateRef *string `json:"ssl_key_and_certificate_ref,omitempty"`
 
@@ -231,6 +234,6 @@ type Pool struct {
 	// UUID of the pool. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UUID *string `json:"uuid,omitempty"`
 
-	// Virtual Routing Context that the pool is bound to. This is used to provide the isolation of the set of networks the pool is attached to. The pool inherits the Virtual Routing Conext of the Virtual Service, and this field is used only internally, and is set by pb-transform. It is a reference to an object of type VrfContext. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// Virtual Routing Context that the pool is bound to. This is used to provide the isolation of the set of networks the pool is attached to. The pool inherits the Virtual Routing Context of the Virtual Service, and this field is used only internally, and is set by pb-transform. It is a reference to an object of type VrfContext. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VrfRef *string `json:"vrf_ref,omitempty"`
 }

@@ -48,6 +48,12 @@ type SystemConfiguration struct {
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	GlobalTenantConfig *TenantConfiguration `json:"global_tenant_config,omitempty"`
 
+	// Users can specify comma separated list of deprecated host key algorithm.If nothing is specified, all known algorithms provided by OpenSSH will be supported.This change could only apply on the controller node. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	HostKeyAlgorithmExclude *string `json:"host_key_algorithm_exclude,omitempty"`
+
+	// Users can specify comma separated list of deprecated key exchange algorithm.If nothing is specified, all known algorithms provided by OpenSSH will be supported.This change could only apply on the controller node. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	KexAlgorithmExclude *string `json:"kex_algorithm_exclude,omitempty"`
+
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LinuxConfiguration *LinuxConfiguration `json:"linux_configuration,omitempty"`
 

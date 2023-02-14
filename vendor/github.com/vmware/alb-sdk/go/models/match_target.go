@@ -44,6 +44,9 @@ type MatchTarget struct {
 	// Configure source ip addresses. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	SourceIP *IPAddrMatch `json:"source_ip,omitempty"`
 
+	// Configure the TLS fingerprint. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	TLSFingerprintMatch *TLSFingerprintMatch `json:"tls_fingerprint_match,omitempty"`
+
 	// Configure versions of the HTTP protocol. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Version *HTTPVersionMatch `json:"version,omitempty"`
 

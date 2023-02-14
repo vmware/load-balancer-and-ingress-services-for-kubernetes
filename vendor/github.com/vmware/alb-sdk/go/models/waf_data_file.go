@@ -16,6 +16,6 @@ type WafDataFile struct {
 	// Required: true
 	Name *string `json:"name"`
 
-	// WAF data file type. Enum options - WAF_DATAFILE_PM_FROM_FILE, WAF_DATAFILE_DTD, WAF_DATAFILE_XSD. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// WAF data file type. Enum options - WAF_DATAFILE_PM_FROM_FILE, WAF_DATAFILE_DTD, WAF_DATAFILE_XSD, WAF_DATAFILE_IP_MATCH_FROM_FILE. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Type *string `json:"type,omitempty"`
 }

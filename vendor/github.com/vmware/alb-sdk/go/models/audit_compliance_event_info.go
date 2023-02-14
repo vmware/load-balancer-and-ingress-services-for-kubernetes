@@ -35,7 +35,7 @@ type AuditComplianceEventInfo struct {
 	// Crashed core process name. Field introduced in 20.1.4. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	ProcessName *string `json:"process_name,omitempty"`
 
-	// Protocol used for communication to the external entity. Enum options - SSH1_0, TLS1_2, HTTPS1_0, HTTP_PLAIN_TEXT, HTTPS_INSECURE, SSH2_0. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Protocol used for communication to the external entity. Enum options - SSH1_0, AVI_TLS1_2, HTTPS1_0, HTTP_PLAIN_TEXT, HTTPS_INSECURE, SSH2_0. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	// Required: true
 	Protocol *string `json:"protocol"`
 

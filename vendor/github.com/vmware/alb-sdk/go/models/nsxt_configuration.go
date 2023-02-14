@@ -12,8 +12,7 @@ type NsxtConfiguration struct {
 	AutomateDfwRules *bool `json:"automate_dfw_rules,omitempty"`
 
 	// Data network configuration for Avi Service Engines. Field introduced in 20.1.5. Allowed in Enterprise edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
-	// Required: true
-	DataNetworkConfig *DataNetworkConfig `json:"data_network_config"`
+	DataNetworkConfig *DataNetworkConfig `json:"data_network_config,omitempty"`
 
 	// Domain where NSGroup objects belongs to. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DomainID *string `json:"domain_id,omitempty"`
@@ -35,4 +34,7 @@ type NsxtConfiguration struct {
 
 	// Site where transport zone belongs to. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SiteID *string `json:"site_id,omitempty"`
+
+	// VPC Mode. Field introduced in 23.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	VpcMode *bool `json:"vpc_mode,omitempty"`
 }

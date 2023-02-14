@@ -235,7 +235,6 @@ type AnalyticsProfile struct {
 	HsSecurityTLS12Score *float64 `json:"hs_security_tls12_score,omitempty"`
 
 	// Score assigned when supporting TLS1.3 encryption protocol. Allowed values are 0-5. Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 5.0), Basic edition(Allowed values- 5.0), Enterprise with Cloud Services edition.
-	// Read Only: true
 	HsSecurityTLS13Score *float64 `json:"hs_security_tls13_score,omitempty"`
 
 	// Penalty for allowing weak signature algorithm(s). Allowed values are 0-5. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 1.0), Basic edition(Allowed values- 1.0), Enterprise with Cloud Services edition.
@@ -269,7 +268,7 @@ type AnalyticsProfile struct {
 	//  It is a reference to an object of type Tenant. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
-	// Protobuf versioning for config pbs. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Time Tracker Properties for connection establishment audit. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	TimeTrackerProps *TimeTrackerProperties `json:"time_tracker_props,omitempty"`
 
 	// url

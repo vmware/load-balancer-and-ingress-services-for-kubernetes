@@ -64,6 +64,9 @@ type GslbService struct {
 	// Number of IP addresses of this GSLB service to be returned by the DNS Service. Enter 0 to return all IP addresses. Allowed values are 1-20. Special values are 0- Return all IP addresses. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumDNSIP *int32 `json:"num_dns_ip,omitempty"`
 
+	// PKI profile associated with the Gslb Service. It is a reference to an object of type PKIProfile. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	PkiProfileRef *string `json:"pki_profile_ref,omitempty"`
+
 	// The load balancing algorithm will pick a GSLB pool within the GSLB service list of available pools. Enum options - GSLB_SERVICE_ALGORITHM_PRIORITY, GSLB_SERVICE_ALGORITHM_GEO. Field introduced in 17.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PoolAlgorithm *string `json:"pool_algorithm,omitempty"`
 

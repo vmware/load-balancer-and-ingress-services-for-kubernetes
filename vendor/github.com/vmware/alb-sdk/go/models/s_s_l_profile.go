@@ -42,6 +42,9 @@ type SSLProfile struct {
 	// Enable SSL session re-use. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EnableSslSessionReuse *bool `json:"enable_ssl_session_reuse,omitempty"`
 
+	// It Specifies whether the object has to be replicated to the GSLB followers. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	IsFederated *bool `json:"is_federated,omitempty"`
+
 	// List of labels to be used for granular RBAC. Field introduced in 20.1.5. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
 	Markers []*RoleFilterMatchLabel `json:"markers,omitempty"`
 

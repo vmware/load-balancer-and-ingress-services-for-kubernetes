@@ -11,9 +11,12 @@ type QueryMatch struct {
 	// Case sensitivity to use for the match. Enum options - SENSITIVE, INSENSITIVE. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MatchCase *string `json:"match_case,omitempty"`
 
-	// Criterion to use for matching the query in HTTP request URI. Enum options - QUERY_MATCH_CONTAINS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// Criterion to use for matching the query in HTTP request URI. Enum options - QUERY_MATCH_CONTAINS, QUERY_MATCH_DOES_NOT_CONTAIN, QUERY_MATCH_EXISTS, QUERY_MATCH_DOES_NOT_EXIST, QUERY_MATCH_BEGINS_WITH, QUERY_MATCH_DOES_NOT_BEGIN_WITH, QUERY_MATCH_ENDS_WITH, QUERY_MATCH_DOES_NOT_END_WITH, QUERY_MATCH_EQUALS, QUERY_MATCH_DOES_NOT_EQUAL, QUERY_MATCH_REGEX_MATCH, QUERY_MATCH_REGEX_DOES_NOT_MATCH. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	MatchCriteria *string `json:"match_criteria"`
+
+	// Match against the decoded URI query. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	MatchDecodedString *bool `json:"match_decoded_string,omitempty"`
 
 	// String value(s). Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MatchStr []string `json:"match_str,omitempty"`

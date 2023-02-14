@@ -140,6 +140,24 @@ type GslbSiteRuntimeStats struct {
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumGsUpdTxed *int32 `json:"num_gs_upd_txed,omitempty"`
 
+	// Used for federated ssl key and cert stats for create. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	NumGsslCertCrRxed *int32 `json:"num_gssl_cert_cr_rxed,omitempty"`
+
+	// Used for federated ssl key and cert stats for delete. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	NumGsslCertDelRxed *int32 `json:"num_gssl_cert_del_rxed,omitempty"`
+
+	// Used for federated ssl key and cert stats for update. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	NumGsslCertUpdRxed *int32 `json:"num_gssl_cert_upd_rxed,omitempty"`
+
+	// Used for federated ssl profile stats for create. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	NumGsslCrRxed *int32 `json:"num_gssl_cr_rxed,omitempty"`
+
+	// Used for federated ssl profile stats for delete. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	NumGsslDelRxed *int32 `json:"num_gssl_del_rxed,omitempty"`
+
+	// Used for federated ssl profile stats for update. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	NumGsslUpdRxed *int32 `json:"num_gssl_upd_rxed,omitempty"`
+
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumHealthMsgsRxed *int32 `json:"num_health_msgs_rxed,omitempty"`
 

@@ -65,6 +65,6 @@ type WafLog struct {
 	// Set to true if ModSecurity rules were processed. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	RulesProcessed *bool `json:"rules_processed,omitempty"`
 
-	// Denotes whether WAF is running in detection mode or enforcement mode, whether any rules matched the transaction, and whether transaction is dropped by the WAF module. Enum options - NO_WAF, FLAGGED, PASSED, REJECTED, WHITELISTED, BYPASSED. Field introduced in 17.2.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// Denotes whether WAF is running in detection mode or enforcement mode, whether any rules matched the transaction, and whether transaction is dropped by the WAF module. Enum options - NO_WAF, FLAGGED, PASSED, REJECTED, ALLOWLISTED, BYPASSED. Field introduced in 17.2.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Status *string `json:"status,omitempty"`
 }

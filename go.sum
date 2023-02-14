@@ -444,6 +444,8 @@ github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618 h1:ZLkxM
 github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618/go.mod h1:afqpDk9He9v+/qWix0RRotm3RNyni4Lmc1y9geDCPuo=
 github.com/vmware/alb-sdk v0.0.0-20221125101019-1edb021a121b h1:i04Do2br1qqs/ReZLXescGpST0QXIZVUSzhdLROkIPg=
 github.com/vmware/alb-sdk v0.0.0-20221125101019-1edb021a121b/go.mod h1:fuRb4saDY/xy/UMeMvyKYmcplNknEL9ysaqYSw7reNE=
+github.com/vmware/alb-sdk v0.0.0-20230202142453-a9968b9cd48d h1:LlBim4BTkfFKitukIVEbTps6QXe93ezu0yThbEgcA60=
+github.com/vmware/alb-sdk v0.0.0-20230202142453-a9968b9cd48d/go.mod h1:fuRb4saDY/xy/UMeMvyKYmcplNknEL9ysaqYSw7reNE=
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

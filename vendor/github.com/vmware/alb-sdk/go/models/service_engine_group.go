@@ -505,6 +505,9 @@ type ServiceEngineGroup struct {
 	// Reboot the VM or host on kernel panic. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	RebootOnPanic *bool `json:"reboot_on_panic,omitempty"`
 
+	// Routes in VRF are replayed at the specified interval. This should be increased if there are large number of routes. Allowed values are 0-3000. Field introduced in 22.1.3. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	ReplayVrfRoutesInterval *int32 `json:"replay_vrf_routes_interval,omitempty"`
+
 	// Time interval to re-sync SE's time with wall clock time. Allowed values are 8-600000. Field introduced in 20.1.1. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ResyncTimeInterval *int32 `json:"resync_time_interval,omitempty"`
 
@@ -604,7 +607,7 @@ type ServiceEngineGroup struct {
 	// Internal flag that blocks dataplane until all outstanding events are flushed to log-agent process. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	SeLogBufferEventsBlockingDequeue *bool `json:"se_log_buffer_events_blocking_dequeue,omitempty"`
 
-	// Enable or disable Large Receive Optimization for vnics. Requires SE Reboot. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// Enable or disable Large Receive Optimization for vnics.Supported on VMXnet3.Requires SE Reboot. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeLro *bool `json:"se_lro,omitempty"`
 
 	// The retry count for the multi-producer enqueue before yielding the CPU. To be used under surveillance of Avi Support. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 500), Basic edition(Allowed values- 500), Enterprise with Cloud Services edition.
@@ -664,7 +667,7 @@ type ServiceEngineGroup struct {
 	// Multiplier for SE threads based on vCPU. Allowed values are 1-10. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 1), Basic edition(Allowed values- 1), Enterprise with Cloud Services edition.
 	SeThreadMultiplier *int32 `json:"se_thread_multiplier,omitempty"`
 
-	// Protobuf versioning for config pbs. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
+	// Time Tracker Properties for latency audit. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
 	SeTimeTrackerProps *SETimeTrackerProperties `json:"se_time_tracker_props,omitempty"`
 
 	// Traceroute port range. Field introduced in 17.2.8. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
@@ -749,6 +752,9 @@ type ServiceEngineGroup struct {
 	// Read Only: true
 	URL *string `json:"url,omitempty"`
 
+	// If enabled, the datapath CPU utilization is consulted by the auto scale-out logic. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
+	UseDpUtilForScaleout *bool `json:"use_dp_util_for_scaleout,omitempty"`
+
 	// Enables the use of hyper-threaded cores on SE. Requires SE Reboot. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UseHyperthreadedCores *bool `json:"use_hyperthreaded_cores,omitempty"`
 
@@ -830,7 +836,7 @@ type ServiceEngineGroup struct {
 	// Time to wait for the scaled out SE to become ready before marking the scaleout done. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VsScaleoutTimeout *int32 `json:"vs_scaleout_timeout,omitempty"`
 
-	// Wait time for sending scaleout ready notification after Virtual Service is marked UP. In certain deployments, there may be an additional delay to accept traffic. For example, for BGP, some time is needed for route advertisement. Allowed values are 0-20. Field introduced in 18.1.5,18.2.1. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// Wait time for sending scaleout ready notification after Virtual Service is marked UP. In certain deployments, there may be an additional delay to accept traffic. For example, for BGP, some time is needed for route advertisement. Allowed values are 0-300. Field introduced in 18.1.5,18.2.1. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VsSeScaleoutAdditionalWaitTime *int32 `json:"vs_se_scaleout_additional_wait_time,omitempty"`
 
 	// Timeout in seconds for Service Engine to sendScaleout Ready notification of a Virtual Service. Allowed values are 0-90. Field introduced in 18.1.5,18.2.1. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.

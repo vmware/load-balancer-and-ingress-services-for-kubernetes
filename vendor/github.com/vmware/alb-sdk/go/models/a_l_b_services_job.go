@@ -41,7 +41,7 @@ type ALBServicesJob struct {
 	// The time at which the albservicesjob is started. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	StartTime *TimeStamp `json:"start_time,omitempty"`
 
-	// The status of the albservicesjob. Enum options - UNDETERMINED, PENDING, IN_PROGRESS, COMPLETED, FAILED. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// The status of the albservicesjob. Enum options - UNDETERMINED, PENDING, IN_PROGRESS, COMPLETED, FAILED, NOT_ENABLED. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Status *string `json:"status,omitempty"`
 
 	// The unique identifier of the tenant to which this albservicesjob belongs. It is a reference to an object of type Tenant. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
