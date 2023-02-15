@@ -95,7 +95,7 @@ func BuildClusterrole(ako akov1alpha1.AKOConfig, r *AKOConfigReconciler, log log
 			{
 				APIGroups: []string{"apps"},
 				Resources: []string{"statefulsets", "statefulsets/status"},
-				Verbs:     []string{"get", "watch", "list"},
+				Verbs:     []string{"get", "watch", "list", "patch", "update"},
 			},
 			{
 				APIGroups: []string{"extensions", "networking.k8s.io"},
@@ -109,8 +109,13 @@ func BuildClusterrole(ako akov1alpha1.AKOConfig, r *AKOConfigReconciler, log log
 			},
 			{
 				APIGroups: []string{""},
-				Resources: []string{"services", "services/status", "secrets"},
+				Resources: []string{"services", "services/status"},
 				Verbs:     []string{"get", "watch", "list", "patch", "update"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"secrets"},
+				Verbs:     []string{"get", "watch", "list", "patch", "update", "create"},
 			},
 			{
 				APIGroups: []string{""},
@@ -141,6 +146,11 @@ func BuildClusterrole(ako akov1alpha1.AKOConfig, r *AKOConfigReconciler, log log
 				APIGroups: []string{"networking.x-k8s.io"},
 				Resources: []string{"gateways", "gateways/status", "gatewayclasses", "gatewayclasses/status"},
 				Verbs:     []string{"get", "watch", "list", "patch", "update"},
+			},
+			{
+				APIGroups: []string{"coordination.k8s.io"},
+				Resources: []string{"leases"},
+				Verbs:     []string{"create", "get", "update"},
 			},
 		},
 	}

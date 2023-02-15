@@ -88,6 +88,7 @@ The following table lists the configurable parameters of the AKO chart and their
 
 | **Parameter** | **Description** | **Default** |
 | --- | --- | --- |
+| `replicaCount` | Specify the number of replicas for AKO StatefulSet | 1 |
 | `operatorImage.repository` | Specify docker-registry that has the ako operator image | projects.registry.vmware.com/ako/ako-operator |
 | `operatorImage.pullPolicy` | Specify when and how to pull the ako-operator's image | IfNotPresent |
 | `akoImage.repository` | Specify docker-registry that has the ako image | projects.registry.vmware.com/ako/ako:1.6.1 |
