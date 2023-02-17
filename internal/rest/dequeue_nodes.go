@@ -260,6 +260,11 @@ func (rest *RestOperations) CheckAndPublishForRetry(err error, publishKey, key s
 					rest.PublishKeyToSlowRetryLayer(publishKey, key)
 					return true
 				}
+				if strings.Contains(*aviError.Message, lib.VrfContextNotFoundError) {
+					utils.AviLog.Warnf("key: %s, msg: VrfContext not found, adding to slow retry queue", key)
+					rest.PublishKeyToSlowRetryLayer(publishKey, key)
+					return true
+				}
 			case 403:
 				if strings.Contains(*aviError.Message, lib.ConfigDisallowedDuringUpgradeError) {
 					utils.AviLog.Warnf("key: %s, msg: controller upgrade in progress, adding to slow retry queue", key)
