@@ -170,6 +170,7 @@ const (
 	IPAMProviderInfoblox                       = "IPAMDNS_TYPE_INFOBLOX"
 	IPAMProviderCustom                         = "IPAMDNS_TYPE_CUSTOM"
 	Namespace                                  = "Namespace"
+	VrfContextNotFoundError                    = "VrfContext not found"
 
 	// AKO Event constants
 	AKOEventComponent      = "avi-kubernetes-operator"
