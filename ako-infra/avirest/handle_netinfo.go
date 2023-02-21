@@ -634,11 +634,13 @@ func executeRestOp(key string, client *clients.AviClient, restOp *utils.RestOp, 
 			defer SetTenant(client.AviSession)
 			executeRestOp(key, client, restOp)
 		} else if strings.Contains(err.Error(), "Concurrent Update Error") {
+			utils.AviLog.Infof("Got Concurrent Update Error, refreshing cache and scheduling periodic sync")
 			refreshCache(restOp.Model, client)
 			scheduleQuickSync()
 			return
 		} else {
 			utils.AviLog.Warnf("key %s, Got error in executing rest request: %v", key, err)
+			refreshCache(restOp.Model, client)
 			return
 		}
 	}
