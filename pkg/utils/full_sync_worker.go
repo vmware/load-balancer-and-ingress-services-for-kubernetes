@@ -64,5 +64,11 @@ func (w *FullSyncThread) Shutdown() {
 }
 
 func (w *FullSyncThread) QuickSync() {
-	w.QuickSyncChan <- "quicksync"
+	select {
+	case w.QuickSyncChan <- "quicksync":
+		AviLog.Debugf("Scheduled QuickSync on Worker %v", w)
+		return
+	default:
+	}
+
 }
