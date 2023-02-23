@@ -175,7 +175,7 @@ func UpdateGatewayStatusGWCondition(key string, gwStatus *advl4v1alpha1pre1.Gate
 // PortConflict, InvalidRoutes, UnsupportedProtocol, *Serviceable
 // pass portString as empty string for updating status in all ports
 func UpdateGatewayStatusListenerConditions(key string, gwStatus *advl4v1alpha1pre1.GatewayStatus, portString string, updateStatus *UpdateGWStatusConditionOptions) {
-	utils.AviLog.Debugf("key: %s, msg: Updating Gateway status listener condition port: %s %v", key, updateStatus, portString, utils.Stringify(updateStatus))
+	utils.AviLog.Debugf("key: %s, msg: Updating Gateway status listener condition port: %s %v", key, portString, utils.Stringify(updateStatus))
 	for port, condition := range gwStatus.Listeners {
 		notFound := true
 		if condition.Port == portString || portString == "" {

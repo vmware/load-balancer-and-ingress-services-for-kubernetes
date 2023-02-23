@@ -477,7 +477,7 @@ func (vsNode *AviEvhVsNode) AddSSLPort(key string) {
 	vsNode.PortProto = append(vsNode.PortProto, httpsPort)
 }
 
-//TODO: Next PR Opt: make part of Avivsevhsni model interface
+// TODO: Next PR Opt: make part of Avivsevhsni model interface
 func (vsNode *AviEvhVsNode) DeleteSSLPort(key string) {
 	for i, port := range vsNode.PortProto {
 		if port.Port == lib.SSLPort {
@@ -486,7 +486,7 @@ func (vsNode *AviEvhVsNode) DeleteSSLPort(key string) {
 	}
 }
 
-//TODO: Next PR opt: make part of Avivs model interface
+// TODO: Next PR opt: make part of Avivs model interface
 func (vsNode *AviEvhVsNode) DeletSSLRefInDedicatedNode(key string) {
 	vsNode.SSLKeyCertRefs = []*AviTLSKeyCertNode{}
 	vsNode.SSLProfileRef = ""
@@ -768,6 +768,14 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 
 	if infraSetting := routeIgrObj.GetAviInfraSetting(); infraSetting != nil {
 		buildWithInfraSettingForEvh(key, avi_vs_meta, vsVipNode, infraSetting)
+	}
+
+	cs := utils.GetInformers().ClientSet
+	nsObj, err := cs.CoreV1().Namespaces().Get(context.TODO(), routeIgrObj.GetNamespace(), metav1.GetOptions{})
+	if err == nil && nsObj.Annotations != nil && nsObj.Annotations["l7-load-balancer-ip"] != "" {
+		vsVipNode.IPAddress = nsObj.Annotations["l7-load-balancer-ip"]
+	} else if err != nil {
+		utils.AviLog.Warnf("Failed to GET the namespace details due to the following error :%v", err.Error())
 	}
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
@@ -1578,7 +1586,7 @@ func RemoveRedirectHTTPPolicyInModelForEvh(vsNode *AviEvhVsNode, hostnames []str
 	}
 }
 
-//DeleteStaleData : delete pool, EVH VS and redirect policy which are present in the object store but no longer required.
+// DeleteStaleData : delete pool, EVH VS and redirect policy which are present in the object store but no longer required.
 func DeleteStaleDataForEvh(routeIgrObj RouteIngressModel, key string, modelList *[]string, Storedhosts map[string]*objects.RouteIngrhost, hostsMap map[string]*objects.RouteIngrhost) {
 	utils.AviLog.Debugf("key: %s, msg: About to delete stale data EVH Stored hosts: %v, hosts map: %v", key, utils.Stringify(Storedhosts), utils.Stringify(hostsMap))
 	var infraSettingName string

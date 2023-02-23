@@ -54,7 +54,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		vsName := lib.GetL4VSName(gatewayName, namespace)
 		gw, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gatewayName)
 		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: GatewayLister returned error for advancedL4: %s", err)
+			utils.AviLog.Warnf("key: %s, msg: GatewayLister returned error for advancedL4: %s", key, err)
 			return nil
 		}
 
@@ -135,6 +135,13 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 
 		if len(gw.Spec.Addresses) > 0 && gw.Spec.Addresses[0].Type == advl4v1alpha1pre1.IPAddressType {
 			vsVipNode.IPAddress = gw.Spec.Addresses[0].Value
+		} else {
+			svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(gatewayName)
+			if err != nil {
+				utils.AviLog.Warnf("key: %s, msg: error in obtaining the object for service: %s", key, gatewayName)
+			} else {
+				vsVipNode.IPAddress = svcObj.Annotations["ako.vmware.com/load-balancer-ip"]
+			}
 		}
 		avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 		return avi_vs_meta
