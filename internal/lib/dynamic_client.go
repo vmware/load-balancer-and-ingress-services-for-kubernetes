@@ -146,9 +146,9 @@ func GetDynamicInformers() *DynamicInformers {
 	return dynamicInformerInstance
 }
 
-func GetNetworkInfoCRData(clientSet dynamic.Interface) (map[string]string, map[string]struct{}) {
+func GetNetworkInfoCRData(clientSet dynamic.Interface) (map[string]string, map[string]map[string]struct{}) {
 	lslrMap := make(map[string]string)
-	cidrs := make(map[string]struct{})
+	cidrs := make(map[string]map[string]struct{})
 
 	crList, err := clientSet.Resource(NetworkInfoGVR).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
@@ -162,6 +162,7 @@ func GetNetworkInfoCRData(clientSet dynamic.Interface) (map[string]string, map[s
 	}
 
 	for _, obj := range crList.Items {
+		ns := obj.GetNamespace()
 		spec := obj.Object["topology"].(map[string]interface{})
 		lr, ok := spec["gatewayPath"].(string)
 		if !ok {
@@ -182,10 +183,16 @@ func GetNetworkInfoCRData(clientSet dynamic.Interface) (map[string]string, map[s
 			if cidrIntf, clusterNetworkCIDRFound = GetClusterNetworkInfoCRData(clientSet); !clusterNetworkCIDRFound {
 				continue
 			}
+			// Set the namespace to cluster name for the cluster ingress cidr
+			ns = GetClusterName()
 			utils.AviLog.Infof("Ingress CIDR found from Cluster Network Info %v", cidrIntf)
 		}
 		for _, cidr := range cidrIntf {
-			cidrs[cidr.(string)] = struct{}{}
+			if _, ok := cidrs[ns]; !ok {
+				cidrs[ns] = make(map[string]struct{})
+			}
+			cidrMap := cidrs[ns]
+			cidrMap[cidr.(string)] = struct{}{}
 		}
 	}
 

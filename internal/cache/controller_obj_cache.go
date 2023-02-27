@@ -3071,7 +3071,7 @@ func fetchNetworkWithMarkerSet(client *clients.AviClient, usableNetworkNames []s
 func checkPublicCloud(client *clients.AviClient, returnErr *error) bool {
 	if lib.IsPublicCloud() {
 		// Handle all public cloud validations here
-		vipNetworkList := lib.GetVipNetworkList()
+		vipNetworkList := lib.SharedWCPLister().GetNetworkForNamespace()
 		if len(vipNetworkList) == 0 {
 			*returnErr = fmt.Errorf("vipNetworkList not specified, syncing will be disabled.")
 			return false
@@ -3149,7 +3149,7 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient, returnErr *error) bool
 		return true
 	}
 
-	networkList := lib.GetVipNetworkList()
+	networkList := lib.SharedWCPLister().GetNetworkForNamespace()
 	if len(networkList) == 0 {
 		utils.AviLog.Warnf("Network name not specified, skipping fetching of the VRF setting from network")
 		return true

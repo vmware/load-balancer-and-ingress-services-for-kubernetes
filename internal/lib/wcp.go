@@ -12,12 +12,14 @@
 * limitations under the License.
 */
 
-package objects
+package lib
 
 import (
 	"os"
 	"sync"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -27,7 +29,8 @@ var wcponce sync.Once
 func SharedWCPLister() *WCPLister {
 	wcponce.Do(func() {
 		WCPInstance = &WCPLister{
-			NamespaceTier1LrCache: NewObjectMapStore(),
+			NamespaceTier1LrCache: objects.NewObjectMapStore(),
+			NamespaceNetworkCache: objects.NewObjectMapStore(),
 		}
 	})
 	return WCPInstance
@@ -35,7 +38,8 @@ func SharedWCPLister() *WCPLister {
 
 type WCPLister struct {
 	// namespace -> tier1lr
-	NamespaceTier1LrCache *ObjectMapStore
+	NamespaceTier1LrCache *objects.ObjectMapStore
+	NamespaceNetworkCache *objects.ObjectMapStore
 }
 
 func (w *WCPLister) UpdateNamespaceTier1LrCache(namespace, t1lr string) {
@@ -58,4 +62,26 @@ func (w *WCPLister) GetT1LrForNamespace(namespace ...string) string {
 		}
 	}
 	return os.Getenv("NSXT_T1_LR")
+}
+
+func (w *WCPLister) UpdateNamespaceNetworkCache(namespace, networkName string) {
+	w.NamespaceNetworkCache.AddOrUpdate(namespace, networkName)
+}
+
+func (w *WCPLister) RemoveNamespaceNetworkCache(namespace string) {
+	w.NamespaceNetworkCache.Delete(namespace)
+}
+
+func (w *WCPLister) GetNetworkForNamespace(namespace ...string) []akov1alpha1.AviInfraSettingVipNetwork {
+	if utils.IsVCFCluster() {
+		found, networkName := w.NamespaceNetworkCache.Get(namespace[0])
+		if found {
+			return []akov1alpha1.AviInfraSettingVipNetwork{
+				{
+					NetworkName: networkName.(string),
+				},
+			}
+		}
+	}
+	return GetVipNetworkList()
 }

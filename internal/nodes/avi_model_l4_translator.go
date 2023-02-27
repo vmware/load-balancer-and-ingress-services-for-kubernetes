@@ -68,7 +68,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	}
 
 	vrfcontext := lib.GetVrf()
-	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(svcObj.Namespace)
+	t1lr := lib.SharedWCPLister().GetT1LrForNamespace(svcObj.Namespace)
 	if t1lr != "" {
 		vrfcontext = ""
 	} else {
@@ -121,7 +121,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		Tenant:      lib.GetTenant(),
 		FQDNs:       fqdns,
 		VrfContext:  vrfcontext,
-		VipNetworks: lib.GetVipNetworkList(),
+		VipNetworks: lib.SharedWCPLister().GetNetworkForNamespace(),
 	}
 	if t1lr != "" {
 		vsVipNode.T1Lr = t1lr
@@ -172,7 +172,7 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 		}
 		protocolSet.Insert(portProto.Protocol)
 		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
-		t1lr := objects.SharedWCPLister().GetT1LrForNamespace(svcObj.Namespace)
+		t1lr := lib.SharedWCPLister().GetT1LrForNamespace(svcObj.Namespace)
 		if t1lr != "" {
 			poolNode.T1Lr = t1lr
 			// Unset the poolnode's vrfcontext.
