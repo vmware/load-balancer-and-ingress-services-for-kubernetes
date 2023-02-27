@@ -100,7 +100,7 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.16.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     operatorframework.io/suggested-namespace: avi-system
-    containerImage: projects.registry.vmware.com/ako/ako-operator@sha256:551275e8aa7d3e7730d42d963953f794bb79f0fb22dc38704177eaa5b1611c9b
+    containerImage: projects.registry.vmware.com/ako/ako-operator@sha256:ad55b86975cd73dfd5b3ff1179c03a6cfe47f578c5c8d79ad37d5ce2aab6482b
   name: ako-operator.v1.9.1
   namespace: placeholder
 spec:
@@ -493,7 +493,7 @@ spec:
               containers:
               - command:
                 - /ako-operator
-                image: projects.registry.vmware.com/ako/ako-operator@sha256:551275e8aa7d3e7730d42d963953f794bb79f0fb22dc38704177eaa5b1611c9b
+                image: projects.registry.vmware.com/ako/ako-operator@sha256:ad55b86975cd73dfd5b3ff1179c03a6cfe47f578c5c8d79ad37d5ce2aab6482b
                 name: ako-operator
                 resources:
                   limits:
@@ -546,7 +546,7 @@ spec:
     supported: false
   relatedImages:
   - name: ako-operator
-    image: projects.registry.vmware.com/ako/ako-operator@sha256:551275e8aa7d3e7730d42d963953f794bb79f0fb22dc38704177eaa5b1611c9b
+    image: projects.registry.vmware.com/ako/ako-operator@sha256:ad55b86975cd73dfd5b3ff1179c03a6cfe47f578c5c8d79ad37d5ce2aab6482b
   keywords:
   - AKO
   - AKO Operator
