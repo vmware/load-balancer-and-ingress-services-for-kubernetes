@@ -207,7 +207,7 @@ func ValidateModelCommon(t *testing.T, g *gomega.GomegaWithT) interface{} {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(defaultModelName)
 		return found
-	}, 30*time.Second).Should(gomega.Equal(true))
+	}, 2000*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(defaultModelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 

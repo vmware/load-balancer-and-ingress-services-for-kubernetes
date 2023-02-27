@@ -116,6 +116,8 @@ func TestMain(m *testing.M) {
 	integrationtest.AddDefaultIngressClass()
 	ctrl.SetSEGroupCloudNameFromNSAnnotations()
 
+	utils.AddNamespaceToFilter("default")
+
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
 }

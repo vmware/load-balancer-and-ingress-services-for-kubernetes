@@ -35,7 +35,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	// The assumption is that an update either affects an LB service type or an ingress. It cannot be both.
 	var ingressFound, routeFound, mciFound bool
 	var ingressNames, routeNames, mciNames []string
-	utils.AviLog.Infof("key: %s, msg: starting graph Sync", key)
+	utils.AviLog.Infof("key: %s, msg: starting graph Sync, %v", key, fullsync)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 
 	objType, namespace, name := lib.ExtractTypeNameNamespace(key)

@@ -840,8 +840,13 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				return
 			}
 			secret := obj.(*corev1.Secret)
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
 			key := "Secret" + "/" + utils.ObjKey(secret)
+			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
+			if ok && resVer.(string) == secret.ResourceVersion {
+				utils.AviLog.Infof("key : %s, msg: same resource version returning", key)
+				return
+			}
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
 			if lib.IsNamespaceBlocked(namespace) {
 				utils.AviLog.Debugf("key: %s, msg: secret add event. namespace: %s didn't qualify filter", key, namespace)
 				return
