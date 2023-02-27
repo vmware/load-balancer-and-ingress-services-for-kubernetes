@@ -227,15 +227,15 @@ func (c *VCFK8sController) AddNetworkInfoEventHandler(stopCh <-chan struct{}) {
 	networkInfoHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			utils.AviLog.Infof("NCP Network Info ADD Event")
-			avirest.AddSegment(obj)
+			avirest.ScheduleQuickSync()
 		},
 		UpdateFunc: func(old, obj interface{}) {
 			utils.AviLog.Infof("NCP Network Info Update Event")
-			avirest.AddSegment(obj)
+			avirest.ScheduleQuickSync()
 		},
 		DeleteFunc: func(obj interface{}) {
 			utils.AviLog.Infof("NCP Network Info Delete Event")
-			avirest.DeleteSegment(obj)
+			avirest.ScheduleQuickSync()
 		},
 	}
 	c.dynamicInformers.VCFNetworkInfoInformer.Informer().AddEventHandler(networkInfoHandler)
@@ -244,12 +244,15 @@ func (c *VCFK8sController) AddNetworkInfoEventHandler(stopCh <-chan struct{}) {
 	ClusterNetworkInfoHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			utils.AviLog.Infof("NCP Cluster Network Info ADD Event")
+			avirest.ScheduleQuickSync()
 		},
 		UpdateFunc: func(old, obj interface{}) {
 			utils.AviLog.Infof("NCP Cluster Network Info Update Event")
+			avirest.ScheduleQuickSync()
 		},
 		DeleteFunc: func(obj interface{}) {
 			utils.AviLog.Infof("NCP Cluster Network Info Delete Event")
+			avirest.ScheduleQuickSync()
 		},
 	}
 	c.dynamicInformers.VCFClusterNetworkInformer.Informer().AddEventHandler(ClusterNetworkInfoHandler)

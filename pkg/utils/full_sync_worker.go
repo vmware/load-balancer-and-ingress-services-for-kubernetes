@@ -21,7 +21,7 @@ import (
 type FullSyncThread struct {
 	Stopped           bool
 	ShutdownChan      chan string
-	QuickSyncChan     chan string
+	QuickSyncChan     chan struct{}
 	Interval          time.Duration
 	SyncFunction      func()
 	QuickSyncFunction func(bool) error
@@ -31,7 +31,7 @@ func NewFullSyncThread(interval time.Duration) *FullSyncThread {
 	return &FullSyncThread{
 		Stopped:       false,
 		ShutdownChan:  make(chan string),
-		QuickSyncChan: make(chan string),
+		QuickSyncChan: make(chan struct{}, 2),
 		Interval:      interval,
 	}
 }
@@ -65,7 +65,7 @@ func (w *FullSyncThread) Shutdown() {
 
 func (w *FullSyncThread) QuickSync() {
 	select {
-	case w.QuickSyncChan <- "quicksync":
+	case w.QuickSyncChan <- struct{}{}:
 		AviLog.Debugf("Scheduled QuickSync on Worker %v", w)
 		return
 	default:

@@ -19,7 +19,6 @@ import (
 	"strings"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -51,7 +50,7 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 	avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 
 	vrfcontext := ""
-	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
+	t1lr := lib.SharedWCPLister().GetT1LrForNamespace(namespace)
 	if t1lr == "" {
 		vrfcontext = lib.GetVrf()
 		avi_vs_meta.VrfContext = vrfcontext
@@ -68,7 +67,7 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 		Tenant:      lib.GetTenant(),
 		FQDNs:       fqdns,
 		VrfContext:  vrfcontext,
-		VipNetworks: lib.GetVipNetworkList(),
+		VipNetworks: lib.SharedWCPLister().GetNetworkForNamespace(),
 	}
 
 	if t1lr != "" {
@@ -133,7 +132,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 	// store the Pools in the a temoprary list to be used for populating PG members
 	tmpPoolList := []*AviPoolNode{}
 	vrfContext := ""
-	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
+	t1lr := lib.SharedWCPLister().GetT1LrForNamespace(namespace)
 	if t1lr == "" {
 		vrfContext = lib.GetVrf()
 	}
