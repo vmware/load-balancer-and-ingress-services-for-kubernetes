@@ -132,6 +132,9 @@ spec:
       - description: ImageRepository is where the AKO controller resides.
         displayName: Image Repository
         path: imageRepository
+      - description: ReplicaCount defines the number of replicas for AKO Statefulset
+        displayName: Replica Count
+        path: replicaCount
       - description: LogFile is the name of the file where AKO will dump its logs
         displayName: Log File
         path: logFile
