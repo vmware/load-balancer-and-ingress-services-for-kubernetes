@@ -122,7 +122,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 			Name:        lib.GetL4VSVipName(gatewayName, namespace),
 			Tenant:      lib.GetTenant(),
 			VrfContext:  vrfcontext,
-			VipNetworks: lib.SharedWCPLister().GetNetworkForNamespace(),
+			VipNetworks: lib.SharedWCPLister().GetNetworkForNamespace(namespace),
 		}
 
 		if t1lr != "" {
@@ -246,7 +246,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			Tenant:      lib.GetTenant(),
 			VrfContext:  vrfcontext,
 			FQDNs:       fqdns,
-			VipNetworks: lib.SharedWCPLister().GetNetworkForNamespace(),
+			VipNetworks: lib.SharedWCPLister().GetNetworkForNamespace(namespace),
 		}
 
 		if t1lr != "" {
@@ -259,7 +259,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 
 		// configures VS and VsVip nodes using infraSetting object (via CRD).
 		if infraSetting, err := getL4InfraSetting(key, nil, &gw.Spec.GatewayClassName); err == nil {
-			buildWithInfraSetting(key, avi_vs_meta, vsVipNode, infraSetting)
+			buildWithInfraSetting(key, namespace, avi_vs_meta, vsVipNode, infraSetting)
 		}
 
 		if len(gw.Spec.Addresses) > 0 && gw.Spec.Addresses[0].Type == svcapiv1alpha1.IPAddressType {

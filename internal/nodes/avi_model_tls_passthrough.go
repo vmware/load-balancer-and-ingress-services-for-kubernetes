@@ -68,7 +68,7 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 		Tenant:      lib.GetTenant(),
 		FQDNs:       fqdns,
 		VrfContext:  vrfcontext,
-		VipNetworks: lib.SharedWCPLister().GetNetworkForNamespace(),
+		VipNetworks: lib.SharedWCPLister().GetNetworkForNamespace(namespace),
 	}
 
 	if t1lr != "" {
