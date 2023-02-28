@@ -16,6 +16,7 @@ package oshiftroutetests
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sync"
 	"testing"
@@ -35,6 +36,7 @@ import (
 	oshiftfake "github.com/openshift/client-go/route/clientset/versioned/fake"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
@@ -665,4 +667,58 @@ func TestAlternateBackendUpdateWeight(t *testing.T) {
 
 	integrationtest.DelSVC(t, "default", "absvc2")
 	integrationtest.DelEP(t, "default", "absvc2")
+}
+
+func TestBootupTimeWithBulkSecret(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	defaultNamespace = "default"
+
+	// Set the channel size to more than 16k
+	watch.DefaultChanSize = 20000
+
+	// Add the new namespaces as accepted
+	utils.AddNamespaceToFilter("red")
+	utils.AddNamespaceToFilter("green")
+
+	integrationtest.AddNamespace(t, "red", map[string]string{defaultKey: defaultValue})
+	integrationtest.AddNamespace(t, "green", map[string]string{defaultKey: defaultValue})
+
+	for i := 0; i < 8000; i++ {
+		secretName := fmt.Sprintf("secret-%v", i)
+		integrationtest.AddSecret(secretName, "red", "certificates", "keys")
+	}
+
+	for i := 0; i < 8000; i++ {
+		secretName := fmt.Sprintf("secret-%v", i)
+		integrationtest.AddSecret(secretName, "green", "certificates", "keys")
+	}
+
+	SetUpTestForRoute(t, defaultModelName)
+
+	routeExample := FakeRoute{}.Route()
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateModelCommon(t, g)
+	pool := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs[0]
+
+	g.Eventually(func() int {
+		pool = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs[0]
+		return len(pool.Servers)
+	}, 10*time.Second).Should(gomega.Equal(1))
+
+	g.Expect(pool.Name).To(gomega.Equal("cluster--foo.com-default-foo-avisvc"))
+	g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com"))
+
+	poolgroups := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolGroupRefs
+	pgmember := poolgroups[0].Members[0]
+	g.Expect(*pgmember.PoolRef).To(gomega.Equal("/api/pool?name=cluster--foo.com-default-foo-avisvc"))
+	g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com"))
+
+	VerifyRouteDeletion(t, g, aviModel, 0)
+	TearDownTestForRoute(t, defaultModelName)
 }

@@ -1024,6 +1024,28 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 				}
 			}
 		}
+
+		// Secret section
+		if utils.GetInformers().SecretInformer != nil {
+			for namespace := range acceptedNamespaces {
+				secretObjs, err := utils.GetInformers().SecretInformer.Lister().Secrets(namespace).List(labels.Set(nil).AsSelector())
+				if err != nil {
+					utils.AviLog.Errorf("Unable to retrieve the Secrets during full sync: %s", err)
+				} else {
+					for _, secretObj := range secretObjs {
+						key := utils.Secret + "/" + utils.ObjKey(secretObj)
+						meta, err := meta.Accessor(secretObj)
+						if err == nil {
+							resVer := meta.GetResourceVersion()
+							objects.SharedResourceVerInstanceLister().Save(key, resVer)
+						}
+						utils.AviLog.Debugf("Dequeue for secret key: %v", key)
+						nodes.DequeueIngestion(key, true)
+					}
+				}
+			}
+		}
+
 		if lib.UseServicesAPI() {
 			gatewayObjs, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 			if err != nil {
