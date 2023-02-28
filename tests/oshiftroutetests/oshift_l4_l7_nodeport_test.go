@@ -21,6 +21,7 @@ import (
 
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
 	"github.com/onsi/gomega"
@@ -30,6 +31,11 @@ import (
 
 func SetUpTestForRouteInNodePort(t *testing.T, modelName string) {
 	AddLabelToNamespace(defaultKey, defaultValue, defaultNamespace, modelName, t)
+	for retry := 0; retry < 3; retry++ {
+		if !utils.CheckIfNamespaceAccepted(defaultNamespace) {
+			time.Sleep(1 * time.Second)
+		}
+	}
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeNodePort, false)
 }
@@ -243,7 +249,10 @@ func TestMultiRouteSameHostInNodePort(t *testing.T) {
 	aviModel := ValidateModelCommon(t, g)
 	pools := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs
 
-	g.Expect(pools).To(gomega.HaveLen(2))
+	g.Eventually(func() int {
+		pools = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs
+		return len(pools)
+	}, 10*time.Second).Should(gomega.Equal(2))
 	for _, pool := range pools {
 		if pool.Name == "cluster--foo.com_foo-default-foo-avisvc" {
 			g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
@@ -571,6 +580,9 @@ func TestSecureRouteMultiNamespaceInNodePort(t *testing.T) {
 	}
 	AddLabelToNamespace(defaultKey, defaultValue, "test", defaultModelName, t)
 	defer integrationtest.DeleteNamespace("test")
+	if !utils.CheckIfNamespaceAccepted("test") {
+		time.Sleep(time.Second * 2)
+	}
 	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ServiceTypeNodePort, false)
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
 	_, err = OshiftClient.RouteV1().Routes("test").Create(context.TODO(), route2, metav1.CreateOptions{})

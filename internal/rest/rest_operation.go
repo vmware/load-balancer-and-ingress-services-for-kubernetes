@@ -274,7 +274,7 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 		// Queue from doing any POST/PUT/PATCH/GET operations at the controller when the `deleteConfig` is set.
 		if lib.DisableSync &&
 			op.Method != utils.RestDelete &&
-			op.Model != lib.GetModelName(lib.GetTenant(), lib.GetVrf()) {
+			op.Model != "VrfContext" {
 			utils.AviLog.Warnf("key: %s, msg: Sync is disabled, Only DELETE operation is allowed for models other than VRF model", key)
 			continue
 		}

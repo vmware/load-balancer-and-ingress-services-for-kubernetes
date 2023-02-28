@@ -412,10 +412,10 @@ func RouteIngrDeletePoolsByHostname(routeIgrObj RouteIngressModel, namespace, ob
 	utils.AviLog.Debugf("key: %s, msg: hosts to delete are :%s", key, utils.Stringify(hostMap))
 	for host, hostData := range hostMap {
 		deleteVS := false
-		_, shardVsName := DeriveShardVS(host, key, routeIgrObj)
+		shardVsName, _ := DeriveShardVS(host, key, routeIgrObj)
 
 		if hostData.SecurePolicy == lib.PolicyPass {
-			_, shardVsName.Name = DerivePassthroughVS(host, key, routeIgrObj)
+			shardVsName.Name, _ = DerivePassthroughVS(host, key, routeIgrObj)
 		}
 
 		modelName := lib.GetModelName(lib.GetTenant(), shardVsName.Name)

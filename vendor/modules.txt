@@ -166,18 +166,18 @@ go.uber.org/zap/internal/bufferpool
 go.uber.org/zap/internal/color
 go.uber.org/zap/internal/exit
 go.uber.org/zap/zapcore
-# golang.org/x/crypto v0.0.0-20220314234659-1baeb1ce4c0b => golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
-## explicit; go 1.11
+# golang.org/x/crypto v0.0.0-20220314234659-1baeb1ce4c0b
+## explicit; go 1.17
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/chacha20
 golang.org/x/crypto/curve25519
+golang.org/x/crypto/curve25519/internal/field
 golang.org/x/crypto/ed25519
-golang.org/x/crypto/ed25519/internal/edwards25519
+golang.org/x/crypto/internal/poly1305
 golang.org/x/crypto/internal/subtle
-golang.org/x/crypto/poly1305
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
-# golang.org/x/net v0.0.0-20220722155237-a158d28d115b => golang.org/x/net v0.4.0
+# golang.org/x/net v0.0.0-20220722155237-a158d28d115b => golang.org/x/net v0.7.0
 ## explicit; go 1.17
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -195,17 +195,17 @@ golang.org/x/oauth2/google
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
-# golang.org/x/sys v0.3.0
+# golang.org/x/sys v0.5.0
 ## explicit; go 1.17
 golang.org/x/sys/cpu
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/term v0.3.0
+# golang.org/x/term v0.5.0
 ## explicit; go 1.17
 golang.org/x/term
-# golang.org/x/text v0.5.0 => golang.org/x/text v0.4.0
+# golang.org/x/text v0.7.0 => golang.org/x/text v0.4.0
 ## explicit; go 1.17
 golang.org/x/text/encoding
 golang.org/x/text/encoding/charmap
@@ -286,7 +286,7 @@ gopkg.in/natefinch/lumberjack.v2
 # gopkg.in/yaml.v2 v2.4.0
 ## explicit; go 1.15
 gopkg.in/yaml.v2
-# gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
+# gopkg.in/yaml.v3 v3.0.0-20220521103104-8f96da9f5d5e
 ## explicit
 gopkg.in/yaml.v3
 # istio.io/api v0.0.0-20210512213424-c42041d3366d
@@ -787,8 +787,7 @@ sigs.k8s.io/yaml
 # github.com/google/gofuzz => github.com/google/gofuzz v1.2.0
 # github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
 # go.uber.org/zap => go.uber.org/zap v1.18.1
-# golang.org/x/crypto => golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
-# golang.org/x/net => golang.org/x/net v0.4.0
+# golang.org/x/net => golang.org/x/net v0.7.0
 # golang.org/x/oauth2 => golang.org/x/oauth2 v0.0.0-20201109201403-9fd604954f58
 # golang.org/x/text => golang.org/x/text v0.4.0
 # google.golang.org/protobuf => google.golang.org/protobuf v1.26.0
