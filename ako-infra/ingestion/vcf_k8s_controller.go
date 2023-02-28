@@ -124,11 +124,19 @@ func (c *VCFK8sController) AddNamespaceEventHandler(stopCh <-chan struct{}) {
 }
 
 func (c *VCFK8sController) addWorkloadNamespaceCount() error {
-	count, err := c.getWorkloadNamespaceCount()
+	clientSet := c.informers.ClientSet
+	nsList, err := clientSet.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
+	count := 0
+	for _, ns := range nsList.Items {
+		if _, ok := ns.Labels[VSphereClusterIDLabelKey]; ok {
+			count += 1
+		}
+	}
 	WorkloadNamespaceCount = count
+	utils.AviLog.Infof("Initial number of workload namespaces: %d", WorkloadNamespaceCount)
 	return nil
 }
 
