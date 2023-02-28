@@ -12,6 +12,9 @@ type VHMatch struct {
 	// Required: true
 	Host *string `json:"host"`
 
+	// Resource/uri path match configuration. Must be configured along with Host match criteria. Field introduced in 20.1.3. Minimum of 1 items required. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	Path []*PathMatch `json:"path,omitempty"`
+
 	// Add rules for selecting the virtual service. At least one rule must be configured. Field introduced in 22.1.3. Minimum of 1 items required. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Rules []*VHMatchRule `json:"rules,omitempty"`
 }
