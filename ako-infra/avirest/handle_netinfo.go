@@ -32,7 +32,6 @@ import (
 
 	gocidr "github.com/apparentlymart/go-cidr/cidr"
 	"github.com/vmware/alb-sdk/go/models"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 var CloudCache *models.Cloud
@@ -91,193 +90,34 @@ func SyncLSLRNetwork() {
 
 	addNetworkInCloud("fullsync", cidrs, client)
 	addNetworkInIPAM("fullsync", client)
-}
-
-func AddSegment(obj interface{}) bool {
-	objKey := "Netinfo" + "/" + utils.ObjKey(obj)
-	utils.AviLog.Debugf("key: %s, Network Info ADD Event", objKey)
-	crd := obj.(*unstructured.Unstructured)
-
-	ns := crd.GetNamespace()
-	spec := crd.Object["topology"].(map[string]interface{})
-	lr, ok := spec["gatewayPath"].(string)
-	if !ok {
-		utils.AviLog.Infof("key: %s, lr not found from NetInfo CR", objKey)
-		return false
-	}
-	ls, ok := spec["aviSegmentPath"].(string)
-	if !ok {
-		utils.AviLog.Infof("key: %s, ls not found from NetInfo CR", objKey)
-		return false
-	}
-	cidrs := make(map[string]map[string]struct{})
-	cidrIntf, ok := spec["ingressCIDRs"].([]interface{})
-	if !ok {
-		utils.AviLog.Infof("key: %s, cidr not found in networkinfo object", objKey)
-		// If not found, try fetching from cluster network info CRD
-		var clusterNetworkCIDRFound bool
-		if cidrIntf, clusterNetworkCIDRFound = lib.GetClusterNetworkInfoCRData(lib.GetDynamicClientSet()); !clusterNetworkCIDRFound {
-			return false
-		}
-		//set the namespace to cluster name for the cluster ingress cidr
-		ns = lib.GetClusterName()
-		utils.AviLog.Infof("Ingress CIDR found from Cluster Network Info %v", cidrIntf)
-	}
-	for _, cidr := range cidrIntf {
-		if _, ok := cidrs[ns]; !ok {
-			cidrs[ns] = make(map[string]struct{})
-		}
-		cidrMap := cidrs[ns]
-		cidrMap[cidr.(string)] = struct{}{}
-	}
-
-	utils.AviLog.Infof("key: %s, Adding LR %s, LS %s from networkinfo CR", objKey, lr, ls)
-	client := InfraAviClientInstance()
-	found, cloudModel := getAviCloudFromCache(client, utils.CloudName)
-	if !found {
-		utils.AviLog.Fatalf("key: %s, Failed to get Cloud data from cache", objKey)
-		return false
-	}
-
-	if cloudModel.NsxtConfiguration == nil {
-		utils.AviLog.Warnf("key: %s, NSX-T config not set in cloud, segment won't be added", objKey)
-		return false
-	}
-
-	updateRequired, lslrList := addSegmentInCloud(cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs, lr, ls)
-	if updateRequired {
-		cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs = lslrList
-		path := "/api/cloud/" + *cloudModel.UUID
-		restOp := utils.RestOp{
-			ObjName: utils.CloudName,
-			Path:    path,
-			Method:  utils.RestPut,
-			Obj:     &cloudModel,
-			Tenant:  "admin",
-			Model:   "cloud",
-		}
-		executeRestOp(objKey, client, &restOp)
-	} else {
-		utils.AviLog.Infof("key: %s, LSLR update not required in cloud: %s", objKey, utils.CloudName)
-	}
-
-	addNetworkInCloud(objKey, cidrs, client)
-	addNetworkInIPAM(objKey, client)
-	return true
-}
-
-func DeleteSegment(obj interface{}) {
-	objKey := "Netinfo" + utils.ObjKey(obj)
-	utils.AviLog.Debugf("key:%s, Network Info DELETE Event", objKey)
-	crd := obj.(*unstructured.Unstructured)
-
-	ns := crd.GetNamespace()
-	spec := crd.Object["topology"].(map[string]interface{})
-	lr, ok := spec["gatewayPath"].(string)
-	if !ok {
-		utils.AviLog.Infof("key: %s, lr not found from NetInfo CR", objKey)
-		return
-	}
-	ls, ok := spec["aviSegmentPath"].(string)
-	if !ok {
-		utils.AviLog.Infof("key: %s, ls not found from NetInfo CR", objKey)
-		return
-	}
-	cidrs := make(map[string]map[string]struct{})
-	cidrIntf, ok := spec["ingressCIDRs"].([]interface{})
-	if !ok {
-		utils.AviLog.Infof("key: %s, cidr not found from NetInfo CR", objKey)
-	} else {
-		for _, cidr := range cidrIntf {
-			if _, ok := cidrs[ns]; !ok {
-				cidrs[ns] = make(map[string]struct{})
-			}
-			cidrMap := cidrs[ns]
-			cidrMap[cidr.(string)] = struct{}{}
-		}
-	}
-
-	utils.AviLog.Infof("key: %s, Network Info CR deleted, removing LR %s, LS %s and CIDR %v from cloud", objKey, lr, ls, cidrs)
-
-	client := InfraAviClientInstance()
-	found, cloudModel := getAviCloudFromCache(client, utils.CloudName)
-	if !found {
-		utils.AviLog.Warnf("key: %s, Failed to get Cloud data from cache", objKey)
-		return
-	}
-
-	if cloudModel.NsxtConfiguration == nil {
-		utils.AviLog.Warnf("key: %s, NSX-T config not set in cloud, segment won't be deleted", objKey)
-		return
-	}
-
-	updateRequired, lslrList := delSegmentInCloud(cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs, lr, ls)
-	if updateRequired {
-		cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs = lslrList
-		path := "/api/cloud/" + *cloudModel.UUID
-		restOp := utils.RestOp{
-			ObjName: utils.CloudName,
-			Path:    path,
-			Method:  utils.RestPut,
-			Obj:     &cloudModel,
-			Tenant:  "admin",
-			Model:   "cloud",
-		}
-		executeRestOp(objKey, client, &restOp)
-	} else {
-		utils.AviLog.Infof("key: %s, LSLR update not required in cloud: %s", objKey, utils.CloudName)
-	}
-	if len(cidrs) > 0 {
-		delCIDRFromNetwork(objKey, cidrs)
-	}
+	deleteNetworkInCloud("fullsync", cidrs, client)
 }
 
 func matchCidrInNetwork(subnets []*models.Subnet, cidrs map[string]struct{}) bool {
 	if len(subnets) != len(cidrs) {
 		return false
 	}
+	subnetCIDRs := make(map[string]struct{})
 	for _, subnet := range subnets {
 		addr := *subnet.Prefix.IPAddr.Addr
 		mask := *subnet.Prefix.Mask
 		cidr := fmt.Sprintf("%s/%d", addr, mask)
 		if _, ok := cidrs[cidr]; !ok {
-			utils.AviLog.Infof("could not find addr %s", cidr)
+			utils.AviLog.Infof("could not find addr %s in list of cidrs", cidr)
+			return false
+		}
+		subnetCIDRs[cidr] = struct{}{}
+	}
+	for cidr := range cidrs {
+		if _, ok := subnetCIDRs[cidr]; !ok {
+			utils.AviLog.Infof("could not find addr %s in subnet cidrs", cidr)
 			return false
 		}
 	}
 	return true
 }
 
-func findAndRemoveCidrInNetwork(subnets []*models.Subnet, cidrs map[string]struct{}) ([]*models.Subnet, bool) {
-	var subnetsCopy []*models.Subnet
-	cidrsLen := len(cidrs)
-	if cidrsLen == 0 {
-		subnetsCopy = make([]*models.Subnet, len(subnets))
-		copy(subnetsCopy, subnets)
-		return subnetsCopy, true
-	}
-	for _, subnet := range subnets {
-		addr := *subnet.Prefix.IPAddr.Addr
-		mask := *subnet.Prefix.Mask
-		cidr := fmt.Sprintf("%s/%d", addr, mask)
-		if _, found := cidrs[cidr]; found {
-			cidrsLen -= 1
-		} else {
-			subnetsCopy = append(subnetsCopy, subnet)
-		}
-	}
-	if cidrsLen == 0 {
-		return subnetsCopy, true
-	}
-	return subnetsCopy, false
-}
-
 func addNetworkInCloud(objKey string, cidrToNS map[string]map[string]struct{}, client *clients.AviClient) {
-	replaceAll := false
-	if objKey == "fullsync" {
-		replaceAll = true
-	}
-
 	method := utils.RestPost
 	path := "/api/network/"
 	_, netModels := getAviNetFromCache(client)
@@ -292,25 +132,16 @@ func addNetworkInCloud(objKey string, cidrToNS map[string]map[string]struct{}, c
 				CloudRef: &cloudRef,
 			}
 		} else {
-			if replaceAll {
-				if matchCidrInNetwork(netModel.ConfiguredSubnets, cidrs) {
-					utils.AviLog.Infof("All CIDRs already present in the network, skipping network update")
-					continue
-				}
-				netModel.ConfiguredSubnets = []*models.Subnet{}
-			} else {
-				updatedSubnets, matched := findAndRemoveCidrInNetwork(netModel.ConfiguredSubnets, cidrs)
-				if matched {
-					utils.AviLog.Infof("All CIDRs already present in the network, skipping network update")
-					return
-				}
-				netModel.ConfiguredSubnets = updatedSubnets
+			if matchCidrInNetwork(netModel.ConfiguredSubnets, cidrs) {
+				utils.AviLog.Infof("All CIDRs already present in the network, skipping network update")
+				continue
 			}
+			netModel.ConfiguredSubnets = []*models.Subnet{}
 			method = utils.RestPut
 			path = "/api/network/" + *netModel.UUID
 		}
 
-		utils.AviLog.Infof("key: %s, cidr to be added: %v", objKey, cidrs)
+		utils.AviLog.Infof("key: %s, list of cidrs to be added: %v", objKey, cidrs)
 		for cidr := range cidrs {
 			_, ipnet, err := net.ParseCIDR(cidr)
 			if err != nil {
@@ -379,23 +210,42 @@ func addNetworkInIPAM(key string, client *clients.AviClient) {
 		utils.AviLog.Warnf("Failed to get IPAM data from cache")
 		return
 	}
+
 	_, netModels := getAviNetFromCache(client)
 	if ipam.InternalProfile == nil {
 		ipam.InternalProfile = &models.IPAMDNSInternalProfile{}
 	}
 	usableNetworks := make(map[string]struct{})
+	updateIPAM := false
 	for _, nw := range ipam.InternalProfile.UsableNetworks {
-		usableNetworks[strings.Split(*nw.NwRef, "#")[1]] = struct{}{}
+		netName := strings.Split(*nw.NwRef, "#")[1]
+		if _, ok := netModels[netName]; !ok {
+			updateIPAM = true
+			continue
+		}
+		usableNetworks[netName] = struct{}{}
 	}
 	for netName := range netModels {
-		networkRef := "/api/network/?name=" + netName
-		_, exists := usableNetworks[netName]
-		if !exists {
-			ipam.InternalProfile.UsableNetworks = append(ipam.InternalProfile.UsableNetworks, &models.IPAMUsableNetwork{
-				NwRef: proto.String(networkRef),
-			})
+		if _, exists := usableNetworks[netName]; !exists {
+			updateIPAM = true
+			usableNetworks[netName] = struct{}{}
 		}
 	}
+	if !updateIPAM {
+		return
+	}
+
+	ipamUsableNetworks := make([]*models.IPAMUsableNetwork, len(usableNetworks))
+	i := 0
+	for netName := range usableNetworks {
+		networkRef := "/api/network/?name=" + netName
+		ipamUsableNetworks[i] = &models.IPAMUsableNetwork{
+			NwRef: proto.String(networkRef),
+		}
+		i += 1
+	}
+	ipam.InternalProfile.UsableNetworks = ipamUsableNetworks
+
 	path := strings.Split(*cloudModel.IPAMProviderRef, "/ipamdnsproviderprofile/")[1]
 	restOp := utils.RestOp{
 		Path:   "/api/ipamdnsproviderprofile/" + path,
@@ -405,69 +255,6 @@ func addNetworkInIPAM(key string, client *clients.AviClient) {
 		Model:  "ipamdnsproviderprofile",
 	}
 	executeRestOp(key, client, &restOp)
-}
-
-func delCIDRFromNetwork(objKey string, cidrs map[string]map[string]struct{}) {
-	client := InfraAviClientInstance()
-	method := utils.RestPut
-	path := "/api/network/"
-	_, netModels := getAviNetFromCache(client)
-	for ns, cidrs := range cidrs {
-		netName := lib.GetVCFNetworkNameWithNS(ns)
-		netModel, found := netModels[netName]
-		if !found {
-			utils.AviLog.Infof("key: %s, Failed to get Network data from cache", objKey)
-			continue
-		}
-		updatedSubnets, _ := findAndRemoveCidrInNetwork(netModel.ConfiguredSubnets, cidrs)
-		netModel.ConfiguredSubnets = updatedSubnets
-		path = "/api/network/" + *netModel.UUID
-		// setup all the networks before making the rest call
-		// process all cidrs for a namespace before making the rest call
-		utils.AviLog.Infof("key: %s, list of CIDRs to be deleted: %v", objKey, cidrs)
-		restOp := utils.RestOp{
-			ObjName: utils.CloudName,
-			Path:    path,
-			Method:  method,
-			Obj:     &netModel,
-			Tenant:  "admin",
-			Model:   "network",
-		}
-
-		utils.AviLog.Debugf("key: %s, executing restop to delete CIDR from vcf network: %v", objKey, utils.Stringify(restOp))
-		executeRestOp(objKey, client, &restOp)
-	}
-
-}
-
-func addSegmentInCloud(lslrList []*models.Tier1LogicalRouterInfo, lr, ls string) (bool, []*models.Tier1LogicalRouterInfo) {
-	listCopy := make([]*models.Tier1LogicalRouterInfo, len(lslrList))
-	copy(listCopy, lslrList)
-	for i := range listCopy {
-		if *lslrList[i].SegmentID == ls {
-			if *lslrList[i].Tier1LrID == lr {
-				return false, lslrList
-			}
-			lslrList = append(lslrList[:i], lslrList[i+1:]...)
-			break
-		}
-	}
-	lrls := models.Tier1LogicalRouterInfo{
-		SegmentID: &ls,
-		Tier1LrID: &lr,
-	}
-	lslrList = append(lslrList, &lrls)
-	return true, lslrList
-}
-
-func delSegmentInCloud(lslrList []*models.Tier1LogicalRouterInfo, lr, ls string) (bool, []*models.Tier1LogicalRouterInfo) {
-	for i := range lslrList {
-		if *lslrList[i].SegmentID == ls {
-			lslrList = append(lslrList[:i], lslrList[i+1:]...)
-			return true, lslrList
-		}
-	}
-	return false, lslrList
 }
 
 func matchSegmentInCloud(lslrList []*models.Tier1LogicalRouterInfo, lslrMap map[string]string) bool {
@@ -507,6 +294,36 @@ func constructLsLrInCloud(lslrList []*models.Tier1LogicalRouterInfo, lslrMap map
 	return cloudLSLRList
 }
 
+func deleteNetworkInCloud(objKey string, cidrToNS map[string]map[string]struct{}, client *clients.AviClient) {
+	_, netModels := getAviNetFromCache(client)
+	wg := sync.WaitGroup{}
+	for netName, net := range netModels {
+		pfx := lib.GetVCFNetworkName() + "-"
+		if !strings.HasPrefix(netName, pfx) {
+			continue
+		}
+		ns := strings.Split(netName, pfx)[1]
+		if _, ok := cidrToNS[ns]; !ok {
+			//delete the network
+			path := "/api/network/" + *net.UUID
+			restOp := utils.RestOp{
+				ObjName: netName,
+				Path:    path,
+				Method:  utils.RestDelete,
+				Tenant:  "admin",
+				Model:   "network",
+			}
+			wg.Add(1)
+			go func(restOp utils.RestOp) {
+				utils.AviLog.Infof("key: %s, Deleting VCF network %s", objKey, restOp.ObjName)
+				executeRestOp(objKey, client, &restOp)
+				wg.Done()
+			}(restOp)
+		}
+	}
+	wg.Wait()
+}
+
 func getAviCloudFromCache(client *clients.AviClient, cloudName string) (bool, models.Cloud) {
 	if CloudCache == nil {
 		if AviCloudCachePopulate(client, cloudName) != nil {
@@ -539,20 +356,21 @@ func AviCloudCachePopulate(client *clients.AviClient, cloudName string) error {
 	uri := "/api/cloud/?include_name&name=" + cloudName
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
-		utils.AviLog.Warnf("Cloud Get uri %v returned err %v", uri, err)
+		utils.AviLog.Errorf("Cloud Get uri %v returned err %v", uri, err)
 		return err
 	}
 
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
-		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
 		return err
 	}
 
 	if result.Count != 1 {
-		utils.AviLog.Errorf("Expected one cloud for cloud name: %s, found: %d", cloudName, result.Count)
-		return fmt.Errorf("Expected one cloud for cloud name: %s, found: %d", cloudName, result.Count)
+		err = fmt.Errorf("expected one cloud for cloud name: %s, found: %d", cloudName, result.Count)
+		utils.AviLog.Errorf(err.Error())
+		return err
 	}
 
 	CloudCache = &models.Cloud{}
@@ -598,7 +416,9 @@ func aviNetCachePopulate(client *clients.AviClient, cloudName string, netCache m
 		if err = json.Unmarshal(elems[i], &net); err != nil {
 			return err
 		}
-		netCache[*net.Name] = net
+		if strings.HasPrefix(*net.Name, lib.GetVCFNetworkName()) {
+			netCache[*net.Name] = net
+		}
 	}
 	if result.Next != "" {
 		next_uri := strings.Split(result.Next, "/api/network")

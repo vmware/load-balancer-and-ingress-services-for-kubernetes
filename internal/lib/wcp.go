@@ -73,7 +73,7 @@ func (w *WCPLister) RemoveNamespaceNetworkCache(namespace string) {
 }
 
 func (w *WCPLister) GetNetworkForNamespace(namespace ...string) []akov1alpha1.AviInfraSettingVipNetwork {
-	if utils.IsVCFCluster() {
+	if utils.IsVCFCluster() && len(namespace) > 0 {
 		found, networkName := w.NamespaceNetworkCache.Get(namespace[0])
 		if found {
 			return []akov1alpha1.AviInfraSettingVipNetwork{

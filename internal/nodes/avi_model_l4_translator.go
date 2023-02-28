@@ -121,7 +121,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		Tenant:      lib.GetTenant(),
 		FQDNs:       fqdns,
 		VrfContext:  vrfcontext,
-		VipNetworks: lib.SharedWCPLister().GetNetworkForNamespace(),
+		VipNetworks: lib.SharedWCPLister().GetNetworkForNamespace(svcObj.Namespace),
 	}
 	if t1lr != "" {
 		vsVipNode.T1Lr = t1lr
@@ -133,7 +133,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 
 	// configures VS and VsVip nodes using infraSetting object (via CRD).
 	if infraSetting, err := getL4InfraSetting(key, svcObj, nil); err == nil {
-		buildWithInfraSetting(key, avi_vs_meta, vsVipNode, infraSetting)
+		buildWithInfraSetting(key, svcObj.Namespace, avi_vs_meta, vsVipNode, infraSetting)
 	}
 
 	if lib.HasSpecLoadBalancerIP(svcObj) {
