@@ -202,6 +202,97 @@ func TestMultiNodeAdd(t *testing.T) {
 	g.Expect(len(nodeIPMap)).To(gomega.Equal(0))
 	KubeClient.CoreV1().Nodes().Delete(context.TODO(), "testNode1", metav1.DeleteOptions{})
 	KubeClient.CoreV1().Nodes().Delete(context.TODO(), "testNode2", metav1.DeleteOptions{})
+	PollForCompletion(t, modelName, 5)
+}
+
+func TestMultiNodeUpdate(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/global"
+	nodeip1 := "10.2.1.1"
+	nodeip2 := "10.2.1.2"
+	objects.SharedAviGraphLister().Delete(modelName)
+	PollForCompletion(t, modelName, 5)
+	nodeExample1 := (FakeNode{
+		Name:     "testNode3",
+		PodCIDR:  "10.244.3.0/24",
+		PodCIDRs: []string{"10.244.3.0/24"},
+		Version:  "1",
+		NodeIP:   nodeip1,
+	}).Node()
+	nodeExample2 := (FakeNode{
+		Name:     "testNode4",
+		PodCIDR:  "10.244.4.0/24",
+		PodCIDRs: []string{"10.244.4.0/24"},
+		Version:  "1",
+		NodeIP:   nodeip2,
+	}).Node()
+
+	_, err := KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample1, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Node: %v", err)
+	}
+	_, err = KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample2, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Node: %v", err)
+	}
+	PollForCompletion(t, modelName, 5)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+	time.Sleep(10 * time.Second)
+	nodeIPMap := make(map[string]bool)
+	nodeIPMap[nodeip1] = true
+	nodeIPMap[nodeip2] = true
+	g.Expect(len(nodes[0].StaticRoutes)).To(gomega.Equal(2))
+	for _, staticRoute := range nodes[0].StaticRoutes {
+		g.Expect(*(nodes[0].StaticRoutes[0].Prefix.Mask)).To(gomega.Equal(int32(24)))
+		if *(staticRoute.NextHop.Addr) == nodeip1 {
+			delete(nodeIPMap, nodeip1)
+			g.Expect(*(staticRoute.Prefix.IPAddr.Addr)).To(gomega.Equal("10.244.3.0"))
+		} else if *(staticRoute.NextHop.Addr) == nodeip2 {
+			delete(nodeIPMap, nodeip2)
+			g.Expect(*(staticRoute.Prefix.IPAddr.Addr)).To(gomega.Equal("10.244.4.0"))
+		} else {
+			t.Fatalf("nodeIP %v did not match with expected IPs", staticRoute.NextHop.Addr)
+		}
+	}
+	g.Expect(len(nodeIPMap)).To(gomega.Equal(0))
+
+	nodeExample := (FakeNode{
+		Name:     "testNode4",
+		PodCIDR:  "10.244.4.0/24",
+		PodCIDRs: []string{"10.244.4.0/24"},
+		Version:  "1",
+		NodeIP:   nodeip2,
+	}).Node()
+	nodeExample.ObjectMeta.ResourceVersion = "2"
+	nodeExample.Spec.PodCIDR = "10.245.0.0/24"
+	nodeExample.Spec.PodCIDRs = []string{"10.245.0.0/24"}
+
+	_, err = KubeClient.CoreV1().Nodes().Update(context.TODO(), nodeExample, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Node: %v", err)
+	}
+
+	PollForCompletion(t, modelName, 10)
+	time.Sleep(10 * time.Second)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).IsVrf).To(gomega.Equal(true))
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+	//AV-171818-Route ID should not change for update
+	g.Expect(*(nodes[0].StaticRoutes[1].RouteID)).Should(gomega.Equal("cluster-2"))
+
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), "testNode3", metav1.DeleteOptions{})
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), "testNode4", metav1.DeleteOptions{})
 }
 
 func TestNodeCIDRInAnnotation(t *testing.T) {
