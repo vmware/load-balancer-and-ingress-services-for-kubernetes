@@ -1966,9 +1966,43 @@ func GetIPFromNode(node *v1.Node) (string, string) {
 		if addr.Type == corev1.NodeInternalIP {
 			nodeIP := addr.Address
 			if utils.IsV4(nodeIP) {
-				nodeV4 = nodeIP
-			} else {
+				//Use first IP in the list
+				if nodeV4 == "" {
+					nodeV4 = nodeIP
+				}
+			} else if nodeV6 == "" {
 				nodeV6 = nodeIP
+			}
+		}
+	}
+	if GetCNIPlugin() == OPENSHIFT_CNI && dynamicClientSet != nil {
+		dynamicClient := GetDynamicClientSet()
+		crdClient := dynamicClient.Resource(HostSubnetGVR)
+		crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			utils.AviLog.Errorf("Error getting CRD %v", err)
+			return nodeV4, nodeV6
+		}
+
+		for _, i := range crdList.Items {
+			host, ok := (i.Object["host"]).(string)
+			if !ok {
+				utils.AviLog.Errorf("Error in parsing hostsubnets crd list")
+				return nodeV4, nodeV6
+			}
+
+			if host == node.Name {
+				hostIP, ok := (i.Object["hostIP"]).(string)
+				if !ok {
+					utils.AviLog.Errorf("Error in parsing hostsubnets crd list")
+					return nodeV4, nodeV6
+				}
+
+				if utils.IsV4(hostIP) {
+					nodeV4 = hostIP
+				} else {
+					nodeV6 = hostIP
+				}
 			}
 		}
 	}
