@@ -1621,50 +1621,6 @@ func UpdateAviSecretWithRetry(kc kubernetes.Interface, aviSecret *v1.Secret, ret
 	return err
 }
 
-// checkRefOnController checks whether a provided ref on the controller
-// Can be used in L4 CRD.
-func CheckL4RefOnController(key, refKey, refValue string, clients *utils.AviRestClientPool) error {
-	// assign the last avi client for ref checks
-	aviClientLen := GetshardSize()
-	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type,labels,created_by", refKey, refValue)
-
-	result, err := AviGetCollectionRaw(clients.AviClient[aviClientLen], uri)
-	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: Get uri %v returned err %v", key, uri, err)
-		return fmt.Errorf("%s \"%s\" not found on controller", refKey, refValue)
-	}
-
-	if result.Count == 0 {
-		utils.AviLog.Warnf("key: %s, msg: No Objects found for refName: %s/%s", key, refKey, refValue)
-		return fmt.Errorf("%s \"%s\" not found on controller", refKey, refValue)
-	}
-
-	items := make([]json.RawMessage, result.Count)
-	err = json.Unmarshal(result.Results, &items)
-	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: Failed to unmarshal results, err: %v", key, err)
-		return fmt.Errorf("%s \"%s\" not found on controller", refKey, refValue)
-	}
-
-	item := make(map[string]interface{})
-	err = json.Unmarshal(items[0], &item)
-	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: Failed to unmarshal item, err: %v", key, err)
-		return fmt.Errorf("%s \"%s\" found on controller is invalid", refKey, refValue)
-	}
-
-	switch refKey {
-	case AppProfile:
-		if appProfType, ok := item["type"].(string); ok && appProfType != AllowedL4ApplicationProfile {
-			utils.AviLog.Warnf("key: %s, msg: applicationProfile: %s must be of type %s", key, refValue, AllowedApplicationProfile)
-			return fmt.Errorf("%s \"%s\" found on controller is invalid, must be of type: %s",
-				refKey, refValue, AllowedL4ApplicationProfile)
-		}
-	}
-	utils.AviLog.Infof("key: %s, msg: Ref found for %s/%s", key, refKey, refValue)
-	return nil
-}
-
 func RefreshAuthToken(kc kubernetes.Interface) {
 	retryCount := 5
 	ctrlProp := utils.SharedCtrlProp().GetAllCtrlProp()

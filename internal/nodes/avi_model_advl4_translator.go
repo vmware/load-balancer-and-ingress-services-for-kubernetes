@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"strings"
 
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
@@ -454,7 +453,6 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 	avi_vs_meta.AviMarkers = lib.PopulateAdvL4VSNodeMarkers(namespace, sharedVipKey)
 	var portProtocols []AviPortHostProtocol
 	var sharedPreferredVIP string
-	var appProfile string
 	var serviceObject *v1.Service
 	for i, serviceNSName := range serviceNSNames {
 		svcNSName := strings.Split(serviceNSName, "/")
@@ -472,15 +470,6 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 			}
 			if infraSettingAnnotation, ok := svcObj.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
 				serviceObject = svcObj.DeepCopy()
-			}
-			if appProfileAnnotation, ok := svcObj.GetAnnotations()[lib.LBSvcAppProfileAnnotation]; ok && appProfileAnnotation != "" {
-				err := lib.CheckL4RefOnController(key, lib.AppProfile, appProfileAnnotation, avicache.SharedAVIClients())
-				if err != nil {
-					utils.AviLog.Warnf("key: %v, msg: Not processing L4 service", key)
-					return nil
-				}
-				appProfile = appProfileAnnotation
-
 			}
 		}
 
@@ -503,11 +492,7 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 	}
 
 	avi_vs_meta.PortProto = portProtocols
-	if appProfile != "" {
-		avi_vs_meta.ApplicationProfile = appProfile
-	} else {
-		avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
-	}
+	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
 
 	if isSCTP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
