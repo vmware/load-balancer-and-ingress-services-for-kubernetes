@@ -89,17 +89,22 @@ The `blockedNamespaceList` lists the Kubernetes/Openshift namespaces blocked by 
       - kube-system
       - kube-public
 
-### AKOSetttings.istioEnabled (Tech Preview)
+### AKOSettings.istioEnabled (Tech Preview)
 
 AKO can be deployed in Istio environment. Setting this to `true` indicates to AKO that the environment is Istio. Default value is `false`.
 
-### AKOSetttings.ipFamily (Tech Preview)
+### AKOSettings.ipFamily (Tech Preview)
 
 `V6` is currently supported only for `vCenter` cloud with `calico` CNI.
 
 AKO can be deployed with ipFamily as `V4` or `V6`. When ipFamily is set to `V6`, AKO looks for `V6` IP for nodes from calico annotation and creates routes on controller. Only servers with `V6` IP will get added to Pools.
 
 Default value is `V4`.
+
+### AKOSettings.handleSecretsFromAKONSOnly
+
+This flag provides the ability to restrict the secret handling to the namespace where the AKO is installed. This flag is applicable only to Openshift clusters.
+Default value is `false`.
 
 ### NetworkSettings.nodeNetworkList
 

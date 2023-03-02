@@ -36,7 +36,8 @@ AKOSettings:
   #   - kube-system
   #   - kube-public
   ipFamily: "" # This flag can take values V4 or V6 (default V4). This is for the backend pools to use ipv6 or ipv4. For frontside VS, use v6cidr
-
+  handleSecretsFromAKONSOnly: "false" # If this flag is set to true, AKO will only handle secrets from the namespace where AKO is installed.
+                                      # This flag is applicable only to Openshift clusters.
 
 ### This section outlines the network settings for virtualservices. 
 NetworkSettings:

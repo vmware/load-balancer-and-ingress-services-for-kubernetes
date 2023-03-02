@@ -261,6 +261,13 @@ func NewInformers(kubeClient KubeClientIntf, registeredInformers []string, args 
 		}
 	}
 
+	// In openshift, the secret handling is restricted to the namespace where the AKO is
+	// installed if the user sets `handleSecretsFromAKONSOnly` to true.
+	if oshiftclient != nil &&
+		IsSecretsHandlingRestrictedToAKONS() {
+		akoNSBoundInformer = true
+	}
+
 	if !instantiateOnce {
 		return instantiateInformers(kubeClient, registeredInformers, oshiftclient, akoClient, namespace, akoNSBoundInformer)
 	}
@@ -540,6 +547,16 @@ func IsMultiClusterIngressEnabled() bool {
 	}
 	AviLog.Debugf("Multi-cluster ingress is not enabled")
 	return false
+}
+
+// This utility returns a true/false depending on whether
+// the secret handling is restricted to the namespace where the AKO is installed.
+func IsSecretsHandlingRestrictedToAKONS() bool {
+	ok, err := strconv.ParseBool(os.Getenv(HANDLE_SECRETS_FROM_AKO_NS_ONLY))
+	if err != nil {
+		return false
+	}
+	return ok
 }
 
 type Version struct {

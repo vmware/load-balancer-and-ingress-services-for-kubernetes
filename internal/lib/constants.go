@@ -37,6 +37,7 @@ const (
 	BGP_PEER_LABELS                            = "BGP_PEER_LABELS"
 	SEG_NAME                                   = "SEG_NAME"
 	BLOCKED_NS_LIST                            = "BLOCKED_NS_LIST"
+	HANDLE_SECRETS_FROM_AKO_NS_ONLY            = "HANDLE_SECRETS_FROM_AKO_NS_ONLY"
 	DEFAULT_SE_GROUP                           = "Default-Group"
 	NODE_NETWORK_LIST                          = "NODE_NETWORK_LIST"
 	NODE_NETWORK_MAX_ENTRIES                   = 5

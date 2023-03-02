@@ -177,6 +177,7 @@ The following table lists the configurable parameters of the AKO chart and their
 | `AKOSettings.blockedNamespaceList` | List of K8s/Openshift namespaces blocked by AKO | `Empty List` |
 | `AKOSettings.istioEnabled` | set to true if user wants to deploy AKO in istio environment (tech preview)| false |
 | `AKOSettings.ipFamily` | set to V6 if user wants to deploy AKO with V6 backend (vCenter cloud with calico CNI only) (tech preview)| V4 |
+| `AKOSettings.handleSecretsFromAKONSOnly` | Restricts the secret handling to the namespace where AKO is installed in Openshift clusters if set to true | false |
 | `avicredentials.username` | Avi controller username | empty |
 | `avicredentials.password` | Avi controller password | empty |
 | `avicredentials.authtoken` | Avi controller authentication token | empty |
