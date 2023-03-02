@@ -90,18 +90,8 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		}
 	}
 	avi_vs_meta.PortProto = portProtocols
-
-	if appProfileAnnotation, ok := svcObj.GetAnnotations()[lib.LBSvcAppProfileAnnotation]; ok && appProfileAnnotation != "" {
-		err := lib.CheckL4RefOnController(key, lib.AppProfile, appProfileAnnotation, avicache.SharedAVIClients())
-		if err != nil {
-			utils.AviLog.Warnf("key: %v, msg: Not processing L4 service", key)
-			return nil
-		}
-		avi_vs_meta.ApplicationProfile = appProfileAnnotation
-	} else {
-		// Default case
-		avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
-	}
+	// Default case.
+	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
 	if !isTCP {
 		if isSCTP {
 			avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
