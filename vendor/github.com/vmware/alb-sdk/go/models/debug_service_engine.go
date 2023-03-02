@@ -42,6 +42,9 @@ type DebugServiceEngine struct {
 	// Enables the use of kdump on SE. Requires SE Reboot. Applicable only in case of VM Based deployments. Field introduced in 18.2.10, 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EnableKdump *bool `json:"enable_kdump,omitempty"`
 
+	// Enable profiling time for certain RPC calls. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	EnableRPCTimingProfiler *bool `json:"enable_rpc_timing_profiler,omitempty"`
+
 	// Params for SE fault injection. Field introduced in 18.1.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Fault *DebugSeFault `json:"fault,omitempty"`
 
@@ -59,6 +62,9 @@ type DebugServiceEngine struct {
 
 	//  It is a reference to an object of type Tenant. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TenantRef *string `json:"tenant_ref,omitempty"`
+
+	// Trace the functions calling memory allocation and free APIs. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	TraceMemory *DebugTraceMemory `json:"trace_memory,omitempty"`
 
 	// url
 	// Read Only: true

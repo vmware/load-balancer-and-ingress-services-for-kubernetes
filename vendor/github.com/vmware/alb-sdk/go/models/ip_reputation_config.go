@@ -11,6 +11,6 @@ type IPReputationConfig struct {
 	// IP reputation db file object expiry duration in days. Allowed values are 1-7. Field introduced in 20.1.1. Unit is DAYS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IPReputationFileObjectExpiryDuration *int32 `json:"ip_reputation_file_object_expiry_duration,omitempty"`
 
-	// IP reputation db sync interval in minutes. Allowed values are 2-1440. Field introduced in 20.1.1. Unit is MIN. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 60), Basic edition(Allowed values- 60), Enterprise with Cloud Services edition.
+	// IP reputation db sync interval in minutes. Allowed values are 30-1440. Field introduced in 20.1.1. Unit is MIN. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 60), Basic edition(Allowed values- 60), Enterprise with Cloud Services edition.
 	IPReputationSyncInterval *int32 `json:"ip_reputation_sync_interval,omitempty"`
 }

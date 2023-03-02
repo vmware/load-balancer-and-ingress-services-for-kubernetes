@@ -15,7 +15,7 @@ type PoolGroupMember struct {
 	// Required: true
 	PoolRef *string `json:"pool_ref"`
 
-	// All pools with same label are treated similarly in a pool group. A pool with a higher priority is selected, as long as the pool is eligible or an explicit policy chooses a different pool. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// All pools with same priority are treated similarly in a pool group. The higher the number, the higher the priority.A pool with a higher priority is selected, as long as the pool is eligible or an explicit policy chooses a different pool. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PriorityLabel *string `json:"priority_label,omitempty"`
 
 	// Ratio of selecting eligible pools in the pool group. . Allowed values are 1-1000. Special values are 0 - Do not select this pool for new connections. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 1), Basic edition(Allowed values- 1), Enterprise with Cloud Services edition.

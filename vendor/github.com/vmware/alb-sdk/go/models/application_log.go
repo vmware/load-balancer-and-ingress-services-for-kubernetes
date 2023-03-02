@@ -400,6 +400,9 @@ type ApplicationLog struct {
 	// Required: true
 	VcpuID *int32 `json:"vcpu_id"`
 
+	// EVH rule matching the request. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	VhMatchRule *string `json:"vh_match_rule,omitempty"`
+
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Virtualservice *string `json:"virtualservice"`

@@ -15,6 +15,9 @@ type PathMatch struct {
 	// Required: true
 	MatchCriteria *string `json:"match_criteria"`
 
+	// Match against the decoded URI path. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	MatchDecodedString *bool `json:"match_decoded_string,omitempty"`
+
 	// String values. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MatchStr []string `json:"match_str,omitempty"`
 

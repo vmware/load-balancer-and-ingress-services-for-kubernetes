@@ -191,6 +191,9 @@ type VserverL4MetricsObj struct {
 	// Average rate of packets transmitted per second. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AvgTxPkts *float64 `json:"avg_tx_pkts,omitempty"`
 
+	// Maximum connection establishment time on the client side. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	MaxConnectionEstbTimeFe *float64 `json:"max_connection_estb_time_fe,omitempty"`
+
 	// Max number of SEs. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxNumActiveSe *float64 `json:"max_num_active_se,omitempty"`
 
@@ -240,6 +243,9 @@ type VserverL4MetricsObj struct {
 	// Total duration across all connections. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SumConnDuration *float64 `json:"sum_conn_duration,omitempty"`
 
+	// Total number of times client side connection establishment time was breached. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	SumConnEstTimeExceededFlowsFe *float64 `json:"sum_conn_est_time_exceeded_flows_fe,omitempty"`
+
 	// Total number of connection dropped due to vserver connection limit. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SumConnectionDroppedUserLimit *float64 `json:"sum_connection_dropped_user_limit,omitempty"`
 
@@ -263,6 +269,9 @@ type VserverL4MetricsObj struct {
 
 	// Total number of finished connections. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SumFinishedConns *float64 `json:"sum_finished_conns,omitempty"`
+
+	// Total number of times 'latency_threshold' was breached during ingress. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	SumIngressLatencyExceededFlows *float64 `json:"sum_ingress_latency_exceeded_flows,omitempty"`
 
 	// Total connections that were lossy due to high packet retransmissions. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SumLossyConnections *float64 `json:"sum_lossy_connections,omitempty"`

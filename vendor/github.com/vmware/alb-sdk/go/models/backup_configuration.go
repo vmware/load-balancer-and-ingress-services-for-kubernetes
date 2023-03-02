@@ -18,6 +18,9 @@ type BackupConfiguration struct {
 	// AWS bucket. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	AwsBucketID *string `json:"aws_bucket_id,omitempty"`
 
+	// The name of the AWS region associated with the bucket. Field introduced in 21.1.5, 22.1.1, 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	AwsBucketRegion *string `json:"aws_bucket_region,omitempty"`
+
 	// AWS Secret Access Key. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	AwsSecretAccess *string `json:"aws_secret_access,omitempty"`
 

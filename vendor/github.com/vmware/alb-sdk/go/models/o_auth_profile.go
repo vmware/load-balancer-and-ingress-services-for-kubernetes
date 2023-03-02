@@ -12,13 +12,16 @@ type OAuthProfile struct {
 	// Required: true
 	AuthorizationEndpoint *string `json:"authorization_endpoint"`
 
+	// Logout URI of IDP server. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	EndSessionEndpoint *string `json:"end_session_endpoint,omitempty"`
+
 	// URL of token introspection server. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	IntrospectionEndpoint *string `json:"introspection_endpoint,omitempty"`
 
 	// Uniquely identifiable name of the Token Issuer. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Issuer *string `json:"issuer,omitempty"`
 
-	// Lifetime of the cached JWKS keys. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Lifetime of the cached JWKS keys. Allowed values are 0-1440. Field introduced in 21.1.3. Unit is MIN. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	JwksTimeout *int32 `json:"jwks_timeout,omitempty"`
 
 	// JWKS URL of the endpoint that hosts the public keys that can be used to verify any JWT issued by the authorization server. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.

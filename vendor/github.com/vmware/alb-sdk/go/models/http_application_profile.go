@@ -98,7 +98,7 @@ type HTTPApplicationProfile struct {
 	// Maximum bad requests per second per URI. Allowed values are 10-1000. Special values are 0- unlimited. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxBadRpsURI *int32 `json:"max_bad_rps_uri,omitempty"`
 
-	// Maximum number of headers allowed in HTTP request and response. Allowed values are 0-4096. Special values are 0- unlimited headers in request and response. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 0), Basic edition(Allowed values- 0), Enterprise with Cloud Services edition. Special default for Essentials edition is 0, Basic edition is 0, Enterprise is 64.
+	// Maximum number of headers allowed in HTTP request and response. Allowed values are 0-4096. Special values are 0- unlimited headers in request and response. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 0), Basic edition(Allowed values- 0), Enterprise with Cloud Services edition. Special default for Essentials edition is 0, Basic edition is 0, Enterprise is 256.
 	MaxHeaderCount *int32 `json:"max_header_count,omitempty"`
 
 	// The max number of HTTP requests that can be sent over a Keep-Alive connection. '0' means unlimited. Allowed values are 0-1000000. Special values are 0- Unlimited requests on a connection. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 100), Basic edition(Allowed values- 100), Enterprise with Cloud Services edition.
@@ -169,4 +169,7 @@ type HTTPApplicationProfile struct {
 
 	// The client's original IP address is inserted into an HTTP request header sent to the server.  Servers may use this address for logging or other purposes, rather than Avi's source NAT address used in the Avi to server IP connection. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	XffEnabled *bool `json:"xff_enabled,omitempty"`
+
+	// Configure how incoming X-Forwarded-For headers from the client are handled. Enum options - REPLACE_XFF_HEADERS, APPEND_TO_THE_XFF_HEADER, ADD_NEW_XFF_HEADER. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	XffUpdate *string `json:"xff_update,omitempty"`
 }

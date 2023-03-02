@@ -52,6 +52,9 @@ type SSLKeyAndCertificate struct {
 	// Flag to enable Private key import to HSM while importing the certificate. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	ImportKeyToHsm *bool `json:"import_key_to_hsm,omitempty"`
 
+	// It Specifies whether the object has to be replicated to the GSLB followers. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	IsFederated *bool `json:"is_federated,omitempty"`
+
 	// Private key. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Key *string `json:"key,omitempty"`
 

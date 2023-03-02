@@ -99,6 +99,9 @@ type UpgradeStatusInfo struct {
 	// Upgrade operations progress which holds value between 0-100. Allowed values are 0-100. Field introduced in 18.2.8, 20.1.1. Unit is PERCENT. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Progress *int32 `json:"progress,omitempty"`
 
+	// Descriptive reason for the Upgrade state. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	Reason *string `json:"reason,omitempty"`
+
 	// Image path of se patch image.(required in case of reimage and upgrade + patch). Field introduced in 18.2.10, 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SePatchImagePath *string `json:"se_patch_image_path,omitempty"`
 
@@ -138,8 +141,11 @@ type UpgradeStatusInfo struct {
 	// Events performed for Upgrade operation. Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UpgradeEvents []*EventMap `json:"upgrade_events,omitempty"`
 
-	// Upgrade operations requested. Enum options - UPGRADE, PATCH, ROLLBACK, ROLLBACKPATCH, SEGROUP_RESUME. Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// Upgrade operations requested. Enum options - UPGRADE, PATCH, ROLLBACK, ROLLBACKPATCH, SEGROUP_RESUME, EVAL_UPGRADE, EVAL_PATCH, EVAL_ROLLBACK, EVAL_ROLLBACKPATCH, EVAL_SEGROUP_RESUME. Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UpgradeOps *string `json:"upgrade_ops,omitempty"`
+
+	// Upgrade readiness check execution detail. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	UpgradeReadiness *UpgradeReadinessCheckObj `json:"upgrade_readiness,omitempty"`
 
 	// url
 	// Read Only: true
