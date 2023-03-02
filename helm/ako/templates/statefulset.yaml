@@ -256,6 +256,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: ipFamily
+          - name: HANDLE_SECRETS_FROM_AKO_NS_ONLY
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: handleSecretsFromAKONSOnly
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:

@@ -261,6 +261,13 @@ func NewInformers(kubeClient KubeClientIntf, registeredInformers []string, args 
 		}
 	}
 
+	// In openshift, the secret handling is restricted to the namespace where the AKO is
+	// installed if the user sets `handleSecretsFromAKONSOnly` to true.
+	if oshiftclient != nil &&
+		IsSecretsHandlingRestrictedToAKONS() {
+		akoNSBoundInformer = true
+	}
+
 	if !instantiateOnce {
 		return instantiateInformers(kubeClient, registeredInformers, oshiftclient, akoClient, namespace, akoNSBoundInformer)
 	}
@@ -540,4 +547,61 @@ func IsMultiClusterIngressEnabled() bool {
 	}
 	AviLog.Debugf("Multi-cluster ingress is not enabled")
 	return false
+}
+
+// This utility returns a true/false depending on whether
+// the secret handling is restricted to the namespace where the AKO is installed.
+func IsSecretsHandlingRestrictedToAKONS() bool {
+	ok, err := strconv.ParseBool(os.Getenv(HANDLE_SECRETS_FROM_AKO_NS_ONLY))
+	if err != nil {
+		return false
+	}
+	return ok
+}
+
+type Version struct {
+	subversions []int
+}
+
+func (v *Version) Compare(v1 *Version) int {
+	/*
+		return 0 if v and v1 are equal
+		return -1 if v is less than v1
+		return 1 if v is greater than 1
+	*/
+	length := len(v.subversions)
+	if len(v1.subversions) < length {
+		length = len(v1.subversions)
+	}
+	for i := 0; i < length; i++ {
+		if v.subversions[i] == v1.subversions[i] {
+			continue
+		}
+		if v.subversions[i] < v1.subversions[i] {
+			return -1
+		}
+		return 1
+	}
+	if len(v.subversions) == len(v1.subversions) {
+		return 0
+	}
+	if len(v.subversions) < len(v1.subversions) {
+		return -1
+	}
+	return 1
+}
+
+func NewVersion(version string) (*Version, error) {
+	substrings := strings.Split(version, ".")
+	v := &Version{
+		subversions: make([]int, 0),
+	}
+	for _, substr := range substrings {
+		val, err := strconv.Atoi(substr)
+		if err != nil {
+			return nil, err
+		}
+		v.subversions = append(v.subversions, val)
+	}
+	return v, nil
 }
