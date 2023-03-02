@@ -256,6 +256,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: ipFamily
+          - name: USE_DEFAULT_SECRETS_ONLY
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: useDefaultSecretsOnly
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:

@@ -152,7 +152,8 @@ func (l *leader) ValidateHostRuleObj(key string, hostrule *akov1alpha1.HostRule)
 	}
 
 	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
-		_, err := utils.GetInformers().SecretInformer.Lister().Secrets(hostrule.Namespace).Get(hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name)
+		secretName := hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name
+		err := validateSecretReferenceInHostrule(hostrule.Namespace, secretName)
 		if err != nil {
 			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 			return err
@@ -163,7 +164,8 @@ func (l *leader) ValidateHostRuleObj(key string, hostrule *akov1alpha1.HostRule)
 	}
 
 	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
-		_, err := utils.GetInformers().SecretInformer.Lister().Secrets(hostrule.Namespace).Get(hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name)
+		secretName := hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name
+		err := validateSecretReferenceInHostrule(hostrule.Namespace, secretName)
 		if err != nil {
 			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 			return err
@@ -190,6 +192,21 @@ func (l *leader) ValidateHostRuleObj(key string, hostrule *akov1alpha1.HostRule)
 
 	status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusAccepted, Error: ""})
 	return nil
+}
+
+func validateSecretReferenceInHostrule(namespace, secretName string) error {
+
+	// reject the hostrule if the secret handling is restricted to the namespace where
+	// AKO is installed.
+	if utils.GetInformers().RouteInformer != nil &&
+		namespace != utils.GetAKONamespace() &&
+		utils.IsSecretsHandlingRestrictedToAKONS() {
+		err := fmt.Errorf("secret handling is restricted to %s namespace only", utils.GetAKONamespace())
+		return err
+	}
+
+	_, err := utils.GetInformers().SecretInformer.Lister().Secrets(namespace).Get(secretName)
+	return err
 }
 
 // validateHTTPRuleObj would do validation checks
