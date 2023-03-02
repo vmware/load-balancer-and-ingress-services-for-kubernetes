@@ -626,6 +626,7 @@ func TestMultiPortServiceIngress(t *testing.T) {
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, true)
 	integrationtest.CreateEP(t, "default", "avisvc", true, true, "1.1.1")
+	time.Sleep(2 * time.Second)
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "ingress-multipath",
 		Namespace:   "default",
@@ -905,6 +906,7 @@ func TestUpdateBackendService(t *testing.T) {
 
 	integrationtest.CreateSVC(t, "default", "avisvc2", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "default", "avisvc2", false, false, "2.2.2")
+	time.Sleep(2 * time.Second)
 
 	_, err = (integrationtest.FakeIngress{
 		Name:        "ingress-backend-svc",

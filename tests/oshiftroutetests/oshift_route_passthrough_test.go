@@ -401,6 +401,8 @@ func TestPassthroughRouteWithAlternateBackends(t *testing.T) {
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
 
+	time.Sleep(2 * time.Second) //service should be created before route
+
 	routeExample := FakeRoute{Path: "/foo"}.PassthroughABRoute()
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyRedirect
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
