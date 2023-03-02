@@ -67,7 +67,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	}
 
 	vrfcontext := lib.GetVrf()
-	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(svcObj.Namespace)
+	t1lr := lib.SharedWCPLister().GetT1LrForNamespace(svcObj.Namespace)
 	if t1lr != "" {
 		vrfcontext = ""
 	} else {
@@ -104,7 +104,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		Tenant:      lib.GetTenant(),
 		FQDNs:       fqdns,
 		VrfContext:  vrfcontext,
-		VipNetworks: lib.GetVipNetworkList(),
+		VipNetworks: lib.SharedWCPLister().GetNetworkForNamespace(svcObj.Namespace),
 	}
 	if t1lr != "" {
 		vsVipNode.T1Lr = t1lr
@@ -116,7 +116,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 
 	// configures VS and VsVip nodes using infraSetting object (via CRD).
 	if infraSetting, err := getL4InfraSetting(key, svcObj, nil); err == nil {
-		buildWithInfraSetting(key, avi_vs_meta, vsVipNode, infraSetting)
+		buildWithInfraSetting(key, svcObj.Namespace, avi_vs_meta, vsVipNode, infraSetting)
 	}
 
 	if svcObj.Spec.LoadBalancerIP != "" {
@@ -150,7 +150,7 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 		}
 
 		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
-		t1lr := objects.SharedWCPLister().GetT1LrForNamespace(svcObj.Namespace)
+		t1lr := lib.SharedWCPLister().GetT1LrForNamespace(svcObj.Namespace)
 		if t1lr != "" {
 			poolNode.T1Lr = t1lr
 			// Unset the poolnode's vrfcontext.

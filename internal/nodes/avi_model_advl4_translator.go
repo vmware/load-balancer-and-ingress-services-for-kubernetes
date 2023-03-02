@@ -80,7 +80,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		}
 
 		var vrfcontext string
-		t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
+		t1lr := lib.SharedWCPLister().GetT1LrForNamespace(namespace)
 		if t1lr == "" {
 			vrfcontext = lib.GetVrf()
 			avi_vs_meta.VrfContext = vrfcontext
@@ -122,7 +122,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 			Name:        lib.GetL4VSVipName(gatewayName, namespace),
 			Tenant:      lib.GetTenant(),
 			VrfContext:  vrfcontext,
-			VipNetworks: lib.GetVipNetworkList(),
+			VipNetworks: lib.SharedWCPLister().GetNetworkForNamespace(namespace),
 		}
 
 		if t1lr != "" {
@@ -204,7 +204,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		}
 
 		var vrfcontext string
-		t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
+		t1lr := lib.SharedWCPLister().GetT1LrForNamespace(namespace)
 		if t1lr == "" {
 			vrfcontext = lib.GetVrf()
 			avi_vs_meta.VrfContext = vrfcontext
@@ -246,7 +246,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			Tenant:      lib.GetTenant(),
 			VrfContext:  vrfcontext,
 			FQDNs:       fqdns,
-			VipNetworks: lib.GetVipNetworkList(),
+			VipNetworks: lib.SharedWCPLister().GetNetworkForNamespace(namespace),
 		}
 
 		if t1lr != "" {
@@ -259,7 +259,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 
 		// configures VS and VsVip nodes using infraSetting object (via CRD).
 		if infraSetting, err := getL4InfraSetting(key, nil, &gw.Spec.GatewayClassName); err == nil {
-			buildWithInfraSetting(key, avi_vs_meta, vsVipNode, infraSetting)
+			buildWithInfraSetting(key, namespace, avi_vs_meta, vsVipNode, infraSetting)
 		}
 
 		if len(gw.Spec.Addresses) > 0 && gw.Spec.Addresses[0].Type == svcapiv1alpha1.IPAddressType {
@@ -311,7 +311,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		}
 	}
 
-	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
+	t1lr := lib.SharedWCPLister().GetT1LrForNamespace(namespace)
 
 	var portPoolSet []AviHostPathPortPoolPG
 	for listener, svc := range svcListeners {

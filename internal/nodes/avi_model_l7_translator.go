@@ -92,7 +92,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 	}
 
 	// If NSX-T LR path is empty, set vrfContext
-	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(routeIgrObj.GetNamespace())
+	t1lr := lib.SharedWCPLister().GetT1LrForNamespace(routeIgrObj.GetNamespace())
 	if t1lr == "" {
 		vrfcontext = lib.GetVrf()
 		avi_vs_meta.VrfContext = vrfcontext
@@ -112,7 +112,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 		Tenant:      lib.GetTenant(),
 		FQDNs:       fqdns,
 		VrfContext:  vrfcontext,
-		VipNetworks: lib.GetVipNetworkList(),
+		VipNetworks: lib.SharedWCPLister().GetNetworkForNamespace(routeIgrObj.GetNamespace()),
 	}
 
 	if t1lr != "" {
@@ -124,7 +124,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 	}
 
 	if infraSetting := routeIgrObj.GetAviInfraSetting(); infraSetting != nil {
-		buildWithInfraSetting(key, avi_vs_meta, vsVipNode, infraSetting)
+		buildWithInfraSetting(key, routeIgrObj.GetNamespace(), avi_vs_meta, vsVipNode, infraSetting)
 	}
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
@@ -422,7 +422,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 
 			poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
 
-			t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
+			t1lr := lib.SharedWCPLister().GetT1LrForNamespace(namespace)
 			if t1lr != "" {
 				poolNode.T1Lr = t1lr
 				// Unset the poolnode's vrfcontext.
@@ -638,7 +638,7 @@ func RemoveFqdnFromVIP(vsNode *AviVsNode, key string, Fqdns []string) {
 		}
 	}
 }
-func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infraSetting *akov1alpha1.AviInfraSetting) {
+func buildWithInfraSetting(key, namespace string, vs *AviVsNode, vsvip *AviVSVIPNode, infraSetting *akov1alpha1.AviInfraSetting) {
 	if infraSetting != nil && infraSetting.Status.Status == lib.StatusAccepted {
 		if infraSetting.Spec.SeGroup.Name != "" {
 			// This assumes that the SeGroup has the appropriate labels configured
@@ -667,7 +667,7 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 		if infraSetting.Spec.Network.VipNetworks != nil && len(infraSetting.Spec.Network.VipNetworks) > 0 {
 			vsvip.VipNetworks = infraSetting.Spec.Network.VipNetworks
 		} else {
-			vsvip.VipNetworks = lib.GetVipNetworkList()
+			vsvip.VipNetworks = lib.SharedWCPLister().GetNetworkForNamespace(namespace)
 		}
 		if lib.IsPublicCloud() {
 			vsvip.EnablePublicIP = infraSetting.Spec.Network.EnablePublicIP

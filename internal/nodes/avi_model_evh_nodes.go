@@ -739,7 +739,7 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 		}
 	}
 
-	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(routeIgrObj.GetNamespace())
+	t1lr := lib.SharedWCPLister().GetT1LrForNamespace(routeIgrObj.GetNamespace())
 	if t1lr == "" {
 		vrfcontext = lib.GetVrf()
 		avi_vs_meta.VrfContext = vrfcontext
@@ -755,7 +755,7 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 		Tenant:      lib.GetTenant(),
 		FQDNs:       fqdns,
 		VrfContext:  vrfcontext,
-		VipNetworks: lib.GetVipNetworkList(),
+		VipNetworks: lib.SharedWCPLister().GetNetworkForNamespace(routeIgrObj.GetNamespace()),
 	}
 
 	if t1lr != "" {
@@ -767,7 +767,7 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 	}
 
 	if infraSetting := routeIgrObj.GetAviInfraSetting(); infraSetting != nil {
-		buildWithInfraSettingForEvh(key, avi_vs_meta, vsVipNode, infraSetting)
+		buildWithInfraSettingForEvh(key, routeIgrObj.GetNamespace(), avi_vs_meta, vsVipNode, infraSetting)
 	}
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
@@ -854,7 +854,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 		}
 
 		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
-		t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
+		t1lr := lib.SharedWCPLister().GetT1LrForNamespace(namespace)
 		if t1lr != "" {
 			poolNode.T1Lr = t1lr
 			// Unset the poolnode's vrfcontext.
@@ -967,7 +967,7 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 		if len(vsNode) > 0 && found {
 			// if vsNode already exists, check for updates via AviInfraSetting
 			if infraSetting != nil {
-				buildWithInfraSettingForEvh(key, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
+				buildWithInfraSettingForEvh(key, routeIgrObj.GetNamespace(), vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 			}
 		}
 
@@ -1323,7 +1323,7 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		if found {
 			// if vsNode already exists, check for updates via AviInfraSetting
 			if infraSetting != nil {
-				buildWithInfraSettingForEvh(key, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
+				buildWithInfraSettingForEvh(key, namespace, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 			}
 		}
 
@@ -2022,7 +2022,7 @@ func DeleteStaleDataForModelChangeForEvh(routeIgrObj RouteIngressModel, namespac
 	}
 }
 
-func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNode, infraSetting *akov1alpha1.AviInfraSetting) {
+func buildWithInfraSettingForEvh(key, namespace string, vs *AviEvhVsNode, vsvip *AviVSVIPNode, infraSetting *akov1alpha1.AviInfraSetting) {
 	if infraSetting != nil && infraSetting.Status.Status == lib.StatusAccepted {
 		if infraSetting.Spec.SeGroup.Name != "" {
 			// This assumes that the SeGroup has the appropriate labels configured
@@ -2051,7 +2051,7 @@ func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNo
 		if infraSetting.Spec.Network.VipNetworks != nil && len(infraSetting.Spec.Network.VipNetworks) > 0 {
 			vsvip.VipNetworks = infraSetting.Spec.Network.VipNetworks
 		} else {
-			vsvip.VipNetworks = lib.GetVipNetworkList()
+			vsvip.VipNetworks = lib.SharedWCPLister().GetNetworkForNamespace(namespace)
 		}
 		if lib.IsPublicCloud() {
 			vsvip.EnablePublicIP = infraSetting.Spec.Network.EnablePublicIP

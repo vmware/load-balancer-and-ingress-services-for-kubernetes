@@ -1682,6 +1682,13 @@ func GetVCFNetworkName() string {
 	return VCF_NETWORK + "-" + GetClusterID()
 }
 
+func GetVCFNetworkNameWithNS(namespace string) string {
+	if namespace == GetClusterName() {
+		return GetVCFNetworkName()
+	}
+	return GetVCFNetworkName() + "-" + namespace
+}
+
 var (
 	aviMinVersion = ""
 	aviMaxVersion = ""
