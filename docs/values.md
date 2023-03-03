@@ -89,15 +89,15 @@ The `blockedNamespaceList` lists the Kubernetes/Openshift namespaces blocked by 
       - kube-system
       - kube-public
 
-### AKOSetttings.istioEnabled (Tech Preview)
+### AKOSetttings.istioEnabled
 
 AKO can be deployed in Istio environment. Setting this to `true` indicates to AKO that the environment is Istio. Default value is `false`.
 
-### AKOSetttings.ipFamily (Tech Preview)
+### AKOSetttings.ipFamily
 
-`V6` is currently supported only for `vCenter` cloud with `calico` CNI.
+`V6` is currently supported only for `vCenter` cloud with `calico` and `antrea` CNI.
 
-AKO can be deployed with ipFamily as `V4` or `V6`. When ipFamily is set to `V6`, AKO looks for `V6` IP for nodes from calico annotation and creates routes on controller. Only servers with `V6` IP will get added to Pools.
+AKO can be deployed with ipFamily as `V4` or `V6`. When ipFamily is set to `V6`, AKO looks for `V6` IP for nodes from annotations and creates static routes on controller. For calico CNI, AKO looks for `projectcalico.org/IPv6Address` and `projectcalico.org/IPv4Address` annotations. For antrea CNI, AKO looks for `node.antrea.io/transport-addresses` if `transportInterface` is specified in antrea config. Only servers with `V6` IP will get added to Pools.
 
 Default value is `V4`.
 
