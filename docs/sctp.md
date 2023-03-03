@@ -1,10 +1,10 @@
 # SCTP support in AKO for L4 services
 
-This feature supports SCTP protocol for L4 services in AKO. With 1.9.1, AKO will support SCTP protocol with Kubernetes/Openshift LoadBalancer services, and Gateway objects and their corresponding backend services. For more information on using Gateway class and Gateway objects with AKO, please refer to this document, https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/gateway-api/gateway-api.md.
+This feature supports SCTP protocol for L4 services in AKO. Starting with 1.9.1, AKO will support SCTP protocol with Kubernetes/Openshift LoadBalancer services, and Gateway objects and their corresponding backend services. For more information on using Gateway class and Gateway objects with AKO, please refer to this document, https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/gateway-api/gateway-api.md.
 
 ## Overview
 
-With version 22.1.3, AVI Controller supports SCTP traffic for L4 virtual services. With AKO 1.9.1, AKO will support SCTP protocol in port definitions of LoadBalancer services, and Gateway objects and their corresponding backend services. Prior to 1.9.1, only TCP and UDP protocols were supported.
+With version 22.1.3, AVI Controller supports SCTP traffic for L4 virtual services. Starting with AKO 1.9.1, AKO will support SCTP protocol in port definitions of LoadBalancer services, and Gateway objects and their corresponding backend services. Prior to 1.9.1, only TCP and UDP protocols were supported.
 
 The AVI Controller has introduced SCTP specific properties for virtual services and pools. These include `System-SCTP-Proxy` TCP/UDP (network) profile for supporitng SCTP traffic in virtual services, an SCTP based `System-SCTP` health monitor for pools, and `SCTP` protocol match option, in L4 Policy Set match rules.
 
