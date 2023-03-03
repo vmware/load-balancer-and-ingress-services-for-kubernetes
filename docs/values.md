@@ -101,6 +101,11 @@ AKO can be deployed with ipFamily as `V4` or `V6`. When ipFamily is set to `V6`,
 
 Default value is `V4`.
 
+### AKOSettings.useDefaultSecretsOnly
+
+This flag provides the ability to restrict the secret handling to default secrets present in the namespace where the AKO is installed. This flag is applicable only to Openshift clusters.
+Default value is `false`.
+
 ### NetworkSettings.nodeNetworkList
 
 The `nodeNetworkList` lists the Networks and Node CIDR's where the k8s Nodes are created. This is only used in the ClusterIP deployment of AKO and in vCenter cloud and only when disableStaticRouteSync is set to false.

@@ -48,3 +48,4 @@ data:
     {{ .Values.AKOSettings.blockedNamespaceList | mustToJson }}
   ipFamily: {{ .Values.AKOSettings.ipFamily | quote }}
   istioEnabled: {{ .Values.AKOSettings.istioEnabled | quote }}
+  useDefaultSecretsOnly: {{ .Values.AKOSettings.useDefaultSecretsOnly | quote }}
