@@ -51,24 +51,25 @@ func (o *AviObjectGraph) BuildVRFGraph(key, vrfName, nodeName string, deleteFlag
 		aviVrfNode.NodeStaticRoutes = make(map[string]StaticRouteDetails)
 	}
 	var nodeRoutes []*models.StaticRoute
-	if !deleteFlag {
-		node, err := utils.GetInformers().NodeInformer.Lister().Get(nodeName)
-		if err != nil {
-			utils.AviLog.Errorf("key: %s, Error in fetching node details: %s: %v", key, nodeName, err)
-			return err
-		}
-		nodeRoutes, err = o.addRouteForNode(node, vrfName, routeid)
-		if err != nil {
-			utils.AviLog.Errorf("key: %s, Error Adding vrf for node %s: %v", key, nodeName, err)
-			return err
-		}
-	}
 	// For new node addition (coming from ingestion layer), nodes static routes will be attahced at the end
 	// During reboot of AKO, nodes will be sorted. So this will give rest call
 	// HA case has to be checked: As Active and passive node, after failover, will not have same ordering of static
 	// routes
 	nodeStaticRouteDetails, ok := aviVrfNode.NodeStaticRoutes[nodeName]
 	if !deleteFlag {
+		node, err := utils.GetInformers().NodeInformer.Lister().Get(nodeName)
+		if err != nil {
+			utils.AviLog.Errorf("key: %s, Error in fetching node details: %s: %v", key, nodeName, err)
+			return err
+		}
+		if ok {
+			routeid = nodeStaticRouteDetails.StartIndex + 1
+		}
+		nodeRoutes, err = o.addRouteForNode(node, vrfName, routeid)
+		if err != nil {
+			utils.AviLog.Errorf("key: %s, Error Adding vrf for node %s: %v", key, nodeName, err)
+			return err
+		}
 		if !ok {
 			//node not found, check overlapping and then add case
 			if !findRoutePrefix(nodeRoutes, aviVrfNode.StaticRoutes, key) {
