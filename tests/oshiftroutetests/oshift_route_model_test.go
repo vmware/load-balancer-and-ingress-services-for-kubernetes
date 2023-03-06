@@ -480,7 +480,6 @@ func TestAlternateBackendDefaultPath(t *testing.T) {
 	SetUpTestForRoute(t, defaultModelName)
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
-	time.Sleep(2 * time.Second)
 	routeExample := FakeRoute{Path: "/foo"}.ABRoute()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {

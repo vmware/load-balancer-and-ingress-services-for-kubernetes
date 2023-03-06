@@ -29,10 +29,6 @@ func SetUpTestForIngress(t *testing.T, modelNames ...string) {
 	}
 	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "default", "avisvc", false, false, "1.1.1")
-	if len(modelNames) >= 1 {
-		integrationtest.PollForCompletion(t, modelNames[0], 5)
-	}
-
 }
 
 func TearDownTestForIngress(t *testing.T, modelNames ...string) {

@@ -782,6 +782,7 @@ ServicePorts: [
 func CreateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool) {
 	selectors := make(map[string]string)
 	CreateServiceWithSelectors(t, ns, Name, Type, multiPort, selectors)
+	time.Sleep(2 * time.Second)
 }
 
 func CreateServiceWithSelectors(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
@@ -901,6 +902,7 @@ func CreateEP(t *testing.T, ns string, Name string, multiPort bool, multiAddress
 	if err != nil {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
+	time.Sleep(2 * time.Second)
 }
 
 func ScaleCreateEP(t *testing.T, ns string, Name string) {
