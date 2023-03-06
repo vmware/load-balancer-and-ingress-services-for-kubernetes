@@ -327,3 +327,14 @@ All notable changes to this project will be documented in this file. The format 
 ### Known Issues
 - When AKO is deployed in HA, 409 status code error messages will be seen in active AKO if failover happens during bulk object addition.
 - When AKO is running in `dedicated mode`, virtual service and VIP is not deleted from AVI controller when ingress/route, with aviinfrasetting applied to ingress/route, is deleted.
+
+## AKO-1.9.2
+
+### Added
+
+- Added configmap boolean flag `useDefaultSecretsOnly` to allow AKO to handle default secrets from the namespace where AKO is installed in Openshift environment.
+
+### Fixed
+
+- Fix: AKO is publishing incorrect next hop.
+- Fix: PATCH to `vrfcontext` is failing due to error : `route_id` has duplicate values.
