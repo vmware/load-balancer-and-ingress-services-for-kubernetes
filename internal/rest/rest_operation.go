@@ -232,7 +232,7 @@ func isErrorRetryable(statusCode int, errMsg string) bool {
 	if (statusCode >= 500 && statusCode < 599) || statusCode == 404 || statusCode == 401 || statusCode == 408 || statusCode == 409 {
 		return true
 	}
-	if statusCode == 400 && strings.Contains(errMsg, lib.NoFreeIPError) {
+	if statusCode == 400 && (strings.Contains(errMsg, lib.NoFreeIPError) || strings.Contains(errMsg, lib.VrfContextNotFoundError)) {
 		return true
 	}
 	if statusCode == 403 && strings.Contains(errMsg, lib.ConfigDisallowedDuringUpgradeError) {
@@ -275,7 +275,7 @@ func AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp) error {
 			// Wrap the error into a websync error.
 			err := &utils.WebSyncError{Err: op.Err, Operation: string(op.Method)}
 			op.Err = err
-			aviErr, ok := op.Err.(session.AviError)
+			aviErr, ok := err.Err.(session.AviError)
 			if !ok {
 				utils.AviLog.Warnf("Error in rest operation is not of type AviError, err: %v, %T", op.Err, op.Err)
 			} else if op.Model == "VsVip" && op.Method == utils.RestPut {

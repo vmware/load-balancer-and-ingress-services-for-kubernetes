@@ -219,7 +219,7 @@ func addNetworkInIPAM(key string, client *clients.AviClient) {
 	updateIPAM := false
 	for _, nw := range ipam.InternalProfile.UsableNetworks {
 		netName := strings.Split(*nw.NwRef, "#")[1]
-		if _, ok := netModels[netName]; !ok {
+		if _, ok := netModels[netName]; !ok && strings.HasPrefix(netName, lib.GetVCFNetworkName()) {
 			updateIPAM = true
 			continue
 		}
@@ -476,6 +476,7 @@ func executeRestOp(key string, client *clients.AviClient, restOp *utils.RestOp, 
 		err = restOp.Err
 	}
 	if err != nil {
+		lib.CheckForInvalidCredentials(restOp.Path, err)
 		if checkAndRetry(key, err) {
 			executeRestOp(key, client, restOp, retry+1)
 		} else if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
