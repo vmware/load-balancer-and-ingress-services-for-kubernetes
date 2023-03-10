@@ -569,7 +569,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		utils.AviLog.Errorf("Cannot convert full sync interval value to integer, pls correct the value and restart AKO. Error: %s", err)
 	} else {
 		// First boot sync
-		err = c.FullSyncK8s(true)
+		err = c.FullSyncK8s(false)
 		if err != nil {
 			// Something bad sync. We need to return and shutdown the API server
 			utils.AviLog.Errorf("Couldn't run full sync successfully on bootup, going to shutdown AKO")
@@ -589,11 +589,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 
 	ctx, cancel := context.WithCancel(context.Background())
 	if lib.IsWCP() {
-		lib.AKOControlConfig().SetIsLeaderFlag(true)
-		// once the l3 cache is populated, we can call the updatestatus functions from here
-		restlayer := rest.NewRestOperations(avicache.SharedAviObjCache(), avicache.SharedAVIClients())
-		restlayer.SyncObjectStatuses()
-		c.cleanupStaleVSes()
+		c.OnStartedLeading()
 	} else {
 		// Leader election happens after populating controller cache and fullsynck8s.
 		leaderElector, err := utils.NewLeaderElector(informers.Cs, c.OnStartedLeading, c.OnStoppedLeading, c.OnNewLeader)
