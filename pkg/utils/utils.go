@@ -261,6 +261,13 @@ func NewInformers(kubeClient KubeClientIntf, registeredInformers []string, args 
 		}
 	}
 
+	// In openshift, the secret handling is restricted to the namespace where the AKO is
+	// installed if the user sets `handleSecretsFromAKONSOnly` to true.
+	if oshiftclient != nil &&
+		IsSecretsHandlingRestrictedToAKONS() {
+		akoNSBoundInformer = true
+	}
+
 	if !instantiateOnce {
 		return instantiateInformers(kubeClient, registeredInformers, oshiftclient, akoClient, namespace, akoNSBoundInformer)
 	}
@@ -587,4 +594,14 @@ func NewVersion(version string) (*Version, error) {
 		v.subversions = append(v.subversions, val)
 	}
 	return v, nil
+}
+
+// This utility returns a true/false depending on whether
+// the secret handling is restricted to the namespace where the AKO is installed.
+func IsSecretsHandlingRestrictedToAKONS() bool {
+	ok, err := strconv.ParseBool(os.Getenv(USE_DEFAULT_SECRETS_ONLY))
+	if err != nil {
+		return false
+	}
+	return ok
 }
