@@ -108,12 +108,12 @@ func InitializeAKOInfra() {
 		}
 	}
 
+	c.AddSecretEventHandler(stopCh)
 	a.SetupSEGroup(transportZone)
 	avirest.SyncLSLRNetwork()
 	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName)
 	c.AddNetworkInfoEventHandler(stopCh)
 	c.AddNamespaceEventHandler(stopCh)
-	c.AddSecretEventHandler(stopCh)
 
 	worker := avirest.NewLRLSFullSyncWorker()
 	go worker.Run()

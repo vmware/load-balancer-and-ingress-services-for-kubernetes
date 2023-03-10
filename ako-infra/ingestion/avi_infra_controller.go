@@ -104,49 +104,49 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 			utils.AviLog.Warnf("Failed to unmarshal cloud data, err: %v", err)
 			continue
 		}
-		vtype := *cloud.Vtype
-		if vtype == lib.CLOUD_NSXT && cloud.NsxtConfiguration != nil {
-			if cloud.NsxtConfiguration.ManagementNetworkConfig != nil &&
-				cloud.NsxtConfiguration.ManagementNetworkConfig.TransportZone != nil &&
-				*cloud.NsxtConfiguration.ManagementNetworkConfig.TransportZone == tz {
-				utils.AviLog.Infof("Found NSX-T cloud: %s match Transport Zone: %s", *cloud.Name, tz)
-				if cloud.SeGroupTemplateRef != nil &&
-					*cloud.SeGroupTemplateRef != "" {
-					tokenized := strings.Split(*cloud.SeGroupTemplateRef, "/api/serviceenginegroup/")
-					if len(tokenized) == 2 {
-						return nil, *cloud.Name, tokenized[1]
-					}
-				}
-			}
-
-			// fetch Default-SEGroup uuid
-			uri = "/api/serviceenginegroup/?include_name&cloud_ref.name=" + *cloud.Name + "&name=Default-Group"
-			result, err := lib.AviGetCollectionRaw(a.AviRestClient, uri)
-			if err != nil {
-				utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-				return err, *cloud.Name, ""
-			}
-
-			elems := make([]json.RawMessage, result.Count)
-			err = json.Unmarshal(result.Results, &elems)
-			if err != nil {
-				utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
-				return err, *cloud.Name, ""
-			}
-
-			if len(elems) == 0 {
-				utils.AviLog.Errorf("No ServiceEngine Group with name Default-Group found.")
-				return errors.New("No ServiceEngine Group with name Default-Group found."), *cloud.Name, ""
-			}
-
-			defaultSEG := models.ServiceEngineGroup{}
-			err = json.Unmarshal(elems[0], &defaultSEG)
-			if err != nil {
-				utils.AviLog.Warnf("Failed to unmarshal cloud data, err: %v", err)
-				return err, *cloud.Name, ""
-			}
-			return nil, *cloud.Name, *defaultSEG.UUID
+		if *cloud.Vtype != lib.CLOUD_NSXT || cloud.NsxtConfiguration == nil {
+			continue
 		}
+		if cloud.NsxtConfiguration.ManagementNetworkConfig == nil ||
+			cloud.NsxtConfiguration.ManagementNetworkConfig.TransportZone == nil ||
+			*cloud.NsxtConfiguration.ManagementNetworkConfig.TransportZone != tz {
+			continue
+		}
+		utils.AviLog.Infof("Found NSX-T cloud: %s match Transport Zone: %s", *cloud.Name, tz)
+		if cloud.SeGroupTemplateRef != nil && *cloud.SeGroupTemplateRef != "" {
+			tokenized := strings.Split(*cloud.SeGroupTemplateRef, "/api/serviceenginegroup/")
+			if len(tokenized) == 2 {
+				return nil, *cloud.Name, tokenized[1]
+			}
+		}
+
+		// fetch Default-SEGroup uuid
+		uri = "/api/serviceenginegroup/?include_name&cloud_ref.name=" + *cloud.Name + "&name=Default-Group"
+		result, err := lib.AviGetCollectionRaw(a.AviRestClient, uri)
+		if err != nil {
+			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+			return err, *cloud.Name, ""
+		}
+
+		elems := make([]json.RawMessage, result.Count)
+		err = json.Unmarshal(result.Results, &elems)
+		if err != nil {
+			utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+			return err, *cloud.Name, ""
+		}
+
+		if len(elems) == 0 {
+			utils.AviLog.Errorf("No ServiceEngine Group with name Default-Group found.")
+			return errors.New("No ServiceEngine Group with name Default-Group found."), *cloud.Name, ""
+		}
+
+		defaultSEG := models.ServiceEngineGroup{}
+		err = json.Unmarshal(elems[0], &defaultSEG)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal cloud data, err: %v", err)
+			return err, *cloud.Name, ""
+		}
+		return nil, *cloud.Name, *defaultSEG.UUID
 	}
 	return errors.New("Cloud not found"), "", ""
 }
