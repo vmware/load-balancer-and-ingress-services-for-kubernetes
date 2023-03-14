@@ -526,7 +526,7 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 
 		hostname := Vhostname
 		var vhMatch *avimodels.VHMatch
-		if utils.CtrlVersion == utils.CTRL_VERSION_22_1_3 {
+		if utils.CtrlVersion >= utils.CTRL_VERSION_22_1_3 {
 			vhMatch = &avimodels.VHMatch{Host: &hostname, Rules: vHMatchRules}
 		} else {
 			vhMatch = &avimodels.VHMatch{Host: &hostname, Path: pathMatches, Rules: vHMatchRules}
