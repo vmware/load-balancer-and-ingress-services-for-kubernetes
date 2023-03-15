@@ -21,6 +21,9 @@ type WafPolicy struct {
 	// Application Specific Signatures. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ApplicationSignatures *WafApplicationSignatures `json:"application_signatures,omitempty"`
 
+	// If this flag is set, the system will try to keep the CRS version used in this policy up-to-date. If a newer CRS object is available on this controller, the system will issue the CRS upgrade process for this WAF Policy. It will not update polices if the current CRS version is CRS-VERSION-NOT-APPLICABLE. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	AutoUpdateCrs *bool `json:"auto_update_crs,omitempty"`
+
 	// Enable the functionality to bypass WAF for static file extensions. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	BypassStaticExtensions *bool `json:"bypass_static_extensions,omitempty"`
 
@@ -83,8 +86,14 @@ type WafPolicy struct {
 	// WAF Rules are categorized in to groups based on their characterization. These groups are created by the user and will be  enforced before the CRS groups. Field introduced in 17.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PreCrsGroups []*WafRuleGroup `json:"pre_crs_groups,omitempty"`
 
+	// The data files and types referred in this WAF policy. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
+	RequiredDataFiles []*WafPolicyRequiredDataFile `json:"required_data_files,omitempty"`
+
 	//  It is a reference to an object of type Tenant. Field introduced in 17.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TenantRef *string `json:"tenant_ref,omitempty"`
+
+	// While updating CRS, the system will make sure that new rules are added in DETECTION mode. It only has an effect if the Policy is in ENFORCEMENT mode. In this case, the update will set new rules into DETECTION mode by adding crs_overrides for the new rules. If this flag is not set or if the policy mode is DETECTION, rules will be added without new crs_overrides. This option is used for the auto_update_crs workflow as well as for the UI based CRS update workflow. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	UpdatedCrsRulesInDetectionMode *bool `json:"updated_crs_rules_in_detection_mode,omitempty"`
 
 	// url
 	// Read Only: true

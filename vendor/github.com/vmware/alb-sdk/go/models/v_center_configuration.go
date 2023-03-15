@@ -17,6 +17,9 @@ type VCenterConfiguration struct {
 	// If true, VM's on the vCenter will not be discovered.Set it to true if there are more than 10000 VMs in the datacenter. Field introduced in 20.1.5. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	DeactivateVMDiscovery *bool `json:"deactivate_vm_discovery,omitempty"`
 
+	// If true, NSX-T segment spanning multiple VDS with vCenter cloud are merged to a single network in Avi. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	IsNsxEnvironment *bool `json:"is_nsx_environment,omitempty"`
+
 	// Management subnet to use for Avi Service Engines. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ManagementIPSubnet *IPAddrPrefix `json:"management_ip_subnet,omitempty"`
 

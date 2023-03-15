@@ -8,6 +8,6 @@ package models
 // swagger:model SingleOptionalStringField
 type SingleOptionalStringField struct {
 
-	// Optional *string field. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Optional *string field. Field introduced in 21.1.5, 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	TestString *string `json:"test_string,omitempty"`
 }

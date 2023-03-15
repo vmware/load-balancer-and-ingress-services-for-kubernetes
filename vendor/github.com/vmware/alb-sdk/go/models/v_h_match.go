@@ -8,10 +8,13 @@ package models
 // swagger:model VHMatch
 type VHMatch struct {
 
-	// Host/domain name match configuration. Must be configured along with at least one path match criteria. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Host/domain name match configuration. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	// Required: true
 	Host *string `json:"host"`
 
-	// Resource/uri path match configuration. Must be configured along with Host match criteria. Field introduced in 20.1.3. Minimum of 1 items required. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Resource/uri path match configuration. Must be configured along with Host match criteria. Field deprecated in 22.1.3. Field introduced in 20.1.3. Minimum of 1 items required. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Path []*PathMatch `json:"path,omitempty"`
+
+	// Add rules for selecting the virtual service. At least one rule must be configured. Field introduced in 22.1.3. Minimum of 1 items required. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	Rules []*VHMatchRule `json:"rules,omitempty"`
 }

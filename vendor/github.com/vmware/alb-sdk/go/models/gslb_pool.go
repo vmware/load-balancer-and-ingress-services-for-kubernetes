@@ -27,6 +27,9 @@ type GslbPool struct {
 	// The fallback load balancing algorithm used to pick a member when the pool algorithm fails to find a valid member. For instance when algorithm is Geo and client/server do not have valid geo location. Enum options - GSLB_ALGORITHM_ROUND_ROBIN, GSLB_ALGORITHM_CONSISTENT_HASH, GSLB_ALGORITHM_GEO, GSLB_ALGORITHM_TOPOLOGY, GSLB_ALGORITHM_PREFERENCE_ORDER. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FallbackAlgorithm *string `json:"fallback_algorithm,omitempty"`
 
+	// Manually resume traffic to a pool member once it goes down. If enabled a pool member once goes down is kept in admin down state unless admin re enables it. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	ManualResume *bool `json:"manual_resume,omitempty"`
+
 	// Select list of VIPs belonging to this GSLB service. Minimum of 1 items required. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Members []*GslbPoolMember `json:"members,omitempty"`
 

@@ -134,7 +134,7 @@ type ConnectionLog struct {
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PoolName *string `json:"pool_name,omitempty"`
 
-	//  Enum options - PROTOCOL_ICMP, PROTOCOL_TCP, PROTOCOL_UDP. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	//  Enum options - PROTOCOL_ICMP, PROTOCOL_TCP, PROTOCOL_UDP, PROTOCOL_SCTP. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Protocol *string `json:"protocol,omitempty"`
 
 	// Version of proxy protocol used to convey client connection information to the back-end servers.  A value of 0 indicates that proxy protocol is not used.  A value of 1 or 2 indicates the version of proxy protocol used. Enum options - PROXY_PROTOCOL_VERSION_1, PROXY_PROTOCOL_VERSION_2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.

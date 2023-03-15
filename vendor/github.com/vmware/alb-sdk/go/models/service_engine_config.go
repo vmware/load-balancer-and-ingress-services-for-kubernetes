@@ -17,6 +17,9 @@ type ServiceEngineConfig struct {
 	//  It is a reference to an object of type VIMgrHostRuntime. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	HostRef *string `json:"host_ref,omitempty"`
 
+	// Management IPv6 Address of the service engine. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	MgmtIp6Address *IPAddr `json:"mgmt_ip6_address,omitempty"`
+
 	// Management IP Address of the service engine. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	MgmtIPAddress *IPAddr `json:"mgmt_ip_address,omitempty"`
 

@@ -8,14 +8,20 @@ package models
 // swagger:model ControllerInterface
 type ControllerInterface struct {
 
-	// Default gateway of the mgmt interface. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// IPv4 default gateway of the interface. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Gateway *IPAddr `json:"gateway,omitempty"`
+
+	// IPv6 default gateway of the interface. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	Gateway6 *IPAddr `json:"gateway6,omitempty"`
 
 	// Interface name. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	IfName *string `json:"if_name,omitempty"`
 
-	// IP address of the interface. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// IPv4 address of the interface. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	IP *IPAddrPrefix `json:"ip,omitempty"`
+
+	// IPv6 address of the interface. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	Ip6 *IPAddrPrefix `json:"ip6,omitempty"`
 
 	// Interface label like mgmt, secure channel or HSM. Enum options - MGMT, SE_SECURE_CHANNEL, HSM. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Labels []string `json:"labels,omitempty"`
@@ -23,8 +29,11 @@ type ControllerInterface struct {
 	// Mac address of interface. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	MacAddress *string `json:"mac_address,omitempty"`
 
-	// IP address mode DHCP/STATIC. Enum options - DHCP, STATIC, VIP, DOCKER_HOST. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// IPv4 address mode DHCP/STATIC. Enum options - DHCP, STATIC, VIP, DOCKER_HOST. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Mode *string `json:"mode,omitempty"`
+
+	// IPv6 address mode STATIC. Enum options - DHCP, STATIC, VIP, DOCKER_HOST. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	Mode6 *string `json:"mode6,omitempty"`
 
 	// Public IP of interface. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	PublicIPOrName *IPAddr `json:"public_ip_or_name,omitempty"`
