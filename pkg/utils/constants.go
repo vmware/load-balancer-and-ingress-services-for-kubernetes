@@ -97,7 +97,7 @@ const (
 	CTRL_VERSION_22_1_3           = "22.1.3"
 	CTRL_VERSION_22_1_2           = "22.1.2"
 	Namespace                     = "Namespace"
-	MaxAviVersion                 = "22.1.2"
+	MaxAviVersion                 = "22.1.3"
 
 	RefreshAuthTokenInterval = 12  //hours
 	AuthTokenExpiry          = 240 //hours
