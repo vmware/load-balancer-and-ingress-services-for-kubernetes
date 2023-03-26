@@ -91,6 +91,7 @@ const (
 	HostRule                                   = "HostRule"
 	HTTPRule                                   = "HTTPRule"
 	AviInfraSetting                            = "AviInfraSetting"
+	L4Rule                                     = "L4Rule"
 	IstioVirtualService                        = "IstioVirtualService"
 	IstioDestinationRule                       = "DestinationRule"
 	IstioGateway                               = "IstioGateway"
@@ -100,7 +101,8 @@ const (
 	DummySecretK8s                             = "@k8ssecretdummy"
 	StatusRejected                             = "Rejected"
 	StatusAccepted                             = "Accepted"
-	AllowedApplicationProfile                  = "APPLICATION_PROFILE_TYPE_HTTP"
+	AllowedL7ApplicationProfile                = "APPLICATION_PROFILE_TYPE_HTTP"
+	AllowedL4ApplicationProfile                = "APPLICATION_PROFILE_TYPE_L4"
 	TypeTLSReencrypt                           = "reencrypt"
 	DefaultPoolSSLProfile                      = "System-Standard"
 	LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER = "LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER"
@@ -233,6 +235,7 @@ const (
 	SharedVipSvcLBAnnotation       = "ako.vmware.com/enable-shared-vip"
 	LoadBalancerIP                 = "ako.vmware.com/load-balancer-ip"
 	LBSvcAppProfileAnnotation      = "ako.vmware.com/application-profile"
+	L4RuleAnnotation               = "ako.vmware.com/l4rule"
 
 	// Specifies command used in namespace event handler
 	NsFilterAdd                    = "ADD"
@@ -272,6 +275,11 @@ const (
 	// Route Objects. This helps in fetching all Routes with a
 	// given AviinfraSetting Name.
 	AviSettingRouteIndex = "aviSettingRoute"
+
+	// L4RuleToServicesIndex maintains a map of L4Rule CRD to
+	// Service objects. This helps in fetching all Services
+	// with a given L4Rule CRD name.
+	L4RuleToServicesIndex = "l4RuleToServicesIndex"
 )
 
 // Passthrough deployment same in EVH and SNI. Not changing log messages.

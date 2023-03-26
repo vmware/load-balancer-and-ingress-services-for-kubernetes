@@ -685,6 +685,18 @@ func (c *AviController) addIndexers() {
 				}
 				return []string{}, nil
 			},
+			lib.L4RuleToServicesIndex: func(obj interface{}) ([]string, error) {
+				service, ok := obj.(*corev1.Service)
+				if !ok {
+					return []string{}, nil
+				}
+				if service.Spec.Type == corev1.ServiceTypeLoadBalancer {
+					if val, ok := service.Annotations[lib.L4RuleAnnotation]; ok && val != "" {
+						return []string{val}, nil
+					}
+				}
+				return []string{}, nil
+			},
 		},
 	)
 
@@ -979,6 +991,24 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 				}
 				if err := c.GetValidator().ValidateAviInfraSetting(key, aviInfraObj); err != nil {
 					utils.AviLog.Warnf("key: %s, Error retrieved during validation of AviInfraSetting: %v", key, err)
+				}
+				nodes.DequeueIngestion(key, true)
+			}
+		}
+
+		l4RuleObjs, err := lib.AKOControlConfig().CRDInformers().L4RuleInformer.Lister().List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the L4Rules during full sync: %s", err)
+		} else {
+			for _, l4Rule := range l4RuleObjs {
+				key := lib.L4Rule + "/" + utils.ObjKey(l4Rule)
+				meta, err := meta.Accessor(l4Rule)
+				if err == nil {
+					resVer := meta.GetResourceVersion()
+					objects.SharedResourceVerInstanceLister().Save(key, resVer)
+				}
+				if err := c.GetValidator().ValidateL4RuleObj(key, l4Rule); err != nil {
+					utils.AviLog.Warnf("key: %s, Error retrieved during validation of L4Rule: %v", key, err)
 				}
 				nodes.DequeueIngestion(key, true)
 			}
