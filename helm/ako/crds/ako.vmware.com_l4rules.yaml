@@ -1,0 +1,257 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  name: l4rules.ako.vmware.com
+spec:
+  conversion:
+    strategy: None
+  group: ako.vmware.com
+  names:
+    kind: L4Rule
+    listKind: L4RuleList
+    plural: l4rules
+    shortNames:
+    - l4rule
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Status of the L4Rule object.
+      jsonPath: .status.status
+      name: Status
+      type: string
+    - description: Creation timestamp of the L4Rule object.
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha2
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              analyticsPolicy:
+                description: Determines analytics settings for the application.
+                properties:
+                  fullClientLogs:
+                    properties:
+                      duration:
+                        default: 30
+                        description: How long should the system capture all logs,
+                          measured in minutes. Set to 0 for infinite.
+                        type: integer
+                      enabled:
+                        default: false
+                        description: Capture all client logs including connections
+                          and requests.  When deactivated, only errors will be logged.
+                        type: boolean
+                      throttle:
+                        default: 10
+                        description: This setting limits the number of non-significant
+                          logs generated per second for this VS on each SE. Default
+                          is 10 logs per second. Set it to zero (0) to deactivate
+                          throttling.
+                        type: integer
+                    required:
+                    - enabled
+                    type: object
+                  udfLogThrottle:
+                    default: 10
+                    description: This setting limits the total number of UDF logs
+                      generated per second for this VS on each SE. UDF logs are generated
+                      due to the configured client log filters or the rules with logging
+                      enabled. Default is 10 logs per second. Set it to zero (0) to
+                      deactivate throttling.
+                    type: integer
+                type: object
+              analyticsProfileRef:
+                default: System-Analytics-Profile
+                description: Specifies settings related to analytics.
+                type: string
+              applicationProfileRef:
+                default: System-L4-Application
+                description: Enable application layer specific features for the Virtual
+                  Service.
+                type: string
+              backendProperties:
+                items:
+                  properties:
+                    analyticsPolicy:
+                      description: Determines analytics settings for the pool.
+                      properties:
+                        enableRealtimeMetrics:
+                          default: false
+                          description: Enable real time metrics for server and pool
+                            metrics eg. l4_server.xxx, l7_server.xxx
+                          type: boolean
+                      type: object
+                    analyticsProfileRef:
+                      default: System-Analytics-Profile
+                      description: Specifies settings related to analytics.
+                      type: string
+                    applicationPersistenceProfileRef:
+                      description: Persistence will ensure the same user sticks to
+                        the same server for a desired duration of time.
+                      type: string
+                    defaultServerPort:
+                      default: 80
+                      description: Traffic sent to servers will use this destination
+                        server port unless overridden by the server's specific port
+                        attribute. The SSL checkbox enables Avi to server encryption.
+                      maximum: 65535
+                      minimum: 1
+                      type: integer
+                    enabled:
+                      default: true
+                      description: Enable or disable the pool.  Disabling will terminate
+                        all open connections and pause health monitors.
+                      type: boolean
+                    healthMonitorRefs:
+                      description: Verify server health by applying one or more health
+                        monitors.  Active monitors generate synthetic traffic from
+                        each Service Engine and mark a server up or down based on
+                        the response. The Passive monitor listens only to client to
+                        server communication. It raises or lowers the ratio of traffic
+                        destined to a server based on successful responses.
+                      items:
+                        type: string
+                      type: array
+                    inlineHealthMonitor:
+                      default: true
+                      description: The Passive monitor will monitor client to server
+                        connections and requests and adjust traffic load to servers
+                        based on successful responses.  This may alter the expected
+                        behavior of the LB method, such as Round Robin.
+                      type: boolean
+                    lbAlgorithm:
+                      default: LB_ALGORITHM_LEAST_CONNECTIONS
+                      description: The load balancing algorithm will pick a server
+                        within the pool's list of available servers. Values LB_ALGORITHM_NEAREST_SERVER
+                        and LB_ALGORITHM_TOPOLOGY are only allowed for GSLB pool
+                      enum:
+                      - LB_ALGORITHM_LEAST_CONNECTIONS
+                      - LB_ALGORITHM_ROUND_ROBIN
+                      - LB_ALGORITHM_FASTEST_RESPONSE
+                      - LB_ALGORITHM_CONSISTENT_HASH
+                      - LB_ALGORITHM_LEAST_LOAD
+                      - LB_ALGORITHM_FEWEST_SERVERS
+                      - LB_ALGORITHM_RANDOM
+                      - LB_ALGORITHM_FEWEST_TASKS
+                      - LB_ALGORITHM_NEAREST_SERVER
+                      - LB_ALGORITHM_CORE_AFFINITY
+                      - LB_ALGORITHM_TOPOLOGY
+                      type: string
+                    lbAlgorithmHash:
+                      description: Criteria used as a key for determining the hash
+                        between the client and  server.
+                      enum:
+                      - LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS
+                      - LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS_AND_PORT
+                      - LB_ALGORITHM_CONSISTENT_HASH_URI
+                      - LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER
+                      - LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_STRING
+                      - LB_ALGORITHM_CONSISTENT_HASH_CALLID
+                      type: string
+                    minServersUp:
+                      description: Minimum number of servers in UP state for marking
+                        the pool UP.
+                      type: integer
+                    pkiProfileRef:
+                      description: Avi will validate the SSL certificate present by
+                        a server against the selected PKI Profile.
+                      type: string
+                    port:
+                      default: 80
+                      description: Port info
+                      maximum: 65535
+                      minimum: 1
+                      type: integer
+                    protocol:
+                      default: TCP
+                      description: Protocol info
+                      enum:
+                      - TCP
+                      - UDP
+                      - SCTP
+                      type: string
+                    sslKeyAndCertificateRef:
+                      description: Service Engines will present a client SSL certificate
+                        to the server.
+                      type: string
+                    sslProfileRef:
+                      description: When enabled, Avi re-encrypts traffic to the backend
+                        servers. The specific SSL profile defines which ciphers and
+                        SSL versions will be supported.
+                      type: string
+                    useServicePort:
+                      default: false
+                      description: Do not translate the client's destination port
+                        when sending the connection to the server. Monitor port needs
+                        to be specified for health monitors.
+                      type: boolean
+                  required:
+                  - port
+                  - protocol
+                  type: object
+                type: array
+              delayFairness:
+                default: false
+                description: Select the algorithm for QoS fairness.  This determines
+                  how multiple Virtual Services sharing the same Service Engines will
+                  prioritize traffic over a congested network.
+                type: boolean
+              enabled:
+                default: true
+                description: Enable or disable the Virtual Service.
+                type: boolean
+              networkProfileRef:
+                default: System-TCP-Proxy
+                description: Determines network settings such as protocol, TCP or
+                  UDP, and related options for the protocol.
+                type: string
+              networkSecurityPolicyRef:
+                description: Network security policies for the Virtual Service.
+                type: string
+              securityPolicyRef:
+                description: Security policy applied on the traffic of the Virtual
+                  Service. This policy is used to perform security actions such as
+                  Distributed Denial of Service (DDoS) attack mitigation, etc.
+                type: string
+              serverNetworkProfileRef:
+                description: Determines the network settings profile for the server
+                  side of TCP proxied connections.  Leave blank to use the same settings
+                  as the client to VS side of the connection.
+                type: string
+              sslKeyAndCertificateRefs:
+                description: Select or create one or two certificates, EC and/or RSA,
+                  that will be presented to SSL/TLS terminated connections.
+                items:
+                  type: string
+                type: array
+              sslProfileRef:
+                description: Determines the set of SSL versions and ciphers to accept
+                  for SSL/TLS terminated connections.
+                type: string
+              vsDatascriptRefs:
+                description: Datascripts applied on the data traffic of the Virtual
+                  Service
+                items:
+                  type: string
+                type: array
+            type: object
+          status:
+            properties:
+              error:
+                type: string
+              status:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
