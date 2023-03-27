@@ -508,7 +508,7 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 	for _, Vhostname := range vs_meta.VHDomainNames {
 		match_case := "SENSITIVE"
 		matchCriteria := "BEGINS_WITH"
-		name := "NAME"
+		name := "VHMATCHRULENAME"
 		path_match := avimodels.PathMatch{
 			MatchCriteria: &matchCriteria,
 			MatchCase:     &match_case,
