@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"errors"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -45,10 +46,9 @@ func (o *AviObjectGraph) BuildVRFGraph(key, vrfName, nodeName string, deleteFlag
 	aviVrfNode := aviVrfNodes[0]
 
 	routeid := 1
-	if len(aviVrfNode.StaticRoutes) != 0 {
-		routeid = len(aviVrfNode.StaticRoutes) + 1
-	} else {
+	if len(aviVrfNode.StaticRoutes) == 0 {
 		aviVrfNode.NodeStaticRoutes = make(map[string]StaticRouteDetails)
+		aviVrfNode.NodeIds = make(map[int]struct{})
 	}
 	var nodeRoutes []*models.StaticRoute
 	// For new node addition (coming from ingestion layer), nodes static routes will be attahced at the end
@@ -63,11 +63,16 @@ func (o *AviObjectGraph) BuildVRFGraph(key, vrfName, nodeName string, deleteFlag
 			return err
 		}
 		if ok {
-			routeid = nodeStaticRouteDetails.StartIndex + 1
+			routeid = nodeStaticRouteDetails.routeID
+		} else {
+			//O(n) for each node. But it will re-use previous index. So used instead of always incrementing index.
+			routeid = findFreeRouteId(aviVrfNode.NodeIds)
 		}
-		nodeRoutes, err = o.addRouteForNode(node, vrfName, routeid)
+		aviVrfNode.NodeIds[routeid] = struct{}{}
+		nodeRoutes, err = o.addRouteForNode(node, vrfName, routeid, aviVrfNode.NodeIds)
 		if err != nil {
 			utils.AviLog.Errorf("key: %s, Error Adding vrf for node %s: %v", key, nodeName, err)
+			delete(aviVrfNode.NodeIds, routeid)
 			return err
 		}
 		if !ok {
@@ -79,6 +84,7 @@ func (o *AviObjectGraph) BuildVRFGraph(key, vrfName, nodeName string, deleteFlag
 				// start index shows at what index of StaticRoutes, nodes routes start (index based zero)
 				nodeStaticRoute.StartIndex = routeid - 1
 				nodeStaticRoute.Count = len(nodeRoutes)
+				nodeStaticRoute.routeID = routeid
 				aviVrfNode.NodeStaticRoutes[nodeName] = nodeStaticRoute
 				aviVrfNode.Nodes = append(aviVrfNode.Nodes, nodeName)
 			}
@@ -107,19 +113,30 @@ func (o *AviObjectGraph) BuildVRFGraph(key, vrfName, nodeName string, deleteFlag
 		startIndex := nodeStaticRouteDetails.StartIndex
 		count := nodeStaticRouteDetails.Count
 		var staticRouteCopy []*models.StaticRoute
+
+		updateNodeStaticRoutes(aviVrfNode, deleteFlag, nodeName, 0, -count)
 		staticRouteCopy = append(staticRouteCopy, aviVrfNode.StaticRoutes[:startIndex]...)
 		staticRouteCopy = append(staticRouteCopy, aviVrfNode.StaticRoutes[startIndex+count:]...)
 		aviVrfNode.StaticRoutes = staticRouteCopy
-		countToSubstract := aviVrfNode.NodeStaticRoutes[nodeName].Count
-		updateNodeStaticRoutes(aviVrfNode, deleteFlag, nodeName, 0, -countToSubstract)
 		delete(aviVrfNode.NodeStaticRoutes, nodeName)
+		for i := len(aviVrfNode.NodeIds); i > len(aviVrfNode.StaticRoutes); i-- {
+			delete(aviVrfNode.NodeIds, i)
+		}
 	}
 	aviVrfNode.CalculateCheckSum()
 	utils.AviLog.Infof("key: %s, Added vrf node %s", key, vrfName)
 	utils.AviLog.Infof("key: %s, Number of static routes %v", key, len(aviVrfNode.StaticRoutes))
+	utils.AviLog.Debugf("key: %s, vrf node: [%v]", key, utils.Stringify(aviVrfNode))
 	return nil
 }
-
+func findFreeRouteId(routeIdList map[int]struct{}) int {
+	for i := 1; i < math.MaxInt32; i++ {
+		if _, ok := routeIdList[i]; !ok {
+			return i
+		}
+	}
+	return -1
+}
 func updateNodeStaticRoutes(aviVrfNode *AviVrfNode, isDelete bool, nodeName string, lenNewNodeRoutes, diff int) {
 	//get index of nodename in node array
 	index := -1
@@ -136,12 +153,16 @@ func updateNodeStaticRoutes(aviVrfNode *AviVrfNode, isDelete bool, nodeName stri
 		}
 	}
 	if index != -1 {
+		clusterName := lib.GetClusterName()
 		//Change nodemap entries till index
 		for i := len(aviVrfNode.Nodes) - 1; i > index; i-- {
 			nodeNameToUpdate := aviVrfNode.Nodes[i]
 			nodeDetails := aviVrfNode.NodeStaticRoutes[nodeNameToUpdate]
 			nodeDetails.StartIndex = nodeDetails.StartIndex + diff
+			nodeDetails.routeID = nodeDetails.StartIndex + 1
 			aviVrfNode.NodeStaticRoutes[nodeNameToUpdate] = nodeDetails
+			newRouteName := clusterName + "-" + strconv.Itoa(nodeDetails.routeID)
+			aviVrfNode.StaticRoutes[i].RouteID = &newRouteName
 		}
 		if isDelete {
 			// now remove nodename from Nodes list
@@ -166,7 +187,7 @@ func findRoutePrefix(nodeRoutes, aviRoutes []*models.StaticRoute, key string) bo
 	return false
 }
 
-func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid int) ([]*models.StaticRoute, error) {
+func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid int, routeIdList map[int]struct{}) ([]*models.StaticRoute, error) {
 	var nodeIP, nodeIP6 string
 	var nodeRoutes []*models.StaticRoute
 	ipFamily := lib.GetIPFamily()
@@ -235,8 +256,8 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 		}
 
 		nodeRoutes = append(nodeRoutes, &nodeRoute)
+		routeIdList[routeid] = struct{}{}
 		routeid++
 	}
-
 	return nodeRoutes, nil
 }
