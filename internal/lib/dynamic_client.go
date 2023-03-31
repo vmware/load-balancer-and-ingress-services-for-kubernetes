@@ -73,6 +73,12 @@ var (
 		Version:  "v1alpha1",
 		Resource: "clusternetworkinfos",
 	}
+
+	AvailabilityZoneVR = schema.GroupVersionResource{
+		Group:    "topology.tanzu.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "availabilityzones",
+	}
 )
 
 type BootstrapCRData struct {
@@ -208,6 +214,33 @@ func GetNetworkInfoCRData(clientSet dynamic.Interface) (map[string]string, map[s
 	}
 
 	return lslrMap, cidrs
+}
+
+func GetAvailabilityZonesCRData(clientSet dynamic.Interface) ([]string, error) {
+	clusterIDs := make([]string, 0)
+	crList, err := clientSet.Resource(AvailabilityZoneVR).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		utils.AviLog.Errorf("Error getting Availability Zone CR %v", err)
+		return clusterIDs, err
+	}
+	if len(crList.Items) == 0 {
+		return clusterIDs, fmt.Errorf("no Availability Zone CRs found")
+	}
+
+	for _, obj := range crList.Items {
+		spec, ok := obj.Object["spec"].(map[string]interface{})
+		if !ok {
+			utils.AviLog.Errorf("spec not found in the CR %+v", obj)
+			continue
+		}
+		clusterID, ok := spec["clusterComputeResourceMoId"].(string)
+		if !ok {
+			utils.AviLog.Errorf("Cluster MoID not found in the CR %+v", obj)
+			continue
+		}
+		clusterIDs = append(clusterIDs, clusterID)
+	}
+	return clusterIDs, nil
 }
 
 func GetClusterNetworkInfoCRData(clientSet dynamic.Interface) ([]interface{}, bool) {
