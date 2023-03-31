@@ -569,7 +569,7 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 	for _, namespaceName := range ingressNSNames {
 		nsNameSplit := strings.Split(namespaceName, "/")
 
-		mIngress, err := utils.GetInformers().IngressInformer.Lister().Ingresses(nsNameSplit[0]).Get(nsNameSplit[1])
+		mIngress, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses(nsNameSplit[0]).Get(context.TODO(), nsNameSplit[1], metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the ingress object for UpdateStatus: %v", err)
 			// retry get if request timeout

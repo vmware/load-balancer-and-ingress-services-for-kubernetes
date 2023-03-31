@@ -192,7 +192,7 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 			continue
 		}
 
-		route, err := utils.GetInformers().RouteInformer.Lister().Routes(nsNameSplit[0]).Get(nsNameSplit[1])
+		route, err := utils.GetInformers().OshiftClient.RouteV1().Routes(nsNameSplit[0]).Get(context.TODO(), nsNameSplit[1], metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("msg: Could not get the route object for UpdateStatus: %s", err)
 			// retry get if request timeout
