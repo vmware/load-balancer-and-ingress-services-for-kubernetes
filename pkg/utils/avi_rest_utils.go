@@ -101,7 +101,7 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 			AviLog.Infof("Setting the client version to the current controller version %v", version)
 			CtrlVersion = version
 			// For AKO-1.9.1, if controller version is 22.1.3, set api version as 22.1.2
-			if CtrlVersion == CTRL_VERSION_22_1_3 {
+			if CtrlVersion >= CTRL_VERSION_22_1_3 {
 				CtrlVersion = CTRL_VERSION_22_1_2
 			}
 		}
