@@ -72,6 +72,9 @@ type AviVsEvhSniModel interface {
 	GetAppProfileRef() string
 	SetAppProfileRef(string)
 
+	GetICAPProfileRefs() []string
+	SetICAPProfileRefs([]string)
+
 	GetAnalyticsProfileRef() string
 	SetAnalyticsProfileRef(string)
 
@@ -109,6 +112,7 @@ type AviEvhVsNode struct {
 	Tenant              string
 	ServiceEngineGroup  string
 	ApplicationProfile  string
+	ICAPProfile         string
 	NetworkProfile      string
 	EnableRhi           *bool
 	Enabled             *bool
@@ -130,6 +134,7 @@ type AviEvhVsNode struct {
 	VrfContext          string
 	WafPolicyRef        string
 	AppProfileRef       string
+	ICAPProfileRefs     []string
 	AnalyticsProfileRef string
 	ErrorPageProfileRef string
 	HttpPolicySetRefs   []string
@@ -238,6 +243,14 @@ func (v *AviEvhVsNode) GetAppProfileRef() string {
 
 func (v *AviEvhVsNode) SetAppProfileRef(appProfileRef string) {
 	v.AppProfileRef = appProfileRef
+}
+
+func (v *AviEvhVsNode) GetICAPProfileRefs() []string {
+	return v.ICAPProfileRefs
+}
+
+func (v *AviEvhVsNode) SetICAPProfileRefs(ICAPProfileRef []string) {
+	v.ICAPProfileRefs = ICAPProfileRef
 }
 
 func (v *AviEvhVsNode) GetAnalyticsProfileRef() string {
@@ -612,6 +625,7 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 	// keep the order of these policies
 	policies := v.HttpPolicySetRefs
 	scripts := v.VsDatascriptRefs
+	icaprefs := v.ICAPProfileRefs
 
 	vsRefs := v.WafPolicyRef +
 		v.AppProfileRef +
@@ -627,13 +641,18 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 		vsRefs += utils.Stringify(policies)
 	}
 
+	if len(icaprefs) > 0 {
+		vsRefs += utils.Stringify(icaprefs)
+	}
+
 	sort.Strings(checksumStringSlice)
 	checksum := utils.Hash(strings.Join(checksumStringSlice, delim) +
 		v.ApplicationProfile +
 		v.ServiceEngineGroup +
 		v.NetworkProfile +
 		utils.Stringify(portproto) +
-		v.EvhHostName)
+		v.EvhHostName +
+		v.ICAPProfile)
 
 	if vsRefs != "" {
 		checksum += utils.Hash(vsRefs)

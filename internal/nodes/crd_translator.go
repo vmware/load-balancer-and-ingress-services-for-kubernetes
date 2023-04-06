@@ -58,6 +58,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	var vsSslKeyCertificates []string
 	var vsEnabled *bool
 	var crdStatus lib.CRDMetadata
+	var vsICAPProfile []string
 
 	// Initializing the values of vsHTTPPolicySets and vsDatascripts, using a nil value would impact the value of VS checksum
 	vsHTTPPolicySets := []string{}
@@ -97,6 +98,9 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 			vsAppProfile = fmt.Sprintf("/api/applicationprofile?name=%s", hostrule.Spec.VirtualHost.ApplicationProfile)
 		}
 
+		if len(hostrule.Spec.VirtualHost.ICAPProfile) != 0 {
+			vsICAPProfile = []string{fmt.Sprintf("/api/icapprofile?name=%s", hostrule.Spec.VirtualHost.ICAPProfile[0])}
+		}
 		if hostrule.Spec.VirtualHost.ErrorPageProfile != "" {
 			vsErrorPageProfile = fmt.Sprintf("/api/errorpageprofile?name=%s", hostrule.Spec.VirtualHost.ErrorPageProfile)
 		}
@@ -183,6 +187,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	vsNode.SetWafPolicyRef(vsWafPolicy)
 	vsNode.SetHttpPolicySetRefs(vsHTTPPolicySets)
 	vsNode.SetAppProfileRef(vsAppProfile)
+	vsNode.SetICAPProfileRefs(vsICAPProfile)
 	vsNode.SetAnalyticsProfileRef(vsAnalyticsProfile)
 	vsNode.SetErrorPageProfileRef(vsErrorPageProfile)
 	vsNode.SetSSLProfileRef(vsSslProfile)

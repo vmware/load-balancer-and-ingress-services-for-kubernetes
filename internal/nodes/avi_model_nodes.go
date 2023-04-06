@@ -374,6 +374,7 @@ type AviVsNode struct {
 	Tenant                string
 	ServiceEngineGroup    string
 	ApplicationProfile    string
+	ICAPProfile           string
 	NetworkProfile        string
 	Enabled               *bool
 	EnableRhi             *bool
@@ -402,6 +403,7 @@ type AviVsNode struct {
 	VrfContext            string
 	WafPolicyRef          string
 	AppProfileRef         string
+	ICAPProfileRefs       []string
 	AnalyticsProfileRef   string
 	ErrorPageProfileRef   string
 	HttpPolicySetRefs     []string
@@ -512,6 +514,14 @@ func (v *AviVsNode) GetAppProfileRef() string {
 
 func (v *AviVsNode) SetAppProfileRef(appProfileRef string) {
 	v.AppProfileRef = appProfileRef
+}
+
+func (v *AviVsNode) GetICAPProfileRefs() []string {
+	return v.ICAPProfileRefs
+}
+
+func (v *AviVsNode) SetICAPProfileRefs(ICAPProfileRef []string) {
+	v.ICAPProfileRefs = ICAPProfileRef
 }
 
 func (v *AviVsNode) GetAnalyticsProfileRef() string {
@@ -910,6 +920,7 @@ func (v *AviVsNode) CalculateCheckSum() {
 	// keep the order of these policies
 	policies := v.HttpPolicySetRefs
 	scripts := v.VsDatascriptRefs
+	icaprefs := v.ICAPProfileRefs
 
 	vsRefs := v.WafPolicyRef +
 		v.AppProfileRef +
@@ -923,6 +934,10 @@ func (v *AviVsNode) CalculateCheckSum() {
 
 	if len(policies) > 0 {
 		vsRefs += utils.Stringify(policies)
+	}
+
+	if len(icaprefs) > 0 {
+		vsRefs += utils.Stringify(icaprefs)
 	}
 
 	if len(v.ServiceMetadata.HostNames) > 0 {
@@ -943,7 +958,8 @@ func (v *AviVsNode) CalculateCheckSum() {
 		v.ApplicationProfile +
 		v.ServiceEngineGroup +
 		v.NetworkProfile +
-		utils.Stringify(portproto))
+		utils.Stringify(portproto) +
+		v.ICAPProfile)
 
 	if vsRefs != "" {
 		checksum += utils.Hash(vsRefs)
