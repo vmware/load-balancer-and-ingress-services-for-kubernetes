@@ -113,7 +113,7 @@ type VirtualService struct {
 	HTTPPolicies []*HTTPPolicies `json:"http_policies,omitempty"`
 
 	// The config settings for the ICAP server when checking the HTTP request. It is a reference to an object of type IcapProfile. Field introduced in 20.1.1. Maximum of 1 items allowed. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	IcapRequestProfileRefs []string `json:"icap_request_profile_refs,omitempty"`
+	IcapRequestProfileRefs *[]string `json:"icap_request_profile_refs,omitempty"`
 
 	// Ignore Pool servers network reachability constraints for Virtual Service placement. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IgnPoolNetReach *bool `json:"ign_pool_net_reach,omitempty"`
