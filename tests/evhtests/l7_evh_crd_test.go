@@ -235,6 +235,8 @@ func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].SSLKeyCertAviRef[0]).To(gomega.ContainSubstring("thisisaviref-sslkey"))
 	g.Expect(nodes[0].EvhNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
 	g.Expect(nodes[0].EvhNodes[0].AppProfileRef).To(gomega.ContainSubstring("thisisaviref-appprof"))
+	g.Expect(nodes[0].EvhNodes[0].ICAPProfileRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].EvhNodes[0].ICAPProfileRefs[0]).To(gomega.ContainSubstring("thisisaviref-icapprof"))
 	g.Expect(nodes[0].EvhNodes[0].AnalyticsProfileRef).To(gomega.ContainSubstring("thisisaviref-analyticsprof"))
 	g.Expect(nodes[0].EvhNodes[0].ErrorPageProfileRef).To(gomega.ContainSubstring("thisisaviref-errorprof"))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicySetRefs).To(gomega.HaveLen(2))
@@ -315,6 +317,7 @@ func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].Enabled).To(gomega.BeNil())
 	g.Expect(nodes[0].EvhNodes[0].WafPolicyRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].EvhNodes[0].AppProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].EvhNodes[0].ICAPProfileRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].EvhNodes[0].AnalyticsProfileRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].EvhNodes[0].ErrorPageProfileRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
@@ -340,6 +343,7 @@ func TestCreateDeleteSharedVSHostRuleForEvh(t *testing.T) {
 		Fqdn:               fqdn,
 		WafPolicy:          "thisisaviref-waf",
 		ApplicationProfile: "thisisaviref-appprof",
+		ICAPProfile:        []string{"thisisaviref-icapprof"},
 		AnalyticsProfile:   "thisisaviref-analyticsprof",
 		ErrorPageProfile:   "thisisaviref-errorprof",
 		Datascripts:        []string{"thisisaviref-ds2", "thisisaviref-ds1"},
@@ -367,6 +371,8 @@ func TestCreateDeleteSharedVSHostRuleForEvh(t *testing.T) {
 	g.Expect(*nodes[0].Enabled).To(gomega.Equal(true))
 	g.Expect(nodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
 	g.Expect(nodes[0].AppProfileRef).To(gomega.ContainSubstring("thisisaviref-appprof"))
+	g.Expect(nodes[0].ICAPProfileRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].ICAPProfileRefs[0]).To(gomega.ContainSubstring("thisisaviref-icapprof"))
 	g.Expect(nodes[0].AnalyticsProfileRef).To(gomega.ContainSubstring("thisisaviref-analyticsprof"))
 	g.Expect(nodes[0].ErrorPageProfileRef).To(gomega.ContainSubstring("thisisaviref-errorprof"))
 	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(2))
@@ -395,6 +401,7 @@ func TestCreateDeleteSharedVSHostRuleForEvh(t *testing.T) {
 	g.Expect(nodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].WafPolicyRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].AppProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].ICAPProfileRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].AnalyticsProfileRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].ErrorPageProfileRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
