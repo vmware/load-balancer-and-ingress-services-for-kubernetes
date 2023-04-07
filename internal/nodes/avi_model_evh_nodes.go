@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"google.golang.org/protobuf/proto"
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -63,23 +64,23 @@ type AviVsEvhSniModel interface {
 	GetSSLKeyCertAviRef() []string
 	SetSSLKeyCertAviRef([]string)
 
-	GetWafPolicyRef() string
-	SetWafPolicyRef(string)
+	GetWafPolicyRef() *string
+	SetWafPolicyRef(*string)
 
 	GetHttpPolicySetRefs() []string
 	SetHttpPolicySetRefs([]string)
 
-	GetAppProfileRef() string
-	SetAppProfileRef(string)
+	GetAppProfileRef() *string
+	SetAppProfileRef(*string)
 
-	GetAnalyticsProfileRef() string
-	SetAnalyticsProfileRef(string)
+	GetAnalyticsProfileRef() *string
+	SetAnalyticsProfileRef(*string)
 
-	GetErrorPageProfileRef() string
-	SetErrorPageProfileRef(string)
+	GetErrorPageProfileRef() *string
+	SetErrorPageProfileRef(*string)
 
-	GetSSLProfileRef() string
-	SetSSLProfileRef(string)
+	GetSSLProfileRef() *string
+	SetSSLProfileRef(*string)
 
 	GetVsDatascriptRefs() []string
 	SetVsDatascriptRefs([]string)
@@ -105,41 +106,38 @@ type AviEvhVsNode struct {
 	EvhHostName   string
 	AviMarkers    utils.AviObjectMarkers
 	// props from avi vs node
-	Name                string
-	Tenant              string
-	ServiceEngineGroup  string
-	ApplicationProfile  string
-	NetworkProfile      string
-	EnableRhi           *bool
-	Enabled             *bool
-	PortProto           []AviPortHostProtocol // for listeners
-	DefaultPool         string
-	CloudConfigCksum    uint32
-	DefaultPoolGroup    string
-	HTTPChecksum        uint32
-	PoolGroupRefs       []*AviPoolGroupNode
-	PoolRefs            []*AviPoolNode
-	HTTPDSrefs          []*AviHTTPDataScriptNode
-	SharedVS            bool
-	CACertRefs          []*AviTLSKeyCertNode
-	SSLKeyCertRefs      []*AviTLSKeyCertNode
-	HttpPolicyRefs      []*AviHttpPolicySetNode
-	VSVIPRefs           []*AviVSVIPNode
-	TLSType             string
-	ServiceMetadata     lib.ServiceMetadataObj
-	VrfContext          string
-	WafPolicyRef        string
-	AppProfileRef       string
-	AnalyticsProfileRef string
-	ErrorPageProfileRef string
-	HttpPolicySetRefs   []string
-	VsDatascriptRefs    []string
-	SSLProfileRef       string
-	SSLKeyCertAviRef    []string
-	Paths               []string
-	IngressNames        []string
-	AnalyticsPolicy     *avimodels.AnalyticsPolicy
-	Dedicated           bool
+	Name               string
+	Tenant             string
+	ServiceEngineGroup string
+	ApplicationProfile string
+	NetworkProfile     string
+	EnableRhi          *bool
+	Enabled            *bool
+	PortProto          []AviPortHostProtocol // for listeners
+	DefaultPool        string
+	CloudConfigCksum   uint32
+	DefaultPoolGroup   string
+	HTTPChecksum       uint32
+	PoolGroupRefs      []*AviPoolGroupNode
+	PoolRefs           []*AviPoolNode
+	HTTPDSrefs         []*AviHTTPDataScriptNode
+	SharedVS           bool
+	CACertRefs         []*AviTLSKeyCertNode
+	SSLKeyCertRefs     []*AviTLSKeyCertNode
+	HttpPolicyRefs     []*AviHttpPolicySetNode
+	VSVIPRefs          []*AviVSVIPNode
+	TLSType            string
+	ServiceMetadata    lib.ServiceMetadataObj
+	VrfContext         string
+	HttpPolicySetRefs  []string
+	SSLKeyCertAviRef   []string
+	Paths              []string
+	IngressNames       []string
+	Dedicated          bool
+
+	AviVsNodeCommonFields
+
+	AviVsNodeGeneratedFields
 }
 
 // Implementing AviVsEvhSniModel
@@ -216,11 +214,11 @@ func (v *AviEvhVsNode) SetSSLKeyCertAviRef(sslKeyCertAviRef []string) {
 	v.SSLKeyCertAviRef = sslKeyCertAviRef
 }
 
-func (v *AviEvhVsNode) GetWafPolicyRef() string {
+func (v *AviEvhVsNode) GetWafPolicyRef() *string {
 	return v.WafPolicyRef
 }
 
-func (v *AviEvhVsNode) SetWafPolicyRef(wafPolicyRef string) {
+func (v *AviEvhVsNode) SetWafPolicyRef(wafPolicyRef *string) {
 	v.WafPolicyRef = wafPolicyRef
 }
 
@@ -232,36 +230,36 @@ func (v *AviEvhVsNode) SetHttpPolicySetRefs(httpPolicySetRefs []string) {
 	v.HttpPolicySetRefs = httpPolicySetRefs
 }
 
-func (v *AviEvhVsNode) GetAppProfileRef() string {
-	return v.AppProfileRef
+func (v *AviEvhVsNode) GetAppProfileRef() *string {
+	return v.ApplicationProfileRef
 }
 
-func (v *AviEvhVsNode) SetAppProfileRef(appProfileRef string) {
-	v.AppProfileRef = appProfileRef
+func (v *AviEvhVsNode) SetAppProfileRef(applicationProfileRef *string) {
+	v.ApplicationProfileRef = applicationProfileRef
 }
 
-func (v *AviEvhVsNode) GetAnalyticsProfileRef() string {
+func (v *AviEvhVsNode) GetAnalyticsProfileRef() *string {
 	return v.AnalyticsProfileRef
 }
 
-func (v *AviEvhVsNode) SetAnalyticsProfileRef(AnalyticsProfileRef string) {
-	v.AnalyticsProfileRef = AnalyticsProfileRef
+func (v *AviEvhVsNode) SetAnalyticsProfileRef(analyticsProfileRef *string) {
+	v.AnalyticsProfileRef = analyticsProfileRef
 }
 
-func (v *AviEvhVsNode) GetErrorPageProfileRef() string {
+func (v *AviEvhVsNode) GetErrorPageProfileRef() *string {
 	return v.ErrorPageProfileRef
 }
 
-func (v *AviEvhVsNode) SetErrorPageProfileRef(ErrorPageProfileRef string) {
-	v.ErrorPageProfileRef = ErrorPageProfileRef
+func (v *AviEvhVsNode) SetErrorPageProfileRef(errorPageProfileRef *string) {
+	v.ErrorPageProfileRef = errorPageProfileRef
 }
 
-func (v *AviEvhVsNode) GetSSLProfileRef() string {
-	return v.SSLProfileRef
+func (v *AviEvhVsNode) GetSSLProfileRef() *string {
+	return v.SslProfileRef
 }
 
-func (v *AviEvhVsNode) SetSSLProfileRef(SSLProfileRef string) {
-	v.SSLProfileRef = SSLProfileRef
+func (v *AviEvhVsNode) SetSSLProfileRef(SSLProfileRef *string) {
+	v.SslProfileRef = SSLProfileRef
 }
 
 func (v *AviEvhVsNode) GetVsDatascriptRefs() []string {
@@ -488,7 +486,7 @@ func (vsNode *AviEvhVsNode) DeleteSSLPort(key string) {
 // TODO: Next PR opt: make part of Avivs model interface
 func (vsNode *AviEvhVsNode) DeletSSLRefInDedicatedNode(key string) {
 	vsNode.SSLKeyCertRefs = []*AviTLSKeyCertNode{}
-	vsNode.SSLProfileRef = ""
+	vsNode.SslProfileRef = proto.String("")
 	vsNode.CACertRefs = []*AviTLSKeyCertNode{}
 }
 
@@ -613,11 +611,27 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 	policies := v.HttpPolicySetRefs
 	scripts := v.VsDatascriptRefs
 
-	vsRefs := v.WafPolicyRef +
-		v.AppProfileRef +
-		v.AnalyticsProfileRef +
-		v.ErrorPageProfileRef +
-		v.SSLProfileRef
+	var vsRefs string
+
+	if v.WafPolicyRef != nil {
+		vsRefs += *v.WafPolicyRef
+	}
+
+	if v.ApplicationProfileRef != nil {
+		vsRefs += *v.ApplicationProfileRef
+	}
+
+	if v.AnalyticsProfileRef != nil {
+		vsRefs += *v.AnalyticsProfileRef
+	}
+
+	if v.ErrorPageProfileRef != nil {
+		vsRefs += *v.ErrorPageProfileRef
+	}
+
+	if v.SslProfileRef != nil {
+		vsRefs += *v.SslProfileRef
+	}
 
 	if len(scripts) > 0 {
 		vsRefs += utils.Stringify(scripts)
@@ -2092,9 +2106,11 @@ func DeleteDedicatedEvhVSNode(vsNode *AviEvhVsNode, key string, hostsToRemove []
 func manipulateEvhNodeForSSL(key string, vsNode *AviEvhVsNode, evhNode *AviEvhVsNode) {
 	oldSSLProfile := vsNode.GetSSLProfileRef()
 	newSSLProfile := evhNode.GetSSLProfileRef()
-	if oldSSLProfile != "" && oldSSLProfile != newSSLProfile {
+	if oldSSLProfile != nil &&
+		*oldSSLProfile != "" &&
+		oldSSLProfile != newSSLProfile {
 		utils.AviLog.Warnf("key: %s msg: overwriting old ssl profile %s with new ssl profile %s", key, oldSSLProfile, newSSLProfile)
 	}
 	vsNode.SetSSLProfileRef(newSSLProfile)
-	evhNode.SetSSLProfileRef("")
+	evhNode.SetSSLProfileRef(proto.String(""))
 }
