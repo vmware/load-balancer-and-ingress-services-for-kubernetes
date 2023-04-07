@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jinzhu/copier"
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
 
@@ -244,7 +245,7 @@ func setDedicatedEvhVSNodeProperties(vs *avimodels.VirtualService, vs_meta *node
 			vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, certName)
 		}
 	}
-	vs.SslProfileRef = &vs_meta.SSLProfileRef
+	vs.SslProfileRef = vs_meta.SSLProfileRef
 	//set datascripts to VS from hostrule crd
 	for i, script := range vs_meta.VsDatascriptRefs {
 		j := int32(i)
@@ -253,13 +254,14 @@ func setDedicatedEvhVSNodeProperties(vs *avimodels.VirtualService, vs_meta *node
 		datascriptCollection = append(datascriptCollection, datascripts)
 	}
 	vs.VsDatascripts = datascriptCollection
-	if vs_meta.AppProfileRef != "" {
+
+	if vs_meta.ApplicationProfileRef != nil {
 		// hostrule ref overrides defaults
-		vs.ApplicationProfileRef = &vs_meta.AppProfileRef
+		vs.ApplicationProfileRef = vs_meta.ApplicationProfileRef
 	}
-	vs.WafPolicyRef = &vs_meta.WafPolicyRef
-	vs.ErrorPageProfileRef = &vs_meta.ErrorPageProfileRef
-	vs.AnalyticsProfileRef = &vs_meta.AnalyticsProfileRef
+	vs.WafPolicyRef = vs_meta.WafPolicyRef
+	vs.ErrorPageProfileRef = vs_meta.ErrorPageProfileRef
+	vs.AnalyticsProfileRef = vs_meta.AnalyticsProfileRef
 	vs.EastWestPlacement = proto.Bool(false)
 	vs.Enabled = vs_meta.Enabled
 	normal_vs_type := utils.VS_TYPE_NORMAL
@@ -280,9 +282,9 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		// This is EVH Parent or dedicated VS
 		network_prof := "/api/networkprofile/?name=" + vs_meta.NetworkProfile
 		app_prof := "/api/applicationprofile/?name=" + vs_meta.ApplicationProfile
-		if vs_meta.AppProfileRef != "" {
+		if vs_meta.ApplicationProfileRef != nil {
 			// hostrule ref overrides defaults
-			app_prof = vs_meta.AppProfileRef
+			app_prof = *vs_meta.ApplicationProfileRef
 		}
 
 		name := vs_meta.Name
@@ -401,8 +403,8 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 				certName := "/api/sslkeyandcertificate/?name=" + sslkeycert.Name
 				vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, certName)
 			}
-			if vs_meta.SSLProfileRef != "" {
-				vs.SslProfileRef = &vs_meta.SSLProfileRef
+			if vs_meta.SslProfileRef != nil {
+				vs.SslProfileRef = vs_meta.SslProfileRef
 			}
 
 		}
@@ -418,6 +420,8 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 			vs.RemoveListeningPortOnVsDown = &vsDownOnPoolDown
 		}
 		vs.AnalyticsPolicy = vs_meta.GetAnalyticsPolicy()
+
+		copier.Copy(&vs, &vs_meta.AviVsNodeGeneratedFields)
 
 		var rest_ops []*utils.RestOp
 
@@ -464,9 +468,9 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 
 	var app_prof string
 	app_prof = "/api/applicationprofile/?name=" + vs_meta.ApplicationProfile
-	if vs_meta.AppProfileRef != "" {
+	if vs_meta.ApplicationProfileRef != nil {
 		// hostrule ref overrides defaults
-		app_prof = vs_meta.AppProfileRef
+		app_prof = *vs_meta.ApplicationProfileRef
 	}
 
 	cloudRef := "/api/cloud?name=" + utils.CloudName
@@ -484,10 +488,10 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		CloudRef:              &cloudRef,
 		SeGroupRef:            &seGroupRef,
 		ServiceMetadata:       &svc_mdata,
-		WafPolicyRef:          &vs_meta.WafPolicyRef,
-		SslProfileRef:         &vs_meta.SSLProfileRef,
-		AnalyticsProfileRef:   &vs_meta.AnalyticsProfileRef,
-		ErrorPageProfileRef:   &vs_meta.ErrorPageProfileRef,
+		WafPolicyRef:          vs_meta.WafPolicyRef,
+		SslProfileRef:         vs_meta.SslProfileRef,
+		AnalyticsProfileRef:   vs_meta.AnalyticsProfileRef,
+		ErrorPageProfileRef:   vs_meta.ErrorPageProfileRef,
 		Enabled:               vs_meta.Enabled,
 		VhType:                proto.String(utils.VS_TYPE_VH_ENHANCED),
 	}
