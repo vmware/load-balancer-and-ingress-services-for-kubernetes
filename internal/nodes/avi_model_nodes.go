@@ -374,7 +374,6 @@ type AviVsNode struct {
 	Tenant                string
 	ServiceEngineGroup    string
 	ApplicationProfile    string
-	ICAPProfile           string
 	NetworkProfile        string
 	Enabled               *bool
 	EnableRhi             *bool
@@ -958,8 +957,7 @@ func (v *AviVsNode) CalculateCheckSum() {
 		v.ApplicationProfile +
 		v.ServiceEngineGroup +
 		v.NetworkProfile +
-		utils.Stringify(portproto) +
-		v.ICAPProfile)
+		utils.Stringify(portproto))
 
 	if vsRefs != "" {
 		checksum += utils.Hash(vsRefs)

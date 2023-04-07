@@ -259,7 +259,7 @@ func setDedicatedEvhVSNodeProperties(vs *avimodels.VirtualService, vs_meta *node
 	}
 
 	if len(vs_meta.ICAPProfileRefs) != 0 {
-		vs.IcapRequestProfileRefs = &vs_meta.ICAPProfileRefs
+		vs.IcapRequestProfileRefs = vs_meta.ICAPProfileRefs
 	}
 
 	vs.WafPolicyRef = &vs_meta.WafPolicyRef
@@ -311,7 +311,7 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		}
 
 		if len(vs_meta.ICAPProfileRefs) != 0 {
-			vs.IcapRequestProfileRefs = &vs_meta.ICAPProfileRefs
+			vs.IcapRequestProfileRefs = vs_meta.ICAPProfileRefs
 		}
 
 		if vs_meta.VrfContext != "" {
@@ -502,7 +502,7 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 	}
 
 	if len(vs_meta.ICAPProfileRefs) != 0 {
-		evhChild.IcapRequestProfileRefs = &vs_meta.ICAPProfileRefs
+		evhChild.IcapRequestProfileRefs = vs_meta.ICAPProfileRefs
 	}
 
 	if vs_meta.VrfContext != "" {
