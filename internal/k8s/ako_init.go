@@ -44,7 +44,6 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -429,73 +428,6 @@ func (c *AviController) InitVCFHandlers(kubeClient kubernetes.Interface, ctrlCh 
 		utils.AviLog.Warnf("Error while fetching secret for AKO bootstrap %s", err)
 		lib.ShutdownApi()
 	}
-
-	c.AddNetworkInfoEventHandlers(stopCh)
-}
-
-func (c *AviController) AddNetworkInfoEventHandlers(stopCh <-chan struct{}) {
-	fetchNST1LR := func(obj interface{}) (string, string, bool, error) {
-		var ns, t1lr string
-		ingCIDRFound := false
-		resourceObj := obj.(*unstructured.Unstructured)
-		ns = resourceObj.GetNamespace()
-		topology, ok := resourceObj.Object["topology"]
-		if !ok {
-			err := fmt.Errorf("topology key not found in namespace network info object.")
-			return "", "", false, err
-		}
-		t1lr, ok = topology.(map[string]interface{})["gatewayPath"].(string)
-		if !ok || t1lr == "" {
-			err := fmt.Errorf("invalid gatewayPath found in namespace network info object.")
-			return "", "", false, err
-		}
-		ingCIDRs, ok := topology.(map[string]interface{})["ingressCIDRs"].([]interface{})
-		if ok && len(ingCIDRs) > 0 {
-			ingCIDRFound = true
-		}
-		return ns, t1lr, ingCIDRFound, nil
-	}
-
-	namespaceNetworkInfoHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			utils.AviLog.Debugf("Namespace NetworkInfo Add")
-			ns, t1lr, ingCIDRPresent, err := fetchNST1LR(obj)
-			if err != nil {
-				utils.AviLog.Errorf(err.Error())
-			}
-			lib.SharedWCPLister().UpdateNamespaceTier1LrCache(ns, t1lr)
-			if ingCIDRPresent {
-				lib.SharedWCPLister().UpdateNamespaceNetworkCache(ns, lib.GetVCFNetworkNameWithNS(ns))
-			}
-		},
-		UpdateFunc: func(old, obj interface{}) {
-			utils.AviLog.Debugf("Namespace NetworkInfo Update")
-			ns, t1lr, ingCIDRPresent, err := fetchNST1LR(obj)
-			if err != nil {
-				utils.AviLog.Errorf(err.Error())
-			}
-			lib.SharedWCPLister().UpdateNamespaceTier1LrCache(ns, t1lr)
-			if ingCIDRPresent {
-				lib.SharedWCPLister().UpdateNamespaceNetworkCache(ns, lib.GetVCFNetworkNameWithNS(ns))
-			} else {
-				lib.SharedWCPLister().RemoveNamespaceNetworkCache(ns)
-			}
-		},
-		DeleteFunc: func(obj interface{}) {
-			utils.AviLog.Debugf("Namespace NetworkInfo Delete")
-			namespace := obj.(*unstructured.Unstructured).Object["metadata"].(map[string]interface{})["namespace"].(string)
-			lib.SharedWCPLister().RemoveNamespaceTier1LrCache(namespace)
-			lib.SharedWCPLister().RemoveNamespaceNetworkCache(namespace)
-		},
-	}
-	c.dynamicInformers.VCFNetworkInfoInformer.Informer().AddEventHandler(namespaceNetworkInfoHandler)
-
-	go c.dynamicInformers.VCFNetworkInfoInformer.Informer().Run(stopCh)
-	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.VCFNetworkInfoInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
-	} else {
-		utils.AviLog.Info("Caches synced for Namepsace NetworkInfo CRs.")
-	}
 }
 
 func (c *AviController) InitController(informers K8sinformers, registeredInformers []string, ctrlCh <-chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}, waitGroupMap ...map[string]*sync.WaitGroup) {
@@ -559,6 +491,10 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		lib.ShutdownApi()
 	}
 	// Setup and start event handlers for objects.
+	if utils.IsVCFCluster() {
+		// Adding NetworkInfo handler first as Gateways need T1 LR info
+		c.AddNetworkInfoEventHandlers()
+	}
 	c.addIndexers()
 	c.Start(stopCh)
 
