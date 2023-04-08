@@ -307,6 +307,7 @@ func (c *VCFK8sController) ValidBootStrapData() bool {
 		return false
 	}
 
+	clusterID := configmap.Data["clusterID"]
 	controllerIP := configmap.Data["controllerIP"]
 	secretName := configmap.Data["credentialsSecretName"]
 	secretNamespace := configmap.Data["credentialsSecretNamespace"]
@@ -316,11 +317,12 @@ func (c *VCFK8sController) ValidBootStrapData() bool {
 	// in fact have the transportZone information.
 	transportzone := configmap.Data["cloudName"]
 	utils.AviLog.Infof("Got data from ConfigMap %v", utils.Stringify(configmap.Data))
-	if controllerIP == "" || secretName == "" || secretNamespace == "" || transportzone == "" {
+	if clusterID == "" || controllerIP == "" || secretName == "" || secretNamespace == "" || transportzone == "" {
 		utils.AviLog.Infof("ConfigMap data insufficient")
 		return false
 	}
 
+	lib.SetClusterID(clusterID)
 	setTranzportZone(transportzone)
 	return c.ValidBootstrapSecretData(controllerIP, secretName, secretNamespace)
 }

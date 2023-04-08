@@ -72,7 +72,7 @@ func AviGet(client *clients.AviClient, uri string, response interface{}, retryNu
 			SetTenant := session.SetTenant(GetTenant())
 			SetAdminTenant(client.AviSession)
 			defer SetTenant(client.AviSession)
-			if err := AviGet(client, uri, response); err != nil {
+			if err := AviGet(client, uri, response, retry+1); err != nil {
 				utils.AviLog.Warnf("msg: Unable to fetch data from uri %s %v after context switch", uri, err)
 				return err
 			}
@@ -208,7 +208,7 @@ func AviDelete(client *clients.AviClient, uri string, retryNum ...int) error {
 			SetTenant := session.SetTenant(GetTenant())
 			SetAdminTenant(client.AviSession)
 			defer SetTenant(client.AviSession)
-			if err := AviDelete(client, uri); err != nil {
+			if err := AviDelete(client, uri, retry+1); err != nil {
 				utils.AviLog.Warnf("msg: Unable to execute Post on uri %s %v after context switch", uri, err)
 				return err
 			}

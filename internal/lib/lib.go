@@ -68,6 +68,8 @@ var fqdnMap = map[string]string{
 	"flat":    AutoFQDNFlat,
 }
 
+var ClusterID string
+
 type CRDMetadata struct {
 	Type   string `json:"type"`
 	Value  string `json:"value"`
@@ -926,7 +928,14 @@ func GetClusterName() string {
 	return ""
 }
 
+func SetClusterID(clusterID string) {
+	ClusterID = clusterID
+}
+
 func GetClusterID() string {
+	if utils.IsVCFCluster() {
+		return ClusterID
+	}
 	clusterID := os.Getenv(CLUSTER_ID)
 	// The clusterID is an internal field only in the advanced L4 mode and we expect the format to be: domain-c8:3fb16b38-55f0-49fb-997d-c117487cd98d
 	// We want to truncate this string to just have the uuid.

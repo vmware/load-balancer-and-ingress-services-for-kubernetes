@@ -406,6 +406,12 @@ func (c *AviController) InitVCFHandlers(kubeClient kubernetes.Interface, ctrlCh 
 		utils.AviLog.Warnf("Failed to get ConfigMap, got err: %v", err)
 	}
 
+	clusterID := configmap.Data["clusterID"]
+	if clusterID == "" {
+		utils.AviLog.Fatalf("WCP Cluster ID not found in avi-k8s-config configmap")
+	}
+	lib.SetClusterID(clusterID)
+
 	controllerIP := configmap.Data["controllerIP"]
 	if controllerIP != "" {
 		lib.SetControllerIP(controllerIP)
