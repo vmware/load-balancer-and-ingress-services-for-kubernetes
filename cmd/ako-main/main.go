@@ -136,6 +136,7 @@ func InitializeAKC() {
 	}
 
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, false)
+	//Additional call. In case of failure. POD events will not work.
 	pod, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).Get(context.TODO(), os.Getenv("POD_NAME"), metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error getting AKO pod details, %s.", err.Error())
