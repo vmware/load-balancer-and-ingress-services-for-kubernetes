@@ -1116,9 +1116,13 @@ func TestUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 		settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return settingNodes[0].ServiceEngineGroup
 	}, 40*time.Second).Should(gomega.Equal("thisisaviref-my-infrasetting-seGroup"))
+	g.Eventually(func() int {
+		_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
+		settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(settingNodes[0].PoolRefs)
+	}, 40*time.Second).Should(gomega.Equal(1))
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(settingNodes[0].PoolRefs).Should(gomega.HaveLen(1))
 	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--my-infrasetting-bar.com_foo-default-foo-with-class"))
 
 	ingressUpdate := (integrationtest.FakeIngress{
@@ -1386,10 +1390,10 @@ func TestCRDWithAviInfraSetting(t *testing.T) {
 	g.Expect(*nodes[0].SniNodes[0].Enabled).To(gomega.Equal(true))
 	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef[0]).To(gomega.ContainSubstring("thisisaviref-sslkey"))
-	g.Expect(nodes[0].SniNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
-	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH"))
-	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithmHash).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS"))
-	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].SslProfileRef).To(gomega.ContainSubstring("thisisaviref-sslprofile"))
+	g.Expect(*nodes[0].SniNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
+	g.Expect(*nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH"))
+	g.Expect(*nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithmHash).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS"))
+	g.Expect(*nodes[0].SniNodes[0].PoolRefs[0].SslProfileRef).To(gomega.ContainSubstring("thisisaviref-sslprofile"))
 
 	integrationtest.TeardownHostRule(t, g, sniKey, hrname)
 	integrationtest.TeardownHTTPRule(t, rrname)
