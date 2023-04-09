@@ -835,8 +835,8 @@ func TestReencryptRoute(t *testing.T) {
 	}, 60*time.Second).Should(gomega.Equal(defaultHostname))
 	VerifySniNode(g, sniVS)
 
-	g.Expect(sniVS.PoolRefs[0].SniEnabled).To(gomega.Equal(true))
-	g.Expect(sniVS.PoolRefs[0].SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
+	g.Expect(*sniVS.PoolRefs[0].SniEnabled).To(gomega.Equal(true))
+	g.Expect(*sniVS.PoolRefs[0].SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
 
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
@@ -869,7 +869,8 @@ func TestRemoveReencryptRoute(t *testing.T) {
 	}, 60*time.Second).Should(gomega.Equal(defaultHostname))
 	VerifySniNode(g, sniVS)
 	g.Eventually(func() bool {
-		return sniVS.PoolRefs[0].SniEnabled
+		return sniVS.PoolRefs[0].SniEnabled != nil &&
+			*sniVS.PoolRefs[0].SniEnabled
 	}, 60*time.Second).Should(gomega.Equal(false))
 
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
@@ -908,9 +909,10 @@ func TestRencryptRouteAlternateBackend(t *testing.T) {
 			t.Fatalf("Unexpected poolName found: %s", pool.Name)
 		} else {
 			g.Eventually(func() bool {
-				return pool.SniEnabled
+				return pool.SniEnabled != nil &&
+					*pool.SniEnabled
 			}, 60*time.Second).Should(gomega.Equal(true))
-			g.Expect(pool.SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
+			g.Expect(*pool.SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
 		}
 		g.Expect(pool.Servers).To(gomega.HaveLen(1))
 	}
@@ -983,10 +985,11 @@ func TestReencryptRouteWithDestinationCA(t *testing.T) {
 	}, 60*time.Second).Should(gomega.Equal(defaultHostname))
 	VerifySniNode(g, sniVS)
 	g.Eventually(func() bool {
-		return sniVS.PoolRefs[0].SniEnabled
+		return sniVS.PoolRefs[0].SniEnabled != nil &&
+			*sniVS.PoolRefs[0].SniEnabled
 	}, 60*time.Second).Should(gomega.Equal(true))
 
-	g.Expect(sniVS.PoolRefs[0].SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
+	g.Expect(*sniVS.PoolRefs[0].SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
 	g.Expect(sniVS.PoolRefs[0].PkiProfile.Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-avisvc-pkiprofile"))
 
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
@@ -1021,9 +1024,10 @@ func TestReencryptRouteRemoveDestinationCA(t *testing.T) {
 	}, 60*time.Second).Should(gomega.Equal(defaultHostname))
 	VerifySniNode(g, sniVS)
 	g.Eventually(func() bool {
-		return sniVS.PoolRefs[0].SniEnabled
+		return sniVS.PoolRefs[0].SniEnabled != nil &&
+			*sniVS.PoolRefs[0].SniEnabled
 	}, 60*time.Second).Should(gomega.Equal(true))
-	g.Expect(sniVS.PoolRefs[0].SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
+	g.Expect(*sniVS.PoolRefs[0].SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
 
 	var nilPki *avinodes.AviPkiProfileNode
 	g.Eventually(func() *avinodes.AviPkiProfileNode {
