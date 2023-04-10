@@ -238,9 +238,9 @@ func (c *AviController) AddNetworkInfoEventHandlers() {
 			if err != nil {
 				utils.AviLog.Errorf(err.Error())
 			}
-			lib.SharedWCPLister().UpdateNamespaceTier1LrCache(ns, t1lr)
+			objects.SharedWCPLister().UpdateNamespaceTier1LrCache(ns, t1lr)
 			if ingCIDRPresent {
-				lib.SharedWCPLister().UpdateNamespaceNetworkCache(ns, lib.GetVCFNetworkNameWithNS(ns))
+				objects.SharedWCPLister().UpdateNamespaceNetworkCache(ns, lib.GetVCFNetworkNameWithNS(ns))
 			}
 			key := utils.NamespaceNetworkInfo + "/" + ns + "/" + t1lr
 			bkt := utils.Bkt(ns, numWorkers)
@@ -252,21 +252,21 @@ func (c *AviController) AddNetworkInfoEventHandlers() {
 			if err != nil {
 				utils.AviLog.Errorf(err.Error())
 			}
-			lib.SharedWCPLister().UpdateNamespaceTier1LrCache(ns, t1lr)
+			objects.SharedWCPLister().UpdateNamespaceTier1LrCache(ns, t1lr)
 			key := utils.NamespaceNetworkInfo + "/" + ns + "/" + t1lr
 			bkt := utils.Bkt(ns, numWorkers)
 			queue.Workqueue[bkt].AddRateLimited(key)
 			if ingCIDRPresent {
-				lib.SharedWCPLister().UpdateNamespaceNetworkCache(ns, lib.GetVCFNetworkNameWithNS(ns))
+				objects.SharedWCPLister().UpdateNamespaceNetworkCache(ns, lib.GetVCFNetworkNameWithNS(ns))
 			} else {
-				lib.SharedWCPLister().RemoveNamespaceNetworkCache(ns)
+				objects.SharedWCPLister().RemoveNamespaceNetworkCache(ns)
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			utils.AviLog.Debugf("Namespace NetworkInfo Delete")
 			namespace := obj.(*unstructured.Unstructured).Object["metadata"].(map[string]interface{})["namespace"].(string)
-			lib.SharedWCPLister().RemoveNamespaceTier1LrCache(namespace)
-			lib.SharedWCPLister().RemoveNamespaceNetworkCache(namespace)
+			objects.SharedWCPLister().RemoveNamespaceTier1LrCache(namespace)
+			objects.SharedWCPLister().RemoveNamespaceNetworkCache(namespace)
 		},
 	}
 	c.dynamicInformers.VCFNetworkInfoInformer.Informer().AddEventHandler(namespaceNetworkInfoHandler)

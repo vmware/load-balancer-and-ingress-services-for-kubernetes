@@ -1254,6 +1254,8 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 			go c.informers.IngressInformer.Informer().Run(stopCh)
 			informersList = append(informersList, c.informers.IngressInformer.Informer().HasSynced)
 		}
+		go c.dynamicInformers.VCFNetworkInfoInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.dynamicInformers.VCFNetworkInfoInformer.Informer().HasSynced)
 	}
 
 	// Disable all informers if we are in advancedL4 mode. We expect to only provide L4 load balancing capability for this feature.
@@ -1262,8 +1264,6 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 		informersList = append(informersList, lib.AKOControlConfig().AdvL4Informers().GatewayClassInformer.Informer().HasSynced)
 		go lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Informer().Run(stopCh)
 		informersList = append(informersList, lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Informer().HasSynced)
-		go c.dynamicInformers.VCFNetworkInfoInformer.Informer().Run(stopCh)
-		informersList = append(informersList, c.dynamicInformers.VCFNetworkInfoInformer.Informer().HasSynced)
 	} else {
 		if lib.UseServicesAPI() {
 			go lib.AKOControlConfig().SvcAPIInformers().GatewayClassInformer.Informer().Run(stopCh)

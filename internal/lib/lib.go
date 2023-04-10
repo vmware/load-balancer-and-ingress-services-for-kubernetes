@@ -663,16 +663,6 @@ func GetAkoApiServerPort() string {
 	return "8080"
 }
 
-var VipNetworkList []akov1alpha1.AviInfraSettingVipNetwork
-
-func SetVipNetworkList(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork) {
-	VipNetworkList = vipNetworks
-}
-
-func GetVipNetworkList() []akov1alpha1.AviInfraSettingVipNetwork {
-	return VipNetworkList
-}
-
 func GetVipNetworkListEnv() ([]akov1alpha1.AviInfraSettingVipNetwork, error) {
 	var vipNetworkList []akov1alpha1.AviInfraSettingVipNetwork
 	if IsWCP() {
@@ -1879,7 +1869,7 @@ func IsValidV6Config(returnErr *error) bool {
 		return false
 	}
 
-	vipNetworkList := GetVipNetworkList()
+	vipNetworkList := utils.GetVipNetworkList()
 	isCloudVCenter := (GetCloudType() == CLOUD_VCENTER)
 	for _, vipNetwork := range vipNetworkList {
 		if !isCloudVCenter && vipNetwork.V6Cidr != "" {

@@ -27,6 +27,7 @@ import (
 	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
@@ -2619,7 +2620,7 @@ func checkRequiredValuesYaml(returnErr *error) bool {
 		*returnErr = fmt.Errorf("Error in getting VIP network %s, shutting down AKO", err)
 		return false
 	} else if len(vipList) > 0 {
-		lib.SetVipNetworkList(vipList)
+		utils.SetVipNetworkList(vipList)
 		return true
 	}
 
@@ -2956,7 +2957,7 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 	if vipList, err := lib.GetVipNetworkListEnv(); err != nil {
 		return false, fmt.Errorf("Error in getting VIP network %s, shutting down AKO", err)
 	} else if len(vipList) > 0 {
-		lib.SetVipNetworkList(vipList)
+		utils.SetVipNetworkList(vipList)
 		return true, nil
 	}
 
@@ -2965,7 +2966,7 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 		vipNetList := akov1alpha1.AviInfraSettingVipNetwork{
 			NetworkName: lib.GetVCFNetworkName(),
 		}
-		lib.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{vipNetList})
+		utils.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{vipNetList})
 		return true, nil
 	}
 
@@ -2998,7 +2999,7 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 		}
 
 		if markerNetworkFound != "" {
-			lib.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{{
+			utils.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{{
 				NetworkName: markerNetworkFound,
 			}})
 			return true, nil
@@ -3008,7 +3009,7 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 
 	// 4. Empty VipNetworkList
 	if lib.IsWCP() && markerNetworkFound == "" {
-		lib.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{})
+		utils.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{})
 		return true, nil
 	}
 
@@ -3071,7 +3072,7 @@ func fetchNetworkWithMarkerSet(client *clients.AviClient, usableNetworkNames []s
 func checkPublicCloud(client *clients.AviClient, returnErr *error) bool {
 	if lib.IsPublicCloud() {
 		// Handle all public cloud validations here
-		vipNetworkList := lib.SharedWCPLister().GetNetworkForNamespace()
+		vipNetworkList := objects.SharedWCPLister().GetNetworkForNamespace()
 		if len(vipNetworkList) == 0 {
 			*returnErr = fmt.Errorf("vipNetworkList not specified, syncing will be disabled.")
 			return false
@@ -3149,7 +3150,7 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient, returnErr *error) bool
 		return true
 	}
 
-	networkList := lib.SharedWCPLister().GetNetworkForNamespace()
+	networkList := objects.SharedWCPLister().GetNetworkForNamespace()
 	if len(networkList) == 0 {
 		utils.AviLog.Warnf("Network name not specified, skipping fetching of the VRF setting from network")
 		return true
