@@ -33,6 +33,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	servicesapi "sigs.k8s.io/service-apis/apis/v1alpha1"
 	svcapiv1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
 )
@@ -121,6 +122,10 @@ var (
 		GetParentIngresses: SSORuleToIng,
 		GetParentRoutes:    SSORuleToIng,
 	}
+	NameSpaceNetworkInfos = GraphSchema{
+		Type:              utils.NamespaceNetworkInfo,
+		GetParentGateways: t1LRNSToGateway,
+	}
 	SupportedGraphTypes = GraphDescriptor{
 		Ingress,
 		IngressClass,
@@ -140,6 +145,7 @@ var (
 		ServiceImport,
 		SSORule,
 		L4Rule,
+		NameSpaceNetworkInfos,
 	}
 )
 
@@ -1063,4 +1069,17 @@ func validateSvcApiGatewayForClass(key string, gateway *svcapiv1alpha1.Gateway) 
 	}
 
 	return nil
+}
+
+func t1LRNSToGateway(t1LR, namespace, key string) ([]string, bool) {
+	allGateways := make([]string, 0)
+	gateways, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).List(labels.NewSelector())
+	if err != nil {
+		return allGateways, false
+	}
+	for _, gw := range gateways {
+		key := gw.GetNamespace() + "/" + gw.GetName()
+		allGateways = append(allGateways, key)
+	}
+	return allGateways, true
 }

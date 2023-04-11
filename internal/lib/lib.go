@@ -68,6 +68,8 @@ var fqdnMap = map[string]string{
 	"flat":    AutoFQDNFlat,
 }
 
+var ClusterID string
+
 type CRDMetadata struct {
 	Type   string `json:"type"`
 	Value  string `json:"value"`
@@ -676,16 +678,6 @@ func GetAkoApiServerPort() string {
 	return "8080"
 }
 
-var VipNetworkList []akov1alpha1.AviInfraSettingVipNetwork
-
-func SetVipNetworkList(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork) {
-	VipNetworkList = vipNetworks
-}
-
-func GetVipNetworkList() []akov1alpha1.AviInfraSettingVipNetwork {
-	return VipNetworkList
-}
-
 func GetVipNetworkListEnv() ([]akov1alpha1.AviInfraSettingVipNetwork, error) {
 	var vipNetworkList []akov1alpha1.AviInfraSettingVipNetwork
 	if IsWCP() {
@@ -941,7 +933,14 @@ func GetClusterName() string {
 	return ""
 }
 
+func SetClusterID(clusterID string) {
+	ClusterID = clusterID
+}
+
 func GetClusterID() string {
+	if utils.IsVCFCluster() {
+		return ClusterID
+	}
 	clusterID := os.Getenv(CLUSTER_ID)
 	// The clusterID is an internal field only in the advanced L4 mode and we expect the format to be: domain-c8:3fb16b38-55f0-49fb-997d-c117487cd98d
 	// We want to truncate this string to just have the uuid.
@@ -1885,7 +1884,7 @@ func IsValidV6Config(returnErr *error) bool {
 		return false
 	}
 
-	vipNetworkList := GetVipNetworkList()
+	vipNetworkList := utils.GetVipNetworkList()
 	isCloudVCenter := (GetCloudType() == CLOUD_VCENTER)
 	for _, vipNetwork := range vipNetworkList {
 		if !isCloudVCenter && vipNetwork.V6Cidr != "" {

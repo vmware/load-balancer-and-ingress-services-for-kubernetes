@@ -238,7 +238,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	// handle the services APIs
 	if (lib.IsWCP() && objType == utils.L4LBService) ||
 		(lib.UseServicesAPI() && (objType == utils.Service || objType == utils.L4LBService)) ||
-		((lib.IsWCP() || lib.UseServicesAPI()) && (objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints || objType == lib.AviInfraSetting)) {
+		((lib.IsWCP() || lib.UseServicesAPI()) && (objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints || objType == lib.AviInfraSetting || objType == utils.NamespaceNetworkInfo)) {
 		if !valid && objType == utils.L4LBService {
 			// Required for advl4 schemas.
 			schema, _ = ConfigDescriptor().GetByType(utils.Service)

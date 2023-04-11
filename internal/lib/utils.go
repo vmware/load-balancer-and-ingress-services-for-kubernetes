@@ -41,7 +41,7 @@ type PodsWithTargetPort struct {
 }
 
 func ExtractTypeNameNamespace(key string) (string, string, string) {
-	segments := strings.Split(key, "/")
+	segments := strings.SplitN(key, "/", 3)
 	if len(segments) == 3 {
 		return segments[0], segments[1], segments[2]
 	}
