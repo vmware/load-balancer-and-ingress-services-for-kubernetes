@@ -12,13 +12,12 @@
 * limitations under the License.
 */
 
-package lib
+package objects
 
 import (
 	"os"
 	"sync"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
@@ -29,8 +28,8 @@ var wcponce sync.Once
 func SharedWCPLister() *WCPLister {
 	wcponce.Do(func() {
 		WCPInstance = &WCPLister{
-			NamespaceTier1LrCache: objects.NewObjectMapStore(),
-			NamespaceNetworkCache: objects.NewObjectMapStore(),
+			NamespaceTier1LrCache: NewObjectMapStore(),
+			NamespaceNetworkCache: NewObjectMapStore(),
 		}
 	})
 	return WCPInstance
@@ -38,8 +37,8 @@ func SharedWCPLister() *WCPLister {
 
 type WCPLister struct {
 	// namespace -> tier1lr
-	NamespaceTier1LrCache *objects.ObjectMapStore
-	NamespaceNetworkCache *objects.ObjectMapStore
+	NamespaceTier1LrCache *ObjectMapStore
+	NamespaceNetworkCache *ObjectMapStore
 }
 
 func (w *WCPLister) UpdateNamespaceTier1LrCache(namespace, t1lr string) {
@@ -83,5 +82,5 @@ func (w *WCPLister) GetNetworkForNamespace(namespace ...string) []akov1alpha1.Av
 			}
 		}
 	}
-	return GetVipNetworkList()
+	return utils.GetVipNetworkList()
 }

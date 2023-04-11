@@ -738,7 +738,7 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 		}
 	}
 
-	t1lr := lib.SharedWCPLister().GetT1LrForNamespace(routeIgrObj.GetNamespace())
+	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(routeIgrObj.GetNamespace())
 	if t1lr == "" {
 		vrfcontext = lib.GetVrf()
 		avi_vs_meta.VrfContext = vrfcontext
@@ -754,7 +754,7 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 		Tenant:      lib.GetTenant(),
 		FQDNs:       fqdns,
 		VrfContext:  vrfcontext,
-		VipNetworks: lib.SharedWCPLister().GetNetworkForNamespace(routeIgrObj.GetNamespace()),
+		VipNetworks: objects.SharedWCPLister().GetNetworkForNamespace(routeIgrObj.GetNamespace()),
 	}
 
 	if t1lr != "" {
@@ -853,7 +853,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 		}
 
 		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
-		t1lr := lib.SharedWCPLister().GetT1LrForNamespace(namespace)
+		t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
 		if t1lr != "" {
 			poolNode.T1Lr = t1lr
 			// Unset the poolnode's vrfcontext.
@@ -2073,7 +2073,7 @@ func buildWithInfraSettingForEvh(key, namespace string, vs *AviEvhVsNode, vsvip 
 		if infraSetting.Spec.Network.VipNetworks != nil && len(infraSetting.Spec.Network.VipNetworks) > 0 {
 			vsvip.VipNetworks = infraSetting.Spec.Network.VipNetworks
 		} else {
-			vsvip.VipNetworks = lib.SharedWCPLister().GetNetworkForNamespace(namespace)
+			vsvip.VipNetworks = objects.SharedWCPLister().GetNetworkForNamespace(namespace)
 		}
 		if lib.IsPublicCloud() {
 			vsvip.EnablePublicIP = infraSetting.Spec.Network.EnablePublicIP

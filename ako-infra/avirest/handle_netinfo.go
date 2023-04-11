@@ -89,8 +89,9 @@ func SyncLSLRNetwork() {
 	}
 
 	addNetworkInCloud("fullsync", cidrs, client)
-	addNetworkInIPAM("fullsync", client)
-	deleteNetworkInCloud("fullsync", cidrs, client)
+	networksToDelete := getNetworksToDeleteInCloud("fullsync", cidrs, client)
+	addNetworkInIPAM("fullsync", networksToDelete, client)
+	deleteNetworkInCloud("fullsync", networksToDelete, client)
 }
 
 func matchCidrInNetwork(subnets []*models.Subnet, cidrs map[string]struct{}) bool {
@@ -198,7 +199,7 @@ func addNetworkInCloud(objKey string, cidrToNS map[string]map[string]struct{}, c
 	}
 }
 
-func addNetworkInIPAM(key string, client *clients.AviClient) {
+func addNetworkInIPAM(key string, networksToDelete map[string]string, client *clients.AviClient) {
 	found, cloudModel := getAviCloudFromCache(client, utils.CloudName)
 	if !found {
 		utils.AviLog.Warnf("Failed to get Cloud data from cache")
@@ -220,6 +221,10 @@ func addNetworkInIPAM(key string, client *clients.AviClient) {
 	for _, nw := range ipam.InternalProfile.UsableNetworks {
 		netName := strings.Split(*nw.NwRef, "#")[1]
 		if _, ok := netModels[netName]; !ok && strings.HasPrefix(netName, lib.GetVCFNetworkName()) {
+			updateIPAM = true
+			continue
+		}
+		if _, ok := networksToDelete[netName]; ok {
 			updateIPAM = true
 			continue
 		}
@@ -294,9 +299,9 @@ func constructLsLrInCloud(lslrList []*models.Tier1LogicalRouterInfo, lslrMap map
 	return cloudLSLRList
 }
 
-func deleteNetworkInCloud(objKey string, cidrToNS map[string]map[string]struct{}, client *clients.AviClient) {
+func getNetworksToDeleteInCloud(objKey string, cidrToNS map[string]map[string]struct{}, client *clients.AviClient) map[string]string {
+	networks := make(map[string]string)
 	_, netModels := getAviNetFromCache(client)
-	wg := sync.WaitGroup{}
 	for netName, net := range netModels {
 		pfx := lib.GetVCFNetworkName() + "-"
 		if !strings.HasPrefix(netName, pfx) {
@@ -304,22 +309,30 @@ func deleteNetworkInCloud(objKey string, cidrToNS map[string]map[string]struct{}
 		}
 		ns := strings.Split(netName, pfx)[1]
 		if _, ok := cidrToNS[ns]; !ok {
-			//delete the network
-			path := "/api/network/" + *net.UUID
-			restOp := utils.RestOp{
-				ObjName: netName,
-				Path:    path,
-				Method:  utils.RestDelete,
-				Tenant:  "admin",
-				Model:   "network",
-			}
-			wg.Add(1)
-			go func(restOp utils.RestOp) {
-				utils.AviLog.Infof("key: %s, Deleting VCF network %s", objKey, restOp.ObjName)
-				executeRestOp(objKey, client, &restOp)
-				wg.Done()
-			}(restOp)
+			networks[netName] = *net.UUID
 		}
+	}
+	return networks
+}
+
+func deleteNetworkInCloud(objKey string, networksToDelete map[string]string, client *clients.AviClient) {
+	wg := sync.WaitGroup{}
+	for netName, netUUID := range networksToDelete {
+		//delete the network
+		path := "/api/network/" + netUUID
+		restOp := utils.RestOp{
+			ObjName: netName,
+			Path:    path,
+			Method:  utils.RestDelete,
+			Tenant:  "admin",
+			Model:   "network",
+		}
+		wg.Add(1)
+		go func(restOp utils.RestOp) {
+			utils.AviLog.Infof("key: %s, Deleting VCF network %s", objKey, restOp.ObjName)
+			executeRestOp(objKey, client, &restOp)
+			wg.Done()
+		}(restOp)
 	}
 	wg.Wait()
 }
