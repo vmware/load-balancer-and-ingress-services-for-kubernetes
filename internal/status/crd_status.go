@@ -21,6 +21,7 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
@@ -204,4 +205,75 @@ func UpdateAviInfraSettingStatus(key string, infraSetting *akov1alpha1.AviInfraS
 	}
 
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the aviinfrasetting %s status %+v", key, infraSetting.Name, utils.Stringify(updateStatus))
+}
+
+// UpdateL4RuleStatus updates the L4Rule status
+func UpdateL4RuleStatus(key string, l4Rule *akov1alpha2.L4Rule, updateStatus UpdateCRDStatusOptions, retryNum ...int) {
+	retry := 0
+	if len(retryNum) > 0 {
+		retry = retryNum[0]
+		if retry >= 3 {
+			utils.AviLog.Errorf("key: %s, msg: UpdateL4RuleStatus retried 3 times, aborting", key)
+			return
+		}
+	}
+
+	patchPayload, _ := json.Marshal(map[string]interface{}{
+		"status": akov1alpha2.L4RuleStatus(updateStatus),
+	})
+
+	_, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(l4Rule.Namespace).Patch(context.TODO(), l4Rule.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+	if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: %d there was an error in updating the L4Rule status: %+v", key, retry, err)
+		updatedL4RuleObj, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(l4Rule.Namespace).Get(context.TODO(), l4Rule.Name, metav1.GetOptions{})
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: L4Rule not found %v", key, err)
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+				UpdateL4RuleStatus(key, updatedL4RuleObj, updateStatus, retry+1)
+			}
+			return
+		}
+		UpdateL4RuleStatus(key, updatedL4RuleObj, updateStatus, retry+1)
+	}
+
+	utils.AviLog.Infof("key: %s, msg: Successfully updated the L4Rule %s status %+v", key, l4Rule.Name, utils.Stringify(updateStatus))
+}
+
+// L4RuleEventBroadcast is responsible from broadcasting L4Rule specific events when the VS Cache is Added/Updated/Deleted.
+func L4RuleEventBroadcast(vsName string, vsCacheMetadataOld, vsMetadataNew lib.CRDMetadata) {
+	if vsCacheMetadataOld.Value != vsMetadataNew.Value {
+		oldLRNamespaceName := strings.Split(vsCacheMetadataOld.Value, "/")
+		newLRNamespaceName := strings.Split(vsMetadataNew.Value, "/")
+
+		if len(oldLRNamespaceName) != 2 || len(newLRNamespaceName) != 2 {
+			return
+		}
+
+		oldL4Rule, _ := lib.AKOControlConfig().CRDInformers().L4RuleInformer.Lister().L4Rules(oldLRNamespaceName[0]).Get(oldLRNamespaceName[1])
+		newL4Rule, _ := lib.AKOControlConfig().CRDInformers().L4RuleInformer.Lister().L4Rules(newLRNamespaceName[0]).Get(newLRNamespaceName[1])
+		if oldL4Rule == nil || newL4Rule == nil {
+			return
+		}
+
+		lib.AKOControlConfig().EventRecorder().Eventf(oldL4Rule, corev1.EventTypeNormal, lib.Attached, "Configuration removed from VirtualService %s", vsName)
+		lib.AKOControlConfig().EventRecorder().Eventf(newL4Rule, corev1.EventTypeNormal, lib.Attached, "Configuration applied to VirtualService %s", vsName)
+	}
+
+	lrNamespaceName := strings.Split(vsMetadataNew.Value, "/")
+	if len(lrNamespaceName) != 2 {
+		return
+	}
+
+	l4Rule, _ := lib.AKOControlConfig().CRDInformers().L4RuleInformer.Lister().L4Rules(lrNamespaceName[0]).Get(lrNamespaceName[1])
+	if l4Rule == nil {
+		return
+	}
+
+	if (vsCacheMetadataOld.Status == lib.CRDInactive || vsCacheMetadataOld.Status == "") && vsMetadataNew.Status == lib.CRDActive {
+		// CRD was added, INACTIVE -> ACTIVE transitions
+		lib.AKOControlConfig().EventRecorder().Eventf(l4Rule, corev1.EventTypeNormal, lib.Attached, "Configuration applied to VirtualService %s", vsName)
+	} else if vsCacheMetadataOld.Status == lib.CRDActive && (vsMetadataNew.Status == "" || vsMetadataNew.Status == lib.CRDInactive) {
+		// CRD was removed, ACTIVE -> INACTIVE transitions
+		lib.AKOControlConfig().EventRecorder().Eventf(l4Rule, corev1.EventTypeNormal, lib.Attached, "Configuration removed from VirtualService %s", vsName)
+	}
 }
