@@ -61,6 +61,7 @@ func setDedicatedVSNodeProperties(vs *avimodels.VirtualService, vs_meta *nodes.A
 	vs.WafPolicyRef = &vs_meta.WafPolicyRef
 	vs.ErrorPageProfileRef = &vs_meta.ErrorPageProfileRef
 	vs.AnalyticsProfileRef = &vs_meta.AnalyticsProfileRef
+	vs.IcapRequestProfileRefs = vs_meta.ICAPProfileRefs
 	vs.EastWestPlacement = proto.Bool(false)
 	vs.Enabled = vs_meta.Enabled
 	normal_vs_type := utils.VS_TYPE_NORMAL
@@ -306,6 +307,11 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	if vs_meta.VrfContext != "" {
 		sniChild.VrfContextRef = proto.String("/api/vrfcontext?name=" + vs_meta.VrfContext)
 	}
+
+	if len(vs_meta.ICAPProfileRefs) != 0 {
+		sniChild.IcapRequestProfileRefs = vs_meta.ICAPProfileRefs
+	}
+
 	//This VS has a TLSKeyCert associated, we need to mark 'type': 'VS_TYPE_VH_PARENT'
 	vh_type := utils.VS_TYPE_VH_CHILD
 	sniChild.Type = &vh_type
