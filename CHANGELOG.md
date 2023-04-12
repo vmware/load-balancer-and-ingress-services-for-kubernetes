@@ -338,3 +338,13 @@ All notable changes to this project will be documented in this file. The format 
 
 - Fix: AKO is publishing incorrect next hop.
 - Fix: PATCH to `vrfcontext` is failing due to error : `route_id` has duplicate values.
+
+## AKO-1.9.3
+
+### Added
+- AKO now claims support for Kubernetes 1.26
+
+### Fixed
+- Fix: Static routes are not getting added for a new node in a scnerio where node is deleted and then new node is added to the cluster.
+- Fix: If two clusters, with overlapping `Clustername` (i.e. one clustername is prefix of another clustername) and deployed in ClusterIP mode, are connected to the same controller, then reboot of AKO, present in a cluster with name which is prefix of another clustername, deletes static routes of other cluster.
+- Fix: During AKO bootup, if there is an error to list AKO CRD objects, AKO disables CRD handling. That results in deletion of existing avi controller objects.
