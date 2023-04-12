@@ -123,8 +123,9 @@ var (
 		GetParentRoutes:    SSORuleToIng,
 	}
 	NameSpaceNetworkInfos = GraphSchema{
-		Type:              utils.NamespaceNetworkInfo,
-		GetParentGateways: t1LRNSToGateway,
+		Type:               utils.NamespaceNetworkInfo,
+		GetParentGateways:  t1LRNSToGateway,
+		GetParentIngresses: t1LRNSToIngress,
 	}
 	SupportedGraphTypes = GraphDescriptor{
 		Ingress,
@@ -1073,8 +1074,9 @@ func validateSvcApiGatewayForClass(key string, gateway *svcapiv1alpha1.Gateway) 
 
 func t1LRNSToGateway(t1LR, namespace, key string) ([]string, bool) {
 	allGateways := make([]string, 0)
-	gateways, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).List(labels.NewSelector())
+	gateways, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).List(labels.Set(nil).AsSelector())
 	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Failed to list Gateways in the namespace %s", key, namespace)
 		return allGateways, false
 	}
 	for _, gw := range gateways {
@@ -1082,4 +1084,18 @@ func t1LRNSToGateway(t1LR, namespace, key string) ([]string, bool) {
 		allGateways = append(allGateways, key)
 	}
 	return allGateways, true
+}
+
+func t1LRNSToIngress(t1LR, namespace, key string) ([]string, bool) {
+	allIngresses := make([]string, 0)
+	ingresses, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Failed to list Ingresses in the namespace %s", key, namespace)
+		return allIngresses, false
+	}
+	for _, ing := range ingresses {
+		key := ing.GetNamespace() + "/" + ing.GetName()
+		allIngresses = append(allIngresses, key)
+	}
+	return allIngresses, true
 }

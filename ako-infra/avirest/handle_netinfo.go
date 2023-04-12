@@ -231,6 +231,9 @@ func addNetworkInIPAM(key string, networksToDelete map[string]string, client *cl
 		usableNetworks[netName] = struct{}{}
 	}
 	for netName := range netModels {
+		if _, ok := networksToDelete[netName]; ok {
+			continue
+		}
 		if _, exists := usableNetworks[netName]; !exists {
 			updateIPAM = true
 			usableNetworks[netName] = struct{}{}
