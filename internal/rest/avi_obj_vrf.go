@@ -17,7 +17,8 @@ package rest
 import (
 	"encoding/json"
 	"errors"
-	"strings"
+	"fmt"
+	"regexp"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -69,9 +70,9 @@ func (rest *RestOperations) AviVrfBuild(key string, vrfNode *nodes.AviVrfNode, u
 	clusterStaticRoutes := []*avimodels.StaticRoute{}
 	mergedStaticRoutes := []*avimodels.StaticRoute{}
 	clusterName := lib.GetClusterName()
-
+	re := regexp.MustCompile(fmt.Sprintf(`%s\-[1-9]+`, clusterName))
 	for _, aviStaticRoute := range aviStaticRoutes {
-		if strings.HasPrefix(*aviStaticRoute.RouteID, clusterName) {
+		if re.MatchString(*aviStaticRoute.RouteID) {
 			clusterStaticRoutes = append(clusterStaticRoutes, aviStaticRoute)
 		} else {
 			mergedStaticRoutes = append(mergedStaticRoutes, aviStaticRoute)
@@ -96,7 +97,7 @@ func (rest *RestOperations) AviVrfBuild(key string, vrfNode *nodes.AviVrfNode, u
 		//In case of Openstack cloud, use tenant vrf
 		opTenant = lib.GetTenant()
 	}
-
+	utils.AviLog.Infof("key: %s, VRF Payload is: [%v]", key, utils.Stringify(patchPayload))
 	restOp := utils.RestOp{
 		Path:    path,
 		Method:  utils.RestPatch,
