@@ -1,5 +1,5 @@
 ## Overview
-This document explains IPv6 support in AKO. End to end support is limited to L7 currently (AKO 1.9.2).
+This document explains IPv6 support in AKO. End to end support is limited to L7 currently (AKO 1.9.3).
 
 ### Use cases
 AKO supports IPv6 and dual stack. Following table explains what all is supported in AKO.
