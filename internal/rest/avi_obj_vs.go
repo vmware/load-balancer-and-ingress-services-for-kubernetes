@@ -60,7 +60,7 @@ func setDedicatedVSNodeProperties(vs *avimodels.VirtualService, vs_meta *nodes.A
 		vs.ApplicationProfileRef = vs_meta.ApplicationProfileRef
 	}
 	vs.WafPolicyRef = vs_meta.WafPolicyRef
-	vs.ErrorPageProfileRef = vs_meta.ErrorPageProfileRef
+	vs.ErrorPageProfileRef = &vs_meta.ErrorPageProfileRef
 	vs.AnalyticsProfileRef = vs_meta.AnalyticsProfileRef
 	vs.EastWestPlacement = proto.Bool(false)
 	vs.Enabled = vs_meta.Enabled
@@ -90,7 +90,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			SeGroupRef:            proto.String("/api/serviceenginegroup?name=" + vs_meta.ServiceEngineGroup),
 			WafPolicyRef:          vs_meta.WafPolicyRef,
 			AnalyticsProfileRef:   vs_meta.AnalyticsProfileRef,
-			ErrorPageProfileRef:   vs_meta.ErrorPageProfileRef,
+			ErrorPageProfileRef:   &vs_meta.ErrorPageProfileRef,
 			Enabled:               vs_meta.Enabled,
 			ServiceMetadata:       &svc_mdata,
 		}
@@ -302,7 +302,7 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 		WafPolicyRef:          vs_meta.WafPolicyRef,
 		SslProfileRef:         vs_meta.SslProfileRef,
 		AnalyticsProfileRef:   vs_meta.AnalyticsProfileRef,
-		ErrorPageProfileRef:   vs_meta.ErrorPageProfileRef,
+		ErrorPageProfileRef:   &vs_meta.ErrorPageProfileRef,
 		Enabled:               vs_meta.Enabled,
 	}
 	sniChild.AnalyticsPolicy = vs_meta.GetAnalyticsPolicy()

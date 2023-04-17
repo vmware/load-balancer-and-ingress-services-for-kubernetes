@@ -245,7 +245,7 @@ func setDedicatedEvhVSNodeProperties(vs *avimodels.VirtualService, vs_meta *node
 			vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, certName)
 		}
 	}
-	vs.SslProfileRef = vs_meta.SSLProfileRef
+	vs.SslProfileRef = vs_meta.SslProfileRef
 	//set datascripts to VS from hostrule crd
 	for i, script := range vs_meta.VsDatascriptRefs {
 		j := int32(i)
@@ -260,7 +260,7 @@ func setDedicatedEvhVSNodeProperties(vs *avimodels.VirtualService, vs_meta *node
 		vs.ApplicationProfileRef = vs_meta.ApplicationProfileRef
 	}
 	vs.WafPolicyRef = vs_meta.WafPolicyRef
-	vs.ErrorPageProfileRef = vs_meta.ErrorPageProfileRef
+	vs.ErrorPageProfileRef = &vs_meta.ErrorPageProfileRef
 	vs.AnalyticsProfileRef = vs_meta.AnalyticsProfileRef
 	vs.EastWestPlacement = proto.Bool(false)
 	vs.Enabled = vs_meta.Enabled
@@ -491,7 +491,7 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		WafPolicyRef:          vs_meta.WafPolicyRef,
 		SslProfileRef:         vs_meta.SslProfileRef,
 		AnalyticsProfileRef:   vs_meta.AnalyticsProfileRef,
-		ErrorPageProfileRef:   vs_meta.ErrorPageProfileRef,
+		ErrorPageProfileRef:   &vs_meta.ErrorPageProfileRef,
 		Enabled:               vs_meta.Enabled,
 		VhType:                proto.String(utils.VS_TYPE_VH_ENHANCED),
 	}

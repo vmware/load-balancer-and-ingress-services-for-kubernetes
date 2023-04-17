@@ -95,7 +95,7 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		TenantRef:               &tenant,
 		CloudRef:                &cloudRef,
 		ServiceMetadata:         &svc_mdata,
-		SniEnabled:              pool_meta.SniEnabled,
+		SniEnabled:              &pool_meta.SniEnabled,
 		SslProfileRef:           pool_meta.SslProfileRef,
 		SslKeyAndCertificateRef: pool_meta.SslKeyAndCertificateRef,
 		PkiProfileRef:           pool_meta.PkiProfileRef,
@@ -130,7 +130,7 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	if pool_meta.LbAlgorithmHash != nil {
 		pool.LbAlgorithmHash = pool_meta.LbAlgorithmHash
 		if *pool.LbAlgorithmHash == lib.LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER {
-			pool.LbAlgorithmConsistentHashHdr = pool_meta.LbAlgorithmConsistentHashHdr
+			pool.LbAlgorithmConsistentHashHdr = &pool_meta.LbAlgoHostHeader
 		}
 	}
 
