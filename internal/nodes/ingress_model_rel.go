@@ -133,6 +133,7 @@ var (
 		AviInfraSetting,
 		MultiClusterIngress,
 		ServiceImport,
+		L4Rule,
 	}
 )
 
