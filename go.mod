@@ -10,6 +10,7 @@ require (
 	github.com/go-logr/logr v0.4.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/gorilla/mux v1.8.0
+	github.com/jinzhu/copier v0.3.5
 	github.com/onsi/gomega v1.14.0
 	github.com/openshift/api v0.0.0-20201019163320-c6a5ec25f267
 	github.com/openshift/client-go v0.0.0-20201020082437-7737f16e53fc
