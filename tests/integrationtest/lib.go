@@ -1806,8 +1806,9 @@ type FakeL4Rule struct {
 func (lr FakeL4Rule) L4Rule() *akov1alpha2.L4Rule {
 	l4Rule := &akov1alpha2.L4Rule{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: lr.Namespace,
-			Name:      lr.Name,
+			Namespace:       lr.Namespace,
+			Name:            lr.Name,
+			ResourceVersion: "1",
 		},
 		Spec: akov1alpha2.L4RuleSpec{
 			AnalyticsPolicy: &akov1alpha2.AnalyticsPolicy{

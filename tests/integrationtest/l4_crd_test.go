@@ -254,12 +254,12 @@ func TestUpdateDeleteL4Rule(t *testing.T) {
 
 	// Update the L4Rule object
 	obj.Spec.PerformanceLimits.MaxConcurrentConnections = proto.Int32(100)
-	obj.Spec.PerformanceLimits.MaxThroughput = proto.Int32(20)
+	obj.Spec.PerformanceLimits.MaxThroughput = proto.Int32(30)
 	obj.Spec.VsDatascriptRefs = []string{"thisisaviref--new-ds1", "thisisaviref-new-ds2"}
 	obj.Spec.BackendProperties[0].InlineHealthMonitor = proto.Bool(false)
 	obj.Spec.BackendProperties[0].HealthMonitorRefs = []string{"thisisaviref-new-hm1", "thisisaviref-new-hm2"}
 	obj.Spec.BackendProperties[0].DefaultServerPort = proto.Int32(9090)
-
+	obj.ResourceVersion = "2"
 	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Update(context.TODO(), obj, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating L4Rule: %v", err)
 	}
@@ -645,7 +645,7 @@ func TestUpdateDeleteL4RuleMultiportSvc(t *testing.T) {
 		Ports:     []int{8080, 8082},
 	}
 	obj = l4Rule.L4Rule()
-
+	obj.ResourceVersion = "2"
 	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Update(context.TODO(), obj, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating L4Rule: %v", err)
 	}
