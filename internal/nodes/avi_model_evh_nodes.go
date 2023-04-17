@@ -26,7 +26,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	"google.golang.org/protobuf/proto"
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -487,7 +486,7 @@ func (vsNode *AviEvhVsNode) DeleteSSLPort(key string) {
 // TODO: Next PR opt: make part of Avivs model interface
 func (vsNode *AviEvhVsNode) DeletSSLRefInDedicatedNode(key string) {
 	vsNode.SSLKeyCertRefs = []*AviTLSKeyCertNode{}
-	vsNode.SslProfileRef = proto.String("")
+	vsNode.SslProfileRef = nil
 	vsNode.CACertRefs = []*AviTLSKeyCertNode{}
 }
 
@@ -2113,5 +2112,5 @@ func manipulateEvhNodeForSSL(key string, vsNode *AviEvhVsNode, evhNode *AviEvhVs
 		utils.AviLog.Warnf("key: %s msg: overwriting old ssl profile %s with new ssl profile %s", key, oldSSLProfile, newSSLProfile)
 	}
 	vsNode.SetSSLProfileRef(newSSLProfile)
-	evhNode.SetSSLProfileRef(proto.String(""))
+	evhNode.SetSSLProfileRef(nil)
 }

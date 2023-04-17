@@ -20,7 +20,6 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	"google.golang.org/protobuf/proto"
 
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -526,7 +525,7 @@ func (vsNode *AviVsNode) AddSSLPort(key string) {
 }
 func (vsNode *AviVsNode) DeletSSLRefInDedicatedNode(key string) {
 	vsNode.SSLKeyCertRefs = []*AviTLSKeyCertNode{}
-	vsNode.SslProfileRef = proto.String("")
+	vsNode.SslProfileRef = nil
 	vsNode.CACertRefs = []*AviTLSKeyCertNode{}
 }
 func (vsNode *AviVsNode) DeleteSecureAppProfile(key string) {
