@@ -984,6 +984,24 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			}
 		}
 
+		ssoRuleObjs, err := lib.AKOControlConfig().CRDInformers().SSORuleInformer.Lister().SSORules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the SsoRules during full sync: %s", err)
+		} else {
+			for _, ssoRuleObj := range ssoRuleObjs {
+				key := lib.SSORule + "/" + utils.ObjKey(ssoRuleObj)
+				meta, err := meta.Accessor(ssoRuleObj)
+				if err == nil {
+					resVer := meta.GetResourceVersion()
+					objects.SharedResourceVerInstanceLister().Save(key, resVer)
+				}
+				if err := c.GetValidator().ValidateSSORuleObj(key, ssoRuleObj); err != nil {
+					utils.AviLog.Warnf("key: %s, Error retrieved during validation of SSORule : %v", key, err)
+				}
+				nodes.DequeueIngestion(key, true)
+			}
+		}
+
 		// IngressClass Section
 		if utils.GetInformers().IngressClassInformer != nil {
 			ingClassObjs, err := utils.GetInformers().IngressClassInformer.Lister().List(labels.Set(nil).AsSelector())
