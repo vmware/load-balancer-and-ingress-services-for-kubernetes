@@ -58,10 +58,14 @@ func setDedicatedVSNodeProperties(vs *avimodels.VirtualService, vs_meta *nodes.A
 		// hostrule ref overrides defaults
 		vs.ApplicationProfileRef = &vs_meta.AppProfileRef
 	}
+
+	if len(vs_meta.ICAPProfileRefs) != 0 {
+		vs.IcapRequestProfileRefs = vs_meta.ICAPProfileRefs
+	}
+
 	vs.WafPolicyRef = &vs_meta.WafPolicyRef
 	vs.ErrorPageProfileRef = &vs_meta.ErrorPageProfileRef
 	vs.AnalyticsProfileRef = &vs_meta.AnalyticsProfileRef
-	vs.IcapRequestProfileRefs = vs_meta.ICAPProfileRefs
 	vs.EastWestPlacement = proto.Bool(false)
 	vs.Enabled = vs_meta.Enabled
 	normal_vs_type := utils.VS_TYPE_NORMAL
