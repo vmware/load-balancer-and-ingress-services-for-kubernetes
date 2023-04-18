@@ -705,8 +705,7 @@ func TestOshiftHTTPRuleReencryptWithDestinationCA(t *testing.T) {
 	}, 60*time.Second).Should(gomega.Equal(defaultHostname))
 	VerifySniNode(g, sniVS)
 	g.Eventually(func() bool {
-		return sniVS.PoolRefs[0].SniEnabled != nil &&
-			*sniVS.PoolRefs[0].SniEnabled
+		return sniVS.PoolRefs[0].SniEnabled
 	}, 60*time.Second).Should(gomega.Equal(true))
 
 	g.Expect(*sniVS.PoolRefs[0].SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
