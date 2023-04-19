@@ -55,14 +55,6 @@ spec:
                     required:
                     - enabled
                     type: object
-                  udfLogThrottle:
-                    default: 10
-                    description: This setting limits the total number of UDF logs
-                      generated per second for this VS on each SE. UDF logs are generated
-                      due to the configured client log filters or the rules with logging
-                      enabled. Default is 10 logs per second. Set it to zero (0) to
-                      deactivate throttling.
-                    type: integer
                 type: object
               analyticsProfileRef:
                 default: System-Analytics-Profile
@@ -85,10 +77,6 @@ spec:
                             metrics eg. l4_server.xxx, l7_server.xxx
                           type: boolean
                       type: object
-                    analyticsProfileRef:
-                      default: System-Analytics-Profile
-                      description: Specifies settings related to analytics.
-                      type: string
                     applicationPersistenceProfileRef:
                       description: Persistence will ensure the same user sticks to
                         the same server for a desired duration of time.
@@ -194,16 +182,6 @@ spec:
                   - protocol
                   type: object
                 type: array
-              delayFairness:
-                default: false
-                description: Select the algorithm for QoS fairness.  This determines
-                  how multiple Virtual Services sharing the same Service Engines will
-                  prioritize traffic over a congested network.
-                type: boolean
-              enabled:
-                default: true
-                description: Enable or disable the Virtual Service.
-                type: boolean
               networkProfileRef:
                 default: System-TCP-Proxy
                 description: Determines network settings such as protocol, TCP or
@@ -212,15 +190,23 @@ spec:
               networkSecurityPolicyRef:
                 description: Network security policies for the Virtual Service.
                 type: string
+              performanceLimits:
+                description: Optional settings that determine performance limits like
+                  max connections or bandwdith etc.
+                properties:
+                  maxConcurrentConnections:
+                    description: The maximum number of concurrent client conections
+                      allowed to the Virtual Service.
+                    type: integer
+                  maxThroughput:
+                    description: The maximum throughput per second for all clients
+                      allowed through the client side of the Virtual Service per SE.
+                    type: integer
+                type: object
               securityPolicyRef:
                 description: Security policy applied on the traffic of the Virtual
                   Service. This policy is used to perform security actions such as
                   Distributed Denial of Service (DDoS) attack mitigation, etc.
-                type: string
-              serverNetworkProfileRef:
-                description: Determines the network settings profile for the server
-                  side of TCP proxied connections.  Leave blank to use the same settings
-                  as the client to VS side of the connection.
                 type: string
               sslKeyAndCertificateRefs:
                 description: Select or create one or two certificates, EC and/or RSA,
@@ -234,7 +220,7 @@ spec:
                 type: string
               vsDatascriptRefs:
                 description: Datascripts applied on the data traffic of the Virtual
-                  Service
+                  Service.
                 items:
                   type: string
                 type: array
@@ -255,3 +241,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
+  conditions: null
+  storedVersions: null

@@ -424,7 +424,7 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 	for _, backendProperties := range l4RuleSpec.BackendProperties {
 
 		if backendProperties.ApplicationPersistenceProfileRef != nil {
-			refData[*backendProperties.ApplicationPersistenceProfileRef] = "ApplicationPersistenceProfile"
+			refData[*backendProperties.ApplicationPersistenceProfileRef] = "ApplicationPersistence"
 		}
 
 		for _, hm := range backendProperties.HealthMonitorRefs {
