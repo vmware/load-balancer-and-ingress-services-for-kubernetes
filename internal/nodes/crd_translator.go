@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/vmware/alb-sdk/go/models"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -184,13 +185,13 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	}
 
 	vsNode.SetSSLKeyCertAviRef(vsSslKeyCertificates)
-	vsNode.SetWafPolicyRef(vsWafPolicy)
+	vsNode.SetWafPolicyRef(&vsWafPolicy)
 	vsNode.SetHttpPolicySetRefs(vsHTTPPolicySets)
-	vsNode.SetAppProfileRef(vsAppProfile)
 	vsNode.SetICAPProfileRefs(vsICAPProfile)
-	vsNode.SetAnalyticsProfileRef(vsAnalyticsProfile)
+	vsNode.SetAppProfileRef(&vsAppProfile)
+	vsNode.SetAnalyticsProfileRef(&vsAnalyticsProfile)
 	vsNode.SetErrorPageProfileRef(vsErrorPageProfile)
-	vsNode.SetSSLProfileRef(vsSslProfile)
+	vsNode.SetSSLProfileRef(&vsSslProfile)
 	vsNode.SetVsDatascriptRefs(vsDatascripts)
 	vsNode.SetEnabled(vsEnabled)
 	vsNode.SetAnalyticsPolicy(analyticsPolicy)
@@ -254,7 +255,7 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 			pathSslProfile := pool.SslProfileRef
 			pathPkiProfile := pool.PkiProfileRef
 			destinationCertNode := pool.PkiProfile
-			pathHMs := pool.HealthMonitors
+			pathHMs := pool.HealthMonitorRefs
 			if poolPath == "" && path == "/" {
 				// In case of openfhit Route, the path could be empty, in that case, treat
 				// httprule targt path / as that of empty path, to match the pool appropriately.
@@ -287,9 +288,9 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 				if httpRulePath.TLS.Type != "" {
 					isPathSniEnabled = true
 					if httpRulePath.TLS.SSLProfile != "" {
-						pathSslProfile = fmt.Sprintf("/api/sslprofile?name=%s", httpRulePath.TLS.SSLProfile)
+						pathSslProfile = proto.String(fmt.Sprintf("/api/sslprofile?name=%s", httpRulePath.TLS.SSLProfile))
 					} else {
-						pathSslProfile = fmt.Sprintf("/api/sslprofile?name=%s", lib.DefaultPoolSSLProfile)
+						pathSslProfile = proto.String(fmt.Sprintf("/api/sslprofile?name=%s", lib.DefaultPoolSSLProfile))
 					}
 
 					if httpRulePath.TLS.DestinationCA != "" {
@@ -304,13 +305,13 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 					}
 
 					if httpRulePath.TLS.PKIProfile != "" {
-						pathPkiProfile = fmt.Sprintf("/api/pkiprofile?name=%s", httpRulePath.TLS.PKIProfile)
+						pathPkiProfile = proto.String(fmt.Sprintf("/api/pkiprofile?name=%s", httpRulePath.TLS.PKIProfile))
 					}
 				}
 
-				var persistenceProfile string
+				var persistenceProfile *string
 				if httpRulePath.ApplicationPersistence != "" {
-					persistenceProfile = fmt.Sprintf("/api/applicationpersistenceprofile?name=%s", httpRulePath.ApplicationPersistence)
+					persistenceProfile = proto.String(fmt.Sprintf("/api/applicationpersistenceprofile?name=%s", httpRulePath.ApplicationPersistence))
 				}
 
 				for _, hm := range httpRulePath.HealthMonitors {
@@ -323,14 +324,16 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 				pool.SslProfileRef = pathSslProfile
 				pool.PkiProfileRef = pathPkiProfile
 				pool.PkiProfile = destinationCertNode
-				pool.HealthMonitors = pathHMs
-				pool.ApplicationPersistence = persistenceProfile
+				pool.HealthMonitorRefs = pathHMs
+				pool.ApplicationPersistenceProfileRef = persistenceProfile
 
 				// from this path, generate refs to this pool node
-				pool.LbAlgorithm = httpRulePath.LoadBalancerPolicy.Algorithm
-				if pool.LbAlgorithm == lib.LB_ALGORITHM_CONSISTENT_HASH {
-					pool.LbAlgorithmHash = httpRulePath.LoadBalancerPolicy.Hash
-					if pool.LbAlgorithmHash == lib.LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER {
+				pool.LbAlgorithm = proto.String(httpRulePath.LoadBalancerPolicy.Algorithm)
+				if pool.LbAlgorithm != nil &&
+					*pool.LbAlgorithm == lib.LB_ALGORITHM_CONSISTENT_HASH {
+					pool.LbAlgorithmHash = proto.String(httpRulePath.LoadBalancerPolicy.Hash)
+					if pool.LbAlgorithmHash != nil &&
+						*pool.LbAlgorithmHash == lib.LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER {
 						if httpRulePath.LoadBalancerPolicy.HostHeader != "" {
 							pool.LbAlgoHostHeader = httpRulePath.LoadBalancerPolicy.HostHeader
 						} else {

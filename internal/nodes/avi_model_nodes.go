@@ -25,6 +25,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"google.golang.org/protobuf/proto"
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -400,21 +401,34 @@ type AviVsNode struct {
 	IsSNIChild            bool
 	ServiceMetadata       lib.ServiceMetadataObj
 	VrfContext            string
-	WafPolicyRef          string
-	AppProfileRef         string
 	ICAPProfileRefs       []string
-	AnalyticsProfileRef   string
 	ErrorPageProfileRef   string
 	HttpPolicySetRefs     []string
-	SSLProfileRef         string
-	VsDatascriptRefs      []string
 	SSLKeyCertAviRef      []string
 	AviMarkers            utils.AviObjectMarkers
 	Paths                 []string
 	IngressNames          []string
-	AnalyticsPolicy       *avimodels.AnalyticsPolicy
 	Dedicated             bool
 	IsL4VS                bool
+
+	AviVsNodeCommonFields
+
+	AviVsNodeGeneratedFields
+}
+
+// AviVsNodeCommonFields struct contains the fields that are:
+//  1. expected to be part of the generated code.
+//  2. already in use in the code and is part of the generated code.
+//
+// This struct is added to avoid any collision between the generated and
+// existing struct fields.
+type AviVsNodeCommonFields struct {
+	AnalyticsPolicy       *avimodels.AnalyticsPolicy
+	AnalyticsProfileRef   *string
+	ApplicationProfileRef *string
+	SslProfileRef         *string
+	VsDatascriptRefs      []string
+	WafPolicyRef          *string
 }
 
 // Implementing AviVsEvhSniModel
@@ -491,11 +505,11 @@ func (v *AviVsNode) SetSSLKeyCertAviRef(sslKeyCertAviRef []string) {
 	v.SSLKeyCertAviRef = sslKeyCertAviRef
 }
 
-func (v *AviVsNode) GetWafPolicyRef() string {
+func (v *AviVsNode) GetWafPolicyRef() *string {
 	return v.WafPolicyRef
 }
 
-func (v *AviVsNode) SetWafPolicyRef(wafPolicyRef string) {
+func (v *AviVsNode) SetWafPolicyRef(wafPolicyRef *string) {
 	v.WafPolicyRef = wafPolicyRef
 }
 
@@ -507,12 +521,12 @@ func (v *AviVsNode) SetHttpPolicySetRefs(httpPolicySetRefs []string) {
 	v.HttpPolicySetRefs = httpPolicySetRefs
 }
 
-func (v *AviVsNode) GetAppProfileRef() string {
-	return v.AppProfileRef
+func (v *AviVsNode) GetAppProfileRef() *string {
+	return v.ApplicationProfileRef
 }
 
-func (v *AviVsNode) SetAppProfileRef(appProfileRef string) {
-	v.AppProfileRef = appProfileRef
+func (v *AviVsNode) SetAppProfileRef(applicationProfileRef *string) {
+	v.ApplicationProfileRef = applicationProfileRef
 }
 
 func (v *AviVsNode) GetICAPProfileRefs() []string {
@@ -523,28 +537,28 @@ func (v *AviVsNode) SetICAPProfileRefs(ICAPProfileRef []string) {
 	v.ICAPProfileRefs = ICAPProfileRef
 }
 
-func (v *AviVsNode) GetAnalyticsProfileRef() string {
+func (v *AviVsNode) GetAnalyticsProfileRef() *string {
 	return v.AnalyticsProfileRef
 }
 
-func (v *AviVsNode) SetAnalyticsProfileRef(AnalyticsProfileRef string) {
-	v.AnalyticsProfileRef = AnalyticsProfileRef
+func (v *AviVsNode) SetAnalyticsProfileRef(analyticsProfileRef *string) {
+	v.AnalyticsProfileRef = analyticsProfileRef
 }
 
 func (v *AviVsNode) GetErrorPageProfileRef() string {
 	return v.ErrorPageProfileRef
 }
 
-func (v *AviVsNode) SetErrorPageProfileRef(ErrorPageProfileRef string) {
-	v.ErrorPageProfileRef = ErrorPageProfileRef
+func (v *AviVsNode) SetErrorPageProfileRef(errorPageProfileRef string) {
+	v.ErrorPageProfileRef = errorPageProfileRef
 }
 
-func (v *AviVsNode) GetSSLProfileRef() string {
-	return v.SSLProfileRef
+func (v *AviVsNode) GetSSLProfileRef() *string {
+	return v.SslProfileRef
 }
 
-func (v *AviVsNode) SetSSLProfileRef(SSLProfileRef string) {
-	v.SSLProfileRef = SSLProfileRef
+func (v *AviVsNode) SetSSLProfileRef(SSLProfileRef *string) {
+	v.SslProfileRef = SSLProfileRef
 }
 
 func (v *AviVsNode) GetVsDatascriptRefs() []string {
@@ -921,11 +935,25 @@ func (v *AviVsNode) CalculateCheckSum() {
 	scripts := v.VsDatascriptRefs
 	icaprefs := v.ICAPProfileRefs
 
-	vsRefs := v.WafPolicyRef +
-		v.AppProfileRef +
-		v.AnalyticsProfileRef +
-		v.ErrorPageProfileRef +
-		v.SSLProfileRef
+	var vsRefs string
+
+	if v.WafPolicyRef != nil {
+		vsRefs += *v.WafPolicyRef
+	}
+
+	if v.ApplicationProfileRef != nil {
+		vsRefs += *v.ApplicationProfileRef
+	}
+
+	if v.AnalyticsProfileRef != nil {
+		vsRefs += *v.AnalyticsProfileRef
+	}
+
+	vsRefs += v.ErrorPageProfileRef
+
+	if v.SslProfileRef != nil {
+		vsRefs += *v.SslProfileRef
+	}
 
 	if len(scripts) > 0 {
 		vsRefs += utils.Stringify(scripts)
@@ -976,6 +1004,8 @@ func (v *AviVsNode) CalculateCheckSum() {
 	if v.AnalyticsPolicy != nil {
 		checksum += lib.GetAnalyticsPolicyChecksum(v.AnalyticsPolicy)
 	}
+
+	checksum += v.AviVsNodeGeneratedFields.CalculateCheckSumOfGeneratedCode()
 
 	v.CloudConfigCksum = checksum
 }
@@ -1440,24 +1470,37 @@ type AviPoolNode struct {
 	PortName                 string
 	Servers                  []AviPoolMetaServer
 	Protocol                 string
-	LbAlgorithm              string
-	LbAlgorithmHash          string
 	LbAlgoHostHeader         string
 	IngressName              string
 	PriorityLabel            string
 	ServiceMetadata          lib.ServiceMetadataObj
 	SniEnabled               bool
-	SslProfileRef            string
-	SslKeyAndCertificateRef  string
-	PkiProfileRef            string
 	PkiProfile               *AviPkiProfileNode
 	NetworkPlacementSettings map[string][]string
-	HealthMonitors           []string
-	ApplicationPersistence   string
 	VrfContext               string
 	T1Lr                     string // Only applicable to NSX-T cloud, if this value is set, we automatically should unset the VRF context value.
 	AviMarkers               utils.AviObjectMarkers
 	AttachedWithSharedVS     bool
+
+	AviPoolCommonFields
+
+	AviPoolGeneratedFields
+}
+
+// AviPoolCommonFields struct contains the fields that are:
+//  1. expected to be part of the generated code.
+//  2. already in use in the code and is part of the generated code.
+//
+// This struct is added to avoid any collision between the generated and
+// existing struct fields.
+type AviPoolCommonFields struct {
+	ApplicationPersistenceProfileRef *string
+	HealthMonitorRefs                []string
+	LbAlgorithm                      *string
+	LbAlgorithmHash                  *string
+	PkiProfileRef                    *string
+	SslProfileRef                    *string
+	SslKeyAndCertificateRef          *string
 }
 
 func (v *AviPoolNode) GetCheckSum() uint32 {
@@ -1478,20 +1521,34 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		strconv.Itoa(int(v.Port)),
 		v.PortName,
 		utils.Stringify(servers),
-		v.LbAlgorithm,
-		v.LbAlgorithmHash,
-		v.LbAlgoHostHeader,
-		utils.Stringify(v.SniEnabled),
-		v.SslProfileRef,
-		v.PriorityLabel,
-		utils.Stringify(v.NetworkPlacementSettings),
 	}
 
-	if v.PkiProfileRef != "" {
-		checksumStringSlice = append(checksumStringSlice, v.PkiProfileRef)
+	if v.LbAlgorithm != nil {
+		checksumStringSlice = append(checksumStringSlice, *v.LbAlgorithm)
 	}
-	if v.SslKeyAndCertificateRef != "" {
-		checksumStringSlice = append(checksumStringSlice, v.SslKeyAndCertificateRef)
+
+	if v.LbAlgorithmHash != nil {
+		checksumStringSlice = append(checksumStringSlice, *v.LbAlgorithmHash)
+	}
+
+	checksumStringSlice = append(checksumStringSlice, v.LbAlgoHostHeader)
+
+	checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.SniEnabled))
+
+	if v.SslProfileRef != nil {
+		checksumStringSlice = append(checksumStringSlice, *v.SslProfileRef)
+	}
+
+	checksumStringSlice = append(checksumStringSlice, []string{
+		v.PriorityLabel,
+		utils.Stringify(v.NetworkPlacementSettings),
+	}...)
+
+	if v.PkiProfileRef != nil {
+		checksumStringSlice = append(checksumStringSlice, *v.PkiProfileRef)
+	}
+	if v.SslKeyAndCertificateRef != nil {
+		checksumStringSlice = append(checksumStringSlice, *v.SslKeyAndCertificateRef)
 	}
 
 	if len(v.ServiceMetadata.NamespaceServiceName) > 0 {
@@ -1508,16 +1565,16 @@ func (v *AviPoolNode) CalculateCheckSum() {
 
 	checksum := utils.Hash(chksumStr)
 
-	if len(v.HealthMonitors) > 0 {
-		checksum += utils.Hash(utils.Stringify(v.HealthMonitors))
+	if len(v.HealthMonitorRefs) > 0 {
+		checksum += utils.Hash(utils.Stringify(v.HealthMonitorRefs))
 	}
 
 	if v.PkiProfile != nil {
 		checksum += v.PkiProfile.GetCheckSum()
 	}
 
-	if v.ApplicationPersistence != "" {
-		checksum += utils.Hash(v.ApplicationPersistence)
+	if v.ApplicationPersistenceProfileRef != nil {
+		checksum += utils.Hash(*v.ApplicationPersistenceProfileRef)
 	}
 
 	checksum += lib.GetMarkersChecksum(v.AviMarkers)
@@ -1525,6 +1582,8 @@ func (v *AviPoolNode) CalculateCheckSum() {
 	if v.T1Lr != "" {
 		checksum += utils.Hash(v.T1Lr)
 	}
+
+	checksum += v.AviPoolGeneratedFields.CalculateCheckSumOfGeneratedCode()
 
 	v.CloudConfigCksum = checksum
 }
@@ -1546,9 +1605,9 @@ func (v *AviPoolNode) CopyNode() AviModelNode {
 	return &newNode
 }
 func (v *AviPoolNode) UpdatePoolNodeForIstio() {
-	v.PkiProfileRef = fmt.Sprintf("/api/pkiprofile?name=%s", lib.GetIstioPKIProfileName())
-	v.SslKeyAndCertificateRef = fmt.Sprintf("/api/sslkeyandcertificate?name=%s", lib.GetIstioWorkloadCertificateName())
-	v.SslProfileRef = fmt.Sprintf("/api/sslprofile?name=%s", lib.DefaultPoolSSLProfile)
+	v.PkiProfileRef = proto.String(fmt.Sprintf("/api/pkiprofile?name=%s", lib.GetIstioPKIProfileName()))
+	v.SslKeyAndCertificateRef = proto.String(fmt.Sprintf("/api/sslkeyandcertificate?name=%s", lib.GetIstioWorkloadCertificateName()))
+	v.SslProfileRef = proto.String(fmt.Sprintf("/api/sslprofile?name=%s", lib.DefaultPoolSSLProfile))
 }
 func (o *AviObjectGraph) GetAviPoolNodesByIngress(tenant string, ingName string) []*AviPoolNode {
 	var aviPool []*AviPoolNode
