@@ -23,6 +23,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/jinzhu/copier"
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
