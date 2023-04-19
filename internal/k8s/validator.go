@@ -171,6 +171,14 @@ func (l *leader) ValidateHostRuleObj(key string, hostrule *akov1alpha1.HostRule)
 			return err
 		}
 	}
+	if len(hostrule.Spec.VirtualHost.ICAPProfile) > 1 {
+		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: "Can only have 1 ICAP profile associated with VS"})
+		return fmt.Errorf("Can only have 1 ICAP profile associated with VS")
+	} else {
+		for _, icapprofile := range hostrule.Spec.VirtualHost.ICAPProfile {
+			refData[icapprofile] = "ICAPProfile"
+		}
+	}
 
 	for _, policy := range hostrule.Spec.VirtualHost.HTTPPolicy.PolicySets {
 		refData[policy] = "HttpPolicySet"

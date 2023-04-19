@@ -668,6 +668,7 @@ var refModelMap = map[string]string{
 	"PKIProfile":             "pkiprofile",
 	"ServiceEngineGroup":     "serviceenginegroup",
 	"Network":                "network",
+	"ICAPProfile":            "icapprofile",
 }
 
 // checkRefOnController checks whether a provided ref on the controller
