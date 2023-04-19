@@ -35,11 +35,14 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
+	v1alpha2crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned/fake"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/onsi/gomega"
 	"github.com/vmware/alb-sdk/go/models"
+	"google.golang.org/protobuf/proto"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
@@ -65,6 +68,7 @@ const (
 
 var KubeClient *k8sfake.Clientset
 var CRDClient *crdfake.Clientset
+var v1alpha2CRDClient *v1alpha2crdfake.Clientset
 var ctrl *k8s.AviController
 
 var AllModels = []string{
@@ -1186,7 +1190,11 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 
 	} else if r.Method == "GET" && strings.Contains(r.URL.RawQuery, "aviref") {
 		// block to handle
-		if strings.Contains(r.URL.RawQuery, "thisisaviref") {
+		if strings.Contains(r.URL.RawQuery, "l4-appprofile") {
+			w.WriteHeader(http.StatusOK)
+			data, _ := os.ReadFile(fmt.Sprintf("%s/l4crd_mock.json", mockFilePath))
+			w.Write(data)
+		} else if strings.Contains(r.URL.RawQuery, "thisisaviref") {
 			w.WriteHeader(http.StatusOK)
 			data, _ := os.ReadFile(fmt.Sprintf("%s/crd_mock.json", mockFilePath))
 			w.Write(data)
@@ -1789,4 +1797,82 @@ func CreateOrUpdateLease(ns, podName string) error {
 func DeleteLease(ns string) error {
 	err := KubeClient.CoordinationV1().Leases(ns).Delete(context.TODO(), "ako-lease-lock", metav1.DeleteOptions{})
 	return err
+}
+
+// L4Rule lib functions
+type FakeL4Rule struct {
+	Name      string
+	Namespace string
+	Ports     []int
+}
+
+func (lr FakeL4Rule) L4Rule() *akov1alpha2.L4Rule {
+	l4Rule := &akov1alpha2.L4Rule{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:       lr.Namespace,
+			Name:            lr.Name,
+			ResourceVersion: "1",
+		},
+		Spec: akov1alpha2.L4RuleSpec{
+			AnalyticsPolicy: &akov1alpha2.AnalyticsPolicy{
+				FullClientLogs: &akov1alpha2.FullClientLogs{
+					Duration: proto.Int32(10),
+					Enabled:  proto.Bool(true),
+					Throttle: proto.Int32(20),
+				},
+			},
+			AnalyticsProfileRef:      proto.String("thisisaviref-analyticsprofile"),
+			ApplicationProfileRef:    proto.String("thisisaviref-l4-appprofile"),
+			NetworkProfileRef:        proto.String("thisisaviref-networkprofileref"),
+			NetworkSecurityPolicyRef: proto.String("thisisaviref-networksecurityprofileref"),
+			PerformanceLimits: &akov1alpha2.PerformanceLimits{
+				MaxConcurrentConnections: proto.Int32(10),
+				MaxThroughput:            proto.Int32(20),
+			},
+			SecurityPolicyRef:        proto.String("thisisaviref-securitypolicyref"),
+			SslKeyAndCertificateRefs: []string{"thisisaviref-sslkeyandcertref1", "thisisaviref-sslkeyandcertref2"},
+			SslProfileRef:            proto.String("thisisaviref-sslprofileref"),
+			VsDatascriptRefs:         []string{"thisisaviref-ds1", "thisisaviref-ds2"},
+		},
+	}
+	for i := range lr.Ports {
+		l4Rule.Spec.BackendProperties = append(l4Rule.Spec.BackendProperties, &akov1alpha2.BackendProperties{
+			AnalyticsPolicy: &akov1alpha2.PoolAnalyticsPolicy{
+				EnableRealtimeMetrics: proto.Bool(true),
+			},
+			ApplicationPersistenceProfileRef: proto.String("thisisaviref-applicationpersistenceprofileref"),
+			DefaultServerPort:                proto.Int32(80),
+			Enabled:                          proto.Bool(true),
+			HealthMonitorRefs:                []string{"thisisaviref-hm1", "thisisaviref-hm2"},
+			InlineHealthMonitor:              proto.Bool(true),
+			LbAlgorithm:                      proto.String("LB_ALGORITHM_LEAST_CONNECTIONS"),
+			MinServersUp:                     proto.Int32(1),
+			PkiProfileRef:                    proto.String("thisisaviref-pkiprofileref"),
+			Port:                             &lr.Ports[i],
+			Protocol:                         proto.String("TCP"),
+			SslKeyAndCertificateRef:          proto.String("thisisaviref-sslkeyandcertref"),
+			SslProfileRef:                    proto.String("thisisaviref-sslprofileref"),
+			UseServicePort:                   proto.Bool(true),
+		})
+	}
+
+	return l4Rule
+}
+
+func SetupL4Rule(t *testing.T, name, namespace string, port []int) {
+	l4Rule := FakeL4Rule{
+		Name:      name,
+		Namespace: namespace,
+		Ports:     port,
+	}
+	obj := l4Rule.L4Rule()
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(namespace).Create(context.TODO(), obj, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding L4Rule: %v", err)
+	}
+}
+
+func TeardownL4Rule(t *testing.T, name, namespace string) {
+	if err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{}); err != nil {
+		t.Fatalf("error in deleting L4Rule: %v", err)
+	}
 }
