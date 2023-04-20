@@ -166,7 +166,6 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 	l4Rule, err := getL4Rule(key, svcObj)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Error while fetching L4Rule. Err: %s", key, err.Error())
-		return
 	}
 
 	protocolSet := sets.NewString()
@@ -615,7 +614,6 @@ func getL4Rule(key string, svc *corev1.Service) (*akov1alpha2.L4Rule, error) {
 	}
 
 	if l4Rule != nil && l4Rule.Status.Status != lib.StatusAccepted {
-		utils.AviLog.Warnf("key: %s, msg: Referred L4Rule %s is invalid", key, l4Rule.Name)
 		return nil, fmt.Errorf("referred L4Rule %s is invalid", l4Rule.Name)
 	}
 

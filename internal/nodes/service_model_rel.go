@@ -16,6 +16,7 @@ package nodes
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -29,15 +30,28 @@ var (
 )
 
 func L4RuleToSvc(l4RuleName string, namespace string, key string) ([]string, bool) {
-	var allSvcs []string
+
+	l4Rule, err := lib.AKOControlConfig().CRDInformers().L4RuleInformer.Lister().L4Rules(namespace).Get(l4RuleName)
+	if k8serrors.IsNotFound(err) {
+		utils.AviLog.Debugf("key: %s, msg: L4Rule %s deleted", key, l4RuleName)
+	} else if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: Error getting L4Rule: %v", key, err)
+		return []string{}, false
+	}
+
+	if l4Rule != nil && l4Rule.Status.Status != lib.StatusAccepted {
+		utils.AviLog.Errorf("key: %s, msg: L4Rule is not in accepted state", key)
+		return []string{}, false
+	}
 
 	// Get all services that are mapped to this L4Rule.
 	services, err := utils.GetInformers().ServiceInformer.Informer().GetIndexer().ByIndex(lib.L4RuleToServicesIndex, l4RuleName)
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: failed to get the services mapped to L4Rule %s", key, l4RuleName)
-		return allSvcs, false
+		return []string{}, false
 	}
 
+	var allSvcs []string
 	for _, svc := range services {
 		svcObj, isSvc := svc.(*corev1.Service)
 		if isSvc {
