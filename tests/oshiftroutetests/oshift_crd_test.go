@@ -633,6 +633,7 @@ func TestOshiftHTTPRuleHostSwitch(t *testing.T) {
 				nodes[0].PoolRefs[0].LbAlgorithm == nil &&
 				len(nodes[0].SniNodes) == 1 &&
 				len(nodes[0].SniNodes[0].PoolRefs) == 1 &&
+				nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm != nil &&
 				*nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_CONSISTENT_HASH" {
 				return true
 			}
