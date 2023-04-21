@@ -1,6 +1,6 @@
 ## Load Balancer and Ingress Services for Kubernetes
 
-### Architecture
+### Architecture ###
 
 The Avi Kubernetes Operator (AKO) is used to provide L4-L7 load balancing for applications deployed
 in a kubernetes cluster for north-south traffic.
