@@ -14,7 +14,7 @@ the datapath using appropriate APIs to enable traffic routing for requested appl
 
 ## Documentation
 
-Take a look at the following documentation for instructions on installing [AKO - Avi Kubernetes Operator](docs/README.md)
+Take a look at the following documentation for instructions on installing [AKO - Avi Kubernetes Operator] (docs/README.md)
 
 
 ## Contributing
@@ -32,4 +32,4 @@ about setting up your development environment and our contribution workflow.
 
 ## License
 
-AKO is licensed under the [Apache License, version 2.0](LICENSE)
+AKO is licensed under the [Apache License, version 2.0] (LICENSE)
