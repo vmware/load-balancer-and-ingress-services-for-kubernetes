@@ -652,6 +652,11 @@ func TestEVHUpdateIngressClassWithInfraSetting(t *testing.T) {
 		found, _ := objects.SharedAviGraphLister().Get(settingModelName1)
 		return found
 	}, 40*time.Second).Should(gomega.Equal(true))
+	g.Eventually(func() int {
+		_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName1)
+		settingNodes1 := aviSettingModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(settingNodes1[0].EvhNodes)
+	}, 40*time.Second).Should(gomega.Equal(2))
 	_, aviSettingModel1 := objects.SharedAviGraphLister().Get(settingModelName1)
 	settingNodes1 := aviSettingModel1.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(settingNodes1[0].EvhNodes).Should(gomega.HaveLen(2))
@@ -677,6 +682,11 @@ func TestEVHUpdateIngressClassWithInfraSetting(t *testing.T) {
 		found, _ := objects.SharedAviGraphLister().Get(settingModelName2)
 		return found
 	}, 40*time.Second).Should(gomega.Equal(true))
+	g.Eventually(func() int {
+		_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName2)
+		settingNodes2 := aviSettingModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(settingNodes2[0].EvhNodes)
+	}, 40*time.Second).Should(gomega.Equal(2))
 	_, aviSettingModel2 := objects.SharedAviGraphLister().Get(settingModelName2)
 	settingNodes2 := aviSettingModel2.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(settingNodes2[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-my-infrasetting2-seGroup"))
