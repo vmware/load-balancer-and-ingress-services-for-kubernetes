@@ -232,8 +232,8 @@ func UpdateConfigMap(key, val string) {
 	aviCM.Data[key] = val
 	aviCM.ResourceVersion = "2"
 	KubeClient.CoreV1().ConfigMaps(utils.GetAKONamespace()).Create(context.TODO(), aviCM, metav1.CreateOptions{})
-	// Wait for the configmap changes to take effect
-	time.Sleep(3 * time.Second)
+	// Wait for the configmap changes to take effect, increased sleep
+	time.Sleep(5 * time.Second)
 }
 
 func SetUpTestForIngress(t *testing.T, modelNames ...string) {
