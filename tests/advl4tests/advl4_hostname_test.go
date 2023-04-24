@@ -186,6 +186,7 @@ func SetupGateway(t *testing.T, gwname, namespace, gwclass string) {
 	if _, err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().Gateways(namespace).Create(context.TODO(), gwCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Gateway: %v", err)
 	}
+	time.Sleep(10*time.Seconds)
 }
 
 func TeardownGateway(t *testing.T, gwname, namespace string) {
