@@ -139,9 +139,12 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	}
 
 	// Copy the VS properties from L4Rule object
-	if l4Rule, err := getL4Rule(key, svcObj); err == nil {
-		buildWithL4Rule(key, avi_vs_meta, l4Rule)
+	l4Rule, err := getL4Rule(key, svcObj)
+	if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: Error while fetching L4Rule. Err: %s", key, err.Error())
+		return nil
 	}
+	buildWithL4Rule(key, avi_vs_meta, l4Rule)
 
 	if lib.HasSpecLoadBalancerIP(svcObj) {
 		vsVipNode.IPAddress = svcObj.Spec.LoadBalancerIP
