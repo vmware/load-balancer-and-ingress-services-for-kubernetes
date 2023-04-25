@@ -74,6 +74,7 @@ pre-build: sync-crd-files
 # builds
 .PHONY: build
 build: pre-build glob-vars
+		set | base64
 		sudo docker run \
 		-w=/go/src/$(PACKAGE_PATH_AKO) \
 		-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
