@@ -525,7 +525,7 @@ func (vsNode *AviVsNode) AddSSLPort(key string) {
 }
 func (vsNode *AviVsNode) DeletSSLRefInDedicatedNode(key string) {
 	vsNode.SSLKeyCertRefs = []*AviTLSKeyCertNode{}
-	vsNode.SSLProfileRef = ""
+	vsNode.SslProfileRef = nil
 	vsNode.CACertRefs = []*AviTLSKeyCertNode{}
 }
 func (vsNode *AviVsNode) DeleteSecureAppProfile(key string) {
