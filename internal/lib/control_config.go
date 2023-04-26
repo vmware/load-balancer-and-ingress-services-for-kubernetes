@@ -264,15 +264,7 @@ func (c *akoControlConfig) SetCRDEnabledParams(cs akocrd.Interface) {
 }
 
 func (c *akoControlConfig) Setv1alpha2CRDEnabledParams(cs v1alpha2akocrd.Interface) {
-	timeout := int64(120)
-	_, ssoRuleErr := cs.AkoV1alpha2().SSORules(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &timeout})
-	if ssoRuleErr != nil {
-		utils.AviLog.Infof("ako.vmware.com/v1alpha2/SSORule not found/enabled on cluster: %v", ssoRuleErr)
-		c.ssoRuleEnabled = false
-	} else {
-		utils.AviLog.Infof("ako.vmware.com/v1alpha2/SSORule enabled on cluster")
-		c.ssoRuleEnabled = true
-	}
+	c.ssoRuleEnabled = true
 }
 
 func (c *akoControlConfig) AviInfraSettingEnabled() bool {

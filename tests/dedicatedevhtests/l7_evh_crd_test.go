@@ -264,7 +264,7 @@ func TestCreateUpdateDeleteSSORuleForEvh(t *testing.T) {
 	g.Expect(*evhNode.OauthVsConfig.OauthSettings[0].AppSettings.OidcConfig.Profile).To(gomega.Equal(true))
 	g.Expect(*evhNode.OauthVsConfig.OauthSettings[0].AppSettings.OidcConfig.Userinfo).To(gomega.Equal(true))
 	g.Expect(*evhNode.OauthVsConfig.OauthSettings[0].AuthProfileRef).To(gomega.ContainSubstring("thisisaviref-authprofileoauth"))
-	g.Expect(*evhNode.OauthVsConfig.OauthSettings[0].ResourceServer.AccessType).To(gomega.Equal("ACCESS_TOKEN_TYPE_OPAQUE"))
+	g.Expect(*evhNode.OauthVsConfig.OauthSettings[0].ResourceServer.AccessType).To(gomega.Equal(lib.ACCESS_TOKEN_TYPE_OPAQUE))
 	g.Expect(*evhNode.OauthVsConfig.OauthSettings[0].ResourceServer.IntrospectionDataTimeout).To(gomega.Equal(int32(60)))
 	g.Expect(*evhNode.OauthVsConfig.OauthSettings[0].ResourceServer.OpaqueTokenParams.ServerID).To(gomega.Equal("my-server-id"))
 	g.Expect(*evhNode.OauthVsConfig.OauthSettings[0].ResourceServer.OpaqueTokenParams.ServerSecret).To(gomega.Equal("my-server-secret"))
@@ -297,16 +297,12 @@ func TestCreateUpdateDeleteSSORuleForEvh(t *testing.T) {
 	// update is not getting reflected on evh nodes immediately. Hence adding a sleep of 5 seconds.
 	time.Sleep(5 * time.Second)
 
-	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
-	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*evhNode.OauthVsConfig.OauthSettings[0].AppSettings.OidcConfig.OidcEnable).To(gomega.Equal(false))
 	g.Expect(*evhNode.OauthVsConfig.OauthSettings[0].AppSettings.OidcConfig.Userinfo).To(gomega.Equal(false))
 	g.Expect(*evhNode.OauthVsConfig.OauthSettings[0].AppSettings.OidcConfig.Profile).To(gomega.Equal(false))
 
 	// Delete/Disable
 	integrationtest.TeardownSSORule(t, g, sniVSKey, srname)
-	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
-	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 
 	g.Expect(evhNode.SsoPolicyRef).To(gomega.BeNil())
 	g.Expect(evhNode.OauthVsConfig).To(gomega.BeNil())
@@ -392,8 +388,6 @@ func TestCreateUpdateDeleteSSORuleForEvhInsecure(t *testing.T) {
 	// update is not getting reflected on evh nodes immediately. Hence adding a sleep of 5 seconds.
 	time.Sleep(5 * time.Second)
 
-	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
-	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(evhNode.SamlSpConfig).To(gomega.BeNil())
 	g.Expect(*evhNode.SsoPolicyRef).To(gomega.ContainSubstring("thisisaviref-ssopolicyoauth"))
 	g.Expect(*evhNode.OauthVsConfig.CookieName).To(gomega.Equal("MY_OAUTH_COOKIE"))
@@ -410,7 +404,7 @@ func TestCreateUpdateDeleteSSORuleForEvhInsecure(t *testing.T) {
 	g.Expect(*evhNode.OauthVsConfig.OauthSettings[0].AppSettings.OidcConfig.Profile).To(gomega.Equal(true))
 	g.Expect(*evhNode.OauthVsConfig.OauthSettings[0].AppSettings.OidcConfig.Userinfo).To(gomega.Equal(true))
 	g.Expect(*evhNode.OauthVsConfig.OauthSettings[0].AuthProfileRef).To(gomega.ContainSubstring("thisisaviref-authprofileoauth"))
-	g.Expect(*evhNode.OauthVsConfig.OauthSettings[0].ResourceServer.AccessType).To(gomega.Equal("ACCESS_TOKEN_TYPE_OPAQUE"))
+	g.Expect(*evhNode.OauthVsConfig.OauthSettings[0].ResourceServer.AccessType).To(gomega.Equal(lib.ACCESS_TOKEN_TYPE_OPAQUE))
 	g.Expect(*evhNode.OauthVsConfig.OauthSettings[0].ResourceServer.IntrospectionDataTimeout).To(gomega.Equal(int32(60)))
 	g.Expect(*evhNode.OauthVsConfig.OauthSettings[0].ResourceServer.OpaqueTokenParams.ServerID).To(gomega.Equal("my-server-id"))
 	g.Expect(*evhNode.OauthVsConfig.OauthSettings[0].ResourceServer.OpaqueTokenParams.ServerSecret).To(gomega.Equal("my-server-secret"))
@@ -418,9 +412,6 @@ func TestCreateUpdateDeleteSSORuleForEvhInsecure(t *testing.T) {
 
 	// Delete/Disable
 	integrationtest.TeardownSSORule(t, g, sniVSKey, srname)
-	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
-	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-
 	g.Expect(evhNode.SsoPolicyRef).To(gomega.BeNil())
 	g.Expect(evhNode.OauthVsConfig).To(gomega.BeNil())
 	g.Expect(evhNode.SamlSpConfig).To(gomega.BeNil())

@@ -1504,8 +1504,6 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 		}
 		// Enable host rule
 		BuildL7HostRule(host, key, evhNode)
-		// build SSORule for insecure ingress in evh
-		BuildL7SSORule(host, key, evhNode)
 		// build SSORule for secure ingress in evh
 		BuildL7SSORule(host, key, evhNode)
 		if !isDedicated {

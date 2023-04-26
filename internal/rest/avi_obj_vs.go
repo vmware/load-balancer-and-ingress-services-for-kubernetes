@@ -22,7 +22,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jinzhu/copier"
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
@@ -30,6 +29,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/jinzhu/copier"
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
 )

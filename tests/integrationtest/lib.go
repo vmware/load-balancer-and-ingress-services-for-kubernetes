@@ -1399,7 +1399,7 @@ func (sr FakeSSORule) SSORule() *akov1alpha2.SSORule {
 			Profile:    proto.Bool(true),
 			Userinfo:   proto.Bool(true),
 		}
-		accessType := proto.String("ACCESS_TOKEN_TYPE_OPAQUE")
+		accessType := proto.String(lib.ACCESS_TOKEN_TYPE_OPAQUE)
 		opaqueTokenParams := &akov1alpha2.OpaqueTokenValidationParams{
 			ServerID:     proto.String("my-server-id"),
 			ServerSecret: proto.String("my-oauth-secret"),

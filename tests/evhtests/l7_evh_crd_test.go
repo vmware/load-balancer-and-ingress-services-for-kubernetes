@@ -1053,7 +1053,7 @@ func TestCreateUpdateDeleteSSORuleForEvh(t *testing.T) {
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].AppSettings.OidcConfig.Profile).To(gomega.Equal(true))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].AppSettings.OidcConfig.Userinfo).To(gomega.Equal(true))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].AuthProfileRef).To(gomega.ContainSubstring("thisisaviref-authprofileoauth"))
-	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.AccessType).To(gomega.Equal("ACCESS_TOKEN_TYPE_OPAQUE"))
+	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.AccessType).To(gomega.Equal(lib.ACCESS_TOKEN_TYPE_OPAQUE))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.IntrospectionDataTimeout).To(gomega.Equal(int32(60)))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.OpaqueTokenParams.ServerID).To(gomega.Equal("my-server-id"))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.OpaqueTokenParams.ServerSecret).To(gomega.Equal("my-server-secret"))
@@ -1189,7 +1189,7 @@ func TestCreateUpdateDeleteSSORuleForEvhInsecure(t *testing.T) {
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].AppSettings.OidcConfig.Profile).To(gomega.Equal(true))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].AppSettings.OidcConfig.Userinfo).To(gomega.Equal(true))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].AuthProfileRef).To(gomega.ContainSubstring("thisisaviref-authprofileoauth"))
-	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.AccessType).To(gomega.Equal("ACCESS_TOKEN_TYPE_OPAQUE"))
+	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.AccessType).To(gomega.Equal(lib.ACCESS_TOKEN_TYPE_OPAQUE))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.IntrospectionDataTimeout).To(gomega.Equal(int32(60)))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.OpaqueTokenParams.ServerID).To(gomega.Equal("my-server-id"))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.OpaqueTokenParams.ServerSecret).To(gomega.Equal("my-server-secret"))
@@ -1256,7 +1256,7 @@ func TestCreateUpdateDeleteSSORuleForEvhJwt(t *testing.T) {
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].AppSettings.OidcConfig.Profile).To(gomega.Equal(true))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].AppSettings.OidcConfig.Userinfo).To(gomega.Equal(true))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].AuthProfileRef).To(gomega.ContainSubstring("thisisaviref-authprofileoauth"))
-	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.AccessType).To(gomega.Equal("ACCESS_TOKEN_TYPE_OPAQUE"))
+	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.AccessType).To(gomega.Equal(lib.ACCESS_TOKEN_TYPE_OPAQUE))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.IntrospectionDataTimeout).To(gomega.Equal(int32(60)))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.OpaqueTokenParams.ServerID).To(gomega.Equal("my-server-id"))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.OpaqueTokenParams.ServerSecret).To(gomega.Equal("my-server-secret"))
@@ -1271,7 +1271,7 @@ func TestCreateUpdateDeleteSSORuleForEvhJwt(t *testing.T) {
 		SSOType:   "OAuth",
 	}.SSORule()
 	srUpdate.ResourceVersion = "2"
-	accessType := "ACCESS_TOKEN_TYPE_JWT"
+	accessType := lib.ACCESS_TOKEN_TYPE_JWT
 	audience := "my-audience"
 	srUpdate.Spec.OauthVsConfig.OauthSettings[0].ResourceServer.AccessType = &accessType
 	srUpdate.Spec.OauthVsConfig.OauthSettings[0].ResourceServer.JwtParams = &v1alpha2.JWTValidationParams{Audience: &audience}
@@ -1306,7 +1306,7 @@ func TestCreateUpdateDeleteSSORuleForEvhJwt(t *testing.T) {
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].AppSettings.OidcConfig.Profile).To(gomega.Equal(true))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].AppSettings.OidcConfig.Userinfo).To(gomega.Equal(true))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].AuthProfileRef).To(gomega.ContainSubstring("thisisaviref-authprofileoauth"))
-	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.AccessType).To(gomega.Equal("ACCESS_TOKEN_TYPE_JWT"))
+	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.AccessType).To(gomega.Equal(lib.ACCESS_TOKEN_TYPE_JWT))
 	g.Expect(nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.IntrospectionDataTimeout).To(gomega.BeNil())
 	g.Expect(nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.OpaqueTokenParams).To(gomega.BeNil())
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.JwtParams.Audience).To(gomega.Equal("my-audience"))
@@ -1498,7 +1498,7 @@ func TestCreateSSORuleBeforeIngressForEvh(t *testing.T) {
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].AppSettings.OidcConfig.Profile).To(gomega.Equal(true))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].AppSettings.OidcConfig.Userinfo).To(gomega.Equal(true))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].AuthProfileRef).To(gomega.ContainSubstring("thisisaviref-authprofileoauth"))
-	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.AccessType).To(gomega.Equal("ACCESS_TOKEN_TYPE_OPAQUE"))
+	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.AccessType).To(gomega.Equal(lib.ACCESS_TOKEN_TYPE_OPAQUE))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.IntrospectionDataTimeout).To(gomega.Equal(int32(60)))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.OpaqueTokenParams.ServerID).To(gomega.Equal("my-server-id"))
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.OpaqueTokenParams.ServerSecret).To(gomega.Equal("my-server-secret"))

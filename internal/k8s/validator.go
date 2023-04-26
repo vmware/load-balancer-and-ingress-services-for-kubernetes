@@ -25,6 +25,7 @@ import (
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -449,12 +450,12 @@ func (l *leader) ValidateSSORuleObj(key string, ssoRule *akov1alpha2.SSORule) er
 				}
 
 				if profile.ResourceServer != nil {
-					if *profile.ResourceServer.AccessType == "ACCESS_TOKEN_TYPE_JWT" && profile.ResourceServer.JwtParams == nil {
+					if *profile.ResourceServer.AccessType == lib.ACCESS_TOKEN_TYPE_JWT && profile.ResourceServer.JwtParams == nil {
 						err = fmt.Errorf("Access Type is %s, but Jwt Params have not been specified", *profile.ResourceServer.AccessType)
 						status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 						return err
 					}
-					if *profile.ResourceServer.AccessType == "ACCESS_TOKEN_TYPE_OPAQUE" && profile.ResourceServer.OpaqueTokenParams == nil {
+					if *profile.ResourceServer.AccessType == lib.ACCESS_TOKEN_TYPE_OPAQUE && profile.ResourceServer.OpaqueTokenParams == nil {
 						err = fmt.Errorf("Access Type is %s, but Opaque Token Params have not been specified", *profile.ResourceServer.AccessType)
 						status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 						return err

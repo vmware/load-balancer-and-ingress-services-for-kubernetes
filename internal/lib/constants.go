@@ -240,6 +240,8 @@ const (
 	NsFilterDelete                 = "DELETE"
 	PoolNameSuffixForHttpPolToPool = "policy-to-pool"
 	AVI_OBJ_NAME_MAX_LENGTH        = 255
+	ACCESS_TOKEN_TYPE_JWT          = "ACCESS_TOKEN_TYPE_JWT"
+	ACCESS_TOKEN_TYPE_OPAQUE       = "ACCESS_TOKEN_TYPE_OPAQUE"
 )
 
 // Cache Indexer constants.
