@@ -749,6 +749,7 @@ var refModelMap = map[string]string{
 	"Network":                "network",
 	"SSOPolicy":              "ssopolicy",
 	"AuthProfile":            "authprofile",
+	"ICAPProfile":            "icapprofile",
 }
 
 // checkRefOnController checks whether a provided ref on the controller

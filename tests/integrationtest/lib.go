@@ -1296,6 +1296,7 @@ type FakeHostRule struct {
 	SslProfile         string
 	WafPolicy          string
 	ApplicationProfile string
+	ICAPProfile        []string
 	EnableVirtualHost  bool
 	AnalyticsProfile   string
 	ErrorPageProfile   string
@@ -1328,6 +1329,7 @@ func (hr FakeHostRule) HostRule() *akov1alpha1.HostRule {
 				},
 				WAFPolicy:          hr.WafPolicy,
 				ApplicationProfile: hr.ApplicationProfile,
+				ICAPProfile:        hr.ICAPProfile,
 				AnalyticsProfile:   hr.AnalyticsProfile,
 				ErrorPageProfile:   hr.ErrorPageProfile,
 				Datascripts:        hr.Datascripts,
@@ -1351,6 +1353,7 @@ func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool, gslbHost ...s
 		ApplicationProfile: "thisisaviref-appprof",
 		AnalyticsProfile:   "thisisaviref-analyticsprof",
 		ErrorPageProfile:   "thisisaviref-errorprof",
+		ICAPProfile:        []string{"thisisaviref-icapprof"},
 		Datascripts:        []string{"thisisaviref-ds2", "thisisaviref-ds1"},
 		HttpPolicySets:     []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
 		GslbFqdn:           "bar.com",

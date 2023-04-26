@@ -58,6 +58,9 @@ func createHostRuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.L
 									"applicationProfile": {
 										Type: "string",
 									},
+									"icapProfile": {
+										Type: "array",
+									},
 									"enableVirtualHost": {
 										Type: "boolean",
 									},

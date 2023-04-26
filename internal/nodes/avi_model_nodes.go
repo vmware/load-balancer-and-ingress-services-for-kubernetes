@@ -401,6 +401,7 @@ type AviVsNode struct {
 	IsSNIChild            bool
 	ServiceMetadata       lib.ServiceMetadataObj
 	VrfContext            string
+	ICAPProfileRefs       []string
 	ErrorPageProfileRef   string
 	HttpPolicySetRefs     []string
 	SSLKeyCertAviRef      []string
@@ -526,6 +527,14 @@ func (v *AviVsNode) GetAppProfileRef() *string {
 
 func (v *AviVsNode) SetAppProfileRef(applicationProfileRef *string) {
 	v.ApplicationProfileRef = applicationProfileRef
+}
+
+func (v *AviVsNode) GetICAPProfileRefs() []string {
+	return v.ICAPProfileRefs
+}
+
+func (v *AviVsNode) SetICAPProfileRefs(ICAPProfileRef []string) {
+	v.ICAPProfileRefs = ICAPProfileRef
 }
 
 func (v *AviVsNode) GetAnalyticsProfileRef() *string {
@@ -932,6 +941,7 @@ func (v *AviVsNode) CalculateCheckSum() {
 	// keep the order of these policies
 	policies := v.HttpPolicySetRefs
 	scripts := v.VsDatascriptRefs
+	icaprefs := v.ICAPProfileRefs
 
 	var vsRefs string
 
@@ -959,6 +969,10 @@ func (v *AviVsNode) CalculateCheckSum() {
 
 	if len(policies) > 0 {
 		vsRefs += utils.Stringify(policies)
+	}
+
+	if len(icaprefs) > 0 {
+		vsRefs += utils.Stringify(icaprefs)
 	}
 
 	if len(v.ServiceMetadata.HostNames) > 0 {

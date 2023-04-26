@@ -59,6 +59,11 @@ func setDedicatedVSNodeProperties(vs *avimodels.VirtualService, vs_meta *nodes.A
 		// hostrule ref overrides defaults
 		vs.ApplicationProfileRef = vs_meta.ApplicationProfileRef
 	}
+
+	if len(vs_meta.ICAPProfileRefs) != 0 {
+		vs.IcapRequestProfileRefs = vs_meta.ICAPProfileRefs
+	}
+
 	vs.WafPolicyRef = vs_meta.WafPolicyRef
 	vs.ErrorPageProfileRef = &vs_meta.ErrorPageProfileRef
 	vs.AnalyticsProfileRef = vs_meta.AnalyticsProfileRef
@@ -309,6 +314,11 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	if vs_meta.VrfContext != "" {
 		sniChild.VrfContextRef = proto.String("/api/vrfcontext?name=" + vs_meta.VrfContext)
 	}
+
+	if len(vs_meta.ICAPProfileRefs) != 0 {
+		sniChild.IcapRequestProfileRefs = vs_meta.ICAPProfileRefs
+	}
+
 	//This VS has a TLSKeyCert associated, we need to mark 'type': 'VS_TYPE_VH_PARENT'
 	vh_type := utils.VS_TYPE_VH_CHILD
 	sniChild.Type = &vh_type

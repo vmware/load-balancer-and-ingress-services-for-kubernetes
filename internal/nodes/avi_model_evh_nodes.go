@@ -72,6 +72,9 @@ type AviVsEvhSniModel interface {
 	GetAppProfileRef() *string
 	SetAppProfileRef(*string)
 
+	GetICAPProfileRefs() []string
+	SetICAPProfileRefs([]string)
+
 	GetAnalyticsProfileRef() *string
 	SetAnalyticsProfileRef(*string)
 
@@ -131,6 +134,7 @@ type AviEvhVsNode struct {
 	TLSType             string
 	ServiceMetadata     lib.ServiceMetadataObj
 	VrfContext          string
+	ICAPProfileRefs     []string
 	ErrorPageProfileRef string
 	HttpPolicySetRefs   []string
 	SSLKeyCertAviRef    []string
@@ -239,6 +243,14 @@ func (v *AviEvhVsNode) GetAppProfileRef() *string {
 
 func (v *AviEvhVsNode) SetAppProfileRef(applicationProfileRef *string) {
 	v.ApplicationProfileRef = applicationProfileRef
+}
+
+func (v *AviEvhVsNode) GetICAPProfileRefs() []string {
+	return v.ICAPProfileRefs
+}
+
+func (v *AviEvhVsNode) SetICAPProfileRefs(ICAPProfileRef []string) {
+	v.ICAPProfileRefs = ICAPProfileRef
 }
 
 func (v *AviEvhVsNode) GetAnalyticsProfileRef() *string {
@@ -621,6 +633,7 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 	// keep the order of these policies
 	policies := v.HttpPolicySetRefs
 	scripts := v.VsDatascriptRefs
+	icaprefs := v.ICAPProfileRefs
 
 	var vsRefs string
 
@@ -648,6 +661,10 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 
 	if len(policies) > 0 {
 		vsRefs += utils.Stringify(policies)
+	}
+
+	if len(icaprefs) > 0 {
+		vsRefs += utils.Stringify(icaprefs)
 	}
 
 	sort.Strings(checksumStringSlice)

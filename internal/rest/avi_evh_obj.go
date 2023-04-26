@@ -259,6 +259,11 @@ func setDedicatedEvhVSNodeProperties(vs *avimodels.VirtualService, vs_meta *node
 		// hostrule ref overrides defaults
 		vs.ApplicationProfileRef = vs_meta.ApplicationProfileRef
 	}
+
+	if len(vs_meta.ICAPProfileRefs) != 0 {
+		vs.IcapRequestProfileRefs = vs_meta.ICAPProfileRefs
+	}
+
 	vs.WafPolicyRef = vs_meta.WafPolicyRef
 	vs.ErrorPageProfileRef = &vs_meta.ErrorPageProfileRef
 	vs.AnalyticsProfileRef = vs_meta.AnalyticsProfileRef
@@ -305,6 +310,10 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 			CloudRef:              &cloudRef,
 			ServiceMetadata:       &svc_mdata,
 			SeGroupRef:            &seGroupRef,
+		}
+
+		if len(vs_meta.ICAPProfileRefs) != 0 {
+			vs.IcapRequestProfileRefs = vs_meta.ICAPProfileRefs
 		}
 
 		if vs_meta.VrfContext != "" {
@@ -494,6 +503,10 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		ErrorPageProfileRef:   &vs_meta.ErrorPageProfileRef,
 		Enabled:               vs_meta.Enabled,
 		VhType:                proto.String(utils.VS_TYPE_VH_ENHANCED),
+	}
+
+	if len(vs_meta.ICAPProfileRefs) != 0 {
+		evhChild.IcapRequestProfileRefs = vs_meta.ICAPProfileRefs
 	}
 
 	if vs_meta.VrfContext != "" {
