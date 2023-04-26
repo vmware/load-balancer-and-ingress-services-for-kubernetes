@@ -31,6 +31,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
+	v1alpha2crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	advl4 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned"
 
@@ -123,6 +124,12 @@ func InitializeAKC() {
 			utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
 		}
 		akoControlConfig.SetCRDClientset(crdClient)
+
+		v1alpha2crdClient, err := v1alpha2crd.NewForConfig(cfg)
+		if err != nil {
+			utils.AviLog.Fatalf("Error building AKO CRD v1alpha2 clientset: %s", err.Error())
+		}
+		akoControlConfig.Setv1alpha2CRDClientset(v1alpha2crdClient)
 	}
 
 	dynamicClient, err := lib.NewDynamicClientSet(cfg)
