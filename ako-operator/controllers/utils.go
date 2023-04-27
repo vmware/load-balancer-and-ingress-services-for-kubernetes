@@ -188,7 +188,10 @@ func isSfUpdateRequired(existingSf appsv1.StatefulSet, newSf appsv1.StatefulSet)
 	newContainer := newSf.Spec.Template.Spec.Containers[0]
 
 	// update to the statefulset required?
-	if existingSf.Spec.Replicas != nil && *existingSf.Spec.Replicas == 1 {
+	if existingSf.Spec.Replicas != nil {
+		if newSf.Spec.Replicas != nil && *newSf.Spec.Replicas != *existingSf.Spec.Replicas {
+			return true
+		}
 		if len(existingSf.Spec.Template.Spec.Containers) != 1 {
 			return true
 		}
