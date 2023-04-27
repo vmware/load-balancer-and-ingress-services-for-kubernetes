@@ -183,7 +183,9 @@ type AKOConfigSpec struct {
 	// ImageRepository is where the AKO controller resides.
 	ImageRepository string `json:"imageRepository,omitempty"`
 	// ImagePullPolicy defines when the AKO controller image gets pulled.
-	ImagePullPolicy       string `json:"imagePullPolicy,omitempty"`
+	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
+	// ReplicaCount defines the number of replicas for AKO Statefulset
+	ReplicaCount          int `json:"replicaCount,omitempty"`
 	AKOSettings           `json:"akoSettings,omitempty"`
 	NetworkSettings       `json:"networkSettings,omitempty"`
 	L7Settings            `json:"l7Settings,omitempty"`

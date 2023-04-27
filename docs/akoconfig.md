@@ -10,7 +10,8 @@ metadata:
   name: ako-sample
   namespace: avi-system
 spec:
-  imageRepository: projects.registry.vmware.com/ako/ako:1.8.2
+  replicaCount: 1
+  imageRepository: projects.registry.vmware.com/ako/ako:1.9.1
   imagePullPolicy: "IfNotPresent"
   akoSettings:
     enableEvents: true
@@ -84,6 +85,7 @@ spec:
   - `metadata.name`: Name of the AKOConfig object. With `helm install`, the name of the default AKOConfig object is `ako-config`.
   - `metadata.namespace`: The namespace in which the AKOConfig object (and hence, the ako-operator) will be created. Only `avi-system` namespace is allowed for the ako-operator.
   - `spec.imageRepository`: The image repository for the ako-operator.
+  - `spec.replicaCount`: The number of replicas for AKO StatefulSet
   - `spec.akoSettings`: Settings for the AKO Controller.
     * `enableEvents`: Enables/disables Event broadcasting via AKO 
     * `logLevel`: Log level for the AKO controller. Supported enum values: `INFO`, `DEBUG`, `WARN`, `ERROR`.
