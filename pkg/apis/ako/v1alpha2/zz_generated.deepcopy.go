@@ -59,11 +59,6 @@ func (in *BackendProperties) DeepCopyInto(out *BackendProperties) {
 		*out = new(string)
 		**out = **in
 	}
-	if in.DefaultServerPort != nil {
-		in, out := &in.DefaultServerPort, &out.DefaultServerPort
-		*out = new(int32)
-		**out = **in
-	}
 	if in.Enabled != nil {
 		in, out := &in.Enabled, &out.Enabled
 		*out = new(bool)
@@ -73,11 +68,6 @@ func (in *BackendProperties) DeepCopyInto(out *BackendProperties) {
 		in, out := &in.HealthMonitorRefs, &out.HealthMonitorRefs
 		*out = make([]string, len(*in))
 		copy(*out, *in)
-	}
-	if in.InlineHealthMonitor != nil {
-		in, out := &in.InlineHealthMonitor, &out.InlineHealthMonitor
-		*out = new(bool)
-		**out = **in
 	}
 	if in.LbAlgorithm != nil {
 		in, out := &in.LbAlgorithm, &out.LbAlgorithm
@@ -117,11 +107,6 @@ func (in *BackendProperties) DeepCopyInto(out *BackendProperties) {
 	if in.SslProfileRef != nil {
 		in, out := &in.SslProfileRef, &out.SslProfileRef
 		*out = new(string)
-		**out = **in
-	}
-	if in.UseServicePort != nil {
-		in, out := &in.UseServicePort, &out.UseServicePort
-		*out = new(bool)
 		**out = **in
 	}
 	return
@@ -275,16 +260,6 @@ func (in *L4RuleSpec) DeepCopyInto(out *L4RuleSpec) {
 	}
 	if in.SecurityPolicyRef != nil {
 		in, out := &in.SecurityPolicyRef, &out.SecurityPolicyRef
-		*out = new(string)
-		**out = **in
-	}
-	if in.SslKeyAndCertificateRefs != nil {
-		in, out := &in.SslKeyAndCertificateRefs, &out.SslKeyAndCertificateRefs
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
-	if in.SslProfileRef != nil {
-		in, out := &in.SslProfileRef, &out.SslProfileRef
 		*out = new(string)
 		**out = **in
 	}

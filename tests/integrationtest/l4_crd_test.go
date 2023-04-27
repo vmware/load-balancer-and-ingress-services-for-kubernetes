@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright 2022-2023 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -256,9 +256,9 @@ func TestUpdateDeleteL4Rule(t *testing.T) {
 	obj.Spec.PerformanceLimits.MaxConcurrentConnections = proto.Int32(100)
 	obj.Spec.PerformanceLimits.MaxThroughput = proto.Int32(30)
 	obj.Spec.VsDatascriptRefs = []string{"thisisaviref--new-ds1", "thisisaviref-new-ds2"}
-	obj.Spec.BackendProperties[0].InlineHealthMonitor = proto.Bool(false)
+	obj.Spec.BackendProperties[0].MinServersUp = proto.Int32(2)
 	obj.Spec.BackendProperties[0].HealthMonitorRefs = []string{"thisisaviref-new-hm1", "thisisaviref-new-hm2"}
-	obj.Spec.BackendProperties[0].DefaultServerPort = proto.Int32(9090)
+	obj.Spec.BackendProperties[0].Enabled = proto.Bool(false)
 	obj.ResourceVersion = "2"
 	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Update(context.TODO(), obj, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating L4Rule: %v", err)

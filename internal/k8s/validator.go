@@ -409,14 +409,6 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 		refData[*l4RuleSpec.SecurityPolicyRef] = "SecurityPolicy"
 	}
 
-	for _, ref := range l4RuleSpec.SslKeyAndCertificateRefs {
-		refData[ref] = "SslKeyCert"
-	}
-
-	if l4RuleSpec.SslProfileRef != nil {
-		refData[*l4RuleSpec.SslProfileRef] = "SslProfile"
-	}
-
 	for _, ref := range l4RuleSpec.VsDatascriptRefs {
 		refData[ref] = "VsDatascript"
 	}

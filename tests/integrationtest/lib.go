@@ -1829,10 +1829,8 @@ func (lr FakeL4Rule) L4Rule() *akov1alpha2.L4Rule {
 				MaxConcurrentConnections: proto.Int32(10),
 				MaxThroughput:            proto.Int32(20),
 			},
-			SecurityPolicyRef:        proto.String("thisisaviref-securitypolicyref"),
-			SslKeyAndCertificateRefs: []string{"thisisaviref-sslkeyandcertref1", "thisisaviref-sslkeyandcertref2"},
-			SslProfileRef:            proto.String("thisisaviref-sslprofileref"),
-			VsDatascriptRefs:         []string{"thisisaviref-ds1", "thisisaviref-ds2"},
+			SecurityPolicyRef: proto.String("thisisaviref-securitypolicyref"),
+			VsDatascriptRefs:  []string{"thisisaviref-ds1", "thisisaviref-ds2"},
 		},
 	}
 	for i := range lr.Ports {
@@ -1841,10 +1839,8 @@ func (lr FakeL4Rule) L4Rule() *akov1alpha2.L4Rule {
 				EnableRealtimeMetrics: proto.Bool(true),
 			},
 			ApplicationPersistenceProfileRef: proto.String("thisisaviref-applicationpersistenceprofileref"),
-			DefaultServerPort:                proto.Int32(80),
 			Enabled:                          proto.Bool(true),
 			HealthMonitorRefs:                []string{"thisisaviref-hm1", "thisisaviref-hm2"},
-			InlineHealthMonitor:              proto.Bool(true),
 			LbAlgorithm:                      proto.String("LB_ALGORITHM_LEAST_CONNECTIONS"),
 			MinServersUp:                     proto.Int32(1),
 			PkiProfileRef:                    proto.String("thisisaviref-pkiprofileref"),
@@ -1852,7 +1848,6 @@ func (lr FakeL4Rule) L4Rule() *akov1alpha2.L4Rule {
 			Protocol:                         proto.String("TCP"),
 			SslKeyAndCertificateRef:          proto.String("thisisaviref-sslkeyandcertref"),
 			SslProfileRef:                    proto.String("thisisaviref-sslprofileref"),
-			UseServicePort:                   proto.Bool(true),
 		})
 	}
 

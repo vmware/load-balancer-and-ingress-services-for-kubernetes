@@ -23,10 +23,8 @@ type AnalyticsPolicy struct {
 type BackendProperties struct {
 	AnalyticsPolicy                  *PoolAnalyticsPolicy `json:"analyticsPolicy,omitempty"`
 	ApplicationPersistenceProfileRef *string              `json:"applicationPersistenceProfileRef,omitempty"`
-	DefaultServerPort                *int32               `json:"defaultServerPort,omitempty"`
 	Enabled                          *bool                `json:"enabled,omitempty"`
 	HealthMonitorRefs                []string             `json:"healthMonitorRefs,omitempty"`
-	InlineHealthMonitor              *bool                `json:"inlineHealthMonitor,omitempty"`
 	LbAlgorithm                      *string              `json:"lbAlgorithm,omitempty"`
 	LbAlgorithmHash                  *string              `json:"lbAlgorithmHash,omitempty"`
 	MinServersUp                     *int32               `json:"minServersUp,omitempty"`
@@ -35,7 +33,6 @@ type BackendProperties struct {
 	Protocol                         *string              `json:"protocol"`
 	SslKeyAndCertificateRef          *string              `json:"sslKeyAndCertificateRef,omitempty"`
 	SslProfileRef                    *string              `json:"sslProfileRef,omitempty"`
-	UseServicePort                   *bool                `json:"useServicePort,omitempty"`
 }
 
 type FullClientLogs struct {

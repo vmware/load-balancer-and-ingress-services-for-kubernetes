@@ -2125,8 +2125,9 @@ func manipulateEvhNodeForSSL(key string, vsNode *AviEvhVsNode, evhNode *AviEvhVs
 	newSSLProfile := evhNode.GetSSLProfileRef()
 	if oldSSLProfile != nil &&
 		*oldSSLProfile != "" &&
-		oldSSLProfile != newSSLProfile {
-		utils.AviLog.Warnf("key: %s msg: overwriting old ssl profile %s with new ssl profile %s", key, oldSSLProfile, newSSLProfile)
+		newSSLProfile != nil &&
+		*oldSSLProfile != *newSSLProfile {
+		utils.AviLog.Warnf("key: %s msg: overwriting old ssl profile %s with new ssl profile %s", key, *oldSSLProfile, *newSSLProfile)
 	}
 	vsNode.SetSSLProfileRef(newSSLProfile)
 	evhNode.SetSSLProfileRef(nil)

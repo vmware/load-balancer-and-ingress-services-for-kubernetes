@@ -23,8 +23,6 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	// avimodels "github.com/vmware/alb-sdk/go/models"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
@@ -34,11 +32,10 @@ type AviVsNodeGeneratedFields struct {
 	NetworkSecurityPolicyRef *string
 	PerformanceLimits        *v1alpha2.PerformanceLimits
 	SecurityPolicyRef        *string
-	SslKeyAndCertificateRefs []string
 }
 
 func (v *AviVsNodeGeneratedFields) CalculateCheckSumOfGeneratedCode() uint32 {
-	checksumStringSlice := make([]string, 0, 6)
+	checksumStringSlice := make([]string, 0, 5)
 	if v.NetworkProfileRef != nil {
 		checksumStringSlice = append(checksumStringSlice, *v.NetworkProfileRef)
 	}
@@ -54,8 +51,6 @@ func (v *AviVsNodeGeneratedFields) CalculateCheckSumOfGeneratedCode() uint32 {
 	if v.SecurityPolicyRef != nil {
 		checksumStringSlice = append(checksumStringSlice, *v.SecurityPolicyRef)
 	}
-
-	checksumStringSlice = append(checksumStringSlice, v.SslKeyAndCertificateRefs...)
 
 	chksumStr := strings.Join(checksumStringSlice, delim)
 	checksum := utils.Hash(chksumStr)
@@ -73,14 +68,6 @@ func (o *AviVsNodeGeneratedFields) ConvertToRef() {
 		if o.SecurityPolicyRef != nil {
 			o.SecurityPolicyRef = proto.String("/api/securitypolicy?name=" + *o.SecurityPolicyRef)
 		}
-		SslKeyAndCertificateRefs := make([]string, 0, len(o.SslKeyAndCertificateRefs))
-		for i := range o.SslKeyAndCertificateRefs {
-			ref := fmt.Sprintf("/api/sslkeyandcertificate?name=" + o.SslKeyAndCertificateRefs[i])
-			if !utils.HasElem(SslKeyAndCertificateRefs, ref) {
-				SslKeyAndCertificateRefs = append(SslKeyAndCertificateRefs, ref)
-			}
-		}
-		o.SslKeyAndCertificateRefs = SslKeyAndCertificateRefs
 	}
 }
 
@@ -110,38 +97,23 @@ func (o *AviVsNodeCommonFields) ConvertToRef() {
 }
 
 type AviPoolGeneratedFields struct {
-	AnalyticsPolicy     *v1alpha2.PoolAnalyticsPolicy
-	DefaultServerPort   *int32
-	Enabled             *bool
-	InlineHealthMonitor *bool
-	MinServersUp        *int32
-	UseServicePort      *bool
+	AnalyticsPolicy *v1alpha2.PoolAnalyticsPolicy
+	Enabled         *bool
+	MinServersUp    *int32
 }
 
 func (v *AviPoolGeneratedFields) CalculateCheckSumOfGeneratedCode() uint32 {
-	checksumStringSlice := make([]string, 0, 6)
+	checksumStringSlice := make([]string, 0, 3)
 	if v.AnalyticsPolicy != nil {
 		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.AnalyticsPolicy))
-	}
-
-	if v.DefaultServerPort != nil {
-		checksumStringSlice = append(checksumStringSlice, strconv.Itoa(int(*v.DefaultServerPort)))
 	}
 
 	if v.Enabled != nil {
 		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.Enabled))
 	}
 
-	if v.InlineHealthMonitor != nil {
-		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.InlineHealthMonitor))
-	}
-
 	if v.MinServersUp != nil {
 		checksumStringSlice = append(checksumStringSlice, strconv.Itoa(int(*v.MinServersUp)))
-	}
-
-	if v.UseServicePort != nil {
-		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.UseServicePort))
 	}
 
 	chksumStr := strings.Join(checksumStringSlice, delim)

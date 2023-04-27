@@ -29,8 +29,6 @@ type L4RuleSpec struct {
 	NetworkSecurityPolicyRef *string              `json:"networkSecurityPolicyRef,omitempty"`
 	PerformanceLimits        *PerformanceLimits   `json:"performanceLimits,omitempty"`
 	SecurityPolicyRef        *string              `json:"securityPolicyRef,omitempty"`
-	SslKeyAndCertificateRefs []string             `json:"sslKeyAndCertificateRefs,omitempty"`
-	SslProfileRef            *string              `json:"sslProfileRef,omitempty"`
 	VsDatascriptRefs         []string             `json:"vsDatascriptRefs,omitempty"`
 }
 
