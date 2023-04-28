@@ -85,7 +85,6 @@ spec:
                         the same server for a desired duration of time.
                       type: string
                     enabled:
-                      default: true
                       description: Enable or disable the pool.  Disabling will terminate
                         all open connections and pause health monitors.
                       type: boolean
@@ -166,6 +165,10 @@ spec:
                   - protocol
                   type: object
                 type: array
+              loadBalancerIP:
+                description: LoadBalancer will get created with the IP specified in
+                  this field.
+                type: string
               networkProfileRef:
                 default: System-TCP-Proxy
                 description: Determines network settings such as protocol, TCP or

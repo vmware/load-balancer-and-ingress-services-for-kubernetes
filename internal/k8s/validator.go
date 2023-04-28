@@ -16,6 +16,7 @@ package k8s
 
 import (
 	"fmt"
+	"net"
 	"regexp"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -386,6 +387,16 @@ func (l *leader) ValidateServiceImportObj(key string, serviceImport *akov1alpha1
 func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error {
 
 	l4RuleSpec := l4Rule.Spec
+
+	if l4RuleSpec.LoadBalancerIP != nil &&
+		net.ParseIP(*l4RuleSpec.LoadBalancerIP) == nil {
+		err := fmt.Errorf("loadBalancerIP %s is not valid", *l4RuleSpec.LoadBalancerIP)
+		status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
+			Status: lib.StatusRejected,
+			Error:  err.Error(),
+		})
+		return err
+	}
 
 	refData := make(map[string]string)
 

@@ -1831,6 +1831,7 @@ func (lr FakeL4Rule) L4Rule() *akov1alpha2.L4Rule {
 			},
 			SecurityPolicyRef: proto.String("thisisaviref-securitypolicyref"),
 			VsDatascriptRefs:  []string{"thisisaviref-ds1", "thisisaviref-ds2"},
+			LoadBalancerIP:    proto.String("10.10.10.1"),
 		},
 	}
 	for i := range lr.Ports {

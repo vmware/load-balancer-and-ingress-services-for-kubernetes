@@ -25,6 +25,7 @@ type L4RuleSpec struct {
 	AnalyticsProfileRef      *string              `json:"analyticsProfileRef,omitempty"`
 	ApplicationProfileRef    *string              `json:"applicationProfileRef,omitempty"`
 	BackendProperties        []*BackendProperties `json:"backendProperties,omitempty"`
+	LoadBalancerIP           *string              `json:"loadBalancerIP,omitempty"`
 	NetworkProfileRef        *string              `json:"networkProfileRef,omitempty"`
 	NetworkSecurityPolicyRef *string              `json:"networkSecurityPolicyRef,omitempty"`
 	PerformanceLimits        *PerformanceLimits   `json:"performanceLimits,omitempty"`

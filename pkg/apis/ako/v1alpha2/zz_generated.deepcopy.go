@@ -243,6 +243,11 @@ func (in *L4RuleSpec) DeepCopyInto(out *L4RuleSpec) {
 			}
 		}
 	}
+	if in.LoadBalancerIP != nil {
+		in, out := &in.LoadBalancerIP, &out.LoadBalancerIP
+		*out = new(string)
+		**out = **in
+	}
 	if in.NetworkProfileRef != nil {
 		in, out := &in.NetworkProfileRef, &out.NetworkProfileRef
 		*out = new(string)

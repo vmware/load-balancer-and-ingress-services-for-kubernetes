@@ -28,6 +28,7 @@ import (
 )
 
 type AviVsNodeGeneratedFields struct {
+	LoadBalancerIP           *string
 	NetworkProfileRef        *string
 	NetworkSecurityPolicyRef *string
 	PerformanceLimits        *v1alpha2.PerformanceLimits
@@ -35,7 +36,11 @@ type AviVsNodeGeneratedFields struct {
 }
 
 func (v *AviVsNodeGeneratedFields) CalculateCheckSumOfGeneratedCode() uint32 {
-	checksumStringSlice := make([]string, 0, 5)
+	checksumStringSlice := make([]string, 0, 6)
+	if v.LoadBalancerIP != nil {
+		checksumStringSlice = append(checksumStringSlice, *v.LoadBalancerIP)
+	}
+
 	if v.NetworkProfileRef != nil {
 		checksumStringSlice = append(checksumStringSlice, *v.NetworkProfileRef)
 	}
