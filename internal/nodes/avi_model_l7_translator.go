@@ -494,7 +494,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 
 func (o *AviObjectGraph) BuildPoolSecurity(poolNode *AviPoolNode, tlsData TlsSettings, key string, aviMarkers utils.AviObjectMarkers) {
 	poolNode.SniEnabled = true
-	poolNode.SslProfileRef = fmt.Sprintf("/api/sslprofile?name=%s", lib.DefaultPoolSSLProfile)
+	poolNode.SslProfileRef = proto.String(fmt.Sprintf("/api/sslprofile?name=%s", lib.DefaultPoolSSLProfile))
 
 	utils.AviLog.Infof("key: %s, Added ssl profile for pool %s", key, poolNode.Name)
 	if tlsData.destCA == "" {

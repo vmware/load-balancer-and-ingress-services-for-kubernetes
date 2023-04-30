@@ -34,6 +34,8 @@ import (
 
 	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
 	akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions/ako/v1alpha1"
+	v1alpha2akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned"
+	v1alpha2akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/informers/externalversions/ako/v1alpha2"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 
@@ -55,6 +57,7 @@ type AKOCrdInformers struct {
 	HostRuleInformer        akoinformer.HostRuleInformer
 	HTTPRuleInformer        akoinformer.HTTPRuleInformer
 	AviInfraSettingInformer akoinformer.AviInfraSettingInformer
+	L4RuleInformer          v1alpha2akoinformer.L4RuleInformer
 }
 
 type IstioCRDInformers struct {
@@ -106,6 +109,13 @@ type akoControlConfig struct {
 	// httpRuleEnabled is set to true if the cluster has
 	// HTTPRule CRD installed.
 	httpRuleEnabled bool
+
+	// client-set and informer for v1alpha2 of AKO CRD.
+	v1alpha2crdClientset v1alpha2akocrd.Interface
+
+	// l4RuleEnabled is set to true if the cluster has
+	// L4Rule CRD installed.
+	l4RuleEnabled bool
 
 	// licenseType holds the default license tier which would be used by new Clouds. Enum options - ENTERPRISE_16, ENTERPRISE, ENTERPRISE_18, BASIC, ESSENTIALS.
 	licenseType string
@@ -213,12 +223,25 @@ func (c *akoControlConfig) CRDClientset() akocrd.Interface {
 	return c.crdClientset
 }
 
+func (c *akoControlConfig) Setv1alpha2CRDClientset(cs v1alpha2akocrd.Interface) {
+	c.v1alpha2crdClientset = cs
+	c.Setv1alpha2CRDEnabledParams(cs)
+}
+
+func (c *akoControlConfig) V1alpha2CRDClientset() v1alpha2akocrd.Interface {
+	return c.v1alpha2crdClientset
+}
+
 // CRDs are by default installed on all AKO deployments. So always enable CRD parameters.
 // TODO: Optimise
 func (c *akoControlConfig) SetCRDEnabledParams(cs akocrd.Interface) {
 	c.aviInfraSettingEnabled = true
 	c.hostRuleEnabled = true
 	c.httpRuleEnabled = true
+}
+
+func (c *akoControlConfig) Setv1alpha2CRDEnabledParams(cs v1alpha2akocrd.Interface) {
+	c.l4RuleEnabled = true
 }
 
 func (c *akoControlConfig) AviInfraSettingEnabled() bool {
@@ -231,6 +254,10 @@ func (c *akoControlConfig) HostRuleEnabled() bool {
 
 func (c *akoControlConfig) HttpRuleEnabled() bool {
 	return c.httpRuleEnabled
+}
+
+func (c *akoControlConfig) L4RuleEnabled() bool {
+	return c.l4RuleEnabled
 }
 
 func (c *akoControlConfig) ControllerVersion() string {

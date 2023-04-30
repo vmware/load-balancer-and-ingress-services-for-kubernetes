@@ -1304,6 +1304,11 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Informer().HasSynced)
 		}
 
+		if lib.AKOControlConfig().L4RuleEnabled() {
+			go lib.AKOControlConfig().CRDInformers().L4RuleInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().L4RuleInformer.Informer().HasSynced)
+		}
+
 		if utils.IsMultiClusterIngressEnabled() {
 			go c.informers.MultiClusterIngressInformer.Informer().Run(stopCh)
 			informersList = append(informersList, c.informers.MultiClusterIngressInformer.Informer().HasSynced)
