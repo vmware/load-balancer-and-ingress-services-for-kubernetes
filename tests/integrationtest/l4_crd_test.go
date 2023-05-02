@@ -701,3 +701,311 @@ func TestUpdateDeleteL4RuleMultiportSvc(t *testing.T) {
 	TearDownTestForSvcLBMultiport(t, g)
 	TeardownL4Rule(t, L4RuleName, NAMESPACE)
 }
+
+func TestInvalidToValidL4Rule(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	L4RuleName := "test-l4rule"
+	ports := []int{8080}
+
+	SetUpTestForSvcLB(t)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+
+	// Check for the pools
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	address := "1.1.1.1"
+	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
+
+	// Create the L4Rule
+	SetupL4Rule(t, L4RuleName, NAMESPACE, ports)
+
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	// Apply the  L4Rule to Service
+	svcObj := (FakeService{
+		Name:         SINGLEPORTSVC,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+	svcObj.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName}
+	svcObj.ResourceVersion = "2"
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		if !found {
+			return false
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return g.Expect(nodes[0].AviVsNodeCommonFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].AviVsNodeGeneratedFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolCommonFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolGeneratedFields).NotTo(gomega.BeZero())
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	l4Rule := FakeL4Rule{
+		Name:      L4RuleName,
+		Namespace: NAMESPACE,
+		Ports:     ports,
+	}
+	obj := l4Rule.L4Rule()
+	acceptedL4Rule := obj.DeepCopy()
+
+	_, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+
+	validateCRDValues(t, g, obj.Spec, nodes[0].AviVsNodeGeneratedFields, nodes[0].AviVsNodeCommonFields)
+
+	validateCRDValues(t, g, obj.Spec.BackendProperties[0],
+		nodes[0].PoolRefs[0].AviPoolGeneratedFields, nodes[0].PoolRefs[0].AviPoolCommonFields)
+
+	// Update the L4Rule with an invalid application profile reference.
+	obj.Spec.BackendProperties[0].ApplicationPersistenceProfileRef = proto.String("invalid-profile-ref")
+	obj.ResourceVersion = "2"
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Update(context.TODO(), obj, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("error in adding L4Rule: %v", err)
+	}
+
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Rejected"))
+
+	time.Sleep(5 * time.Second)
+
+	// Verify whether the properties are retained
+	_, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+
+	validateCRDValues(t, g, acceptedL4Rule.Spec, nodes[0].AviVsNodeGeneratedFields, nodes[0].AviVsNodeCommonFields)
+
+	validateCRDValues(t, g, acceptedL4Rule.Spec.BackendProperties[0],
+		nodes[0].PoolRefs[0].AviPoolGeneratedFields, nodes[0].PoolRefs[0].AviPoolCommonFields)
+
+	// Update L4Rule with a valid application persistence profile.
+	obj.Spec.BackendProperties[0].ApplicationPersistenceProfileRef = proto.String("thisisaviref-applicationpersistenceprofileref")
+	obj.ResourceVersion = "3"
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Update(context.TODO(), obj, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("error in adding L4Rule: %v", err)
+	}
+
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	time.Sleep(5 * time.Second)
+
+	// Re-verify the models
+	_, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+
+	validateCRDValues(t, g, obj.Spec, nodes[0].AviVsNodeGeneratedFields, nodes[0].AviVsNodeCommonFields)
+
+	validateCRDValues(t, g, obj.Spec.BackendProperties[0],
+		nodes[0].PoolRefs[0].AviPoolGeneratedFields, nodes[0].PoolRefs[0].AviPoolCommonFields)
+
+	// Remove the  L4Rule from Service
+	svcObj.Annotations = nil
+	svcObj.ResourceVersion = "3"
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		if !found {
+			return false
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return g.Expect(nodes[0].AviVsNodeCommonFields).To(gomega.BeZero()) &&
+			g.Expect(nodes[0].AviVsNodeGeneratedFields).To(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolCommonFields).To(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolGeneratedFields).To(gomega.BeZero())
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	TearDownTestForSvcLB(t, g)
+	TeardownL4Rule(t, L4RuleName, NAMESPACE)
+}
+
+func TestL4RuleLbAlgorithm(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	L4RuleName := "test-l4rule"
+	ports := []int{8080}
+
+	SetUpTestForSvcLB(t)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+
+	// Check for the pools
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	address := "1.1.1.1"
+	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
+
+	// Create an L4Rule with LbAlgorithm as LB_ALGORITHM_ROUND_ROBIN
+	l4Rule := FakeL4Rule{
+		Name:      L4RuleName,
+		Namespace: NAMESPACE,
+		Ports:     ports,
+	}
+	obj := l4Rule.L4Rule()
+	obj.Spec.BackendProperties[0].LbAlgorithm = proto.String("LB_ALGORITHM_ROUND_ROBIN")
+	obj.Spec.BackendProperties[0].LbAlgorithmHash = nil
+	obj.Spec.BackendProperties[0].LbAlgorithmConsistentHashHdr = nil
+	acceptedL4rule := obj.DeepCopy()
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Create(context.TODO(), obj, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding L4Rule: %v", err)
+	}
+
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	// Apply the  L4Rule to Service
+	svcObj := (FakeService{
+		Name:         SINGLEPORTSVC,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+	svcObj.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName}
+	svcObj.ResourceVersion = "2"
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		if !found {
+			return false
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return g.Expect(nodes[0].AviVsNodeCommonFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].AviVsNodeGeneratedFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolCommonFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolGeneratedFields).NotTo(gomega.BeZero())
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+
+	validateCRDValues(t, g, obj.Spec, nodes[0].AviVsNodeGeneratedFields, nodes[0].AviVsNodeCommonFields)
+
+	validateCRDValues(t, g, obj.Spec.BackendProperties[0],
+		nodes[0].PoolRefs[0].AviPoolGeneratedFields, nodes[0].PoolRefs[0].AviPoolCommonFields)
+
+	// Update the L4Rule with LbAlgorithm as LB_ALGORITHM_CONSISTENT_HASH without lbAlgorithmHash
+	obj.Spec.BackendProperties[0].LbAlgorithm = proto.String("LB_ALGORITHM_CONSISTENT_HASH")
+	obj.ResourceVersion = "2"
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Update(context.TODO(), obj, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("error in adding L4Rule: %v", err)
+	}
+
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Rejected"))
+
+	// Update the L4Rule with LbAlgorithm as LB_ALGORITHM_CONSISTENT_HASH with lbAlgorithmHash
+	// as LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER and without lbAlgorithmConsistentHashHdr
+	obj.Spec.BackendProperties[0].LbAlgorithm = proto.String("LB_ALGORITHM_CONSISTENT_HASH")
+	obj.Spec.BackendProperties[0].LbAlgorithmHash = proto.String("LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER")
+	obj.ResourceVersion = "3"
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Update(context.TODO(), obj, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("error in adding L4Rule: %v", err)
+	}
+
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Rejected"))
+
+	time.Sleep(5 * time.Second)
+
+	// Verify whether the properties are retained.
+	_, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+
+	validateCRDValues(t, g, acceptedL4rule.Spec, nodes[0].AviVsNodeGeneratedFields, nodes[0].AviVsNodeCommonFields)
+
+	validateCRDValues(t, g, acceptedL4rule.Spec.BackendProperties[0],
+		nodes[0].PoolRefs[0].AviPoolGeneratedFields, nodes[0].PoolRefs[0].AviPoolCommonFields)
+
+	// Update the L4Rule with LbAlgorithm as LB_ALGORITHM_CONSISTENT_HASH and lbAlgorithmHash as
+	// LB_ALGORITHM_CONSISTENT_HASH_URI.
+	obj.Spec.BackendProperties[0].LbAlgorithm = proto.String("LB_ALGORITHM_CONSISTENT_HASH")
+	obj.Spec.BackendProperties[0].LbAlgorithmHash = proto.String("LB_ALGORITHM_CONSISTENT_HASH_URI")
+	obj.ResourceVersion = "4"
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Update(context.TODO(), obj, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("error in adding L4Rule: %v", err)
+	}
+
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	time.Sleep(5 * time.Second)
+
+	// Verify whether the properties are updated.
+	_, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+
+	validateCRDValues(t, g, obj.Spec, nodes[0].AviVsNodeGeneratedFields, nodes[0].AviVsNodeCommonFields)
+
+	validateCRDValues(t, g, obj.Spec.BackendProperties[0],
+		nodes[0].PoolRefs[0].AviPoolGeneratedFields, nodes[0].PoolRefs[0].AviPoolCommonFields)
+
+	// Remove the  L4Rule from Service
+	svcObj.Annotations = nil
+	svcObj.ResourceVersion = "3"
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		if !found {
+			return false
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return g.Expect(nodes[0].AviVsNodeCommonFields).To(gomega.BeZero()) &&
+			g.Expect(nodes[0].AviVsNodeGeneratedFields).To(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolCommonFields).To(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolGeneratedFields).To(gomega.BeZero())
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	TearDownTestForSvcLB(t, g)
+	TeardownL4Rule(t, L4RuleName, NAMESPACE)
+}

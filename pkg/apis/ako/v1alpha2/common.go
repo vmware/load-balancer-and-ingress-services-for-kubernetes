@@ -26,6 +26,7 @@ type BackendProperties struct {
 	Enabled                          *bool                `json:"enabled,omitempty"`
 	HealthMonitorRefs                []string             `json:"healthMonitorRefs,omitempty"`
 	LbAlgorithm                      *string              `json:"lbAlgorithm,omitempty"`
+	LbAlgorithmConsistentHashHdr     *string              `json:"lbAlgorithmConsistentHashHdr,omitempty"`
 	LbAlgorithmHash                  *string              `json:"lbAlgorithmHash,omitempty"`
 	MinServersUp                     *int32               `json:"minServersUp,omitempty"`
 	PkiProfileRef                    *string              `json:"pkiProfileRef,omitempty"`

@@ -85,6 +85,7 @@ spec:
                         the same server for a desired duration of time.
                       type: string
                     enabled:
+                      default: true
                       description: Enable or disable the pool.  Disabling will terminate
                         all open connections and pause health monitors.
                       type: boolean
@@ -116,6 +117,9 @@ spec:
                       - LB_ALGORITHM_CORE_AFFINITY
                       - LB_ALGORITHM_TOPOLOGY
                       type: string
+                    lbAlgorithmConsistentHashHdr:
+                      description: HTTP header name to be used for the hash key.
+                      type: string
                     lbAlgorithmHash:
                       description: Criteria used as a key for determining the hash
                         between the client and  server.
@@ -138,13 +142,11 @@ spec:
                         a server against the selected PKI Profile.
                       type: string
                     port:
-                      default: 80
                       description: Port info
                       maximum: 65535
                       minimum: 1
                       type: integer
                     protocol:
-                      default: TCP
                       description: Protocol info
                       enum:
                       - TCP

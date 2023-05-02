@@ -335,7 +335,7 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 					if pool.LbAlgorithmHash != nil &&
 						*pool.LbAlgorithmHash == lib.LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER {
 						if httpRulePath.LoadBalancerPolicy.HostHeader != "" {
-							pool.LbAlgoHostHeader = httpRulePath.LoadBalancerPolicy.HostHeader
+							pool.LbAlgorithmConsistentHashHdr = proto.String(httpRulePath.LoadBalancerPolicy.HostHeader)
 						} else {
 							utils.AviLog.Warnf("key: %s, HostHeader is not provided for LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER", key)
 						}

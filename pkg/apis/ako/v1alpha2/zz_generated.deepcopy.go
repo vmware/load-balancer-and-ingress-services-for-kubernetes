@@ -74,6 +74,11 @@ func (in *BackendProperties) DeepCopyInto(out *BackendProperties) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.LbAlgorithmConsistentHashHdr != nil {
+		in, out := &in.LbAlgorithmConsistentHashHdr, &out.LbAlgorithmConsistentHashHdr
+		*out = new(string)
+		**out = **in
+	}
 	if in.LbAlgorithmHash != nil {
 		in, out := &in.LbAlgorithmHash, &out.LbAlgorithmHash
 		*out = new(string)
