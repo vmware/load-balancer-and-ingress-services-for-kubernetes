@@ -52,6 +52,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		SchemeGroupVersion,
 		&SSORule{},
 		&SSORuleList{},
+		&L4Rule{},
+		&L4RuleList{},
 		
 	)
 

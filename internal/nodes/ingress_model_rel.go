@@ -139,6 +139,7 @@ var (
 		MultiClusterIngress,
 		ServiceImport,
 		SSORule,
+		L4Rule,
 	}
 )
 

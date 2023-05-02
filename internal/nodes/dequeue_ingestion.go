@@ -158,6 +158,16 @@ func DequeueIngestion(key string, fullsync bool) {
 		}
 	}
 
+	// L4Rule CRD processing.
+	if objType == lib.L4Rule {
+		svcNames, found := schema.GetParentServices(name, namespace, key)
+		if found && utils.CheckIfNamespaceAccepted(namespace) {
+			for _, svcNSNameKey := range svcNames {
+				handleL4Service(utils.L4LBService+"/"+svcNSNameKey, fullsync)
+			}
+		}
+	}
+
 	if !ingressFound && !lib.IsWCP() && !mciFound {
 		// If ingress is not found, let's do the other checks.
 		if objType == lib.SharedVipServiceKey {

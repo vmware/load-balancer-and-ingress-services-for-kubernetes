@@ -17,6 +17,31 @@
 package v1alpha2
 
 
+type AnalyticsPolicy struct {
+	FullClientLogs *FullClientLogs `json:"fullClientLogs,omitempty"`
+}
+
+type BackendProperties struct {
+	AnalyticsPolicy                  *PoolAnalyticsPolicy `json:"analyticsPolicy,omitempty"`
+	ApplicationPersistenceProfileRef *string              `json:"applicationPersistenceProfileRef,omitempty"`
+	Enabled                          *bool                `json:"enabled,omitempty"`
+	HealthMonitorRefs                []string             `json:"healthMonitorRefs,omitempty"`
+	LbAlgorithm                      *string              `json:"lbAlgorithm,omitempty"`
+	LbAlgorithmHash                  *string              `json:"lbAlgorithmHash,omitempty"`
+	MinServersUp                     *int32               `json:"minServersUp,omitempty"`
+	PkiProfileRef                    *string              `json:"pkiProfileRef,omitempty"`
+	Port                             *int                 `json:"port"`
+	Protocol                         *string              `json:"protocol"`
+	SslKeyAndCertificateRef          *string              `json:"sslKeyAndCertificateRef,omitempty"`
+	SslProfileRef                    *string              `json:"sslProfileRef,omitempty"`
+}
+
+type FullClientLogs struct {
+	Duration *int32 `json:"duration,omitempty"`
+	Enabled  *bool  `json:"enabled"`
+	Throttle *int32 `json:"throttle,omitempty"`
+}
+
 type JWTValidationParams struct {
 	Audience *string `json:"audience"`
 }
@@ -59,6 +84,15 @@ type OIDCConfig struct {
 type OpaqueTokenValidationParams struct {
 	ServerID     *string `json:"serverID"`
 	ServerSecret *string `json:"serverSecret"`
+}
+
+type PerformanceLimits struct {
+	MaxConcurrentConnections *int32 `json:"maxConcurrentConnections,omitempty"`
+	MaxThroughput            *int32 `json:"maxThroughput,omitempty"`
+}
+
+type PoolAnalyticsPolicy struct {
+	EnableRealtimeMetrics *bool `json:"enableRealtimeMetrics,omitempty"`
 }
 
 type SAMLSPConfig struct {

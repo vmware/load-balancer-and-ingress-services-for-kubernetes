@@ -24,6 +24,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// L4Rules returns a L4RuleInformer.
+	L4Rules() L4RuleInformer
 	// SSORules returns a SSORuleInformer.
 	SSORules() SSORuleInformer
 }
@@ -37,6 +39,11 @@ type version struct {
 // New returns a new Interface.
 func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakListOptions internalinterfaces.TweakListOptionsFunc) Interface {
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
+}
+
+// L4Rules returns a L4RuleInformer.
+func (v *version) L4Rules() L4RuleInformer {
+	return &l4RuleInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // SSORules returns a SSORuleInformer.

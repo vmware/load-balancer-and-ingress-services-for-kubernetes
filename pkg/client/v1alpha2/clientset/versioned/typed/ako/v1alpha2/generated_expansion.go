@@ -18,4 +18,6 @@ limitations under the License.
 
 package v1alpha2
 
+type L4RuleExpansion interface{}
+
 type SSORuleExpansion interface{}

@@ -17,6 +17,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"net"
 	"regexp"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -37,6 +38,7 @@ type Validator interface {
 	ValidateMultiClusterIngressObj(key string, multiClusterIngress *akov1alpha1.MultiClusterIngress) error
 	ValidateServiceImportObj(key string, serviceImport *akov1alpha1.ServiceImport) error
 	ValidateSSORuleObj(key string, ssoRule *akov1alpha2.SSORule) error
+	ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 }
 
 type (
@@ -507,6 +509,92 @@ func (l *leader) ValidateSSORuleObj(key string, ssoRule *akov1alpha2.SSORule) er
 	return nil
 }
 
+// ValidateL4RuleObj would do validation checks and updates the status before
+// pushing to ingestion
+func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error {
+
+	l4RuleSpec := l4Rule.Spec
+
+	if l4RuleSpec.LoadBalancerIP != nil &&
+		net.ParseIP(*l4RuleSpec.LoadBalancerIP) == nil {
+		err := fmt.Errorf("loadBalancerIP %s is not valid", *l4RuleSpec.LoadBalancerIP)
+		status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
+			Status: lib.StatusRejected,
+			Error:  err.Error(),
+		})
+		return err
+	}
+
+	refData := make(map[string]string)
+
+	if l4RuleSpec.AnalyticsProfileRef != nil {
+		refData[*l4RuleSpec.AnalyticsProfileRef] = "AnalyticsProfile"
+	}
+
+	if l4RuleSpec.ApplicationProfileRef != nil {
+		refData[*l4RuleSpec.ApplicationProfileRef] = "AppProfile"
+	}
+
+	if l4RuleSpec.NetworkProfileRef != nil {
+		refData[*l4RuleSpec.NetworkProfileRef] = "NetworkProfile"
+	}
+
+	if l4RuleSpec.NetworkSecurityPolicyRef != nil {
+		refData[*l4RuleSpec.NetworkSecurityPolicyRef] = "NetworkSecurityPolicy"
+	}
+
+	if l4RuleSpec.SecurityPolicyRef != nil {
+		refData[*l4RuleSpec.SecurityPolicyRef] = "SecurityPolicy"
+	}
+
+	for _, ref := range l4RuleSpec.VsDatascriptRefs {
+		refData[ref] = "VsDatascript"
+	}
+
+	for _, backendProperties := range l4RuleSpec.BackendProperties {
+
+		if backendProperties.ApplicationPersistenceProfileRef != nil {
+			refData[*backendProperties.ApplicationPersistenceProfileRef] = "ApplicationPersistence"
+		}
+
+		for _, hm := range backendProperties.HealthMonitorRefs {
+			refData[hm] = "HealthMonitor"
+		}
+
+		if backendProperties.PkiProfileRef != nil {
+			refData[*backendProperties.PkiProfileRef] = "PKIProfile"
+		}
+
+		if backendProperties.SslKeyAndCertificateRef != nil {
+			refData[*backendProperties.SslKeyAndCertificateRef] = "SslKeyCert"
+		}
+
+		if backendProperties.SslProfileRef != nil {
+			refData[*backendProperties.SslProfileRef] = "SslProfile"
+		}
+	}
+
+	if err := checkRefsOnController(key, refData); err != nil {
+		status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
+			Status: lib.StatusRejected,
+			Error:  err.Error(),
+		})
+		return err
+	}
+
+	// No need to update status of l4rule object as accepted since it was accepted before.
+	if l4Rule.Status.Status == lib.StatusAccepted {
+		return nil
+	}
+
+	status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
+		Status: lib.StatusAccepted,
+		Error:  "",
+	})
+
+	return nil
+}
+
 func (f *follower) ValidateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 	utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating HTTPRule object", key)
 	return nil
@@ -537,5 +625,10 @@ func (f *follower) ValidateServiceImportObj(key string, serviceImport *akov1alph
 
 func (f *follower) ValidateSSORuleObj(key string, ssoRule *akov1alpha2.SSORule) error {
 	utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating SSORule object", key)
+	return nil
+}
+
+func (l *follower) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error {
+	utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating L4Rule object", key)
 	return nil
 }

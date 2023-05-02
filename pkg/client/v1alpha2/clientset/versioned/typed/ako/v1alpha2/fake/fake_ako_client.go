@@ -28,6 +28,10 @@ type FakeAkoV1alpha2 struct {
 	*testing.Fake
 }
 
+func (c *FakeAkoV1alpha2) L4Rules(namespace string) v1alpha2.L4RuleInterface {
+	return &FakeL4Rules{c, namespace}
+}
+
 func (c *FakeAkoV1alpha2) SSORules(namespace string) v1alpha2.SSORuleInterface {
 	return &FakeSSORules{c, namespace}
 }

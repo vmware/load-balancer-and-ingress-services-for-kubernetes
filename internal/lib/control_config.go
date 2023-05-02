@@ -15,7 +15,6 @@
 package lib
 
 import (
-	"context"
 	"os"
 	"sort"
 	"strings"
@@ -59,6 +58,7 @@ type AKOCrdInformers struct {
 	HTTPRuleInformer        akoinformer.HTTPRuleInformer
 	AviInfraSettingInformer akoinformer.AviInfraSettingInformer
 	SSORuleInformer         v1alpha2akoinformer.SSORuleInformer
+	L4RuleInformer          v1alpha2akoinformer.L4RuleInformer
 }
 
 type IstioCRDInformers struct {
@@ -117,6 +117,10 @@ type akoControlConfig struct {
 	// ssoRuleEnabled is set to true if the cluster has
 	// SSORule CRD installed.
 	ssoRuleEnabled bool
+
+	// l4RuleEnabled is set to true if the cluster has
+	// L4Rule CRD installed.
+	l4RuleEnabled bool
 
 	// licenseType holds the default license tier which would be used by new Clouds. Enum options - ENTERPRISE_16, ENTERPRISE, ENTERPRISE_18, BASIC, ESSENTIALS.
 	licenseType string
@@ -233,38 +237,17 @@ func (c *akoControlConfig) V1alpha2CRDClientset() v1alpha2akocrd.Interface {
 	return c.v1alpha2crdClientset
 }
 
+// CRDs are by default installed on all AKO deployments. So always enable CRD parameters.
+// TODO: Optimise
 func (c *akoControlConfig) SetCRDEnabledParams(cs akocrd.Interface) {
-	timeout := int64(120)
-	_, aviInfraError := cs.AkoV1alpha1().AviInfraSettings().List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &timeout})
-	if aviInfraError != nil {
-		utils.AviLog.Infof("ako.vmware.com/v1alpha1/AviInfraSetting not found/enabled on cluster: %v", aviInfraError)
-		c.aviInfraSettingEnabled = false
-	} else {
-		utils.AviLog.Infof("ako.vmware.com/v1alpha1/AviInfraSetting enabled on cluster")
-		c.aviInfraSettingEnabled = true
-	}
-
-	_, hostRulesError := cs.AkoV1alpha1().HostRules(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &timeout})
-	if hostRulesError != nil {
-		utils.AviLog.Infof("ako.vmware.com/v1alpha1/HostRule not found/enabled on cluster: %v", hostRulesError)
-		c.hostRuleEnabled = false
-	} else {
-		utils.AviLog.Infof("ako.vmware.com/v1alpha1/HostRule enabled on cluster")
-		c.hostRuleEnabled = true
-	}
-
-	_, httpRulesError := cs.AkoV1alpha1().HTTPRules(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &timeout})
-	if httpRulesError != nil {
-		utils.AviLog.Infof("ako.vmware.com/v1alpha1/HTTPRule not found/enabled on cluster: %v", httpRulesError)
-		c.httpRuleEnabled = false
-	} else {
-		utils.AviLog.Infof("ako.vmware.com/v1alpha1/HTTPRule enabled on cluster")
-		c.httpRuleEnabled = true
-	}
+	c.aviInfraSettingEnabled = true
+	c.hostRuleEnabled = true
+	c.httpRuleEnabled = true
 }
 
 func (c *akoControlConfig) Setv1alpha2CRDEnabledParams(cs v1alpha2akocrd.Interface) {
 	c.ssoRuleEnabled = true
+	c.l4RuleEnabled = true
 }
 
 func (c *akoControlConfig) AviInfraSettingEnabled() bool {
@@ -281,6 +264,10 @@ func (c *akoControlConfig) HttpRuleEnabled() bool {
 
 func (c *akoControlConfig) SsoRuleEnabled() bool {
 	return c.ssoRuleEnabled
+}
+
+func (c *akoControlConfig) L4RuleEnabled() bool {
+	return c.l4RuleEnabled
 }
 
 func (c *akoControlConfig) ControllerVersion() string {

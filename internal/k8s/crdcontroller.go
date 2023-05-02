@@ -50,12 +50,14 @@ func NewCRDInformers(cs akocrd.Interface) {
 	v1alpha2akoInformerFactory := v1alpha2akoinformers.NewSharedInformerFactoryWithOptions(
 		lib.AKOControlConfig().V1alpha2CRDClientset(), time.Second*30)
 	ssoRuleInformer := v1alpha2akoInformerFactory.Ako().V1alpha2().SSORules()
+	l4RuleInformer := v1alpha2akoInformerFactory.Ako().V1alpha2().L4Rules()
 
 	lib.AKOControlConfig().SetCRDInformers(&lib.AKOCrdInformers{
 		HostRuleInformer:        hostRuleInformer,
 		HTTPRuleInformer:        httpRuleInformer,
 		AviInfraSettingInformer: aviSettingsInformer,
 		SSORuleInformer:         ssoRuleInformer,
+		L4RuleInformer:          l4RuleInformer,
 	})
 }
 
@@ -114,6 +116,17 @@ func isSSORuleUpdated(oldSSORule, newSSORule *akov1alpha2.SSORule) bool {
 
 	oldSpecHash := utils.Hash(utils.Stringify(oldSSORule.Spec) + oldSSORule.Status.Status)
 	newSpecHash := utils.Hash(utils.Stringify(newSSORule.Spec) + newSSORule.Status.Status)
+
+	return oldSpecHash != newSpecHash
+}
+
+func isL4RuleUpdated(oldL4Rule, newL4Rule *akov1alpha2.L4Rule) bool {
+	if oldL4Rule.ResourceVersion == newL4Rule.ResourceVersion {
+		return false
+	}
+
+	oldSpecHash := utils.Hash(utils.Stringify(oldL4Rule.Spec) + oldL4Rule.Status.Status)
+	newSpecHash := utils.Hash(utils.Stringify(newL4Rule.Spec) + newL4Rule.Status.Status)
 
 	return oldSpecHash != newSpecHash
 }
@@ -376,6 +389,67 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			},
 		}
 		informer.SSORuleInformer.Informer().AddEventHandler(ssoRuleEventHandler)
+	}
+
+	if lib.AKOControlConfig().L4RuleEnabled() {
+		l4RuleEventHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				l4Rule := obj.(*akov1alpha2.L4Rule)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(l4Rule))
+				key := lib.L4Rule + "/" + utils.ObjKey(l4Rule)
+				if err := c.GetValidator().ValidateL4RuleObj(key, l4Rule); err != nil {
+					utils.AviLog.Warnf("Error retrieved during validation of L4Rule: %v", err)
+				}
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			},
+			UpdateFunc: func(old, new interface{}) {
+				if c.DisableSync {
+					return
+				}
+				oldObj := old.(*akov1alpha2.L4Rule)
+				l4Rule := new.(*akov1alpha2.L4Rule)
+				if isL4RuleUpdated(oldObj, l4Rule) {
+					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(l4Rule))
+					key := lib.L4Rule + "/" + utils.ObjKey(l4Rule)
+					if err := c.GetValidator().ValidateL4RuleObj(key, l4Rule); err != nil {
+						utils.AviLog.Warnf("Error retrieved during validation of L4Rule: %v", err)
+					}
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+					bkt := utils.Bkt(namespace, numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				l4Rule, ok := obj.(*akov1alpha2.L4Rule)
+				if !ok {
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					l4Rule, ok = tombstone.Obj.(*akov1alpha2.L4Rule)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not an L4Rule: %#v", obj)
+						return
+					}
+				}
+				key := lib.L4Rule + "/" + utils.ObjKey(l4Rule)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(l4Rule))
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+				bkt := utils.Bkt(namespace, numWorkers)
+				objects.SharedResourceVerInstanceLister().Delete(key)
+				c.workqueue[bkt].AddRateLimited(key)
+			},
+		}
+		informer.L4RuleInformer.Informer().AddEventHandler(l4RuleEventHandler)
 	}
 	return
 }
@@ -750,6 +824,9 @@ var refModelMap = map[string]string{
 	"SSOPolicy":              "ssopolicy",
 	"AuthProfile":            "authprofile",
 	"ICAPProfile":            "icapprofile",
+	"NetworkProfile":         "networkprofile",
+	"SecurityPolicy":         "securitypolicy",
+	"NetworkSecurityPolicy":  "networksecuritypolicy",
 }
 
 // checkRefOnController checks whether a provided ref on the controller
@@ -806,10 +883,21 @@ func checkRefOnController(key, refKey, refValue string) error {
 
 	switch refKey {
 	case "AppProfile":
-		if appProfType, ok := item["type"].(string); ok && appProfType != lib.AllowedApplicationProfile {
-			utils.AviLog.Warnf("key: %s, msg: applicationProfile: %s must be of type %s", key, refValue, lib.AllowedApplicationProfile)
-			return fmt.Errorf("%s \"%s\" found on controller is invalid, must be of type: %s",
-				refModelMap[refKey], refValue, lib.AllowedApplicationProfile)
+		if appProfType, ok := item["type"].(string); ok {
+			objType, _, _ := lib.ExtractTypeNameNamespace(key)
+			if objType == lib.L4Rule {
+				if appProfType != lib.AllowedL4ApplicationProfile {
+					utils.AviLog.Warnf("key: %s, msg: L4 applicationProfile: %s must be of type %s", key, refValue, lib.AllowedL4ApplicationProfile)
+					return fmt.Errorf("%s \"%s\" found on controller is invalid, must be of type: %s",
+						refModelMap[refKey], refValue, lib.AllowedL4ApplicationProfile)
+				}
+				return nil
+			}
+			if appProfType != lib.AllowedL7ApplicationProfile {
+				utils.AviLog.Warnf("key: %s, msg: applicationProfile: %s must be of type %s", key, refValue, lib.AllowedL7ApplicationProfile)
+				return fmt.Errorf("%s \"%s\" found on controller is invalid, must be of type: %s",
+					refModelMap[refKey], refValue, lib.AllowedL7ApplicationProfile)
+			}
 		}
 	case "ServiceEngineGroup":
 		if seGroupLabels, ok := item["labels"].([]map[string]string); ok {

@@ -18,6 +18,14 @@ limitations under the License.
 
 package v1alpha2
 
+// L4RuleListerExpansion allows custom methods to be added to
+// L4RuleLister.
+type L4RuleListerExpansion interface{}
+
+// L4RuleNamespaceListerExpansion allows custom methods to be added to
+// L4RuleNamespaceLister.
+type L4RuleNamespaceListerExpansion interface{}
+
 // SSORuleListerExpansion allows custom methods to be added to
 // SSORuleLister.
 type SSORuleListerExpansion interface{}
