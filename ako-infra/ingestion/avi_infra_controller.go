@@ -113,6 +113,7 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 			continue
 		}
 		utils.AviLog.Infof("Found NSX-T cloud: %s match Transport Zone: %s", *cloud.Name, tz)
+		lib.SetCloudUUID(*cloud.UUID)
 		if cloud.SeGroupTemplateRef != nil && *cloud.SeGroupTemplateRef != "" {
 			tokenized := strings.Split(*cloud.SeGroupTemplateRef, "/api/serviceenginegroup/")
 			if len(tokenized) == 2 {
@@ -255,26 +256,99 @@ func fetchSEGroup(client *clients.AviClient, overrideUri ...lib.NextPage) (error
 	return nil, nil
 }
 
-func fetchVcenterServer(client *clients.AviClient) (string, error) {
-	uri := "/api/vcenterserver"
+func fetchVcenterServer(vCenters map[string]string, client *clients.AviClient, nextPage ...lib.NextPage) error {
+	uri := "/api/vcenterserver?include_name&cloud_ref.name=" + utils.CloudName
+	if len(nextPage) > 0 {
+		uri = nextPage[0].NextURI
+	}
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
-		return "", err
+		return err
 	}
 	if result.Count == 0 {
-		return "", fmt.Errorf("vcenterServer object not found")
+		return fmt.Errorf("vcenterServer object not found")
 	}
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
-		return "", err
+		return err
 	}
-	vc := avimodels.VCenterServer{}
-	err = json.Unmarshal(elems[0], &vc)
+	for _, elem := range elems {
+		vc := avimodels.VCenterServer{}
+		err = json.Unmarshal(elem, &vc)
+		if err != nil {
+			return err
+		}
+		vCenters[*vc.UUID] = *vc.Name
+	}
+
+	if result.Next != "" {
+		next_uri := strings.Split(result.Next, "/api/vcenterserver")
+		if len(next_uri) > 1 {
+			overrideUri := "/api/vcenterserver" + next_uri[1]
+			nextPage := lib.NextPage{NextURI: overrideUri}
+			return fetchVcenterServer(vCenters, client, nextPage)
+		}
+	}
+
+	return nil
+}
+
+func fetchClustersInVC(vcenterServerUUID string, client *clients.AviClient, nextPage ...lib.NextPage) ([]string, error) {
+	clusters := []string{}
+	uri := "/api/nsxt/clusters"
+	if len(nextPage) > 0 {
+		uri = nextPage[0].NextURI
+	}
+	var response interface{}
+	payload := map[string]string{
+		"cloud_uuid":   lib.GetCloudUUID(),
+		"vcenter_uuid": vcenterServerUUID,
+	}
+	err := lib.AviPost(client, uri, payload, &response)
 	if err != nil {
-		return "", err
+		utils.AviLog.Errorf("Faled to get NSXT Clusters, err: %s", err.Error())
+		return []string{}, err
 	}
-	return *vc.Name, nil
+	res, _ := response.(map[string]interface{})
+	resNSXTClusters, _ := res["resource"].(map[string]interface{})
+	resClusters, _ := resNSXTClusters["nsxt_clusters"].([]interface{})
+	for _, cluster := range resClusters {
+		cl, _ := cluster.(map[string]interface{})
+		clusters = append(clusters, cl["vc_mobj_id"].(string))
+	}
+	return clusters, nil
+}
+
+func inSlice(supSlice []string, subSlice []string) bool {
+	m := make(map[string]struct{})
+	for _, s := range supSlice {
+		m[s] = struct{}{}
+	}
+	for _, s := range subSlice {
+		if _, ok := m[s]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func getVCServerName(wcpClusters []string, vCenters map[string]string, client *clients.AviClient) (string, error) {
+	if len(vCenters) == 1 {
+		for _, vcName := range vCenters {
+			return vcName, nil
+		}
+	}
+	for vcUUID, vcName := range vCenters {
+		clusters, err := fetchClustersInVC(vcUUID, client)
+		if err != nil {
+			continue
+		}
+		if inSlice(wcpClusters, clusters) {
+			return vcName, nil
+		}
+	}
+	return "", fmt.Errorf("vCenterServer not found corresponding to WCP cluster")
 }
 
 // ConfigureSeGroup creates the SE group with the supplied properties, alters just the SE group name and the markers.
@@ -289,17 +363,22 @@ func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGr
 	seGroup.Markers = markers
 	if len(seGroup.Vcenters) == 0 {
 		include := true
-		vcenterServerName, err := fetchVcenterServer(client)
+		vCenters := make(map[string]string)
+		err := fetchVcenterServer(vCenters, client)
 		if err != nil {
 			utils.AviLog.Warnf("Error during API call to fetch Vcenter Server Info, err: %s", err.Error())
 			return false
 		}
-		vcRef := fmt.Sprintf("/api/vcenterserver/?name=%s", vcenterServerName)
 		clusterIDs, err := lib.GetAvailabilityZonesCRData(lib.GetDynamicClientSet())
 		if err != nil {
 			utils.AviLog.Warnf("Failed to get Availability Zones for the supervisor cluster, err: %s", err.Error())
 			clusterIDs = []string{lib.GetClusterName()}
 		}
+		vcenterServerName, err := getVCServerName(clusterIDs, vCenters, client)
+		if err != nil {
+			return false
+		}
+		vcRef := fmt.Sprintf("/api/vcenterserver/?name=%s", vcenterServerName)
 		seGroup.Vcenters = append(seGroup.Vcenters,
 			&avimodels.PlacementScopeConfig{
 				VcenterRef: &vcRef,
