@@ -222,5 +222,8 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
+<<<<<<< HEAD
   conditions: null
   storedVersions: null
+=======
+>>>>>>> fa99d77e (This commit contains the ingestion layer code changes for L4 CRD: (#1091))
