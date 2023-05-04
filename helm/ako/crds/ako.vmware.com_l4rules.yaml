@@ -223,7 +223,12 @@ status:
     kind: ""
     plural: ""
 <<<<<<< HEAD
+<<<<<<< HEAD
   conditions: null
   storedVersions: null
 =======
 >>>>>>> fa99d77e (This commit contains the ingestion layer code changes for L4 CRD: (#1091))
+=======
+  conditions: null
+  storedVersions: null
+>>>>>>> b09bde03 (This commit fixes few issues which are related to L4 CRD: (#1116))
