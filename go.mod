@@ -48,7 +48,6 @@ require (
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
-	github.com/jinzhu/copier v0.3.5 // indirect
 	github.com/json-iterator/go v1.1.11 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -74,7 +73,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20220521103104-8f96da9f5d5e // indirect
 	istio.io/api v0.0.0-20210512213424-c42041d3366d // indirect
 	istio.io/gogo-genproto v0.0.0-20210113155706-4daf5697332f // indirect
-	k8s.io/code-generator v0.21.3 // indirect
 	k8s.io/component-base v0.21.3 // indirect
 	k8s.io/kube-openapi v0.0.0-20210305001622-591a79e4bda7 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
