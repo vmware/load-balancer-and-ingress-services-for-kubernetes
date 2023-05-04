@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
  * Copyright 2022-2023 VMware, Inc.
+=======
+ * Copyright 2019-2020 VMware, Inc.
+>>>>>>> 19a48b4d ([L4 CRD] Graph layer changes (#1105))
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -16,7 +20,10 @@ package nodes
 
 import (
 	corev1 "k8s.io/api/core/v1"
+<<<<<<< HEAD
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+=======
+>>>>>>> 19a48b4d ([L4 CRD] Graph layer changes (#1105))
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
