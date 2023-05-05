@@ -169,7 +169,7 @@ spec:
                 properties:
                   acsIndex:
                     description: Index to be used in the AssertionConsumerServiceIndex
-                      attribute of the Authentication request, if the authn_req_acs_type
+                      attribute of the Authentication request, if the authnReqAcsType
                       is set to Use AssertionConsumerServiceIndex
                     maximum: 64
                     minimum: 0
@@ -191,8 +191,9 @@ spec:
                     minimum: 1
                     type: integer
                   entityID:
-                    description: Globally unique SAML entityID for this node. The
-                      SAML application entity ID on the IDP should match this.
+                    description: Globally unique SAML entityID for this application
+                      (Service Provider). The SAML application entity ID on the IDP
+                      should match this.
                     type: string
                   signingSslKeyAndCertificateRef:
                     description: SP will use this SSL certificate to sign requests
@@ -201,7 +202,7 @@ spec:
                   singleSignonURL:
                     description: SAML Single Signon endpoint to receive the Authentication
                       response. This also specifies the destination endpoint to be
-                      configured for this application on the IDP. If the authn_req_acs_type
+                      configured for this application on the IDP. If the authnReqAcsType
                       is set to 'Use AssertionConsumerServiceURL', this endpoint will
                       be sent in the AssertionConsumerServiceURL attribute of the
                       Authentication request.

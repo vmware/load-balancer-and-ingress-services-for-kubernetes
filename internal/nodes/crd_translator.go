@@ -428,7 +428,7 @@ func BuildL7SSORule(host, key string, vsNode AviVsEvhSniModel) {
 		}
 
 		if ssoRule.Spec.SamlSpConfig != nil {
-			if *ssoRule.Spec.SamlSpConfig.AuthnReqAcsType != "SAML_AUTHN_REQ_ACS_TYPE_INDEX" {
+			if *ssoRule.Spec.SamlSpConfig.AuthnReqAcsType != lib.SAML_AUTHN_REQ_ACS_TYPE_INDEX {
 				generatedFields.SamlSpConfig.AcsIndex = nil
 			}
 		}

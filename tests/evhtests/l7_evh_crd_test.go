@@ -1409,7 +1409,7 @@ func TestCreateUpdateDeleteSSORuleForEvhSamlACS(t *testing.T) {
 		Fqdn:      "foo.com",
 		SSOType:   "SAML",
 	}.SSORule()
-	acsType = "SAML_AUTHN_REQ_ACS_TYPE_INDEX"
+	acsType = lib.SAML_AUTHN_REQ_ACS_TYPE_INDEX
 	acsIndex = int32(64)
 	srUpdate.Spec.SamlSpConfig.AuthnReqAcsType = &acsType
 	// setting AcsIndex but it will still be nil as act type is not index
@@ -1432,7 +1432,7 @@ func TestCreateUpdateDeleteSSORuleForEvhSamlACS(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].OauthVsConfig).To(gomega.BeNil())
 	g.Expect(*nodes[0].EvhNodes[0].SsoPolicyRef).To(gomega.ContainSubstring("thisisaviref-ssopolicysaml"))
 	g.Expect(*nodes[0].EvhNodes[0].SamlSpConfig.AcsIndex).To(gomega.Equal(int32(64)))
-	g.Expect(*nodes[0].EvhNodes[0].SamlSpConfig.AuthnReqAcsType).To(gomega.Equal("SAML_AUTHN_REQ_ACS_TYPE_INDEX"))
+	g.Expect(*nodes[0].EvhNodes[0].SamlSpConfig.AuthnReqAcsType).To(gomega.Equal(lib.SAML_AUTHN_REQ_ACS_TYPE_INDEX))
 	g.Expect(*nodes[0].EvhNodes[0].SamlSpConfig.CookieName).To(gomega.Equal("MY_SAML_COOKIE"))
 	g.Expect(*nodes[0].EvhNodes[0].SamlSpConfig.CookieTimeout).To(gomega.Equal(int32(120)))
 	g.Expect(*nodes[0].EvhNodes[0].SamlSpConfig.EntityID).To(gomega.Equal("my-entityid"))
