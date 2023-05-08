@@ -1480,7 +1480,6 @@ type AviPoolNode struct {
 	PortName                 string
 	Servers                  []AviPoolMetaServer
 	Protocol                 string
-	LbAlgoHostHeader         string
 	IngressName              string
 	PriorityLabel            string
 	ServiceMetadata          lib.ServiceMetadataObj
@@ -1508,6 +1507,7 @@ type AviPoolCommonFields struct {
 	HealthMonitorRefs                []string
 	LbAlgorithm                      *string
 	LbAlgorithmHash                  *string
+	LbAlgorithmConsistentHashHdr     *string
 	PkiProfileRef                    *string
 	SslProfileRef                    *string
 	SslKeyAndCertificateRef          *string
@@ -1541,7 +1541,9 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		checksumStringSlice = append(checksumStringSlice, *v.LbAlgorithmHash)
 	}
 
-	checksumStringSlice = append(checksumStringSlice, v.LbAlgoHostHeader)
+	if v.LbAlgorithmConsistentHashHdr != nil {
+		checksumStringSlice = append(checksumStringSlice, *v.LbAlgorithmConsistentHashHdr)
+	}
 
 	checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.SniEnabled))
 

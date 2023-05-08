@@ -572,6 +572,14 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 		if backendProperties.SslProfileRef != nil {
 			refData[*backendProperties.SslProfileRef] = "SslProfile"
 		}
+
+		if err := validateLBAlgorithm(backendProperties); err != nil {
+			status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
+				Status: lib.StatusRejected,
+				Error:  err.Error(),
+			})
+			return err
+		}
 	}
 
 	if err := checkRefsOnController(key, refData); err != nil {
@@ -592,6 +600,31 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 		Error:  "",
 	})
 
+	return nil
+}
+
+func validateLBAlgorithm(backendProperties *akov1alpha2.BackendProperties) error {
+	if backendProperties.LbAlgorithm == nil {
+		return nil
+	}
+	switch *backendProperties.LbAlgorithm {
+	case lib.LB_ALGORITHM_CONSISTENT_HASH:
+		if backendProperties.LbAlgorithmHash == nil {
+			return fmt.Errorf("lbAlgorithmHash must be specified when lbAlgorithm is \"%s\"", lib.LB_ALGORITHM_CONSISTENT_HASH)
+		} else {
+			if *backendProperties.LbAlgorithmHash == lib.LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER &&
+				backendProperties.LbAlgorithmConsistentHashHdr == nil {
+				return fmt.Errorf("lbAlgorithmConsistentHashHdr must be specified when lbAlgorithmHash is \"%s\"", lib.LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER)
+			}
+		}
+	default:
+		if backendProperties.LbAlgorithmHash != nil {
+			return fmt.Errorf("lbAlgorithmHash must not be specified when lbAlgorithm is \"%s\"", *backendProperties.LbAlgorithm)
+		}
+		if backendProperties.LbAlgorithmConsistentHashHdr != nil {
+			return fmt.Errorf("lbAlgorithmConsistentHashHdr must not be specified when lbAlgorithm is \"%s\"", *backendProperties.LbAlgorithm)
+		}
+	}
 	return nil
 }
 
