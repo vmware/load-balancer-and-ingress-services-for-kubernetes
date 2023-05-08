@@ -577,6 +577,7 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		evhChild.HTTPPolicies = AviVsHttpPSAdd(vs_meta, true)
 	}
 	evhChild.AnalyticsPolicy = vs_meta.GetAnalyticsPolicy()
+	copier.Copy(&evhChild, &vs_meta.AviVsNodeGeneratedFields)
 
 	var rest_ops []*utils.RestOp
 	var rest_op utils.RestOp

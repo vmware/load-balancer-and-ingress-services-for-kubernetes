@@ -64,6 +64,8 @@ const (
 	MULTIPORTMODEL      = "admin/cluster--red-ns-testsvcmulti" // multi port model name
 	RANDOMUUID          = "random-uuid"                        // random avi object uuid
 	DefaultIngressClass = "avi-lb"
+	SSOTypeOAuth        = "OAuth"
+	SSOTypeSAML         = "SAML"
 )
 
 var KubeClient *k8sfake.Clientset
@@ -1383,11 +1385,111 @@ func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool, gslbHost ...s
 	}
 }
 
+type FakeSSORule struct {
+	Name      string
+	Namespace string
+	Fqdn      string
+	// SSOType valid values currently are OAuth and SAML
+	SSOType string
+}
+
+func (sr FakeSSORule) SSORule() *akov1alpha2.SSORule {
+	//enable := true
+	var oauthVsConfig *akov1alpha2.OAuthVSConfig
+	var ssoPolicyRef *string
+	var samlSpConfig *akov1alpha2.SAMLSPConfig
+
+	if sr.SSOType == SSOTypeOAuth {
+		oidcConfig := &akov1alpha2.OIDCConfig{
+			OidcEnable: proto.Bool(true),
+			Profile:    proto.Bool(true),
+			Userinfo:   proto.Bool(true),
+		}
+		accessType := proto.String(lib.ACCESS_TOKEN_TYPE_OPAQUE)
+		opaqueTokenParams := &akov1alpha2.OpaqueTokenValidationParams{
+			ServerID:     proto.String("my-server-id"),
+			ServerSecret: proto.String("my-oauth-secret"),
+		}
+		oauthVsConfig = &akov1alpha2.OAuthVSConfig{
+			CookieName:    proto.String("MY_OAUTH_COOKIE"),
+			CookieTimeout: proto.Int32(120),
+			LogoutURI:     proto.String("https://auth.com/oauth/logout"),
+			OauthSettings: []*akov1alpha2.OAuthSettings{
+				{
+					AppSettings: &akov1alpha2.OAuthAppSettings{
+						ClientID:     proto.String("my-client-id"),
+						ClientSecret: proto.String("my-oauth-secret"),
+						OidcConfig:   oidcConfig,
+						Scopes: []string{
+							"scope-1",
+						},
+					},
+					AuthProfileRef: proto.String("thisisaviref-authprofileoauth"),
+					ResourceServer: &akov1alpha2.OAuthResourceServer{
+						AccessType:               accessType,
+						IntrospectionDataTimeout: proto.Int32(60),
+						OpaqueTokenParams:        opaqueTokenParams,
+					},
+				},
+			},
+			RedirectURI:           proto.String("https://auth.com/oauth/redirect"),
+			PostLogoutRedirectURI: proto.String("https://auth.com/oauth/post-logout-redirect"),
+		}
+		ssoPolicyRef = proto.String("thisisaviref-ssopolicyoauth")
+	} else if sr.SSOType == SSOTypeSAML {
+		samlSpConfig = &akov1alpha2.SAMLSPConfig{
+			AcsIndex:                       nil,
+			AuthnReqAcsType:                proto.String("SAML_AUTHN_REQ_ACS_TYPE_NONE"),
+			CookieName:                     proto.String("MY_SAML_COOKIE"),
+			CookieTimeout:                  proto.Int32(120),
+			EntityID:                       proto.String("my-entityid"),
+			SigningSslKeyAndCertificateRef: proto.String("thisisaviref-sslkeyandcertrefsaml"),
+			SingleSignonURL:                proto.String("https://auth.com/sso/acs/"),
+			UseIdpSessionTimeout:           proto.Bool(false),
+		}
+		ssoPolicyRef = proto.String("thisisaviref-ssopolicysaml")
+	}
+
+	ssoRule := &akov1alpha2.SSORule{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: sr.Namespace,
+			Name:      sr.Name,
+		},
+		Spec: akov1alpha2.SSORuleSpec{
+			Fqdn:          proto.String(sr.Fqdn),
+			OauthVsConfig: oauthVsConfig,
+			SamlSpConfig:  samlSpConfig,
+			SsoPolicyRef:  ssoPolicyRef,
+		},
+	}
+	return ssoRule
+}
+
+func SetupSSORule(t *testing.T, srname, fqdn string, ssoType string) {
+	ssoRule := FakeSSORule{
+		Name:      srname,
+		Namespace: "default",
+		Fqdn:      fqdn,
+		SSOType:   ssoType,
+	}
+	srCreate := ssoRule.SSORule()
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().SSORules("default").Create(context.TODO(), srCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding HostRule: %v", err)
+	}
+}
+
 func TeardownHostRule(t *testing.T, g *gomega.WithT, vskey cache.NamespaceName, hrname string) {
 	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting HostRule: %v", err)
 	}
 	VerifyMetadataHostRule(t, g, vskey, "default/"+hrname, false)
+}
+
+func TeardownSSORule(t *testing.T, g *gomega.WithT, vskey cache.NamespaceName, srname string) {
+	if err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().SSORules("default").Delete(context.TODO(), srname, metav1.DeleteOptions{}); err != nil {
+		t.Fatalf("error in deleting SSORule: %v", err)
+	}
+	VerifyMetadataSSORule(t, g, vskey, "default/"+srname, false)
 }
 
 func TearDownHostRuleWithNoVerify(t *testing.T, g *gomega.WithT, hrname string) {
@@ -1497,6 +1599,46 @@ func VerifyMetadataHostRule(t *testing.T, g *gomega.WithT, vsKey cache.Namespace
 		if active {
 			if sniCacheObj.ServiceMetadataObj.CRDStatus.Value != hrnsname {
 				t.Logf("Expected CRD ServiceMetadata Value to be %s, found %s", hrnsname, sniCacheObj.ServiceMetadataObj.CRDStatus.Value)
+				return false, nil
+			}
+
+			if sniCacheObj.ServiceMetadataObj.CRDStatus.Status != lib.CRDActive {
+				t.Logf("Expected CRD ServiceMetadata Status to be %s, found %s", lib.CRDActive, sniCacheObj.ServiceMetadataObj.CRDStatus.Status)
+				return false, nil
+			}
+		}
+
+		if !active && (sniCacheObj.ServiceMetadataObj.CRDStatus.Status == lib.CRDActive) {
+			t.Logf("Expected CRD ServiceMetadata Status to be empty/inactive, found %s", sniCacheObj.ServiceMetadataObj.CRDStatus.Status)
+			return false, nil
+		}
+
+		return true, nil
+	})
+}
+
+func VerifyMetadataSSORule(t *testing.T, g *gomega.WithT, vsKey cache.NamespaceName, srnsname string, active bool) {
+	mcache := cache.SharedAviObjCache()
+	wait.Poll(2*time.Second, 50*time.Second, func() (bool, error) {
+		sniCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		if active && !found {
+			t.Logf("SNI Cache not found.")
+			return false, nil
+		}
+
+		if !active && !found {
+			return true, nil
+		}
+
+		sniCacheObj, ok := sniCache.(*cache.AviVsCache)
+		if !ok {
+			t.Logf("Unable to cast SNI Cache to AviVsCache.")
+			return false, nil
+		}
+
+		if active {
+			if sniCacheObj.ServiceMetadataObj.CRDStatus.Value != srnsname {
+				t.Logf("Expected CRD ServiceMetadata Value to be %s, found %s", srnsname, sniCacheObj.ServiceMetadataObj.CRDStatus.Value)
 				return false, nil
 			}
 
@@ -1797,6 +1939,23 @@ func CreateOrUpdateLease(ns, podName string) error {
 func DeleteLease(ns string) error {
 	err := KubeClient.CoordinationV1().Leases(ns).Delete(context.TODO(), "ako-lease-lock", metav1.DeleteOptions{})
 	return err
+}
+
+func SetUpOAuthSecret() (err error) {
+	data := map[string][]byte{
+		"clientSecret": []byte("my-client-secret"),
+		"serverSecret": []byte("my-server-secret"),
+	}
+
+	object := metav1.ObjectMeta{Name: "my-oauth-secret", Namespace: "default"}
+	secret := &corev1.Secret{Data: data, ObjectMeta: object}
+	_, err = KubeClient.CoreV1().Secrets("default").Create(context.TODO(), secret, metav1.CreateOptions{})
+	return
+}
+
+func TearDownOAuthSecret() (err error) {
+	err = KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-oauth-secret", metav1.DeleteOptions{})
+	return
 }
 
 // L4Rule lib functions

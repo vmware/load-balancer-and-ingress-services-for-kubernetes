@@ -116,6 +116,11 @@ var (
 		Type:                           lib.ServiceImport,
 		GetParentMultiClusterIngresses: ServiceImportToMultiClusterIng,
 	}
+	SSORule = GraphSchema{
+		Type:               lib.SSORule,
+		GetParentIngresses: SSORuleToIng,
+		GetParentRoutes:    SSORuleToIng,
+	}
 	SupportedGraphTypes = GraphDescriptor{
 		Ingress,
 		IngressClass,
@@ -133,6 +138,7 @@ var (
 		AviInfraSetting,
 		MultiClusterIngress,
 		ServiceImport,
+		SSORule,
 		L4Rule,
 	}
 )
@@ -594,6 +600,77 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 				fqdnType = string(akov1alpha1.Exact)
 			}
 			objects.SharedCRDLister().UpdateFQDNFQDNTypeMapping(fqdn, fqdnType)
+		}
+	}
+
+	// in case the hostname is updated, we need to find ingresses for the old ones as well to recompute
+	if oldFound {
+		allOldFqdns := SharedHostNameLister().GetHostsFromHostPathStore(oldFqdn, oldFqdnType)
+		for _, i := range allOldFqdns {
+			ok, oldobj := SharedHostNameLister().GetHostPathStore(i)
+			if !ok {
+				utils.AviLog.Debugf("key: %s, msg: Couldn't find hostpath info for host: %s in cache", key, i)
+			} else {
+				for _, ingresses := range oldobj {
+					for _, ing := range ingresses {
+						if !utils.HasElem(allIngresses, ing) {
+							allIngresses = append(allIngresses, ing)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// find ingresses with host==fqdn, across all namespaces
+	allFqdns := SharedHostNameLister().GetHostsFromHostPathStore(fqdn, fqdnType)
+	for _, i := range allFqdns {
+		ok, obj := SharedHostNameLister().GetHostPathStore(i)
+		if !ok {
+			utils.AviLog.Debugf("key: %s, msg: Couldn't find hostpath info for host: %s in cache", key, i)
+		} else {
+			for _, ingresses := range obj {
+				for _, ing := range ingresses {
+					if !utils.HasElem(allIngresses, ing) {
+						allIngresses = append(allIngresses, ing)
+					}
+				}
+			}
+		}
+	}
+
+	utils.AviLog.Infof("key: %s, msg: Ingresses retrieved %s", key, allIngresses)
+	return allIngresses, true
+}
+
+func SSORuleToIng(srname string, namespace string, key string) ([]string, bool) {
+	var err error
+	var oldFqdn, fqdn string
+	var fqdnType, oldFqdnType = string(akov1alpha1.Exact), string(akov1alpha1.Exact)
+	var oldFound bool
+
+	allIngresses := make([]string, 0)
+	ssoRule, err := lib.AKOControlConfig().CRDInformers().SSORuleInformer.Lister().SSORules(namespace).Get(srname)
+	if k8serrors.IsNotFound(err) {
+		utils.AviLog.Debugf("key: %s, msg: SSORule Deleted", key)
+		oldFound, oldFqdn = objects.SharedCRDLister().GetSSORuleToFQDNMapping(namespace + "/" + srname)
+		if !strings.Contains(oldFqdn, lib.ShardVSSubstring) {
+			objects.SharedCRDLister().DeleteSSORuleFQDNMapping(namespace + "/" + srname)
+		}
+	} else if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: Error getting SSORule: %v", key, err)
+		return nil, false
+	} else {
+		if ssoRule.Status.Status != lib.StatusAccepted {
+			return []string{}, false
+		}
+		fqdn = *ssoRule.Spec.Fqdn
+		oldFound, oldFqdn = objects.SharedCRDLister().GetSSORuleToFQDNMapping(namespace + "/" + srname)
+		if oldFound && !strings.Contains(oldFqdn, lib.ShardVSSubstring) {
+			objects.SharedCRDLister().DeleteSSORuleFQDNMapping(namespace + "/" + srname)
+		}
+		if !strings.Contains(fqdn, lib.ShardVSSubstring) {
+			objects.SharedCRDLister().UpdateFQDNSSORuleMapping(fqdn, namespace+"/"+srname)
 		}
 	}
 

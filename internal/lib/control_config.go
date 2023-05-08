@@ -57,6 +57,7 @@ type AKOCrdInformers struct {
 	HostRuleInformer        akoinformer.HostRuleInformer
 	HTTPRuleInformer        akoinformer.HTTPRuleInformer
 	AviInfraSettingInformer akoinformer.AviInfraSettingInformer
+	SSORuleInformer         v1alpha2akoinformer.SSORuleInformer
 	L4RuleInformer          v1alpha2akoinformer.L4RuleInformer
 }
 
@@ -112,6 +113,10 @@ type akoControlConfig struct {
 
 	// client-set and informer for v1alpha2 of AKO CRD.
 	v1alpha2crdClientset v1alpha2akocrd.Interface
+
+	// ssoRuleEnabled is set to true if the cluster has
+	// SSORule CRD installed.
+	ssoRuleEnabled bool
 
 	// l4RuleEnabled is set to true if the cluster has
 	// L4Rule CRD installed.
@@ -241,6 +246,7 @@ func (c *akoControlConfig) SetCRDEnabledParams(cs akocrd.Interface) {
 }
 
 func (c *akoControlConfig) Setv1alpha2CRDEnabledParams(cs v1alpha2akocrd.Interface) {
+	c.ssoRuleEnabled = true
 	c.l4RuleEnabled = true
 }
 
@@ -254,6 +260,10 @@ func (c *akoControlConfig) HostRuleEnabled() bool {
 
 func (c *akoControlConfig) HttpRuleEnabled() bool {
 	return c.httpRuleEnabled
+}
+
+func (c *akoControlConfig) SsoRuleEnabled() bool {
+	return c.ssoRuleEnabled
 }
 
 func (c *akoControlConfig) L4RuleEnabled() bool {

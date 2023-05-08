@@ -21,21 +21,15 @@ import (
 )
 
 
-type L4RuleSpec struct {
-	AnalyticsPolicy          *AnalyticsPolicy     `json:"analyticsPolicy,omitempty"`
-	AnalyticsProfileRef      *string              `json:"analyticsProfileRef,omitempty"`
-	ApplicationProfileRef    *string              `json:"applicationProfileRef,omitempty"`
-	BackendProperties        []*BackendProperties `json:"backendProperties,omitempty"`
-	LoadBalancerIP           *string              `json:"loadBalancerIP,omitempty"`
-	NetworkProfileRef        *string              `json:"networkProfileRef,omitempty"`
-	NetworkSecurityPolicyRef *string              `json:"networkSecurityPolicyRef,omitempty"`
-	PerformanceLimits        *PerformanceLimits   `json:"performanceLimits,omitempty"`
-	SecurityPolicyRef        *string              `json:"securityPolicyRef,omitempty"`
-	VsDatascriptRefs         []string             `json:"vsDatascriptRefs,omitempty"`
+type SSORuleSpec struct {
+	Fqdn          *string        `json:"fqdn"`
+	OauthVsConfig *OAuthVSConfig `json:"oauthVsConfig,omitempty"`
+	SamlSpConfig  *SAMLSPConfig  `json:"samlSpConfig,omitempty"`
+	SsoPolicyRef  *string        `json:"ssoPolicyRef"`
 }
 
 
-type L4RuleStatus struct {
+type SSORuleStatus struct {
 	Status string `json:"status,omitempty"`
 	Error  string `json:"error"`
 }
@@ -43,17 +37,17 @@ type L4RuleStatus struct {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type L4Rule struct {
+type SSORule struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec   L4RuleSpec   `json:"spec,omitempty"`
-	Status L4RuleStatus `json:"status,omitempty"`
+	Spec   SSORuleSpec   `json:"spec,omitempty"`
+	Status SSORuleStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type L4RuleList struct {
+type SSORuleList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []L4Rule `json:"items"`
+	Items           []SSORule `json:"items"`
 }

@@ -608,6 +608,14 @@ func (v *AviVsNode) SetVHDomainNames(domainNames []string) {
 	v.VHDomainNames = domainNames
 }
 
+func (v *AviVsNode) GetGeneratedFields() *AviVsNodeGeneratedFields {
+	return &v.AviVsNodeGeneratedFields
+}
+
+func (v *AviVsNode) GetCommonFields() *AviVsNodeCommonFields {
+	return &v.AviVsNodeCommonFields
+}
+
 func (o *AviObjectGraph) GetAviVS() []*AviVsNode {
 	var aviVs []*AviVsNode
 	for _, model := range o.modelNodes {

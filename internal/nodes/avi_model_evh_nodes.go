@@ -98,6 +98,9 @@ type AviVsEvhSniModel interface {
 
 	GetVHDomainNames() []string
 	SetVHDomainNames([]string)
+
+	GetGeneratedFields() *AviVsNodeGeneratedFields
+	GetCommonFields() *AviVsNodeCommonFields
 }
 
 type AviEvhVsNode struct {
@@ -317,6 +320,14 @@ func (v *AviEvhVsNode) GetVHDomainNames() []string {
 
 func (v *AviEvhVsNode) SetVHDomainNames(domainNames []string) {
 	v.VHDomainNames = domainNames
+}
+
+func (v *AviEvhVsNode) GetGeneratedFields() *AviVsNodeGeneratedFields {
+	return &v.AviVsNodeGeneratedFields
+}
+
+func (v *AviEvhVsNode) GetCommonFields() *AviVsNodeCommonFields {
+	return &v.AviVsNodeCommonFields
 }
 
 func (o *AviObjectGraph) GetAviEvhVS() []*AviEvhVsNode {
@@ -1114,6 +1125,8 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 	}
 	// build host rule for insecure ingress in evh
 	BuildL7HostRule(host, key, evhNode)
+	// build SSORule for insecure ingress in evh
+	BuildL7SSORule(host, key, evhNode)
 	if !isDedicated {
 		manipulateEvhNodeForSSL(key, vsNode[0], evhNode)
 	}
@@ -1491,6 +1504,8 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 		}
 		// Enable host rule
 		BuildL7HostRule(host, key, evhNode)
+		// build SSORule for secure ingress in evh
+		BuildL7SSORule(host, key, evhNode)
 		if !isDedicated {
 			manipulateEvhNodeForSSL(key, vsNode[0], evhNode)
 		}

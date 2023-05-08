@@ -32,6 +32,10 @@ func (c *FakeAkoV1alpha2) L4Rules(namespace string) v1alpha2.L4RuleInterface {
 	return &FakeL4Rules{c, namespace}
 }
 
+func (c *FakeAkoV1alpha2) SSORules(namespace string) v1alpha2.SSORuleInterface {
+	return &FakeSSORules{c, namespace}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeAkoV1alpha2) RESTClient() rest.Interface {

@@ -91,6 +91,7 @@ const (
 	HostRule                                   = "HostRule"
 	HTTPRule                                   = "HTTPRule"
 	AviInfraSetting                            = "AviInfraSetting"
+	SSORule                                    = "SSORule"
 	L4Rule                                     = "L4Rule"
 	IstioVirtualService                        = "IstioVirtualService"
 	IstioDestinationRule                       = "DestinationRule"
@@ -242,6 +243,9 @@ const (
 	NsFilterDelete                 = "DELETE"
 	PoolNameSuffixForHttpPolToPool = "policy-to-pool"
 	AVI_OBJ_NAME_MAX_LENGTH        = 255
+	ACCESS_TOKEN_TYPE_JWT          = "ACCESS_TOKEN_TYPE_JWT"
+	ACCESS_TOKEN_TYPE_OPAQUE       = "ACCESS_TOKEN_TYPE_OPAQUE"
+	SAML_AUTHN_REQ_ACS_TYPE_INDEX  = "SAML_AUTHN_REQ_ACS_TYPE_INDEX"
 )
 
 // Cache Indexer constants.

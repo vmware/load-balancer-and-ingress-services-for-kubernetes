@@ -15,6 +15,7 @@
 package k8s
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"regexp"
@@ -25,6 +26,9 @@ import (
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Validator interface {
@@ -33,6 +37,7 @@ type Validator interface {
 	ValidateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetting) error
 	ValidateMultiClusterIngressObj(key string, multiClusterIngress *akov1alpha1.MultiClusterIngress) error
 	ValidateServiceImportObj(key string, serviceImport *akov1alpha1.ServiceImport) error
+	ValidateSSORuleObj(key string, ssoRule *akov1alpha2.SSORule) error
 	ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 }
 
@@ -220,6 +225,21 @@ func validateSecretReferenceInHostrule(namespace, secretName string) error {
 	return err
 }
 
+func validateSecretReferenceInSSORule(namespace, secretName string) (*v1.Secret, error) {
+
+	// reject the SSORule if the secret handling is restricted to the namespace where
+	// AKO is installed.
+	if utils.GetInformers().RouteInformer != nil &&
+		namespace != utils.GetAKONamespace() &&
+		utils.IsSecretsHandlingRestrictedToAKONS() {
+		err := fmt.Errorf("secret handling is restricted to %s namespace only", utils.GetAKONamespace())
+		return nil, err
+	}
+
+	secretObj, err := utils.GetInformers().SecretInformer.Lister().Secrets(namespace).Get(secretName)
+	return secretObj, err
+}
+
 // validateHTTPRuleObj would do validation checks
 // update internal CRD caches, and push relevant ingresses to ingestion
 func (l *leader) ValidateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
@@ -382,6 +402,113 @@ func (l *leader) ValidateServiceImportObj(key string, serviceImport *akov1alpha1
 	return nil
 }
 
+// ValidateSSORuleObj would do validation checks
+// update internal CRD caches, and push relevant ingresses to ingestion
+func (l *leader) ValidateSSORuleObj(key string, ssoRule *akov1alpha2.SSORule) error {
+	var err error
+	fqdn := *ssoRule.Spec.Fqdn
+	foundHost, foundSR := objects.SharedCRDLister().GetFQDNToSSORuleMapping(fqdn)
+	if foundHost && foundSR != ssoRule.Namespace+"/"+ssoRule.Name {
+		err = fmt.Errorf("duplicate fqdn %s found in %s", fqdn, foundSR)
+		status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+		return err
+	}
+
+	refData := make(map[string]string)
+
+	if ssoRule.Spec.SsoPolicyRef == nil {
+		err = fmt.Errorf("SsoPolicyRef is not specified")
+		status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+		return err
+	}
+	refData[*ssoRule.Spec.SsoPolicyRef] = "SSOPolicy"
+
+	if ssoRule.Spec.OauthVsConfig != nil {
+		oauthConfigObj := ssoRule.Spec.OauthVsConfig
+
+		if len(oauthConfigObj.OauthSettings) != 0 {
+			for _, profile := range oauthConfigObj.OauthSettings {
+				refData[*profile.AuthProfileRef] = "AuthProfile"
+
+				if profile.AppSettings != nil {
+					clientSecret := *profile.AppSettings.ClientSecret
+					clientSecretObj, err := validateSecretReferenceInSSORule(ssoRule.Namespace, clientSecret)
+					if err != nil {
+						err = fmt.Errorf("Got error while fetching %s secret : %s", clientSecret, err.Error())
+						status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+						return err
+					}
+					if clientSecretObj == nil {
+						err = fmt.Errorf("specified client secret is empty : %s", clientSecret)
+						status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+						return err
+					}
+					clientSecretString := string(clientSecretObj.Data["clientSecret"])
+					if clientSecretString == "" {
+						err = fmt.Errorf("clientSecret field not found in %s secret", clientSecret)
+						status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+						return err
+					}
+				}
+
+				if profile.ResourceServer != nil {
+					if *profile.ResourceServer.AccessType == lib.ACCESS_TOKEN_TYPE_JWT && profile.ResourceServer.JwtParams == nil {
+						err = fmt.Errorf("Access Type is %s, but Jwt Params have not been specified", *profile.ResourceServer.AccessType)
+						status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+						return err
+					}
+					if *profile.ResourceServer.AccessType == lib.ACCESS_TOKEN_TYPE_OPAQUE && profile.ResourceServer.OpaqueTokenParams == nil {
+						err = fmt.Errorf("Access Type is %s, but Opaque Token Params have not been specified", *profile.ResourceServer.AccessType)
+						status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+						return err
+					}
+
+					if profile.ResourceServer.OpaqueTokenParams != nil {
+						serverSecret := *profile.ResourceServer.OpaqueTokenParams.ServerSecret
+						serverSecretObj, err := utils.GetInformers().ClientSet.CoreV1().Secrets(ssoRule.Namespace).Get(context.TODO(), serverSecret, metav1.GetOptions{})
+						if err != nil {
+							err = fmt.Errorf("Got error while fetching %s secret : %s", serverSecret, err.Error())
+							status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+							return err
+						}
+						if serverSecretObj == nil {
+							err = fmt.Errorf("specified server secret is empty : %s", serverSecret)
+							status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+							return err
+						}
+						serverSecretString := string(serverSecretObj.Data["serverSecret"])
+						if serverSecretString == "" {
+							err = fmt.Errorf("serverSecret field not found in %s secret", serverSecret)
+							status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+							return err
+						}
+					}
+				}
+			}
+		}
+	}
+	if ssoRule.Spec.SamlSpConfig != nil {
+		samlConfigObj := ssoRule.Spec.SamlSpConfig
+
+		if samlConfigObj.SigningSslKeyAndCertificateRef != nil {
+			refData[*samlConfigObj.SigningSslKeyAndCertificateRef] = "SslKeyCert"
+		}
+	}
+
+	if err := checkRefsOnController(key, refData); err != nil {
+		status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+		return err
+	}
+
+	// No need to update status of ssoRule object as accepted since it was accepted before.
+	if ssoRule.Status.Status == lib.StatusAccepted {
+		return nil
+	}
+
+	status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusAccepted, Error: ""})
+	return nil
+}
+
 // ValidateL4RuleObj would do validation checks and updates the status before
 // pushing to ingestion
 func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error {
@@ -493,6 +620,11 @@ func (f *follower) ValidateServiceImportObj(key string, serviceImport *akov1alph
 	// CHECK ME: AMKO creates this and validation required?
 	// TODO: validations needs a status field
 	utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating ServiceImport object", key)
+	return nil
+}
+
+func (f *follower) ValidateSSORuleObj(key string, ssoRule *akov1alpha2.SSORule) error {
+	utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating SSORule object", key)
 	return nil
 }
 

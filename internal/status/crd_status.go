@@ -277,3 +277,73 @@ func L4RuleEventBroadcast(vsName string, vsCacheMetadataOld, vsMetadataNew lib.C
 		lib.AKOControlConfig().EventRecorder().Eventf(l4Rule, corev1.EventTypeNormal, lib.Attached, "Configuration removed from VirtualService %s", vsName)
 	}
 }
+
+// UpdateSSORuleStatus SSORule status updates
+func UpdateSSORuleStatus(key string, sr *akov1alpha2.SSORule, updateStatus UpdateCRDStatusOptions, retryNum ...int) {
+	retry := 0
+	if len(retryNum) > 0 {
+		retry = retryNum[0]
+		if retry >= 3 {
+			utils.AviLog.Errorf("key: %s, msg: UpdateSSORuleStatus retried 3 times, aborting", key)
+			return
+		}
+	}
+
+	patchPayload, _ := json.Marshal(map[string]interface{}{
+		"status": akov1alpha2.SSORuleStatus(updateStatus),
+	})
+
+	_, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().SSORules(sr.Namespace).Patch(context.TODO(), sr.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+	if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the SSORule status: %+v", key, err)
+		updatedSr, err := lib.AKOControlConfig().CRDInformers().SSORuleInformer.Lister().SSORules(sr.Namespace).Get(sr.Name)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: SSORule not found %v", key, err)
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+				UpdateSSORuleStatus(key, updatedSr, updateStatus, retry+1)
+			}
+			return
+		}
+		UpdateSSORuleStatus(key, updatedSr, updateStatus, retry+1)
+	}
+
+	utils.AviLog.Infof("key: %s, msg: Successfully updated the SSORule %s/%s status %+v", key, sr.Namespace, sr.Name, utils.Stringify(updateStatus))
+}
+
+// SSORuleEventBroadcast is responsible for broadcasting SSORule specific events when the VS Cache is Added/Updated/Deleted.
+func SSORuleEventBroadcast(vsName string, vsCacheMetadataOld, vsMetadataNew lib.CRDMetadata) {
+	if vsCacheMetadataOld.Value != vsMetadataNew.Value {
+		oldSRNamespaceName := strings.Split(vsCacheMetadataOld.Value, "/")
+		newSRNamespaceName := strings.Split(vsMetadataNew.Value, "/")
+
+		if len(oldSRNamespaceName) != 2 || len(newSRNamespaceName) != 2 {
+			return
+		}
+
+		oldSSORule, _ := lib.AKOControlConfig().CRDInformers().SSORuleInformer.Lister().SSORules(oldSRNamespaceName[0]).Get(oldSRNamespaceName[1])
+		newSSORule, _ := lib.AKOControlConfig().CRDInformers().SSORuleInformer.Lister().SSORules(newSRNamespaceName[0]).Get(newSRNamespaceName[1])
+		if oldSSORule == nil || newSSORule == nil {
+			return
+		}
+
+		lib.AKOControlConfig().EventRecorder().Eventf(oldSSORule, corev1.EventTypeNormal, lib.Attached, "Configuration removed from VirtualService %s", vsName)
+		lib.AKOControlConfig().EventRecorder().Eventf(newSSORule, corev1.EventTypeNormal, lib.Attached, "Configuration applied to VirtualService %s", vsName)
+	}
+
+	srNamespaceName := strings.Split(vsMetadataNew.Value, "/")
+	if len(srNamespaceName) != 2 {
+		return
+	}
+	ssoRule, _ := lib.AKOControlConfig().CRDInformers().SSORuleInformer.Lister().SSORules(srNamespaceName[0]).Get(srNamespaceName[1])
+	if ssoRule == nil {
+		return
+	}
+
+	if (vsCacheMetadataOld.Status == lib.CRDInactive || vsCacheMetadataOld.Status == "") && vsMetadataNew.Status == lib.CRDActive {
+		// CRD was added, INACTIVE -> ACTIVE transitions
+		lib.AKOControlConfig().EventRecorder().Eventf(ssoRule, corev1.EventTypeNormal, lib.Attached, "Configuration applied to VirtualService %s", vsName)
+	} else if vsCacheMetadataOld.Status == lib.CRDActive && (vsMetadataNew.Status == "" || vsMetadataNew.Status == lib.CRDInactive) {
+		// CRD was removed, ACTIVE -> INACTIVE transitions
+		lib.AKOControlConfig().EventRecorder().Eventf(ssoRule, corev1.EventTypeNormal, lib.Attached, "Configuration removed from VirtualService %s", vsName)
+	}
+}

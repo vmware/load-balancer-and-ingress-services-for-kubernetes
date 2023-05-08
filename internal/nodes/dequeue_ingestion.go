@@ -711,7 +711,7 @@ func handleMultiClusterIngress(key string, fullsync bool, ingressNames []string)
 }
 
 func getIngressNSNameForIngestion(objType, namespace, nsname string) (string, string) {
-	if objType == lib.HostRule || objType == lib.HTTPRule || objType == utils.Secret {
+	if objType == lib.HostRule || objType == lib.HTTPRule || objType == utils.Secret || objType == lib.SSORule {
 		arr := strings.Split(nsname, "/")
 		return arr[0], arr[1]
 	}

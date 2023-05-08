@@ -25,3 +25,11 @@ type L4RuleListerExpansion interface{}
 // L4RuleNamespaceListerExpansion allows custom methods to be added to
 // L4RuleNamespaceLister.
 type L4RuleNamespaceListerExpansion interface{}
+
+// SSORuleListerExpansion allows custom methods to be added to
+// SSORuleLister.
+type SSORuleListerExpansion interface{}
+
+// SSORuleNamespaceListerExpansion allows custom methods to be added to
+// SSORuleNamespaceLister.
+type SSORuleNamespaceListerExpansion interface{}

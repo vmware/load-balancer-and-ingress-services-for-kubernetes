@@ -26,6 +26,8 @@ import (
 type Interface interface {
 	// L4Rules returns a L4RuleInformer.
 	L4Rules() L4RuleInformer
+	// SSORules returns a SSORuleInformer.
+	SSORules() SSORuleInformer
 }
 
 type version struct {
@@ -42,4 +44,9 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // L4Rules returns a L4RuleInformer.
 func (v *version) L4Rules() L4RuleInformer {
 	return &l4RuleInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// SSORules returns a SSORuleInformer.
+func (v *version) SSORules() SSORuleInformer {
+	return &sSORuleInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
