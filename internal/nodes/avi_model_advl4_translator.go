@@ -259,7 +259,12 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 	if isSCTP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
 	} else if isTCP && !isUDP {
-		avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+		license := lib.AKOControlConfig().GetLicenseType()
+		if license == lib.LicenseTypeEnterprise {
+			avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
+		} else {
+			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+		}
 	} else if isUDP && !isTCP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
 	} else {
