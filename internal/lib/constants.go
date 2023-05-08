@@ -23,6 +23,7 @@ const (
 	ANTREA_CNI                = "antrea"
 	NCP_CNI                   = "ncp"
 	OPENSHIFT_CNI             = "openshift"
+	OVN_KUBERNETES_CNI        = "ovn-kubernetes"
 	INGRESS_API               = "INGRESS_API"
 	AviConfigMap              = "avi-k8s-config"
 	AviSecret                 = "avi-secret"

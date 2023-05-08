@@ -16,6 +16,7 @@ package lib
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -274,6 +275,24 @@ func GetPodCIDR(node *v1.Node) ([]string, error) {
 			}
 		}
 
+	} else if GetCNIPlugin() == OVN_KUBERNETES_CNI {
+		subnetAnnotation := "k8s.ovn.org/node-subnets"
+		var nodeSubnets string
+		var found bool
+		if nodeSubnets, found = node.Annotations[subnetAnnotation]; !found {
+			return nil, errors.New("k8s.ovn.org/node-subnets annotation not found in Node Metadata")
+		}
+		var nodeSubnetJson map[string]interface{}
+		err := json.Unmarshal([]byte(nodeSubnets), &nodeSubnetJson)
+		if err != nil {
+			return nil, errors.New("Error while unmarshalling k8s.ovn.org/node-subnets annotation in Node Metadata : " + err.Error())
+		}
+		podCIDR := nodeSubnetJson["default"].(string)
+		if podCIDR == "" {
+			utils.AviLog.Errorf("Error in fetching Pod CIDR from Node Metadata %v", node.ObjectMeta.Name)
+			return nil, errors.New("podcidr not found")
+		}
+		podCIDRs = append(podCIDRs, podCIDR)
 	} else {
 		if podCidrsFromAnnotation, ok := node.Annotations[StaticRouteAnnotation]; ok {
 			podCidrSlice := strings.Split(strings.TrimSpace(podCidrsFromAnnotation), ",")
