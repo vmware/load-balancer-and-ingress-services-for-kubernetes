@@ -277,6 +277,65 @@ func fetchVcenterServer(client *clients.AviClient) (string, error) {
 	return *vc.Name, nil
 }
 
+func updateSEGroup() {
+	clusterIDs, err := lib.GetAvailabilityZonesCRData(lib.GetDynamicClientSet())
+	if err != nil {
+		utils.AviLog.Warnf("Failed to get Availability Zones for the supervisor cluster, err: %s", err.Error())
+		return
+	}
+	// Skip Placement scope reconfig if only 1 AZ CR is present
+	if len(clusterIDs) < 2 {
+		return
+	}
+	client := avirest.InfraAviClientInstance()
+	uri := "/api/serviceenginegroup/?include_name&name=" + lib.GetClusterID()
+	result, err := lib.AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Errorf("SE Group Get uri %v returned err %v", uri, err)
+		return
+	}
+	if result.Count != 1 {
+		utils.AviLog.Warnf("Expected single SE group for uri: %s", uri)
+		return
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+		return
+	}
+
+	seGroup := &models.ServiceEngineGroup{}
+	if err = json.Unmarshal(elems[0], &seGroup); err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal SE group data, err: %v", err)
+		return
+	}
+	include := true
+	vcenterServerName, err := fetchVcenterServer(client)
+	if err != nil {
+		utils.AviLog.Warnf("Error during API call to fetch Vcenter Server Info, err: %s", err.Error())
+		return
+	}
+	vcRef := fmt.Sprintf("/api/vcenterserver/?name=%s", vcenterServerName)
+	if len(seGroup.Vcenters) == 0 {
+		seGroup.Vcenters = make([]*avimodels.PlacementScopeConfig, 1)
+	}
+	seGroup.Vcenters[0] = &avimodels.PlacementScopeConfig{
+		VcenterRef: &vcRef,
+		NsxtClusters: &avimodels.NsxtClusters{
+			ClusterIds: clusterIDs,
+			Include:    &include,
+		},
+	}
+	response := models.ServiceEngineGroupAPIResponse{}
+	uri = "/api/serviceenginegroup/" + *seGroup.UUID
+	err = lib.AviPut(client, uri, seGroup, response)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to update SE group, uri: %s, err: %s", uri, err)
+	}
+	utils.AviLog.Infof("Successfully updated placement scope in SE Group %s", *seGroup.Name)
+}
+
 // ConfigureSeGroup creates the SE group with the supplied properties, alters just the SE group name and the markers.
 func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGroup, segExists bool) bool {
 	var err error
@@ -295,16 +354,11 @@ func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGr
 			return false
 		}
 		vcRef := fmt.Sprintf("/api/vcenterserver/?name=%s", vcenterServerName)
-		clusterIDs, err := lib.GetAvailabilityZonesCRData(lib.GetDynamicClientSet())
-		if err != nil {
-			utils.AviLog.Warnf("Failed to get Availability Zones for the supervisor cluster, err: %s", err.Error())
-			clusterIDs = []string{lib.GetClusterName()}
-		}
 		seGroup.Vcenters = append(seGroup.Vcenters,
 			&avimodels.PlacementScopeConfig{
 				VcenterRef: &vcRef,
 				NsxtClusters: &avimodels.NsxtClusters{
-					ClusterIds: clusterIDs,
+					ClusterIds: []string{lib.GetClusterName()},
 					Include:    &include,
 				},
 			})
