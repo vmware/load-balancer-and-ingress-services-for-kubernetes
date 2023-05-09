@@ -110,6 +110,7 @@ func InitializeAKOInfra() {
 
 	c.AddSecretEventHandler(stopCh)
 	a.SetupSEGroup(transportZone)
+	c.AddAvailabilityZoneCREventHandler(stopCh)
 	avirest.SyncLSLRNetwork()
 	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName)
 	c.AddNetworkInfoEventHandler(stopCh)

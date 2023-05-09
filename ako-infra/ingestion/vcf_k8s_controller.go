@@ -231,6 +231,26 @@ func (c *VCFK8sController) AddConfigMapEventHandler(stopCh <-chan struct{}, star
 	}
 }
 
+func (c *VCFK8sController) AddAvailabilityZoneCREventHandler(stopCh <-chan struct{}) {
+	azEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			utils.AviLog.Info("Availability Zone ADD Event")
+			updateSEGroup()
+		},
+		DeleteFunc: func(obj interface{}) {
+			utils.AviLog.Info("Availability Zone DELETE Event")
+			updateSEGroup()
+		},
+	}
+	c.dynamicInformers.AvailabilityZoneInformer.Informer().AddEventHandler(azEventHandler)
+	go c.dynamicInformers.AvailabilityZoneInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.AvailabilityZoneInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("timed out waiting for availability zones caches to sync"))
+	} else {
+		utils.AviLog.Info("Caches synced for availability zone informer")
+	}
+}
+
 func (c *VCFK8sController) AddNetworkInfoEventHandler(stopCh <-chan struct{}) {
 	networkInfoHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {

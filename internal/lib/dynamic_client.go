@@ -116,6 +116,8 @@ type DynamicInformers struct {
 
 	VCFNetworkInfoInformer    informers.GenericInformer
 	VCFClusterNetworkInformer informers.GenericInformer
+
+	AvailabilityZoneInformer informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
@@ -136,6 +138,7 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 		informers.VCFNetworkInfoInformer = f.ForResource(NetworkInfoGVR)
 		if akoInfra {
 			informers.VCFClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
+			informers.AvailabilityZoneInformer = f.ForResource(AvailabilityZoneVR)
 		}
 	}
 
