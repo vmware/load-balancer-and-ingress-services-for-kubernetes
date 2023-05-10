@@ -846,6 +846,9 @@ func TestHostruleFQDNAliasesForMultiPathIngressEvh(t *testing.T) {
 		return len(nodes[0].EvhNodes)
 	}, 30*time.Second).Should(gomega.Equal(1))
 
+	// Adding a sleep so that the HostRule is applied to the model
+	time.Sleep(5 * time.Second)
+
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 
@@ -871,6 +874,74 @@ func TestHostruleFQDNAliasesForMultiPathIngressEvh(t *testing.T) {
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	TearDownIngressForCacheSyncCheck(t, modelName)
+}
+
+func TestApplyHostruleToParentVS(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName, _ := GetModelName("foo.com", "default")
+	hrname := "hr-cluster--Shared-L7-EVH-0"
+
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+
+	hostrule := integrationtest.FakeHostRule{
+		Name:               hrname,
+		Namespace:          "default",
+		WafPolicy:          "thisisaviref-waf",
+		ApplicationProfile: "thisisaviref-appprof",
+		AnalyticsProfile:   "thisisaviref-analyticsprof",
+		ErrorPageProfile:   "thisisaviref-errorprof",
+		Datascripts:        []string{"thisisaviref-ds2", "thisisaviref-ds1"},
+		HttpPolicySets:     []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
+	}
+	hrObj := hostrule.HostRule()
+	hrObj.Spec.VirtualHost.Fqdn = "Shared-L7-EVH-"
+	hrObj.Spec.VirtualHost.FqdnType = v1alpha1.Contains
+
+	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Create(context.TODO(), hrObj, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding HostRule: %v", err)
+	}
+
+	g.Eventually(func() string {
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"}
+	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/hr-cluster--Shared-L7-EVH-0", true)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.BeTrue())
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(*nodes[0].Enabled).To(gomega.Equal(true))
+	g.Expect(*nodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
+	g.Expect(*nodes[0].ApplicationProfileRef).To(gomega.ContainSubstring("thisisaviref-appprof"))
+	g.Expect(*nodes[0].AnalyticsProfileRef).To(gomega.ContainSubstring("thisisaviref-analyticsprof"))
+	g.Expect(nodes[0].ErrorPageProfileRef).To(gomega.ContainSubstring("thisisaviref-errorprof"))
+	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(2))
+	g.Expect(nodes[0].HttpPolicySetRefs[0]).To(gomega.ContainSubstring("thisisaviref-httpps2"))
+	g.Expect(nodes[0].HttpPolicySetRefs[1]).To(gomega.ContainSubstring("thisisaviref-httpps1"))
+	g.Expect(nodes[0].VsDatascriptRefs).To(gomega.HaveLen(2))
+	g.Expect(nodes[0].VsDatascriptRefs[0]).To(gomega.ContainSubstring("thisisaviref-ds2"))
+	g.Expect(nodes[0].VsDatascriptRefs[1]).To(gomega.ContainSubstring("thisisaviref-ds1"))
+
+	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
+	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/hr-cluster--Shared-L7-EVH-0", false)
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(nodes[0].Enabled).To(gomega.BeNil())
+	g.Expect(nodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(0))
+	g.Expect(*nodes[0].WafPolicyRef).To(gomega.Equal(""))
+	g.Expect(*nodes[0].ApplicationProfileRef).To(gomega.Equal(""))
+	g.Expect(*nodes[0].AnalyticsProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].ErrorPageProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].VsDatascriptRefs).To(gomega.HaveLen(0))
+	g.Expect(*nodes[0].SslProfileRef).To(gomega.Equal(""))
+
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 

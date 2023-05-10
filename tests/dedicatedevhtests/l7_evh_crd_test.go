@@ -28,6 +28,7 @@ import (
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
 	v1alpha2crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned/fake"
@@ -420,5 +421,84 @@ func TestCreateUpdateDeleteSSORuleForEvhInsecure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in deleting my-oauth-secret: %v", err)
 	}
+	TearDownIngressForCacheSyncCheck(t, modelName)
+}
+
+func TestApplyHostruleToDedicatedVS(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName, _ := GetDedicatedModel("foo.com", "default")
+	hrname := "hr-cluster--foo.com-L7-dedicated"
+
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+
+	hostrule := integrationtest.FakeHostRule{
+		Name:               hrname,
+		Namespace:          "default",
+		WafPolicy:          "thisisaviref-waf",
+		ApplicationProfile: "thisisaviref-appprof",
+		AnalyticsProfile:   "thisisaviref-analyticsprof",
+		ErrorPageProfile:   "thisisaviref-errorprof",
+		Datascripts:        []string{"thisisaviref-ds2", "thisisaviref-ds1"},
+		HttpPolicySets:     []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
+	}
+	hrObj := hostrule.HostRule()
+	hrObj.Spec.VirtualHost.Fqdn = "foo.com"
+	hrObj.Spec.VirtualHost.FqdnType = v1alpha1.Contains
+
+	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Create(context.TODO(), hrObj, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding HostRule: %v", err)
+	}
+
+	g.Eventually(func() string {
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--fc94484f7312a22cfb5bcc517b05649e256c24a8-EVH"}
+	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/hr-cluster--foo.com-L7-dedicated", true)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.BeTrue())
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+
+	var evhNode *avinodes.AviEvhVsNode
+	if *isVipPerNS == "true" {
+		evhNode = nodes[0].EvhNodes[0]
+	} else {
+		evhNode = nodes[0]
+	}
+	g.Expect(*evhNode.Enabled).To(gomega.Equal(true))
+	g.Expect(*evhNode.WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
+	g.Expect(*evhNode.ApplicationProfileRef).To(gomega.ContainSubstring("thisisaviref-appprof"))
+	g.Expect(*evhNode.AnalyticsProfileRef).To(gomega.ContainSubstring("thisisaviref-analyticsprof"))
+	g.Expect(evhNode.ErrorPageProfileRef).To(gomega.ContainSubstring("thisisaviref-errorprof"))
+	g.Expect(evhNode.HttpPolicySetRefs).To(gomega.HaveLen(2))
+	g.Expect(evhNode.HttpPolicySetRefs[0]).To(gomega.ContainSubstring("thisisaviref-httpps2"))
+	g.Expect(evhNode.HttpPolicySetRefs[1]).To(gomega.ContainSubstring("thisisaviref-httpps1"))
+	g.Expect(evhNode.VsDatascriptRefs).To(gomega.HaveLen(2))
+	g.Expect(evhNode.VsDatascriptRefs[0]).To(gomega.ContainSubstring("thisisaviref-ds2"))
+	g.Expect(evhNode.VsDatascriptRefs[1]).To(gomega.ContainSubstring("thisisaviref-ds1"))
+
+	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
+	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/hr-cluster--foo.com-L7-dedicated", false)
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	if *isVipPerNS == "true" {
+		evhNode = nodes[0].EvhNodes[0]
+	} else {
+		evhNode = nodes[0]
+	}
+	g.Expect(evhNode.Enabled).To(gomega.BeNil())
+	g.Expect(evhNode.SSLKeyCertAviRef).To(gomega.HaveLen(0))
+	g.Expect(*evhNode.WafPolicyRef).To(gomega.Equal(""))
+	g.Expect(*evhNode.ApplicationProfileRef).To(gomega.Equal(""))
+	g.Expect(*evhNode.AnalyticsProfileRef).To(gomega.Equal(""))
+	g.Expect(evhNode.ErrorPageProfileRef).To(gomega.Equal(""))
+	g.Expect(evhNode.HttpPolicySetRefs).To(gomega.HaveLen(0))
+	g.Expect(evhNode.VsDatascriptRefs).To(gomega.HaveLen(0))
+
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
