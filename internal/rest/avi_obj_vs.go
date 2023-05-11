@@ -175,7 +175,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 
 		// Overwrite datascript policies from hostrule to the Parent VS.
 		if len(vs_meta.VsDatascriptRefs) > 0 {
-			datascriptCollection = make([]*avimodels.VSDataScripts, len(vs_meta.VsDatascriptRefs))
+			datascriptCollection = make([]*avimodels.VSDataScripts, 0, len(vs_meta.VsDatascriptRefs))
 			for i, script := range vs_meta.VsDatascriptRefs {
 				j := int32(i)
 				datascript := script
