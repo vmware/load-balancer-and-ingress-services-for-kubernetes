@@ -16,7 +16,9 @@ package servicesapitests
 
 import (
 	"context"
+	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -1448,4 +1450,124 @@ func TestServicesAPIInfraSettingChangeMapping(t *testing.T) {
 	integrationtest.TeardownAviInfraSetting(t, settingName1)
 	integrationtest.TeardownAviInfraSetting(t, settingName2)
 	VerifyGatewayVSNodeDeletion(g, modelName)
+}
+
+func TestServicesAPINetworkProfileBasedOnLicense(t *testing.T) {
+	// create gwclass, create gw, create 1svc
+	// check graph VsNode vals, check IP status
+	// check whether the `NetworkProfile` is based on the license
+	// remove gwclasss, IP removed
+	g := gomega.NewGomegaWithT(t)
+
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/cluster--default-my-gateway"
+
+	SetupLicense := func(license string) {
+		integrationtest.AviFakeClientInstance = nil
+		integrationtest.AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
+			url := r.URL.EscapedPath()
+			if strings.Contains(url, "/api/systemconfiguration") {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(`{"default_license_tier": "` + license + `"}`))
+				return
+			}
+			integrationtest.NormalControllerServer(w, r)
+		})
+		integrationtest.NewAviFakeClientInstance(KubeClient)
+
+		// Set the license
+		aviRestClientPool := cache.SharedAVIClients()
+		lib.AKOControlConfig().SetLicenseType(aviRestClientPool.AviClient[0])
+	}
+
+	SetupLicense(lib.LicenseTypeEnterprise)
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
+	SetupGateway(t, gatewayName, ns, gwClassName)
+
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
+
+	g.Eventually(func() string {
+		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if len(gw.Status.Addresses) > 0 {
+			return gw.Status.Addresses[0].Value
+		}
+		return ""
+	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
+
+	g.Eventually(func() string {
+		svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), "svc", metav1.GetOptions{})
+		if len(svc.Status.LoadBalancer.Ingress) > 0 {
+			return svc.Status.LoadBalancer.Ingress[0].IP
+		}
+		return ""
+	}, 30*time.Second).Should(gomega.Equal("10.250.250.1"))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8081)))
+	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Port).To(gomega.Equal(uint32(8081)))
+	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Protocol).To(gomega.Equal("TCP"))
+	g.Expect(nodes[0].PoolRefs[0].ServiceMetadata.NamespaceServiceName[0]).To(gomega.Equal("default/svc"))
+	g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/my-gateway"))
+	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(3))
+	g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.DEFAULT_TCP_NW_PROFILE))
+
+	TeardownGatewayClass(t, gwClassName)
+	g.Eventually(func() int {
+		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		return len(gw.Status.Addresses)
+	}, 40*time.Second).Should(gomega.Equal(0))
+
+	TeardownAdvLBService(t, "svc", ns)
+	TeardownGateway(t, gatewayName, ns)
+	VerifyGatewayVSNodeDeletion(g, modelName)
+
+	// Set the license as BASIC and verify the network profile.
+	SetupLicense("BASIC")
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
+	SetupGateway(t, gatewayName, ns, gwClassName)
+
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
+
+	g.Eventually(func() string {
+		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if len(gw.Status.Addresses) > 0 {
+			return gw.Status.Addresses[0].Value
+		}
+		return ""
+	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
+
+	g.Eventually(func() string {
+		svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), "svc", metav1.GetOptions{})
+		if len(svc.Status.LoadBalancer.Ingress) > 0 {
+			return svc.Status.LoadBalancer.Ingress[0].IP
+		}
+		return ""
+	}, 30*time.Second).Should(gomega.Equal("10.250.250.1"))
+
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8081)))
+	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Port).To(gomega.Equal(uint32(8081)))
+	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Protocol).To(gomega.Equal("TCP"))
+	g.Expect(nodes[0].PoolRefs[0].ServiceMetadata.NamespaceServiceName[0]).To(gomega.Equal("default/svc"))
+	g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/my-gateway"))
+	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(3))
+	g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.TCP_NW_FAST_PATH))
+
+	TeardownGatewayClass(t, gwClassName)
+	g.Eventually(func() int {
+		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		return len(gw.Status.Addresses)
+	}, 40*time.Second).Should(gomega.Equal(0))
+
+	TeardownAdvLBService(t, "svc", ns)
+	TeardownGateway(t, gatewayName, ns)
+	VerifyGatewayVSNodeDeletion(g, modelName)
+
+	integrationtest.AviFakeClientInstance.Close()
 }

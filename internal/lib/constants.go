@@ -246,6 +246,9 @@ const (
 	ACCESS_TOKEN_TYPE_JWT          = "ACCESS_TOKEN_TYPE_JWT"
 	ACCESS_TOKEN_TYPE_OPAQUE       = "ACCESS_TOKEN_TYPE_OPAQUE"
 	SAML_AUTHN_REQ_ACS_TYPE_INDEX  = "SAML_AUTHN_REQ_ACS_TYPE_INDEX"
+
+	// License types
+	LicenseTypeEnterprise = "ENTERPRISE"
 )
 
 // Cache Indexer constants.
