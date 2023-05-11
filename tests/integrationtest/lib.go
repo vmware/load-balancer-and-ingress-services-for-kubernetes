@@ -66,6 +66,9 @@ const (
 	DefaultIngressClass = "avi-lb"
 	SSOTypeOAuth        = "OAuth"
 	SSOTypeSAML         = "SAML"
+	SHAREDVIPKEY        = "shared-vip-key"
+	SHAREDVIPSVC01      = "shared-vip-svc-01"
+	SHAREDVIPSVC02      = "shared-vip-svc-02"
 )
 
 var KubeClient *k8sfake.Clientset
