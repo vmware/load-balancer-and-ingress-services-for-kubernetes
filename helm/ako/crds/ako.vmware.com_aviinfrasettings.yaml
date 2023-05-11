@@ -52,6 +52,10 @@ spec:
                     type: boolean
                   enablePublicIP:
                     type: boolean
+                  enableHTTP2:
+                    description: enable HTTP2 on service
+                    type: boolean
+                    default: false
                   bgpPeerLabels:
                     items:
                       type: string

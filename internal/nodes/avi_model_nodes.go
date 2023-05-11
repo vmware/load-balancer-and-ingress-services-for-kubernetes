@@ -1238,6 +1238,7 @@ type AviPortHostProtocol struct {
 	Passthrough bool
 	Redirect    bool
 	EnableSSL   bool
+	EnableHTTP2 bool
 	Name        string
 }
 

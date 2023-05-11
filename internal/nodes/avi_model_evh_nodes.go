@@ -2124,6 +2124,13 @@ func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNo
 		if lib.IsPublicCloud() {
 			vsvip.EnablePublicIP = infraSetting.Spec.Network.EnablePublicIP
 		}
+		if vs.EVHParent && *infraSetting.Spec.Network.EnableHTTP2 {
+			for i, portProto := range vs.PortProto {
+				if portProto.Protocol == utils.HTTP || portProto.Protocol == utils.HTTPS {
+					vs.PortProto[i].EnableHTTP2 = true
+				}
+			}
+		}
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 	}
 }

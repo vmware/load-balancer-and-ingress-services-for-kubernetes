@@ -43,6 +43,7 @@ type AviInfraSettingNetwork struct {
 	VipNetworks    []AviInfraSettingVipNetwork  `json:"vipNetworks,omitempty"`
 	NodeNetworks   []AviInfraSettingNodeNetwork `json:"nodeNetworks,omitempty"`
 	EnableRhi      *bool                        `json:"enableRhi,omitempty"`
+	EnableHTTP2    *bool                        `json:"enableHTTP2,omitempty"`
 	EnablePublicIP *bool                        `json:"enablePublicIP,omitempty"`
 	BgpPeerLabels  []string                     `json:"bgpPeerLabels,omitempty"`
 }

@@ -138,6 +138,11 @@ func (in *AviInfraSettingNetwork) DeepCopyInto(out *AviInfraSettingNetwork) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.EnableHTTP2 != nil {
+		in, out := &in.EnableHTTP2, &out.EnableHTTP2
+		*out = new(bool)
+		**out = **in
+	}
 	if in.EnablePublicIP != nil {
 		in, out := &in.EnablePublicIP, &out.EnablePublicIP
 		*out = new(bool)
