@@ -161,26 +161,32 @@ func DequeueIngestion(key string, fullsync bool) {
 	// L4Rule CRD processing.
 	if objType == lib.L4Rule {
 
-		// L4 Service
 		svcNames, found := schema.GetParentServices(name, namespace, key)
-		if found && utils.CheckIfNamespaceAccepted(namespace) {
-			for _, svcNSNameKey := range svcNames {
-				handleL4Service(utils.L4LBService+"/"+svcNSNameKey, fullsync)
-			}
+		if !found {
+			utils.AviLog.Debugf("key: %s, msg: no service found with L4Rule annotation", key)
+			return
 		}
 
-		// L4 Service with shared vip annotation
-		for _, svc := range svcNames {
-			svcName := strings.Split(svc, "/")[1]
-			sharedVipKeys, keysFound := ServiceChanges(svcName, namespace, key)
-			utils.AviLog.Debugf("key: %s, msg: shared vip keys got %v", key, sharedVipKeys)
-			if len(sharedVipKeys) == 0 {
-				continue
-			}
-			if keysFound && utils.CheckIfNamespaceAccepted(namespace) {
+		if !utils.CheckIfNamespaceAccepted(namespace) {
+			utils.AviLog.Debugf("key: %s, msg: namespace of l4rule is not in accepted state", key)
+			return
+		}
+
+		for _, svcNSNameKey := range svcNames {
+			svcName := strings.Split(svcNSNameKey, "/")[1]
+			if lib.HasSharedVIPAnnotation(svcName, namespace) {
+				// L4 Service with shared vip annotation
+				sharedVipKeys, found := ServiceChanges(svcName, namespace, key)
+				utils.AviLog.Debugf("key: %s, msg: shared vip keys got %v", key, sharedVipKeys)
+				if !found || len(sharedVipKeys) == 0 {
+					continue
+				}
 				for _, sharedVipKey := range sharedVipKeys {
 					handleL4SharedVipService(sharedVipKey, key, fullsync)
 				}
+			} else {
+				// L4 Service
+				handleL4Service(utils.L4LBService+"/"+svcNSNameKey, fullsync)
 			}
 		}
 	}

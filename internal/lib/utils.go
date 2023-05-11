@@ -249,3 +249,12 @@ func CorrectLabelToSatisfyRFC1035(name *string, prefix string) {
 	}
 
 }
+
+func HasSharedVIPAnnotation(svcName, namespace string) bool {
+	svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
+	if err != nil {
+		return false
+	}
+	_, ok := svcObj.Annotations[SharedVipSvcLBAnnotation]
+	return ok
+}
