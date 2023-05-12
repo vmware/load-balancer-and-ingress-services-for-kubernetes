@@ -21,6 +21,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
@@ -486,7 +487,6 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 	avi_vs_meta.AviMarkers = lib.PopulateAdvL4VSNodeMarkers(namespace, sharedVipKey)
 	var portProtocols []AviPortHostProtocol
 	var sharedPreferredVIP string
-	var appProfile string
 	var serviceObject *v1.Service
 	for i, serviceNSName := range serviceNSNames {
 		svcNSName := strings.Split(serviceNSName, "/")
@@ -505,8 +505,8 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 			if infraSettingAnnotation, ok := svcObj.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
 				serviceObject = svcObj.DeepCopy()
 			}
-			if appProfileAnnotation, ok := svcObj.GetAnnotations()[lib.LBSvcAppProfileAnnotation]; ok && appProfileAnnotation != "" {
-				appProfile = appProfileAnnotation
+			if l4RuleName, ok := svcObj.GetAnnotations()[lib.L4RuleAnnotation]; ok && l4RuleName != "" {
+				serviceObject = svcObj.DeepCopy()
 			}
 		}
 
@@ -529,11 +529,7 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 	}
 
 	avi_vs_meta.PortProto = portProtocols
-	if appProfile != "" {
-		avi_vs_meta.ApplicationProfile = appProfile
-	} else {
-		avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
-	}
+	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
 
 	if isSCTP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
@@ -566,6 +562,16 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 		if infraSetting, err := getL4InfraSetting(key, serviceObject, nil); err == nil {
 			buildWithInfraSetting(key, avi_vs_meta, vsVipNode, infraSetting)
 		}
+
+		// Copy the VS properties from L4Rule object
+		if l4Rule, err := getL4Rule(key, serviceObject); err == nil {
+			buildWithL4Rule(key, avi_vs_meta, l4Rule)
+
+			// Copy the LoadBalancerIP if configured in L4Rule CRD.
+			if avi_vs_meta.LoadBalancerIP != nil {
+				vsVipNode.IPAddress = *avi_vs_meta.LoadBalancerIP
+			}
+		}
 	}
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
@@ -583,6 +589,7 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 
 	var l4Policies []*AviL4PolicyNode
 	var infraSetting *v1alpha1.AviInfraSetting
+	var l4Rule *akov1alpha2.L4Rule
 
 	var portPoolSet []AviHostPathPortPoolPG
 	for i, serviceNSName := range serviceNSNames {
@@ -597,6 +604,12 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 			infraSetting, err = getL4InfraSetting(key, svcObj, nil)
 			if err != nil {
 				utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
+				return
+			}
+
+			l4Rule, err = getL4Rule(key, svcObj)
+			if err != nil {
+				utils.AviLog.Warnf("key: %s, msg: Error while fetching l4Rule for Service %s", key, err.Error())
 				return
 			}
 		}
@@ -624,6 +637,8 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 				Port:       port,
 				TargetPort: targetPort,
 			}
+
+			buildPoolWithL4Rule(key, poolNode, l4Rule)
 
 			poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
 

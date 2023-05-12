@@ -1009,3 +1009,102 @@ func TestL4RuleLbAlgorithm(t *testing.T) {
 	TearDownTestForSvcLB(t, g)
 	TeardownL4Rule(t, L4RuleName, NAMESPACE)
 }
+
+func TestSharedVIPSvcWithL4Rule(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	L4RuleName := "test-l4rule"
+	ports := []int{8080}
+	modelName := "admin/cluster--red-ns-" + SHAREDVIPKEY
+
+	SetUpTestForSharedVIPSvcLB(t)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SHAREDVIPKEY)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+
+	// Check for the pools
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(2))
+	addresses := map[string]struct{}{
+		"1.1.1.1": {},
+		"2.1.1.1": {},
+	}
+	for _, poolRef := range nodes[0].PoolRefs {
+		ipAddr := poolRef.Servers[0].Ip.Addr
+		delete(addresses, *ipAddr)
+	}
+	g.Expect(addresses).To(gomega.HaveLen(0))
+
+	// Create the L4Rule
+	SetupL4Rule(t, L4RuleName, NAMESPACE, ports)
+
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	// Apply the L4Rule to first Service
+	svcObj01 := (FakeService{
+		Name:         SHAREDVIPSVC01,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+	svcObj01.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName, lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
+	svcObj01.ResourceVersion = "2"
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj01, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	// Apply the L4Rule to second Service
+	svcObj02 := (FakeService{
+		Name:         SHAREDVIPSVC02,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+	svcObj01.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName, lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
+	svcObj02.ResourceVersion = "2"
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj02, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return false
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return g.Expect(nodes[0].AviVsNodeCommonFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].AviVsNodeGeneratedFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolCommonFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolGeneratedFields).NotTo(gomega.BeZero())
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	l4Rule := FakeL4Rule{
+		Name:      L4RuleName,
+		Namespace: NAMESPACE,
+		Ports:     ports,
+	}
+	obj := l4Rule.L4Rule()
+
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+
+	validateCRDValues(t, g, obj.Spec, nodes[0].AviVsNodeGeneratedFields, nodes[0].AviVsNodeCommonFields)
+
+	validateCRDValues(t, g, obj.Spec.BackendProperties[0],
+		nodes[0].PoolRefs[0].AviPoolGeneratedFields, nodes[0].PoolRefs[0].AviPoolCommonFields)
+
+	TearDownTestForSharedVIPSvcLB(t, g)
+	TeardownL4Rule(t, L4RuleName, NAMESPACE)
+}
