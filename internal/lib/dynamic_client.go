@@ -276,7 +276,7 @@ func GetPodCIDR(node *v1.Node) ([]string, error) {
 		}
 
 	} else if GetCNIPlugin() == OVN_KUBERNETES_CNI {
-		subnetAnnotation := "k8s.ovn.org/node-subnets"
+		subnetAnnotation := OVNNodeSubnetAnnotation
 		var nodeSubnets string
 		var found bool
 		if nodeSubnets, found = node.Annotations[subnetAnnotation]; !found {

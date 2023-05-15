@@ -230,6 +230,7 @@ const (
 	SkipNodePortAnnotation         = "skipnodeport.ako.vmware.com/enabled"
 	PassthroughAnnotation          = "passthrough.ako.vmware.com/enabled"
 	StaticRouteAnnotation          = "ako.vmware.com/pod-cidrs"
+	OVNNodeSubnetAnnotation        = "k8s.ovn.org/node-subnets"
 	WCPSEGroup                     = "ako.vmware.com/wcp-se-group"
 	WCPCloud                       = "ako.vmware.com/wcp-cloud-name"
 	VSAnnotation                   = "ako.vmware.com/host-fqdn-vs-uuid-map"
