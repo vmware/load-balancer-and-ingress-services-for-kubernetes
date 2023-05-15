@@ -31,6 +31,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/jinzhu/copier"
 	avimodels "github.com/vmware/alb-sdk/go/models"
 )
 
@@ -95,9 +96,9 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		CloudRef:                &cloudRef,
 		ServiceMetadata:         &svc_mdata,
 		SniEnabled:              &pool_meta.SniEnabled,
-		SslProfileRef:           &pool_meta.SslProfileRef,
-		SslKeyAndCertificateRef: &pool_meta.SslKeyAndCertificateRef,
-		PkiProfileRef:           &pool_meta.PkiProfileRef,
+		SslProfileRef:           pool_meta.SslProfileRef,
+		SslKeyAndCertificateRef: pool_meta.SslKeyAndCertificateRef,
+		PkiProfileRef:           pool_meta.PkiProfileRef,
 		PlacementNetworks:       placementNetworks,
 	}
 
@@ -123,18 +124,18 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	}
 
 	// there are defaults set by the Avi controller internally
-	if pool_meta.LbAlgorithm != "" {
-		pool.LbAlgorithm = &pool_meta.LbAlgorithm
+	if pool_meta.LbAlgorithm != nil {
+		pool.LbAlgorithm = pool_meta.LbAlgorithm
 	}
-	if pool_meta.LbAlgorithmHash != "" {
-		pool.LbAlgorithmHash = &pool_meta.LbAlgorithmHash
+	if pool_meta.LbAlgorithmHash != nil {
+		pool.LbAlgorithmHash = pool_meta.LbAlgorithmHash
 		if *pool.LbAlgorithmHash == lib.LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER {
-			pool.LbAlgorithmConsistentHashHdr = &pool_meta.LbAlgoHostHeader
+			pool.LbAlgorithmConsistentHashHdr = pool_meta.LbAlgorithmConsistentHashHdr
 		}
 	}
 
-	if pool_meta.ApplicationPersistence != "" {
-		pool.ApplicationPersistenceProfileRef = &pool_meta.ApplicationPersistence
+	if pool_meta.ApplicationPersistenceProfileRef != nil {
+		pool.ApplicationPersistenceProfileRef = pool_meta.ApplicationPersistenceProfileRef
 	}
 
 	for i, server := range pool_meta.Servers {
@@ -153,8 +154,8 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	}
 
 	// overwrite with healthmonitors provided by CRD
-	if len(pool_meta.HealthMonitors) > 0 {
-		pool.HealthMonitorRefs = pool_meta.HealthMonitors
+	if len(pool_meta.HealthMonitorRefs) > 0 {
+		pool.HealthMonitorRefs = pool_meta.HealthMonitorRefs
 	} else {
 		var hm string
 		if pool_meta.Protocol == utils.UDP {
@@ -166,6 +167,8 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		}
 		pool.HealthMonitorRefs = append(pool.HealthMonitorRefs, hm)
 	}
+
+	copier.Copy(&pool, &pool_meta.AviPoolGeneratedFields)
 
 	// TODO Version should be latest from configmap
 	var path string

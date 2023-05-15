@@ -158,6 +158,39 @@ func DequeueIngestion(key string, fullsync bool) {
 		}
 	}
 
+	// L4Rule CRD processing.
+	if objType == lib.L4Rule {
+
+		svcNames, found := schema.GetParentServices(name, namespace, key)
+		if !found {
+			utils.AviLog.Debugf("key: %s, msg: no service found with L4Rule annotation", key)
+			return
+		}
+
+		if !utils.CheckIfNamespaceAccepted(namespace) {
+			utils.AviLog.Debugf("key: %s, msg: namespace of l4rule is not in accepted state", key)
+			return
+		}
+
+		for _, svcNSNameKey := range svcNames {
+			svcName := strings.Split(svcNSNameKey, "/")[1]
+			if lib.HasSharedVIPAnnotation(svcName, namespace) {
+				// L4 Service with shared vip annotation
+				sharedVipKeys, found := ServiceChanges(svcName, namespace, key)
+				utils.AviLog.Debugf("key: %s, msg: shared vip keys got %v", key, sharedVipKeys)
+				if !found || len(sharedVipKeys) == 0 {
+					continue
+				}
+				for _, sharedVipKey := range sharedVipKeys {
+					handleL4SharedVipService(sharedVipKey, key, fullsync)
+				}
+			} else {
+				// L4 Service
+				handleL4Service(utils.L4LBService+"/"+svcNSNameKey, fullsync)
+			}
+		}
+	}
+
 	if !ingressFound && !lib.IsWCP() && !mciFound {
 		// If ingress is not found, let's do the other checks.
 		if objType == lib.SharedVipServiceKey {
@@ -531,7 +564,7 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 	// of Type LB. Two Services must not have different AviInfraSetting annotation value.
 	var sharedVipLBIP string
 	var sharedVipInfraSetting string
-	var appProfile string
+	var sharedL4Rule string
 	for i, serviceNSName := range serviceNSNames {
 		svcNSName := strings.Split(serviceNSName, "/")
 		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(svcNSName[0]).Get(svcNSName[1])
@@ -553,8 +586,8 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 			if infraSettingAnnotation, ok := svcObj.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
 				sharedVipInfraSetting = infraSettingAnnotation
 			}
-			if appProfileAnnotation, ok := svcObj.GetAnnotations()[lib.LBSvcAppProfileAnnotation]; ok && appProfileAnnotation != "" {
-				appProfile = appProfileAnnotation
+			if l4RuleName, ok := svcObj.GetAnnotations()[lib.L4RuleAnnotation]; ok && l4RuleName != "" {
+				sharedL4Rule = l4RuleName
 			}
 		}
 		if lib.HasSpecLoadBalancerIP(svcObj) {
@@ -577,9 +610,9 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 			isShareVipKeyDelete = true
 			break
 		}
-		appProfileAnnotation, _ := svcObj.GetAnnotations()[lib.LBSvcAppProfileAnnotation]
-		if i != 0 && appProfileAnnotation != appProfile {
-			utils.AviLog.Errorf("Service application-profile annotation value is not consistent with Services grouped using shared-vip annotation. Conflict found for Services [%s: %s %s: %s]", serviceNSName, infraSettingAnnotation, serviceNSNames[0], sharedVipInfraSetting)
+		l4RuleName := svcObj.GetAnnotations()[lib.L4RuleAnnotation]
+		if i != 0 && l4RuleName != sharedL4Rule {
+			utils.AviLog.Errorf("L4Rule annotation value is not consistent with Services grouped using shared-vip annotation. Conflict found for Services [%s: %s %s: %s]", serviceNSName, l4RuleName, serviceNSNames[0], sharedL4Rule)
 			isShareVipKeyDelete = true
 			break
 		}
@@ -701,7 +734,7 @@ func handleMultiClusterIngress(key string, fullsync bool, ingressNames []string)
 }
 
 func getIngressNSNameForIngestion(objType, namespace, nsname string) (string, string) {
-	if objType == lib.HostRule || objType == lib.HTTPRule || objType == utils.Secret {
+	if objType == lib.HostRule || objType == lib.HTTPRule || objType == utils.Secret || objType == lib.SSORule {
 		arr := strings.Split(nsname, "/")
 		return arr[0], arr[1]
 	}

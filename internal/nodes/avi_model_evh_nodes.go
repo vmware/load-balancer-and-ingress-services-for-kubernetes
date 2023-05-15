@@ -63,23 +63,26 @@ type AviVsEvhSniModel interface {
 	GetSSLKeyCertAviRef() []string
 	SetSSLKeyCertAviRef([]string)
 
-	GetWafPolicyRef() string
-	SetWafPolicyRef(string)
+	GetWafPolicyRef() *string
+	SetWafPolicyRef(*string)
 
 	GetHttpPolicySetRefs() []string
 	SetHttpPolicySetRefs([]string)
 
-	GetAppProfileRef() string
-	SetAppProfileRef(string)
+	GetAppProfileRef() *string
+	SetAppProfileRef(*string)
 
-	GetAnalyticsProfileRef() string
-	SetAnalyticsProfileRef(string)
+	GetICAPProfileRefs() []string
+	SetICAPProfileRefs([]string)
+
+	GetAnalyticsProfileRef() *string
+	SetAnalyticsProfileRef(*string)
 
 	GetErrorPageProfileRef() string
 	SetErrorPageProfileRef(string)
 
-	GetSSLProfileRef() string
-	SetSSLProfileRef(string)
+	GetSSLProfileRef() *string
+	SetSSLProfileRef(*string)
 
 	GetVsDatascriptRefs() []string
 	SetVsDatascriptRefs([]string)
@@ -95,6 +98,9 @@ type AviVsEvhSniModel interface {
 
 	GetVHDomainNames() []string
 	SetVHDomainNames([]string)
+
+	GetGeneratedFields() *AviVsNodeGeneratedFields
+	GetCommonFields() *AviVsNodeCommonFields
 }
 
 type AviEvhVsNode struct {
@@ -128,18 +134,17 @@ type AviEvhVsNode struct {
 	TLSType             string
 	ServiceMetadata     lib.ServiceMetadataObj
 	VrfContext          string
-	WafPolicyRef        string
-	AppProfileRef       string
-	AnalyticsProfileRef string
+	ICAPProfileRefs     []string
 	ErrorPageProfileRef string
 	HttpPolicySetRefs   []string
-	VsDatascriptRefs    []string
-	SSLProfileRef       string
 	SSLKeyCertAviRef    []string
 	Paths               []string
 	IngressNames        []string
-	AnalyticsPolicy     *avimodels.AnalyticsPolicy
 	Dedicated           bool
+
+	AviVsNodeCommonFields
+
+	AviVsNodeGeneratedFields
 }
 
 // Implementing AviVsEvhSniModel
@@ -216,11 +221,11 @@ func (v *AviEvhVsNode) SetSSLKeyCertAviRef(sslKeyCertAviRef []string) {
 	v.SSLKeyCertAviRef = sslKeyCertAviRef
 }
 
-func (v *AviEvhVsNode) GetWafPolicyRef() string {
+func (v *AviEvhVsNode) GetWafPolicyRef() *string {
 	return v.WafPolicyRef
 }
 
-func (v *AviEvhVsNode) SetWafPolicyRef(wafPolicyRef string) {
+func (v *AviEvhVsNode) SetWafPolicyRef(wafPolicyRef *string) {
 	v.WafPolicyRef = wafPolicyRef
 }
 
@@ -232,36 +237,44 @@ func (v *AviEvhVsNode) SetHttpPolicySetRefs(httpPolicySetRefs []string) {
 	v.HttpPolicySetRefs = httpPolicySetRefs
 }
 
-func (v *AviEvhVsNode) GetAppProfileRef() string {
-	return v.AppProfileRef
+func (v *AviEvhVsNode) GetAppProfileRef() *string {
+	return v.ApplicationProfileRef
 }
 
-func (v *AviEvhVsNode) SetAppProfileRef(appProfileRef string) {
-	v.AppProfileRef = appProfileRef
+func (v *AviEvhVsNode) SetAppProfileRef(applicationProfileRef *string) {
+	v.ApplicationProfileRef = applicationProfileRef
 }
 
-func (v *AviEvhVsNode) GetAnalyticsProfileRef() string {
+func (v *AviEvhVsNode) GetICAPProfileRefs() []string {
+	return v.ICAPProfileRefs
+}
+
+func (v *AviEvhVsNode) SetICAPProfileRefs(ICAPProfileRef []string) {
+	v.ICAPProfileRefs = ICAPProfileRef
+}
+
+func (v *AviEvhVsNode) GetAnalyticsProfileRef() *string {
 	return v.AnalyticsProfileRef
 }
 
-func (v *AviEvhVsNode) SetAnalyticsProfileRef(AnalyticsProfileRef string) {
-	v.AnalyticsProfileRef = AnalyticsProfileRef
+func (v *AviEvhVsNode) SetAnalyticsProfileRef(analyticsProfileRef *string) {
+	v.AnalyticsProfileRef = analyticsProfileRef
 }
 
 func (v *AviEvhVsNode) GetErrorPageProfileRef() string {
 	return v.ErrorPageProfileRef
 }
 
-func (v *AviEvhVsNode) SetErrorPageProfileRef(ErrorPageProfileRef string) {
-	v.ErrorPageProfileRef = ErrorPageProfileRef
+func (v *AviEvhVsNode) SetErrorPageProfileRef(errorPageProfileRef string) {
+	v.ErrorPageProfileRef = errorPageProfileRef
 }
 
-func (v *AviEvhVsNode) GetSSLProfileRef() string {
-	return v.SSLProfileRef
+func (v *AviEvhVsNode) GetSSLProfileRef() *string {
+	return v.SslProfileRef
 }
 
-func (v *AviEvhVsNode) SetSSLProfileRef(SSLProfileRef string) {
-	v.SSLProfileRef = SSLProfileRef
+func (v *AviEvhVsNode) SetSSLProfileRef(SSLProfileRef *string) {
+	v.SslProfileRef = SSLProfileRef
 }
 
 func (v *AviEvhVsNode) GetVsDatascriptRefs() []string {
@@ -307,6 +320,14 @@ func (v *AviEvhVsNode) GetVHDomainNames() []string {
 
 func (v *AviEvhVsNode) SetVHDomainNames(domainNames []string) {
 	v.VHDomainNames = domainNames
+}
+
+func (v *AviEvhVsNode) GetGeneratedFields() *AviVsNodeGeneratedFields {
+	return &v.AviVsNodeGeneratedFields
+}
+
+func (v *AviEvhVsNode) GetCommonFields() *AviVsNodeCommonFields {
+	return &v.AviVsNodeCommonFields
 }
 
 func (o *AviObjectGraph) GetAviEvhVS() []*AviEvhVsNode {
@@ -488,7 +509,7 @@ func (vsNode *AviEvhVsNode) DeleteSSLPort(key string) {
 // TODO: Next PR opt: make part of Avivs model interface
 func (vsNode *AviEvhVsNode) DeletSSLRefInDedicatedNode(key string) {
 	vsNode.SSLKeyCertRefs = []*AviTLSKeyCertNode{}
-	vsNode.SSLProfileRef = ""
+	vsNode.SslProfileRef = nil
 	vsNode.CACertRefs = []*AviTLSKeyCertNode{}
 }
 
@@ -612,12 +633,27 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 	// keep the order of these policies
 	policies := v.HttpPolicySetRefs
 	scripts := v.VsDatascriptRefs
+	icaprefs := v.ICAPProfileRefs
 
-	vsRefs := v.WafPolicyRef +
-		v.AppProfileRef +
-		v.AnalyticsProfileRef +
-		v.ErrorPageProfileRef +
-		v.SSLProfileRef
+	var vsRefs string
+
+	if v.WafPolicyRef != nil {
+		vsRefs += *v.WafPolicyRef
+	}
+
+	if v.ApplicationProfileRef != nil {
+		vsRefs += *v.ApplicationProfileRef
+	}
+
+	if v.AnalyticsProfileRef != nil {
+		vsRefs += *v.AnalyticsProfileRef
+	}
+
+	vsRefs += v.ErrorPageProfileRef
+
+	if v.SslProfileRef != nil {
+		vsRefs += *v.SslProfileRef
+	}
 
 	if len(scripts) > 0 {
 		vsRefs += utils.Stringify(scripts)
@@ -625,6 +661,10 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 
 	if len(policies) > 0 {
 		vsRefs += utils.Stringify(policies)
+	}
+
+	if len(icaprefs) > 0 {
+		vsRefs += utils.Stringify(icaprefs)
 	}
 
 	sort.Strings(checksumStringSlice)
@@ -652,6 +692,8 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 	if v.AnalyticsPolicy != nil {
 		checksum += lib.GetAnalyticsPolicyChecksum(v.AnalyticsPolicy)
 	}
+
+	checksum += v.AviVsNodeGeneratedFields.CalculateCheckSumOfGeneratedCode()
 
 	v.CloudConfigCksum = checksum
 }
@@ -1083,6 +1125,8 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 	}
 	// build host rule for insecure ingress in evh
 	BuildL7HostRule(host, key, evhNode)
+	// build SSORule for insecure ingress in evh
+	BuildL7SSORule(host, key, evhNode)
 	if !isDedicated {
 		manipulateEvhNodeForSSL(key, vsNode[0], evhNode)
 	}
@@ -1460,6 +1504,8 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 		}
 		// Enable host rule
 		BuildL7HostRule(host, key, evhNode)
+		// build SSORule for secure ingress in evh
+		BuildL7SSORule(host, key, evhNode)
 		if !isDedicated {
 			manipulateEvhNodeForSSL(key, vsNode[0], evhNode)
 		}
@@ -2092,9 +2138,12 @@ func DeleteDedicatedEvhVSNode(vsNode *AviEvhVsNode, key string, hostsToRemove []
 func manipulateEvhNodeForSSL(key string, vsNode *AviEvhVsNode, evhNode *AviEvhVsNode) {
 	oldSSLProfile := vsNode.GetSSLProfileRef()
 	newSSLProfile := evhNode.GetSSLProfileRef()
-	if oldSSLProfile != "" && oldSSLProfile != newSSLProfile {
-		utils.AviLog.Warnf("key: %s msg: overwriting old ssl profile %s with new ssl profile %s", key, oldSSLProfile, newSSLProfile)
+	if oldSSLProfile != nil &&
+		*oldSSLProfile != "" &&
+		newSSLProfile != nil &&
+		*oldSSLProfile != *newSSLProfile {
+		utils.AviLog.Warnf("key: %s msg: overwriting old ssl profile %s with new ssl profile %s", key, *oldSSLProfile, *newSSLProfile)
 	}
 	vsNode.SetSSLProfileRef(newSSLProfile)
-	evhNode.SetSSLProfileRef("")
+	evhNode.SetSSLProfileRef(nil)
 }

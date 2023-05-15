@@ -6,10 +6,12 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/apparentlymart/go-cidr v1.1.0
 	github.com/davecgh/go-spew v1.1.1
+	github.com/fatih/structs v1.1.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/go-logr/logr v0.4.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/gorilla/mux v1.8.0
+	github.com/jinzhu/copier v0.3.5
 	github.com/onsi/gomega v1.14.0
 	github.com/openshift/api v0.0.0-20201019163320-c6a5ec25f267
 	github.com/openshift/client-go v0.0.0-20201020082437-7737f16e53fc
@@ -17,6 +19,7 @@ require (
 	github.com/vmware/alb-sdk v0.0.0-20230202152455-af9d49bac7ea
 	go.uber.org/zap v1.18.1
 	golang.org/x/crypto v0.0.0-20220314234659-1baeb1ce4c0b
+	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 	google.golang.org/protobuf v1.26.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	istio.io/client-go v1.10.0
@@ -39,7 +42,7 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/go-cmp v0.5.5 // indirect
+	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.1.2 // indirect
 	github.com/googleapis/gnostic v0.5.5 // indirect
@@ -70,6 +73,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20220521103104-8f96da9f5d5e // indirect
 	istio.io/api v0.0.0-20210512213424-c42041d3366d // indirect
 	istio.io/gogo-genproto v0.0.0-20210113155706-4daf5697332f // indirect
+	k8s.io/code-generator v0.21.3 // indirect
 	k8s.io/component-base v0.21.3 // indirect
 	k8s.io/kube-openapi v0.0.0-20210305001622-591a79e4bda7 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect

@@ -37,6 +37,8 @@ func SharedCRDLister() *CRDLister {
 			SharedVSModelFqdnCache: NewObjectMapStore(),
 			FqdnFqdnTypeCache:      NewObjectMapStore(),
 			FQDNToAliasesCache:     NewObjectMapStore(),
+			FqdnSSORuleCache:       NewObjectMapStore(),
+			SSORuleFQDNCache:       NewObjectMapStore(),
 		}
 	})
 	return CRDinstance
@@ -75,6 +77,13 @@ type CRDLister struct {
 
 	// fqdn: alias1.com, alias2.com
 	FQDNToAliasesCache *ObjectMapStore
+
+	// TODO: can be removed once we move to indexers
+	// fqdn.com: hr1
+	FqdnSSORuleCache *ObjectMapStore
+
+	// hr1: fqdn.com - required for httprule
+	SSORuleFQDNCache *ObjectMapStore
 }
 
 // FqdnHostRuleCache
@@ -315,4 +324,40 @@ func (c *CRDLister) UpdateFQDNToAliasesMappings(fqdn string, aliases []string) {
 
 func (c *CRDLister) DeleteFQDNToAliasesMapping(fqdn string) bool {
 	return c.FQDNToAliasesCache.Delete(fqdn)
+}
+
+// FqdnSSORuleCache
+func (c *CRDLister) GetFQDNToSSORuleMapping(fqdn string) (bool, string) {
+	found, ssoRule := c.FqdnSSORuleCache.Get(fqdn)
+	if !found {
+		return false, ""
+	}
+	return true, ssoRule.(string)
+}
+
+func (c *CRDLister) GetSSORuleToFQDNMapping(ssoRule string) (bool, string) {
+	found, fqdn := c.SSORuleFQDNCache.Get(ssoRule)
+	if !found {
+		return false, ""
+	}
+	return true, fqdn.(string)
+}
+
+func (c *CRDLister) DeleteSSORuleFQDNMapping(ssoRule string) bool {
+	c.NSLock.Lock()
+	defer c.NSLock.Unlock()
+	found, fqdn := c.SSORuleFQDNCache.Get(ssoRule)
+	if found {
+		success1 := c.SSORuleFQDNCache.Delete(ssoRule)
+		success2 := c.FqdnSSORuleCache.Delete(fqdn.(string))
+		return success1 && success2
+	}
+	return true
+}
+
+func (c *CRDLister) UpdateFQDNSSORuleMapping(fqdn string, ssoRule string) {
+	c.NSLock.Lock()
+	defer c.NSLock.Unlock()
+	c.FqdnSSORuleCache.AddOrUpdate(fqdn, ssoRule)
+	c.SSORuleFQDNCache.AddOrUpdate(ssoRule, fqdn)
 }

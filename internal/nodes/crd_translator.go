@@ -19,11 +19,14 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/jinzhu/copier"
 	"github.com/vmware/alb-sdk/go/models"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -58,6 +61,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	var vsSslKeyCertificates []string
 	var vsEnabled *bool
 	var crdStatus lib.CRDMetadata
+	var vsICAPProfile []string
 
 	// Initializing the values of vsHTTPPolicySets and vsDatascripts, using a nil value would impact the value of VS checksum
 	vsHTTPPolicySets := []string{}
@@ -97,6 +101,9 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 			vsAppProfile = fmt.Sprintf("/api/applicationprofile?name=%s", hostrule.Spec.VirtualHost.ApplicationProfile)
 		}
 
+		if len(hostrule.Spec.VirtualHost.ICAPProfile) != 0 {
+			vsICAPProfile = []string{fmt.Sprintf("/api/icapprofile?name=%s", hostrule.Spec.VirtualHost.ICAPProfile[0])}
+		}
 		if hostrule.Spec.VirtualHost.ErrorPageProfile != "" {
 			vsErrorPageProfile = fmt.Sprintf("/api/errorpageprofile?name=%s", hostrule.Spec.VirtualHost.ErrorPageProfile)
 		}
@@ -180,12 +187,13 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	}
 
 	vsNode.SetSSLKeyCertAviRef(vsSslKeyCertificates)
-	vsNode.SetWafPolicyRef(vsWafPolicy)
+	vsNode.SetWafPolicyRef(&vsWafPolicy)
 	vsNode.SetHttpPolicySetRefs(vsHTTPPolicySets)
-	vsNode.SetAppProfileRef(vsAppProfile)
-	vsNode.SetAnalyticsProfileRef(vsAnalyticsProfile)
+	vsNode.SetICAPProfileRefs(vsICAPProfile)
+	vsNode.SetAppProfileRef(&vsAppProfile)
+	vsNode.SetAnalyticsProfileRef(&vsAnalyticsProfile)
 	vsNode.SetErrorPageProfileRef(vsErrorPageProfile)
-	vsNode.SetSSLProfileRef(vsSslProfile)
+	vsNode.SetSSLProfileRef(&vsSslProfile)
 	vsNode.SetVsDatascriptRefs(vsDatascripts)
 	vsNode.SetEnabled(vsEnabled)
 	vsNode.SetAnalyticsPolicy(analyticsPolicy)
@@ -249,7 +257,7 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 			pathSslProfile := pool.SslProfileRef
 			pathPkiProfile := pool.PkiProfileRef
 			destinationCertNode := pool.PkiProfile
-			pathHMs := pool.HealthMonitors
+			pathHMs := pool.HealthMonitorRefs
 			if poolPath == "" && path == "/" {
 				// In case of openfhit Route, the path could be empty, in that case, treat
 				// httprule targt path / as that of empty path, to match the pool appropriately.
@@ -282,9 +290,9 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 				if httpRulePath.TLS.Type != "" {
 					isPathSniEnabled = true
 					if httpRulePath.TLS.SSLProfile != "" {
-						pathSslProfile = fmt.Sprintf("/api/sslprofile?name=%s", httpRulePath.TLS.SSLProfile)
+						pathSslProfile = proto.String(fmt.Sprintf("/api/sslprofile?name=%s", httpRulePath.TLS.SSLProfile))
 					} else {
-						pathSslProfile = fmt.Sprintf("/api/sslprofile?name=%s", lib.DefaultPoolSSLProfile)
+						pathSslProfile = proto.String(fmt.Sprintf("/api/sslprofile?name=%s", lib.DefaultPoolSSLProfile))
 					}
 
 					if httpRulePath.TLS.DestinationCA != "" {
@@ -299,13 +307,13 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 					}
 
 					if httpRulePath.TLS.PKIProfile != "" {
-						pathPkiProfile = fmt.Sprintf("/api/pkiprofile?name=%s", httpRulePath.TLS.PKIProfile)
+						pathPkiProfile = proto.String(fmt.Sprintf("/api/pkiprofile?name=%s", httpRulePath.TLS.PKIProfile))
 					}
 				}
 
-				var persistenceProfile string
+				var persistenceProfile *string
 				if httpRulePath.ApplicationPersistence != "" {
-					persistenceProfile = fmt.Sprintf("/api/applicationpersistenceprofile?name=%s", httpRulePath.ApplicationPersistence)
+					persistenceProfile = proto.String(fmt.Sprintf("/api/applicationpersistenceprofile?name=%s", httpRulePath.ApplicationPersistence))
 				}
 
 				for _, hm := range httpRulePath.HealthMonitors {
@@ -318,16 +326,18 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 				pool.SslProfileRef = pathSslProfile
 				pool.PkiProfileRef = pathPkiProfile
 				pool.PkiProfile = destinationCertNode
-				pool.HealthMonitors = pathHMs
-				pool.ApplicationPersistence = persistenceProfile
+				pool.HealthMonitorRefs = pathHMs
+				pool.ApplicationPersistenceProfileRef = persistenceProfile
 
 				// from this path, generate refs to this pool node
-				pool.LbAlgorithm = httpRulePath.LoadBalancerPolicy.Algorithm
-				if pool.LbAlgorithm == lib.LB_ALGORITHM_CONSISTENT_HASH {
-					pool.LbAlgorithmHash = httpRulePath.LoadBalancerPolicy.Hash
-					if pool.LbAlgorithmHash == lib.LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER {
+				pool.LbAlgorithm = proto.String(httpRulePath.LoadBalancerPolicy.Algorithm)
+				if pool.LbAlgorithm != nil &&
+					*pool.LbAlgorithm == lib.LB_ALGORITHM_CONSISTENT_HASH {
+					pool.LbAlgorithmHash = proto.String(httpRulePath.LoadBalancerPolicy.Hash)
+					if pool.LbAlgorithmHash != nil &&
+						*pool.LbAlgorithmHash == lib.LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER {
 						if httpRulePath.LoadBalancerPolicy.HostHeader != "" {
-							pool.LbAlgoHostHeader = httpRulePath.LoadBalancerPolicy.HostHeader
+							pool.LbAlgorithmConsistentHashHdr = proto.String(httpRulePath.LoadBalancerPolicy.HostHeader)
 						} else {
 							utils.AviLog.Warnf("key: %s, HostHeader is not provided for LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER", key)
 						}
@@ -350,4 +360,101 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 		}
 	}
 
+}
+
+func BuildL7SSORule(host, key string, vsNode AviVsEvhSniModel) {
+	// use host to find out SSORule CRD if it exists
+	// The host that comes here will have a proper FQDN, either from the Ingress/Route (foo.com)
+
+	found, srNamespaceName := objects.SharedCRDLister().GetFQDNToSSORuleMapping(host)
+	deleteCase := false
+	if !found {
+		utils.AviLog.Debugf("key: %s, msg: No SSORule found for virtualhost: %s in Cache", key, host)
+		deleteCase = true
+	}
+
+	var err error
+	var srNSName []string
+	var ssoRule *akov1alpha2.SSORule
+	if !deleteCase {
+		srNSName = strings.Split(srNamespaceName, "/")
+		ssoRule, err = lib.AKOControlConfig().CRDInformers().SSORuleInformer.Lister().SSORules(srNSName[0]).Get(srNSName[1])
+		if err != nil {
+			utils.AviLog.Debugf("key: %s, msg: No SSORule found for virtualhost: %s msg: %v", key, host, err)
+			deleteCase = true
+		} else if ssoRule.Status.Status == lib.StatusRejected {
+			// do not apply a rejected SSORule, this way the VS would retain
+			return
+		}
+	}
+	var crdStatus lib.CRDMetadata
+
+	if !deleteCase {
+		copier.CopyWithOption(vsNode, &ssoRule.Spec, copier.Option{DeepCopy: true})
+		//setting the fqdn to nil so that fqdn for child vs is not populated
+		generatedFields := vsNode.GetGeneratedFields()
+		generatedFields.Fqdn = nil
+		generatedFields.ConvertToRef()
+		if ssoRule.Spec.OauthVsConfig != nil {
+			if len(ssoRule.Spec.OauthVsConfig.OauthSettings) != 0 {
+				for i, oauthSetting := range ssoRule.Spec.OauthVsConfig.OauthSettings {
+					if oauthSetting.AppSettings != nil {
+						// getting clientSecret from k8s secret
+						clientSecretObj, err := utils.GetInformers().SecretInformer.Lister().Secrets(ssoRule.Namespace).Get(*oauthSetting.AppSettings.ClientSecret)
+						if err != nil || clientSecretObj == nil {
+							utils.AviLog.Errorf("key: %s, msg: Client secret not found for ssoRule obj: %s msg: %v", key, *oauthSetting.AppSettings.ClientSecret, err)
+							return
+						}
+						clientSecretString := string(clientSecretObj.Data["clientSecret"])
+						generatedFields.OauthVsConfig.OauthSettings[i].AppSettings.ClientSecret = &clientSecretString
+					}
+					if oauthSetting.ResourceServer != nil {
+						if oauthSetting.ResourceServer.OpaqueTokenParams != nil {
+							// getting serverSecret from k8s secret
+							serverSecretObj, err := utils.GetInformers().SecretInformer.Lister().Secrets(ssoRule.Namespace).Get(*oauthSetting.ResourceServer.OpaqueTokenParams.ServerSecret)
+							if err != nil || serverSecretObj == nil {
+								utils.AviLog.Errorf("key: %s, msg: Server secret not found for ssoRule obj: %s msg: %v", key, *oauthSetting.ResourceServer.OpaqueTokenParams.ServerSecret, err)
+								return
+							}
+							serverSecretString := string(serverSecretObj.Data["serverSecret"])
+							generatedFields.OauthVsConfig.OauthSettings[i].ResourceServer.OpaqueTokenParams.ServerSecret = &serverSecretString
+						} else {
+							// setting IntrospectionDataTimeout to nil if jwt params are set
+							generatedFields.OauthVsConfig.OauthSettings[i].ResourceServer.IntrospectionDataTimeout = nil
+						}
+					}
+				}
+			}
+		}
+
+		if ssoRule.Spec.SamlSpConfig != nil {
+			if *ssoRule.Spec.SamlSpConfig.AuthnReqAcsType != lib.SAML_AUTHN_REQ_ACS_TYPE_INDEX {
+				generatedFields.SamlSpConfig.AcsIndex = nil
+			}
+		}
+		crdStatus = lib.CRDMetadata{
+			Type:   "SSORule",
+			Value:  ssoRule.Namespace + "/" + ssoRule.Name,
+			Status: lib.CRDActive,
+		}
+
+		utils.AviLog.Infof("key: %s, Successfully attached SSORule %s on vsNode %s", key, srNamespaceName, vsNode.GetName())
+	} else {
+		generatedFields := vsNode.GetGeneratedFields()
+		generatedFields.OauthVsConfig = nil
+		generatedFields.SamlSpConfig = nil
+		generatedFields.SsoPolicyRef = nil
+		generatedFields.Fqdn = nil
+		if vsNode.GetServiceMetadata().CRDStatus.Value != "" {
+			crdStatus = vsNode.GetServiceMetadata().CRDStatus
+			crdStatus.Status = lib.CRDInactive
+		}
+		if srNamespaceName != "" {
+			utils.AviLog.Infof("key: %s, Successfully detached SSORule %s from vsNode %s", key, srNamespaceName, vsNode.GetName())
+		}
+	}
+
+	serviceMetadataObj := vsNode.GetServiceMetadata()
+	serviceMetadataObj.CRDStatus = crdStatus
+	vsNode.SetServiceMetadata(serviceMetadataObj)
 }

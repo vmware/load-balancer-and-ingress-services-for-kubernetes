@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.6.2
   name: akoconfigs.ako.vmware.com
 spec:
   group: ako.vmware.com
@@ -268,6 +268,9 @@ spec:
                   pspEnable:
                     type: boolean
                 type: object
+              replicaCount:
+                description: ReplicaCount defines the number of replicas for AKO Statefulset
+                type: integer
               resources:
                 description: Resources defines the limits and requests for cpu and
                   memory to be used by the AKO controller

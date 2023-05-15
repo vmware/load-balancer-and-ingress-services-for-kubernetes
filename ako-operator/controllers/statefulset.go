@@ -63,7 +63,7 @@ func createOrUpdateStatefulSet(ctx context.Context, ako akov1alpha1.AKOConfig, l
 	sf, err := BuildStatefulSet(ako, aviSecret)
 	if err != nil {
 		log.Error(err, "error in building statefulset", "name", StatefulSetName)
-		return nil
+		return err
 	}
 	var cm corev1.ConfigMap
 	if err := r.Get(context.TODO(), types.NamespacedName{Name: ConfigMapName, Namespace: AviSystemNS}, &cm); err != nil {
@@ -169,11 +169,15 @@ func BuildStatefulSet(ako akov1alpha1.AKOConfig, aviSecret corev1.Secret) (appsv
 	if err != nil {
 		return sf, err
 	}
-	var replicas int32 = 1
+	replicas := int32(ako.Spec.ReplicaCount)
+	if replicas > 2 {
+		return sf, errors.New("ReplicaCount greater than 2 is not supported for AKO StatefulSet")
+	}
 	sf.Spec.Replicas = &replicas
 	sf.Spec.ServiceName = ServiceName
 	akoLabels := map[string]string{
-		"app": "ako",
+		"app":                    "ako",
+		"app.kubernetes.io/name": "ako",
 	}
 	sf.Spec.Selector = &metav1.LabelSelector{
 		MatchLabels: akoLabels,
@@ -261,6 +265,22 @@ func BuildStatefulSet(ako akov1alpha1.AKOConfig, aviSecret corev1.Secret) (appsv
 					},
 				},
 				Env: envVars,
+			},
+		},
+		Affinity: &corev1.Affinity{
+			PodAntiAffinity: &corev1.PodAntiAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+					{
+						LabelSelector: &metav1.LabelSelector{
+							MatchExpressions: []metav1.LabelSelectorRequirement{
+								{
+									Key: "app.kubernetes.io/name", Operator: metav1.LabelSelectorOpIn, Values: []string{"ako"},
+								},
+							},
+						},
+						TopologyKey: "kubernetes.io/hostname",
+					},
+				},
 			},
 		},
 	}

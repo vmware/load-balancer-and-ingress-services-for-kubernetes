@@ -29,8 +29,10 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
 	akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions"
+	v1alpha2akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/informers/externalversions"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -45,10 +47,17 @@ func NewCRDInformers(cs akocrd.Interface) {
 	httpRuleInformer := akoInformerFactory.Ako().V1alpha1().HTTPRules()
 	aviSettingsInformer := akoInformerFactory.Ako().V1alpha1().AviInfraSettings()
 
+	v1alpha2akoInformerFactory := v1alpha2akoinformers.NewSharedInformerFactoryWithOptions(
+		lib.AKOControlConfig().V1alpha2CRDClientset(), time.Second*30)
+	ssoRuleInformer := v1alpha2akoInformerFactory.Ako().V1alpha2().SSORules()
+	l4RuleInformer := v1alpha2akoInformerFactory.Ako().V1alpha2().L4Rules()
+
 	lib.AKOControlConfig().SetCRDInformers(&lib.AKOCrdInformers{
 		HostRuleInformer:        hostRuleInformer,
 		HTTPRuleInformer:        httpRuleInformer,
 		AviInfraSettingInformer: aviSettingsInformer,
+		SSORuleInformer:         ssoRuleInformer,
+		L4RuleInformer:          l4RuleInformer,
 	})
 }
 
@@ -96,6 +105,28 @@ func isAviInfraUpdated(oldAviInfra, newAviInfra *akov1alpha1.AviInfraSetting) bo
 
 	oldSpecHash := utils.Hash(utils.Stringify(oldAviInfra.Spec) + oldAviInfra.Status.Status)
 	newSpecHash := utils.Hash(utils.Stringify(newAviInfra.Spec) + newAviInfra.Status.Status)
+
+	return oldSpecHash != newSpecHash
+}
+
+func isSSORuleUpdated(oldSSORule, newSSORule *akov1alpha2.SSORule) bool {
+	if oldSSORule.ResourceVersion == newSSORule.ResourceVersion {
+		return false
+	}
+
+	oldSpecHash := utils.Hash(utils.Stringify(oldSSORule.Spec) + oldSSORule.Status.Status)
+	newSpecHash := utils.Hash(utils.Stringify(newSSORule.Spec) + newSSORule.Status.Status)
+
+	return oldSpecHash != newSpecHash
+}
+
+func isL4RuleUpdated(oldL4Rule, newL4Rule *akov1alpha2.L4Rule) bool {
+	if oldL4Rule.ResourceVersion == newL4Rule.ResourceVersion {
+		return false
+	}
+
+	oldSpecHash := utils.Hash(utils.Stringify(oldL4Rule.Spec) + oldL4Rule.Status.Status)
+	newSpecHash := utils.Hash(utils.Stringify(newL4Rule.Spec) + newL4Rule.Status.Status)
 
 	return oldSpecHash != newSpecHash
 }
@@ -297,6 +328,128 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 		}
 
 		informer.AviInfraSettingInformer.Informer().AddEventHandler(aviInfraEventHandler)
+	}
+
+	if lib.AKOControlConfig().SsoRuleEnabled() {
+		ssoRuleEventHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				ssoRule := obj.(*akov1alpha2.SSORule)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ssoRule))
+				key := lib.SSORule + "/" + utils.ObjKey(ssoRule)
+				if err := c.GetValidator().ValidateSSORuleObj(key, ssoRule); err != nil {
+					utils.AviLog.Warnf("key: %s, msg: Error retrieved during validation of SSORule: %v", key, err)
+				}
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			},
+			UpdateFunc: func(old, new interface{}) {
+				if c.DisableSync {
+					return
+				}
+				oldObj := old.(*akov1alpha2.SSORule)
+				ssoRule := new.(*akov1alpha2.SSORule)
+				if isSSORuleUpdated(oldObj, ssoRule) {
+					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ssoRule))
+					key := lib.SSORule + "/" + utils.ObjKey(ssoRule)
+					if err := c.GetValidator().ValidateSSORuleObj(key, ssoRule); err != nil {
+						utils.AviLog.Warnf("key: %s, Error retrieved during validation of SSORule: %v", key, err)
+					}
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+					bkt := utils.Bkt(namespace, numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				ssoRule, ok := obj.(*akov1alpha2.SSORule)
+				if !ok {
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					ssoRule, ok = tombstone.Obj.(*akov1alpha2.SSORule)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not an SSORule: %#v", obj)
+						return
+					}
+				}
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ssoRule))
+				key := lib.SSORule + "/" + utils.ObjKey(ssoRule)
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+				objects.SharedResourceVerInstanceLister().Delete(key)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			},
+		}
+		informer.SSORuleInformer.Informer().AddEventHandler(ssoRuleEventHandler)
+	}
+
+	if lib.AKOControlConfig().L4RuleEnabled() {
+		l4RuleEventHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				l4Rule := obj.(*akov1alpha2.L4Rule)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(l4Rule))
+				key := lib.L4Rule + "/" + utils.ObjKey(l4Rule)
+				if err := c.GetValidator().ValidateL4RuleObj(key, l4Rule); err != nil {
+					utils.AviLog.Warnf("Error retrieved during validation of L4Rule: %v", err)
+				}
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			},
+			UpdateFunc: func(old, new interface{}) {
+				if c.DisableSync {
+					return
+				}
+				oldObj := old.(*akov1alpha2.L4Rule)
+				l4Rule := new.(*akov1alpha2.L4Rule)
+				if isL4RuleUpdated(oldObj, l4Rule) {
+					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(l4Rule))
+					key := lib.L4Rule + "/" + utils.ObjKey(l4Rule)
+					if err := c.GetValidator().ValidateL4RuleObj(key, l4Rule); err != nil {
+						utils.AviLog.Warnf("Error retrieved during validation of L4Rule: %v", err)
+					}
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+					bkt := utils.Bkt(namespace, numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				l4Rule, ok := obj.(*akov1alpha2.L4Rule)
+				if !ok {
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					l4Rule, ok = tombstone.Obj.(*akov1alpha2.L4Rule)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not an L4Rule: %#v", obj)
+						return
+					}
+				}
+				key := lib.L4Rule + "/" + utils.ObjKey(l4Rule)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(l4Rule))
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+				bkt := utils.Bkt(namespace, numWorkers)
+				objects.SharedResourceVerInstanceLister().Delete(key)
+				c.workqueue[bkt].AddRateLimited(key)
+			},
+		}
+		informer.L4RuleInformer.Informer().AddEventHandler(l4RuleEventHandler)
 	}
 	return
 }
@@ -668,6 +821,12 @@ var refModelMap = map[string]string{
 	"PKIProfile":             "pkiprofile",
 	"ServiceEngineGroup":     "serviceenginegroup",
 	"Network":                "network",
+	"SSOPolicy":              "ssopolicy",
+	"AuthProfile":            "authprofile",
+	"ICAPProfile":            "icapprofile",
+	"NetworkProfile":         "networkprofile",
+	"SecurityPolicy":         "securitypolicy",
+	"NetworkSecurityPolicy":  "networksecuritypolicy",
 }
 
 // checkRefOnController checks whether a provided ref on the controller
@@ -724,10 +883,21 @@ func checkRefOnController(key, refKey, refValue string) error {
 
 	switch refKey {
 	case "AppProfile":
-		if appProfType, ok := item["type"].(string); ok && appProfType != lib.AllowedApplicationProfile {
-			utils.AviLog.Warnf("key: %s, msg: applicationProfile: %s must be of type %s", key, refValue, lib.AllowedApplicationProfile)
-			return fmt.Errorf("%s \"%s\" found on controller is invalid, must be of type: %s",
-				refModelMap[refKey], refValue, lib.AllowedApplicationProfile)
+		if appProfType, ok := item["type"].(string); ok {
+			objType, _, _ := lib.ExtractTypeNameNamespace(key)
+			if objType == lib.L4Rule {
+				if appProfType != lib.AllowedL4ApplicationProfile {
+					utils.AviLog.Warnf("key: %s, msg: L4 applicationProfile: %s must be of type %s", key, refValue, lib.AllowedL4ApplicationProfile)
+					return fmt.Errorf("%s \"%s\" found on controller is invalid, must be of type: %s",
+						refModelMap[refKey], refValue, lib.AllowedL4ApplicationProfile)
+				}
+				return nil
+			}
+			if appProfType != lib.AllowedL7ApplicationProfile {
+				utils.AviLog.Warnf("key: %s, msg: applicationProfile: %s must be of type %s", key, refValue, lib.AllowedL7ApplicationProfile)
+				return fmt.Errorf("%s \"%s\" found on controller is invalid, must be of type: %s",
+					refModelMap[refKey], refValue, lib.AllowedL7ApplicationProfile)
+			}
 		}
 	case "ServiceEngineGroup":
 		if seGroupLabels, ok := item["labels"].([]map[string]string); ok {

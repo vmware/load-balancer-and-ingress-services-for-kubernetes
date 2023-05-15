@@ -26,9 +26,11 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
+	"github.com/jinzhu/copier"
 	"github.com/vmware/alb-sdk/go/models"
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	corev1 "k8s.io/api/core/v1"
@@ -108,7 +110,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	} else {
 		license := lib.AKOControlConfig().GetLicenseType()
 
-		if license == "ENTERPRISE" {
+		if license == lib.LicenseTypeEnterprise {
 			avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 		} else {
 			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
@@ -136,10 +138,17 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		buildWithInfraSetting(key, avi_vs_meta, vsVipNode, infraSetting)
 	}
 
+	// Copy the VS properties from L4Rule object
+	if l4Rule, err := getL4Rule(key, svcObj); err == nil {
+		buildWithL4Rule(key, avi_vs_meta, l4Rule)
+	}
+
 	if lib.HasSpecLoadBalancerIP(svcObj) {
 		vsVipNode.IPAddress = svcObj.Spec.LoadBalancerIP
 	} else if lib.HasLoadBalancerIPAnnotation(svcObj) {
 		vsVipNode.IPAddress = svcObj.Annotations[lib.LoadBalancerIP]
+	} else if avi_vs_meta.LoadBalancerIP != nil {
+		vsVipNode.IPAddress = *avi_vs_meta.LoadBalancerIP
 	}
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
@@ -155,6 +164,12 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 		utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Gateway %s", key, err.Error())
 		return
 	}
+
+	l4Rule, err := getL4Rule(key, svcObj)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Error while fetching L4Rule. Err: %s", key, err.Error())
+	}
+
 	protocolSet := sets.NewString()
 	for _, portProto := range vsNode.PortProto {
 		filterPort := portProto.Port
@@ -167,6 +182,9 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 			TargetPort: portProto.TargetPort,
 			VrfContext: lib.GetVrf(),
 		}
+
+		buildPoolWithL4Rule(key, poolNode, l4Rule)
+
 		if lib.IsIstioEnabled() {
 			poolNode.UpdatePoolNodeForIstio()
 		}
@@ -579,4 +597,68 @@ func getL4InfraSetting(key string, svc *corev1.Service, advl4GWClassName *string
 	}
 
 	return infraSetting, nil
+}
+
+func getL4Rule(key string, svc *corev1.Service) (*akov1alpha2.L4Rule, error) {
+	var err error
+	var l4Rule *akov1alpha2.L4Rule
+
+	l4RuleName, ok := svc.GetAnnotations()[lib.L4RuleAnnotation]
+	if !ok {
+		// Annotation not present. Return error as nil in that case.
+		return nil, nil
+	}
+
+	l4Rule, err = lib.AKOControlConfig().CRDInformers().L4RuleInformer.Lister().L4Rules(svc.GetNamespace()).Get(l4RuleName)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding L4Rule via annotation. Err: %s", key, err.Error())
+		return nil, err
+	}
+
+	if l4Rule != nil && l4Rule.Status.Status != lib.StatusAccepted {
+		return nil, fmt.Errorf("referred L4Rule %s is invalid", l4Rule.Name)
+	}
+
+	utils.AviLog.Debugf("key: %s, Got L4Rule %v", key, l4Rule)
+	return l4Rule, nil
+}
+
+func buildWithL4Rule(key string, vs *AviVsNode, l4Rule *akov1alpha2.L4Rule) {
+
+	if l4Rule == nil {
+		return
+	}
+
+	copier.Copy(vs, &l4Rule.Spec)
+
+	vs.AviVsNodeCommonFields.ConvertToRef()
+	vs.AviVsNodeGeneratedFields.ConvertToRef()
+
+	utils.AviLog.Debugf("key: %s, msg: Applied L4Rule %s configuration over VS %s", key, l4Rule.Name, vs.Name)
+}
+
+func buildPoolWithL4Rule(key string, pool *AviPoolNode, l4Rule *akov1alpha2.L4Rule) {
+
+	if l4Rule == nil {
+		return
+	}
+
+	index := -1
+	for i, poolProperty := range l4Rule.Spec.BackendProperties {
+		if *poolProperty.Port == int(pool.Port) &&
+			*poolProperty.Protocol == pool.Protocol {
+			index = i
+			break
+		}
+	}
+	if index == -1 {
+		utils.AviLog.Warnf("key: %s, msg: L4Rule %s doesn't match any pools present.", key, l4Rule.Name)
+		return
+	}
+	copier.Copy(pool, l4Rule.Spec.BackendProperties[index])
+
+	pool.AviPoolCommonFields.ConvertToRef()
+	pool.AviPoolGeneratedFields.ConvertToRef()
+
+	utils.AviLog.Debugf("key: %s, msg: Applied L4Rule %s configuration over Pool %s", key, l4Rule.Name, pool.Name)
 }

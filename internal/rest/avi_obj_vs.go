@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/jinzhu/copier"
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
 )
@@ -45,7 +46,7 @@ func setDedicatedVSNodeProperties(vs *avimodels.VirtualService, vs_meta *nodes.A
 			vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, certName)
 		}
 	}
-	vs.SslProfileRef = &vs_meta.SSLProfileRef
+	vs.SslProfileRef = vs_meta.SslProfileRef
 	//set datascripts to VS from hostrule crd
 	for i, script := range vs_meta.VsDatascriptRefs {
 		j := int32(i)
@@ -54,13 +55,18 @@ func setDedicatedVSNodeProperties(vs *avimodels.VirtualService, vs_meta *nodes.A
 		datascriptCollection = append(datascriptCollection, datascripts)
 	}
 	vs.VsDatascripts = datascriptCollection
-	if vs_meta.AppProfileRef != "" {
+	if vs_meta.ApplicationProfileRef != nil {
 		// hostrule ref overrides defaults
-		vs.ApplicationProfileRef = &vs_meta.AppProfileRef
+		vs.ApplicationProfileRef = vs_meta.ApplicationProfileRef
 	}
-	vs.WafPolicyRef = &vs_meta.WafPolicyRef
+
+	if len(vs_meta.ICAPProfileRefs) != 0 {
+		vs.IcapRequestProfileRefs = vs_meta.ICAPProfileRefs
+	}
+
+	vs.WafPolicyRef = vs_meta.WafPolicyRef
 	vs.ErrorPageProfileRef = &vs_meta.ErrorPageProfileRef
-	vs.AnalyticsProfileRef = &vs_meta.AnalyticsProfileRef
+	vs.AnalyticsProfileRef = vs_meta.AnalyticsProfileRef
 	vs.EastWestPlacement = proto.Bool(false)
 	vs.Enabled = vs_meta.Enabled
 	normal_vs_type := utils.VS_TYPE_NORMAL
@@ -87,16 +93,16 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			TenantRef:             proto.String(fmt.Sprintf("/api/tenant/?name=%s", vs_meta.Tenant)),
 			ApplicationProfileRef: proto.String("/api/applicationprofile/?name=" + vs_meta.ApplicationProfile),
 			SeGroupRef:            proto.String("/api/serviceenginegroup?name=" + vs_meta.ServiceEngineGroup),
-			WafPolicyRef:          &vs_meta.WafPolicyRef,
-			AnalyticsProfileRef:   &vs_meta.AnalyticsProfileRef,
+			WafPolicyRef:          vs_meta.WafPolicyRef,
+			AnalyticsProfileRef:   vs_meta.AnalyticsProfileRef,
 			ErrorPageProfileRef:   &vs_meta.ErrorPageProfileRef,
 			Enabled:               vs_meta.Enabled,
 			ServiceMetadata:       &svc_mdata,
 		}
 
-		if vs_meta.AppProfileRef != "" {
+		if vs_meta.ApplicationProfileRef != nil {
 			// hostrule ref overrides defaults
-			vs.ApplicationProfileRef = proto.String(vs_meta.AppProfileRef)
+			vs.ApplicationProfileRef = vs_meta.ApplicationProfileRef
 		}
 
 		if vs_meta.VrfContext != "" {
@@ -168,7 +174,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 
 		// Overwrite datascript policies from hostrule to the Parent VS.
 		if len(vs_meta.VsDatascriptRefs) > 0 {
-			datascriptCollection = make([]*avimodels.VSDataScripts, len(vs_meta.VsDatascriptRefs))
+			datascriptCollection = make([]*avimodels.VSDataScripts, 0, len(vs_meta.VsDatascriptRefs))
 			for i, script := range vs_meta.VsDatascriptRefs {
 				j := int32(i)
 				datascript := script
@@ -239,6 +245,8 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		var rest_op utils.RestOp
 		var path string
 
+		copier.Copy(&vs, &vs_meta.AviVsNodeGeneratedFields)
+
 		// VS objects cache can be created by other objects and they would just set VS name and not uud
 		// Do a POST call in that case
 		if rest_method == utils.RestPut && cache_obj.Uuid != "" {
@@ -274,11 +282,11 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	checksumstr := strconv.Itoa(int(cksum))
 	cr := lib.AKOUser
 
-	var app_prof string
-	app_prof = "/api/applicationprofile/?name=" + utils.DEFAULT_L7_SECURE_APP_PROFILE
-	if vs_meta.AppProfileRef != "" {
+	var app_prof *string
+	app_prof = proto.String("/api/applicationprofile/?name=" + utils.DEFAULT_L7_SECURE_APP_PROFILE)
+	if vs_meta.ApplicationProfileRef != nil {
 		// hostrule ref overrides defaults
-		app_prof = vs_meta.AppProfileRef
+		app_prof = vs_meta.ApplicationProfileRef
 	}
 
 	cloudRef := "/api/cloud?name=" + utils.CloudName
@@ -291,14 +299,14 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 		CloudConfigCksum:      &checksumstr,
 		CreatedBy:             &cr,
 		NetworkProfileRef:     &network_prof,
-		ApplicationProfileRef: &app_prof,
+		ApplicationProfileRef: app_prof,
 		EastWestPlacement:     proto.Bool(false),
 		CloudRef:              &cloudRef,
 		SeGroupRef:            &seGroupRef,
 		ServiceMetadata:       &svc_mdata,
-		WafPolicyRef:          &vs_meta.WafPolicyRef,
-		SslProfileRef:         &vs_meta.SSLProfileRef,
-		AnalyticsProfileRef:   &vs_meta.AnalyticsProfileRef,
+		WafPolicyRef:          vs_meta.WafPolicyRef,
+		SslProfileRef:         vs_meta.SslProfileRef,
+		AnalyticsProfileRef:   vs_meta.AnalyticsProfileRef,
 		ErrorPageProfileRef:   &vs_meta.ErrorPageProfileRef,
 		Enabled:               vs_meta.Enabled,
 	}
@@ -306,6 +314,11 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	if vs_meta.VrfContext != "" {
 		sniChild.VrfContextRef = proto.String("/api/vrfcontext?name=" + vs_meta.VrfContext)
 	}
+
+	if len(vs_meta.ICAPProfileRefs) != 0 {
+		sniChild.IcapRequestProfileRefs = vs_meta.ICAPProfileRefs
+	}
+
 	//This VS has a TLSKeyCert associated, we need to mark 'type': 'VS_TYPE_VH_PARENT'
 	vh_type := utils.VS_TYPE_VH_CHILD
 	sniChild.Type = &vh_type
@@ -644,6 +657,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				vs_cache_obj.CloudConfigCksum = cksum
 
 				status.HostRuleEventBroadcast(vs_cache_obj.Name, vs_cache_obj.ServiceMetadataObj.CRDStatus, svc_mdata_obj.CRDStatus)
+				status.SSORuleEventBroadcast(vs_cache_obj.Name, vs_cache_obj.ServiceMetadataObj.CRDStatus, svc_mdata_obj.CRDStatus)
 				vs_cache_obj.ServiceMetadataObj = svc_mdata_obj
 				if val, ok := resp["enable_rhi"].(bool); ok {
 					vs_cache_obj.EnableRhi = val
@@ -687,6 +701,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 
 			rest.cache.VsCacheMeta.AviCacheAdd(k, vs_cache_obj)
 			status.HostRuleEventBroadcast(vs_cache_obj.Name, lib.CRDMetadata{}, svc_mdata_obj.CRDStatus)
+			status.SSORuleEventBroadcast(vs_cache_obj.Name, lib.CRDMetadata{}, svc_mdata_obj.CRDStatus)
 			utils.AviLog.Infof("key: %s, msg: added VS cache key %v val %v", key, k, utils.Stringify(vs_cache_obj))
 		}
 
@@ -791,6 +806,7 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 				}
 
 				status.HostRuleEventBroadcast(vs_cache_obj.Name, vs_cache_obj.ServiceMetadataObj.CRDStatus, lib.CRDMetadata{})
+				status.SSORuleEventBroadcast(vs_cache_obj.Name, vs_cache_obj.ServiceMetadataObj.CRDStatus, lib.CRDMetadata{})
 			default:
 				// insecure ingress status updates in regular AKO.
 				for _, poolKey := range vs_cache_obj.PoolKeyCollection {

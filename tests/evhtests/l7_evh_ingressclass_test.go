@@ -652,8 +652,12 @@ func TestEVHUpdateIngressClassWithInfraSetting(t *testing.T) {
 		found, _ := objects.SharedAviGraphLister().Get(settingModelName1)
 		return found
 	}, 40*time.Second).Should(gomega.Equal(true))
-	_, aviSettingModel1 := objects.SharedAviGraphLister().Get(settingModelName1)
-	settingNodes1 := aviSettingModel1.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	var settingNodes1 []*avinodes.AviEvhVsNode
+	g.Eventually(func() int {
+		_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName1)
+		settingNodes1 = aviSettingModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(settingNodes1[0].EvhNodes)
+	}, 40*time.Second).Should(gomega.Equal(2))
 	g.Expect(settingNodes1[0].EvhNodes).Should(gomega.HaveLen(2))
 	g.Expect(settingNodes1[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-my-infrasetting1-seGroup"))
 
@@ -677,11 +681,15 @@ func TestEVHUpdateIngressClassWithInfraSetting(t *testing.T) {
 		found, _ := objects.SharedAviGraphLister().Get(settingModelName2)
 		return found
 	}, 40*time.Second).Should(gomega.Equal(true))
-	_, aviSettingModel2 := objects.SharedAviGraphLister().Get(settingModelName2)
-	settingNodes2 := aviSettingModel2.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	var settingNodes2 []*avinodes.AviEvhVsNode
+	g.Eventually(func() int {
+		_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName2)
+		settingNodes2 = aviSettingModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(settingNodes2[0].EvhNodes)
+	}, 40*time.Second).Should(gomega.Equal(2))
 	g.Expect(settingNodes2[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-my-infrasetting2-seGroup"))
 	g.Expect(settingNodes2[0].EvhNodes).Should(gomega.HaveLen(2))
-	_, aviSettingModel1 = objects.SharedAviGraphLister().Get(settingModelName1)
+	_, aviSettingModel1 := objects.SharedAviGraphLister().Get(settingModelName1)
 	settingNodes1 = aviSettingModel1.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(settingNodes1[0].EvhNodes).Should(gomega.HaveLen(0))
 
@@ -1160,10 +1168,10 @@ func TestEVHCRDWithAviInfraSetting(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].EvhNodes[0].SSLKeyCertAviRef[0]).To(gomega.ContainSubstring("thisisaviref-sslkey"))
 	g.Expect(*nodes[0].EvhNodes[0].Enabled).To(gomega.Equal(true))
-	g.Expect(nodes[0].EvhNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
-	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH"))
-	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].LbAlgorithmHash).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS"))
-	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].SslProfileRef).To(gomega.ContainSubstring("thisisaviref-sslprofile"))
+	g.Expect(*nodes[0].EvhNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
+	g.Expect(*nodes[0].EvhNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH"))
+	g.Expect(*nodes[0].EvhNodes[0].PoolRefs[0].LbAlgorithmHash).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS"))
+	g.Expect(*nodes[0].EvhNodes[0].PoolRefs[0].SslProfileRef).To(gomega.ContainSubstring("thisisaviref-sslprofile"))
 
 	integrationtest.TeardownHostRule(t, g, evhKey, hrname)
 	integrationtest.TeardownHTTPRule(t, rrname)

@@ -1168,7 +1168,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		c.informers.RouteInformer.Informer().AddEventHandler(routeEventHandler)
 	}
 
-	// Add CRD handlers HostRule/HTTPRule/AviInfraSettings
+	// Add CRD handlers HostRule/HTTPRule/AviInfraSettings/SSORule
 	c.SetupAKOCRDEventHandlers(numWorkers)
 
 	// Add MultiClusterIngress and ServiceImport CRD event handlers
@@ -1302,6 +1302,16 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 		if lib.AKOControlConfig().HttpRuleEnabled() {
 			go lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Informer().Run(stopCh)
 			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Informer().HasSynced)
+		}
+
+		if lib.AKOControlConfig().SsoRuleEnabled() {
+			go lib.AKOControlConfig().CRDInformers().SSORuleInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().SSORuleInformer.Informer().HasSynced)
+		}
+
+		if lib.AKOControlConfig().L4RuleEnabled() {
+			go lib.AKOControlConfig().CRDInformers().L4RuleInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().L4RuleInformer.Informer().HasSynced)
 		}
 
 		if utils.IsMultiClusterIngressEnabled() {

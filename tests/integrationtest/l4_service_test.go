@@ -32,6 +32,7 @@ import (
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
+	v1alpha2crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned/fake"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/onsi/gomega"
@@ -53,7 +54,7 @@ func TearDownTestForSvcLB(t *testing.T, g *gomega.GomegaWithT) {
 	DelSVC(t, NAMESPACE, SINGLEPORTSVC)
 	DelEP(t, NAMESPACE, SINGLEPORTSVC)
 	mcache := cache.SharedAviObjCache()
-	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", SINGLEPORTSVC, NAMESPACE)}
+	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)}
 	g.Eventually(func() bool {
 		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		return found
@@ -72,7 +73,55 @@ func TearDownTestForSvcLBMultiport(t *testing.T, g *gomega.GomegaWithT) {
 	DelSVC(t, NAMESPACE, MULTIPORTSVC)
 	DelEP(t, NAMESPACE, MULTIPORTSVC)
 	mcache := cache.SharedAviObjCache()
-	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", MULTIPORTSVC, NAMESPACE)}
+	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, MULTIPORTSVC)}
+	g.Eventually(func() bool {
+		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		return found
+	}, 5*time.Second).Should(gomega.Equal(false))
+}
+
+func SetUpTestForSharedVIPSvcLB(t *testing.T) {
+	modelSvc01 := "admin/cluster--red-ns-" + SHAREDVIPSVC01
+	objects.SharedAviGraphLister().Delete(modelSvc01)
+	svcObj := ConstructService(NAMESPACE, SHAREDVIPSVC01, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
+	svcObj.Annotations = map[string]string{lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcObj, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	CreateEP(t, NAMESPACE, SHAREDVIPSVC01, false, false, "1.1.1")
+	PollForCompletion(t, modelSvc01, 5)
+
+	modelSvc02 := "admin/cluster--red-ns-" + SHAREDVIPSVC02
+	objects.SharedAviGraphLister().Delete(modelSvc01)
+	svcObj = ConstructService(NAMESPACE, SHAREDVIPSVC02, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
+	svcObj.Annotations = map[string]string{lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcObj, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	CreateEP(t, NAMESPACE, SHAREDVIPSVC02, false, false, "2.1.1")
+	PollForCompletion(t, modelSvc02, 5)
+}
+
+func TearDownTestForSharedVIPSvcLB(t *testing.T, g *gomega.GomegaWithT) {
+	modelSvc01 := "admin/cluster--red-ns-" + SHAREDVIPSVC01
+	objects.SharedAviGraphLister().Delete(modelSvc01)
+	DelSVC(t, NAMESPACE, SHAREDVIPSVC01)
+	DelEP(t, NAMESPACE, SHAREDVIPSVC01)
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, SHAREDVIPSVC01)}
+	g.Eventually(func() bool {
+		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		return found
+	}, 5*time.Second).Should(gomega.Equal(false))
+
+	modelSvc02 := "admin/cluster--red-ns-" + SHAREDVIPSVC02
+	objects.SharedAviGraphLister().Delete(modelSvc02)
+	DelSVC(t, NAMESPACE, SHAREDVIPSVC02)
+	DelEP(t, NAMESPACE, SHAREDVIPSVC02)
+	mcache = cache.SharedAviObjCache()
+	vsKey = cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, SHAREDVIPSVC02)}
 	g.Eventually(func() bool {
 		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		return found
@@ -93,7 +142,9 @@ func TestMain(m *testing.M) {
 	akoControlConfig := lib.AKOControlConfig()
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
+	v1alpha2CRDClient = v1alpha2crdfake.NewSimpleClientset()
 	akoControlConfig.SetCRDClientset(CRDClient)
+	akoControlConfig.Setv1alpha2CRDClientset(v1alpha2CRDClient)
 	akoControlConfig.SetAKOInstanceFlag(true)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
 	data := map[string][]byte{

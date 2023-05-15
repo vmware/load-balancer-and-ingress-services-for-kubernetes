@@ -28,6 +28,10 @@ spec:
                     type: string
                   applicationProfile:
                     type: string
+                  icapProfile:
+                    items:
+                      type: string
+                    type: array
                   enableVirtualHost:
                     type: boolean
                   errorPageProfile:
