@@ -1016,7 +1016,6 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 		if len(vsNode) > 0 && found {
 			// if vsNode already exists, check for updates via AviInfraSetting
 			if infraSetting != nil {
-				utils.AviLog.Debug("buildWithInfraSettingForEvh")
 				buildWithInfraSettingForEvh(key, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 			}
 		}
