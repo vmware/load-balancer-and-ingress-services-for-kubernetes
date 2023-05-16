@@ -34,6 +34,7 @@ func TestMain(m *testing.M) {
 
 func getTestDefaultAKOConfig() akov1alpha1.AKOConfig {
 	akoConfigSpec := akov1alpha1.AKOConfigSpec{
+		ReplicaCount:    1,
 		ImageRepository: "test-repo",
 		ImagePullPolicy: "Always",
 		AKOSettings: akov1alpha1.AKOSettings{
@@ -52,6 +53,7 @@ func getTestDefaultAKOConfig() akov1alpha1.AKOConfig {
 			IstioEnabled:           false,
 			VipPerNamespace:        false,
 			BlockedNamespaceList:   []string{},
+			UseDefaultSecretsOnly:  false,
 		},
 
 		NetworkSettings: akov1alpha1.NetworkSettings{
@@ -180,7 +182,11 @@ func TestConfigmap(t *testing.T) {
 
 	t.Log("updating blockedNamespaceList and verifying")
 	akoConfig.Spec.AKOSettings.BlockedNamespaceList = []string{"blocked-ns"}
-	buildConfigMapAndVerify(cmIstioEnabled, akoConfig, true, false, t)
+	cmBlockedNamespaceList := buildConfigMapAndVerify(cmIstioEnabled, akoConfig, true, false, t)
+
+	t.Log("updating useDefaultSecretsOnly and verifying")
+	akoConfig.Spec.AKOSettings.UseDefaultSecretsOnly = true
+	buildConfigMapAndVerify(cmBlockedNamespaceList, akoConfig, true, false, t)
 }
 
 func TestStatefulset(t *testing.T) {
