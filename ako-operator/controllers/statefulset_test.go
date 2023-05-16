@@ -31,401 +31,405 @@ import (
 
 var sfJson = `
 {
-    "apiVersion": "apps/v1",
-    "kind": "StatefulSet",
-    "metadata": {
-        "name": "ako",
-        "namespace": "avi-system"
-    },
-    "spec": {
-        "podManagementPolicy": "OrderedReady",
-        "replicas": 1,
-        "revisionHistoryLimit": 10,
-        "selector": {
-            "matchLabels": {
-                "app": "ako"
-            }
-        },
-        "serviceName": "ako",
-        "template": {
-            "metadata": {
-                "creationTimestamp": null,
-                "labels": {
-                    "app": "ako"
-                }
-            },
-            "spec": {
-                "containers": [
-                    {
-                        "env": [
-                            {
-                                "name": "SHARD_VS_SIZE",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "shardVSSize",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "SEG_NAME",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "serviceEngineGroupName",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "NODE_NETWORK_LIST",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "nodeNetworkList",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "CTRL_VERSION",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "controllerVersion",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "CLUSTER_NAME",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "clusterName",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "DEFAULT_DOMAIN",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "defaultDomain",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "FULL_SYNC_INTERVAL",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "fullSyncFrequency",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "AUTO_L4_FQDN",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "autoFQDN",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "CNI_PLUGIN",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "cniPlugin",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "PASSTHROUGH_SHARD_SIZE",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "passhtroughShardSize",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "CLOUD_NAME",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "cloudName",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "ENABLE_RHI",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "enableRHI",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "DISABLE_STATIC_ROUTE_SYNC",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "disableStaticRouteSync",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "DEFAULT_ING_CONTROLLER",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "defaultIngController",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "CTRL_IPADDRESS",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "controllerIP",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "AKO_API_PORT",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "apiServerPort",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "SERVICE_TYPE",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "serviceType",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "POD_NAME",
-                                "valueFrom": {
-                                    "fieldRef": {
-                                        "apiVersion": "v1",
-                                        "fieldPath": "metadata.name"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "POD_NAMESPACE",
-                                "valueFrom": {
-                                    "fieldRef": {
-                                        "apiVersion": "v1",
-                                        "fieldPath": "metadata.namespace"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "NSXT_T1_LR",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "nsxtT1LR",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "ISTIO_ENABLED",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "istioEnabled",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "VIP_PER_NAMESPACE",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "vipPerNamespace",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "PRIMARY_AKO_FLAG",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "primaryInstance",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "TENANT_NAME",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "tenantName",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "ENABLE_EVH",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "enableEVH",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "SERVICES_API",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "servicesAPI",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "NAMESPACE_SYNC_LABEL_KEY",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "nsSyncLabelKey",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "NAMESPACE_SYNC_LABEL_VALUE",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "nsSyncLabelValue",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "BGP_PEER_LABELS",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "bgpPeerLabels",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "VIP_NETWORK_LIST",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "vipNetworkList",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "MCI_ENABLED",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "enableMCI",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "BLOCKED_NS_LIST",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "blockedNamespaceList",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "IP_FAMILY",
-                                "valueFrom": {
-                                    "configMapKeyRef": {
-                                        "key": "ipFamily",
-                                        "name": "avi-k8s-config"
-                                    }
-                                }
-                            },
-                            {
-                                "name": "LOG_FILE_PATH",
-                                "value": "/log"
-                            },
-                            {
-                                "name": "LOG_FILE_NAME",
-                                "value": "ako.log"
-                            }
-                        ],
-                        "image": "test-repo",
-                        "imagePullPolicy": "Always",
-                        "lifecycle": {
-                            "preStop": {
-                                "exec": {
-                                    "command": [
-                                        "/bin/sh",
-                                        "/var/pre_stop_hook.sh"
-                                    ]
-                                }
-                            }
-                        },
-                        "livenessProbe": {
-                            "failureThreshold": 3,
-                            "httpGet": {
-                                "path": "/api/status",
-                                "port": 8080,
-                                "scheme": "HTTP"
-                            },
-                            "initialDelaySeconds": 5,
-                            "periodSeconds": 10,
-                            "successThreshold": 1,
-                            "timeoutSeconds": 1
-                        },
-                        "name": "ako",
-                        "ports": [
-                            {
-                                "containerPort": 80,
-                                "name": "http",
-                                "protocol": "TCP"
-                            }
-                        ],
-                        "resources": {
-                            "limits": {
-                                "cpu": "350m",
-                                "memory": "400Mi"
-                            },
-                            "requests": {
-                                "cpu": "200m",
-                                "memory": "300Mi"
-                            }
-                        },
-                        "terminationMessagePath": "/dev/termination-log",
-                        "terminationMessagePolicy": "File"
-                    }
-                ],
-                "dnsPolicy": "ClusterFirst",
-                "restartPolicy": "Always",
-                "schedulerName": "default-scheduler",
-                "securityContext": {},
-                "serviceAccount": "ako-sa",
-                "serviceAccountName": "ako-sa",
-                "terminationGracePeriodSeconds": 30
-            }
-        },
-        "updateStrategy": {
-            "rollingUpdate": {
-                "partition": 0
-            },
-            "type": "RollingUpdate"
-        }
-    }
+	"apiVersion": "apps/v1",
+	"kind": "StatefulSet",
+	"metadata": {
+		"name": "ako",
+		"namespace": "avi-system"
+	},
+	"spec": {
+		"podManagementPolicy": "OrderedReady",
+		"replicas": 1,
+		"revisionHistoryLimit": 10,
+		"selector": {
+			"matchLabels": {
+				"app": "ako"
+			}
+		},
+		"serviceName": "ako",
+		"template": {
+			"metadata": {
+				"creationTimestamp": null,
+				"labels": {
+					"app": "ako"
+				}
+			},
+			"spec": {
+				"containers": [{
+					"env": [{
+							"name": "SHARD_VS_SIZE",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "shardVSSize",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "SEG_NAME",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "serviceEngineGroupName",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "NODE_NETWORK_LIST",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "nodeNetworkList",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "CTRL_VERSION",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "controllerVersion",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "CLUSTER_NAME",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "clusterName",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "DEFAULT_DOMAIN",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "defaultDomain",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "FULL_SYNC_INTERVAL",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "fullSyncFrequency",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "AUTO_L4_FQDN",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "autoFQDN",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "CNI_PLUGIN",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "cniPlugin",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "PASSTHROUGH_SHARD_SIZE",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "passhtroughShardSize",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "CLOUD_NAME",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "cloudName",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "ENABLE_RHI",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "enableRHI",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "DISABLE_STATIC_ROUTE_SYNC",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "disableStaticRouteSync",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "DEFAULT_ING_CONTROLLER",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "defaultIngController",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "CTRL_IPADDRESS",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "controllerIP",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "AKO_API_PORT",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "apiServerPort",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "SERVICE_TYPE",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "serviceType",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "POD_NAME",
+							"valueFrom": {
+								"fieldRef": {
+									"apiVersion": "v1",
+									"fieldPath": "metadata.name"
+								}
+							}
+						},
+						{
+							"name": "POD_NAMESPACE",
+							"valueFrom": {
+								"fieldRef": {
+									"apiVersion": "v1",
+									"fieldPath": "metadata.namespace"
+								}
+							}
+						},
+						{
+							"name": "NSXT_T1_LR",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "nsxtT1LR",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "ISTIO_ENABLED",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "istioEnabled",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "VIP_PER_NAMESPACE",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "vipPerNamespace",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "PRIMARY_AKO_FLAG",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "primaryInstance",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "TENANT_NAME",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "tenantName",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "ENABLE_EVH",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "enableEVH",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "SERVICES_API",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "servicesAPI",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "NAMESPACE_SYNC_LABEL_KEY",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "nsSyncLabelKey",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "NAMESPACE_SYNC_LABEL_VALUE",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "nsSyncLabelValue",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "BGP_PEER_LABELS",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "bgpPeerLabels",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "VIP_NETWORK_LIST",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "vipNetworkList",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "MCI_ENABLED",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "enableMCI",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "BLOCKED_NS_LIST",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "blockedNamespaceList",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "IP_FAMILY",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "ipFamily",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "USE_DEFAULT_SECRETS_ONLY",
+							"valueFrom": {
+								"configMapKeyRef": {
+									"key": "useDefaultSecretsOnly",
+									"name": "avi-k8s-config"
+								}
+							}
+						},
+						{
+							"name": "LOG_FILE_PATH",
+							"value": "/log"
+						},
+						{
+							"name": "LOG_FILE_NAME",
+							"value": "ako.log"
+						}
+					],
+					"image": "test-repo",
+					"imagePullPolicy": "Always",
+					"lifecycle": {
+						"preStop": {
+							"exec": {
+								"command": [
+									"/bin/sh",
+									"/var/pre_stop_hook.sh"
+								]
+							}
+						}
+					},
+					"livenessProbe": {
+						"failureThreshold": 3,
+						"httpGet": {
+							"path": "/api/status",
+							"port": 8080,
+							"scheme": "HTTP"
+						},
+						"initialDelaySeconds": 5,
+						"periodSeconds": 10,
+						"successThreshold": 1,
+						"timeoutSeconds": 1
+					},
+					"name": "ako",
+					"ports": [{
+						"containerPort": 80,
+						"name": "http",
+						"protocol": "TCP"
+					}],
+					"resources": {
+						"limits": {
+							"cpu": "350m",
+							"memory": "400Mi"
+						},
+						"requests": {
+							"cpu": "200m",
+							"memory": "300Mi"
+						}
+					},
+					"terminationMessagePath": "/dev/termination-log",
+					"terminationMessagePolicy": "File"
+				}],
+				"dnsPolicy": "ClusterFirst",
+				"restartPolicy": "Always",
+				"schedulerName": "default-scheduler",
+				"securityContext": {},
+				"serviceAccount": "ako-sa",
+				"serviceAccountName": "ako-sa",
+				"terminationGracePeriodSeconds": 30
+			}
+		},
+		"updateStrategy": {
+			"rollingUpdate": {
+				"partition": 0
+			},
+			"type": "RollingUpdate"
+		}
+	}
 }
 `
 

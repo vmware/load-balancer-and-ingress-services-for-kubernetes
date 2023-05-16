@@ -98,6 +98,11 @@ The following table lists the configurable parameters of the AKO chart and their
 | `AKOSettings.blockedNamespaceList` | List of K8s/Openshift namespaces blocked by AKO | `Empty List` |
 | `AKOSettings.istioEnabled` | set to true if user wants to deploy AKO in istio environment (tech preview)| false |
 | `AKOSettings.ipFamily` | set to V6 if user wants to deploy AKO with V6 backend (vCenter cloud with calico CNI only) (tech preview)| V4 |
+| `AKOSettings.enableEVH` | Enables the Enhanced Virtual Hosting Model in Avi Controller for the Virtual Services  | false |
+| `AKOSettings.namespaceSelector` | namespaceSelector contains label key and value used for namespacemigration. same label has to be present on namespace/s which needs migration/sync to AKO  | false |
+| `AKOSettings.servicesAPI` | servicesAPI enables AKO in services API mode. Currently implemented only for L4 | false |
+| `AKOSettings.vipPerNamespace` | Enabling this flag would tell AKO to create Parent VS per Namespace in EVH mode  | false |
+| `AKOSettings.useDefaultSecretsOnly` | If this flag is set to true, AKO will only handle default secrets from the namespace where AKO is installed. This flag is applicable only to Openshift clusters. | false |
 | `ControllerSettings.controllerVersion` | Avi Controller version | 18.2.10 |
 | `ControllerSettings.controllerHost` | Specify Avi controller IP or Hostname | `nil` |
 | `ControllerSettings.cloudName` | Name of the cloud managed in Avi | Default-Cloud |
