@@ -1008,17 +1008,18 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 		}
 		vsNode := aviModel.(*AviObjectGraph).GetAviEvhVS()
 		infraSetting := routeIgrObj.GetAviInfraSetting()
-		if len(vsNode) > 0 && found {
-			// if vsNode already exists, check for updates via AviInfraSetting
-			if infraSetting != nil {
-				buildWithInfraSettingForEvh(key, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
-			}
-		}
 
 		// Create one evh child per host and associate http policies for each path.
 		modelGraph := aviModel.(*AviObjectGraph)
 		modelGraph.BuildModelGraphForInsecureEVH(routeIgrObj, host, infraSetting, key, pathsvcmap)
 
+		if len(vsNode) > 0 && found {
+			// if vsNode already exists, check for updates via AviInfraSetting
+			if infraSetting != nil {
+				utils.AviLog.Debug("buildWithInfraSettingForEvh")
+				buildWithInfraSettingForEvh(key, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
+			}
+		}
 		changedModel := saveAviModel(modelName, modelGraph, key)
 		if !utils.HasElem(modelList, modelName) && changedModel {
 			*modelList = append(*modelList, modelName)
@@ -1365,6 +1366,8 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		if len(vsNode) < 1 {
 			return nil
 		}
+		modelGraph := aviModel.(*AviObjectGraph)
+		modelGraph.BuildModelGraphForSecureEVH(routeIgrObj, ingressHostMap, hosts, tlssetting, ingName, namespace, infraSetting, host, key, paths)
 
 		if found {
 			// if vsNode already exists, check for updates via AviInfraSetting
@@ -1373,8 +1376,6 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 			}
 		}
 
-		modelGraph := aviModel.(*AviObjectGraph)
-		modelGraph.BuildModelGraphForSecureEVH(routeIgrObj, ingressHostMap, hosts, tlssetting, ingName, namespace, infraSetting, host, key, paths)
 		// Only add this node to the list of models if the checksum has changed.
 		utils.AviLog.Debugf("key: %s, Saving Model: %v", key, utils.Stringify(vsNode))
 		modelChanged := saveAviModel(model_name, modelGraph, key)
@@ -2124,7 +2125,7 @@ func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNo
 		if lib.IsPublicCloud() {
 			vsvip.EnablePublicIP = infraSetting.Spec.Network.EnablePublicIP
 		}
-		if vs.EVHParent {
+		if vs.EVHParent || vs.Dedicated {
 			enableHTTP2 := infraSetting.Spec.Network.EnableHTTP2 != nil && *infraSetting.Spec.Network.EnableHTTP2
 			for i, portProto := range vs.PortProto {
 				if portProto.Protocol == utils.HTTP || portProto.Protocol == utils.HTTPS {

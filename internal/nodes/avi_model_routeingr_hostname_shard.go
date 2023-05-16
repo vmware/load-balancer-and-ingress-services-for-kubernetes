@@ -192,16 +192,17 @@ func ProcessInsecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng I
 
 		vsNode := aviModel.(*AviObjectGraph).GetAviVS()
 		infraSetting := routeIgrObj.GetAviInfraSetting()
+
+		if !shardVsName.Dedicated {
+			aviModel.(*AviObjectGraph).BuildL7VSGraphHostNameShard(shardVsName.Name, host, routeIgrObj, pathsvcmap.ingressHPSvc, pathsvcmap.gslbHostHeader, parsedIng.InsecureEdgeTermAllow, key)
+		} else {
+			aviModel.(*AviObjectGraph).BuildDedicatedL7VSGraphHostNameShard(shardVsName.Name, host, routeIgrObj, parsedIng.InsecureEdgeTermAllow, pathsvcmap, key)
+		}
 		if len(vsNode) > 0 && found {
 			// if vsNode already exists, check for updates via AviInfraSetting
 			if infraSetting != nil {
 				buildWithInfraSetting(key, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 			}
-		}
-		if !shardVsName.Dedicated {
-			aviModel.(*AviObjectGraph).BuildL7VSGraphHostNameShard(shardVsName.Name, host, routeIgrObj, pathsvcmap.ingressHPSvc, pathsvcmap.gslbHostHeader, parsedIng.InsecureEdgeTermAllow, key)
-		} else {
-			aviModel.(*AviObjectGraph).BuildDedicatedL7VSGraphHostNameShard(shardVsName.Name, host, routeIgrObj, parsedIng.InsecureEdgeTermAllow, pathsvcmap, key)
 		}
 		changedModel := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
 		if !utils.HasElem(modelList, modelName) && changedModel {

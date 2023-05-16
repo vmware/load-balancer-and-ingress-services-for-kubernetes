@@ -674,7 +674,7 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 		if lib.IsPublicCloud() {
 			vsvip.EnablePublicIP = infraSetting.Spec.Network.EnablePublicIP
 		}
-		if vs.SNIParent {
+		if vs.SNIParent || vs.Dedicated {
 			enableHTTP2 := infraSetting.Spec.Network.EnableHTTP2 != nil && *infraSetting.Spec.Network.EnableHTTP2
 			for i, portProto := range vs.PortProto {
 				if portProto.Protocol == utils.HTTP || portProto.Protocol == utils.HTTPS {
