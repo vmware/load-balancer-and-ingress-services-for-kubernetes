@@ -387,14 +387,22 @@ func (c *AviController) InitVCFHandlers(kubeClient kubernetes.Interface, ctrlCh 
 		utils.AviLog.Infof("SEgroup/CloudName name not found, waiting ..")
 		startSyncCh := make(chan struct{})
 		c.AddBootupNSEventHandler(stopCh, startSyncCh)
+		ticker := time.NewTicker(lib.FullSyncInterval * time.Second)
 	L1:
 		for {
 			select {
 			case <-startSyncCh:
 				lib.AviSEInitialized = true
+				ticker.Stop()
 				break L1
 			case <-ctrlCh:
 				return
+			case <-ticker.C:
+				if c.SetSEGroupCloudNameFromNSAnnotations() {
+					lib.AviSEInitialized = true
+					ticker.Stop()
+					break L1
+				}
 			}
 		}
 	}
