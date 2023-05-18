@@ -583,8 +583,26 @@ func createAviInfraSettingCRD(clientset *apiextension.ApiextensionsV1Client, log
 									"enablePublicIP": {
 										Type: "boolean",
 									},
-									"enableHTTP2": {
-										Type: "boolean",
+									"listeners": {
+										Type: "array",
+										Items: &apiextensionv1.JSONSchemaPropsOrArray{
+											Schema: &apiextensionv1.JSONSchemaProps{
+												Type: "object",
+												Properties: map[string]apiextensionv1.JSONSchemaProps{
+													"port": {
+														Type:    "integer",
+														Minimum: proto.Float64(1),
+														Maximum: proto.Float64(65535),
+													},
+													"enableSSL": {
+														Type: "boolean",
+													},
+													"enableHTTP2": {
+														Type: "boolean",
+													},
+												},
+											},
+										},
 									},
 									"bgpPeerLabels": {
 										Type: "array",
