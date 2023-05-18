@@ -16,6 +16,7 @@ package integrationtest
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -487,4 +488,62 @@ func TestNodeCIDRInAnnotation(t *testing.T) {
 		return ""
 	}, 10*time.Second).Should(gomega.Equal("10.244.0.0"))
 	KubeClient.CoreV1().Nodes().Delete(context.TODO(), "testNodeAnnotation", metav1.DeleteOptions{})
+}
+
+func TestNodeOVNKubernetesAdd(t *testing.T) {
+	os.Setenv("CNI_PLUGIN", "ovn-kubernetes")
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/global"
+	nodeip := "10.1.1.2"
+	nodeName := "testNode1"
+	objects.SharedAviGraphLister().Delete(modelName)
+	nodeExample := (FakeNode{
+		Name:               nodeName,
+		PodCIDRsAnnotation: "192.168.1.0/24",
+		Version:            "1",
+		NodeIP:             nodeip,
+	}).NodeOVN()
+
+	_, err := KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Node: %v", err)
+	}
+
+	PollForCompletion(t, modelName, 5)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).IsVrf).To(gomega.Equal(true))
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+
+	g.Expect(len(nodes[0].StaticRoutes)).To(gomega.Equal(1))
+	g.Expect(*(nodes[0].StaticRoutes[0].NextHop.Addr)).To(gomega.Equal(nodeip))
+	g.Expect(*(nodes[0].StaticRoutes[0].Prefix.IPAddr.Addr)).To(gomega.Equal("192.168.1.0"))
+	g.Expect(*(nodes[0].StaticRoutes[0].Prefix.Mask)).To(gomega.Equal(int32(24)))
+}
+
+func TestNodeOVNKubernetesDel(t *testing.T) {
+	os.Setenv("CNI_PLUGIN", "ovn-kubernetes")
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/global"
+	nodeName := "testNode1"
+	objects.SharedAviGraphLister().Delete(modelName)
+	err := KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodeName, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("error in deleting Node: %v", err)
+	}
+	PollForCompletion(t, modelName, 5)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).IsVrf).To(gomega.Equal(true))
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+
+	g.Expect(len(nodes[0].StaticRoutes)).To(gomega.Equal(0))
 }

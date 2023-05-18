@@ -47,9 +47,9 @@ The `apiServerPort` field is used to run the API server within the AKO pod. The 
 
 ### AKOSettings.cniPlugin
 
-Use this flag only if you are using `calico`/`openshift` as a CNI and you are looking to a sync your static route configurations automatically.
+Use this flag only if you are using `calico`/`openshift`/`ovn-kubernetes` as a CNI and you are looking to sync your static route configurations automatically.
 Once enabled, for `calico` this flag is used to read the `blockaffinity` CRD to determine the Pod CIDR to Node IP mappings. If you are
-on an older version of calico where `blockaffinity` is not present, then leave this field as blank. For `openshift` hostsubnet CRD is used to to determine the Pod CIDR to Node IP mappings.
+on an older version of calico where `blockaffinity` is not present, then leave this field as blank. For `openshift` hostsubnet CRD is used to to determine the Pod CIDR to Node IP mappings. For `ovn-kubernetes` the `k8s.ovn.org/node-subnets` annotation in the Node metadata is used to determine the Pod CIDR to Node IP mappings.
 
 AKO will then determine the static routes based on the Kubernetes Nodes object as done with other CNIs.
 In case of `ncp` CNI, AKO automatically disables the configuration of static routes.

@@ -100,7 +100,7 @@ The following table lists the configurable parameters of the AKO chart and their
 | `AKOSettings.deleteConfig` | set to true if user wants to delete AKO created objects from Avi. deleteConfig can be changed dynamically from the configmap | false |
 | `AKOSettings.disableStaticRouteSync` | Disables static route syncing if set to true | false |
 | `AKOSettings.clusterName` | Unique identifier for the running AKO instance. AKO identifies objects it created on Avi Controller using this param. | **required** |
-| `AKOSettings.cniPlugin` | CNI Plugin being used in kubernetes cluster. Specify one of: calico, canal, flannel, ncp | **required** for calico, openshift, ncp setups |
+| `AKOSettings.cniPlugin` | CNI Plugin being used in kubernetes cluster. Specify one of: calico, canal, flannel, openshift, antrea, ncp, ovn-kubernetes | **required** for calico, openshift, ovn-kubernetes, ncp setups |
 | `AKOSettings.layer7Only` | Operate AKO as a pure layer 7 ingress controller | false |
 | `AKOSettings.enableEVH` | Enables the Enhanced Virtual Hosting Model in Avi Controller for the Virtual Services  | false |
 | `AKOSettings.vipPerNamespace` | Enabling this flag would tell AKO to create Parent VS per Namespace in EVH mode  | false |
