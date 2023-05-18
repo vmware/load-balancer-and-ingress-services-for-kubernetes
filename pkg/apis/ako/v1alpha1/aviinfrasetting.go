@@ -43,11 +43,16 @@ type AviInfraSettingNetwork struct {
 	VipNetworks    []AviInfraSettingVipNetwork  `json:"vipNetworks,omitempty"`
 	NodeNetworks   []AviInfraSettingNodeNetwork `json:"nodeNetworks,omitempty"`
 	EnableRhi      *bool                        `json:"enableRhi,omitempty"`
-	EnableHTTP2    *bool                        `json:"enableHTTP2,omitempty"`
 	EnablePublicIP *bool                        `json:"enablePublicIP,omitempty"`
 	BgpPeerLabels  []string                     `json:"bgpPeerLabels,omitempty"`
+	Listeners      []AviInfraListeners          `json:"listeners,omitempty"`
 }
 
+type AviInfraListeners struct {
+	Port        int  `json:"port,omitempty"`
+	EnableSSL   bool `json:"enableSSL,omitempty"`
+	EnableHTTP2 bool `json:"enableHTTP2,omitempty"`
+}
 type AviInfraSettingVipNetwork struct {
 	NetworkName string `json:"networkName,omitempty"`
 	Cidr        string `json:"cidr,omitempty"`

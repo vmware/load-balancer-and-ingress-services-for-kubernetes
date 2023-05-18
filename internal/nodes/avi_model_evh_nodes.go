@@ -2124,13 +2124,8 @@ func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNo
 		if lib.IsPublicCloud() {
 			vsvip.EnablePublicIP = infraSetting.Spec.Network.EnablePublicIP
 		}
-		if vs.EVHParent || vs.Dedicated {
-			enableHTTP2 := infraSetting.Spec.Network.EnableHTTP2 != nil && *infraSetting.Spec.Network.EnableHTTP2
-			for i, portProto := range vs.PortProto {
-				if portProto.Protocol == utils.HTTP || portProto.Protocol == utils.HTTPS {
-					vs.PortProto[i].EnableHTTP2 = enableHTTP2
-				}
-			}
+		if (vs.EVHParent || vs.Dedicated) && (infraSetting.Spec.Network.Listeners != nil && len(infraSetting.Spec.Network.Listeners) > 0) {
+			buildListenerPortsWithInfraSetting(infraSetting, vs.PortProto)
 		}
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 	}
