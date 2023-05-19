@@ -6,7 +6,7 @@ metadata:
   name: ako-sample
   namespace: avi-system
 spec:
-  imageRepository: projects.registry.vmware.com/ako/ako:1.9.1
+  imageRepository: projects.registry.vmware.com/ako/ako:1.9.3
   imagePullPolicy: "IfNotPresent"
   replicaCount: 1 # Defines the number of replicas for AKO Statefulset
   akoSettings:
