@@ -281,9 +281,16 @@ hatests:
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/hatests -failfast
 
+.PHONY: calicotests
+calicotests:
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/calicotests -failfast
+
 .PHONY: int_test
 int_test:
-	make -j 1 k8stest integrationtest ingresstests evhtests vippernstests dedicatedevhtests dedicatedvippernstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc dedicatedvstests multiclusteringresstests hatests
+	make -j 1 k8stest integrationtest ingresstests evhtests vippernstests dedicatedevhtests dedicatedvippernstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc dedicatedvstests multiclusteringresstests hatests calicotests
 
 .PHONY: scale_test
 scale_test:
