@@ -763,7 +763,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					utils.AviLog.Warnf("calico blockaffinity spec not found: %+v", err)
 					return
 				}
-				key := utils.NodeObj + "/" + specJSON["name"]
+				key := utils.NodeObj + "/" + specJSON["node"]
 				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 			},
@@ -778,7 +778,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					utils.AviLog.Warnf("calico blockaffinity spec not found: %+v", err)
 					return
 				}
-				key := utils.NodeObj + "/" + specJSON["name"]
+				key := utils.NodeObj + "/" + specJSON["node"]
 				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 			},
