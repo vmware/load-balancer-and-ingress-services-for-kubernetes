@@ -701,11 +701,13 @@ func buildPoolWithInfraSetting(key string, pool *AviPoolNode, infraSetting *akov
 func buildListenerPortsWithInfraSetting(infraSetting *akov1alpha1.AviInfraSetting, aviPortProto []AviPortHostProtocol) {
 	for i, portProto := range aviPortProto {
 		for _, listner := range infraSetting.Spec.Network.Listeners {
-			if portProto.Port == int32(listner.Port) {
-				if portProto.Protocol == utils.HTTP || portProto.Protocol == utils.HTTPS {
-					aviPortProto[i].EnableHTTP2 = listner.EnableHTTP2
+			if listner.Port != nil && portProto.Port == int32(*listner.Port) {
+				if listner.EnableHTTP2 != nil && portProto.Protocol == utils.HTTP || portProto.Protocol == utils.HTTPS {
+					aviPortProto[i].EnableHTTP2 = *listner.EnableHTTP2
 				}
-				aviPortProto[i].EnableSSL = listner.EnableSSL
+				if listner.EnableSSL != nil {
+					aviPortProto[i].EnableSSL = *listner.EnableSSL
+				}
 				break
 			}
 		}

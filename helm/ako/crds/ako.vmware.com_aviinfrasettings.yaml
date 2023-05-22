@@ -63,6 +63,8 @@ spec:
                           type: boolean
                         enableHTTP2:
                           type: boolean
+                      required:
+                      - port
                       type: object
                     type: array
                   bgpPeerLabels:

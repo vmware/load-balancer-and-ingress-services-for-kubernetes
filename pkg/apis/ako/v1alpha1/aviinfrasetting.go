@@ -49,9 +49,9 @@ type AviInfraSettingNetwork struct {
 }
 
 type AviInfraListeners struct {
-	Port        int  `json:"port,omitempty"`
-	EnableSSL   bool `json:"enableSSL,omitempty"`
-	EnableHTTP2 bool `json:"enableHTTP2,omitempty"`
+	Port        *int  `json:"port,omitempty"`
+	EnableSSL   *bool `json:"enableSSL,omitempty"`
+	EnableHTTP2 *bool `json:"enableHTTP2,omitempty"`
 }
 type AviInfraSettingVipNetwork struct {
 	NetworkName string `json:"networkName,omitempty"`
