@@ -14,17 +14,17 @@ To install the Operator using Helm refer [here](../docs/install/operator.md)
 
 -->
 
-### 1. Install on Openshift cluster from OperatorHub using Web Console
+### 1. Install on Openshift cluster from OperatorHub using Openshift Container Platform Web Console
 
-<i>**Step 1**</i>: Login to the web console of your Openshift cluster.
+<i>**Step 1**</i>: Login to the Openshift Container Platform web console of your Openshift cluster.
 
 <i>**Step 2**</i>: Navigate in the web console to the **Operators** → **OperatorHub** page.
 
-<i>**Step 3**</i>: Find `AKO Operator` provided by VMware. 
+<i>**Step 3**</i>: Find `AKO Operator` provided by VMware.
 
-<i>**Step 4**</i>: Click `install` and select the 1.8.2 version. The operator will be installed in `avi-system` namespace. The namespace will be created if it doesn't exist.
+<i>**Step 4**</i>: Click `install` and select the 1.9.3 version. The operator will be installed in `avi-system` namespace. The namespace will be created if it doesn't exist.
 
-<i>**Step 5**</i>: Verify installation by checking the pods in `avi-system` namespace. 
+<i>**Step 5**</i>: Verify installation by checking the pods in `avi-system` namespace.
 
 > **Note**: Refer [akoconfig](#ako-config) to start the AKO controller
 
@@ -83,7 +83,7 @@ helm repo update
 
 <i>**Step 2**</i>: Helm does not upgrade the CRDs during a release upgrade. Before you upgrade a release, run the following command to upgrade the CRDs:
 ```
-helm template ako/ako-operator --version 1.8.2 --include-crds --output-dir <output_dir>
+helm template ako/ako-operator --version 1.9.3 --include-crds --output-dir <output_dir>
 ```
 
 <i>**Step 3**</i>: This will save the helm files to an output directory which will contain the CRDs corresponding to the Operator version. Install CRDs using:
@@ -105,14 +105,14 @@ helm repo add --force-update ako https://projects.registry.vmware.com/chartrepo/
 
 <i>**Step 6**</i>: Get the values.yaml for the latest Operator version:
 ```
-helm show values ako/ako-operator --version 1.8.2 > values.yaml
+helm show values ako/ako-operator --version 1.9.3 > values.yaml
 ```
 Edit the file according to your setup.
 
 <i>**Step 7**</i>: Upgrade the helm chart:
 
 ```
-helm upgrade <release-name> ako/ako-operator -f /path/to/values.yaml --version 1.8.2 --namespace=avi-system
+helm upgrade <release-name> ako/ako-operator -f /path/to/values.yaml --version 1.9.3 --namespace=avi-system
 ```
 
 --> 
@@ -129,15 +129,38 @@ kubectl apply -f config/secrets/secret.yaml
 ```
 
 #### Deploying the AKO Controller
-
+<!--
 If the AKO operator was installed using helm, a default `AKOConfig` object called `ako-config` is already added and hence, this step is not required for helm based installation.
-**Note**: If the AKO operator was installed manually, then to install the AKO controller, add an `AKOConfig` object to the `avi-system` namespace.
+-->
+If the AKO operator was installed manually or on Openshift cluster from OperatorHub, then to install the AKO controller, add an `AKOConfig` object to the `avi-system` namespace.
 
 A sample of akoconfig is present [here](config/samples/ako_v1alpha1_akoconfig.yaml). Edit this file according to your setup.
 
 ```
 kubectl create -f config/samples/ako_v1alpha1_akoconfig.yaml
 ```
+
+Or, if using the Openshift client, use
+
+```
+oc create -f config/samples/ako_v1alpha1_akoconfig.yaml
+```
+
+AKO Controller can also be deployed on Openshift cluster, with AKOConfig custom resource using Openshift Container Platform Web Console.
+#### Prerequisite ####
+AKO Operator should already be installed on Openshift cluster. Once this prerequisite is met, following steps need to be followed.
+
+<i>**Step 1**</i>: Login to the Openshift Container Platform web console of your Openshift cluster.
+
+<i>**Step 2**</i>: Navigate in the web console to the **Operators** → **Installed Operators** page. AKO Operator, if already installed, should be listed.
+
+<i>**Step 3**</i>: In the **Provided APIs** section click on `AKOConfig`, and then click on `Create AKOConfig` button.
+
+<i>**Step 4**</i>: You will be provided two configuration options, **Form view** and **YAML view**. Please select the preferred option and populate the fields as required. The AKOConfig custom resource description and sample yaml manifest file can be referred for assistance.
+
+<i>**Step 5**</i>: Once the fields are populated, click on `Create` button.
+
+<i>**Step 6**</i>: Verify installation by checking the pods in `avi-system` namespace.
 
 #### Tweaking/Manage the AKO Controller
 
@@ -162,5 +185,5 @@ If this happens edit akoconfig using `kubectl edit akoconfig -n avi-system ako-c
 ### Versioning
 | **Operator version** | **Supported AKO Version** |
 | --------- | ----------- |
-| 1.8.1 | 1.8.1 |
 | 1.8.2 | 1.8.2 |
+| 1.9.3 | 1.9.3 |

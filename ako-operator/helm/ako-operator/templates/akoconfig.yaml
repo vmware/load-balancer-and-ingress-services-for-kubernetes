@@ -8,6 +8,7 @@ metadata:
 spec:
   imageRepository: {{ .Values.akoImage.repository }}
   imagePullPolicy: {{ .Values.akoImage.pullPolicy }}
+  replicaCount: {{ .Values.replicaCount }}
   akoSettings:
     enableEvents: {{ .Values.AKOSettings.enableEvents }}
     logLevel: {{ .Values.AKOSettings.logLevel }}
@@ -27,6 +28,7 @@ spec:
     vipPerNamespace: {{ .Values.AKOSettings.vipPerNamespace }}
     istioEnabled: {{ .Values.AKOSettings.istioEnabled }}
     ipFamily: {{ .Values.AKOSettings.ipFamily | quote}}
+    useDefaultSecretsOnly: {{ .Values.AKOSettings.useDefaultSecretsOnly }}
 {{- with .Values.AKOSettings.blockedNamespaceList }}
     blockedNamespaceList:
 {{- toYaml . | nindent 4 }}

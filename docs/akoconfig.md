@@ -10,7 +10,8 @@ metadata:
   name: ako-sample
   namespace: avi-system
 spec:
-  imageRepository: projects.registry.vmware.com/ako/ako:1.8.2
+  replicaCount: 1
+  imageRepository: projects.registry.vmware.com/ako/ako:1.9.3
   imagePullPolicy: "IfNotPresent"
   akoSettings:
     enableEvents: true
@@ -31,6 +32,7 @@ spec:
     istioEnabled: false
     ipFamily: ""
     blockedNamespaceList: []
+    useDefaultSecretsOnly: false
 
   networkSettings:
     nodeNetworkList: []
@@ -84,6 +86,7 @@ spec:
   - `metadata.name`: Name of the AKOConfig object. With `helm install`, the name of the default AKOConfig object is `ako-config`.
   - `metadata.namespace`: The namespace in which the AKOConfig object (and hence, the ako-operator) will be created. Only `avi-system` namespace is allowed for the ako-operator.
   - `spec.imageRepository`: The image repository for the ako-operator.
+  - `spec.replicaCount`: The number of replicas for AKO StatefulSet
   - `spec.akoSettings`: Settings for the AKO Controller.
     * `enableEvents`: Enables/disables Event broadcasting via AKO 
     * `logLevel`: Log level for the AKO controller. Supported enum values: `INFO`, `DEBUG`, `WARN`, `ERROR`.
@@ -102,6 +105,7 @@ spec:
     * `istioEnabled`: This flag needs to be enabled when AKO is be to brought up in an Istio environment.
     * `ipFamily`: IPFamily specifies IP family to be used. This flag can take values `V4` or `V6` (default `V4`). This is for the backend pools to use ipv6 or ipv4. For frontside VS, use v6cidr
     * `blockedNamespaceList`: This is the list of system namespaces from which AKO will not listen any Kubernetes or Openshift object event.
+    * `useDefaultSecretsOnly`: If this flag is set to true, AKO will only handle default secrets from the namespace where AKO is installed. This flag is applicable only to Openshift clusters.
   - `networkSettings`: Data network setting
     * `nodeNetworkList`: This list of network and cidrs are used in pool placement network for vcenter cloud. Node Network details are not needed when in nodeport mode / static routes are disabled / non vcenter clouds.
     * `enableRHI`: This is a cluster wide setting for BGP peering.

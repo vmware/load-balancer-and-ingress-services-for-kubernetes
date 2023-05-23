@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.6.2
   creationTimestamp: null
   name: akoconfigs.ako.vmware.com
 spec:
@@ -110,6 +110,11 @@ spec:
                   servicesAPI:
                     description: ServicesAPI enables AKO to do Layer 4 loadbalancing
                       using Services API
+                    type: boolean
+                  useDefaultSecretsOnly:
+                    description: UseDefaultSecretsOnly flag if set to true, AKO will
+                      only handle default secrets from the namespace where AKO is
+                      installed. This flag is applicable only to Openshift clusters.
                     type: boolean
                   vipPerNamespace:
                     description: VipPerNamespace enables AKO to create Parent VS per
@@ -270,6 +275,9 @@ spec:
                   pspEnable:
                     type: boolean
                 type: object
+              replicaCount:
+                description: ReplicaCount defines the number of replicas for AKO Statefulset
+                type: integer
               resources:
                 description: Resources defines the limits and requests for cpu and
                   memory to be used by the AKO controller

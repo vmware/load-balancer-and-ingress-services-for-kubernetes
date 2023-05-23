@@ -74,6 +74,8 @@ type AKOSettings struct {
 	BlockedNamespaceList []string `json:"blockedNamespaceList,omitempty"`
 	// IPFamily specifies IP family to be used. This flag can take values V4 or V6 (default V4). This is for the backend pools to use ipv6 or ipv4. For frontside VS, use v6cidr.
 	IPFamily string `json:"ipFamily,omitempty"`
+	// UseDefaultSecretsOnly flag if set to true, AKO will only handle default secrets from the namespace where AKO is installed. This flag is applicable only to Openshift clusters.
+	UseDefaultSecretsOnly bool `json:"useDefaultSecretsOnly,omitempty"`
 }
 
 type NodeNetwork struct {
@@ -183,7 +185,9 @@ type AKOConfigSpec struct {
 	// ImageRepository is where the AKO controller resides.
 	ImageRepository string `json:"imageRepository,omitempty"`
 	// ImagePullPolicy defines when the AKO controller image gets pulled.
-	ImagePullPolicy       string `json:"imagePullPolicy,omitempty"`
+	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
+	// ReplicaCount defines the number of replicas for AKO Statefulset
+	ReplicaCount          int `json:"replicaCount,omitempty"`
 	AKOSettings           `json:"akoSettings,omitempty"`
 	NetworkSettings       `json:"networkSettings,omitempty"`
 	L7Settings            `json:"l7Settings,omitempty"`

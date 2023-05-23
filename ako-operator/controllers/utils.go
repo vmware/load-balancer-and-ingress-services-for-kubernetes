@@ -66,6 +66,7 @@ const (
 	BlockedNamespaceList   = "blockedNamespaceList"
 	IPFamily               = "ipFamily"
 	EnableMCI              = "enableMCI"
+	UseDefaultSecretsOnly  = "useDefaultSecretsOnly"
 )
 
 var SecretEnvVars = map[string]string{
@@ -106,6 +107,7 @@ var ConfigMapEnvVars = map[string]string{
 	"MCI_ENABLED":                EnableMCI,
 	"BLOCKED_NS_LIST":            BlockedNamespaceList,
 	"VIP_PER_NAMESPACE":          VipPerNamespace,
+	"USE_DEFAULT_SECRETS_ONLY":   UseDefaultSecretsOnly,
 }
 
 func getSFNamespacedName() types.NamespacedName {
@@ -188,7 +190,10 @@ func isSfUpdateRequired(existingSf appsv1.StatefulSet, newSf appsv1.StatefulSet)
 	newContainer := newSf.Spec.Template.Spec.Containers[0]
 
 	// update to the statefulset required?
-	if existingSf.Spec.Replicas != nil && *existingSf.Spec.Replicas == 1 {
+	if existingSf.Spec.Replicas != nil {
+		if newSf.Spec.Replicas != nil && *newSf.Spec.Replicas != *existingSf.Spec.Replicas {
+			return true
+		}
 		if len(existingSf.Spec.Template.Spec.Containers) != 1 {
 			return true
 		}
