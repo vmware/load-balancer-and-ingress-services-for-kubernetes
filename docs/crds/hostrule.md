@@ -126,13 +126,13 @@ prior to this CRD creation. The application profile should be of `TYPE` of `APPL
 
 #### Express custom ICAP profile
 
-HostRule CRD can be used to express an ICAP profile reference. The ICAP profile reference should have been created in the Avi Controller prior to this CRD creation.
+HostRule CRD can be used to express a single ICAP profile reference per host. The ICAP profile reference should have been created in the Avi Controller prior to this CRD creation.
 
         icapProfile: 
         - avi-icap-ref
  
  This property can be applied for both secure and insecure hosts via EVH parent and child Virtual Services, SNI child Virtual Services and dedicated VS's.
- The ICAP profile can be used for transporting HTTP traffic to 3rd party services for processes such as content sanitization and antivirus scanning.
+ The [ICAP profile](https://avinetworks.com/docs/22.1/icap/) can be used for transporting HTTP traffic to 3rd party services for processes such as content sanitization and antivirus scanning.
 
 #### Express custom analytics profiles
 
