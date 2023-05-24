@@ -32,7 +32,8 @@ metadata:
               "vipPerNamespace": false,
               "istioEnabled": false,
               "blockedNamespaceList": [],
-              "ipFamily": ""
+              "ipFamily": "",
+              "useDefaultSecretsOnly": false
             },
             "controllerSettings": {
               "cloudName": "Default-Cloud",
@@ -43,7 +44,7 @@ metadata:
             },
             "replicaCount": 1,
             "imagePullPolicy": "IfNotPresent",
-            "imageRepository": "projects.registry.vmware.com/ako/ako@sha256:f80d2af984f76e176f441190fa2ee97cc0227f880a27361fc4d5405741bb729a",
+            "imageRepository": "projects.registry.vmware.com/ako/ako@sha256:824d89ccfa2391f926598e6e2dd4ad89edb5b619ff7902e5a866037dd50c91c3",
             "l4Settings": {
               "autoFQDN": "default",
               "defaultDomain": ""
@@ -100,8 +101,8 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.16.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     operatorframework.io/suggested-namespace: avi-system
-    containerImage: projects.registry.vmware.com/ako/ako-operator@sha256:ad55b86975cd73dfd5b3ff1179c03a6cfe47f578c5c8d79ad37d5ce2aab6482b
-  name: ako-operator.v1.9.1
+    containerImage: projects.registry.vmware.com/ako/ako-operator@sha256:1a38d5330314000fde9373cd7c6e3cacda699eca71d2566cd1aceeced2ef9da9
+  name: ako-operator.v1.9.3
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -496,7 +497,7 @@ spec:
               containers:
               - command:
                 - /ako-operator
-                image: projects.registry.vmware.com/ako/ako-operator@sha256:ad55b86975cd73dfd5b3ff1179c03a6cfe47f578c5c8d79ad37d5ce2aab6482b
+                image: projects.registry.vmware.com/ako/ako-operator@sha256:1a38d5330314000fde9373cd7c6e3cacda699eca71d2566cd1aceeced2ef9da9
                 name: ako-operator
                 resources:
                   limits:
@@ -549,7 +550,7 @@ spec:
     supported: false
   relatedImages:
   - name: ako-operator
-    image: projects.registry.vmware.com/ako/ako-operator@sha256:ad55b86975cd73dfd5b3ff1179c03a6cfe47f578c5c8d79ad37d5ce2aab6482b
+    image: projects.registry.vmware.com/ako/ako-operator@sha256:1a38d5330314000fde9373cd7c6e3cacda699eca71d2566cd1aceeced2ef9da9
   keywords:
   - AKO
   - AKO Operator
@@ -557,7 +558,7 @@ spec:
   - Ingress Controller
   links:
   - name: AKO Operator
-    url: https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tree/release-1.9.1-operator/ako-operator#readme
+    url: https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tree/release-1.9.3-operator/ako-operator#readme
   - name: AKO Repository
     url: https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
   - name: AKO
@@ -568,4 +569,4 @@ spec:
   maturity: stable
   provider:
     name: VMware
-  version: 1.9.1
+  version: 1.9.3
