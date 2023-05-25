@@ -146,6 +146,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 				Port:         &port,
 				EnableSsl:    &vs_meta.PortProto[i].EnableSSL,
 				PortRangeEnd: &port,
+				EnableHttp2:  &vs_meta.PortProto[i].EnableHTTP2,
 			}
 			if vs_meta.NetworkProfile == utils.MIXED_NET_PROFILE && pp.Protocol == utils.UDP {
 				svc.OverrideNetworkProfileRef = proto.String("/api/networkprofile/?name=" + utils.SYSTEM_UDP_FAST_PATH)

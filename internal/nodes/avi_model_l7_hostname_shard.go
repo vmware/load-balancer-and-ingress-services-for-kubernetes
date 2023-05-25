@@ -570,14 +570,14 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 			return nil, dedicated
 		}
 
+		modelGraph := aviModel.(*AviObjectGraph)
+		modelGraph.BuildModelGraphForSNI(routeIgrObj, ingressHostMap, sniHosts, tlssetting, ingName, namespace, infraSetting, sniHost, paths.gslbHostHeader, key)
 		if found {
 			// if vsNode already exists, check for updates via AviInfraSetting
 			if infraSetting != nil {
 				buildWithInfraSetting(key, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 			}
 		}
-		modelGraph := aviModel.(*AviObjectGraph)
-		modelGraph.BuildModelGraphForSNI(routeIgrObj, ingressHostMap, sniHosts, tlssetting, ingName, namespace, infraSetting, sniHost, paths.gslbHostHeader, key)
 		// Only add this node to the list of models if the checksum has changed.
 		modelChanged := saveAviModel(model_name, modelGraph, key)
 		if !utils.HasElem(*modelList, model_name) && modelChanged {

@@ -1008,17 +1008,17 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 		}
 		vsNode := aviModel.(*AviObjectGraph).GetAviEvhVS()
 		infraSetting := routeIgrObj.GetAviInfraSetting()
+
+		// Create one evh child per host and associate http policies for each path.
+		modelGraph := aviModel.(*AviObjectGraph)
+		modelGraph.BuildModelGraphForInsecureEVH(routeIgrObj, host, infraSetting, key, pathsvcmap)
+
 		if len(vsNode) > 0 && found {
 			// if vsNode already exists, check for updates via AviInfraSetting
 			if infraSetting != nil {
 				buildWithInfraSettingForEvh(key, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 			}
 		}
-
-		// Create one evh child per host and associate http policies for each path.
-		modelGraph := aviModel.(*AviObjectGraph)
-		modelGraph.BuildModelGraphForInsecureEVH(routeIgrObj, host, infraSetting, key, pathsvcmap)
-
 		changedModel := saveAviModel(modelName, modelGraph, key)
 		if !utils.HasElem(modelList, modelName) && changedModel {
 			*modelList = append(*modelList, modelName)
@@ -1365,6 +1365,8 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		if len(vsNode) < 1 {
 			return nil
 		}
+		modelGraph := aviModel.(*AviObjectGraph)
+		modelGraph.BuildModelGraphForSecureEVH(routeIgrObj, ingressHostMap, hosts, tlssetting, ingName, namespace, infraSetting, host, key, paths)
 
 		if found {
 			// if vsNode already exists, check for updates via AviInfraSetting
@@ -1373,8 +1375,6 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 			}
 		}
 
-		modelGraph := aviModel.(*AviObjectGraph)
-		modelGraph.BuildModelGraphForSecureEVH(routeIgrObj, ingressHostMap, hosts, tlssetting, ingName, namespace, infraSetting, host, key, paths)
 		// Only add this node to the list of models if the checksum has changed.
 		utils.AviLog.Debugf("key: %s, Saving Model: %v", key, utils.Stringify(vsNode))
 		modelChanged := saveAviModel(model_name, modelGraph, key)
@@ -2123,6 +2123,9 @@ func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNo
 		}
 		if lib.IsPublicCloud() {
 			vsvip.EnablePublicIP = infraSetting.Spec.Network.EnablePublicIP
+		}
+		if (vs.EVHParent || vs.Dedicated) && (infraSetting.Spec.Network.Listeners != nil && len(infraSetting.Spec.Network.Listeners) > 0) {
+			buildListenerPortsWithInfraSetting(infraSetting, vs.PortProto)
 		}
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 	}

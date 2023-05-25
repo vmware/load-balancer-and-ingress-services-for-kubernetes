@@ -329,7 +329,23 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1alpha1.A
 	if infraSetting.Spec.SeGroup.Name != "" {
 		refData[infraSetting.Spec.SeGroup.Name] = "ServiceEngineGroup"
 	}
-
+	if len(infraSetting.Spec.Network.Listeners) > 0 {
+		sslEnabled := false
+		for _, listener := range infraSetting.Spec.Network.Listeners {
+			if listener.EnableSSL != nil && *listener.EnableSSL {
+				sslEnabled = true
+				break
+			}
+		}
+		if !sslEnabled {
+			err := fmt.Errorf("One of the port in aviInfraSetting must have SSL enabled")
+			status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
+				Status: lib.StatusRejected,
+				Error:  err.Error(),
+			})
+			return err
+		}
+	}
 	if err := checkRefsOnController(key, refData); err != nil {
 		status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
 			Status: lib.StatusRejected,
