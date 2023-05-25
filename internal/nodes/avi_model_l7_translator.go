@@ -675,7 +675,6 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 			vsvip.EnablePublicIP = infraSetting.Spec.Network.EnablePublicIP
 		}
 		if vs.SNIParent || vs.Dedicated && (infraSetting.Spec.Network.Listeners != nil && len(infraSetting.Spec.Network.Listeners) > 0) {
-			utils.AviLog.Debug(len(infraSetting.Spec.Network.Listeners))
 			buildListenerPortsWithInfraSetting(infraSetting, vs.PortProto)
 		}
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
