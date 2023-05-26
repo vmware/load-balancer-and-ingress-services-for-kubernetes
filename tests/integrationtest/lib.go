@@ -731,6 +731,24 @@ func (node FakeNode) NodeOVN() *corev1.Node {
 	return nodeExample
 }
 
+func (node FakeNode) NodeCalico() *corev1.Node {
+	nodeExample := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            node.Name,
+			ResourceVersion: node.Version,
+		},
+		Status: corev1.NodeStatus{
+			Addresses: []corev1.NodeAddress{
+				{
+					Type:    "InternalIP",
+					Address: node.NodeIP,
+				},
+			},
+		},
+	}
+	return nodeExample
+}
+
 func GetStaticRoute(nodeAddr, prefixAddr, routeID string, mask int32) *models.StaticRoute {
 	nodeAddrType := "V4"
 	nexthop := models.IPAddr{
