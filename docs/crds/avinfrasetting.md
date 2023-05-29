@@ -23,6 +23,13 @@ spec:
         cidrs:
         - 10.10.20.0/24
     enableRhi: true
+    tcpSettings:
+      listeners:
+        - port: 8081
+          enableHTTP2: false
+          enableSSL: false
+        - port: 6443
+          enableSSL: true
     bgpPeerLabels:
       - peer1
       - peer2
@@ -147,6 +154,21 @@ AviInfraSetting CRD can be used to enable/disable Public IP on the virtualservic
 
         network:
           enablePublicIP: true
+
+##### Custom Ports
+
+In order to overwrite the ports opened for VSes created by AKO, users can provide the port details under the `listeners` setting. The ports mentioned under this section overwrites the default open ports, 80 and 443 (SSL enabled). If same port is mentioned in applicable Hostrule then setting mentioned in aviinfrasetting will take precedence. This is applicable only for Shared or Dedicated virtual services.
+
+        tcpSettings:
+          listeners:
+          - port: 80
+            enableHTTP2: false
+            enableSSL: false
+          - port: 6443
+            enableSSL: true
+
+
+**Note**: It is required that one of the ports that are mentioned in the setting has `enableSSL` field set to `true`. If `enableHTTP2` is true then HTTP2 traffic will be supported from client to Service Engine.
 
 #### Configure BGP Peer Labels for BGP VSes 
 
