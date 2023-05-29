@@ -41,6 +41,10 @@ func ParseOptionsFromMetadata(options []UpdateOptions, bulk bool) ([]string, map
 	updateIngressOptions := make(map[string]UpdateOptions)
 
 	for _, option := range options {
+		if option.ServiceMetadata.InsecureEdgeTermAllow {
+			utils.AviLog.Infof("Skipping update of parent VS annotation since the route :%v has InsecureEdgeTerminationAllow set to true", option.ServiceMetadata.IngressName)
+			continue
+		}
 		if len(option.ServiceMetadata.NamespaceIngressName) > 0 {
 			// secure VSes, service metadata comes from SNI VS.
 			for _, ingressns := range option.ServiceMetadata.NamespaceIngressName {
@@ -284,10 +288,6 @@ func routeStatusCheck(key string, oldStatus []routev1.RouteIngress, hostname str
 
 func updateRouteObject(mRoute *routev1.Route, updateOption UpdateOptions, retryNum ...int) error {
 	if len(updateOption.Vip) == 0 {
-		return nil
-	}
-	if updateOption.ServiceMetadata.InsecureEdgeTermAllow {
-		utils.AviLog.Infof("Skipping update of parent VS annotation since the route :%v has InsecureEdgeTerminationAllow set to true", mRoute.Name)
 		return nil
 	}
 
