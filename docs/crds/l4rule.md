@@ -3,6 +3,8 @@
 L4Rule CRD can be used to modify the default properties of the L4 VS and the pools created from a service of Type LoadBalancer.
 Service of type LoadBalancer has to be annotated with the name of the CRD to attach the CRD to the service.
 
+**NOTE**: L4Rule CRD with Gateway API is not supported currently.
+
 A sample L4Rule CRD looks like this:
 
 ```yaml
@@ -113,13 +115,13 @@ By default, the AKO sets the `duration` of logging the non-significant logs to *
 
 #### Express custom Application Profiles
 
-L4Rule CRD can be used to express application profile references. The application profile must be created in the AVI Controller before referring to it. The application profile should be of `TYPE` of `APPLICATION_PROFILE_TYPE_L4`.
+L4Rule CRD can be used to express application profile references. The application profile can be used to enable PROXY Protocol, rate limit the connections from a client, etc. The application profile must be created in the AVI Controller before referring to it.
 
 ```yaml
     applicationProfile: Custom-L4-Application-Profile
  ```
 
-Currently, the application profile of type `APPLICATION_PROFILE_TYPE_L4` is supported. The application profile can be used to enable PROXY Protocol, rate limit the connections from a client, etc.
+**NOTE**: The application profile should be of type `L4`. `L4 SSL/TLS` is not supported currently.
 
 #### Express custom Load Balancer IP
 
