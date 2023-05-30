@@ -1,6 +1,6 @@
 ### SSORule
 
-SSORule CRD can be used to configure OAuth or SAML specific properties for L7 virtual services that are created  by the AKO from Kubernetes Ingress and Openshift Route objects. The SSORule CRD can later be extended to support other SSO protocols that are supported by Avi.  
+SSORule CRD can be used to configure OAuth or SAML specific properties for L7 virtual services that are created by the AKO from Kubernetes Ingress and Openshift Route objects.  
 The SSORule CRD specifies an `fqdn` field, which is used to attach the SSORule to a virtual service. A given SSORule is applied to a virtual service if the virtual service hosts the fqdn specified in the SSORule CRD object.
 
 The SSORule CRD can be used to configure either OAuth/OIDC properties or SAML service provider properties, along with the SSO policy.  
@@ -60,7 +60,7 @@ spec:
 
 ```
 
-**NOTE**: SSORule CRD is only supported for Enhanced Virtual Hosting (EVH). The OAuth and SAML settings will only be configured on virtual services when EVH is enabled. When the shard virtual service size is **LARGE** or **MEDIUM** or **SMALL**, the OAuth and SAML settings will only be configured on the EVH child virtual services.
+**NOTE**: The SSORule CRD only supports configuration of OAuth and SAML SSO protocols currently. Also, SSORule CRD is only supported for Enhanced Virtual Hosting (EVH). When the shard virtual service size is **LARGE** or **MEDIUM** or **SMALL**, the OAuth and SAML settings will only be configured on the EVH child virtual services.
 
 ### Specific usage of SSORule CRD
 
@@ -69,7 +69,7 @@ The section below walks over the details and associated rules for using each fie
 
 #### SSORule to VS matching using fqdn
 
-A given SSORule is applied to a virtual service if the VS hosts the `fqdn` mentioned in the SSORule CRD. This `fdqn` must exactly match the one the virtual service is hosting.
+A given SSORule is applied to a virtual service if the VS hosts the `fqdn` mentioned in the SSORule CRD. This `fdqn` must exactly match the one the virtual service is hosting. Wildcards are not supported in the `fqdn` field of the SSORule CRD.
 
 ```yaml
   fqdn: my-ssorule.test.com
@@ -280,23 +280,11 @@ The `acsIndex` property can be used to express the index to be used in the Asser
 
 The `authnReqAcsType` property can be used to express the assertion consumer service type for authentication requests. It will determine the ACS attributes that will be set in the authentication request. It supports the following three values:
 
-When `authnReqAcsType` is set to **SAML_AUTHN_REQ_ACS_TYPE_NONE**, no ACS attributes will be set in the SAML authentication request.
-
-```yaml
-  authnReqAcsType: SAML_AUTHN_REQ_ACS_TYPE_NONE
-```
-
-When `authnReqAcsType` is set to **SAML_AUTHN_REQ_ACS_TYPE_URL**, the AssertionConsumerServiceURL attribute will be set in the SAML authentication request. The ACS URL should be equal to the single signon URL set for the virtual service.
-
-```yaml
-  authnReqAcsType: SAML_AUTHN_REQ_ACS_TYPE_URL
-```
-
-When `authnReqAcsType` is set to **SAML_AUTHN_REQ_ACS_TYPE_INDEX**, the AssertionConsumerServiceIndex attribute of the SAML authentication request will be set with the value specified in the `acsIndex` property.
-
-```yaml
-  authnReqAcsType: SAML_AUTHN_REQ_ACS_TYPE_INDEX
-```
+| **Value** | **Description** |
+| --- | --- |
+| `SAML_AUTHN_REQ_ACS_TYPE_NONE` | No ACS attributes will be set in the SAML authentication request |
+| `SAML_AUTHN_REQ_ACS_TYPE_URL` | The AssertionConsumerServiceURL attribute will be set in the SAML authentication request. The ACS URL should be equal to the single signon URL set for the virtual service |
+| `SAML_AUTHN_REQ_ACS_TYPE_INDEX` | The AssertionConsumerServiceIndex attribute of the SAML authentication request will be set with the value specified in the `acsIndex` property |
 
 #### Express name for authenticated session cookie
 
