@@ -2125,7 +2125,8 @@ func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNo
 			vsvip.EnablePublicIP = infraSetting.Spec.Network.EnablePublicIP
 		}
 		if (vs.EVHParent || vs.Dedicated) && (infraSetting.Spec.Network.Listeners != nil && len(infraSetting.Spec.Network.Listeners) > 0) {
-			buildListenerPortsWithInfraSetting(infraSetting, vs.PortProto)
+			portProto := buildListenerPortsWithInfraSetting(infraSetting, vs.PortProto)
+			vs.SetPortProtocols(portProto)
 		}
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 	}
