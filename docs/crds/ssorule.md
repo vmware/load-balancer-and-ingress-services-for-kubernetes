@@ -144,7 +144,7 @@ The `clientID` property can be used to express the client ID for the application
 
 #### Express Client Secret
 
-The `clientSecret` field can be used to express the client secret for the application. It is an application specific identifier secret registered with the authorization server, or IDP. Since `clientSecret` is a sensetive field in NSX ALB, AKO requires it to be specified inside a Kubernetes Secret object. So, this `clientSecret` field should be the name of the Kubernetes secret object that specifies the actual client secret value (Base64 encoded) in the **clientSecret** data field.
+The `clientSecret` field can be used to express the client secret for the application. It is an application specific identifier secret registered with the authorization server, or IDP. Since `clientSecret` is a sensetive field in NSX ALB, AKO requires it to be specified inside a Kubernetes Secret object. So, this `clientSecret` field should be the name of the Kubernetes secret object that specifies the actual client secret value (Base64 encoded) in the **clientSecret** data field. This Kubernetes secret object should be created in the same namespace as the SSORule.
 
 ```yaml
   clientSecret: my-oauth-secret
@@ -232,7 +232,7 @@ The `opaqueTokenParams` property should be specified if the `accessType` propert
 
 The `serverID` property can be used to express the server ID for the resource server. It is the resource server specific identifier registered with the authorization server or Identity Provider(IDP), and is used to validate against the introspection endpoint when the access token type is opaque.  
 
-The `serverSecret` field can be used to express the server secret for the resource server. It is a resource server specific identifier secret registered with the authorization server, or IDP. Since `serverSecret` is a sensetive field in NSX ALB, AKO requires it to be specified inside a Kubernetes Secret object. So, this `serverSecret` field should be the name of the Kubernetes secret object that specifies the actual server secret value (Base64 encoded) in the **serverSecret** data field. The server and client secrets can be specified in the same or different Kubernetes objects, as already shown in [Express Client Secret.](#express-client-secret)
+The `serverSecret` field can be used to express the server secret for the resource server. It is a resource server specific identifier secret registered with the authorization server, or IDP. Since `serverSecret` is a sensetive field in NSX ALB, AKO requires it to be specified inside a Kubernetes Secret object. So, this `serverSecret` field should be the name of the Kubernetes secret object that specifies the actual server secret value (Base64 encoded) in the **serverSecret** data field. This Kubernetes secret object should be created in the same namespace as the SSORule. The server and client secrets can be specified in the same or different Kubernetes objects, as already shown in [Express Client Secret.](#express-client-secret)
 
 #### Express Redirect URI for OAuth
 
@@ -378,6 +378,16 @@ The detailed rejection reason can be obtained from the status:
 
 SSORule CRD is only supported for Enhanced Virtual Hosting (EVH). The OAuth and SAML settings will only be configured on virtual services when EVH is enabled. When shard virtual service size is **LARGE** or **MEDIUM** or **SMALL**, the OAuth and SAML settings will only be configured on the EVH child virtual services.
 
+##### SSORule may get rejected on Openshift if useDefaultSecretsOnly is true in the AKO configuration
+
+An SSORule, created on an **Openshift** cluster to configure OAuth settings for a virtual service, may get **rejected** if `useDefaultSecretsOnly` is set to **"true"** in AKO configuration. This is because AKO will only handle default secrets in the namespace where AKO is installed. See https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/values.md#akosettingsusedefaultsecretsonly for more details.  
+So, if `useDefaultSecretsOnly` is set to **"true"**, and an SSORule along with a Client Secret and/or Server Secret is created in a namespace other than the namespace where AKO is installed, it will get rejected. The rejection reason can be obtained from the status and will be similar to the one given below.
+
+```yaml
+  status:
+    error: "Got error while fetching my-oauth-secret secret : secret handling is restricted to avi-system namespace only"
+    status: Rejected
+```
 ##### SSORule deletion
 
 If an SSORule is deleted, all the settings for the FQDNs are withdrawn from the Avi controller.
