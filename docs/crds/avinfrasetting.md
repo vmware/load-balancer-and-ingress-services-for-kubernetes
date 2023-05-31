@@ -157,7 +157,7 @@ AviInfraSetting CRD can be used to enable/disable Public IP on the virtualservic
 
 ##### Custom Ports
 
-In order to overwrite the ports opened for VSes created by AKO, users can provide the port details under the `listeners` setting. The ports mentioned under this section overwrites the default open ports, 80 and 443 (SSL enabled). If same port is mentioned in applicable Hostrule then setting mentioned in aviinfrasetting will take precedence. This is applicable only for Shared or Dedicated virtual services.
+In order to customize the ports opened for L7 Shared or Dedicated virtual services created by AKO, users can provide the port details under the `listeners` setting. The ports mentioned under this section will be added to VS along with the default open ports, 80 and 443 along with the ports mentioned in [hostrule](../crds/hostrule.md#custom-ports). The settings mentioned in aviinfrasetting will always take precedence over default and hostrule properties.
 
         tcpSettings:
           listeners:
