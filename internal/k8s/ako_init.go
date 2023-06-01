@@ -921,26 +921,6 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 		}
 	}
 
-	if utils.GetInformers().IngressInformer != nil {
-		for namespace := range acceptedNamespaces {
-			ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).List(labels.Set(nil).AsSelector())
-			if err != nil {
-				utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
-			} else {
-				for _, ingObj := range ingObjs {
-					key := utils.Ingress + "/" + utils.ObjKey(ingObj)
-					meta, err := meta.Accessor(ingObj)
-					if err == nil {
-						resVer := meta.GetResourceVersion()
-						objects.SharedResourceVerInstanceLister().Save(key, resVer)
-					}
-					utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
-					nodes.DequeueIngestion(key, true)
-				}
-			}
-		}
-	}
-
 	if !lib.IsWCP() {
 		hostRuleObjs, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
@@ -1050,7 +1030,26 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 				}
 			}
 		}
-
+		//Ingress Section
+		if utils.GetInformers().IngressInformer != nil {
+			for namespace := range acceptedNamespaces {
+				ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).List(labels.Set(nil).AsSelector())
+				if err != nil {
+					utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
+				} else {
+					for _, ingObj := range ingObjs {
+						key := utils.Ingress + "/" + utils.ObjKey(ingObj)
+						meta, err := meta.Accessor(ingObj)
+						if err == nil {
+							resVer := meta.GetResourceVersion()
+							objects.SharedResourceVerInstanceLister().Save(key, resVer)
+						}
+						utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
+						nodes.DequeueIngestion(key, true)
+					}
+				}
+			}
+		}
 		//Route Section
 		if utils.GetInformers().RouteInformer != nil {
 			routeObjs, err := utils.GetInformers().RouteInformer.Lister().List(labels.Set(nil).AsSelector())
@@ -1147,8 +1146,27 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			}
 		}
 	} else {
+		//Ingress Section
+		if utils.GetInformers().IngressInformer != nil {
+			for namespace := range acceptedNamespaces {
+				ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).List(labels.Set(nil).AsSelector())
+				if err != nil {
+					utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
+				} else {
+					for _, ingObj := range ingObjs {
+						key := utils.Ingress + "/" + utils.ObjKey(ingObj)
+						meta, err := meta.Accessor(ingObj)
+						if err == nil {
+							resVer := meta.GetResourceVersion()
+							objects.SharedResourceVerInstanceLister().Save(key, resVer)
+						}
+						utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
+						nodes.DequeueIngestion(key, true)
+					}
+				}
+			}
+		}
 		//Gateway Section
-
 		gatewayObjs, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the gateways during full sync: %s", err)
