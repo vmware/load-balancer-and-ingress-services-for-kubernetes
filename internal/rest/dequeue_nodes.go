@@ -273,6 +273,10 @@ func (rest *RestOperations) CheckAndPublishForRetry(err error, publishKey, key s
 			}
 		}
 	}
+	if strings.Contains(err.Error(), "x509") && utils.IsVCFCluster() {
+		lib.WaitForInitSecretRecreateAndReboot()
+		return true
+	}
 	if strings.Contains(err.Error(), "Rest request error") || strings.Contains(err.Error(), "timed out waiting for rest response") {
 		utils.AviLog.Warnf("key: %s, msg: got error while executing rest request: %s, adding to slow retry queue", key, err.Error())
 		rest.PublishKeyToSlowRetryLayer(publishKey, key)

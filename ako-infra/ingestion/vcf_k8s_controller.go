@@ -17,9 +17,9 @@ package ingestion
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"reflect"
 	"sync"
+	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -303,13 +303,20 @@ func (c *VCFK8sController) HandleVCF(stopCh <-chan struct{}, ctrlCh chan struct{
 	if !c.ValidBootStrapData() {
 		c.AddConfigMapEventHandler(stopCh, startSyncCh)
 		utils.AviLog.Infof("Running in a VCF Cluster, but valid ConfigMap/Secret not found, waiting ..")
+		ticker := time.NewTicker(lib.FullSyncInterval * time.Second)
 	L:
 		for {
 			select {
 			case <-startSyncCh:
+				ticker.Stop()
 				break L
 			case <-ctrlCh:
 				return transportZone
+			case <-ticker.C:
+				if c.ValidBootStrapData() {
+					ticker.Stop()
+					break L
+				}
 			}
 		}
 	}
@@ -357,14 +364,19 @@ func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, se
 
 	authToken := string(ncpSecret.Data["authtoken"])
 	username := string(ncpSecret.Data["username"])
+	caData := string(ncpSecret.Data["certificateAuthorityData"])
 	lib.SetControllerIP(controllerIP)
 
-	var transport *http.Transport
-	aviClient, err := clients.NewAviClient(
-		controllerIP, username, session.SetAuthToken(string(authToken)),
-		session.SetNoControllerStatusCheck, session.SetTransport(transport),
-		session.SetInsecure,
-	)
+	transport, isSecure := utils.GetHTTPTransportWithCert(caData)
+	options := []func(*session.AviSession) error{
+		session.SetAuthToken(string(authToken)),
+		session.SetNoControllerStatusCheck,
+		session.SetTransport(transport),
+	}
+	if !isSecure {
+		options = append(options, session.SetInsecure)
+	}
+	aviClient, err := clients.NewAviClient(controllerIP, username, options...)
 	if err != nil {
 		utils.AviLog.Errorf("Failed to connect to AVI controller using secret provided by NCP, the secret would be deleted, err: %v", err)
 		c.deleteNCPSecret(secretName, secretNamespace)

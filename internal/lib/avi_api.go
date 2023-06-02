@@ -15,10 +15,7 @@
 package lib
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"errors"
-	"net/http"
 	"strings"
 
 	apimodels "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
@@ -244,14 +241,14 @@ func CheckForInvalidCredentials(uri string, err error) {
 			ShutdownApi()
 		}
 	}
+	if strings.Contains(err.Error(), "x509") && utils.IsVCFCluster() {
+		WaitForInitSecretRecreateAndReboot()
+		return
+	}
 
 }
 
 func NewAviRestClientWithToken(api_ep, username, authToken, cadata string) *clients.AviClient {
-	var aviClient *clients.AviClient
-	var transport *http.Transport
-	var err error
-
 	ctrlIpAddress := GetControllerIP()
 	if username == "" || authToken == "" || ctrlIpAddress == "" {
 		var authTokenLog string
@@ -266,21 +263,16 @@ func NewAviRestClientWithToken(api_ep, username, authToken, cadata string) *clie
 		utils.AviLog.Fatalf("Avi Controller information missing (username: %s, authToken: %s, controller: %s). Update them in avi-secret.", username, authTokenLog, ctrlIpAddress)
 	}
 
-	rootPEMCerts := cadata
-	if rootPEMCerts != "" {
-		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM([]byte(rootPEMCerts))
-
-		transport =
-			&http.Transport{
-				TLSClientConfig: &tls.Config{
-					RootCAs: caCertPool,
-				},
-			}
-		aviClient, err = clients.NewAviClient(api_ep, username, session.SetAuthToken(authToken), session.SetNoControllerStatusCheck, session.SetTransport(transport))
-	} else {
-		aviClient, err = clients.NewAviClient(api_ep, username, session.SetAuthToken(authToken), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
+	transport, isSecure := utils.GetHTTPTransportWithCert(cadata)
+	options := []func(*session.AviSession) error{
+		session.SetNoControllerStatusCheck,
+		session.SetTransport(transport),
+		session.SetAuthToken(authToken),
 	}
+	if !isSecure {
+		options = append(options, session.SetInsecure)
+	}
+	aviClient, err := clients.NewAviClient(api_ep, username, options...)
 	if err != nil {
 		utils.AviLog.Warnf("NewAviClient returned err %v", err)
 		return nil

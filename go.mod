@@ -16,7 +16,7 @@ require (
 	github.com/openshift/api v0.0.0-20201019163320-c6a5ec25f267
 	github.com/openshift/client-go v0.0.0-20201020082437-7737f16e53fc
 	github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
-	github.com/vmware/alb-sdk v0.0.0-20230202152455-af9d49bac7ea
+	github.com/vmware/alb-sdk v0.0.0-20230602112710-2afd1a6bc61a
 	go.uber.org/zap v1.18.1
 	golang.org/x/crypto v0.0.0-20220314234659-1baeb1ce4c0b
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
@@ -73,7 +73,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20220521103104-8f96da9f5d5e // indirect
 	istio.io/api v0.0.0-20210512213424-c42041d3366d // indirect
 	istio.io/gogo-genproto v0.0.0-20210113155706-4daf5697332f // indirect
-	k8s.io/code-generator v0.21.3 // indirect
 	k8s.io/component-base v0.21.3 // indirect
 	k8s.io/kube-openapi v0.0.0-20210305001622-591a79e4bda7 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
