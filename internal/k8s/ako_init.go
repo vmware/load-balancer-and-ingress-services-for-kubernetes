@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"sort"
 	"strconv"
@@ -358,18 +357,26 @@ func (c *AviController) ValidAviSecret() bool {
 		authToken := string(aviSecret.Data["authtoken"])
 		username := string(aviSecret.Data["username"])
 		password := string(aviSecret.Data["password"])
+		caData := string(aviSecret.Data["certificateAuthorityData"])
 		if username == "" || (password == "" && authToken == "") {
 			return false
 		}
 
-		var transport *http.Transport
-		if authToken == "" {
-			_, err = clients.NewAviClient(ctrlIP, username,
-				session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
-		} else {
-			_, err = clients.NewAviClient(ctrlIP, username,
-				session.SetAuthToken(authToken), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
+		transport, isSecure := utils.GetHTTPTransportWithCert(caData)
+		options := []func(*session.AviSession) error{
+			session.SetNoControllerStatusCheck,
+			session.SetTransport(transport),
 		}
+		if !isSecure {
+			options = append(options, session.SetInsecure)
+		}
+		if authToken == "" {
+			options = append(options, session.SetPassword(password))
+
+		} else {
+			options = append(options, session.SetAuthToken(authToken))
+		}
+		_, err = clients.NewAviClient(ctrlIP, username, options...)
 		if err == nil {
 			utils.AviLog.Infof("Successfully connected to AVI controller using existing AKO secret")
 			return true
