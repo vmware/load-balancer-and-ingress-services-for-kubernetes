@@ -41,17 +41,21 @@ func NewAviRestClientPool(num uint32, api_ep, username,
 	var globalErr error
 
 	rootPEMCerts := ctrlCAData
-	var transport *http.Transport
-	if rootPEMCerts != "" {
-		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM([]byte(rootPEMCerts))
+	transport, isSecure := GetHTTPTransportWithCert(rootPEMCerts)
+	options := []func(*session.AviSession) error{
+		session.SetNoControllerStatusCheck,
+		session.SetTransport(transport),
+	}
 
-		transport =
-			&http.Transport{
-				TLSClientConfig: &tls.Config{
-					RootCAs: caCertPool,
-				},
-			}
+	if !isSecure {
+		options = append(options, session.SetInsecure)
+	}
+
+	if authToken == "" {
+		options = append(options, session.SetPassword(password))
+	} else {
+		options = append(options, session.SetAuthToken(authToken))
+		options = append(options, session.SetRefreshAuthTokenCallbackV2(GetAuthtokenFromCache))
 	}
 
 	clientPool.AviClient = make([]*clients.AviClient, num)
@@ -63,26 +67,7 @@ func NewAviRestClientPool(num uint32, api_ep, username,
 				return
 			}
 
-			var aviClient *clients.AviClient
-			var err error
-
-			if authToken == "" {
-				if rootPEMCerts != "" {
-					aviClient, err = clients.NewAviClient(api_ep, username,
-						session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport))
-				} else {
-					aviClient, err = clients.NewAviClient(api_ep, username,
-						session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
-				}
-			} else {
-				if rootPEMCerts != "" {
-					aviClient, err = clients.NewAviClient(api_ep, username,
-						session.SetAuthToken(authToken), session.SetRefreshAuthTokenCallbackV2(GetAuthtokenFromCache), session.SetNoControllerStatusCheck, session.SetTransport(transport))
-				} else {
-					aviClient, err = clients.NewAviClient(api_ep, username,
-						session.SetAuthToken(authToken), session.SetRefreshAuthTokenCallbackV2(GetAuthtokenFromCache), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
-				}
-			}
+			aviClient, err := clients.NewAviClient(api_ep, username, options...)
 			if err != nil {
 				AviLog.Warnf("NewAviClient returned err %v", err)
 				globalErr = err
@@ -268,4 +253,21 @@ func DeleteAuthTokenWithRetry(c *clients.AviClient, tokenID string, retryCount i
 		AviLog.Warnf("Failed to delete authtoken, retry count:%d, err: %+v", retry, err)
 	}
 	return err
+}
+
+func GetHTTPTransportWithCert(rootPEMCerts string) (*http.Transport, bool) {
+	var transport *http.Transport
+	var isSecure bool
+	if rootPEMCerts != "" {
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM([]byte(rootPEMCerts))
+
+		transport = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: caCertPool,
+			},
+		}
+		isSecure = true
+	}
+	return transport, isSecure
 }
