@@ -12,7 +12,7 @@
 * limitations under the License.
 */
 
-package calicotests
+package cnitests
 
 import (
 	"context"

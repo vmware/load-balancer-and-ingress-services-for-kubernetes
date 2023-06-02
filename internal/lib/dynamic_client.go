@@ -315,7 +315,11 @@ func GetPodCIDR(node *v1.Node) ([]string, error) {
 			crdNodeName := crdMetadata["name"].(string)
 			if crdNodeName == nodename {
 				crdSpec := (i.Object["spec"]).(map[string]interface{})
-				crdIpam := crdSpec["ipam"].(map[string]interface{})
+				crdIpam, ok := crdSpec["ipam"].(map[string]interface{})
+				if !ok {
+					utils.AviLog.Errorf("Error in fetching ipam from CiliumNode")
+					return nil, errors.New("Error in parsing ciliumnode crd list")
+				}
 				crdPodCidrs, ok := crdIpam["podCIDRs"].([]interface{})
 				if !ok {
 					utils.AviLog.Errorf("Error in fetching Pod CIDR from CiliumNode")
