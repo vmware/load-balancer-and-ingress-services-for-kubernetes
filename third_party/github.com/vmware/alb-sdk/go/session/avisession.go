@@ -715,7 +715,7 @@ func (avisess *AviSession) restRequest(verb string, uri string, payload interfac
 			if err != nil {
 				glog.Errorf("Failed to invoke API. Error: %s", err.Error())
 			}
-			return nil, errors.New("Rest request error, returning to caller")
+			return nil, fmt.Errorf("Rest request error, returning to caller: %s", err.Error())
 
 		}
 	}
