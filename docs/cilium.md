@@ -31,3 +31,18 @@ In the cluster scope mode, the podCIDRs range are made available via the `Cilium
 ### Kubernetes Host Scope IPAM mode
 
 In Kubernetes host scope mode, podCIDRs are allocated out of the PodCIDR range associated to each node by Kubernetes. This PodCIDR range is available in the Node `spec.podCIDRs` field. By default, when the `cniPlugin` flag is empty, AKO determines the Pod CIDR to Node IP mappings from Node `spec.podCIDRs` field and configures the static routes accordingly. Hence, the `cniPlugin` flag should be left empty for Kubernetes Host Scope IPAM mode.
+
+## Conditions and Caveats
+
+AKO supports the SCTP protocol for L4 services. Read https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/sctp.md for more information.  
+Starting with version 1.13 Cilium CNI also provides basic SCTP support. However, SCTP support is not enabled by default and needs to be enabled in the Cilium configuration before the SCTP protocol can be used in port definitions. To enable SCTP support, the `enable-sctp` field in `cilium-config` configmap should be set to `"true"`.
+
+```yaml
+  enable-sctp: "true"
+```
+
+**NOTE**: The Kernel version on the Kubernetes nodes should be 5.2 or newer for Cilium to support SCTP. Otherwise, the Cilium daemon may crash with the following error.
+
+```
+level=fatal msg="failed to start: daemon creation failed: SCTP support needs kernel 5.2 or newer" subsys=daemon
+```
