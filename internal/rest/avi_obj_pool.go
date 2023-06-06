@@ -169,7 +169,7 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	}
 
 	if err := copier.CopyWithOption(&pool, &pool_meta.AviPoolGeneratedFields, copier.Option{IgnoreEmpty: true}); err != nil {
-		utils.AviLog.Warnf("key: %s, msg: unable to set few parameters in the Pool", key)
+		utils.AviLog.Warnf("key: %s, msg: unable to set few parameters in the Pool, err: %v", key, err)
 	}
 
 	// TODO Version should be latest from configmap

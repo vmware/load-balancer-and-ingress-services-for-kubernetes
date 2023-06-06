@@ -247,7 +247,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		var path string
 
 		if err := copier.CopyWithOption(&vs, &vs_meta.AviVsNodeGeneratedFields, copier.Option{IgnoreEmpty: true}); err != nil {
-			utils.AviLog.Warnf("key: %s, msg: unable to set few parameters in the VS", key)
+			utils.AviLog.Warnf("key: %s, msg: unable to set few parameters in the VS, err: %v", key, err)
 		}
 
 		// VS objects cache can be created by other objects and they would just set VS name and not uud
