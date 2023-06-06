@@ -130,7 +130,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		if len(vs_meta.VSVIPRefs) > 0 {
 			vs.VsvipRef = proto.String("/api/vsvip/?name=" + vs_meta.VSVIPRefs[0].Name)
 		} else {
-			utils.AviLog.Warnf("key: %s, msg: unable to set the vsvip reference")
+			utils.AviLog.Warnf("key: %s, msg: unable to set the vsvip reference", key)
 		}
 
 		if vs_meta.SNIParent {
@@ -246,7 +246,9 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		var rest_op utils.RestOp
 		var path string
 
-		copier.CopyWithOption(&vs, &vs_meta.AviVsNodeGeneratedFields, copier.Option{IgnoreEmpty: true})
+		if err := copier.CopyWithOption(&vs, &vs_meta.AviVsNodeGeneratedFields, copier.Option{IgnoreEmpty: true}); err != nil {
+			utils.AviLog.Warnf("key: %s, msg: unable to set few parameters in the VS", key)
+		}
 
 		// VS objects cache can be created by other objects and they would just set VS name and not uud
 		// Do a POST call in that case

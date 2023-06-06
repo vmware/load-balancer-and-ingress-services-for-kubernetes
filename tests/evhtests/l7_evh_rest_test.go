@@ -16,7 +16,11 @@ package evhtests
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -819,4 +823,61 @@ func TestDeleteSecretSecureIngressStatusCheckForEvh(t *testing.T) {
 	}, 30*time.Second).Should(gomega.Equal(1))
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
+}
+
+func TestProfilesAttachedToEvhVS(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	// middleware verifies the application and network profiles attached to the VS
+	integrationtest.AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		url := r.URL.EscapedPath()
+		if r.Method == http.MethodPost &&
+			strings.Contains(url, "/api/virtualservice") {
+			var resp map[string]interface{}
+			data, _ := io.ReadAll(r.Body)
+			json.Unmarshal(data, &resp)
+			if strings.Contains(resp["name"].(string), "Shared") {
+				g.Expect(resp["application_profile_ref"]).Should(gomega.HaveSuffix("System-HTTP"))
+				g.Expect(resp["network_profile_ref"]).Should(gomega.HaveSuffix("System-TCP-Proxy"))
+			} else {
+				g.Expect(resp["application_profile_ref"]).Should(gomega.HaveSuffix("System-HTTP"))
+				g.Expect(resp["network_profile_ref"]).Should(gomega.HaveSuffix("System-TCP-Proxy"))
+			}
+			resp["uuid"] = "virtualservice--name-RANDOMUUID"
+			finalResponse, _ := json.Marshal(resp)
+			w.WriteHeader(http.StatusOK)
+			w.Write(finalResponse)
+			return
+		}
+		integrationtest.NormalControllerServer(w, r)
+	})
+
+	modelName, vsName := GetModelName("foo.com", "default")
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes, ok := aviModel.(*avinodes.AviObjectGraph)
+		if !ok {
+			return 0
+		}
+		return len(nodes.GetAviEvhVS())
+	}, 30*time.Second).Should(gomega.Equal(1))
+
+	mcache := cache.SharedAviObjCache()
+	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: vsName}
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
+
+	g.Eventually(func() bool {
+		_, found := mcache.VsCacheMeta.AviCacheGet(parentVSKey)
+		return found
+	}, 60*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() bool {
+		_, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
+		return found
+	}, 60*time.Second).Should(gomega.Equal(true))
+
+	TearDownIngressForCacheSyncCheck(t, modelName)
+
+	integrationtest.ResetMiddleware()
 }
