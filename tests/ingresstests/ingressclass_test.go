@@ -1290,3 +1290,144 @@ func TestCRDWithAviInfraSetting(t *testing.T) {
 	}, 50*time.Second).Should(gomega.Equal(true))
 	TearDownTestForIngress(t, modelName, settingModelName)
 }
+
+func TestFQDNsCountForAviInfraSettingWithDedicatedShardSize(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/cluster--my-infrasetting-foo.com-L7-dedicated"
+
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
+	secretName := "my-secret"
+
+	SetUpTestForIngress(t, modelName)
+	integrationtest.RemoveDefaultIngressClass()
+	defer integrationtest.AddDefaultIngressClass()
+
+	integrationtest.SetupAviInfraSetting(t, settingName, "DEDICATED")
+	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
+	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
+
+	ingressCreate := (integrationtest.FakeIngress{
+		Name:        ingressName,
+		Namespace:   ns,
+		ClassName:   ingClassName,
+		DnsNames:    []string{"foo.com"},
+		ServiceName: "avisvc",
+		TlsSecretDNS: map[string][]string{
+			secretName: {"foo.com"},
+		},
+	}).Ingress()
+	_, err := KubeClient.NetworkingV1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if aviModel == nil {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes)
+	}, 10*time.Second).Should(gomega.Equal(1))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	node := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0]
+
+	g.Expect(node.VSVIPRefs).To(gomega.HaveLen(1))
+	g.Expect(node.VSVIPRefs[0].FQDNs).To(gomega.HaveLen(1))
+	for _, fqdn := range node.VSVIPRefs[0].FQDNs {
+		g.Expect(fqdn).ShouldNot(gomega.ContainSubstring("L7-dedicated"))
+	}
+	integrationtest.TeardownAviInfraSetting(t, settingName)
+	integrationtest.TeardownIngressClass(t, ingClassName)
+	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	integrationtest.DeleteSecret(secretName, ns)
+
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--my-infrasetting-foo.com-L7-dedicated"}
+	// Shard VS remains, Pools are moved/removed
+	g.Eventually(func() bool {
+		sniCache1, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		sniCacheObj1, _ := sniCache1.(*cache.AviVsCache)
+		if found {
+			return len(sniCacheObj1.PoolKeyCollection) == 0
+		}
+		return false
+	}, 50*time.Second).Should(gomega.Equal(true))
+	TearDownTestForIngress(t, modelName)
+}
+
+func TestFQDNsCountForAviInfraSettingWithLargeShardSize(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/cluster--Shared-L7-my-infrasetting-0"
+
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
+	secretName := "my-secret"
+
+	SetUpTestForIngress(t, modelName)
+	integrationtest.RemoveDefaultIngressClass()
+	defer integrationtest.AddDefaultIngressClass()
+
+	integrationtest.SetupAviInfraSetting(t, settingName, "LARGE")
+	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
+	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
+
+	ingressCreate := (integrationtest.FakeIngress{
+		Name:        ingressName,
+		Namespace:   ns,
+		ClassName:   ingClassName,
+		DnsNames:    []string{"foo.com"},
+		ServiceName: "avisvc",
+		TlsSecretDNS: map[string][]string{
+			secretName: {"foo.com"},
+		},
+	}).Ingress()
+	_, err := KubeClient.NetworkingV1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if aviModel == nil {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes)
+	}, 10*time.Second).Should(gomega.Equal(1))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	node := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0]
+
+	g.Expect(node.VSVIPRefs).To(gomega.HaveLen(1))
+	g.Expect(node.VSVIPRefs[0].FQDNs).To(gomega.HaveLen(2))
+	for _, fqdn := range node.VSVIPRefs[0].FQDNs {
+		if fqdn == "foo.com" {
+			continue
+		}
+		g.Expect(fqdn).Should(gomega.ContainSubstring("Shared-L7"))
+	}
+	integrationtest.TeardownAviInfraSetting(t, settingName)
+	integrationtest.TeardownIngressClass(t, ingClassName)
+	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	integrationtest.DeleteSecret(secretName, ns)
+
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-my-infrasetting-0"}
+	// Shard VS remains, Pools are moved/removed
+	g.Eventually(func() bool {
+		sniCache1, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		sniCacheObj1, _ := sniCache1.(*cache.AviVsCache)
+		if found {
+			return len(sniCacheObj1.PoolKeyCollection) == 0
+		}
+		return false
+	}, 50*time.Second).Should(gomega.Equal(true))
+	TearDownTestForIngress(t, modelName)
+}
