@@ -41,7 +41,7 @@ func SetupRouteNamespaceSync(key, value string) {
 func SetupRoute(t *testing.T, modelName, namespace string) {
 
 	objects.SharedAviGraphLister().Delete(modelName)
-	integrationtest.CreateSVC(t, namespace, "avisvc", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateSVC(t, namespace, "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, namespace, "avisvc", false, false, "1.1.1")
 	integrationtest.PollForCompletion(t, modelName, 5)
 

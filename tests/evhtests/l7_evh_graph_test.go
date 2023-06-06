@@ -478,7 +478,7 @@ func TestMultiPortServiceIngressForEvh(t *testing.T) {
 
 	modelName, _ := GetModelName("foo.com", "default")
 	objects.SharedAviGraphLister().Delete(modelName)
-	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, true)
+	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, true)
 	integrationtest.CreateEP(t, "default", "avisvc", true, true, "1.1.1")
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "ingress-multipath",
@@ -764,7 +764,7 @@ func TestUpdateBackendServiceForEvh(t *testing.T) {
 	}, 15*time.Second).Should(gomega.Equal("1.1.1.1"))
 
 	// Update the service
-	integrationtest.CreateSVC(t, "default", "avisvc2", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateSVC(t, "default", "avisvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "default", "avisvc2", false, false, "2.2.2")
 
 	_, err = (integrationtest.FakeIngress{
@@ -854,7 +854,7 @@ func TestL2ChecksumsUpdateForEvh(t *testing.T) {
 
 	g.Expect(len(nodes[0].HttpPolicyRefs)).To(gomega.Equal(0))
 
-	integrationtest.CreateSVC(t, "default", "avisvc2", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateSVC(t, "default", "avisvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "default", "avisvc2", false, false, "2.2.2")
 	integrationtest.AddSecret("my-secret-new", "default", "tlsCert-new", "tlsKey")
 
