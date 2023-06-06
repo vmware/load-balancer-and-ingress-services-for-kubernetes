@@ -168,7 +168,7 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		pool.HealthMonitorRefs = append(pool.HealthMonitorRefs, hm)
 	}
 
-	copier.Copy(&pool, &pool_meta.AviPoolGeneratedFields)
+	copier.CopyWithOption(&pool, &pool_meta.AviPoolGeneratedFields, copier.Option{IgnoreEmpty: true})
 
 	// TODO Version should be latest from configmap
 	var path string

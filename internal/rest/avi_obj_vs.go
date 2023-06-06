@@ -246,7 +246,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		var rest_op utils.RestOp
 		var path string
 
-		copier.Copy(&vs, &vs_meta.AviVsNodeGeneratedFields)
+		copier.CopyWithOption(&vs, &vs_meta.AviVsNodeGeneratedFields, copier.Option{IgnoreEmpty: true})
 
 		// VS objects cache can be created by other objects and they would just set VS name and not uud
 		// Do a POST call in that case
