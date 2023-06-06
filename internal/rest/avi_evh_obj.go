@@ -431,7 +431,7 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		vs.AnalyticsPolicy = vs_meta.GetAnalyticsPolicy()
 
 		if err := copier.CopyWithOption(&vs, &vs_meta.AviVsNodeGeneratedFields, copier.Option{IgnoreEmpty: true}); err != nil {
-			utils.AviLog.Warnf("key: %s, msg: unable to set few parameters in the VS", key)
+			utils.AviLog.Warnf("key: %s, msg: unable to set few parameters in the VS, err: %v", key, err)
 		}
 
 		var rest_ops []*utils.RestOp
@@ -580,7 +580,7 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 	}
 	evhChild.AnalyticsPolicy = vs_meta.GetAnalyticsPolicy()
 	if err := copier.CopyWithOption(&evhChild, &vs_meta.AviVsNodeGeneratedFields, copier.Option{IgnoreEmpty: true}); err != nil {
-		utils.AviLog.Warnf("key: %s, msg: unable to set few parameters in the child VS", key)
+		utils.AviLog.Warnf("key: %s, msg: unable to set few parameters in the child VS, err: %v", key, err)
 	}
 
 	var rest_ops []*utils.RestOp

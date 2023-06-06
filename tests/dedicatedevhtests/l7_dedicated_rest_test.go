@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 VMware, Inc.
+ * Copyright 2023-2024 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@ package dedicatedevhtests
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -24,6 +23,8 @@ import (
 	"time"
 
 	"github.com/onsi/gomega"
+
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
@@ -40,12 +41,13 @@ func TestProfilesAttachedToDedicatedSecureEvhVS(t *testing.T) {
 			var resp map[string]interface{}
 			data, _ := io.ReadAll(r.Body)
 			json.Unmarshal(data, &resp)
-			g.Expect(resp["application_profile_ref"]).Should(gomega.HaveSuffix("System-Secure-HTTP"))
-			g.Expect(resp["network_profile_ref"]).Should(gomega.HaveSuffix("System-TCP-Proxy"))
-			resp["uuid"] = fmt.Sprintf("virtualservice--name-RANDOMUUID")
-			finalResponse, _ := json.Marshal(resp)
-			w.WriteHeader(http.StatusOK)
-			w.Write(finalResponse)
+			if lib.VIPPerNamespace() {
+				g.Expect(resp["application_profile_ref"]).Should(gomega.HaveSuffix("System-HTTP"))
+				g.Expect(resp["network_profile_ref"]).Should(gomega.HaveSuffix("System-TCP-Proxy"))
+			} else {
+				g.Expect(resp["application_profile_ref"]).Should(gomega.HaveSuffix("System-Secure-HTTP"))
+				g.Expect(resp["network_profile_ref"]).Should(gomega.HaveSuffix("System-TCP-Proxy"))
+			}
 			return
 		}
 		integrationtest.NormalControllerServer(w, r)
