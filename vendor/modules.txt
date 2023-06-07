@@ -155,7 +155,7 @@ github.com/spf13/pflag
 # github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
 ## explicit; go 1.13
 github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1
-# github.com/vmware/alb-sdk v0.0.0-20230602112710-2afd1a6bc61a
+# github.com/vmware/alb-sdk v0.0.0-20221125101019-1edb021a121b
 ## explicit; go 1.16
 github.com/vmware/alb-sdk/go/models
 # go.uber.org/atomic v1.7.0
