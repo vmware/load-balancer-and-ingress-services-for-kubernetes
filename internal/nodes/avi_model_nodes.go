@@ -1052,7 +1052,11 @@ func (v *AviL4PolicyNode) CalculateCheckSum() {
 	var checksum uint32
 	var ports []int64
 	var protocols []string
-
+	if len(v.PortPool) > 0 {
+		sort.Slice(v.PortPool, func(i, j int) bool {
+			return v.PortPool[i].Name < v.PortPool[j].Name
+		})
+	}
 	for _, hpp := range v.PortPool {
 		ports = append(ports, int64(hpp.Port))
 		protocols = append(protocols, hpp.Protocol)

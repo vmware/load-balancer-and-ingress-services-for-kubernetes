@@ -513,6 +513,7 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 		for _, listener := range svcObj.Spec.Ports {
 			protocol := string(listener.Protocol)
 			pp := AviPortHostProtocol{Port: listener.Port, Protocol: protocol}
+			pp.Name = fmt.Sprintf("%s-%d", protocol, listener.Port)
 			portProtocols = append(portProtocols, pp)
 			if protocol == "" || protocol == utils.TCP {
 				isTCP = true
@@ -531,11 +532,11 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 	avi_vs_meta.PortProto = portProtocols
 	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
 
-	if isSCTP {
+	if isSCTP && !isTCP && !isUDP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
-	} else if isTCP && !isUDP {
+	} else if isTCP && !isUDP && !isSCTP {
 		avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
-	} else if isUDP && !isTCP {
+	} else if isUDP && !isTCP && !isSCTP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
 	} else {
 		avi_vs_meta.NetworkProfile = utils.MIXED_NET_PROFILE
@@ -673,6 +674,7 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 				Pool:     poolRef,
 				Protocol: protocol,
 			}
+			portPool.Name = fmt.Sprintf("%s-%d", protocol, port)
 			portPoolSet = append(portPoolSet, portPool)
 
 			buildPoolWithInfraSetting(key, poolNode, infraSetting)
