@@ -1017,7 +1017,7 @@ func TestSharedVIPSvcWithL4Rule(t *testing.T) {
 	ports := []int{8080}
 	modelName := "admin/cluster--red-ns-" + SHAREDVIPKEY
 
-	SetUpTestForSharedVIPSvcLB(t)
+	SetUpTestForSharedVIPSvcLB(t, corev1.ProtocolTCP, corev1.ProtocolTCP)
 
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)

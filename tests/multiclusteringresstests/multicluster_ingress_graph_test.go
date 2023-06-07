@@ -165,7 +165,7 @@ func getServiceImportName(str string) string {
 func SetUpServices(t *testing.T, paths []string) {
 	for _, path := range paths {
 		serviceName := getServiceName(path)
-		integrationtest.CreateSVC(t, "default", serviceName, corev1.ServiceTypeNodePort, false)
+		integrationtest.CreateSVC(t, "default", serviceName, corev1.ProtocolTCP, corev1.ServiceTypeNodePort, false)
 	}
 }
 

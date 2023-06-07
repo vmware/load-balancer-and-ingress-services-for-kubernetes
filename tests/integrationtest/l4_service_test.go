@@ -44,7 +44,7 @@ import (
 
 func SetUpTestForSvcLB(t *testing.T) {
 	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
-	CreateSVC(t, NAMESPACE, SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false)
+	CreateSVC(t, NAMESPACE, SINGLEPORTSVC, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false)
 	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
 	PollForCompletion(t, SINGLEPORTMODEL, 5)
 }
@@ -63,7 +63,7 @@ func TearDownTestForSvcLB(t *testing.T, g *gomega.GomegaWithT) {
 
 func SetUpTestForSvcLBMultiport(t *testing.T) {
 	objects.SharedAviGraphLister().Delete(MULTIPORTMODEL)
-	CreateSVC(t, NAMESPACE, MULTIPORTSVC, corev1.ServiceTypeLoadBalancer, true)
+	CreateSVC(t, NAMESPACE, MULTIPORTSVC, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, true)
 	CreateEP(t, NAMESPACE, MULTIPORTSVC, true, true, "1.1.1")
 	PollForCompletion(t, MULTIPORTMODEL, 10)
 }
@@ -80,10 +80,10 @@ func TearDownTestForSvcLBMultiport(t *testing.T, g *gomega.GomegaWithT) {
 	}, 5*time.Second).Should(gomega.Equal(false))
 }
 
-func SetUpTestForSharedVIPSvcLB(t *testing.T) {
+func SetUpTestForSharedVIPSvcLB(t *testing.T, proto1, proto2 corev1.Protocol) {
 	modelSvc01 := "admin/cluster--red-ns-" + SHAREDVIPSVC01
 	objects.SharedAviGraphLister().Delete(modelSvc01)
-	svcObj := ConstructService(NAMESPACE, SHAREDVIPSVC01, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
+	svcObj := ConstructService(NAMESPACE, SHAREDVIPSVC01, proto1, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
 	svcObj.Annotations = map[string]string{lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
 	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcObj, metav1.CreateOptions{})
 	if err != nil {
@@ -94,7 +94,7 @@ func SetUpTestForSharedVIPSvcLB(t *testing.T) {
 
 	modelSvc02 := "admin/cluster--red-ns-" + SHAREDVIPSVC02
 	objects.SharedAviGraphLister().Delete(modelSvc01)
-	svcObj = ConstructService(NAMESPACE, SHAREDVIPSVC02, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
+	svcObj = ConstructService(NAMESPACE, SHAREDVIPSVC02, proto2, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
 	svcObj.Annotations = map[string]string{lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
 	_, err = KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcObj, metav1.CreateOptions{})
 	if err != nil {
@@ -127,7 +127,16 @@ func TearDownTestForSharedVIPSvcLB(t *testing.T, g *gomega.GomegaWithT) {
 		return found
 	}, 5*time.Second).Should(gomega.Equal(false))
 }
-
+func VerfiyL4Node(nodes *avinodes.AviVsNode, g *gomega.GomegaWithT, proto1, proto2 string) {
+	g.Expect(nodes.Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SHAREDVIPKEY)))
+	g.Expect(nodes.Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes.PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(nodes.PortProto[0].Protocol).To(gomega.Equal(proto1))
+	g.Expect(nodes.PortProto[1].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(nodes.PortProto[1].Protocol).To(gomega.Equal(proto2))
+	g.Expect(nodes.PoolRefs).To(gomega.HaveLen(2))
+	g.Expect(nodes.NetworkProfile).To(gomega.Equal(utils.MIXED_NET_PROFILE))
+}
 func TestMain(m *testing.M) {
 	os.Setenv("VIP_NETWORK_LIST", `[{"networkName":"net123"}]`)
 	os.Setenv("CLUSTER_NAME", "cluster")
@@ -267,7 +276,7 @@ func TestAviSvcCreationSinglePortMultiTenantEnabled(t *testing.T) {
 	defer ResetAkoTenant()
 	modelName := fmt.Sprintf("%s/cluster--red-ns-testsvc", AKOTENANT)
 	objects.SharedAviGraphLister().Delete(modelName)
-	CreateSVC(t, NAMESPACE, SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false)
+	CreateSVC(t, NAMESPACE, SINGLEPORTSVC, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false)
 	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
 
 	var aviModel interface{}
@@ -655,7 +664,7 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 		model = strings.Replace(MULTIPORTMODEL, MULTIPORTSVC, service, 1)
 
 		objects.SharedAviGraphLister().Delete(model)
-		CreateSVC(t, NAMESPACE, service, corev1.ServiceTypeLoadBalancer, true)
+		CreateSVC(t, NAMESPACE, service, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, true)
 		CreateEP(t, NAMESPACE, service, true, true, "1.1.1")
 	}
 
@@ -1015,4 +1024,56 @@ func TestInfraSettingChangeMapping(t *testing.T) {
 	TeardownAviInfraSetting(t, settingName1)
 	TeardownAviInfraSetting(t, settingName2)
 	TearDownTestForSvcLB(t, g)
+}
+func TestSharedVIPSvcWithTCPUDPProtocols(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/cluster--red-ns-" + SHAREDVIPKEY
+
+	SetUpTestForSharedVIPSvcLB(t, corev1.ProtocolTCP, corev1.ProtocolUDP)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	VerfiyL4Node(nodes[0], g, "TCP", "UDP")
+	TearDownTestForSharedVIPSvcLB(t, g)
+}
+
+func TestSharedVIPSvcWithTCPSCTProtocols(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/cluster--red-ns-" + SHAREDVIPKEY
+
+	SetUpTestForSharedVIPSvcLB(t, corev1.ProtocolTCP, corev1.ProtocolSCTP)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	VerfiyL4Node(nodes[0], g, "SCTP", "TCP")
+	TearDownTestForSharedVIPSvcLB(t, g)
+}
+func TestSharedVIPSvcWithUDPSCTProtocols(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/cluster--red-ns-" + SHAREDVIPKEY
+
+	SetUpTestForSharedVIPSvcLB(t, corev1.ProtocolUDP, corev1.ProtocolSCTP)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	VerfiyL4Node(nodes[0], g, "SCTP", "UDP")
+	TearDownTestForSharedVIPSvcLB(t, g)
 }

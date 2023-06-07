@@ -131,7 +131,7 @@ func SetupNamespaceSync(key, value string) {
 }
 
 func UpdateIngress(t *testing.T, modelName, namespace string) {
-	integrationtest.CreateSVC(t, namespace, "avisvc1", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateSVC(t, namespace, "avisvc1", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, namespace, "avisvc1", false, false, "2.2.2")
 	integrationtest.PollForCompletion(t, modelName, 5)
 	ingressObject := (integrationtest.FakeIngress{
@@ -152,7 +152,7 @@ func UpdateIngress(t *testing.T, modelName, namespace string) {
 func SetupIngress(t *testing.T, modelName, namespace string, withSecret, tlsIngress bool) {
 
 	objects.SharedAviGraphLister().Delete(modelName)
-	integrationtest.CreateSVC(t, namespace, "avisvc", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateSVC(t, namespace, "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, namespace, "avisvc", false, false, "1.1.1")
 	integrationtest.PollForCompletion(t, modelName, 5)
 
