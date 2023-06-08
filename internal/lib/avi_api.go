@@ -241,11 +241,6 @@ func CheckForInvalidCredentials(uri string, err error) {
 			ShutdownApi()
 		}
 	}
-	if strings.Contains(err.Error(), "x509") && utils.IsVCFCluster() {
-		WaitForInitSecretRecreateAndReboot()
-		return
-	}
-
 }
 
 func NewAviRestClientWithToken(api_ep, username, authToken, cadata string) *clients.AviClient {
