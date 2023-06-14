@@ -60,7 +60,7 @@ spec:
 
 ```
 
-**NOTE**: The SSORule CRD only supports configuration of OAuth and SAML SSO protocols currently. Also, SSORule CRD is only supported for Enhanced Virtual Hosting (EVH). When the shard virtual service size is **LARGE** or **MEDIUM** or **SMALL**, the OAuth and SAML settings will only be configured on the EVH child virtual services.
+**NOTE**: **The SSORule CRD is supported only for Avi Controller version 22.1.3 and above**. It only supports the configuration of OAuth and SAML SSO protocols currently. Also, SSORule CRD is only supported for Enhanced Virtual Hosting (EVH). When the shard virtual service size is **LARGE** or **MEDIUM** or **SMALL**, the OAuth and SAML settings will only be configured on the EVH child virtual services.
 
 ### Specific usage of SSORule CRD
 
