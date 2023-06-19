@@ -15,8 +15,6 @@
 package lib
 
 import (
-	"context"
-
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -164,33 +162,9 @@ func (c *akoControlConfig) CRDClientset() akocrd.Interface {
 }
 
 func (c *akoControlConfig) SetCRDEnabledParams(cs akocrd.Interface) {
-	timeout := int64(120)
-	_, aviInfraError := cs.AkoV1alpha1().AviInfraSettings().List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &timeout})
-	if aviInfraError != nil {
-		utils.AviLog.Infof("ako.vmware.com/v1alpha1/AviInfraSetting not found/enabled on cluster: %v", aviInfraError)
-		c.aviInfraSettingEnabled = false
-	} else {
-		utils.AviLog.Infof("ako.vmware.com/v1alpha1/AviInfraSetting enabled on cluster")
-		c.aviInfraSettingEnabled = true
-	}
-
-	_, hostRulesError := cs.AkoV1alpha1().HostRules(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &timeout})
-	if hostRulesError != nil {
-		utils.AviLog.Infof("ako.vmware.com/v1alpha1/HostRule not found/enabled on cluster: %v", hostRulesError)
-		c.hostRuleEnabled = false
-	} else {
-		utils.AviLog.Infof("ako.vmware.com/v1alpha1/HostRule enabled on cluster")
-		c.hostRuleEnabled = true
-	}
-
-	_, httpRulesError := cs.AkoV1alpha1().HTTPRules(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &timeout})
-	if httpRulesError != nil {
-		utils.AviLog.Infof("ako.vmware.com/v1alpha1/HTTPRule not found/enabled on cluster: %v", httpRulesError)
-		c.httpRuleEnabled = false
-	} else {
-		utils.AviLog.Infof("ako.vmware.com/v1alpha1/HTTPRule enabled on cluster")
-		c.httpRuleEnabled = true
-	}
+	c.aviInfraSettingEnabled = true
+	c.hostRuleEnabled = true
+	c.httpRuleEnabled = true
 }
 
 func (c *akoControlConfig) AviInfraSettingEnabled() bool {
