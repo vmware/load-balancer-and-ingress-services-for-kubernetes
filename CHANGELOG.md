@@ -327,3 +327,41 @@ All notable changes to this project will be documented in this file. The format 
 ### Known Issues
 - When AKO is deployed in HA, 409 status code error messages will be seen in active AKO if failover happens during bulk object addition.
 - When AKO is running in `dedicated mode`, virtual service and VIP is not deleted from AVI controller when ingress/route, with aviinfrasetting applied to ingress/route, is deleted.
+
+## AKO-1.9.2
+
+### Added
+
+- Added configmap boolean flag `useDefaultSecretsOnly` to allow AKO to handle default secrets from the namespace where AKO is installed in Openshift environment.
+
+### Fixed
+
+- Fix: AKO is publishing incorrect next hop.
+- Fix: PATCH to `vrfcontext` is failing due to error : `route_id` has duplicate values.
+
+## AKO-1.9.3
+
+### Added
+- AKO now claims support for Kubernetes 1.26
+
+### Fixed
+- Fix: Static routes are not getting added for a new node in a scnerio where node is deleted and then new node is added to the cluster.
+- Fix: If two clusters, with overlapping `Clustername` (i.e. one clustername is prefix of another clustername) and deployed in ClusterIP mode, are connected to the same controller, then reboot of AKO, present in a cluster with name which is prefix of another clustername, deletes static routes of other cluster.
+- Fix: During AKO bootup, if there is an error to list AKO CRD objects, AKO disables CRD handling. That results in deletion of existing avi controller objects.
+
+## AKO-1.10.1
+
+### Added
+ - AKO now claims support for OCP 4.12.
+ - Default parameters of an L4 and Shared VIP L4 virtual services can be changed via [`L4Rule`](docs/crds/l4rule.md) CRD.
+ - Support to configure OAuth or SAML for L7 virtual services via [`SSORule`](docs/crds/ssorule.md) CRD.
+ - AKO now supports [`OVN-Kubernetes`](docs/ovn-kubernetes.md) CNI in Openshift and [`Cilium`](docs/cilium.md) CNI in Kubernetes.
+ - Option to add [ICAP profile](docs/crds/hostrule.md#express-custom-icap-profile) to an L7 virtual service via `HostRule` CRD.
+ - Option to enable [HTTP2](docs/crds/avinfrasetting.md#custom-ports) in an L7 virtual service via `aviinfrasetting` CRD.
+
+### Fixed
+ - The VSes sometimes are not coming up and show pool placement issues when CNI is set as Calico.
+ - Shared VIP service with mixed protocol doesn’t work if one of the protocol is SCTP.
+
+### Known Issues
+ - AKO doesn’t support Service of type LoadBalancer definitions with mixed protocols.
