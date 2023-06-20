@@ -139,7 +139,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			vh_parent := utils.VS_TYPE_VH_PARENT
 			vs.Type = &vh_parent
 		}
-
+		isTCPPortPresent := false
 		for i, pp := range vs_meta.PortProto {
 			port := pp.Port
 			svc := avimodels.Service{
@@ -148,8 +148,14 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 				PortRangeEnd: &port,
 				EnableHttp2:  &vs_meta.PortProto[i].EnableHTTP2,
 			}
-			if vs_meta.NetworkProfile == utils.MIXED_NET_PROFILE && pp.Protocol == utils.UDP {
-				svc.OverrideNetworkProfileRef = proto.String("/api/networkprofile/?name=" + utils.SYSTEM_UDP_FAST_PATH)
+			if vs_meta.NetworkProfile == utils.MIXED_NET_PROFILE {
+				if pp.Protocol == utils.UDP {
+					svc.OverrideNetworkProfileRef = proto.String("/api/networkprofile/?name=" + utils.SYSTEM_UDP_FAST_PATH)
+				} else if pp.Protocol == utils.SCTP {
+					svc.OverrideNetworkProfileRef = proto.String("/api/networkprofile/?name=" + utils.SYSTEM_SCTP_PROXY)
+				} else if pp.Protocol == utils.TCP {
+					isTCPPortPresent = true
+				}
 			}
 			vs.Services = append(vs.Services, &svc)
 		}
@@ -158,7 +164,11 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		// we create the VS with global network profile TCP Fast Path,
 		// and override required services with UDP Fast Path.
 		if vs_meta.NetworkProfile == utils.MIXED_NET_PROFILE {
-			vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+			if isTCPPortPresent {
+				vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+			} else {
+				vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
+			}
 		}
 		vs.NetworkProfileRef = proto.String("/api/networkprofile/?name=" + vs_meta.NetworkProfile)
 

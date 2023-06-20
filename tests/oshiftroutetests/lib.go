@@ -169,7 +169,7 @@ func SetUpTestForRoute(t *testing.T, modelName string, models ...string) {
 		objects.SharedAviGraphLister().Delete(model)
 	}
 
-	integrationtest.CreateSVC(t, defaultNamespace, "avisvc", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateSVC(t, defaultNamespace, "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, defaultNamespace, "avisvc", false, false, "1.1.1")
 	integrationtest.PollForCompletion(t, modelName, 5)
 }

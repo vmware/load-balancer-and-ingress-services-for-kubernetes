@@ -830,27 +830,27 @@ ServicePorts: [
 
 ]
 */
-func CreateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool) {
+func CreateSVC(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool) {
 	selectors := make(map[string]string)
-	CreateServiceWithSelectors(t, ns, Name, Type, multiPort, selectors)
+	CreateServiceWithSelectors(t, ns, Name, protocol, Type, multiPort, selectors)
 	time.Sleep(2 * time.Second)
 }
 
-func CreateServiceWithSelectors(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
-	svcExample := ConstructService(ns, Name, Type, multiPort, selectors)
+func CreateServiceWithSelectors(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
+	svcExample := ConstructService(ns, Name, protocol, Type, multiPort, selectors)
 	_, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svcExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
 }
 
-func UpdateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool) {
+func UpdateSVC(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool) {
 	selectors := make(map[string]string)
-	UpdateServiceWithSelectors(t, ns, Name, Type, multiPort, selectors)
+	UpdateServiceWithSelectors(t, ns, Name, protocol, Type, multiPort, selectors)
 }
 
-func UpdateServiceWithSelectors(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
-	svcExample := ConstructService(ns, Name, Type, multiPort, selectors)
+func UpdateServiceWithSelectors(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
+	svcExample := ConstructService(ns, Name, protocol, Type, multiPort, selectors)
 	svcExample.ResourceVersion = "2"
 	_, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
 	if err != nil {
@@ -858,7 +858,7 @@ func UpdateServiceWithSelectors(t *testing.T, ns string, Name string, Type corev
 	}
 }
 
-func ConstructService(ns string, Name string, Type corev1.ServiceType, multiPort bool, selectors map[string]string) *corev1.Service {
+func ConstructService(ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, selectors map[string]string) *corev1.Service {
 	var servicePorts []Serviceport
 	numPorts := 1
 	if multiPort {
@@ -870,7 +870,7 @@ func ConstructService(ns string, Name string, Type corev1.ServiceType, multiPort
 		sp := Serviceport{
 			PortName:   fmt.Sprintf("foo%d", i),
 			PortNumber: int32(mPort),
-			Protocol:   "TCP",
+			Protocol:   protocol,
 			TargetPort: intstr.FromInt(mPort),
 		}
 		if Type != corev1.ServiceTypeClusterIP {

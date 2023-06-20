@@ -398,7 +398,7 @@ func TestPassthroughRouteWithAlternateBackends(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, DefaultPassthroughModel)
 
-	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
 
 	routeExample := FakeRoute{Path: "/foo"}.PassthroughABRoute()
