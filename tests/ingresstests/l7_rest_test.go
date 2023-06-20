@@ -959,3 +959,60 @@ func TestMultiHostUpdateIngressStatusCheck(t *testing.T) {
 	}
 	TearDownTestForIngress(t, modelName)
 }
+
+func TestProfilesAttachedToVS(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	// middleware verifies the application and network profiles attached to the VS
+	integrationtest.AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		url := r.URL.EscapedPath()
+		if r.Method == http.MethodPost &&
+			strings.Contains(url, "/api/virtualservice") {
+			var resp map[string]interface{}
+			data, _ := io.ReadAll(r.Body)
+			json.Unmarshal(data, &resp)
+			if strings.Contains(resp["name"].(string), "Shared") {
+				g.Expect(resp["application_profile_ref"]).Should(gomega.HaveSuffix("System-HTTP"))
+				g.Expect(resp["network_profile_ref"]).Should(gomega.HaveSuffix("System-TCP-Proxy"))
+			} else {
+				g.Expect(resp["application_profile_ref"]).Should(gomega.HaveSuffix("System-Secure-HTTP"))
+				g.Expect(resp["network_profile_ref"]).Should(gomega.HaveSuffix("System-TCP-Proxy"))
+			}
+			resp["uuid"] = "virtualservice--name-RANDOMUUID"
+			finalResponse, _ := json.Marshal(resp)
+			w.WriteHeader(http.StatusOK)
+			w.Write(finalResponse)
+			return
+		}
+		integrationtest.NormalControllerServer(w, r)
+	})
+
+	modelName := "admin/cluster--Shared-L7-0"
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes, ok := aviModel.(*avinodes.AviObjectGraph)
+		if !ok {
+			return 0
+		}
+		return len(nodes.GetAviVS())
+	}, 30*time.Second).Should(gomega.Equal(1))
+
+	mcache := cache.SharedAviObjCache()
+	parentVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-0"}
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
+
+	g.Eventually(func() bool {
+		_, found := mcache.VsCacheMeta.AviCacheGet(parentVSKey)
+		return found
+	}, 60*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() bool {
+		_, found := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
+		return found
+	}, 60*time.Second).Should(gomega.Equal(true))
+
+	TearDownIngressForCacheSyncCheck(t, modelName)
+
+	integrationtest.ResetMiddleware()
+}
