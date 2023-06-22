@@ -187,9 +187,16 @@ func GetNSXTTransportZone() string {
 	return NsxTTzType
 }
 
-func GetFqdns(vsName, key string, subDomains []string) ([]string, string) {
+func GetFqdns(vsName, key string, subDomains []string, shardSize uint32) ([]string, string) {
 	var fqdns []string
 	var fqdn string
+
+	// Only one domain will be added for a Dedicated VS irrespective of
+	// the value given for the AutoFQDN.
+	if shardSize == 0 {
+		return fqdns, fqdn
+	}
+
 	autoFQDN := true
 	if GetL4FqdnFormat() == AutoFQDNDisabled {
 		autoFQDN = false
@@ -303,6 +310,14 @@ func GetshardSize() uint32 {
 	} else {
 		return 1
 	}
+}
+
+func GetShardSizeFromAviInfraSetting(infraSetting *akov1alpha1.AviInfraSetting) uint32 {
+	if infraSetting != nil &&
+		infraSetting.Spec.L7Settings.ShardSize != "" {
+		return ShardSizeMap[infraSetting.Spec.L7Settings.ShardSize]
+	}
+	return GetshardSize()
 }
 
 func GetL4FqdnFormat() string {
