@@ -210,13 +210,13 @@ func TestApplyHostruleToDedicatedVS(t *testing.T) {
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].Enabled).To(gomega.BeNil())
 	g.Expect(nodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(0))
-	g.Expect(*nodes[0].WafPolicyRef).To(gomega.Equal(""))
-	g.Expect(*nodes[0].ApplicationProfileRef).To(gomega.Equal(""))
-	g.Expect(*nodes[0].AnalyticsProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].WafPolicyRef).To(gomega.BeNil())
+	g.Expect(nodes[0].ApplicationProfileRef).To(gomega.BeNil())
+	g.Expect(nodes[0].AnalyticsProfileRef).To(gomega.BeNil())
 	g.Expect(nodes[0].ErrorPageProfileRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].VsDatascriptRefs).To(gomega.HaveLen(0))
-	g.Expect(*nodes[0].SslProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].SslProfileRef).To(gomega.BeNil())
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }

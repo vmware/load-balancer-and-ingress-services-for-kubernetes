@@ -32,7 +32,7 @@ import (
 
 func SetUpTestForIngressInNodePortMode(t *testing.T, model_Name string) {
 	objects.SharedAviGraphLister().Delete(model_Name)
-	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeNodePort, false)
+	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeNodePort, false)
 }
 
 func TearDownTestForIngressInNodePortMode(t *testing.T, model_Name string) {
@@ -710,7 +710,7 @@ func TestMultiPortServiceIngressInNodePort(t *testing.T) {
 
 	modelName := "admin/cluster--Shared-L7-0"
 	objects.SharedAviGraphLister().Delete(modelName)
-	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeNodePort, true)
+	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeNodePort, true)
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "ingress-multipath",
 		Namespace:   "default",

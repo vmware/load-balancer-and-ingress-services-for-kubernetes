@@ -37,7 +37,7 @@ func SetUpTestForRouteInNodePort(t *testing.T, modelName string) {
 		}
 	}
 	objects.SharedAviGraphLister().Delete(modelName)
-	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeNodePort, false)
+	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeNodePort, false)
 }
 
 func TearDownTestForRouteInNodePort(t *testing.T, modelName string) {
@@ -340,7 +340,7 @@ func TestAlternateBackendNoPathInNodePort(t *testing.T) {
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
 	SetUpTestForRouteInNodePort(t, defaultModelName)
-	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeNodePort, false)
+	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ProtocolTCP, corev1.ServiceTypeNodePort, false)
 	routeExample := FakeRoute{}.ABRoute()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
@@ -391,7 +391,7 @@ func TestAlternateBackendDefaultPathInNodePort(t *testing.T) {
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
 	SetUpTestForRouteInNodePort(t, defaultModelName)
-	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeNodePort, false)
+	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ProtocolTCP, corev1.ServiceTypeNodePort, false)
 	routeExample := FakeRoute{Path: "/foo"}.ABRoute()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
@@ -583,7 +583,7 @@ func TestSecureRouteMultiNamespaceInNodePort(t *testing.T) {
 	if !utils.CheckIfNamespaceAccepted("test") {
 		time.Sleep(time.Second * 2)
 	}
-	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ServiceTypeNodePort, false)
+	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeNodePort, false)
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
 	_, err = OshiftClient.RouteV1().Routes("test").Create(context.TODO(), route2, metav1.CreateOptions{})
 	if err != nil {

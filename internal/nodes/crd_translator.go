@@ -57,7 +57,8 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	}
 
 	// host specific
-	var vsWafPolicy, vsAppProfile, vsErrorPageProfile, vsAnalyticsProfile, vsSslProfile, lbIP string
+	var vsWafPolicy, vsAppProfile, vsAnalyticsProfile, vsSslProfile *string
+	var vsErrorPageProfile, lbIP string
 	var vsSslKeyCertificates []string
 	var vsEnabled *bool
 	var crdStatus lib.CRDMetadata
@@ -90,15 +91,15 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 		}
 
 		if hostrule.Spec.VirtualHost.TLS.SSLProfile != "" {
-			vsSslProfile = fmt.Sprintf("/api/sslprofile?name=%s", hostrule.Spec.VirtualHost.TLS.SSLProfile)
+			vsSslProfile = proto.String(fmt.Sprintf("/api/sslprofile?name=%s", hostrule.Spec.VirtualHost.TLS.SSLProfile))
 		}
 
 		if hostrule.Spec.VirtualHost.WAFPolicy != "" {
-			vsWafPolicy = fmt.Sprintf("/api/wafpolicy?name=%s", hostrule.Spec.VirtualHost.WAFPolicy)
+			vsWafPolicy = proto.String(fmt.Sprintf("/api/wafpolicy?name=%s", hostrule.Spec.VirtualHost.WAFPolicy))
 		}
 
 		if hostrule.Spec.VirtualHost.ApplicationProfile != "" {
-			vsAppProfile = fmt.Sprintf("/api/applicationprofile?name=%s", hostrule.Spec.VirtualHost.ApplicationProfile)
+			vsAppProfile = proto.String(fmt.Sprintf("/api/applicationprofile?name=%s", hostrule.Spec.VirtualHost.ApplicationProfile))
 		}
 
 		if len(hostrule.Spec.VirtualHost.ICAPProfile) != 0 {
@@ -109,7 +110,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 		}
 
 		if hostrule.Spec.VirtualHost.AnalyticsProfile != "" {
-			vsAnalyticsProfile = fmt.Sprintf("/api/analyticsprofile?name=%s", hostrule.Spec.VirtualHost.AnalyticsProfile)
+			vsAnalyticsProfile = proto.String(fmt.Sprintf("/api/analyticsprofile?name=%s", hostrule.Spec.VirtualHost.AnalyticsProfile))
 		}
 
 		for _, policy := range hostrule.Spec.VirtualHost.HTTPPolicy.PolicySets {
@@ -187,13 +188,13 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	}
 
 	vsNode.SetSSLKeyCertAviRef(vsSslKeyCertificates)
-	vsNode.SetWafPolicyRef(&vsWafPolicy)
+	vsNode.SetWafPolicyRef(vsWafPolicy)
 	vsNode.SetHttpPolicySetRefs(vsHTTPPolicySets)
 	vsNode.SetICAPProfileRefs(vsICAPProfile)
-	vsNode.SetAppProfileRef(&vsAppProfile)
-	vsNode.SetAnalyticsProfileRef(&vsAnalyticsProfile)
+	vsNode.SetAppProfileRef(vsAppProfile)
+	vsNode.SetAnalyticsProfileRef(vsAnalyticsProfile)
 	vsNode.SetErrorPageProfileRef(vsErrorPageProfile)
-	vsNode.SetSSLProfileRef(&vsSslProfile)
+	vsNode.SetSSLProfileRef(vsSslProfile)
 	vsNode.SetVsDatascriptRefs(vsDatascripts)
 	vsNode.SetEnabled(vsEnabled)
 	vsNode.SetAnalyticsPolicy(analyticsPolicy)

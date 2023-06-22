@@ -763,7 +763,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					utils.AviLog.Warnf("calico blockaffinity spec not found: %+v", err)
 					return
 				}
-				key := utils.NodeObj + "/" + specJSON["name"]
+				key := utils.NodeObj + "/" + specJSON["node"]
 				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 			},
@@ -778,7 +778,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					utils.AviLog.Warnf("calico blockaffinity spec not found: %+v", err)
 					return
 				}
-				key := utils.NodeObj + "/" + specJSON["name"]
+				key := utils.NodeObj + "/" + specJSON["node"]
 				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 			},
@@ -823,6 +823,46 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		}
 
 		c.dynamicInformers.HostSubnetInformer.Informer().AddEventHandler(hostSubnetHandler)
+	}
+
+	if lib.GetCNIPlugin() == lib.CILIUM_CNI {
+		ciliumNodeHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				utils.AviLog.Debugf("ciliumnode ADD Event")
+				if c.DisableSync {
+					return
+				}
+				crd := obj.(*unstructured.Unstructured)
+				nodename := crd.GetName()
+				key := utils.NodeObj + "/" + nodename
+				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			},
+			UpdateFunc: func(oldObj interface{}, newObj interface{}) {
+				utils.AviLog.Debugf("ciliumnode UPDATE Event")
+				if c.DisableSync {
+					return
+				}
+				crd := newObj.(*unstructured.Unstructured)
+				nodename := crd.GetName()
+				key := utils.NodeObj + "/" + nodename
+				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			},
+			DeleteFunc: func(obj interface{}) {
+				utils.AviLog.Debugf("ciliumnode DELETE Event")
+				if c.DisableSync {
+					return
+				}
+				crd := obj.(*unstructured.Unstructured)
+				nodename := crd.GetName()
+				key := utils.NodeObj + "/" + nodename
+				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+			},
+		}
+
+		c.dynamicInformers.CiliumNodeInformer.Informer().AddEventHandler(ciliumNodeHandler)
 	}
 
 	secretEventHandler := cache.ResourceEventHandlerFuncs{
@@ -1241,6 +1281,10 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 	if lib.GetCNIPlugin() == lib.OPENSHIFT_CNI {
 		go c.dynamicInformers.HostSubnetInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.dynamicInformers.HostSubnetInformer.Informer().HasSynced)
+	}
+	if lib.GetCNIPlugin() == lib.CILIUM_CNI {
+		go c.dynamicInformers.CiliumNodeInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.dynamicInformers.CiliumNodeInformer.Informer().HasSynced)
 	}
 
 	if utils.IsVCFCluster() {

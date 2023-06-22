@@ -167,7 +167,7 @@ The following table lists the configurable parameters of the AKO chart and their
 | `L4Settings.autoFQDN`  | Specify the layer 4 FQDN format | default |  
 | `L7Settings.noPGForSNI`  | Skip using Pool Groups for SNI children | false |  
 | `L7Settings.l7ShardingScheme` | Sharding scheme enum values: hostname, namespace | hostname |
-| `AKOSettings.cniPlugin` | CNI Plugin being used in kubernetes cluster. Specify one of: calico, canal, flannel, ncp | **required** for calico, ncp setups |
+| `AKOSettings.cniPlugin` | CNI Plugin being used in kubernetes cluster. Specify one of: calico, canal, flannel, openshift, antrea, ncp, ovn-kubernetes, cilium | **required** for calico, openshift, ovn-kubernetes, ncp setups. For Cilium CNI, set the string as **cilium** only when using Cluster Scope mode for IPAM and leave it empty if using Kubernetes Host Scope mode for IPAM. |
 | `AKOSettings.enableEvents` | enableEvents can be changed dynamically from the configmap | true |
 | `AKOSettings.logLevel` | logLevel enum values: INFO, DEBUG, WARN, ERROR. logLevel can be changed dynamically from the configmap | INFO |
 | `AKOSettings.deleteConfig` | set to true if user wants to delete AKO created objects from Avi. deleteConfig can be changed dynamically from the configmap | false |

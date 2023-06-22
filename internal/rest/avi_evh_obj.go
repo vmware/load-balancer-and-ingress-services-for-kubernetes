@@ -359,7 +359,7 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 
 		for i, pp := range vs_meta.PortProto {
 			port := pp.Port
-			svc := avimodels.Service{Port: &port, EnableSsl: &vs_meta.PortProto[i].EnableSSL}
+			svc := avimodels.Service{Port: &port, EnableSsl: &vs_meta.PortProto[i].EnableSSL, EnableHttp2: &vs_meta.PortProto[i].EnableHTTP2}
 			vs.Services = append(vs.Services, &svc)
 		}
 
@@ -430,7 +430,9 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		}
 		vs.AnalyticsPolicy = vs_meta.GetAnalyticsPolicy()
 
-		copier.Copy(&vs, &vs_meta.AviVsNodeGeneratedFields)
+		if err := copier.CopyWithOption(&vs, &vs_meta.AviVsNodeGeneratedFields, copier.Option{IgnoreEmpty: true}); err != nil {
+			utils.AviLog.Warnf("key: %s, msg: unable to set few parameters in the VS, err: %v", key, err)
+		}
 
 		var rest_ops []*utils.RestOp
 
@@ -577,7 +579,9 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		evhChild.HTTPPolicies = AviVsHttpPSAdd(vs_meta, true)
 	}
 	evhChild.AnalyticsPolicy = vs_meta.GetAnalyticsPolicy()
-	copier.Copy(&evhChild, &vs_meta.AviVsNodeGeneratedFields)
+	if err := copier.CopyWithOption(&evhChild, &vs_meta.AviVsNodeGeneratedFields, copier.Option{IgnoreEmpty: true}); err != nil {
+		utils.AviLog.Warnf("key: %s, msg: unable to set few parameters in the child VS, err: %v", key, err)
+	}
 
 	var rest_ops []*utils.RestOp
 	var rest_op utils.RestOp

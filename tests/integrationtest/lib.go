@@ -707,6 +707,48 @@ func (node FakeNode) Node() *corev1.Node {
 	return nodeExample
 }
 
+func (node FakeNode) NodeOVN() *corev1.Node {
+	nodeExample := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            node.Name,
+			ResourceVersion: node.Version,
+		},
+		Status: corev1.NodeStatus{
+			Addresses: []corev1.NodeAddress{
+				{
+					Type:    "InternalIP",
+					Address: node.NodeIP,
+				},
+			},
+		},
+	}
+	if node.PodCIDRsAnnotation != "" {
+		subnetAnnotation := `{"default":"` + node.PodCIDRsAnnotation + `"}`
+		nodeExample.Annotations = map[string]string{
+			lib.OVNNodeSubnetAnnotation: subnetAnnotation,
+		}
+	}
+	return nodeExample
+}
+
+func (node FakeNode) NodeCalico() *corev1.Node {
+	nodeExample := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            node.Name,
+			ResourceVersion: node.Version,
+		},
+		Status: corev1.NodeStatus{
+			Addresses: []corev1.NodeAddress{
+				{
+					Type:    "InternalIP",
+					Address: node.NodeIP,
+				},
+			},
+		},
+	}
+	return nodeExample
+}
+
 func GetStaticRoute(nodeAddr, prefixAddr, routeID string, mask int32) *models.StaticRoute {
 	nodeAddrType := "V4"
 	nexthop := models.IPAddr{
@@ -788,27 +830,27 @@ ServicePorts: [
 
 ]
 */
-func CreateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool) {
+func CreateSVC(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool) {
 	selectors := make(map[string]string)
-	CreateServiceWithSelectors(t, ns, Name, Type, multiPort, selectors)
+	CreateServiceWithSelectors(t, ns, Name, protocol, Type, multiPort, selectors)
 	time.Sleep(2 * time.Second)
 }
 
-func CreateServiceWithSelectors(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
-	svcExample := ConstructService(ns, Name, Type, multiPort, selectors)
+func CreateServiceWithSelectors(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
+	svcExample := ConstructService(ns, Name, protocol, Type, multiPort, selectors)
 	_, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svcExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
 }
 
-func UpdateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool) {
+func UpdateSVC(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool) {
 	selectors := make(map[string]string)
-	UpdateServiceWithSelectors(t, ns, Name, Type, multiPort, selectors)
+	UpdateServiceWithSelectors(t, ns, Name, protocol, Type, multiPort, selectors)
 }
 
-func UpdateServiceWithSelectors(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
-	svcExample := ConstructService(ns, Name, Type, multiPort, selectors)
+func UpdateServiceWithSelectors(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
+	svcExample := ConstructService(ns, Name, protocol, Type, multiPort, selectors)
 	svcExample.ResourceVersion = "2"
 	_, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
 	if err != nil {
@@ -816,7 +858,7 @@ func UpdateServiceWithSelectors(t *testing.T, ns string, Name string, Type corev
 	}
 }
 
-func ConstructService(ns string, Name string, Type corev1.ServiceType, multiPort bool, selectors map[string]string) *corev1.Service {
+func ConstructService(ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, selectors map[string]string) *corev1.Service {
 	var servicePorts []Serviceport
 	numPorts := 1
 	if multiPort {
@@ -828,7 +870,7 @@ func ConstructService(ns string, Name string, Type corev1.ServiceType, multiPort
 		sp := Serviceport{
 			PortName:   fmt.Sprintf("foo%d", i),
 			PortNumber: int32(mPort),
-			Protocol:   "TCP",
+			Protocol:   protocol,
 			TargetPort: intstr.FromInt(mPort),
 		}
 		if Type != corev1.ServiceTypeClusterIP {

@@ -5,7 +5,7 @@ Follow the steps 1 to 2, given in section [Pre-requisites](https://github.com/vm
 1. Make Sure Openshift version is >= 4.4
 2. Openshift routes and services of type load balancer are supported in AKO
 3. Ingresses, if created in the openshift cluster won't be handled by AKO.
-4. cniPlugin should be set to **openshift**
+4. cniPlugin should be set to **openshift** or **ovn-kubernetes**.
 5. Set `state_based_dns_registration` to false in AVI cloud configuration. Follow the instructions mentioned in https://avinetworks.com/docs/21.1/dns-record-additions-independent-of-vs-state/.
 
 #### Features of Openshift Route supported in AKO
@@ -69,4 +69,3 @@ Regarding the default secret, following points have to be notes.
 - For TLS routes with termination type reencrypt, the value of destinationCA has to be specified in the route spec itself.
 - caCertificate can not be specified as part of the default secret.
 - `router-certs-default` present in `openshift-ingress` namespace is not used by AKO. Users have to create `router-certs-default` in `avi-system` namespace.
-

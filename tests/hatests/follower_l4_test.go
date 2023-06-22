@@ -33,7 +33,7 @@ import (
 
 func SetUpTestForSvcLB(t *testing.T) {
 	objects.SharedAviGraphLister().Delete(integrationtest.SINGLEPORTMODEL)
-	integrationtest.CreateSVC(t, integrationtest.NAMESPACE, integrationtest.SINGLEPORTSVC, corev1.ServiceTypeLoadBalancer, false)
+	integrationtest.CreateSVC(t, integrationtest.NAMESPACE, integrationtest.SINGLEPORTSVC, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false)
 	integrationtest.CreateEP(t, integrationtest.NAMESPACE, integrationtest.SINGLEPORTSVC, false, false, "1.1.1")
 	integrationtest.PollForCompletion(t, integrationtest.SINGLEPORTMODEL, 5)
 }

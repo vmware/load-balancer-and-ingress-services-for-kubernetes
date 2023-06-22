@@ -16,6 +16,7 @@ package lib
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -54,6 +55,13 @@ var (
 		Resource: "hostsubnets",
 	}
 
+	// CiliumNodeGVR : Cilium's CiliumNode CRD resource identifier
+	CiliumNodeGVR = schema.GroupVersionResource{
+		Group:    "cilium.io",
+		Version:  "v2",
+		Resource: "ciliumnodes",
+	}
+
 	NetworkInfoGVR = schema.GroupVersionResource{
 		Group:    "nsx.vmware.com",
 		Version:  "v1alpha1",
@@ -74,7 +82,7 @@ type BootstrapCRData struct {
 // NewDynamicClientSet initializes dynamic client set instance
 func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
 	// do not instantiate the dynamic client set if the CNI being used is NOT calico
-	if !utils.IsVCFCluster() && GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI {
+	if !utils.IsVCFCluster() && GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI && GetCNIPlugin() != CILIUM_CNI {
 		return nil, nil
 	}
 
@@ -107,6 +115,7 @@ func GetDynamicClientSet() dynamic.Interface {
 type DynamicInformers struct {
 	CalicoBlockAffinityInformer informers.GenericInformer
 	HostSubnetInformer          informers.GenericInformer
+	CiliumNodeInformer          informers.GenericInformer
 
 	VCFNetworkInfoInformer    informers.GenericInformer
 	VCFClusterNetworkInformer informers.GenericInformer
@@ -122,6 +131,8 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 		informers.CalicoBlockAffinityInformer = f.ForResource(CalicoBlockaffinityGVR)
 	case OPENSHIFT_CNI:
 		informers.HostSubnetInformer = f.ForResource(HostSubnetGVR)
+	case CILIUM_CNI:
+		informers.CiliumNodeInformer = f.ForResource(CiliumNodeGVR)
 	default:
 		utils.AviLog.Infof("Skipped initializing dynamic informers for cniPlugin %s", GetCNIPlugin())
 	}
@@ -270,6 +281,55 @@ func GetPodCIDR(node *v1.Node) ([]string, error) {
 
 				if !utils.HasElem(podCIDRs, podCIDR) {
 					podCIDRs = append(podCIDRs, podCIDR)
+				}
+			}
+		}
+
+	} else if GetCNIPlugin() == OVN_KUBERNETES_CNI {
+		var nodeSubnets string
+		var found bool
+		if nodeSubnets, found = node.Annotations[OVNNodeSubnetAnnotation]; !found {
+			return nil, errors.New("k8s.ovn.org/node-subnets annotation not found in Node Metadata")
+		}
+		var nodeSubnetJson map[string]interface{}
+		err := json.Unmarshal([]byte(nodeSubnets), &nodeSubnetJson)
+		if err != nil {
+			return nil, errors.New("Error while unmarshalling k8s.ovn.org/node-subnets annotation in Node Metadata : " + err.Error())
+		}
+		podCIDR := nodeSubnetJson["default"].(string)
+		if podCIDR == "" {
+			utils.AviLog.Errorf("Error in fetching Pod CIDR from Node Metadata %v", node.ObjectMeta.Name)
+			return nil, errors.New("podcidr not found")
+		}
+		podCIDRs = append(podCIDRs, podCIDR)
+	} else if GetCNIPlugin() == CILIUM_CNI && dynamicClientSet != nil {
+		crdClient := dynamicClient.Resource(CiliumNodeGVR)
+		crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			utils.AviLog.Errorf("Error getting CRD %v", err)
+			return nil, err
+		}
+
+		for _, i := range crdList.Items {
+			crdMetadata := (i.Object["metadata"]).(map[string]interface{})
+			crdNodeName := crdMetadata["name"].(string)
+			if crdNodeName == nodename {
+				crdSpec := (i.Object["spec"]).(map[string]interface{})
+				crdIpam, ok := crdSpec["ipam"].(map[string]interface{})
+				if !ok {
+					utils.AviLog.Errorf("Error in fetching ipam from CiliumNode")
+					return nil, errors.New("Error in parsing ciliumnode crd list")
+				}
+				crdPodCidrs, ok := crdIpam["podCIDRs"].([]interface{})
+				if !ok {
+					utils.AviLog.Errorf("Error in fetching Pod CIDR from CiliumNode")
+					return nil, errors.New("Error in parsing ciliumnode crd list")
+				}
+				for _, podCIDR := range crdPodCidrs {
+					podCIDRString := podCIDR.(string)
+					if !utils.HasElem(podCIDRs, podCIDRString) {
+						podCIDRs = append(podCIDRs, podCIDRString)
+					}
 				}
 			}
 		}

@@ -54,6 +54,9 @@ rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["create", "get", "update"]
+  - apiGroups: ["cilium.io"]
+    resources: ["ciliumnodes"]
+    verbs: ["get","watch","list"]
 {{- if .Values.rbac.pspEnable }}
   - apiGroups:
     - policy

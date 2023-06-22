@@ -674,6 +674,10 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 		if lib.IsPublicCloud() {
 			vsvip.EnablePublicIP = infraSetting.Spec.Network.EnablePublicIP
 		}
+		if vs.SNIParent || vs.Dedicated && (infraSetting.Spec.Network.Listeners != nil && len(infraSetting.Spec.Network.Listeners) > 0) {
+			portProto := buildListenerPortsWithInfraSetting(infraSetting, vs.PortProto)
+			vs.SetPortProtocols(portProto)
+		}
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 	}
 }
@@ -692,4 +696,36 @@ func buildPoolWithInfraSetting(key string, pool *AviPoolNode, infraSetting *akov
 
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over PoolNode %s", key, pool.Name)
 	}
+}
+
+func buildListenerPortsWithInfraSetting(infraSetting *akov1alpha1.AviInfraSetting, aviPortProto []AviPortHostProtocol) []AviPortHostProtocol {
+	for _, listener := range infraSetting.Spec.Network.Listeners {
+		found := false
+		if listener.Port == nil {
+			continue
+		}
+		portProtocol := AviPortHostProtocol{
+			Port:        int32(*listener.Port),
+			Protocol:    utils.HTTP,
+			EnableHTTP2: false,
+			EnableSSL:   false,
+		}
+		if listener.EnableSSL != nil {
+			portProtocol.EnableSSL = *listener.EnableSSL
+		}
+		if listener.EnableHTTP2 != nil {
+			portProtocol.EnableHTTP2 = *listener.EnableHTTP2
+		}
+		for i, portProto := range aviPortProto {
+			if portProto.Port == int32(*listener.Port) {
+				aviPortProto[i] = portProtocol
+				found = true
+				break
+			}
+		}
+		if !found {
+			aviPortProto = append(aviPortProto, portProtocol)
+		}
+	}
+	return aviPortProto
 }

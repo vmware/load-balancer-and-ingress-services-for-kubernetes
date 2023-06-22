@@ -47,11 +47,15 @@ The `apiServerPort` field is used to run the API server within the AKO pod. The 
 
 ### AKOSettings.cniPlugin
 
-Use this flag only if you are using `calico`/`openshift` as a CNI and you are looking to a sync your static route configurations automatically.
-Once enabled, for `calico` this flag is used to read the `blockaffinity` CRD to determine the Pod CIDR to Node IP mappings. If you are
-on an older version of calico where `blockaffinity` is not present, then leave this field as blank. For `openshift` hostsubnet CRD is used to to determine the Pod CIDR to Node IP mappings.
+Use this flag only if you are using `calico`/`openshift`/`ovn-kubernetes`/`cilium` as a CNI and you are looking to sync your static route configurations automatically.  
+However, for `cilium` CNI, setting this flag is only required when using Cluster Scope mode for IPAM. With Cilium CNI, there are two ways to confugure the per-node PodCIDRs. In the **default** cluster scope mode, the podCIDRs range are made available via the `CiliumNode (cilium.io/v2.CiliumNode)` CRD and AKO reads this CRD to determine the Pod CIDR to Node IP mappings when the flag is set as `cilium`. In Kubernetes host scope mode, podCIDRs are allocated out of the PodCIDR range associated to each node by Kubernetes. Since AKO determines the Pod CIDR to Node IP mappings from Node Spec by default, the `cniPlugin` flag is not required to be set exclusively.
 
-AKO will then determine the static routes based on the Kubernetes Nodes object as done with other CNIs.
+Once enabled, for `calico` this flag is used to read the `blockaffinity` CRD to determine the Pod CIDR to Node IP mappings. If you are
+on an older version of calico where `blockaffinity` is not present, then leave this field as blank.  
+For `openshift` hostsubnet CRD is used to to determine the Pod CIDR to Node IP mappings.  
+For `ovn-kubernetes` the `k8s.ovn.org/node-subnets` annotation in the Node metadata is used to determine the Pod CIDR to Node IP mappings.
+
+AKO will then determine the static routes based on the Kubernetes Nodes object as done with other CNIs.  
 In case of `ncp` CNI, AKO automatically disables the configuration of static routes.
 
 There are certain scenarios where AKO cannot determine the Pod CIDRs being used in the Kubernetes Nodes, for instance, when deploying calico using `etcd` as the datastore. In such cases AKO provides it's own interface to feed in Pod CIDR to Node mappings, using an annotation in the Node object. While keeping the `cniPlugin` value to be empty, add the following annotation in the Node object to provide Pod CIDRs being used in the Node. Note that for multiple Pod CIDRs that are being used in the Node, simply provide the entries as a comma separated string.

@@ -163,7 +163,7 @@ func SetUpTestForIngress(t *testing.T, modelNames ...string) {
 	for _, model := range modelNames {
 		objects.SharedAviGraphLister().Delete(model)
 	}
-	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "default", "avisvc", false, false, "1.1.1")
 }
 
@@ -493,9 +493,9 @@ func TestApplyHostruleToDedicatedVS(t *testing.T) {
 	}
 	g.Expect(evhNode.Enabled).To(gomega.BeNil())
 	g.Expect(evhNode.SSLKeyCertAviRef).To(gomega.HaveLen(0))
-	g.Expect(*evhNode.WafPolicyRef).To(gomega.Equal(""))
-	g.Expect(*evhNode.ApplicationProfileRef).To(gomega.Equal(""))
-	g.Expect(*evhNode.AnalyticsProfileRef).To(gomega.Equal(""))
+	g.Expect(evhNode.WafPolicyRef).To(gomega.BeNil())
+	g.Expect(evhNode.ApplicationProfileRef).To(gomega.BeNil())
+	g.Expect(evhNode.AnalyticsProfileRef).To(gomega.BeNil())
 	g.Expect(evhNode.ErrorPageProfileRef).To(gomega.Equal(""))
 	g.Expect(evhNode.HttpPolicySetRefs).To(gomega.HaveLen(0))
 	g.Expect(evhNode.VsDatascriptRefs).To(gomega.HaveLen(0))

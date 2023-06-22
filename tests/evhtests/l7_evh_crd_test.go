@@ -165,7 +165,7 @@ func SetUpTestForIngress(t *testing.T, modelNames ...string) {
 	for _, model := range modelNames {
 		objects.SharedAviGraphLister().Delete(model)
 	}
-	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, "default", "avisvc", false, false, "1.1.1")
 }
 
@@ -321,13 +321,13 @@ func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].EvhNodes[0].Enabled).To(gomega.BeNil())
 	g.Expect(nodes[0].EvhNodes[0].ICAPProfileRefs).To(gomega.HaveLen(0))
-	g.Expect(*nodes[0].EvhNodes[0].WafPolicyRef).To(gomega.Equal(""))
-	g.Expect(*nodes[0].EvhNodes[0].ApplicationProfileRef).To(gomega.Equal(""))
-	g.Expect(*nodes[0].EvhNodes[0].AnalyticsProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].EvhNodes[0].WafPolicyRef).To(gomega.BeNil())
+	g.Expect(nodes[0].EvhNodes[0].ApplicationProfileRef).To(gomega.BeNil())
+	g.Expect(nodes[0].EvhNodes[0].AnalyticsProfileRef).To(gomega.BeNil())
 	g.Expect(nodes[0].EvhNodes[0].ErrorPageProfileRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].EvhNodes[0].VsDatascriptRefs).To(gomega.HaveLen(0))
-	g.Expect(*nodes[0].SslProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].SslProfileRef).To(gomega.BeNil())
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
@@ -405,13 +405,13 @@ func TestCreateDeleteSharedVSHostRuleForEvh(t *testing.T) {
 	g.Expect(nodes[0].Enabled).To(gomega.BeNil())
 	g.Expect(nodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].ICAPProfileRefs).To(gomega.HaveLen(0))
-	g.Expect(*nodes[0].WafPolicyRef).To(gomega.Equal(""))
-	g.Expect(*nodes[0].ApplicationProfileRef).To(gomega.Equal(""))
-	g.Expect(*nodes[0].AnalyticsProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].WafPolicyRef).To(gomega.BeNil())
+	g.Expect(nodes[0].ApplicationProfileRef).To(gomega.BeNil())
+	g.Expect(nodes[0].AnalyticsProfileRef).To(gomega.BeNil())
 	g.Expect(nodes[0].ErrorPageProfileRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].VsDatascriptRefs).To(gomega.HaveLen(0))
-	g.Expect(*nodes[0].SslProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].SslProfileRef).To(gomega.BeNil())
 	ports = []int{}
 	for _, port := range nodes[0].PortProto {
 		ports = append(ports, int(port.Port))
@@ -934,13 +934,13 @@ func TestApplyHostruleToParentVS(t *testing.T) {
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].Enabled).To(gomega.BeNil())
 	g.Expect(nodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(0))
-	g.Expect(*nodes[0].WafPolicyRef).To(gomega.Equal(""))
-	g.Expect(*nodes[0].ApplicationProfileRef).To(gomega.Equal(""))
-	g.Expect(*nodes[0].AnalyticsProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].WafPolicyRef).To(gomega.BeNil())
+	g.Expect(nodes[0].ApplicationProfileRef).To(gomega.BeNil())
+	g.Expect(nodes[0].AnalyticsProfileRef).To(gomega.BeNil())
 	g.Expect(nodes[0].ErrorPageProfileRef).To(gomega.Equal(""))
 	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].VsDatascriptRefs).To(gomega.HaveLen(0))
-	g.Expect(*nodes[0].SslProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].SslProfileRef).To(gomega.BeNil())
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }

@@ -168,7 +168,9 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		pool.HealthMonitorRefs = append(pool.HealthMonitorRefs, hm)
 	}
 
-	copier.Copy(&pool, &pool_meta.AviPoolGeneratedFields)
+	if err := copier.CopyWithOption(&pool, &pool_meta.AviPoolGeneratedFields, copier.Option{IgnoreEmpty: true}); err != nil {
+		utils.AviLog.Warnf("key: %s, msg: unable to set few parameters in the Pool, err: %v", key, err)
+	}
 
 	// TODO Version should be latest from configmap
 	var path string
