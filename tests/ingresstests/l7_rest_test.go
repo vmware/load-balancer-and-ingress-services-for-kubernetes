@@ -829,6 +829,7 @@ func TestMultiHostIngressStatusCheck(t *testing.T) {
 	}
 	integrationtest.AddSecret("my-secret-v2", "default", "tlsCert", "tlsKey")
 	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
+	time.Sleep(2 * time.Second) //secrets should be created before creating ingress
 	ingressObject2 := integrationtest.FakeIngress{
 		Name:        "foo-with-targets-2",
 		Namespace:   "default",
@@ -839,10 +840,12 @@ func TestMultiHostIngressStatusCheck(t *testing.T) {
 			"my-secret": {"foo.com"},
 		},
 	}
+
 	ingrFake := ingressObject.Ingress()
 	if _, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
+	time.Sleep(2 * time.Second)
 	ingrFake_2 := ingressObject2.Ingress()
 	if _, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake_2, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
