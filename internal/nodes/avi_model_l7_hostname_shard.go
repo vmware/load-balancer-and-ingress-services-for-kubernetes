@@ -74,9 +74,6 @@ func (o *AviObjectGraph) BuildDedicatedL7VSGraphHostNameShard(vsName, hostname s
 		if !utils.HasElem(pathFQDNs, gslbHostHeader) {
 			pathFQDNs = append(pathFQDNs, gslbHostHeader)
 		}
-		if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, gslbHostHeader) {
-			vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, gslbHostHeader)
-		}
 		objects.SharedCRDLister().UpdateLocalFQDNToGSFqdnMapping(hostname, gslbHostHeader)
 	} else {
 		if found {

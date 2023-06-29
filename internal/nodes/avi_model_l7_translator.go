@@ -337,10 +337,6 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				pathFQDNs = append(pathFQDNs, paths.gslbHostHeader)
 			}
 
-			if vsNode[0].Dedicated && !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, paths.gslbHostHeader) {
-				vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, paths.gslbHostHeader)
-			}
-
 		}
 		httpPolName := lib.GetSniHttpPolName(namespace, host, infraSettingName)
 		for i, http := range tlsNode.HttpPolicyRefs {
