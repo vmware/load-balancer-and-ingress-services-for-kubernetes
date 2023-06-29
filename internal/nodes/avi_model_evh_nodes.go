@@ -476,7 +476,7 @@ func (vsNode *AviEvhVsNode) AddSSLPort(key string) {
 	vsNode.PortProto = append(vsNode.PortProto, httpsPort)
 }
 
-//TODO: Next PR Opt: make part of Avivsevhsni model interface
+// TODO: Next PR Opt: make part of Avivsevhsni model interface
 func (vsNode *AviEvhVsNode) DeleteSSLPort(key string) {
 	for i, port := range vsNode.PortProto {
 		if port.Port == lib.SSLPort {
@@ -485,7 +485,7 @@ func (vsNode *AviEvhVsNode) DeleteSSLPort(key string) {
 	}
 }
 
-//TODO: Next PR opt: make part of Avivs model interface
+// TODO: Next PR opt: make part of Avivs model interface
 func (vsNode *AviEvhVsNode) DeletSSLRefInDedicatedNode(key string) {
 	vsNode.SSLKeyCertRefs = []*AviTLSKeyCertNode{}
 	vsNode.SSLProfileRef = ""
@@ -1045,10 +1045,6 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 		if vsNode[0].Dedicated {
 			RemoveFqdnFromEVHVIP(vsNode[0], []string{gsFqdnCache}, key)
 		}
-		//Dedicated VS: add gslb fqdn as part of vsvip fqdn
-		if isDedicated && !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, pathsvcmap.gslbHostHeader) {
-			vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, pathsvcmap.gslbHostHeader)
-		}
 		objects.SharedCRDLister().UpdateLocalFQDNToGSFqdnMapping(host, pathsvcmap.gslbHostHeader)
 	} else {
 		if found {
@@ -1433,9 +1429,6 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			if !utils.HasElem(hosts, paths.gslbHostHeader) {
 				hosts = append(hosts, paths.gslbHostHeader)
 			}
-			if isDedicated && !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, paths.gslbHostHeader) {
-				vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, paths.gslbHostHeader)
-			}
 		}
 
 		o.BuildPolicyPGPoolsForEVH(vsNode, evhNode, namespace, ingName, key, infraSetting, hosts, paths.ingressHPSvc, &tlssetting, routeIgrObj.GetType())
@@ -1576,7 +1569,7 @@ func RemoveRedirectHTTPPolicyInModelForEvh(vsNode *AviEvhVsNode, hostnames []str
 	}
 }
 
-//DeleteStaleData : delete pool, EVH VS and redirect policy which are present in the object store but no longer required.
+// DeleteStaleData : delete pool, EVH VS and redirect policy which are present in the object store but no longer required.
 func DeleteStaleDataForEvh(routeIgrObj RouteIngressModel, key string, modelList *[]string, Storedhosts map[string]*objects.RouteIngrhost, hostsMap map[string]*objects.RouteIngrhost) {
 	utils.AviLog.Debugf("key: %s, msg: About to delete stale data EVH Stored hosts: %v, hosts map: %v", key, utils.Stringify(Storedhosts), utils.Stringify(hostsMap))
 	var infraSettingName string
