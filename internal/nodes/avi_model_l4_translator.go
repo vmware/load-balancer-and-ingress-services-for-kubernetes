@@ -77,7 +77,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		avi_vs_meta.VrfContext = vrfcontext
 	}
 	avi_vs_meta.AviMarkers = lib.PopulateL4VSNodeMarkers(svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name)
-	isTCP, isSCTP := false, false
+	isTCP, isSCTP, isUDP := false, false, false
 	var portProtocols []AviPortHostProtocol
 	for _, port := range svcObj.Spec.Ports {
 		pp := AviPortHostProtocol{Port: int32(port.Port), Protocol: fmt.Sprint(port.Protocol), Name: port.Name, TargetPort: port.TargetPort}
@@ -90,6 +90,8 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 				return nil
 			}
 			isSCTP = true
+		} else if port.Protocol == utils.UDP {
+			isUDP = true
 		}
 	}
 	avi_vs_meta.PortProto = portProtocols
@@ -100,21 +102,20 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		// Default case
 		avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
 	}
-	if !isTCP {
-		if isSCTP {
-			avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
-		} else {
-			avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
-		}
 
-	} else {
+	if isSCTP && !isTCP && !isUDP {
+		avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
+	} else if isTCP && !isUDP && !isSCTP {
 		license := lib.AKOControlConfig().GetLicenseType()
-
 		if license == lib.LicenseTypeEnterprise {
 			avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 		} else {
 			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
 		}
+	} else if isUDP && !isTCP && !isSCTP {
+		avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
+	} else {
+		avi_vs_meta.NetworkProfile = utils.MIXED_NET_PROFILE
 	}
 
 	vsVipName := lib.GetL4VSVipName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)

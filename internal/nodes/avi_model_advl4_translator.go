@@ -126,11 +126,11 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 	// and override required services with UDP Fast Path. Having a separate
 	// internally used network profile (MIXED_NET_PROFILE) helps ensure PUT calls
 	// on existing VSes.
-	if isSCTP {
+	if isSCTP && !isTCP && !isUDP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
-	} else if isTCP && !isUDP {
+	} else if isTCP && !isUDP && !isSCTP {
 		avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
-	} else if isUDP && !isTCP {
+	} else if isUDP && !isTCP && !isSCTP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
 	} else {
 		avi_vs_meta.NetworkProfile = utils.MIXED_NET_PROFILE
@@ -257,16 +257,16 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 	// and override required services with UDP Fast Path. Having a separate
 	// internally used network profile (MIXED_NET_PROFILE) helps ensure PUT calls
 	// on existing VSes.
-	if isSCTP {
+	if isSCTP && !isTCP && !isUDP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
-	} else if isTCP && !isUDP {
+	} else if isTCP && !isUDP && !isSCTP {
 		license := lib.AKOControlConfig().GetLicenseType()
 		if license == lib.LicenseTypeEnterprise {
 			avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 		} else {
 			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
 		}
-	} else if isUDP && !isTCP {
+	} else if isUDP && !isTCP && !isSCTP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
 	} else {
 		avi_vs_meta.NetworkProfile = utils.MIXED_NET_PROFILE
