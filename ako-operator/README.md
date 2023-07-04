@@ -1,6 +1,6 @@
 # AKO Operator
 
-AKO operator takes care of deploying, managing and removing AKO from openshift/kubernetes clusters. It takes the AKO installation/deployment configuration from a CRD called `AKOConfig`.
+AKO operator takes care of deploying, managing and removing AKO from Openshift clusters. It takes the AKO installation/deployment configuration from a CRD called `AKOConfig`.
 
 ## Installing the operator
 
@@ -14,7 +14,7 @@ To install the Operator using Helm refer [here](../docs/install/operator.md)
 
 -->
 
-### 1. Install on Openshift cluster from OperatorHub using Openshift Container Platform Web Console
+### Install on Openshift cluster from OperatorHub using Openshift Container Platform Web Console
 
 <i>**Step 1**</i>: Login to the Openshift Container Platform web console of your Openshift cluster.
 
@@ -22,12 +22,13 @@ To install the Operator using Helm refer [here](../docs/install/operator.md)
 
 <i>**Step 3**</i>: Find `AKO Operator` provided by VMware.
 
-<i>**Step 4**</i>: Click `install` and select the 1.9.3 version. The operator will be installed in `avi-system` namespace. The namespace will be created if it doesn't exist.
+<i>**Step 4**</i>: Click `install` and select the 1.10.1 version. The operator will be installed in `avi-system` namespace. The namespace will be created if it doesn't exist.
 
 <i>**Step 5**</i>: Verify installation by checking the pods in `avi-system` namespace.
 
 > **Note**: Refer [akoconfig](#ako-config) to start the AKO controller
 
+<!--
 ### 2. Manual Installation
 ### 2.1 Out of cluster execution:
 <i>**Step 1**</i>: Clone the [AKO](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes) repo 
@@ -70,8 +71,6 @@ make deploy
 
 > **Note**: Refer [akoconfig](#ako-config) to start the AKO controller
 
-<!-- 
-
 Commenting this out as helm release is not available currently
 
 Upgrading the operator using Helm CLI
@@ -83,7 +82,7 @@ helm repo update
 
 <i>**Step 2**</i>: Helm does not upgrade the CRDs during a release upgrade. Before you upgrade a release, run the following command to upgrade the CRDs:
 ```
-helm template ako/ako-operator --version 1.9.3 --include-crds --output-dir <output_dir>
+helm template ako/ako-operator --version 1.10.1 --include-crds --output-dir <output_dir>
 ```
 
 <i>**Step 3**</i>: This will save the helm files to an output directory which will contain the CRDs corresponding to the Operator version. Install CRDs using:
@@ -105,14 +104,14 @@ helm repo add --force-update ako https://projects.registry.vmware.com/chartrepo/
 
 <i>**Step 6**</i>: Get the values.yaml for the latest Operator version:
 ```
-helm show values ako/ako-operator --version 1.9.3 > values.yaml
+helm show values ako/ako-operator --version 1.10.1 > values.yaml
 ```
 Edit the file according to your setup.
 
 <i>**Step 7**</i>: Upgrade the helm chart:
 
 ```
-helm upgrade <release-name> ako/ako-operator -f /path/to/values.yaml --version 1.9.3 --namespace=avi-system
+helm upgrade <release-name> ako/ako-operator -f /path/to/values.yaml --version 1.10.1 --namespace=avi-system
 ```
 
 --> 
@@ -128,11 +127,16 @@ Create a secret named `avi-secret` in the `avi-system` namespace. Edit [secret.y
 kubectl apply -f config/secrets/secret.yaml
 ```
 
+Or, if using the Openshift client, use
+```
+oc apply -f config/secrets/secret.yaml
+```
+
 #### Deploying the AKO Controller
 <!--
 If the AKO operator was installed using helm, a default `AKOConfig` object called `ako-config` is already added and hence, this step is not required for helm based installation.
 -->
-If the AKO operator was installed manually or on Openshift cluster from OperatorHub, then to install the AKO controller, add an `AKOConfig` object to the `avi-system` namespace.
+If the AKO operator was installed on Openshift cluster from OperatorHub, then to install the AKO controller, add an `AKOConfig` object to the `avi-system` namespace.
 
 A sample of akoconfig is present [here](config/samples/ako_v1alpha1_akoconfig.yaml). Edit this file according to your setup.
 
@@ -168,6 +172,10 @@ If the user needs to change any properties of the AKO Controller, they can chang
 
     kubectl edit akoconfig -n avi-system ako-config
 
+Or, if using the Openshift client, use
+
+    oc edit akoconfig -n avi-system ako-config
+
 **Note** that if the user edits the AKO controller's configmap/statefulset out-of-band, the changes will be overwritten by the AKO operator.
 
 #### Removing the AKO Controller
@@ -178,12 +186,18 @@ To remove the AKO Controller, simply delete the `AKOConfig` object:
 kubectl delete akoconfig -n avi-system ako-config
 ```
 
+Or, if using the Openshift client, use
+
+```
+oc delete akoconfig -n avi-system ako-config
+```
+
 > **Troubleshooting**: If the Operator isn't running when akoconfig is deleted, the akoconfig will be stuck in terminating state. <br>
-If this happens edit akoconfig using `kubectl edit akoconfig -n avi-system ako-config` and remove the `finalizers` part. 
+If this happens edit akoconfig using `kubectl edit akoconfig -n avi-system ako-config` and remove the `finalizers` section. 
 
 
 ### Versioning
 | **Operator version** | **Supported AKO Version** |
 | --------- | ----------- |
-| 1.8.2 | 1.8.2 |
 | 1.9.3 | 1.9.3 |
+| 1.10.1 | 1.10.1 |
