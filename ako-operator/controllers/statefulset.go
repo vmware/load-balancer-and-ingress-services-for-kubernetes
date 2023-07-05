@@ -240,7 +240,7 @@ func BuildStatefulSet(ako akov1alpha1.AKOConfig, aviSecret corev1.Secret) (appsv
 				Image:           image,
 				ImagePullPolicy: imagePullPolicy,
 				Lifecycle: &corev1.Lifecycle{
-					PreStop: &corev1.Handler{
+					PreStop: &corev1.LifecycleHandler{
 						Exec: &corev1.ExecAction{
 							Command: []string{"/bin/sh", "/var/pre_stop_hook.sh"},
 						},
@@ -257,7 +257,7 @@ func BuildStatefulSet(ako akov1alpha1.AKOConfig, aviSecret corev1.Secret) (appsv
 				LivenessProbe: &corev1.Probe{
 					InitialDelaySeconds: 5,
 					PeriodSeconds:       10,
-					Handler: corev1.Handler{
+					ProbeHandler: corev1.ProbeHandler{
 						HTTPGet: &corev1.HTTPGetAction{
 							Path: "/api/status",
 							Port: intstr.FromInt(apiServerPort),
