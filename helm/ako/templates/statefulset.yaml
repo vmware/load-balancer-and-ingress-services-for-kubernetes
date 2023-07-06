@@ -262,7 +262,36 @@ spec:
               port:  {{ default "8080" .Values.AKOSettings.apiServerPort }}
             initialDelaySeconds: 5
             periodSeconds: 10
-        
+        {{ if and (.Values.gateway) (eq Values.gateway.gatewayEnabled true) }}
+        - name: ako-gateway-v2
+          {{ if .Values.persistentVolumeClaim }}
+          volumeMounts:
+          - mountPath: {{ .Values.mountPath }}
+            name: ako-pv-storage
+          {{ end }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.gateway.image.repository }}:{{ .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.gateway.image.pullPolicy }}
+          env:
+          - name: GATEWAY_ENABLED
+            value: {{ .Values.gateway.gatewayEnabled }}
+          {{ if .Values.persistentVolumeClaim }}
+          - name: USE_PVC
+            value: "true"
+          {{ end }}
+          - name: LOG_FILE_PATH
+            value: {{ .Values.mountPath }}
+          - name: LOG_FILE_NAME
+            value: {{ .Values.akoGatewayLogFile }}
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+        {{ if .Values.multiClusterIngress.enable }}
+        {{ end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
