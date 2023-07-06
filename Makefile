@@ -6,6 +6,7 @@ GOTEST=$(GOCMD) test
 BINARY_NAME_AKO=ako
 BINARY_NAME_AKO_INFRA=ako-infra
 BINARY_NAME_AKO_GATEWAY_API=ako-gateway-api
+BINARY_NAME_AKO_GATEWAY_API=ako-gateway-api
 PACKAGE_PATH_AKO=github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
 REL_PATH_AKO=$(PACKAGE_PATH_AKO)/cmd/ako-main
 REL_PATH_AKO_INFRA=$(PACKAGE_PATH_AKO)/cmd/infra-main
@@ -320,7 +321,7 @@ ciliumtests:
 .PHONY: helmtests
 helmtests:
 	sudo docker run \
-	-u root:root \
+	-u root:root -it \
 	-v $(PWD)/helm/ako:/apps \
 	-v $(PWD)/tests/helmtests:/apps/tests \
 	helmunittest/helm-unittest:3.11.1-0.3.0 .
@@ -330,7 +331,7 @@ gatewayapitests:
 	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-	$(GOTEST) -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/... -failfast -timeout 0
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/... -failfast
 
 .PHONY: int_test
 int_test:

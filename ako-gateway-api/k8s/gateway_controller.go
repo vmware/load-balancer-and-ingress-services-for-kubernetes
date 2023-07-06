@@ -216,7 +216,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 			}
 			oldobj := old.(*corev1.Service)
 			svc := cur.(*corev1.Service)
-			if oldobj.ResourceVersion != svc.ResourceVersion {
+			if oldobj.ResourceVersion != svc.ResourceVersion || !reflect.DeepEqual(svc.Annotations, oldobj.Annotations) {
 				// Only add the key if the resource versions have changed.
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
 				key := utils.Service + "/" + utils.ObjKey(svc)
