@@ -63,6 +63,7 @@ type AviController struct {
 	dynamicInformers *lib.DynamicInformers
 	workqueue        []workqueue.RateLimitingInterface
 	DisableSync      bool
+	State            *State
 }
 
 type K8sinformers struct {
@@ -79,6 +80,7 @@ func SharedAviController() *AviController {
 			informers:        utils.GetInformers(),
 			dynamicInformers: lib.GetDynamicInformers(),
 			DisableSync:      true,
+			State:            &State{},
 		}
 	})
 	return controllerInstance
