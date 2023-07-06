@@ -1,0 +1,53 @@
+suite: Test AKO's StatefulSet with GatewayAPI
+templates:
+  - statefulset.yaml
+tests:
+  - it: StatefulSet should render only a single container when GatewayAPI is disabled.
+    set:
+      featureGates:
+        GatewayAPI: false
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - hasDocuments:
+          count: 1
+      - isNotEmpty:
+          path: spec.template.spec.containers[0]
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: ako
+      - isNull:
+          path: spec.template.spec.containers[1]
+  - it: StatefulSet should render two containers when GatewayAPI is enabled.
+    set:
+      featureGates:
+        GatewayAPI: true
+      GatewayAPI:
+        image: 
+          repository: "127.0.0.1:5000/ako/ako-gateway-api"
+          pullPolicy: "Always"
+      akoGatewayLogFile: "gw-api-ut.log"
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: ako
+      - isNotEmpty:
+          path: spec.template.spec.containers[1]
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: ako-gateway-api
+      - equal:
+          path: spec.template.spec.containers[1].image
+          value: "127.0.0.1:5000/ako/ako-gateway-api:latest"
+      - equal:
+          path: spec.template.spec.containers[1].imagePullPolicy
+          value: "Always"
+      - contains:
+          path: spec.template.spec.containers[1].env
+          content:      
+            name: LOG_FILE_NAME
+            value: "gw-api-ut.log"

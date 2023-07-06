@@ -1,0 +1,35 @@
+suite: Test AKO's ClusterRole with GatewayAPI
+templates:
+  - clusterrole.yaml
+tests:
+  - it: ClusterRole should not be rendered with the API group, resources to access Gateway resources when GatewayAPI is disabled.
+    set:
+      featureGates:
+        GatewayAPI: false
+    asserts:
+      - isKind:
+          of: ClusterRole
+      - hasDocuments:
+          count: 1
+      - notContains:
+          path: rules
+          content:
+            apiGroups: ["gateway.networking.k8s.io"]
+            resources: ["gatewayclasses", "gatewayclasses/status","gateways","gateways/status","httproutes","httproutes/status"]
+            verbs: ["get","watch","list","patch","update"]
+  - it: ClusterRole should be rendered with the API group, resources to access Gateway resources when GatewayAPI is disabled
+    set:
+      featureGates:
+        GatewayAPI: true
+    asserts:
+      - isKind:
+          of: ClusterRole
+      - hasDocuments:
+          count: 1
+      - contains:
+          path: rules
+          content:
+            apiGroups: ["gateway.networking.k8s.io"]
+            resources: ["gatewayclasses", "gatewayclasses/status","gateways","gateways/status","httproutes","httproutes/status"]
+            verbs: ["get","watch","list","patch","update"]
+
