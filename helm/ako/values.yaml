@@ -11,6 +11,12 @@ image:
   #pullSecrets:
   # - name: regcred
 
+gateway:
+  image:
+    repository: 10.79.172.11:5000/avi-buildops/ako/ako-gateway-v2
+    pullPolicy: IfNotPresent
+  gatewayEnabled: false
+
 ### This section outlines the generic AKO settings
 AKOSettings:
   primaryInstance: true # Defines AKO instance is primary or not. Value `true` indicates that AKO instance is primary. In a multiple AKO deployment in a cluster, only one AKO instance should be primary. Default value: true.
@@ -125,3 +131,4 @@ avicredentials:
 persistentVolumeClaim: ""
 mountPath: "/log"
 logFile: "avi.log"
+akoGatewayLogFile: "avi-gw-v2.log"
