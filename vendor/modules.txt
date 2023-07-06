@@ -182,6 +182,8 @@ github.com/prometheus/procfs/internal/util
 # github.com/spf13/pflag v1.0.5
 ## explicit; go 1.12
 github.com/spf13/pflag
+# github.com/stretchr/testify v1.8.1
+## explicit; go 1.13
 # github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
 ## explicit; go 1.13
 github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1
@@ -326,7 +328,7 @@ gopkg.in/natefinch/lumberjack.v2
 # gopkg.in/yaml.v2 v2.4.0
 ## explicit; go 1.15
 gopkg.in/yaml.v2
-# gopkg.in/yaml.v3 v3.0.0-20220521103104-8f96da9f5d5e
+# gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
 # istio.io/api v0.0.0-20210512213424-c42041d3366d
@@ -866,4 +868,5 @@ sigs.k8s.io/yaml
 # golang.org/x/text => golang.org/x/text v0.4.0
 # google.golang.org/protobuf => google.golang.org/protobuf v1.26.0
 # k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.21.3
+# sigs.k8s.io/gateway-api => sigs.k8s.io/gateway-api v0.6.2
 # sigs.k8s.io/service-apis => sigs.k8s.io/service-apis v0.1.0

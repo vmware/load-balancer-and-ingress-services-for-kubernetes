@@ -67,6 +67,7 @@ require (
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/stretchr/testify v1.8.1 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
@@ -79,7 +80,7 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20220521103104-8f96da9f5d5e // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	istio.io/api v0.0.0-20210512213424-c42041d3366d // indirect
 	istio.io/gogo-genproto v0.0.0-20210113155706-4daf5697332f // indirect
 	k8s.io/component-base v0.24.0 // indirect
@@ -99,5 +100,6 @@ replace (
 	golang.org/x/text => golang.org/x/text v0.4.0
 	google.golang.org/protobuf => google.golang.org/protobuf v1.26.0
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.21.3
+	sigs.k8s.io/gateway-api => sigs.k8s.io/gateway-api v0.6.2
 	sigs.k8s.io/service-apis => sigs.k8s.io/service-apis v0.1.0
 )
