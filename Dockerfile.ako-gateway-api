@@ -11,13 +11,13 @@ WORKDIR $GOPATH/src/$BUILD_PATH
 RUN GOARCH=amd64 \
     CGO_ENABLED=0 \
     GOOS=linux \
-    go build -o $GOPATH/bin/ako-gateway-v2 \
+    go build -o $GOPATH/bin/agc \
     -ldflags "$AKO_LDFLAGS" \
     -mod=vendor \
-    $BUILD_PATH/cmd/gateway-main
+    $BUILD_PATH/cmd/gateway-api
 
 FROM ${photon_src_repo}
 RUN yum install -y tar.x86_64
-COPY --from=build /go/bin/ako-gateway-v2 .
+COPY --from=build /go/bin/agc /usr/bin/
 EXPOSE 8080
-ENTRYPOINT ["./ako-gateway-v2"]
+ENTRYPOINT ["/usr/bin/agc"]
