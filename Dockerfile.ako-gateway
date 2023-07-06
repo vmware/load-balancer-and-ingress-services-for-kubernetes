@@ -11,14 +11,13 @@ WORKDIR $GOPATH/src/$BUILD_PATH
 RUN GOARCH=amd64 \
     CGO_ENABLED=0 \
     GOOS=linux \
-    go build -o $GOPATH/bin/akc \
+    go build -o $GOPATH/bin/ako-gateway-v2 \
     -ldflags "$AKO_LDFLAGS" \
     -mod=vendor \
-    $BUILD_PATH/cmd/ako-main
+    $BUILD_PATH/cmd/gateway-main
 
 FROM ${photon_src_repo}
 RUN yum install -y tar.x86_64
-COPY --from=build /go/bin/akc /usr/bin/
-COPY ./scripts/pre_stop_hook.sh /var/pre_stop_hook.sh
+COPY --from=build /go/bin/ako-gateway-v2 .
 EXPOSE 8080
-ENTRYPOINT ["/usr/bin/akc"]
+ENTRYPOINT ["./ako-gateway-v2"]
