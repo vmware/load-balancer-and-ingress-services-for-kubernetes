@@ -2,17 +2,20 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+### FeatureGates is to enable or disable experimental features.
+featureGates:
+  GatewayAPI: false # Enables/disables processing of Kubernetes Gateway API CRDs.
+
 replicaCount: 1
 
 image:
   repository: 10.79.172.11:5000/avi-buildops/ako
   pullPolicy: IfNotPresent
 
-gateway:
+GatewayAPI:
   image:
-    repository: 10.79.172.11:5000/avi-buildops/ako/ako-gateway-v2
+    repository: 10.79.172.11:5000/avi-buildops/ako/ako-gateway-api
     pullPolicy: IfNotPresent
-  gatewayEnabled: false
 
 ### This section outlines the generic AKO settings
 AKOSettings:

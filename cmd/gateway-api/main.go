@@ -13,16 +13,13 @@ var (
 )
 
 func main() {
-	InitializeAKCwithGateway()
+	Initialize()
 }
 
-func InitializeAKCwithGateway() {
-	if !utils.IsGatewayEnabled() {
-		utils.AviLog.Fatalf("Shutting down, Gateway is disabled")
-		return
-	}
+func Initialize() {
+	utils.AviLog.Infof("AKO is running with version: %s", version)
 	for {
 		time.Sleep(8 * time.Second)
+		utils.AviLog.Infof("AKO is processing the objects...")
 	}
-
 }
