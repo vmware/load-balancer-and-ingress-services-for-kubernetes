@@ -57,6 +57,11 @@ rules:
   - apiGroups: ["cilium.io"]
     resources: ["ciliumnodes"]
     verbs: ["get","watch","list"]
+{{- if eq .Values.featureGates.GatewayAPI true }}
+  - apiGroups: ["gateway.networking.k8s.io"]
+    resources: ["gatewayclasses", "gatewayclasses/status","gateways","gateways/status","httproutes","httproutes/status"]
+    verbs: ["get","watch","list","patch","update"]
+{{- end }}
 {{- if .Values.rbac.pspEnable }}
   - apiGroups:
     - policy
