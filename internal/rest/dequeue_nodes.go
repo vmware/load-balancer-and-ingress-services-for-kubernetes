@@ -217,7 +217,6 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 	utils.AviLog.Debugf("key: %s, msg: Executing rest for vrf %s", key, vrfName)
 	utils.AviLog.Debugf("key: %s, msg: restops %v", key, *restOp)
 	success, _ := rest.ExecuteRestAndPopulateCache(restOps, vrfKey, avimodel, key, false)
-
 	if success && lib.ConfigDeleteSyncChan != nil {
 		vsKeysPending := rest.cache.VsCacheMeta.AviGetAllKeys()
 		utils.AviLog.Infof("key: %s, msg: Number of VS deletion pending: %d", key, len(vsKeysPending))
@@ -658,8 +657,12 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 						if ok {
 							statuscode := aviError.HttpStatusCode
 							if statuscode != 404 {
-								rest.PublishKeyToSlowRetryLayer(publishKey, key)
-								//Here as it is 404 for specific object in a current child, AKO can go ahead with next child
+								if statuscode == 412 {
+									// concurrent update scenario currently happens for VRFContext only
+									rest.PublishKeyToRetryLayer(publishKey, key)
+								} else {
+									rest.PublishKeyToSlowRetryLayer(publishKey, key)
+								}
 								return false, true
 							} else {
 								rest.AviVsCacheDel(rest_ops[i], aviObjKey, key)
