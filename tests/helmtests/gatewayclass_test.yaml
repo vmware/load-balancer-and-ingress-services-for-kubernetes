@@ -1,0 +1,29 @@
+suite: Test GatewayClass creation with GatewayAPI
+templates:
+  - gatewayclass.yaml
+tests:
+  - it: GatewayClass should not be present when GatewayAPI is disabled.
+    set:
+      featureGates:
+        GatewayAPI: false
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: GatewayClass should not be installed when GatewayAPI is enabled and AKO is not a primary instance.
+    set:
+      featureGates:
+        GatewayAPI: true
+      AKOSettings:
+        primaryInstance: false
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: GatewayClass should be installed when GatewayAPI is enabled.
+    set:
+      featureGates:
+        GatewayAPI: true
+    asserts:
+      - isKind:
+          of: GatewayClass
+      - hasDocuments:
+          count: 1
