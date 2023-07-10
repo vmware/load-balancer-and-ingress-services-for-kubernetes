@@ -46,6 +46,7 @@ func main() {
 }
 
 func Initialize() {
+
 	var err error
 	kubeCluster := false
 	utils.AviLog.Infof("AKO is running with version: %s", version)
@@ -66,6 +67,7 @@ func Initialize() {
 	}
 
 	akoControlConfig := gwlib.AKOControlConfig()
+	lib.SetAKOUser("ako-gw-")
 	var gwApiClient *gwApi.Clientset
 
 	gwApiClient, err = gwApi.NewForConfig(cfg)
@@ -74,17 +76,12 @@ func Initialize() {
 	}
 	akoControlConfig.SetGatewayAPIClientset(gwApiClient)
 
-	//dynamicClient, err := lib.NewDynamicClientSet(cfg)
-	//if err != nil {
-	//	utils.AviLog.Warnf("Error while creating dynamic client %v", err)
-	//}
-
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		utils.AviLog.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
-	utils.AviLog.Infof("Successfully created kube client for ako-gateway-v2")
+	utils.AviLog.Infof("Successfully created kube client for ako-gateway-api")
 
 	akoControlConfig.SetEventRecorder(lib.AKOGatewayEventComponent, kubeClient, false)
 	pod, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).Get(context.TODO(), os.Getenv("POD_NAME"), metav1.GetOptions{})
@@ -101,7 +98,6 @@ func Initialize() {
 	informersArg := make(map[string]interface{})
 
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
-	//lib.NewDynamicInformers(dynamicClient, false)
 
 	informers := k8s.K8sinformers{Cs: kubeClient}
 	c := gwk8s.SharedGatewayController()
@@ -124,12 +120,6 @@ func Initialize() {
 		akoControlConfig.PodEventf(corev1.EventTypeWarning, lib.AKOShutdown, "Avi Controller Cluster state is not Active")
 		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO")
 	}
-
-	akoControlConfig.SetLicenseType(aviRestClientPool.AviClient[0])
-
-	//config map
-
-	//node cache
 
 	waitGroupMap := make(map[string]*sync.WaitGroup)
 	wgIngestion := &sync.WaitGroup{}

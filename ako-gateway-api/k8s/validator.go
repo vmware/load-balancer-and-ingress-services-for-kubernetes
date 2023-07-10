@@ -29,7 +29,7 @@ func IsValidGateway(gateway *gwApi.Gateway) bool {
 		return false
 	}
 
-	//has more than 1 listener
+	//has 1 or more listeners
 	if len(spec.Listeners) == 0 {
 		utils.AviLog.Errorf("no listeners found in gateway %+v", gateway.Name)
 		return false
@@ -56,7 +56,7 @@ func isValidListener(gwName string, listener gwApi.Listener) bool {
 		return false
 	}
 	//hostname is not wildcard
-	if listener.Hostname != nil && strings.Contains(string(*listener.Hostname), "*") {
+	if listener.Hostname == nil || strings.Contains(string(*listener.Hostname), "*") {
 		utils.AviLog.Errorf("listener hostname with wildcard found in gateway %+v", gwName)
 		return false
 	}

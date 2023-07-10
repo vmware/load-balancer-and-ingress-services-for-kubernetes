@@ -28,7 +28,6 @@ func InformersToRegister(kclient *kubernetes.Clientset) ([]string, error) {
 		utils.SecretInformer,
 		utils.ConfigMapInformer,
 		utils.NSInformer,
-		utils.NodeInformer,
 	}
 
 	return allInformers, nil

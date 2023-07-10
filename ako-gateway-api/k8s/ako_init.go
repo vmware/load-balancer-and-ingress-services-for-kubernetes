@@ -48,13 +48,12 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 	informersArg := make(map[string]interface{})
 
 	c.informers = utils.NewInformers(utils.KubeClientIntf{ClientSet: informers.Cs}, registeredInformers, informersArg)
-	//c.dynamicInformers = lib.NewDynamicInformers(informers.DynamicClient, false)
+
 	var ingestionwg *sync.WaitGroup
 	var graphwg *sync.WaitGroup
 	var fastretrywg *sync.WaitGroup
 	var slowretrywg *sync.WaitGroup
 	var statusWG *sync.WaitGroup
-	//var leaderElectionWG *sync.WaitGroup
 	if len(waitGroupMap) > 0 {
 		// Fetch all the waitgroups
 		ingestionwg, _ = waitGroupMap[0]["ingestion"]
@@ -62,7 +61,6 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 		fastretrywg, _ = waitGroupMap[0]["fastretry"]
 		slowretrywg, _ = waitGroupMap[0]["slowretry"]
 		statusWG, _ = waitGroupMap[0]["status"]
-		//leaderElectionWG, _ = waitGroupMap[0]["leaderElection"]
 	}
 
 	/** Sequence:
@@ -77,9 +75,13 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 	slowRetryQParams := utils.WorkerQueue{NumWorkers: retryQueueWorkers, WorkqueueName: lib.SLOW_RETRY_LAYER, SlowSyncTime: lib.SLOW_SYNC_TIME}
 	fastRetryQParams := utils.WorkerQueue{NumWorkers: retryQueueWorkers, WorkqueueName: lib.FAST_RETRY_LAYER}
 
+	//TODO Parallelize workers
+	//Every worker can work with a single graph object
+	//Each graph object corresponds to a single gateway
+	//HTTPRoutes can be attached to multiple gateways
+	//This will make HTTPRoute updates affect multiple graphs
 	numWorkers := uint32(1)
 	ingestionQueueParams := utils.WorkerQueue{NumWorkers: numWorkers, WorkqueueName: utils.ObjectIngestionLayer}
-	//numGraphWorkers := lib.GetshardSize()
 
 	numGraphWorkers := uint32(8)
 
@@ -87,7 +89,12 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 	statusQueueParams := utils.WorkerQueue{NumWorkers: numGraphWorkers, WorkqueueName: utils.StatusQueue}
 	graphQueue = utils.SharedWorkQueue(&ingestionQueueParams, &graphQueueParams, &slowRetryQParams, &fastRetryQParams, &statusQueueParams).GetQueueByName(utils.GraphLayer)
 
-	//err := PopulateCache()
+	err := PopulateCache()
+	if err != nil {
+		c.DisableSync = true
+		utils.AviLog.Errorf("failed to populate cache, disabling sync")
+		lib.ShutdownApi()
+	}
 
 	// Setup and start event handlers for objects.
 	c.addIndexers()
@@ -120,9 +127,7 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	//c.cleanupStaleVSes()
-
-	//leaderElector, err := utils.NewLeaderElector(informers.Cs, c.OnStartedLeading, c.OnStoppedLeading, c.OnNewLeader)
+	c.cleanupStaleVSes()
 
 	graphQueue.SyncFunc = SyncFromNodesLayer
 	graphQueue.Run(stopCh, graphwg)
@@ -406,4 +411,60 @@ func SyncFromStatusQueue(key interface{}, wg *sync.WaitGroup) error {
 	publisher := status.NewStatusPublisher()
 	publisher.DequeueStatus(key)
 	return nil
+}
+
+func PopulateCache() error {
+	var err error
+	aviRestClientPool := avicache.SharedAVIClients()
+	aviObjCache := avicache.SharedAviObjCache()
+	// Randomly pickup a client.
+	if aviRestClientPool != nil && len(aviRestClientPool.AviClient) > 0 {
+		_, _, err = aviObjCache.AviObjCachePopulate(aviRestClientPool.AviClient, gwlib.AKOControlConfig().ControllerVersion(), utils.CloudName)
+		if err != nil {
+			utils.AviLog.Warnf("failed to populate avi cache with error: %v", err.Error())
+			return err
+		}
+		if err = avicache.SetControllerClusterUUID(aviRestClientPool); err != nil {
+			utils.AviLog.Warnf("Failed to set the controller cluster uuid with error: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func (c *GatewayController) cleanupStaleVSes() {
+
+	aviRestClientPool := avicache.SharedAVIClients()
+	aviObjCache := avicache.SharedAviObjCache()
+
+	delModels := k8s.DeleteConfigFromConfigmap(c.informers.ClientSet)
+	if delModels {
+		go k8s.SetDeleteSyncChannel()
+		parentKeys := aviObjCache.VsCacheMeta.AviCacheGetAllParentVSKeys()
+		k8s.DeleteAviObjects(parentKeys, aviObjCache, aviRestClientPool)
+	}
+
+	// Delete Stale objects by deleting model for dummy VS
+	if _, err := lib.IsClusterNameValid(); err != nil {
+		utils.AviLog.Errorf("AKO cluster name is invalid.")
+		return
+	}
+	if aviRestClientPool != nil && len(aviRestClientPool.AviClient) > 0 {
+		utils.AviLog.Infof("Starting clean up of stale objects")
+		restlayer := rest.NewRestOperations(aviObjCache, aviRestClientPool)
+		staleVSKey := lib.GetTenant() + "/" + lib.DummyVSForStaleData
+		restlayer.CleanupVS(staleVSKey, true)
+		staleCacheKey := avicache.NamespaceName{
+			Name:      lib.DummyVSForStaleData,
+			Namespace: lib.GetTenant(),
+		}
+		aviObjCache.VsCacheMeta.AviCacheDelete(staleCacheKey)
+	}
+
+	vsKeysPending := aviObjCache.VsCacheMeta.AviGetAllKeys()
+
+	if delModels && len(vsKeysPending) == 0 && lib.ConfigDeleteSyncChan != nil {
+		close(lib.ConfigDeleteSyncChan)
+		lib.ConfigDeleteSyncChan = nil
+	}
 }

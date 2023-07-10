@@ -17,12 +17,8 @@ package lib
 import (
 	"os"
 
-	corev1 "k8s.io/api/core/v1"
-
-	"github.com/vmware/alb-sdk/go/models"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -51,9 +47,6 @@ type akoControlConfig struct {
 
 	// akoPodObjectMeta holds AKO Pod ObjectMeta information
 	akoPodObjectMeta *metav1.ObjectMeta
-
-	// licenseType holds the default license tier which would be used by new Clouds. Enum options - ENTERPRISE_16, ENTERPRISE, ENTERPRISE_18, BASIC, ESSENTIALS.
-	licenseType string
 
 	// controllerVersion stores the version of the controller to
 	// which AKO is communicating with
@@ -107,15 +100,6 @@ func initControllerVersion() string {
 		version = lib.GetAviMaxSupportedVersion()
 		return version
 	}
-
-	if lib.CompareVersions(version, "<", lib.GetAviMinSupportedVersion()) {
-		AKOControlConfig().PodEventf(
-			corev1.EventTypeWarning,
-			lib.AKOShutdown, "AKO is running with unsupported Avi version %s",
-			version,
-		)
-		utils.AviLog.Fatalf("AKO is not supported for the Avi version %s, Avi must be %s or more", version, lib.GetAviMinSupportedVersion())
-	}
 	return ""
 }
 
@@ -149,30 +133,4 @@ func (c *akoControlConfig) PodEventf(eventType, reason, message string, formatAr
 			c.EventRecorder().Event(&v1.Pod{ObjectMeta: *c.akoPodObjectMeta}, eventType, reason, message)
 		}
 	}
-}
-
-func GetResponseFromURI(client *clients.AviClient, uri string) (models.SystemConfiguration, error) {
-	response := models.SystemConfiguration{}
-	err := lib.AviGet(client, uri, &response)
-
-	if err != nil {
-		utils.AviLog.Warnf("Unable to fetch system configuration, error %s", err.Error())
-	}
-
-	return response, err
-}
-
-func (c *akoControlConfig) GetLicenseType() string {
-	return c.licenseType
-}
-
-func (c *akoControlConfig) SetLicenseType(client *clients.AviClient) {
-	uri := "/api/systemconfiguration"
-	response, err := GetResponseFromURI(client, uri)
-	if err != nil {
-		utils.AviLog.Warnf("Unable to fetch system configuration, error %s", err.Error())
-		return
-	}
-
-	c.licenseType = *response.DefaultLicenseTier
 }
