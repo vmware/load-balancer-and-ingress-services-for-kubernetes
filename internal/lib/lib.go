@@ -291,8 +291,8 @@ func GetDeleteConfigMap() bool {
 
 var AKOUser string
 
-func SetAKOUser() {
-	AKOUser = "ako-" + GetClusterName()
+func SetAKOUser(prefix string) {
+	AKOUser = prefix + GetClusterName()
 	isPrimaryAKO := akoControlConfigInstance.GetAKOInstanceFlag()
 	if !isPrimaryAKO {
 		AKOUser = AKOUser + "-" + os.Getenv("POD_NAMESPACE")
