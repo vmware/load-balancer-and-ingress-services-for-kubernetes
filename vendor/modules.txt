@@ -177,8 +177,6 @@ github.com/prometheus/procfs/internal/util
 # github.com/spf13/pflag v1.0.5
 ## explicit; go 1.12
 github.com/spf13/pflag
-# github.com/stretchr/testify v1.8.1
-## explicit; go 1.13
 # github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
 ## explicit; go 1.13
 github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1
@@ -822,6 +820,17 @@ sigs.k8s.io/controller-runtime/pkg/webhook
 sigs.k8s.io/controller-runtime/pkg/webhook/admission
 sigs.k8s.io/controller-runtime/pkg/webhook/conversion
 sigs.k8s.io/controller-runtime/pkg/webhook/internal/metrics
+# sigs.k8s.io/gateway-api v0.6.2 => sigs.k8s.io/gateway-api v0.6.2
+## explicit; go 1.18
+sigs.k8s.io/gateway-api/apis/v1alpha2
+sigs.k8s.io/gateway-api/apis/v1beta1
+sigs.k8s.io/gateway-api/pkg/client/clientset/versioned
+sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/scheme
+sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1alpha2
+sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1beta1
+sigs.k8s.io/gateway-api/pkg/client/informers/externalversions/apis/v1beta1
+sigs.k8s.io/gateway-api/pkg/client/informers/externalversions/internalinterfaces
+sigs.k8s.io/gateway-api/pkg/client/listers/apis/v1beta1
 # sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2
 ## explicit; go 1.18
 sigs.k8s.io/json
