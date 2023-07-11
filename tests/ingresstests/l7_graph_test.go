@@ -2671,3 +2671,31 @@ func TestClusterRuntimeUpSinceChange(t *testing.T) {
 	}, 60*time.Second).Should(gomega.Equal(true))
 	integrationtest.ResetMiddleware()
 }
+
+func TestFQDNCountInL7Model(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/cluster--Shared-L7-0"
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if aviModel == nil {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes)
+	}, 10*time.Second).Should(gomega.Equal(1))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	node := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0]
+
+	g.Expect(node.VSVIPRefs).To(gomega.HaveLen(1))
+	g.Expect(node.VSVIPRefs[0].FQDNs).To(gomega.HaveLen(2))
+	for _, fqdn := range node.VSVIPRefs[0].FQDNs {
+		if fqdn == "foo.com" {
+			continue
+		}
+		g.Expect(fqdn).Should(gomega.ContainSubstring("Shared-L7"))
+	}
+
+	TearDownIngressForCacheSyncCheck(t, modelName)
+}
