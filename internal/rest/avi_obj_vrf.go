@@ -64,50 +64,38 @@ func (rest *RestOperations) AviVrfBuild(key string, vrfNode *nodes.AviVrfNode, u
 		return nil
 	}
 	path := "/api/vrfcontext/" + vrfCacheObj.Uuid
-
 	nodeStaticRoutes := vrfNode.StaticRoutes
 	aviStaticRoutes := vrf.StaticRoutes
-	clusterStaticRoutes := []*avimodels.StaticRoute{}
 	mergedStaticRoutes := []*avimodels.StaticRoute{}
 	clusterName := lib.GetClusterName()
 	re := regexp.MustCompile(fmt.Sprintf(`%s\-[1-9]+`, clusterName))
 	for _, aviStaticRoute := range aviStaticRoutes {
-		if re.MatchString(*aviStaticRoute.RouteID) {
-			clusterStaticRoutes = append(clusterStaticRoutes, aviStaticRoute)
-		} else {
+		if !re.MatchString(*aviStaticRoute.RouteID) {
 			mergedStaticRoutes = append(mergedStaticRoutes, aviStaticRoute)
 		}
 	}
-
-	patchOp := utils.PatchReplaceOp
-	patchPayload := make(map[string]interface{})
-	if len(nodeStaticRoutes) == 0 {
-		// this is the case of deleting all the static routes for the cluster
-		patchOp = utils.PatchDeleteOp
-		patchPayload["static_routes"] = clusterStaticRoutes
-
-	} else {
-		patchOp = utils.PatchReplaceOp
+	if len(nodeStaticRoutes) != 0 {
 		mergedStaticRoutes = append(mergedStaticRoutes, nodeStaticRoutes...)
-		patchPayload["static_routes"] = mergedStaticRoutes
 	}
+
+	vrf.StaticRoutes = []*avimodels.StaticRoute{}
+	vrf.StaticRoutes = append(vrf.StaticRoutes, mergedStaticRoutes...)
 
 	opTenant := lib.GetAdminTenant()
 	if lib.GetCloudType() == lib.CLOUD_OPENSTACK {
 		//In case of Openstack cloud, use tenant vrf
 		opTenant = lib.GetTenant()
 	}
-	utils.AviLog.Infof("key: %s, VRF Payload is: [%v]", key, utils.Stringify(patchPayload))
-	restOp := utils.RestOp{
+
+	rest_op := utils.RestOp{
 		Path:    path,
-		Method:  utils.RestPatch,
-		PatchOp: patchOp,
-		Obj:     patchPayload,
+		Method:  utils.RestPut,
+		Obj:     vrf,
 		Tenant:  opTenant,
 		Model:   "VrfContext",
+		ObjName: vrfCacheObj.Name,
 	}
-
-	return &restOp
+	return &rest_op
 }
 
 func (rest *RestOperations) getVrfCacheObj(vrfName string) *avicache.AviVrfCache {
