@@ -64,13 +64,6 @@ spec:
               exec:
                 command: ["/bin/sh","/var/pre_stop_hook.sh"]
           env:
-          {{ if .Values.avicredentials.certificateAuthorityData  }}
-          - name: CTRL_CA_DATA
-            valueFrom:
-              secretKeyRef:
-                name: avi-secret
-                key: certificateAuthorityData
-            {{ end }}
           - name: CTRL_IPADDRESS
             valueFrom:
               configMapKeyRef:
