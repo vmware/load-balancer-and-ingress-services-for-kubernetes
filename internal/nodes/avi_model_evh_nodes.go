@@ -1092,10 +1092,6 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 		if vsNode[0].Dedicated {
 			RemoveFqdnFromEVHVIP(vsNode[0], []string{gsFqdnCache}, key)
 		}
-		//Dedicated VS: add gslb fqdn as part of vsvip fqdn
-		if isDedicated && !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, pathsvcmap.gslbHostHeader) {
-			vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, pathsvcmap.gslbHostHeader)
-		}
 		objects.SharedCRDLister().UpdateLocalFQDNToGSFqdnMapping(host, pathsvcmap.gslbHostHeader)
 	} else {
 		if found {
@@ -1481,9 +1477,6 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 		if paths.gslbHostHeader != "" {
 			if !utils.HasElem(hosts, paths.gslbHostHeader) {
 				hosts = append(hosts, paths.gslbHostHeader)
-			}
-			if isDedicated && !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, paths.gslbHostHeader) {
-				vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, paths.gslbHostHeader)
 			}
 		}
 
