@@ -289,10 +289,44 @@ spec:
             value: {{ .Values.mountPath }}
           - name: LOG_FILE_NAME
             value: {{ .Values.akoGatewayLogFile }}
+          - name: CTRL_IPADDRESS
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: controllerIP
+          - name: CTRL_VERSION
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: controllerVersion
+          - name: CLUSTER_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: clusterName
+          - name: PRIMARY_AKO_FLAG
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: primaryInstance
+          - name: CLOUD_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: cloudName
+          - name: TENANT_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: tenantName
           - name: POD_NAME
             valueFrom:
               fieldRef:
                 fieldPath: metadata.name
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
         {{ end }}
