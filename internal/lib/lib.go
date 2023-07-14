@@ -145,8 +145,8 @@ func CheckObjectNameLength(objName, objType string) bool {
 	return false
 }
 
-func SetNamePrefix() {
-	NamePrefix = GetClusterName() + "--"
+func SetNamePrefix(prefix string) {
+	NamePrefix = prefix + GetClusterName() + "--"
 }
 
 func GetNamePrefix() string {
