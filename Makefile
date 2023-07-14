@@ -9,6 +9,7 @@ BINARY_NAME_AKO_GATEWAY_API=ako-gateway-api
 PACKAGE_PATH_AKO=github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
 REL_PATH_AKO=$(PACKAGE_PATH_AKO)/cmd/ako-main
 REL_PATH_AKO_INFRA=$(PACKAGE_PATH_AKO)/cmd/infra-main
+REL_PATH_AKO_GATEWAY_API=$(PACKAGE_PATH_AKO)/cmd/gateway-api
 AKO_OPERATOR_IMAGE=ako-operator
 
 define GetSupportabilityMatrix
@@ -94,6 +95,17 @@ build-infra: pre-build glob-vars
 		-ldflags $(AKO_LDFLAGS) \
 		-mod=vendor \
 		/go/src/$(REL_PATH_AKO_INFRA)
+
+.PHONY: build-gateway-api
+build-gateway-api: glob-vars
+		sudo docker run \
+		-w=/go/src/$(PACKAGE_PATH_AKO) \
+		-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+		$(GOBUILD) \
+		-o /go/src/$(PACKAGE_PATH_AKO)/bin/$(BINARY_NAME_AKO_GATEWAY_API) \
+		-ldflags $(AKO_LDFLAGS) \
+		-mod=vendor \
+		/go/src/$(REL_PATH_AKO_GATEWAY_API)
 
 .PHONY: build-local
 build-local: pre-build

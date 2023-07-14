@@ -15,14 +15,20 @@
 package k8s
 
 import (
-	"context"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	gwlib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/tools/cache"
+	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+
+	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -32,13 +38,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/retry"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/tools/cache"
-
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	gwApi "sigs.k8s.io/gateway-api/apis/v1beta1"
 )
 
 func (c *GatewayController) InitController(informers k8s.K8sinformers, registeredInformers []string, ctrlCh <-chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}, waitGroupMap ...map[string]*sync.WaitGroup) {
@@ -89,7 +88,7 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 	statusQueueParams := utils.WorkerQueue{NumWorkers: numGraphWorkers, WorkqueueName: utils.StatusQueue}
 	graphQueue = utils.SharedWorkQueue(&ingestionQueueParams, &graphQueueParams, &slowRetryQParams, &fastRetryQParams, &statusQueueParams).GetQueueByName(utils.GraphLayer)
 
-	err := PopulateCache()
+	err := k8s.PopulateCache()
 	if err != nil {
 		c.DisableSync = true
 		utils.AviLog.Errorf("failed to populate cache, disabling sync")
@@ -126,7 +125,6 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
 	c.cleanupStaleVSes()
 
 	graphQueue.SyncFunc = SyncFromNodesLayer
@@ -144,9 +142,9 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 		go tokenWorker.Run()
 	}
 	if lib.DisableSync {
-		gwlib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigSet, "AKO is in disable sync state")
+		akogatewayapilib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigSet, "AKO is in disable sync state")
 	} else {
-		gwlib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKOReady, "AKO is now listening for Object updates in the cluster")
+		akogatewayapilib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKOReady, "AKO is now listening for Object updates in the cluster")
 	}
 
 	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
@@ -178,11 +176,6 @@ LABEL:
 		worker.Shutdown()
 	}
 
-	cancel()
-
-	// Cancel the Leader election goroutines
-	<-ctx.Done()
-
 	ingestionQueue.StopWorkers(stopCh)
 	graphQueue.StopWorkers(stopCh)
 	fastRetryQueue.StopWorkers(stopCh)
@@ -192,28 +185,11 @@ LABEL:
 
 func (c *GatewayController) addIndexers() {
 
-	c.informers.ServiceInformer.Informer().AddIndexers(
-		cache.Indexers{
-			lib.AviSettingServicesIndex: func(obj interface{}) ([]string, error) {
-				service, ok := obj.(*corev1.Service)
-				if !ok {
-					return []string{}, nil
-				}
-				if service.Spec.Type == corev1.ServiceTypeLoadBalancer {
-					if val, ok := service.Annotations[lib.InfraSettingNameAnnotation]; ok && val != "" {
-						return []string{val}, nil
-					}
-				}
-				return []string{}, nil
-			},
-		},
-	)
-
-	gwinformer := gwlib.AKOControlConfig().GatewayApiInformers()
+	gwinformer := akogatewayapilib.AKOControlConfig().GatewayApiInformers()
 	gwinformer.GatewayInformer.Informer().AddIndexers(
 		cache.Indexers{
 			lib.GatewayClassGatewayIndex: func(obj interface{}) ([]string, error) {
-				gw, ok := obj.(*gwApi.Gateway)
+				gw, ok := obj.(*gatewayv1beta1.Gateway)
 				if !ok {
 					return []string{}, nil
 				}
@@ -245,7 +221,7 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 	}
 
 	//Gateway Section
-	gatewayObjs, err := gwlib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+	gatewayObjs, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Errorf("Unable to retrieve the gateways during full sync: %s", err)
 		return err
@@ -262,7 +238,7 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 		nodes.DequeueIngestion(key, true)
 	}
 
-	gwClassObjs, err := gwlib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
+	gwClassObjs, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Errorf("Unable to retrieve the gatewayclasses during full sync: %s", err)
 		return err
@@ -419,7 +395,7 @@ func PopulateCache() error {
 	aviObjCache := avicache.SharedAviObjCache()
 	// Randomly pickup a client.
 	if aviRestClientPool != nil && len(aviRestClientPool.AviClient) > 0 {
-		_, _, err = aviObjCache.AviObjCachePopulate(aviRestClientPool.AviClient, gwlib.AKOControlConfig().ControllerVersion(), utils.CloudName)
+		_, _, err = aviObjCache.AviObjCachePopulate(aviRestClientPool.AviClient, akogatewayapilib.AKOControlConfig().ControllerVersion(), utils.CloudName)
 		if err != nil {
 			utils.AviLog.Warnf("failed to populate avi cache with error: %v", err.Error())
 			return err
