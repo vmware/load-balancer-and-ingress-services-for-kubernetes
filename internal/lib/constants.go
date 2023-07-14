@@ -198,6 +198,7 @@ const (
 	K8s_1_28                                   = "1.28"
 	HTTPMethodGet                              = "GET"
 	HTTPMethodPut                              = "PUT"
+	NetworkNotFoundError                       = "Network object not found"
 
 	// AKO Event constants
 	AKOEventComponent        = "avi-kubernetes-operator"
