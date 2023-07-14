@@ -75,7 +75,7 @@ const (
 	ShardVSSubstring                           = "Shared-"
 	ShardVSPrefix                              = "Shared-L7"
 	ShardEVHVSPrefix                           = "Shared-L7-EVH-"
-	AKOSuffix                                  = "ako-"
+	AKOPrefix                                  = "ako-"
 	DedicatedSuffix                            = "-L7-dedicated"
 	EVHSuffix                                  = "-EVH"
 	PassthroughPrefix                          = "Shared-Passthrough-"
@@ -112,6 +112,7 @@ const (
 	LB_ALGORITHM_CONSISTENT_HASH               = "LB_ALGORITHM_CONSISTENT_HASH"
 	Gateway                                    = "Gateway"
 	GatewayClass                               = "GatewayClass"
+	HTTPRoute                                  = "HTTPRoute"
 	DuplicateBackends                          = "MultipleBackendsWithSameServiceError"
 	DummyVSForStaleData                        = "DummyVSForStaleData"
 	ControllerReqWaitTime                      = 300

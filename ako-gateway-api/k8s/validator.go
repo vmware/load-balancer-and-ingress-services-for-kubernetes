@@ -17,11 +17,12 @@ package k8s
 import (
 	"strings"
 
+	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	gwApi "sigs.k8s.io/gateway-api/apis/v1beta1"
 )
 
-func IsValidGateway(gateway *gwApi.Gateway) bool {
+func IsValidGateway(gateway *gatewayv1beta1.Gateway) bool {
 	spec := gateway.Spec
 	//is associated with gateway class
 	if spec.GatewayClassName == "" {
@@ -49,7 +50,7 @@ func IsValidGateway(gateway *gwApi.Gateway) bool {
 	return true
 }
 
-func isValidListener(gwName string, listener gwApi.Listener) bool {
+func isValidListener(gwName string, listener gatewayv1beta1.Listener) bool {
 	//has valid name
 	if listener.Name == "" {
 		utils.AviLog.Errorf("no listener name found in gateway %+v", gwName)

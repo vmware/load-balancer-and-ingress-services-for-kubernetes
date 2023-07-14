@@ -16,23 +16,24 @@ package main
 
 import (
 	"context"
+	"flag"
 	"os"
 	"sync"
 	"time"
 
-	gwk8s "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/k8s"
-	gwlib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	gatewayclientset "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
 
-	gwApi "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
+	akogatewayk8s "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/k8s"
+	akogatewaylib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 var (
@@ -41,15 +42,22 @@ var (
 	version    = "dev"
 )
 
+func init() {
+	def_kube_config := os.Getenv("HOME") + "/.kube/config"
+	flag.StringVar(&kubeconfig, "kubeconfig", def_kube_config, "Path to a kubeconfig. Only required if out-of-cluster.")
+	flag.StringVar(&masterURL, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+}
+
 func main() {
 	Initialize()
 }
 
 func Initialize() {
 
-	var err error
-	kubeCluster := false
+	utils.AviLog.SetLevel("DEBUG") // TODO: integrate the configmap to this pod and remove this hardcoding.
 	utils.AviLog.Infof("AKO is running with version: %s", version)
+
+	kubeCluster := false
 	// Check if we are running inside kubernetes. Hence try authenticating with service token
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
@@ -66,11 +74,14 @@ func Initialize() {
 		}
 	}
 
-	akoControlConfig := gwlib.AKOControlConfig()
-	lib.SetAKOUser("ako-gw-")
-	var gwApiClient *gwApi.Clientset
+	akoControlConfig := akogatewaylib.AKOControlConfig()
 
-	gwApiClient, err = gwApi.NewForConfig(cfg)
+	// Set the user with prefix
+	_ = lib.AKOControlConfig()
+	lib.SetAKOUser(akogatewaylib.Prefix)
+	lib.SetNamePrefix(akogatewaylib.Prefix)
+
+	gwApiClient, err := gatewayclientset.NewForConfig(cfg)
 	if err != nil {
 		utils.AviLog.Fatalf("Error building gateway-api clientset: %s", err.Error())
 	}
@@ -90,7 +101,7 @@ func Initialize() {
 	}
 	akoControlConfig.SaveAKOPodObjectMeta(pod)
 
-	registeredInformers, err := gwlib.InformersToRegister(kubeClient)
+	registeredInformers, err := akogatewaylib.InformersToRegister(kubeClient)
 	if err != nil {
 		utils.AviLog.Fatalf("Failed to initialize informers: %v, shutting down AKO-Infra, going to reboot", err)
 	}
@@ -100,7 +111,8 @@ func Initialize() {
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
 
 	informers := k8s.K8sinformers{Cs: kubeClient}
-	c := gwk8s.SharedGatewayController()
+	c := akogatewayk8s.SharedGatewayController()
+	c.InitGatewayAPIInformers(gwApiClient)
 	stopCh := utils.SetupSignalHandler()
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
@@ -144,8 +156,8 @@ func Initialize() {
 		wgGraph.Wait()
 		wgFastRetry.Wait()
 		wgStatus.Wait()
-		//wgLeaderElection.Wait()
 	}()
+
 	// Timeout after 60 seconds.
 	timeout := 60 * time.Second
 	select {

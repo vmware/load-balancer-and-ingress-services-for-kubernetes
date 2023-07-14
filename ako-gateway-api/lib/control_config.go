@@ -17,18 +17,20 @@ package lib
 import (
 	"os"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	gwApi "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
-	gwApiInformer "sigs.k8s.io/gateway-api/pkg/client/informers/externalversions/apis/v1beta1"
+	gatewayclientset "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
+	gatewayinformerv1beta1 "sigs.k8s.io/gateway-api/pkg/client/informers/externalversions/apis/v1beta1"
+
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
-type gwApiInformers struct {
-	GatewayInformer      gwApiInformer.GatewayInformer
-	GatewayClassInformer gwApiInformer.GatewayClassInformer
+type GatewayAPIInformers struct {
+	GatewayInformer      gatewayinformerv1beta1.GatewayInformer
+	GatewayClassInformer gatewayinformerv1beta1.GatewayClassInformer
+	HTTPRouteInformer    gatewayinformerv1beta1.HTTPRouteInformer
 }
 
 // akoControlConfig struct is intended to store all AKO related global
@@ -38,8 +40,8 @@ type gwApiInformers struct {
 type akoControlConfig struct {
 
 	// client-set and informer for Gateway API.
-	gwApiCS        gwApi.Interface
-	gwApiInformers *gwApiInformers
+	gwApiCS        gatewayclientset.Interface
+	gwApiInformers *GatewayAPIInformers
 
 	// akoEventRecorder is used to store record.akoEventRecorder
 	// that allows AKO to broadcast kubernetes Events.
@@ -64,19 +66,19 @@ func AKOControlConfig() *akoControlConfig {
 	return akoControlConfigInstance
 }
 
-func (c *akoControlConfig) SetGatewayAPIClientset(cs gwApi.Interface) {
+func (c *akoControlConfig) SetGatewayAPIClientset(cs gatewayclientset.Interface) {
 	c.gwApiCS = cs
 }
 
-func (c *akoControlConfig) GatewayAPIClientset() gwApi.Interface {
+func (c *akoControlConfig) GatewayAPIClientset() gatewayclientset.Interface {
 	return c.gwApiCS
 }
 
-func (c *akoControlConfig) SetGatewayApiInformers(i *gwApiInformers) {
+func (c *akoControlConfig) SetGatewayApiInformers(i *GatewayAPIInformers) {
 	c.gwApiInformers = i
 }
 
-func (c *akoControlConfig) GatewayApiInformers() *gwApiInformers {
+func (c *akoControlConfig) GatewayApiInformers() *GatewayAPIInformers {
 	return c.gwApiInformers
 }
 
