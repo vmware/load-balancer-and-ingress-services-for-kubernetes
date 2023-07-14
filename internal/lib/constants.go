@@ -196,6 +196,7 @@ const (
 	Namespace                                  = "Namespace"
 	VrfContextNotFoundError                    = "VrfContext not found"
 	K8s_1_28                                   = "1.28"
+	NetworkNotFoundError                       = "Network object not found"
 
 	// AKO Event constants
 	AKOEventComponent        = "avi-kubernetes-operator"
