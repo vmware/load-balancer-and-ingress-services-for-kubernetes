@@ -134,4 +134,4 @@ avicredentials:
 persistentVolumeClaim: ""
 mountPath: "/log"
 logFile: "avi.log"
-akoGatewayLogFile: "avi-gw-v2.log"
+akoGatewayLogFile: "avi-gw.log"
