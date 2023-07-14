@@ -2806,9 +2806,9 @@ func checkRequiredValuesYaml(client *clients.AviClient, returnErr *error) bool {
 		return false
 	}
 
-	lib.SetNamePrefix()
+	lib.SetNamePrefix("")
 	// after clusterName validation, set AKO User to be used in created_by fields for Avi Objects
-	lib.SetAKOUser("ako-")
+	lib.SetAKOUser(lib.AKOPrefix)
 	//Set clusterlabel checksum
 	lib.SetClusterLabelChecksum()
 
