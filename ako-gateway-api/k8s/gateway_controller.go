@@ -18,20 +18,22 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+	"time"
 
-	gwlib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+	gatewayclientset "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
+	gatewayexternalversions "sigs.k8s.io/gateway-api/pkg/client/informers/externalversions"
 
-	corev1 "k8s.io/api/core/v1"
-
-	gwApi "sigs.k8s.io/gateway-api/apis/v1beta1"
+	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 var controllerInstance *GatewayController
@@ -45,19 +47,17 @@ var countLock sync.RWMutex
 type GatewayController struct {
 	worker_id uint32
 	//recorder        record.EventRecorder
-	informers        *utils.Informers
-	dynamicInformers *lib.DynamicInformers
-	workqueue        []workqueue.RateLimitingInterface
-	DisableSync      bool
+	informers   *utils.Informers
+	workqueue   []workqueue.RateLimitingInterface
+	DisableSync bool
 }
 
 func SharedGatewayController() *GatewayController {
 	ctrlonce.Do(func() {
 		controllerInstance = &GatewayController{
-			worker_id:        (uint32(1) << utils.NumWorkersIngestion) - 1,
-			informers:        utils.GetInformers(),
-			dynamicInformers: lib.GetDynamicInformers(),
-			DisableSync:      true,
+			worker_id:   (uint32(1) << utils.NumWorkersIngestion) - 1,
+			informers:   utils.GetInformers(),
+			DisableSync: true,
 		}
 	})
 	return controllerInstance
@@ -74,6 +74,15 @@ func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
 		return configMap, true
 	}
 	return nil, false
+}
+
+func (c *GatewayController) InitGatewayAPIInformers(cs *gatewayclientset.Clientset) {
+	gatewayFactory := gatewayexternalversions.NewSharedInformerFactory(cs, time.Second*30)
+	akogatewayapilib.AKOControlConfig().SetGatewayApiInformers(&akogatewayapilib.GatewayAPIInformers{
+		GatewayInformer:      gatewayFactory.Gateway().V1beta1().Gateways(),
+		GatewayClassInformer: gatewayFactory.Gateway().V1beta1().GatewayClasses(),
+		HTTPRouteInformer:    gatewayFactory.Gateway().V1beta1().HTTPRoutes(),
+	})
 }
 
 func (c *GatewayController) Start(stopCh <-chan struct{}) {
@@ -97,10 +106,12 @@ func (c *GatewayController) Start(stopCh <-chan struct{}) {
 		informersList = append(informersList, c.informers.PodInformer.Informer().HasSynced)
 	}
 
-	go gwlib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Informer().Run(stopCh)
-	informersList = append(informersList, gwlib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Informer().HasSynced)
-	go gwlib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Informer().Run(stopCh)
-	informersList = append(informersList, gwlib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Informer().HasSynced)
+	go akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Informer().Run(stopCh)
+	informersList = append(informersList, akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Informer().HasSynced)
+	go akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Informer().Run(stopCh)
+	informersList = append(informersList, akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Informer().HasSynced)
+	go akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Informer().Run(stopCh)
+	informersList = append(informersList, akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Informer().HasSynced)
 
 	if !cache.WaitForCacheSync(stopCh, informersList...) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
@@ -446,25 +457,25 @@ func AddServicesFromNSToIngestionQueue(numWorkers uint32, c *GatewayController, 
 }
 
 func AddGatewaysFromNSToIngestionQueue(numWorkers uint32, c *GatewayController, namespace string, msg string) {
-	gwObjs, err := gwlib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).List(labels.Set(nil).AsSelector())
+	gwObjs, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Errorf("NS to gateways queue add: Error occurred while retrieving gateways for namespace: %s", namespace)
 		return
 	}
 	for _, gwObj := range gwObjs {
-		key := utils.Gateway + "/" + utils.ObjKey(gwObj)
+		key := lib.Gateway + "/" + utils.ObjKey(gwObj)
 		bkt := utils.Bkt(namespace, numWorkers)
 		c.workqueue[bkt].AddRateLimited(key)
 		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
 	}
 
-	gwClassObjs, err := gwlib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
+	gwClassObjs, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Errorf("NS to gateways queue add: Error occurred while retrieving gateway class for namespace: %s", namespace)
 		return
 	}
 	for _, gwClassObj := range gwClassObjs {
-		key := utils.GatewayClass + "/" + utils.ObjKey(gwClassObj)
+		key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
 		bkt := utils.Bkt(namespace, numWorkers)
 		c.workqueue[bkt].AddRateLimited(key)
 		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
@@ -483,18 +494,18 @@ func checkAviSecretUpdateAndShutdown(secret *corev1.Secret) bool {
 
 func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 	utils.AviLog.Infof("Setting up Gateway API Event handlers")
-	informer := gwlib.AKOControlConfig().GatewayApiInformers()
+	informer := akogatewayapilib.AKOControlConfig().GatewayApiInformers()
 
 	gatewayEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
 				return
 			}
-			gw := obj.(*gwApi.Gateway)
+			gw := obj.(*gatewayv1beta1.Gateway)
 			if !IsValidGateway(gw) {
 				return
 			}
-			key := utils.Gateway + "/" + utils.ObjKey(gw)
+			key := lib.Gateway + "/" + utils.ObjKey(gw)
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == gw.ResourceVersion {
 				utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
@@ -509,8 +520,8 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			gw := obj.(*gwApi.Gateway)
-			key := utils.Gateway + "/" + utils.ObjKey(gw)
+			gw := obj.(*gatewayv1beta1.Gateway)
+			key := lib.Gateway + "/" + utils.ObjKey(gw)
 			objects.SharedResourceVerInstanceLister().Delete(key)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -521,13 +532,13 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			oldGw := old.(*gwApi.Gateway)
-			gw := obj.(*gwApi.Gateway)
+			oldGw := old.(*gatewayv1beta1.Gateway)
+			gw := obj.(*gatewayv1beta1.Gateway)
 			if !reflect.DeepEqual(oldGw.Spec, gw.Spec) || gw.GetDeletionTimestamp() != nil {
 				if !IsValidGateway(gw) {
 					return
 				}
-				key := utils.Gateway + "/" + utils.ObjKey(gw)
+				key := lib.Gateway + "/" + utils.ObjKey(gw)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
@@ -542,8 +553,8 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			gwClass := obj.(*gwApi.GatewayClass)
-			key := utils.Gateway + "/" + utils.ObjKey(gwClass)
+			gwClass := obj.(*gatewayv1beta1.GatewayClass)
+			key := lib.GatewayClass + "/" + utils.ObjKey(gwClass)
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == gwClass.ResourceVersion {
 				utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
@@ -558,8 +569,8 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			gwClass := obj.(*gwApi.GatewayClass)
-			key := utils.Gateway + "/" + utils.ObjKey(gwClass)
+			gwClass := obj.(*gatewayv1beta1.GatewayClass)
+			key := lib.GatewayClass + "/" + utils.ObjKey(gwClass)
 			objects.SharedResourceVerInstanceLister().Delete(key)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwClass))
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -570,10 +581,10 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			oldGwClass := old.(*gwApi.GatewayClass)
-			gwClass := obj.(*gwApi.GatewayClass)
+			oldGwClass := old.(*gatewayv1beta1.GatewayClass)
+			gwClass := obj.(*gatewayv1beta1.GatewayClass)
 			if !reflect.DeepEqual(oldGwClass.Spec, gwClass.Spec) || gwClass.GetDeletionTimestamp() != nil {
-				key := utils.Gateway + "/" + utils.ObjKey(gwClass)
+				key := lib.GatewayClass + "/" + utils.ObjKey(gwClass)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwClass))
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
