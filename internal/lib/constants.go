@@ -197,6 +197,7 @@ const (
 	VrfContextNotFoundError                    = "VrfContext not found"
 	HTTPMethodGet                              = "GET"
 	HTTPMethodPut                              = "PUT"
+	NetworkNotFoundError                       = "Network object not found"
 
 	// AKO Event constants
 	AKOEventComponent        = "avi-kubernetes-operator"
