@@ -165,7 +165,12 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		// and override required services with UDP Fast Path.
 		if vs_meta.NetworkProfile == utils.MIXED_NET_PROFILE {
 			if isTCPPortPresent {
-				vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+				license := lib.AKOControlConfig().GetLicenseType()
+				if license == lib.LicenseTypeEnterprise {
+					vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
+				} else {
+					vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+				}
 			} else {
 				vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
 			}

@@ -129,7 +129,12 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 	if isSCTP && !isTCP && !isUDP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
 	} else if isTCP && !isUDP && !isSCTP {
-		avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+		license := lib.AKOControlConfig().GetLicenseType()
+		if license == lib.LicenseTypeEnterprise {
+			avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
+		} else {
+			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+		}
 	} else if isUDP && !isTCP && !isSCTP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
 	} else {
@@ -535,7 +540,12 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 	if isSCTP && !isTCP && !isUDP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
 	} else if isTCP && !isUDP && !isSCTP {
-		avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+		license := lib.AKOControlConfig().GetLicenseType()
+		if license == lib.LicenseTypeEnterprise {
+			avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
+		} else {
+			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
+		}
 	} else if isUDP && !isTCP && !isSCTP {
 		avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
 	} else {
