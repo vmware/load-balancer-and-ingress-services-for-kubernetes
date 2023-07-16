@@ -160,9 +160,9 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			vs.Services = append(vs.Services, &svc)
 		}
 
-		// In case the VS has services that are a mix of TCP and UDP sockets,
-		// we create the VS with global network profile TCP Fast Path,
-		// and override required services with UDP Fast Path.
+		// In case the VS has services that are a mix of TCP and UDP/SCTP sockets,
+		// we create the VS with global network profile TCP Proxy or Fast Path based on license,
+		// and override required services with UDP Fast Path or SCTP proxy.
 		if vs_meta.NetworkProfile == utils.MIXED_NET_PROFILE {
 			if isTCPPortPresent {
 				license := lib.AKOControlConfig().GetLicenseType()

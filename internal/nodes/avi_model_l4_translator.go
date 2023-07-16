@@ -103,20 +103,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
 	}
 
-	if isSCTP && !isTCP && !isUDP {
-		avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
-	} else if isTCP && !isUDP && !isSCTP {
-		license := lib.AKOControlConfig().GetLicenseType()
-		if license == lib.LicenseTypeEnterprise {
-			avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
-		} else {
-			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
-		}
-	} else if isUDP && !isTCP && !isSCTP {
-		avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
-	} else {
-		avi_vs_meta.NetworkProfile = utils.MIXED_NET_PROFILE
-	}
+	avi_vs_meta.NetworkProfile = getNetworkProfile(isSCTP, isTCP, isUDP)
 
 	vsVipName := lib.GetL4VSVipName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
 	vsVipNode := &AviVSVIPNode{
@@ -662,4 +649,24 @@ func buildPoolWithL4Rule(key string, pool *AviPoolNode, l4Rule *akov1alpha2.L4Ru
 	pool.AviPoolGeneratedFields.ConvertToRef()
 
 	utils.AviLog.Debugf("key: %s, msg: Applied L4Rule %s configuration over Pool %s", key, l4Rule.Name, pool.Name)
+}
+
+// In case the VS has services that are a mix of TCP and UDP/SCTP sockets,
+// we create the VS with global network profile TCP Proxy or Fast Path based on license,
+// and override required services with UDP Fast Path or SCTP proxy. Having a separate
+// internally used network profile (MIXED_NET_PROFILE) helps ensure PUT calls
+// on existing VSes.
+func getNetworkProfile(isSCTP, isTCP, isUDP bool) string {
+	if isSCTP && !isTCP && !isUDP {
+		return utils.SYSTEM_SCTP_PROXY
+	} else if isTCP && !isUDP && !isSCTP {
+		license := lib.AKOControlConfig().GetLicenseType()
+		if license == lib.LicenseTypeEnterprise {
+			return utils.DEFAULT_TCP_NW_PROFILE
+		}
+		return utils.TCP_NW_FAST_PATH
+	} else if isUDP && !isTCP && !isSCTP {
+		return utils.SYSTEM_UDP_FAST_PATH
+	}
+	return utils.MIXED_NET_PROFILE
 }
