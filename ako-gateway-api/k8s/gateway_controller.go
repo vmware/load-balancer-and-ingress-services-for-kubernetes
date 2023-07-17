@@ -63,20 +63,7 @@ func SharedGatewayController() *GatewayController {
 	return controllerInstance
 }
 
-func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
-	configMap, ok := obj.(*corev1.ConfigMap)
-	if ok && lib.GetNamespaceToSync() != "" {
-		// AKO is running for a particular namespace, look for the Avi config map here
-		if configMap.Name == lib.AviConfigMap {
-			return configMap, true
-		}
-	} else if ok && configMap.Namespace == utils.GetAKONamespace() && configMap.Name == lib.AviConfigMap {
-		return configMap, true
-	}
-	return nil, false
-}
-
-func (c *GatewayController) InitGatewayAPIInformers(cs *gatewayclientset.Clientset) {
+func (c *GatewayController) InitGatewayAPIInformers(cs gatewayclientset.Interface) {
 	gatewayFactory := gatewayexternalversions.NewSharedInformerFactory(cs, time.Second*30)
 	akogatewayapilib.AKOControlConfig().SetGatewayApiInformers(&akogatewayapilib.GatewayAPIInformers{
 		GatewayInformer:      gatewayFactory.Gateway().V1beta1().Gateways(),
@@ -554,6 +541,9 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 				return
 			}
 			gwClass := obj.(*gatewayv1beta1.GatewayClass)
+			if !CheckGatewayClassController(*gwClass) {
+				return
+			}
 			key := lib.GatewayClass + "/" + utils.ObjKey(gwClass)
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == gwClass.ResourceVersion {
@@ -570,6 +560,9 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 				return
 			}
 			gwClass := obj.(*gatewayv1beta1.GatewayClass)
+			if !CheckGatewayClassController(*gwClass) {
+				return
+			}
 			key := lib.GatewayClass + "/" + utils.ObjKey(gwClass)
 			objects.SharedResourceVerInstanceLister().Delete(key)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwClass))
@@ -583,6 +576,9 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			}
 			oldGwClass := old.(*gatewayv1beta1.GatewayClass)
 			gwClass := obj.(*gatewayv1beta1.GatewayClass)
+			if !(CheckGatewayClassController(*gwClass) || CheckGatewayClassController(*oldGwClass)) {
+				return
+			}
 			if !reflect.DeepEqual(oldGwClass.Spec, gwClass.Spec) || gwClass.GetDeletionTimestamp() != nil {
 				key := lib.GatewayClass + "/" + utils.ObjKey(gwClass)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwClass))
