@@ -659,13 +659,15 @@ func buildPoolWithL4Rule(key string, pool *AviPoolNode, l4Rule *akov1alpha2.L4Ru
 func getNetworkProfile(isSCTP, isTCP, isUDP bool) string {
 	if isSCTP && !isTCP && !isUDP {
 		return utils.SYSTEM_SCTP_PROXY
-	} else if isTCP && !isUDP && !isSCTP {
+	}
+	if isTCP && !isUDP && !isSCTP {
 		license := lib.AKOControlConfig().GetLicenseType()
 		if license == lib.LicenseTypeEnterprise {
 			return utils.DEFAULT_TCP_NW_PROFILE
 		}
 		return utils.TCP_NW_FAST_PATH
-	} else if isUDP && !isTCP && !isSCTP {
+	}
+	if isUDP && !isTCP && !isSCTP {
 		return utils.SYSTEM_UDP_FAST_PATH
 	}
 	return utils.MIXED_NET_PROFILE
