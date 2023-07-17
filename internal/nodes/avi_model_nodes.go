@@ -1281,7 +1281,10 @@ func (v *AviVSVIPNode) CalculateCheckSum() {
 	if len(v.VipNetworks) > 0 {
 		var vipNetworkStringList []string
 		for _, vipNetwork := range v.VipNetworks {
-			chksumstr := vipNetwork.NetworkName + ":" + vipNetwork.Cidr
+			// As rest call are based on uuid, added it as part of checksum calculation.
+			// This will result in PUT call to existing VSVIP. But will help to resolve problems
+			// of VSVIPS which are in error condition due to overlapping subnet.
+			chksumstr := vipNetwork.NetworkName + ":" + vipNetwork.NetworkUUID + ":" + vipNetwork.Cidr
 			if vipNetwork.V6Cidr != "" {
 				chksumstr += ":" + vipNetwork.V6Cidr
 			}
@@ -1490,7 +1493,7 @@ type AviPoolNode struct {
 	ServiceMetadata          lib.ServiceMetadataObj
 	SniEnabled               bool
 	PkiProfile               *AviPkiProfileNode
-	NetworkPlacementSettings map[string][]string
+	NetworkPlacementSettings map[string]lib.NodeNetworkMap
 	VrfContext               string
 	T1Lr                     string // Only applicable to NSX-T cloud, if this value is set, we automatically should unset the VRF context value.
 	AviMarkers               utils.AviObjectMarkers

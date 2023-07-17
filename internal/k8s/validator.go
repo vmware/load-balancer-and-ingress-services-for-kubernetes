@@ -326,6 +326,10 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1alpha1.A
 		refData[vipNetwork.NetworkName] = "Network"
 	}
 
+	// Node network validation
+	for _, nodeNetwork := range infraSetting.Spec.Network.NodeNetworks {
+		refData[nodeNetwork.NetworkName] = "Network"
+	}
 	if infraSetting.Spec.SeGroup.Name != "" {
 		refData[infraSetting.Spec.SeGroup.Name] = "ServiceEngineGroup"
 	}
@@ -361,6 +365,13 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1alpha1.A
 		addSeGroupLabel(key, infraSetting.Spec.SeGroup.Name)
 	}
 
+	if len(infraSetting.Spec.Network.VipNetworks) > 0 {
+		SetAviInfrasettingVIPNetworks(infraSetting.Spec.Network.VipNetworks)
+	}
+
+	if len(infraSetting.Spec.Network.NodeNetworks) > 0 {
+		SetAviInfrasettingNodeNetworks(infraSetting.Spec.Network.NodeNetworks)
+	}
 	// No need to update status of infra setting object as accepted since it was accepted before.
 	if infraSetting.Status.Status == lib.StatusAccepted {
 		return nil

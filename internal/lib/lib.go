@@ -662,6 +662,7 @@ func GetAkoApiServerPort() string {
 }
 
 var VipNetworkList []akov1alpha1.AviInfraSettingVipNetwork
+var VipInfraNetworkList []akov1alpha1.AviInfraSettingVipNetwork
 
 func SetVipNetworkList(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork) {
 	VipNetworkList = vipNetworks
@@ -669,6 +670,24 @@ func SetVipNetworkList(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork) {
 
 func GetVipNetworkList() []akov1alpha1.AviInfraSettingVipNetwork {
 	return VipNetworkList
+}
+
+func SetVipInfraNetworkList(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork) {
+	VipInfraNetworkList = vipNetworks
+}
+
+func GetVipInfraNetworkList() []akov1alpha1.AviInfraSettingVipNetwork {
+	return VipInfraNetworkList
+}
+
+var NodeInfraNetworkList map[string]NodeNetworkMap
+
+func SetNodeInfraNetworkList(nodeNetworks map[string]NodeNetworkMap) {
+	NodeInfraNetworkList = nodeNetworks
+}
+
+func GetNodeInfraNetworkList() map[string]NodeNetworkMap {
+	return NodeInfraNetworkList
 }
 
 func GetVipNetworkListEnv() ([]akov1alpha1.AviInfraSettingVipNetwork, error) {
@@ -737,8 +756,15 @@ func GetSEGNameEnv() string {
 	return ""
 }
 
-func GetNodeNetworkMap() (map[string][]string, error) {
-	nodeNetworkMap := make(map[string][]string)
+type NodeNetworkMap struct {
+	NetworkUUID string   `json:"networkUUID"`
+	Cidrs       []string `json:"cidrs"`
+}
+
+var NodeNetworkList map[string]NodeNetworkMap
+
+func GetNodeNetworkMapEnv() (map[string]NodeNetworkMap, error) {
+	nodeNetworkMap := make(map[string]NodeNetworkMap)
 	type Row struct {
 		NetworkName string   `json:"networkName"`
 		Cidrs       []string `json:"cidrs"`
@@ -760,10 +786,19 @@ func GetNodeNetworkMap() (map[string][]string, error) {
 	}
 
 	for _, nodeNetwork := range nodeNetworkListObj {
-		nodeNetworkMap[nodeNetwork.NetworkName] = nodeNetwork.Cidrs
+		nodeNetworkRow := NodeNetworkMap{
+			Cidrs: nodeNetwork.Cidrs,
+		}
+		nodeNetworkMap[nodeNetwork.NetworkName] = nodeNetworkRow
 	}
 
 	return nodeNetworkMap, nil
+}
+func SetNodeNetworkMap(nodeNetworkList map[string]NodeNetworkMap) {
+	NodeNetworkList = nodeNetworkList
+}
+func GetNodeNetworkMap() map[string]NodeNetworkMap {
+	return NodeNetworkList
 }
 
 func GetDomain() string {
@@ -1350,6 +1385,7 @@ func IsValidLabelOnNode(labels map[string]string, key string) bool {
 
 var CloudType string
 var CloudUUID string
+var CloudMgmtNetwork string
 
 func SetCloudType(cloudType string) {
 	CloudType = cloudType
@@ -1357,6 +1393,19 @@ func SetCloudType(cloudType string) {
 
 func SetCloudUUID(cloudUUID string) {
 	CloudUUID = cloudUUID
+}
+
+func SetCloudMgmtNetwork(cloudMgmtNw string) {
+	var mgmtUUID string
+	if cloudMgmtNw != "" {
+		parts := strings.Split(cloudMgmtNw, "/")
+		mgmtUUID = parts[len(parts)-1]
+	}
+	CloudMgmtNetwork = mgmtUUID
+}
+
+func GetCloudMgmtNetwork() string {
+	return CloudMgmtNetwork
 }
 
 func GetCloudType() string {

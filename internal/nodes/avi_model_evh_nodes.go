@@ -894,7 +894,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			},
 		}
 
-		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
+		poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
 		t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
 		if t1lr != "" {
 			poolNode.T1Lr = t1lr
@@ -2117,7 +2117,7 @@ func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNo
 		}
 
 		if infraSetting.Spec.Network.VipNetworks != nil && len(infraSetting.Spec.Network.VipNetworks) > 0 {
-			vsvip.VipNetworks = infraSetting.Spec.Network.VipNetworks
+			vsvip.VipNetworks = lib.GetVipInfraNetworkList()
 		} else {
 			vsvip.VipNetworks = lib.GetVipNetworkList()
 		}
