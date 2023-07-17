@@ -541,6 +541,9 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 				return
 			}
 			gwClass := obj.(*gatewayv1beta1.GatewayClass)
+			if !CheckGatewayClassController(*gwClass) {
+				return
+			}
 			key := lib.GatewayClass + "/" + utils.ObjKey(gwClass)
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == gwClass.ResourceVersion {
@@ -557,6 +560,9 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 				return
 			}
 			gwClass := obj.(*gatewayv1beta1.GatewayClass)
+			if !CheckGatewayClassController(*gwClass) {
+				return
+			}
 			key := lib.GatewayClass + "/" + utils.ObjKey(gwClass)
 			objects.SharedResourceVerInstanceLister().Delete(key)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwClass))
@@ -570,6 +576,9 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			}
 			oldGwClass := old.(*gatewayv1beta1.GatewayClass)
 			gwClass := obj.(*gatewayv1beta1.GatewayClass)
+			if !(CheckGatewayClassController(*gwClass) || CheckGatewayClassController(*oldGwClass)) {
+				return
+			}
 			if !reflect.DeepEqual(oldGwClass.Spec, gwClass.Spec) || gwClass.GetDeletionTimestamp() != nil {
 				key := lib.GatewayClass + "/" + utils.ObjKey(gwClass)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwClass))

@@ -122,26 +122,26 @@ func TestGatewayCUD(t *testing.T) {
 	//create
 	gw, err := gwClient.GatewayV1beta1().Gateways("default").Create(context.TODO(), &gateway, metav1.CreateOptions{})
 	if err != nil {
-		t.Fatalf("Couldn't create gateway, err: %+v", err)
+		t.Fatalf("Couldn't create, err: %+v", err)
 	}
-	t.Logf("Created gateway %+v", gw.Name)
+	t.Logf("Created %+v", gw.Name)
 	waitAndverify(t, "Gateway/default/gw-example")
 
 	//update
 	SetGatewayGatewayClass(&gateway, "gw-class-new")
 	gw, err = gwClient.GatewayV1beta1().Gateways("default").Update(context.TODO(), &gateway, metav1.UpdateOptions{})
 	if err != nil {
-		t.Fatalf("Couldn't update gateway, err: %+v", err)
+		t.Fatalf("Couldn't update, err: %+v", err)
 	}
-	t.Logf("Updated gateway %+v", gw.Name)
+	t.Logf("Updated %+v", gw.Name)
 	waitAndverify(t, "Gateway/default/gw-example")
 
 	//delete
 	err = gwClient.GatewayV1beta1().Gateways("default").Delete(context.TODO(), gateway.Name, metav1.DeleteOptions{})
 	if err != nil {
-		t.Fatalf("Couldn't update gateway, err: %+v", err)
+		t.Fatalf("Couldn't delete, err: %+v", err)
 	}
-	t.Logf("Deleted gateway %+v", gw.Name)
+	t.Logf("Deleted %+v", gw.Name)
 	waitAndverify(t, "Gateway/default/gw-example")
 }
 
@@ -163,25 +163,26 @@ func TestGatewaClassyCUD(t *testing.T) {
 	//create
 	gw, err := gwClient.GatewayV1beta1().GatewayClasses().Create(context.TODO(), &gatewayClass, metav1.CreateOptions{})
 	if err != nil {
-		t.Fatalf("Couldn't create gatewayClass, err: %+v", err)
+		t.Fatalf("Couldn't create, err: %+v", err)
 	}
-	t.Logf("Created gateway class %+v", gw.Name)
+	t.Logf("Created %+v", gw.Name)
 	waitAndverify(t, "GatewayClass/gw-class-example")
 
 	//update
-	gatewayClass.Spec.ControllerName = "ako.vmware.com/avi-lb-new"
+	testDesc := "test description for update"
+	gatewayClass.Spec.Description = &testDesc
 	gw, err = gwClient.GatewayV1beta1().GatewayClasses().Update(context.TODO(), &gatewayClass, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't update gatewayClass, err: %+v", err)
 	}
-	t.Logf("Updated gateway class %+v", gw.Name)
+	t.Logf("Updated %+v", gw.Name)
 	waitAndverify(t, "GatewayClass/gw-class-example")
 
 	//delete
 	err = gwClient.GatewayV1beta1().GatewayClasses().Delete(context.TODO(), gatewayClass.Name, metav1.DeleteOptions{})
 	if err != nil {
-		t.Fatalf("Couldn't delete gatewayClass, err: %+v", err)
+		t.Fatalf("Couldn't delete, err: %+v", err)
 	}
-	t.Logf("Deleted gateway class %+v", gw.Name)
+	t.Logf("Deleted %+v", gw.Name)
 	waitAndverify(t, "GatewayClass/gw-class-example")
 }
