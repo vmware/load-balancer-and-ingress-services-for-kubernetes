@@ -389,25 +389,6 @@ func SyncFromStatusQueue(key interface{}, wg *sync.WaitGroup) error {
 	return nil
 }
 
-func PopulateCache() error {
-	var err error
-	aviRestClientPool := avicache.SharedAVIClients()
-	aviObjCache := avicache.SharedAviObjCache()
-	// Randomly pickup a client.
-	if aviRestClientPool != nil && len(aviRestClientPool.AviClient) > 0 {
-		_, _, err = aviObjCache.AviObjCachePopulate(aviRestClientPool.AviClient, akogatewayapilib.AKOControlConfig().ControllerVersion(), utils.CloudName)
-		if err != nil {
-			utils.AviLog.Warnf("failed to populate avi cache with error: %v", err.Error())
-			return err
-		}
-		if err = avicache.SetControllerClusterUUID(aviRestClientPool); err != nil {
-			utils.AviLog.Warnf("Failed to set the controller cluster uuid with error: %v", err)
-		}
-	}
-
-	return nil
-}
-
 func (c *GatewayController) cleanupStaleVSes() {
 
 	aviRestClientPool := avicache.SharedAVIClients()
