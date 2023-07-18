@@ -121,20 +121,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 	avi_vs_meta.PortProto = portProtocols
 	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
 
-	// In case the VS has services that are a mix of TCP and UDP sockets,
-	// we create the VS with global network profile TCP Fast Path,
-	// and override required services with UDP Fast Path. Having a separate
-	// internally used network profile (MIXED_NET_PROFILE) helps ensure PUT calls
-	// on existing VSes.
-	if isSCTP {
-		avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
-	} else if isTCP && !isUDP {
-		avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
-	} else if isUDP && !isTCP {
-		avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
-	} else {
-		avi_vs_meta.NetworkProfile = utils.MIXED_NET_PROFILE
-	}
+	avi_vs_meta.NetworkProfile = getNetworkProfile(isSCTP, isTCP, isUDP)
 
 	vsVipNode := &AviVSVIPNode{
 		Name:        lib.GetL4VSVipName(gatewayName, namespace),
@@ -252,25 +239,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 	avi_vs_meta.PortProto = portProtocols
 	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
 
-	// In case the VS has services that are a mix of TCP and UDP sockets,
-	// we create the VS with global network profile TCP Fast Path,
-	// and override required services with UDP Fast Path. Having a separate
-	// internally used network profile (MIXED_NET_PROFILE) helps ensure PUT calls
-	// on existing VSes.
-	if isSCTP {
-		avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
-	} else if isTCP && !isUDP {
-		license := lib.AKOControlConfig().GetLicenseType()
-		if license == lib.LicenseTypeEnterprise {
-			avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
-		} else {
-			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
-		}
-	} else if isUDP && !isTCP {
-		avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
-	} else {
-		avi_vs_meta.NetworkProfile = utils.MIXED_NET_PROFILE
-	}
+	avi_vs_meta.NetworkProfile = getNetworkProfile(isSCTP, isTCP, isUDP)
 
 	vsVipNode := &AviVSVIPNode{
 		Name:        lib.GetL4VSVipName(gatewayName, namespace),
@@ -532,15 +501,7 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 	avi_vs_meta.PortProto = portProtocols
 	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
 
-	if isSCTP && !isTCP && !isUDP {
-		avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
-	} else if isTCP && !isUDP && !isSCTP {
-		avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
-	} else if isUDP && !isTCP && !isSCTP {
-		avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
-	} else {
-		avi_vs_meta.NetworkProfile = utils.MIXED_NET_PROFILE
-	}
+	avi_vs_meta.NetworkProfile = getNetworkProfile(isSCTP, isTCP, isUDP)
 
 	vsVipNode := &AviVSVIPNode{
 		Name:        lib.GetL4VSVipName(sharedVipKey, namespace),

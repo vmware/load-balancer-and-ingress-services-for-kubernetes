@@ -369,11 +369,21 @@ func InitializeSvcApiGatewayConditions(gwStatus *svcapiv1alpha1.GatewayStatus, g
 
 	var listenerStatuses []svcapiv1alpha1.ListenerStatus
 	for _, listener := range gwSpec.Listeners {
-		if val, ok := gwPortMap[svcapiv1alpha1.PortNumber(listener.Port)]; ok {
-			listenerStatuses = append(listenerStatuses, svcapiv1alpha1.ListenerStatus{
-				Port:       listener.Port,
-				Conditions: val,
-			})
+		if conditions, ok := gwPortMap[svcapiv1alpha1.PortNumber(listener.Port)]; ok {
+			var flagNotInGwStatus bool
+			for i, listenerStatus := range listenerStatuses {
+				if listenerStatus.Port == listener.Port {
+					flagNotInGwStatus = true
+					listenerStatuses[i].Conditions[0].LastTransitionTime = metav1.Now()
+					break
+				}
+			}
+			if !flagNotInGwStatus {
+				listenerStatuses = append(listenerStatuses, svcapiv1alpha1.ListenerStatus{
+					Port:       listener.Port,
+					Conditions: conditions,
+				})
+			}
 		} else {
 			var portCondition metav1.ConditionStatus
 			if gwReady {
@@ -381,16 +391,18 @@ func InitializeSvcApiGatewayConditions(gwStatus *svcapiv1alpha1.GatewayStatus, g
 			} else {
 				portCondition = metav1.ConditionFalse
 			}
+			conditions := []metav1.Condition{{
+				Type:               "Ready",
+				Status:             portCondition,
+				LastTransitionTime: metav1.Now(),
+				Message:            "Initializing",
+				Reason:             string(svcapiv1alpha1.GatewayReasonNotReconciled),
+			}}
 			listenerStatuses = append(listenerStatuses, svcapiv1alpha1.ListenerStatus{
-				Port: listener.Port,
-				Conditions: []metav1.Condition{{
-					Type:               "Ready",
-					Status:             portCondition,
-					LastTransitionTime: metav1.Now(),
-					Message:            "Initializing",
-					Reason:             string(svcapiv1alpha1.GatewayReasonNotReconciled),
-				}},
+				Port:       listener.Port,
+				Conditions: conditions,
 			})
+			gwPortMap[svcapiv1alpha1.PortNumber(listener.Port)] = conditions
 		}
 	}
 

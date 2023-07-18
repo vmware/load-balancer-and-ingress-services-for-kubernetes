@@ -68,6 +68,13 @@ func SetUpTestForSvcLBMultiport(t *testing.T) {
 	PollForCompletion(t, MULTIPORTMODEL, 10)
 }
 
+func SetUpTestForSvcLBMixedProtocol(t *testing.T, multiProtocol ...corev1.Protocol) {
+	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
+	CreateSVC(t, NAMESPACE, SINGLEPORTSVC, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, multiProtocol...)
+	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1", multiProtocol...)
+	PollForCompletion(t, SINGLEPORTMODEL, 10)
+}
+
 func TearDownTestForSvcLBMultiport(t *testing.T, g *gomega.GomegaWithT) {
 	objects.SharedAviGraphLister().Delete(MULTIPORTMODEL)
 	DelSVC(t, NAMESPACE, MULTIPORTSVC)
@@ -1076,4 +1083,229 @@ func TestSharedVIPSvcWithUDPSCTProtocols(t *testing.T) {
 	g.Expect(nodes).To(gomega.HaveLen(1))
 	VerfiyL4Node(nodes[0], g, "SCTP", "UDP")
 	TearDownTestForSharedVIPSvcLB(t, g)
+}
+
+func TestLBSvcCreationMixedProtocol(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForSvcLBMixedProtocol(t, corev1.ProtocolTCP, corev1.ProtocolUDP, corev1.ProtocolSCTP)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(nodes[0].PortProto[0].Protocol).To(gomega.Equal("TCP"))
+	g.Expect(nodes[0].PortProto[1].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(nodes[0].PortProto[1].Protocol).To(gomega.Equal("UDP"))
+	g.Expect(nodes[0].PortProto[2].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(nodes[0].PortProto[2].Protocol).To(gomega.Equal("SCTP"))
+
+	// Check for the pools
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(3))
+	for _, node := range nodes[0].PoolRefs {
+		if node.Port == 8080 {
+			address := "1.1.1.1"
+			g.Expect(node.Servers).To(gomega.HaveLen(1))
+			g.Expect(node.Servers[0].Ip.Addr).To(gomega.Equal(&address))
+		}
+	}
+	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(utils.DEFAULT_L4_APP_PROFILE))
+	g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.MIXED_NET_PROFILE))
+
+	TearDownTestForSvcLB(t, g)
+}
+
+func TestLBSvcCreationSCTPTCP(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	// middleware verifies the application and network profiles attached to the VS
+	AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		var resp map[string]interface{}
+		var finalResponse []byte
+		url := r.URL.EscapedPath()
+
+		rModelName := ""
+		if r.Method == http.MethodPost &&
+			strings.Contains(url, "/api/virtualservice") {
+			data, _ := io.ReadAll(r.Body)
+			json.Unmarshal(data, &resp)
+
+			g.Expect(resp["application_profile_ref"]).Should(gomega.HaveSuffix("System-L4-Application"))
+			g.Expect(resp["network_profile_ref"]).Should(gomega.HaveSuffix("System-TCP-Fast-Path"))
+
+			rModelName = "virtualservice"
+			rName := resp["name"].(string)
+			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s#%s", rModelName, rModelName, RANDOMUUID, rName)
+
+			// adding additional 'uuid' and 'url' (read-only) fields in the response
+			resp["url"] = objURL
+			resp["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
+			finalResponse, _ = json.Marshal(resp)
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintln(w, string(finalResponse))
+			return
+		}
+		NormalControllerServer(w, r)
+	})
+
+	SetUpTestForSvcLBMixedProtocol(t, corev1.ProtocolTCP, corev1.ProtocolSCTP)
+
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)}
+	g.Eventually(func() bool {
+		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	vsCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+	if !found {
+		t.Fatalf("Cache not found for VS: %v", vsKey)
+	} else {
+		vsCacheObj, ok := vsCache.(*cache.AviVsCache)
+		if !ok {
+			t.Fatalf("Invalid VS object. Cannot cast.")
+		}
+		g.Expect(vsCacheObj.Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
+		g.Expect(vsCacheObj.Tenant).To(gomega.Equal(AVINAMESPACE))
+		g.Expect(vsCacheObj.PoolKeyCollection).To(gomega.HaveLen(2))
+		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc-TCP-8080"))
+		g.Expect(vsCacheObj.PoolKeyCollection[1].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc-SCTP-8080"))
+		g.Expect(vsCacheObj.L4PolicyCollection).To(gomega.HaveLen(1))
+		g.Expect(vsCacheObj.L4PolicyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc"))
+	}
+
+	defer ResetMiddleware()
+
+	TearDownTestForSvcLB(t, g)
+}
+
+func TestLBSvcCreationSCTPUDP(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	// middleware verifies the application and network profiles attached to the VS
+	AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		var resp map[string]interface{}
+		var finalResponse []byte
+		url := r.URL.EscapedPath()
+
+		rModelName := ""
+		if r.Method == http.MethodPost &&
+			strings.Contains(url, "/api/virtualservice") {
+			data, _ := io.ReadAll(r.Body)
+			json.Unmarshal(data, &resp)
+
+			g.Expect(resp["application_profile_ref"]).Should(gomega.HaveSuffix("System-L4-Application"))
+			g.Expect(resp["network_profile_ref"]).Should(gomega.HaveSuffix("System-UDP-Fast-Path"))
+
+			rModelName = "virtualservice"
+			rName := resp["name"].(string)
+			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s#%s", rModelName, rModelName, RANDOMUUID, rName)
+
+			// adding additional 'uuid' and 'url' (read-only) fields in the response
+			resp["url"] = objURL
+			resp["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
+			finalResponse, _ = json.Marshal(resp)
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintln(w, string(finalResponse))
+			return
+		}
+		NormalControllerServer(w, r)
+	})
+
+	SetUpTestForSvcLBMixedProtocol(t, corev1.ProtocolUDP, corev1.ProtocolSCTP)
+
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)}
+	g.Eventually(func() bool {
+		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	vsCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+	if !found {
+		t.Fatalf("Cache not found for VS: %v", vsKey)
+	} else {
+		vsCacheObj, ok := vsCache.(*cache.AviVsCache)
+		if !ok {
+			t.Fatalf("Invalid VS object. Cannot cast.")
+		}
+		g.Expect(vsCacheObj.Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
+		g.Expect(vsCacheObj.Tenant).To(gomega.Equal(AVINAMESPACE))
+		g.Expect(vsCacheObj.PoolKeyCollection).To(gomega.HaveLen(2))
+		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc-UDP-8080"))
+		g.Expect(vsCacheObj.PoolKeyCollection[1].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc-SCTP-8080"))
+		g.Expect(vsCacheObj.L4PolicyCollection).To(gomega.HaveLen(1))
+		g.Expect(vsCacheObj.L4PolicyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc"))
+	}
+
+	defer ResetMiddleware()
+
+	TearDownTestForSvcLB(t, g)
+}
+
+func TestLBSvcCreationTCPUDP(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	// middleware verifies the application and network profiles attached to the VS
+	AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		var resp map[string]interface{}
+		var finalResponse []byte
+		url := r.URL.EscapedPath()
+
+		rModelName := ""
+		if r.Method == http.MethodPost &&
+			strings.Contains(url, "/api/virtualservice") {
+			data, _ := io.ReadAll(r.Body)
+			json.Unmarshal(data, &resp)
+
+			g.Expect(resp["application_profile_ref"]).Should(gomega.HaveSuffix("System-L4-Application"))
+			g.Expect(resp["network_profile_ref"]).Should(gomega.HaveSuffix("System-TCP-Fast-Path"))
+
+			rModelName = "virtualservice"
+			rName := resp["name"].(string)
+			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s#%s", rModelName, rModelName, RANDOMUUID, rName)
+
+			// adding additional 'uuid' and 'url' (read-only) fields in the response
+			resp["url"] = objURL
+			resp["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
+			finalResponse, _ = json.Marshal(resp)
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintln(w, string(finalResponse))
+			return
+		}
+		NormalControllerServer(w, r)
+	})
+
+	SetUpTestForSvcLBMixedProtocol(t, corev1.ProtocolTCP, corev1.ProtocolUDP)
+
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)}
+	g.Eventually(func() bool {
+		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	vsCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+	if !found {
+		t.Fatalf("Cache not found for VS: %v", vsKey)
+	} else {
+		vsCacheObj, ok := vsCache.(*cache.AviVsCache)
+		if !ok {
+			t.Fatalf("Invalid VS object. Cannot cast.")
+		}
+		g.Expect(vsCacheObj.Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
+		g.Expect(vsCacheObj.Tenant).To(gomega.Equal(AVINAMESPACE))
+		g.Expect(vsCacheObj.PoolKeyCollection).To(gomega.HaveLen(2))
+		g.Expect(vsCacheObj.PoolKeyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc-TCP-8080"))
+		g.Expect(vsCacheObj.PoolKeyCollection[1].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc-UDP-8080"))
+		g.Expect(vsCacheObj.L4PolicyCollection).To(gomega.HaveLen(1))
+		g.Expect(vsCacheObj.L4PolicyCollection[0].Name).To(gomega.MatchRegexp("cluster--red-ns-testsvc"))
+	}
+
+	defer ResetMiddleware()
+
+	TearDownTestForSvcLB(t, g)
 }
