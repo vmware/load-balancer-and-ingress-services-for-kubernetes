@@ -830,14 +830,14 @@ ServicePorts: [
 
 ]
 */
-func CreateSVC(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool) {
+func CreateSVC(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, multiProtocol ...corev1.Protocol) {
 	selectors := make(map[string]string)
-	CreateServiceWithSelectors(t, ns, Name, protocol, Type, multiPort, selectors)
+	CreateServiceWithSelectors(t, ns, Name, protocol, Type, multiPort, selectors, multiProtocol...)
 	time.Sleep(2 * time.Second)
 }
 
-func CreateServiceWithSelectors(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
-	svcExample := ConstructService(ns, Name, protocol, Type, multiPort, selectors)
+func CreateServiceWithSelectors(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, selectors map[string]string, multiProtocol ...corev1.Protocol) {
+	svcExample := ConstructService(ns, Name, protocol, Type, multiPort, selectors, multiProtocol...)
 	_, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svcExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
@@ -858,20 +858,32 @@ func UpdateServiceWithSelectors(t *testing.T, ns string, Name string, protocol c
 	}
 }
 
-func ConstructService(ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, selectors map[string]string) *corev1.Service {
+func ConstructService(ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, selectors map[string]string, multiProtocol ...corev1.Protocol) *corev1.Service {
 	var servicePorts []Serviceport
 	numPorts := 1
 	if multiPort {
 		numPorts = 3
 	}
+	if len(multiProtocol) != 0 {
+		numPorts = len(multiProtocol)
+	}
 
 	for i := 0; i < numPorts; i++ {
-		mPort := 8080 + i
+		if len(multiProtocol) != 0 {
+			protocol = multiProtocol[i]
+		}
+		mPort, targetPort := 8080, 8080
+		if multiPort {
+			mPort = 8080 + i
+			targetPort = mPort
+		} else if len(multiProtocol) != 0 {
+			targetPort = 8080 + i
+		}
 		sp := Serviceport{
 			PortName:   fmt.Sprintf("foo%d", i),
 			PortNumber: int32(mPort),
 			Protocol:   protocol,
-			TargetPort: intstr.FromInt(mPort),
+			TargetPort: intstr.FromInt(targetPort),
 		}
 		if Type != corev1.ServiceTypeClusterIP {
 			// set nodeport value in case of LoadBalancer and NodePort service type
@@ -914,7 +926,7 @@ if multiPort: True and multiAddress: True
 	1.1.1.4:8081, 1.1.1.5:8081,
 	1.1.1.6:8082
 */
-func CreateEP(t *testing.T, ns string, Name string, multiPort bool, multiAddress bool, addressPrefix string) {
+func CreateEP(t *testing.T, ns string, Name string, multiPort bool, multiAddress bool, addressPrefix string, multiProtocol ...corev1.Protocol) {
 	if addressPrefix == "" {
 		addressPrefix = "1.1.1"
 	}
@@ -923,15 +935,29 @@ func CreateEP(t *testing.T, ns string, Name string, multiPort bool, multiAddress
 	if multiPort {
 		numPorts = 3
 	}
+	if len(multiProtocol) != 0 {
+		numPorts = len(multiProtocol)
+	}
 	if multiAddress {
 		numAddresses, addressStart = 3, 0
 	}
 
 	for i := 0; i < numPorts; i++ {
+		protocol := corev1.ProtocolTCP
+		if len(multiProtocol) != 0 {
+			protocol = multiProtocol[i]
+		}
 		mPort := 8080 + i
+
+		var addressStartIndex int
+		if !multiPort && !multiAddress {
+			numAddresses, addressStart = 1, 0
+		} else {
+			addressStartIndex = addressStart + i
+		}
 		var epAddresses []corev1.EndpointAddress
 		for j := 0; j < numAddresses; j++ {
-			epAddresses = append(epAddresses, corev1.EndpointAddress{IP: fmt.Sprintf("%s.%d", addressPrefix, addressStart+j+i+1)})
+			epAddresses = append(epAddresses, corev1.EndpointAddress{IP: fmt.Sprintf("%s.%d", addressPrefix, addressStartIndex+j+1)})
 		}
 		numAddresses = numAddresses - 1
 		addressStart = addressStart + numAddresses
@@ -940,7 +966,7 @@ func CreateEP(t *testing.T, ns string, Name string, multiPort bool, multiAddress
 			Ports: []corev1.EndpointPort{{
 				Name:     fmt.Sprintf("foo%d", i),
 				Port:     int32(mPort),
-				Protocol: "TCP",
+				Protocol: protocol,
 			}},
 		})
 	}
