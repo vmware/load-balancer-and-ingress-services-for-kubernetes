@@ -466,6 +466,13 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 	if subDomains != nil && autoFQDN {
 		for _, service := range serviceNSNames {
 			svcNsName := strings.Split(service, "/")
+			svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcNsName[1])
+			if err == nil {
+				if extDNS, ok := svcObj.Annotations[lib.ExternalDNSAnnotation]; ok {
+					fqdns = append(fqdns, extDNS)
+				}
+			}
+
 			if fqdn := getAutoFQDNForService(svcNsName[0], svcNsName[1]); fqdn != "" {
 				fqdns = append(fqdns, fqdn)
 			}
