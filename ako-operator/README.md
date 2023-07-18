@@ -4,16 +4,6 @@ AKO operator takes care of deploying, managing and removing AKO from Openshift c
 
 ## Installing the operator
 
-<!--
-
-Commenting this out as helm release is not available currently
-
-### 1. Install using Helm CLI
-
-To install the Operator using Helm refer [here](../docs/install/operator.md)
-
--->
-
 ### Install on Openshift cluster from OperatorHub using Openshift Container Platform Web Console
 
 <i>**Step 1**</i>: Login to the Openshift Container Platform web console of your Openshift cluster.
@@ -27,94 +17,6 @@ To install the Operator using Helm refer [here](../docs/install/operator.md)
 <i>**Step 5**</i>: Verify installation by checking the pods in `avi-system` namespace.
 
 > **Note**: Refer [akoconfig](#ako-config) to start the AKO controller
-
-<!--
-### 2. Manual Installation
-### 2.1 Out of cluster execution:
-<i>**Step 1**</i>: Clone the [AKO](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes) repo 
-
-<i>**Step 2**</i>: Go to the operator directory
-```
-cd load-balancer-and-ingress-services-for-kubernetes/ako-operator
-```
-
-<i>**Step 3**</i>: To run the operator outside of a cluster, build the binary:
-```
-make ako-operator
-```
-
-<i>**Step 4**</i>: Execute the binary:
-```
-./bin/ako-operator
-```
-
-> **Note**: Refer [akoconfig](#ako-config) to start the AKO controller
-
-### 2.2 In-cluster execution
-
-<i>**Step 1**</i>: Clone the [AKO](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes) repo 
-
-<i>**Step 2**</i>: Build the docker image:
-```
-cd load-balancer-and-ingress-services-for-kubernetes
-make ako-operator-docker
-```
-<i>**Step 3**</i>: Go to the operator directory:
-```
-cd ako-operator
-```
-
-<i>**Step 4**</i>: Use the following to deploy it on the cluster.
-```
-make deploy
-```
-
-> **Note**: Refer [akoconfig](#ako-config) to start the AKO controller
-
-Commenting this out as helm release is not available currently
-
-Upgrading the operator using Helm CLI
-
-<i>**Step 1**</i>: Run this command to update local AKO chart information from the chart repository:
-```
-helm repo update
-```
-
-<i>**Step 2**</i>: Helm does not upgrade the CRDs during a release upgrade. Before you upgrade a release, run the following command to upgrade the CRDs:
-```
-helm template ako/ako-operator --version 1.10.1 --include-crds --output-dir <output_dir>
-```
-
-<i>**Step 3**</i>: This will save the helm files to an output directory which will contain the CRDs corresponding to the Operator version. Install CRDs using:
-```
-kubectl apply -f <output_dir>/ako-operator/crds/
-```
-
-<i>**Step 4**</i>: List the release as shown below:
-```
-helm list -n avi-system
-```
-
-<i>**Step 5**</i>: Update the helm repo URL:
-```
-helm repo add --force-update ako https://projects.registry.vmware.com/chartrepo/ako
-
-"ako" has been added to your repositories
-```
-
-<i>**Step 6**</i>: Get the values.yaml for the latest Operator version:
-```
-helm show values ako/ako-operator --version 1.10.1 > values.yaml
-```
-Edit the file according to your setup.
-
-<i>**Step 7**</i>: Upgrade the helm chart:
-
-```
-helm upgrade <release-name> ako/ako-operator -f /path/to/values.yaml --version 1.10.1 --namespace=avi-system
-```
-
---> 
 
 ## <a id="ako-config">AKOConfig Custom Resource
 
@@ -133,9 +35,6 @@ oc apply -f config/secrets/secret.yaml
 ```
 
 #### Deploying the AKO Controller
-<!--
-If the AKO operator was installed using helm, a default `AKOConfig` object called `ako-config` is already added and hence, this step is not required for helm based installation.
--->
 If the AKO operator was installed on Openshift cluster from OperatorHub, then to install the AKO controller, add an `AKOConfig` object to the `avi-system` namespace.
 
 A sample of akoconfig is present [here](config/samples/ako_v1alpha1_akoconfig.yaml). Edit this file according to your setup.

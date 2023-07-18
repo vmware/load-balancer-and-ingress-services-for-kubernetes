@@ -15,7 +15,7 @@ and other artifacts.
 
 This is one of the ways to install the AKO controller. So, most of the pre-requisites that apply for installation of standalone AKO are also applicable for the AKO operator as well.
 
-* <i>**Step 1**</i>: Configure an Avi Controller with a [vCenter cloud](https://avinetworks.com/docs/18.2/installing-avi-vantage-for-vmware-vcenter/) or any other preferred cloud. The Avi Controller should be versioned 18.2.10 / 20.1.2 or later.
+* <i>**Step 1**</i>: Configure an Avi Controller with a [vCenter cloud](https://avinetworks.com/docs/18.2/installing-avi-vantage-for-vmware-vcenter/) or any other preferred cloud. The Avi Controller should be versioned 21.1.5 or later.
 * <i>**Step 2**</i>:
   * Make sure a PG network is part of the NS IPAM configured in the vCenter
 * <i>**Step 3**</i>: If your POD CIDRs are not routable:

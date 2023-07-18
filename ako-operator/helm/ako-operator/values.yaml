@@ -23,7 +23,7 @@ AKOSettings:
   deleteConfig: "false" # Has to be set to true in configmap if user wants to delete AKO created objects from AVI 
   disableStaticRouteSync: "false" # If the POD networks are reachable from the Avi SE, set this knob to true.
   clusterName: "k8s-cluster" # A unique identifier for the kubernetes cluster, that helps distinguish the objects for this cluster in the avi controller. // MUST-EDIT
-  cniPlugin: "calico" # Set the string if your CNI is calico or openshift or ovn-kubernetes. For Cilium CNI, set the string as cilium only when using Cluster Scope mode for IPAM and leave it empty if using Kubernetes Host Scope mode for IPAM. enum: calico|canal|flannel|openshift|antrea|ncp|ovn-kubernetes|cilium
+  cniPlugin: "calico" # Set the string if your CNI is openshift or ovn-kubernetes. enum: openshift|ovn-kubernetes
   enableEVH: false # This enables the Enhanced Virtual Hosting Model in Avi Controller for the Virtual Services 
   layer7Only: false  # If this flag is switched on, then AKO will only do layer 7 loadbalancing.
   vipPerNamespace: "false" # Enabling this flag would tell AKO to create Parent VS per Namespace in EVH mode
