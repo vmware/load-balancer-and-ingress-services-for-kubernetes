@@ -366,11 +366,11 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1alpha1.A
 	}
 
 	if len(infraSetting.Spec.Network.VipNetworks) > 0 {
-		SetAviInfrasettingVIPNetworks(infraSetting.Spec.Network.VipNetworks)
+		SetAviInfrasettingVIPNetworks(infraSetting.Name, infraSetting.Spec.Network.VipNetworks)
 	}
 
 	if len(infraSetting.Spec.Network.NodeNetworks) > 0 {
-		SetAviInfrasettingNodeNetworks(infraSetting.Spec.Network.NodeNetworks)
+		SetAviInfrasettingNodeNetworks(infraSetting.Name, infraSetting.Spec.Network.NodeNetworks)
 	}
 	// No need to update status of infra setting object as accepted since it was accepted before.
 	if infraSetting.Status.Status == lib.StatusAccepted {

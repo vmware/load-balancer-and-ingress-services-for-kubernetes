@@ -2117,7 +2117,7 @@ func buildWithInfraSettingForEvh(key string, vs *AviEvhVsNode, vsvip *AviVSVIPNo
 		}
 
 		if infraSetting.Spec.Network.VipNetworks != nil && len(infraSetting.Spec.Network.VipNetworks) > 0 {
-			vsvip.VipNetworks = lib.GetVipInfraNetworkList()
+			vsvip.VipNetworks = lib.GetVipInfraNetworkList(infraSetting.Name)
 		} else {
 			vsvip.VipNetworks = lib.GetVipNetworkList()
 		}

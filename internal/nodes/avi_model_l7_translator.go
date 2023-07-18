@@ -667,7 +667,7 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 		}
 
 		if infraSetting.Spec.Network.VipNetworks != nil && len(infraSetting.Spec.Network.VipNetworks) > 0 {
-			vsvip.VipNetworks = lib.GetVipInfraNetworkList()
+			vsvip.VipNetworks = lib.GetVipInfraNetworkList(infraSetting.Name)
 		} else {
 			vsvip.VipNetworks = lib.GetVipNetworkList()
 		}
@@ -685,7 +685,7 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 func buildPoolWithInfraSetting(key string, pool *AviPoolNode, infraSetting *akov1alpha1.AviInfraSetting) {
 	if infraSetting != nil && infraSetting.Status.Status == lib.StatusAccepted {
 		if infraSetting.Spec.Network.NodeNetworks != nil && len(infraSetting.Spec.Network.NodeNetworks) > 0 {
-			pool.NetworkPlacementSettings = lib.GetNodeInfraNetworkList()
+			pool.NetworkPlacementSettings = lib.GetNodeInfraNetworkList(infraSetting.Name)
 		} else {
 			pool.NetworkPlacementSettings = lib.GetNodeNetworkMap()
 		}

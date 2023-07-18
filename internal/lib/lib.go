@@ -662,7 +662,7 @@ func GetAkoApiServerPort() string {
 }
 
 var VipNetworkList []akov1alpha1.AviInfraSettingVipNetwork
-var VipInfraNetworkList []akov1alpha1.AviInfraSettingVipNetwork
+var VipInfraNetworkList map[string][]akov1alpha1.AviInfraSettingVipNetwork
 
 func SetVipNetworkList(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork) {
 	VipNetworkList = vipNetworks
@@ -672,22 +672,28 @@ func GetVipNetworkList() []akov1alpha1.AviInfraSettingVipNetwork {
 	return VipNetworkList
 }
 
-func SetVipInfraNetworkList(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork) {
-	VipInfraNetworkList = vipNetworks
+func SetVipInfraNetworkList(infraName string, vipNetworks []akov1alpha1.AviInfraSettingVipNetwork) {
+	if VipInfraNetworkList == nil {
+		VipInfraNetworkList = make(map[string][]akov1alpha1.AviInfraSettingVipNetwork)
+	}
+	VipInfraNetworkList[infraName] = vipNetworks
 }
 
-func GetVipInfraNetworkList() []akov1alpha1.AviInfraSettingVipNetwork {
-	return VipInfraNetworkList
+func GetVipInfraNetworkList(infraName string) []akov1alpha1.AviInfraSettingVipNetwork {
+	return VipInfraNetworkList[infraName]
 }
 
-var NodeInfraNetworkList map[string]NodeNetworkMap
+var NodeInfraNetworkList map[string]map[string]NodeNetworkMap
 
-func SetNodeInfraNetworkList(nodeNetworks map[string]NodeNetworkMap) {
-	NodeInfraNetworkList = nodeNetworks
+func SetNodeInfraNetworkList(name string, nodeNetworks map[string]NodeNetworkMap) {
+	if NodeInfraNetworkList == nil {
+		NodeInfraNetworkList = make(map[string]map[string]NodeNetworkMap)
+	}
+	NodeInfraNetworkList[name] = nodeNetworks
 }
 
-func GetNodeInfraNetworkList() map[string]NodeNetworkMap {
-	return NodeInfraNetworkList
+func GetNodeInfraNetworkList(name string) map[string]NodeNetworkMap {
+	return NodeInfraNetworkList[name]
 }
 
 func GetVipNetworkListEnv() ([]akov1alpha1.AviInfraSettingVipNetwork, error) {

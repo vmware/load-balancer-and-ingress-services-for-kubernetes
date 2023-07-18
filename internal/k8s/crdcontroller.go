@@ -946,17 +946,20 @@ func addSeGroupLabel(key, segName string) {
 	avicache.ConfigureSeGroupLabels(clients.AviClient[aviClientLen], seGroup)
 }
 
-func SetAviInfrasettingVIPNetworks(netAviInfra []akov1alpha1.AviInfraSettingVipNetwork) {
+func SetAviInfrasettingVIPNetworks(name string, netAviInfra []akov1alpha1.AviInfraSettingVipNetwork) {
 	// assign the last avi client for ref checks
 	clients := avicache.SharedAVIClients()
 	aviClientLen := lib.GetshardSize()
-
-	network := avicache.PopulateVipNetworkwithUUID(clients.AviClient[aviClientLen], netAviInfra)
-	utils.AviLog.Debugf("VIP Network Obtained in AviInfrasetting: [%v]", network)
-	lib.SetVipInfraNetworkList(network)
+	network := netAviInfra
+	if lib.GetCloudType() == lib.CLOUD_VCENTER {
+		network = avicache.PopulateVipNetworkwithUUID(clients.AviClient[aviClientLen], netAviInfra)
+	}
+	utils.AviLog.Debugf("Infrasetting: %s, VIP Network Obtained in AviInfrasetting: %v", name, utils.Stringify(network))
+	//set infrasetting name specific vip network
+	lib.SetVipInfraNetworkList(name, network)
 }
 
-func SetAviInfrasettingNodeNetworks(netAviInfra []akov1alpha1.AviInfraSettingNodeNetwork) {
+func SetAviInfrasettingNodeNetworks(name string, netAviInfra []akov1alpha1.AviInfraSettingNodeNetwork) {
 	// assign the last avi client for ref checks
 	clients := avicache.SharedAVIClients()
 	aviClientLen := lib.GetshardSize()
@@ -971,6 +974,7 @@ func SetAviInfrasettingNodeNetworks(netAviInfra []akov1alpha1.AviInfraSettingNod
 	}
 
 	avicache.FetchNodeNetworks(clients.AviClient[aviClientLen], &err, nodeNetorkList)
-	utils.AviLog.Debugf("Node Network Obtained in AviInfrasetting: [%v]", nodeNetorkList)
-	lib.SetNodeInfraNetworkList(nodeNetorkList)
+	utils.AviLog.Debugf("Infrasetting: %s Node Network Obtained in AviInfrasetting: %v", name, utils.Stringify(nodeNetorkList))
+	//set infrasetting name specific node network
+	lib.SetNodeInfraNetworkList(name, nodeNetorkList)
 }

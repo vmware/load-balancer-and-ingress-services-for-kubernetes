@@ -2681,9 +2681,9 @@ func PopulateVipNetworkwithUUID(client *clients.AviClient, vipNetworks []akov1al
 			continue
 		}
 		//Fetch all network associated with network name-> This will fetch duplicate networks
-		for i := 0; i < result.Count; i++ {
+		for _, elem := range elems {
 			net := models.Network{}
-			if err = json.Unmarshal(elems[i], &net); err != nil {
+			if err = json.Unmarshal(elem, &net); err != nil {
 				utils.AviLog.Warnf("Failed to unmarshal network  data, err: %v", err)
 				continue
 			}
