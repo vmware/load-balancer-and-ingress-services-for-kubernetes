@@ -18,6 +18,7 @@ import (
 	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 var gwLister *GWLister
@@ -26,9 +27,9 @@ var gwonce sync.Once
 func GatewayApiLister() *GWLister {
 	gwonce.Do(func() {
 		gwLister = &GWLister{
-			GatewayClassStore:     objects.NewObjectMapStore(),
-			GatewayToGatewayClass: objects.NewObjectMapStore(),
-			GatewayClassToGateway: objects.NewObjectMapStore(),
+			gatewayClassStore:          objects.NewObjectMapStore(),
+			gatewayToGatewayClassStore: objects.NewObjectMapStore(),
+			gatewayClassToGatewayStore: objects.NewObjectMapStore(),
 		}
 	})
 	return gwLister
@@ -38,39 +39,39 @@ type GWLister struct {
 	gwLock sync.RWMutex
 
 	//Gateways with AKO as controller
-	GatewayClassStore *objects.ObjectMapStore
+	gatewayClassStore *objects.ObjectMapStore
 
-	//Gateway -> GatewayClass
-	GatewayToGatewayClass *objects.ObjectMapStore
+	//Namespace/Gateway -> GatewayClass
+	gatewayToGatewayClassStore *objects.ObjectMapStore
 
-	//GatewayClass -> [gateway1, gateway2]
-	GatewayClassToGateway *objects.ObjectMapStore
+	//GatewayClass -> [ns1/gateway1, ns2/gateway2, ...]
+	gatewayClassToGatewayStore *objects.ObjectMapStore
 }
 
 func (g *GWLister) IsGatewayClassPresent(gwClass string) bool {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
-	found, _ := g.GatewayClassStore.Get(gwClass)
+	found, _ := g.gatewayClassStore.Get(gwClass)
 	return found
 }
 
 func (g *GWLister) UpdateGatewayClass(gwClass string) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
-	found, _ := g.GatewayClassStore.Get(gwClass)
+	found, _ := g.gatewayClassStore.Get(gwClass)
 	if !found {
-		g.GatewayClassStore.AddOrUpdate(gwClass, struct{}{})
-		g.GatewayClassToGateway.AddOrUpdate(gwClass, make([]string, 0))
+		g.gatewayClassStore.AddOrUpdate(gwClass, struct{}{})
+		g.gatewayClassToGatewayStore.AddOrUpdate(gwClass, make([]string, 0))
 	}
 }
 
 func (g *GWLister) DeleteGatewayClass(gwClass string) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
-	found, _ := g.GatewayClassStore.Get(gwClass)
+	found, _ := g.gatewayClassStore.Get(gwClass)
 	if found {
-		g.GatewayClassStore.Delete(gwClass)
-		//TODO update GatewayToGatewayClass and GatewayClassToGateway
+		g.deleteGatewayClassToGateway(gwClass)
+		g.gatewayClassStore.Delete(gwClass)
 	}
 }
 
@@ -78,6 +79,107 @@ func (g *GWLister) GetGatewayClassToGateway(gwClass string) []string {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 
-	_, gatewayList := g.GatewayClassToGateway.Get(gwClass)
+	_, gatewayList := g.gatewayClassToGatewayStore.Get(gwClass)
 	return gatewayList.([]string)
+}
+
+// do not use, instead use UpdateGatewayToGatewayClass
+func (g *GWLister) updateGatewayClassToGateway(gwClass, ns, gw string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	_, gatewayList := g.gatewayClassToGatewayStore.Get(gwClass)
+	gatewayListObj := gatewayList.([]string)
+	gwObj := getKeyForGateway(ns, gw)
+
+	found := utils.HasElem(gatewayListObj, gwObj)
+	if !found {
+		gatewayListObj = append(gatewayListObj, gwObj)
+		g.gatewayClassToGatewayStore.AddOrUpdate(gwClass, gatewayListObj)
+
+	}
+}
+
+// do not use, instead use DeleteGatewayToGatewayClass
+func (g *GWLister) removeGatewayClassToGateway(gwClass, ns, gw string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	_, gatewayList := g.gatewayClassToGatewayStore.Get(gwClass)
+	gatewayListObj := gatewayList.([]string)
+	gwObj := getKeyForGateway(ns, gw)
+
+	found := utils.HasElem(gatewayListObj, gwObj)
+	if found {
+		utils.Remove(gatewayListObj, gwObj)
+		g.gatewayClassToGatewayStore.AddOrUpdate(gwClass, gatewayListObj)
+	}
+}
+
+func (g *GWLister) deleteGatewayClassToGateway(gwClass string) {
+
+	_, gatewayList := g.gatewayClassToGatewayStore.Get(gwClass)
+	gatewayListObj := gatewayList.([]string)
+	for _, key := range gatewayListObj {
+		//DeleteGatewayToGatewayClass
+
+		found, _ := g.gatewayToGatewayClassStore.Get(key)
+		if found {
+			g.gatewayToGatewayClassStore.Delete(key)
+		}
+	}
+	g.gatewayClassToGatewayStore.Delete(gwClass)
+}
+
+func (g *GWLister) GetGatewayToGatewayClass(ns, gw string) string {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	key := getKeyForGateway(ns, gw)
+	_, gwClass := g.gatewayToGatewayClassStore.Get(key)
+	return gwClass.(string)
+}
+
+func (g *GWLister) UpdateGatewayToGatewayClass(ns, gw, gwClass string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	key := getKeyForGateway(ns, gw)
+
+	//remove gateway from old class list
+	if found, oldGwClass := g.gatewayToGatewayClassStore.Get(key); found {
+		oldGwClassObj := oldGwClass.(string)
+		if ok, gatewayList := g.gatewayClassToGatewayStore.Get(oldGwClassObj); ok {
+			gatewayListObj := gatewayList.([]string)
+			utils.Remove(gatewayListObj, gw)
+			g.gatewayClassToGatewayStore.AddOrUpdate(oldGwClassObj, gatewayListObj)
+		}
+	}
+
+	g.gatewayToGatewayClassStore.AddOrUpdate(key, gwClass)
+	_, gatewayList := g.gatewayClassToGatewayStore.Get(gwClass)
+	gatewayListObj := gatewayList.([]string)
+	if !utils.HasElem(gatewayListObj, gw) {
+		gatewayListObj = append(gatewayListObj, key)
+		g.gatewayClassToGatewayStore.AddOrUpdate(gwClass, gatewayListObj)
+	}
+}
+
+func (g *GWLister) DeleteGatewayToGatewayClass(ns, gw string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	key := getKeyForGateway(ns, gw)
+	found, gwClass := g.gatewayToGatewayClassStore.Get(key)
+	if found {
+		g.gatewayToGatewayClassStore.Delete(key)
+		_, gatewayList := g.gatewayClassToGatewayStore.Get(gwClass.(string))
+		gatewayListObj := gatewayList.([]string)
+		utils.Remove(gatewayListObj, key)
+		g.gatewayClassToGatewayStore.AddOrUpdate(gwClass.(string), gatewayListObj)
+	}
+}
+
+func getKeyForGateway(ns, gw string) string {
+	return ns + "/" + gw
 }

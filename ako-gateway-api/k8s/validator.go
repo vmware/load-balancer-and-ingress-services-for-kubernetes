@@ -63,6 +63,14 @@ func IsValidGateway(key string, gateway *gatewayv1beta1.Gateway) bool {
 		status.Record(key, gateway, &status.Status{GatewayStatus: *gatewayStatus})
 		return false
 	}
+	if len(spec.Addresses) == 1 && *spec.Addresses[0].Type != "IPAddress" {
+		utils.AviLog.Errorf("gateway address is not of type IPAddress %+v", gateway.Name)
+		defaultCondition.
+			Message("Only IPAddress as AddressType is supported").
+			SetIn(&gatewayStatus.Conditions)
+		status.Record(key, gateway, &status.Status{GatewayStatus: *gatewayStatus})
+		return false
+	}
 
 	gatewayStatus.Listeners = make([]gatewayv1beta1.ListenerStatus, len(gateway.Spec.Listeners))
 
@@ -137,6 +145,19 @@ func isValidListener(key string, gateway *gatewayv1beta1.Gateway, gatewayStatus 
 				Message("TLS mode or reference not valid").
 				SetIn(&gatewayStatus.Listeners[index].Conditions)
 			return false
+		}
+		for _, certRef := range listener.TLS.CertificateRefs {
+			//only secret is allowed
+			if (certRef.Group != nil && string(*certRef.Group) != "") ||
+				certRef.Kind != nil && string(*certRef.Kind) != utils.Secret {
+				utils.AviLog.Errorf("CertificateRef is not valid %+v/%+v, must be Secret", gateway.Name, listener.Name)
+				defaultCondition.
+					Reason(string(gatewayv1beta1.ListenerReasonInvalidCertificateRef)).
+					Message("TLS mode or reference not valid").
+					SetIn(&gatewayStatus.Listeners[index].Conditions)
+				return false
+			}
+
 		}
 	}
 
