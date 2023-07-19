@@ -1,0 +1,230 @@
+{
+    "count": 3,
+    "results": [
+      {
+        "lb_algorithm": "LB_ALGORITHM_LEAST_CONNECTIONS",
+        "use_service_port": false,
+        "rewrite_host_header_to_server_name": false,
+        "lb_algorithm_core_nonaffinity": 2,
+        "enabled": true,
+        "rewrite_host_header_to_sni": false,
+        "delete_server_on_dns_refresh": true,
+        "capacity_estimation": false,
+        "servers": [
+          {
+            "external_orchestration_id": "db05e04f-078b-11ea-aedc-0050568c9189--22043053",
+            "ratio": 1,
+            "ip": {
+              "type": "V4",
+              "addr": "172.17.0.3"
+            },
+            "hostname": "172.17.0.3",
+            "enabled": true,
+            "verify_network": false,
+            "server_node": "10.52.3.70",
+            "external_uuid": "6703545d5145b81f055b87294668e811031eb06db776cf3cd2b70d7b1909e015",
+            "resolve_server_by_dns": false,
+            "static": false,
+            "rewrite_host_header": false,
+            "port": 8080
+          },
+          {
+            "external_orchestration_id": "35e7e5df-03c0-11ea-aedc-0050568c9189--22043065",
+            "ratio": 1,
+            "ip": {
+              "type": "V4",
+              "addr": "172.17.0.4"
+            },
+            "hostname": "172.17.0.4",
+            "enabled": true,
+            "verify_network": false,
+            "server_node": "10.52.3.70",
+            "external_uuid": "fe1b7dff54708d7ab0c25f731ac37c4826b87ee69c7e8957e93249a9f21db224",
+            "resolve_server_by_dns": false,
+            "static": false,
+            "rewrite_host_header": false,
+            "port": 8080
+          }
+        ],
+        "fewest_tasks_feedback_delay": 10,
+        "created_by": "oshift-k8s-cloud-connector",
+        "capacity_estimation_ttfb_thresh": 0,
+        "lookup_server_by_name": false,
+        "lb_algorithm_hash": "LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS",
+        "analytics_profile_ref": "https://10.52.2.174:9443/api/analyticsprofile/analyticsprofile-8b57c321-c737-4b4b-b882-3854b0790cb1",
+        "service_metadata": "{\"crud_hash_key\": \"admin:parent-vs-Default-Cloud-Default-Group\"}",
+        "_last_modified": "1577342976851289",
+        "cloud_ref": "https://10.52.2.174:9443/api/cloud/cloud-40669233-877c-4beb-bda6-1ced0f226368",
+        "host_check_enabled": false,
+        "east_west": false,
+        "vrf_ref": "https://10.52.2.174:9443/api/vrfcontext/vrfcontext-eb467135-d5f6-42ea-bd54-3613b2d377b9",
+        "inline_health_monitor": true,
+        "default_server_port": 80,
+        "request_queue_depth": 128,
+        "graceful_disable_timeout": 1,
+        "sni_enabled": true,
+        "server_timeout": 0,
+        "request_queue_enabled": false,
+        "name": "default-route1-aviroute-pool-8080-tcp",
+        "max_concurrent_connections_per_server": 0,
+        "url": "https://10.52.2.174:9443/api/pool/pool-11a38043-e51e-4c93-8187-b390d7d81abd",
+        "tenant_ref": "https://10.52.2.174:9443/api/tenant/admin",
+        "uuid": "pool-11a38043-e51e-4c93-8187-b390d7d81abd",
+        "health_monitor_refs": [
+          "https://10.52.2.174:9443/api/healthmonitor/healthmonitor-03a5867f-52d3-4abb-ae53-d0e0a4016cc2"
+        ],
+        "connection_ramp_duration": 10,
+        "cloud_config_cksum": "a4aee970d1ebcd85266d4dc085066b7f"
+      },
+      {
+        "lb_algorithm": "LB_ALGORITHM_LEAST_CONNECTIONS",
+        "use_service_port": false,
+        "rewrite_host_header_to_server_name": false,
+        "lb_algorithm_core_nonaffinity": 2,
+        "enabled": true,
+        "rewrite_host_header_to_sni": false,
+        "delete_server_on_dns_refresh": true,
+        "capacity_estimation": false,
+        "servers": [
+          {
+            "external_orchestration_id": "db05e04f-078b-11ea-aedc-0050568c9189--22043053",
+            "ratio": 1,
+            "ip": {
+              "type": "V4",
+              "addr": "172.17.0.3"
+            },
+            "hostname": "172.17.0.3",
+            "enabled": true,
+            "verify_network": false,
+            "server_node": "10.52.3.70",
+            "external_uuid": "6703545d5145b81f055b87294668e811031eb06db776cf3cd2b70d7b1909e015",
+            "resolve_server_by_dns": false,
+            "static": false,
+            "rewrite_host_header": false,
+            "port": 8080
+          },
+          {
+            "external_orchestration_id": "35e7e5df-03c0-11ea-aedc-0050568c9189--22043065",
+            "ratio": 1,
+            "ip": {
+              "type": "V4",
+              "addr": "172.17.0.4"
+            },
+            "hostname": "172.17.0.4",
+            "enabled": true,
+            "verify_network": false,
+            "server_node": "10.52.3.70",
+            "external_uuid": "fe1b7dff54708d7ab0c25f731ac37c4826b87ee69c7e8957e93249a9f21db224",
+            "resolve_server_by_dns": false,
+            "static": false,
+            "rewrite_host_header": false,
+            "port": 8080
+          }
+        ],
+        "fewest_tasks_feedback_delay": 10,
+        "created_by": "oshift-k8s-cloud-connector",
+        "capacity_estimation_ttfb_thresh": 0,
+        "lookup_server_by_name": false,
+        "lb_algorithm_hash": "LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS",
+        "analytics_profile_ref": "https://10.52.2.174:9443/api/analyticsprofile/analyticsprofile-8b57c321-c737-4b4b-b882-3854b0790cb1",
+        "service_metadata": "{\"crud_hash_key\": \"admin:parent-vs-Default-Cloud-Default-Group\"}",
+        "_last_modified": "1577352610869205",
+        "cloud_ref": "https://10.52.2.174:9443/api/cloud/cloud-40669233-877c-4beb-bda6-1ced0f226368",
+        "host_check_enabled": false,
+        "east_west": false,
+        "vrf_ref": "https://10.52.2.174:9443/api/vrfcontext/vrfcontext-eb467135-d5f6-42ea-bd54-3613b2d377b9",
+        "inline_health_monitor": true,
+        "default_server_port": 80,
+        "request_queue_depth": 128,
+        "graceful_disable_timeout": 1,
+        "sni_enabled": true,
+        "server_timeout": 0,
+        "request_queue_enabled": false,
+        "name": "gs-route.avi.com-default-route1-aviroute-pool-8080-tcp",
+        "max_concurrent_connections_per_server": 0,
+        "url": "https://10.52.2.174:9443/api/pool/pool-e3b87aff-a9d7-44eb-9935-6fd9ab81a37c",
+        "tenant_ref": "https://10.52.2.174:9443/api/tenant/admin",
+        "uuid": "pool-e3b87aff-a9d7-44eb-9935-6fd9ab81a37c",
+        "health_monitor_refs": [
+          "https://10.52.2.174:9443/api/healthmonitor/healthmonitor-03a5867f-52d3-4abb-ae53-d0e0a4016cc2"
+        ],
+        "connection_ramp_duration": 10,
+        "cloud_config_cksum": "a4aee970d1ebcd85266d4dc085066b7f"
+      },
+      {
+        "lb_algorithm": "LB_ALGORITHM_LEAST_CONNECTIONS",
+        "use_service_port": false,
+        "rewrite_host_header_to_server_name": false,
+        "lb_algorithm_core_nonaffinity": 2,
+        "enabled": true,
+        "rewrite_host_header_to_sni": false,
+        "delete_server_on_dns_refresh": true,
+        "capacity_estimation": false,
+        "servers": [
+          {
+            "external_orchestration_id": "db05e04f-078b-11ea-aedc-0050568c9189--22043053",
+            "ratio": 1,
+            "ip": {
+              "type": "V4",
+              "addr": "172.17.0.3"
+            },
+            "hostname": "172.17.0.3",
+            "enabled": true,
+            "verify_network": false,
+            "server_node": "10.52.3.70",
+            "external_uuid": "6703545d5145b81f055b87294668e811031eb06db776cf3cd2b70d7b1909e015",
+            "resolve_server_by_dns": false,
+            "static": false,
+            "rewrite_host_header": false,
+            "port": 8080
+          },
+          {
+            "external_orchestration_id": "35e7e5df-03c0-11ea-aedc-0050568c9189--22043065",
+            "ratio": 1,
+            "ip": {
+              "type": "V4",
+              "addr": "172.17.0.4"
+            },
+            "hostname": "172.17.0.4",
+            "enabled": true,
+            "verify_network": false,
+            "server_node": "10.52.3.70",
+            "external_uuid": "fe1b7dff54708d7ab0c25f731ac37c4826b87ee69c7e8957e93249a9f21db224",
+            "resolve_server_by_dns": false,
+            "static": false,
+            "rewrite_host_header": false,
+            "port": 8080
+          }
+        ],
+        "fewest_tasks_feedback_delay": 10,
+        "created_by": "oshift-k8s-cloud-connector",
+        "capacity_estimation_ttfb_thresh": 0,
+        "lookup_server_by_name": false,
+        "lb_algorithm_hash": "LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS",
+        "analytics_profile_ref": "https://10.52.2.174:9443/api/analyticsprofile/analyticsprofile-8b57c321-c737-4b4b-b882-3854b0790cb1",
+        "service_metadata": "{\"crud_hash_key\": \"admin:parent-vs-Default-Cloud-Default-Group\"}",
+        "_last_modified": "1577342977354816",
+        "cloud_ref": "https://10.52.2.174:9443/api/cloud/cloud-40669233-877c-4beb-bda6-1ced0f226368",
+        "host_check_enabled": false,
+        "east_west": false,
+        "vrf_ref": "https://10.52.2.174:9443/api/vrfcontext/vrfcontext-eb467135-d5f6-42ea-bd54-3613b2d377b9",
+        "inline_health_monitor": true,
+        "default_server_port": 80,
+        "request_queue_depth": 128,
+        "graceful_disable_timeout": 1,
+        "sni_enabled": true,
+        "server_timeout": 0,
+        "request_queue_enabled": false,
+        "name": "default-demo-route-aviroute-pool-8080-tcp",
+        "max_concurrent_connections_per_server": 0,
+        "url": "https://10.52.2.174:9443/api/pool/pool-b94f7350-90c5-4da3-81a2-933f9f3a1dbc",
+        "tenant_ref": "https://10.52.2.174:9443/api/tenant/admin",
+        "uuid": "pool-b94f7350-90c5-4da3-81a2-933f9f3a1dbc",
+        "health_monitor_refs": [
+          "https://10.52.2.174:9443/api/healthmonitor/healthmonitor-03a5867f-52d3-4abb-ae53-d0e0a4016cc2"
+        ],
+        "connection_ramp_duration": 10,
+        "cloud_config_cksum": "9e704815a8a6ea327ecd48005cc78ac5"
+      }
+    ]
+  }
