@@ -6,7 +6,7 @@ metadata:
   name: ako-sample
   namespace: avi-system
 spec:
-  imageRepository: projects.registry.vmware.com/ako/ako:1.9.1
+  imageRepository: projects.registry.vmware.com/ako/ako:1.10.1
   imagePullPolicy: "IfNotPresent"
   replicaCount: 1 # Defines the number of replicas for AKO Statefulset
   akoSettings:
@@ -17,7 +17,7 @@ spec:
     deleteConfig: false # Has to be set to true in configmap if user wants to delete AKO created objects from AVI 
     disableStaticRouteSync: false # If the POD networks are reachable from the Avi SE, set this knob to true.
     clusterName: "my-cluster" # A unique identifier for the kubernetes cluster, that helps distinguish the objects for this cluster in the avi controller. // MUST-EDIT
-    cniPlugin: "" # Set the string if your CNI is calico or openshift. enum: calico|canal|flannel|openshift|antrea|ncp
+    cniPlugin: "" # Set the string if your CNI is openshift or ovn-kubernetes. enum: openshift|ovn-kubernetes
     enableEVH: false # This enables the Enhanced Virtual Hosting Model in Avi Controller for the Virtual Services
     layer7Only: false # If this flag is switched on, then AKO will only do layer 7 loadbalancing.
     # NamespaceSelector contains label key and value used for namespacemigration
@@ -35,6 +35,7 @@ spec:
     #   - kube-system
     #   - kube-public
     ipFamily: "" # This flag can take values V4 or V6 (default V4). This is for the backend pools to use ipv6 or ipv4. For frontside VS, use v6cidr
+    useDefaultSecretsOnly: false # If this flag is set to true, AKO will only handle default secrets from the namespace where AKO is installed. This flag is applicable only to Openshift clusters.
 
 
   networkSettings:
