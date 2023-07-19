@@ -62,6 +62,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 	cloudRef := "/api/cloud?name=" + utils.CloudName
 	var dns_info_arr []*avimodels.DNSInfo
 	var path string
+	var networkRef string
 	var rest_op utils.RestOp
 	vipId, ipType, ip6Type := "0", "V4", "V6"
 
@@ -124,8 +125,13 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 							}
 						}
 					}
-					networkRef := "/api/network/?name=" + vsvip_meta.VipNetworks[0].NetworkName
+					// Shouldn't be required but kept for backup purpose
+					networkRef = "/api/network/?name=" + vsvip_meta.VipNetworks[0].NetworkName
+					if len(vsvip_meta.VipNetworks[0].NetworkUUID) != 0 {
+						networkRef = "/api/network/" + vsvip_meta.VipNetworks[0].NetworkUUID
+					}
 					vip.IPAMNetworkSubnet.NetworkRef = &networkRef
+					utils.AviLog.Debugf("Network: %s Network ref in rest layer: %s", vsvip_meta.VipNetworks[0].NetworkName, *vip.IPAMNetworkSubnet.NetworkRef)
 					if vsvip_meta.VipNetworks[0].V6Cidr != "" {
 						lib.UpdateV6(vip, &vsvip_meta.VipNetworks[0])
 					}
@@ -185,6 +191,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 					vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
 				}
 				networkRef := "/api/network/?name=" + vipNetwork.NetworkName
+				if len(vipNetwork.NetworkUUID) != 0 {
+					networkRef = "/api/network/" + vipNetwork.NetworkUUID
+				}
 				vip.IPAMNetworkSubnet.NetworkRef = &networkRef
 
 				// setting IPAMNetworkSubnet.Subnet value in case subnetCIDR is provided

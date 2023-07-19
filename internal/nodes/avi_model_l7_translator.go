@@ -419,7 +419,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				VrfContext: lib.GetVrf(),
 			}
 
-			poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
+			poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
 
 			t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
 			if t1lr != "" {
@@ -667,7 +667,7 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 		}
 
 		if infraSetting.Spec.Network.VipNetworks != nil && len(infraSetting.Spec.Network.VipNetworks) > 0 {
-			vsvip.VipNetworks = infraSetting.Spec.Network.VipNetworks
+			vsvip.VipNetworks = lib.GetVipInfraNetworkList(infraSetting.Name)
 		} else {
 			vsvip.VipNetworks = lib.GetVipNetworkList()
 		}
@@ -685,13 +685,9 @@ func buildWithInfraSetting(key string, vs *AviVsNode, vsvip *AviVSVIPNode, infra
 func buildPoolWithInfraSetting(key string, pool *AviPoolNode, infraSetting *akov1alpha1.AviInfraSetting) {
 	if infraSetting != nil && infraSetting.Status.Status == lib.StatusAccepted {
 		if infraSetting.Spec.Network.NodeNetworks != nil && len(infraSetting.Spec.Network.NodeNetworks) > 0 {
-			nodeNetworkMap := make(map[string][]string)
-			for _, nodeNetwork := range infraSetting.Spec.Network.NodeNetworks {
-				nodeNetworkMap[nodeNetwork.NetworkName] = nodeNetwork.Cidrs
-			}
-			pool.NetworkPlacementSettings = nodeNetworkMap
+			pool.NetworkPlacementSettings = lib.GetNodeInfraNetworkList(infraSetting.Name)
 		} else {
-			pool.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
+			pool.NetworkPlacementSettings = lib.GetNodeNetworkMap()
 		}
 
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over PoolNode %s", key, pool.Name)
