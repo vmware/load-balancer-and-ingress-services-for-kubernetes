@@ -973,7 +973,9 @@ func SetAviInfrasettingNodeNetworks(name string, netAviInfra []akov1alpha1.AviIn
 		nodeNetorkList[net.NetworkName] = nwMap
 	}
 
-	avicache.FetchNodeNetworks(clients.AviClient[aviClientLen], &err, nodeNetorkList)
+	if lib.GetCloudType() == lib.CLOUD_VCENTER {
+		avicache.FetchNodeNetworks(clients.AviClient[aviClientLen], &err, nodeNetorkList)
+	}
 	utils.AviLog.Debugf("Infrasetting: %s Node Network Obtained in AviInfrasetting: %v", name, utils.Stringify(nodeNetorkList))
 	//set infrasetting name specific node network
 	lib.SetNodeInfraNetworkList(name, nodeNetorkList)

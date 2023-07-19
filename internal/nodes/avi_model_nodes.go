@@ -1281,12 +1281,14 @@ func (v *AviVSVIPNode) CalculateCheckSum() {
 	if len(v.VipNetworks) > 0 {
 		var vipNetworkStringList []string
 		for _, vipNetwork := range v.VipNetworks {
-			// As rest call are based on uuid, added it as part of checksum calculation.
-			// This will result in PUT call to existing VSVIP. But will help to resolve problems
-			// of VSVIPS which are in error condition due to overlapping subnet.
-			chksumstr := vipNetwork.NetworkName + ":" + vipNetwork.NetworkUUID + ":" + vipNetwork.Cidr
+			chksumstr := vipNetwork.NetworkName + ":" + vipNetwork.Cidr
 			if vipNetwork.V6Cidr != "" {
 				chksumstr += ":" + vipNetwork.V6Cidr
+			}
+			// Network UUID will be published for networks with duplicate nw only.
+			// For existing vip(with no dup nw) cksum should be same
+			if vipNetwork.NetworkUUID != "" {
+				chksumstr += ":" + vipNetwork.NetworkUUID
 			}
 			vipNetworkStringList = append(vipNetworkStringList, chksumstr)
 
