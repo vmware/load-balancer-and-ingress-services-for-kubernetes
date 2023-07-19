@@ -14,11 +14,13 @@
 
 package lib
 
-const (
-	Prefix = "ako-gw-"
-	GatewayController = "ako.vmware.com/avi-lb"
+import (
+	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 )
 
-const (
-	ZeroAttachedRoutes = 0
-)
+var SupportedKinds = map[gatewayv1beta1.ProtocolType][]gatewayv1beta1.RouteGroupKind{
+	gatewayv1beta1.HTTPProtocolType:  {{Kind: lib.HTTPRoute}},
+	gatewayv1beta1.HTTPSProtocolType: {{Kind: lib.HTTPRoute}},
+}
