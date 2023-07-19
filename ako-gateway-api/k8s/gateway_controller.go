@@ -489,10 +489,10 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 				return
 			}
 			gw := obj.(*gatewayv1beta1.Gateway)
-			if !IsValidGateway(gw) {
+			key := lib.Gateway + "/" + utils.ObjKey(gw)
+			if !IsValidGateway(key, gw) {
 				return
 			}
-			key := lib.Gateway + "/" + utils.ObjKey(gw)
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == gw.ResourceVersion {
 				utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
@@ -522,10 +522,10 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			oldGw := old.(*gatewayv1beta1.Gateway)
 			gw := obj.(*gatewayv1beta1.Gateway)
 			if !reflect.DeepEqual(oldGw.Spec, gw.Spec) || gw.GetDeletionTimestamp() != nil {
-				if !IsValidGateway(gw) {
+				key := lib.Gateway + "/" + utils.ObjKey(gw)
+				if !IsValidGateway(key, gw) {
 					return
 				}
-				key := lib.Gateway + "/" + utils.ObjKey(gw)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
