@@ -52,8 +52,8 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 
 	// set pool placement network if node network details are present and cloud type is CLOUD_VCENTER or CLOUD_NSXT (vlan)
 	if len(pool_meta.NetworkPlacementSettings) != 0 && lib.IsNodeNetworkAllowedCloud() {
-		for network, cidrs := range pool_meta.NetworkPlacementSettings {
-			for _, cidr := range cidrs {
+		for network, nwMap := range pool_meta.NetworkPlacementSettings {
+			for _, cidr := range nwMap.Cidrs {
 				_, ipnet, err := net.ParseCIDR(cidr)
 				if err != nil {
 					utils.AviLog.Warnf("The value of CIDR couldn't be parsed. Failed with error: %v.", err.Error())
@@ -72,9 +72,13 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 					break
 				}
 				int32Cidr := int32(intCidr)
-
+				networkRef := "/api/network/?name=" + network
+				if nwMap.NetworkUUID != "" {
+					networkRef = "/api/network/" + nwMap.NetworkUUID
+				}
+				utils.AviLog.Debugf("Pool: %s, Network ref for pool placement setting is: %s", name, networkRef)
 				placementNetworks = append(placementNetworks, &avimodels.PlacementNetwork{
-					NetworkRef: proto.String("/api/network/?name=" + network),
+					NetworkRef: proto.String(networkRef),
 					Subnet: &avimodels.IPAddrPrefix{
 						IPAddr: &avimodels.IPAddr{
 							Addr: &addr,
