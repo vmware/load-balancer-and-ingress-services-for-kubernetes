@@ -72,7 +72,8 @@ var cmJson = `
 		"primaryInstance": "true",
 		"ipFamily": "V4",
 		"istioEnabled": "false",
-		"blockedNamespaceList": "[]"
+		"blockedNamespaceList": "[]",
+		"useDefaultSecretsOnly": "false"
 	}
 }
 `

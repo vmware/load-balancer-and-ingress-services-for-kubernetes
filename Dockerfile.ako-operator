@@ -20,7 +20,7 @@ FROM ${ubi_src_repo}
 
 LABEL name="ako-operator"
 LABEL summary="An AKO operator to deploy AKO controller"
-LABEL version="v1.9.1"
+LABEL version="v1.10.1"
 LABEL release="1"
 LABEL description="Manage configmap, statefulset and other artifacts for deploying AKO controller"
 LABEL vendor="VMware"
@@ -30,6 +30,12 @@ RUN yum -y update-minimal --security --sec-severity=Important --sec-severity=Cri
 WORKDIR /
 COPY LICENSE /licenses/
 COPY --from=builder /go/bin/ako-operator .
+RUN mkdir -p /var/crds
+COPY ./helm/ako/crds/ako.vmware.com_hostrules.yaml /var/crds/
+COPY ./helm/ako/crds/ako.vmware.com_httprules.yaml /var/crds/
+COPY ./helm/ako/crds/ako.vmware.com_aviinfrasettings.yaml /var/crds/
+COPY ./helm/ako/crds/ako.vmware.com_l4rules.yaml /var/crds/
+COPY ./helm/ako/crds/ako.vmware.com_ssorules.yaml /var/crds/
 RUN adduser nonroot
 USER nonroot:nonroot
 

@@ -52,6 +52,21 @@ spec:
                     type: boolean
                   enablePublicIP:
                     type: boolean
+                  listeners:
+                    items:
+                      properties:
+                        port:
+                          type: integer
+                          minimum: 1
+                          maximum: 65535
+                        enableSSL:
+                          type: boolean
+                        enableHTTP2:
+                          type: boolean
+                      required:
+                      - port
+                      type: object
+                    type: array
                   bgpPeerLabels:
                     items:
                       type: string

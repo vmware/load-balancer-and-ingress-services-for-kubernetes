@@ -280,6 +280,12 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	enableMCI := "false"
 	cm.Data[EnableMCI] = enableMCI
 
+	useDefaultSecretsOnly := "false"
+	if ako.Spec.AKOSettings.UseDefaultSecretsOnly {
+		useDefaultSecretsOnly = "true"
+	}
+	cm.Data[UseDefaultSecretsOnly] = useDefaultSecretsOnly
+
 	return cm, nil
 }
 
