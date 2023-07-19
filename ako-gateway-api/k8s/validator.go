@@ -21,7 +21,6 @@ import (
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -29,12 +28,6 @@ import (
 
 func IsValidGateway(key string, gateway *gatewayv1beta1.Gateway) bool {
 	spec := gateway.Spec
-
-	// is associated with gateway class
-	if CheckGatewayController(*gateway) {
-		utils.AviLog.Warnf("key %s, msg: controller is not ako, ignoring the gateway object %s", key, gateway.Name)
-		return false
-	}
 
 	defaultCondition := status.NewCondition().
 		Type(string(gatewayv1beta1.GatewayConditionAccepted)).
@@ -171,11 +164,6 @@ func isValidListener(key string, gateway *gatewayv1beta1.Gateway, gatewayStatus 
 	return true
 }
 
-func CheckGatewayClassController(gwClass gatewayv1beta1.GatewayClass) bool {
-	return gwClass.Spec.ControllerName == lib.AviIngressController
-}
-
-func CheckGatewayController(gw gatewayv1beta1.Gateway) bool {
-	gwClass := string(gw.Spec.GatewayClassName)
-	return objects.GatewayApiLister().IsGatewayClassPresent(gwClass)
+func CheckGatewayClassController(controllerName string) bool {
+	return controllerName == lib.AviIngressController
 }

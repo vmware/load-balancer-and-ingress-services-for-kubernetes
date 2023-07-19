@@ -46,23 +46,31 @@ type GWLister struct {
 
 	//GatewayClass -> [ns1/gateway1, ns2/gateway2, ...]
 	gatewayClassToGatewayStore *objects.ObjectMapStore
+
+	//svc -> gw
+	//route <-> gw
+	//secret -> gw
 }
 
-func (g *GWLister) IsGatewayClassPresent(gwClass string) bool {
-	g.gwLock.Lock()
-	defer g.gwLock.Unlock()
-	found, _ := g.gatewayClassStore.Get(gwClass)
-	return found
+func (g *GWLister) IsGatewayClassControllerAKO(gwClass string) (bool, bool) {
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
+
+	found, isAkoCtrl := g.gatewayClassStore.Get(gwClass)
+	if found {
+		return true, isAkoCtrl.(bool)
+	}
+	return false, false
 }
 
-func (g *GWLister) UpdateGatewayClass(gwClass string) {
+func (g *GWLister) UpdateGatewayClass(gwClass string, isAkoCtrl bool) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
-	found, _ := g.gatewayClassStore.Get(gwClass)
+	found, _ := g.gatewayClassToGatewayStore.Get(gwClass)
 	if !found {
-		g.gatewayClassStore.AddOrUpdate(gwClass, struct{}{})
 		g.gatewayClassToGatewayStore.AddOrUpdate(gwClass, make([]string, 0))
 	}
+	g.gatewayClassStore.AddOrUpdate(gwClass, isAkoCtrl)
 }
 
 func (g *GWLister) DeleteGatewayClass(gwClass string) {
@@ -70,16 +78,20 @@ func (g *GWLister) DeleteGatewayClass(gwClass string) {
 	defer g.gwLock.Unlock()
 	found, _ := g.gatewayClassStore.Get(gwClass)
 	if found {
-		g.deleteGatewayClassToGateway(gwClass)
+		//not deleting this map for migration
+		//g.deleteGatewayClassToGateway(gwClass)
 		g.gatewayClassStore.Delete(gwClass)
 	}
 }
 
 func (g *GWLister) GetGatewayClassToGateway(gwClass string) []string {
-	g.gwLock.Lock()
-	defer g.gwLock.Unlock()
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
 
-	_, gatewayList := g.gatewayClassToGatewayStore.Get(gwClass)
+	found, gatewayList := g.gatewayClassToGatewayStore.Get(gwClass)
+	if !found {
+		return make([]string, 0)
+	}
 	return gatewayList.([]string)
 }
 
@@ -132,8 +144,8 @@ func (g *GWLister) deleteGatewayClassToGateway(gwClass string) {
 }
 
 func (g *GWLister) GetGatewayToGatewayClass(ns, gw string) string {
-	g.gwLock.Lock()
-	defer g.gwLock.Unlock()
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
 
 	key := getKeyForGateway(ns, gw)
 	_, gwClass := g.gatewayToGatewayClassStore.Get(key)
