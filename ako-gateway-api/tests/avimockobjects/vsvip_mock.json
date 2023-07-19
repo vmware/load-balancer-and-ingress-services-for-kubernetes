@@ -1,0 +1,130 @@
+{
+  "count": 2,
+  "results": [
+    {
+      "url": "https://10.79.170.84/api/vsvip/vsvip-a590042a-358f-4693-bfa5-cb9d0c8c1931",
+      "uuid": "vsvip-a590042a-358f-4693-bfa5-cb9d0c8c1931",
+      "name": "vsvip-dns-vs-Default-Cloud",
+      "vrf_context_ref": "https://10.79.170.84/api/vrfcontext/vrfcontext-1cf759cc-6258-4172-a9b8-691db024681d",
+      "tenant_ref": "https://10.79.170.84/api/tenant/admin",
+      "cloud_ref": "https://10.79.170.84/api/cloud/cloud-e8ff5afc-f6fa-4730-889c-9025df29a89b",
+      "_last_modified": "1596710012412593",
+      "vip": [
+        {
+          "vip_id": "1",
+          "ip_address": {
+            "addr": "100.64.249.100",
+            "type": "V4"
+          },
+          "enabled": true,
+          "discovered_networks": [
+            {
+              "subnet": [
+                {
+                  "ip_addr": {
+                    "addr": "100.64.249.0",
+                    "type": "V4"
+                  },
+                  "mask": 24
+                }
+              ],
+              "network_ref": "https://10.79.170.84/api/network/dvportgroup-1413-cloud-e8ff5afc-f6fa-4730-889c-9025df29a89b"
+            }
+          ],
+          "auto_allocate_ip": true,
+          "auto_allocate_floating_ip": false,
+          "avi_allocated_vip": false,
+          "avi_allocated_fip": false,
+          "ipam_network_subnet": {
+            "subnet": {
+              "ip_addr": {
+                "addr": "100.64.249.0",
+                "type": "V4"
+              },
+              "mask": 24
+            },
+            "network_ref": "https://10.79.170.84/api/network/dvportgroup-1413-cloud-e8ff5afc-f6fa-4730-889c-9025df29a89b#networkName"
+          },
+          "auto_allocate_ip_type": "V4_ONLY",
+          "prefix_length": 32
+        }
+      ],
+      "dns_info": [
+        {
+          "fqdn": "dns-vs.avi.internal",
+          "ttl": 30,
+          "type": "DNS_RECORD_A",
+          "num_records_in_response": 1,
+          "algorithm": "DNS_RECORD_RESPONSE_CONSISTENT_HASH"
+        }
+      ],
+      "east_west_placement": false
+    },
+    {
+      "url": "https://10.79.170.84/api/vsvip/vsvip-82b41dd7-5b19-4007-85d4-530acea4d86b",
+      "uuid": "vsvip-82b41dd7-5b19-4007-85d4-530acea4d86b",
+      "name": "cluster-name--Shared-L7-0",
+      "vrf_context_ref": "https://10.79.170.84/api/vrfcontext/vrfcontext-1cf759cc-6258-4172-a9b8-691db024681d",
+      "tenant_ref": "https://10.79.170.84/api/tenant/admin",
+      "cloud_ref": "https://10.79.170.84/api/cloud/cloud-e8ff5afc-f6fa-4730-889c-9025df29a89b",
+      "_last_modified": "1597127944965341",
+      "vip": [
+        {
+          "vip_id": "0",
+          "ip_address": {
+            "addr": "100.64.249.102",
+            "type": "V4"
+          },
+          "enabled": true,
+          "discovered_networks": [
+            {
+              "subnet": [
+                {
+                  "ip_addr": {
+                    "addr": "100.64.249.0",
+                    "type": "V4"
+                  },
+                  "mask": 24
+                }
+              ],
+              "network_ref": "https://10.79.170.84/api/network/dvportgroup-1413-cloud-e8ff5afc-f6fa-4730-889c-9025df29a89b"
+            }
+          ],
+          "auto_allocate_ip": true,
+          "auto_allocate_floating_ip": false,
+          "avi_allocated_vip": false,
+          "avi_allocated_fip": false,
+          "ipam_network_subnet": {
+            "subnet": {
+              "ip_addr": {
+                "addr": "100.64.249.0",
+                "type": "V4"
+              },
+              "mask": 24
+            },
+            "network_ref": "https://10.79.170.84/api/network/dvportgroup-1413-cloud-e8ff5afc-f6fa-4730-889c-9025df29a89b#networkName"
+          },
+          "auto_allocate_ip_type": "V4_ONLY",
+          "prefix_length": 32
+        }
+      ],
+      "dns_info": [
+        {
+          "fqdn": "cluster-name--Shared-L7-0.admin.avi.internal",
+          "ttl": 30,
+          "type": "DNS_RECORD_A",
+          "num_records_in_response": 1,
+          "algorithm": "DNS_RECORD_RESPONSE_CONSISTENT_HASH"
+        },
+        {
+          "fqdn": "test.avi.internal",
+          "ttl": 30,
+          "type": "DNS_RECORD_A",
+          "num_records_in_response": 1,
+          "algorithm": "DNS_RECORD_RESPONSE_CONSISTENT_HASH"
+        }
+      ],
+      "east_west_placement": false
+    }
+  ]
+}

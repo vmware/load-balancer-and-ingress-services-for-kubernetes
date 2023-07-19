@@ -1,3 +1,17 @@
+/*
+ * Copyright 2023-2024 VMware, Inc.
+ * All Rights Reserved.
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*   http://www.apache.org/licenses/LICENSE-2.0
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
+
 package tests
 
 import (
@@ -18,11 +32,6 @@ import (
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 	gwfake "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/fake"
 )
-
-var kubeClient *k8sfake.Clientset
-var gwClient *gwfake.Clientset
-var keyChan chan string
-var ctrl *gwk8s.GatewayController
 
 func waitAndverify(t *testing.T, key string) {
 	waitChan := make(chan int)
@@ -64,8 +73,8 @@ func setupQueue(stopCh <-chan struct{}) {
 }
 
 func TestMain(m *testing.M) {
-	kubeClient = k8sfake.NewSimpleClientset()
-	gwClient = gwfake.NewSimpleClientset()
+	KubeClient = k8sfake.NewSimpleClientset()
+	GatewayClient = gwfake.NewSimpleClientset()
 
 	os.Setenv("CLUSTER_NAME", "cluster")
 	os.Setenv("CLOUD_NAME", "CLOUD_VCENTER")
@@ -73,7 +82,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 
 	akoControlConfig := akogatewayapilib.AKOControlConfig()
-	akoControlConfig.SetEventRecorder(lib.AKOGatewayEventComponent, kubeClient, true)
+	akoControlConfig.SetEventRecorder(lib.AKOGatewayEventComponent, KubeClient, true)
 	registeredInformers := []string{
 		utils.ServiceInformer,
 		utils.EndpointInformer,
@@ -82,12 +91,12 @@ func TestMain(m *testing.M) {
 		utils.ConfigMapInformer,
 	}
 	args := make(map[string]interface{})
-	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, args)
+	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers, args)
 	integrationtest.InitializeFakeAKOAPIServer()
 
 	defer integrationtest.AviFakeClientInstance.Close()
 	ctrl = gwk8s.SharedGatewayController()
-	ctrl.InitGatewayAPIInformers(gwClient)
+	ctrl.InitGatewayAPIInformers(GatewayClient)
 
 	stopCh := utils.SetupSignalHandler()
 	ctrl.Start(stopCh)
@@ -95,7 +104,7 @@ func TestMain(m *testing.M) {
 
 	ctrl.DisableSync = false
 
-	ctrl.SetupEventHandlers(k8s.K8sinformers{Cs: kubeClient})
+	ctrl.SetupEventHandlers(k8s.K8sinformers{Cs: KubeClient})
 	numWorkers := uint32(1)
 	ctrl.SetupGatewayApiEventHandlers(numWorkers)
 	setupQueue(stopCh)
@@ -120,7 +129,7 @@ func TestGatewayCUD(t *testing.T) {
 	SetListenerHostname(&gateway.Spec.Listeners[0], "foo.example.com")
 
 	//create
-	gw, err := gwClient.GatewayV1beta1().Gateways("default").Create(context.TODO(), &gateway, metav1.CreateOptions{})
+	gw, err := GatewayClient.GatewayV1beta1().Gateways("default").Create(context.TODO(), &gateway, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't create, err: %+v", err)
 	}
@@ -129,7 +138,7 @@ func TestGatewayCUD(t *testing.T) {
 
 	//update
 	SetGatewayGatewayClass(&gateway, "gw-class-new")
-	gw, err = gwClient.GatewayV1beta1().Gateways("default").Update(context.TODO(), &gateway, metav1.UpdateOptions{})
+	gw, err = GatewayClient.GatewayV1beta1().Gateways("default").Update(context.TODO(), &gateway, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't update, err: %+v", err)
 	}
@@ -137,7 +146,7 @@ func TestGatewayCUD(t *testing.T) {
 	waitAndverify(t, "Gateway/default/gw-example")
 
 	//delete
-	err = gwClient.GatewayV1beta1().Gateways("default").Delete(context.TODO(), gateway.Name, metav1.DeleteOptions{})
+	err = GatewayClient.GatewayV1beta1().Gateways("default").Delete(context.TODO(), gateway.Name, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't delete, err: %+v", err)
 	}
@@ -161,7 +170,7 @@ func TestGatewaClassyCUD(t *testing.T) {
 	}
 
 	//create
-	gw, err := gwClient.GatewayV1beta1().GatewayClasses().Create(context.TODO(), &gatewayClass, metav1.CreateOptions{})
+	gw, err := GatewayClient.GatewayV1beta1().GatewayClasses().Create(context.TODO(), &gatewayClass, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't create, err: %+v", err)
 	}
@@ -171,7 +180,7 @@ func TestGatewaClassyCUD(t *testing.T) {
 	//update
 	testDesc := "test description for update"
 	gatewayClass.Spec.Description = &testDesc
-	gw, err = gwClient.GatewayV1beta1().GatewayClasses().Update(context.TODO(), &gatewayClass, metav1.UpdateOptions{})
+	gw, err = GatewayClient.GatewayV1beta1().GatewayClasses().Update(context.TODO(), &gatewayClass, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't update gatewayClass, err: %+v", err)
 	}
@@ -179,7 +188,7 @@ func TestGatewaClassyCUD(t *testing.T) {
 	waitAndverify(t, "GatewayClass/gw-class-example")
 
 	//delete
-	err = gwClient.GatewayV1beta1().GatewayClasses().Delete(context.TODO(), gatewayClass.Name, metav1.DeleteOptions{})
+	err = GatewayClient.GatewayV1beta1().GatewayClasses().Delete(context.TODO(), gatewayClass.Name, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't delete, err: %+v", err)
 	}
