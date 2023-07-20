@@ -594,4 +594,72 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 		},
 	}
 	informer.GatewayClassInformer.Informer().AddEventHandler(gatewayClassEventHandler)
+
+	httpRouteEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			httpRoute := obj.(*gatewayv1beta1.HTTPRoute)
+			key := lib.HTTPRoute + "/" + utils.ObjKey(httpRoute)
+			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
+			if ok && resVer.(string) == httpRoute.ResourceVersion {
+				utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
+				return
+			}
+			// if !IsHTTPRouteValid(key, httpRoute) {
+			// 	return
+			// }
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httpRoute))
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+		},
+		DeleteFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			httpRoute, ok := obj.(*gatewayv1beta1.HTTPRoute)
+			if !ok {
+				// httpRoute was deleted but its final state is unrecorded.
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				httpRoute, ok = tombstone.Obj.(*gatewayv1beta1.HTTPRoute)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not an HTTPRoute: %#v", obj)
+					return
+				}
+			}
+			key := lib.HTTPRoute + "/" + utils.ObjKey(httpRoute)
+			objects.SharedResourceVerInstanceLister().Delete(key)
+			// if !IsHTTPRouteValid(key, httpRoute) {
+			// 	return
+			// }
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httpRoute))
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+		},
+		UpdateFunc: func(old, obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			oldHTTPRoute := old.(*gatewayv1beta1.HTTPRoute)
+			newHTTPRoute := obj.(*gatewayv1beta1.HTTPRoute)
+			if !reflect.DeepEqual(oldHTTPRoute.Spec, newHTTPRoute.Spec) || newHTTPRoute.GetDeletionTimestamp() != nil {
+				key := lib.HTTPRoute + "/" + utils.ObjKey(newHTTPRoute)
+				// if !IsHTTPRouteValid(key, newHTTPRoute) {
+				// 	return
+				// }
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newHTTPRoute))
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+			}
+		},
+	}
+	informer.HTTPRouteInformer.Informer().AddEventHandler(httpRouteEventHandler)
 }
