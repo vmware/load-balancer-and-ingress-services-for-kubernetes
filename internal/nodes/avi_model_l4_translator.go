@@ -77,7 +77,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		avi_vs_meta.VrfContext = vrfcontext
 	}
 	avi_vs_meta.AviMarkers = lib.PopulateL4VSNodeMarkers(svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name)
-	isTCP, isSCTP := false, false
+	isTCP, isSCTP, isUDP := false, false, false
 	var portProtocols []AviPortHostProtocol
 	for _, port := range svcObj.Spec.Ports {
 		pp := AviPortHostProtocol{Port: int32(port.Port), Protocol: fmt.Sprint(port.Protocol), Name: port.Name, TargetPort: port.TargetPort}
@@ -90,6 +90,8 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 				return nil
 			}
 			isSCTP = true
+		} else if port.Protocol == utils.UDP {
+			isUDP = true
 		}
 	}
 	avi_vs_meta.PortProto = portProtocols
@@ -100,22 +102,8 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		// Default case
 		avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
 	}
-	if !isTCP {
-		if isSCTP {
-			avi_vs_meta.NetworkProfile = utils.SYSTEM_SCTP_PROXY
-		} else {
-			avi_vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
-		}
 
-	} else {
-		license := lib.AKOControlConfig().GetLicenseType()
-
-		if license == lib.LicenseTypeEnterprise {
-			avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
-		} else {
-			avi_vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
-		}
-	}
+	avi_vs_meta.NetworkProfile = getNetworkProfile(isSCTP, isTCP, isUDP)
 
 	vsVipName := lib.GetL4VSVipName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
 	vsVipNode := &AviVSVIPNode{
@@ -661,4 +649,26 @@ func buildPoolWithL4Rule(key string, pool *AviPoolNode, l4Rule *akov1alpha2.L4Ru
 	pool.AviPoolGeneratedFields.ConvertToRef()
 
 	utils.AviLog.Debugf("key: %s, msg: Applied L4Rule %s configuration over Pool %s", key, l4Rule.Name, pool.Name)
+}
+
+// In case the VS has services that are a mix of TCP and UDP/SCTP sockets,
+// we create the VS with global network profile TCP Proxy or Fast Path based on license,
+// and override required services with UDP Fast Path or SCTP proxy. Having a separate
+// internally used network profile (MIXED_NET_PROFILE) helps ensure PUT calls
+// on existing VSes.
+func getNetworkProfile(isSCTP, isTCP, isUDP bool) string {
+	if isSCTP && !isTCP && !isUDP {
+		return utils.SYSTEM_SCTP_PROXY
+	}
+	if isTCP && !isUDP && !isSCTP {
+		license := lib.AKOControlConfig().GetLicenseType()
+		if license == lib.LicenseTypeEnterprise {
+			return utils.DEFAULT_TCP_NW_PROFILE
+		}
+		return utils.TCP_NW_FAST_PATH
+	}
+	if isUDP && !isTCP && !isSCTP {
+		return utils.SYSTEM_UDP_FAST_PATH
+	}
+	return utils.MIXED_NET_PROFILE
 }
