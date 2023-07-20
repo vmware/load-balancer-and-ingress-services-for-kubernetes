@@ -541,7 +541,8 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 				return
 			}
 			gwClass := obj.(*gatewayv1beta1.GatewayClass)
-			if !CheckGatewayClassController(*gwClass) {
+			controllerName := string(gwClass.Spec.ControllerName)
+			if !akogatewayapilib.CheckGatewayClassController(controllerName) {
 				return
 			}
 			key := lib.GatewayClass + "/" + utils.ObjKey(gwClass)
@@ -560,7 +561,8 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 				return
 			}
 			gwClass := obj.(*gatewayv1beta1.GatewayClass)
-			if !CheckGatewayClassController(*gwClass) {
+			controllerName := string(gwClass.Spec.ControllerName)
+			if !akogatewayapilib.CheckGatewayClassController(controllerName) {
 				return
 			}
 			key := lib.GatewayClass + "/" + utils.ObjKey(gwClass)
@@ -576,7 +578,10 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			}
 			oldGwClass := old.(*gatewayv1beta1.GatewayClass)
 			gwClass := obj.(*gatewayv1beta1.GatewayClass)
-			if !(CheckGatewayClassController(*gwClass) || CheckGatewayClassController(*oldGwClass)) {
+			controllerName := string(gwClass.Spec.ControllerName)
+			oldControllerName := string(oldGwClass.Spec.ControllerName)
+
+			if !(akogatewayapilib.CheckGatewayClassController(controllerName) || akogatewayapilib.CheckGatewayClassController(oldControllerName)) {
 				return
 			}
 			if !reflect.DeepEqual(oldGwClass.Spec, gwClass.Spec) || gwClass.GetDeletionTimestamp() != nil {

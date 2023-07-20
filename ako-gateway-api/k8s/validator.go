@@ -21,20 +21,12 @@ import (
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/status"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 func IsValidGateway(key string, gateway *gatewayv1beta1.Gateway) bool {
 	spec := gateway.Spec
-
-	// is associated with gateway class
-	if CheckGatewayController(*gateway) {
-		utils.AviLog.Warnf("key %s, msg: controller is not ako, ignoring the gateway object %s", key, gateway.Name)
-		return false
-	}
 
 	defaultCondition := status.NewCondition().
 		Type(string(gatewayv1beta1.GatewayConditionAccepted)).
@@ -59,6 +51,14 @@ func IsValidGateway(key string, gateway *gatewayv1beta1.Gateway) bool {
 		utils.AviLog.Errorf("key: %s, msg: more than 1 gateway address found in gateway %+v", key, gateway.Name)
 		defaultCondition.
 			Message("More than one address is not supported").
+			SetIn(&gatewayStatus.Conditions)
+		status.Record(key, gateway, &status.Status{GatewayStatus: *gatewayStatus})
+		return false
+	}
+	if len(spec.Addresses) == 1 && *spec.Addresses[0].Type != "IPAddress" {
+		utils.AviLog.Errorf("gateway address is not of type IPAddress %+v", gateway.Name)
+		defaultCondition.
+			Message("Only IPAddress as AddressType is supported").
 			SetIn(&gatewayStatus.Conditions)
 		status.Record(key, gateway, &status.Status{GatewayStatus: *gatewayStatus})
 		return false
@@ -138,6 +138,19 @@ func isValidListener(key string, gateway *gatewayv1beta1.Gateway, gatewayStatus 
 				SetIn(&gatewayStatus.Listeners[index].Conditions)
 			return false
 		}
+		for _, certRef := range listener.TLS.CertificateRefs {
+			//only secret is allowed
+			if (certRef.Group != nil && string(*certRef.Group) != "") ||
+				certRef.Kind != nil && string(*certRef.Kind) != utils.Secret {
+				utils.AviLog.Errorf("CertificateRef is not valid %+v/%+v, must be Secret", gateway.Name, listener.Name)
+				defaultCondition.
+					Reason(string(gatewayv1beta1.ListenerReasonInvalidCertificateRef)).
+					Message("TLS mode or reference not valid").
+					SetIn(&gatewayStatus.Listeners[index].Conditions)
+				return false
+			}
+
+		}
 	}
 
 	// Valid listener
@@ -148,13 +161,4 @@ func isValidListener(key string, gateway *gatewayv1beta1.Gateway, gatewayStatus 
 		SetIn(&gatewayStatus.Listeners[index].Conditions)
 	utils.AviLog.Infof("key: %s, msg: Listener %s/%s is valid", key, gateway.Name, listener.Name)
 	return true
-}
-
-func CheckGatewayClassController(gwClass gatewayv1beta1.GatewayClass) bool {
-	return gwClass.Spec.ControllerName == lib.AviIngressController
-}
-
-func CheckGatewayController(gw gatewayv1beta1.Gateway) bool {
-	gwClass := string(gw.Spec.GatewayClassName)
-	return objects.GatewayApiLister().IsGatewayClassPresent(gwClass)
 }
