@@ -34,6 +34,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	gatewayList, found := schema.GetGateways(name, namespace, key)
 	if !found {
 		//returning due to error, cannot delete or update
+		utils.AviLog.Errorf("key: %s, got error while getting k8s object", key)
 		return
 	}
 	handleGateways(gatewayList, fullsync, key)
@@ -74,6 +75,7 @@ func handleGateways(gatewayList []string, fullsync bool, key string) {
 		}
 		if !isAkoCtrl {
 			//AKO is not the controller, do not build model
+			utils.AviLog.Infof("key: %s, msg: Controller is not AKO for %s, not building VS model", key, modelName)
 			continue
 		}
 		aviModelGraph := NewAviObjectGraph()
@@ -81,6 +83,7 @@ func handleGateways(gatewayList []string, fullsync bool, key string) {
 		if len(aviModelGraph.GetOrderedNodes()) > 0 {
 			ok := saveAviModel(modelName, aviModelGraph, key)
 			if ok && !fullsync {
+				utils.AviLog.Infof("key: %s, msg: Published key with modelName: %s", key, modelName)
 				nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
 			}
 		}

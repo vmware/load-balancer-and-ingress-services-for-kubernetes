@@ -15,7 +15,6 @@
 package nodes
 
 import (
-	akogatewayapik8s "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/k8s"
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -63,7 +62,7 @@ func GatewayGetGw(namespace, name, key string) ([]string, bool) {
 	gwObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).Get(name)
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			utils.AviLog.Infof("key: %s, got error while getting gateway: %v", key, err)
+			utils.AviLog.Errorf("key: %s, got error while getting gateway: %v", key, err)
 			return []string{}, false
 		}
 		return gw, true
@@ -79,7 +78,7 @@ func GatewayClassGetGw(namespace, name, key string) ([]string, bool) {
 	gwClassObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Lister().Get(name)
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			utils.AviLog.Infof("key: %s, got error while getting gateway class: %v", key, err)
+			utils.AviLog.Errorf("key: %s, got error while getting gateway class: %v", key, err)
 			return []string{}, false
 		}
 		isDelete = true
@@ -90,7 +89,7 @@ func GatewayClassGetGw(namespace, name, key string) ([]string, bool) {
 	if isDelete {
 		akogatewayapiobjects.GatewayApiLister().DeleteGatewayClass(name)
 	} else {
-		isAKOController := akogatewayapik8s.CheckGatewayClassController(controllerName)
+		isAKOController := akogatewayapilib.CheckGatewayClassController(controllerName)
 		akogatewayapiobjects.GatewayApiLister().UpdateGatewayClass(name, isAKOController)
 	}
 	return akogatewayapiobjects.GatewayApiLister().GetGatewayClassToGateway(name), true

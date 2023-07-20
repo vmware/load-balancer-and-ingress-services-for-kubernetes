@@ -33,8 +33,7 @@ type AviObjectGraph struct {
 }
 
 func NewAviObjectGraph() *AviObjectGraph {
-	validator := nodes.NewNodesValidator()
-	return &AviObjectGraph{&nodes.AviObjectGraph{Validator: validator}}
+	return &AviObjectGraph{&nodes.AviObjectGraph{}}
 }
 
 func (o *AviObjectGraph) BuildGatewayVs(gateway *gatewayv1beta1.Gateway, key string) {
@@ -63,17 +62,7 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1beta1.Gateway, key
 		},
 	}
 
-	var portProtocols []nodes.AviPortHostProtocol
-	for _, listener := range gateway.Spec.Listeners {
-		pp := nodes.AviPortHostProtocol{Port: int32(listener.Port), Protocol: string(listener.Protocol)}
-		//TLS config on listener is present
-		if listener.TLS != nil && len(listener.TLS.CertificateRefs) > 0 {
-			pp.EnableSSL = true
-		}
-		portProtocols = append(portProtocols, pp)
-	}
-	//sort?
-	parentVsNode.PortProto = portProtocols
+	parentVsNode.PortProto = BuildPortProtocols(gateway, key)
 
 	tlsNodes := BuildTLSNodesForGateway(gateway, key)
 	if len(tlsNodes) > 0 {
@@ -84,6 +73,19 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1beta1.Gateway, key
 	parentVsNode.VSVIPRefs = []*nodes.AviVSVIPNode{vsvipNode}
 
 	return parentVsNode
+}
+
+func BuildPortProtocols(gateway *gatewayv1beta1.Gateway, key string) []nodes.AviPortHostProtocol {
+	var portProtocols []nodes.AviPortHostProtocol
+	for _, listener := range gateway.Spec.Listeners {
+		pp := nodes.AviPortHostProtocol{Port: int32(listener.Port), Protocol: string(listener.Protocol)}
+		//TLS config on listener is present
+		if listener.TLS != nil && len(listener.TLS.CertificateRefs) > 0 {
+			pp.EnableSSL = true
+		}
+		portProtocols = append(portProtocols, pp)
+	}
+	return portProtocols
 }
 
 func BuildTLSNodesForGateway(gateway *gatewayv1beta1.Gateway, key string) []*nodes.AviTLSKeyCertNode {

@@ -38,3 +38,7 @@ func GetGatewayParentName(namespace, gwName string) string {
 	//clustername > gateway namespace > Gateway-name
 	return lib.GetNamePrefix() + namespace + "-" + gwName
 }
+
+func CheckGatewayClassController(controllerName string) bool {
+	return controllerName == lib.AviIngressController
+}

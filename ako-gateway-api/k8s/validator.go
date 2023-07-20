@@ -22,7 +22,6 @@ import (
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/status"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -162,8 +161,4 @@ func isValidListener(key string, gateway *gatewayv1beta1.Gateway, gatewayStatus 
 		SetIn(&gatewayStatus.Listeners[index].Conditions)
 	utils.AviLog.Infof("key: %s, msg: Listener %s/%s is valid", key, gateway.Name, listener.Name)
 	return true
-}
-
-func CheckGatewayClassController(controllerName string) bool {
-	return controllerName == lib.AviIngressController
 }

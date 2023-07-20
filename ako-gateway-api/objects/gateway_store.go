@@ -76,12 +76,8 @@ func (g *GWLister) UpdateGatewayClass(gwClass string, isAkoCtrl bool) {
 func (g *GWLister) DeleteGatewayClass(gwClass string) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
-	found, _ := g.gatewayClassStore.Get(gwClass)
-	if found {
-		//not deleting this map for migration
-		//g.deleteGatewayClassToGateway(gwClass)
-		g.gatewayClassStore.Delete(gwClass)
-	}
+
+	g.gatewayClassStore.Delete(gwClass)
 }
 
 func (g *GWLister) GetGatewayClassToGateway(gwClass string) []string {
