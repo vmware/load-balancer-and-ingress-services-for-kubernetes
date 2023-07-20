@@ -54,6 +54,7 @@ func main() {
 
 func Initialize() {
 
+	os.Setenv(lib.ENABLE_EVH, "true")
 	utils.AviLog.SetLevel("DEBUG") // TODO: integrate the configmap to this pod and remove this hardcoding.
 	utils.AviLog.Infof("AKO is running with version: %s", version)
 
