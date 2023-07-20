@@ -38,15 +38,9 @@ import (
 
 var controllerInstance *GatewayController
 var ctrlonce sync.Once
-var tzonce sync.Once
-var transportZone string
-
-var WorkloadNamespaceCount int = 0
-var countLock sync.RWMutex
 
 type GatewayController struct {
-	worker_id uint32
-	//recorder        record.EventRecorder
+	worker_id   uint32
 	informers   *utils.Informers
 	workqueue   []workqueue.RateLimitingInterface
 	DisableSync bool
@@ -183,14 +177,13 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 				return
 			}
 			svc := obj.(*corev1.Service)
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
-			var key string
-			key = utils.Service + "/" + utils.ObjKey(svc)
+			key := utils.Service + "/" + utils.ObjKey(svc)
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == svc.ResourceVersion {
 				utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
 				return
 			}
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
@@ -213,11 +206,8 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 					return
 				}
 			}
-			var key string
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
-
-			key = utils.Service + "/" + utils.ObjKey(svc)
-
+			key := utils.Service + "/" + utils.ObjKey(svc)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			objects.SharedResourceVerInstanceLister().Delete(key)
@@ -232,16 +222,10 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 			if oldobj.ResourceVersion != svc.ResourceVersion || !reflect.DeepEqual(svc.Annotations, oldobj.Annotations) {
 				// Only add the key if the resource versions have changed.
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
-				var key string
-				key = utils.Service + "/" + utils.ObjKey(svc)
+				key := utils.Service + "/" + utils.ObjKey(svc)
 				bkt := utils.Bkt(namespace, numWorkers)
-				var oldKey string
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-				if oldKey != "" && key != oldKey {
-					c.workqueue[bkt].AddRateLimited(oldKey)
-					utils.AviLog.Debugf("key: %s, msg: UPDATE", oldKey)
-				}
 			}
 		},
 	}
@@ -396,10 +380,7 @@ func isNamespaceUpdated(oldNS, newNS *corev1.Namespace) bool {
 	}
 	oldLabelHash := utils.Hash(utils.Stringify(oldNS.Labels))
 	newLabelHash := utils.Hash(utils.Stringify(newNS.Labels))
-	if oldLabelHash != newLabelHash {
-		return true
-	}
-	return false
+	return oldLabelHash != newLabelHash
 }
 
 func AddServicesFromNSToIngestionQueue(numWorkers uint32, c *GatewayController, namespace string, msg string) {
@@ -583,9 +564,9 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 				utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
 				return
 			}
-			// if !IsHTTPRouteValid(key, httpRoute) {
-			// 	return
-			// }
+			if !IsHTTPRouteValid(key, httpRoute) {
+				return
+			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httpRoute))
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
@@ -611,9 +592,6 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			}
 			key := lib.HTTPRoute + "/" + utils.ObjKey(httpRoute)
 			objects.SharedResourceVerInstanceLister().Delete(key)
-			// if !IsHTTPRouteValid(key, httpRoute) {
-			// 	return
-			// }
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httpRoute))
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
@@ -625,11 +603,11 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			}
 			oldHTTPRoute := old.(*gatewayv1beta1.HTTPRoute)
 			newHTTPRoute := obj.(*gatewayv1beta1.HTTPRoute)
-			if !reflect.DeepEqual(oldHTTPRoute.Spec, newHTTPRoute.Spec) || newHTTPRoute.GetDeletionTimestamp() != nil {
+			if IsHTTPRouteUpdated(oldHTTPRoute, newHTTPRoute) {
 				key := lib.HTTPRoute + "/" + utils.ObjKey(newHTTPRoute)
-				// if !IsHTTPRouteValid(key, newHTTPRoute) {
-				// 	return
-				// }
+				if !IsHTTPRouteValid(key, newHTTPRoute) {
+					return
+				}
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newHTTPRoute))
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
@@ -638,4 +616,10 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 		},
 	}
 	informer.HTTPRouteInformer.Informer().AddEventHandler(httpRouteEventHandler)
+}
+
+func IsHTTPRouteUpdated(oldHTTPRoute, newHTTPRoute *gatewayv1beta1.HTTPRoute) bool {
+	oldHash := utils.Hash(utils.Stringify(oldHTTPRoute.Spec))
+	newHash := utils.Hash(utils.Stringify(newHTTPRoute.Spec))
+	return oldHash != newHash || newHTTPRoute.GetDeletionTimestamp() != nil
 }

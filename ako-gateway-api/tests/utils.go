@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -161,6 +162,7 @@ func (g *Gateway) Create(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't create the gateway, err: %+v", err)
 	}
+	t.Logf("Created Gateway %s", g.Gateway.Name)
 }
 
 func (g *Gateway) Update(t *testing.T) {
@@ -168,6 +170,7 @@ func (g *Gateway) Update(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't update the gateway, err: %+v", err)
 	}
+	t.Logf("Updated Gateway %s", g.Gateway.Name)
 }
 
 func (g *Gateway) Delete(t *testing.T) {
@@ -175,6 +178,7 @@ func (g *Gateway) Delete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't delete the gateway, err: %+v", err)
 	}
+	t.Logf("Deleted Gateway %s", g.Gateway.Name)
 }
 
 func SetupGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress []gatewayv1beta1.GatewayAddress, listeners []gatewayv1beta1.Listener) {
@@ -217,6 +221,7 @@ func (gc *FakeGatewayClass) Create(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't create the gateway class, err: %+v", err)
 	}
+	t.Logf("Created GatewayClass %s", gatewayClass.Name)
 }
 
 func (gc *FakeGatewayClass) Update(t *testing.T) {
@@ -225,6 +230,7 @@ func (gc *FakeGatewayClass) Update(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't update the gateway class, err: %+v", err)
 	}
+	t.Logf("Updated GatewayClass %s", gatewayClass.Name)
 }
 
 func (gc *FakeGatewayClass) Delete(t *testing.T) {
@@ -232,6 +238,7 @@ func (gc *FakeGatewayClass) Delete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't delete the gateway class, err: %+v", err)
 	}
+	t.Logf("Deleted GatewayClass %s", gc.Name)
 }
 
 func SetupGatewayClass(t *testing.T, name, controllerName string) {
@@ -240,6 +247,7 @@ func SetupGatewayClass(t *testing.T, name, controllerName string) {
 		ControllerName: controllerName,
 	}
 	gc.Create(t)
+	time.Sleep(10 * time.Second)
 }
 
 func TeardownGatewayClass(t *testing.T, name string) {
@@ -247,6 +255,111 @@ func TeardownGatewayClass(t *testing.T, name string) {
 		Name: name,
 	}
 	gc.Delete(t)
+}
+
+type HTTPRoute struct {
+	*gatewayv1beta1.HTTPRoute
+}
+
+func (hr *HTTPRoute) HTTPRouteV1Beta1(name, namespace string, parentRefs []gatewayv1beta1.ParentReference, hostnames []gatewayv1beta1.Hostname, rules []gatewayv1beta1.HTTPRouteRule) *gatewayv1beta1.HTTPRoute {
+	httpRoute := &gatewayv1beta1.HTTPRoute{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: gatewayv1beta1.HTTPRouteSpec{
+			CommonRouteSpec: gatewayv1beta1.CommonRouteSpec{
+				ParentRefs: parentRefs,
+			},
+			Hostnames: hostnames,
+			Rules:     rules,
+		},
+	}
+	return httpRoute
+}
+
+func GetParentReferencesV1Beta1(gatewayNames []string, namespace string, ports []int32) []gatewayv1beta1.ParentReference {
+	parentRefs := make([]gatewayv1beta1.ParentReference, 0)
+	for _, gwName := range gatewayNames {
+		for _, port := range ports {
+			sectionName := gatewayv1beta1.SectionName(fmt.Sprintf("listener-%d", port))
+			parentRef := gatewayv1beta1.ParentReference{
+				Name:        gatewayv1beta1.ObjectName(gwName),
+				Namespace:   (*gatewayv1beta1.Namespace)(&namespace),
+				SectionName: &sectionName,
+			}
+			parentRefs = append(parentRefs, parentRef)
+		}
+	}
+	return parentRefs
+}
+
+func GetRouteStatusV1Beta1(gatewayNames []string, namespace string, ports []int32, conditions map[string][]metav1.Condition) *gatewayv1beta1.RouteStatus {
+	routeStatus := &gatewayv1beta1.RouteStatus{}
+	routeStatus.Parents = make([]gatewayv1beta1.RouteParentStatus, 0, len(gatewayNames)+len(ports))
+	for _, gatewayName := range gatewayNames {
+		for _, port := range ports {
+			parent := gatewayv1beta1.RouteParentStatus{}
+			parent.ControllerName = akogatewayapilib.GatewayController
+			parent.Conditions = conditions[fmt.Sprintf("%s-%d", gatewayName, port)]
+			sectionName := gatewayv1beta1.SectionName(fmt.Sprintf("listener-%d", port))
+			parent.ParentRef = gatewayv1beta1.ParentReference{
+				Name:        gatewayv1beta1.ObjectName(gatewayName),
+				Namespace:   (*gatewayv1beta1.Namespace)(&namespace),
+				SectionName: &sectionName,
+			}
+			routeStatus.Parents = append(routeStatus.Parents, parent)
+		}
+	}
+	return routeStatus
+}
+
+func GetHTTPRouteRulesV1Beta1() []gatewayv1beta1.HTTPRouteRule {
+	rules := make([]gatewayv1beta1.HTTPRouteRule, 0)
+	// TODO: add few rules
+	return rules
+}
+
+func (hr *HTTPRoute) Create(t *testing.T) {
+	_, err := GatewayClient.GatewayV1beta1().HTTPRoutes(hr.Namespace).Create(context.TODO(), hr.HTTPRoute, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't create the HTTPRoute, err: %+v", err)
+	}
+	t.Logf("Created HTTPRoute %s", hr.Name)
+}
+
+func (hr *HTTPRoute) Update(t *testing.T) {
+	_, err := GatewayClient.GatewayV1beta1().HTTPRoutes(hr.Namespace).Update(context.TODO(), hr.HTTPRoute, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't update the HTTPRoute, err: %+v", err)
+	}
+	t.Logf("Updated HTTPRoute %s", hr.Name)
+}
+
+func (hr *HTTPRoute) Delete(t *testing.T) {
+	err := GatewayClient.GatewayV1beta1().HTTPRoutes(hr.Namespace).Delete(context.TODO(), hr.Name, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't delete the HTTPRoute, err: %+v", err)
+	}
+	t.Logf("Deleted HTTPRoute %s", hr.Name)
+}
+
+func SetupHTTPRoute(t *testing.T, name, namespace string, parentRefs []gatewayv1beta1.ParentReference, hostnames []gatewayv1beta1.Hostname, rules []gatewayv1beta1.HTTPRouteRule) {
+	hr := &HTTPRoute{}
+	hr.HTTPRoute = hr.HTTPRouteV1Beta1(name, namespace, parentRefs, hostnames, rules)
+	hr.Create(t)
+}
+
+func UpdateHTTPRoute(t *testing.T, name, namespace string, parentRefs []gatewayv1beta1.ParentReference, hostnames []gatewayv1beta1.Hostname, rules []gatewayv1beta1.HTTPRouteRule) {
+	hr := &HTTPRoute{}
+	hr.HTTPRoute = hr.HTTPRouteV1Beta1(name, namespace, parentRefs, hostnames, rules)
+	hr.Update(t)
+}
+
+func TeardownHTTPRoute(t *testing.T, name, namespace string) {
+	hr := &HTTPRoute{}
+	hr.HTTPRoute = hr.HTTPRouteV1Beta1(name, namespace, nil, nil, nil)
+	hr.Delete(t)
 }
 
 func ValidateGatewayStatus(t *testing.T, actualStatus, expectedStatus *gatewayv1beta1.GatewayStatus) {
@@ -290,5 +403,17 @@ func ValidateConditions(t *testing.T, actualConditions, expectedConditions []met
 				g.Expect(actualCondition.Status).Should(gomega.Equal(expectedCondition.Status))
 			}
 		}
+	}
+}
+
+func ValidateHTTPRouteStatus(t *testing.T, actualStatus, expectedStatus *gatewayv1beta1.HTTPRouteStatus) {
+	g := gomega.NewGomegaWithT(t)
+	g.Expect(actualStatus.Parents).To(gomega.HaveLen(len(expectedStatus.Parents)))
+	for i := 0; i < len(actualStatus.Parents); i++ {
+		actualRouteParentStatus := actualStatus.Parents[i]
+		expectedRouteParentStatus := expectedStatus.Parents[i]
+		g.Expect(actualRouteParentStatus.ControllerName).To(gomega.Equal(expectedRouteParentStatus.ControllerName))
+		g.Expect(actualRouteParentStatus.ParentRef).To(gomega.Equal(expectedRouteParentStatus.ParentRef))
+		ValidateConditions(t, actualRouteParentStatus.Conditions, expectedRouteParentStatus.Conditions)
 	}
 }
