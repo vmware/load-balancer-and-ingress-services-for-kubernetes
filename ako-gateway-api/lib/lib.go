@@ -15,6 +15,7 @@
 package lib
 
 import (
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"k8s.io/client-go/kubernetes"
 )
@@ -31,4 +32,13 @@ func InformersToRegister(kclient *kubernetes.Clientset) ([]string, error) {
 	}
 
 	return allInformers, nil
+}
+
+func GetGatewayParentName(namespace, gwName string) string {
+	//clustername > gateway namespace > Gateway-name
+	return lib.GetNamePrefix() + namespace + "-" + gwName
+}
+
+func CheckGatewayClassController(controllerName string) bool {
+	return controllerName == lib.AviIngressController
 }
