@@ -122,7 +122,7 @@ var (
 		GetParentIngresses: SSORuleToIng,
 		GetParentRoutes:    SSORuleToIng,
 	}
-	NameSpaceNetworkInfos = GraphSchema{
+	NamespaceNetworkInfos = GraphSchema{
 		Type:               utils.NamespaceNetworkInfo,
 		GetParentGateways:  t1LRNSToGateway,
 		GetParentIngresses: t1LRNSToIngress,
@@ -146,7 +146,7 @@ var (
 		ServiceImport,
 		SSORule,
 		L4Rule,
-		NameSpaceNetworkInfos,
+		NamespaceNetworkInfos,
 	}
 )
 

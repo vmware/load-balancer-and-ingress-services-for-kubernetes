@@ -3072,7 +3072,7 @@ func fetchNetworkWithMarkerSet(client *clients.AviClient, usableNetworkNames []s
 func checkPublicCloud(client *clients.AviClient, returnErr *error) bool {
 	if lib.IsPublicCloud() {
 		// Handle all public cloud validations here
-		vipNetworkList := objects.SharedWCPLister().GetNetworkForNamespace()
+		vipNetworkList := utils.GetVipNetworkList()
 		if len(vipNetworkList) == 0 {
 			*returnErr = fmt.Errorf("vipNetworkList not specified, syncing will be disabled.")
 			return false

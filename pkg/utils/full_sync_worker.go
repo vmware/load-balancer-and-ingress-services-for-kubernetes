@@ -31,7 +31,7 @@ func NewFullSyncThread(interval time.Duration) *FullSyncThread {
 	return &FullSyncThread{
 		Stopped:       false,
 		ShutdownChan:  make(chan string),
-		QuickSyncChan: make(chan struct{}, 2),
+		QuickSyncChan: make(chan struct{}, 1),
 		Interval:      interval,
 	}
 }
