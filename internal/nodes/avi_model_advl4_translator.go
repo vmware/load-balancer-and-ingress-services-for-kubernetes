@@ -127,7 +127,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		Name:        lib.GetL4VSVipName(gatewayName, namespace),
 		Tenant:      lib.GetTenant(),
 		VrfContext:  vrfcontext,
-		VipNetworks: lib.GetVipNetworkList(),
+		VipNetworks: objects.SharedWCPLister().GetNetworkForNamespace(namespace),
 	}
 
 	if t1lr != "" {
@@ -246,7 +246,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		Tenant:      lib.GetTenant(),
 		VrfContext:  vrfcontext,
 		FQDNs:       fqdns,
-		VipNetworks: lib.GetVipNetworkList(),
+		VipNetworks: objects.SharedWCPLister().GetNetworkForNamespace(namespace),
 	}
 
 	if t1lr != "" {
@@ -256,10 +256,9 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 	if avi_vs_meta.EnableRhi != nil && *avi_vs_meta.EnableRhi {
 		vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
 	}
-
 	// configures VS and VsVip nodes using infraSetting object (via CRD).
 	if infraSetting, err := getL4InfraSetting(key, nil, &gw.Spec.GatewayClassName); err == nil {
-		buildWithInfraSetting(key, avi_vs_meta, vsVipNode, infraSetting)
+		buildWithInfraSetting(key, namespace, avi_vs_meta, vsVipNode, infraSetting)
 	}
 
 	if len(gw.Spec.Addresses) > 0 && gw.Spec.Addresses[0].Type == svcapiv1alpha1.IPAddressType {
@@ -508,7 +507,7 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 		Tenant:      lib.GetTenant(),
 		VrfContext:  lib.GetVrf(),
 		FQDNs:       fqdns,
-		VipNetworks: lib.GetVipNetworkList(),
+		VipNetworks: utils.GetVipNetworkList(),
 	}
 
 	if sharedPreferredVIP != "" {
@@ -522,7 +521,7 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 	// configures VS and VsVip nodes using infraSetting object (via CRD).
 	if serviceObject != nil {
 		if infraSetting, err := getL4InfraSetting(key, serviceObject, nil); err == nil {
-			buildWithInfraSetting(key, avi_vs_meta, vsVipNode, infraSetting)
+			buildWithInfraSetting(key, namespace, avi_vs_meta, vsVipNode, infraSetting)
 		}
 
 		// Copy the VS properties from L4Rule object

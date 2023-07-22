@@ -572,7 +572,7 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		if found {
 			// if vsNode already exists, check for updates via AviInfraSetting
 			if infraSetting != nil {
-				buildWithInfraSetting(key, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
+				buildWithInfraSetting(key, namespace, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 			}
 		}
 		// Only add this node to the list of models if the checksum has changed.

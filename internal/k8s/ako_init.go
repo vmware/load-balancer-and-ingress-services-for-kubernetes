@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"sort"
 	"strconv"
@@ -44,7 +43,6 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -359,18 +357,26 @@ func (c *AviController) ValidAviSecret() bool {
 		authToken := string(aviSecret.Data["authtoken"])
 		username := string(aviSecret.Data["username"])
 		password := string(aviSecret.Data["password"])
+		caData := string(aviSecret.Data["certificateAuthorityData"])
 		if username == "" || (password == "" && authToken == "") {
 			return false
 		}
 
-		var transport *http.Transport
-		if authToken == "" {
-			_, err = clients.NewAviClient(ctrlIP, username,
-				session.SetPassword(password), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
-		} else {
-			_, err = clients.NewAviClient(ctrlIP, username,
-				session.SetAuthToken(authToken), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
+		transport, isSecure := utils.GetHTTPTransportWithCert(caData)
+		options := []func(*session.AviSession) error{
+			session.SetNoControllerStatusCheck,
+			session.SetTransport(transport),
 		}
+		if !isSecure {
+			options = append(options, session.SetInsecure)
+		}
+		if authToken == "" {
+			options = append(options, session.SetPassword(password))
+
+		} else {
+			options = append(options, session.SetAuthToken(authToken))
+		}
+		_, err = clients.NewAviClient(ctrlIP, username, options...)
 		if err == nil {
 			utils.AviLog.Infof("Successfully connected to AVI controller using existing AKO secret")
 			return true
@@ -388,14 +394,22 @@ func (c *AviController) InitVCFHandlers(kubeClient kubernetes.Interface, ctrlCh 
 		utils.AviLog.Infof("SEgroup/CloudName name not found, waiting ..")
 		startSyncCh := make(chan struct{})
 		c.AddBootupNSEventHandler(stopCh, startSyncCh)
+		ticker := time.NewTicker(lib.FullSyncInterval * time.Second)
 	L1:
 		for {
 			select {
 			case <-startSyncCh:
 				lib.AviSEInitialized = true
+				ticker.Stop()
 				break L1
 			case <-ctrlCh:
 				return
+			case <-ticker.C:
+				if c.SetSEGroupCloudNameFromNSAnnotations() {
+					lib.AviSEInitialized = true
+					ticker.Stop()
+					break L1
+				}
 			}
 		}
 	}
@@ -405,6 +419,12 @@ func (c *AviController) InitVCFHandlers(kubeClient kubernetes.Interface, ctrlCh 
 	if err != nil {
 		utils.AviLog.Warnf("Failed to get ConfigMap, got err: %v", err)
 	}
+
+	clusterID := configmap.Data["clusterID"]
+	if clusterID == "" {
+		utils.AviLog.Fatalf("WCP Cluster ID not found in avi-k8s-config configmap")
+	}
+	lib.SetClusterID(clusterID)
 
 	controllerIP := configmap.Data["controllerIP"]
 	if controllerIP != "" {
@@ -422,55 +442,6 @@ func (c *AviController) InitVCFHandlers(kubeClient kubernetes.Interface, ctrlCh 
 	if err != nil {
 		utils.AviLog.Warnf("Error while fetching secret for AKO bootstrap %s", err)
 		lib.ShutdownApi()
-	}
-
-	c.AddNetworkInfoEventHandlers(stopCh)
-}
-
-func (c *AviController) AddNetworkInfoEventHandlers(stopCh <-chan struct{}) {
-	fetchNST1LR := func(obj interface{}) (string, string, bool) {
-		var ns, t1lr string
-		resourceObj := obj.(*unstructured.Unstructured)
-		ns = resourceObj.Object["metadata"].(map[string]interface{})["namespace"].(string)
-		topology, ok := resourceObj.Object["topology"]
-		if !ok {
-			utils.AviLog.Errorf("topology key not found in namespace network info object.")
-			return "", "", false
-		}
-		t1lr, ok = topology.(map[string]interface{})["gatewayPath"].(string)
-		if !ok || t1lr == "" {
-			utils.AviLog.Errorf("invalid gatewayPath found in namespace network info object.")
-			return "", "", false
-		}
-		return ns, t1lr, true
-	}
-
-	namespaceNetworkInfoHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			utils.AviLog.Debugf("Namespace NetworkInfo Add")
-			if ns, t1lr, found := fetchNST1LR(obj); found {
-				objects.SharedWCPLister().UpdateNamespaceTier1LrCache(ns, t1lr)
-			}
-		},
-		UpdateFunc: func(old, obj interface{}) {
-			utils.AviLog.Debugf("Namespace NetworkInfo Update")
-			if ns, t1lr, found := fetchNST1LR(obj); found {
-				objects.SharedWCPLister().UpdateNamespaceTier1LrCache(ns, t1lr)
-			}
-		},
-		DeleteFunc: func(obj interface{}) {
-			utils.AviLog.Debugf("Namespace NetworkInfo Delete")
-			namespace := obj.(*unstructured.Unstructured).Object["metadata"].(map[string]interface{})["namespace"].(string)
-			objects.SharedWCPLister().RemoveNamespaceTier1LrCache(namespace)
-		},
-	}
-	c.dynamicInformers.VCFNetworkInfoInformer.Informer().AddEventHandler(namespaceNetworkInfoHandler)
-
-	go c.dynamicInformers.VCFNetworkInfoInformer.Informer().Run(stopCh)
-	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.VCFNetworkInfoInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
-	} else {
-		utils.AviLog.Info("Caches synced for Namepsace NetworkInfo CRs.")
 	}
 }
 
@@ -535,6 +506,10 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		lib.ShutdownApi()
 	}
 	// Setup and start event handlers for objects.
+	if utils.IsVCFCluster() {
+		// Adding NetworkInfo handler first as Gateways need T1 LR info
+		c.AddNetworkInfoEventHandlers()
+	}
 	c.addIndexers()
 	c.Start(stopCh)
 
@@ -571,8 +546,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 
 	ctx, cancel := context.WithCancel(context.Background())
 	if lib.IsWCP() {
-		lib.AKOControlConfig().SetIsLeaderFlag(true)
-		c.cleanupStaleVSes()
+		c.OnStartedLeading()
 	} else {
 		// Leader election happens after populating controller cache and fullsynck8s.
 		leaderElector, err := utils.NewLeaderElector(informers.Cs, c.OnStartedLeading, c.OnStoppedLeading, c.OnNewLeader)

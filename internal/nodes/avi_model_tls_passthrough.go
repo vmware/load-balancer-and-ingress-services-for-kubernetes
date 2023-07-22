@@ -68,7 +68,7 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 		Tenant:      lib.GetTenant(),
 		FQDNs:       fqdns,
 		VrfContext:  vrfcontext,
-		VipNetworks: lib.GetVipNetworkList(),
+		VipNetworks: objects.SharedWCPLister().GetNetworkForNamespace(namespace),
 	}
 
 	if t1lr != "" {
@@ -225,7 +225,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 
 		passChildVS.VSVIPRefs = append(passChildVS.VSVIPRefs, secureSharedVS.VSVIPRefs...)
 		if infraSetting != nil {
-			buildWithInfraSetting(key, passChildVS, passChildVS.VSVIPRefs[0], infraSetting)
+			buildWithInfraSetting(key, namespace, passChildVS, passChildVS.VSVIPRefs[0], infraSetting)
 		}
 		secureSharedVS.PassthroughChildNodes = append(secureSharedVS.PassthroughChildNodes, passChildVS)
 

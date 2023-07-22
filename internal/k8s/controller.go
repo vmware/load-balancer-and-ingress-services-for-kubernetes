@@ -54,6 +54,7 @@ var ctrlonce sync.Once
 // +kubebuilder:rbac:groups=core,resources=endpoints,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;
 // +kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=topology.tanzu.vmware.com,resources=availabilityzones,verbs=get;list;watch
 
 type AviController struct {
 	worker_id uint32
@@ -1297,6 +1298,8 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 			go c.informers.IngressInformer.Informer().Run(stopCh)
 			informersList = append(informersList, c.informers.IngressInformer.Informer().HasSynced)
 		}
+		go c.dynamicInformers.VCFNetworkInfoInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.dynamicInformers.VCFNetworkInfoInformer.Informer().HasSynced)
 	}
 
 	// Disable all informers if we are in advancedL4 mode. We expect to only provide L4 load balancing capability for this feature.

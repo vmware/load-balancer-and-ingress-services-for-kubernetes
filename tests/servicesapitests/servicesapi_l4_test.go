@@ -1295,7 +1295,7 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 	}, 10*time.Second).Should(gomega.Equal("Rejected"))
 
 	// defaults to global seGroup and networkName.
-	netList := lib.GetVipNetworkList()
+	netList := utils.GetVipNetworkList()
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
 			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
@@ -1388,7 +1388,7 @@ func TestServicesAPInfraSettingDelete(t *testing.T) {
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 
 	// defaults to global seGroup and networkName.
-	netList := lib.GetVipNetworkList()
+	netList := utils.GetVipNetworkList()
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
 			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {

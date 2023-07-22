@@ -18,6 +18,7 @@ import (
 	"os"
 	"sync"
 
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -28,6 +29,7 @@ func SharedWCPLister() *WCPLister {
 	wcponce.Do(func() {
 		WCPInstance = &WCPLister{
 			NamespaceTier1LrCache: NewObjectMapStore(),
+			NamespaceNetworkCache: NewObjectMapStore(),
 		}
 	})
 	return WCPInstance
@@ -36,6 +38,7 @@ func SharedWCPLister() *WCPLister {
 type WCPLister struct {
 	// namespace -> tier1lr
 	NamespaceTier1LrCache *ObjectMapStore
+	NamespaceNetworkCache *ObjectMapStore
 }
 
 func (w *WCPLister) UpdateNamespaceTier1LrCache(namespace, t1lr string) {
@@ -58,4 +61,26 @@ func (w *WCPLister) GetT1LrForNamespace(namespace ...string) string {
 		}
 	}
 	return os.Getenv("NSXT_T1_LR")
+}
+
+func (w *WCPLister) UpdateNamespaceNetworkCache(namespace, networkName string) {
+	w.NamespaceNetworkCache.AddOrUpdate(namespace, networkName)
+}
+
+func (w *WCPLister) RemoveNamespaceNetworkCache(namespace string) {
+	w.NamespaceNetworkCache.Delete(namespace)
+}
+
+func (w *WCPLister) GetNetworkForNamespace(namespace ...string) []akov1alpha1.AviInfraSettingVipNetwork {
+	if utils.IsVCFCluster() && len(namespace) > 0 {
+		found, networkName := w.NamespaceNetworkCache.Get(namespace[0])
+		if found {
+			return []akov1alpha1.AviInfraSettingVipNetwork{
+				{
+					NetworkName: networkName.(string),
+				},
+			}
+		}
+	}
+	return utils.GetVipNetworkList()
 }

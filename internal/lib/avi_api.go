@@ -15,10 +15,7 @@
 package lib
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"errors"
-	"net/http"
 	"strings"
 
 	apimodels "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
@@ -42,7 +39,7 @@ func AviGetCollectionRaw(client *clients.AviClient, uri string, retryNum ...int)
 	result, err := client.AviSession.GetCollectionRaw(uri)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to fetch collection data from uri %s %v", uri, err)
-		checkForInvalidCredentials(uri, err)
+		CheckForInvalidCredentials(uri, err)
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
 			return session.AviCollectionResult{}, err
 		}
@@ -72,12 +69,12 @@ func AviGet(client *clients.AviClient, uri string, response interface{}, retryNu
 			SetTenant := session.SetTenant(GetTenant())
 			SetAdminTenant(client.AviSession)
 			defer SetTenant(client.AviSession)
-			if err := AviGet(client, uri, response); err != nil {
+			if err := AviGet(client, uri, response, retry+1); err != nil {
 				utils.AviLog.Warnf("msg: Unable to fetch data from uri %s %v after context switch", uri, err)
 				return err
 			}
 		}
-		checkForInvalidCredentials(uri, err)
+		CheckForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
 			return err
@@ -102,7 +99,7 @@ func AviGetRaw(client *clients.AviClient, uri string, retryNum ...int) ([]byte, 
 	rawData, err := client.AviSession.GetRaw(uri)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to fetch data from uri %s %v", uri, err)
-		checkForInvalidCredentials(uri, err)
+		CheckForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
 		if aviError, ok := err.(session.AviError); ok {
 			if aviError.HttpStatusCode == 403 ||
@@ -141,7 +138,7 @@ func AviPut(client *clients.AviClient, uri string, payload interface{}, response
 				return err
 			}
 		}
-		checkForInvalidCredentials(uri, err)
+		CheckForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 400 {
 			return err
@@ -177,7 +174,7 @@ func AviPost(client *clients.AviClient, uri string, payload interface{}, respons
 				return err
 			}
 		}
-		checkForInvalidCredentials(uri, err)
+		CheckForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
 			return err
@@ -208,12 +205,12 @@ func AviDelete(client *clients.AviClient, uri string, retryNum ...int) error {
 			SetTenant := session.SetTenant(GetTenant())
 			SetAdminTenant(client.AviSession)
 			defer SetTenant(client.AviSession)
-			if err := AviDelete(client, uri); err != nil {
+			if err := AviDelete(client, uri, retry+1); err != nil {
 				utils.AviLog.Warnf("msg: Unable to execute Post on uri %s %v after context switch", uri, err)
 				return err
 			}
 		}
-		checkForInvalidCredentials(uri, err)
+		CheckForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
 			return err
@@ -225,32 +222,28 @@ func AviDelete(client *clients.AviClient, uri string, retryNum ...int) error {
 	return nil
 }
 
-func checkForInvalidCredentials(uri string, err error) {
+func CheckForInvalidCredentials(uri string, err error) {
 	if err == nil {
 		return
 	}
-
 	if webSyncErr, ok := err.(*utils.WebSyncError); ok {
-		aviError, ok := webSyncErr.GetWebAPIError().(session.AviError)
-		if ok && aviError.HttpStatusCode == 401 {
-			if strings.Contains(*aviError.Message, "Invalid credentials") {
-				if utils.IsVCFCluster() {
-					WaitForInitSecretRecreateAndReboot()
-					return
-				}
-
-				utils.AviLog.Errorf("msg: Invalid credentials error for API request: %s, Shutting down API Server", uri)
-				ShutdownApi()
+		err = webSyncErr.GetWebAPIError()
+	}
+	aviError, ok := err.(session.AviError)
+	if ok && aviError.HttpStatusCode == 401 {
+		if strings.Contains(*aviError.Message, "Invalid credentials") {
+			if utils.IsVCFCluster() {
+				WaitForInitSecretRecreateAndReboot()
+				return
 			}
+
+			utils.AviLog.Errorf("msg: Invalid credentials error for API request: %s, Shutting down API Server", uri)
+			ShutdownApi()
 		}
 	}
 }
 
 func NewAviRestClientWithToken(api_ep, username, authToken, cadata string) *clients.AviClient {
-	var aviClient *clients.AviClient
-	var transport *http.Transport
-	var err error
-
 	ctrlIpAddress := GetControllerIP()
 	if username == "" || authToken == "" || ctrlIpAddress == "" {
 		var authTokenLog string
@@ -265,21 +258,16 @@ func NewAviRestClientWithToken(api_ep, username, authToken, cadata string) *clie
 		utils.AviLog.Fatalf("Avi Controller information missing (username: %s, authToken: %s, controller: %s). Update them in avi-secret.", username, authTokenLog, ctrlIpAddress)
 	}
 
-	rootPEMCerts := cadata
-	if rootPEMCerts != "" {
-		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM([]byte(rootPEMCerts))
-
-		transport =
-			&http.Transport{
-				TLSClientConfig: &tls.Config{
-					RootCAs: caCertPool,
-				},
-			}
-		aviClient, err = clients.NewAviClient(api_ep, username, session.SetAuthToken(authToken), session.SetNoControllerStatusCheck, session.SetTransport(transport))
-	} else {
-		aviClient, err = clients.NewAviClient(api_ep, username, session.SetAuthToken(authToken), session.SetNoControllerStatusCheck, session.SetTransport(transport), session.SetInsecure)
+	transport, isSecure := utils.GetHTTPTransportWithCert(cadata)
+	options := []func(*session.AviSession) error{
+		session.SetNoControllerStatusCheck,
+		session.SetTransport(transport),
+		session.SetAuthToken(authToken),
 	}
+	if !isSecure {
+		options = append(options, session.SetInsecure)
+	}
+	aviClient, err := clients.NewAviClient(api_ep, username, options...)
 	if err != nil {
 		utils.AviLog.Warnf("NewAviClient returned err %v", err)
 		return nil

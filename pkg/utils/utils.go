@@ -36,6 +36,7 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
 	akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions"
 )
@@ -600,4 +601,14 @@ func IsSecretsHandlingRestrictedToAKONS() bool {
 		return false
 	}
 	return ok
+}
+
+var VipNetworkList []akov1alpha1.AviInfraSettingVipNetwork
+
+func SetVipNetworkList(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork) {
+	VipNetworkList = vipNetworks
+}
+
+func GetVipNetworkList() []akov1alpha1.AviInfraSettingVipNetwork {
+	return VipNetworkList
 }

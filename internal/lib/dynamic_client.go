@@ -73,6 +73,12 @@ var (
 		Version:  "v1alpha1",
 		Resource: "clusternetworkinfos",
 	}
+
+	AvailabilityZoneVR = schema.GroupVersionResource{
+		Group:    "topology.tanzu.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "availabilityzones",
+	}
 )
 
 type BootstrapCRData struct {
@@ -119,6 +125,8 @@ type DynamicInformers struct {
 
 	VCFNetworkInfoInformer    informers.GenericInformer
 	VCFClusterNetworkInformer informers.GenericInformer
+
+	AvailabilityZoneInformer informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
@@ -141,6 +149,7 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 		informers.VCFNetworkInfoInformer = f.ForResource(NetworkInfoGVR)
 		if akoInfra {
 			informers.VCFClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
+			informers.AvailabilityZoneInformer = f.ForResource(AvailabilityZoneVR)
 		}
 	}
 
@@ -157,9 +166,9 @@ func GetDynamicInformers() *DynamicInformers {
 	return dynamicInformerInstance
 }
 
-func GetNetworkInfoCRData(clientSet dynamic.Interface) (map[string]string, map[string]struct{}) {
+func GetNetworkInfoCRData(clientSet dynamic.Interface) (map[string]string, map[string]map[string]struct{}) {
 	lslrMap := make(map[string]string)
-	cidrs := make(map[string]struct{})
+	cidrs := make(map[string]map[string]struct{})
 
 	crList, err := clientSet.Resource(NetworkInfoGVR).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
@@ -173,6 +182,7 @@ func GetNetworkInfoCRData(clientSet dynamic.Interface) (map[string]string, map[s
 	}
 
 	for _, obj := range crList.Items {
+		ns := obj.GetNamespace()
 		spec := obj.Object["topology"].(map[string]interface{})
 		lr, ok := spec["gatewayPath"].(string)
 		if !ok {
@@ -193,14 +203,47 @@ func GetNetworkInfoCRData(clientSet dynamic.Interface) (map[string]string, map[s
 			if cidrIntf, clusterNetworkCIDRFound = GetClusterNetworkInfoCRData(clientSet); !clusterNetworkCIDRFound {
 				continue
 			}
+			// Set the namespace to cluster name for the cluster ingress cidr
+			ns = GetClusterName()
 			utils.AviLog.Infof("Ingress CIDR found from Cluster Network Info %v", cidrIntf)
 		}
 		for _, cidr := range cidrIntf {
-			cidrs[cidr.(string)] = struct{}{}
+			if _, ok := cidrs[ns]; !ok {
+				cidrs[ns] = make(map[string]struct{})
+			}
+			cidrMap := cidrs[ns]
+			cidrMap[cidr.(string)] = struct{}{}
 		}
 	}
 
 	return lslrMap, cidrs
+}
+
+func GetAvailabilityZonesCRData(clientSet dynamic.Interface) ([]string, error) {
+	clusterIDs := make([]string, 0)
+	crList, err := clientSet.Resource(AvailabilityZoneVR).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		utils.AviLog.Errorf("Error getting Availability Zone CR %v", err)
+		return clusterIDs, err
+	}
+	if len(crList.Items) == 0 {
+		return clusterIDs, fmt.Errorf("no Availability Zone CRs found")
+	}
+
+	for _, obj := range crList.Items {
+		spec, ok := obj.Object["spec"].(map[string]interface{})
+		if !ok {
+			utils.AviLog.Errorf("spec not found in the CR %+v", obj)
+			continue
+		}
+		clusterID, ok := spec["clusterComputeResourceMoId"].(string)
+		if !ok {
+			utils.AviLog.Errorf("Cluster MoID not found in the CR %+v", obj)
+			continue
+		}
+		clusterIDs = append(clusterIDs, clusterID)
+	}
+	return clusterIDs, nil
 }
 
 func GetClusterNetworkInfoCRData(clientSet dynamic.Interface) ([]interface{}, bool) {

@@ -24,10 +24,10 @@ var infraAviClientInstance *clients.AviClient
 var ctrlClientOnce sync.Once
 
 func InfraAviClientInstance(c ...*clients.AviClient) *clients.AviClient {
-	ctrlClientOnce.Do(func() {
-		if len(c) > 0 {
+	if len(c) > 0 {
+		ctrlClientOnce.Do(func() {
 			infraAviClientInstance = c[0]
-		}
-	})
+		})
+	}
 	return infraAviClientInstance
 }
