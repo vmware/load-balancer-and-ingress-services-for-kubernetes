@@ -1177,6 +1177,8 @@ func TestSvcExtDNSAddition(t *testing.T) {
 	g.Expect(nodes[0].ServiceMetadata.HostNames[0]).To(gomega.Equal(EXTDNSANNOTATION))
 	os.Setenv("AUTO_L4_FQDN", "disable")
 	TearDownTestForSvcLBWithExtDNS(t, g)
+}
+
 func TestLBSvcCreationMixedProtocol(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForSvcLBMixedProtocol(t, corev1.ProtocolTCP, corev1.ProtocolUDP, corev1.ProtocolSCTP)
