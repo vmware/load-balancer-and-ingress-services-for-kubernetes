@@ -25,13 +25,14 @@ import (
 )
 
 func DequeueIngestion(key string, fullsync bool) {
+	utils.AviLog.Infof("key: %s, msg: starting graph Sync", key)
 	objType, namespace, name := lib.ExtractTypeNameNamespace(key)
 
 	schema, valid := ConfigDescriptor().GetByType(objType)
 	if !valid {
 		return
 	}
-	gatewayList, found := schema.GetGateways(name, namespace, key)
+	gatewayList, found := schema.GetGateways(namespace, name, key)
 	if !found {
 		//returning due to error, cannot delete or update
 		utils.AviLog.Errorf("key: %s, got error while getting k8s object", key)
@@ -43,10 +44,16 @@ func DequeueIngestion(key string, fullsync bool) {
 func handleGateways(gatewayList []string, fullsync bool, key string) {
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	for _, gateway := range gatewayList {
-		_, namespace, name := lib.ExtractTypeNameNamespace(gateway)
+		utils.AviLog.Debugf("key: %s, msg: processing gateway: %s", key, gateway)
+		namespace, _, name := lib.ExtractTypeNameNamespace(gateway)
 
 		modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(namespace, name))
 		modelFound, _ := objects.SharedAviGraphLister().Get(modelName)
+		if modelFound {
+			utils.AviLog.Debugf("key: %s, msg: found model: %s", key, modelName)
+		} else {
+			utils.AviLog.Debugf("key: %s, msg: no model found: %s", key, modelName)
+		}
 
 		gatewayObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).Get(name)
 		if err != nil {
@@ -54,6 +61,7 @@ func handleGateways(gatewayList []string, fullsync bool, key string) {
 				utils.AviLog.Infof("key: %s, got error while getting gateway class: %v", key, err)
 				continue
 			}
+			utils.AviLog.Debugf("key: %s, msg: gateway not found: %s/%s", key, namespace, name)
 			if modelFound {
 				objects.SharedAviGraphLister().Save(modelName, nil)
 				if !fullsync {
@@ -64,15 +72,18 @@ func handleGateways(gatewayList []string, fullsync bool, key string) {
 			continue
 		}
 		gwClass := string(gatewayObj.Spec.GatewayClassName)
+		utils.AviLog.Debugf("key: %s, msg: fetching gateway class %s for gateway: %s/%s", key, gwClass, namespace, name)
 		found, isAkoCtrl := akogatewayapiobjects.GatewayApiLister().IsGatewayClassControllerAKO(gwClass)
 		if !found {
 			//gateway class deleted
+			utils.AviLog.Debugf("key: %s, msg: gateway class not found: %s", key, gwClass)
 			objects.SharedAviGraphLister().Save(modelName, nil)
 			if !fullsync {
 				nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
 			}
 			continue
 		}
+		utils.AviLog.Debugf("key: %s, msg: fetching gateway class found: %s", key, gwClass)
 		if !isAkoCtrl {
 			//AKO is not the controller, do not build model
 			utils.AviLog.Infof("key: %s, msg: Controller is not AKO for %s, not building VS model", key, modelName)
@@ -80,8 +91,12 @@ func handleGateways(gatewayList []string, fullsync bool, key string) {
 		}
 		aviModelGraph := NewAviObjectGraph()
 		aviModelGraph.BuildGatewayVs(gatewayObj, key)
-		if len(aviModelGraph.GetOrderedNodes()) > 0 {
-			ok := saveAviModel(modelName, aviModelGraph, key)
+		aviModelGraph.CalculateCheckSum()
+
+		//extracting the embedded graph after vs is built
+		aviModel := aviModelGraph.AviObjectGraph
+		if len(aviModel.GetOrderedNodes()) > 0 {
+			ok := saveAviModel(modelName, aviModel, key)
 			if ok && !fullsync {
 				utils.AviLog.Infof("key: %s, msg: Published key with modelName: %s", key, modelName)
 				nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
@@ -90,7 +105,7 @@ func handleGateways(gatewayList []string, fullsync bool, key string) {
 	}
 }
 
-func saveAviModel(modelName string, aviGraph *AviObjectGraph, key string) bool {
+func saveAviModel(modelName string, aviGraph *nodes.AviObjectGraph, key string) bool {
 	utils.AviLog.Debugf("key: %s, msg: Evaluating model :%s", key, modelName)
 	if lib.DisableSync {
 		// Note: This is not thread safe, however locking is expensive and the condition for locking should happen rarely
@@ -99,7 +114,7 @@ func saveAviModel(modelName string, aviGraph *AviObjectGraph, key string) bool {
 	}
 	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found && aviModel != nil {
-		prevChecksum := aviModel.(*AviObjectGraph).GraphChecksum
+		prevChecksum := aviModel.(*nodes.AviObjectGraph).GraphChecksum
 		utils.AviLog.Debugf("key: %s, msg: the model: %s has a previous checksum: %v", key, modelName, prevChecksum)
 		presentChecksum := aviGraph.GetCheckSum()
 		utils.AviLog.Debugf("key: %s, msg: the model: %s has a present checksum: %v", key, modelName, presentChecksum)
