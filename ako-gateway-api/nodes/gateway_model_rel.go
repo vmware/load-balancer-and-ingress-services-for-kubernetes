@@ -90,6 +90,9 @@ func GatewayClassGetGw(namespace, name, key string) ([]string, bool) {
 		akogatewayapiobjects.GatewayApiLister().DeleteGatewayClass(name)
 	} else {
 		isAKOController := akogatewayapilib.CheckGatewayClassController(controllerName)
+		if isAKOController {
+			utils.AviLog.Debugf("key: %s, controller is AKO", key)
+		}
 		akogatewayapiobjects.GatewayApiLister().UpdateGatewayClass(name, isAKOController)
 	}
 	return akogatewayapiobjects.GatewayApiLister().GetGatewayClassToGateway(name), true

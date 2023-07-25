@@ -81,6 +81,8 @@ func Initialize() {
 	_ = lib.AKOControlConfig()
 	lib.SetAKOUser(akogatewaylib.Prefix)
 	lib.SetNamePrefix(akogatewaylib.Prefix)
+	//TODO handle leader logic, must not be used with HA
+	lib.AKOControlConfig().SetIsLeaderFlag(true)
 
 	gwApiClient, err := gatewayclientset.NewForConfig(cfg)
 	if err != nil {
@@ -133,6 +135,9 @@ func Initialize() {
 		akoControlConfig.PodEventf(corev1.EventTypeWarning, lib.AKOShutdown, "Avi Controller Cluster state is not Active")
 		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO")
 	}
+	//TODO read from config map
+	c.DisableSync = false
+	lib.SetDisableSync(c.DisableSync)
 
 	waitGroupMap := make(map[string]*sync.WaitGroup)
 	wgIngestion := &sync.WaitGroup{}

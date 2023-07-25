@@ -325,6 +325,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: serviceEngineGroupName
+          - name: FULL_SYNC_INTERVAL
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: fullSyncFrequency
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
         {{ end }}
