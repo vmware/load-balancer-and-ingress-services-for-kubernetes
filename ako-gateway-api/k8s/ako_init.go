@@ -29,6 +29,8 @@ import (
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	akogatewayapinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/nodes"
+	akogatewayapistatus "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/status"
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -36,14 +38,12 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/retry"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 func (c *GatewayController) InitController(informers k8s.K8sinformers, registeredInformers []string, ctrlCh <-chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}, waitGroupMap ...map[string]*sync.WaitGroup) {
 	// set up signals so we handle the first shutdown signal gracefully
 	var worker *utils.FullSyncThread
-	var tokenWorker *utils.FullSyncThread
 	informersArg := make(map[string]interface{})
 
 	c.informers = utils.NewInformers(utils.KubeClientIntf{ClientSet: informers.Cs}, registeredInformers, informersArg)
@@ -133,14 +133,6 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 	c.SetupEventHandlers(informers)
 	c.SetupGatewayApiEventHandlers(numWorkers)
 
-	if ctrlAuthToken, ok := utils.SharedCtrlProp().AviCacheGet(utils.ENV_CTRL_AUTHTOKEN); ok && ctrlAuthToken != nil && ctrlAuthToken.(string) != "" {
-		c.RefreshAuthToken()
-	}
-	if ctrlAuthToken, ok := utils.SharedCtrlProp().AviCacheGet(utils.ENV_CTRL_AUTHTOKEN); ok && ctrlAuthToken != nil && ctrlAuthToken.(string) != "" {
-		tokenWorker = utils.NewFullSyncThread(time.Duration(utils.RefreshAuthTokenInterval) * time.Hour)
-		tokenWorker.SyncFunction = c.RefreshAuthToken
-		go tokenWorker.Run()
-	}
 	if lib.DisableSync {
 		akogatewayapilib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigSet, "AKO is in disable sync state")
 	} else {
@@ -217,7 +209,7 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 			resVer := meta.GetResourceVersion()
 			objects.SharedResourceVerInstanceLister().Save(key, resVer)
 		}
-		nodes.DequeueIngestion(key, true)
+		akogatewayapinodes.DequeueIngestion(key, true)
 	}
 
 	//Gateway Section
@@ -235,7 +227,7 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 		key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
 		//TODO
 		//InformerStatusUpdatesForGateway(key, gatewayObj)
-		nodes.DequeueIngestion(key, true)
+		akogatewayapinodes.DequeueIngestion(key, true)
 	}
 
 	gwClassObjs, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
@@ -245,7 +237,7 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 	}
 	for _, gwClassObj := range gwClassObjs {
 		key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
-		nodes.DequeueIngestion(key, true)
+		akogatewayapinodes.DequeueIngestion(key, true)
 	}
 
 	if sync {
@@ -361,7 +353,7 @@ func SyncFromIngestionLayer(key interface{}, wg *sync.WaitGroup) error {
 		utils.AviLog.Warnf("Unexpected object type: expected string, got %T", key)
 		return nil
 	}
-	nodes.DequeueIngestion(keyStr, false)
+	akogatewayapinodes.DequeueIngestion(keyStr, false)
 	return nil
 }
 func SyncFromFastRetryLayer(key interface{}, wg *sync.WaitGroup) error {
@@ -384,8 +376,7 @@ func SyncFromSlowRetryLayer(key interface{}, wg *sync.WaitGroup) error {
 	return nil
 }
 func SyncFromStatusQueue(key interface{}, wg *sync.WaitGroup) error {
-	publisher := status.NewStatusPublisher()
-	publisher.DequeueStatus(key)
+	akogatewayapistatus.DequeueStatus(key)
 	return nil
 }
 

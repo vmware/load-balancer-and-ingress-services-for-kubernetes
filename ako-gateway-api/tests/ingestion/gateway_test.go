@@ -12,7 +12,7 @@
 * limitations under the License.
 */
 
-package tests
+package ingestion
 
 import (
 	"context"
@@ -21,8 +21,9 @@ import (
 	"testing"
 	"time"
 
-	gwk8s "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/k8s"
+	akogatewayapik8s "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/k8s"
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/tests"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -30,8 +31,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
-	gwfake "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/fake"
+	gatewayfake "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/fake"
 )
+
+var KubeClient *k8sfake.Clientset
+var GatewayClient *gatewayfake.Clientset
+var keyChan chan string
+var ctrl *akogatewayapik8s.GatewayController
 
 func waitAndverify(t *testing.T, key string) {
 	waitChan := make(chan int)
@@ -74,7 +80,7 @@ func setupQueue(stopCh <-chan struct{}) {
 
 func TestMain(m *testing.M) {
 	KubeClient = k8sfake.NewSimpleClientset()
-	GatewayClient = gwfake.NewSimpleClientset()
+	GatewayClient = gatewayfake.NewSimpleClientset()
 
 	os.Setenv("CLUSTER_NAME", "cluster")
 	os.Setenv("CLOUD_NAME", "CLOUD_VCENTER")
@@ -88,14 +94,14 @@ func TestMain(m *testing.M) {
 		utils.EndpointInformer,
 		utils.SecretInformer,
 		utils.NSInformer,
-		utils.ConfigMapInformer,
 	}
 	args := make(map[string]interface{})
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers, args)
-	integrationtest.InitializeFakeAKOAPIServer()
 
+	integrationtest.InitializeFakeAKOAPIServer()
 	defer integrationtest.AviFakeClientInstance.Close()
-	ctrl = gwk8s.SharedGatewayController()
+
+	ctrl = akogatewayapik8s.SharedGatewayController()
 	ctrl.InitGatewayAPIInformers(GatewayClient)
 
 	stopCh := utils.SetupSignalHandler()
@@ -124,9 +130,9 @@ func TestGatewayCUD(t *testing.T) {
 		Spec:   gatewayv1beta1.GatewaySpec{},
 		Status: gatewayv1beta1.GatewayStatus{},
 	}
-	SetGatewayGatewayClass(&gateway, "gw-class-example")
-	AddGatewayListener(&gateway, "listener-example", 80, gatewayv1beta1.HTTPProtocolType, false)
-	SetListenerHostname(&gateway.Spec.Listeners[0], "foo.example.com")
+	tests.SetGatewayGatewayClass(&gateway, "gw-class-example")
+	tests.AddGatewayListener(&gateway, "listener-example", 80, gatewayv1beta1.HTTPProtocolType, false)
+	tests.SetListenerHostname(&gateway.Spec.Listeners[0], "foo.example.com")
 
 	//create
 	gw, err := GatewayClient.GatewayV1beta1().Gateways("default").Create(context.TODO(), &gateway, metav1.CreateOptions{})
@@ -137,7 +143,7 @@ func TestGatewayCUD(t *testing.T) {
 	waitAndverify(t, "Gateway/default/gw-example")
 
 	//update
-	SetGatewayGatewayClass(&gateway, "gw-class-new")
+	tests.SetGatewayGatewayClass(&gateway, "gw-class-new")
 	gw, err = GatewayClient.GatewayV1beta1().Gateways("default").Update(context.TODO(), &gateway, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't update, err: %+v", err)
