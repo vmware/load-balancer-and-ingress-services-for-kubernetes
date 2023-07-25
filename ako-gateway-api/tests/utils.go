@@ -144,8 +144,9 @@ type Gateway struct {
 func (g *Gateway) GatewayV1Beta1(name, namespace, gatewayClass string, address []gatewayv1beta1.GatewayAddress, listeners []gatewayv1beta1.Listener) *gatewayv1beta1.Gateway {
 	gateway := &gatewayv1beta1.Gateway{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name:            name,
+			Namespace:       namespace,
+			ResourceVersion: time.Now().Local().String(),
 		},
 		Spec: gatewayv1beta1.GatewaySpec{
 			GatewayClassName: gatewayv1beta1.ObjectName(gatewayClass),
@@ -264,8 +265,9 @@ type HTTPRoute struct {
 func (hr *HTTPRoute) HTTPRouteV1Beta1(name, namespace string, parentRefs []gatewayv1beta1.ParentReference, hostnames []gatewayv1beta1.Hostname, rules []gatewayv1beta1.HTTPRouteRule) *gatewayv1beta1.HTTPRoute {
 	httpRoute := &gatewayv1beta1.HTTPRoute{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name:            name,
+			Namespace:       namespace,
+			ResourceVersion: time.Now().Local().String(),
 		},
 		Spec: gatewayv1beta1.HTTPRouteSpec{
 			CommonRouteSpec: gatewayv1beta1.CommonRouteSpec{

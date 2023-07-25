@@ -478,7 +478,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			}
 			oldGw := old.(*gatewayv1beta1.Gateway)
 			gw := obj.(*gatewayv1beta1.Gateway)
-			if !reflect.DeepEqual(oldGw.Spec, gw.Spec) || gw.GetDeletionTimestamp() != nil {
+			if IsGatewayUpdated(oldGw, gw) {
 				key := lib.Gateway + "/" + utils.ObjKey(gw)
 				if !IsValidGateway(key, gw) {
 					return
@@ -618,8 +618,22 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 	informer.HTTPRouteInformer.Informer().AddEventHandler(httpRouteEventHandler)
 }
 
+func IsGatewayUpdated(oldGateway, newGateway *gatewayv1beta1.Gateway) bool {
+	if oldGateway.ResourceVersion != newGateway.ResourceVersion ||
+		newGateway.GetDeletionTimestamp() != nil {
+		return true
+	}
+	oldHash := utils.Hash(utils.Stringify(oldGateway.Spec))
+	newHash := utils.Hash(utils.Stringify(newGateway.Spec))
+	return oldHash != newHash
+}
+
 func IsHTTPRouteUpdated(oldHTTPRoute, newHTTPRoute *gatewayv1beta1.HTTPRoute) bool {
+	if oldHTTPRoute.ResourceVersion != newHTTPRoute.ResourceVersion ||
+		newHTTPRoute.GetDeletionTimestamp() != nil {
+		return true
+	}
 	oldHash := utils.Hash(utils.Stringify(oldHTTPRoute.Spec))
 	newHash := utils.Hash(utils.Stringify(newHTTPRoute.Spec))
-	return oldHash != newHash || newHTTPRoute.GetDeletionTimestamp() != nil
+	return oldHash != newHash
 }

@@ -252,7 +252,7 @@ func validateParentReference(key string, httpRoute *gatewayv1beta1.HTTPRoute, ht
 	i := akogatewayapilib.FindListenerByName(string(listenerName), gateway.Spec.Listeners)
 	if i == -1 {
 		// listener is not present in gateway
-		utils.AviLog.Errorf("key: %s, msg: not able to find the listener from the Section Name %s in Parent Reference %s", key, name, listenerName)
+		utils.AviLog.Errorf("key: %s, msg: unable to find the listener from the Section Name %s in Parent Reference %s", key, name, listenerName)
 		err := fmt.Errorf("Invalid listener name provided")
 		defaultCondition.
 			Message(err.Error()).
