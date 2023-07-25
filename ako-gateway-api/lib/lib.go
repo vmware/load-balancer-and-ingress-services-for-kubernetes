@@ -36,7 +36,8 @@ func InformersToRegister(kclient *kubernetes.Clientset) ([]string, error) {
 
 func GetGatewayParentName(namespace, gwName string) string {
 	//clustername > gateway namespace > Gateway-name
-	return lib.GetNamePrefix() + namespace + "-" + gwName
+	//Adding -EVH prefix to reuse rest layer
+	return lib.GetNamePrefix() + namespace + "-" + gwName + "-EVH"
 }
 
 func CheckGatewayClassController(controllerName string) bool {
