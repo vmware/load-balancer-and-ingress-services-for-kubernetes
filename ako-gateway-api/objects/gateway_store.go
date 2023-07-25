@@ -91,54 +91,6 @@ func (g *GWLister) GetGatewayClassToGateway(gwClass string) []string {
 	return gatewayList.([]string)
 }
 
-// do not use, instead use UpdateGatewayToGatewayClass
-func (g *GWLister) updateGatewayClassToGateway(gwClass, ns, gw string) {
-	g.gwLock.Lock()
-	defer g.gwLock.Unlock()
-
-	_, gatewayList := g.gatewayClassToGatewayStore.Get(gwClass)
-	gatewayListObj := gatewayList.([]string)
-	gwObj := getKeyForGateway(ns, gw)
-
-	found := utils.HasElem(gatewayListObj, gwObj)
-	if !found {
-		gatewayListObj = append(gatewayListObj, gwObj)
-		g.gatewayClassToGatewayStore.AddOrUpdate(gwClass, gatewayListObj)
-
-	}
-}
-
-// do not use, instead use DeleteGatewayToGatewayClass
-func (g *GWLister) removeGatewayClassToGateway(gwClass, ns, gw string) {
-	g.gwLock.Lock()
-	defer g.gwLock.Unlock()
-
-	_, gatewayList := g.gatewayClassToGatewayStore.Get(gwClass)
-	gatewayListObj := gatewayList.([]string)
-	gwObj := getKeyForGateway(ns, gw)
-
-	found := utils.HasElem(gatewayListObj, gwObj)
-	if found {
-		utils.Remove(gatewayListObj, gwObj)
-		g.gatewayClassToGatewayStore.AddOrUpdate(gwClass, gatewayListObj)
-	}
-}
-
-func (g *GWLister) deleteGatewayClassToGateway(gwClass string) {
-
-	_, gatewayList := g.gatewayClassToGatewayStore.Get(gwClass)
-	gatewayListObj := gatewayList.([]string)
-	for _, key := range gatewayListObj {
-		//DeleteGatewayToGatewayClass
-
-		found, _ := g.gatewayToGatewayClassStore.Get(key)
-		if found {
-			g.gatewayToGatewayClassStore.Delete(key)
-		}
-	}
-	g.gatewayClassToGatewayStore.Delete(gwClass)
-}
-
 func (g *GWLister) GetGatewayToGatewayClass(ns, gw string) string {
 	g.gwLock.RLock()
 	defer g.gwLock.RUnlock()
@@ -163,11 +115,13 @@ func (g *GWLister) UpdateGatewayToGatewayClass(ns, gw, gwClass string) {
 			g.gatewayClassToGatewayStore.AddOrUpdate(oldGwClassObj, gatewayListObj)
 		}
 	}
-
 	g.gatewayToGatewayClassStore.AddOrUpdate(key, gwClass)
-	_, gatewayList := g.gatewayClassToGatewayStore.Get(gwClass)
+	found, gatewayList := g.gatewayClassToGatewayStore.Get(gwClass)
+	if !found {
+		gatewayList = make([]string, 0)
+	}
 	gatewayListObj := gatewayList.([]string)
-	if !utils.HasElem(gatewayListObj, gw) {
+	if !utils.HasElem(gatewayListObj, key) {
 		gatewayListObj = append(gatewayListObj, key)
 		g.gatewayClassToGatewayStore.AddOrUpdate(gwClass, gatewayListObj)
 	}

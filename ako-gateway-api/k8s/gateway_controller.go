@@ -249,15 +249,6 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 
 	secretEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			if lib.IsIstioEnabled() {
-				secret := obj.(*corev1.Secret)
-				if secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.IstioSecret {
-					key := utils.Secret + "/" + utils.GetAKONamespace() + "/" + lib.IstioSecret
-					bkt := utils.Bkt(utils.GetAKONamespace(), numWorkers)
-					c.workqueue[bkt].AddRateLimited(key)
-					utils.AviLog.Debugf("key: %s, msg: ADD", key)
-				}
-			}
 			if c.DisableSync {
 				return
 			}
@@ -273,12 +264,6 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 		},
 		DeleteFunc: func(obj interface{}) {
-			if lib.IsIstioEnabled() {
-				secret := obj.(*corev1.Secret)
-				if secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.IstioSecret {
-					utils.AviLog.Warnf("Istio secret deleted")
-				}
-			}
 			if c.DisableSync {
 				return
 			}
@@ -308,15 +293,6 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 			}
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			if lib.IsIstioEnabled() {
-				secret := cur.(*corev1.Secret)
-				if secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.IstioSecret {
-					key := utils.Secret + "/" + utils.GetAKONamespace() + "/" + lib.IstioSecret
-					bkt := utils.Bkt(utils.GetAKONamespace(), numWorkers)
-					c.workqueue[bkt].AddRateLimited(key)
-					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-				}
-			}
 			if c.DisableSync {
 				return
 			}
