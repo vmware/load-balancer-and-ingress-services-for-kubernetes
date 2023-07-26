@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
@@ -44,7 +44,7 @@ func (o *gateway) Get(key string, option status.StatusOptions) *gatewayv1beta1.G
 	namespace := nsName[0]
 	name := nsName[1]
 
-	gw, err := lib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).Get(name)
+	gw, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).Get(name)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: unable to get the gateway object. err: %s", key, err)
 		return nil
@@ -55,7 +55,7 @@ func (o *gateway) Get(key string, option status.StatusOptions) *gatewayv1beta1.G
 
 func (o *gateway) GetAll(key string) map[string]*gatewayv1beta1.Gateway {
 
-	gwClassList, err := lib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Lister().List(labels.Everything())
+	gwClassList, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Lister().List(labels.Everything())
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: unable to get the gateway class objects. err: %s", key, err)
 		return nil
@@ -72,7 +72,7 @@ func (o *gateway) GetAll(key string) map[string]*gatewayv1beta1.Gateway {
 		}
 	}
 
-	gwList, err := lib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().List(labels.Everything())
+	gwList, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().List(labels.Everything())
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: unable to get the gateway objects owned by AKO. err: %s", key, err)
 		return nil
@@ -126,7 +126,7 @@ func (o *gateway) Delete(key string, option status.StatusOptions) {
 			SetIn(&status.Listeners[i].Conditions)
 	}
 
-	o.Patch(key, gw, &Status{*status})
+	o.Patch(key, gw, &Status{GatewayStatus: *status})
 	utils.AviLog.Infof("key: %s, msg: Successfully reset the address status of gateway: %s", key, gw.Name)
 
 	// TODO: Add annotation delete code here
@@ -166,7 +166,7 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 			SetIn(&status.Listeners[i].Conditions)
 	}
 
-	o.Patch(key, gw, &Status{*status})
+	o.Patch(key, gw, &Status{GatewayStatus: *status})
 
 	// TODO: Annotation update code here
 }
@@ -190,7 +190,7 @@ func (o *gateway) BulkUpdate(key string, options []status.StatusOptions) {
 				Message:            "Virtual service configured/updated",
 				ObservedGeneration: gw.ObjectMeta.Generation + 1,
 			})
-			o.Patch(key, gw, &Status{status})
+			o.Patch(key, gw, &Status{GatewayStatus: status})
 
 			// TODO: Annotation update code here
 		}
@@ -208,17 +208,17 @@ func (o *gateway) Patch(key string, obj runtime.Object, status *Status, retryNum
 	}
 
 	gw := obj.(*gatewayv1beta1.Gateway)
-	if o.isGatewayStatusEqual(&gw.Status, &status.GatewayStatus) {
+	if o.isStatusEqual(&gw.Status, &status.GatewayStatus) {
 		return
 	}
 
 	patchPayload, _ := json.Marshal(map[string]interface{}{
 		"status": status,
 	})
-	_, err := lib.AKOControlConfig().GatewayAPIClientset().GatewayV1beta1().Gateways(gw.Namespace).Patch(context.TODO(), gw.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+	_, err := akogatewayapilib.AKOControlConfig().GatewayAPIClientset().GatewayV1beta1().Gateways(gw.Namespace).Patch(context.TODO(), gw.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: there was an error in updating the gateway status. err: %+v, retry: %d", key, err, retry)
-		updatedGW, err := lib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(gw.Namespace).Get(gw.Name)
+		updatedGW, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(gw.Namespace).Get(gw.Name)
 		if err != nil {
 			utils.AviLog.Warnf("gateway not found %v", err)
 			return
@@ -229,7 +229,7 @@ func (o *gateway) Patch(key string, obj runtime.Object, status *Status, retryNum
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the gateway %s/%s status %+v", key, gw.Namespace, gw.Name, utils.Stringify(status))
 }
 
-func (o *gateway) isGatewayStatusEqual(old, new *gatewayv1beta1.GatewayStatus) bool {
+func (o *gateway) isStatusEqual(old, new *gatewayv1beta1.GatewayStatus) bool {
 	oldStatus, newStatus := old.DeepCopy(), new.DeepCopy()
 	currentTime := metav1.Now()
 	for i := range oldStatus.Conditions {
