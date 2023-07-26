@@ -189,6 +189,20 @@ func (c *GatewayController) addIndexers() {
 			},
 		},
 	)
+	gwinformer.GatewayClassInformer.Informer().AddIndexers(
+		cache.Indexers{
+			akogatewayapilib.GatewayClassGatewayControllerIndex: func(obj interface{}) ([]string, error) {
+				gwClass, ok := obj.(*gatewayv1beta1.GatewayClass)
+				if !ok {
+					return []string{}, nil
+				}
+				if gwClass.Spec.ControllerName == akogatewayapilib.GatewayController {
+					return []string{akogatewayapilib.GatewayController}, nil
+				}
+				return []string{}, nil
+			},
+		},
+	)
 }
 
 func (c *GatewayController) FullSyncK8s(sync bool) error {
