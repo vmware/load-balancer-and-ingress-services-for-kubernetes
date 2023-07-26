@@ -15,10 +15,14 @@
 package lib
 
 const (
-	Prefix = "ako-gw-"
+	Prefix            = "ako-gw-"
 	GatewayController = "ako.vmware.com/avi-lb"
 )
 
 const (
 	ZeroAttachedRoutes = 0
+)
+
+const (
+	GatewayClassGatewayControllerIndex = "GatewayClassGatewayController"
 )

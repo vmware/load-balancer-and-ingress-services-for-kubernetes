@@ -15,9 +15,11 @@
 package lib
 
 import (
+	"k8s.io/client-go/kubernetes"
+	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	"k8s.io/client-go/kubernetes"
 )
 
 func InformersToRegister(kclient *kubernetes.Clientset) ([]string, error) {
@@ -42,4 +44,22 @@ func GetGatewayParentName(namespace, gwName string) string {
 
 func CheckGatewayClassController(controllerName string) bool {
 	return controllerName == lib.AviIngressController
+}
+
+func FindListenerByName(name string, listener []gatewayv1beta1.Listener) int {
+	for i := range listener {
+		if string(listener[i].Name) == name {
+			return i
+		}
+	}
+	return -1
+}
+
+func FindListenerStatusByName(name string, status []gatewayv1beta1.ListenerStatus) int {
+	for i := range status {
+		if string(status[i].Name) == name {
+			return i
+		}
+	}
+	return -1
 }
