@@ -26,18 +26,21 @@ import (
 type StatusUpdater interface {
 	Update(key string, option status.StatusOptions)
 	BulkUpdate(key string, options []status.StatusOptions)
-	Patch(key string, gw runtime.Object, status *Status, retryNum ...int)
+	Patch(key string, obj runtime.Object, status *Status, retryNum ...int)
 	Delete(key string, option status.StatusOptions)
 }
 
 type Status struct {
 	gatewayv1beta1.GatewayStatus
+	gatewayv1beta1.HTTPRouteStatus
 }
 
 func New(ObjectType string) StatusUpdater {
 	switch ObjectType {
 	case lib.Gateway:
 		return &gateway{}
+	case lib.HTTPRoute:
+		return &httproute{}
 	}
 	return nil
 }
@@ -70,6 +73,8 @@ func Record(key string, obj runtime.Object, status *Status) {
 	switch obj.(type) {
 	case *gatewayv1beta1.Gateway:
 		objectType = lib.Gateway
+	case *gatewayv1beta1.HTTPRoute:
+		objectType = lib.HTTPRoute
 	default:
 		utils.AviLog.Warnf("key %s, msg: Unsupported object received at the status layer, %T", key, obj)
 		return
