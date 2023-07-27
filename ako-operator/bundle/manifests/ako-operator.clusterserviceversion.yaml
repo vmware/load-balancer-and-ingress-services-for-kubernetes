@@ -587,6 +587,8 @@ spec:
   relatedImages:
   - name: ako-operator
     image: projects.registry.vmware.com/ako/ako-operator@sha256:629c50ebe19c035d292ff5a3c45ccb4482f4b839234891f54087e6e4654b26ee
+  - name: ako
+    image: projects.registry.vmware.com/ako/ako@sha256:7c4f8c84eb5b1216f917ad1183c7e9ae19cd9b58d2a9669d7fb24b70156fc7e3
   keywords:
   - AKO
   - AKO Operator
