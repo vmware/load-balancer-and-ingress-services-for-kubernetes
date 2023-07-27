@@ -23,13 +23,12 @@ spec:
         cidrs:
         - 10.10.20.0/24
     enableRhi: true
-    tcpSettings:
-      listeners:
-        - port: 8081
-          enableHTTP2: false
-          enableSSL: false
-        - port: 6443
-          enableSSL: true
+    listeners:
+      - port: 8081
+        enableHTTP2: false
+        enableSSL: false
+      - port: 6443
+        enableSSL: true
     bgpPeerLabels:
       - peer1
       - peer2
@@ -159,7 +158,6 @@ AviInfraSetting CRD can be used to enable/disable Public IP on the virtualservic
 
 In order to customize the ports opened for L7 Shared or Dedicated virtual services created by AKO, users can provide the port details under the `listeners` setting. The ports mentioned under this section will be added to VS along with the default open ports, 80 and 443 along with the ports mentioned in [hostrule](../crds/hostrule.md#custom-ports). The settings mentioned in aviinfrasetting will always take precedence over default and hostrule properties.
 
-        tcpSettings:
           listeners:
           - port: 80
             enableHTTP2: false
