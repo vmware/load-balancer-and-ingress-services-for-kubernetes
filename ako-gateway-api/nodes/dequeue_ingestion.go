@@ -32,77 +32,109 @@ func DequeueIngestion(key string, fullsync bool) {
 	if !valid {
 		return
 	}
-	gatewayList, found := schema.GetGateways(namespace, name, key)
+
+	gatewayNsNameList, found := schema.GetGateways(namespace, name, key)
 	if !found {
 		//returning due to error, cannot delete or update
 		utils.AviLog.Errorf("key: %s, got error while getting k8s object", key)
 		return
 	}
-	handleGateways(gatewayList, fullsync, key)
-}
 
-func handleGateways(gatewayList []string, fullsync bool, key string) {
-	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	for _, gateway := range gatewayList {
-		utils.AviLog.Debugf("key: %s, msg: processing gateway: %s", key, gateway)
-		namespace, _, name := lib.ExtractTypeNameNamespace(gateway)
+	for _, gatewayNsName := range gatewayNsNameList {
 
-		modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(namespace, name))
-		modelFound, _ := objects.SharedAviGraphLister().Get(modelName)
-		if modelFound {
-			utils.AviLog.Debugf("key: %s, msg: found model: %s", key, modelName)
-		} else {
-			utils.AviLog.Debugf("key: %s, msg: no model found: %s", key, modelName)
+		parentNs, _, parentName := lib.ExtractTypeNameNamespace(gatewayNsName)
+		modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(parentNs, parentName))
+
+		model := handleGateway(gatewayNsName, fullsync, key)
+		if model == nil {
+			continue
 		}
 
-		gatewayObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).Get(name)
-		if err != nil {
-			if !errors.IsNotFound(err) {
-				utils.AviLog.Infof("key: %s, got error while getting gateway class: %v", key, err)
+		// TODO: get the route mapped to the gateway
+		routeTypeNsNameList := []string{"HTTPRoute/default/route-01", "GRPCRoute/default/route-02"}
+
+		for _, routeTypeNsName := range routeTypeNsNameList { //every route mapped to gateway
+			objType, namespace, name := lib.ExtractTypeNameNamespace(routeTypeNsName)
+
+			routeModel, err := NewRouteModel(key, objType, name, namespace)
+			switch objType { // Extend this for other routes
+			case lib.HTTPRoute: //, GRPCRoute, TLSRoute:
+				model.ProcessL7Routes(key, routeModel, gatewayNsName)
+			// case TCPRoute, UDPRoute:
+			//  model.ProcessL4Routes(key, routeModel, gatewayNsName)
+			default:
+				// TODO: add error here
 				continue
 			}
-			utils.AviLog.Debugf("key: %s, msg: gateway not found: %s/%s", key, namespace, name)
-			if modelFound {
-				objects.SharedAviGraphLister().Save(modelName, nil)
-				if !fullsync {
-					nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
-				}
-			}
-			akogatewayapiobjects.GatewayApiLister().DeleteGatewayToGatewayClass(namespace, name)
-			continue
-		}
-		gwClass := string(gatewayObj.Spec.GatewayClassName)
-		utils.AviLog.Debugf("key: %s, msg: fetching gateway class %s for gateway: %s/%s", key, gwClass, namespace, name)
-		found, isAkoCtrl := akogatewayapiobjects.GatewayApiLister().IsGatewayClassControllerAKO(gwClass)
-		if !found {
-			//gateway class deleted
-			utils.AviLog.Debugf("key: %s, msg: gateway class not found: %s", key, gwClass)
-			objects.SharedAviGraphLister().Save(modelName, nil)
-			if !fullsync {
-				nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
-			}
-			continue
-		}
-		utils.AviLog.Debugf("key: %s, msg: fetching gateway class found: %s", key, gwClass)
-		if !isAkoCtrl {
-			//AKO is not the controller, do not build model
-			utils.AviLog.Infof("key: %s, msg: Controller is not AKO for %s, not building VS model", key, modelName)
-			continue
-		}
-		aviModelGraph := NewAviObjectGraph()
-		aviModelGraph.BuildGatewayVs(gatewayObj, key)
-		aviModelGraph.CalculateCheckSum()
 
-		//extracting the embedded graph after vs is built
-		aviModel := aviModelGraph.AviObjectGraph
-		if len(aviModel.GetOrderedNodes()) > 0 {
-			ok := saveAviModel(modelName, aviModel, key)
-			if ok && !fullsync {
-				utils.AviLog.Infof("key: %s, msg: Published key with modelName: %s", key, modelName)
-				nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
+			if err != nil {
+				// TODO: check if the notfound error or not and invoke the delete call for the child
+				// publish
+				return
 			}
+		}
+		// Only add this node to the list of models if the checksum has changed.
+		modelChanged := saveAviModel(modelName, model.AviObjectGraph, key)
+		if modelChanged {
+			sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+			nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
 		}
 	}
+}
+
+func handleGateway(gateway string, fullsync bool, key string) *AviObjectGraph {
+
+	// for _, gateway := range gatewayList {
+	utils.AviLog.Debugf("key: %s, msg: processing gateway: %s", key, gateway)
+	namespace, _, name := lib.ExtractTypeNameNamespace(gateway)
+
+	modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(namespace, name))
+	modelFound, _ := objects.SharedAviGraphLister().Get(modelName)
+	if modelFound {
+		utils.AviLog.Debugf("key: %s, msg: found model: %s", key, modelName)
+	} else {
+		utils.AviLog.Debugf("key: %s, msg: no model found: %s", key, modelName)
+	}
+
+	gatewayObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).Get(name)
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			utils.AviLog.Infof("key: %s, got error while getting gateway class: %v", key, err)
+			return nil
+		}
+		utils.AviLog.Debugf("key: %s, msg: gateway not found: %s/%s", key, namespace, name)
+		if modelFound {
+			objects.SharedAviGraphLister().Save(modelName, nil)
+			if !fullsync {
+				sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+				nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
+			}
+		}
+		akogatewayapiobjects.GatewayApiLister().DeleteGatewayToGatewayClass(namespace, name)
+		return nil
+	}
+	gwClass := string(gatewayObj.Spec.GatewayClassName)
+	utils.AviLog.Debugf("key: %s, msg: fetching gateway class %s for gateway: %s/%s", key, gwClass, namespace, name)
+	found, isAkoCtrl := akogatewayapiobjects.GatewayApiLister().IsGatewayClassControllerAKO(gwClass)
+	if !found {
+		//gateway class deleted
+		utils.AviLog.Debugf("key: %s, msg: gateway class not found: %s", key, gwClass)
+		objects.SharedAviGraphLister().Save(modelName, nil)
+		if !fullsync {
+			sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+			nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
+		}
+		return nil
+	}
+	utils.AviLog.Debugf("key: %s, msg: fetching gateway class found: %s", key, gwClass)
+	if !isAkoCtrl {
+		//AKO is not the controller, do not build model
+		utils.AviLog.Infof("key: %s, msg: Controller is not AKO for %s, not building VS model", key, modelName)
+		return nil
+	}
+	aviModelGraph := NewAviObjectGraph()
+	aviModelGraph.BuildGatewayVs(gatewayObj, key)
+	return aviModelGraph
 }
 
 func saveAviModel(modelName string, aviGraph *nodes.AviObjectGraph, key string) bool {
