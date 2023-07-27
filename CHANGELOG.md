@@ -365,3 +365,13 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Known Issues
  - AKO doesn’t support Service of type LoadBalancer definitions with mixed protocols.
+
+## AKO-1.10.2
+
+### Added
+ - AKO now claims support for K8 1.27.
+ - AKO chooses correct network reference for VIP subnet and Pool placement when there are duplicate networks, with same name, present on Avi Controller.
+
+### Fixed
+ - Fix: AKO doesn’t support Service of type LoadBalancer definitions with mixed protocols.
+ - Fix: CTRL_CA_DATA env variable, from AKO Statefulset definition, violates CNTR-K8-001160.
