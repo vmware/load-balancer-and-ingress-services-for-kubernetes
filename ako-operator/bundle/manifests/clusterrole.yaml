@@ -63,4 +63,4 @@ rules:
   verbs: ["create", "get", "update"]
 - apiGroups: ["cilium.io"]
   resources: ["ciliumnodes"]
-  verbs: ["get","watch","list"]
+  verbs: ["get", "watch", "list"]
