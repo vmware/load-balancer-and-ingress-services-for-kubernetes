@@ -331,7 +331,9 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 				pool.ApplicationPersistenceProfileRef = persistenceProfile
 
 				// from this path, generate refs to this pool node
-				pool.LbAlgorithm = proto.String(httpRulePath.LoadBalancerPolicy.Algorithm)
+				if httpRulePath.LoadBalancerPolicy.Algorithm != "" {
+					pool.LbAlgorithm = proto.String(httpRulePath.LoadBalancerPolicy.Algorithm)
+				}
 				if pool.LbAlgorithm != nil &&
 					*pool.LbAlgorithm == lib.LB_ALGORITHM_CONSISTENT_HASH {
 					pool.LbAlgorithmHash = proto.String(httpRulePath.LoadBalancerPolicy.Hash)
