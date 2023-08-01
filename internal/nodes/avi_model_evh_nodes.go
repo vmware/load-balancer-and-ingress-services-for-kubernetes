@@ -141,6 +141,7 @@ type AviEvhVsNode struct {
 	Paths               []string
 	IngressNames        []string
 	Dedicated           bool
+	VHMatches           []*avimodels.VHMatch
 
 	AviVsNodeCommonFields
 
