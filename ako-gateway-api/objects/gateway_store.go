@@ -47,6 +47,12 @@ type GWLister struct {
 	//GatewayClass -> [ns1/gateway1, ns2/gateway2, ...]
 	gatewayClassToGatewayStore *objects.ObjectMapStore
 
+	// namespace/gateway -> [listener/routeType/routeNs/routeName, ...]
+	gatewayToRoute *objects.ObjectMapStore
+
+	// routeType/routeNs/routeName -> [namespace/gateway/listener, ...]
+	routeToGateway *objects.ObjectMapStore
+
 	//svc -> gw
 	//route <-> gw
 	//secret -> gw
@@ -144,4 +150,80 @@ func (g *GWLister) DeleteGatewayToGatewayClass(ns, gw string) {
 
 func getKeyForGateway(ns, gw string) string {
 	return ns + "/" + gw
+}
+
+func (g *GWLister) GetGatewayToRoute(gwNsName string) (bool, []string) {
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
+
+	if found, obj := g.gatewayToRoute.Get(gwNsName); found {
+		return true, obj.([]string)
+	}
+	return false, []string{}
+}
+
+func (g *GWLister) DeleteGatewayToRoute(gwNsName string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	g.gatewayToRoute.Delete(gwNsName)
+}
+
+func (g *GWLister) GetRouteToGateway(routeType, routeNsName string) (bool, []string) {
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
+
+	if found, obj := g.routeToGateway.Get(routeType + "/" + routeNsName); found {
+		return true, obj.([]string)
+	}
+	return false, []string{}
+}
+
+func (g *GWLister) DeleteRouteToGateway(routeType, routeNsName string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	g.routeToGateway.Delete(routeType + "/" + routeNsName)
+}
+
+func (g *GWLister) UpdateGatewayRouteMappings(gwNsName, routeType, routeNsName string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	// update gw to route mapping
+	if found, obj := g.gatewayToRoute.Get(gwNsName); found {
+		routes := obj.([]string)
+		routes = append(routes, routeType+"/"+routeNsName)
+		g.gatewayToRoute.AddOrUpdate(gwNsName, routes)
+	}
+
+	// update route to gw mapping
+	routeKey := routeType + "/" + routeNsName
+	if found, obj := g.routeToGateway.Get(routeKey); found {
+		gwNsNames := obj.([]string)
+		gwNsNames = append(gwNsNames, gwNsName)
+		g.routeToGateway.AddOrUpdate(routeKey, gwNsNames)
+	}
+}
+
+func (g *GWLister) DeleteGatewayRouteMappings(gwNsName, routeType, routeNsName string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	// delete gw to route mapping
+	if found, obj := g.gatewayToRoute.Get(gwNsName); found {
+		routes := obj.([]string)
+		utils.Remove(routes, routeType+"/"+routeNsName)
+		g.gatewayToRoute.AddOrUpdate(gwNsName, routes)
+	}
+
+	// delete route to gw mapping
+	routeKey := routeType + "/" + routeNsName
+	if found, obj := g.routeToGateway.Get(routeKey); found {
+		gwNsNames := obj.([]string)
+		gwNsNames = append(gwNsNames, gwNsName)
+		utils.Remove(gwNsNames, gwNsName)
+		g.routeToGateway.AddOrUpdate(routeKey, gwNsNames)
+	}
+
 }
