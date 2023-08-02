@@ -262,7 +262,8 @@ spec:
               port:  {{ default "8080" .Values.AKOSettings.apiServerPort }}
             initialDelaySeconds: 5
             periodSeconds: 10
-        
+      imagePullSecrets:
+      - name: {{ .Values.image.pullSecret }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
