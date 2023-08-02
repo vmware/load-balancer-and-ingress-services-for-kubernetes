@@ -70,7 +70,7 @@ func SetUpTestForSvcLBWithExtDNS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	CreateEP(t, NAMESPACE, SHAREDVIPSVC01, false, false, "1.1.1")
+	CreateEP(t, NAMESPACE, EXTDNSSVC, false, false, "1.1.1")
 	PollForCompletion(t, modelSvcDNS01, 5)
 }
 
@@ -1402,4 +1402,226 @@ func TestLBSvcCreationTCPUDP(t *testing.T) {
 	defer ResetMiddleware()
 
 	TearDownTestForSvcLB(t, g)
+}
+
+func TestLBSvcWithAutoFQDNAsFlat(t *testing.T) {
+	os.Setenv("AUTO_L4_FQDN", "flat")
+
+	svcName := "service-01"
+	svcNamespace := "red-ns"
+
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/cluster--" + svcNamespace + "-" + svcName
+	objects.SharedAviGraphLister().Delete(modelName)
+	svcObj := ConstructService(svcNamespace, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
+	_, err := KubeClient.CoreV1().Services(svcNamespace).Create(context.TODO(), svcObj, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	CreateEP(t, svcNamespace, svcName, false, false, "1.1.1")
+	PollForCompletion(t, modelName, 5)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", svcNamespace, svcName)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(nodes[0].VSVIPRefs[0].FQDNs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].VSVIPRefs[0].FQDNs[0]).To(gomega.HaveLen(len(svcName) + 1 + len(svcNamespace) + len(".com")))
+
+	DelSVC(t, svcNamespace, svcName)
+	DelEP(t, svcNamespace, svcName)
+	os.Setenv("AUTO_L4_FQDN", "disable")
+}
+
+func TestLBSvcFQDNLengthValidation(t *testing.T) {
+	os.Setenv("AUTO_L4_FQDN", "flat")
+
+	svcName := "python-flask-consumer-api-poc"
+	svcNamespace := "service-ascend2-bookings-bi-int-dev"
+
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/cluster--" + svcNamespace + "-" + svcName
+	objects.SharedAviGraphLister().Delete(modelName)
+	svcObj := ConstructService(svcNamespace, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
+	_, err := KubeClient.CoreV1().Services(svcNamespace).Create(context.TODO(), svcObj, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	CreateEP(t, svcNamespace, svcName, false, false, "1.1.1")
+	PollForCompletion(t, modelName, 5)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", svcNamespace, svcName)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(nodes[0].VSVIPRefs[0].FQDNs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].VSVIPRefs[0].FQDNs[0]).To(gomega.HaveLen(63 + len(".com")))
+
+	DelSVC(t, svcNamespace, svcName)
+	DelEP(t, svcNamespace, svcName)
+	os.Setenv("AUTO_L4_FQDN", "disable")
+}
+
+func TestLBSvcWithNameLen63(t *testing.T) {
+	os.Setenv("AUTO_L4_FQDN", "flat")
+
+	svcName := "service-0123456789012345678901234567890123456789012345678901234"
+	svcNamespace := "red-ns"
+
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/cluster--" + svcNamespace + "-" + svcName
+	objects.SharedAviGraphLister().Delete(modelName)
+	svcObj := ConstructService(svcNamespace, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
+	_, err := KubeClient.CoreV1().Services(svcNamespace).Create(context.TODO(), svcObj, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	CreateEP(t, svcNamespace, svcName, false, false, "1.1.1")
+	PollForCompletion(t, modelName, 5)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", svcNamespace, svcName)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(nodes[0].VSVIPRefs[0].FQDNs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].VSVIPRefs[0].FQDNs[0]).To(gomega.HaveLen(63 + len(".com")))
+
+	DelSVC(t, svcNamespace, svcName)
+	DelEP(t, svcNamespace, svcName)
+	os.Setenv("AUTO_L4_FQDN", "disable")
+}
+
+func TestLBSvcWithNamespaceNameLen63(t *testing.T) {
+	os.Setenv("AUTO_L4_FQDN", "flat")
+
+	svcName := "service-01"
+	svcNamespace := "red-ns-01234567890123456789012345678901234567890123456789012345"
+
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/cluster--" + svcNamespace + "-" + svcName
+	objects.SharedAviGraphLister().Delete(modelName)
+	svcObj := ConstructService(svcNamespace, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
+	_, err := KubeClient.CoreV1().Services(svcNamespace).Create(context.TODO(), svcObj, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	CreateEP(t, svcNamespace, svcName, false, false, "1.1.1")
+	PollForCompletion(t, modelName, 5)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", svcNamespace, svcName)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(nodes[0].VSVIPRefs[0].FQDNs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].VSVIPRefs[0].FQDNs[0]).To(gomega.HaveLen(63 + len(".com")))
+
+	DelSVC(t, svcNamespace, svcName)
+	DelEP(t, svcNamespace, svcName)
+	os.Setenv("AUTO_L4_FQDN", "disable")
+}
+
+func TestLBSvcWithNameLen63AndNamespaceNameLen63(t *testing.T) {
+	os.Setenv("AUTO_L4_FQDN", "flat")
+
+	svcName := "service-0123456789012345678901234567890123456789012345678901234"
+	svcNamespace := "red-ns-01234567890123456789012345678901234567890123456789012345"
+
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/cluster--" + svcNamespace + "-" + svcName
+	objects.SharedAviGraphLister().Delete(modelName)
+	svcObj := ConstructService(svcNamespace, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
+	_, err := KubeClient.CoreV1().Services(svcNamespace).Create(context.TODO(), svcObj, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	CreateEP(t, svcNamespace, svcName, false, false, "1.1.1")
+	PollForCompletion(t, modelName, 5)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", svcNamespace, svcName)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(nodes[0].VSVIPRefs[0].FQDNs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].VSVIPRefs[0].FQDNs[0]).To(gomega.HaveLen(63 + len(".com")))
+
+	DelSVC(t, svcNamespace, svcName)
+	DelEP(t, svcNamespace, svcName)
+	os.Setenv("AUTO_L4_FQDN", "disable")
+}
+
+func TestLBSvcWithExtDNSAndAutoFQDNAsFlat(t *testing.T) {
+	os.Setenv("AUTO_L4_FQDN", "flat")
+
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForSvcLBWithExtDNS(t)
+
+	modelName := "admin/cluster--red-ns-" + EXTDNSSVC
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].ServiceMetadata.HostNames[0]).To(gomega.Equal(EXTDNSANNOTATION))
+	g.Expect(nodes[0].VSVIPRefs[0].FQDNs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].VSVIPRefs[0].FQDNs[0]).To(gomega.Equal(EXTDNSANNOTATION))
+
+	// remove the external-dns annotation and verfiy the auto-generated fqdn
+	svcExample := (FakeService{
+		Name:         EXTDNSSVC,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+	svcExample.ResourceVersion = "2"
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return g.Expect(nodes).To(gomega.HaveLen(1)) &&
+			g.Expect(nodes[0].VSVIPRefs[0].FQDNs).To(gomega.HaveLen(1)) &&
+			g.Expect(nodes[0].ServiceMetadata.HostNames[0]).NotTo(gomega.Equal(EXTDNSANNOTATION)) &&
+			g.Expect(nodes[0].VSVIPRefs[0].FQDNs[0]).NotTo(gomega.Equal(EXTDNSANNOTATION)) &&
+			g.Expect(nodes[0].VSVIPRefs[0].FQDNs[0]).To(gomega.Equal(EXTDNSSVC+"-"+NAMESPACE+".com"))
+	}, 30*time.Second).Should(gomega.BeTrue())
+
+	TearDownTestForSvcLBWithExtDNS(t, g)
+	os.Setenv("AUTO_L4_FQDN", "disable")
 }

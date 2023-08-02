@@ -438,6 +438,7 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 			if err == nil {
 				if extDNS, ok := svcObj.Annotations[lib.ExternalDNSAnnotation]; ok {
 					fqdns = append(fqdns, extDNS)
+					continue
 				}
 			}
 
