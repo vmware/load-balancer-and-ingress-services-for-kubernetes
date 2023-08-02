@@ -7,7 +7,7 @@ replicaCount: 1
 image:
   repository: 10.79.172.11:5000/avi-buildops/ako
   pullPolicy: IfNotPresent
-  pullSecret: regcred
+  # pullSecret: # Setting this will add a pull secret to the statefulset for AKO
 
 ### This section outlines the generic AKO settings
 AKOSettings:
@@ -106,9 +106,10 @@ rbac:
 
 
 avicredentials:
-  username: test
-  password: test
-  authtoken: test
+  username:
+  password:
+  authtoken:
+  certificateAuthorityData:
 
 
 persistentVolumeClaim: ""
