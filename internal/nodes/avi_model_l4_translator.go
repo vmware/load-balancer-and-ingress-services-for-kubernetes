@@ -47,6 +47,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	}
 
 	if extDNS, ok := svcObj.Annotations[lib.ExternalDNSAnnotation]; ok && autoFQDN {
+		autoFQDN = false
 		fqdns = append(fqdns, extDNS)
 	}
 
@@ -525,6 +526,28 @@ func getAutoFQDNForService(svcNamespace, svcName string) string {
 		fqdn = svcName + "." + svcNamespace + "." + subdomain
 
 	} else if lib.GetL4FqdnFormat() == lib.AutoFQDNFlat {
+
+		// Limit the length of the label to 63 to follow RFC1035
+		if len(svcName)+len(svcNamespace)+1 > lib.DNS_LABEL_LENGTH {
+			availableSpaceForName := lib.DNS_LABEL_LENGTH - len(svcNamespace) - 1
+			if availableSpaceForName <= 0 {
+				// Length of the namespace is 63, Hence we need to recalculate the
+				// space available for name by shortening the namespace length
+				availableSpaceForNamespace := lib.DNS_LABEL_LENGTH - len(svcName) - 1
+				if availableSpaceForNamespace <= 0 {
+					// length of the name is also 63, Hence we will take
+					// 48 (75%) characters from namespace
+					svcNamespace = svcNamespace[:48]
+				} else {
+					svcNamespace = svcNamespace[:availableSpaceForNamespace]
+				}
+				availableSpaceForName = lib.DNS_LABEL_LENGTH - len(svcNamespace) - 1
+			}
+			if len(svcName) > availableSpaceForName {
+				svcName = svcName[:availableSpaceForName]
+			}
+		}
+
 		// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
 		fqdn = svcName + "-" + svcNamespace + "." + subdomain
 	}
