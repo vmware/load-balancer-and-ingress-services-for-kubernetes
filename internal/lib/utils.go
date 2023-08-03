@@ -258,3 +258,31 @@ func HasSharedVIPAnnotation(svcName, namespace string) bool {
 	_, ok := svcObj.Annotations[SharedVipSvcLBAnnotation]
 	return ok
 }
+
+func CheckAndShortenLabelToFollowRFC1035(svcName string, svcNamespace string) (string, string) {
+	// Limit the length of the label to 63 to follow RFC1035
+	if len(svcName)+len(svcNamespace)+1 > DNS_LABEL_LENGTH {
+		availableSpaceForName := DNS_LABEL_LENGTH - len(svcNamespace) - 1
+		if availableSpaceForName <= 0 {
+			// Length of the namespace is 63, Hence we need to recalculate the
+			// space available for name by shortening the namespace length
+			availableSpaceForNamespace := DNS_LABEL_LENGTH - len(svcName) - 1
+			if availableSpaceForNamespace <= 0 {
+				// length of the name is also 63, Hence we will take
+				// 48 (75%) characters from namespace
+				svcNamespace = svcNamespace[:48]
+			} else {
+				svcNamespace = svcNamespace[:availableSpaceForNamespace]
+			}
+			// A label must not end with hyphen.
+			for svcNamespace[len(svcNamespace)-1] == '-' {
+				svcNamespace = svcNamespace[:len(svcNamespace)-1]
+			}
+			availableSpaceForName = DNS_LABEL_LENGTH - len(svcNamespace) - 1
+		}
+		if len(svcName) > availableSpaceForName {
+			svcName = svcName[:availableSpaceForName]
+		}
+	}
+	return svcName, svcNamespace
+}
