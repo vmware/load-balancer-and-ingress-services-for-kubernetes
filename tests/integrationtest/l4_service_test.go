@@ -1454,7 +1454,7 @@ func TestLBSvcWithNameLen63AndNamespaceNameLen63(t *testing.T) {
 	os.Setenv("AUTO_L4_FQDN", "flat")
 
 	svcName := "service-0123456789012345678901234567890123456789012345678901234"
-	svcNamespace := "red-ns-01234567890123456789012345678901234567890123456789012345"
+	svcNamespace := "red-ns-012345678901234567890123456789012345-----01234567890123"
 
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--" + svcNamespace + "-" + svcName
@@ -1479,6 +1479,7 @@ func TestLBSvcWithNameLen63AndNamespaceNameLen63(t *testing.T) {
 	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 	g.Expect(nodes[0].VSVIPRefs[0].FQDNs).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].VSVIPRefs[0].FQDNs[0]).To(gomega.HaveLen(63 + len(".com")))
+	g.Expect(nodes[0].VSVIPRefs[0].FQDNs[0]).To(gomega.HaveSuffix("red-ns-012345678901234567890123456789012345.com"))
 
 	DelSVC(t, svcNamespace, svcName)
 	DelEP(t, svcNamespace, svcName)
