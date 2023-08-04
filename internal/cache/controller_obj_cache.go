@@ -2614,8 +2614,12 @@ func findHostRefs(client *clients.AviClient, nwUUID string) []string {
 }
 
 // Function to find max host overlap between mgmt network and vipNetwork/nodenetwoeklist
-func findHostWithMaxOverlapping(client *clients.AviClient, localNetworkList []models.Network) akov1alpha1.AviInfraSettingVipNetwork {
+func findHostWithMaxOverlapping(segMgmtNetwork string, client *clients.AviClient, localNetworkList []models.Network) akov1alpha1.AviInfraSettingVipNetwork {
 	cloudMgmtNW := lib.GetCloudMgmtNetwork()
+	// Use SEG Mgmt network to fetch host refs
+	if segMgmtNetwork != "" {
+		cloudMgmtNW = segMgmtNetwork
+	}
 	var matchedNW akov1alpha1.AviInfraSettingVipNetwork
 	mgmtHostRefs := findHostRefs(client, cloudMgmtNW)
 	utils.AviLog.Infof("For Management network:%s, hosts are: %v", cloudMgmtNW, utils.Stringify(mgmtHostRefs))
@@ -2708,7 +2712,7 @@ func FindCIDROverlapping(networks []models.Network, ipNet akov1alpha1.AviInfraSe
 	return networkFound, localVIPNetwork
 }
 
-func PopulateVipNetworkwithUUID(client *clients.AviClient, vipNetworks []akov1alpha1.AviInfraSettingVipNetwork) []akov1alpha1.AviInfraSettingVipNetwork {
+func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient, vipNetworks []akov1alpha1.AviInfraSettingVipNetwork) []akov1alpha1.AviInfraSettingVipNetwork {
 	var ipNetworkList []akov1alpha1.AviInfraSettingVipNetwork
 	var ipNetwork akov1alpha1.AviInfraSettingVipNetwork
 	// In Public cloud we allow multiple network, so loop.
@@ -2766,7 +2770,7 @@ func PopulateVipNetworkwithUUID(client *clients.AviClient, vipNetworks []akov1al
 					}
 				} else {
 					// Then do host uuid mapping and return max host-uuid overlapping network
-					ipNetwork = findHostWithMaxOverlapping(client, localVIPNetworkList)
+					ipNetwork = findHostWithMaxOverlapping(segMgmtNetwork, client, localVIPNetworkList)
 					ipNetwork.Cidr = vipNet.Cidr
 					ipNetwork.V6Cidr = vipNet.V6Cidr
 					utils.AviLog.Infof("Network found from Host overlapping is: %v", utils.Stringify(ipNetwork))
@@ -2817,7 +2821,8 @@ func checkRequiredValuesYaml(client *clients.AviClient, returnErr *error) bool {
 	} else if len(vipList) > 0 {
 		vipListUpdated := vipList
 		if lib.GetCloudType() == lib.CLOUD_VCENTER {
-			vipListUpdated = PopulateVipNetworkwithUUID(client, vipList)
+			segMgmtNetwork := GetCMSEGManagementNetwork(client)
+			vipListUpdated = PopulateVipNetworkwithUUID(segMgmtNetwork, client, vipList)
 		}
 		lib.SetVipNetworkList(vipListUpdated)
 		return true
@@ -3162,7 +3167,8 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 	} else if len(vipList) > 0 {
 		vipListUpdated := vipList
 		if lib.GetCloudType() == lib.CLOUD_VCENTER {
-			vipListUpdated = PopulateVipNetworkwithUUID(client, vipList)
+			segMgmtNetwork := GetCMSEGManagementNetwork(client)
+			vipListUpdated = PopulateVipNetworkwithUUID(segMgmtNetwork, client, vipList)
 		}
 		lib.SetVipNetworkList(vipListUpdated)
 		return true, nil
@@ -3291,7 +3297,7 @@ func checkPublicCloud(client *clients.AviClient, returnErr *error) bool {
 	return true
 }
 
-func FetchNodeNetworks(client *clients.AviClient, returnErr *error, nodeNetworkMap map[string]lib.NodeNetworkMap) bool {
+func FetchNodeNetworks(segMgmtNetwork string, client *clients.AviClient, returnErr *error, nodeNetworkMap map[string]lib.NodeNetworkMap) bool {
 	isVcenterCloud := lib.GetCloudType() == lib.CLOUD_VCENTER
 	for nodeNetworkName, nodeNetworkCIDRs := range nodeNetworkMap {
 		localNodeNetworkList := []models.Network{}
@@ -3349,7 +3355,7 @@ func FetchNodeNetworks(client *clients.AviClient, returnErr *error, nodeNetworkM
 				// Avoiding cidr match for node network list as nodenetwork cidr can have multiple values without
 				// providing type of IP and eah network fetched can have multiple entries.
 				// This will create O(n2) loop to find overlap
-				nodeNetwork := findHostWithMaxOverlapping(client, localNodeNetworkList)
+				nodeNetwork := findHostWithMaxOverlapping(segMgmtNetwork, client, localNodeNetworkList)
 				utils.AviLog.Infof("Node network after host overlap call is: %v", utils.Stringify(nodeNetwork))
 				nodeNetworkMap[nodeNetworkName] = lib.NodeNetworkMap{
 					Cidrs:       nodeNetworkCIDRs.Cidrs,
@@ -3382,11 +3388,26 @@ func checkNodeNetwork(client *clients.AviClient, returnErr *error) bool {
 		return false
 	}
 
-	flag := FetchNodeNetworks(client, returnErr, nodeNetworkMap)
+	segMgmtNetwork := ""
+	if lib.CloudType == lib.CLOUD_VCENTER {
+		segMgmtNetwork = GetCMSEGManagementNetwork(client)
+	}
+	flag := FetchNodeNetworks(segMgmtNetwork, client, returnErr, nodeNetworkMap)
 	lib.SetNodeNetworkMap(nodeNetworkMap)
 	return flag
 }
-
+func GetCMSEGManagementNetwork(client *clients.AviClient) string {
+	mgmtNetwork := ""
+	seg, err := GetAviSeGroup(client, lib.GetSEGName())
+	if err == nil {
+		// seg MgmtNetwork ref contains network-uuid based url.
+		if seg.MgmtNetworkRef != nil {
+			parts := strings.Split(*seg.MgmtNetworkRef, "/")
+			mgmtNetwork = parts[len(parts)-1]
+		}
+	}
+	return mgmtNetwork
+}
 func checkAndSetVRFFromNetwork(client *clients.AviClient, returnErr *error) bool {
 	if lib.IsPublicCloud() {
 		if lib.GetCloudType() == lib.CLOUD_OPENSTACK {

@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	istiov1alpha3 "istio.io/client-go/pkg/apis/networking/v1alpha3"
@@ -949,20 +950,20 @@ func addSeGroupLabel(key, segName string) {
 	avicache.ConfigureSeGroupLabels(clients.AviClient[aviClientLen], seGroup)
 }
 
-func SetAviInfrasettingVIPNetworks(name string, netAviInfra []akov1alpha1.AviInfraSettingVipNetwork) {
+func SetAviInfrasettingVIPNetworks(name, segMgmtNetwork string, netAviInfra []akov1alpha1.AviInfraSettingVipNetwork) {
 	// assign the last avi client for ref checks
 	clients := avicache.SharedAVIClients()
 	aviClientLen := lib.GetshardSize()
 	network := netAviInfra
 	if lib.GetCloudType() == lib.CLOUD_VCENTER {
-		network = avicache.PopulateVipNetworkwithUUID(clients.AviClient[aviClientLen], netAviInfra)
+		network = avicache.PopulateVipNetworkwithUUID(segMgmtNetwork, clients.AviClient[aviClientLen], netAviInfra)
 	}
 	utils.AviLog.Debugf("Infrasetting: %s, VIP Network Obtained in AviInfrasetting: %v", name, utils.Stringify(network))
 	//set infrasetting name specific vip network
 	lib.SetVipInfraNetworkList(name, network)
 }
 
-func SetAviInfrasettingNodeNetworks(name string, netAviInfra []akov1alpha1.AviInfraSettingNodeNetwork) {
+func SetAviInfrasettingNodeNetworks(name, segMgmtNetwork string, netAviInfra []akov1alpha1.AviInfraSettingNodeNetwork) {
 	// assign the last avi client for ref checks
 	clients := avicache.SharedAVIClients()
 	aviClientLen := lib.GetshardSize()
@@ -983,9 +984,26 @@ func SetAviInfrasettingNodeNetworks(name string, netAviInfra []akov1alpha1.AviIn
 	}
 
 	if lib.GetCloudType() == lib.CLOUD_VCENTER {
-		avicache.FetchNodeNetworks(clients.AviClient[aviClientLen], &err, nodeNetorkList)
+		avicache.FetchNodeNetworks(segMgmtNetwork, clients.AviClient[aviClientLen], &err, nodeNetorkList)
 	}
 	utils.AviLog.Debugf("Infrasetting: %s Node Network Obtained in AviInfrasetting: %v", name, utils.Stringify(nodeNetorkList))
 	//set infrasetting name specific node network
 	lib.SetNodeInfraNetworkList(name, nodeNetorkList)
+}
+
+// Fetch SEG mgmt network
+func GetSEGManagementNetwork(name string) string {
+	mgmtNetwork := ""
+	// assign the last avi client for ref checks
+	clients := avicache.SharedAVIClients()
+	aviClientLen := lib.GetshardSize()
+	seg, err := avicache.GetAviSeGroup(clients.AviClient[aviClientLen], name)
+	if err == nil {
+		// seg MgmtNetwork ref contains network-uuid based url.
+		if seg.MgmtNetworkRef != nil {
+			parts := strings.Split(*seg.MgmtNetworkRef, "/")
+			mgmtNetwork = parts[len(parts)-1]
+		}
+	}
+	return mgmtNetwork
 }

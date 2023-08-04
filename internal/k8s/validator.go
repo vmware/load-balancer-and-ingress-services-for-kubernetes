@@ -370,16 +370,20 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1alpha1.A
 	// This would add SEG labels only if they are not configured yet. In case there is a label mismatch
 	// to any pre-existing SEG labels, the AviInfraSettig CR will get Rejected from the checkRefsOnController
 	// step before this.
+	segMgmtNetworK := ""
 	if infraSetting.Spec.SeGroup.Name != "" {
 		addSeGroupLabel(key, infraSetting.Spec.SeGroup.Name)
+		if lib.GetCloudType() == lib.CLOUD_VCENTER {
+			segMgmtNetworK = GetSEGManagementNetwork(infraSetting.Spec.SeGroup.Name)
+		}
 	}
 
 	if len(infraSetting.Spec.Network.VipNetworks) > 0 {
-		SetAviInfrasettingVIPNetworks(infraSetting.Name, infraSetting.Spec.Network.VipNetworks)
+		SetAviInfrasettingVIPNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.Network.VipNetworks)
 	}
 
 	if len(infraSetting.Spec.Network.NodeNetworks) > 0 {
-		SetAviInfrasettingNodeNetworks(infraSetting.Name, infraSetting.Spec.Network.NodeNetworks)
+		SetAviInfrasettingNodeNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.Network.NodeNetworks)
 	}
 	// No need to update status of infra setting object as accepted since it was accepted before.
 	if infraSetting.Status.Status == lib.StatusAccepted {
