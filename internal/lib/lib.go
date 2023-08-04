@@ -773,6 +773,7 @@ func GetNodeNetworkMapEnv() (map[string]NodeNetworkMap, error) {
 	nodeNetworkMap := make(map[string]NodeNetworkMap)
 	type Row struct {
 		NetworkName string   `json:"networkName"`
+		NetworkUUID string   `json:"networkUUID"`
 		Cidrs       []string `json:"cidrs"`
 	}
 	type nodeNetworkList []Row
@@ -782,6 +783,7 @@ func GetNodeNetworkMapEnv() (map[string]NodeNetworkMap, error) {
 		return nodeNetworkMap, fmt.Errorf("nodeNetworkList not set in values yaml")
 	}
 	var nodeNetworkListObj nodeNetworkList
+	// Validation check???
 	err := json.Unmarshal([]byte(nodeNetworkListStr), &nodeNetworkListObj)
 	if err != nil {
 		return nodeNetworkMap, fmt.Errorf("Unable to unmarshall json for nodeNetworkMap")
@@ -795,7 +797,13 @@ func GetNodeNetworkMapEnv() (map[string]NodeNetworkMap, error) {
 		nodeNetworkRow := NodeNetworkMap{
 			Cidrs: nodeNetwork.Cidrs,
 		}
-		nodeNetworkMap[nodeNetwork.NetworkName] = nodeNetworkRow
+		// Give preference to networkUUID
+		if nodeNetwork.NetworkUUID != "" {
+			nodeNetworkRow.NetworkUUID = nodeNetwork.NetworkUUID
+			nodeNetworkMap[nodeNetworkRow.NetworkUUID] = nodeNetworkRow
+		} else if nodeNetwork.NetworkName != "" {
+			nodeNetworkMap[nodeNetwork.NetworkName] = nodeNetworkRow
+		}
 	}
 
 	return nodeNetworkMap, nil

@@ -323,12 +323,21 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1alpha1.A
 				return err
 			}
 		}
-		refData[vipNetwork.NetworkName] = "Network"
+		// Give preference to network uuid
+		if vipNetwork.NetworkUUID != "" {
+			refData[vipNetwork.NetworkUUID] = "NetworkUUID"
+		} else if vipNetwork.NetworkName != "" {
+			refData[vipNetwork.NetworkName] = "Network"
+		}
 	}
 
 	// Node network validation
 	for _, nodeNetwork := range infraSetting.Spec.Network.NodeNetworks {
-		refData[nodeNetwork.NetworkName] = "Network"
+		if nodeNetwork.NetworkUUID != "" {
+			refData[nodeNetwork.NetworkUUID] = "NetworkUUID"
+		} else if nodeNetwork.NetworkName != "" {
+			refData[nodeNetwork.NetworkName] = "Network"
+		}
 	}
 	if infraSetting.Spec.SeGroup.Name != "" {
 		refData[infraSetting.Spec.SeGroup.Name] = "ServiceEngineGroup"

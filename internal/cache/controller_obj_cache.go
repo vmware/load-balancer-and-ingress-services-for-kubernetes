@@ -2616,7 +2616,6 @@ func findHostRefs(client *clients.AviClient, nwUUID string) []string {
 // Function to find max host overlap between mgmt network and vipNetwork/nodenetwoeklist
 func findHostWithMaxOverlapping(client *clients.AviClient, localNetworkList []models.Network) akov1alpha1.AviInfraSettingVipNetwork {
 	cloudMgmtNW := lib.GetCloudMgmtNetwork()
-	//maxLenMatch := 0
 	var matchedNW akov1alpha1.AviInfraSettingVipNetwork
 	mgmtHostRefs := findHostRefs(client, cloudMgmtNW)
 	utils.AviLog.Infof("For Management network:%s, hosts are: %v", cloudMgmtNW, utils.Stringify(mgmtHostRefs))
@@ -2714,68 +2713,81 @@ func PopulateVipNetworkwithUUID(client *clients.AviClient, vipNetworks []akov1al
 	var ipNetwork akov1alpha1.AviInfraSettingVipNetwork
 	// In Public cloud we allow multiple network, so loop.
 	for _, vipNet := range vipNetworks {
-		//default value
-		ipNetwork = akov1alpha1.AviInfraSettingVipNetwork{
-			NetworkName: vipNet.NetworkName,
-			Cidr:        vipNet.Cidr,
-			V6Cidr:      vipNet.V6Cidr,
-		}
-		// For Each network from config/aviingra, perform following set of operations.
-		localVIPNetworkList := []models.Network{}
-		networkURI := "/api/network/?include_name=true&name=" + vipNet.NetworkName + "&cloud_ref.name=" + utils.CloudName
-
-		result, err := lib.AviGetCollectionRaw(client, networkURI)
-		if err != nil {
-			utils.AviLog.Warnf("Error while retrieving network %v details.", vipNet.NetworkName)
-			continue
-		}
-		elems := make([]json.RawMessage, result.Count)
-		err = json.Unmarshal(result.Results, &elems)
-		if err != nil {
-			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
-			continue
-		}
-
-		for _, elem := range elems {
-			net := models.Network{}
-			if err = json.Unmarshal(elem, &net); err != nil {
-				utils.AviLog.Warnf("Failed to unmarshal network  data, err: %v", err)
-				continue
-			}
-			localVIPNetworkList = append(localVIPNetworkList, net)
-		}
-
-		if len(localVIPNetworkList) > 1 {
-			//first check cidr matching
-			found, netLocal := FindCIDROverlapping(localVIPNetworkList, ipNetwork)
-			if found {
-				utils.AviLog.Infof("Network found from CIDR overlapping is: %v", utils.Stringify(netLocal))
-				ipNetwork = akov1alpha1.AviInfraSettingVipNetwork{
-					NetworkName: *netLocal.Name,
-					NetworkUUID: *netLocal.UUID,
-					Cidr:        vipNet.Cidr,
-					V6Cidr:      vipNet.V6Cidr,
-				}
-			} else {
-				// Then do host uuid mapping and return max host-uuid overlapping network
-				ipNetwork = findHostWithMaxOverlapping(client, localVIPNetworkList)
-				utils.AviLog.Infof("Network found from Host overlapping is: %v", utils.Stringify(ipNetwork))
-			}
-		}
-		if len(localVIPNetworkList) == 1 || ipNetwork == (akov1alpha1.AviInfraSettingVipNetwork{}) {
-			// If empty network returned or len 1, fill with first network
-			// with cidr provided in configmap or aviinfra
-
+		// If Network uuid is present, use that.
+		if vipNet.NetworkUUID != "" {
 			ipNetwork = akov1alpha1.AviInfraSettingVipNetwork{
-				NetworkName: *localVIPNetworkList[0].Name,
+				NetworkName: vipNet.NetworkName,
+				NetworkUUID: vipNet.NetworkUUID,
 				Cidr:        vipNet.Cidr,
 				V6Cidr:      vipNet.V6Cidr,
 			}
-			// do not add uuid if number of networks retrieved are 1. so that cksum will not change
+		} else {
+			//default value
+			ipNetwork = akov1alpha1.AviInfraSettingVipNetwork{
+				NetworkName: vipNet.NetworkName,
+				Cidr:        vipNet.Cidr,
+				V6Cidr:      vipNet.V6Cidr,
+			}
+			// For Each network from config/aviingra, perform following set of operations.
+			localVIPNetworkList := []models.Network{}
+			networkURI := "/api/network/?include_name=true&name=" + vipNet.NetworkName + "&cloud_ref.name=" + utils.CloudName
+
+			result, err := lib.AviGetCollectionRaw(client, networkURI)
+			if err != nil {
+				utils.AviLog.Warnf("Error while retrieving network %v details.", vipNet.NetworkName)
+				continue
+			}
+			elems := make([]json.RawMessage, result.Count)
+			err = json.Unmarshal(result.Results, &elems)
+			if err != nil {
+				utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+				continue
+			}
+
+			for _, elem := range elems {
+				net := models.Network{}
+				if err = json.Unmarshal(elem, &net); err != nil {
+					utils.AviLog.Warnf("Failed to unmarshal network  data, err: %v", err)
+					continue
+				}
+				localVIPNetworkList = append(localVIPNetworkList, net)
+			}
+
 			if len(localVIPNetworkList) > 1 {
-				ipNetwork.NetworkUUID = *localVIPNetworkList[0].UUID
+				//first check cidr matching
+				found, netLocal := FindCIDROverlapping(localVIPNetworkList, ipNetwork)
+				if found {
+					utils.AviLog.Infof("Network found from CIDR overlapping is: %v", utils.Stringify(netLocal))
+					ipNetwork = akov1alpha1.AviInfraSettingVipNetwork{
+						NetworkName: *netLocal.Name,
+						NetworkUUID: *netLocal.UUID,
+						Cidr:        vipNet.Cidr,
+						V6Cidr:      vipNet.V6Cidr,
+					}
+				} else {
+					// Then do host uuid mapping and return max host-uuid overlapping network
+					ipNetwork = findHostWithMaxOverlapping(client, localVIPNetworkList)
+					ipNetwork.Cidr = vipNet.Cidr
+					ipNetwork.V6Cidr = vipNet.V6Cidr
+					utils.AviLog.Infof("Network found from Host overlapping is: %v", utils.Stringify(ipNetwork))
+				}
+			}
+			if len(localVIPNetworkList) == 1 || ipNetwork == (akov1alpha1.AviInfraSettingVipNetwork{}) {
+				// If empty network returned or len 1, fill with first network
+				// with cidr provided in configmap or aviinfra
+
+				ipNetwork = akov1alpha1.AviInfraSettingVipNetwork{
+					NetworkName: *localVIPNetworkList[0].Name,
+					Cidr:        vipNet.Cidr,
+					V6Cidr:      vipNet.V6Cidr,
+				}
+				// do not add uuid if number of networks retrieved are 1. so that cksum will not change
+				if len(localVIPNetworkList) > 1 {
+					ipNetwork.NetworkUUID = *localVIPNetworkList[0].UUID
+				}
 			}
 		}
+
 		ipNetworkList = append(ipNetworkList, ipNetwork)
 	}
 	return ipNetworkList
@@ -3101,6 +3113,7 @@ func checkAndSetCloudType(client *clients.AviClient, returnErr *error) bool {
 	lib.SetCloudUUID(*cloud.UUID)
 	if cloud.VcenterConfiguration != nil {
 		// This set cloud mgmt network in vimgrruntime format
+		// TODO: Fetch it from SE Group defined.
 		lib.SetCloudMgmtNetwork(*cloud.VcenterConfiguration.ManagementNetwork)
 	}
 	// IPAM is mandatory for vcenter and noaccess cloud
@@ -3282,8 +3295,14 @@ func FetchNodeNetworks(client *clients.AviClient, returnErr *error, nodeNetworkM
 	isVcenterCloud := lib.GetCloudType() == lib.CLOUD_VCENTER
 	for nodeNetworkName, nodeNetworkCIDRs := range nodeNetworkMap {
 		localNodeNetworkList := []models.Network{}
-
-		uri := "/api/network/?include_name&name=" + nodeNetworkName + "&cloud_ref.name=" + utils.CloudName
+		uri := ""
+		// Following validation is happening double time for Aviinfrasetting side entries.
+		if nodeNetworkCIDRs.NetworkUUID != "" {
+			// This will change once Aviinfrasetting introduces cloud parameters.
+			uri = fmt.Sprintf("/api/network/%s?cloud_uuid=%s", nodeNetworkCIDRs.NetworkUUID, lib.GetCloudUUID())
+		} else {
+			uri = "/api/network/?include_name&name=" + nodeNetworkName + "&cloud_ref.name=" + utils.CloudName
+		}
 		result, err := lib.AviGetCollectionRaw(client, uri)
 		if err != nil {
 			*returnErr = fmt.Errorf("Get uri %v returned err %v", uri, err)
@@ -3314,8 +3333,8 @@ func FetchNodeNetworks(client *clients.AviClient, returnErr *error, nodeNetworkM
 				return false
 			}
 		}
-		// Only for vcenter cloud, fetch uuid, for remaining types, use as it is.
-		if isVcenterCloud {
+		// Only for vcenter cloud and when networkUUID is empty, then fetch uuid, for remaining types, use as it is.
+		if isVcenterCloud && nodeNetworkCIDRs.NetworkUUID == "" {
 			//Fetch all network associated with network name-> This will fetch duplicate networks
 			for i := 0; i < result.Count; i++ {
 				net := models.Network{}
@@ -3325,9 +3344,9 @@ func FetchNodeNetworks(client *clients.AviClient, returnErr *error, nodeNetworkM
 				}
 				localNodeNetworkList = append(localNodeNetworkList, net)
 			}
-			//if networks count is > 1 find network using overlapping host
+			// if networks count is > 1 find network using overlapping host
 			if len(localNodeNetworkList) > 1 {
-				//Avoiding cidr match for node network list as nodenetwork cidr can have multiple values without
+				// Avoiding cidr match for node network list as nodenetwork cidr can have multiple values without
 				// providing type of IP and eah network fetched can have multiple entries.
 				// This will create O(n2) loop to find overlap
 				nodeNetwork := findHostWithMaxOverlapping(client, localNodeNetworkList)
