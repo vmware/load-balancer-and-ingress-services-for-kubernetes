@@ -155,11 +155,11 @@ The following table lists the configurable parameters of the AKO chart and their
 | `AKOSettings.fullSyncFrequency` | Full sync frequency | 1800 |
 | `L7Settings.defaultIngController` | AKO is the default ingress controller | true |
 | `ControllerSettings.serviceEngineGroupName` | Name of the Service Engine Group | Default-Group |
-| `NetworkSettings.nodeNetworkList` | List of Networks and corresponding CIDR mappings for the K8s nodes. | `Empty List` |
+| `NetworkSettings.nodeNetworkList` | List of Networks (specified using either name or uuid) and corresponding CIDR mappings for the K8s nodes. | `Empty List` |
 | `AKOSettings.clusterName` | Unique identifier for the running AKO instance. AKO identifies objects it created on Avi Controller using this param. | **required** |
 | `NetworkSettings.subnetIP` | Subnet IP of the data network | **DEPRECATED** |
 | `NetworkSettings.subnetPrefix` | Subnet Prefix of the data network | **DEPRECATED** |
-| `NetworkSettings.vipNetworkList` | List of Network Names and Subnet information for VIP network, multiple networks allowed only for AWS Cloud | **required** |
+| `NetworkSettings.vipNetworkList` | List of Network Names/ Network UUIDs and Subnet information for VIP network, multiple networks allowed only for AWS Cloud | **required** |
 | `NetworkSettings.enableRHI` | Publish route information to BGP peers | false |
 | `NetworkSettings.bgpPeerLabels` | Select BGP peers using bgpPeerLabels, for selective VsVip advertisement. | `Empty List` |
 | `NetworkSettings.nsxtT1LR` | Specify the T1 router for data backend network, applicable only for NSX-T based deployments| `Empty string` |
