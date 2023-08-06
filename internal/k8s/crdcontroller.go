@@ -840,7 +840,6 @@ func checkRefOnController(key, refKey, refValue string) error {
 
 	// For public clouds, check using network UUID in AWS, normal network API for GCP, skip altogether for Azure.
 	// If reference key is network uuid , then check using UUID.
-	// TODO: Arif has to check this logic.
 	if (lib.IsPublicCloud() && refModelMap[refKey] == "network") || refKey == "NetworkUUID" {
 		if lib.UsesNetworkRef() || refKey == "NetworkUUID" {
 			var rest_response interface{}

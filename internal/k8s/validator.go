@@ -680,6 +680,25 @@ func (f *follower) ValidateHostRuleObj(key string, hostrule *akov1alpha1.HostRul
 
 func (f *follower) ValidateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetting) error {
 	utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating AviInfraSetting object", key)
+	// During AKO bootup as leader is not set, crd validation is not done.
+	// This creates problem in vip network and pool network population.
+	if infraSetting.Status.Status == lib.StatusAccepted {
+		segMgmtNetworK := ""
+		if infraSetting.Spec.SeGroup.Name != "" {
+			addSeGroupLabel(key, infraSetting.Spec.SeGroup.Name)
+			if lib.GetCloudType() == lib.CLOUD_VCENTER {
+				segMgmtNetworK = GetSEGManagementNetwork(infraSetting.Spec.SeGroup.Name)
+			}
+		}
+
+		if len(infraSetting.Spec.Network.VipNetworks) > 0 {
+			SetAviInfrasettingVIPNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.Network.VipNetworks)
+		}
+
+		if len(infraSetting.Spec.Network.NodeNetworks) > 0 {
+			SetAviInfrasettingNodeNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.Network.NodeNetworks)
+		}
+	}
 	return nil
 }
 

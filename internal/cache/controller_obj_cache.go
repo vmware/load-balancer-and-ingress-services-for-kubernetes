@@ -3299,33 +3299,12 @@ func checkPublicCloud(client *clients.AviClient, returnErr *error) bool {
 
 func FetchNodeNetworks(segMgmtNetwork string, client *clients.AviClient, returnErr *error, nodeNetworkMap map[string]lib.NodeNetworkMap) bool {
 	isVcenterCloud := lib.GetCloudType() == lib.CLOUD_VCENTER
+
 	for nodeNetworkName, nodeNetworkCIDRs := range nodeNetworkMap {
 		localNodeNetworkList := []models.Network{}
 		uri := ""
-		// Following validation is happening double time for Aviinfrasetting side entries.
-		if nodeNetworkCIDRs.NetworkUUID != "" {
-			// This will change once Aviinfrasetting introduces cloud parameters.
-			uri = fmt.Sprintf("/api/network/%s?cloud_uuid=%s", nodeNetworkCIDRs.NetworkUUID, lib.GetCloudUUID())
-		} else {
-			uri = "/api/network/?include_name&name=" + nodeNetworkName + "&cloud_ref.name=" + utils.CloudName
-		}
-		result, err := lib.AviGetCollectionRaw(client, uri)
-		if err != nil {
-			*returnErr = fmt.Errorf("Get uri %v returned err %v", uri, err)
-			return false
-		}
-		elems := make([]json.RawMessage, result.Count)
-		err = json.Unmarshal(result.Results, &elems)
-		if err != nil {
-			*returnErr = fmt.Errorf("Failed to unmarshal data, err: %s", err.Error())
-			return false
-		}
 
-		if result.Count == 0 {
-			*returnErr = fmt.Errorf("No networks found for networkName: %s", nodeNetworkName)
-			return false
-		}
-
+		// cidr validations
 		for _, cidr := range nodeNetworkCIDRs.Cidrs {
 			_, _, err := net.ParseCIDR(cidr)
 			if err != nil {
@@ -3339,33 +3318,67 @@ func FetchNodeNetworks(segMgmtNetwork string, client *clients.AviClient, returnE
 				return false
 			}
 		}
-		// Only for vcenter cloud and when networkUUID is empty, then fetch uuid, for remaining types, use as it is.
-		if isVcenterCloud && nodeNetworkCIDRs.NetworkUUID == "" {
-			//Fetch all network associated with network name-> This will fetch duplicate networks
-			for i := 0; i < result.Count; i++ {
-				net := models.Network{}
-				if err = json.Unmarshal(elems[i], &net); err != nil {
-					utils.AviLog.Warnf("Failed to unmarshal network  data, err: %v", err)
-					continue
-				}
-				localNodeNetworkList = append(localNodeNetworkList, net)
+
+		// Following validation is happening double time for Aviinfrasetting side entries.
+		if nodeNetworkCIDRs.NetworkUUID != "" {
+			// This will change once Aviinfrasetting introduces cloud parameters.
+			uri = fmt.Sprintf("/api/network/%s?cloud_uuid=%s&include_name", nodeNetworkCIDRs.NetworkUUID, lib.GetCloudUUID())
+			var rest_response interface{}
+			err := lib.AviGet(client, uri, &rest_response)
+			if err != nil {
+				*returnErr = fmt.Errorf("no networks found for networkName: %s", nodeNetworkName)
+				return false
+			} else if rest_response == nil {
+				*returnErr = fmt.Errorf("no networks found for networkName: %s", nodeNetworkName)
+				return false
 			}
-			// if networks count is > 1 find network using overlapping host
-			if len(localNodeNetworkList) > 1 {
-				// Avoiding cidr match for node network list as nodenetwork cidr can have multiple values without
-				// providing type of IP and eah network fetched can have multiple entries.
-				// This will create O(n2) loop to find overlap
-				nodeNetwork := findHostWithMaxOverlapping(segMgmtNetwork, client, localNodeNetworkList)
-				utils.AviLog.Infof("Node network after host overlap call is: %v", utils.Stringify(nodeNetwork))
-				nodeNetworkMap[nodeNetworkName] = lib.NodeNetworkMap{
-					Cidrs:       nodeNetworkCIDRs.Cidrs,
-					NetworkUUID: nodeNetwork.NetworkUUID,
+		} else {
+			uri = "/api/network/?include_name&name=" + nodeNetworkName + "&cloud_ref.name=" + utils.CloudName
+			result, err := lib.AviGetCollectionRaw(client, uri)
+			if err != nil {
+				*returnErr = fmt.Errorf("get uri %v returned err %v", uri, err)
+				return false
+			}
+			elems := make([]json.RawMessage, result.Count)
+			err = json.Unmarshal(result.Results, &elems)
+			if err != nil {
+				*returnErr = fmt.Errorf("failed to unmarshal data, err: %s", err.Error())
+				return false
+			}
+
+			if result.Count == 0 {
+				*returnErr = fmt.Errorf("no networks found for networkName: %s", nodeNetworkName)
+				return false
+
+			}
+			// Only for vcenter cloud and when networkUUID is empty, then fetch uuid, for remaining types, use as it is.
+			if isVcenterCloud {
+				//Fetch all network associated with network name-> This will fetch duplicate networks
+				for i := 0; i < result.Count; i++ {
+					net := models.Network{}
+					if err = json.Unmarshal(elems[i], &net); err != nil {
+						utils.AviLog.Warnf("Failed to unmarshal network  data, err: %v", err)
+						continue
+					}
+					localNodeNetworkList = append(localNodeNetworkList, net)
 				}
-			} else {
-				if len(localNodeNetworkList) == 1 {
+				// if networks count is > 1 find network using overlapping host
+				if len(localNodeNetworkList) > 1 {
+					// Avoiding cidr match for node network list as nodenetwork cidr can have multiple values without
+					// providing type of IP and eah network fetched can have multiple entries.
+					// This will create O(n2) loop to find overlap
+					nodeNetwork := findHostWithMaxOverlapping(segMgmtNetwork, client, localNodeNetworkList)
+					utils.AviLog.Infof("Node network after host overlap call is: %v", utils.Stringify(nodeNetwork))
 					nodeNetworkMap[nodeNetworkName] = lib.NodeNetworkMap{
 						Cidrs:       nodeNetworkCIDRs.Cidrs,
-						NetworkUUID: *localNodeNetworkList[0].UUID,
+						NetworkUUID: nodeNetwork.NetworkUUID,
+					}
+				} else {
+					if len(localNodeNetworkList) == 1 {
+						nodeNetworkMap[nodeNetworkName] = lib.NodeNetworkMap{
+							Cidrs:       nodeNetworkCIDRs.Cidrs,
+							NetworkUUID: *localNodeNetworkList[0].UUID,
+						}
 					}
 				}
 			}
@@ -3384,15 +3397,17 @@ func checkNodeNetwork(client *clients.AviClient, returnErr *error) bool {
 	// check if node network and cidr's are valid
 	nodeNetworkMap, err := lib.GetNodeNetworkMapEnv()
 	if err != nil {
-		*returnErr = fmt.Errorf("Fetching node network list failed with error: %s, syncing will be disabled.", err.Error())
+		*returnErr = fmt.Errorf("fetching node network list failed with error: %s, syncing will be disabled", err.Error())
 		return false
 	}
 
 	segMgmtNetwork := ""
 	if lib.CloudType == lib.CLOUD_VCENTER {
 		segMgmtNetwork = GetCMSEGManagementNetwork(client)
+		utils.AviLog.Infof("SEG Management network is: %v", segMgmtNetwork)
 	}
 	flag := FetchNodeNetworks(segMgmtNetwork, client, returnErr, nodeNetworkMap)
+	utils.AviLog.Infof("NodeNetwork list is: %v", nodeNetworkMap)
 	lib.SetNodeNetworkMap(nodeNetworkMap)
 	return flag
 }
@@ -3438,31 +3453,48 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient, returnErr *error) bool
 		return false
 	}
 
-	networkName := networkList[0].NetworkName
-
-	uri := "/api/network/?include_name&name=" + networkName + "&cloud_ref.name=" + utils.CloudName
-	result, err := lib.AviGetCollectionRaw(client, uri)
-	if err != nil {
-		*returnErr = fmt.Errorf("Get uri %v returned err %v", uri, err)
-		return false
-	}
-	elems := make([]json.RawMessage, result.Count)
-	err = json.Unmarshal(result.Results, &elems)
-	if err != nil {
-		*returnErr = fmt.Errorf("Failed to unmarshal data, err: %v", err)
-		return false
-	}
-
-	if result.Count == 0 {
-		*returnErr = fmt.Errorf("No networks found for networkName: %s", networkName)
-		return false
-	}
-
 	network := models.Network{}
-	err = json.Unmarshal(elems[0], &network)
-	if err != nil {
-		*returnErr = fmt.Errorf("Failed to unmarshal data, err: %v", err)
-		return false
+	networkName := networkList[0].NetworkName
+	if networkList[0].NetworkUUID != "" {
+		uri := fmt.Sprintf("/api/network/%s?cloud_uuid=%s&include_name", networkList[0].NetworkUUID, lib.GetCloudUUID())
+		var rest_response interface{}
+		err := lib.AviGet(client, uri, &rest_response)
+		if err != nil {
+			*returnErr = fmt.Errorf("no networks found for network: %s", networkList[0].NetworkUUID)
+			return false
+		} else if rest_response == nil {
+			*returnErr = fmt.Errorf("no networks found for network: %s", networkList[0].NetworkUUID)
+			return false
+		}
+		result := rest_response.(map[string]interface{})
+		tempVrf := result["vrf_context_ref"].(string)
+		network.VrfContextRef = &tempVrf
+		networkName = result["name"].(string)
+		network.Name = &networkName
+	} else {
+		uri := "/api/network/?include_name&name=" + networkName + "&cloud_ref.name=" + utils.CloudName
+		result, err := lib.AviGetCollectionRaw(client, uri)
+		if err != nil {
+			*returnErr = fmt.Errorf("Get uri %v returned err %v", uri, err)
+			return false
+		}
+		elems := make([]json.RawMessage, result.Count)
+		err = json.Unmarshal(result.Results, &elems)
+		if err != nil {
+			*returnErr = fmt.Errorf("Failed to unmarshal data, err: %v", err)
+			return false
+		}
+
+		if result.Count == 0 {
+			*returnErr = fmt.Errorf("No networks found for networkName: %s", networkName)
+			return false
+		}
+
+		err = json.Unmarshal(elems[0], &network)
+		if err != nil {
+			*returnErr = fmt.Errorf("Failed to unmarshal data, err: %v", err)
+			return false
+		}
 	}
 
 	if lib.GetCloudType() == lib.CLOUD_NSXT &&
@@ -3575,22 +3607,35 @@ func validateNetworkNames(client *clients.AviClient, vipNetworkList []akov1alpha
 			}
 		}
 
-		uri := "/api/network/?include_name&name=" + vipNetwork.NetworkName + "&cloud_ref.name=" + utils.CloudName
-		result, err := lib.AviGetCollectionRaw(client, uri)
-		if err != nil {
-			utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
-			return false
-		}
-		elems := make([]json.RawMessage, result.Count)
-		err = json.Unmarshal(result.Results, &elems)
-		if err != nil {
-			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
-			return false
-		}
+		if vipNetwork.NetworkUUID != "" {
+			uri := fmt.Sprintf("/api/network/%s?cloud_uuid=%s&include_name", vipNetwork.NetworkUUID, lib.GetCloudUUID())
+			var rest_response interface{}
+			err := lib.AviGet(client, uri, &rest_response)
+			if err != nil {
+				utils.AviLog.Warnf("No networks found for network: %s", vipNetwork.NetworkUUID)
+				return false
+			} else if rest_response == nil {
+				utils.AviLog.Warnf("No networks found for network: %s", vipNetwork.NetworkUUID)
+				return false
+			}
+		} else {
+			uri := "/api/network/?include_name&name=" + vipNetwork.NetworkName + "&cloud_ref.name=" + utils.CloudName
+			result, err := lib.AviGetCollectionRaw(client, uri)
+			if err != nil {
+				utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
+				return false
+			}
+			elems := make([]json.RawMessage, result.Count)
+			err = json.Unmarshal(result.Results, &elems)
+			if err != nil {
+				utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+				return false
+			}
 
-		if result.Count == 0 {
-			utils.AviLog.Warnf("No networks found for vipNetwork: %s", vipNetwork.NetworkName)
-			return false
+			if result.Count == 0 {
+				utils.AviLog.Warnf("No networks found for vipNetwork: %s", vipNetwork.NetworkName)
+				return false
+			}
 		}
 	}
 	return true

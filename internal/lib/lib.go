@@ -783,7 +783,6 @@ func GetNodeNetworkMapEnv() (map[string]NodeNetworkMap, error) {
 		return nodeNetworkMap, fmt.Errorf("nodeNetworkList not set in values yaml")
 	}
 	var nodeNetworkListObj nodeNetworkList
-	// Validation check???
 	err := json.Unmarshal([]byte(nodeNetworkListStr), &nodeNetworkListObj)
 	if err != nil {
 		return nodeNetworkMap, fmt.Errorf("Unable to unmarshall json for nodeNetworkMap")

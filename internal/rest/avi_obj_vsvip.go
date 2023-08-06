@@ -195,7 +195,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 					networkRef = "/api/network/" + vipNetwork.NetworkUUID
 				}
 				vip.IPAMNetworkSubnet.NetworkRef = &networkRef
-
+				utils.AviLog.Debugf("Network: %s Network ref in rest layer: %s", vsvip_meta.VipNetworks[0].NetworkName, *vip.IPAMNetworkSubnet.NetworkRef)
 				// setting IPAMNetworkSubnet.Subnet value in case subnetCIDR is provided
 				if vipNetwork.Cidr == "" && vipNetwork.V6Cidr == "" {
 					utils.AviLog.Warnf("key: %s, msg: Incomplete values provided for CIDR, will not use IPAMNetworkSubnet in vsvip", key)
@@ -211,7 +211,6 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 						mask6, _ = strconv.Atoi(ip6PrefixSlice[1])
 					}
 					if (lib.IsPublicCloud() && lib.GetCloudType() == lib.CLOUD_GCP) || (!lib.IsWCP()) {
-						vip.IPAMNetworkSubnet = &avimodels.IPNetworkSubnet{}
 						if vipNetwork.Cidr != "" {
 							vip.IPAMNetworkSubnet.Subnet = &avimodels.IPAddrPrefix{
 								IPAddr: &avimodels.IPAddr{Type: &ipType, Addr: &ipPrefixSlice[0]},
