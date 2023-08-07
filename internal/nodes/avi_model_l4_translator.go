@@ -47,6 +47,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	}
 
 	if extDNS, ok := svcObj.Annotations[lib.ExternalDNSAnnotation]; ok && autoFQDN {
+		autoFQDN = false
 		fqdns = append(fqdns, extDNS)
 	}
 

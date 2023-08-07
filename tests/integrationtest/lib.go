@@ -69,6 +69,8 @@ const (
 	SHAREDVIPKEY        = "shared-vip-key"
 	SHAREDVIPSVC01      = "shared-vip-svc-01"
 	SHAREDVIPSVC02      = "shared-vip-svc-02"
+	EXTDNSANNOTATION    = "custom-fqdn.com"
+	EXTDNSSVC           = "custom-fqdn-svc"
 )
 
 var KubeClient *k8sfake.Clientset
