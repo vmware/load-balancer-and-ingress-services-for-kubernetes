@@ -60,6 +60,8 @@ const (
 	MULTIPORTMODEL      = "admin/cluster--red-ns-testsvcmulti" // multi port model name
 	RANDOMUUID          = "random-uuid"                        // random avi object uuid
 	DefaultIngressClass = "avi-lb"
+	EXTDNSANNOTATION    = "custom-fqdn.com"
+	EXTDNSSVC           = "custom-fqdn-svc"
 )
 
 var KubeClient *k8sfake.Clientset
@@ -115,7 +117,7 @@ func RemoveDefaultIngressClass() {
 	KubeClient.NetworkingV1().IngressClasses().Delete(context.TODO(), DefaultIngressClass, metav1.DeleteOptions{})
 }
 
-//Fake Namespace
+// Fake Namespace
 type FakeNamespace struct {
 	Name   string
 	Labels map[string]string
@@ -753,9 +755,11 @@ func DeleteNode(t *testing.T, nodeName string) {
 CreateSVC creates a sample service of type: Type
 if multiPort: True, the service gets created with 3 ports as follows
 ServicePorts: [
+
 	{Name: "foo0", Port: 8080, Protocol: "TCP", TargetPort: 8080},
 	{Name: "foo1", Port: 8081, Protocol: "TCP", TargetPort: 8081},
 	{Name: "foo2", Port: 8082, Protocol: "TCP", TargetPort: 8082},
+
 ]
 */
 func CreateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool) {
@@ -823,14 +827,21 @@ func DelSVC(t *testing.T, ns string, Name string) {
 /*
 CreateEP creates a sample Endpoint object
 if multiPort: False and multiAddress: False
+
 	1.1.1.1:8080
+
 if multiPort: True and multiAddress: False
+
 	1.1.1.1:8080,
 	1.1.1.2:8081,
 	1.1.1.3:8082
+
 if multiPort: False and multiAddress: True
+
 	1.1.1.1:8080, 1.1.1.2:8080, 1.1.1.2:8080
+
 if multiPort: True and multiAddress: True
+
 	1.1.1.1:8080, 1.1.1.2:8080, 1.1.1.3:8080,
 	1.1.1.4:8081, 1.1.1.5:8081,
 	1.1.1.6:8082
@@ -913,7 +924,7 @@ func InitializeFakeAKOAPIServer() *api.FakeApiServer {
 	return akoApi
 }
 
-//s: namespace or hostname
+// s: namespace or hostname
 func GetShardVSNumber(s string) string {
 	var vsNum uint32
 	shardSize := lib.GetshardSize()
@@ -1225,9 +1236,9 @@ func FeedMockCollectionData(w http.ResponseWriter, r *http.Request, mockFilePath
 	}
 }
 
-//UpdateIngress wrapper over ingress update call.
-//internally calls Ingress() for fakeIngress object
-//performs a get for ingress object so it will update only if ingress exists
+// UpdateIngress wrapper over ingress update call.
+// internally calls Ingress() for fakeIngress object
+// performs a get for ingress object so it will update only if ingress exists
 func (ing FakeIngress) UpdateIngress() (*networking.Ingress, error) {
 
 	//check if resource already exists

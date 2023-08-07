@@ -60,6 +60,32 @@ func TearDownTestForSvcLB(t *testing.T, g *gomega.GomegaWithT) {
 	}, 5*time.Second).Should(gomega.Equal(false))
 }
 
+func SetUpTestForSvcLBWithExtDNS(t *testing.T) {
+	modelSvcDNS01 := "admin/cluster--red-ns-" + EXTDNSSVC
+	objects.SharedAviGraphLister().Delete(modelSvcDNS01)
+	svcObj := ConstructService(NAMESPACE, EXTDNSSVC, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
+	svcObj.Annotations = map[string]string{lib.ExternalDNSAnnotation: EXTDNSANNOTATION}
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcObj, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	CreateEP(t, NAMESPACE, EXTDNSSVC, false, false, "1.1.1")
+	PollForCompletion(t, modelSvcDNS01, 5)
+}
+
+func TearDownTestForSvcLBWithExtDNS(t *testing.T, g *gomega.GomegaWithT) {
+	modelSvcDNS01 := "admin/cluster--red-ns-" + EXTDNSSVC
+	objects.SharedAviGraphLister().Delete(modelSvcDNS01)
+	DelSVC(t, NAMESPACE, EXTDNSSVC)
+	DelEP(t, NAMESPACE, EXTDNSSVC)
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, EXTDNSSVC)}
+	g.Eventually(func() bool {
+		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		return found
+	}, 5*time.Second).Should(gomega.Equal(false))
+}
+
 func SetUpTestForSvcLBMultiport(t *testing.T) {
 	objects.SharedAviGraphLister().Delete(MULTIPORTMODEL)
 	CreateSVC(t, NAMESPACE, MULTIPORTSVC, corev1.ServiceTypeLoadBalancer, true)
@@ -580,8 +606,8 @@ func TestUpdateAndDeleteServiceLBCacheSync(t *testing.T) {
 	}, 5*time.Second).Should(gomega.Equal(false))
 }
 
-//TestScaleUpAndDownServiceLBCacheSync tests the avi node graph and rest layer functionality when the
-//multiport serviceLB is increased from 1 to 5 and then decreased back to 1
+// TestScaleUpAndDownServiceLBCacheSync tests the avi node graph and rest layer functionality when the
+// multiport serviceLB is increased from 1 to 5 and then decreased back to 1
 func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var model, service string
@@ -962,4 +988,28 @@ func TestInfraSettingChangeMapping(t *testing.T) {
 	TeardownAviInfraSetting(t, settingName1)
 	TeardownAviInfraSetting(t, settingName2)
 	TearDownTestForSvcLB(t, g)
+}
+
+// this test checks if extDNS FQDN is being set properly
+func TestSvcExtDNSAddition(t *testing.T) {
+	os.Setenv("AUTO_L4_FQDN", "default")
+
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForSvcLBWithExtDNS(t)
+
+	modelSvcDNS01 := "admin/cluster--red-ns-" + EXTDNSSVC
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelSvcDNS01)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelSvcDNS01)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].ServiceMetadata.HostNames[0]).To(gomega.Equal(EXTDNSANNOTATION))
+	g.Expect(nodes[0].VSVIPRefs[0].FQDNs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].VSVIPRefs[0].FQDNs[0]).To(gomega.Equal(EXTDNSANNOTATION))
+	os.Setenv("AUTO_L4_FQDN", "disable")
+	TearDownTestForSvcLBWithExtDNS(t, g)
 }
