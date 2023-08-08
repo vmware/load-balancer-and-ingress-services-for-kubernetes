@@ -491,6 +491,54 @@ func TestOshiftValidToInvalidHostSwitch(t *testing.T) {
 	TearDownTestForRoute(t, defaultModelName)
 }
 
+func TestRouteHostRuleWithEmptyConfig(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	hrname := "samplehr-foo"
+	modelName := "admin/cluster--Shared-L7-0"
+
+	SetUpTestForRoute(t, modelName)
+	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateSniModel(t, g, modelName)
+	hostrule := integrationtest.FakeHostRule{
+		Name:      hrname,
+		Namespace: "default",
+		Fqdn:      "foo.com",
+	}
+	hrObj := hostrule.HostRule()
+	hrObj.ResourceVersion = "1"
+	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Create(context.TODO(), hrObj, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in creating HostRule: %v", err)
+	}
+
+	g.Eventually(func() string {
+		hostrule, _ := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules(defaultNamespace).Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 50*time.Second).Should(gomega.Equal("Accepted"))
+
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(*nodes[0].SniNodes[0].Enabled).To(gomega.Equal(true))
+	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].SniNodes[0].WafPolicyRef).To(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].ApplicationProfileRef).To(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].AnalyticsProfileRef).To(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].ErrorPageProfileRef).To(gomega.Equal(""))
+	g.Expect(nodes[0].SniNodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].SniNodes[0].VsDatascriptRefs).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].SniNodes[0].SslProfileRef).To(gomega.BeNil())
+
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+
+	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
+	TearDownTestForRoute(t, defaultModelName)
+}
+
 func TestOshiftHTTPRuleCreateDelete(t *testing.T) {
 	// route secure foo.com/foo /bar
 	// create httprule /, httprule gets attached check on /foo /bar
@@ -731,5 +779,71 @@ func TestOshiftHTTPRuleReencryptWithDestinationCA(t *testing.T) {
 	g.Expect(sniVS.PoolRefs[0].PkiProfile.Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-avisvc-pkiprofile"))
 
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
+	TearDownTestForRoute(t, defaultModelName)
+}
+
+func TestHTTPRuleWithInvalidPath(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/cluster--Shared-L7-0"
+	rrname := "samplerr-foo"
+
+	SetUpTestForRoute(t, modelName)
+	routeExampleFoo := FakeRoute{Path: "/foo"}.SecureRoute()
+	if _, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExampleFoo, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+	routeExampleBar := FakeRoute{Name: "foobar", Path: "/bar"}.SecureRoute()
+	if _, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExampleBar, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	// create a httprule with a non-existing path
+	integrationtest.SetupHTTPRule(t, rrname, "foo.com", "/invalidPath")
+
+	time.Sleep(10 * time.Second)
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].SniNodes[0].PoolRefs).To(gomega.HaveLen(2))
+
+	// pool corresponding to the path "foo"
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].LbAlgorithmHash).To(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].SslProfileRef).To(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].PkiProfile).To(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].HealthMonitorRefs).To(gomega.HaveLen(0))
+
+	// pool corresponding to the path "bar"
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[1].LbAlgorithm).To(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[1].LbAlgorithmHash).To(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[1].SslProfileRef).To(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[1].PkiProfile).To(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[1].HealthMonitorRefs).To(gomega.HaveLen(0))
+
+	// delete httprule must not change any configs
+	integrationtest.TeardownHTTPRule(t, rrname)
+
+	time.Sleep(10 * time.Second)
+
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].SniNodes[0].PoolRefs).To(gomega.HaveLen(2))
+
+	// pool corresponding to the path "foo"
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[1].LbAlgorithm).To(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].SslProfileRef).To(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].PkiProfile).To(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[0].HealthMonitorRefs).To(gomega.HaveLen(0))
+
+	// pool corresponding to the path "bar"
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[1].LbAlgorithm).To(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[1].LbAlgorithmHash).To(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[1].SslProfileRef).To(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[1].PkiProfile).To(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].PoolRefs[1].HealthMonitorRefs).To(gomega.HaveLen(0))
+
+	VerifySecureRouteDeletion(t, g, modelName, 0, 1)
+	VerifySecureRouteDeletion(t, g, modelName, 0, 0, "default/foobar")
 	TearDownTestForRoute(t, defaultModelName)
 }
