@@ -790,6 +790,7 @@ func GetNodeNetworkMapEnv() (map[string]NodeNetworkMap, error) {
 	nodeNetworkMap := make(map[string]NodeNetworkMap)
 	type Row struct {
 		NetworkName string   `json:"networkName"`
+		NetworkUUID string   `json:"networkUUID"`
 		Cidrs       []string `json:"cidrs"`
 	}
 	type nodeNetworkList []Row
@@ -812,7 +813,13 @@ func GetNodeNetworkMapEnv() (map[string]NodeNetworkMap, error) {
 		nodeNetworkRow := NodeNetworkMap{
 			Cidrs: nodeNetwork.Cidrs,
 		}
-		nodeNetworkMap[nodeNetwork.NetworkName] = nodeNetworkRow
+		// Give preference to networkUUID
+		if nodeNetwork.NetworkUUID != "" {
+			nodeNetworkRow.NetworkUUID = nodeNetwork.NetworkUUID
+			nodeNetworkMap[nodeNetworkRow.NetworkUUID] = nodeNetworkRow
+		} else if nodeNetwork.NetworkName != "" {
+			nodeNetworkMap[nodeNetwork.NetworkName] = nodeNetworkRow
+		}
 	}
 
 	return nodeNetworkMap, nil
