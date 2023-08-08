@@ -323,12 +323,21 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1alpha1.A
 				return err
 			}
 		}
-		refData[vipNetwork.NetworkName] = "Network"
+		// Give preference to network uuid
+		if vipNetwork.NetworkUUID != "" {
+			refData[vipNetwork.NetworkUUID] = "NetworkUUID"
+		} else if vipNetwork.NetworkName != "" {
+			refData[vipNetwork.NetworkName] = "Network"
+		}
 	}
 
 	// Node network validation
 	for _, nodeNetwork := range infraSetting.Spec.Network.NodeNetworks {
-		refData[nodeNetwork.NetworkName] = "Network"
+		if nodeNetwork.NetworkUUID != "" {
+			refData[nodeNetwork.NetworkUUID] = "NetworkUUID"
+		} else if nodeNetwork.NetworkName != "" {
+			refData[nodeNetwork.NetworkName] = "Network"
+		}
 	}
 	if infraSetting.Spec.SeGroup.Name != "" {
 		refData[infraSetting.Spec.SeGroup.Name] = "ServiceEngineGroup"
@@ -361,16 +370,20 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1alpha1.A
 	// This would add SEG labels only if they are not configured yet. In case there is a label mismatch
 	// to any pre-existing SEG labels, the AviInfraSettig CR will get Rejected from the checkRefsOnController
 	// step before this.
+	segMgmtNetworK := ""
 	if infraSetting.Spec.SeGroup.Name != "" {
 		addSeGroupLabel(key, infraSetting.Spec.SeGroup.Name)
+		if lib.GetCloudType() == lib.CLOUD_VCENTER {
+			segMgmtNetworK = GetSEGManagementNetwork(infraSetting.Spec.SeGroup.Name)
+		}
 	}
 
 	if len(infraSetting.Spec.Network.VipNetworks) > 0 {
-		SetAviInfrasettingVIPNetworks(infraSetting.Name, infraSetting.Spec.Network.VipNetworks)
+		SetAviInfrasettingVIPNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.Network.VipNetworks)
 	}
 
 	if len(infraSetting.Spec.Network.NodeNetworks) > 0 {
-		SetAviInfrasettingNodeNetworks(infraSetting.Name, infraSetting.Spec.Network.NodeNetworks)
+		SetAviInfrasettingNodeNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.Network.NodeNetworks)
 	}
 	// No need to update status of infra setting object as accepted since it was accepted before.
 	if infraSetting.Status.Status == lib.StatusAccepted {
@@ -667,6 +680,25 @@ func (f *follower) ValidateHostRuleObj(key string, hostrule *akov1alpha1.HostRul
 
 func (f *follower) ValidateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetting) error {
 	utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating AviInfraSetting object", key)
+	// During AKO bootup as leader is not set, crd validation is not done.
+	// This creates problem in vip network and pool network population.
+	if infraSetting.Status.Status == lib.StatusAccepted {
+		segMgmtNetworK := ""
+		if infraSetting.Spec.SeGroup.Name != "" {
+			addSeGroupLabel(key, infraSetting.Spec.SeGroup.Name)
+			if lib.GetCloudType() == lib.CLOUD_VCENTER {
+				segMgmtNetworK = GetSEGManagementNetwork(infraSetting.Spec.SeGroup.Name)
+			}
+		}
+
+		if len(infraSetting.Spec.Network.VipNetworks) > 0 {
+			SetAviInfrasettingVIPNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.Network.VipNetworks)
+		}
+
+		if len(infraSetting.Spec.Network.NodeNetworks) > 0 {
+			SetAviInfrasettingNodeNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.Network.NodeNetworks)
+		}
+	}
 	return nil
 }
 
