@@ -741,7 +741,9 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 		var v6ips []string
 		var networkNames []string
 		for _, vip := range vsvip.Vip {
-			vips = append(vips, *vip.IPAddress.Addr)
+			if vip.IPAddress != nil {
+				vips = append(vips, *vip.IPAddress.Addr)
+			}
 			if vip.FloatingIP != nil {
 				fips = append(fips, *vip.FloatingIP.Addr)
 			}
