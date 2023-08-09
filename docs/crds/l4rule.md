@@ -63,7 +63,7 @@ An L4Rule is applied to a virtual service and pool created from the LoadBalancer
 
 ```yaml
   metadata:
-    annotation:
+    annotations:
       ako.vmware.com/l4rule: <name-of-the-l4-rule-crd>
 ```
 
@@ -74,7 +74,7 @@ Consider the following example showing a service `my-service` of type LoadBalanc
   kind: Service
   metadata:
     name: my-service
-    annotation:
+    annotations:
       ako.vmware.com/l4rule: my-l4-rule
   spec:
     selector:
