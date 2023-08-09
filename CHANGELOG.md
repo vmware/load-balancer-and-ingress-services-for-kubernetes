@@ -288,6 +288,11 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
  - During AKO bootup, if there is an error to list AKO CRD objects, AKO disables CRD handling. That results in deletion of existing avi controller objects.
 
+## AKO-1.7.5
+
+### Changed
+ - Annotation `external-dns.alpha.kubernetes.io/hostname` on the Service of type LoadBalancer overrides the `autoFQDN` feature for it.
+
 ## AKO-1.8.1
 
 ### Added
