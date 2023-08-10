@@ -1004,5 +1004,8 @@ func GetSEGManagementNetwork(name string) string {
 			mgmtNetwork = parts[len(parts)-1]
 		}
 	}
+	if mgmtNetwork == "" {
+		mgmtNetwork = avicache.GetCMSEGManagementNetwork(clients.AviClient[aviClientLen])
+	}
 	return mgmtNetwork
 }
