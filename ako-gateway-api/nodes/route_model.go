@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"fmt"
+	"sort"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
@@ -56,7 +57,17 @@ type PathMatch struct {
 type Match struct {
 	PathMatch   *PathMatch
 	HeaderMatch []*HeaderMatch
-	// TODO: extend this
+}
+
+type Matches []*Match
+
+func (m Matches) Len() int      { return len(m) }
+func (m Matches) Swap(i, j int) { m[i], m[j] = m[j], m[i] }
+func (m Matches) Less(i, j int) bool {
+	if m[i].PathMatch != nil && m[j].PathMatch != nil {
+		return m[i].PathMatch.Path < m[j].PathMatch.Path // TODO: need to check this logic
+	}
+	return false
 }
 
 type Header struct {
@@ -64,17 +75,28 @@ type Header struct {
 	Value string
 }
 
+type Headers []*Header
+
+func (h Headers) Len() int           { return len(h) }
+func (h Headers) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+func (h Headers) Less(i, j int) bool { return h[i].Name < h[j].Name }
+
 type HeaderFilter struct {
 	Set    []*Header
 	Add    []*Header
 	Remove []string
 }
 
+type RedirectFilter struct {
+	Host       string
+	StatusCode int32
+}
+
 type Filter struct {
 	Type           string
 	RequestFilter  *HeaderFilter
 	ResponseFilter *HeaderFilter
-	// TODO: extend this
+	RedirectFilter *RedirectFilter
 }
 
 type Backend struct {
@@ -162,7 +184,7 @@ func (hr *httpRoute) ParseRouteRules() *RouteConfig {
 				if ruleMatch.Path.Type != nil {
 					match.PathMatch.Type = string(*ruleMatch.Path.Type)
 				} else {
-					match.PathMatch.Type = "Exact"
+					match.PathMatch.Type = "PathPrefix"
 				}
 			}
 
@@ -178,9 +200,9 @@ func (hr *httpRoute) ParseRouteRules() *RouteConfig {
 				match.HeaderMatch = append(match.HeaderMatch, headerMatch)
 			}
 
-			// TODO: sort the header match based on header name to get proper child vs
 			routeConfigRule.Matches = append(routeConfigRule.Matches, match)
 		}
+		sort.Sort((Matches)(routeConfigRule.Matches))
 
 		routeConfigRule.Filters = make([]*Filter, 0, len(rule.Filters))
 		for _, ruleFilter := range rule.Filters {
@@ -190,35 +212,66 @@ func (hr *httpRoute) ParseRouteRules() *RouteConfig {
 			// request header filter
 			if ruleFilter.RequestHeaderModifier != nil {
 				filter.RequestFilter = &HeaderFilter{}
-				filter.RequestFilter.Add = make([]*Header, len(ruleFilter.RequestHeaderModifier.Add))
-				for i, addFilter := range ruleFilter.RequestHeaderModifier.Add {
-					filter.RequestFilter.Add[i].Name = string(addFilter.Name)
-					filter.RequestFilter.Add[i].Value = addFilter.Value
+				filter.RequestFilter.Add = make([]*Header, 0, len(ruleFilter.RequestHeaderModifier.Add))
+				for _, addFilter := range ruleFilter.RequestHeaderModifier.Add {
+					addHeader := &Header{
+						Name:  string(addFilter.Name),
+						Value: addFilter.Value,
+					}
+					filter.RequestFilter.Add = append(filter.RequestFilter.Add, addHeader)
 				}
-				filter.RequestFilter.Set = make([]*Header, len(ruleFilter.RequestHeaderModifier.Set))
-				for i, setFilter := range ruleFilter.RequestHeaderModifier.Set {
-					filter.RequestFilter.Set[i].Name = string(setFilter.Name)
-					filter.RequestFilter.Set[i].Value = setFilter.Value
+				filter.RequestFilter.Set = make([]*Header, 0, len(ruleFilter.RequestHeaderModifier.Set))
+				for _, setFilter := range ruleFilter.RequestHeaderModifier.Set {
+					setHeader := &Header{
+						Name:  string(setFilter.Name),
+						Value: setFilter.Value,
+					}
+					filter.RequestFilter.Set = append(filter.RequestFilter.Set, setHeader)
 				}
 				filter.RequestFilter.Remove = make([]string, len(ruleFilter.RequestHeaderModifier.Remove))
 				copy(filter.RequestFilter.Remove, ruleFilter.RequestHeaderModifier.Remove)
+
+				sort.Sort((Headers)(filter.RequestFilter.Add))
+				sort.Sort((Headers)(filter.RequestFilter.Set))
+				sort.Strings(filter.RequestFilter.Remove)
 			}
 
 			// response header filter
 			if ruleFilter.ResponseHeaderModifier != nil {
-				filter.RequestFilter = &HeaderFilter{}
-				filter.RequestFilter.Add = make([]*Header, len(ruleFilter.ResponseHeaderModifier.Add))
-				for i, addFilter := range ruleFilter.ResponseHeaderModifier.Add {
-					filter.RequestFilter.Add[i].Name = string(addFilter.Name)
-					filter.RequestFilter.Add[i].Value = addFilter.Value
+				filter.ResponseFilter = &HeaderFilter{}
+				filter.ResponseFilter.Add = make([]*Header, 0, len(ruleFilter.ResponseHeaderModifier.Add))
+				for _, addFilter := range ruleFilter.ResponseHeaderModifier.Add {
+					addHeader := &Header{
+						Name:  string(addFilter.Name),
+						Value: addFilter.Value,
+					}
+					filter.ResponseFilter.Add = append(filter.ResponseFilter.Add, addHeader)
 				}
-				filter.RequestFilter.Set = make([]*Header, len(ruleFilter.ResponseHeaderModifier.Set))
-				for i, setFilter := range ruleFilter.ResponseHeaderModifier.Set {
-					filter.RequestFilter.Set[i].Name = string(setFilter.Name)
-					filter.RequestFilter.Set[i].Value = setFilter.Value
+				filter.ResponseFilter.Set = make([]*Header, 0, len(ruleFilter.ResponseHeaderModifier.Set))
+				for _, setFilter := range ruleFilter.ResponseHeaderModifier.Set {
+					setHeader := &Header{
+						Name:  string(setFilter.Name),
+						Value: setFilter.Value,
+					}
+					filter.ResponseFilter.Set = append(filter.ResponseFilter.Set, setHeader)
 				}
-				filter.RequestFilter.Remove = make([]string, len(ruleFilter.ResponseHeaderModifier.Remove))
-				copy(filter.RequestFilter.Remove, ruleFilter.ResponseHeaderModifier.Remove)
+				filter.ResponseFilter.Remove = make([]string, len(ruleFilter.ResponseHeaderModifier.Remove))
+				copy(filter.ResponseFilter.Remove, ruleFilter.ResponseHeaderModifier.Remove)
+
+				sort.Sort((Headers)(filter.ResponseFilter.Add))
+				sort.Sort((Headers)(filter.ResponseFilter.Set))
+				sort.Strings(filter.ResponseFilter.Remove)
+			}
+
+			// request redirect filter
+			if ruleFilter.RequestRedirect != nil {
+				filter.RedirectFilter = &RedirectFilter{}
+				if ruleFilter.RequestRedirect.Hostname != nil {
+					filter.RedirectFilter.Host = string(*ruleFilter.RequestRedirect.Hostname)
+				}
+				if ruleFilter.RequestRedirect.StatusCode != nil {
+					filter.RedirectFilter.StatusCode = int32(*ruleFilter.RequestRedirect.StatusCode)
+				}
 			}
 			routeConfigRule.Filters = append(routeConfigRule.Filters, filter)
 		}

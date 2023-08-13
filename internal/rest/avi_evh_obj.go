@@ -557,6 +557,10 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 
 	evhChild.VhMatches = vhMatches
 
+	if vs_meta.VHMatches != nil {
+		evhChild.VhMatches = vs_meta.VHMatches
+	}
+
 	evhChild.Markers = lib.GetAllMarkers(vs_meta.AviMarkers)
 
 	if vs_meta.DefaultPool != "" {
