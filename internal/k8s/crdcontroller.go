@@ -949,12 +949,15 @@ func addSeGroupLabel(key, segName string) {
 	avicache.ConfigureSeGroupLabels(clients.AviClient[aviClientLen], seGroup)
 }
 
-func SetAviInfrasettingVIPNetworks(name, segMgmtNetwork string, netAviInfra []akov1alpha1.AviInfraSettingVipNetwork) {
+func SetAviInfrasettingVIPNetworks(name, segMgmtNetwork, infraSEGName string, netAviInfra []akov1alpha1.AviInfraSettingVipNetwork) {
 	// assign the last avi client for ref checks
 	clients := avicache.SharedAVIClients()
 	aviClientLen := lib.GetshardSize()
 	network := netAviInfra
 	if lib.GetCloudType() == lib.CLOUD_VCENTER {
+		if infraSEGName == "" && segMgmtNetwork == "" {
+			segMgmtNetwork = avicache.GetCMSEGManagementNetwork(clients.AviClient[aviClientLen])
+		}
 		network = avicache.PopulateVipNetworkwithUUID(segMgmtNetwork, clients.AviClient[aviClientLen], netAviInfra)
 	}
 	utils.AviLog.Debugf("Infrasetting: %s, VIP Network Obtained in AviInfrasetting: %v", name, utils.Stringify(network))
@@ -962,7 +965,7 @@ func SetAviInfrasettingVIPNetworks(name, segMgmtNetwork string, netAviInfra []ak
 	lib.SetVipInfraNetworkList(name, network)
 }
 
-func SetAviInfrasettingNodeNetworks(name, segMgmtNetwork string, netAviInfra []akov1alpha1.AviInfraSettingNodeNetwork) {
+func SetAviInfrasettingNodeNetworks(name, segMgmtNetwork, infraSEGName string, netAviInfra []akov1alpha1.AviInfraSettingNodeNetwork) {
 	// assign the last avi client for ref checks
 	clients := avicache.SharedAVIClients()
 	aviClientLen := lib.GetshardSize()
@@ -983,6 +986,9 @@ func SetAviInfrasettingNodeNetworks(name, segMgmtNetwork string, netAviInfra []a
 	}
 
 	if lib.GetCloudType() == lib.CLOUD_VCENTER {
+		if infraSEGName == "" && segMgmtNetwork == "" {
+			segMgmtNetwork = avicache.GetCMSEGManagementNetwork(clients.AviClient[aviClientLen])
+		}
 		avicache.FetchNodeNetworks(segMgmtNetwork, clients.AviClient[aviClientLen], &err, nodeNetorkList)
 	}
 	utils.AviLog.Debugf("Infrasetting: %s Node Network Obtained in AviInfrasetting: %v", name, utils.Stringify(nodeNetorkList))
@@ -1003,9 +1009,6 @@ func GetSEGManagementNetwork(name string) string {
 			parts := strings.Split(*seg.MgmtNetworkRef, "/")
 			mgmtNetwork = parts[len(parts)-1]
 		}
-	}
-	if mgmtNetwork == "" {
-		mgmtNetwork = avicache.GetCMSEGManagementNetwork(clients.AviClient[aviClientLen])
 	}
 	return mgmtNetwork
 }
