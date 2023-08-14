@@ -85,12 +85,12 @@ Please refer to this [page](objects.md) for details on how AKO interprets the Ku
 Please refer to this [page](cc_to_ako.md) for details on how to migrate workloads from cloud connector based Avi controller to AKO based Avi controller.
 
 ### AKO Compatibility Guide
-AKO version 1.10.1 support for Kubernetes, Openshift, Avi Controller is as below:
+AKO version 1.10.3 support for Kubernetes, Openshift, Avi Controller is as below:
 
 | **Orchestrator/ Controller** | **Versions Supported** |
 | --------- | ----------- |
-| `Kubernetes` | 1.22 - 1.26 |
-| `Openshift` | 4.8 - 4.12 |
+| `Kubernetes` | 1.22 - 1.27 |
+| `Openshift` | 4.9 - 4.12 |
 | `Avi Controller` | 21.1.5 - 22.1.4 |
 
 ### FAQ
