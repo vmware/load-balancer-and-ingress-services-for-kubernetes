@@ -8,35 +8,34 @@ kubectl create ns avi-system
 
 > **Note**: Starting AKO-1.4.3, AKO can run in namespaces other than `avi-system`. The namespace in which AKO is deployed, is governed by the `--namespace` flag value provided during `helm install` (Step 4). There are no updates in any setup steps whatsoever. `avi-system` has been kept as is in the entire documentation, and should be replaced by the namespace provided during AKO installation.
 
-Step 2: Add this repository to your helm CLI
+> **Note**: Helm version 3.8 and above will be required to proceed with helm installation.
 
 
-```
-helm repo add ako https://projects.registry.vmware.com/chartrepo/ako
-
-```
-> **Note**: The helm charts are present in VMWare's public harbor repository
-
-Step 3: Search the available charts for AKO
+Step 2: Search the available charts for AKO
 
 ```
-helm search repo
+helm show chart oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.7.5
 
-NAME                 	CHART VERSION	    APP VERSION	        DESCRIPTION
-ako/ako              	1.7.5        	    1.7.5     	        A helm chart for Avi Kubernetes Operator
-
+Pulled: projects.registry.vmware.com/ako/helm-charts/ako:1.7.5
+Digest: sha256:xyxyxxyxyx
+apiVersion: v2
+appVersion: 1.7.5
+description: A helm chart for Avi Kubernetes Operator
+name: ako
+type: application
+version: 1.7.5
 ```
 
 Use the `values.yaml` from this chart to edit values related to Avi configuration. To get the values.yaml for a release, run the following command
 
 ```
-helm show values ako/ako --version 1.7.5 > values.yaml
+helm show values oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.7.5 > values.yaml
 
 ```
 
 Values and their corresponding index can be found [here](#parameters)
 
-Step 4: Install AKO
+Step 3: Install AKO
 
 Starting AKO-1.7.1, multiple AKO instances can be installed in a cluster.
 > **Note**: <br>
@@ -45,22 +44,22 @@ Starting AKO-1.7.1, multiple AKO instances can be installed in a cluster.
 
 <b>Primary AKO installation</b>
 ```
-helm install  ako/ako  --generate-name --version 1.7.5 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=true --namespace=avi-system
+helm install --generate-name oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.7.5 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=true --namespace=avi-system
 ```
 
 <b>Secondary AKO installation</b>
 ```
-helm install  ako/ako  --generate-name --version 1.7.5 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=false --namespace=avi-system
+helm install --generate-name oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.7.5 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=false --namespace=avi-system
 
 ```
 
-Step 5: Check the installation
+Step 4: Check the installation
 
 ```
 helm list -n avi-system
 
-NAME          	NAMESPACE 	
-ako-1593523840	avi-system
+NAME          	NAMESPACE 	REVISION	UPDATED     STATUS  	CHART    	APP VERSION
+ako-1691752136	avi-system	1       	2023-08-11	deployed	ako-1.7.5	1.7.5
 ```
 
 ## Uninstall using *helm*
@@ -90,7 +89,7 @@ Follow these steps if you are upgrading from an older AKO release.
 Helm does not upgrade the CRDs during a release upgrade. Before you upgrade a release, run the following command to download and upgrade the CRDs:
 
 ```
-helm template ako/ako --version 1.7.5 --include-crds --output-dir <output_dir>
+helm template oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.7.5 --include-crds --output-dir <output_dir>
 ```
 
 This will save the helm files to an output directory which will contain the CRDs corresponding to the AKO version.
@@ -111,29 +110,18 @@ ako-1593523840	avi-system	1       	2020-09-16 13:44:31.609195757 +0000 UTC	    d
 
 *Step3*
 
-Update the helm repo URL
+Get the values.yaml for the AKO version 1.7.5 and edit the values as per the requirement.
 
 ```
-helm repo add --force-update ako https://projects.registry.vmware.com/chartrepo/ako
-
-"ako" has been added to your repositories
+helm show values oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.7.5 > values.yaml
 
 ```
-> **Note**: From AKO 1.3.3, we are migrating our charts repo to VMWare's harbor repository and hence a force update of the repo URL is required for a successful upgrade process from 1.3.3
-
 *Step4*
-
-Get the values.yaml for the latest AKO version
-
-```
-helm show values ako/ako --version 1.7.5 > values.yaml
-
-```
 
 Upgrade the helm chart
 
 ```
-helm upgrade ako-1593523840 ako/ako -f /path/to/values.yaml --version 1.7.5 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<password> --set avicredentials.username=<username> --namespace=avi-system
+helm upgrade ako-1593523840  oci://projects.registry.vmware.com/ako/helm-charts/ako -f /path/to/values.yaml --version 1.7.5 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username> --namespace=avi-system
 
 ```
 
