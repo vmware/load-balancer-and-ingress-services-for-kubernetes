@@ -2828,7 +2828,7 @@ func checkRequiredValuesYaml(client *clients.AviClient, returnErr *error) bool {
 			segMgmtNetwork := GetCMSEGManagementNetwork(client)
 			vipListUpdated = PopulateVipNetworkwithUUID(segMgmtNetwork, client, vipList)
 		}
-		lib.SetVipNetworkList(vipListUpdated)
+		utils.SetVipNetworkList(vipListUpdated)
 		return true
 	}
 
@@ -3175,7 +3175,7 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 			segMgmtNetwork := GetCMSEGManagementNetwork(client)
 			vipListUpdated = PopulateVipNetworkwithUUID(segMgmtNetwork, client, vipList)
 		}
-		lib.SetVipNetworkList(vipListUpdated)
+		utils.SetVipNetworkList(vipListUpdated)
 		return true, nil
 	}
 
@@ -3187,7 +3187,7 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 			},
 		}
 
-		lib.SetVipNetworkList(vipNetList)
+		utils.SetVipNetworkList(vipNetList)
 		return true, nil
 	}
 
@@ -3224,7 +3224,7 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 			vipList := []akov1alpha1.AviInfraSettingVipNetwork{{
 				NetworkName: markerNetworkFound,
 			}}
-			lib.SetVipNetworkList(vipList)
+			utils.SetVipNetworkList(vipList)
 			return true, nil
 		}
 
