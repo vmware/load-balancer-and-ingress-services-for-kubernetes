@@ -66,10 +66,10 @@ func AviGet(client *clients.AviClient, uri string, response interface{}, retryNu
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
 			utils.AviLog.Debugf("Switching to admin context from %s", GetTenant())
 			SetAdminTenant := session.SetTenant(GetAdminTenant())
-			SetTenant := session.SetTenant(GetTenant())
 			SetAdminTenant(client.AviSession)
+			SetTenant := session.SetTenant(GetTenant())
 			defer SetTenant(client.AviSession)
-			if err := AviGet(client, uri, response, retry+1); err != nil {
+			if err = AviGet(client, uri, response, retry+1); err != nil {
 				utils.AviLog.Warnf("msg: Unable to fetch data from uri %s %v after context switch", uri, err)
 				return err
 			}
