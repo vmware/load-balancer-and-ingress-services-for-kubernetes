@@ -104,12 +104,17 @@ func InitializeAKC() {
 	var advl4Client *advl4.Clientset
 	var svcAPIClient *svcapi.Clientset
 
+	crdClient, err = crd.NewForConfig(cfg)
+	if err != nil {
+		utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
+	}
 	if lib.IsWCP() {
 		advl4Client, err = advl4.NewForConfig(cfg)
 		if err != nil {
 			utils.AviLog.Fatalf("Error building service-api v1alpha1pre1 clientset: %s", err.Error())
 		}
 		akoControlConfig.SetAdvL4Clientset(advl4Client)
+		akoControlConfig.SetCRDClientsetAndEnableInfraSettingParam(crdClient)
 	} else {
 		if lib.UseServicesAPI() {
 			svcAPIClient, err = svcapi.NewForConfig(cfg)
@@ -119,10 +124,6 @@ func InitializeAKC() {
 			akoControlConfig.SetServicesAPIClientset(svcAPIClient)
 		}
 
-		crdClient, err = crd.NewForConfig(cfg)
-		if err != nil {
-			utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
-		}
 		akoControlConfig.SetCRDClientset(crdClient)
 
 		v1alpha2crdClient, err := v1alpha2crd.NewForConfig(cfg)
@@ -189,6 +190,7 @@ func InitializeAKC() {
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
 	lib.NewDynamicInformers(dynamicClient, false)
 	if lib.IsWCP() {
+		k8s.NewInfraSettingCRDInformer(crdClient)
 		k8s.NewAdvL4Informers(advl4Client)
 	} else {
 		k8s.NewCRDInformers(crdClient)

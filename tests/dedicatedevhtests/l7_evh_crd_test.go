@@ -147,6 +147,7 @@ func TestMain(m *testing.M) {
 	integrationtest.AddDefaultIngressClass()
 	keyChan = make(chan string)
 	ctrl.SetSEGroupCloudNameFromNSAnnotations()
+	integrationtest.AddDefaultNamespace()
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
 }

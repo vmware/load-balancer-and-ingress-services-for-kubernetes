@@ -505,11 +505,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		utils.AviLog.Errorf("failed to populate cache, disabling sync")
 		lib.ShutdownApi()
 	}
-	// Setup and start event handlers for objects.
-	if utils.IsVCFCluster() {
-		// Adding NetworkInfo handler first as Gateways need T1 LR info
-		c.AddNetworkInfoEventHandlers()
-	}
+
 	c.addIndexers()
 	c.Start(stopCh)
 
@@ -668,6 +664,21 @@ func (c *AviController) addIndexers() {
 					if val, ok := service.Annotations[lib.L4RuleAnnotation]; ok && val != "" {
 						return []string{val}, nil
 					}
+				}
+				return []string{}, nil
+			},
+		},
+	)
+
+	c.informers.NSInformer.Informer().AddIndexers(
+		cache.Indexers{
+			lib.AviSettingNamespaceIndex: func(obj interface{}) ([]string, error) {
+				ns, ok := obj.(*corev1.Namespace)
+				if !ok {
+					return []string{}, nil
+				}
+				if val, ok := ns.Annotations[lib.InfraSettingNameAnnotation]; ok && val != "" {
+					return []string{val}, nil
 				}
 				return []string{}, nil
 			},
@@ -1124,6 +1135,24 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			}
 		}
 	} else {
+		aviInfraObjs, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the avinfrasettings during full sync: %s", err)
+		} else {
+			for _, aviInfraObj := range aviInfraObjs {
+				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfraObj)
+				meta, err := meta.Accessor(aviInfraObj)
+				if err == nil {
+					resVer := meta.GetResourceVersion()
+					objects.SharedResourceVerInstanceLister().Save(key, resVer)
+				}
+				if err := c.GetValidator().ValidateAviInfraSetting(key, aviInfraObj); err != nil {
+					utils.AviLog.Warnf("key: %s, Error retrieved during validation of AviInfraSetting: %v", key, err)
+				}
+				nodes.DequeueIngestion(key, true)
+			}
+		}
+
 		//Ingress Section
 		if utils.GetInformers().IngressInformer != nil {
 			for namespace := range acceptedNamespaces {

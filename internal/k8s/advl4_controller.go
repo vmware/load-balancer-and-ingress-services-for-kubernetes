@@ -29,7 +29,7 @@ import (
 
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 
 	advl4crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned"
@@ -180,8 +180,24 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 	informer.GatewayClassInformer.Informer().AddEventHandler(gatewayClassEventHandler)
 }
 
-func (c *AviController) SetupNamespaceDeletionEventHandler(numWorkers uint32) {
+func (c *AviController) SetupNamespaceEventHandler(numWorkers uint32) {
 	nsHandler := cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(old, cur interface{}) {
+			nsOld := old.(*corev1.Namespace)
+			nsCur := cur.(*corev1.Namespace)
+			if isNamespaceUpdated(nsOld, nsCur) {
+				infraSettingOld := nsOld.Annotations[lib.InfraSettingNameAnnotation]
+				infraSettingNew := nsCur.Annotations[lib.InfraSettingNameAnnotation]
+				if infraSettingOld != infraSettingNew {
+					if utils.GetInformers().IngressInformer != nil {
+						utils.AviLog.Debugf("Adding ingresses for namespaces: %s", nsCur.GetName())
+						AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
+					}
+					utils.AviLog.Debugf("Adding Gateways for namespaces: %s", nsCur.GetName())
+					AddGatewaysFromNSToIngestionQueueWCP(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
+				}
+			}
+		},
 		DeleteFunc: func(obj interface{}) {
 			ns, ok := obj.(*corev1.Namespace)
 			if !ok {
@@ -203,73 +219,6 @@ func (c *AviController) SetupNamespaceDeletionEventHandler(numWorkers uint32) {
 		},
 	}
 	c.informers.NSInformer.Informer().AddEventHandler(nsHandler)
-}
-
-func (c *AviController) AddNetworkInfoEventHandlers() {
-	fetchNST1LR := func(obj interface{}) (string, string, bool, error) {
-		var ns, t1lr string
-		ingCIDRFound := false
-		resourceObj := obj.(*unstructured.Unstructured)
-		ns = resourceObj.GetNamespace()
-		topology, ok := resourceObj.Object["topology"]
-		if !ok {
-			err := fmt.Errorf("topology key not found in namespace network info object.")
-			return "", "", false, err
-		}
-		t1lr, ok = topology.(map[string]interface{})["gatewayPath"].(string)
-		if !ok || t1lr == "" {
-			err := fmt.Errorf("invalid gatewayPath found in namespace network info object.")
-			return "", "", false, err
-		}
-		ingCIDRs, ok := topology.(map[string]interface{})["ingressCIDRs"].([]interface{})
-		if ok && len(ingCIDRs) > 0 {
-			ingCIDRFound = true
-		}
-		return ns, t1lr, ingCIDRFound, nil
-	}
-
-	queue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
-	numWorkers := queue.NumWorkers
-
-	namespaceNetworkInfoHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			utils.AviLog.Debugf("Namespace NetworkInfo Add")
-			ns, t1lr, ingCIDRPresent, err := fetchNST1LR(obj)
-			if err != nil {
-				utils.AviLog.Errorf(err.Error())
-			}
-			objects.SharedWCPLister().UpdateNamespaceTier1LrCache(ns, t1lr)
-			if ingCIDRPresent {
-				objects.SharedWCPLister().UpdateNamespaceNetworkCache(ns, lib.GetVCFNetworkNameWithNS(ns))
-			}
-			key := utils.NamespaceNetworkInfo + "/" + ns + "/" + t1lr
-			bkt := utils.Bkt(ns, numWorkers)
-			queue.Workqueue[bkt].AddRateLimited(key)
-		},
-		UpdateFunc: func(old, obj interface{}) {
-			utils.AviLog.Debugf("Namespace NetworkInfo Update")
-			ns, t1lr, ingCIDRPresent, err := fetchNST1LR(obj)
-			if err != nil {
-				utils.AviLog.Errorf(err.Error())
-			}
-			objects.SharedWCPLister().UpdateNamespaceTier1LrCache(ns, t1lr)
-			key := utils.NamespaceNetworkInfo + "/" + ns + "/" + t1lr
-			bkt := utils.Bkt(ns, numWorkers)
-			queue.Workqueue[bkt].AddRateLimited(key)
-			if ingCIDRPresent {
-				objects.SharedWCPLister().UpdateNamespaceNetworkCache(ns, lib.GetVCFNetworkNameWithNS(ns))
-			} else {
-				objects.SharedWCPLister().RemoveNamespaceNetworkCache(ns)
-			}
-		},
-		DeleteFunc: func(obj interface{}) {
-			utils.AviLog.Debugf("Namespace NetworkInfo Delete")
-			namespace := obj.(*unstructured.Unstructured).Object["metadata"].(map[string]interface{})["namespace"].(string)
-			objects.SharedWCPLister().RemoveNamespaceTier1LrCache(namespace)
-			objects.SharedWCPLister().RemoveNamespaceNetworkCache(namespace)
-		},
-	}
-	c.dynamicInformers.VCFNetworkInfoInformer.Informer().AddEventHandler(namespaceNetworkInfoHandler)
 }
 
 func InformerStatusUpdatesForGateway(key string, gateway *advl4v1alpha1pre1.Gateway) {
@@ -359,8 +308,6 @@ func checkSvcForGatewayPortConflict(svc *corev1.Service, key string) {
 
 	// detect unsupported protocol
 	// TODO
-
-	return
 }
 
 func checkGWForGatewayPortConflict(key string, gw *advl4v1alpha1pre1.Gateway) {
@@ -402,5 +349,19 @@ func checkGWForGatewayPortConflict(key string, gw *advl4v1alpha1pre1.Gateway) {
 			status.UpdateGatewayStatusObject(key, gw, gwStatus)
 			return
 		}
+	}
+}
+
+func AddGatewaysFromNSToIngestionQueueWCP(numWorkers uint32, c *AviController, namespace string, msg string) {
+	gateways, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Warnf("Failed to list Gateways in the namespace %s", namespace)
+		return
+	}
+	for _, gw := range gateways {
+		key := lib.Gateway + "/" + utils.ObjKey(gw)
+		bkt := utils.Bkt(namespace, numWorkers)
+		c.workqueue[bkt].AddRateLimited(key)
+		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
 	}
 }
