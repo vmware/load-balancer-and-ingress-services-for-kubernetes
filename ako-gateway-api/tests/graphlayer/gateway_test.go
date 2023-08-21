@@ -57,6 +57,8 @@ func TestMain(m *testing.M) {
 	os.Setenv("SEG_NAME", "Default-Group")
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("FULL_SYNC_INTERVAL", utils.AKO_DEFAULT_NS)
+	os.Setenv("ENABLE_EVH", "true")
+	os.Setenv("TENANT", "admin")
 
 	// Set the user with prefix
 	_ = lib.AKOControlConfig()
@@ -94,7 +96,6 @@ func TestMain(m *testing.M) {
 	stopCh := utils.SetupSignalHandler()
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
-	ctrl.Start(stopCh)
 
 	waitGroupMap := make(map[string]*sync.WaitGroup)
 	wgIngestion := &sync.WaitGroup{}
