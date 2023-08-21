@@ -15,13 +15,14 @@
 package nodes
 
 import (
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 func DequeueIngestion(key string, fullsync bool) {
@@ -42,19 +43,20 @@ func DequeueIngestion(key string, fullsync bool) {
 
 	for _, gatewayNsName := range gatewayNsNameList {
 
-		parentNs, _, parentName := lib.ExtractTypeNameNamespace(gatewayNsName)
-		modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(parentNs, parentName))
-
 		model := handleGateway(gatewayNsName, fullsync, key)
 		if model == nil {
 			continue
 		}
 
-		// TODO: get the route mapped to the gateway
+		parentNs, _, parentName := lib.ExtractTypeNameNamespace(gatewayNsName)
+		modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(parentNs, parentName))
+
+		// TODO: get the route mapped to the gateway if the object type passed is gateway, process single route otherwise.
 		routeTypeNsNameList := []string{"HTTPRoute/default/route-01", "GRPCRoute/default/route-02"}
 
 		for _, routeTypeNsName := range routeTypeNsNameList { //every route mapped to gateway
 			objType, namespace, name := lib.ExtractTypeNameNamespace(routeTypeNsName)
+			utils.AviLog.Infof("key: %s, Processing route %s mapped to gateway %s", key, routeTypeNsName, gatewayNsName)
 
 			routeModel, err := NewRouteModel(key, objType, name, namespace)
 			switch objType { // Extend this for other routes
@@ -73,6 +75,7 @@ func DequeueIngestion(key string, fullsync bool) {
 				return
 			}
 		}
+
 		// Only add this node to the list of models if the checksum has changed.
 		modelChanged := saveAviModel(modelName, model.AviObjectGraph, key)
 		if modelChanged {
@@ -98,7 +101,7 @@ func handleGateway(gateway string, fullsync bool, key string) *AviObjectGraph {
 
 	gatewayObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).Get(name)
 	if err != nil {
-		if !errors.IsNotFound(err) {
+		if !k8serrors.IsNotFound(err) {
 			utils.AviLog.Infof("key: %s, got error while getting gateway class: %v", key, err)
 			return nil
 		}
