@@ -38,6 +38,10 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 
 	parentNode := o.GetAviEvhVS()
 
+	// TODO: check and add
+	parentNode[0].VHDomainNames = routeModel.ParseRouteRules().Hosts
+	parentNode[0].VSVIPRefs[0].FQDNs = routeModel.ParseRouteRules().Hosts
+
 	//childVSName := akogatewayapilib.GetChildName(parentNs, parentName, routeModel.GetNamespace(), routeModel.GetName(), akogatewayapilib.Encode(utils.Stringify(match)))
 	childVSName := "child-vs-name" //TODO: logic to get the child name
 
@@ -54,7 +58,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	childNode.ServiceMetadata = lib.ServiceMetadataObj{
 		Gateway: parentName,
 	}
-	childNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE //TODO: move this to the routeModel
+	childNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
 	childNode.ServiceEngineGroup = lib.GetSEGName()
 	childNode.VrfContext = lib.GetVrf()
 	childNode.VHDomainNames = routeModel.ParseRouteRules().Hosts
@@ -68,7 +72,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	// create vhmatch from the match
 	o.BuildVHMatch(key, childNode, routeModel, rule)
 
-	// create the httppolicyset if the filter is mentioned
+	// create the httppolicyset if the filter is present
 	o.BuildHTTPPolicySet(key, childNode, routeModel, rule)
 }
 
@@ -78,7 +82,7 @@ func (o *AviObjectGraph) BuildPGPool(key string, childVsNode *nodes.AviEvhVsNode
 
 }
 
-func (o *AviObjectGraph) BuildVHMatch(key string, childVsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
+func (o *AviObjectGraph) BuildVHMatch(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
 	var vhMatches []*models.VHMatch
 
 	for _, host := range routeModel.ParseRouteRules().Hosts {
@@ -122,11 +126,121 @@ func (o *AviObjectGraph) BuildVHMatch(key string, childVsNode *nodes.AviEvhVsNod
 		}
 		vhMatches = append(vhMatches, vhMatch)
 	}
-	childVsNode.VHMatches = vhMatches
+	vsNode.VHMatches = vhMatches
+	utils.AviLog.Debugf("key: %s Attached match criteria %s to vs %s", key, utils.Stringify(vsNode.VHMatches), vsNode.Name)
+	utils.AviLog.Infof("key: %s Attached match criteria to vs %s", key, vsNode.Name)
 }
 
-func (o *AviObjectGraph) BuildHTTPPolicySet(key string, childVsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
+func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
 
-	// create the httppolicyset from filters
+	if len(rule.Filters) == 0 {
+		return
+	}
 
+	policy := &nodes.AviHttpPolicySetNode{Name: vsNode.Name, Tenant: lib.GetTenant()}
+	vsNode.HttpPolicyRefs = []*nodes.AviHttpPolicySetNode{policy}
+
+	o.BuildHTTPPolicySetHTTPRequestRedirectRules(key, vsNode, routeModel, rule.Filters)
+	if len(vsNode.HttpPolicyRefs[0].RequestRules) == 1 {
+		// When the RedirectAction is specified the Request and Response Modify Header Action
+		// won't have any effect, hence returning.
+		utils.AviLog.Infof("key: %s Attached HTTP redirect policy to vs %s", key, vsNode.Name)
+		return
+	}
+	o.BuildHTTPPolicySetHTTPRequestRules(key, vsNode, routeModel, rule.Filters)
+	o.BuildHTTPPolicySetHTTPResponseRules(key, vsNode, routeModel, rule.Filters)
+	utils.AviLog.Infof("key: %s Attached HTTP policies to vs %s", key, vsNode.Name)
+}
+
+func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestRules(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, filters []*Filter) {
+	requestRule := &models.HTTPRequestRule{Name: &vsNode.Name, Enable: proto.Bool(true), Index: proto.Int32(1)}
+	for _, filter := range filters {
+		if filter.RequestFilter != nil {
+			for i := range filter.RequestFilter.Add {
+				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_ADD_HDR", filter.RequestFilter.Add[i])
+				requestRule.HdrAction = append(requestRule.HdrAction, action)
+			}
+
+			for i := range filter.RequestFilter.Set {
+				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_REPLACE_HDR", filter.RequestFilter.Set[i])
+				requestRule.HdrAction = append(requestRule.HdrAction, action)
+			}
+
+			for i := range filter.RequestFilter.Remove {
+				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_REMOVE_HDR", &Header{Name: filter.RequestFilter.Remove[i]})
+				requestRule.HdrAction = append(requestRule.HdrAction, action)
+			}
+		}
+	}
+	if len(requestRule.HdrAction) != 0 {
+		vsNode.HttpPolicyRefs[0].RequestRules = []*models.HTTPRequestRule{requestRule}
+		utils.AviLog.Debugf("key: %s Attached HTTP request policies %s to vs %s", key, utils.Stringify(vsNode.HttpPolicyRefs[0].RequestRules), vsNode.Name)
+	}
+}
+
+func (o *AviObjectGraph) BuildHTTPPolicySetHTTPResponseRules(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, filters []*Filter) {
+	responseRule := &models.HTTPResponseRule{Name: &vsNode.Name, Enable: proto.Bool(true), Index: proto.Int32(1)}
+	for _, filter := range filters {
+		if filter.ResponseFilter != nil {
+			for i := range filter.ResponseFilter.Add {
+				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_ADD_HDR", filter.ResponseFilter.Add[i])
+				responseRule.HdrAction = append(responseRule.HdrAction, action)
+			}
+
+			for i := range filter.ResponseFilter.Set {
+				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_REPLACE_HDR", filter.ResponseFilter.Set[i])
+				responseRule.HdrAction = append(responseRule.HdrAction, action)
+			}
+
+			for i := range filter.ResponseFilter.Remove {
+				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_REMOVE_HDR", &Header{Name: filter.ResponseFilter.Remove[i]})
+				responseRule.HdrAction = append(responseRule.HdrAction, action)
+			}
+		}
+	}
+	if len(responseRule.HdrAction) != 0 {
+		vsNode.HttpPolicyRefs[0].ResponseRules = []*models.HTTPResponseRule{responseRule}
+		utils.AviLog.Debugf("key: %s Attached HTTP response policies %s to vs %s", key, utils.Stringify(vsNode.HttpPolicyRefs[0].RequestRules), vsNode.Name)
+	}
+}
+
+func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRuleHdrAction(key string, action string, header *Header) *models.HTTPHdrAction {
+	hdrAction := &models.HTTPHdrAction{}
+	hdrAction.Action = proto.String(action)
+	hdrAction.Hdr = &models.HTTPHdrData{}
+	hdrAction.Hdr.Name = proto.String(header.Name)
+	if header.Value != "" {
+		hdrAction.Hdr.Value = &models.HTTPHdrValue{}
+		hdrAction.Hdr.Value.IsSensitive = proto.Bool(false)
+		hdrAction.Hdr.Value.Val = proto.String(header.Value)
+	}
+	return hdrAction
+}
+
+func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestRedirectRules(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, filters []*Filter) {
+	redirectAction := &models.HTTPRedirectAction{}
+	for _, filter := range filters {
+		// considering only the first RedirectFilter
+		if filter.RedirectFilter != nil {
+			uriParamToken := &models.URIParamToken{
+				StrValue: &filter.RedirectFilter.Host,
+				Type:     proto.String("URI_TOKEN_TYPE_STRING"),
+			}
+			redirectAction.Host = &models.URIParam{
+				Tokens: []*models.URIParamToken{uriParamToken},
+				Type:   proto.String("URI_PARAM_TYPE_TOKENIZED"),
+			}
+			redirectAction.Protocol = proto.String("HTTP")
+			statusCode := "HTTP_REDIRECT_STATUS_CODE_302"
+			switch filter.RedirectFilter.StatusCode {
+			case 301, 302, 307:
+				statusCode = fmt.Sprintf("HTTP_REDIRECT_STATUS_CODE_%d", filter.RedirectFilter.StatusCode)
+			}
+			redirectAction.StatusCode = &statusCode
+			requestRule := &models.HTTPRequestRule{Name: &vsNode.Name, Enable: proto.Bool(true), Index: proto.Int32(1), RedirectAction: redirectAction}
+			vsNode.HttpPolicyRefs[0].RequestRules = []*models.HTTPRequestRule{requestRule}
+			utils.AviLog.Debugf("key: %s Attached HTTP request redirect policies %s to vs %s", key, utils.Stringify(vsNode.HttpPolicyRefs[0].RequestRules), vsNode.Name)
+			break
+		}
+	}
 }

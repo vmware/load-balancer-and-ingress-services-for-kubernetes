@@ -232,6 +232,18 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 
 	}
 
+	if hps_meta.RequestRules != nil {
+		hps.HTTPRequestPolicy = &avimodels.HTTPRequestPolicy{
+			Rules: hps_meta.RequestRules,
+		}
+	}
+
+	if hps_meta.ResponseRules != nil {
+		hps.HTTPResponsePolicy = &avimodels.HTTPResponsePolicy{
+			Rules: hps_meta.ResponseRules,
+		}
+	}
+
 	var path string
 	var rest_op utils.RestOp
 	if cache_obj != nil {

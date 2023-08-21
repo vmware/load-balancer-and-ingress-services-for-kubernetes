@@ -696,6 +696,10 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 
 	checksum += v.AviVsNodeGeneratedFields.CalculateCheckSumOfGeneratedCode()
 
+	if v.VHMatches != nil {
+		checksum += utils.Hash(utils.Stringify(v.VHMatches))
+	}
+
 	v.CloudConfigCksum = checksum
 }
 
