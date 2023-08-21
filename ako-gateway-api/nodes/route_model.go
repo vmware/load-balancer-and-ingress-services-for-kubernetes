@@ -80,6 +80,7 @@ type Filter struct {
 type Backend struct {
 	Name      string
 	Namespace string
+	Port      int32
 	Weight    int32
 }
 
@@ -221,6 +222,22 @@ func (hr *httpRoute) ParseRouteRules() *RouteConfig {
 				copy(filter.RequestFilter.Remove, ruleFilter.ResponseHeaderModifier.Remove)
 			}
 			routeConfigRule.Filters = append(routeConfigRule.Filters, filter)
+		}
+		for _, ruleBackend := range rule.BackendRefs {
+			backend := &Backend{}
+			backend.Name = string(ruleBackend.Name)
+			if ruleBackend.Namespace != nil {
+				backend.Namespace = string(*ruleBackend.Namespace)
+			} else {
+				backend.Namespace = hr.namespace
+			}
+			backend.Port = int32(*ruleBackend.Port)
+			if ruleBackend.Weight != nil {
+				backend.Weight = *ruleBackend.Weight
+			} else {
+				backend.Weight = 1
+			}
+			routeConfigRule.Backends = append(routeConfigRule.Backends, backend)
 		}
 		routeConfig.Rules = append(routeConfig.Rules, routeConfigRule)
 	}

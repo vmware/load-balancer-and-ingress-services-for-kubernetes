@@ -319,6 +319,35 @@ func GetRouteStatusV1Beta1(gatewayNames []string, namespace string, ports []int3
 func GetHTTPRouteRulesV1Beta1() []gatewayv1beta1.HTTPRouteRule {
 	rules := make([]gatewayv1beta1.HTTPRouteRule, 0)
 	// TODO: add few rules
+
+	//login rule
+	var serviceKind gatewayv1beta1.Kind
+	var servicePort gatewayv1beta1.PortNumber
+	serviceKind = "Service"
+	servicePort = 8080
+	pathPrefix := gatewayv1beta1.PathMatchPathPrefix
+	path := "/login"
+	rules = append(rules, gatewayv1beta1.HTTPRouteRule{
+		Matches: []gatewayv1beta1.HTTPRouteMatch{
+			{
+				Path: &gatewayv1beta1.HTTPPathMatch{
+					Type:  &pathPrefix,
+					Value: &path,
+				},
+			},
+		},
+		BackendRefs: []gatewayv1beta1.HTTPBackendRef{
+			{
+				BackendRef: gatewayv1beta1.BackendRef{
+					BackendObjectReference: gatewayv1beta1.BackendObjectReference{
+						Kind: &serviceKind,
+						Name: "avisvc",
+						Port: &servicePort,
+					},
+				},
+			},
+		},
+	})
 	return rules
 }
 

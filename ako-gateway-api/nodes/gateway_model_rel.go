@@ -15,11 +15,16 @@
 package nodes
 
 import (
+	"sort"
+	"strconv"
+	"strings"
+
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
+	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 )
 
 func ConfigDescriptor() GraphDescriptor {
@@ -55,10 +60,15 @@ var (
 		Type:        lib.HTTPRoute,
 		GetGateways: HTTPRouteToGateway,
 	}
+	Service = GraphSchema{
+		Type:        "Service",
+		GetGateways: ServiceToGateway,
+	}
 	SupportedGraphTypes = GraphDescriptor{
 		Gateway,
 		GatewayClass,
 		HTTPRoute,
+		Service,
 	}
 )
 
@@ -75,6 +85,33 @@ func GatewayGetGw(namespace, name, key string) ([]string, bool) {
 	}
 	gwClassName := string(gwObj.Spec.GatewayClassName)
 	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToGatewayClass(namespace, name, gwClassName)
+	var listeners []string
+	hostnames := make(map[string]string, 0)
+	//var hostnames map[string]string
+	for _, l := range gwObj.Spec.Listeners {
+		s := string(l.Name) + "/" + strconv.Itoa(int(l.Port)) + "/" + string(l.Protocol)
+		if l.AllowedRoutes == nil {
+			s += "/" + string(gwObj.Namespace)
+		} else {
+			if l.AllowedRoutes.Namespaces != nil {
+				if l.AllowedRoutes.Namespaces.From != nil {
+					if string(*l.AllowedRoutes.Namespaces.From) == "Same" {
+						s += "/" + string(gwObj.Namespace)
+					} else if string(*l.AllowedRoutes.Namespaces.From) == "All" {
+						s += "/All"
+					}
+				}
+			}
+		}
+		listeners = append(listeners, s)
+		hostnames[string(l.Name)] = string(*l.Hostname)
+	}
+	sort.Strings(listeners)
+	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToListener(namespace+"/"+name, listeners)
+	for listener, hostname := range hostnames {
+		akogatewayapiobjects.GatewayApiLister().UpdateGatewayListenerToHostname(namespace+"/"+name+"/"+listener, hostname)
+	}
+
 	return gw, true
 }
 
@@ -114,23 +151,98 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 		}
 		isDeleteCase = true
 	}
-	var gwNsNames []string
+	//var gwNsNames []string
 	if isDeleteCase {
-		_, gwNsNames = akogatewayapiobjects.GatewayApiLister().GetRouteToGateway(lib.HTTPRoute, namespace+"/"+name)
+		//_, gwNsNames = akogatewayapiobjects.GatewayApiLister().GetRouteToGateway(lib.HTTPRoute, namespace+"/"+name)
 	}
-
+	var listenerList []string
+	var gatewayList []string
+	var hostnameIntersection []string
 	for _, parent := range httpRouteObj.Spec.ParentRefs {
-		_ = namespace
-		if parent.Namespace != nil {
-			_ = string(*parent.Namespace)
+		parentNsName := string(*parent.Namespace) + "/" + string(parent.Name)
+		//check gateway is present in store
+
+		if !akogatewayapiobjects.GatewayApiLister().IsGatewayInStore(parentNsName) {
+			continue
 		}
+		if *parent.Namespace != gatewayv1beta1.Namespace(httpRouteObj.Namespace) {
+			//check reference grant
+		}
+		var gatewayListenerList []string
+		listeners := akogatewayapiobjects.GatewayApiLister().GetGatewayToListeners(string(*parent.Namespace), string(parent.Name))
+		for _, listener := range listeners {
+			listenerSlice := strings.Split(listener, "/")
+			listenerName := listenerSlice[0]
+			listenerPort := listenerSlice[1]
+			listenerAllowedNS := listenerSlice[3]
+			//check if namespace is allowed
+			if listenerAllowedNS == "All" || listenerAllowedNS == httpRouteObj.Namespace {
+				//if provided, check if section name and port matches
+				if (parent.SectionName == nil || string(*parent.SectionName) == listenerName) &&
+					(parent.Port == nil || string(*parent.Port) == listenerPort) {
+					listenerHostname := akogatewayapiobjects.GatewayApiLister().GetGatewayListenerToHostname(string(*parent.Namespace), string(parent.Name), listenerName)
+					if strings.HasPrefix(listenerHostname, "*") {
+						listenerHostname = listenerHostname[1:]
+					}
+					hostnameMatched := false
+					for _, routeHostname := range httpRouteObj.Spec.Hostnames {
+						if strings.HasSuffix(string(routeHostname), listenerHostname) {
+							hostnameIntersection = append(hostnameIntersection, string(routeHostname))
+							hostnameMatched = true
+						}
+					}
+					if hostnameMatched && !utils.HasElem(listenerList, string(*parent.Namespace)+"/"+string(parent.Name)+"/"+listenerName) {
+						gatewayListenerList = append(listenerList, string(*parent.Namespace)+"/"+string(parent.Name)+"/"+listenerName)
+					}
+				}
+			}
+		}
+
+		if len(gatewayListenerList) > 0 {
+			if !utils.HasElem(gatewayList, string(*parent.Namespace)+"/"+string(parent.Name)) {
+				gatewayList = append(gatewayList, string(*parent.Namespace)+"/"+string(parent.Name))
+			}
+			for _, gwListener := range gatewayListenerList {
+				if !utils.HasElem(listenerList, gwListener) {
+					listenerList = append(listenerList, gwListener)
+				}
+			}
+		}
+
+		routeNsName := httpRouteObj.Namespace + "/" + httpRouteObj.Name
 		if isDeleteCase {
-			//akogatewayapiobjects.GatewayApiLister().DeleteGatewayToRoute(ns+"/"+string(parent.Name), lib.HTTPRoute, namespace+"/"+name)
+			akogatewayapiobjects.GatewayApiLister().DeleteGatewayListenerRouteMappings("HTTPRoute", routeNsName)
 		} else {
-			//akogatewayapiobjects.GatewayApiLister().UpdateGatewayToRoute(ns+"/"+string(parent.Name), lib.HTTPRoute, namespace+"/"+name)
+			//update all gateways with route
+			routeNsName := httpRouteObj.Namespace + "/" + httpRouteObj.Name
+			for _, gwListener := range listenerList {
+				akogatewayapiobjects.GatewayApiLister().UpdateGatewayListenerRouteMappings(gwListener, "HTTPRoute", routeNsName)
+			}
+			akogatewayapiobjects.GatewayApiLister().UpdateRouteToGateway(routeNsName, gatewayList)
+			akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteToHostname(string(*parent.Namespace), string(parent.Name), hostnameIntersection)
 		}
 	}
 
 	// found, gwNsNames := akogatewayapiobjects.GatewayApiLister().GetRouteToGateway(lib.HTTPRoute, namespace+"/"+name)
-	return gwNsNames, true
+	for _, rule := range httpRouteObj.Spec.Rules {
+		if rule.BackendRefs != nil {
+			for _, backend := range rule.BackendRefs {
+				if backend.BackendObjectReference.Kind != nil && string(*backend.BackendObjectReference.Kind) == "Service" {
+					var serviceNsName string
+					if backend.Namespace == nil {
+						serviceNsName = httpRouteObj.Namespace + "/" + string(backend.Name)
+					} else {
+						serviceNsName = string(*backend.Namespace) + "/" + string(backend.Name)
+					}
+					akogatewayapiobjects.GatewayApiLister().UpdateServiceToGateway(serviceNsName, gatewayList)
+				}
+			}
+		}
+	}
+	return gatewayList, true
+}
+
+func ServiceToGateway(namespace, name, key string) ([]string, bool) {
+	serviceNsName := namespace + "/" + name
+	return akogatewayapiobjects.GatewayApiLister().GetServiceToGateway(serviceNsName)
 }

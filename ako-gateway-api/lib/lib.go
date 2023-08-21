@@ -63,3 +63,18 @@ func FindListenerStatusByName(name string, status []gatewayv1beta1.ListenerStatu
 	}
 	return -1
 }
+
+func GetChildName(parentNs, parentName, routeNs, routeName, matchName string) string {
+	name := lib.GetNamePrefix() + parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-" + utils.Stringify(utils.Hash(matchName)) + "-EVH"
+	return lib.Encode(name, lib.EVHVS)
+}
+
+func GetPoolName(parentNs, parentName, routeNs, routeName, matchName, backendNs, backendName, backendPort string) string {
+	name := lib.GetNamePrefix() + parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-" + utils.Stringify(utils.Hash(matchName)) + "-" + backendNs + "-" + backendName + "-" + backendPort
+	return lib.Encode(name, lib.Pool)
+}
+
+func GetPoolGroupName(parentNs, parentName, routeNs, routeName, matchName string) string {
+	name := lib.GetNamePrefix() + parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-" + utils.Stringify(utils.Hash(matchName)) + "-PG"
+	return lib.Encode(name, lib.PG)
+}

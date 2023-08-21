@@ -50,16 +50,18 @@ func DequeueIngestion(key string, fullsync bool) {
 			continue
 		}
 
-		// TODO: get the route mapped to the gateway
-		routeTypeNsNameList := []string{"HTTPRoute/default/route-01", "GRPCRoute/default/route-02"}
+		// TODO: get the route mapped to the gateway (done)
+		routeTypeNsNameList := akogatewayapiobjects.GatewayApiLister().GetGatewayToRoutes(gatewayNsName)
+		//routeTypeNsNameList := []string{"HTTPRoute/default/route-01", "GRPCRoute/default/route-02"}
 
 		for _, routeTypeNsName := range routeTypeNsNameList { //every route mapped to gateway
 			objType, namespace, name := lib.ExtractTypeNameNamespace(routeTypeNsName)
 
 			routeModel, err := NewRouteModel(key, objType, name, namespace)
+			listeners := akogatewayapiobjects.GatewayApiLister().GetRouteToGatewayListener(objType, namespace+"/"+name)
 			switch objType { // Extend this for other routes
 			case lib.HTTPRoute: //, GRPCRoute, TLSRoute:
-				model.ProcessL7Routes(key, routeModel, gatewayNsName)
+				model.ProcessL7Routes(key, routeModel, gatewayNsName, listeners)
 			// case TCPRoute, UDPRoute:
 			//  model.ProcessL4Routes(key, routeModel, gatewayNsName)
 			default:
