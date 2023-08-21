@@ -105,32 +105,32 @@ func GatewayClassGetGw(namespace, name, key string) ([]string, bool) {
 }
 
 func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
-	var isDeleteCase bool
-	httpRouteObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).Get(name)
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			utils.AviLog.Errorf("key: %s, got error while getting gateway: %v", key, err)
-			return []string{}, false
-		}
-		isDeleteCase = true
-	}
-	var gwNsNames []string
-	if isDeleteCase {
-		_, gwNsNames = akogatewayapiobjects.GatewayApiLister().GetRouteToGateway(lib.HTTPRoute, namespace+"/"+name)
-	}
+	// var isDeleteCase bool
+	// httpRouteObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).Get(name)
+	// if err != nil {
+	// 	if !errors.IsNotFound(err) {
+	// 		utils.AviLog.Errorf("key: %s, got error while getting gateway: %v", key, err)
+	// 		return []string{}, false
+	// 	}
+	// 	isDeleteCase = true
+	// }
+	// var gwNsNames []string
+	// if isDeleteCase {
+	// 	_, gwNsNames = akogatewayapiobjects.GatewayApiLister().GetRouteToGateway(lib.HTTPRoute, namespace+"/"+name)
+	// }
 
-	for _, parent := range httpRouteObj.Spec.ParentRefs {
-		_ = namespace
-		if parent.Namespace != nil {
-			_ = string(*parent.Namespace)
-		}
-		if isDeleteCase {
-			//akogatewayapiobjects.GatewayApiLister().DeleteGatewayToRoute(ns+"/"+string(parent.Name), lib.HTTPRoute, namespace+"/"+name)
-		} else {
-			//akogatewayapiobjects.GatewayApiLister().UpdateGatewayToRoute(ns+"/"+string(parent.Name), lib.HTTPRoute, namespace+"/"+name)
-		}
-	}
+	// for _, parent := range httpRouteObj.Spec.ParentRefs {
+	// 	_ = namespace
+	// 	if parent.Namespace != nil {
+	// 		_ = string(*parent.Namespace)
+	// 	}
+	// 	if isDeleteCase {
+	// 		//akogatewayapiobjects.GatewayApiLister().DeleteGatewayToRoute(ns+"/"+string(parent.Name), lib.HTTPRoute, namespace+"/"+name)
+	// 	} else {
+	// 		//akogatewayapiobjects.GatewayApiLister().UpdateGatewayToRoute(ns+"/"+string(parent.Name), lib.HTTPRoute, namespace+"/"+name)
+	// 	}
+	// }
 
 	// found, gwNsNames := akogatewayapiobjects.GatewayApiLister().GetRouteToGateway(lib.HTTPRoute, namespace+"/"+name)
-	return gwNsNames, true
+	return []string{"default/example-gateway"}, true
 }

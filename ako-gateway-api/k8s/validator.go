@@ -260,10 +260,21 @@ func validateParentReference(key string, httpRoute *gatewayv1beta1.HTTPRoute, ht
 		return err
 	}
 
-	hostsInListener := gateway.Spec.Listeners[i].Hostname
+	// TODO: Don't attach to a invalid listener configuration
+
+	hostInListener := gateway.Spec.Listeners[i].Hostname
+
+	if hostInListener == nil {
+		utils.AviLog.Errorf("key: %s, msg: no hostname found in parent", key)
+		err := fmt.Errorf("No hostname found in parent")
+		defaultCondition.
+			Message(err.Error()).
+			SetIn(&httpRouteStatus.Parents[index].Conditions)
+		return err
+	}
 
 	// replace the wildcard character with a regex
-	replacedHostname := strings.Replace(string(*hostsInListener), "*", "([a-zA-Z0-9-]{1,})", 1)
+	replacedHostname := strings.Replace(string(*hostInListener), "*", "([a-zA-Z0-9-]{1,})", 1)
 
 	// create the expression for pattern matching
 	pattern := fmt.Sprintf("^%s$", replacedHostname)
