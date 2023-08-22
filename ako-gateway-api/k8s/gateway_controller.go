@@ -619,8 +619,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 }
 
 func IsGatewayUpdated(oldGateway, newGateway *gatewayv1beta1.Gateway) bool {
-	if oldGateway.ResourceVersion != newGateway.ResourceVersion ||
-		newGateway.GetDeletionTimestamp() != nil {
+	if newGateway.GetDeletionTimestamp() != nil {
 		return true
 	}
 	oldHash := utils.Hash(utils.Stringify(oldGateway.Spec))
@@ -629,8 +628,7 @@ func IsGatewayUpdated(oldGateway, newGateway *gatewayv1beta1.Gateway) bool {
 }
 
 func IsHTTPRouteUpdated(oldHTTPRoute, newHTTPRoute *gatewayv1beta1.HTTPRoute) bool {
-	if oldHTTPRoute.ResourceVersion != newHTTPRoute.ResourceVersion ||
-		newHTTPRoute.GetDeletionTimestamp() != nil {
+	if newHTTPRoute.GetDeletionTimestamp() != nil {
 		return true
 	}
 	oldHash := utils.Hash(utils.Stringify(oldHTTPRoute.Spec))

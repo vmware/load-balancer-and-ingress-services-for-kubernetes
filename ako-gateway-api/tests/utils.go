@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/onsi/gomega"
+	"google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
@@ -34,6 +35,11 @@ var KubeClient *k8sfake.Clientset
 var GatewayClient *gatewayfake.Clientset
 var keyChan chan string
 var ctrl *akogatewayapik8s.GatewayController
+
+func GetModelName(namespace, name string) (string, string) {
+	vsName := akogatewayapilib.Prefix + "cluster--" + namespace + "-" + name + "-EVH"
+	return "admin/" + vsName, vsName
+}
 
 func SetGatewayName(gw *gatewayv1beta1.Gateway, name string) {
 	gw.Name = name
@@ -316,10 +322,83 @@ func GetRouteStatusV1Beta1(gatewayNames []string, namespace string, ports []int3
 	return routeStatus
 }
 
-func GetHTTPRouteRulesV1Beta1() []gatewayv1beta1.HTTPRouteRule {
-	rules := make([]gatewayv1beta1.HTTPRouteRule, 0)
-	// TODO: add few rules
-	return rules
+func GetHTTPRouteMatchV1Beta1(path string, pathMatchType string, headers []string) gatewayv1beta1.HTTPRouteMatch {
+	routeMatch := gatewayv1beta1.HTTPRouteMatch{}
+	routeMatch.Path = &gatewayv1beta1.HTTPPathMatch{}
+	routeMatch.Path.Type = (*gatewayv1beta1.PathMatchType)(proto.String(pathMatchType))
+	routeMatch.Path.Value = &path
+	for _, header := range headers {
+		headerMatch := gatewayv1beta1.HTTPHeaderMatch{}
+		headerMatch.Type = (*gatewayv1beta1.HeaderMatchType)(proto.String("Exact"))
+		headerMatch.Name = gatewayv1beta1.HTTPHeaderName(header)
+		headerMatch.Value = "some-value"
+		routeMatch.Headers = append(routeMatch.Headers, headerMatch)
+	}
+	return routeMatch
+}
+
+func GetHTTPHeaderFilterV1Beta1(actions []string) *gatewayv1beta1.HTTPHeaderFilter {
+	headerFilter := &gatewayv1beta1.HTTPHeaderFilter{}
+	for _, action := range actions {
+		switch action {
+		case "add":
+			headerFilter.Add =
+				append(headerFilter.Add,
+					gatewayv1beta1.HTTPHeader{
+						Name:  gatewayv1beta1.HTTPHeaderName("new-header"),
+						Value: "any-value",
+					},
+				)
+		case "remove":
+			headerFilter.Remove = append(headerFilter.Remove, "old-header")
+		case "replace":
+			headerFilter.Set =
+				append(headerFilter.Set,
+					gatewayv1beta1.HTTPHeader{
+						Name:  gatewayv1beta1.HTTPHeaderName("my-header"),
+						Value: "any-value",
+					},
+				)
+		}
+	}
+	return headerFilter
+}
+
+func GetHTTPRouteFilterV1Beta1(filterType string, actions []string) gatewayv1beta1.HTTPRouteFilter {
+	routeFilter := gatewayv1beta1.HTTPRouteFilter{}
+	routeFilter.Type = gatewayv1beta1.HTTPRouteFilterType(filterType)
+	switch filterType {
+	case "RequestHeaderModifier":
+		routeFilter.RequestHeaderModifier = GetHTTPHeaderFilterV1Beta1(actions)
+	case "ResponseHeaderModifier":
+		routeFilter.ResponseHeaderModifier = GetHTTPHeaderFilterV1Beta1(actions)
+	case "RequestRedirect":
+		statusCode302 := 302
+		host := "redirect.com"
+		routeFilter.RequestRedirect = &gatewayv1beta1.HTTPRequestRedirectFilter{
+			Hostname:   (*gatewayv1beta1.PreciseHostname)(&host),
+			StatusCode: &statusCode302,
+		}
+	}
+	return routeFilter
+}
+
+func GetHTTPRouteRuleV1Beta1(paths []string, matchHeaders []string, filterActionMap map[string][]string) gatewayv1beta1.HTTPRouteRule {
+	matches := make([]gatewayv1beta1.HTTPRouteMatch, 0, len(paths))
+	for _, path := range paths {
+		match := GetHTTPRouteMatchV1Beta1(path, "PathPrefix", matchHeaders)
+		matches = append(matches, match)
+	}
+
+	filters := make([]gatewayv1beta1.HTTPRouteFilter, 0, len(filterActionMap))
+	for filterType, actions := range filterActionMap {
+		filter := GetHTTPRouteFilterV1Beta1(filterType, actions)
+		filters = append(filters, filter)
+	}
+	rule := gatewayv1beta1.HTTPRouteRule{}
+	rule.Matches = matches
+	rule.Filters = filters
+	return rule
 }
 
 func (hr *HTTPRoute) Create(t *testing.T) {
