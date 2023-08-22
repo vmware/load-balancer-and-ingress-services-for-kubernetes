@@ -20,21 +20,23 @@ import (
 	"github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
 
+	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
-func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, parentNsName string) {
+func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, parentNsName string, childVSes map[string]struct{}) {
 	for _, rule := range routeModel.ParseRouteRules().Rules {
 
 		// TODO: add the scenarios where we will not create child VS here.
 
-		o.BuildChildVS(key, routeModel, parentNsName, rule)
+		o.BuildChildVS(key, routeModel, parentNsName, rule, childVSes)
 	}
 }
 
-func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentNsName string, rule *Rule) {
+func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentNsName string, rule *Rule, childVSes map[string]struct{}) {
 
 	parentNode := o.GetAviEvhVS()
 
@@ -42,8 +44,9 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	parentNode[0].VHDomainNames = routeModel.ParseRouteRules().Hosts
 	parentNode[0].VSVIPRefs[0].FQDNs = routeModel.ParseRouteRules().Hosts
 
-	//childVSName := akogatewayapilib.GetChildName(parentNs, parentName, routeModel.GetNamespace(), routeModel.GetName(), akogatewayapilib.Encode(utils.Stringify(match)))
-	childVSName := "child-vs-name" //TODO: logic to get the child name
+	parentNs, _, parentName := lib.ExtractTypeNameNamespace(parentNsName)
+	childVSName := akogatewayapilib.GetChildName(parentNs, parentName, routeModel.GetNamespace(), routeModel.GetName(), akogatewayapilib.Encode(utils.Stringify(rule.Matches)))
+	childVSes[childVSName] = struct{}{}
 
 	childNode := parentNode[0].GetEvhNodeForName(childVSName)
 	if childNode == nil {
@@ -54,7 +57,6 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	childNode.Tenant = lib.GetTenant()
 	childNode.EVHParent = false
 
-	_, _, parentName := lib.ExtractTypeNameNamespace(parentNsName)
 	childNode.ServiceMetadata = lib.ServiceMetadataObj{
 		Gateway: parentName,
 	}
@@ -74,6 +76,14 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 
 	// create the httppolicyset if the filter is present
 	o.BuildHTTPPolicySet(key, childNode, routeModel, rule)
+
+	foundEvhModel := nodes.FindAndReplaceEvhInModel(childNode, parentNode, key)
+	if !foundEvhModel {
+		parentNode[0].EvhNodes = append(parentNode[0].EvhNodes, childNode)
+		utils.AviLog.Debugf("key: %s, msg: added child vs %s to the parent vs %s", key, utils.Stringify(parentNode[0].EvhNodes), childNode.VHParentName)
+		akogatewayapiobjects.GatewayApiLister().UpdateRouteChildVSMappings(routeModel.GetType()+"/"+routeModel.GetNamespace()+"/"+routeModel.GetName(), childVSName)
+	}
+	utils.AviLog.Infof("key: %s, msg: processing of child vs %s attached to parent vs %s completed", key, childNode.Name, childNode.VHParentName)
 }
 
 func (o *AviObjectGraph) BuildPGPool(key string, childVsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
@@ -134,6 +144,7 @@ func (o *AviObjectGraph) BuildVHMatch(key string, vsNode *nodes.AviEvhVsNode, ro
 func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
 
 	if len(rule.Filters) == 0 {
+		vsNode.HttpPolicyRefs = nil
 		return
 	}
 
