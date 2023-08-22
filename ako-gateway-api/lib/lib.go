@@ -15,6 +15,9 @@
 package lib
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
+
 	"k8s.io/client-go/kubernetes"
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
@@ -36,14 +39,26 @@ func InformersToRegister(kclient *kubernetes.Clientset) ([]string, error) {
 	return allInformers, nil
 }
 
+// parent vs name format - clustername--gatewayNs-gatewayName-EVH
 func GetGatewayParentName(namespace, gwName string) string {
 	//clustername > gateway namespace > Gateway-name
 	//Adding -EVH prefix to reuse rest layer
 	return lib.GetNamePrefix() + namespace + "-" + gwName + "-EVH"
 }
 
+// child vs name format - clustername--encoded value of parentNs-parentName-childNs-childName-encodedStr
+func GetChildName(parentNs, parentName, childNs, childName, encodedStr string) string {
+	str := parentNs + "-" + parentName + "-" + childNs + "-" + childName + "-" + encodedStr
+	return lib.GetNamePrefix() + Encode(str)
+}
+
 func CheckGatewayClassController(controllerName string) bool {
 	return controllerName == lib.AviIngressController
+}
+
+func Encode(s string) string {
+	hash := sha1.Sum([]byte(s))
+	return hex.EncodeToString(hash[:])
 }
 
 func FindListenerByName(name string, listener []gatewayv1beta1.Listener) int {
