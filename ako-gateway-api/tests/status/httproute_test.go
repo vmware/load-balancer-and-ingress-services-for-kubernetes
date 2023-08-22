@@ -58,8 +58,8 @@ func TestHTTPRouteWithValidConfig(t *testing.T) {
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1Beta1([]string{gatewayName}, namespace, ports)
 	hostnames := []gatewayv1beta1.Hostname{"foo-8080.com", "foo-8081.com"}
-	rules := akogatewayapitests.GetHTTPRouteRulesV1Beta1()
-	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
 
 	g.Eventually(func() bool {
 		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1beta1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
@@ -126,8 +126,8 @@ func TestHTTPRouteWithAtleastOneParentReferenceValid(t *testing.T) {
 	// creates a httproute with parent which has listeners 8080, 8081
 	parentRefs := akogatewayapitests.GetParentReferencesV1Beta1([]string{gatewayName}, namespace, ports)
 	hostnames := []gatewayv1beta1.Hostname{"foo-8080.com", "foo-8081.com"}
-	rules := akogatewayapitests.GetHTTPRouteRulesV1Beta1()
-	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
 
 	g.Eventually(func() bool {
 		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1beta1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
@@ -203,8 +203,8 @@ func TestHTTPRouteTransitionFromInvalidToValid(t *testing.T) {
 	// creates an invalid httproute with parent which has listeners 8081
 	parentRefs := akogatewayapitests.GetParentReferencesV1Beta1([]string{gatewayName}, namespace, []int32{8081})
 	hostnames := []gatewayv1beta1.Hostname{"foo-8081.com"}
-	rules := akogatewayapitests.GetHTTPRouteRulesV1Beta1()
-	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
 
 	g.Eventually(func() bool {
 		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1beta1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
@@ -239,7 +239,7 @@ func TestHTTPRouteTransitionFromInvalidToValid(t *testing.T) {
 	// update the httproute with valid configuration
 	parentRefs = akogatewayapitests.GetParentReferencesV1Beta1([]string{gatewayName}, namespace, ports)
 	hostnames = []gatewayv1beta1.Hostname{"foo-8080.com"}
-	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
 
 	g.Eventually(func() bool {
 		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1beta1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
@@ -299,8 +299,8 @@ func TestHTTPRouteTransitionFromValidToInvalid(t *testing.T) {
 	// creates an invalid httproute with parent which has listeners 8080
 	parentRefs := akogatewayapitests.GetParentReferencesV1Beta1([]string{gatewayName}, namespace, ports)
 	hostnames := []gatewayv1beta1.Hostname{"foo-8080.com"}
-	rules := akogatewayapitests.GetHTTPRouteRulesV1Beta1()
-	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
 
 	g.Eventually(func() bool {
 		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1beta1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
@@ -334,7 +334,7 @@ func TestHTTPRouteTransitionFromValidToInvalid(t *testing.T) {
 
 	parentRefs = akogatewayapitests.GetParentReferencesV1Beta1([]string{gatewayName}, namespace, []int32{8081})
 	hostnames = []gatewayv1beta1.Hostname{"foo-8080.com"}
-	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
 
 	g.Eventually(func() bool {
 		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1beta1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
@@ -401,8 +401,8 @@ func TestHTTPRouteWithNoParentReference(t *testing.T) {
 
 	// creates a httproute with no parent reference which has listeners 8080
 	hostnames := []gatewayv1beta1.Hostname{"foo-8080.com"}
-	rules := akogatewayapitests.GetHTTPRouteRulesV1Beta1()
-	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, nil, hostnames, rules)
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, nil, hostnames, nil)
 
 	time.Sleep(10 * time.Second)
 
@@ -446,8 +446,8 @@ func TestHTTPRouteWithAllParentReferenceInvalid(t *testing.T) {
 	// creates a httproute with parent which has listeners 8080, 8081
 	parentRefs := akogatewayapitests.GetParentReferencesV1Beta1([]string{gatewayName}, namespace, ports)
 	hostnames := []gatewayv1beta1.Hostname{"foo-8080.com", "foo-8081.com"}
-	rules := akogatewayapitests.GetHTTPRouteRulesV1Beta1()
-	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
 
 	g.Eventually(func() bool {
 		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1beta1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
@@ -503,8 +503,8 @@ func TestHTTPRouteWithNonExistingGatewayReference(t *testing.T) {
 	// creates a httproute with no parent reference which has listeners 8080
 	parentRefs := akogatewayapitests.GetParentReferencesV1Beta1([]string{gatewayName}, namespace, ports)
 	hostnames := []gatewayv1beta1.Hostname{"foo-8080.com"}
-	rules := akogatewayapitests.GetHTTPRouteRulesV1Beta1()
-	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
 
 	time.Sleep(10 * time.Second)
 
@@ -547,8 +547,8 @@ func TestHTTPRouteWithNonExistingListenerReference(t *testing.T) {
 	// creates a httproute with parent which has listeners 8080, 8081
 	parentRefs := akogatewayapitests.GetParentReferencesV1Beta1([]string{gatewayName}, namespace, ports)
 	hostnames := []gatewayv1beta1.Hostname{"foo-8080.com", "foo-8081.com"}
-	rules := akogatewayapitests.GetHTTPRouteRulesV1Beta1()
-	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
 
 	g.Eventually(func() bool {
 		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1beta1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
@@ -618,8 +618,8 @@ func TestHTTPRouteWithNoHostnames(t *testing.T) {
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1Beta1([]string{gatewayName}, namespace, ports)
-	rules := akogatewayapitests.GetHTTPRouteRulesV1Beta1()
-	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, nil, rules)
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, nil, nil)
 
 	g.Eventually(func() bool {
 		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1beta1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
