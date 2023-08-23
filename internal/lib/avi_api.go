@@ -72,6 +72,9 @@ func AviGet(client *clients.AviClient, uri string, response interface{}, retryNu
 			if err = AviGet(client, uri, response, retry+1); err != nil {
 				utils.AviLog.Warnf("msg: Unable to fetch data from uri %s %v after context switch", uri, err)
 				return err
+			} else {
+				apimodels.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
+				return nil
 			}
 		}
 		CheckForInvalidCredentials(uri, err)
