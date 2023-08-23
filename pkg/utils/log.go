@@ -47,11 +47,20 @@ type AviLogger struct {
 	atom zap.AtomicLevel
 }
 
+// Init implements logr.LogSink.
+func (AviLogger) Init(info logr.RuntimeInfo) {
+	// Not used
+}
+
 func (aviLogger *AviLogger) Infof(template string, args ...interface{}) {
 	aviLogger.sugar.Infof(template, args...)
 }
 
-func (aviLogger AviLogger) Info(msg string, args ...interface{}) {
+func (aviLogger AviLogger) InfoLog(msg string, args ...interface{}) {
+	aviLogger.Info(0, msg, args...)
+}
+
+func (aviLogger AviLogger) Info(level int, msg string, args ...interface{}) {
 	aviLogger.sugar.Info(msg)
 }
 
@@ -92,20 +101,20 @@ func (aviLogger *AviLogger) SetLevel(l string) {
 	aviLogger.atom.SetLevel(LogLevelMap[l])
 }
 
-func (aviLogger AviLogger) Enabled() bool {
+func (aviLogger AviLogger) Enabled(level int) bool {
 	return aviLogger.sugar != nil
 }
 
-func (aviLogger AviLogger) V(level int) logr.Logger {
+func (aviLogger AviLogger) V(level int) logr.LogSink {
 	return aviLogger
 }
 
-func (aviLogger AviLogger) WithValues(keysAndValues ...interface{}) logr.Logger {
+func (aviLogger AviLogger) WithValues(keysAndValues ...interface{}) logr.LogSink {
 	// Not used
 	return &aviLogger
 }
 
-func (aviLogger AviLogger) WithName(name string) logr.Logger {
+func (aviLogger AviLogger) WithName(name string) logr.LogSink {
 	_ = aviLogger.sugar.Named(name)
 	return &aviLogger
 

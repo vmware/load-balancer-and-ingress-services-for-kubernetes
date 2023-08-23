@@ -111,7 +111,7 @@ func (rest *RestOperations) AviSSLKeyCertDel(uuid string, tenant string) *utils.
 		Tenant: tenant,
 		Model:  "SSLKeyAndCertificate",
 	}
-	utils.AviLog.Info(spew.Sprintf("SSLCertKey DELETE Restop %v ",
+	utils.AviLog.InfoLog(spew.Sprintf("SSLCertKey DELETE Restop %v ",
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
@@ -190,7 +190,7 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 				vs_cache_obj.AddToSSLKeyCertCollection(k)
 				utils.AviLog.Infof("Added VS cache key during SSLKeyCert update %v val %v", vsKey, utils.Stringify(vs_cache_obj))
 			}
-			utils.AviLog.Info(spew.Sprintf("Added SSLKeyCert cache k %v val %v", k,
+			utils.AviLog.InfoLog(spew.Sprintf("Added SSLKeyCert cache k %v val %v", k,
 				ssl_cache_obj))
 		}
 	}
@@ -273,7 +273,7 @@ func (rest *RestOperations) AviPkiProfileDel(uuid string, tenant string) *utils.
 		Tenant: tenant,
 		Model:  "PKIprofile",
 	}
-	utils.AviLog.Info(spew.Sprintf("PKIprofile DELETE Restop %v ",
+	utils.AviLog.InfoLog(spew.Sprintf("PKIprofile DELETE Restop %v ",
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
@@ -338,10 +338,10 @@ func (rest *RestOperations) AviPkiProfileAdd(rest_op *utils.RestOp, poolKey avic
 			} else {
 				pool_cache_obj := rest.cache.PoolCache.AviCacheAddPool(poolKey)
 				pool_cache_obj.PkiProfileCollection = k
-				utils.AviLog.Info(spew.Sprintf("Added Pool cache key during PkiProfile update %v val %v", poolKey,
+				utils.AviLog.InfoLog(spew.Sprintf("Added Pool cache key during PkiProfile update %v val %v", poolKey,
 					pool_cache_obj))
 			}
-			utils.AviLog.Info(spew.Sprintf("Added PkiProfile cache k %v val %v", k,
+			utils.AviLog.InfoLog(spew.Sprintf("Added PkiProfile cache k %v val %v", k,
 				pki_cache_obj))
 		}
 	}

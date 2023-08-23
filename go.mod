@@ -8,7 +8,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/fatih/structs v1.1.0
 	github.com/fsnotify/fsnotify v1.4.9
-	github.com/go-logr/logr v0.4.0
+	github.com/go-logr/logr v1.2.3
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/gorilla/mux v1.8.0
 	github.com/jinzhu/copier v0.3.5
@@ -17,7 +17,7 @@ require (
 	github.com/openshift/client-go v0.0.0-20201020082437-7737f16e53fc
 	github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
 	github.com/vmware/alb-sdk v0.0.0-20230202152455-af9d49bac7ea
-	go.uber.org/zap v1.18.1
+	go.uber.org/zap v1.19.0
 	golang.org/x/crypto v0.0.0-20220314234659-1baeb1ce4c0b
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 	google.golang.org/protobuf v1.26.0
@@ -27,7 +27,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.21.3
 	k8s.io/apimachinery v0.21.3
 	k8s.io/client-go v0.21.3
-	k8s.io/klog/v2 v2.8.0
+	k8s.io/klog/v2 v2.80.1
 	k8s.io/utils v0.0.0-20210722164352-7f3ee0f31471
 	sigs.k8s.io/controller-runtime v0.9.6
 	sigs.k8s.io/service-apis v0.1.0
@@ -38,7 +38,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/evanphx/json-patch v4.11.0+incompatible // indirect
-	github.com/go-logr/zapr v0.4.0 // indirect
+	github.com/go-logr/zapr v1.2.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
@@ -81,11 +81,9 @@ require (
 
 replace (
 	github.com/davecgh/go-spew => github.com/davecgh/go-spew v1.1.1
-	github.com/go-logr/logr => github.com/go-logr/logr v0.4.0
 	github.com/golang/glog => github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/google/gofuzz => github.com/google/gofuzz v1.2.0
 	github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
-	go.uber.org/zap => go.uber.org/zap v1.18.1
 	golang.org/x/net => golang.org/x/net v0.7.0
 	golang.org/x/oauth2 => golang.org/x/oauth2 v0.0.0-20201109201403-9fd604954f58
 	golang.org/x/text => golang.org/x/text v0.4.0

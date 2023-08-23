@@ -1372,7 +1372,7 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 	if !cache.WaitForCacheSync(stopCh, informersList...) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
-		utils.AviLog.Info("Caches synced")
+		utils.AviLog.InfoLog("Caches synced")
 	}
 }
 
@@ -1391,9 +1391,9 @@ func isServiceLBType(svcObj *corev1.Service) bool {
 func (c *AviController) Run(stopCh <-chan struct{}) error {
 	defer runtime.HandleCrash()
 
-	utils.AviLog.Info("Started the Kubernetes Controller")
+	utils.AviLog.InfoLog("Started the Kubernetes Controller")
 	<-stopCh
-	utils.AviLog.Info("Shutting down the Kubernetes Controller")
+	utils.AviLog.InfoLog("Shutting down the Kubernetes Controller")
 
 	return nil
 }
