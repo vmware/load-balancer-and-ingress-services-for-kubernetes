@@ -52,7 +52,6 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 
 	utils.AviLog.Debugf("key: %s, msg: processing gateways %v and routes %v", key, gatewayNsNameList, routeTypeNsNameList)
-
 	for _, gatewayNsName := range gatewayNsNameList {
 
 		parentNs, _, parentName := lib.ExtractTypeNameNamespace(gatewayNsName)
@@ -64,7 +63,6 @@ func DequeueIngestion(key string, fullsync bool) {
 			return
 		}
 		model := &AviObjectGraph{modelIntf.(*nodes.AviObjectGraph)}
-
 		for _, routeTypeNsName := range routeTypeNsNameList {
 			objType, namespace, name := lib.ExtractTypeNameNamespace(routeTypeNsName)
 			utils.AviLog.Infof("key: %s, Processing route %s mapped to gateway %s", key, routeTypeNsName, gatewayNsName)

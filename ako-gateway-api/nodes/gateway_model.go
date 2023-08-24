@@ -26,6 +26,7 @@ import (
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 )
 
 type AviObjectGraph struct {
@@ -146,6 +147,10 @@ func BuildVsVipNodeForGateway(gateway *gatewayv1beta1.Gateway, vsName string) *n
 	//Type is validated at ingestion
 	if len(gateway.Spec.Addresses) == 1 {
 		vsvipNode.IPAddress = gateway.Spec.Addresses[0].Value
+	}
+	found, fqdns := akogatewayapiobjects.GatewayApiLister().GetGatewayRouteToHostname(gateway.Namespace, gateway.Name)
+	if found {
+		vsvipNode.FQDNs = fqdns
 	}
 	return vsvipNode
 }
