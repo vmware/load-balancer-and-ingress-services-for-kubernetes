@@ -56,10 +56,6 @@ func (aviLogger *AviLogger) Infof(template string, args ...interface{}) {
 	aviLogger.sugar.Infof(template, args...)
 }
 
-func (aviLogger AviLogger) InfoLog(msg string, args ...interface{}) {
-	aviLogger.Info(0, msg, args...)
-}
-
 func (aviLogger AviLogger) Info(level int, msg string, args ...interface{}) {
 	aviLogger.sugar.Info(msg)
 }

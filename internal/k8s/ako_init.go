@@ -228,7 +228,7 @@ func (c *AviController) AddBootupNSEventHandler(stopCh <-chan struct{}, startSyn
 	if !cache.WaitForCacheSync(stopCh, c.informers.NSInformer.Informer().HasSynced) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
-		utils.AviLog.InfoLog("Caches synced for NS informer")
+		utils.AviLog.Infof("Caches synced for NS informer")
 	}
 }
 
@@ -344,7 +344,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
-		utils.AviLog.InfoLog("Caches synced")
+		utils.AviLog.Infof("Caches synced")
 	}
 	return nil
 }
@@ -1371,11 +1371,11 @@ func (c *AviController) InitializeNamespaceSync() {
 	}
 	nsFilterObj := utils.GetGlobalNSFilter()
 	if !nsFilterObj.EnableMigration {
-		utils.AviLog.InfoLog("Namespace Sync is disabled.")
+		utils.AviLog.Infof("Namespace Sync is disabled.")
 		return
 	}
 	populateNamespaceList()
-	utils.AviLog.InfoLog("Namespace Sync is enabled")
+	utils.AviLog.Infof("Namespace Sync is enabled")
 }
 
 // Add namespaces with correct labels to list of valid Namespaces. This is used while populating status of k8s objects.

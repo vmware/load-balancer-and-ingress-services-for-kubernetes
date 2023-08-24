@@ -120,7 +120,7 @@ func (rest *RestOperations) AviPGDel(uuid string, tenant string, key string) *ut
 		Tenant: tenant,
 		Model:  "PoolGroup",
 	}
-	utils.AviLog.InfoLog(spew.Sprintf("key: %s, msg: PG DELETE Restop %v ", key, utils.Stringify(rest_op)))
+	utils.AviLog.Infof(spew.Sprintf("key: %s, msg: PG DELETE Restop %v ", key, utils.Stringify(rest_op)))
 	return &rest_op
 }
 
@@ -200,10 +200,10 @@ func (rest *RestOperations) AviPGCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 		} else {
 			vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToPGKeyCollection(k)
-			utils.AviLog.InfoLog(spew.Sprintf("key: %s, msg: added VS cache key during poolgroup update %v val %v", key, vsKey,
+			utils.AviLog.Infof(spew.Sprintf("key: %s, msg: added VS cache key during poolgroup update %v val %v", key, vsKey,
 				vs_cache_obj))
 		}
-		utils.AviLog.InfoLog(spew.Sprintf("key: %s, msg: added PG cache k %v val %v", key, k,
+		utils.AviLog.Infof(spew.Sprintf("key: %s, msg: added PG cache k %v val %v", key, k,
 			pg_cache_obj))
 	}
 
