@@ -15,7 +15,12 @@
 package nodes
 
 import (
+	"sort"
+	"strconv"
+	"strings"
+
 	"k8s.io/apimachinery/pkg/api/errors"
+	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
@@ -98,6 +103,33 @@ func GatewayGetGw(namespace, name, key string) ([]string, bool) {
 	}
 	gwClassName := string(gwObj.Spec.GatewayClassName)
 	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToGatewayClass(namespace, name, gwClassName)
+
+	var listeners []string
+	hostnames := make(map[string]string, 0)
+	//var hostnames map[string]string
+	for _, l := range gwObj.Spec.Listeners {
+		s := string(l.Name) + "/" + strconv.Itoa(int(l.Port)) + "/" + string(l.Protocol)
+		if l.AllowedRoutes == nil {
+			s += "/" + string(gwObj.Namespace)
+		} else {
+			if l.AllowedRoutes.Namespaces != nil {
+				if l.AllowedRoutes.Namespaces.From != nil {
+					if string(*l.AllowedRoutes.Namespaces.From) == "Same" {
+						s += "/" + string(gwObj.Namespace)
+					} else if string(*l.AllowedRoutes.Namespaces.From) == "All" {
+						s += "/All"
+					}
+				}
+			}
+		}
+		listeners = append(listeners, s)
+		hostnames[string(l.Name)] = string(*l.Hostname)
+	}
+	sort.Strings(listeners)
+	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToListener(namespace+"/"+name, listeners)
+	for listener, hostname := range hostnames {
+		akogatewayapiobjects.GatewayApiLister().UpdateGatewayListenerToHostname(namespace+"/"+name+"/"+listener, hostname)
+	}
 	return []string{gwNsName}, true
 }
 
@@ -138,6 +170,7 @@ func GatewayClassGetGw(namespace, name, key string) ([]string, bool) {
 }
 
 func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
+
 	routeTypeNsName := lib.HTTPRoute + "/" + namespace + "/" + name
 	hrObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).Get(name)
 	if err != nil {
@@ -152,16 +185,65 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 		akogatewayapiobjects.GatewayApiLister().DeleteRouteGatewayMappings(routeTypeNsName)
 		return gwNsNameList, true
 	}
-
+	var listenerList []string
+	var gatewayList []string
+	var hostnameIntersection []string
 	var gwNsNameList []string
 	for _, parentRef := range hrObj.Spec.ParentRefs {
 		ns := namespace
 		if parentRef.Namespace != nil {
 			ns = string(*parentRef.Namespace)
+			if *parentRef.Namespace != gatewayv1beta1.Namespace(hrObj.Namespace) {
+				//check reference grant
+			}
 		}
+		var gatewayListenerList []string
 		gwNsName := ns + "/" + string(parentRef.Name)
-		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteMappings(gwNsName, routeTypeNsName)
-		gwNsNameList = append(gwNsNameList, gwNsName)
+		listeners := akogatewayapiobjects.GatewayApiLister().GetGatewayToListeners(gwNsName)
+		for _, listener := range listeners {
+			listenerSlice := strings.Split(listener, "/")
+			listenerName := listenerSlice[0]
+			listenerPort := listenerSlice[1]
+			listenerAllowedNS := listenerSlice[3]
+			//check if namespace is allowed
+			if listenerAllowedNS == "All" || listenerAllowedNS == hrObj.Namespace {
+				//if provided, check if section name and port matches
+				if (parentRef.SectionName == nil || string(*parentRef.SectionName) == listenerName) &&
+					(parentRef.Port == nil || string(*parentRef.Port) == listenerPort) {
+					listenerHostname := akogatewayapiobjects.GatewayApiLister().GetGatewayListenerToHostname(gwNsName, listenerName)
+					if strings.HasPrefix(listenerHostname, "*") {
+						listenerHostname = listenerHostname[1:]
+					}
+					hostnameMatched := false
+					for _, routeHostname := range hrObj.Spec.Hostnames {
+						if strings.HasSuffix(string(routeHostname), listenerHostname) {
+							hostnameIntersection = append(hostnameIntersection, string(routeHostname))
+							hostnameMatched = true
+						}
+					}
+					if hostnameMatched && !utils.HasElem(listenerList, gwNsName+"/"+listenerName) {
+						gatewayListenerList = append(listenerList, gwNsName+"/"+listenerName)
+					}
+				}
+			}
+		}
+
+		if len(gatewayListenerList) > 0 {
+			if !utils.HasElem(gatewayList, gwNsName) {
+				gatewayList = append(gatewayList, gwNsName)
+			}
+			for _, gwListener := range gatewayListenerList {
+				if !utils.HasElem(listenerList, gwListener) {
+					listenerList = append(listenerList, gwListener)
+				}
+			}
+		}
+		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteToHostname(gwNsName, hostnameIntersection)
+
+		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteMappings(gwNsName, listenerList, routeTypeNsName)
+		if !utils.HasElem(gwNsNameList, gwNsName) {
+			gwNsNameList = append(gwNsNameList, gwNsName)
+		}
 	}
 
 	utils.AviLog.Debugf("key: %s, msg: Gateways retrieved %s", key, gwNsNameList)

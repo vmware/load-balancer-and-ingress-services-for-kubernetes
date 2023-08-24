@@ -17,6 +17,7 @@ package tests
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -383,7 +384,25 @@ func GetHTTPRouteFilterV1Beta1(filterType string, actions []string) gatewayv1bet
 	return routeFilter
 }
 
-func GetHTTPRouteRuleV1Beta1(paths []string, matchHeaders []string, filterActionMap map[string][]string) gatewayv1beta1.HTTPRouteRule {
+func GetHTTPRouteBackendV1Beta1(backendRefs []string) gatewayv1beta1.HTTPBackendRef {
+	serviceKind := gatewayv1beta1.Kind("Service")
+	port, _ := strconv.Atoi(backendRefs[2])
+	servicePort := gatewayv1beta1.PortNumber(port)
+	backendRef := gatewayv1beta1.HTTPBackendRef{}
+	backendRef.BackendObjectReference = gatewayv1beta1.BackendObjectReference{
+		Kind:      &serviceKind,
+		Name:      gatewayv1beta1.ObjectName(backendRefs[0]),
+		Namespace: (*gatewayv1beta1.Namespace)(&backendRefs[1]),
+		Port:      &servicePort,
+	}
+	weight, _ := strconv.Atoi(backendRefs[3])
+	weight32 := int32(weight)
+	backendRef.Weight = &weight32
+	return backendRef
+
+}
+
+func GetHTTPRouteRuleV1Beta1(paths []string, matchHeaders []string, filterActionMap map[string][]string, backendRefs [][]string) gatewayv1beta1.HTTPRouteRule {
 	matches := make([]gatewayv1beta1.HTTPRouteMatch, 0, len(paths))
 	for _, path := range paths {
 		match := GetHTTPRouteMatchV1Beta1(path, "PathPrefix", matchHeaders)
@@ -395,10 +414,50 @@ func GetHTTPRouteRuleV1Beta1(paths []string, matchHeaders []string, filterAction
 		filter := GetHTTPRouteFilterV1Beta1(filterType, actions)
 		filters = append(filters, filter)
 	}
+	backends := make([]gatewayv1beta1.HTTPBackendRef, 0, len(backendRefs))
+	for _, backendRef := range backendRefs {
+		backend := GetHTTPRouteBackendV1Beta1(backendRef)
+		backends = append(backends, backend)
+	}
 	rule := gatewayv1beta1.HTTPRouteRule{}
 	rule.Matches = matches
 	rule.Filters = filters
+	rule.BackendRefs = backends
 	return rule
+}
+func GetHTTPRouteRulesV1Beta1Login() []gatewayv1beta1.HTTPRouteRule {
+	rules := make([]gatewayv1beta1.HTTPRouteRule, 0)
+	// TODO: add few rules
+
+	//login rule
+	var serviceKind gatewayv1beta1.Kind
+	var servicePort gatewayv1beta1.PortNumber
+	serviceKind = "Service"
+	servicePort = 8080
+	pathPrefix := gatewayv1beta1.PathMatchPathPrefix
+	path := "/login"
+	rules = append(rules, gatewayv1beta1.HTTPRouteRule{
+		Matches: []gatewayv1beta1.HTTPRouteMatch{
+			{
+				Path: &gatewayv1beta1.HTTPPathMatch{
+					Type:  &pathPrefix,
+					Value: &path,
+				},
+			},
+		},
+		BackendRefs: []gatewayv1beta1.HTTPBackendRef{
+			{
+				BackendRef: gatewayv1beta1.BackendRef{
+					BackendObjectReference: gatewayv1beta1.BackendObjectReference{
+						Kind: &serviceKind,
+						Name: "avisvc",
+						Port: &servicePort,
+					},
+				},
+			},
+		},
+	})
+	return rules
 }
 
 func (hr *HTTPRoute) Create(t *testing.T) {
