@@ -2,711 +2,268 @@ package controllers
 
 import (
 	"context"
-	"reflect"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"strings"
+	"sync"
 
 	logr "github.com/go-logr/logr"
-	"google.golang.org/protobuf/proto"
-
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 
 	apiextensionv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextension "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
+	myscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 )
 
 const (
-	CRDGroup   = "ako.vmware.com"
-	CRDVersion = "apiextensions.k8s.io/v1"
-	Version    = "v1alpha1"
+	CRDGroup                   = "ako.vmware.com"
+	CRDVersion                 = "apiextensions.k8s.io/v1"
+	Version                    = "v1alpha1"
+	hostruleCRDLocation        = "/var/crds/ako.vmware.com_hostrules.yaml"
+	httpruleCRDLocation        = "/var/crds/ako.vmware.com_httprules.yaml"
+	aviinfrasettingCRDLocation = "/var/crds/ako.vmware.com_aviinfrasettings.yaml"
+	l4ruleCRDLocation          = "/var/crds/ako.vmware.com_l4rules.yaml"
+	ssoruleCRDLocation         = "/var/crds/ako.vmware.com_ssorules.yaml"
+	hostRuleFullCRDName        = "hostrules.ako.vmware.com"
+	httpRuleFullCRDName        = "httprules.ako.vmware.com"
+	aviInfraSettingFullCRDName = "aviinfrasettings.ako.vmware.com"
+	l4RuleFullCRDName          = "l4rules.ako.vmware.com"
+	ssoRuleFullCRDName         = "ssorules.ako.vmware.com"
 )
 
 var (
-	HostRuleFullCRDName        = "hostrules.ako.vmware.com"
-	HostRuleCRDSingular        = "hostrule"
-	HostRuleCRDPlural          = "hostrules"
-	HttpRuleFullCRDName        = "httprules.ako.vmware.com"
-	HttpRuleCRDSingular        = "httprule"
-	HttpRuleCRDPlural          = "httprules"
-	AviInfraSettingFullCRDName = "aviinfrasettings.ako.vmware.com"
-	AviInfraSettingCRDSingular = "aviinfrasetting"
-	AviInfraSettingCRDPlural   = "aviinfrasettings"
+	hostruleCRD         *apiextensionv1.CustomResourceDefinition
+	httpruleCRD         *apiextensionv1.CustomResourceDefinition
+	aviinfrasettingCRD  *apiextensionv1.CustomResourceDefinition
+	l4ruleCRD           *apiextensionv1.CustomResourceDefinition
+	ssoruleCRD          *apiextensionv1.CustomResourceDefinition
+	hostruleOnce        sync.Once
+	httpruleOnce        sync.Once
+	aviinfrasettingOnce sync.Once
+	l4ruleOnce          sync.Once
+	ssoruleOnce         sync.Once
 )
 
+func readCRDFromManifest(crdLocation string, log logr.Logger) (*apiextensionv1.CustomResourceDefinition, error) {
+	crdYaml, err := ioutil.ReadFile(crdLocation)
+	if err != nil {
+		log.Error(err, fmt.Sprintf("unable to read file : %s", crdLocation))
+		return nil, err
+	}
+	crdObj := parseK8sYaml([]byte(crdYaml), log)
+	if len(crdObj) == 0 {
+		return nil, errors.New(fmt.Sprintf("Error while parsing yaml file at %s", crdLocation))
+	}
+
+	// convert the runtime.Object to unstructured.Unstructured
+	crdUnstructuredObjMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(crdObj[0])
+	if err != nil {
+		log.Error(err, "unable to convert parsed crd obj to unstrectured map")
+		return nil, err
+	}
+
+	var crd apiextensionv1.CustomResourceDefinition
+	if err = runtime.DefaultUnstructuredConverter.FromUnstructured(crdUnstructuredObjMap, &crd); err != nil {
+		return nil, err
+	}
+	return &crd, nil
+}
+
 func createHostRuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.Logger) error {
-
-	version := apiextensionv1.CustomResourceDefinitionVersion{
-		Name:    Version,
-		Served:  true,
-		Storage: true,
-		Schema: &apiextensionv1.CustomResourceValidation{
-			OpenAPIV3Schema: &apiextensionv1.JSONSchemaProps{
-				Type: "object",
-				Properties: map[string]apiextensionv1.JSONSchemaProps{
-					"spec": {
-						Type:     "object",
-						Required: []string{"virtualhost"},
-						Properties: map[string]apiextensionv1.JSONSchemaProps{
-							"virtualhost": {
-								Type:     "object",
-								Required: []string{"fqdn"},
-								Properties: map[string]apiextensionv1.JSONSchemaProps{
-									"analyticsProfile": {
-										Type: "string",
-									},
-									"applicationProfile": {
-										Type: "string",
-									},
-									"icapProfile": {
-										Type: "array",
-									},
-									"enableVirtualHost": {
-										Type: "boolean",
-									},
-									"errorPageProfile": {
-										Type: "string",
-									},
-									"fqdn": {
-										Type: "string",
-									},
-									"fqdnType": {
-										Type: "string",
-										Enum: []apiextensionv1.JSON{
-											{
-												Raw: []byte("\"Exact\""),
-											},
-											{
-												Raw: []byte("\"Contains\""),
-											},
-											{
-												Raw: []byte("\"Wildcard\""),
-											},
-										},
-										Default: &apiextensionv1.JSON{
-											Raw: []byte("\"Exact\""),
-										},
-									},
-									"datascripts": {
-										Items: &apiextensionv1.JSONSchemaPropsOrArray{
-											Schema: &apiextensionv1.JSONSchemaProps{
-												Type: "string",
-											},
-										},
-										Type: "array",
-									},
-									"httpPolicy": {
-										Type: "object",
-										Properties: map[string]apiextensionv1.JSONSchemaProps{
-											"overwrite": {
-												Type: "boolean",
-											},
-											"policySets": {
-												Items: &apiextensionv1.JSONSchemaPropsOrArray{
-													Schema: &apiextensionv1.JSONSchemaProps{
-														Type: "string",
-													},
-												},
-												Type: "array",
-											},
-										},
-									},
-									"gslb": {
-										Type: "object",
-										Properties: map[string]apiextensionv1.JSONSchemaProps{
-											"fqdn": {
-												Type: "string",
-											},
-											"includeAliases": {
-												Type: "boolean",
-												Default: &apiextensionv1.JSON{
-													Raw: []byte("false"),
-												},
-											},
-										},
-									},
-									"wafPolicy": {
-										Type: "string",
-									},
-									"tls": {
-										Type:     "object",
-										Required: []string{"sslKeyCertificate"},
-										Properties: map[string]apiextensionv1.JSONSchemaProps{
-											"sslProfile": {
-												Type: "string",
-											},
-											"sslKeyCertificate": {
-												Type:     "object",
-												Required: []string{"name", "type"},
-												Properties: map[string]apiextensionv1.JSONSchemaProps{
-													"name": {
-														Type: "string",
-													},
-													"type": {
-														Type: "string",
-														Enum: []apiextensionv1.JSON{
-															{
-																Raw: []byte("\"ref\""),
-															},
-															{
-																Raw: []byte("\"secret\""),
-															},
-														},
-													},
-													"alternateCertificate": {
-														Type:     "object",
-														Required: []string{"name", "type"},
-														Properties: map[string]apiextensionv1.JSONSchemaProps{
-															"name": {
-																Type: "string",
-															},
-															"type": {
-																Type: "string",
-																Enum: []apiextensionv1.JSON{
-																	{
-																		Raw: []byte("\"ref\""),
-																	},
-																	{
-																		Raw: []byte("\"secret\""),
-																	},
-																},
-															},
-														},
-													},
-												},
-											},
-											"termination": {
-												Type: "string",
-												Enum: []apiextensionv1.JSON{
-													{
-														Raw: []byte("\"edge\""),
-													},
-												},
-											},
-										},
-									},
-									"analyticsPolicy": {
-										Type: "object",
-										Properties: map[string]apiextensionv1.JSONSchemaProps{
-											"fullClientLogs": {
-												Type: "object",
-												Properties: map[string]apiextensionv1.JSONSchemaProps{
-													"enabled": {
-														Type: "boolean",
-														Default: &apiextensionv1.JSON{
-															Raw: []byte("false"),
-														},
-													},
-													"throttle": {
-														Type: "string",
-														Enum: []apiextensionv1.JSON{
-															{
-																Raw: []byte("\"LOW\""),
-															},
-															{
-																Raw: []byte("\"MEDIUM\""),
-															},
-															{
-																Raw: []byte("\"HIGH\""),
-															},
-															{
-																Raw: []byte("\"DISABLED\""),
-															},
-														},
-														Default: &apiextensionv1.JSON{
-															Raw: []byte("\"HIGH\""),
-														},
-													},
-												},
-											},
-											"logAllHeaders": {
-												Type: "boolean",
-												Default: &apiextensionv1.JSON{
-													Raw: []byte("false"),
-												},
-											},
-										},
-									},
-									"tcpSettings": {
-										Type: "object",
-										Properties: map[string]apiextensionv1.JSONSchemaProps{
-											"listeners": {
-												Type: "array",
-												Items: &apiextensionv1.JSONSchemaPropsOrArray{
-													Schema: &apiextensionv1.JSONSchemaProps{
-														Type: "object",
-														Properties: map[string]apiextensionv1.JSONSchemaProps{
-															"port": {
-																Type:    "integer",
-																Minimum: proto.Float64(1),
-																Maximum: proto.Float64(65535),
-															},
-															"enableSSL": {
-																Type: "boolean",
-															},
-														},
-													},
-												},
-											},
-											"loadBalancerIP": {
-												Type: "string",
-											},
-										},
-									},
-									"aliases": {
-										Type: "array",
-										Items: &apiextensionv1.JSONSchemaPropsOrArray{
-											Schema: &apiextensionv1.JSONSchemaProps{
-												Type: "string",
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-					"status": {
-						Type: "object",
-						Properties: map[string]apiextensionv1.JSONSchemaProps{
-							"error": {
-								Type: "string",
-							},
-							"status": {
-								Type: "string",
-							},
-						},
-					},
-				},
-			},
-		},
-		Subresources: &apiextensionv1.CustomResourceSubresources{Status: &apiextensionv1.CustomResourceSubresourceStatus{}},
-		AdditionalPrinterColumns: []apiextensionv1.CustomResourceColumnDefinition{
-			{
-				Description: "virtualhost for which the hostrule is valid",
-				JSONPath:    ".spec.virtualhost.fqdn",
-				Name:        "Host",
-				Type:        "string",
-			},
-			{
-				Description: "status of the hostrule object",
-				JSONPath:    ".status.status",
-				Name:        "Status",
-				Type:        "string",
-			},
-			{
-				JSONPath: ".metadata.creationTimestamp",
-				Name:     "Age",
-				Type:     "date",
-			},
-		},
-	}
-	crd := &apiextensionv1.CustomResourceDefinition{
-		TypeMeta:   v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{Name: HostRuleFullCRDName},
-		Spec: apiextensionv1.CustomResourceDefinitionSpec{
-			Group: CRDGroup,
-			Names: apiextensionv1.CustomResourceDefinitionNames{
-				Plural:   HostRuleCRDPlural,
-				Singular: HostRuleCRDSingular,
-				ShortNames: []string{
-					HostRuleCRDSingular,
-					"hr",
-				},
-				Kind: reflect.TypeOf(akov1alpha1.HostRule{}).Name(),
-			},
-			Scope: apiextensionv1.NamespaceScoped,
-			Versions: []apiextensionv1.CustomResourceDefinitionVersion{
-				version,
-			},
-			Conversion: &apiextensionv1.CustomResourceConversion{
-				Strategy: apiextensionv1.ConversionStrategyType("None"),
-			},
-		},
-		Status: apiextensionv1.CustomResourceDefinitionStatus{},
+	var err error
+	hostruleOnce.Do(func() {
+		hostruleCRD, err = readCRDFromManifest(hostruleCRDLocation, log)
+	})
+	if err != nil {
+		return err
+	} else if hostruleCRD == nil {
+		return errors.New(fmt.Sprintf("Failure while reading %s CRD manifest", hostRuleFullCRDName))
 	}
 
-	_, err := clientset.CustomResourceDefinitions().Create(context.TODO(), crd, v1.CreateOptions{})
+	existingHostRule, err := clientset.CustomResourceDefinitions().Get(context.TODO(), hostRuleFullCRDName, v1.GetOptions{})
+	if err == nil && existingHostRule != nil {
+		if hostruleCRD.GetResourceVersion() == existingHostRule.GetResourceVersion() {
+			log.Info(fmt.Sprintf("no updates required for %s CRD", hostRuleFullCRDName))
+		} else {
+			hostruleCRD.SetResourceVersion(existingHostRule.GetResourceVersion())
+			_, err = clientset.CustomResourceDefinitions().Update(context.TODO(), hostruleCRD, v1.UpdateOptions{})
+			if err != nil {
+				log.Error(err, fmt.Sprintf("Error while updating %s CRD", hostRuleFullCRDName))
+				return err
+			} else {
+				log.Info(fmt.Sprintf("successfully updated %s CRD", hostRuleFullCRDName))
+			}
+		}
+		return nil
+	}
+
+	_, err = clientset.CustomResourceDefinitions().Create(context.TODO(), hostruleCRD, v1.CreateOptions{})
 	if err == nil {
-		log.V(0).Info("hostrules.ako.vmware.com CRD created")
+		log.Info(fmt.Sprintf("%s CRD created", hostRuleFullCRDName))
 		return nil
 	} else if apierrors.IsAlreadyExists(err) {
-		log.V(0).Info("hostrules.ako.vmware.com CRD already exists")
+		log.Info(fmt.Sprintf("%s CRD already exists", hostRuleFullCRDName))
 		return nil
 	}
 	return err
 }
 
 func createHttpRuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.Logger) error {
-	version := apiextensionv1.CustomResourceDefinitionVersion{
-		Name:    Version,
-		Served:  true,
-		Storage: true,
-		Schema: &apiextensionv1.CustomResourceValidation{
-			OpenAPIV3Schema: &apiextensionv1.JSONSchemaProps{
-				Type: "object",
-				Properties: map[string]apiextensionv1.JSONSchemaProps{
-					"spec": {
-						Type:     "object",
-						Required: []string{"fqdn"},
-						Properties: map[string]apiextensionv1.JSONSchemaProps{
-							"fqdn": {
-								Type: "string",
-							},
-							"paths": {
-								Type: "array",
-								Items: &apiextensionv1.JSONSchemaPropsOrArray{
-									Schema: &apiextensionv1.JSONSchemaProps{
-										Type:     "object",
-										Required: []string{"target"},
-										Properties: map[string]apiextensionv1.JSONSchemaProps{
-											"loadBalancerPolicy": {
-												Type: "object",
-												Properties: map[string]apiextensionv1.JSONSchemaProps{
-													"algorithm": {
-														Type: "string",
-														Enum: []apiextensionv1.JSON{
-															{
-																Raw: []byte("\"LB_ALGORITHM_CONSISTENT_HASH\""),
-															}, {
-																Raw: []byte("\"LB_ALGORITHM_CORE_AFFINITY\""),
-															}, {
-																Raw: []byte("\"LB_ALGORITHM_FASTEST_RESPONSE\""),
-															}, {
-																Raw: []byte("\"LB_ALGORITHM_FEWEST_SERVERS\""),
-															}, {
-																Raw: []byte("\"LB_ALGORITHM_LEAST_CONNECTIONS\""),
-															}, {
-																Raw: []byte("\"LB_ALGORITHM_LEAST_LOAD\""),
-															}, {
-																Raw: []byte("\"LB_ALGORITHM_ROUND_ROBIN\""),
-															},
-														},
-													},
-													"hash": {
-														Type: "string",
-														Enum: []apiextensionv1.JSON{
-															{
-																Raw: []byte("\"LB_ALGORITHM_CONSISTENT_HASH_CALLID\""),
-															}, {
-																Raw: []byte("\"LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS\""),
-															}, {
-																Raw: []byte("\"LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS_AND_PORT\""),
-															}, {
-																Raw: []byte("\"LB_ALGORITHM_CONSISTENT_HASH_URI\""),
-															}, {
-																Raw: []byte("\"LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER\""),
-															}, {
-																Raw: []byte("\"LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_STRING\""),
-															},
-														},
-													},
-													"hostHeader": {
-														Type: "string",
-													},
-												},
-											},
-											"target": {
-												Type:    "string",
-												Pattern: "^\\/.*$",
-											},
-											"healthMonitors": {
-												Type: "array",
-												Items: &apiextensionv1.JSONSchemaPropsOrArray{
-													Schema: &apiextensionv1.JSONSchemaProps{
-														Type: "string",
-													},
-												},
-											},
-											"applicationPersistence": {
-												Type: "string",
-											},
-											"tls": {
-												Type:     "object",
-												Required: []string{"type"},
-												Properties: map[string]apiextensionv1.JSONSchemaProps{
-													"pkiProfile": {
-														Type: "string",
-													},
-													"destinationCA": {
-														Type: "string",
-													},
-													"sslProfile": {
-														Type: "string",
-													},
-													"type": {
-														Type: "string",
-														Enum: []apiextensionv1.JSON{
-															{
-																Raw: []byte("\"reencrypt\""),
-															},
-														},
-													},
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-					"status": {
-						Type: "object",
-						Properties: map[string]apiextensionv1.JSONSchemaProps{
-							"error": {
-								Type: "string",
-							},
-							"status": {
-								Type: "string",
-							},
-						},
-					},
-				},
-			},
-		},
-		Subresources: &apiextensionv1.CustomResourceSubresources{Status: &apiextensionv1.CustomResourceSubresourceStatus{}},
-		AdditionalPrinterColumns: []apiextensionv1.CustomResourceColumnDefinition{
-			{
-				Description: "fqdn associated with the httprule",
-				JSONPath:    ".spec.fqdn",
-				Name:        "HOST",
-				Type:        "string",
-			},
-			{
-				Description: "status of the httprule object",
-				JSONPath:    ".status.status",
-				Name:        "Status",
-				Type:        "string",
-			},
-			{
-				JSONPath: ".metadata.creationTimestamp",
-				Name:     "Age",
-				Type:     "date",
-			},
-		},
-	}
-	crd := &apiextensionv1.CustomResourceDefinition{
-		TypeMeta:   v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{Name: HttpRuleFullCRDName},
-		Spec: apiextensionv1.CustomResourceDefinitionSpec{
-			Group: CRDGroup,
-			Names: apiextensionv1.CustomResourceDefinitionNames{
-				Plural:   HttpRuleCRDPlural,
-				Singular: HttpRuleCRDSingular,
-				ShortNames: []string{
-					HttpRuleCRDSingular,
-				},
-				Kind: reflect.TypeOf(akov1alpha1.HTTPRule{}).Name(),
-			},
-			Scope: apiextensionv1.NamespaceScoped,
-			Versions: []apiextensionv1.CustomResourceDefinitionVersion{
-				version,
-			},
-			Conversion: &apiextensionv1.CustomResourceConversion{
-				Strategy: apiextensionv1.ConversionStrategyType("None"),
-			},
-		},
-		Status: apiextensionv1.CustomResourceDefinitionStatus{},
+	var err error
+	httpruleOnce.Do(func() {
+		httpruleCRD, err = readCRDFromManifest(httpruleCRDLocation, log)
+	})
+	if err != nil {
+		return err
+	} else if httpruleCRD == nil {
+		return errors.New(fmt.Sprintf("Failure while reading %s CRD manifest", httpRuleFullCRDName))
 	}
 
-	_, err := clientset.CustomResourceDefinitions().Create(context.TODO(), crd, v1.CreateOptions{})
+	existingHttpRule, err := clientset.CustomResourceDefinitions().Get(context.TODO(), httpRuleFullCRDName, v1.GetOptions{})
+	if err == nil && existingHttpRule != nil {
+		if httpruleCRD.GetResourceVersion() == existingHttpRule.GetResourceVersion() {
+			log.Info(fmt.Sprintf("no updates required for %s CRD", httpRuleFullCRDName))
+		} else {
+			httpruleCRD.SetResourceVersion(existingHttpRule.GetResourceVersion())
+			_, err = clientset.CustomResourceDefinitions().Update(context.TODO(), httpruleCRD, v1.UpdateOptions{})
+			if err != nil {
+				log.Error(err, fmt.Sprintf("Error while updating %s CRD", httpRuleFullCRDName))
+				return err
+			} else {
+				log.Info(fmt.Sprintf("successfully updated %s CRD", httpRuleFullCRDName))
+			}
+		}
+		return nil
+	}
+
+	_, err = clientset.CustomResourceDefinitions().Create(context.TODO(), httpruleCRD, v1.CreateOptions{})
 	if err == nil {
-		log.V(0).Info("httprules.ako.vmware.com CRD created")
+		log.Info(fmt.Sprintf("%s CRD created", httpRuleFullCRDName))
 		return nil
 	} else if apierrors.IsAlreadyExists(err) {
-		log.V(0).Info("httprules.ako.vmware.com CRD already exists")
+		log.Info(fmt.Sprintf("%s CRD already exists", httpRuleFullCRDName))
 		return nil
 	}
 	return err
 }
 
 func createAviInfraSettingCRD(clientset *apiextension.ApiextensionsV1Client, log logr.Logger) error {
-	version := apiextensionv1.CustomResourceDefinitionVersion{
-		Name:    Version,
-		Served:  true,
-		Storage: true,
-		Schema: &apiextensionv1.CustomResourceValidation{
-			OpenAPIV3Schema: &apiextensionv1.JSONSchemaProps{
-				Description: "AviInfraSetting is used to select specific Avi controller infra attributes.",
-				Type:        "object",
-				Properties: map[string]apiextensionv1.JSONSchemaProps{
-					"spec": {
-						Type: "object",
-						Properties: map[string]apiextensionv1.JSONSchemaProps{
-							"network": {
-								Type: "object",
-								Properties: map[string]apiextensionv1.JSONSchemaProps{
-									"vipNetworks": {
-										Type: "array",
-										Items: &apiextensionv1.JSONSchemaPropsOrArray{
-											Schema: &apiextensionv1.JSONSchemaProps{
-												Type:     "object",
-												Required: []string{"networkName"},
-												Properties: map[string]apiextensionv1.JSONSchemaProps{
-													"networkName": {
-														Type: "string",
-													},
-													"cidr": {
-														Type: "string",
-													},
-													"v6cidr": {
-														Type: "string",
-													},
-												},
-											},
-										},
-									},
-									"nodeNetworks": {
-										Type: "array",
-										Items: &apiextensionv1.JSONSchemaPropsOrArray{
-											Schema: &apiextensionv1.JSONSchemaProps{
-												Type: "object",
-												Properties: map[string]apiextensionv1.JSONSchemaProps{
-													"networkName": {
-														Type: "string",
-													},
-													"cidrs": {
-														Type: "array",
-														Items: &apiextensionv1.JSONSchemaPropsOrArray{
-															Schema: &apiextensionv1.JSONSchemaProps{
-																Type: "string",
-															},
-														},
-													},
-												},
-												Required: []string{"networkName"},
-											},
-										},
-									},
-									"enableRhi": {
-										Type: "boolean",
-									},
-									"enablePublicIP": {
-										Type: "boolean",
-									},
-									"listeners": {
-										Type: "array",
-										Items: &apiextensionv1.JSONSchemaPropsOrArray{
-											Schema: &apiextensionv1.JSONSchemaProps{
-												Type: "object",
-												Properties: map[string]apiextensionv1.JSONSchemaProps{
-													"port": {
-														Type:    "integer",
-														Minimum: proto.Float64(1),
-														Maximum: proto.Float64(65535),
-													},
-													"enableSSL": {
-														Type: "boolean",
-													},
-													"enableHTTP2": {
-														Type: "boolean",
-													},
-												},
-											},
-										},
-									},
-									"bgpPeerLabels": {
-										Type: "array",
-										Items: &apiextensionv1.JSONSchemaPropsOrArray{
-											Schema: &apiextensionv1.JSONSchemaProps{
-												Type: "string",
-											},
-										},
-									},
-								},
-							},
-							"seGroup": {
-								Type:     "object",
-								Required: []string{"name"},
-								Properties: map[string]apiextensionv1.JSONSchemaProps{
-									"name": {
-										Type: "string",
-									},
-								},
-							},
-							"l7Settings": {
-								Type:     "object",
-								Required: []string{"shardSize"},
-								Properties: map[string]apiextensionv1.JSONSchemaProps{
-									"shardSize": {
-										Type: "string",
-										Enum: []apiextensionv1.JSON{
-											{
-												Raw: []byte("\"SMALL\""),
-											},
-											{
-												Raw: []byte("\"MEDIUM\""),
-											},
-											{
-												Raw: []byte("\"LARGE\""),
-											},
-											{
-												Raw: []byte("\"DEDICATED\""),
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-					"status": {
-						Type: "object",
-						Properties: map[string]apiextensionv1.JSONSchemaProps{
-							"error": {
-								Type: "string",
-							},
-							"status": {
-								Type: "string",
-							},
-						},
-					},
-				},
-			},
-		},
-		Subresources: &apiextensionv1.CustomResourceSubresources{Status: &apiextensionv1.CustomResourceSubresourceStatus{}},
-		AdditionalPrinterColumns: []apiextensionv1.CustomResourceColumnDefinition{
-			{
-				Description: "status of the nas object",
-				JSONPath:    ".status.status",
-				Name:        "Status",
-				Type:        "string",
-			},
-			{
-				JSONPath: ".metadata.creationTimestamp",
-				Name:     "Age",
-				Type:     "date",
-			},
-		},
-	}
-	crd := &apiextensionv1.CustomResourceDefinition{
-		TypeMeta:   v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{Name: AviInfraSettingFullCRDName},
-		Spec: apiextensionv1.CustomResourceDefinitionSpec{
-			Group: CRDGroup,
-			Names: apiextensionv1.CustomResourceDefinitionNames{
-				Plural:   AviInfraSettingCRDPlural,
-				Singular: AviInfraSettingCRDSingular,
-				ShortNames: []string{
-					AviInfraSettingCRDSingular,
-				},
-				Kind: reflect.TypeOf(akov1alpha1.AviInfraSetting{}).Name(),
-			},
-			Scope: apiextensionv1.ClusterScoped,
-			Versions: []apiextensionv1.CustomResourceDefinitionVersion{
-				version,
-			},
-			Conversion: &apiextensionv1.CustomResourceConversion{
-				Strategy: apiextensionv1.ConversionStrategyType("None"),
-			},
-		},
-		Status: apiextensionv1.CustomResourceDefinitionStatus{},
+	var err error
+	aviinfrasettingOnce.Do(func() {
+		aviinfrasettingCRD, err = readCRDFromManifest(aviinfrasettingCRDLocation, log)
+	})
+	if err != nil {
+		return err
+	} else if aviinfrasettingCRD == nil {
+		return errors.New(fmt.Sprintf("Failure while reading %s CRD manifest", aviInfraSettingFullCRDName))
 	}
 
-	_, err := clientset.CustomResourceDefinitions().Create(context.TODO(), crd, v1.CreateOptions{})
+	existingAviinfrasetting, err := clientset.CustomResourceDefinitions().Get(context.TODO(), aviInfraSettingFullCRDName, v1.GetOptions{})
+	if err == nil && existingAviinfrasetting != nil {
+		if aviinfrasettingCRD.GetResourceVersion() == existingAviinfrasetting.GetResourceVersion() {
+			log.Info(fmt.Sprintf("no updates required for %s CRD", aviInfraSettingFullCRDName))
+		} else {
+			aviinfrasettingCRD.SetResourceVersion(existingAviinfrasetting.GetResourceVersion())
+			_, err = clientset.CustomResourceDefinitions().Update(context.TODO(), aviinfrasettingCRD, v1.UpdateOptions{})
+			if err != nil {
+				log.Error(err, fmt.Sprintf("Error while updating %s CRD", aviInfraSettingFullCRDName))
+				return err
+			} else {
+				log.Info(fmt.Sprintf("successfully updated %s CRD", aviInfraSettingFullCRDName))
+			}
+		}
+		return nil
+	}
+
+	_, err = clientset.CustomResourceDefinitions().Create(context.TODO(), aviinfrasettingCRD, v1.CreateOptions{})
 	if err == nil {
-		log.V(0).Info("aviinfrasettings.ako.vmware.com CRD created")
+		log.Info(fmt.Sprintf("%s CRD created", aviInfraSettingFullCRDName))
 		return nil
 	} else if apierrors.IsAlreadyExists(err) {
-		log.V(0).Info("aviinfrasettings.ako.vmware.com CRD already exists")
+		log.Info(fmt.Sprintf("%s CRD already exists", aviInfraSettingFullCRDName))
+		return nil
+	}
+	return err
+}
+
+func createL4RuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.Logger) error {
+	var err error
+	l4ruleOnce.Do(func() {
+		l4ruleCRD, err = readCRDFromManifest(l4ruleCRDLocation, log)
+	})
+	if err != nil {
+		return err
+	} else if l4ruleCRD == nil {
+		return errors.New(fmt.Sprintf("Failure while reading %s CRD manifest", l4RuleFullCRDName))
+	}
+
+	existingl4rule, err := clientset.CustomResourceDefinitions().Get(context.TODO(), l4RuleFullCRDName, v1.GetOptions{})
+	if err == nil && existingl4rule != nil {
+		if l4ruleCRD.GetResourceVersion() == existingl4rule.GetResourceVersion() {
+			log.Info(fmt.Sprintf("no updates required for %s CRD", l4RuleFullCRDName))
+		} else {
+			l4ruleCRD.SetResourceVersion(existingl4rule.GetResourceVersion())
+			_, err = clientset.CustomResourceDefinitions().Update(context.TODO(), l4ruleCRD, v1.UpdateOptions{})
+			if err != nil {
+				log.Error(err, fmt.Sprintf("Error while updating %s CRD", l4RuleFullCRDName))
+				return err
+			} else {
+				log.Info(fmt.Sprintf("successfully updated %s CRD", l4RuleFullCRDName))
+			}
+		}
+		return nil
+	}
+
+	_, err = clientset.CustomResourceDefinitions().Create(context.TODO(), l4ruleCRD, v1.CreateOptions{})
+	if err == nil {
+		log.Info(fmt.Sprintf("%s CRD created", l4RuleFullCRDName))
+		return nil
+	} else if apierrors.IsAlreadyExists(err) {
+		log.Info(fmt.Sprintf("%s CRD already exists", l4RuleFullCRDName))
+		return nil
+	}
+	return err
+}
+
+func createSSORuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.Logger) error {
+	var err error
+	ssoruleOnce.Do(func() {
+		ssoruleCRD, err = readCRDFromManifest(ssoruleCRDLocation, log)
+	})
+	if err != nil {
+		return err
+	} else if ssoruleCRD == nil {
+		return errors.New(fmt.Sprintf("Failure while reading %s CRD manifest", ssoRuleFullCRDName))
+	}
+
+	existingSSORule, err := clientset.CustomResourceDefinitions().Get(context.TODO(), ssoRuleFullCRDName, v1.GetOptions{})
+	if err == nil && existingSSORule != nil {
+		if ssoruleCRD.GetResourceVersion() == existingSSORule.GetResourceVersion() {
+			log.Info(fmt.Sprintf("no updates required for %s CRD", ssoRuleFullCRDName))
+		} else {
+			ssoruleCRD.SetResourceVersion(existingSSORule.GetResourceVersion())
+			_, err = clientset.CustomResourceDefinitions().Update(context.TODO(), ssoruleCRD, v1.UpdateOptions{})
+			if err != nil {
+				log.Error(err, fmt.Sprintf("Error while updating %s CRD", ssoRuleFullCRDName))
+				return err
+			} else {
+				log.Info(fmt.Sprintf("successfully updated %s CRD", ssoRuleFullCRDName))
+			}
+		}
+		return nil
+	}
+
+	_, err = clientset.CustomResourceDefinitions().Create(context.TODO(), ssoruleCRD, v1.CreateOptions{})
+	if err == nil {
+		log.Info(fmt.Sprintf("%s CRD created", ssoRuleFullCRDName))
+		return nil
+	} else if apierrors.IsAlreadyExists(err) {
+		log.Info(fmt.Sprintf("%s CRD already exists", ssoRuleFullCRDName))
 		return nil
 	}
 	return err
@@ -727,22 +284,55 @@ func createCRDs(cfg *rest.Config, log logr.Logger) error {
 	if err != nil {
 		return err
 	}
+	err = createL4RuleCRD(kubeClient, log)
+	if err != nil {
+		return err
+	}
+	err = createSSORuleCRD(kubeClient, log)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func deleteCRDs(cfg *rest.Config) error {
+func deleteCRDs(cfg *rest.Config, log logr.Logger) error {
 	clientset, _ := apiextension.NewForConfig(cfg)
-	err := clientset.CustomResourceDefinitions().Delete(context.TODO(), HostRuleFullCRDName, v1.DeleteOptions{})
-	if err != nil {
-		return err
-	}
-	err = clientset.CustomResourceDefinitions().Delete(context.TODO(), HttpRuleFullCRDName, v1.DeleteOptions{})
-	if err != nil {
-		return err
-	}
-	err = clientset.CustomResourceDefinitions().Delete(context.TODO(), AviInfraSettingFullCRDName, v1.DeleteOptions{})
+	var err error
+	func(crdFullNames ...string) {
+		for _, crdFullName := range crdFullNames {
+			err = clientset.CustomResourceDefinitions().Delete(context.TODO(), crdFullName, v1.DeleteOptions{})
+			if err != nil {
+				return
+			}
+			log.Info(fmt.Sprintf("%s crd deleted successfully", crdFullName))
+		}
+	}(hostRuleFullCRDName, httpRuleFullCRDName, aviInfraSettingFullCRDName, l4RuleFullCRDName, ssoRuleFullCRDName)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func parseK8sYaml(fileR []byte, log logr.Logger) []runtime.Object {
+	sch := runtime.NewScheme()
+	_ = myscheme.AddToScheme(sch)
+	_ = apiextensionv1.AddToScheme(sch)
+	decode := serializer.NewCodecFactory(sch).UniversalDeserializer().Decode
+	fileAsString := string(fileR[:])
+	sepYamlfiles := strings.Split(fileAsString, "---")
+	retVal := make([]runtime.Object, 0, len(sepYamlfiles))
+	for _, f := range sepYamlfiles {
+		if f == "\n" || f == "" {
+			// ignore empty cases
+			continue
+		}
+		obj, _, err := decode([]byte(f), nil, nil)
+
+		if err != nil {
+			log.Error(err, fmt.Sprintf("Error while decoding YAML object. Err was: %s", err))
+			continue
+		}
+		retVal = append(retVal, obj)
+	}
+	return retVal
 }
