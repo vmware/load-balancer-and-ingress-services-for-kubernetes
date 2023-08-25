@@ -26,7 +26,6 @@ import (
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
-	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 )
 
 type AviObjectGraph struct {
@@ -105,7 +104,7 @@ func BuildTLSNodesForGateway(gateway *gatewayv1beta1.Gateway, key string) []*nod
 				name = string(certRef.Name)
 				secretObj, err := cs.CoreV1().Secrets(ns).Get(context.TODO(), name, metav1.GetOptions{})
 				if err != nil || secretObj == nil {
-					utils.AviLog.Warnf("key: %s, msg: secret: %s has been deleted, err: %s", key, name, err)
+					utils.AviLog.Warnf("key: %s, msg: secret %s has been deleted, err: %s", key, name, err)
 					continue
 				}
 				tlsNode := TLSNodeFromSecret(secretObj, string(*listener.Hostname), name, key)
@@ -147,10 +146,6 @@ func BuildVsVipNodeForGateway(gateway *gatewayv1beta1.Gateway, vsName string) *n
 	//Type is validated at ingestion
 	if len(gateway.Spec.Addresses) == 1 {
 		vsvipNode.IPAddress = gateway.Spec.Addresses[0].Value
-	}
-	found, fqdns := akogatewayapiobjects.GatewayApiLister().GetGatewayRouteToHostname(gateway.Namespace, gateway.Name)
-	if found {
-		vsvipNode.FQDNs = fqdns
 	}
 	return vsvipNode
 }

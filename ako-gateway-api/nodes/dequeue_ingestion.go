@@ -65,7 +65,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		model := &AviObjectGraph{modelIntf.(*nodes.AviObjectGraph)}
 		for _, routeTypeNsName := range routeTypeNsNameList {
 			objType, namespace, name := lib.ExtractTypeNameNamespace(routeTypeNsName)
-			utils.AviLog.Infof("key: %s, Processing route %s mapped to gateway %s", key, routeTypeNsName, gatewayNsName)
+			utils.AviLog.Infof("key: %s, msg: processing route %s mapped to gateway %s", key, routeTypeNsName, gatewayNsName)
 
 			routeModel, err := NewRouteModel(key, objType, name, namespace)
 			if err != nil {
@@ -78,13 +78,11 @@ func DequeueIngestion(key string, fullsync bool) {
 
 			childVSes := make(map[string]struct{}, 0)
 
-			switch objType { // Extend this for other routes
-			case lib.HTTPRoute: //, GRPCRoute, TLSRoute:
+			switch objType {
+			case lib.HTTPRoute:
 				model.ProcessL7Routes(key, routeModel, gatewayNsName, childVSes)
-			// case TCPRoute, UDPRoute:
-			//  model.ProcessL4Routes(key, routeModel, gatewayNsName)
 			default:
-				// TODO: add error here
+				utils.AviLog.Warnf("key: %s, msg: route of type %s not supported", key, objType)
 				continue
 			}
 			model.DeleteStaleChildVSes(key, routeModel, childVSes, fullsync)
