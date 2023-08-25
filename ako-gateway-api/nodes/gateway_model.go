@@ -141,7 +141,7 @@ func BuildVsVipNodeForGateway(gateway *gatewayv1beta1.Gateway, vsName string) *n
 		Name:        lib.GetVsVipName(vsName),
 		Tenant:      lib.GetTenant(),
 		VrfContext:  lib.GetVrf(),
-		VipNetworks: lib.GetVipNetworkList(),
+		VipNetworks: utils.GetVipNetworkList(),
 	}
 
 	//Type is validated at ingestion

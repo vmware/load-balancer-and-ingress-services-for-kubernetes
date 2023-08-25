@@ -206,10 +206,72 @@ func (c *GatewayController) addIndexers() {
 }
 
 func (c *GatewayController) FullSyncK8s(sync bool) error {
+
 	if c.DisableSync {
 		utils.AviLog.Infof("Sync disabled, skipping full sync")
 		return nil
 	}
+
+	// GatewayClass Section
+	gwClassObjs, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("Unable to retrieve the gatewayclasses during full sync: %s", err)
+		return err
+	}
+
+	for _, gwClassObj := range gwClassObjs {
+		key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
+		meta, err := meta.Accessor(gwClassObj)
+		if err == nil {
+			resVer := meta.GetResourceVersion()
+			objects.SharedResourceVerInstanceLister().Save(key, resVer)
+		}
+		controllerName := string(gwClassObj.Spec.ControllerName)
+		if !akogatewayapilib.CheckGatewayClassController(controllerName) {
+			continue
+		}
+		akogatewayapinodes.DequeueIngestion(key, true)
+	}
+
+	// Gateway Section
+	gatewayObjs, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("Unable to retrieve the gateways during full sync: %s", err)
+		return err
+	}
+
+	for _, gatewayObj := range gatewayObjs {
+		key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
+		meta, err := meta.Accessor(gatewayObj)
+		if err == nil {
+			resVer := meta.GetResourceVersion()
+			objects.SharedResourceVerInstanceLister().Save(key, resVer)
+		}
+		if IsValidGateway(key, gatewayObj) {
+			akogatewayapinodes.DequeueIngestion(key, true)
+		}
+	}
+
+	// HTTPRoute Section
+	httpRouteObjs, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("Unable to retrieve the httproutes during full sync: %s", err)
+		return err
+	}
+
+	for _, httpRouteObj := range httpRouteObjs {
+		key := lib.HTTPRoute + "/" + utils.ObjKey(httpRouteObj)
+		meta, err := meta.Accessor(httpRouteObj)
+		if err == nil {
+			resVer := meta.GetResourceVersion()
+			objects.SharedResourceVerInstanceLister().Save(key, resVer)
+		}
+		if IsHTTPRouteValid(key, httpRouteObj) {
+			akogatewayapinodes.DequeueIngestion(key, true)
+		}
+	}
+
+	// Service Section
 	svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Errorf("Unable to retrieve the services during full sync: %s", err)
@@ -223,36 +285,8 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 			resVer := meta.GetResourceVersion()
 			objects.SharedResourceVerInstanceLister().Save(key, resVer)
 		}
-		akogatewayapinodes.DequeueIngestion(key, true)
-	}
-
-	// GatewayClass Section
-	gwClassObjs, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
-	if err != nil {
-		utils.AviLog.Errorf("Unable to retrieve the gatewayclasses during full sync: %s", err)
-		return err
-	}
-	for _, gwClassObj := range gwClassObjs {
-		key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
-		akogatewayapinodes.DequeueIngestion(key, true)
-	}
-
-	// Gateway Section
-	gatewayObjs, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
-	if err != nil {
-		utils.AviLog.Errorf("Unable to retrieve the gateways during full sync: %s", err)
-		return err
-	}
-	for _, gatewayObj := range gatewayObjs {
-		gatewayLabel := utils.ObjKey(gatewayObj)
-		ns := strings.Split(gatewayLabel, "/")
-		if lib.IsNamespaceBlocked(ns[0]) {
-			continue
-		}
-		key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
-		//TODO
-		//InformerStatusUpdatesForGateway(key, gatewayObj)
-		akogatewayapinodes.DequeueIngestion(key, true)
+		// Not pushing the service to the next layer as it is
+		// not required since we don't create a model out of service
 	}
 
 	if sync {
