@@ -51,7 +51,12 @@ func DequeueStatus(objIntf interface{}) error {
 		utils.AviLog.Warnf("Object is not of type StatusOptions, %T", objIntf)
 		return nil
 	}
+	utils.AviLog.Infof("key: %s, msg: starting status Sync", option.Key)
 	obj := New(option.ObjType)
+	if obj == nil {
+		utils.AviLog.Debugf("key: %s, msg: unknown object received", option.Key)
+		return nil
+	}
 	if option.Op == lib.UpdateStatus {
 		obj.Update(option.Key, option)
 	} else if option.Op == lib.DeleteStatus {

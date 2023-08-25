@@ -568,6 +568,11 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		evhChild.PoolRef = &pool_ref
 	}
 
+	if vs_meta.DefaultPoolGroup != "" {
+		pg_ref := "/api/poolgroup/?name=" + vs_meta.DefaultPoolGroup
+		evhChild.PoolGroupRef = &pg_ref
+	}
+
 	//DS from hostrule
 	var datascriptCollection []*avimodels.VSDataScripts
 	for i, script := range vs_meta.VsDatascriptRefs {
