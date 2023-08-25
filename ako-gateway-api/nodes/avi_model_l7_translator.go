@@ -189,9 +189,11 @@ func (o *AviObjectGraph) BuildVHMatch(key string, vsNode *nodes.AviEvhVsNode, ro
 			// header match
 			rule.Matches.Hdrs = make([]*models.HdrMatch, 0, len(match.HeaderMatch))
 			for _, headerMatch := range match.HeaderMatch {
+				headerName := headerMatch.Name
 				hdrMatch := &models.HdrMatch{
 					MatchCase:     proto.String("SENSITIVE"),
 					MatchCriteria: proto.String("HDR_EQUALS"),
+					Hdr:           &headerName,
 					Value:         []string{headerMatch.Value},
 				}
 				rule.Matches.Hdrs = append(rule.Matches.Hdrs, hdrMatch)

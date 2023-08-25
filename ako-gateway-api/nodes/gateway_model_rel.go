@@ -71,7 +71,7 @@ var (
 		GetRoutes:   ServiceToRoutes,
 	}
 	Endpoint = GraphSchema{
-		Type:        "Endpoint",
+		Type:        "Endpoints",
 		GetGateways: EndpointToGateways,
 		GetRoutes:   EndpointToRoutes,
 	}
