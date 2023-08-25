@@ -128,7 +128,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 			}
 			ep, ok := obj.(*corev1.Endpoints)
 			if !ok {
-				// endpoints was deleted but its final state is unrecorded.
+				// endpoints were deleted but its final state is unrecorded.
 				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 				if !ok {
 					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
@@ -194,7 +194,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 			}
 			svc, ok := obj.(*corev1.Service)
 			if !ok {
-				// endpoints was deleted but its final state is unrecorded.
+				// service was deleted but its final state is unrecorded.
 				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 				if !ok {
 					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
@@ -447,12 +447,12 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			}
 			gw := obj.(*gatewayv1beta1.Gateway)
 			key := lib.Gateway + "/" + utils.ObjKey(gw)
-			if !IsValidGateway(key, gw) {
-				return
-			}
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == gw.ResourceVersion {
 				utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
+				return
+			}
+			if !IsValidGateway(key, gw) {
 				return
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
@@ -464,7 +464,20 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			gw := obj.(*gatewayv1beta1.Gateway)
+			gw, ok := obj.(*gatewayv1beta1.Gateway)
+			if !ok {
+				// gateway was deleted but its final state is unrecorded.
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				gw, ok = tombstone.Obj.(*gatewayv1beta1.Gateway)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not a Gateway: %#v", obj)
+					return
+				}
+			}
 			key := lib.Gateway + "/" + utils.ObjKey(gw)
 			objects.SharedResourceVerInstanceLister().Delete(key)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
@@ -517,7 +530,20 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			gwClass := obj.(*gatewayv1beta1.GatewayClass)
+			gwClass, ok := obj.(*gatewayv1beta1.GatewayClass)
+			if !ok {
+				// gateway class was deleted but its final state is unrecorded.
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				gwClass, ok = tombstone.Obj.(*gatewayv1beta1.GatewayClass)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not a GatewayClass: %#v", obj)
+					return
+				}
+			}
 			controllerName := string(gwClass.Spec.ControllerName)
 			if !akogatewayapilib.CheckGatewayClassController(controllerName) {
 				return

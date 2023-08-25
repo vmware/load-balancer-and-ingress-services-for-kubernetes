@@ -503,7 +503,7 @@ func (g *GWLister) DeleteRouteServiceMappings(routeTypeNsName string) {
 		if found, obj := g.serviceToRoute.Get(svcNsName); found {
 			routeTypeNsNameList := obj.([]string)
 			routeTypeNsNameList = utils.Remove(routeTypeNsNameList, routeTypeNsName)
-			g.gatewayToRoute.AddOrUpdate(svcNsName, routeTypeNsNameList)
+			g.serviceToRoute.AddOrUpdate(svcNsName, routeTypeNsNameList)
 		}
 	}
 }
