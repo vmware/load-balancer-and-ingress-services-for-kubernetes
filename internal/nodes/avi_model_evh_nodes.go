@@ -700,6 +700,10 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 		checksum += utils.Hash(utils.Stringify(v.VHMatches))
 	}
 
+	if v.DefaultPoolGroup != "" {
+		checksum += utils.Hash(v.DefaultPoolGroup)
+	}
+
 	v.CloudConfigCksum = checksum
 }
 

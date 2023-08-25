@@ -44,11 +44,14 @@ func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, pare
 func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentNsName string, rule *Rule, childVSes map[string]struct{}) {
 
 	parentNode := o.GetAviEvhVS()
-
-	// TODO: check and add
-
 	parentNs, _, parentName := lib.ExtractTypeNameNamespace(parentNsName)
-	//childVSName := akogatewayapilib.GetChildName(parentNs, parentName, routeModel.GetNamespace(), routeModel.GetName(), akogatewayapilib.Encode(utils.Stringify(rule.Matches)))
+
+	found, hosts := akogatewayapiobjects.GatewayApiLister().GetGatewayRouteToHostname(parentNs, parentName)
+	if !found {
+		utils.AviLog.Warnf("key: %s, msg: No hosts mapped to the route %s/%s/%s", key, routeModel.GetType(), routeModel.GetNamespace(), routeModel.GetName())
+		return
+	}
+
 	childVSName := akogatewayapilib.GetChildName(parentNs, parentName, routeModel.GetNamespace(), routeModel.GetName(), utils.Stringify(rule.Matches))
 	childVSes[childVSName] = struct{}{}
 
@@ -67,22 +70,15 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	childNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
 	childNode.ServiceEngineGroup = lib.GetSEGName()
 	childNode.VrfContext = lib.GetVrf()
-	//childNode.VHDomainNames = routeModel.ParseRouteRules().Hosts
-
-	// TODO: add markers
-	//	evhNode.AviMarkers = lib.PopulateVSNodeMarkers(namespace, host, infraSettingName)
 	childNode.AviMarkers = utils.AviObjectMarkers{
 		GatewayName: parentName,
 		Namespace:   parentNs,
+		Host:        hosts,
 	}
-	found, hosts := akogatewayapiobjects.GatewayApiLister().GetGatewayRouteToHostname(parentNs, parentName)
-	if found {
-		childNode.VHDomainNames = hosts
-		childNode.AviMarkers.Host = hosts
-		parentNode[0].VHDomainNames = hosts
-		parentNode[0].VSVIPRefs[0].FQDNs = hosts
-	} else {
-		return
+	for _, host := range hosts {
+		if !utils.HasElem(parentNode[0].VSVIPRefs[0].FQDNs, host) {
+			parentNode[0].VSVIPRefs[0].FQDNs = append(parentNode[0].VSVIPRefs[0].FQDNs, host)
+		}
 	}
 
 	// create pg pool from the backend
@@ -114,7 +110,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 	PGName := akogatewayapilib.GetPoolGroupName(parentNs, parentName,
 		routeModel.GetNamespace(), routeModel.GetName(),
 		utils.Stringify(rule.Matches))
-	PG := nodes.AviPoolGroupNode{
+	PG := &nodes.AviPoolGroupNode{
 		Name:   PGName,
 		Tenant: lib.GetTenant(),
 	}
@@ -153,8 +149,8 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		PG.Members = append(PG.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, Ratio: &backend.Weight})
 	}
-	childVsNode.PoolGroupRefs = append(childVsNode.PoolGroupRefs, &PG)
-
+	childVsNode.PoolGroupRefs = append(childVsNode.PoolGroupRefs, PG)
+	childVsNode.DefaultPoolGroup = PG.Name
 }
 
 func (o *AviObjectGraph) BuildVHMatch(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
@@ -204,8 +200,8 @@ func (o *AviObjectGraph) BuildVHMatch(key string, vsNode *nodes.AviEvhVsNode, ro
 		vhMatches = append(vhMatches, vhMatch)
 	}
 	vsNode.VHMatches = vhMatches
-	utils.AviLog.Debugf("key: %s Attached match criteria %s to vs %s", key, utils.Stringify(vsNode.VHMatches), vsNode.Name)
-	utils.AviLog.Infof("key: %s Attached match criteria to vs %s", key, vsNode.Name)
+	utils.AviLog.Debugf("key: %s, msg: Attached match criteria %s to vs %s", key, utils.Stringify(vsNode.VHMatches), vsNode.Name)
+	utils.AviLog.Infof("key: %s, msg: Attached match criteria to vs %s", key, vsNode.Name)
 }
 
 func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
@@ -222,12 +218,12 @@ func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNo
 	if len(vsNode.HttpPolicyRefs[0].RequestRules) == 1 {
 		// When the RedirectAction is specified the Request and Response Modify Header Action
 		// won't have any effect, hence returning.
-		utils.AviLog.Infof("key: %s Attached HTTP redirect policy to vs %s", key, vsNode.Name)
+		utils.AviLog.Infof("key: %s, msg: Attached HTTP redirect policy to vs %s", key, vsNode.Name)
 		return
 	}
 	o.BuildHTTPPolicySetHTTPRequestRules(key, vsNode, routeModel, rule.Filters)
 	o.BuildHTTPPolicySetHTTPResponseRules(key, vsNode, routeModel, rule.Filters)
-	utils.AviLog.Infof("key: %s Attached HTTP policies to vs %s", key, vsNode.Name)
+	utils.AviLog.Infof("key: %s, msg: Attached HTTP policies to vs %s", key, vsNode.Name)
 }
 
 func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestRules(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, filters []*Filter) {
@@ -252,7 +248,7 @@ func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestRules(key string, vsNode *
 	}
 	if len(requestRule.HdrAction) != 0 {
 		vsNode.HttpPolicyRefs[0].RequestRules = []*models.HTTPRequestRule{requestRule}
-		utils.AviLog.Debugf("key: %s Attached HTTP request policies %s to vs %s", key, utils.Stringify(vsNode.HttpPolicyRefs[0].RequestRules), vsNode.Name)
+		utils.AviLog.Debugf("key: %s, msg: Attached HTTP request policies %s to vs %s", key, utils.Stringify(vsNode.HttpPolicyRefs[0].RequestRules), vsNode.Name)
 	}
 }
 
@@ -278,7 +274,7 @@ func (o *AviObjectGraph) BuildHTTPPolicySetHTTPResponseRules(key string, vsNode 
 	}
 	if len(responseRule.HdrAction) != 0 {
 		vsNode.HttpPolicyRefs[0].ResponseRules = []*models.HTTPResponseRule{responseRule}
-		utils.AviLog.Debugf("key: %s Attached HTTP response policies %s to vs %s", key, utils.Stringify(vsNode.HttpPolicyRefs[0].RequestRules), vsNode.Name)
+		utils.AviLog.Debugf("key: %s, msg: Attached HTTP response policies %s to vs %s", key, utils.Stringify(vsNode.HttpPolicyRefs[0].RequestRules), vsNode.Name)
 	}
 }
 
@@ -317,7 +313,7 @@ func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestRedirectRules(key string, 
 			redirectAction.StatusCode = &statusCode
 			requestRule := &models.HTTPRequestRule{Name: &vsNode.Name, Enable: proto.Bool(true), Index: proto.Int32(1), RedirectAction: redirectAction}
 			vsNode.HttpPolicyRefs[0].RequestRules = []*models.HTTPRequestRule{requestRule}
-			utils.AviLog.Debugf("key: %s Attached HTTP request redirect policies %s to vs %s", key, utils.Stringify(vsNode.HttpPolicyRefs[0].RequestRules), vsNode.Name)
+			utils.AviLog.Debugf("key: %s, msg: Attached HTTP request redirect policies %s to vs %s", key, utils.Stringify(vsNode.HttpPolicyRefs[0].RequestRules), vsNode.Name)
 			break
 		}
 	}
