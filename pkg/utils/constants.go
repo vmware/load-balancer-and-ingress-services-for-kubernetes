@@ -49,8 +49,6 @@ const (
 	OshiftRoute                   = "OshiftRoute"
 	Service                       = "Service"
 	Secret                        = "Secret"
-	Gateway                       = "Gateway"
-	GatewayClass                  = "GatewayClass"
 	HTTP                          = "HTTP"
 	HeaderMethod                  = ":method"
 	HeaderAuthority               = ":authority"

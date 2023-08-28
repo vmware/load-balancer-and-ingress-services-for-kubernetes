@@ -96,7 +96,7 @@ func GatewayGetGw(namespace, name, key string) ([]string, bool) {
 	gwObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).Get(name)
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			utils.AviLog.Errorf("key: %s, got error while getting gateway: %v", key, err)
+			utils.AviLog.Errorf("key: %s, msg: got error while getting gateway: %v", key, err)
 			return []string{}, false
 		}
 		return []string{gwNsName}, true
@@ -137,7 +137,7 @@ func GatewayToRoutes(namespace, name, key string) ([]string, bool) {
 	gwNsName := namespace + "/" + name
 	found, routeTypeNsNameList := akogatewayapiobjects.GatewayApiLister().GetGatewayToRoute(gwNsName)
 	if !found {
-		utils.AviLog.Debugf("key: %s, No route objects mapped to this gateway", key)
+		utils.AviLog.Debugf("key: %s, msg: No route objects mapped to this gateway", key)
 		return []string{}, true
 	}
 	return routeTypeNsNameList, found
@@ -149,7 +149,7 @@ func GatewayClassGetGw(namespace, name, key string) ([]string, bool) {
 	gwClassObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Lister().Get(name)
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			utils.AviLog.Errorf("key: %s, got error while getting gateway class: %v", key, err)
+			utils.AviLog.Errorf("key: %s, msg: got error while getting gateway class: %v", key, err)
 			return []string{}, false
 		}
 		isDelete = true
@@ -162,7 +162,7 @@ func GatewayClassGetGw(namespace, name, key string) ([]string, bool) {
 	} else {
 		isAKOController := akogatewayapilib.CheckGatewayClassController(controllerName)
 		if isAKOController {
-			utils.AviLog.Debugf("key: %s, controller is AKO", key)
+			utils.AviLog.Debugf("key: %s, msg: controller is AKO", key)
 		}
 		akogatewayapiobjects.GatewayApiLister().UpdateGatewayClass(name, isAKOController)
 	}
@@ -175,7 +175,7 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 	hrObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).Get(name)
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			utils.AviLog.Errorf("key: %s, got error while getting gateway: %v", key, err)
+			utils.AviLog.Errorf("key: %s, msg: got error while getting gateway: %v", key, err)
 			return []string{}, false
 		}
 		found, gwNsNameList := akogatewayapiobjects.GatewayApiLister().GetRouteToGateway(routeTypeNsName)
@@ -255,7 +255,7 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 	hrObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).Get(name)
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			utils.AviLog.Errorf("key: %s, got error while getting gateway: %v", key, err)
+			utils.AviLog.Errorf("key: %s, msg: got error while getting gateway: %v", key, err)
 			return []string{}, false
 		}
 		akogatewayapiobjects.GatewayApiLister().DeleteRouteServiceMappings(routeTypeNsName)
@@ -301,7 +301,7 @@ func ServiceToGateways(namespace, name, key string) ([]string, bool) {
 	_, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			utils.AviLog.Errorf("key: %s, got error while getting gateway: %v", key, err)
+			utils.AviLog.Errorf("key: %s, msg: got error while getting gateway: %v", key, err)
 			return []string{}, false
 		}
 		svcDeleted = true
@@ -323,7 +323,7 @@ func ServiceToRoutes(namespace, name, key string) ([]string, bool) {
 	_, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			utils.AviLog.Errorf("key: %s, got error while getting gateway: %v", key, err)
+			utils.AviLog.Errorf("key: %s, msg: got error while getting gateway: %v", key, err)
 			return []string{}, false
 		}
 		svcDeleted = true
