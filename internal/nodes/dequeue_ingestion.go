@@ -745,7 +745,7 @@ func getIngressNSNameForIngestion(objType, namespace, nsname string) (string, st
 		return arr[0], arr[1]
 	}
 
-	if objType == utils.IngressClass || objType == lib.AviInfraSetting {
+	if objType == utils.IngressClass || objType == lib.AviInfraSetting || objType == utils.NamespaceNetworkInfo {
 		arr := strings.Split(nsname, "/")
 		return arr[0], arr[1]
 	}
