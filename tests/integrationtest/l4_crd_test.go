@@ -1359,6 +1359,9 @@ func TestCreateDeleteL4RuleSSLWrongAppProfile(t *testing.T) {
 		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
 		return l4Rule.Status.Status
 	}, 30*time.Second).Should(gomega.Equal("Rejected"))
+
+	TearDownTestForSvcLB(t, g)
+	TeardownL4Rule(t, L4RuleName, NAMESPACE)
 }
 
 func TestCreateDeleteL4RuleNoSSLInSvc(t *testing.T) {
@@ -1405,6 +1408,9 @@ func TestCreateDeleteL4RuleNoSSLInSvc(t *testing.T) {
 		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
 		return l4Rule.Status.Status
 	}, 30*time.Second).Should(gomega.Equal("Rejected"))
+
+	TearDownTestForSvcLB(t, g)
+	TeardownL4Rule(t, L4RuleName, NAMESPACE)
 }
 
 func TestCreateDeleteL4RuleSSLProfileWithWrongAppProfile(t *testing.T) {
@@ -1442,6 +1448,9 @@ func TestCreateDeleteL4RuleSSLProfileWithWrongAppProfile(t *testing.T) {
 		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
 		return l4Rule.Status.Status
 	}, 30*time.Second).Should(gomega.Equal("Rejected"))
+
+	TearDownTestForSvcLB(t, g)
+	TeardownL4Rule(t, L4RuleName, NAMESPACE)
 }
 
 func TestCreateDeleteL4RuleSSLWrongNetworkProfile(t *testing.T) {
@@ -1477,4 +1486,7 @@ func TestCreateDeleteL4RuleSSLWrongNetworkProfile(t *testing.T) {
 		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
 		return l4Rule.Status.Status
 	}, 30*time.Second).Should(gomega.Equal("Rejected"))
+
+	TearDownTestForSvcLB(t, g)
+	TeardownL4Rule(t, L4RuleName, NAMESPACE)
 }
