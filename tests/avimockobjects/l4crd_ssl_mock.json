@@ -1,0 +1,11 @@
+{
+  "count": 1,
+  "results": [
+    {
+    "url": "https://10.79.169.60/api/applicationprofile/applicationprofile-fe0739b0-896f-4ebf-8c7f-ea77108c9df7",
+    "type": "APPLICATION_PROFILE_TYPE_SSL",
+    "name": "System-Secure-HTTP",
+    "uuid": "applicationprofile-fe0739b0-896f-4ebf-8c7f-ea77108c9df7"
+    }
+  ]
+}

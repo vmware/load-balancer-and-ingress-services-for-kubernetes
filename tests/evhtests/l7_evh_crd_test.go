@@ -236,8 +236,8 @@ func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].EvhNodes[0].Enabled).To(gomega.Equal(true))
 	//At rest layer, sslref are switched to Parent
-	g.Expect(nodes[0].EvhNodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].EvhNodes[0].SSLKeyCertAviRef[0]).To(gomega.ContainSubstring("thisisaviref-sslkey"))
+	g.Expect(nodes[0].EvhNodes[0].SslKeyAndCertificateRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].EvhNodes[0].SslKeyAndCertificateRefs[0]).To(gomega.ContainSubstring("thisisaviref-sslkey"))
 	g.Expect(nodes[0].EvhNodes[0].ICAPProfileRefs).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].EvhNodes[0].ICAPProfileRefs[0]).To(gomega.ContainSubstring("thisisaviref-icapprof"))
 	g.Expect(*nodes[0].EvhNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
@@ -403,7 +403,7 @@ func TestCreateDeleteSharedVSHostRuleForEvh(t *testing.T) {
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].Enabled).To(gomega.BeNil())
-	g.Expect(nodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].SslKeyAndCertificateRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].ICAPProfileRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].WafPolicyRef).To(gomega.BeNil())
 	g.Expect(nodes[0].ApplicationProfileRef).To(gomega.BeNil())
@@ -443,8 +443,8 @@ func TestCreateHostRuleBeforeIngressForEvh(t *testing.T) {
 	g.Eventually(func() string {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		if len(nodes[0].EvhNodes) == 1 && len(nodes[0].EvhNodes[0].SSLKeyCertAviRef) == 1 {
-			return nodes[0].EvhNodes[0].SSLKeyCertAviRef[0]
+		if len(nodes[0].EvhNodes) == 1 && len(nodes[0].EvhNodes[0].SslKeyAndCertificateRefs) == 1 {
+			return nodes[0].EvhNodes[0].SslKeyAndCertificateRefs[0]
 		}
 		return ""
 	}, 10*time.Second).Should(gomega.ContainSubstring("thisisaviref-sslkey"))
@@ -455,8 +455,8 @@ func TestCreateHostRuleBeforeIngressForEvh(t *testing.T) {
 	g.Eventually(func() string {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		if len(nodes[0].EvhNodes) == 1 && len(nodes[0].EvhNodes[0].SSLKeyCertAviRef) == 1 {
-			return nodes[0].EvhNodes[0].SSLKeyCertAviRef[0]
+		if len(nodes[0].EvhNodes) == 1 && len(nodes[0].EvhNodes[0].SslKeyAndCertificateRefs) == 1 {
+			return nodes[0].EvhNodes[0].SslKeyAndCertificateRefs[0]
 		}
 		return ""
 	}, 10*time.Second).Should(gomega.Equal(""))
@@ -498,8 +498,8 @@ func TestGoodToBadHostRuleForEvh(t *testing.T) {
 	g.Eventually(func() string {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		if len(nodes[0].EvhNodes[0].SSLKeyCertAviRef) == 1 {
-			return nodes[0].EvhNodes[0].SSLKeyCertAviRef[0]
+		if len(nodes[0].EvhNodes[0].SslKeyAndCertificateRefs) == 1 {
+			return nodes[0].EvhNodes[0].SslKeyAndCertificateRefs[0]
 		}
 		return ""
 	}, 50*time.Second).Should(gomega.ContainSubstring("thisisaviref"))
@@ -933,7 +933,7 @@ func TestApplyHostruleToParentVS(t *testing.T) {
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].Enabled).To(gomega.BeNil())
-	g.Expect(nodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].SslKeyAndCertificateRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].WafPolicyRef).To(gomega.BeNil())
 	g.Expect(nodes[0].ApplicationProfileRef).To(gomega.BeNil())
 	g.Expect(nodes[0].AnalyticsProfileRef).To(gomega.BeNil())
@@ -980,7 +980,7 @@ func TestHostRuleWithEmptyConfig(t *testing.T) {
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].EvhNodes[0].Enabled).To(gomega.Equal(true))
 	//At rest layer, sslref are switched to Parent
-	g.Expect(nodes[0].EvhNodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].EvhNodes[0].SslKeyAndCertificateRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].EvhNodes[0].ICAPProfileRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].EvhNodes[0].WafPolicyRef).To(gomega.BeNil())
 	g.Expect(nodes[0].EvhNodes[0].ApplicationProfileRef).To(gomega.BeNil())

@@ -2025,6 +2025,19 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 						}
 					}
 				}
+				if vs["pool_ref"] != nil {
+					poolRef, ok := vs["pool_ref"].(string)
+					if ok {
+						poolNameFromRef := strings.Split(poolRef, "#")[1]
+						poolUuid := ExtractUuid(poolRef, "pool-.*.#")
+						poolNameFromCache, foundPool := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
+						if foundPool && poolNameFromCache.(string) == poolNameFromRef {
+							poolKey := NamespaceName{Namespace: lib.GetTenant(), Name: poolNameFromCache.(string)}
+							poolKeys = append(poolKeys, poolKey)
+						}
+					}
+				}
+
 				// Populate the vscache meta object here.
 				vsMetaObj := AviVsCache{
 					Name:                 vs["name"].(string),

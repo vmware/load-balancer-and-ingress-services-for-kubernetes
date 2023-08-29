@@ -926,6 +926,99 @@ func checkRefOnController(key, refKey, refValue string) error {
 	return nil
 }
 
+// checkForL4SSLAppProfile checks if the app profile specified in l4rule is of type L4 or L4 SSL.
+// If app profile is of type L4 SSL it returns true and nil.
+// If app profile is of type L4 it returns false and nil.
+// Otherwise false and specific error is returned.
+func checkForL4SSLAppProfile(key, refValue string) (bool, error) {
+	// assign the last avi client for ref checks
+	refKey := "AppProfile"
+	aviClientLen := lib.GetshardSize()
+	clients := avicache.SharedAVIClients()
+	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type,labels,created_by", refModelMap[refKey], refValue)
+
+	result, err := lib.AviGetCollectionRaw(clients.AviClient[aviClientLen], uri)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Get uri %v returned err %v", key, uri, err)
+		return false, fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
+	}
+
+	if result.Count == 0 {
+		utils.AviLog.Warnf("key: %s, msg: No Objects found for refName: %s/%s", key, refModelMap[refKey], refValue)
+		return false, fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
+	}
+
+	items := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &items)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Failed to unmarshal results, err: %v", key, err)
+		return false, fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
+	}
+	utils.AviLog.Debugf("item : %s", utils.Stringify(items))
+	item := make(map[string]interface{})
+	err = json.Unmarshal(items[0], &item)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Failed to unmarshal item, err: %v", key, err)
+		return false, fmt.Errorf("%s \"%s\" found on controller is invalid", refModelMap[refKey], refValue)
+	}
+	if appProfType, ok := item["type"].(string); ok {
+		if appProfType == lib.AllowedL4SSLApplicationProfile {
+			return true, nil
+		}
+		if appProfType == lib.AllowedL4ApplicationProfile {
+			return false, nil
+		}
+	}
+	utils.AviLog.Warnf("key: %s, msg: L4 applicationProfile: %s must be of type %s or %s", key, refValue, lib.AllowedL4ApplicationProfile, lib.AllowedL4SSLApplicationProfile)
+	return false, fmt.Errorf("%s \"%s\" found on controller is invalid, must be of type: %s or %s",
+		refModelMap[refKey], refValue, lib.AllowedL4ApplicationProfile, lib.AllowedL4SSLApplicationProfile)
+}
+
+// checkForNetworkProfileTypeTCP checks if the network profile specified in l4rule is of type TCP.
+// If network profile is of type TCP it returns true and nil.
+// Otherwise false and specific error is returned.
+func checkForNetworkProfileTypeTCP(key, refValue string) (bool, error) {
+	// assign the last avi client for ref checks
+	refKey := "NetworkProfile"
+	aviClientLen := lib.GetshardSize()
+	clients := avicache.SharedAVIClients()
+	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,profile,labels,created_by", refModelMap[refKey], refValue)
+
+	result, err := lib.AviGetCollectionRaw(clients.AviClient[aviClientLen], uri)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Get uri %v returned err %v", key, uri, err)
+		return false, fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
+	}
+
+	if result.Count == 0 {
+		utils.AviLog.Warnf("key: %s, msg: No Objects found for refName: %s/%s", key, refModelMap[refKey], refValue)
+		return false, fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
+	}
+
+	items := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &items)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Failed to unmarshal results, err: %v", key, err)
+		return false, fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
+	}
+
+	utils.AviLog.Debugf("item : %s", utils.Stringify(items))
+	item := make(map[string]interface{})
+	err = json.Unmarshal(items[0], &item)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Failed to unmarshal item, err: %v", key, err)
+		return false, fmt.Errorf("%s \"%s\" found on controller is invalid", refModelMap[refKey], refValue)
+	}
+	if profile, ok := item["profile"].(map[string]interface{}); ok {
+		if networkProfType, ok := profile["type"].(string); ok && networkProfType == lib.AllowedTCPProxyNetworkProfileType || networkProfType == lib.AllowedTCPFastPathNetworkProfileType {
+			return true, nil
+		}
+	}
+	utils.AviLog.Warnf("key: %s, msg: Network profile : %s must be of type %s or %s for L4 SSL support", key, refValue, lib.AllowedTCPProxyNetworkProfileType, lib.AllowedTCPFastPathNetworkProfileType)
+	return false, fmt.Errorf("%s \"%s\" found on controller is invalid, must be of type: %s or %s for L4 SSL support",
+		refModelMap[refKey], refValue, lib.AllowedTCPProxyNetworkProfileType, lib.AllowedTCPFastPathNetworkProfileType)
+}
+
 // addSeGroupLabel configures SEGroup with appropriate labels, during AviInfraSetting
 // creation/updates after ingestion
 func addSeGroupLabel(key, segName string) {

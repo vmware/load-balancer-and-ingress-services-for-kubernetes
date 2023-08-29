@@ -492,7 +492,7 @@ func TestApplyHostruleToDedicatedVS(t *testing.T) {
 		evhNode = nodes[0]
 	}
 	g.Expect(evhNode.Enabled).To(gomega.BeNil())
-	g.Expect(evhNode.SSLKeyCertAviRef).To(gomega.HaveLen(0))
+	g.Expect(evhNode.SslKeyAndCertificateRefs).To(gomega.HaveLen(0))
 	g.Expect(evhNode.WafPolicyRef).To(gomega.BeNil())
 	g.Expect(evhNode.ApplicationProfileRef).To(gomega.BeNil())
 	g.Expect(evhNode.AnalyticsProfileRef).To(gomega.BeNil())

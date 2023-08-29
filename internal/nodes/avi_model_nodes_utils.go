@@ -36,11 +36,12 @@ type AviVsNodeGeneratedFields struct {
 	PerformanceLimits        *v1alpha2.PerformanceLimits
 	SamlSpConfig             *v1alpha2.SAMLSPConfig
 	SecurityPolicyRef        *string
+	Services                 []*v1alpha2.Service
 	SsoPolicyRef             *string
 }
 
 func (v *AviVsNodeGeneratedFields) CalculateCheckSumOfGeneratedCode() uint32 {
-	checksumStringSlice := make([]string, 0, 10)
+	checksumStringSlice := make([]string, 0, 11)
 	if v.Fqdn != nil {
 		checksumStringSlice = append(checksumStringSlice, *v.Fqdn)
 	}
@@ -71,6 +72,10 @@ func (v *AviVsNodeGeneratedFields) CalculateCheckSumOfGeneratedCode() uint32 {
 
 	if v.SecurityPolicyRef != nil {
 		checksumStringSlice = append(checksumStringSlice, *v.SecurityPolicyRef)
+	}
+
+	if v.Services != nil {
+		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.Services))
 	}
 
 	if v.SsoPolicyRef != nil {
@@ -121,6 +126,14 @@ func (o *AviVsNodeCommonFields) ConvertToRef() {
 		if o.ApplicationProfileRef != nil {
 			o.ApplicationProfileRef = proto.String("/api/applicationprofile?name=" + *o.ApplicationProfileRef)
 		}
+		SslKeyAndCertificateRefs := make([]string, 0, len(o.SslKeyAndCertificateRefs))
+		for i := range o.SslKeyAndCertificateRefs {
+			ref := fmt.Sprintf("/api/sslkeyandcertificate?name=" + o.SslKeyAndCertificateRefs[i])
+			if !utils.HasElem(SslKeyAndCertificateRefs, ref) {
+				SslKeyAndCertificateRefs = append(SslKeyAndCertificateRefs, ref)
+			}
+		}
+		o.SslKeyAndCertificateRefs = SslKeyAndCertificateRefs
 		if o.SslProfileRef != nil {
 			o.SslProfileRef = proto.String("/api/sslprofile?name=" + *o.SslProfileRef)
 		}

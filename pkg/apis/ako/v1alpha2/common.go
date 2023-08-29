@@ -107,3 +107,9 @@ type SAMLSPConfig struct {
 	UseIdpSessionTimeout           *bool   `json:"useIdpSessionTimeout,omitempty"`
 }
 
+type Service struct {
+	EnableSsl *bool   `json:"enableSsl,omitempty"`
+	Port      *int32  `json:"port"`
+	Protocol  *string `json:"protocol"`
+}
+

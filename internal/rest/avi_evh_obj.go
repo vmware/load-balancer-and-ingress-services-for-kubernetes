@@ -237,8 +237,8 @@ func (rest *RestOperations) EvhNodeCU(sni_node *nodes.AviEvhVsNode, vs_cache_obj
 func setDedicatedEvhVSNodeProperties(vs *avimodels.VirtualService, vs_meta *nodes.AviEvhVsNode) {
 	var datascriptCollection []*avimodels.VSDataScripts
 	// this overwrites the sslkeycert created from the Secret object, with the one mentioned in HostRule.TLS
-	if len(vs_meta.SSLKeyCertAviRef) != 0 {
-		vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, vs_meta.SSLKeyCertAviRef...)
+	if len(vs_meta.SslKeyAndCertificateRefs) != 0 {
+		vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, vs_meta.SslKeyAndCertificateRefs...)
 	} else {
 		for _, sslkeycert := range vs_meta.SSLKeyCertRefs {
 			certName := "/api/sslkeyandcertificate/?name=" + sslkeycert.Name
@@ -399,8 +399,8 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		if vs_meta.TLSType != utils.TLS_PASSTHROUGH && !vs_meta.Dedicated {
 			//Append cert from hostrule
 			for _, evhNode := range vs_meta.EvhNodes {
-				if len(evhNode.SSLKeyCertAviRef) != 0 {
-					for _, evhcert := range evhNode.SSLKeyCertAviRef {
+				if len(evhNode.SslKeyAndCertificateRefs) != 0 {
+					for _, evhcert := range evhNode.SslKeyAndCertificateRefs {
 						if !utils.HasElem(vs.SslKeyAndCertificateRefs, evhcert) {
 							vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, evhcert)
 						}

@@ -187,7 +187,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 		}
 	}
 
-	vsNode.SetSSLKeyCertAviRef(vsSslKeyCertificates)
+	vsNode.SetSslKeyAndCertificateRefs(vsSslKeyCertificates)
 	vsNode.SetWafPolicyRef(vsWafPolicy)
 	vsNode.SetHttpPolicySetRefs(vsHTTPPolicySets)
 	vsNode.SetICAPProfileRefs(vsICAPProfile)

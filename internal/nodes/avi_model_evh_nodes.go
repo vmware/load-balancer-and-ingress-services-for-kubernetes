@@ -60,8 +60,8 @@ type AviVsEvhSniModel interface {
 	GetServiceMetadata() lib.ServiceMetadataObj
 	SetServiceMetadata(lib.ServiceMetadataObj)
 
-	GetSSLKeyCertAviRef() []string
-	SetSSLKeyCertAviRef([]string)
+	GetSslKeyAndCertificateRefs() []string
+	SetSslKeyAndCertificateRefs([]string)
 
 	GetWafPolicyRef() *string
 	SetWafPolicyRef(*string)
@@ -137,7 +137,6 @@ type AviEvhVsNode struct {
 	ICAPProfileRefs     []string
 	ErrorPageProfileRef string
 	HttpPolicySetRefs   []string
-	SSLKeyCertAviRef    []string
 	Paths               []string
 	IngressNames        []string
 	Dedicated           bool
@@ -213,12 +212,12 @@ func (v *AviEvhVsNode) SetServiceMetadata(serviceMetadata lib.ServiceMetadataObj
 	v.ServiceMetadata = serviceMetadata
 }
 
-func (v *AviEvhVsNode) GetSSLKeyCertAviRef() []string {
-	return v.SSLKeyCertAviRef
+func (v *AviEvhVsNode) GetSslKeyAndCertificateRefs() []string {
+	return v.SslKeyAndCertificateRefs
 }
 
-func (v *AviEvhVsNode) SetSSLKeyCertAviRef(sslKeyCertAviRef []string) {
-	v.SSLKeyCertAviRef = sslKeyCertAviRef
+func (v *AviEvhVsNode) SetSslKeyAndCertificateRefs(sslKeyAndCertificateRefs []string) {
+	v.SslKeyAndCertificateRefs = sslKeyAndCertificateRefs
 }
 
 func (v *AviEvhVsNode) GetWafPolicyRef() *string {
@@ -621,7 +620,7 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 
 	for _, evhnode := range v.EvhNodes {
 		checksumStringSlice = append(checksumStringSlice, "EVHNode"+evhnode.Name)
-		for _, evhcert := range evhnode.SSLKeyCertAviRef {
+		for _, evhcert := range evhnode.SslKeyAndCertificateRefs {
 			checksumStringSlice = append(checksumStringSlice, "EVHNodeSSL"+evhcert)
 
 		}

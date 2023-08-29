@@ -38,8 +38,8 @@ import (
 func setDedicatedVSNodeProperties(vs *avimodels.VirtualService, vs_meta *nodes.AviVsNode) {
 	var datascriptCollection []*avimodels.VSDataScripts
 	// this overwrites the sslkeycert created from the Secret object, with the one mentioned in HostRule.TLS
-	if len(vs_meta.SSLKeyCertAviRef) != 0 {
-		vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, vs_meta.SSLKeyCertAviRef...)
+	if len(vs_meta.SslKeyAndCertificateRefs) != 0 {
+		vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, vs_meta.SslKeyAndCertificateRefs...)
 	} else {
 		for _, sslkeycert := range vs_meta.SSLKeyCertRefs {
 			certName := "/api/sslkeyandcertificate/?name=" + sslkeycert.Name
@@ -254,7 +254,19 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			}
 			vs.L4Policies = l4Policies
 		}
+		if vs_meta.DefaultPool != "" {
+			pool_ref := "/api/pool/?name=" + vs_meta.DefaultPool
+			vs.PoolRef = &pool_ref
+		}
 		vs.AnalyticsPolicy = vs_meta.GetAnalyticsPolicy()
+
+		if vs_meta.SslProfileRef != nil {
+			vs.SslProfileRef = vs_meta.SslProfileRef
+		}
+
+		if len(vs_meta.SslKeyAndCertificateRefs) != 0 {
+			vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, vs_meta.SslKeyAndCertificateRefs...)
+		}
 
 		var rest_ops []*utils.RestOp
 
@@ -366,8 +378,8 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	// No need of HTTP rules for TLS passthrough.
 	if vs_meta.TLSType != utils.TLS_PASSTHROUGH {
 		// this overwrites the sslkeycert created from the Secret object, with the one mentioned in HostRule.TLS
-		if len(vs_meta.SSLKeyCertAviRef) != 0 {
-			sniChild.SslKeyAndCertificateRefs = append(sniChild.SslKeyAndCertificateRefs, vs_meta.SSLKeyCertAviRef...)
+		if len(vs_meta.SslKeyAndCertificateRefs) != 0 {
+			sniChild.SslKeyAndCertificateRefs = append(sniChild.SslKeyAndCertificateRefs, vs_meta.SslKeyAndCertificateRefs...)
 		} else {
 			for _, sslkeycert := range vs_meta.SSLKeyCertRefs {
 				certName := "/api/sslkeyandcertificate/?name=" + sslkeycert.Name
