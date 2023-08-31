@@ -25,8 +25,8 @@ import (
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -575,9 +575,9 @@ func GetDefaultSubDomain() []string {
 	return cloudProperty.NSIpamDNS
 }
 
-func getL4InfraSetting(key, namespace string, svc *corev1.Service, advl4GWClassName *string) (*akov1alpha1.AviInfraSetting, error) {
+func getL4InfraSetting(key, namespace string, svc *corev1.Service, advl4GWClassName *string) (*akov1beta1.AviInfraSetting, error) {
 	var err error
-	var infraSetting *akov1alpha1.AviInfraSetting
+	var infraSetting *akov1beta1.AviInfraSetting
 
 	if lib.UseServicesAPI() && advl4GWClassName != nil {
 		gwClass, err := lib.AKOControlConfig().SvcAPIInformers().GatewayClassInformer.Lister().Get(*advl4GWClassName)
@@ -586,7 +586,7 @@ func getL4InfraSetting(key, namespace string, svc *corev1.Service, advl4GWClassN
 			return nil, err
 		}
 		if gwClass.Spec.ParametersRef != nil && gwClass.Spec.ParametersRef.Group == lib.AkoGroup && gwClass.Spec.ParametersRef.Kind == lib.AviInfraSetting {
-			infraSetting, err = lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(gwClass.Spec.ParametersRef.Name)
+			infraSetting, err = lib.AKOControlConfig().CRDInformers().AviInfraSettingBeta1Informer.Lister().Get(gwClass.Spec.ParametersRef.Name)
 			if err != nil {
 				utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via GatewayClass %s", key, err.Error())
 				return nil, err
@@ -595,7 +595,7 @@ func getL4InfraSetting(key, namespace string, svc *corev1.Service, advl4GWClassN
 		}
 	} else if svc != nil {
 		if infraSettingAnnotation, ok := svc.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
-			infraSetting, err = lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingAnnotation)
+			infraSetting, err = lib.AKOControlConfig().CRDInformers().AviInfraSettingBeta1Informer.Lister().Get(infraSettingAnnotation)
 			if err != nil {
 				utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via annotation %s", key, err.Error())
 				return nil, err

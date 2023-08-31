@@ -32,7 +32,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/retry"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
@@ -704,14 +704,17 @@ func (c *AviController) addIndexers() {
 
 	informer := lib.AKOControlConfig().CRDInformers()
 	if lib.AKOControlConfig().AviInfraSettingEnabled() {
-		informer.AviInfraSettingInformer.Informer().AddIndexers(
+		informer.AviInfraSettingBeta1Informer.Informer().AddIndexers(
 			cache.Indexers{
 				lib.SeGroupAviSettingIndex: func(obj interface{}) ([]string, error) {
-					infraSetting, ok := obj.(*akov1alpha1.AviInfraSetting)
+					seg := ""
+					infraSetting, ok := obj.(*akov1beta1.AviInfraSetting)
 					if !ok {
 						return []string{}, nil
+					} else {
+						seg = infraSetting.Spec.SeGroup.Name
 					}
-					return []string{infraSetting.Spec.SeGroup.Name}, nil
+					return []string{seg}, nil
 				},
 			},
 		)
@@ -886,7 +889,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			}
 		}
 
-		aviInfraObjs, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().List(labels.Set(nil).AsSelector())
+		aviInfraObjs, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingBeta1Informer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the avinfrasettings during full sync: %s", err)
 		} else {

@@ -35,9 +35,13 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
 	v1alpha2crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned/fake"
+	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/onsi/gomega"
@@ -76,6 +80,7 @@ const (
 var KubeClient *k8sfake.Clientset
 var CRDClient *crdfake.Clientset
 var v1alpha2CRDClient *v1alpha2crdfake.Clientset
+var v1beta1CRDClient *v1beta1crdfake.Clientset
 var ctrl *k8s.AviController
 
 var AllModels = []string{
@@ -1935,16 +1940,16 @@ type FakeAviInfraSetting struct {
 	T1LR           string
 }
 
-func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraSetting {
-	setting := &akov1alpha1.AviInfraSetting{
+func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1beta1.AviInfraSetting {
+	setting := &akov1beta1.AviInfraSetting{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: infraSetting.Name,
 		},
-		Spec: akov1alpha1.AviInfraSettingSpec{
-			SeGroup: akov1alpha1.AviInfraSettingSeGroup{
+		Spec: akov1beta1.AviInfraSettingSpec{
+			SeGroup: akov1beta1.AviInfraSettingSeGroup{
 				Name: infraSetting.SeGroupName,
 			},
-			Network: akov1alpha1.AviInfraSettingNetwork{
+			Network: akov1beta1.AviInfraSettingNetwork{
 				EnableRhi:      &infraSetting.EnableRhi,
 				BgpPeerLabels:  infraSetting.BGPPeerLabels,
 				EnablePublicIP: &infraSetting.EnablePublicIP,
@@ -1956,7 +1961,7 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraS
 	}
 
 	for _, networkName := range infraSetting.Networks {
-		setting.Spec.Network.VipNetworks = append(setting.Spec.Network.VipNetworks, akov1alpha1.AviInfraSettingVipNetwork{
+		setting.Spec.Network.VipNetworks = append(setting.Spec.Network.VipNetworks, akov1beta1.AviInfraSettingVipNetwork{
 			NetworkName: networkName,
 		})
 	}
@@ -1979,13 +1984,13 @@ func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string) {
 		T1LR:          "avi-domain-c9:1234",
 	}
 	settingCreate := setting.AviInfraSetting()
-	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding AviInfraSetting: %v", err)
 	}
 }
 
 func TeardownAviInfraSetting(t *testing.T, infraSettingName string) {
-	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Delete(context.TODO(), infraSettingName, metav1.DeleteOptions{}); err != nil {
+	if err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Delete(context.TODO(), infraSettingName, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting AviInfraSetting: %v", err)
 	}
 }

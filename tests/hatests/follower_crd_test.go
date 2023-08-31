@@ -59,7 +59,7 @@ func TestCreateAviInfraSetting(t *testing.T) {
 
 	// AKO is running as follower, hence the status won't be updated.
 	g.Eventually(func() string {
-		aviInfraSetting, _ := CRDClient.AkoV1alpha1().AviInfraSettings().Get(context.TODO(), aviInfraSettingName, metav1.GetOptions{})
+		aviInfraSetting, _ := v1beta1CRDClient.AkoV1beta1().AviInfraSettings().Get(context.TODO(), aviInfraSettingName, metav1.GetOptions{})
 		return aviInfraSetting.Status.Status
 	}, 30*time.Second).Should(gomega.Equal(""))
 }

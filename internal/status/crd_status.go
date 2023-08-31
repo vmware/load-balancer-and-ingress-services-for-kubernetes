@@ -22,6 +22,8 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	corev1 "k8s.io/api/core/v1"
@@ -176,7 +178,8 @@ func HttpRuleEventBroadcast(poolName string, poolCacheMetadataOld, vsMetadataNew
 }
 
 // UpdateAviInfraSettingStatus AviInfraSetting status updates
-func UpdateAviInfraSettingStatus(key string, infraSetting *akov1alpha1.AviInfraSetting, updateStatus UpdateCRDStatusOptions, retryNum ...int) {
+func UpdateAviInfraSettingStatus(key string, infraSetting *akov1beta1.AviInfraSetting, updateStatus UpdateCRDStatusOptions, retryNum ...int) {
+
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
@@ -187,13 +190,13 @@ func UpdateAviInfraSettingStatus(key string, infraSetting *akov1alpha1.AviInfraS
 	}
 
 	patchPayload, _ := json.Marshal(map[string]interface{}{
-		"status": akov1alpha1.AviInfraSettingStatus(updateStatus),
+		"status": akov1beta1.AviInfraSettingStatus(updateStatus),
 	})
 
-	_, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Patch(context.TODO(), infraSetting.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+	_, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Patch(context.TODO(), infraSetting.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: %d there was an error in updating the aviinfrasetting status: %+v", key, retry, err)
-		updatedInfraSetting, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(infraSetting.Name)
+		updatedInfraSetting, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingBeta1Informer.Lister().Get(infraSetting.Name)
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: aviinfrasetting not found %v", key, err)
 			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {

@@ -25,6 +25,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	v1 "k8s.io/api/core/v1"
@@ -34,7 +35,7 @@ import (
 type Validator interface {
 	ValidateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error
 	ValidateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error
-	ValidateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetting) error
+	ValidateAviInfraSetting(key string, infraSetting *akov1beta1.AviInfraSetting) error
 	ValidateMultiClusterIngressObj(key string, multiClusterIngress *akov1alpha1.MultiClusterIngress) error
 	ValidateServiceImportObj(key string, serviceImport *akov1alpha1.ServiceImport) error
 	ValidateSSORuleObj(key string, ssoRule *akov1alpha2.SSORule) error
@@ -287,7 +288,7 @@ func (l *leader) ValidateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule)
 
 // validateAviInfraSetting would do validaion checks on the
 // ingested AviInfraSetting objects
-func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetting) error {
+func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1beta1.AviInfraSetting) error {
 
 	if ((infraSetting.Spec.Network.EnableRhi != nil && !*infraSetting.Spec.Network.EnableRhi) || infraSetting.Spec.Network.EnableRhi == nil) &&
 		len(infraSetting.Spec.Network.BgpPeerLabels) > 0 {
@@ -745,7 +746,8 @@ func (f *follower) ValidateHostRuleObj(key string, hostrule *akov1alpha1.HostRul
 	return nil
 }
 
-func (f *follower) ValidateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetting) error {
+func (f *follower) ValidateAviInfraSetting(key string, infraSetting *akov1beta1.AviInfraSetting) error {
+
 	utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating AviInfraSetting object", key)
 	// During AKO bootup as leader is not set, crd validation is not done.
 	// This creates problem in vip network and pool network population.

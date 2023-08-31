@@ -27,7 +27,9 @@ import (
 	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
@@ -2876,7 +2878,7 @@ func validateAndConfigureSeGroup(client *clients.AviClient, returnErr *error) bo
 	// This takes care of syncing SeGroup label settings during reboots.
 	seGroupSet := sets.NewString()
 	if lib.AKOControlConfig().AviInfraSettingEnabled() {
-		infraSettingList, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().List(context.TODO(), metav1.ListOptions{})
+		infraSettingList, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("Unable to list AviInfraSettings %s", err.Error())
 		}
@@ -3193,7 +3195,7 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 
 	// 2. AKO created VIP network for AKO in VCF
 	if utils.IsVCFCluster() {
-		vipNetList := []akov1alpha1.AviInfraSettingVipNetwork{
+		vipNetList := []akov1beta1.AviInfraSettingVipNetwork{
 			{
 				NetworkName: lib.GetVCFNetworkName(),
 			},
@@ -3233,7 +3235,7 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 
 		if markerNetworkFound != "" {
 
-			vipList := []akov1alpha1.AviInfraSettingVipNetwork{{
+			vipList := []akov1beta1.AviInfraSettingVipNetwork{{
 				NetworkName: markerNetworkFound,
 			}}
 			utils.SetVipNetworkList(vipList)
@@ -3244,7 +3246,7 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 
 	// 4. Empty VipNetworkList
 	if lib.IsWCP() && markerNetworkFound == "" {
-		utils.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{})
+		utils.SetVipNetworkList([]akov1beta1.AviInfraSettingVipNetwork{})
 		return true, nil
 	}
 
@@ -3609,7 +3611,7 @@ func checkBGPParams(returnErr *error) bool {
 	return true
 }
 
-func validateNetworkNames(client *clients.AviClient, vipNetworkList []akov1alpha1.AviInfraSettingVipNetwork) bool {
+func validateNetworkNames(client *clients.AviClient, vipNetworkList []akov1beta1.AviInfraSettingVipNetwork) bool {
 	for _, vipNetwork := range vipNetworkList {
 		if vipNetwork.Cidr != "" {
 			re := regexp.MustCompile(lib.IPCIDRRegex)

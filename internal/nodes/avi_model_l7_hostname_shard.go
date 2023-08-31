@@ -21,7 +21,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
@@ -109,7 +109,7 @@ func (o *AviObjectGraph) BuildDedicatedL7VSGraphHostNameShard(vsName, hostname s
 	objects.SharedCRDLister().UpdateFQDNToAliasesMappings(hostname, vsNode[0].VHDomainNames)
 }
 
-func (o *AviObjectGraph) BuildPoolPGPolicyForDedicatedVS(vsNode []*AviVsNode, namespace, ingName, hostname string, infraSetting *akov1alpha1.AviInfraSetting, key string, pathFQDNs []string, paths []IngressHostPathSvc, insecureEdgeTermAllow, isIngr bool) {
+func (o *AviObjectGraph) BuildPoolPGPolicyForDedicatedVS(vsNode []*AviVsNode, namespace, ingName, hostname string, infraSetting *akov1beta1.AviInfraSetting, key string, pathFQDNs []string, paths []IngressHostPathSvc, insecureEdgeTermAllow, isIngr bool) {
 	localPGList := make(map[string]*AviPoolGroupNode)
 	var policyNode *AviHttpPolicySetNode
 	var pgfound bool
@@ -233,7 +233,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 	var priorityLabel string
 	var poolName string
 	var serviceName string
-	var infraSetting *akov1alpha1.AviInfraSetting
+	var infraSetting *akov1beta1.AviInfraSetting
 	var infraSettingName string
 	infraSetting = routeIgrObj.GetAviInfraSetting()
 	if infraSetting != nil {
@@ -296,7 +296,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 	}
 }
 
-func buildPoolNode(key, poolName, ingName, namespace, priorityLabel, hostname string, infraSetting *akov1alpha1.AviInfraSetting, serviceName string, storedHosts []string, insecureEdgeTermAllow bool, obj IngressHostPathSvc) *AviPoolNode {
+func buildPoolNode(key, poolName, ingName, namespace, priorityLabel, hostname string, infraSetting *akov1beta1.AviInfraSetting, serviceName string, storedHosts []string, insecureEdgeTermAllow bool, obj IngressHostPathSvc) *AviPoolNode {
 	poolNode := &AviPoolNode{
 		Name:          poolName,
 		IngressName:   ingName,
@@ -588,7 +588,7 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 	return hostPathSvcMap, dedicated
 }
 
-func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, ingressHostMap SecureHostNameMapProp, sniHosts []string, tlssetting TlsSettings, ingName, namespace string, infraSetting *akov1alpha1.AviInfraSetting, sniHost, gsFqdn string, key string) {
+func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, ingressHostMap SecureHostNameMapProp, sniHosts []string, tlssetting TlsSettings, ingName, namespace string, infraSetting *akov1beta1.AviInfraSetting, sniHost, gsFqdn string, key string) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	var sniNode *AviVsNode
