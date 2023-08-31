@@ -954,7 +954,6 @@ func checkForL4SSLAppProfile(key, refValue string) (bool, error) {
 		utils.AviLog.Warnf("key: %s, msg: Failed to unmarshal results, err: %v", key, err)
 		return false, fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
 	}
-	utils.AviLog.Debugf("item : %s", utils.Stringify(items))
 	item := make(map[string]interface{})
 	err = json.Unmarshal(items[0], &item)
 	if err != nil {
@@ -1002,7 +1001,6 @@ func checkForNetworkProfileTypeTCP(key, refValue string) (bool, error) {
 		return false, fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
 	}
 
-	utils.AviLog.Debugf("item : %s", utils.Stringify(items))
 	item := make(map[string]interface{})
 	err = json.Unmarshal(items[0], &item)
 	if err != nil {
