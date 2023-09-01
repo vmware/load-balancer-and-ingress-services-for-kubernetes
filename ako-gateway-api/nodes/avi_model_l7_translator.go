@@ -136,20 +136,25 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 		}
 		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
 		serviceType := lib.GetServiceType()
-		if serviceType == lib.NodePortLocal {
-			//TODO: support NPL
-		} else if serviceType == lib.NodePort {
-			//TODO: support nodeport
+		if serviceType == lib.NodePort {
+			servers := nodes.PopulateServersForNodePort(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key)
+			if servers != nil {
+				poolNode.Servers = servers
+			}
 		} else {
-			if servers := nodes.PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
+			servers := nodes.PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key)
+			if servers != nil {
 				poolNode.Servers = servers
 			}
 		}
-		childVsNode.PoolRefs = append(childVsNode.PoolRefs, poolNode)
+		if childVsNode.CheckPoolNChecksum(poolNode.Name, poolNode.GetCheckSum()) {
+			// Replace the poolNode.
+			childVsNode.ReplaceEvhPoolInEVHNode(poolNode, key)
+		}
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		PG.Members = append(PG.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, Ratio: &backend.Weight})
 	}
-	childVsNode.PoolGroupRefs = append(childVsNode.PoolGroupRefs, PG)
+	childVsNode.PoolGroupRefs = []*nodes.AviPoolGroupNode{PG}
 	childVsNode.DefaultPoolGroup = PG.Name
 }
 

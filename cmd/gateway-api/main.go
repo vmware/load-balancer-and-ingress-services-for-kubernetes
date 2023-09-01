@@ -151,6 +151,8 @@ func Initialize() {
 	wgStatus := &sync.WaitGroup{}
 	waitGroupMap["status"] = wgStatus
 
+	k8s.PopulateNodeCache(kubeClient)
+
 	go c.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 
 	<-stopCh
