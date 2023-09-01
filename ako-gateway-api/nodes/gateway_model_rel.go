@@ -20,7 +20,6 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/errors"
-	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
@@ -193,9 +192,9 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 		ns := namespace
 		if parentRef.Namespace != nil {
 			ns = string(*parentRef.Namespace)
-			if *parentRef.Namespace != gatewayv1beta1.Namespace(hrObj.Namespace) {
-				//check reference grant
-			}
+			// if *parentRef.Namespace != gatewayv1beta1.Namespace(hrObj.Namespace) {
+			// 	//check reference grant
+			// }
 		}
 		var gatewayListenerList []string
 		gwNsName := ns + "/" + string(parentRef.Name)

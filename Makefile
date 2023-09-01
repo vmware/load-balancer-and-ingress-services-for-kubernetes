@@ -324,9 +324,16 @@ helmtests:
 	-v $(PWD)/tests/helmtests:/apps/tests \
 	helmunittest/helm-unittest:3.11.1-0.3.0 .
 
+.PHONY: gatewayapitests
+gatewayapitests:
+	docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/ako-gateway-api/tests/... -failfast
+
 .PHONY: int_test
 int_test:
-	make -j 1 k8stest integrationtest ingresstests evhtests vippernstests dedicatedevhtests dedicatedvippernstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc dedicatedvstests multiclusteringresstests hatests calicotests ciliumtests helmtests
+	make -j 1 k8stest integrationtest ingresstests evhtests vippernstests dedicatedevhtests dedicatedvippernstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc dedicatedvstests multiclusteringresstests hatests calicotests ciliumtests helmtests gatewayapitests
 
 .PHONY: scale_test
 scale_test:

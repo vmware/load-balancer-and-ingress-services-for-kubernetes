@@ -225,13 +225,12 @@ func TestHTTPRouteCUD(t *testing.T) {
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1Beta1([]string{gatewayName}, namespace, ports)
 	hostnames := []gatewayv1beta1.Hostname{"foo-8080.com", "foo-8081.com"}
-	rules := akogatewayapitests.GetHTTPRouteRulesV1Beta1()
-	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
 	waitAndverify(t, key)
 
 	// update
 	hostnames = []gatewayv1beta1.Hostname{"foo-8080.com"}
-	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
 	waitAndverify(t, key)
 
 	// delete
