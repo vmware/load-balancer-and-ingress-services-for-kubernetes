@@ -126,7 +126,7 @@ func (o *gateway) Delete(key string, option status.StatusOptions) {
 			SetIn(&status.Listeners[i].Conditions)
 	}
 
-	o.Patch(key, gw, &Status{GatewayStatus: *status})
+	o.Patch(key, gw, &Status{GatewayStatus: status})
 	utils.AviLog.Infof("key: %s, msg: Successfully reset the address status of gateway: %s", key, gw.Name)
 
 	// TODO: Add annotation delete code here
@@ -167,7 +167,7 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 			SetIn(&status.Listeners[i].Conditions)
 	}
 
-	o.Patch(key, gw, &Status{GatewayStatus: *status})
+	o.Patch(key, gw, &Status{GatewayStatus: status})
 
 	// TODO: Annotation update code here
 }
@@ -178,7 +178,7 @@ func (o *gateway) BulkUpdate(key string, options []status.StatusOptions) {
 	for _, option := range options {
 		nsName := option.Options.ServiceMetadata.Gateway
 		if gw, ok := gwMap[nsName]; ok {
-			status := gatewayv1beta1.GatewayStatus{}
+			status := &gatewayv1beta1.GatewayStatus{}
 			addressType := gatewayv1beta1.IPAddressType
 			status.Addresses = append(status.Addresses, gatewayv1beta1.GatewayAddress{
 				Type:  &addressType,
@@ -209,7 +209,7 @@ func (o *gateway) Patch(key string, obj runtime.Object, status *Status, retryNum
 	}
 
 	gw := obj.(*gatewayv1beta1.Gateway)
-	if o.isStatusEqual(&gw.Status, &status.GatewayStatus) {
+	if o.isStatusEqual(&gw.Status, status.GatewayStatus) {
 		return
 	}
 
