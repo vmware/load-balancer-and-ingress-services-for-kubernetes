@@ -536,38 +536,12 @@ func TestHTTPRouteWithValidConfig(t *testing.T) {
 	gatewayName := "gateway-hr-01"
 	httpRouteName := "httproute-01"
 	namespace := "default"
-	ports := []int32{8080}
+	ports := []int32{8080, 8081}
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
 	listeners := akogatewayapitests.GetListenersV1Beta1(ports)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
-
-	svcExample := (integrationtest.FakeService{
-		Name:         "avisvc",
-		Namespace:    "default",
-		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
-	}).Service()
-
-	_, err := tests.KubeClient.CoreV1().Services("default").Create(context.TODO(), svcExample, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
-	epExample := &corev1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "default",
-			Name:      "avisvc",
-		},
-		Subsets: []corev1.EndpointSubset{{
-			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
-			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
-		}},
-	}
-	_, err = tests.KubeClient.CoreV1().Endpoints("default").Create(context.TODO(), epExample, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in creating Endpoint: %v", err)
-	}
 
 	g := gomega.NewGomegaWithT(t)
 	g.Eventually(func() bool {

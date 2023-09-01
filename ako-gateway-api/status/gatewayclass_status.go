@@ -83,7 +83,7 @@ func (o *gatewayClass) Patch(key string, obj runtime.Object, status *Status, ret
 	}
 
 	gatewayClass := obj.(*gatewayv1beta1.GatewayClass)
-	if o.isStatusEqual(&gatewayClass.Status, &status.GatewayClassStatus) {
+	if o.isStatusEqual(&gatewayClass.Status, status.GatewayClassStatus) {
 		return
 	}
 
