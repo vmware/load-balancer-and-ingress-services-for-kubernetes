@@ -28,6 +28,27 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
+func IsGatewayClassValid(key string, gatewayClass *gatewayv1beta1.GatewayClass) bool {
+
+	controllerName := string(gatewayClass.Spec.ControllerName)
+	if !akogatewayapilib.CheckGatewayClassController(controllerName) {
+		utils.AviLog.Errorf("key: %s, msg: Gateway controller is not AKO for GatewayClass object %s", key, gatewayClass.Name)
+		return false
+	}
+
+	gatewayClassStatus := gatewayClass.Status.DeepCopy()
+	akogatewayapistatus.NewCondition().
+		Type(string(gatewayv1beta1.GatewayClassConditionStatusAccepted)).
+		Reason(string(gatewayv1beta1.GatewayClassReasonAccepted)).
+		Status(metav1.ConditionTrue).
+		ObservedGeneration(gatewayClass.ObjectMeta.Generation).
+		Message("GatewayClass is valid").
+		SetIn(&gatewayClassStatus.Conditions)
+	akogatewayapistatus.Record(key, gatewayClass, &akogatewayapistatus.Status{GatewayClassStatus: *gatewayClassStatus})
+	utils.AviLog.Infof("key: %s, msg: GatewayClass object %s is valid", key, gatewayClass.Name)
+	return true
+}
+
 func IsValidGateway(key string, gateway *gatewayv1beta1.Gateway) bool {
 	spec := gateway.Spec
 

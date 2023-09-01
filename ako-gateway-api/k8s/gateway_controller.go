@@ -180,7 +180,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 			key := utils.Service + "/" + utils.ObjKey(svc)
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == svc.ResourceVersion {
-				utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
+				utils.AviLog.Debugf("key: %s, msg: same resource version returning", key)
 				return
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
@@ -449,7 +449,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			key := lib.Gateway + "/" + utils.ObjKey(gw)
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == gw.ResourceVersion {
-				utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
+				utils.AviLog.Debugf("key: %s, msg: same resource version returning", key)
 				return
 			}
 			if !IsValidGateway(key, gw) {
@@ -511,14 +511,13 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 				return
 			}
 			gwClass := obj.(*gatewayv1beta1.GatewayClass)
-			controllerName := string(gwClass.Spec.ControllerName)
-			if !akogatewayapilib.CheckGatewayClassController(controllerName) {
-				return
-			}
 			key := lib.GatewayClass + "/" + utils.ObjKey(gwClass)
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == gwClass.ResourceVersion {
-				utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
+				utils.AviLog.Debugf("key: %s, msg: same resource version returning", key)
+				return
+			}
+			if !IsGatewayClassValid(key, gwClass) {
 				return
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwClass))
@@ -561,14 +560,11 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			}
 			oldGwClass := old.(*gatewayv1beta1.GatewayClass)
 			gwClass := obj.(*gatewayv1beta1.GatewayClass)
-			controllerName := string(gwClass.Spec.ControllerName)
-			oldControllerName := string(oldGwClass.Spec.ControllerName)
-
-			if !(akogatewayapilib.CheckGatewayClassController(controllerName) || akogatewayapilib.CheckGatewayClassController(oldControllerName)) {
-				return
-			}
 			if !reflect.DeepEqual(oldGwClass.Spec, gwClass.Spec) || gwClass.GetDeletionTimestamp() != nil {
 				key := lib.GatewayClass + "/" + utils.ObjKey(gwClass)
+				if !IsGatewayClassValid(key, gwClass) {
+					return
+				}
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwClass))
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
@@ -587,7 +583,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			key := lib.HTTPRoute + "/" + utils.ObjKey(httpRoute)
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == httpRoute.ResourceVersion {
-				utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
+				utils.AviLog.Debugf("key: %s, msg: same resource version returning", key)
 				return
 			}
 			if !IsHTTPRouteValid(key, httpRoute) {
