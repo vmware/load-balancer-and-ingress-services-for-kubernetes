@@ -83,7 +83,7 @@ func (o *httproute) Patch(key string, obj runtime.Object, status *Status, retryN
 	}
 
 	httpRoute := obj.(*gatewayv1beta1.HTTPRoute)
-	if o.isStatusEqual(&httpRoute.Status, &status.HTTPRouteStatus) {
+	if o.isStatusEqual(&httpRoute.Status, status.HTTPRouteStatus) {
 		return
 	}
 

@@ -31,9 +31,9 @@ type StatusUpdater interface {
 }
 
 type Status struct {
-	gatewayv1beta1.GatewayClassStatus
-	gatewayv1beta1.GatewayStatus
-	gatewayv1beta1.HTTPRouteStatus
+	*gatewayv1beta1.GatewayClassStatus
+	*gatewayv1beta1.GatewayStatus
+	*gatewayv1beta1.HTTPRouteStatus
 }
 
 func New(ObjectType string) StatusUpdater {
