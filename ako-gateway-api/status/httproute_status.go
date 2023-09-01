@@ -88,17 +88,18 @@ func (o *httproute) Patch(key string, obj runtime.Object, status *Status, retryN
 	}
 
 	patchPayload, _ := json.Marshal(map[string]interface{}{
-		"status": status,
+		"status": status.HTTPRouteStatus,
 	})
 	_, err := akogatewayapilib.AKOControlConfig().GatewayAPIClientset().GatewayV1beta1().HTTPRoutes(httpRoute.Namespace).Patch(context.TODO(), httpRoute.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: there was an error in updating the gateway status. err: %+v, retry: %d", key, err, retry)
-		updatedGW, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(httpRoute.Namespace).Get(httpRoute.Name)
+		utils.AviLog.Warnf("key: %s, msg: there was an error in updating the HTTPRoute status. err: %+v, retry: %d", key, err, retry)
+		updatedObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(httpRoute.Namespace).Get(httpRoute.Name)
 		if err != nil {
-			utils.AviLog.Warnf("gateway not found %v", err)
+			utils.AviLog.Warnf("HTTPRoute not found %v", err)
 			return
 		}
-		o.Patch(key, updatedGW, status, retry+1)
+		o.Patch(key, updatedObj, status, retry+1)
+		return
 	}
 
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the HTTPRoute %s/%s status %+v", key, httpRoute.Namespace, httpRoute.Name, utils.Stringify(status))

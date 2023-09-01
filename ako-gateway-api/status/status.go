@@ -31,12 +31,15 @@ type StatusUpdater interface {
 }
 
 type Status struct {
+	gatewayv1beta1.GatewayClassStatus
 	gatewayv1beta1.GatewayStatus
 	gatewayv1beta1.HTTPRouteStatus
 }
 
 func New(ObjectType string) StatusUpdater {
 	switch ObjectType {
+	case lib.GatewayClass:
+		return &gatewayClass{}
 	case lib.Gateway:
 		return &gateway{}
 	case lib.HTTPRoute:
@@ -76,6 +79,8 @@ func BulkUpdate(key string, objectType string, options []status.StatusOptions) e
 func Record(key string, obj runtime.Object, status *Status) {
 	var objectType string
 	switch obj.(type) {
+	case *gatewayv1beta1.GatewayClass:
+		objectType = lib.GatewayClass
 	case *gatewayv1beta1.Gateway:
 		objectType = lib.Gateway
 	case *gatewayv1beta1.HTTPRoute:
