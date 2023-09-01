@@ -28,14 +28,11 @@ import (
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 	gatewayfake "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/fake"
 
-	akogatewayapik8s "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/k8s"
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 )
 
 var KubeClient *k8sfake.Clientset
 var GatewayClient *gatewayfake.Clientset
-var keyChan chan string
-var ctrl *akogatewayapik8s.GatewayController
 
 func GetModelName(namespace, name string) (string, string) {
 	vsName := akogatewayapilib.Prefix + "cluster--" + namespace + "-" + name + "-EVH"
