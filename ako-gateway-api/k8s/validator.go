@@ -44,7 +44,7 @@ func IsGatewayClassValid(key string, gatewayClass *gatewayv1beta1.GatewayClass) 
 		ObservedGeneration(gatewayClass.ObjectMeta.Generation).
 		Message("GatewayClass is valid").
 		SetIn(&gatewayClassStatus.Conditions)
-	akogatewayapistatus.Record(key, gatewayClass, &akogatewayapistatus.Status{GatewayClassStatus: *gatewayClassStatus})
+	akogatewayapistatus.Record(key, gatewayClass, &akogatewayapistatus.Status{GatewayClassStatus: gatewayClassStatus})
 	utils.AviLog.Infof("key: %s, msg: GatewayClass object %s is valid", key, gatewayClass.Name)
 	return true
 }
@@ -66,7 +66,7 @@ func IsValidGateway(key string, gateway *gatewayv1beta1.Gateway) bool {
 		defaultCondition.
 			Message("No listeners found").
 			SetIn(&gatewayStatus.Conditions)
-		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: *gatewayStatus})
+		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
 		return false
 	}
 
@@ -76,7 +76,7 @@ func IsValidGateway(key string, gateway *gatewayv1beta1.Gateway) bool {
 		defaultCondition.
 			Message("More than one address is not supported").
 			SetIn(&gatewayStatus.Conditions)
-		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: *gatewayStatus})
+		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
 		return false
 	}
 
@@ -85,7 +85,7 @@ func IsValidGateway(key string, gateway *gatewayv1beta1.Gateway) bool {
 		defaultCondition.
 			Message("Only IPAddress as AddressType is supported").
 			SetIn(&gatewayStatus.Conditions)
-		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: *gatewayStatus})
+		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
 		return false
 	}
 
@@ -105,7 +105,7 @@ func IsValidGateway(key string, gateway *gatewayv1beta1.Gateway) bool {
 			Reason(string(gatewayv1beta1.GatewayReasonListenersNotValid)).
 			Message(fmt.Sprintf("Gateway contains %d invalid listener(s)", invalidListenerCount)).
 			SetIn(&gatewayStatus.Conditions)
-		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: *gatewayStatus})
+		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
 		return false
 	}
 
@@ -114,7 +114,7 @@ func IsValidGateway(key string, gateway *gatewayv1beta1.Gateway) bool {
 		Status(metav1.ConditionTrue).
 		Message("Gateway configuration is valid").
 		SetIn(&gatewayStatus.Conditions)
-	akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: *gatewayStatus})
+	akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
 	utils.AviLog.Infof("key: %s, msg: Gateway %s is valid", key, gateway.Name)
 	return true
 }
@@ -214,7 +214,7 @@ func IsHTTPRouteValid(key string, obj *gatewayv1beta1.HTTPRoute) bool {
 			utils.AviLog.Warnf("key: %s, msg: Parent Reference %s of HTTPRoute object %s is not valid, err: %v", key, parentRefName, httpRoute.Name, err)
 		}
 	}
-	akogatewayapistatus.Record(key, httpRoute, &akogatewayapistatus.Status{HTTPRouteStatus: *httpRouteStatus})
+	akogatewayapistatus.Record(key, httpRoute, &akogatewayapistatus.Status{HTTPRouteStatus: httpRouteStatus})
 
 	// No valid attachment, we can't proceed with this HTTPRoute object.
 	if invalidParentRefCount == len(httpRoute.Spec.ParentRefs) {
@@ -334,7 +334,7 @@ func validateParentReference(key string, httpRoute *gatewayv1beta1.HTTPRoute, ht
 	}
 
 	gatewayStatus.Listeners[index].AttachedRoutes += 1
-	akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: *gatewayStatus})
+	akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
 
 	defaultCondition.
 		Reason(string(gatewayv1beta1.GatewayReasonAccepted)).
