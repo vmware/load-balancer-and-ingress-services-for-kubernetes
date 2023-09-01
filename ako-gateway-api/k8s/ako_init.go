@@ -226,11 +226,9 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 			resVer := meta.GetResourceVersion()
 			objects.SharedResourceVerInstanceLister().Save(key, resVer)
 		}
-		controllerName := string(gwClassObj.Spec.ControllerName)
-		if !akogatewayapilib.CheckGatewayClassController(controllerName) {
-			continue
+		if IsGatewayClassValid(key, gwClassObj) {
+			akogatewayapinodes.DequeueIngestion(key, true)
 		}
-		akogatewayapinodes.DequeueIngestion(key, true)
 	}
 
 	// Gateway Section
