@@ -163,6 +163,7 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 			Status(metav1.ConditionTrue).
 			Reason(string(gatewayv1beta1.GatewayReasonProgrammed)).
 			ObservedGeneration(gw.ObjectMeta.Generation).
+			Message("Virtual service configured/updated").
 			SetIn(&status.Listeners[i].Conditions)
 	}
 
@@ -213,7 +214,7 @@ func (o *gateway) Patch(key string, obj runtime.Object, status *Status, retryNum
 	}
 
 	patchPayload, _ := json.Marshal(map[string]interface{}{
-		"status": status,
+		"status": status.GatewayStatus,
 	})
 	_, err := akogatewayapilib.AKOControlConfig().GatewayAPIClientset().GatewayV1beta1().Gateways(gw.Namespace).Patch(context.TODO(), gw.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
@@ -224,6 +225,7 @@ func (o *gateway) Patch(key string, obj runtime.Object, status *Status, retryNum
 			return
 		}
 		o.Patch(key, updatedGW, status, retry+1)
+		return
 	}
 
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the gateway %s/%s status %+v", key, gw.Namespace, gw.Name, utils.Stringify(status))
