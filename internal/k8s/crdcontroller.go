@@ -973,8 +973,8 @@ func checkForL4SSLAppProfile(key, refValue string) (bool, error) {
 		refModelMap[refKey], refValue, lib.AllowedL4ApplicationProfile, lib.AllowedL4SSLApplicationProfile)
 }
 
-// checkForNetworkProfileTypeTCP checks if the network profile specified in l4rule is of type TCP.
-// If network profile is of type TCP it returns true and nil.
+// checkForNetworkProfileTypeTCP checks if the network profile specified in l4rule is of type TCP proxy.
+// If network profile is of type TCP proxy it returns true and nil.
 // Otherwise false and specific error is returned.
 func checkForNetworkProfileTypeTCP(key, refValue string) (bool, error) {
 	// assign the last avi client for ref checks
@@ -1008,13 +1008,13 @@ func checkForNetworkProfileTypeTCP(key, refValue string) (bool, error) {
 		return false, fmt.Errorf("%s \"%s\" found on controller is invalid", refModelMap[refKey], refValue)
 	}
 	if profile, ok := item["profile"].(map[string]interface{}); ok {
-		if networkProfType, ok := profile["type"].(string); ok && networkProfType == lib.AllowedTCPProxyNetworkProfileType || networkProfType == lib.AllowedTCPFastPathNetworkProfileType {
+		if networkProfType, ok := profile["type"].(string); ok && networkProfType == lib.AllowedTCPProxyNetworkProfileType {
 			return true, nil
 		}
 	}
-	utils.AviLog.Warnf("key: %s, msg: Network profile : %s must be of type %s or %s for L4 SSL support", key, refValue, lib.AllowedTCPProxyNetworkProfileType, lib.AllowedTCPFastPathNetworkProfileType)
-	return false, fmt.Errorf("%s \"%s\" found on controller is invalid, must be of type: %s or %s for L4 SSL support",
-		refModelMap[refKey], refValue, lib.AllowedTCPProxyNetworkProfileType, lib.AllowedTCPFastPathNetworkProfileType)
+	utils.AviLog.Warnf("key: %s, msg: Network profile : %s must be of type %s for L4 SSL support", key, refValue, lib.AllowedTCPProxyNetworkProfileType)
+	return false, fmt.Errorf("%s \"%s\" found on controller is invalid, must be of type: %s for L4 SSL support",
+		refModelMap[refKey], refValue, lib.AllowedTCPProxyNetworkProfileType)
 }
 
 // addSeGroupLabel configures SEGroup with appropriate labels, during AviInfraSetting

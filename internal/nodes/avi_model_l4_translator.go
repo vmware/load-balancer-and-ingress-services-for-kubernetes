@@ -657,14 +657,17 @@ func buildWithL4Rule(key string, vs *AviVsNode, l4Rule *akov1alpha2.L4Rule) {
 	if l4Rule == nil {
 		return
 	}
-
-	copier.Copy(vs, &l4Rule.Spec)
 	isSSLEnabled := false
-	for _, aviSvc := range vs.Services {
-		if *aviSvc.EnableSsl {
+	for _, svc := range l4Rule.Spec.Services {
+		if *svc.EnableSsl {
 			isSSLEnabled = true
 		}
 	}
+	if isSSLEnabled && vs.NetworkProfile != utils.DEFAULT_TCP_NW_PROFILE {
+		utils.AviLog.Warnf("key: %s, msg: L4Rule %s cannot be applied to the service as network profile is not equal to %s", key, l4Rule.Name, utils.DEFAULT_TCP_NW_PROFILE)
+		return
+	}
+	copier.Copy(vs, &l4Rule.Spec)
 	if isSSLEnabled && *l4Rule.Spec.ApplicationProfileRef == utils.DEFAULT_L4_APP_PROFILE {
 		defaultAppProfile := utils.DEFAULT_L4_SSL_APP_PROFILE
 		vs.ApplicationProfileRef = &defaultAppProfile

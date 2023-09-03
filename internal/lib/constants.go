@@ -108,7 +108,6 @@ const (
 	AllowedL4ApplicationProfile                = "APPLICATION_PROFILE_TYPE_L4"
 	AllowedL4SSLApplicationProfile             = "APPLICATION_PROFILE_TYPE_SSL"
 	AllowedTCPProxyNetworkProfileType          = "PROTOCOL_TYPE_TCP_PROXY"
-	AllowedTCPFastPathNetworkProfileType       = "PROTOCOL_TYPE_TCP_FAST_PATH"
 	TypeTLSReencrypt                           = "reencrypt"
 	DefaultPoolSSLProfile                      = "System-Standard"
 	LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER = "LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER"
