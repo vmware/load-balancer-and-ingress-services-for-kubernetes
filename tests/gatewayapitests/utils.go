@@ -17,7 +17,11 @@ package tests
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,10 +33,40 @@ import (
 	gatewayfake "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/fake"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 )
 
 var KubeClient *k8sfake.Clientset
 var GatewayClient *gatewayfake.Clientset
+
+func NewAviFakeClientInstance(kubeclient *k8sfake.Clientset, skipCachePopulation ...bool) {
+	if integrationtest.AviFakeClientInstance == nil {
+		integrationtest.AviFakeClientInstance = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			utils.AviLog.Infof("[fakeAPI]: %s %s", r.Method, r.URL)
+
+			if integrationtest.FakeServerMiddleware != nil {
+				integrationtest.FakeServerMiddleware(w, r)
+				return
+			}
+
+			integrationtest.NormalControllerServer(w, r, "../../avimockobjects")
+		}))
+
+		url := strings.Split(integrationtest.AviFakeClientInstance.URL, "https://")[1]
+		os.Setenv("CTRL_IPADDRESS", url)
+		os.Setenv("FULL_SYNC_INTERVAL", "600")
+		// resets avi client pool instance, allows to connect with the new `ts` server
+		cache.AviClientInstance = nil
+		k8s.PopulateControllerProperties(kubeclient)
+		if len(skipCachePopulation) == 0 || !skipCachePopulation[0] {
+			k8s.PopulateCache()
+		}
+	}
+}
 
 func GetModelName(namespace, name string) (string, string) {
 	vsName := akogatewayapilib.Prefix + "cluster--" + namespace + "-" + name + "-EVH"
