@@ -1302,11 +1302,15 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 			return allInformers, errors.New("Error in fetching services: " + err.Error())
 		}
 		if oclient != nil {
+			// This will change once we start supporting ingress in Openshift
 			_, err = oclient.RouteV1().Routes(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &informerTimeout})
 			if err == nil {
 				// Openshift cluster with route support, we will just add route informer
 				allInformers = append(allInformers, utils.RouteInformer)
 				isOshift = true
+			} else {
+				// error out
+				return allInformers, errors.New("Error in fetching Openshift routes: " + err.Error())
 			}
 		}
 		if !isOshift {
