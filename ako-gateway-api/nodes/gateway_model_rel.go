@@ -143,6 +143,7 @@ func GatewayToRoutes(namespace, name, key string) ([]string, bool) {
 }
 
 func GatewayClassGetGw(namespace, name, key string) ([]string, bool) {
+	var gatewayList []string
 	var controllerName string
 	isDelete := false
 	gwClassObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Lister().Get(name)
@@ -157,6 +158,7 @@ func GatewayClassGetGw(namespace, name, key string) ([]string, bool) {
 	}
 
 	if isDelete {
+		gatewayList = akogatewayapiobjects.GatewayApiLister().GetGatewayClassToGateway(name)
 		akogatewayapiobjects.GatewayApiLister().DeleteGatewayClass(name)
 	} else {
 		isAKOController := akogatewayapilib.CheckGatewayClassController(controllerName)
@@ -164,8 +166,10 @@ func GatewayClassGetGw(namespace, name, key string) ([]string, bool) {
 			utils.AviLog.Debugf("key: %s, msg: controller is AKO", key)
 		}
 		akogatewayapiobjects.GatewayApiLister().UpdateGatewayClass(name, isAKOController)
+		gatewayList = akogatewayapiobjects.GatewayApiLister().GetGatewayClassToGateway(name)
 	}
-	return akogatewayapiobjects.GatewayApiLister().GetGatewayClassToGateway(name), true
+
+	return gatewayList, true
 }
 
 func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
