@@ -31,7 +31,7 @@ import (
 
 	akogatewayapik8s "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/k8s"
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/tests"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/gatewayapitests"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
@@ -85,7 +85,7 @@ func TestMain(m *testing.M) {
 	akoApi := integrationtest.InitializeFakeAKOAPIServer()
 	defer akoApi.ShutDown()
 
-	integrationtest.NewAviFakeClientInstance(tests.KubeClient)
+	tests.NewAviFakeClientInstance(tests.KubeClient)
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	ctrl = akogatewayapik8s.SharedGatewayController()
