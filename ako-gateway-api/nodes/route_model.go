@@ -284,11 +284,12 @@ func (hr *httpRoute) ParseRouteRules() *RouteConfig {
 			} else {
 				backend.Namespace = hr.namespace
 			}
-			backend.Port = int32(*ruleBackend.Port)
+			if ruleBackend.Port != nil {
+				backend.Port = int32(*ruleBackend.Port)
+			}
+			backend.Weight = 1
 			if ruleBackend.Weight != nil {
 				backend.Weight = *ruleBackend.Weight
-			} else {
-				backend.Weight = 1
 			}
 			routeConfigRule.Backends = append(routeConfigRule.Backends, backend)
 		}
