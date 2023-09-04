@@ -1269,6 +1269,10 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			w.WriteHeader(http.StatusOK)
 			data, _ := os.ReadFile(fmt.Sprintf("%s/l4crd_mock.json", mockFilePath))
 			w.Write(data)
+		} else if strings.Contains(r.URL.RawQuery, "networkprofile-tcp-proxy") {
+			w.WriteHeader(http.StatusOK)
+			data, _ := os.ReadFile(fmt.Sprintf("%s/network_profile_tcp_proxy_mock.json", mockFilePath))
+			w.Write(data)
 		} else if strings.Contains(url, "/api/network") && strings.Contains(r.URL.RawQuery, "thisisaviref") {
 			w.WriteHeader(http.StatusOK)
 			data, _ := os.ReadFile(fmt.Sprintf("%s/crd_network_mock.json", mockFilePath))
@@ -1292,10 +1296,6 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 		} else if strings.Contains(r.URL.RawQuery, "l4-ssl-appprofile") {
 			w.WriteHeader(http.StatusOK)
 			data, _ := os.ReadFile(fmt.Sprintf("%s/l4crd_ssl_mock.json", mockFilePath))
-			w.Write(data)
-		} else if strings.Contains(r.URL.RawQuery, "networkprofile-tcp-proxy") {
-			w.WriteHeader(http.StatusOK)
-			data, _ := os.ReadFile(fmt.Sprintf("%s/network_profile_tcp_proxy_mock.json", mockFilePath))
 			w.Write(data)
 		} else if strings.Contains(r.URL.RawQuery, "thisisaviref") {
 			w.WriteHeader(http.StatusOK)
