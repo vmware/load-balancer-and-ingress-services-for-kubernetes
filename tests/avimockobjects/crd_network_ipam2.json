@@ -1,0 +1,37 @@
+{
+	"count": 1,
+	"results": [{
+		"url": "https://10.79.169.60/api/network/dvportgroup-1360-cloud-2b1f2c1c-6020-498d-9356-107b72779ae3",
+		"uuid": "dvportgroup-1360-cloud-2b1f2c1c-6020-498d-9356-107b72779ae3",
+		"name": "multivip-network2",
+		"vrf_context_ref": "https://10.79.169.60/api/vrfcontext/vrfcontext-47a06c0e-7aca-4433-9352-b9d570cbfddd#global",
+		"tenant_ref": "https://10.79.169.60/api/tenant/admin",
+		"cloud_ref": "https://10.79.169.60/api/cloud/cloud-2b1f2c1c-6020-498d-9356-107b72779ae3",
+		"_last_modified": "1588851695286353",
+		"configured_subnets": [{
+			"prefix": {
+				"ip_addr": {
+					"type": "V4",
+					"addr": "100.64.199.0"
+				},
+				"mask": 24
+			},
+			"static_ranges": [{
+				"begin": {
+					"type": "V4",
+					"addr": "100.64.199.120"
+				},
+				"end": {
+					"type": "V4",
+					"addr": "100.64.199.150"
+				}
+			}]
+		}],
+		"exclude_discovered_subnets": false,
+		"vimgrnw_ref": "https://10.79.169.60/api/vimgrnwruntime/dvportgroup-1360-cloud-2b1f2c1c-6020-498d-9356-107b72779ae3",
+		"ip6_autocfg_enabled": false,
+		"synced_from_se": true,
+		"dhcp_enabled": true,
+		"vcenter_dvs": true
+	}]
+}

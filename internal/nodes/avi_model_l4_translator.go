@@ -177,7 +177,7 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 			poolNode.UpdatePoolNodeForIstio()
 		}
 		protocolSet.Insert(portProto.Protocol)
-		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
+		poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
 		t1lr := objects.SharedWCPLister().GetT1LrForNamespace(svcObj.Namespace)
 		if t1lr != "" {
 			poolNode.T1Lr = t1lr
