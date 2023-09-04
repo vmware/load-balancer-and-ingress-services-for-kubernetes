@@ -326,10 +326,10 @@ helmtests:
 
 .PHONY: gatewayapitests
 gatewayapitests:
-	docker run \
+	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/ako-gateway-api/tests/... -failfast
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/... -failfast
 
 .PHONY: int_test
 int_test:
