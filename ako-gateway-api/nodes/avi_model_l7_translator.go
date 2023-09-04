@@ -134,7 +134,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 			},
 			VrfContext: lib.GetVrf(),
 		}
-		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
+		poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
 		serviceType := lib.GetServiceType()
 		if serviceType == lib.NodePort {
 			servers := nodes.PopulateServersForNodePort(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key)
