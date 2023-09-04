@@ -78,9 +78,9 @@ func SharedVCFK8sController() *VCFK8sController {
 func (c *VCFK8sController) Run(stopCh <-chan struct{}) error {
 	defer runtime.HandleCrash()
 
-	utils.AviLog.Info("Started the Kubernetes Controller")
+	utils.AviLog.Infof("Started the Kubernetes Controller")
 	<-stopCh
-	utils.AviLog.Info("Shutting down the Kubernetes Controller")
+	utils.AviLog.Infof("Shutting down the Kubernetes Controller")
 	return nil
 }
 
@@ -119,7 +119,7 @@ func (c *VCFK8sController) AddNamespaceEventHandler(stopCh <-chan struct{}) {
 	if !cache.WaitForCacheSync(stopCh, c.informers.NSInformer.Informer().HasSynced) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
-		utils.AviLog.Info("Caches synced for Namespace informer")
+		utils.AviLog.Infof("Caches synced for Namespace informer")
 	}
 }
 
@@ -227,18 +227,18 @@ func (c *VCFK8sController) AddConfigMapEventHandler(stopCh <-chan struct{}, star
 	if !cache.WaitForCacheSync(stopCh, c.informers.ConfigMapInformer.Informer().HasSynced) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
-		utils.AviLog.Info("Caches synced for ConfigMap informer")
+		utils.AviLog.Infof("Caches synced for ConfigMap informer")
 	}
 }
 
 func (c *VCFK8sController) AddAvailabilityZoneCREventHandler(stopCh <-chan struct{}) {
 	azEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			utils.AviLog.Info("Availability Zone ADD Event")
+			utils.AviLog.Infof("Availability Zone ADD Event")
 			updateSEGroup()
 		},
 		DeleteFunc: func(obj interface{}) {
-			utils.AviLog.Info("Availability Zone DELETE Event")
+			utils.AviLog.Infof("Availability Zone DELETE Event")
 			updateSEGroup()
 		},
 	}
@@ -247,7 +247,7 @@ func (c *VCFK8sController) AddAvailabilityZoneCREventHandler(stopCh <-chan struc
 	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.AvailabilityZoneInformer.Informer().HasSynced) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for availability zones caches to sync"))
 	} else {
-		utils.AviLog.Info("Caches synced for availability zone informer")
+		utils.AviLog.Infof("Caches synced for availability zone informer")
 	}
 }
 
@@ -290,7 +290,7 @@ func (c *VCFK8sController) AddNetworkInfoEventHandler(stopCh <-chan struct{}) {
 		c.dynamicInformers.VCFClusterNetworkInformer.Informer().HasSynced) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for cluster/namespace network info caches to sync"))
 	} else {
-		utils.AviLog.Info("Caches synced for cluster/namespace network info informer")
+		utils.AviLog.Infof("Caches synced for cluster/namespace network info informer")
 	}
 }
 
@@ -467,6 +467,6 @@ func (c *VCFK8sController) AddSecretEventHandler(stopCh <-chan struct{}) {
 	if !cache.WaitForCacheSync(stopCh, c.informers.SecretInformer.Informer().HasSynced) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
-		utils.AviLog.Info("Caches synced for Secret informer")
+		utils.AviLog.Infof("Caches synced for Secret informer")
 	}
 }
