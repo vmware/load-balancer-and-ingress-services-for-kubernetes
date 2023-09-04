@@ -59,10 +59,16 @@ func (v *AviInfraSettingL7Lister) UpdateIngRouteInfraSettingMappings(ingrouteNsN
 func (v *AviInfraSettingL7Lister) RemoveIngRouteInfraSettingMappings(ingrouteNsName string) bool {
 	v.InfraSettingIngRouteLock.Lock()
 	defer v.InfraSettingIngRouteLock.Unlock()
+	mappingDeleted := false
 	if found, infraSettingName := v.GetIngRouteToInfraSetting(ingrouteNsName); found {
-		v.InfraSettingShardSizeStore.Delete(infraSettingName)
+		// first delete the ingress-infrasetting mapping entry
+		mappingDeleted = v.IngRouteInfraSettingStore.Delete(ingrouteNsName)
+		// delete infrasetting only if it is not mapped to any other ingress
+		if !v.IngRouteInfraSettingStore.IsInfraSettingMapped(infraSettingName) {
+			v.InfraSettingShardSizeStore.Delete(infraSettingName)
+		}
 	}
-	return v.IngRouteInfraSettingStore.Delete(ingrouteNsName)
+	return mappingDeleted
 }
 
 func (v *AviInfraSettingL7Lister) GetInfraSettingToShardSize(infraSettingName string) (bool, string) {

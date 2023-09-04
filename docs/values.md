@@ -112,7 +112,7 @@ Default value is `false`.
 
 ### NetworkSettings.nodeNetworkList
 
-The `nodeNetworkList` lists the Networks and Node CIDR's where the k8s Nodes are created. This is only used in the ClusterIP deployment of AKO and in vCenter cloud and only when disableStaticRouteSync is set to false.
+The `nodeNetworkList` lists the Networks (specified using either `networkName` or `networkUUID`) and Node CIDR's where the k8s Nodes are created. This is only used in the ClusterIP deployment of AKO and in vCenter cloud and only when disableStaticRouteSync is set to false.
 
 If two Kubernetes clusters have overlapping Pod CIDRs, the service engine needs to identify the right gateway for each of the overlapping CIDR groups. This is achieved by specifying the right placement network for the pools that helps the Service Engine place the pools appropriately.
 
@@ -122,15 +122,27 @@ AKO 1.5.1 deprecates `subnetIP` and `subnetPrefix`. See [Upgrade Notes](./upgrad
 
 ### NetworkSettings.vipNetworkList
 
-List of VIP Networks can be specified through vipNetworkList with key as networkName. Except AWS cloud, for all other cloud types, only one networkName is supported. For example in vipNetworkList:
+List of VIP Networks can be specified through vipNetworkList with key as `networkName` or `networkUUID`. Except AWS cloud, for all other cloud types, only one networkName is supported. For example in vipNetworkList:
 
     vipNetworkList:
       - networkName: net1
 
-In addition to the networkName, we can also provide CIDR information that allows us to specify the Virtual IP network details on which the user wants to place the Avi virtual services on.
+or
+
+    vipNetworkList:
+      - networkUUID: dvportgroup-4167-cloud-d4b24fc7-a435-408d-af9f-150229a6fea6f
+
+In addition to the `networkName` or `networkUUID`, we can also provide CIDR information that allows us to specify the Virtual IP network details on which the user wants to place the Avi virtual services on.
 
     vipNetworkLists:
       - networkName: net1
+        cidr: 10.1.1.0/24
+        v6cidr: 2002::1234:abcd:ffff:c0a8:101/64
+
+or
+
+    vipNetworkLists:
+      - networkUUID: dvportgroup-4167-cloud-d4b24fc7-a435-408d-af9f-150229a6fea6f
         cidr: 10.1.1.0/24
         v6cidr: 2002::1234:abcd:ffff:c0a8:101/64
 

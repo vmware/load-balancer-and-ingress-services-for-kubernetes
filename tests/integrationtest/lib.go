@@ -1269,6 +1269,26 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			w.WriteHeader(http.StatusOK)
 			data, _ := os.ReadFile(fmt.Sprintf("%s/l4crd_mock.json", mockFilePath))
 			w.Write(data)
+		} else if strings.Contains(url, "/api/network") && strings.Contains(r.URL.RawQuery, "thisisaviref") {
+			w.WriteHeader(http.StatusOK)
+			data, _ := os.ReadFile(fmt.Sprintf("%s/crd_network_mock.json", mockFilePath))
+			query_components := strings.Split(r.URL.RawQuery, "&")
+			infraname := ""
+			if len(query_components) == 2 {
+				name_split := strings.Split(query_components[0], "=")
+				infraname = name_split[1]
+			} else if len(query_components) == 3 {
+				name_split := strings.Split(query_components[1], "=")
+				infraname = name_split[1]
+			}
+			json.Unmarshal(data, &resp)
+			resp1 := (resp["results"].([]interface{})[0]).(map[string]interface{})
+			name := resp1["name"]
+			if name != infraname {
+				resp1["name"] = infraname
+			}
+			finalResponse, _ = json.Marshal(resp)
+			w.Write(finalResponse)
 		} else if strings.Contains(r.URL.RawQuery, "thisisaviref") {
 			w.WriteHeader(http.StatusOK)
 			data, _ := os.ReadFile(fmt.Sprintf("%s/crd_mock.json", mockFilePath))
@@ -1331,7 +1351,17 @@ func FeedMockCollectionData(w http.ResponseWriter, r *http.Request, mockFilePath
 	if r.Method == "GET" {
 		var data []byte
 		if len(splitURL) == 2 {
-			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, splitURL[1]))
+			filePath := ""
+			if strings.Contains(r.URL.RawQuery, "multivip-network1") {
+				filePath = fmt.Sprintf("%s/crd_network_ipam1.json", mockFilePath)
+			} else if strings.Contains(r.URL.RawQuery, "multivip-network2") {
+				filePath = fmt.Sprintf("%s/crd_network_ipam2.json", mockFilePath)
+			} else if strings.Contains(r.URL.RawQuery, "multivip-network3") {
+				filePath = fmt.Sprintf("%s/crd_network_ipam3.json", mockFilePath)
+			} else {
+				filePath = fmt.Sprintf("%s/%s_mock.json", mockFilePath, splitURL[1])
+			}
+			data, _ = os.ReadFile(filePath)
 		} else if len(splitURL) == 3 {
 			// with uuid
 			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_uuid_mock.json", mockFilePath, splitURL[1]))

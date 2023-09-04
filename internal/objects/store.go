@@ -142,3 +142,15 @@ func (o *ObjectMapStore) CopyAllObjects() map[string]interface{} {
 	}
 	return CopiedObjMap
 }
+
+func (o *ObjectMapStore) IsInfraSettingMapped(infrasetting string) bool {
+	o.ObjLock.RLock()
+	defer o.ObjLock.RUnlock()
+	for _, v := range o.ObjectMap {
+		vString := v.(string)
+		if infrasetting == vString {
+			return true
+		}
+	}
+	return false
+}

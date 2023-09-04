@@ -350,7 +350,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 			poolNode.VrfContext = ""
 		}
 
-		poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
+		poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
 
 		if svcFQDN != "" {
 			poolNode.ServiceMetadata.HostNames = []string{svcFQDN}
@@ -608,7 +608,7 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 
 			buildPoolWithL4Rule(key, poolNode, l4Rule)
 
-			poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
+			poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
 
 			if svcFQDN != "" {
 				poolNode.ServiceMetadata.HostNames = []string{svcFQDN}

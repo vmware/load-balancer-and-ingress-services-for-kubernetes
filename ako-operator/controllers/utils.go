@@ -66,6 +66,7 @@ const (
 	BlockedNamespaceList   = "blockedNamespaceList"
 	IPFamily               = "ipFamily"
 	EnableMCI              = "enableMCI"
+	UseDefaultSecretsOnly  = "useDefaultSecretsOnly"
 )
 
 var SecretEnvVars = map[string]string{
@@ -106,6 +107,7 @@ var ConfigMapEnvVars = map[string]string{
 	"MCI_ENABLED":                EnableMCI,
 	"BLOCKED_NS_LIST":            BlockedNamespaceList,
 	"VIP_PER_NAMESPACE":          VipPerNamespace,
+	"USE_DEFAULT_SECRETS_ONLY":   UseDefaultSecretsOnly,
 }
 
 func getSFNamespacedName() types.NamespacedName {

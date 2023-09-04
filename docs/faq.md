@@ -291,3 +291,16 @@ Currently, AKO beyond two has not been tested. Hence we don't claim the support.
 #### What happens during a Split brain scenario in HA?
 
 AKO detects this during the periodic refresh of the lease lock object and makes itself a passive AKO.
+
+#### With AKO 1.10.3, field `networkUUID` has been added as part of `vipNetworkList` and `nodeNetworkList`. Does it impact existing AviInfra objects?
+
+When customer upgrade from older AKO version to AKO 1.10.3 or later, customer has to always upgrade CRD schemas as part of upgrade process.
+But there is no impact on existing AviInfraSetting objects and user doesn't require to do changes to existing objects. AKO accepts either `networkName` or `networkUUID` as part of these fields.  If there are duplicates network at NSX Advance LoadBalancer side, AKO recommends the use of `networkUUID` while creating new AviInfrasetting objects.
+
+#### How can I find out `networkUUID` for the `networkName`?
+
+Way to figure out `networkUUID` for given `networkName` from web browser is as follows:
+1. Login to NSX Advanced LoadBalancer on any web browser.
+2. On Web browser, type fqdn as `https://<controller-ip-or-fqdn>/api/network?name=<NameOfNetwork>`
+3. Choose `uuid` field of one of the retrieved records.
+4. In case of multiple records are retrieved, user has to use `switch_name` and/or `configured_subnet` fields of the record, to choose correct network.

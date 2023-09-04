@@ -55,12 +55,14 @@ type AviInfraListeners struct {
 }
 type AviInfraSettingVipNetwork struct {
 	NetworkName string `json:"networkName,omitempty"`
+	NetworkUUID string `json:"networkUUID,omitempty"`
 	Cidr        string `json:"cidr,omitempty"`
 	V6Cidr      string `json:"v6cidr,omitempty"`
 }
 
 type AviInfraSettingNodeNetwork struct {
 	NetworkName string   `json:"networkName,omitempty"`
+	NetworkUUID string   `json:"networkUUID,omitempty"`
 	Cidrs       []string `json:"cidrs,omitempty"`
 }
 

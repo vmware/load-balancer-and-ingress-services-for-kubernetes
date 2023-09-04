@@ -315,7 +315,7 @@ func buildPoolNode(key, poolName, ingName, namespace, priorityLabel, hostname st
 		VrfContext: lib.GetVrf(),
 	}
 
-	poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
+	poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
 
 	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
 	if t1lr != "" {
