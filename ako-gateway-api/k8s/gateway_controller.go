@@ -21,7 +21,6 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -300,129 +299,6 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 	}
 	if c.informers.SecretInformer != nil {
 		c.informers.SecretInformer.Informer().AddEventHandler(secretEventHandler)
-	}
-
-	//Add namespace event handler if migration is enabled and informer not nil
-	nsFilterObj := utils.GetGlobalNSFilter()
-	if nsFilterObj.EnableMigration && c.informers.NSInformer != nil {
-		utils.AviLog.Debug("Adding namespace event handler")
-		namespaceEventHandler := AddNamespaceEventHandler(numWorkers, c)
-		c.informers.NSInformer.Informer().AddEventHandler(namespaceEventHandler)
-	}
-
-}
-
-func AddNamespaceEventHandler(numWorkers uint32, c *GatewayController) cache.ResourceEventHandler {
-	namespaceEventHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			ns := obj.(*corev1.Namespace)
-			nsLabels := ns.GetLabels()
-			namespace := ns.GetName()
-			if utils.CheckIfNamespaceAccepted(namespace, nsLabels, false) {
-				utils.AddNamespaceToFilter(ns.GetName())
-				utils.AviLog.Debugf("NS Add event: Namespace passed filter: %s", ns.GetName())
-			} else {
-				//Case: previously deleted valid NS, added back with no labels or invalid labels but nsList contain that ns
-				utils.AviLog.Debugf("NS Add event: Namespace did not pass filter: %s", ns.GetName())
-				if utils.CheckIfNamespaceAccepted(namespace) {
-					utils.AviLog.Debugf("Ns Add event: Deleting previous valid namespace: %s from valid NS List", ns.GetName())
-					utils.DeleteNamespaceFromFilter(ns.GetName())
-				}
-			}
-
-		},
-		UpdateFunc: func(old, cur interface{}) {
-			if c.DisableSync {
-				return
-			}
-			nsOld := old.(*corev1.Namespace)
-			nsCur := cur.(*corev1.Namespace)
-			if isNamespaceUpdated(nsOld, nsCur) {
-				oldNSAccepted := utils.CheckIfNamespaceAccepted(nsOld.GetName(), nsOld.Labels, false)
-				newNSAccepted := utils.CheckIfNamespaceAccepted(nsCur.GetName(), nsCur.Labels, false)
-
-				if !oldNSAccepted && newNSAccepted {
-					//Case 1: Namespace updated with valid labels
-					//Call ingress/route and service add
-					utils.AddNamespaceToFilter(nsCur.GetName())
-					if utils.GetInformers().ServiceInformer != nil {
-						utils.AviLog.Debugf("Adding L4 services for namespaces: %s", nsCur.GetName())
-						AddServicesFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
-					}
-					if lib.UseServicesAPI() {
-						utils.AviLog.Debugf("Adding Gatways for namespaces: %s", nsCur.GetName())
-						AddGatewaysFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
-					}
-				} else if oldNSAccepted && !newNSAccepted {
-					//Case 2: Old valid namespace updated with invalid labels
-					//Call ingress/route and service delete
-					utils.DeleteNamespaceFromFilter(nsCur.GetName())
-					if utils.GetInformers().ServiceInformer != nil {
-						utils.AviLog.Debugf("Deleting L4 services for namespaces: %s", nsCur.GetName())
-						AddServicesFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterDelete)
-					}
-					if lib.UseServicesAPI() {
-						utils.AviLog.Debugf("Deleting Gatways for namespaces: %s", nsCur.GetName())
-						AddGatewaysFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterDelete)
-					}
-				}
-			}
-		},
-	}
-	return namespaceEventHandler
-}
-func isNamespaceUpdated(oldNS, newNS *corev1.Namespace) bool {
-	if oldNS.ResourceVersion == newNS.ResourceVersion {
-		return false
-	}
-	oldLabelHash := utils.Hash(utils.Stringify(oldNS.Labels))
-	newLabelHash := utils.Hash(utils.Stringify(newNS.Labels))
-	return oldLabelHash != newLabelHash
-}
-
-func AddServicesFromNSToIngestionQueue(numWorkers uint32, c *GatewayController, namespace string, msg string) {
-	var key string
-	svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).List(labels.Set(nil).AsSelector())
-	if err != nil {
-		utils.AviLog.Errorf("Unable to retrieve the services during namespace sync: %s", err)
-		return
-	}
-	for _, svcObj := range svcObjs {
-
-		key = utils.Service + "/" + utils.ObjKey(svcObj)
-
-		bkt := utils.Bkt(namespace, numWorkers)
-		c.workqueue[bkt].AddRateLimited(key)
-		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
-	}
-}
-
-func AddGatewaysFromNSToIngestionQueue(numWorkers uint32, c *GatewayController, namespace string, msg string) {
-	gwObjs, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).List(labels.Set(nil).AsSelector())
-	if err != nil {
-		utils.AviLog.Errorf("NS to gateways queue add: Error occurred while retrieving gateways for namespace: %s", namespace)
-		return
-	}
-	for _, gwObj := range gwObjs {
-		key := lib.Gateway + "/" + utils.ObjKey(gwObj)
-		bkt := utils.Bkt(namespace, numWorkers)
-		c.workqueue[bkt].AddRateLimited(key)
-		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
-	}
-
-	gwClassObjs, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
-	if err != nil {
-		utils.AviLog.Errorf("NS to gateways queue add: Error occurred while retrieving gateway class for namespace: %s", namespace)
-		return
-	}
-	for _, gwClassObj := range gwClassObjs {
-		key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
-		bkt := utils.Bkt(namespace, numWorkers)
-		c.workqueue[bkt].AddRateLimited(key)
-		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
 	}
 }
 
