@@ -1962,3 +1962,70 @@ func TestFQDNCountInL7Model(t *testing.T) {
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
+
+func TestPortsForInsecureAndSecureEVH(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	modelName, _ := GetModelName("foo.com", "default")
+	SetUpTestForIngress(t, modelName)
+
+	// Insecure
+	integrationtest.PollForCompletion(t, modelName, 5)
+	ingrFake := (integrationtest.FakeIngress{
+		Name:        "foo-no-secret",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		ServiceName: "avisvc",
+		TlsSecretDNS: map[string][]string{
+			"my-secret": {"foo.com"},
+		},
+	}).Ingress()
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		g.Expect(len(nodes[0].PortProto)).To(gomega.Equal(2))
+		var ports []int
+		for _, port := range nodes[0].PortProto {
+			ports = append(ports, int(port.Port))
+			if port.EnableSSL {
+				g.Expect(int(port.Port)).To(gomega.Equal(443))
+			}
+		}
+		sort.Ints(ports)
+		g.Expect(ports[0]).To(gomega.Equal(80))
+		g.Expect(ports[1]).To(gomega.Equal(443))
+	}
+
+	// Secure
+	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
+	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		g.Expect(len(nodes[0].PortProto)).To(gomega.Equal(2))
+		var ports []int
+		for _, port := range nodes[0].PortProto {
+			ports = append(ports, int(port.Port))
+			if port.EnableSSL {
+				g.Expect(int(port.Port)).To(gomega.Equal(443))
+			}
+		}
+		sort.Ints(ports)
+		g.Expect(ports[0]).To(gomega.Equal(80))
+		g.Expect(ports[1]).To(gomega.Equal(443))
+	} else {
+		t.Fatalf("Could not find model: %s", modelName)
+	}
+
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-no-secret", metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
+	TearDownTestForIngress(t, modelName)
+}

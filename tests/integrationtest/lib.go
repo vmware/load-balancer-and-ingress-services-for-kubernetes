@@ -34,6 +34,7 @@ import (
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
@@ -1382,6 +1383,7 @@ type FakeHostRule struct {
 	Datascripts        []string
 	HttpPolicySets     []string
 	GslbFqdn           string
+	Listeners          []akov1alpha1.HostRuleTCPListeners
 }
 
 func (hr FakeHostRule) HostRule() *akov1alpha1.HostRule {
@@ -1419,7 +1421,18 @@ func (hr FakeHostRule) HostRule() *akov1alpha1.HostRule {
 			},
 		},
 	}
-
+	hostrulePortProto := []akov1alpha1.HostRuleTCPListeners{}
+	for _, port := range hr.Listeners {
+		TCPListener := akov1alpha1.HostRuleTCPListeners{
+			Port:      port.Port,
+			EnableSSL: port.EnableSSL,
+		}
+		hostrulePortProto = append(hostrulePortProto, TCPListener)
+	}
+	TCPSettings := v1alpha1.HostRuleTCPSettings{
+		Listeners: hostrulePortProto,
+	}
+	hostrule.Spec.VirtualHost.TCPSettings = &TCPSettings
 	return hostrule
 }
 
@@ -1436,6 +1449,9 @@ func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool, gslbHost ...s
 		Datascripts:        []string{"thisisaviref-ds2", "thisisaviref-ds1"},
 		HttpPolicySets:     []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
 		GslbFqdn:           "bar.com",
+		Listeners: []akov1alpha1.HostRuleTCPListeners{
+			{Port: 8081, EnableSSL: false}, {Port: 8082, EnableSSL: true},
+		},
 	}
 	if len(gslbHost) > 0 {
 		// It's assumed that the update case updates the gslb fqdn else bar.com is used.
@@ -1833,6 +1849,7 @@ type FakeAviInfraSetting struct {
 	EnablePublicIP bool
 	ShardSize      string
 	BGPPeerLabels  []string
+	Listeners      []akov1alpha1.AviInfraListeners
 }
 
 func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraSetting {
@@ -1851,6 +1868,21 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraS
 			},
 		},
 	}
+	disable := false
+	for _, port := range infraSetting.Listeners {
+		infraPort := akov1alpha1.AviInfraListeners{Port: port.Port}
+		if *port.EnableSSL {
+			infraPort.EnableSSL = port.EnableSSL
+		} else {
+			infraPort.EnableSSL = &disable
+		}
+		if *port.EnableHTTP2 {
+			infraPort.EnableHTTP2 = port.EnableHTTP2
+		} else {
+			infraPort.EnableHTTP2 = &disable
+		}
+		setting.Spec.Network.Listeners = append(setting.Spec.Network.Listeners, infraPort)
+	}
 
 	for _, networkName := range infraSetting.Networks {
 		setting.Spec.Network.VipNetworks = append(setting.Spec.Network.VipNetworks, akov1alpha1.AviInfraSettingVipNetwork{
@@ -1866,6 +1898,8 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraS
 }
 
 func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string) {
+	enable, disable := true, false
+	port8081, port8083 := 8081, 8083
 	setting := FakeAviInfraSetting{
 		Name:          infraSettingName,
 		SeGroupName:   "thisisaviref-" + infraSettingName + "-seGroup",
@@ -1873,6 +1907,9 @@ func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string) {
 		EnableRhi:     true,
 		BGPPeerLabels: []string{"peer1", "peer2"},
 		ShardSize:     shardSize,
+		Listeners: []akov1alpha1.AviInfraListeners{
+			{Port: &port8081, EnableSSL: &enable, EnableHTTP2: &enable}, {Port: &port8083, EnableSSL: &disable, EnableHTTP2: &disable},
+		},
 	}
 	settingCreate := setting.AviInfraSetting()
 	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {

@@ -16,6 +16,7 @@ package dedicatedvstests
 
 import (
 	"context"
+	"sort"
 	"testing"
 	"time"
 
@@ -178,6 +179,11 @@ func TestApplyHostruleToDedicatedVS(t *testing.T) {
 	hrObj := hostrule.HostRule()
 	hrObj.Spec.VirtualHost.Fqdn = "foo.com"
 	hrObj.Spec.VirtualHost.FqdnType = v1alpha1.Contains
+	hrObj.Spec.VirtualHost.TCPSettings = &v1alpha1.HostRuleTCPSettings{
+		Listeners: []v1alpha1.HostRuleTCPListeners{
+			{Port: 8081}, {Port: 8082, EnableSSL: true},
+		},
+	}
 
 	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Create(context.TODO(), hrObj, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding HostRule: %v", err)
@@ -203,6 +209,20 @@ func TestApplyHostruleToDedicatedVS(t *testing.T) {
 	g.Expect(nodes[0].VsDatascriptRefs).To(gomega.HaveLen(2))
 	g.Expect(nodes[0].VsDatascriptRefs[0]).To(gomega.ContainSubstring("thisisaviref-ds2"))
 	g.Expect(nodes[0].VsDatascriptRefs[1]).To(gomega.ContainSubstring("thisisaviref-ds1"))
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(4))
+	var portsWithHostRule []int
+	sslPorts := [2]int{443, 8082}
+	for _, port := range nodes[0].PortProto {
+		portsWithHostRule = append(portsWithHostRule, int(port.Port))
+		if port.EnableSSL {
+			g.Expect(int(port.Port)).Should(gomega.BeElementOf(sslPorts))
+		}
+	}
+	sort.Ints(portsWithHostRule)
+	g.Expect(portsWithHostRule[0]).To(gomega.Equal(80))
+	g.Expect(portsWithHostRule[1]).To(gomega.Equal(443))
+	g.Expect(portsWithHostRule[2]).To(gomega.Equal(8081))
+	g.Expect(portsWithHostRule[3]).To(gomega.Equal(8082))
 
 	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
 	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/hr-cluster--foo.com-L7-dedicated", false)
@@ -217,6 +237,17 @@ func TestApplyHostruleToDedicatedVS(t *testing.T) {
 	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].VsDatascriptRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].SslProfileRef).To(gomega.BeNil())
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(2))
+	var portWithoutHostRule []int
+	for _, port := range nodes[0].PortProto {
+		portWithoutHostRule = append(portWithoutHostRule, int(port.Port))
+		if port.EnableSSL {
+			g.Expect(int(port.Port)).To(gomega.Equal(443))
+		}
+	}
+	sort.Ints(portWithoutHostRule)
+	g.Expect(portWithoutHostRule[0]).To(gomega.Equal(80))
+	g.Expect(portWithoutHostRule[1]).To(gomega.Equal(443))
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
 
@@ -358,5 +389,102 @@ func TestFQDNsCountForAviInfraSettingWithLargeShardSize(t *testing.T) {
 		}
 		return false
 	}, 50*time.Second).Should(gomega.Equal(true))
+	TearDownTestForIngress(t, modelName)
+}
+
+func TestApplyPortsWithHostruleAndAviInfraSettingsDedicatedShard(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/cluster--my-infrasetting-foo.com-L7-dedicated"
+	hrname := "hr-cluster--foo.com-L7-dedicated"
+
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
+	secretName := "my-secret"
+
+	SetUpTestForIngress(t, modelName)
+	integrationtest.RemoveDefaultIngressClass()
+	defer integrationtest.AddDefaultIngressClass()
+
+	hostrule := integrationtest.FakeHostRule{
+		Name:               hrname,
+		Namespace:          "default",
+		WafPolicy:          "thisisaviref-waf",
+		ApplicationProfile: "thisisaviref-appprof",
+		AnalyticsProfile:   "thisisaviref-analyticsprof",
+		ErrorPageProfile:   "thisisaviref-errorprof",
+		Datascripts:        []string{"thisisaviref-ds2", "thisisaviref-ds1"},
+		HttpPolicySets:     []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
+	}
+	hrObj := hostrule.HostRule()
+	hrObj.Spec.VirtualHost.Fqdn = "foo.com"
+	hrObj.Spec.VirtualHost.FqdnType = v1alpha1.Contains
+	hrObj.Spec.VirtualHost.TCPSettings = &v1alpha1.HostRuleTCPSettings{
+		Listeners: []v1alpha1.HostRuleTCPListeners{
+			{Port: 8081}, {Port: 8082, EnableSSL: true},
+		},
+	}
+
+	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Create(context.TODO(), hrObj, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding HostRule: %v", err)
+	}
+
+	g.Eventually(func() string {
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	integrationtest.SetupAviInfraSetting(t, settingName, "DEDICATED")
+	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
+	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
+
+	ingressCreate := (integrationtest.FakeIngress{
+		Name:        ingressName,
+		Namespace:   ns,
+		ClassName:   ingClassName,
+		DnsNames:    []string{"foo.com"},
+		ServiceName: "avisvc",
+		TlsSecretDNS: map[string][]string{
+			secretName: {"foo.com"},
+		},
+	}).Ingress()
+	_, err := KubeClient.NetworkingV1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if aviModel == nil {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes)
+	}, 10*time.Second).Should(gomega.Equal(1))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	node := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0]
+
+	var ports []int
+	g.Expect(node.PortProto).To(gomega.HaveLen(5))
+	sslPorts := [3]int{443, 8081, 8082}
+	for _, port := range node.PortProto {
+		ports = append(ports, int(port.Port))
+		if port.EnableSSL {
+			g.Expect(int(port.Port)).Should(gomega.BeElementOf(sslPorts))
+		}
+	}
+	sort.Ints(ports)
+	g.Expect(ports[0]).To(gomega.Equal(80))
+	g.Expect(ports[1]).To(gomega.Equal(443))
+	g.Expect(ports[2]).To(gomega.Equal(8081))
+	g.Expect(ports[3]).To(gomega.Equal(8082))
+	g.Expect(ports[4]).To(gomega.Equal(8083))
+
+	integrationtest.TeardownAviInfraSetting(t, settingName)
+	integrationtest.TeardownIngressClass(t, ingClassName)
+	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	integrationtest.DeleteSecret(secretName, ns)
 	TearDownTestForIngress(t, modelName)
 }

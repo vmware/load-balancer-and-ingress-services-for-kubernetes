@@ -17,6 +17,7 @@ package dedicatedvstests
 import (
 	"context"
 	"os"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -204,5 +205,56 @@ func TestFQDNCountInL7Model(t *testing.T) {
 		g.Expect(fqdn).ShouldNot(gomega.ContainSubstring("L7-dedicated"))
 	}
 
+	TearDownIngressForCacheSyncCheck(t, modelName)
+}
+
+func TestPortsForInsecureDedicatedShard(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/cluster--foo.com-L7-dedicated"
+
+	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes, ok := aviModel.(*avinodes.AviObjectGraph)
+		if !ok {
+			return 0
+		}
+		return len(nodes.GetAviVS())
+	}, 20*time.Second).Should(gomega.Equal(1))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(1))
+	g.Expect(int(nodes[0].PortProto[0].Port)).To(gomega.Equal(80))
+	TearDownIngressForCacheSyncCheck(t, modelName)
+}
+
+func TestPortsForSecureDedicatedShard(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/cluster--foo.com-L7-dedicated"
+
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes, ok := aviModel.(*avinodes.AviObjectGraph)
+		if !ok {
+			return 0
+		}
+		return len(nodes.GetAviVS())
+	}, 20*time.Second).Should(gomega.Equal(1))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(2))
+	var ports []int
+	for _, port := range nodes[0].PortProto {
+		ports = append(ports, int(port.Port))
+		if port.EnableSSL {
+			g.Expect(int(port.Port)).To(gomega.Equal(443))
+		}
+	}
+	sort.Ints(ports)
+	g.Expect(ports[0]).To(gomega.Equal(80))
+	g.Expect(ports[1]).To(gomega.Equal(443))
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }

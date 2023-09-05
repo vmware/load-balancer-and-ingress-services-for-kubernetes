@@ -386,18 +386,21 @@ func TestCreateDeleteSharedVSHostRuleForEvh(t *testing.T) {
 	g.Expect(nodes[0].VsDatascriptRefs).To(gomega.HaveLen(2))
 	g.Expect(nodes[0].VsDatascriptRefs[0]).To(gomega.ContainSubstring("thisisaviref-ds2"))
 	g.Expect(nodes[0].VsDatascriptRefs[1]).To(gomega.ContainSubstring("thisisaviref-ds1"))
-	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(3))
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(5))
 	var ports []int
+	sslPorts := [3]int{443, 8083}
 	for _, port := range nodes[0].PortProto {
 		ports = append(ports, int(port.Port))
 		if port.EnableSSL {
-			g.Expect(int(port.Port)).To(gomega.Equal(8083))
+			g.Expect(int(port.Port)).Should(gomega.BeElementOf(sslPorts))
 		}
 	}
 	sort.Ints(ports)
-	g.Expect(ports[0]).To(gomega.Equal(8081))
-	g.Expect(ports[1]).To(gomega.Equal(8082))
-	g.Expect(ports[2]).To(gomega.Equal(8083))
+	g.Expect(ports[0]).To(gomega.Equal(80))
+	g.Expect(ports[1]).To(gomega.Equal(443))
+	g.Expect(ports[2]).To(gomega.Equal(8081))
+	g.Expect(ports[3]).To(gomega.Equal(8082))
+	g.Expect(ports[4]).To(gomega.Equal(8083))
 
 	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
