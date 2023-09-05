@@ -381,6 +381,7 @@ type AviVsNode struct {
 	Enabled               *bool
 	EnableRhi             *bool
 	PortProto             []AviPortHostProtocol // for listeners
+	AviInfraPortProto     []AviPortHostProtocol
 	DefaultPool           string
 	CloudConfigCksum      uint32
 	DefaultPoolGroup      string
@@ -411,6 +412,7 @@ type AviVsNode struct {
 	Paths                 []string
 	IngressNames          []string
 	Dedicated             bool
+	Secure                bool
 	IsL4VS                bool
 
 	AviVsNodeCommonFields
@@ -451,12 +453,23 @@ func (v *AviVsNode) IsDedicatedVS() bool {
 	return v.Dedicated
 }
 
+func (v *AviVsNode) IsSecure() bool {
+	return v.Secure
+}
 func (v *AviVsNode) GetPortProtocols() []AviPortHostProtocol {
 	return v.PortProto
 }
 
 func (v *AviVsNode) SetPortProtocols(portProto []AviPortHostProtocol) {
 	v.PortProto = portProto
+}
+
+func (v *AviVsNode) GetAviInfraPortProtocols() []AviPortHostProtocol {
+	return v.AviInfraPortProto
+}
+
+func (v *AviVsNode) SetAviInfraPortProtocols(aviInfraPortProto []AviPortHostProtocol) {
+	v.AviInfraPortProto = aviInfraPortProto
 }
 
 func (v *AviVsNode) GetPoolRefs() []*AviPoolNode {
@@ -1233,6 +1246,20 @@ func (v *AviTLSKeyCertNode) CopyNode() AviModelNode {
 }
 
 type AviPortHostProtocol struct {
+	PortMap     map[string][]int32
+	Port        int32
+	TargetPort  intstr.IntOrString
+	Protocol    string
+	Hosts       []string
+	Secret      string
+	Passthrough bool
+	Redirect    bool
+	EnableSSL   bool
+	EnableHTTP2 bool
+	Name        string
+}
+
+type AviInfraHostPortProcotol struct {
 	PortMap     map[string][]int32
 	Port        int32
 	TargetPort  intstr.IntOrString

@@ -41,9 +41,13 @@ type AviVsEvhSniModel interface {
 
 	IsSharedVS() bool
 	IsDedicatedVS() bool
+	IsSecure() bool
 
 	GetPortProtocols() []AviPortHostProtocol
 	SetPortProtocols([]AviPortHostProtocol)
+
+	GetAviInfraPortProtocols() []AviPortHostProtocol
+	SetAviInfraPortProtocols([]AviPortHostProtocol)
 
 	GetPoolRefs() []*AviPoolNode
 	SetPoolRefs([]*AviPoolNode)
@@ -119,6 +123,7 @@ type AviEvhVsNode struct {
 	EnableRhi           *bool
 	Enabled             *bool
 	PortProto           []AviPortHostProtocol // for listeners
+	AviInfraPortProto   []AviPortHostProtocol
 	DefaultPool         string
 	CloudConfigCksum    uint32
 	DefaultPoolGroup    string
@@ -141,6 +146,7 @@ type AviEvhVsNode struct {
 	Paths               []string
 	IngressNames        []string
 	Dedicated           bool
+	Secure              bool
 
 	AviVsNodeCommonFields
 
@@ -165,12 +171,24 @@ func (v *AviEvhVsNode) IsDedicatedVS() bool {
 	return v.Dedicated
 }
 
+func (v *AviEvhVsNode) IsSecure() bool {
+	return v.Secure
+}
+
 func (v *AviEvhVsNode) GetPortProtocols() []AviPortHostProtocol {
 	return v.PortProto
 }
 
 func (v *AviEvhVsNode) SetPortProtocols(portProto []AviPortHostProtocol) {
 	v.PortProto = portProto
+}
+
+func (v *AviEvhVsNode) GetAviInfraPortProtocols() []AviPortHostProtocol {
+	return v.AviInfraPortProto
+}
+
+func (v *AviEvhVsNode) SetAviInfraPortProtocols(aviInfraPortProto []AviPortHostProtocol) {
+	v.AviInfraPortProto = aviInfraPortProto
 }
 
 func (v *AviEvhVsNode) GetPoolRefs() []*AviPoolNode {
@@ -764,6 +782,8 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 		ApplicationProfile: utils.DEFAULT_L7_APP_PROFILE,
 		NetworkProfile:     utils.DEFAULT_TCP_NW_PROFILE,
 	}
+
+	avi_vs_meta.Secure = secure
 
 	var vrfcontext string
 	if !dedicated || secure {
@@ -2119,7 +2139,8 @@ func buildWithInfraSettingForEvh(key, namespace string, vs *AviEvhVsNode, vsvip 
 			vsvip.EnablePublicIP = infraSetting.Spec.Network.EnablePublicIP
 		}
 		if (vs.EVHParent || vs.Dedicated) && (infraSetting.Spec.Network.Listeners != nil && len(infraSetting.Spec.Network.Listeners) > 0) {
-			portProto := buildListenerPortsWithInfraSetting(infraSetting, vs.PortProto)
+			portProto, aviInfraPortProto := buildListenerPortsWithInfraSetting(infraSetting, vs.PortProto)
+			vs.SetAviInfraPortProtocols(aviInfraPortProto)
 			vs.SetPortProtocols(portProto)
 		}
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)

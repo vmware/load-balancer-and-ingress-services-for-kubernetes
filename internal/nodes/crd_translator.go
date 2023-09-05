@@ -74,8 +74,12 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 
 	portProtocols := []AviPortHostProtocol{
 		{Port: 80, Protocol: utils.HTTP},
-		{Port: 443, Protocol: utils.HTTP, EnableSSL: true},
 	}
+	if vsNode.IsSecure() || !vsNode.IsDedicatedVS() {
+		portProtocols = append(portProtocols, AviPortHostProtocol{Port: 443, Protocol: utils.HTTP, EnableSSL: true})
+	}
+	aviInfraPortProtocols := vsNode.GetAviInfraPortProtocols()
+	portProtocols = append(portProtocols, aviInfraPortProtocols...)
 
 	if !deleteCase {
 		if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference &&
@@ -132,8 +136,14 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 
 		if hostrule.Spec.VirtualHost.TCPSettings != nil {
 			if vsNode.IsSharedVS() || vsNode.IsDedicatedVS() {
-				portProtocols = []AviPortHostProtocol{}
+			hostRuleListenerLoop:
 				for _, listener := range hostrule.Spec.VirtualHost.TCPSettings.Listeners {
+					for _, aviInfraPortProtocol := range aviInfraPortProtocols {
+						if aviInfraPortProtocol.Port == int32(listener.Port) {
+							continue hostRuleListenerLoop
+						}
+					}
+					found := false
 					portProtocol := AviPortHostProtocol{
 						Port:     int32(listener.Port),
 						Protocol: utils.HTTP,
@@ -141,9 +151,17 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 					if listener.EnableSSL {
 						portProtocol.EnableSSL = listener.EnableSSL
 					}
-					portProtocols = append(portProtocols, portProtocol)
+					for i, vsPortProtos := range portProtocols {
+						if vsPortProtos.Port == int32(listener.Port) {
+							found = true
+							portProtocols[i] = portProtocol
+							break
+						}
+					}
+					if !found {
+						portProtocols = append(portProtocols, portProtocol)
+					}
 				}
-
 				// L7 StaticIP
 				if hostrule.Spec.VirtualHost.TCPSettings.LoadBalancerIP != "" {
 					lbIP = hostrule.Spec.VirtualHost.TCPSettings.LoadBalancerIP
@@ -198,7 +216,9 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	vsNode.SetVsDatascriptRefs(vsDatascripts)
 	vsNode.SetEnabled(vsEnabled)
 	vsNode.SetAnalyticsPolicy(analyticsPolicy)
-	vsNode.SetPortProtocols(portProtocols)
+	if len(portProtocols) != 0 {
+		vsNode.SetPortProtocols(portProtocols)
+	}
 	vsNode.SetVSVIPLoadBalancerIP(lbIP)
 	vsNode.SetVHDomainNames(VHDomainNames)
 

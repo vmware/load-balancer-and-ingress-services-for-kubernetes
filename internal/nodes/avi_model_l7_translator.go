@@ -73,6 +73,9 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 			{Port: 80, Protocol: utils.HTTP},
 		},
 	}
+
+	avi_vs_meta.Secure = secureVS
+	
 	if !dedicatedVs {
 		avi_vs_meta.SharedVS = true
 		avi_vs_meta.SNIParent = true
@@ -82,6 +85,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 
 	//For SNI, by default port 80 and 443 added
 	//For dedicated, in secure ingress only port 443 added
+	//for insecure dedicated, only port 80 should be added
 	if !dedicatedVs || secureVS {
 		httpsPort := AviPortHostProtocol{Port: 443, Protocol: utils.HTTP, EnableSSL: true}
 		avi_vs_meta.PortProto = append(avi_vs_meta.PortProto, httpsPort)
@@ -672,7 +676,8 @@ func buildWithInfraSetting(key, namespace string, vs *AviVsNode, vsvip *AviVSVIP
 			vsvip.EnablePublicIP = infraSetting.Spec.Network.EnablePublicIP
 		}
 		if vs.SNIParent || vs.Dedicated && (infraSetting.Spec.Network.Listeners != nil && len(infraSetting.Spec.Network.Listeners) > 0) {
-			portProto := buildListenerPortsWithInfraSetting(infraSetting, vs.PortProto)
+			portProto, aviInfraPortProto := buildListenerPortsWithInfraSetting(infraSetting, vs.PortProto)
+			vs.SetAviInfraPortProtocols(aviInfraPortProto)
 			vs.SetPortProtocols(portProto)
 		}
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
@@ -695,7 +700,8 @@ func buildPoolWithInfraSetting(key string, pool *AviPoolNode, infraSetting *akov
 	}
 }
 
-func buildListenerPortsWithInfraSetting(infraSetting *akov1alpha1.AviInfraSetting, aviPortProto []AviPortHostProtocol) []AviPortHostProtocol {
+func buildListenerPortsWithInfraSetting(infraSetting *akov1alpha1.AviInfraSetting, aviPortProto []AviPortHostProtocol) ([]AviPortHostProtocol, []AviPortHostProtocol) {
+	aviInfraPortProtocols := []AviPortHostProtocol{}
 	for _, listener := range infraSetting.Spec.Network.Listeners {
 		found := false
 		if listener.Port == nil {
@@ -723,6 +729,7 @@ func buildListenerPortsWithInfraSetting(infraSetting *akov1alpha1.AviInfraSettin
 		if !found {
 			aviPortProto = append(aviPortProto, portProtocol)
 		}
+		aviInfraPortProtocols = append(aviInfraPortProtocols, portProtocol)
 	}
-	return aviPortProto
+	return aviPortProto, aviInfraPortProtocols
 }
