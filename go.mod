@@ -7,7 +7,7 @@ require (
 	github.com/apparentlymart/go-cidr v1.1.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/fatih/structs v1.1.0
-	github.com/fsnotify/fsnotify v1.4.9
+	github.com/fsnotify/fsnotify v1.5.1
 	github.com/go-logr/logr v1.2.3
 	github.com/golang/glog v1.0.0
 	github.com/gorilla/mux v1.8.0
@@ -18,7 +18,7 @@ require (
 	github.com/openshift/client-go v0.0.0-20201020082437-7737f16e53fc
 	github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
 	github.com/vmware/alb-sdk v0.0.0-20230202152455-af9d49bac7ea
-	go.uber.org/zap v1.19.0
+	go.uber.org/zap v1.19.1
 	golang.org/x/crypto v0.0.0-20220314234659-1baeb1ce4c0b
 	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df
 	google.golang.org/protobuf v1.28.1
@@ -103,9 +103,8 @@ replace (
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.24.0
 	k8s.io/apimachinery => k8s.io/apimachinery v0.24.0
 	k8s.io/client-go => k8s.io/client-go v0.24.0
-	k8s.io/klog/v2 => k8s.io/klog/v2 v2.8.0
-	k8s.io/utils => k8s.io/utils v0.0.0-20210722164352-7f3ee0f31471
-	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.9.6
+	k8s.io/klog/v2 => k8s.io/klog/v2 v2.80.1
+	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.12.0
 	sigs.k8s.io/gateway-api => sigs.k8s.io/gateway-api v0.6.2
 	sigs.k8s.io/service-apis => sigs.k8s.io/service-apis v0.1.0
 )
