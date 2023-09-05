@@ -34,6 +34,7 @@ import (
 	"github.com/vmware/alb-sdk/go/models"
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -71,7 +72,10 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 
 	infraSetting, err := getL4InfraSetting(key, svcObj.Namespace, svcObj, nil)
 	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
+		if !k8serrors.IsNotFound(err) {
+			utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
+			return nil
+		}
 	}
 
 	vrfcontext := lib.GetVrf()
@@ -181,7 +185,10 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 
 		infraSetting, err := getL4InfraSetting(key, svcObj.Namespace, svcObj, nil)
 		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
+			if !k8serrors.IsNotFound(err) {
+				utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
+				return
+			}
 		}
 		t1lr := lib.GetT1LRPath()
 		if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {

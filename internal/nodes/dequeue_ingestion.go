@@ -263,9 +263,11 @@ func DequeueIngestion(key string, fullsync bool) {
 				} else {
 					aviModelGraph := NewAviObjectGraph()
 					aviModelGraph.BuildAdvancedL4Graph(namespace, gwName, key, false)
-					ok := saveAviModel(modelName, aviModelGraph, key)
-					if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
-						PublishKeyToRestLayer(modelName, key, sharedQueue)
+					if len(aviModelGraph.GetOrderedNodes()) > 0 {
+						ok := saveAviModel(modelName, aviModelGraph, key)
+						if ok && !fullsync {
+							PublishKeyToRestLayer(modelName, key, sharedQueue)
+						}
 					}
 				}
 			}
@@ -644,9 +646,11 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 		aviModelGraph := NewAviObjectGraph()
 		vipKey := strings.Split(namespacedVipKey, "/")[1]
 		aviModelGraph.BuildAdvancedL4Graph(namespace, vipKey, key, true)
-		ok := saveAviModel(modelName, aviModelGraph, key)
-		if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
-			PublishKeyToRestLayer(modelName, key, sharedQueue)
+		if len(aviModelGraph.GetOrderedNodes()) > 0 {
+			ok := saveAviModel(modelName, aviModelGraph, key)
+			if ok && !fullsync {
+				PublishKeyToRestLayer(modelName, key, sharedQueue)
+			}
 		}
 	}
 }
