@@ -297,11 +297,15 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 }
 
 func buildPoolNode(key, poolName, ingName, namespace, priorityLabel, hostname string, infraSetting *akov1alpha1.AviInfraSetting, serviceName string, storedHosts []string, insecureEdgeTermAllow bool, obj IngressHostPathSvc) *AviPoolNode {
+	tenant := lib.GetTenant()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
+		tenant = *infraSetting.Spec.NSXSettings.Project
+	}
 	poolNode := &AviPoolNode{
 		Name:          poolName,
 		IngressName:   ingName,
 		PortName:      obj.PortName,
-		Tenant:        lib.GetTenant(),
+		Tenant:        tenant,
 		PriorityLabel: strings.ToLower(priorityLabel),
 		Port:          obj.Port,
 		TargetPort:    obj.TargetPort,

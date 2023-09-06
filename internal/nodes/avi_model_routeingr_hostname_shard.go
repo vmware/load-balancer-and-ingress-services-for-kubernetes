@@ -373,7 +373,11 @@ func DeleteStaleDataForModelChange(routeIgrObj RouteIngressModel, namespace, obj
 		}
 
 		_, infraSettingName := objects.InfraSettingL7Lister().GetIngRouteToInfraSetting(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName())
-		modelName := lib.GetModelName(lib.GetTenant(), shardVsName.Name)
+		tenant := objects.InfraSettingL7Lister().GetAviInfraSettingToTenant(infraSettingName)
+		if tenant == "" {
+			tenant = lib.GetTenant()
+		}
+		modelName := lib.GetModelName(tenant, shardVsName.Name)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {
 			utils.AviLog.Warnf("key: %s, msg: model not found during delete: %s", key, modelName)
@@ -406,8 +410,12 @@ func RouteIngrDeletePoolsByHostname(routeIgrObj RouteIngressModel, namespace, ob
 	}
 
 	var infraSettingName string
+	tenant := lib.GetTenant()
 	if aviInfraSetting := routeIgrObj.GetAviInfraSetting(); aviInfraSetting != nil {
 		infraSettingName = aviInfraSetting.Name
+		if aviInfraSetting.Spec.NSXSettings.Project != nil {
+			tenant = *aviInfraSetting.Spec.NSXSettings.Project
+		}
 	}
 
 	utils.AviLog.Debugf("key: %s, msg: hosts to delete are :%s", key, utils.Stringify(hostMap))
@@ -419,7 +427,7 @@ func RouteIngrDeletePoolsByHostname(routeIgrObj RouteIngressModel, namespace, ob
 			shardVsName.Name, _ = DerivePassthroughVS(host, key, routeIgrObj)
 		}
 
-		modelName := lib.GetModelName(lib.GetTenant(), shardVsName.Name)
+		modelName := lib.GetModelName(tenant, shardVsName.Name)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {
 			utils.AviLog.Warnf("key: %s, msg: model not found during delete: %s", key, modelName)

@@ -487,8 +487,15 @@ func executeRestOp(key string, client *clients.AviClient, restOp *utils.RestOp, 
 			return
 		}
 	}
+	pool := &utils.AviRestClientPool{
+		AviClient: map[string][]*clients.AviClient{
+			"admin": {
+				client,
+			},
+		},
+	}
 	restLayer := rest.NewRestOperations(nil, nil, true)
-	err := restLayer.AviRestOperateWrapper(client, []*utils.RestOp{restOp}, key)
+	err := restLayer.AviRestOperateWrapper(pool, []*utils.RestOp{restOp}, key, 0)
 	if restOp.Err != nil {
 		err = restOp.Err
 	}

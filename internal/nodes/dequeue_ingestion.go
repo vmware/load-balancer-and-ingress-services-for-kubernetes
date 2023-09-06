@@ -220,7 +220,7 @@ func DequeueIngestion(key string, fullsync bool) {
 					aviModelGraph.BuildL4LBGraph(namespace, name, key)
 				}
 				if len(aviModelGraph.GetOrderedNodes()) > 0 {
-					model_name := lib.GetModelName(lib.GetTenant(), aviModelGraph.GetAviVS()[0].Name)
+					model_name := lib.GetModelName(aviModelGraph.GetAviVS()[0].Tenant, aviModelGraph.GetAviVS()[0].Name)
 					ok := saveAviModel(model_name, aviModelGraph, key)
 					if ok && !fullsync {
 						PublishKeyToRestLayer(model_name, key, sharedQueue)
@@ -264,6 +264,7 @@ func DequeueIngestion(key string, fullsync bool) {
 					aviModelGraph := NewAviObjectGraph()
 					aviModelGraph.BuildAdvancedL4Graph(namespace, gwName, key, false)
 					if len(aviModelGraph.GetOrderedNodes()) > 0 {
+						modelName = lib.GetModelName(aviModelGraph.GetAviVS()[0].Tenant, lib.Encode(lib.GetNamePrefix()+namespace+"-"+gwName, lib.ADVANCED_L4))
 						ok := saveAviModel(modelName, aviModelGraph, key)
 						if ok && !fullsync {
 							PublishKeyToRestLayer(modelName, key, sharedQueue)
@@ -278,7 +279,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		vsKeys := cache.VsCacheMeta.AviCacheGetAllParentVSKeys()
 		for _, vsKey := range vsKeys {
 			if strings.HasSuffix(vsKey.Name, name) {
-				modelName := lib.GetModelName(lib.GetTenant(), vsKey.Name)
+				modelName := lib.GetModelName(vsKey.Namespace, vsKey.Name)
 				if found, _ := objects.SharedAviGraphLister().Get(modelName); found {
 					objects.SharedAviGraphLister().Save(modelName, nil)
 				}

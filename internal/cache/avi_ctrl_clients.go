@@ -26,7 +26,7 @@ import (
 var AviClientInstance *utils.AviRestClientPool
 
 // This class is in control of AKC. It uses utils from the common project.
-func SharedAVIClients() *utils.AviRestClientPool {
+func SharedAVIClients(tenant string) *utils.AviRestClientPool {
 	var err error
 	var connectionStatus string
 
@@ -51,8 +51,7 @@ func SharedAVIClients() *utils.AviRestClientPool {
 		)
 		utils.AviLog.Fatalf("Avi Controller information missing (username: %s, password: %s, authToken: %s, controller: %s). Update them in avi-secret.", ctrlUsername, passwordLog, authTokenLog, ctrlIpAddress)
 	}
-
-	if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 {
+	if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 || len(AviClientInstance.AviClient[tenant]) == 0 {
 		// Always create 9 clients irrespective of shard size
 		var currentControllerVersion string
 		ctrlVersion := lib.AKOControlConfig().ControllerVersion()
@@ -64,6 +63,7 @@ func SharedAVIClients() *utils.AviRestClientPool {
 			ctrlAuthToken,
 			ctrlVersion,
 			ctrlCAData,
+			tenant,
 		)
 
 		connectionStatus = utils.AVIAPI_CONNECTED
@@ -78,10 +78,7 @@ func SharedAVIClients() *utils.AviRestClientPool {
 			ctrlVersion = currentControllerVersion
 		}
 		// set the tenant and controller version in avisession obj
-		for _, client := range AviClientInstance.AviClient {
-			SetTenant := session.SetTenant(lib.GetTenant())
-			SetTenant(client.AviSession)
-
+		for _, client := range AviClientInstance.AviClient[tenant] {
 			SetVersion := session.SetVersion(ctrlVersion)
 			SetVersion(client.AviSession)
 		}

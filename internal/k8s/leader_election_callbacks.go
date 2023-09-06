@@ -36,7 +36,7 @@ func (c *AviController) OnStartedLeading() {
 	once.Do(c.cleanupStaleVSes)
 
 	// once the l3 cache is populated, we can call the updatestatus functions from here
-	restlayer := rest.NewRestOperations(avicache.SharedAviObjCache(), avicache.SharedAVIClients())
+	restlayer := rest.NewRestOperations(avicache.SharedAviObjCache(), avicache.SharedAVIClients(lib.GetTenant()))
 	restlayer.SyncObjectStatuses()
 }
 

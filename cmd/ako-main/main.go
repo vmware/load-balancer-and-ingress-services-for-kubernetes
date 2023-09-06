@@ -249,20 +249,20 @@ func InitializeAKC() {
 		lib.ShutdownApi()
 	}
 
-	aviRestClientPool := avicache.SharedAVIClients()
+	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
 	if aviRestClientPool == nil {
 		utils.AviLog.Fatalf("Avi client not initialized")
 	}
 
-	if aviRestClientPool != nil && !avicache.IsAviClusterActive(aviRestClientPool.AviClient[0]) {
+	if aviRestClientPool != nil && !avicache.IsAviClusterActive(aviRestClientPool.AviClient[lib.GetTenant()][0]) {
 		akoControlConfig.PodEventf(corev1.EventTypeWarning, lib.AKOShutdown, "Avi Controller Cluster state is not Active")
 		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO")
 	}
 
-	akoControlConfig.SetLicenseType(aviRestClientPool.AviClient[0])
+	akoControlConfig.SetLicenseType(aviRestClientPool.AviClient[lib.GetTenant()][0])
 
 	if lib.GetAdvancedL4() {
-		err, seGroupToUse := lib.FetchSEGroupWithMarkerSet(aviRestClientPool.AviClient[0])
+		err, seGroupToUse := lib.FetchSEGroupWithMarkerSet(aviRestClientPool.AviClient[lib.GetTenant()][0])
 		if err != nil {
 			utils.AviLog.Warnf("Setting SEGroup with markerset failed: %s", err)
 		}

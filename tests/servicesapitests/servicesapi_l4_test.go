@@ -1490,8 +1490,8 @@ func TestServicesAPINetworkProfileBasedOnLicense(t *testing.T) {
 		integrationtest.NewAviFakeClientInstance(KubeClient)
 
 		// Set the license
-		aviRestClientPool := cache.SharedAVIClients()
-		lib.AKOControlConfig().SetLicenseType(aviRestClientPool.AviClient[0])
+		aviRestClientPool := cache.SharedAVIClients(lib.GetTenant())
+		lib.AKOControlConfig().SetLicenseType(aviRestClientPool.AviClient[lib.GetTenant()][0])
 	}
 
 	SetupLicense(lib.LicenseTypeEnterprise)

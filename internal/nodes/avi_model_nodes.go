@@ -616,6 +616,10 @@ func (v *AviVsNode) GetCommonFields() *AviVsNodeCommonFields {
 	return &v.AviVsNodeCommonFields
 }
 
+func (v *AviVsNode) GetTenant() string {
+	return v.Tenant
+}
+
 func (o *AviObjectGraph) GetAviVS() []*AviVsNode {
 	var aviVs []*AviVsNode
 	for _, model := range o.modelNodes {

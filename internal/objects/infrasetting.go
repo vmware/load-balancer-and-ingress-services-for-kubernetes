@@ -39,6 +39,9 @@ type AviInfraSettingL7Lister struct {
 
 	// infrasetting -> shardSize
 	InfraSettingShardSizeStore *ObjectMapStore
+
+	// infrasetting -> tenant
+	InfraSettingTenantStore *ObjectMapStore
 }
 
 func (v *AviInfraSettingL7Lister) GetIngRouteToInfraSetting(ingrouteNsName string) (bool, string) {
@@ -77,4 +80,26 @@ func (v *AviInfraSettingL7Lister) GetInfraSettingToShardSize(infraSettingName st
 		return false, ""
 	}
 	return true, shardSize.(string)
+}
+
+func (v *AviInfraSettingL7Lister) UpdateAviInfraToTenantMapping(infraSettingName, tenant string) {
+	v.InfraSettingIngRouteLock.Lock()
+	defer v.InfraSettingIngRouteLock.Unlock()
+	v.InfraSettingTenantStore.AddOrUpdate(infraSettingName, tenant)
+}
+
+func (v *AviInfraSettingL7Lister) GetAviInfraSettingToTenant(infraSettingName string) string {
+	found, tenant := v.InfraSettingTenantStore.Get(infraSettingName)
+	if !found {
+		return ""
+	}
+	return tenant.(string)
+}
+
+func (v *AviInfraSettingL7Lister) GetAllTenants() map[string]struct{} {
+	tenantMap := make(map[string]struct{})
+	for _, tenant := range v.InfraSettingTenantStore.GetAllObjectNames() {
+		tenantMap[tenant.(string)] = struct{}{}
+	}
+	return tenantMap
 }
