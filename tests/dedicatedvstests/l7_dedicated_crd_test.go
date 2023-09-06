@@ -396,7 +396,7 @@ func TestApplyPortsWithHostruleAndAviInfraSettingsDedicatedShard(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--my-infrasetting-foo.com-L7-dedicated"
 	hrname := "hr-cluster--foo.com-L7-dedicated"
-
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--my-infrasetting-foo.com-L7-dedicated"}
 	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
 	secretName := "my-secret"
 
@@ -479,6 +479,7 @@ func TestApplyPortsWithHostruleAndAviInfraSettingsDedicatedShard(t *testing.T) {
 	g.Expect(ports[3]).To(gomega.Equal(8082))
 	g.Expect(ports[4]).To(gomega.Equal(8083))
 
+	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
 	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
