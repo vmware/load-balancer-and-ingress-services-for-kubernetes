@@ -164,4 +164,4 @@ spec:
 As shown in the example, this allows you to specify a FQDN `svc.example.com` for all `TCP` Services running on Port `80` that are programmed with the appropriate labels. This helps in collectively identifying Services via a single FQDN exposed by the Gateway.
 
 2. Using `autoFQDN`
-In case a `hostname` is not provided for a Gateway listener, AKO relies on the value provided by the `autoFQDN` field during installation. This can be set to either, `default`, `flat` or `disabled`. For more information on how to provide the `autoFQDN` functionality, refer to the [values.yaml](../values.md#l4settingsautofqdn) documenation.
+In case a `hostname` is not provided for a Gateway listener, AKO relies on the value provided by the `autoFQDN` field during installation. This can be set to either, `default`, `flat` or `disabled`. For more information on how to provide the `autoFQDN` functionality, refer to the [values.yaml](../values.md#l4settingsautofqdn) documentation.

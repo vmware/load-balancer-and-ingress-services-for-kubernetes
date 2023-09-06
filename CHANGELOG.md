@@ -288,6 +288,11 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
  - During AKO bootup, if there is an error to list AKO CRD objects, AKO disables CRD handling. That results in deletion of existing avi controller objects.
 
+## AKO-1.7.5
+
+### Changed
+ - Annotation `external-dns.alpha.kubernetes.io/hostname` on the Service of type LoadBalancer overrides the `autoFQDN` feature for it.
+
 ## AKO-1.8.1
 
 ### Added
@@ -378,3 +383,25 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Known Issues
  - AKO doesn’t support Service of type LoadBalancer definitions with mixed protocols.
+
+
+## AKO-1.10.2
+
+### Added
+ - AKO now claims support for K8 1.27.
+ - AKO chooses correct network reference for VIP subnet and Pool placement when there are duplicate networks, with same name, present on Avi Controller.
+
+### Fixed
+ - Fix: AKO doesn’t support Service of type LoadBalancer definitions with mixed protocols.
+ - Fix: CTRL_CA_DATA env variable, from AKO Statefulset definition, violates CNTR-K8-001160.
+
+## AKO-1.10.3
+
+### Changed
+ - `vipNetworkList` and `nodeNetworkList` in `values.yaml` are updated with new field `networkUUID` to specify unique network using uuid. Now user can specify either `networkUUID` or `networkName` as part of these fields.
+ - `vipNetworks` and `nodeNetworks` in [aviinfrasetting crd](docs/crds/avinfrasetting.md) are updated with new field `networUUID` to specify network with uuid. User can specify either `networUUID` or `networkName` as part of these fields.
+
+### Fixed
+ - Fix: AKO crashes on reboot in IPV6 environment when IPV6 ingress or LB service is there.
+ - Fix: AKO doesn't create VS for ingress/route associated with HTTP Rule where LB Algorithm is not set.
+ - Fix: AKO does not choose correct network reference for VIP subnet and Pool placement when there are duplicate networks, with same name, present on Avi Controller and management network is being overriden in the Service Engine Group (SEG). This SEG is defined either in AviInfrasetting CRD or in AKO configmap.

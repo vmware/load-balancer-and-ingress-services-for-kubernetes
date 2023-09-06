@@ -139,7 +139,7 @@ func BuildClusterrole(ako akov1alpha1.AKOConfig, r *AKOConfigReconciler, log log
 			},
 			{
 				APIGroups: []string{"ako.vmware.com"},
-				Resources: []string{"hostrules", "hostrules/status", "httprules", "httprules/status", "aviinfrasettings", "aviinfrasettings/status"},
+				Resources: []string{"hostrules", "hostrules/status", "httprules", "httprules/status", "aviinfrasettings", "aviinfrasettings/status", "l4rules", "l4rules/status", "ssorules", "ssorules/status"},
 				Verbs:     []string{"get", "watch", "list", "patch", "update"},
 			},
 			{
@@ -151,6 +151,11 @@ func BuildClusterrole(ako akov1alpha1.AKOConfig, r *AKOConfigReconciler, log log
 				APIGroups: []string{"coordination.k8s.io"},
 				Resources: []string{"leases"},
 				Verbs:     []string{"create", "get", "update"},
+			},
+			{
+				APIGroups: []string{"cilium.io"},
+				Resources: []string{"ciliumnodes"},
+				Verbs:     []string{"get", "watch", "list"},
 			},
 		},
 	}

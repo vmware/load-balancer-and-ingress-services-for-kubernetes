@@ -505,11 +505,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		utils.AviLog.Errorf("failed to populate cache, disabling sync")
 		lib.ShutdownApi()
 	}
-	// Setup and start event handlers for objects.
-	if utils.IsVCFCluster() {
-		// Adding NetworkInfo handler first as Gateways need T1 LR info
-		c.AddNetworkInfoEventHandlers()
-	}
+
 	c.addIndexers()
 	c.Start(stopCh)
 
@@ -668,6 +664,21 @@ func (c *AviController) addIndexers() {
 					if val, ok := service.Annotations[lib.L4RuleAnnotation]; ok && val != "" {
 						return []string{val}, nil
 					}
+				}
+				return []string{}, nil
+			},
+		},
+	)
+
+	c.informers.NSInformer.Informer().AddIndexers(
+		cache.Indexers{
+			lib.AviSettingNamespaceIndex: func(obj interface{}) ([]string, error) {
+				ns, ok := obj.(*corev1.Namespace)
+				if !ok {
+					return []string{}, nil
+				}
+				if val, ok := ns.Annotations[lib.InfraSettingNameAnnotation]; ok && val != "" {
+					return []string{val}, nil
 				}
 				return []string{}, nil
 			},
@@ -837,64 +848,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 		}
 	}
 
-	for namespace := range acceptedNamespaces {
-		svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the services during full sync: %s", err)
-			return err
-		}
-
-		for _, svcObj := range svcObjs {
-			isSvcLb := isServiceLBType(svcObj)
-			var key string
-			if isSvcLb && !lib.GetLayer7Only() {
-				key = utils.L4LBService + "/" + utils.ObjKey(svcObj)
-				if svcObj.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
-					// mark the object type as ShareVipSvc
-					// to separate these out from regulare clusterip, svclb services
-					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svcObj)
-				}
-			} else {
-				if lib.IsWCP() {
-					continue
-				}
-				key = utils.Service + "/" + utils.ObjKey(svcObj)
-			}
-			meta, err := meta.Accessor(svcObj)
-			if err == nil {
-				resVer := meta.GetResourceVersion()
-				objects.SharedResourceVerInstanceLister().Save(key, resVer)
-			}
-			nodes.DequeueIngestion(key, true)
-		}
-	}
-
-	if lib.GetServiceType() == lib.NodePortLocal {
-		podObjs, err := utils.GetInformers().PodInformer.Lister().Pods(metav1.NamespaceAll).List(labels.Everything())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the Pods during full sync: %s", err)
-			return err
-		}
-		for _, podObj := range podObjs {
-			podLabel := utils.ObjKey(podObj)
-			ns := strings.Split(podLabel, "/")
-			if lib.IsNamespaceBlocked(ns[0]) {
-				continue
-			}
-			key := utils.Pod + "/" + podLabel
-			if _, ok := podObj.GetAnnotations()[lib.NPLPodAnnotation]; !ok {
-				utils.AviLog.Warnf("key : %s, msg: 'nodeportlocal.antrea.io' annotation not found, ignoring the pod", key)
-				continue
-			}
-			meta, err := meta.Accessor(podObj)
-			if err == nil {
-				resVer := meta.GetResourceVersion()
-				objects.SharedResourceVerInstanceLister().Save(key, resVer)
-			}
-			nodes.DequeueIngestion(key, true)
-		}
-	}
-
+	// Re-order informer loading. all crds- then objects depends upon it.
 	if !lib.IsWCP() {
 		hostRuleObjs, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
@@ -986,6 +940,67 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			}
 		}
 
+	}
+
+	for namespace := range acceptedNamespaces {
+		svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the services during full sync: %s", err)
+			return err
+		}
+
+		for _, svcObj := range svcObjs {
+			isSvcLb := isServiceLBType(svcObj)
+			var key string
+			if isSvcLb && !lib.GetLayer7Only() {
+				key = utils.L4LBService + "/" + utils.ObjKey(svcObj)
+				if svcObj.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
+					// mark the object type as ShareVipSvc
+					// to separate these out from regulare clusterip, svclb services
+					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svcObj)
+				}
+			} else {
+				if lib.IsWCP() {
+					continue
+				}
+				key = utils.Service + "/" + utils.ObjKey(svcObj)
+			}
+			meta, err := meta.Accessor(svcObj)
+			if err == nil {
+				resVer := meta.GetResourceVersion()
+				objects.SharedResourceVerInstanceLister().Save(key, resVer)
+			}
+			nodes.DequeueIngestion(key, true)
+		}
+	}
+
+	if lib.GetServiceType() == lib.NodePortLocal {
+		podObjs, err := utils.GetInformers().PodInformer.Lister().Pods(metav1.NamespaceAll).List(labels.Everything())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the Pods during full sync: %s", err)
+			return err
+		}
+		for _, podObj := range podObjs {
+			podLabel := utils.ObjKey(podObj)
+			ns := strings.Split(podLabel, "/")
+			if lib.IsNamespaceBlocked(ns[0]) {
+				continue
+			}
+			key := utils.Pod + "/" + podLabel
+			if _, ok := podObj.GetAnnotations()[lib.NPLPodAnnotation]; !ok {
+				utils.AviLog.Warnf("key : %s, msg: 'nodeportlocal.antrea.io' annotation not found, ignoring the pod", key)
+				continue
+			}
+			meta, err := meta.Accessor(podObj)
+			if err == nil {
+				resVer := meta.GetResourceVersion()
+				objects.SharedResourceVerInstanceLister().Save(key, resVer)
+			}
+			nodes.DequeueIngestion(key, true)
+		}
+	}
+
+	if !lib.IsWCP() {
 		// IngressClass Section
 		if utils.GetInformers().IngressClassInformer != nil {
 			ingClassObjs, err := utils.GetInformers().IngressClassInformer.Lister().List(labels.Set(nil).AsSelector())
@@ -1120,6 +1135,24 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			}
 		}
 	} else {
+		aviInfraObjs, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the avinfrasettings during full sync: %s", err)
+		} else {
+			for _, aviInfraObj := range aviInfraObjs {
+				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfraObj)
+				meta, err := meta.Accessor(aviInfraObj)
+				if err == nil {
+					resVer := meta.GetResourceVersion()
+					objects.SharedResourceVerInstanceLister().Save(key, resVer)
+				}
+				if err := c.GetValidator().ValidateAviInfraSetting(key, aviInfraObj); err != nil {
+					utils.AviLog.Warnf("key: %s, Error retrieved during validation of AviInfraSetting: %v", key, err)
+				}
+				nodes.DequeueIngestion(key, true)
+			}
+		}
+
 		//Ingress Section
 		if utils.GetInformers().IngressInformer != nil {
 			for namespace := range acceptedNamespaces {

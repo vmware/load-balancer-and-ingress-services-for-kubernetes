@@ -19,14 +19,13 @@ import (
 	"strings"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
 )
 
-func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key string) *AviVsNode {
+func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key string, infraSetting *akov1alpha1.AviInfraSetting) *AviVsNode {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	var avi_vs_meta *AviVsNode
@@ -51,7 +50,10 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 	avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 
 	vrfcontext := ""
-	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
+	t1lr := lib.GetT1LRPath()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
+		t1lr = *infraSetting.Spec.NSXSettings.T1LR
+	}
 	if t1lr == "" {
 		vrfcontext = lib.GetVrf()
 		avi_vs_meta.VrfContext = vrfcontext
@@ -68,7 +70,7 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 		Tenant:      lib.GetTenant(),
 		FQDNs:       fqdns,
 		VrfContext:  vrfcontext,
-		VipNetworks: objects.SharedWCPLister().GetNetworkForNamespace(namespace),
+		VipNetworks: utils.GetVipNetworkList(),
 	}
 
 	if t1lr != "" {
@@ -133,7 +135,10 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 	// store the Pools in the a temoprary list to be used for populating PG members
 	tmpPoolList := []*AviPoolNode{}
 	vrfContext := ""
-	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
+	t1lr := lib.GetT1LRPath()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
+		t1lr = *infraSetting.Spec.NSXSettings.T1LR
+	}
 	if t1lr == "" {
 		vrfContext = lib.GetVrf()
 	}
@@ -146,7 +151,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 				Tenant:     lib.GetTenant(),
 				VrfContext: vrfContext,
 			}
-			poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
+			poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
 			if t1lr != "" {
 				poolNode.T1Lr = t1lr
 			}

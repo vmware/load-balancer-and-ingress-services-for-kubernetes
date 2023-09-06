@@ -149,7 +149,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 
 	// Push Services from InfraSetting updates. Valid for annotation based approach.
-	if objType == lib.AviInfraSetting && !lib.UseServicesAPI() {
+	if objType == lib.AviInfraSetting && !lib.UseServicesAPI() && !lib.IsWCP() {
 		svcNames, svcFound := schema.GetParentServices(name, namespace, key)
 		if svcFound && utils.CheckIfNamespaceAccepted(namespace) {
 			for _, svcNSNameKey := range svcNames {

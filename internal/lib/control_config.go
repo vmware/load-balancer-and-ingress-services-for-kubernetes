@@ -224,6 +224,11 @@ func (c *akoControlConfig) SetCRDClientset(cs akocrd.Interface) {
 	c.SetCRDEnabledParams(cs)
 }
 
+func (c *akoControlConfig) SetCRDClientsetAndEnableInfraSettingParam(cs akocrd.Interface) {
+	c.crdClientset = cs
+	c.aviInfraSettingEnabled = true
+}
+
 func (c *akoControlConfig) CRDClientset() akocrd.Interface {
 	return c.crdClientset
 }
