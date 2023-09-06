@@ -68,12 +68,10 @@ func (c *GatewayController) InitGatewayAPIInformers(cs gatewayclientset.Interfac
 func (c *GatewayController) Start(stopCh <-chan struct{}) {
 	go c.informers.ServiceInformer.Informer().Run(stopCh)
 	go c.informers.EpInformer.Informer().Run(stopCh)
-	go c.informers.NSInformer.Informer().Run(stopCh)
 
 	informersList := []cache.InformerSynced{
 		c.informers.EpInformer.Informer().HasSynced,
 		c.informers.ServiceInformer.Informer().HasSynced,
-		c.informers.NSInformer.Informer().HasSynced,
 	}
 
 	if !lib.AviSecretInitialized {
