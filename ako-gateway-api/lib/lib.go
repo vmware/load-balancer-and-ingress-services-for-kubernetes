@@ -24,7 +24,7 @@ import (
 
 func InformersToRegister(kclient *kubernetes.Clientset) ([]string, error) {
 	// Initialize the following informers in all AKO deployments. Provide AKO the ability to watch over
-	// Services, Endpoints, Secrets, ConfigMaps and Namespaces.
+	// Services, Endpoints, Secrets, ConfigMaps.
 	allInformers := []string{
 		utils.ServiceInformer,
 		utils.EndpointInformer,
