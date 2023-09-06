@@ -14,7 +14,6 @@
 package retry
 
 import (
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -23,15 +22,15 @@ import (
 func DequeueFastRetry(vsKey string) {
 	utils.AviLog.Infof("Retrieved the key for fast retry: %s", vsKey)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	modelName := lib.GetTenant() + "/" + vsKey
-	nodes.PublishKeyToRestLayer(modelName, "retry", sharedQueue)
+	//modelName := lib.GetTenant() + "/" + vsKey
+	nodes.PublishKeyToRestLayer(vsKey, "retry", sharedQueue)
 
 }
 
 func DequeueSlowRetry(vsKey string) {
 	utils.AviLog.Infof("Retrieved the key for slow retry: %s", vsKey)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	modelName := lib.GetTenant() + "/" + vsKey
-	nodes.PublishKeyToRestLayer(modelName, "retry", sharedQueue)
+	//modelName := lib.GetTenant() + "/" + vsKey
+	nodes.PublishKeyToRestLayer(vsKey, "retry", sharedQueue)
 
 }

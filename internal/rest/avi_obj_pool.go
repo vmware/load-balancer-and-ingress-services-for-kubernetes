@@ -48,7 +48,7 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	cr := lib.AKOUser
 	svc_mdata_json, _ := json.Marshal(&pool_meta.ServiceMetadata)
 	svc_mdata := string(svc_mdata_json)
-	cloudRef := "/api/cloud?name=" + utils.CloudName
+	cloudRef := utils.GetCloudRef(lib.GetTenant())
 	placementNetworks := []*avimodels.PlacementNetwork{}
 
 	// set pool placement network if node network details are present and cloud type is CLOUD_VCENTER or CLOUD_NSXT (vlan)

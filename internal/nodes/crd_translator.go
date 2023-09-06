@@ -326,7 +326,7 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 					if httpRulePath.TLS.DestinationCA != "" {
 						destinationCertNode = &AviPkiProfileNode{
 							Name:   lib.GetPoolPKIProfileName(poolName),
-							Tenant: lib.GetTenant(),
+							Tenant: vsNode.GetTenant(),
 							CACert: httpRulePath.TLS.DestinationCA,
 						}
 						destinationCertNode.AviMarkers = lib.PopulatePoolNodeMarkers(namespace, host, "", pool.AviMarkers.ServiceName, []string{ingName}, []string{path})
