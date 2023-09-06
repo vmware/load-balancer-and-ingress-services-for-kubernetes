@@ -17,7 +17,6 @@ package k8s
 import (
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -310,30 +309,13 @@ func (c *GatewayController) publishAllParentVSKeysToRestLayer() {
 		}
 	}
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	syncNamespace := lib.GetNamespaceToSync()
+
 	for _, vsCacheKey := range vsKeys {
 		modelName := vsCacheKey.Namespace + "/" + vsCacheKey.Name
-		// Reverse map the model key from this.
-		if syncNamespace != "" {
-			shardVsPrefix := lib.ShardVSPrefix
-			if shardVsPrefix != "" {
-				if strings.HasPrefix(vsCacheKey.Name, shardVsPrefix) {
-					delete(allModels, modelName)
-					utils.AviLog.Infof("Model published L7 VS during namespace based sync: %s", modelName)
-					nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
-				}
-			}
-			// For namespace based syncs, the L4 VSes would be named: clusterName + "--" + namespace
-			if strings.HasPrefix(vsCacheKey.Name, lib.GetNamePrefix()+syncNamespace) {
-				delete(allModels, modelName)
-				utils.AviLog.Infof("Model published L4 VS during namespace based sync: %s", modelName)
-				nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
-			}
-		} else {
-			delete(allModels, modelName)
-			utils.AviLog.Infof("Model published in full sync %s", modelName)
-			nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
-		}
+		delete(allModels, modelName)
+		utils.AviLog.Infof("Model published in full sync %s", modelName)
+		nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
+
 	}
 	// Now also publish the newly generated models (if any)
 	// Publish all the models to REST layer.
