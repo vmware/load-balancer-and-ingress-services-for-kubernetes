@@ -60,6 +60,8 @@ func IsValidGateway(key string, gateway *gatewayv1beta1.Gateway) bool {
 
 	gatewayStatus := gateway.Status.DeepCopy()
 
+	//TODO check hostname overlap across gateway using store
+
 	// has 1 or more listeners
 	if len(spec.Listeners) == 0 {
 		utils.AviLog.Errorf("key: %s, msg: no listeners found in gateway %+v", key, gateway.Name)
@@ -258,6 +260,8 @@ func validateParentReference(key string, httpRoute *gatewayv1beta1.HTTPRoute, ht
 		Status(metav1.ConditionFalse).
 		ObservedGeneration(httpRoute.ObjectMeta.Generation)
 
+	//section name is optional
+	//TODO check
 	if httpRoute.Spec.ParentRefs[index].SectionName == nil {
 		// can't attach to any so update the httproute status
 		utils.AviLog.Errorf("key: %s, msg: Section Name in Parent Reference %s is empty, HTTPRoute object %s cannot be attached to a listener", key, name, httpRoute.Name)
@@ -282,6 +286,7 @@ func validateParentReference(key string, httpRoute *gatewayv1beta1.HTTPRoute, ht
 	}
 
 	// TODO: Don't attach to a invalid listener configuration
+	// check from store
 
 	hostInListener := gateway.Spec.Listeners[i].Hostname
 

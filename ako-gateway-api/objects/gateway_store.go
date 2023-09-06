@@ -27,23 +27,23 @@ var gwonce sync.Once
 func GatewayApiLister() *GWLister {
 	gwonce.Do(func() {
 		gwLister = &GWLister{
-			gatewayClassStore:              objects.NewObjectMapStore(),
-			gatewayToGatewayClassStore:     objects.NewObjectMapStore(),
-			gatewayClassToGatewayStore:     objects.NewObjectMapStore(),
-			gatewayToListenerStore:         objects.NewObjectMapStore(),
-			routeToGateway:                 objects.NewObjectMapStore(),
-			routeToGatewayListener:         objects.NewObjectMapStore(),
-			gatewayToRoute:                 objects.NewObjectMapStore(),
-			serviceToGateway:               objects.NewObjectMapStore(),
-			gatewayToService:               objects.NewObjectMapStore(),
-			serviceToRoute:                 objects.NewObjectMapStore(),
-			routeToService:                 objects.NewObjectMapStore(),
-			secretToListener:               objects.NewObjectMapStore(),
-			gatewayToSecret:                objects.NewObjectMapStore(),
-			routeToChildVS:                 objects.NewObjectMapStore(),
-			gatewayListenerToHostnameStore: objects.NewObjectMapStore(),
-			routeToHostnameStore:           objects.NewObjectMapStore(),
-			gatewayRouteToHostnameStore:    objects.NewObjectMapStore(),
+			gatewayClassStore:           objects.NewObjectMapStore(),
+			gatewayToGatewayClassStore:  objects.NewObjectMapStore(),
+			gatewayClassToGatewayStore:  objects.NewObjectMapStore(),
+			gatewayToListenerStore:      objects.NewObjectMapStore(),
+			routeToGateway:              objects.NewObjectMapStore(),
+			routeToGatewayListener:      objects.NewObjectMapStore(),
+			gatewayToRoute:              objects.NewObjectMapStore(),
+			serviceToGateway:            objects.NewObjectMapStore(),
+			gatewayToService:            objects.NewObjectMapStore(),
+			serviceToRoute:              objects.NewObjectMapStore(),
+			routeToService:              objects.NewObjectMapStore(),
+			secretToGateway:             objects.NewObjectMapStore(),
+			gatewayToSecret:             objects.NewObjectMapStore(),
+			routeToChildVS:              objects.NewObjectMapStore(),
+			gatewayToHostnameStore:      objects.NewObjectMapStore(),
+			routeToHostnameStore:        objects.NewObjectMapStore(),
+			gatewayRouteToHostnameStore: objects.NewObjectMapStore(),
 		}
 	})
 	return gwLister
@@ -84,19 +84,24 @@ type GWLister struct {
 	// routeType/routeNs/routeName -> [serviceNs/serviceName, ...]
 	routeToService *objects.ObjectMapStore
 
-	// secretNs/secretName -> [namespace/gateway: listener, ...]
-	secretToListener *objects.ObjectMapStore
+	// secretNs/secretName -> [namespace/gateway, ...]
+	secretToGateway *objects.ObjectMapStore
 
-	// namespace/gateway/listener -> [secretNs/secretName, ...]
+	// namespace/gateway -> [secretNs/secretName, ...]
 	gatewayToSecret *objects.ObjectMapStore
 
 	// routeType/routeNs/routeName -> [childvs, ...]
 	routeToChildVS *objects.ObjectMapStore
 
-	gatewayListenerToHostnameStore *objects.ObjectMapStore
+	//check overlap across gateways
+	//namespace/gateway/listener -> hostname
+	gatewayToHostnameStore *objects.ObjectMapStore
 
+	//routetype/routens/routename -> [hostname, ...]
 	routeToHostnameStore *objects.ObjectMapStore
 
+	//FQDNs in parent VS
+	//gatewayns/gatewayname -> [hostname, ...]
 	gatewayRouteToHostnameStore *objects.ObjectMapStore
 }
 
@@ -175,17 +180,16 @@ func (g *GWLister) UpdateGatewayToGatewayClass(ns, gw, gwClass string) {
 	}
 }
 
-func (g *GWLister) DeleteGatewayToGatewayClass(ns, gw string) {
+func (g *GWLister) DeleteGatewayToGatewayClass(gwNsName string) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 
-	key := getKeyForGateway(ns, gw)
-	found, gwClass := g.gatewayToGatewayClassStore.Get(key)
+	found, gwClass := g.gatewayToGatewayClassStore.Get(gwNsName)
 	if found {
-		g.gatewayToGatewayClassStore.Delete(key)
+		g.gatewayToGatewayClassStore.Delete(gwNsName)
 		_, gatewayList := g.gatewayClassToGatewayStore.Get(gwClass.(string))
 		gatewayListObj := gatewayList.([]string)
-		gatewayListObj = utils.Remove(gatewayListObj, key)
+		gatewayListObj = utils.Remove(gatewayListObj, gwNsName)
 		g.gatewayClassToGatewayStore.AddOrUpdate(gwClass.(string), gatewayListObj)
 	}
 }
@@ -426,6 +430,98 @@ func (g *GWLister) DeleteRouteToServiceMappings(routeTypeNsName, svcNsName strin
 	g.routeToService.AddOrUpdate(routeTypeNsName, svcNsNameList)
 }
 
+//=====All Gateway <-> Secret go here
+
+func (g *GWLister) GetGatewayToSecret(gwNsName string) (bool, []string) {
+	if found, obj := g.gatewayToSecret.Get(gwNsName); found {
+		return true, obj.([]string)
+	}
+	return false, []string{}
+}
+func (g *GWLister) GetSecretToGateway(secretNsName string) (bool, []string) {
+	if found, obj := g.secretToGateway.Get(secretNsName); found {
+		return true, obj.([]string)
+	}
+	return false, []string{}
+
+}
+func (g *GWLister) UpdateGatewayToSecret(gwNsName string, secretNsNameList []string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	var removedSecrets []string
+	//update list of secrets store
+	found, obj := g.gatewayToSecret.Get(gwNsName)
+	if found {
+		//find removed secrets
+		for _, secret := range obj.([]string) {
+			secretRemoved := true
+			for _, newSecret := range secretNsNameList {
+				if secret == newSecret {
+					secretRemoved = false
+					break
+				}
+			}
+			if secretRemoved {
+				removedSecrets = append(removedSecrets, secret)
+			}
+		}
+	}
+	//update new secrets to gateway
+	g.gatewayToSecret.AddOrUpdate(gwNsName, secretNsNameList)
+
+	//delete secret to gateway mapping for removed secret
+	for _, secret := range removedSecrets {
+		if found, obj := g.secretToGateway.Get(secret); found {
+			gwNsNameList := obj.([]string)
+			gwNsNameList = utils.Remove(gwNsNameList, gwNsName)
+			g.gatewayToRoute.AddOrUpdate(secret, gwNsNameList)
+		}
+	}
+
+	//add secret to gatewaymapping for new secrets
+	for _, secret := range secretNsNameList {
+		if found, obj := g.secretToGateway.Get(secret); found {
+			gwNsNameList := obj.([]string)
+			if !utils.HasElem(gwNsNameList, gwNsName) {
+				gwNsNameList = append(gwNsNameList, gwNsName)
+				g.secretToGateway.AddOrUpdate(secret, gwNsNameList)
+			}
+		}
+	}
+}
+
+func (g *GWLister) DeleteGatewayToSecret(gwNsName string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	_, secretNsNameList := g.GetGatewayToSecret(gwNsName)
+	for _, secretNsName := range secretNsNameList {
+		if found, obj := g.secretToGateway.Get(secretNsName); found {
+			gwList := obj.([]string)
+			gwList = utils.Remove(gwList, gwNsName)
+			g.secretToGateway.AddOrUpdate(gwNsName, gwList)
+		}
+	}
+	g.gatewayToSecret.Delete(gwNsName)
+}
+
+func (g *GWLister) DeleteSecretToGateway(secretNsName string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	_, gwNsNameList := g.GetSecretToGateway(secretNsName)
+	for _, gwNsName := range gwNsNameList {
+		if found, obj := g.gatewayToSecret.Get(gwNsName); found {
+			secretList := obj.([]string)
+			secretList = utils.Remove(secretList, secretNsName)
+			g.gatewayToSecret.AddOrUpdate(gwNsName, secretList)
+		}
+	}
+	g.secretToGateway.Delete(secretNsName)
+
+}
+
 //=====All route <-> child vs go here.
 
 func (g *GWLister) GetRouteToChildVS(routeTypeNsName string) (bool, []string) {
@@ -558,7 +654,7 @@ func (g *GWLister) GetGatewayListenerToHostname(gwNsName, listner string) string
 	defer g.gwLock.RUnlock()
 
 	key := gwNsName + "/" + listner
-	_, obj := g.gatewayListenerToHostnameStore.Get(key)
+	_, obj := g.gatewayToHostnameStore.Get(key)
 
 	return obj.(string)
 }
@@ -566,7 +662,7 @@ func (g *GWLister) UpdateGatewayListenerToHostname(gwListenerNsName, hostname st
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 
-	g.gatewayListenerToHostnameStore.AddOrUpdate(gwListenerNsName, hostname)
+	g.gatewayToHostnameStore.AddOrUpdate(gwListenerNsName, hostname)
 }
 
 func (g *GWLister) UpdateGatewayRouteToHostname(gwNsName string, hostnames []string) {

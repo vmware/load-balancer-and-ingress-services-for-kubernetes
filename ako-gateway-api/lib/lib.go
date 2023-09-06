@@ -30,32 +30,31 @@ func InformersToRegister(kclient *kubernetes.Clientset) ([]string, error) {
 		utils.EndpointInformer,
 		utils.SecretInformer,
 		utils.ConfigMapInformer,
-		utils.NSInformer,
 	}
 
 	return allInformers, nil
 }
 
-// parent vs name format - clustername--gatewayNs-gatewayName-EVH
+// parent vs name format - ako-gw-clustername--gatewayNs-gatewayName-EVH
 func GetGatewayParentName(namespace, gwName string) string {
 	//clustername > gateway namespace > Gateway-name
 	//Adding -EVH prefix to reuse rest layer
 	return lib.GetNamePrefix() + namespace + "-" + gwName + "-EVH"
 }
 
-// child vs name format - clustername--encoded value of parentNs-parentName-childNs-childName-encodedStr
+// child vs name format - ako-gw-clustername--encoded value of ako-gw-clustername--parentNs-parentName-routeNs-routeName-encodedMatch
 func GetChildName(parentNs, parentName, routeNs, routeName, matchName string) string {
-	name := lib.GetNamePrefix() + parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-" + utils.Stringify(utils.Hash(matchName))
+	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-" + utils.Stringify(utils.Hash(matchName))
 	return lib.Encode(name, lib.EVHVS)
 }
 
 func GetPoolName(parentNs, parentName, routeNs, routeName, matchName, backendNs, backendName, backendPort string) string {
-	name := lib.GetNamePrefix() + parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-" + utils.Stringify(utils.Hash(matchName)) + "-" + backendNs + "-" + backendName + "-" + backendPort
+	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-" + utils.Stringify(utils.Hash(matchName)) + "-" + backendNs + "-" + backendName + "-" + backendPort
 	return lib.Encode(name, lib.Pool)
 }
 
 func GetPoolGroupName(parentNs, parentName, routeNs, routeName, matchName string) string {
-	name := lib.GetNamePrefix() + parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-" + utils.Stringify(utils.Hash(matchName))
+	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-" + utils.Stringify(utils.Hash(matchName))
 	return lib.Encode(name, lib.PG)
 }
 

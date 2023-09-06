@@ -219,6 +219,9 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 		return err
 	}
 
+	// TODO: sort before calling dequeue
+	// sort by timestamp and name length
+	// as per gateway guidelines
 	for _, gwClassObj := range gwClassObjs {
 		key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
 		meta, err := meta.Accessor(gwClassObj)
