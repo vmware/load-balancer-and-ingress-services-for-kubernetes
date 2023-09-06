@@ -119,6 +119,8 @@ func TestMain(m *testing.M) {
 	ctrl.SetSEGroupCloudNameFromNSAnnotations()
 
 	SetupRouteNamespaceSync(defaultKey, defaultValue)
+	integrationtest.AddDefaultNamespace()
+	integrationtest.AddDefaultNamespace("red")
 
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 

@@ -124,6 +124,8 @@ func TestMain(m *testing.M) {
 	integrationtest.KubeClient = KubeClient
 	integrationtest.AddDefaultIngressClass()
 	ctrl.SetSEGroupCloudNameFromNSAnnotations()
+	integrationtest.AddDefaultNamespace()
+	integrationtest.AddDefaultNamespace("red")
 
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
@@ -477,6 +479,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 func TestMultiVSIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
+	integrationtest.AddDefaultNamespace("randomNamespacethatyeildsdiff")
 	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 

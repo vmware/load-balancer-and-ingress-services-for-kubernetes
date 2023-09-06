@@ -612,3 +612,10 @@ func SetVipNetworkList(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork) {
 func GetVipNetworkList() []akov1alpha1.AviInfraSettingVipNetwork {
 	return VipNetworkList
 }
+
+func String(s *string) string {
+	if s != nil {
+		return *s
+	}
+	return ""
+}

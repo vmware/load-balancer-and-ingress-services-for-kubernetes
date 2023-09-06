@@ -69,8 +69,16 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		EnableRhi:          proto.Bool(lib.GetEnableRHI()),
 	}
 
+	infraSetting, err := getL4InfraSetting(key, svcObj.Namespace, svcObj, nil)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
+	}
+
 	vrfcontext := lib.GetVrf()
-	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(svcObj.Namespace)
+	t1lr := lib.GetT1LRPath()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
+		t1lr = *infraSetting.Spec.NSXSettings.T1LR
+	}
 	if t1lr != "" {
 		vrfcontext = ""
 	} else {
@@ -111,7 +119,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		Tenant:      lib.GetTenant(),
 		FQDNs:       fqdns,
 		VrfContext:  vrfcontext,
-		VipNetworks: objects.SharedWCPLister().GetNetworkForNamespace(svcObj.Namespace),
+		VipNetworks: utils.GetVipNetworkList(),
 	}
 	if t1lr != "" {
 		vsVipNode.T1Lr = t1lr
@@ -122,9 +130,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	}
 
 	// configures VS and VsVip nodes using infraSetting object (via CRD).
-	if infraSetting, err := getL4InfraSetting(key, svcObj, nil); err == nil {
-		buildWithInfraSetting(key, svcObj.Namespace, avi_vs_meta, vsVipNode, infraSetting)
-	}
+	buildWithInfraSetting(key, svcObj.Namespace, avi_vs_meta, vsVipNode, infraSetting)
 
 	// Copy the VS properties from L4Rule object
 	if l4Rule, err := getL4Rule(key, svcObj); err == nil {
@@ -146,12 +152,6 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNode *AviVsNode, key string) {
 	var l4Policies []*AviL4PolicyNode
 	var portPoolSet []AviHostPathPortPoolPG
-
-	infraSetting, err := getL4InfraSetting(key, svcObj, nil)
-	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Gateway %s", key, err.Error())
-		return
-	}
 
 	l4Rule, err := getL4Rule(key, svcObj)
 	if err != nil {
@@ -178,7 +178,15 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 		}
 		protocolSet.Insert(portProto.Protocol)
 		poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
-		t1lr := objects.SharedWCPLister().GetT1LrForNamespace(svcObj.Namespace)
+
+		infraSetting, err := getL4InfraSetting(key, svcObj.Namespace, svcObj, nil)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
+		}
+		t1lr := lib.GetT1LRPath()
+		if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
+			t1lr = *infraSetting.Spec.NSXSettings.T1LR
+		}
 		if t1lr != "" {
 			poolNode.T1Lr = t1lr
 			// Unset the poolnode's vrfcontext.
@@ -553,7 +561,7 @@ func GetDefaultSubDomain() []string {
 	return cloudProperty.NSIpamDNS
 }
 
-func getL4InfraSetting(key string, svc *corev1.Service, advl4GWClassName *string) (*akov1alpha1.AviInfraSetting, error) {
+func getL4InfraSetting(key, namespace string, svc *corev1.Service, advl4GWClassName *string) (*akov1alpha1.AviInfraSetting, error) {
 	var err error
 	var infraSetting *akov1alpha1.AviInfraSetting
 
@@ -562,29 +570,35 @@ func getL4InfraSetting(key string, svc *corev1.Service, advl4GWClassName *string
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding GatewayClass %s", key, err.Error())
 			return nil, err
-		} else {
-			if gwClass.Spec.ParametersRef != nil && gwClass.Spec.ParametersRef.Group == lib.AkoGroup && gwClass.Spec.ParametersRef.Kind == lib.AviInfraSetting {
-				infraSetting, err = lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(gwClass.Spec.ParametersRef.Name)
-				if err != nil {
-					utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via GatewayClass %s", key, err.Error())
-					return nil, err
-				}
+		}
+		if gwClass.Spec.ParametersRef != nil && gwClass.Spec.ParametersRef.Group == lib.AkoGroup && gwClass.Spec.ParametersRef.Kind == lib.AviInfraSetting {
+			infraSetting, err = lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(gwClass.Spec.ParametersRef.Name)
+			if err != nil {
+				utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via GatewayClass %s", key, err.Error())
+				return nil, err
+			}
+
+		}
+	} else if svc != nil {
+		if infraSettingAnnotation, ok := svc.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
+			infraSetting, err = lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingAnnotation)
+			if err != nil {
+				utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via annotation %s", key, err.Error())
+				return nil, err
 			}
 		}
-	} else if infraSettingAnnotation, ok := svc.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
-		infraSetting, err = lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingAnnotation)
-		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via annotation %s", key, err.Error())
-			return nil, err
+	}
+
+	if infraSetting != nil {
+		if infraSetting.Status.Status != lib.StatusAccepted {
+			utils.AviLog.Warnf("key: %s, msg: Referred AviInfraSetting %s is invalid", key, infraSetting.Name)
+			return nil, fmt.Errorf("referred AviInfraSetting %s is invalid", infraSetting.Name)
 		}
+		return infraSetting, nil
 	}
 
-	if infraSetting != nil && infraSetting.Status.Status != lib.StatusAccepted {
-		utils.AviLog.Warnf("key: %s, msg: Referred AviInfraSetting %s is invalid", key, infraSetting.Name)
-		return nil, fmt.Errorf("Referred AviInfraSetting %s is invalid", infraSetting.Name)
-	}
-
-	return infraSetting, nil
+	//return namespace InfraSetting if global infraSetting is not present
+	return getNamespaceAviInfraSetting(key, namespace)
 }
 
 func getL4Rule(key string, svc *corev1.Service) (*akov1alpha2.L4Rule, error) {

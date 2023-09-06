@@ -134,6 +134,7 @@ func TestMain(m *testing.M) {
 	integrationtest.KubeClient = KubeClient
 	go createAndPeriodicallyRenewLease()
 	integrationtest.AddDefaultIngressClass()
+	integrationtest.AddDefaultNamespace()
 	go followerCtrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
 }

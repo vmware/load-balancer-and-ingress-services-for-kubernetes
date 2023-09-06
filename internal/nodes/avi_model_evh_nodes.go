@@ -765,7 +765,6 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 		NetworkProfile:     utils.DEFAULT_TCP_NW_PROFILE,
 	}
 
-	var vrfcontext string
 	if !dedicated || secure {
 		httpsPort := AviPortHostProtocol{Port: 443, Protocol: utils.HTTP, EnableSSL: true}
 		avi_vs_meta.PortProto = append(avi_vs_meta.PortProto, httpsPort)
@@ -780,7 +779,12 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 		}
 	}
 
-	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(routeIgrObj.GetNamespace())
+	var vrfcontext string
+	infraSetting := routeIgrObj.GetAviInfraSetting()
+	t1lr := lib.GetT1LRPath()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
+		t1lr = *infraSetting.Spec.NSXSettings.T1LR
+	}
 	if t1lr == "" {
 		vrfcontext = lib.GetVrf()
 		avi_vs_meta.VrfContext = vrfcontext
@@ -797,7 +801,7 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 		Tenant:      lib.GetTenant(),
 		FQDNs:       fqdns,
 		VrfContext:  vrfcontext,
-		VipNetworks: objects.SharedWCPLister().GetNetworkForNamespace(routeIgrObj.GetNamespace()),
+		VipNetworks: utils.GetVipNetworkList(),
 	}
 
 	if t1lr != "" {
@@ -808,9 +812,7 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 		vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
 	}
 
-	if infraSetting := routeIgrObj.GetAviInfraSetting(); infraSetting != nil {
-		buildWithInfraSettingForEvh(key, routeIgrObj.GetNamespace(), avi_vs_meta, vsVipNode, infraSetting)
-	}
+	buildWithInfraSettingForEvh(key, routeIgrObj.GetNamespace(), avi_vs_meta, vsVipNode, infraSetting)
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 
@@ -896,7 +898,10 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 		}
 
 		poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
-		t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
+		t1lr := lib.GetT1LRPath()
+		if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
+			t1lr = *infraSetting.Spec.NSXSettings.T1LR
+		}
 		if t1lr != "" {
 			poolNode.T1Lr = t1lr
 			// Unset the poolnode's vrfcontext.
@@ -2113,7 +2118,7 @@ func buildWithInfraSettingForEvh(key, namespace string, vs *AviEvhVsNode, vsvip 
 		if infraSetting.Spec.Network.VipNetworks != nil && len(infraSetting.Spec.Network.VipNetworks) > 0 {
 			vsvip.VipNetworks = lib.GetVipInfraNetworkList(infraSetting.Name)
 		} else {
-			vsvip.VipNetworks = objects.SharedWCPLister().GetNetworkForNamespace(namespace)
+			vsvip.VipNetworks = utils.GetVipNetworkList()
 		}
 		if lib.IsPublicCloud() {
 			vsvip.EnablePublicIP = infraSetting.Spec.Network.EnablePublicIP

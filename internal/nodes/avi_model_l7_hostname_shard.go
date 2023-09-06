@@ -317,7 +317,10 @@ func buildPoolNode(key, poolName, ingName, namespace, priorityLabel, hostname st
 
 	poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
 
-	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
+	t1lr := lib.GetT1LRPath()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
+		t1lr = *infraSetting.Spec.NSXSettings.T1LR
+	}
 	if t1lr != "" {
 		poolNode.T1Lr = t1lr
 		// Unset the poolnode's vrfcontext.
