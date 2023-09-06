@@ -59,21 +59,31 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		}
 	}
 
+	infraSetting, err := getL4InfraSetting(key, svcObj.Namespace, svcObj, nil)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
+
+	}
+	tenant := lib.GetTenant()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
+		tenant = *infraSetting.Spec.NSXSettings.Project
+	}
+
+	DeleteStaleTenantModelData(svcObj.GetName(), svcObj.GetNamespace(), key, tenant, lib.L4VS)
+	if infraSetting != nil {
+		objects.InfraSettingL7Lister().UpdateGwSvcToInfraSettingMapping(svcObj.GetNamespace()+"/"+svcObj.GetName(), infraSetting.Name)
+	}
+
 	vsName := lib.GetL4VSName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
 	avi_vs_meta = &AviVsNode{
 		Name:   vsName,
-		Tenant: lib.GetTenant(),
+		Tenant: tenant,
 		ServiceMetadata: lib.ServiceMetadataObj{
 			NamespaceServiceName: []string{svcObj.ObjectMeta.Namespace + "/" + svcObj.ObjectMeta.Name},
 			HostNames:            fqdns,
 		},
 		ServiceEngineGroup: lib.GetSEGName(),
 		EnableRhi:          proto.Bool(lib.GetEnableRHI()),
-	}
-
-	infraSetting, err := getL4InfraSetting(key, svcObj.Namespace, svcObj, nil)
-	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
 	}
 
 	vrfcontext := lib.GetVrf()
@@ -118,7 +128,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	vsVipName := lib.GetL4VSVipName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
 	vsVipNode := &AviVSVIPNode{
 		Name:        vsVipName,
-		Tenant:      lib.GetTenant(),
+		Tenant:      tenant,
 		FQDNs:       fqdns,
 		VrfContext:  vrfcontext,
 		VipNetworks: utils.GetVipNetworkList(),
@@ -166,13 +176,21 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 			isSSLEnabled = true
 		}
 	}
+	infraSetting, err := getL4InfraSetting(key, svcObj.Namespace, svcObj, nil)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
+	}
+	tenant := lib.GetTenant()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
+		tenant = *infraSetting.Spec.NSXSettings.Project
+	}
 
 	protocolSet := sets.NewString()
 	for _, portProto := range vsNode.PortProto {
 		filterPort := portProto.Port
 		poolNode := &AviPoolNode{
 			Name:       lib.GetL4PoolName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace, portProto.Protocol, filterPort),
-			Tenant:     lib.GetTenant(),
+			Tenant:     tenant,
 			Protocol:   portProto.Protocol,
 			PortName:   portProto.Name,
 			Port:       portProto.Port,
@@ -188,10 +206,6 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 		protocolSet.Insert(portProto.Protocol)
 		poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
 
-		infraSetting, err := getL4InfraSetting(key, svcObj.Namespace, svcObj, nil)
-		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
-		}
 		t1lr := lib.GetT1LRPath()
 		if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
 			t1lr = *infraSetting.Spec.NSXSettings.T1LR
@@ -248,6 +262,7 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 		l4Policies = append(l4Policies, l4policyNode)
 		vsNode.L4PolicyRefs = l4Policies
 	}
+
 	//As pool naming covention changed for L4 pools marking flag, so that cksum will be changed
 	vsNode.IsL4VS = true
 	if len(vsNode.L4PolicyRefs) != 0 {
@@ -803,4 +818,26 @@ func getNetworkProfile(isSCTP, isTCP, isUDP bool) string {
 		return utils.SYSTEM_UDP_FAST_PATH
 	}
 	return utils.MIXED_NET_PROFILE
+}
+
+/*
+Delete Old Model when
+
+	a. A new infrasetting is added with a new tenant
+	b. An infrasetting is removed (Deleted or Annotation removed from Namespace)
+	c. Tenant value changes due to an update in the existing infrasetting or due to change of infrasetting mapping.
+*/
+func DeleteStaleTenantModelData(objName, namespace, key, tenant, objType string) {
+	oldTenant := lib.GetTenantFromInfraSettingForGwSvc(namespace, objName)
+	if oldTenant == tenant {
+		return
+	}
+	// Old model in oldTenant can be safely deleted here
+	oldModelName := lib.GetModelName(oldTenant, lib.Encode(lib.GetNamePrefix()+namespace+"-"+objName, objType))
+	found, _ := objects.SharedAviGraphLister().Get(oldModelName)
+	if !found {
+		return
+	}
+	utils.AviLog.Infof("key: %s, msg: Deleting old model data, model: %s", key, oldModelName)
+	objects.SharedAviGraphLister().Save(oldModelName, nil)
 }

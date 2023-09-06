@@ -15,6 +15,7 @@
 package avirest
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -23,29 +24,71 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/proto"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/tools/cache"
 
 	gocidr "github.com/apparentlymart/go-cidr/cidr"
 	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/models"
-	"github.com/vmware/alb-sdk/go/session"
 	k8net "k8s.io/utils/net"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
-var CloudCache *models.Cloud
-var NetCache map[string]*models.Network
-var IPAMCache *models.IPAMDNSProviderProfile
-var instantiateFullSyncWorker sync.Once
-var worker *utils.FullSyncThread
+type T1LRNetworking struct {
+}
+
+func (t *T1LRNetworking) AddNetworkInfoEventHandler(stopCh <-chan struct{}) {
+	networkInfoHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			utils.AviLog.Infof("NCP Network Info ADD Event")
+			ScheduleQuickSync()
+		},
+		UpdateFunc: func(old, obj interface{}) {
+			utils.AviLog.Infof("NCP Network Info Update Event")
+			ScheduleQuickSync()
+		},
+		DeleteFunc: func(obj interface{}) {
+			utils.AviLog.Infof("NCP Network Info Delete Event")
+			ScheduleQuickSync()
+		},
+	}
+	lib.GetDynamicInformers().VCFNetworkInfoInformer.Informer().AddEventHandler(networkInfoHandler)
+	go lib.GetDynamicInformers().VCFNetworkInfoInformer.Informer().Run(stopCh)
+
+	ClusterNetworkInfoHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			utils.AviLog.Infof("NCP Cluster Network Info ADD Event")
+			ScheduleQuickSync()
+		},
+		UpdateFunc: func(old, obj interface{}) {
+			utils.AviLog.Infof("NCP Cluster Network Info Update Event")
+			ScheduleQuickSync()
+		},
+		DeleteFunc: func(obj interface{}) {
+			utils.AviLog.Infof("NCP Cluster Network Info Delete Event")
+			ScheduleQuickSync()
+		},
+	}
+	lib.GetDynamicInformers().VCFClusterNetworkInformer.Informer().AddEventHandler(ClusterNetworkInfoHandler)
+	go lib.GetDynamicInformers().VCFClusterNetworkInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh,
+		lib.GetDynamicInformers().VCFNetworkInfoInformer.Informer().HasSynced,
+		lib.GetDynamicInformers().VCFClusterNetworkInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("timed out waiting for cluster/namespace network info caches to sync"))
+	} else {
+		utils.AviLog.Infof("Caches synced for cluster/namespace network info informer")
+	}
+}
 
 // SyncLSLRNetwork fetches all networkinfo CR objects, compares them with the data network configured in the cloud,
 // and updates the cloud if any LS-LR data is missing. It also creates or updates the VCF network with the CIDRs
 // Provided in the Networkinfo objects.
-func SyncLSLRNetwork() {
-	lslrmap, cidrs := lib.GetNetworkInfoCRData(lib.GetDynamicClientSet())
+func (t *T1LRNetworking) SyncLSLRNetwork() {
+	lslrmap, nsLRMap, cidrs := lib.GetNetworkInfoCRData(lib.GetDynamicClientSet())
 	utils.AviLog.Infof("Got data LS LR Map: %v, from NetworkInfo CR", lslrmap)
 
 	client := InfraAviClientInstance()
@@ -71,9 +114,9 @@ func SyncLSLRNetwork() {
 	}
 
 	if len(lslrmap) > 0 {
-		dataNetworkTier1Lrs, updateRequired := removeStaleLRLSEntries(client, cloudModel, lslrmap)
-		if !matchSegmentInCloud(dataNetworkTier1Lrs, lslrmap) || updateRequired {
-			cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs = constructLsLrInCloud(dataNetworkTier1Lrs, lslrmap)
+		dataNetworkTier1Lrs, updateRequired := t.removeStaleLRLSEntries(client, cloudModel, lslrmap)
+		if !t.matchSegmentInCloud(dataNetworkTier1Lrs, lslrmap) || updateRequired {
+			cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs = t.constructLsLrInCloud(dataNetworkTier1Lrs, lslrmap)
 			path := "/api/cloud/" + *cloudModel.UUID
 			restOp := utils.RestOp{
 				ObjName: utils.CloudName,
@@ -89,13 +132,71 @@ func SyncLSLRNetwork() {
 		}
 	}
 
-	addNetworkInCloud("fullsync", cidrs, client)
-	networksToDelete := getNetworksToDeleteInCloud("fullsync", cidrs, client)
-	addNetworkInIPAM("fullsync", networksToDelete, client)
-	deleteNetworkInCloud("fullsync", networksToDelete, client)
+	t.addNetworkInCloud("fullsync", cidrs, client)
+	networksToDelete := t.getNetworksToDeleteInCloud("fullsync", cidrs, client)
+	t.addNetworkInIPAM("fullsync", networksToDelete, client)
+	t.deleteNetworkInCloud("fullsync", networksToDelete, client)
+	t.createInfraSettingAndAnnotateNS(nsLRMap, cidrs)
 }
 
-func matchCidrInNetwork(subnets []*models.Subnet, cidrs map[string]struct{}) bool {
+func (t *T1LRNetworking) createInfraSettingAndAnnotateNS(nsLRMap map[string]string, cidrs map[string]map[string]struct{}) {
+	infraSettingCRs, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("failed to list AviInfraSetting, error: %s", err.Error())
+		return
+	}
+
+	staleInfraSettingCRSet := make(map[string]struct{})
+	for _, infraSettingCR := range infraSettingCRs {
+		staleInfraSettingCRSet[infraSettingCR.Name] = struct{}{}
+	}
+
+	processedInfraSettingCRSet := make(map[string]struct{})
+	wg := sync.WaitGroup{}
+	for ns, lr := range nsLRMap {
+		infraSettingName := getInfraSettingNameFromT1LR(lr)
+		netName := lib.GetVCFNetworkName()
+		if _, ok := cidrs[ns]; ok {
+			netName = lib.GetVCFNetworkNameWithNS(ns)
+			infraSettingName = infraSettingName + "-" + ns
+		}
+		// multiple namespaces can have the same lr, and there will always be 1 infrasetting per lr
+		// so no need to attempt Infrasetting creation
+		// just annotate the namespace with the infrasetting name
+		if _, ok := processedInfraSettingCRSet[infraSettingName]; ok {
+			lib.AnnotateNamespaceWithInfraSetting(ns, infraSettingName)
+			continue
+		}
+		processedInfraSettingCRSet[infraSettingName] = struct{}{}
+		delete(staleInfraSettingCRSet, infraSettingName)
+
+		wg.Add(1)
+		go func(lr, ns string) {
+			_, err := lib.CreateOrUpdateAviInfraSetting(infraSettingName, netName, lr, "")
+			if err != nil {
+				utils.AviLog.Errorf("failed to create aviInfraSetting, name: %s, error: %s", infraSettingName, err.Error())
+				return
+			}
+			lib.AnnotateNamespaceWithInfraSetting(ns, infraSettingName)
+			wg.Done()
+		}(lr, ns)
+	}
+
+	for infraSettingName := range staleInfraSettingCRSet {
+		wg.Add(1)
+		go func(name string) {
+			err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Delete(context.TODO(), name, metav1.DeleteOptions{})
+			if err != nil {
+				utils.AviLog.Errorf("failed to delete aviInfraSetting, name: %s, error: %s", name, err.Error())
+			}
+			wg.Done()
+		}(infraSettingName)
+	}
+	wg.Wait()
+	lib.RemoveInfraSettingAnnotationFromNamespaces(staleInfraSettingCRSet)
+}
+
+func (t *T1LRNetworking) matchCidrInNetwork(subnets []*models.Subnet, cidrs map[string]struct{}) bool {
 	if len(subnets) != len(cidrs) {
 		return false
 	}
@@ -119,7 +220,7 @@ func matchCidrInNetwork(subnets []*models.Subnet, cidrs map[string]struct{}) boo
 	return true
 }
 
-func addNetworkInCloud(objKey string, cidrToNS map[string]map[string]struct{}, client *clients.AviClient) {
+func (t *T1LRNetworking) addNetworkInCloud(objKey string, cidrToNS map[string]map[string]struct{}, client *clients.AviClient) {
 	method := utils.RestPost
 	path := "/api/network/"
 	_, netModels := getAviNetFromCache(client)
@@ -134,7 +235,7 @@ func addNetworkInCloud(objKey string, cidrToNS map[string]map[string]struct{}, c
 				CloudRef: &cloudRef,
 			}
 		} else {
-			if matchCidrInNetwork(netModel.ConfiguredSubnets, cidrs) {
+			if t.matchCidrInNetwork(netModel.ConfiguredSubnets, cidrs) {
 				utils.AviLog.Infof("All CIDRs already present in the network, skipping network update")
 				continue
 			}
@@ -200,7 +301,7 @@ func addNetworkInCloud(objKey string, cidrToNS map[string]map[string]struct{}, c
 	}
 }
 
-func addNetworkInIPAM(key string, networksToDelete map[string]string, client *clients.AviClient) {
+func (t *T1LRNetworking) addNetworkInIPAM(key string, networksToDelete map[string]string, client *clients.AviClient) {
 	found, cloudModel := getAviCloudFromCache(client, utils.CloudName)
 	if !found {
 		utils.AviLog.Warnf("Failed to get Cloud data from cache")
@@ -266,7 +367,7 @@ func addNetworkInIPAM(key string, networksToDelete map[string]string, client *cl
 	executeRestOp(key, client, &restOp)
 }
 
-func matchSegmentInCloud(lslrList []*models.Tier1LogicalRouterInfo, lslrMap map[string]string) bool {
+func (t *T1LRNetworking) matchSegmentInCloud(lslrList []*models.Tier1LogicalRouterInfo, lslrMap map[string]string) bool {
 	cloudLSLRMap := make(map[string]string)
 	for i := range lslrList {
 		cloudLSLRMap[*lslrList[i].SegmentID] = *lslrList[i].Tier1LrID
@@ -280,7 +381,7 @@ func matchSegmentInCloud(lslrList []*models.Tier1LogicalRouterInfo, lslrMap map[
 	return true
 }
 
-func constructLsLrInCloud(lslrList []*models.Tier1LogicalRouterInfo, lslrMap map[string]string) []*models.Tier1LogicalRouterInfo {
+func (t *T1LRNetworking) constructLsLrInCloud(lslrList []*models.Tier1LogicalRouterInfo, lslrMap map[string]string) []*models.Tier1LogicalRouterInfo {
 	var cloudLSLRList []*models.Tier1LogicalRouterInfo
 	cloudLSLRMap := make(map[string]string)
 	addLRInfo := func(ls, lr string) {
@@ -303,7 +404,7 @@ func constructLsLrInCloud(lslrList []*models.Tier1LogicalRouterInfo, lslrMap map
 	return cloudLSLRList
 }
 
-func getNetworksToDeleteInCloud(objKey string, cidrToNS map[string]map[string]struct{}, client *clients.AviClient) map[string]string {
+func (t *T1LRNetworking) getNetworksToDeleteInCloud(objKey string, cidrToNS map[string]map[string]struct{}, client *clients.AviClient) map[string]string {
 	networks := make(map[string]string)
 	_, netModels := getAviNetFromCache(client)
 	for netName, net := range netModels {
@@ -319,7 +420,7 @@ func getNetworksToDeleteInCloud(objKey string, cidrToNS map[string]map[string]st
 	return networks
 }
 
-func deleteNetworkInCloud(objKey string, networksToDelete map[string]string, client *clients.AviClient) {
+func (t *T1LRNetworking) deleteNetworkInCloud(objKey string, networksToDelete map[string]string, client *clients.AviClient) {
 	wg := sync.WaitGroup{}
 	for netName, netUUID := range networksToDelete {
 		//delete the network
@@ -341,217 +442,7 @@ func deleteNetworkInCloud(objKey string, networksToDelete map[string]string, cli
 	wg.Wait()
 }
 
-func getAviCloudFromCache(client *clients.AviClient, cloudName string) (bool, models.Cloud) {
-	if CloudCache == nil {
-		if AviCloudCachePopulate(client, cloudName) != nil {
-			return false, models.Cloud{}
-		}
-	}
-	return true, *CloudCache
-}
-
-func getAviNetFromCache(client *clients.AviClient) (bool, map[string]*models.Network) {
-	if len(NetCache) == 0 {
-		if AviNetCachePopulate(client, utils.CloudName) != nil {
-			return false, nil
-		}
-	}
-	return true, NetCache
-}
-
-func getAviIPAMFromCache(client *clients.AviClient, ipamName string) (bool, models.IPAMDNSProviderProfile) {
-	if IPAMCache == nil {
-		if AviIPAMCachePopulate(client, ipamName) != nil {
-			return false, models.IPAMDNSProviderProfile{}
-		}
-	}
-	return true, *IPAMCache
-}
-
-// AviCloudCachePopulate queries avi rest api to get cloud data and stores in CloudCache
-func AviCloudCachePopulate(client *clients.AviClient, cloudName string) error {
-	uri := "/api/cloud/?include_name&name=" + cloudName
-	result, err := lib.AviGetCollectionRaw(client, uri)
-	if err != nil {
-		utils.AviLog.Errorf("Cloud Get uri %v returned err %v", uri, err)
-		return err
-	}
-
-	elems := make([]json.RawMessage, result.Count)
-	err = json.Unmarshal(result.Results, &elems)
-	if err != nil {
-		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
-		return err
-	}
-
-	if result.Count != 1 {
-		err = fmt.Errorf("expected one cloud for cloud name: %s, found: %d", cloudName, result.Count)
-		utils.AviLog.Errorf(err.Error())
-		return err
-	}
-
-	CloudCache = &models.Cloud{}
-	if err = json.Unmarshal(elems[0], &CloudCache); err != nil {
-		utils.AviLog.Warnf("Failed to unmarshal cloud data, err: %v", err)
-		return err
-	}
-
-	AviIPAMCachePopulate(client, strings.Split(*CloudCache.IPAMProviderRef, "#")[1])
-	return nil
-}
-
-// AviNetCachePopulate queries avi rest api to get network data for vcf and stores in NetCaches
-func AviNetCachePopulate(client *clients.AviClient, cloudName string) error {
-	newNetCaches := make(map[string]*models.Network)
-	err := aviNetCachePopulate(client, cloudName, newNetCaches)
-	if err != nil {
-		return err
-	}
-	NetCache = newNetCaches
-	return nil
-}
-
-func aviNetCachePopulate(client *clients.AviClient, cloudName string, netCache map[string]*models.Network, nextPage ...lib.NextPage) error {
-	uri := "/api/network/?include_name&cloud_ref.name=" + cloudName
-	if len(nextPage) > 0 {
-		uri = nextPage[0].NextURI
-	}
-	result, err := lib.AviGetCollectionRaw(client, uri)
-	if err != nil {
-		utils.AviLog.Warnf("Cloud Get uri %v returned err %v", uri, err)
-		return err
-	}
-	elems := make([]json.RawMessage, result.Count)
-	err = json.Unmarshal(result.Results, &elems)
-	if err != nil {
-		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
-		return err
-	}
-
-	for i := 0; i < len(elems); i++ {
-		net := &models.Network{}
-		if err = json.Unmarshal(elems[i], &net); err != nil {
-			return err
-		}
-		if strings.HasPrefix(*net.Name, lib.GetVCFNetworkName()) {
-			netCache[*net.Name] = net
-		}
-	}
-	if result.Next != "" {
-		next_uri := strings.Split(result.Next, "/api/network")
-		if len(next_uri) > 1 {
-			overrideUri := "/api/network" + next_uri[1]
-			nextPage := lib.NextPage{NextURI: overrideUri}
-			aviNetCachePopulate(client, cloudName, netCache, nextPage)
-		}
-	}
-	return nil
-}
-
-// AviIPAMCachePopulate queries avi rest api to get IPAM data and stores in IPAMCache
-func AviIPAMCachePopulate(client *clients.AviClient, ipamName string) error {
-	uri := "/api/ipamdnsproviderprofile/?include_name&name=" + ipamName
-	result, err := lib.AviGetCollectionRaw(client, uri)
-	if err != nil {
-		utils.AviLog.Warnf("Cloud Get uri %v returned err %v", uri, err)
-		return err
-	}
-
-	elems := make([]json.RawMessage, result.Count)
-	err = json.Unmarshal(result.Results, &elems)
-	if err != nil {
-		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
-		return err
-	}
-
-	if result.Count != 1 {
-		utils.AviLog.Infof("Expected one IPAM with name: %s, found: %d", ipamName, result.Count)
-		return fmt.Errorf("Expected one IPAM with name: %s, found: %d", ipamName, result.Count)
-	}
-
-	IPAMCache = &models.IPAMDNSProviderProfile{}
-	if err = json.Unmarshal(elems[0], &IPAMCache); err != nil {
-		utils.AviLog.Warnf("Failed to unmarshal IPAM data, err: %v", err)
-		return err
-	}
-	return nil
-}
-
-func executeRestOp(key string, client *clients.AviClient, restOp *utils.RestOp, retryNum ...int) {
-	utils.AviLog.Debugf("key: %s, Executing rest operation to sync object in cloud: %v", key, utils.Stringify(restOp))
-	retry := 0
-	if len(retryNum) > 0 {
-		utils.AviLog.Infof("key: %s, Retrying to execute rest request", key)
-		retry = retryNum[0]
-		if retry >= 3 {
-			utils.AviLog.Errorf("key %s, rest request execution aborted after retrying 3 times", key)
-			return
-		}
-	}
-	restLayer := rest.NewRestOperations(nil, nil, true)
-	err := restLayer.AviRestOperateWrapper(client, []*utils.RestOp{restOp}, key)
-	if restOp.Err != nil {
-		err = restOp.Err
-	}
-	if err != nil {
-		lib.CheckForInvalidCredentials(restOp.Path, err)
-		if checkAndRetry(key, err) {
-			executeRestOp(key, client, restOp, retry+1)
-		} else if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
-			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
-			SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-			SetTenant := session.SetTenant(lib.GetTenant())
-			SetAdminTenant(client.AviSession)
-			defer SetTenant(client.AviSession)
-			executeRestOp(key, client, restOp)
-		} else if strings.Contains(err.Error(), "Concurrent Update Error") {
-			utils.AviLog.Infof("Got Concurrent Update Error, refreshing cache and scheduling periodic sync")
-			refreshCache(restOp.Model, client)
-			ScheduleQuickSync()
-			return
-		} else {
-			utils.AviLog.Warnf("key %s, Got error in executing rest request: %v", key, err)
-			refreshCache(restOp.Model, client)
-			return
-		}
-	}
-	refreshCache(restOp.Model, client)
-	utils.AviLog.Infof("key: %s, Successfully executed rest operation to sync object: %v", key, utils.Stringify(restOp))
-}
-
-func checkAndRetry(key string, err error) bool {
-	if webSyncErr, ok := err.(*utils.WebSyncError); ok {
-		if aviError, ok := webSyncErr.GetWebAPIError().(session.AviError); ok {
-			switch aviError.HttpStatusCode {
-			case 401:
-				if strings.Contains(*aviError.Message, "Invalid credentials") {
-					return false
-				} else {
-					utils.AviLog.Warnf("key %s, msg: got 401 error while executing rest request, adding to fast retry queue", key)
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
-func NewLRLSFullSyncWorker() *utils.FullSyncThread {
-	instantiateFullSyncWorker.Do(func() {
-		worker = utils.NewFullSyncThread(time.Duration(lib.FullSyncInterval) * time.Second)
-		worker.SyncFunction = SyncLSLRNetwork
-		worker.QuickSyncFunction = func(qSync bool) error { return nil }
-	})
-	return worker
-}
-
-func ScheduleQuickSync() {
-	if worker != nil {
-		worker.QuickSync()
-	}
-}
-
-func getClusterSpecificNSXTSegmentsinCloud(client *clients.AviClient, lsLRMap map[string]string, next ...string) error {
+func (t *T1LRNetworking) getClusterSpecificNSXTSegmentsinCloud(client *clients.AviClient, lsLRMap map[string]string, next ...string) error {
 	uri := fmt.Sprintf("/api/nsxtsegmentruntime/?cloud_ref.name=%s", utils.CloudName)
 	if len(next) > 0 {
 		uri = next[0]
@@ -581,7 +472,7 @@ func getClusterSpecificNSXTSegmentsinCloud(client *clients.AviClient, lsLRMap ma
 		next_uri := strings.Split(result.Next, "/api/nsxtsegmentruntime")
 		if len(next_uri) > 1 {
 			nextPage := "/api/nsxtsegmentruntime" + next_uri[1]
-			err = getClusterSpecificNSXTSegmentsinCloud(client, lsLRMap, nextPage)
+			err = t.getClusterSpecificNSXTSegmentsinCloud(client, lsLRMap, nextPage)
 			if err != nil {
 				return err
 			}
@@ -590,12 +481,12 @@ func getClusterSpecificNSXTSegmentsinCloud(client *clients.AviClient, lsLRMap ma
 	return nil
 }
 
-func removeStaleLRLSEntries(client *clients.AviClient, cloudModel models.Cloud, lslrmap map[string]string) ([]*models.Tier1LogicalRouterInfo, bool) {
+func (t *T1LRNetworking) removeStaleLRLSEntries(client *clients.AviClient, cloudModel models.Cloud, lslrmap map[string]string) ([]*models.Tier1LogicalRouterInfo, bool) {
 	updatedRequired := false
 	cloudTier1Lrs := cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs
 	dataNetworkTier1Lrs := make([]*models.Tier1LogicalRouterInfo, 0)
 	cloudLRLSMap := make(map[string]string)
-	err := getClusterSpecificNSXTSegmentsinCloud(client, cloudLRLSMap)
+	err := t.getClusterSpecificNSXTSegmentsinCloud(client, cloudLRLSMap)
 	if err != nil {
 		utils.AviLog.Warnf("Failed to get LR to LS Map from cloud, err: %s", err)
 		copy(dataNetworkTier1Lrs, cloudTier1Lrs)
@@ -614,13 +505,18 @@ func removeStaleLRLSEntries(client *clients.AviClient, cloudModel models.Cloud, 
 	return dataNetworkTier1Lrs, updatedRequired
 }
 
-func refreshCache(cacheModel string, client *clients.AviClient) {
-	switch cacheModel {
-	case "cloud":
-		AviCloudCachePopulate(client, utils.CloudName)
-	case "ipamdnsproviderprofile":
-		AviCloudCachePopulate(client, utils.CloudName)
-	case "network":
-		AviNetCachePopulate(client, utils.CloudName)
+func (t *T1LRNetworking) NewLRLSFullSyncWorker() *utils.FullSyncThread {
+	worker = utils.NewFullSyncThread(time.Duration(lib.FullSyncInterval) * time.Second)
+	worker.SyncFunction = t.SyncLSLRNetwork
+	worker.QuickSyncFunction = func(qSync bool) error { return nil }
+	return worker
+}
+
+func getInfraSettingNameFromT1LR(lr string) string {
+	arr := strings.Split(lr, "/")
+	infraSettingName := arr[len(arr)-1]
+	if strings.Contains(infraSettingName, ":") {
+		infraSettingName = strings.Split(infraSettingName, ":")[1]
 	}
+	return strings.Replace(infraSettingName, "_", "-", -1)
 }

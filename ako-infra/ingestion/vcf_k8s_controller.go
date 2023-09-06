@@ -32,8 +32,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -51,11 +49,7 @@ type VCFK8sController struct {
 	dynamicInformers *lib.DynamicInformers
 	//workqueue        []workqueue.RateLimitingInterface
 	DisableSync bool
-}
-
-type K8sinformers struct {
-	Cs            kubernetes.Interface
-	DynamicClient dynamic.Interface
+	NetHandler  avirest.NetworkingHandler
 }
 
 func SharedVCFK8sController() *VCFK8sController {
@@ -68,19 +62,6 @@ func SharedVCFK8sController() *VCFK8sController {
 		}
 	})
 	return controllerInstance
-}
-
-// Run will set up the event handlers for types we are interested in, as well
-// as syncing informer caches and starting workers. It will block until stopCh
-// is closed, at which point it will shutdown the workqueue and wait for
-// workers to finish processing their current work items.
-func (c *VCFK8sController) Run(stopCh <-chan struct{}) error {
-	defer runtime.HandleCrash()
-
-	utils.AviLog.Infof("Started the Kubernetes Controller")
-	<-stopCh
-	utils.AviLog.Infof("Shutting down the Kubernetes Controller")
-	return nil
 }
 
 func (c *VCFK8sController) AddNamespaceEventHandler(stopCh <-chan struct{}) {
@@ -251,46 +232,7 @@ func (c *VCFK8sController) AddAvailabilityZoneCREventHandler(stopCh <-chan struc
 }
 
 func (c *VCFK8sController) AddNetworkInfoEventHandler(stopCh <-chan struct{}) {
-	networkInfoHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			utils.AviLog.Infof("NCP Network Info ADD Event")
-			avirest.ScheduleQuickSync()
-		},
-		UpdateFunc: func(old, obj interface{}) {
-			utils.AviLog.Infof("NCP Network Info Update Event")
-			avirest.ScheduleQuickSync()
-		},
-		DeleteFunc: func(obj interface{}) {
-			utils.AviLog.Infof("NCP Network Info Delete Event")
-			avirest.ScheduleQuickSync()
-		},
-	}
-	c.dynamicInformers.VCFNetworkInfoInformer.Informer().AddEventHandler(networkInfoHandler)
-	go c.dynamicInformers.VCFNetworkInfoInformer.Informer().Run(stopCh)
-
-	ClusterNetworkInfoHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			utils.AviLog.Infof("NCP Cluster Network Info ADD Event")
-			avirest.ScheduleQuickSync()
-		},
-		UpdateFunc: func(old, obj interface{}) {
-			utils.AviLog.Infof("NCP Cluster Network Info Update Event")
-			avirest.ScheduleQuickSync()
-		},
-		DeleteFunc: func(obj interface{}) {
-			utils.AviLog.Infof("NCP Cluster Network Info Delete Event")
-			avirest.ScheduleQuickSync()
-		},
-	}
-	c.dynamicInformers.VCFClusterNetworkInformer.Informer().AddEventHandler(ClusterNetworkInfoHandler)
-	go c.dynamicInformers.VCFClusterNetworkInformer.Informer().Run(stopCh)
-	if !cache.WaitForCacheSync(stopCh,
-		c.dynamicInformers.VCFNetworkInfoInformer.Informer().HasSynced,
-		c.dynamicInformers.VCFClusterNetworkInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("timed out waiting for cluster/namespace network info caches to sync"))
-	} else {
-		utils.AviLog.Infof("Caches synced for cluster/namespace network info informer")
-	}
+	c.NetHandler.AddNetworkInfoEventHandler(stopCh)
 }
 
 // HandleVCF checks if avi secret used by AKO is already present. If found, then it would try to connect to
@@ -468,5 +410,22 @@ func (c *VCFK8sController) AddSecretEventHandler(stopCh <-chan struct{}) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
 		utils.AviLog.Infof("Caches synced for Secret informer")
+	}
+}
+
+func (c *VCFK8sController) Sync() {
+	c.NetHandler.SyncLSLRNetwork()
+}
+
+func (c *VCFK8sController) InitFullSyncWorker() *utils.FullSyncThread {
+	worker := c.NetHandler.NewLRLSFullSyncWorker()
+	return worker
+}
+
+func (c *VCFK8sController) InitNetworkingHandler() {
+	if lib.GetVPCMode() {
+		c.NetHandler = &avirest.VPCHandler{}
+	} else {
+		c.NetHandler = &avirest.T1LRNetworking{}
 	}
 }

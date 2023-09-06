@@ -308,6 +308,10 @@ func SetCloudName(cloudName string) {
 	CloudName = cloudName
 }
 
+func GetCloudRef(tenant string) string {
+	return fmt.Sprintf("/api/cloud?tenant=%s&name=%s", tenant, CloudName)
+}
+
 func init() {
 	CloudName = os.Getenv("CLOUD_NAME")
 	if CloudName == "" {

@@ -55,6 +55,8 @@ var ctrlonce sync.Once
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;
 // +kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=topology.tanzu.vmware.com,resources=availabilityzones,verbs=get;list;watch
+// +kubebuilder:rbac:groups=nsx.vmware.com,resources=vpcs,verbs=get;list;watch
+// +kubebuilder:rbac:groups=ako.vmware.com,resources=aviinfrasettings;aviinfrasettings/status,verbs=get;list;watch;create;update;patch;delete
 
 type AviController struct {
 	worker_id uint32

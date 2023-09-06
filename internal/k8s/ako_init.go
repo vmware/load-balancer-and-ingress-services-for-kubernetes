@@ -51,72 +51,82 @@ import (
 )
 
 func PopulateCache() error {
-	var err error
-	aviRestClientPool := avicache.SharedAVIClients()
-	aviObjCache := avicache.SharedAviObjCache()
-	// Randomly pickup a client.
-	if aviRestClientPool != nil && len(aviRestClientPool.AviClient) > 0 {
-		_, _, err = aviObjCache.AviObjCachePopulate(aviRestClientPool.AviClient, lib.AKOControlConfig().ControllerVersion(), utils.CloudName)
-		if err != nil {
-			utils.AviLog.Warnf("failed to populate avi cache with error: %v", err.Error())
-			return err
+	tenants, err := lib.GetAllTenantsDefinedInAviInfraSettingCRs()
+	if err != nil {
+		return err
+	}
+	for tenant := range tenants {
+		aviRestClientPool := avicache.SharedAVIClients(tenant)
+		aviObjCache := avicache.SharedAviObjCache()
+		// Randomly pickup a client.
+		if aviRestClientPool != nil && len(aviRestClientPool.AviClient) > 0 {
+			_, _, err = aviObjCache.AviObjCachePopulate(aviRestClientPool.AviClient, lib.AKOControlConfig().ControllerVersion(), utils.CloudName, tenant)
+			if err != nil {
+				utils.AviLog.Warnf("failed to populate avi cache with error: %v", err.Error())
+				return err
+			}
+
 		}
+	}
+	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
+	if aviRestClientPool != nil && len(aviRestClientPool.AviClient) > 0 {
 		if err = avicache.SetControllerClusterUUID(aviRestClientPool); err != nil {
 			utils.AviLog.Warnf("Failed to set the controller cluster uuid with error: %v", err)
 		}
 	}
-
 	return nil
 }
 
 func (c *AviController) CleanupStaleVSes() {
+	tenants := objects.InfraSettingL7Lister().GetAllTenants()
+	tenants[lib.GetTenant()] = struct{}{}
+	for tenant := range tenants {
+		aviObjCache := avicache.SharedAviObjCache()
 
-	aviRestClientPool := avicache.SharedAVIClients()
-	aviObjCache := avicache.SharedAviObjCache()
-	delModels, err := DeleteConfigFromConfigmap(c.informers.ClientSet)
-	if err != nil {
-		c.DisableSync = true
-		utils.AviLog.Errorf("Error occurred while fetching values from configmap. Err: %s", utils.Stringify(err))
-		return
-	}
-	if delModels {
-		go SetDeleteSyncChannel()
-		parentKeys := aviObjCache.VsCacheMeta.AviCacheGetAllParentVSKeys()
-		DeleteAviObjects(parentKeys, aviObjCache, aviRestClientPool)
-	} else {
-		status.NewStatusPublisher().ResetStatefulSetAnnotation(status.ObjectDeletionStatus)
-	}
+		delModels, err := DeleteConfigFromConfigmap(c.informers.ClientSet)
+		if err != nil {
+			c.DisableSync = true
+			utils.AviLog.Errorf("Error occurred while fetching values from configmap. Err: %s", utils.Stringify(err))
+			return
+		}
+		if delModels {
+			go SetDeleteSyncChannel()
+			parentKeys := aviObjCache.VsCacheMeta.AviCacheGetAllParentVSKeys()
+			DeleteAviObjects(parentKeys, aviObjCache)
+		} else {
+			status.NewStatusPublisher().ResetStatefulSetAnnotation(status.ObjectDeletionStatus)
+		}
 
-	// Delete Stale objects by deleting model for dummy VS
-	if _, err := lib.IsClusterNameValid(); err != nil {
-		utils.AviLog.Errorf("AKO cluster name is invalid.")
-		return
-	}
-	if aviRestClientPool != nil && len(aviRestClientPool.AviClient) > 0 {
+		// Delete Stale objects by deleting model for dummy VS
+		if _, err := lib.IsClusterNameValid(); err != nil {
+			utils.AviLog.Errorf("AKO cluster name is invalid.")
+			return
+		}
+
 		utils.AviLog.Infof("Starting clean up of stale objects")
-		restlayer := rest.NewRestOperations(aviObjCache, aviRestClientPool)
-		staleVSKey := lib.GetTenant() + "/" + lib.DummyVSForStaleData
+		restlayer := rest.NewRestOperations(aviObjCache)
+		staleVSKey := tenant + "/" + lib.DummyVSForStaleData
 		restlayer.CleanupVS(staleVSKey, true)
 		staleCacheKey := avicache.NamespaceName{
 			Name:      lib.DummyVSForStaleData,
-			Namespace: lib.GetTenant(),
+			Namespace: tenant,
 		}
 		aviObjCache.VsCacheMeta.AviCacheDelete(staleCacheKey)
-	}
 
-	vsKeysPending := aviObjCache.VsCacheMeta.AviGetAllKeys()
-	if delModels {
-		//Delete NPL annotations
-		DeleteNPLAnnotations()
-	}
+		vsKeysPending := aviObjCache.VsCacheMeta.AviGetAllKeys()
+		if delModels {
+			//Delete NPL annotations
+			DeleteNPLAnnotations()
+		}
 
-	if delModels && len(vsKeysPending) == 0 && lib.ConfigDeleteSyncChan != nil {
-		close(lib.ConfigDeleteSyncChan)
-		lib.ConfigDeleteSyncChan = nil
+		if delModels && len(vsKeysPending) == 0 && lib.ConfigDeleteSyncChan != nil {
+			close(lib.ConfigDeleteSyncChan)
+			lib.ConfigDeleteSyncChan = nil
+		}
 	}
 }
 
-func DeleteAviObjects(parentVSKeys []avicache.NamespaceName, avi_obj_cache *avicache.AviObjCache, avi_rest_client_pool *utils.AviRestClientPool) {
+func DeleteAviObjects(parentVSKeys []avicache.NamespaceName, avi_obj_cache *avicache.AviObjCache) {
 	for _, pvsKey := range parentVSKeys {
 		// Fetch the parent VS cache and update the SNI child
 		vsObj, parentFound := avi_obj_cache.VsCacheMeta.AviCacheGet(pvsKey)
@@ -126,7 +136,7 @@ func DeleteAviObjects(parentVSKeys []avicache.NamespaceName, avi_obj_cache *avic
 			if foundvs {
 				key := pvsKey.Namespace + "/" + pvsKey.Name
 				namespace, _ := utils.ExtractNamespaceObjectName(key)
-				restlayer := rest.NewRestOperations(avi_obj_cache, avi_rest_client_pool)
+				restlayer := rest.NewRestOperations(avi_obj_cache)
 				restlayer.DeleteVSOper(pvsKey, vs_cache_obj, namespace, key, false, false)
 			}
 		}
@@ -240,7 +250,7 @@ func (c *AviController) AddBootupNSEventHandler(stopCh <-chan struct{}, startSyn
 // When the configmap is created, enable sync for other k8s objects. When the configmap is disabled, disable sync.
 func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}) error {
 	cs := k8sinfo.Cs
-	aviClientPool := avicache.SharedAVIClients()
+	aviClientPool := avicache.SharedAVIClients(lib.GetTenant())
 	if aviClientPool == nil || len(aviClientPool.AviClient) < 1 {
 		c.DisableSync = true
 		lib.SetDisableSync(true)
@@ -507,15 +517,15 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	statusQueueParams := utils.WorkerQueue{NumWorkers: numGraphWorkers, WorkqueueName: utils.StatusQueue}
 	graphQueue = utils.SharedWorkQueue(&ingestionQueueParams, &graphQueueParams, &slowRetryQParams, &fastRetryQParams, &statusQueueParams).GetQueueByName(utils.GraphLayer)
 
+	c.addIndexers()
+	c.Start(stopCh)
+
 	err := PopulateCache()
 	if err != nil {
 		c.DisableSync = true
 		utils.AviLog.Errorf("failed to populate cache, disabling sync")
 		lib.ShutdownApi()
 	}
-
-	c.addIndexers()
-	c.Start(stopCh)
 
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
 	interval, err := strconv.ParseInt(fullSyncInterval, 10, 64)
@@ -765,7 +775,7 @@ func (c *AviController) addIndexers() {
 }
 
 func (c *AviController) FullSync() {
-	aviRestClientPool := avicache.SharedAVIClients()
+	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
 	aviObjCache := avicache.SharedAviObjCache()
 
 	// Randomly pickup a client.
@@ -775,7 +785,7 @@ func (c *AviController) FullSync() {
 			aviObjCache.AviCacheRefresh(aviRestClientPool.AviClient[0], utils.CloudName)
 		} else {
 			// In this case we just sync the Gateway status to the LB status
-			restlayer := rest.NewRestOperations(aviObjCache, aviRestClientPool)
+			restlayer := rest.NewRestOperations(aviObjCache)
 			restlayer.SyncObjectStatuses()
 		}
 		allModelsMap := objects.SharedAviGraphLister().GetAll()
@@ -1438,8 +1448,7 @@ func SyncFromNodesLayer(key interface{}, wg *sync.WaitGroup) error {
 		return nil
 	}
 	cache := avicache.SharedAviObjCache()
-	aviclient := avicache.SharedAVIClients()
-	restlayer := rest.NewRestOperations(cache, aviclient)
+	restlayer := rest.NewRestOperations(cache)
 	restlayer.DequeueNodes(keyStr)
 	return nil
 }
@@ -1508,8 +1517,7 @@ func (c *AviController) IstioBootstrap() {
 		newAviModel.AddModelNode(sslNode)
 
 		cache := avicache.SharedAviObjCache()
-		aviclient := avicache.SharedAVIClients()
-		restlayer := rest.NewRestOperations(cache, aviclient)
+		restlayer := rest.NewRestOperations(cache)
 
 		key := utils.Secret + "/" + utils.GetAKONamespace() + "/" + lib.IstioSecret
 		restlayer.IstioCU(key, newAviModel)

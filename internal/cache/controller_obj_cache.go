@@ -84,34 +84,34 @@ func SharedAviObjCache() *AviObjCache {
 	return cacheInstance
 }
 
-func (c *AviObjCache) AviRefreshObjectCache(client []*clients.AviClient, cloud string) {
+func (c *AviObjCache) AviRefreshObjectCache(client []*clients.AviClient, cloud string, tenant string) {
 	var wg sync.WaitGroup
 	// We want to run 8 go routines which will simultanesouly fetch objects from the controller.
 	wg.Add(5)
 	go func() {
 		defer wg.Done()
-		c.PopulateSSLKeyToCache(client[4], cloud)
+		c.PopulateSSLKeyToCache(client[4], cloud, tenant)
 	}()
 	go func() {
 		defer wg.Done()
-		c.PopulateVsVipDataToCache(client[7], cloud)
+		c.PopulateVsVipDataToCache(client[7], cloud, tenant)
 	}()
-	c.PopulatePkiProfilesToCache(client[0])
-	c.PopulatePoolsToCache(client[1], cloud)
-	c.PopulatePgDataToCache(client[2], cloud)
+	c.PopulatePkiProfilesToCache(client[0], tenant)
+	c.PopulatePoolsToCache(client[1], cloud, tenant)
+	c.PopulatePgDataToCache(client[2], cloud, tenant)
 
 	go func() {
 		defer wg.Done()
-		c.PopulateDSDataToCache(client[3], cloud)
+		c.PopulateDSDataToCache(client[3], cloud, tenant)
 	}()
 
 	go func() {
 		defer wg.Done()
-		c.PopulateHttpPolicySetToCache(client[5], cloud)
+		c.PopulateHttpPolicySetToCache(client[5], cloud, tenant)
 	}()
 	go func() {
 		defer wg.Done()
-		c.PopulateL4PolicySetToCache(client[6], cloud)
+		c.PopulateL4PolicySetToCache(client[6], cloud, tenant)
 	}()
 
 	wg.Wait()
@@ -122,7 +122,7 @@ func (c *AviObjCache) AviCacheRefresh(client *clients.AviClient, cloud string) {
 	c.AviCloudPropertiesPopulate(client, cloud)
 }
 
-func (c *AviObjCache) AviObjCachePopulate(client []*clients.AviClient, version string, cloud string) ([]NamespaceName, []NamespaceName, error) {
+func (c *AviObjCache) AviObjCachePopulate(client []*clients.AviClient, version string, cloud string, tenant string) ([]NamespaceName, []NamespaceName, error) {
 	vsCacheCopy := []NamespaceName{}
 	allVsKeys := []NamespaceName{}
 	err := c.AviObjVrfCachePopulate(client[0], cloud)
@@ -131,16 +131,26 @@ func (c *AviObjCache) AviObjCachePopulate(client []*clients.AviClient, version s
 	}
 	// Populate the VS cache
 	utils.AviLog.Infof("Refreshing all object cache")
-	c.AviRefreshObjectCache(client, cloud)
+	c.AviRefreshObjectCache(client, cloud, tenant)
 	utils.AviLog.Infof("Finished Refreshing all object cache")
-	vsCacheCopy = c.VsCacheMeta.AviCacheGetAllParentVSKeys()
-	allVsKeys = c.VsCacheMeta.AviGetAllKeys()
+	for _, ns := range c.VsCacheMeta.AviCacheGetAllParentVSKeys() {
+		if ns.Namespace != tenant {
+			continue
+		}
+		vsCacheCopy = append(vsCacheCopy, ns)
+	}
+	for _, ns := range c.VsCacheMeta.AviGetAllKeys() {
+		if ns.Namespace != tenant {
+			continue
+		}
+		allVsKeys = append(allVsKeys, ns)
+	}
 	err = c.AviObjVSCachePopulate(client[0], cloud, &allVsKeys)
 	if err != nil {
 		return vsCacheCopy, allVsKeys, err
 	}
 	// Populate the SNI VS keys to their respective parents
-	c.PopulateVsMetaCache()
+	c.PopulateVsMetaCache(tenant)
 	// Delete all the VS keys that are left in the copy.
 	for _, key := range allVsKeys {
 		utils.AviLog.Debugf("Removing vs key from cache: %s", key)
@@ -148,9 +158,11 @@ func (c *AviObjCache) AviObjCachePopulate(client []*clients.AviClient, version s
 		vsCacheCopy = RemoveNamespaceName(vsCacheCopy, key)
 		c.VsCacheMeta.AviCacheDelete(key)
 	}
-	err = c.AviCloudPropertiesPopulate(client[0], cloud)
-	if err != nil {
-		return vsCacheCopy, allVsKeys, err
+	if tenant == lib.GetTenant() {
+		err = c.AviCloudPropertiesPopulate(client[0], cloud)
+		if err != nil {
+			return vsCacheCopy, allVsKeys, err
+		}
 	}
 	if lib.GetDeleteConfigMap() {
 		allParentVsKeys := c.VsCacheMeta.AviCacheGetAllParentVSKeys()
@@ -182,11 +194,18 @@ func (c *AviObjCache) listEVHChildrenToDelete(vs_cache_obj *AviVsCache, childUui
 	return childNSNameToDelete, childUuidToDelete
 }
 
-func (c *AviObjCache) PopulateVsMetaCache() {
+// all childuuuids being sent
+func (c *AviObjCache) PopulateVsMetaCache(tenant string) {
 	// The vh_child_uuids field is used to populate the SNI children during cache population. However, due to the datastore to PG delay - that field may
 	// not always be accurate. We would reduce the problem with accuracy by refreshing the SNI cache through reverse mapping sni's to parent
 	// Go over the entire VS cache.
-	parentVsKeys := c.VsCacheLocal.AviCacheGetAllParentVSKeys()
+	parentVsKeys := make([]NamespaceName, 0)
+	for _, pvsKey := range c.VsCacheLocal.AviCacheGetAllParentVSKeys() {
+		if pvsKey.Namespace != tenant {
+			continue
+		}
+		parentVsKeys = append(parentVsKeys, pvsKey)
+	}
 
 	isEVHEnabled := lib.IsEvhEnabled()
 	var nsNameToDelete []NamespaceName
@@ -216,7 +235,13 @@ func (c *AviObjCache) PopulateVsMetaCache() {
 		childNSNameToDelete[ns] = true
 	}
 	// Now write lock and copy over all VsCacheMeta and copy the right cache from local
-	allVsKeys := c.VsCacheLocal.AviGetAllKeys()
+	allVsKeys := make([]NamespaceName, 0)
+	for _, pvsKey := range c.VsCacheLocal.AviGetAllKeys() {
+		if pvsKey.Namespace != tenant {
+			continue
+		}
+		allVsKeys = append(allVsKeys, pvsKey)
+	}
 	for _, vsKey := range allVsKeys {
 		deleteVS := childNSNameToDelete[vsKey]
 		vsObj, vsFound := c.VsCacheLocal.AviCacheGet(vsKey)
@@ -234,7 +259,7 @@ func (c *AviObjCache) PopulateVsMetaCache() {
 			}
 		}
 	}
-	c.DeleteUnmarked(childUuidToDelete)
+	c.DeleteUnmarked(childUuidToDelete, tenant)
 }
 
 // MarkReference : check objects referred by a VS and mark they they have reference
@@ -299,14 +324,17 @@ func (c *AviObjCache) MarkReference(vsCacheObj *AviVsCache) {
 
 // DeleteUnmarked : Adds non referenced cached objects to a Dummy VS, which
 // would be used later to delete these objects from AVI Controller
-func (c *AviObjCache) DeleteUnmarked(childCollection []string) {
+func (c *AviObjCache) DeleteUnmarked(childCollection []string, tenant string) {
 
 	var dsKeys, vsVipKeys, httpKeys, sslKeys []NamespaceName
 	var pgKeys, poolKeys, l4Keys []NamespaceName
 	for _, objkey := range c.DSCache.AviGetAllKeys() {
+		if objkey.Namespace != tenant {
+			continue
+		}
 		intf, _ := c.DSCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviDSCache); ok {
-			if obj.HasReference == false {
+			if !obj.HasReference {
 				utils.AviLog.Infof("Reference Not found for datascript: %s", objkey)
 				dsKeys = append(dsKeys, objkey)
 			}
@@ -314,9 +342,12 @@ func (c *AviObjCache) DeleteUnmarked(childCollection []string) {
 	}
 
 	for _, objkey := range c.HTTPPolicyCache.AviGetAllKeys() {
+		if objkey.Namespace != tenant {
+			continue
+		}
 		intf, _ := c.HTTPPolicyCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviHTTPPolicyCache); ok {
-			if obj.HasReference == false {
+			if !obj.HasReference {
 				utils.AviLog.Infof("Reference Not found for http policy: %s", objkey)
 				httpKeys = append(httpKeys, objkey)
 			}
@@ -324,9 +355,12 @@ func (c *AviObjCache) DeleteUnmarked(childCollection []string) {
 	}
 
 	for _, objkey := range c.L4PolicyCache.AviGetAllKeys() {
+		if objkey.Namespace != tenant {
+			continue
+		}
 		intf, _ := c.L4PolicyCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviL4PolicyCache); ok {
-			if obj.HasReference == false {
+			if !obj.HasReference {
 				utils.AviLog.Infof("Reference Not found for l4 policy: %s", objkey)
 				l4Keys = append(l4Keys, objkey)
 			}
@@ -334,9 +368,12 @@ func (c *AviObjCache) DeleteUnmarked(childCollection []string) {
 	}
 
 	for _, objkey := range c.PgCache.AviGetAllKeys() {
+		if objkey.Namespace != tenant {
+			continue
+		}
 		intf, _ := c.PgCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviPGCache); ok {
-			if obj.HasReference == false {
+			if !obj.HasReference {
 				utils.AviLog.Infof("Reference Not found for poolgroup: %s", objkey)
 				pgKeys = append(pgKeys, objkey)
 			}
@@ -345,9 +382,12 @@ func (c *AviObjCache) DeleteUnmarked(childCollection []string) {
 	}
 
 	for _, objkey := range c.PoolCache.AviGetAllKeys() {
+		if objkey.Namespace != tenant {
+			continue
+		}
 		intf, _ := c.PoolCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviPoolCache); ok {
-			if obj.HasReference == false {
+			if !obj.HasReference {
 				utils.AviLog.Infof("Reference Not found for pool: %s", objkey)
 				poolKeys = append(poolKeys, objkey)
 			}
@@ -355,9 +395,12 @@ func (c *AviObjCache) DeleteUnmarked(childCollection []string) {
 	}
 
 	for _, objkey := range c.SSLKeyCache.AviGetAllKeys() {
+		if objkey.Namespace != tenant {
+			continue
+		}
 		intf, _ := c.SSLKeyCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviSSLCache); ok {
-			if obj.HasReference == false {
+			if !obj.HasReference {
 				// if deleteConfig is false and istio is enabled, do not delete istio sslkeycert
 				if obj.Name == lib.GetIstioWorkloadCertificateName() &&
 					lib.IsIstioEnabled() && !lib.GetDeleteConfigMap() {
@@ -370,13 +413,16 @@ func (c *AviObjCache) DeleteUnmarked(childCollection []string) {
 	}
 
 	for _, objkey := range c.VSVIPCache.AviGetAllKeys() {
+		if objkey.Namespace != tenant {
+			continue
+		}
 		intf, _ := c.VSVIPCache.AviCacheGet(objkey)
 		if obj, ok := intf.(*AviVSVIPCache); ok {
 			if lib.IsShardVS(obj.Name) {
 				utils.AviLog.Infof("Retaining the vsvip: %s", obj.Name)
 				continue
 			}
-			if obj.HasReference == false {
+			if !obj.HasReference {
 				utils.AviLog.Infof("Reference Not found for vsvip: %s", objkey)
 				vsVipKeys = append(vsVipKeys, objkey)
 			}
@@ -396,10 +442,10 @@ func (c *AviObjCache) DeleteUnmarked(childCollection []string) {
 		SNIChildCollection:   childCollection,
 	}
 	vsKey := NamespaceName{
-		Namespace: lib.GetTenant(),
+		Namespace: tenant,
 		Name:      lib.DummyVSForStaleData,
 	}
-	utils.AviLog.Infof("Dummy VS for stale objects Deletion %s", utils.Stringify(&vsMetaObj))
+	utils.AviLog.Infof("Dummy VS in tenant %s for stale objects Deletion %s", tenant, utils.Stringify(&vsMetaObj))
 	c.VsCacheMeta.AviCacheAdd(vsKey, &vsMetaObj)
 
 }
@@ -451,6 +497,7 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient, cloud string,
 		}
 		pgCacheObj := AviPGCache{
 			Name:             *pg.Name,
+			Tenant:           getTenantFromTenantRef(*pg.TenantRef),
 			Uuid:             *pg.UUID,
 			CloudConfigCksum: *pg.CloudConfigCksum,
 			LastModified:     *pg.LastModified,
@@ -473,14 +520,14 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient, cloud string,
 	return pgData, result.Count, nil
 }
 
-func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient, cloud string) {
+func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient, cloud, tenant string) {
 	var pgData []AviPGCache
 	c.AviPopulateAllPGs(client, cloud, &pgData)
 
 	// Get all the PG cache data and copy them.
 	pgCacheData := c.PgCache.ShallowCopy()
 	for i, pgCacheObj := range pgData {
-		k := NamespaceName{Namespace: lib.GetTenant(), Name: pgCacheObj.Name}
+		k := NamespaceName{Namespace: tenant, Name: pgCacheObj.Name}
 		oldPGIntf, found := c.PgCache.AviCacheGet(k)
 		if found {
 			oldPGData, ok := oldPGIntf.(*AviPGCache)
@@ -501,12 +548,16 @@ func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient, cloud str
 	}
 	// The data that is left in pgCacheData should be explicitly removed
 	for key := range pgCacheData {
+		namespaceKey, ok := key.(NamespaceName)
+		if !ok || namespaceKey.Namespace != tenant {
+			continue
+		}
 		utils.AviLog.Debugf("Deleting key from pg cache :%s", key)
 		c.PgCache.AviCacheDelete(key)
 	}
 }
 
-func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiData *[]AviPkiProfileCache, overrideUri ...NextPage) (*[]AviPkiProfileCache, int, error) {
+func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiData *[]AviPkiProfileCache, tenant string, overrideUri ...NextPage) (*[]AviPkiProfileCache, int, error) {
 	var uri string
 	akoUser := lib.AKOUser
 
@@ -542,7 +593,7 @@ func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiDa
 		pkiCacheObj := AviPkiProfileCache{
 			Name:             *pki.Name,
 			Uuid:             *pki.UUID,
-			Tenant:           lib.GetTenant(),
+			Tenant:           getTenantFromTenantRef(*pki.TenantRef),
 			CloudConfigCksum: lib.SSLKeyCertChecksum(*pki.Name, string(*pki.CaCerts[0].Certificate), "", emptyIngestionMarkers, pki.Markers, true),
 		}
 		*pkiData = append(*pkiData, pkiCacheObj)
@@ -554,7 +605,7 @@ func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiDa
 		if len(next_uri) > 1 {
 			overrideUri := "/api/pkiprofile" + next_uri[1]
 			nextPage := NextPage{NextURI: overrideUri}
-			_, _, err := c.AviPopulateAllPkiPRofiles(client, pkiData, nextPage)
+			_, _, err := c.AviPopulateAllPkiPRofiles(client, pkiData, tenant, nextPage)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -564,7 +615,7 @@ func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiDa
 	return pkiData, result.Count, nil
 }
 
-func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud string, poolData *[]AviPoolCache, overrideUri ...NextPage) (*[]AviPoolCache, int, error) {
+func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud string, poolData *[]AviPoolCache, tenant string, overrideUri ...NextPage) (*[]AviPoolCache, int, error) {
 	var uri string
 	akoUser := lib.AKOUser
 
@@ -608,12 +659,13 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 			pkiUuid := ExtractUuid(*pool.PkiProfileRef, "pkiprofile-.*.#")
 			pkiName, foundPki := c.PKIProfileCache.AviCacheGetNameByUuid(pkiUuid)
 			if foundPki {
-				pkiKey = NamespaceName{Namespace: lib.GetTenant(), Name: pkiName.(string)}
+				pkiKey = NamespaceName{Namespace: tenant, Name: pkiName.(string)}
 			}
 		}
 
 		poolCacheObj := AviPoolCache{
 			Name:                 *pool.Name,
+			Tenant:               getTenantFromTenantRef(*pool.TenantRef),
 			Uuid:                 *pool.UUID,
 			CloudConfigCksum:     *pool.CloudConfigCksum,
 			PkiProfileCollection: pkiKey,
@@ -628,7 +680,7 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 		if len(next_uri) > 1 {
 			overrideUri := "/api/pool" + next_uri[1]
 			nextPage := NextPage{NextURI: overrideUri}
-			_, _, err := c.AviPopulateAllPools(client, cloud, poolData, nextPage)
+			_, _, err := c.AviPopulateAllPools(client, cloud, poolData, tenant, nextPage)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -638,13 +690,13 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 	return poolData, result.Count, nil
 }
 
-func (c *AviObjCache) PopulatePkiProfilesToCache(client *clients.AviClient, overrideUri ...NextPage) {
+func (c *AviObjCache) PopulatePkiProfilesToCache(client *clients.AviClient, tenant string, overrideUri ...NextPage) {
 	var pkiProfData []AviPkiProfileCache
-	c.AviPopulateAllPkiPRofiles(client, &pkiProfData)
+	c.AviPopulateAllPkiPRofiles(client, &pkiProfData, tenant)
 
 	pkiCacheData := c.PKIProfileCache.ShallowCopy()
 	for i, pkiCacheObj := range pkiProfData {
-		k := NamespaceName{Namespace: lib.GetTenant(), Name: pkiCacheObj.Name}
+		k := NamespaceName{Namespace: tenant, Name: pkiCacheObj.Name}
 		oldPkiIntf, found := c.PKIProfileCache.AviCacheGet(k)
 		if found {
 			oldPkiData, ok := oldPkiIntf.(*AviPkiProfileCache)
@@ -663,18 +715,22 @@ func (c *AviObjCache) PopulatePkiProfilesToCache(client *clients.AviClient, over
 	}
 	// The data that is left in pkiCacheData should be explicitly removed
 	for key := range pkiCacheData {
+		namespaceKey, ok := key.(NamespaceName)
+		if !ok || namespaceKey.Namespace != tenant {
+			continue
+		}
 		utils.AviLog.Infof("Deleting key from pki cache :%s", key)
 		c.PKIProfileCache.AviCacheDelete(key)
 	}
 }
 
-func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient, cloud string, overrideUri ...NextPage) {
+func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient, cloud, tenant string, overrideUri ...NextPage) {
 	var poolsData []AviPoolCache
-	c.AviPopulateAllPools(client, cloud, &poolsData)
+	c.AviPopulateAllPools(client, cloud, &poolsData, tenant)
 
 	poolCacheData := c.PoolCache.ShallowCopy()
 	for i, poolCacheObj := range poolsData {
-		k := NamespaceName{Namespace: lib.GetTenant(), Name: poolCacheObj.Name}
+		k := NamespaceName{Namespace: tenant, Name: poolCacheObj.Name}
 		oldPoolIntf, found := c.PoolCache.AviCacheGet(k)
 		if found {
 			oldPoolData, ok := oldPoolIntf.(*AviPoolCache)
@@ -693,12 +749,16 @@ func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient, cloud stri
 	}
 	// The data that is left in poolCacheData should be explicitly removed
 	for key := range poolCacheData {
+		namespaceKey, ok := key.(NamespaceName)
+		if !ok || namespaceKey.Namespace != tenant {
+			continue
+		}
 		utils.AviLog.Debugf("Deleting key from pool cache :%s", key)
 		c.PoolCache.AviCacheDelete(key)
 	}
 }
 
-func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud string, vsVipData *[]AviVSVIPCache, nextPage ...NextPage) (*[]AviVSVIPCache, error) {
+func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud string, vsVipData *[]AviVSVIPCache, tenant string, nextPage ...NextPage) (*[]AviVSVIPCache, error) {
 	var uri string
 
 	if len(nextPage) == 1 {
@@ -769,6 +829,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 
 		vsVipCacheObj := AviVSVIPCache{
 			Name:             *vsvip.Name,
+			Tenant:           getTenantFromTenantRef(*vsvip.TenantRef),
 			Uuid:             *vsvip.UUID,
 			FQDNs:            fqdns,
 			NetworkNames:     networkNames,
@@ -786,7 +847,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 		if len(next_uri) > 1 {
 			overrideUri := "/api/vsvip" + next_uri[1]
 			nextPage := NextPage{NextURI: overrideUri}
-			_, err := c.AviPopulateAllVSVips(client, cloud, vsVipData, nextPage)
+			_, err := c.AviPopulateAllVSVips(client, cloud, vsVipData, tenant, nextPage)
 			if err != nil {
 				return nil, err
 			}
@@ -795,13 +856,13 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 	return vsVipData, nil
 }
 
-func (c *AviObjCache) PopulateVsVipDataToCache(client *clients.AviClient, cloud string) {
+func (c *AviObjCache) PopulateVsVipDataToCache(client *clients.AviClient, cloud, tenant string) {
 	var vsVipData []AviVSVIPCache
-	c.AviPopulateAllVSVips(client, cloud, &vsVipData)
+	c.AviPopulateAllVSVips(client, cloud, &vsVipData, tenant)
 
 	vsVipCacheData := c.VSVIPCache.ShallowCopy()
 	for i, vsVipCacheObj := range vsVipData {
-		k := NamespaceName{Namespace: lib.GetTenant(), Name: vsVipCacheObj.Name}
+		k := NamespaceName{Namespace: tenant, Name: vsVipCacheObj.Name}
 		oldVsvipIntf, found := c.VSVIPCache.AviCacheGet(k)
 		if found {
 			oldVsvipData, ok := oldVsvipIntf.(*AviVSVIPCache)
@@ -820,6 +881,10 @@ func (c *AviObjCache) PopulateVsVipDataToCache(client *clients.AviClient, cloud 
 	}
 	// The data that is left in vsVipCacheData should be explicitly removed
 	for key := range vsVipCacheData {
+		namespaceKey, ok := key.(NamespaceName)
+		if !ok || namespaceKey.Namespace != tenant {
+			continue
+		}
 		utils.AviLog.Debugf("Deleting key from vsvip cache :%s", key)
 		c.VSVIPCache.AviCacheDelete(key)
 	}
@@ -871,6 +936,7 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient, cloud string,
 		}
 		dsCacheObj := AviDSCache{
 			Name:       *ds.Name,
+			Tenant:     getTenantFromTenantRef(*ds.TenantRef),
 			Uuid:       *ds.UUID,
 			PoolGroups: pgs,
 		}
@@ -896,12 +962,12 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient, cloud string,
 	return DsData, result.Count, nil
 }
 
-func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient, cloud string, overrideUri ...NextPage) {
+func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient, cloud, tenant string, overrideUri ...NextPage) {
 	var DsData []AviDSCache
 	c.AviPopulateAllDSs(client, cloud, &DsData)
 	dsCacheData := c.DSCache.ShallowCopy()
 	for i, DsCacheObj := range DsData {
-		k := NamespaceName{Namespace: lib.GetTenant(), Name: DsCacheObj.Name}
+		k := NamespaceName{Namespace: tenant, Name: DsCacheObj.Name}
 		oldDSIntf, found := c.DSCache.AviCacheGet(k)
 		if found {
 			oldDSData, ok := oldDSIntf.(*AviDSCache)
@@ -920,6 +986,10 @@ func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient, cloud str
 	}
 	// The data that is left in dsCacheData should be explicitly removed
 	for key := range dsCacheData {
+		namespaceKey, ok := key.(NamespaceName)
+		if !ok || namespaceKey.Namespace != tenant {
+			continue
+		}
 		utils.AviLog.Debugf("Deleting key from ds cache :%s", key)
 		c.DSCache.AviCacheDelete(key)
 	}
@@ -932,7 +1002,7 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient, cloud str
 	if len(nextPage) == 1 {
 		uri = nextPage[0].NextURI
 	} else {
-		uri = "/api/sslkeyandcertificate/?" + "&created_by=" + akoUser + "&page_size=100"
+		uri = "/api/sslkeyandcertificate/?" + "&include_name=true" + "&created_by=" + akoUser + "&page_size=100"
 	}
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
@@ -975,6 +1045,7 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient, cloud str
 		emptyIngestionMarkers := utils.AviObjectMarkers{}
 		sslCacheObj := AviSSLCache{
 			Name:             *sslkey.Name,
+			Tenant:           getTenantFromTenantRef(*sslkey.TenantRef),
 			Uuid:             *sslkey.UUID,
 			Cert:             *sslkey.Certificate.Certificate,
 			HasCARef:         hasCA,
@@ -1003,7 +1074,7 @@ func (c *AviObjCache) AviPopulateOneSSLCache(client *clients.AviClient,
 	var uri string
 	akoUser := lib.AKOUser
 
-	uri = "/api/sslkeyandcertificate?name=" + objName + "&created_by=" + akoUser
+	uri = "/api/sslkeyandcertificate?name=" + objName + "&include_name=true" + "&created_by=" + akoUser
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -1046,13 +1117,15 @@ func (c *AviObjCache) AviPopulateOneSSLCache(client *clients.AviClient,
 			}
 		}
 		emptyIngestionMarkers := utils.AviObjectMarkers{}
+		tenant := getTenantFromTenantRef(*sslkey.TenantRef)
 		sslCacheObj := AviSSLCache{
 			Name:             *sslkey.Name,
+			Tenant:           tenant,
 			Uuid:             *sslkey.UUID,
 			CloudConfigCksum: lib.SSLKeyCertChecksum(*sslkey.Name, *sslkey.Certificate.Certificate, cacert, emptyIngestionMarkers, sslkey.Markers, true),
 			HasCARef:         hasCA,
 		}
-		k := NamespaceName{Namespace: lib.GetTenant(), Name: *sslkey.Name}
+		k := NamespaceName{Namespace: tenant, Name: *sslkey.Name}
 		c.SSLKeyCache.AviCacheAdd(k, &sslCacheObj)
 		utils.AviLog.Debugf("Adding sslkey to Cache during refresh %s", k)
 	}
@@ -1064,7 +1137,7 @@ func (c *AviObjCache) AviPopulateOnePKICache(client *clients.AviClient,
 	var uri string
 	akoUser := lib.AKOUser
 
-	uri = "/api/pkiprofile?name=" + objName + "&created_by=" + akoUser
+	uri = "/api/pkiprofile?name=" + objName + "&include_name=true" + "&created_by=" + akoUser
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -1093,12 +1166,14 @@ func (c *AviObjCache) AviPopulateOnePKICache(client *clients.AviClient,
 			continue
 		}
 		emptyIngestionMarkers := utils.AviObjectMarkers{}
+		tenant := getTenantFromTenantRef(*pkikey.TenantRef)
 		sslCacheObj := AviSSLCache{
 			Name:             *pkikey.Name,
+			Tenant:           tenant,
 			Uuid:             *pkikey.UUID,
 			CloudConfigCksum: lib.SSLKeyCertChecksum(*pkikey.Name, *pkikey.CaCerts[0].Certificate, "", emptyIngestionMarkers, pkikey.Markers, true),
 		}
-		k := NamespaceName{Namespace: lib.GetTenant(), Name: *pkikey.Name}
+		k := NamespaceName{Namespace: tenant, Name: *pkikey.Name}
 		c.SSLKeyCache.AviCacheAdd(k, &sslCacheObj)
 		utils.AviLog.Debugf("Adding pkikey to Cache during refresh %s", k)
 	}
@@ -1110,7 +1185,7 @@ func (c *AviObjCache) AviPopulateOnePoolCache(client *clients.AviClient,
 	var uri string
 	akoUser := lib.AKOUser
 
-	uri = "/api/pool?name=" + objName + "&created_by=" + akoUser
+	uri = "/api/pool?name=" + objName + "&include_name=true" + "&created_by=" + akoUser
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -1146,24 +1221,26 @@ func (c *AviObjCache) AviPopulateOnePoolCache(client *clients.AviClient,
 			utils.AviLog.Warnf("Error parsing service metadata during pool cache :%v", err)
 		}
 
+		tenant := getTenantFromTenantRef(*pool.TenantRef)
 		var pkiKey NamespaceName
 		if pool.PkiProfileRef != nil {
 			pkiUuid := ExtractUuid(*pool.PkiProfileRef, "pkiprofile-.*.#")
 			pkiName, foundPki := c.PKIProfileCache.AviCacheGetNameByUuid(pkiUuid)
 			if foundPki {
-				pkiKey = NamespaceName{Namespace: lib.GetTenant(), Name: pkiName.(string)}
+				pkiKey = NamespaceName{Namespace: tenant, Name: pkiName.(string)}
 			}
 		}
 
 		poolCacheObj := AviPoolCache{
 			Name:                 *pool.Name,
+			Tenant:               tenant,
 			Uuid:                 *pool.UUID,
 			CloudConfigCksum:     *pool.CloudConfigCksum,
 			PkiProfileCollection: pkiKey,
 			ServiceMetadataObj:   svc_mdata_obj,
 			LastModified:         *pool.LastModified,
 		}
-		k := NamespaceName{Namespace: lib.GetTenant(), Name: *pool.Name}
+		k := NamespaceName{Namespace: tenant, Name: *pool.Name}
 		c.PoolCache.AviCacheAdd(k, &poolCacheObj)
 		utils.AviLog.Debugf("Adding pool to Cache during refresh %s", k)
 	}
@@ -1175,7 +1252,7 @@ func (c *AviObjCache) AviPopulateOneVsDSCache(client *clients.AviClient,
 	var uri string
 	akoUser := lib.AKOUser
 
-	uri = "/api/vsdatascriptset?name=" + objName + "&created_by=" + akoUser
+	uri = "/api/vsdatascriptset?name=" + objName + "&include_name=true" + "&created_by=" + akoUser
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -1214,8 +1291,10 @@ func (c *AviObjCache) AviPopulateOneVsDSCache(client *clients.AviClient,
 				pgs = append(pgs, pgName.(string))
 			}
 		}
+		tenant := getTenantFromTenantRef(*ds.TenantRef)
 		dsCacheObj := AviDSCache{
 			Name:       *ds.Name,
+			Tenant:     tenant,
 			Uuid:       *ds.UUID,
 			PoolGroups: pgs,
 		}
@@ -1224,7 +1303,7 @@ func (c *AviObjCache) AviPopulateOneVsDSCache(client *clients.AviClient,
 			checksum += utils.Hash(*ds.Datascript[0].Script)
 		}
 		dsCacheObj.CloudConfigCksum = checksum
-		k := NamespaceName{Namespace: lib.GetTenant(), Name: *ds.Name}
+		k := NamespaceName{Namespace: tenant, Name: *ds.Name}
 		c.DSCache.AviCacheAdd(k, &dsCacheObj)
 		utils.AviLog.Debugf("Adding ds to Cache during refresh %s", k)
 	}
@@ -1236,7 +1315,7 @@ func (c *AviObjCache) AviPopulateOnePGCache(client *clients.AviClient,
 	var uri string
 	akoUser := lib.AKOUser
 
-	uri = "/api/poolgroup?name=" + objName + "&created_by=" + akoUser
+	uri = "/api/poolgroup?name=" + objName + "&include_name=true" + "&created_by=" + akoUser
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -1276,14 +1355,16 @@ func (c *AviObjCache) AviPopulateOnePGCache(client *clients.AviClient,
 				pools = append(pools, poolName.(string))
 			}
 		}
+		tenant := getTenantFromTenantRef(*pg.TenantRef)
 		pgCacheObj := AviPGCache{
 			Name:             *pg.Name,
+			Tenant:           tenant,
 			Uuid:             *pg.UUID,
 			CloudConfigCksum: *pg.CloudConfigCksum,
 			LastModified:     *pg.LastModified,
 			Members:          pools,
 		}
-		k := NamespaceName{Namespace: lib.GetTenant(), Name: *pg.Name}
+		k := NamespaceName{Namespace: tenant, Name: *pg.Name}
 		c.PgCache.AviCacheAdd(k, &pgCacheObj)
 		utils.AviLog.Debugf("Adding pg to Cache during refresh %s", k)
 	}
@@ -1294,7 +1375,7 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 	cloud string, objName string) error {
 	var uri string
 
-	uri = "/api/vsvip?name=" + objName + "&cloud_ref.name=" + cloud
+	uri = "/api/vsvip?name=" + objName + "&cloud_ref.name=" + cloud + "&include_name=true"
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -1356,8 +1437,10 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 		if vsvip.VsvipCloudConfigCksum != nil {
 			checksum = *vsvip.VsvipCloudConfigCksum
 		}
+		tenant := getTenantFromTenantRef(*vsvip.TenantRef)
 		vsVipCacheObj := AviVSVIPCache{
 			Name:             *vsvip.Name,
+			Tenant:           tenant,
 			Uuid:             *vsvip.UUID,
 			FQDNs:            fqdns,
 			LastModified:     *vsvip.LastModified,
@@ -1367,7 +1450,7 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 			NetworkNames:     networkNames,
 			CloudConfigCksum: checksum,
 		}
-		k := NamespaceName{Namespace: lib.GetTenant(), Name: *vsvip.Name}
+		k := NamespaceName{Namespace: tenant, Name: *vsvip.Name}
 		c.VSVIPCache.AviCacheAdd(k, &vsVipCacheObj)
 		utils.AviLog.Debugf("Adding vsvip to Cache during refresh %s", k)
 	}
@@ -1379,7 +1462,7 @@ func (c *AviObjCache) AviPopulateOneVsHttpPolCache(client *clients.AviClient,
 	var uri string
 	akoUser := lib.AKOUser
 
-	uri = "/api/httppolicyset?name=" + objName + "&created_by=" + akoUser
+	uri = "/api/httppolicyset?name=" + objName + "&include_name=true" + "&created_by=" + akoUser
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -1431,15 +1514,17 @@ func (c *AviObjCache) AviPopulateOneVsHttpPolCache(client *clients.AviClient,
 			}
 		}
 
+		tenant := getTenantFromTenantRef(*httppol.TenantRef)
 		httpPolCacheObj := AviHTTPPolicyCache{
 			Name:             *httppol.Name,
+			Tenant:           tenant,
 			Uuid:             *httppol.UUID,
 			CloudConfigCksum: *httppol.CloudConfigCksum,
 			PoolGroups:       poolGroups,
 			Pools:            pools,
 			LastModified:     *httppol.LastModified,
 		}
-		k := NamespaceName{Namespace: lib.GetTenant(), Name: *httppol.Name}
+		k := NamespaceName{Namespace: tenant, Name: *httppol.Name}
 		c.HTTPPolicyCache.AviCacheAdd(k, &httpPolCacheObj)
 		utils.AviLog.Debugf("Adding httppolicy to Cache during refresh %s", k)
 	}
@@ -1451,7 +1536,7 @@ func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
 	var uri string
 	akoUser := lib.AKOUser
 
-	uri = "/api/l4policyset?name=" + objName + "&created_by=" + akoUser
+	uri = "/api/l4policyset?name=" + objName + "&include_name=true" + "&created_by=" + akoUser
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -1500,26 +1585,28 @@ func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
 		}
 		emptyIngestionMarkers := utils.AviObjectMarkers{}
 		cksum := lib.L4PolicyChecksum(ports, protocols, emptyIngestionMarkers, l4pol.Markers, true)
+		tenant := getTenantFromTenantRef(*l4pol.TenantRef)
 		l4PolCacheObj := AviL4PolicyCache{
 			Name:             *l4pol.Name,
+			Tenant:           tenant,
 			Uuid:             *l4pol.UUID,
 			Pools:            pools,
 			LastModified:     *l4pol.LastModified,
 			CloudConfigCksum: cksum,
 		}
-		k := NamespaceName{Namespace: lib.GetTenant(), Name: *l4pol.Name}
+		k := NamespaceName{Namespace: tenant, Name: *l4pol.Name}
 		c.L4PolicyCache.AviCacheAdd(k, &l4PolCacheObj)
 		utils.AviLog.Infof("Adding l4pol to Cache during refresh %s", utils.Stringify(l4PolCacheObj))
 	}
 	return nil
 }
 
-func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient, cloud string, overrideUri ...NextPage) {
+func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient, cloud, tenant string, overrideUri ...NextPage) {
 	var SslKeyData []AviSSLCache
 	c.AviPopulateAllSSLKeys(client, cloud, &SslKeyData)
 	sslCacheData := c.SSLKeyCache.ShallowCopy()
 	for i, SslKeyCacheObj := range SslKeyData {
-		k := NamespaceName{Namespace: lib.GetTenant(), Name: SslKeyCacheObj.Name}
+		k := NamespaceName{Namespace: tenant, Name: SslKeyCacheObj.Name}
 		oldSslkeyIntf, found := c.SSLKeyCache.AviCacheGet(k)
 		if found {
 			oldSslkeyData, ok := oldSslkeyIntf.(*AviSSLCache)
@@ -1538,6 +1625,10 @@ func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient, cloud str
 	}
 	//The data that is left in sslCacheData should be explicitly removed
 	for key := range sslCacheData {
+		namespaceKey, ok := key.(NamespaceName)
+		if !ok || namespaceKey.Namespace != tenant {
+			continue
+		}
 		utils.AviLog.Debugf("Deleting key from sslkey cache :%s", key)
 		c.SSLKeyCache.AviCacheDelete(key)
 	}
@@ -1600,8 +1691,10 @@ func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient, cl
 
 			}
 		}
+		tenant := getTenantFromTenantRef(*httppol.TenantRef)
 		httpPolCacheObj := AviHTTPPolicyCache{
 			Name:             *httppol.Name,
+			Tenant:           tenant,
 			Uuid:             *httppol.UUID,
 			CloudConfigCksum: *httppol.CloudConfigCksum,
 			PoolGroups:       poolGroups,
@@ -1625,7 +1718,7 @@ func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient, cl
 	return httpPolicyData, result.Count, nil
 }
 
-func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient, cloud string, overrideUri ...NextPage) {
+func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient, cloud, tenant string, overrideUri ...NextPage) {
 	var HttPolData []AviHTTPPolicyCache
 	_, count, err := c.AviPopulateAllHttpPolicySets(client, cloud, &HttPolData)
 	if err != nil || len(HttPolData) != count {
@@ -1633,7 +1726,7 @@ func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient, cl
 	}
 	httpCacheData := c.HTTPPolicyCache.ShallowCopy()
 	for i, HttpPolCacheObj := range HttPolData {
-		k := NamespaceName{Namespace: lib.GetTenant(), Name: HttpPolCacheObj.Name}
+		k := NamespaceName{Namespace: tenant, Name: HttpPolCacheObj.Name}
 		oldHttppolIntf, found := c.HTTPPolicyCache.AviCacheGet(k)
 		if found {
 			oldHttppolData, ok := oldHttppolIntf.(*AviHTTPPolicyCache)
@@ -1652,6 +1745,10 @@ func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient, cl
 	}
 	// // The data that is left in httpCacheData should be explicitly removed
 	for key := range httpCacheData {
+		namespaceKey, ok := key.(NamespaceName)
+		if !ok || namespaceKey.Namespace != tenant {
+			continue
+		}
 		utils.AviLog.Debugf("Deleting key from httppol cache :%s", key)
 		c.HTTPPolicyCache.AviCacheDelete(key)
 	}
@@ -1721,6 +1818,7 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 		cksum := lib.L4PolicyChecksum(ports, protocols, emptyIngestionMarkers, l4pol.Markers, true)
 		l4PolCacheObj := AviL4PolicyCache{
 			Name:             *l4pol.Name,
+			Tenant:           getTenantFromTenantRef(*l4pol.TenantRef),
 			Uuid:             *l4pol.UUID,
 			Pools:            pools,
 			LastModified:     *l4pol.LastModified,
@@ -1745,7 +1843,7 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 	return l4PolicyData, result.Count, nil
 }
 
-func (c *AviObjCache) PopulateL4PolicySetToCache(client *clients.AviClient, cloud string, overrideUri ...NextPage) {
+func (c *AviObjCache) PopulateL4PolicySetToCache(client *clients.AviClient, cloud, tenant string, overrideUri ...NextPage) {
 	var l4PolData []AviL4PolicyCache
 	_, count, err := c.AviPopulateAllL4PolicySets(client, cloud, &l4PolData)
 	if err != nil || len(l4PolData) != count {
@@ -1753,13 +1851,17 @@ func (c *AviObjCache) PopulateL4PolicySetToCache(client *clients.AviClient, clou
 	}
 	l4CacheData := c.L4PolicyCache.ShallowCopy()
 	for i, l4PolCacheObj := range l4PolData {
-		k := NamespaceName{Namespace: lib.GetTenant(), Name: l4PolCacheObj.Name}
+		k := NamespaceName{Namespace: tenant, Name: l4PolCacheObj.Name}
 		utils.AviLog.Debugf("Adding key to l4 cache :%s", utils.Stringify(l4PolCacheObj))
 		c.L4PolicyCache.AviCacheAdd(k, &l4PolData[i])
 		delete(l4CacheData, k)
 	}
 	// // The data that is left in httpCacheData should be explicitly removed
 	for key := range l4CacheData {
+		namespaceKey, ok := key.(NamespaceName)
+		if !ok || namespaceKey.Namespace != tenant {
+			continue
+		}
 		utils.AviLog.Debugf("Deleting key from l4policy cache :%s", key)
 		c.L4PolicyCache.AviCacheDelete(key)
 	}
@@ -1879,8 +1981,10 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 				}
 
 			}
+			tenantRef, _ := vs["tenant_ref"].(string)
+			tenant := getTenantFromTenantRef(tenantRef)
 			if vs["cloud_config_cksum"] != nil {
-				k := NamespaceName{Namespace: lib.GetTenant(), Name: vs["name"].(string)}
+				k := NamespaceName{Namespace: tenant, Name: vs["name"].(string)}
 				*vsCacheCopy = RemoveNamespaceName(*vsCacheCopy, k)
 				var vsVipKey []NamespaceName
 				var sslKeys []NamespaceName
@@ -1901,7 +2005,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 						if foundVip {
 							vsVipData, ok := vsVip.(*AviVSVIPCache)
 							if ok {
-								vipKey := NamespaceName{Namespace: lib.GetTenant(), Name: vsVipData.Name}
+								vipKey := NamespaceName{Namespace: tenant, Name: vsVipData.Name}
 								vsVipKey = append(vsVipKey, vipKey)
 							}
 						}
@@ -1914,7 +2018,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 						sslUuid := ExtractUuid(ssl.(string), "sslkeyandcertificate-.*.#")
 						sslName, foundssl := c.SSLKeyCache.AviCacheGetNameByUuid(sslUuid)
 						if foundssl {
-							sslKey := NamespaceName{Namespace: lib.GetTenant(), Name: sslName.(string)}
+							sslKey := NamespaceName{Namespace: tenant, Name: sslName.(string)}
 							sslKeys = append(sslKeys, sslKey)
 
 							sslIntf, _ := c.SSLKeyCache.AviCacheGet(sslKey)
@@ -1923,7 +2027,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 							if sslData.CACertUUID != "" {
 								caName, found := c.SSLKeyCache.AviCacheGetNameByUuid(sslData.CACertUUID)
 								if found {
-									caCertKey := NamespaceName{Namespace: lib.GetTenant(), Name: caName.(string)}
+									caCertKey := NamespaceName{Namespace: tenant, Name: caName.(string)}
 									sslKeys = append(sslKeys, caCertKey)
 								}
 							}
@@ -1939,14 +2043,14 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 
 							dsName, foundDs := c.DSCache.AviCacheGetNameByUuid(dsUuid)
 							if foundDs {
-								dsKey := NamespaceName{Namespace: lib.GetTenant(), Name: dsName.(string)}
+								dsKey := NamespaceName{Namespace: tenant, Name: dsName.(string)}
 								// Fetch the associated PGs with the DS.
 								dsObj, _ := c.DSCache.AviCacheGet(dsKey)
 								for _, pgName := range dsObj.(*AviDSCache).PoolGroups {
 									// For each PG, formulate the key and then populate the pg collection cache
-									pgKey := NamespaceName{Namespace: lib.GetTenant(), Name: pgName}
+									pgKey := NamespaceName{Namespace: tenant, Name: pgName}
 									poolgroupKeys = append(poolgroupKeys, pgKey)
-									pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName)
+									pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName, tenant)
 									poolKeys = append(poolKeys, pgpoolKeys...)
 								}
 								dsKeys = append(dsKeys, dsKey)
@@ -1965,9 +2069,9 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 
 							pgName, foundpg := c.PgCache.AviCacheGetNameByUuid(pgUuid)
 							if foundpg {
-								pgKey := NamespaceName{Namespace: lib.GetTenant(), Name: pgName.(string)}
+								pgKey := NamespaceName{Namespace: tenant, Name: pgName.(string)}
 								poolgroupKeys = append(poolgroupKeys, pgKey)
-								pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName.(string))
+								pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName.(string), tenant)
 								poolKeys = append(poolKeys, pgpoolKeys...)
 								sharedVsOrL4 = true
 							}
@@ -1982,10 +2086,10 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 							l4Name, foundl4pol := c.L4PolicyCache.AviCacheGetNameByUuid(l4PolUuid)
 							if foundl4pol {
 								sharedVsOrL4 = true
-								l4key := NamespaceName{Namespace: lib.GetTenant(), Name: l4Name.(string)}
+								l4key := NamespaceName{Namespace: tenant, Name: l4Name.(string)}
 								l4Obj, _ := c.L4PolicyCache.AviCacheGet(l4key)
 								for _, poolName := range l4Obj.(*AviL4PolicyCache).Pools {
-									poolKey := NamespaceName{Namespace: lib.GetTenant(), Name: poolName}
+									poolKey := NamespaceName{Namespace: tenant, Name: poolName}
 									poolKeys = append(poolKeys, poolKey)
 								}
 								l4Keys = append(l4Keys, l4key)
@@ -2003,7 +2107,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 							if !foundhttp && !sharedVsOrL4 && httpCacheRefreshCount > 0 {
 								// We do a full refresh of the httpcache once per page, if we detect a data discrepancy
 								httpCacheRefreshCount = httpCacheRefreshCount - 1
-								c.PopulateHttpPolicySetToCache(client, cloud)
+								c.PopulateHttpPolicySetToCache(client, cloud, tenant)
 								httpName, foundhttp = c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
 								if !foundhttp {
 									// If still the httpName is not found. Log an error saying, this VS may not behave appropriately.
@@ -2011,13 +2115,13 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 								}
 							}
 							if foundhttp {
-								httpKey := NamespaceName{Namespace: lib.GetTenant(), Name: httpName.(string)}
+								httpKey := NamespaceName{Namespace: tenant, Name: httpName.(string)}
 								httpObj, _ := c.HTTPPolicyCache.AviCacheGet(httpKey)
 								for _, pgName := range httpObj.(*AviHTTPPolicyCache).PoolGroups {
 									// For each PG, formulate the key and then populate the pg collection cache
-									pgKey := NamespaceName{Namespace: lib.GetTenant(), Name: pgName}
+									pgKey := NamespaceName{Namespace: tenant, Name: pgName}
 									poolgroupKeys = append(poolgroupKeys, pgKey)
-									pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName)
+									pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName, tenant)
 									poolKeys = append(poolKeys, pgpoolKeys...)
 								}
 								httpKeys = append(httpKeys, httpKey)
@@ -2032,7 +2136,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 						poolUuid := ExtractUuid(poolRef, "pool-.*.#")
 						poolNameFromCache, foundPool := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
 						if foundPool && poolNameFromCache.(string) == poolNameFromRef {
-							poolKey := NamespaceName{Namespace: lib.GetTenant(), Name: poolNameFromCache.(string)}
+							poolKey := NamespaceName{Namespace: tenant, Name: poolNameFromCache.(string)}
 							poolKeys = append(poolKeys, poolKey)
 						}
 					}
@@ -2041,6 +2145,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 				// Populate the vscache meta object here.
 				vsMetaObj := AviVsCache{
 					Name:                 vs["name"].(string),
+					Tenant:               tenant,
 					Uuid:                 vs["uuid"].(string),
 					VSVipKeyCollection:   vsVipKey,
 					HTTPKeyCollection:    httpKeys,
@@ -2078,13 +2183,13 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 	return nil
 }
 
-func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud string, vsName string) error {
+func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud string, vsName, tenant string) error {
 	// This method should be called only from layer-3 during a retry.
 	var rest_response interface{}
 	akoUser := lib.AKOUser
 	var uri string
 
-	uri = "/api/virtualservice?name=" + vsName + "&cloud_ref.name=" + cloud + "&created_by=" + akoUser
+	uri = "/api/virtualservice?name=" + vsName + "&cloud_ref.name=" + cloud + "&include_name=true" + "&created_by=" + akoUser
 
 	utils.AviLog.Debugf("Refreshing cache for vs uri: %s", uri)
 	err := lib.AviGet(client, uri, &rest_response)
@@ -2100,7 +2205,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 		}
 		utils.AviLog.Debugf("Vs Get uri %v returned %v vses", uri,
 			resp["count"])
-		k := NamespaceName{Namespace: lib.GetTenant(), Name: vsName}
+		k := NamespaceName{Namespace: tenant, Name: vsName}
 		objCount, _ := resp["count"]
 		if objCount == 0.0 {
 			utils.AviLog.Debugf("Empty response removing VS meta :%s", k)
@@ -2143,6 +2248,8 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 				}
 
 			}
+			tenantRef, _ := vs["tenant_ref"].(string)
+			tenant := getTenantFromTenantRef(tenantRef)
 			if vs["cloud_config_cksum"] != nil {
 				var vsVipKey []NamespaceName
 				var sslKeys []NamespaceName
@@ -2159,7 +2266,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 					vsVipName, foundVip := c.VSVIPCache.AviCacheGetNameByUuid(vsVipUuid)
 
 					if foundVip {
-						vipKey := NamespaceName{Namespace: lib.GetTenant(), Name: vsVipName.(string)}
+						vipKey := NamespaceName{Namespace: tenant, Name: vsVipName.(string)}
 						vsVipKey = append(vsVipKey, vipKey)
 					}
 				}
@@ -2170,7 +2277,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 						sslUuid := ExtractUuidWithoutHash(ssl.(string), "sslkeyandcertificate-.*.")
 						sslName, foundssl := c.SSLKeyCache.AviCacheGetNameByUuid(sslUuid)
 						if foundssl {
-							sslKey := NamespaceName{Namespace: lib.GetTenant(), Name: sslName.(string)}
+							sslKey := NamespaceName{Namespace: tenant, Name: sslName.(string)}
 							sslKeys = append(sslKeys, sslKey)
 
 							sslIntf, _ := c.SSLKeyCache.AviCacheGet(sslKey)
@@ -2179,7 +2286,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 							if sslData.CACertUUID != "" {
 								caName, found := c.SSLKeyCache.AviCacheGetNameByUuid(sslData.CACertUUID)
 								if found {
-									caCertKey := NamespaceName{Namespace: lib.GetTenant(), Name: caName.(string)}
+									caCertKey := NamespaceName{Namespace: tenant, Name: caName.(string)}
 									sslKeys = append(sslKeys, caCertKey)
 								}
 							}
@@ -2195,14 +2302,14 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 
 							dsName, foundDs := c.DSCache.AviCacheGetNameByUuid(dsUuid)
 							if foundDs {
-								dsKey := NamespaceName{Namespace: lib.GetTenant(), Name: dsName.(string)}
+								dsKey := NamespaceName{Namespace: tenant, Name: dsName.(string)}
 								// Fetch the associated PGs with the DS.
 								dsObj, _ := c.DSCache.AviCacheGet(dsKey)
 								for _, pgName := range dsObj.(*AviDSCache).PoolGroups {
 									// For each PG, formulate the key and then populate the pg collection cache
-									pgKey := NamespaceName{Namespace: lib.GetTenant(), Name: pgName}
+									pgKey := NamespaceName{Namespace: tenant, Name: pgName}
 									poolgroupKeys = append(poolgroupKeys, pgKey)
-									pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName)
+									pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName, tenant)
 									poolKeys = append(poolKeys, pgpoolKeys...)
 								}
 								dsKeys = append(dsKeys, dsKey)
@@ -2220,9 +2327,9 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 
 							pgName, foundpg := c.PgCache.AviCacheGetNameByUuid(pgUuid)
 							if foundpg {
-								pgKey := NamespaceName{Namespace: lib.GetTenant(), Name: pgName.(string)}
+								pgKey := NamespaceName{Namespace: tenant, Name: pgName.(string)}
 								poolgroupKeys = append(poolgroupKeys, pgKey)
-								pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName.(string))
+								pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName.(string), tenant)
 								poolKeys = append(poolKeys, pgpoolKeys...)
 							}
 						}
@@ -2235,10 +2342,10 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 							l4PolUuid := ExtractUuid(l4map["l4_policy_set_ref"].(string), "l4policyset-.*.#")
 							l4Name, foundl4pol := c.L4PolicyCache.AviCacheGetNameByUuid(l4PolUuid)
 							if foundl4pol {
-								l4key := NamespaceName{Namespace: lib.GetTenant(), Name: l4Name.(string)}
+								l4key := NamespaceName{Namespace: tenant, Name: l4Name.(string)}
 								l4Obj, _ := c.L4PolicyCache.AviCacheGet(l4key)
 								for _, poolName := range l4Obj.(*AviL4PolicyCache).Pools {
-									poolKey := NamespaceName{Namespace: lib.GetTenant(), Name: poolName}
+									poolKey := NamespaceName{Namespace: tenant, Name: poolName}
 									poolKeys = append(poolKeys, poolKey)
 								}
 								l4Keys = append(l4Keys, l4key)
@@ -2255,13 +2362,13 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 
 							httpName, foundhttp := c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
 							if foundhttp {
-								httpKey := NamespaceName{Namespace: lib.GetTenant(), Name: httpName.(string)}
+								httpKey := NamespaceName{Namespace: tenant, Name: httpName.(string)}
 								httpObj, _ := c.HTTPPolicyCache.AviCacheGet(httpKey)
 								for _, pgName := range httpObj.(*AviHTTPPolicyCache).PoolGroups {
 									// For each PG, formulate the key and then populate the pg collection cache
-									pgKey := NamespaceName{Namespace: lib.GetTenant(), Name: pgName}
+									pgKey := NamespaceName{Namespace: tenant, Name: pgName}
 									poolgroupKeys = append(poolgroupKeys, pgKey)
-									pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName)
+									pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName, tenant)
 									poolKeys = append(poolKeys, pgpoolKeys...)
 								}
 								httpKeys = append(httpKeys, httpKey)
@@ -2275,9 +2382,9 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 						pgUuid := ExtractUuid(pgRef, "poolgroup-.*.#")
 						pgName, foundpg := c.PgCache.AviCacheGetNameByUuid(pgUuid)
 						if foundpg {
-							pgKey := NamespaceName{Namespace: lib.GetTenant(), Name: pgName.(string)}
+							pgKey := NamespaceName{Namespace: tenant, Name: pgName.(string)}
 							poolgroupKeys = append(poolgroupKeys, pgKey)
-							pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName.(string))
+							pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName.(string), tenant)
 							poolKeys = append(poolKeys, pgpoolKeys...)
 						}
 					}
@@ -2285,6 +2392,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 				// Populate the vscache meta object here.
 				vsMetaObj := AviVsCache{
 					Name:                 vs["name"].(string),
+					Tenant:               tenant,
 					Uuid:                 vs["uuid"].(string),
 					VSVipKeyCollection:   vsVipKey,
 					HTTPKeyCollection:    httpKeys,
@@ -2319,16 +2427,16 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 	return nil
 }
 
-func (c *AviObjCache) AviPGPoolCachePopulate(client *clients.AviClient, cloud string, pgName string) []NamespaceName {
+func (c *AviObjCache) AviPGPoolCachePopulate(client *clients.AviClient, cloud string, pgName string, tenant string) []NamespaceName {
 	var poolKeyCollection []NamespaceName
 
-	k := NamespaceName{Namespace: lib.GetTenant(), Name: pgName}
+	k := NamespaceName{Namespace: tenant, Name: pgName}
 	// Find the pools associated with this PG and populate them
 	pgObj, ok := c.PgCache.AviCacheGet(k)
 	// Get the members from this and populate the VS ref
 	if ok {
 		for _, poolName := range pgObj.(*AviPGCache).Members {
-			k := NamespaceName{Namespace: lib.GetTenant(), Name: poolName}
+			k := NamespaceName{Namespace: tenant, Name: poolName}
 			poolKeyCollection = append(poolKeyCollection, k)
 		}
 	} else {
@@ -2338,7 +2446,7 @@ func (c *AviObjCache) AviPGPoolCachePopulate(client *clients.AviClient, cloud st
 		if ok {
 			utils.AviLog.Debugf("Found PG on refresh: %s", pgName)
 			for _, poolName := range pgObj.(*AviPGCache).Members {
-				k := NamespaceName{Namespace: lib.GetTenant(), Name: poolName}
+				k := NamespaceName{Namespace: tenant, Name: poolName}
 				poolKeyCollection = append(poolKeyCollection, k)
 			}
 		} else {
@@ -2474,12 +2582,14 @@ func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, clou
 	cloud_obj.IPAMType = ipamType
 	utils.AviLog.Infof("IPAM Provider type configured as %s for Cloud %s", cloud_obj.IPAMType, cloud_obj.Name)
 
-	subdomains := c.AviDNSPropertyPopulate(client, *cloud.UUID)
-	if len(subdomains) == 0 {
-		utils.AviLog.Warnf("Cloud: %v does not have a dns provider configured", cloudName)
-	}
-	if subdomains != nil {
-		cloud_obj.NSIpamDNS = subdomains
+	if !lib.IsWCP() {
+		subdomains := c.AviDNSPropertyPopulate(client, *cloud.UUID)
+		if len(subdomains) == 0 {
+			utils.AviLog.Warnf("Cloud: %v does not have a dns provider configured", cloudName)
+		}
+		if subdomains != nil {
+			cloud_obj.NSIpamDNS = subdomains
+		}
 	}
 
 	c.CloudKeyCache.AviCacheAdd(cloudName, cloud_obj)
@@ -3061,7 +3171,7 @@ func DeConfigureSeGroupLabels() {
 		return
 	}
 	segName := lib.GetSEGName()
-	clients := SharedAVIClients()
+	clients := SharedAVIClients(lib.GetTenant())
 	aviClientLen := lib.GetshardSize()
 	var index uint32
 	if aviClientLen != 0 {
@@ -3846,4 +3956,16 @@ func ExtractUuidWithoutHash(word, pattern string) string {
 		return result[0][:len(result[0])]
 	}
 	return ""
+}
+
+func getTenantFromTenantRef(tenantRef string) string {
+	arr := strings.Split(tenantRef, "#")
+	if len(arr) == 2 {
+		return arr[1]
+	}
+	if len(arr) == 1 {
+		arr = strings.Split(tenantRef, "/")
+		return arr[len(arr)-1]
+	}
+	return tenantRef
 }
