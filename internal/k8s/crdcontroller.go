@@ -953,13 +953,13 @@ func (c *AviController) SetupServiceImportEventHandlers(numWorkers uint32) {
 	c.informers.ServiceImportInformer.Informer().AddEventHandler(serviceImportEventHandler)
 }
 
-func checkRefsOnController(key string, refMap map[string]string) error {
+func checkRefsOnController(key string, refMap map[string]string, tenant string) error {
 	for k, value := range refMap {
 		if k == "" {
 			continue
 		}
 
-		if err := checkRefOnController(key, value, k); err != nil {
+		if err := checkRefOnController(key, value, k, tenant); err != nil {
 			return err
 		}
 	}
@@ -992,10 +992,10 @@ var refModelMap = map[string]string{
 }
 
 // checkRefOnController checks whether a provided ref on the controller
-func checkRefOnController(key, refKey, refValue string) error {
+func checkRefOnController(key, refKey, refValue, tenant string) error {
 	// assign the last avi client for ref checks
 	aviClientLen := lib.GetshardSize()
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(tenant)
 	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type,labels,created_by", refModelMap[refKey], refValue)
 
 	// For public clouds, check using network UUID in AWS, normal network API for GCP, skip altogether for Azure.
@@ -1094,7 +1094,7 @@ func checkForL4SSLAppProfile(key, refValue string) (bool, error) {
 	// assign the last avi client for ref checks
 	refKey := "AppProfile"
 	aviClientLen := lib.GetshardSize()
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(lib.GetTenant())
 	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type,labels,created_by", refModelMap[refKey], refValue)
 
 	result, err := lib.AviGetCollectionRaw(clients.AviClient[aviClientLen], uri)
@@ -1140,7 +1140,7 @@ func checkForNetworkProfileTypeTCP(key, refValue string) (bool, error) {
 	// assign the last avi client for ref checks
 	refKey := "NetworkProfile"
 	aviClientLen := lib.GetshardSize()
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(lib.GetTenant())
 	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,profile,labels,created_by", refModelMap[refKey], refValue)
 
 	result, err := lib.AviGetCollectionRaw(clients.AviClient[aviClientLen], uri)
@@ -1187,7 +1187,7 @@ func addSeGroupLabel(key, segName string) {
 	}
 
 	// assign the last avi client for ref checks
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(lib.GetTenant())
 	aviClientLen := lib.GetshardSize()
 
 	// configure labels on SeGroup if not present already.
@@ -1200,9 +1200,9 @@ func addSeGroupLabel(key, segName string) {
 	avicache.ConfigureSeGroupLabels(clients.AviClient[aviClientLen], seGroup)
 }
 
-func SetAviInfrasettingVIPNetworks(name, segMgmtNetwork, infraSEGName string, netAviInfra []akov1beta1.AviInfraSettingVipNetwork) {
+func SetAviInfrasettingVIPNetworks(name, segMgmtNetwork, infraSEGName string, netAviInfra []akov1beta1.AviInfraSettingVipNetwork, tenant string) {
 	// assign the last avi client for ref checks
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(tenant)
 	aviClientLen := lib.GetshardSize()
 	network := netAviInfra
 	var err error
@@ -1223,9 +1223,9 @@ func SetAviInfrasettingVIPNetworks(name, segMgmtNetwork, infraSEGName string, ne
 	lib.SetVipInfraNetworkList(name, network)
 }
 
-func SetAviInfrasettingNodeNetworks(name, segMgmtNetwork, infraSEGName string, netAviInfra []akov1beta1.AviInfraSettingNodeNetwork) {
+func SetAviInfrasettingNodeNetworks(name, segMgmtNetwork, infraSEGName string, netAviInfra []akov1beta1.AviInfraSettingNodeNetwork, tenant string) {
 	// assign the last avi client for ref checks
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(tenant)
 	aviClientLen := lib.GetshardSize()
 	nodeNetorkList := make(map[string]lib.NodeNetworkMap)
 	var err error
@@ -1259,10 +1259,10 @@ func SetAviInfrasettingNodeNetworks(name, segMgmtNetwork, infraSEGName string, n
 }
 
 // Fetch SEG mgmt network
-func GetSEGManagementNetwork(name string) string {
+func GetSEGManagementNetwork(name, tenant string) string {
 	mgmtNetwork := ""
 	// assign the last avi client for ref checks
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(tenant)
 	aviClientLen := lib.GetshardSize()
 	seg, err := avicache.GetAviSeGroup(clients.AviClient[aviClientLen], name)
 	if err == nil {

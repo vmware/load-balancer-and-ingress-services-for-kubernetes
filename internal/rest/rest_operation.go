@@ -24,6 +24,7 @@ import (
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	"github.com/vmware/alb-sdk/go/session"
 
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
@@ -230,6 +231,9 @@ func isErrorRetryable(statusCode int, errMsg string) bool {
 	if statusCode == 400 && strings.Contains(errMsg, lib.NoFreeIPError) {
 		return true
 	}
+	if statusCode == 400 && (strings.Contains(errMsg, lib.VrfContextNotFoundError) || strings.Contains(errMsg, lib.VrfContextObjectNotFoundError)) {
+		return true
+	}
 	if statusCode == 403 && strings.Contains(errMsg, lib.ConfigDisallowedDuringUpgradeError) {
 		return true
 	}
@@ -241,7 +245,7 @@ type AviRestClientPool struct {
 }
 
 type RestOperator interface {
-	AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, key string) error
+	AviRestOperate(rest_ops []*utils.RestOp, key string, bkt uint32) error
 	isRetryRequired(key string, err error) bool
 	SyncObjectStatuses()
 	RestRespArrToObjByType(rest_op *utils.RestOp, obj_type string, key string) []map[string]interface{}
@@ -268,7 +272,8 @@ func (l *leader) isRetryRequired(key string, err error) bool {
 	return false
 }
 
-func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, key string) error {
+func (l *leader) AviRestOperate(rest_ops []*utils.RestOp, key string, bkt uint32) error {
+	tenantToAviClient := make(map[string][]*clients.AviClient)
 	for i, op := range rest_ops {
 		// This condition check is introduced to prevent any keys which is already present in the Graph
 		// Queue from doing any POST/PUT/PATCH/GET operations at the controller when the `deleteConfig` is set.
@@ -279,8 +284,13 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 			continue
 		}
 		lib.IncrementRestOpCouter(utils.Stringify(op.Method), op.ObjName)
-		SetTenant := session.SetTenant(op.Tenant)
-		SetTenant(c.AviSession)
+
+		aviClient, ok := tenantToAviClient[op.Tenant]
+		if !ok || len(aviClient) < 1 {
+			aviClient = avicache.SharedAVIClients(op.Tenant).AviClient
+			tenantToAviClient[op.Tenant] = aviClient
+		}
+		c := aviClient[bkt]
 		if op.Version != "" {
 			SetVersion := session.SetVersion(op.Version)
 			SetVersion(c.AviSession)
@@ -350,17 +360,22 @@ func (f *follower) isRetryRequired(key string, err error) bool {
 	return false
 }
 
-func (f *follower) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, key string) error {
+func (f *follower) AviRestOperate(rest_ops []*utils.RestOp, key string, bkt uint32) error {
 
 	// Adding a delay of 500ms before doing a GET operation in the follower AKO.
 	// 500ms is selected to give leader AKO enough time to create the objects in the controller,
 	// before the follower AKO does a GET operation. In case of a 404(object not found) error, the
 	// follower AKO pushes the key to retry layer for retry.
 	<-time.After(500 * time.Millisecond)
+	tenantToAviClient := make(map[string][]*clients.AviClient)
 
 	for i, op := range rest_ops {
-		SetTenant := session.SetTenant(op.Tenant)
-		SetTenant(c.AviSession)
+		aviClient, ok := tenantToAviClient[op.Tenant]
+		if !ok || len(aviClient) < 1 {
+			aviClient = avicache.SharedAVIClients(op.Tenant).AviClient
+			tenantToAviClient[op.Tenant] = aviClient
+		}
+		c := aviClient[bkt]
 		if op.Version != "" {
 			SetVersion := session.SetVersion(op.Version)
 			SetVersion(c.AviSession)
