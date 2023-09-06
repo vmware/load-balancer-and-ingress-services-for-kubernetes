@@ -133,7 +133,7 @@ func (o *AviObjectGraph) BuildPoolPGPolicyForDedicatedVS(vsNode []*AviVsNode, na
 		}
 	}
 	if policyNode == nil {
-		policyNode = &AviHttpPolicySetNode{Name: httpPolName, Tenant: lib.GetTenant()}
+		policyNode = &AviHttpPolicySetNode{Name: httpPolName, Tenant: vsNode[0].Tenant}
 		vsNode[0].HttpPolicyRefs = append(vsNode[0].HttpPolicyRefs, policyNode)
 	}
 
@@ -174,7 +174,7 @@ func (o *AviObjectGraph) BuildPoolPGPolicyForDedicatedVS(vsNode []*AviVsNode, na
 			//var pgfound bool
 			pgNode, pgfound = localPGList[pgName]
 			if !pgfound {
-				pgNode = &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
+				pgNode = &AviPoolGroupNode{Name: pgName, Tenant: vsNode[0].Tenant}
 			}
 			localPGList[pgName] = pgNode
 			httpPGPath.PoolGroup = pgNode.Name
@@ -298,11 +298,15 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 }
 
 func buildPoolNode(key, poolName, ingName, namespace, priorityLabel, hostname string, infraSetting *akov1beta1.AviInfraSetting, serviceName string, storedHosts []string, insecureEdgeTermAllow bool, obj IngressHostPathSvc) *AviPoolNode {
+	tenant := lib.GetTenant()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
+		tenant = *infraSetting.Spec.NSXSettings.Project
+	}
 	poolNode := &AviPoolNode{
 		Name:          poolName,
 		IngressName:   ingName,
 		PortName:      obj.PortName,
-		Tenant:        lib.GetTenant(),
+		Tenant:        tenant,
 		PriorityLabel: strings.ToLower(priorityLabel),
 		Port:          obj.Port,
 		TargetPort:    obj.TargetPort,
@@ -547,6 +551,10 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 	hostPathSvcMap := make(map[string][]IngressHostPathSvc)
 	infraSetting := routeIgrObj.GetAviInfraSetting()
 	dedicated := false
+	tenant := lib.GetTenant()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
+		tenant = *infraSetting.Spec.NSXSettings.Project
+	}
 
 	for sniHost, paths := range tlssetting.Hosts {
 		var sniHosts []string
@@ -558,7 +566,7 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		dedicated = shardVsName.Dedicated
 		// For each host, create a SNI node with the secret giving us the key and cert.
 		// construct a SNI VS node per tls setting which corresponds to one secret
-		model_name := lib.GetModelName(lib.GetTenant(), shardVsName.Name)
+		model_name := lib.GetModelName(tenant, shardVsName.Name)
 		found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 		if !found || aviModel == nil {
 			utils.AviLog.Infof("key: %s, msg: model not found, generating new model with name: %s", key, model_name)
@@ -615,7 +623,7 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 			sniNode = &AviVsNode{
 				Name:         sniNodeName,
 				VHParentName: vsNode[0].Name,
-				Tenant:       lib.GetTenant(),
+				Tenant:       vsNode[0].Tenant,
 				IsSNIChild:   true,
 				ServiceMetadata: lib.ServiceMetadataObj{
 					NamespaceIngressName: ingressHostMap.GetIngressesForHostName(sniHost),

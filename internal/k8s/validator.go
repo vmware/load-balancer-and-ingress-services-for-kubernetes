@@ -203,7 +203,7 @@ func (l *leader) ValidateHostRuleObj(key string, hostrule *akov1beta1.HostRule) 
 		refData[hostrule.Spec.VirtualHost.NetworkSecurityPolicy] = "NetworkSecurityPolicy"
 	}
 
-	if err := checkRefsOnController(key, refData); err != nil {
+	if err := checkRefsOnController(key, refData, lib.GetTenant()); err != nil {
 		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 		return err
 	}
@@ -272,7 +272,7 @@ func (l *leader) ValidateHTTPRuleObj(key string, httprule *akov1beta1.HTTPRule) 
 		}
 	}
 
-	if err := checkRefsOnController(key, refData); err != nil {
+	if err := checkRefsOnController(key, refData, lib.GetTenant()); err != nil {
 		status.UpdateHTTPRuleStatus(key, httprule, status.UpdateCRDStatusOptions{
 			Status: lib.StatusRejected,
 			Error:  err.Error(),
@@ -295,6 +295,12 @@ func (l *leader) ValidateHTTPRuleObj(key string, httprule *akov1beta1.HTTPRule) 
 // validateAviInfraSetting would do validaion checks on the
 // ingested AviInfraSetting objects
 func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1beta1.AviInfraSetting) error {
+	tenant := lib.GetTenant()
+	if infraSetting.Spec.NSXSettings.Project != nil {
+		tenant = *infraSetting.Spec.NSXSettings.Project
+	}
+
+	objects.InfraSettingL7Lister().UpdateAviInfraToTenantMapping(infraSetting.Name, tenant)
 
 	if ((infraSetting.Spec.Network.EnableRhi != nil && !*infraSetting.Spec.Network.EnableRhi) || infraSetting.Spec.Network.EnableRhi == nil) &&
 		len(infraSetting.Spec.Network.BgpPeerLabels) > 0 {
@@ -366,7 +372,7 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1beta1.Av
 			return err
 		}
 	}
-	if err := checkRefsOnController(key, refData); err != nil {
+	if err := checkRefsOnController(key, refData, tenant); err != nil {
 		status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
 			Status: lib.StatusRejected,
 			Error:  err.Error(),
@@ -381,16 +387,16 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1beta1.Av
 	if infraSetting.Spec.SeGroup.Name != "" {
 		addSeGroupLabel(key, infraSetting.Spec.SeGroup.Name)
 		if lib.GetCloudType() == lib.CLOUD_VCENTER {
-			segMgmtNetworK = GetSEGManagementNetwork(infraSetting.Spec.SeGroup.Name)
+			segMgmtNetworK = GetSEGManagementNetwork(infraSetting.Spec.SeGroup.Name, tenant)
 		}
 	}
 
 	if len(infraSetting.Spec.Network.VipNetworks) > 0 {
-		SetAviInfrasettingVIPNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.SeGroup.Name, infraSetting.Spec.Network.VipNetworks)
+		SetAviInfrasettingVIPNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.SeGroup.Name, infraSetting.Spec.Network.VipNetworks, tenant)
 	}
 
 	if len(infraSetting.Spec.Network.NodeNetworks) > 0 {
-		SetAviInfrasettingNodeNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.SeGroup.Name, infraSetting.Spec.Network.NodeNetworks)
+		SetAviInfrasettingNodeNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.SeGroup.Name, infraSetting.Spec.Network.NodeNetworks, tenant)
 	}
 	// No need to update status of infra setting object as accepted since it was accepted before.
 	if infraSetting.Status.Status == lib.StatusAccepted {
@@ -542,7 +548,7 @@ func (l *leader) ValidateSSORuleObj(key string, ssoRule *akov1alpha2.SSORule) er
 		}
 	}
 
-	if err := checkRefsOnController(key, refData); err != nil {
+	if err := checkRefsOnController(key, refData, lib.GetTenant()); err != nil {
 		status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 		return err
 	}
@@ -696,7 +702,7 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 		}
 	}
 
-	if err := checkRefsOnController(key, refData); err != nil {
+	if err := checkRefsOnController(key, refData, lib.GetTenant()); err != nil {
 		status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
 			Status: lib.StatusRejected,
 			Error:  err.Error(),
@@ -758,20 +764,25 @@ func (f *follower) ValidateAviInfraSetting(key string, infraSetting *akov1beta1.
 	// During AKO bootup as leader is not set, crd validation is not done.
 	// This creates problem in vip network and pool network population.
 	if infraSetting.Status.Status == lib.StatusAccepted {
+		tenant := lib.GetTenant()
+		if infraSetting.Spec.NSXSettings.Project != nil {
+			tenant = *infraSetting.Spec.NSXSettings.Project
+		}
+
 		segMgmtNetworK := ""
 		if infraSetting.Spec.SeGroup.Name != "" {
 			addSeGroupLabel(key, infraSetting.Spec.SeGroup.Name)
 			if lib.GetCloudType() == lib.CLOUD_VCENTER {
-				segMgmtNetworK = GetSEGManagementNetwork(infraSetting.Spec.SeGroup.Name)
+				segMgmtNetworK = GetSEGManagementNetwork(infraSetting.Spec.SeGroup.Name, tenant)
 			}
 		}
 
 		if len(infraSetting.Spec.Network.VipNetworks) > 0 {
-			SetAviInfrasettingVIPNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.SeGroup.Name, infraSetting.Spec.Network.VipNetworks)
+			SetAviInfrasettingVIPNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.SeGroup.Name, infraSetting.Spec.Network.VipNetworks, tenant)
 		}
 
 		if len(infraSetting.Spec.Network.NodeNetworks) > 0 {
-			SetAviInfrasettingNodeNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.SeGroup.Name, infraSetting.Spec.Network.NodeNetworks)
+			SetAviInfrasettingNodeNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.SeGroup.Name, infraSetting.Spec.Network.NodeNetworks, tenant)
 		}
 	}
 	return nil

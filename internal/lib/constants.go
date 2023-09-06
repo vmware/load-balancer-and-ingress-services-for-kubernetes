@@ -197,6 +197,7 @@ const (
 	VrfContextNotFoundError                    = "VrfContext not found"
 	HTTPMethodGet                              = "GET"
 	HTTPMethodPut                              = "PUT"
+	VrfContextObjectNotFoundError              = "VrfContext object not found"
 	NetworkNotFoundError                       = "Network object not found"
 
 	// AKO Event constants
