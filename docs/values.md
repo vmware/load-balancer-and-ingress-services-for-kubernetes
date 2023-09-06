@@ -286,6 +286,13 @@ One AKO runs in active mode, and the second in passive mode. The AKO, which is r
 If you are using a private container registry and you'd like to override the default dockerhub settings, then this field can be edited
 with the private registry name.
 
+### image.pullSecrets
+
+If you are setting the [image.repository](#imagerepository) field to use a private container image registry for ako image, then you must specify the pull secrets in this field. The pull secrets are a list of Kubernetes Secret objects that are created from the login credentials of the image registry. The container runtime uses the pull secrets to authenticate with the registry in order to pull the ako image. The image pull secrets must be created in the `avi-system` namespace before deploying AKO.
+
+    pullSecrets:
+    - name: regcred
+
 ### L7Settings.serviceType
 
 This option specifies whether the AKO functions in ClusterIP mode or NodePort mode. By default it is set to `ClusterIP`. Allowed values are `ClusterIP`, `NodePort`. If CNI type for the cluster is `antrea`, then another serviceType named `NodePortLocal` is allowed.
