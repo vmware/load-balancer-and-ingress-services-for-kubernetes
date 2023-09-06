@@ -1241,7 +1241,7 @@ func TestCreateDeleteL4RuleSSLCustomValues(t *testing.T) {
 			NormalControllerServer(w, r)
 		})
 		// Set the license
-		aviRestClientPool := cache.SharedAVIClients()
+		aviRestClientPool := cache.SharedAVIClients(lib.GetTenant())
 		lib.AKOControlConfig().SetLicenseType(aviRestClientPool.AviClient[0])
 	}
 	SetupLicense(lib.LicenseTypeEnterprise)
@@ -1368,7 +1368,7 @@ func TestCreateDeleteL4RuleSSLDefaultValues(t *testing.T) {
 			NormalControllerServer(w, r)
 		})
 		// Set the license
-		aviRestClientPool := cache.SharedAVIClients()
+		aviRestClientPool := cache.SharedAVIClients(lib.GetTenant())
 		lib.AKOControlConfig().SetLicenseType(aviRestClientPool.AviClient[0])
 	}
 	SetupLicense(lib.LicenseTypeEnterprise)

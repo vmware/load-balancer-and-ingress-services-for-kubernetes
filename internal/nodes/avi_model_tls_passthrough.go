@@ -30,10 +30,15 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 	defer o.Lock.Unlock()
 	var avi_vs_meta *AviVsNode
 
+	tenant := lib.GetTenant()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
+		tenant = *infraSetting.Spec.NSXSettings.Project
+	}
+
 	// create the secured shared VS to listen on port 443
 	avi_vs_meta = &AviVsNode{
 		Name:               vsName,
-		Tenant:             lib.GetTenant(),
+		Tenant:             tenant,
 		SharedVS:           true,
 		ServiceEngineGroup: lib.GetSEGName(),
 	}
@@ -67,7 +72,7 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 	// VSvip node to be shared by the secure and insecure VS
 	vsVipNode := &AviVSVIPNode{
 		Name:        lib.GetVsVipName(vsName),
-		Tenant:      lib.GetTenant(),
+		Tenant:      tenant,
 		FQDNs:       fqdns,
 		VrfContext:  vrfcontext,
 		VipNetworks: utils.GetVipNetworkList(),
@@ -103,9 +108,13 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 	var infrasettingName string
 	var infraSettingNameWithSuffix string
 	var pgName string
+	tenant := lib.GetTenant()
 	if infraSetting != nil {
 		infrasettingName = infraSetting.Name
 		infraSettingNameWithSuffix = infrasettingName + "-"
+		if infraSetting.Spec.NSXSettings.Project != nil {
+			tenant = *infraSetting.Spec.NSXSettings.Project
+		}
 	}
 	//Replace AVIINFRA with infrasettingname if present
 	dsNode.Script = strings.Replace(dsNode.Script, "AVIINFRA", infraSettingNameWithSuffix, 1)
@@ -113,7 +122,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 	pgName = lib.GetPassthroughPGName(hostname, infrasettingName)
 	pgNode := o.GetPoolGroupByName(pgName)
 	if pgNode == nil {
-		pgNode = &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
+		pgNode = &AviPoolGroupNode{Name: pgName, Tenant: tenant}
 		o.AddModelNode(pgNode)
 		pgNode.AviMarkers = lib.PopulatePassthroughPGMarkers(hostname, infrasettingName)
 		utils.AviLog.Infof("key: %s, msg: adding PG %s for the passthrough VS: %s", key, pgName, secureSharedVS.Name)
@@ -151,7 +160,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 		if poolNode == nil {
 			poolNode = &AviPoolNode{
 				Name:       poolName,
-				Tenant:     lib.GetTenant(),
+				Tenant:     tenant,
 				VrfContext: vrfContext,
 			}
 			poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
@@ -226,7 +235,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 	if passChildVS == nil {
 		passChildVS = &AviVsNode{
 			Name:               secureSharedVS.Name + lib.PassthroughInsecure,
-			Tenant:             lib.GetTenant(),
+			Tenant:             tenant,
 			VrfContext:         vrfContext,
 			ServiceEngineGroup: lib.GetSEGName(),
 			ApplicationProfile: utils.DEFAULT_L7_APP_PROFILE,
@@ -250,7 +259,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 func (o *AviObjectGraph) ConstructL4DataScript(vsName string, key string, vsNode *AviVsNode) *AviHTTPDataScriptNode {
 	dsScriptNode := &AviHTTPDataScriptNode{
 		Name:   lib.GetL7InsecureDSName(vsName),
-		Tenant: lib.GetTenant(),
+		Tenant: vsNode.GetTenant(),
 		DataScript: &DataScript{
 			Script: lib.PassthroughDatascript,
 			Evt:    "VS_DATASCRIPT_EVT_L4_REQUEST",

@@ -211,6 +211,7 @@ func IncrementRestOpCouter(restOpMethod, objName string) {
 type VSNameMetadata struct {
 	Name      string
 	Dedicated bool
+	Tenant    string
 }
 
 var NamePrefix string
@@ -269,7 +270,7 @@ func GetNSXTTransportZone() string {
 	return NsxTTzType
 }
 
-func GetFqdns(vsName, key string, subDomains []string, shardSize uint32) ([]string, string) {
+func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32) ([]string, string) {
 	var fqdns []string
 	var fqdn string
 
@@ -298,12 +299,12 @@ func GetFqdns(vsName, key string, subDomains []string, shardSize uint32) ([]stri
 		}
 		if GetL4FqdnFormat() == AutoFQDNDefault {
 			// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
-			fqdn = vsName + "." + GetTenant() + "." + subdomain
+			fqdn = vsName + "." + tenant + "." + subdomain
 		} else if GetL4FqdnFormat() == AutoFQDNFlat {
 			// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
-			fqdn = vsName + "-" + GetTenant() + "." + subdomain
+			fqdn = vsName + "-" + tenant + "." + subdomain
 		}
-		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(fqdn, GetModelName(GetTenant(), vsName))
+		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(fqdn, GetModelName(tenant, vsName))
 		utils.AviLog.Infof("key: %s, msg: Configured the shared VS with default fqdn as: %s", key, fqdn)
 		fqdns = append(fqdns, fqdn)
 	}
@@ -437,8 +438,8 @@ func GetL4PoolName(svcName, namespace, protocol string, port int32) string {
 	return Encode(poolName, L4Pool)
 }
 
-func GetAdvL4PoolName(svcName, namespace, gwName string, port int32) string {
-	poolName := NamePrefix + namespace + "-" + svcName + "-" + gwName + "--" + strconv.Itoa(int(port))
+func GetAdvL4PoolName(svcName, namespace, gwName, protocol string, port int32) string {
+	poolName := NamePrefix + namespace + "-" + svcName + "-" + gwName + "-" + protocol + "--" + strconv.Itoa(int(port))
 	return Encode(poolName, L4AdvPool)
 }
 
@@ -686,6 +687,13 @@ func GetVrf() string {
 		return utils.GlobalVRF
 	}
 	return VRFContext
+}
+
+func GetVPCMode() bool {
+	if vpcMode, _ := strconv.ParseBool(os.Getenv("VPC_MODE")); vpcMode {
+		return true
+	}
+	return false
 }
 
 func GetAdminTenant() string {
@@ -1874,8 +1882,8 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 			utils.AviLog.Errorf("Failed to parse token object")
 			return
 		}
-		layout := "2006-01-02T15:04:05.000000+00:00"
-		expiryTime, err := time.Parse(layout, expiry)
+		expiryTime, err := time.Parse(time.RFC3339, expiry)
+
 		if err != nil {
 			utils.AviLog.Errorf("Unable to parse token expiry time, err: %+v", err)
 			return

@@ -79,6 +79,12 @@ var (
 		Version:  "v1alpha1",
 		Resource: "availabilityzones",
 	}
+
+	VPCGVR = schema.GroupVersionResource{
+		Group:    "nsx.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "vpcs",
+	}
 )
 
 type BootstrapCRData struct {
@@ -127,6 +133,8 @@ type DynamicInformers struct {
 	VCFClusterNetworkInformer informers.GenericInformer
 
 	AvailabilityZoneInformer informers.GenericInformer
+
+	VPCInformer informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
@@ -150,6 +158,7 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 		if akoInfra {
 			informers.VCFClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
 			informers.AvailabilityZoneInformer = f.ForResource(AvailabilityZoneVR)
+			informers.VPCInformer = f.ForResource(VPCGVR)
 		}
 	}
 
@@ -166,19 +175,31 @@ func GetDynamicInformers() *DynamicInformers {
 	return dynamicInformerInstance
 }
 
-func GetNetworkInfoCRData(clientSet dynamic.Interface) (map[string]string, map[string]map[string]struct{}) {
+func GetNetworkInfoCRData(clientSet dynamic.Interface) (map[string]string, map[string]string, map[string]map[string]struct{}) {
 	lslrMap := make(map[string]string)
+	nsLRMap := make(map[string]string)
 	cidrs := make(map[string]map[string]struct{})
 
 	crList, err := clientSet.Resource(NetworkInfoGVR).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		utils.AviLog.Errorf("Error getting Networkinfo CR %v", err)
-		return lslrMap, cidrs
+		return lslrMap, nsLRMap, cidrs
 	}
 
 	if len(crList.Items) == 0 {
 		utils.AviLog.Infof("No Networkinfo CRs found.")
-		return lslrMap, cidrs
+		return lslrMap, nsLRMap, cidrs
+	}
+
+	if cidrIntf, clusterNetworkCIDRFound := GetClusterNetworkInfoCRData(clientSet); clusterNetworkCIDRFound {
+		// Set the namespace to cluster name for the cluster ingress cidr
+		ns := GetClusterName()
+		cidrs[ns] = make(map[string]struct{})
+		cidrMap := cidrs[ns]
+		for _, cidr := range cidrIntf {
+			cidrMap[cidr.(string)] = struct{}{}
+		}
+		utils.AviLog.Infof("Ingress CIDR found from Cluster Network Info %v", cidrIntf)
 	}
 
 	for _, obj := range crList.Items {
@@ -195,17 +216,10 @@ func GetNetworkInfoCRData(clientSet dynamic.Interface) (map[string]string, map[s
 			continue
 		}
 		lslrMap[ls] = lr
+		nsLRMap[ns] = lr
 		cidrIntf, ok := spec["ingressCIDRs"].([]interface{})
 		if !ok {
-			utils.AviLog.Infof("cidr not found in networkinfo object")
-			// If not found, try fetching from cluster network info CRD
-			var clusterNetworkCIDRFound bool
-			if cidrIntf, clusterNetworkCIDRFound = GetClusterNetworkInfoCRData(clientSet); !clusterNetworkCIDRFound {
-				continue
-			}
-			// Set the namespace to cluster name for the cluster ingress cidr
-			ns = GetClusterName()
-			utils.AviLog.Infof("Ingress CIDR found from Cluster Network Info %v", cidrIntf)
+			continue
 		}
 		for _, cidr := range cidrIntf {
 			if _, ok := cidrs[ns]; !ok {
@@ -216,7 +230,7 @@ func GetNetworkInfoCRData(clientSet dynamic.Interface) (map[string]string, map[s
 		}
 	}
 
-	return lslrMap, cidrs
+	return lslrMap, nsLRMap, cidrs
 }
 
 func GetAvailabilityZonesCRData(clientSet dynamic.Interface) ([]string, error) {
@@ -454,4 +468,34 @@ func WaitForInitSecretRecreateAndReboot() {
 		}
 		time.Sleep(5 * time.Second)
 	}
+}
+
+func GetVPCs(clientSet dynamic.Interface) (map[string]string, map[string]string, error) {
+	vpcToSubnetMap := make(map[string]string)
+	vpcToNSMap := make(map[string]string)
+	vpcCRs, err := clientSet.Resource(VPCGVR).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return vpcToSubnetMap, vpcToNSMap, err
+	}
+	for _, obj := range vpcCRs.Items {
+		status, ok := obj.Object["status"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+		aviSubnetPath, ok := status["lbSubnetPath"].(string)
+		if !ok {
+			continue
+		}
+		vpcPath, ok := status["nsxResourcePath"].(string)
+		if !ok {
+			continue
+		}
+		if vpcPath == "" || aviSubnetPath == "" {
+			utils.AviLog.Warnf("invalid values for vpcPath: %s or aviSubnetPath: %s in the namespace %s", vpcPath, aviSubnetPath, obj.GetNamespace())
+			continue
+		}
+		vpcToNSMap[vpcPath] = obj.GetNamespace()
+		vpcToSubnetMap[vpcPath] = aviSubnetPath
+	}
+	return vpcToSubnetMap, vpcToNSMap, nil
 }

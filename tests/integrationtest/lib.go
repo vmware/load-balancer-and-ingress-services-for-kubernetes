@@ -1130,9 +1130,9 @@ func NewAviFakeClientInstance(kubeclient *k8sfake.Clientset, skipCachePopulation
 		os.Setenv("CTRL_IPADDRESS", url)
 		os.Setenv("FULL_SYNC_INTERVAL", "600")
 		// resets avi client pool instance, allows to connect with the new `ts` server
-		cache.AviClientInstance = nil
+		//cache.AviClientInstance = nil
 		k8s.PopulateControllerProperties(kubeclient)
-		if len(skipCachePopulation) == 0 || skipCachePopulation[0] == false {
+		if len(skipCachePopulation) == 0 || !skipCachePopulation[0] {
 			k8s.PopulateCache()
 		}
 	}
