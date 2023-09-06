@@ -64,10 +64,7 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1beta1.Gateway, key
 
 	parentVsNode.PortProto = BuildPortProtocols(gateway, key)
 
-	tlsNodes := BuildTLSNodesForGateway(gateway, key)
-	if len(tlsNodes) > 0 {
-		parentVsNode.SSLKeyCertRefs = tlsNodes
-	}
+	o.BuildTLSNodesForGateway(gateway, key)
 
 	vsvipNode := BuildVsVipNodeForGateway(gateway, parentVsNode.Name)
 	parentVsNode.VSVIPRefs = []*nodes.AviVSVIPNode{vsvipNode}
@@ -88,17 +85,15 @@ func BuildPortProtocols(gateway *gatewayv1beta1.Gateway, key string) []nodes.Avi
 	return portProtocols
 }
 
-func BuildTLSNodesForGateway(gateway *gatewayv1beta1.Gateway, key string) []*nodes.AviTLSKeyCertNode {
+func (o *AviObjectGraph) BuildTLSNodesForGateway(gateway *gatewayv1beta1.Gateway, key string) {
 	var tlsNodes []*nodes.AviTLSKeyCertNode
 	var ns, name string
 	cs := utils.GetInformers().ClientSet
 	for _, listener := range gateway.Spec.Listeners {
 		if listener.TLS != nil {
 			for _, certRef := range listener.TLS.CertificateRefs {
-				//kind is validated at ingestion
-				if certRef.Namespace == nil || *certRef.Namespace == "" {
-					ns = gateway.Namespace
-				} else {
+				ns = gateway.Namespace
+				if certRef.Namespace != nil {
 					ns = string(*certRef.Namespace)
 				}
 				name = string(certRef.Name)
@@ -112,7 +107,12 @@ func BuildTLSNodesForGateway(gateway *gatewayv1beta1.Gateway, key string) []*nod
 			}
 		}
 	}
-	return tlsNodes
+
+	if len(tlsNodes) > 0 {
+		parentVsNode := o.GetAviEvhVS()
+		parentVsNode[0].SSLKeyCertRefs = tlsNodes
+		parentVsNode[0].ApplicationProfile = utils.DEFAULT_L7_SECURE_APP_PROFILE
+	}
 }
 
 func TLSNodeFromSecret(secretObj *corev1.Secret, hostname, certName, key string) *nodes.AviTLSKeyCertNode {

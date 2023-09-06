@@ -475,18 +475,16 @@ func (g *GWLister) UpdateGatewayToSecret(gwNsName string, secretNsNameList []str
 		if found, obj := g.secretToGateway.Get(secret); found {
 			gwNsNameList := obj.([]string)
 			gwNsNameList = utils.Remove(gwNsNameList, gwNsName)
-			g.gatewayToRoute.AddOrUpdate(secret, gwNsNameList)
+			g.secretToGateway.AddOrUpdate(secret, gwNsNameList)
 		}
 	}
 
 	//add secret to gatewaymapping for new secrets
-	for _, secret := range secretNsNameList {
-		if found, obj := g.secretToGateway.Get(secret); found {
-			gwNsNameList := obj.([]string)
-			if !utils.HasElem(gwNsNameList, gwNsName) {
-				gwNsNameList = append(gwNsNameList, gwNsName)
-				g.secretToGateway.AddOrUpdate(secret, gwNsNameList)
-			}
+	for _, secretNsName := range secretNsNameList {
+		_, gwNsNameList := g.GetSecretToGateway(secretNsName)
+		if !utils.HasElem(gwNsNameList, gwNsName) {
+			gwNsNameList = append(gwNsNameList, gwNsName)
+			g.secretToGateway.AddOrUpdate(secretNsName, gwNsNameList)
 		}
 	}
 }

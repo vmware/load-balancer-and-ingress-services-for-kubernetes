@@ -41,7 +41,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		return
 	}
 
-	if updatesParent(objType) {
+	if objType == lib.Gateway {
 		handleGateway(namespace, name, fullsync, key)
 	}
 
@@ -63,6 +63,17 @@ func DequeueIngestion(key string, fullsync bool) {
 			continue
 		}
 		model := &AviObjectGraph{modelIntf.(*nodes.AviObjectGraph)}
+
+		if objType == utils.Secret {
+			gatewayObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(parentNs).Get(parentName)
+			if err != nil {
+				utils.AviLog.Errorf("key: %s, msg: gateway not found: %s", key, modelName)
+				continue
+			}
+			model.BuildTLSNodesForGateway(gatewayObj, key)
+			continue
+		}
+
 		for _, routeTypeNsName := range routeTypeNsNameList {
 			objType, namespace, name := lib.ExtractTypeNameNamespace(routeTypeNsName)
 			utils.AviLog.Infof("key: %s, msg: processing route %s mapped to gateway %s", key, routeTypeNsName, gatewayNsName)
@@ -222,8 +233,4 @@ func (o *AviObjectGraph) DeleteStaleChildVSes(key string, routeModel RouteModel,
 		modelName := lib.GetTenant() + "/" + parentNode[0].Name
 		_ = saveAviModel(modelName, o.AviObjectGraph, key)
 	}
-}
-
-func updatesParent(objType string) bool {
-	return objType == lib.Gateway || objType == utils.Secret
 }

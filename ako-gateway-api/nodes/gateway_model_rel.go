@@ -380,7 +380,7 @@ func SecretToGateways(namespace, name, key string) ([]string, bool) {
 	}
 	found, gwNsNameList := akogatewayapiobjects.GatewayApiLister().GetSecretToGateway(secretNsName)
 	if !found {
-		return []string{}, true
+		return []string{}, false
 	}
 	if secretDeleted {
 		akogatewayapiobjects.GatewayApiLister().DeleteSecretToGateway(secretNsName)

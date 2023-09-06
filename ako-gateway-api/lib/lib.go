@@ -37,12 +37,11 @@ func InformersToRegister(kclient *kubernetes.Clientset) ([]string, error) {
 
 // parent vs name format - ako-gw-clustername--gatewayNs-gatewayName-EVH
 func GetGatewayParentName(namespace, gwName string) string {
-	//clustername > gateway namespace > Gateway-name
 	//Adding -EVH prefix to reuse rest layer
 	return lib.GetNamePrefix() + namespace + "-" + gwName + "-EVH"
 }
 
-// child vs name format - ako-gw-clustername--encoded value of ako-gw-clustername--parentNs-parentName-routeNs-routeName-encodedMatch
+// child vs name format - ako-gw-clustername--encoded value of parentNs-parentName-routeNs-routeName-encodedMatch
 func GetChildName(parentNs, parentName, routeNs, routeName, matchName string) string {
 	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-" + utils.Stringify(utils.Hash(matchName))
 	return lib.Encode(name, lib.EVHVS)
