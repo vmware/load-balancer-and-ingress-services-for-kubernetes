@@ -51,6 +51,7 @@ type HeaderMatch struct {
 
 type PathMatch struct {
 	Path string
+	//Exact, PathPrefix
 	Type string
 }
 
@@ -285,6 +286,7 @@ func (hr *httpRoute) ParseRouteRules() *RouteConfig {
 				backend.Namespace = hr.namespace
 			}
 			if ruleBackend.Port != nil {
+				//Default 0
 				backend.Port = int32(*ruleBackend.Port)
 			}
 			backend.Weight = 1

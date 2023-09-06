@@ -98,12 +98,19 @@ func GatewayGetGw(namespace, name, key string) ([]string, bool) {
 			utils.AviLog.Errorf("key: %s, msg: got error while getting gateway: %v", key, err)
 			return []string{}, false
 		}
+		akogatewayapiobjects.GatewayApiLister().DeleteGatewayToSecret(gwNsName)
+		akogatewayapiobjects.GatewayApiLister().DeleteGatewayToRoute(gwNsName)
+		akogatewayapiobjects.GatewayApiLister().DeleteGatewayToGatewayClass(gwNsName)
+		akogatewayapiobjects.GatewayApiLister().DeleteGatewayToService(gwNsName)
+
 		return []string{gwNsName}, true
 	}
+
 	gwClassName := string(gwObj.Spec.GatewayClassName)
 	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToGatewayClass(namespace, name, gwClassName)
 
 	var listeners []string
+	var secrets []string
 	hostnames := make(map[string]string, 0)
 	//var hostnames map[string]string
 	for _, l := range gwObj.Spec.Listeners {
@@ -121,11 +128,21 @@ func GatewayGetGw(namespace, name, key string) ([]string, bool) {
 				}
 			}
 		}
+		if l.TLS != nil {
+			for _, cert := range l.TLS.CertificateRefs {
+				certNs := gwObj.Namespace
+				if cert.Namespace != nil {
+					certNs = string(*cert.Namespace)
+				}
+				secrets = append(secrets, certNs+"/"+string(cert.Name))
+			}
+		}
 		listeners = append(listeners, s)
 		hostnames[string(l.Name)] = string(*l.Hostname)
 	}
 	sort.Strings(listeners)
-	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToListener(namespace+"/"+name, listeners)
+	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToListener(gwNsName, listeners)
+	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToSecret(gwNsName, secrets)
 	for listener, hostname := range hostnames {
 		akogatewayapiobjects.GatewayApiLister().UpdateGatewayListenerToHostname(namespace+"/"+name+"/"+listener, hostname)
 	}
@@ -351,7 +368,25 @@ func EndpointToRoutes(namespace, name, key string) ([]string, bool) {
 }
 
 func SecretToGateways(namespace, name, key string) ([]string, bool) {
-	return []string{}, true
+	secretNsName := namespace + "/" + name
+	var secretDeleted bool
+	_, err := utils.GetInformers().SecretInformer.Lister().Secrets(namespace).Get(name)
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			utils.AviLog.Errorf("key: %s, msg: got error while getting secret: %v", key, err)
+			return []string{}, false
+		}
+		secretDeleted = true
+	}
+	found, gwNsNameList := akogatewayapiobjects.GatewayApiLister().GetSecretToGateway(secretNsName)
+	if !found {
+		return []string{}, true
+	}
+	if secretDeleted {
+		akogatewayapiobjects.GatewayApiLister().DeleteSecretToGateway(secretNsName)
+	}
+	utils.AviLog.Debugf("key: %s, msg: Gateways retrieved %s", key, gwNsNameList)
+	return gwNsNameList, found
 }
 
 func NoOperation(namespace, name, key string) ([]string, bool) {

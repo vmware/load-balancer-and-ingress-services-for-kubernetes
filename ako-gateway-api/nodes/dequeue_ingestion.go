@@ -122,7 +122,6 @@ func handleGateway(namespace, name string, fullsync bool, key string) {
 				nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
 			}
 		}
-		akogatewayapiobjects.GatewayApiLister().DeleteGatewayToGatewayClass(namespace, name)
 		return
 	}
 	gwClass := string(gatewayObj.Spec.GatewayClassName)
