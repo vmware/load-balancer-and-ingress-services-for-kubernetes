@@ -6,7 +6,7 @@ AKO primarily uses GatewayClass and Gateway CRDs for it's Gateway API implementa
 
 ### Gateway APIs and Service objects
 
-AKO allows users to expose Kubernetes/Opennshift Services, outside the cluster, using Gateway and GatewayClass constructs. AKO creates one Layer-4 Avi virtualservice per Gateway object, and configures the backend Services as distinct Avi Pools. The Gateway object acts as an overlay over Service objects (of type `ClusterIP` or `NodePort`), the same way an Ingress is implemented for Layer7. This overlay allows the Gateway to obtain a VIP, which is further shared by backend Services.
+AKO allows users to expose Kubernetes/OpenShift Services, outside the cluster, using Gateway and GatewayClass constructs. AKO creates one Layer-4 Avi virtualservice per Gateway object, and configures the backend Services as distinct Avi Pools. The Gateway object acts as an overlay over Service objects (of type `ClusterIP` or `NodePort`), the same way an Ingress is implemented for Layer7. This overlay allows the Gateway to obtain a VIP, which is further shared by backend Services.
 
 > **Note**: Keep in mind that Services of type `LoadBalancer`, would still be creating dedicated Layer4 VSes.
 
