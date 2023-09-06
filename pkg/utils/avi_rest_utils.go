@@ -29,13 +29,13 @@ import (
 )
 
 type AviRestClientPool struct {
-	AviClient []*clients.AviClient
+	AviClient map[string][]*clients.AviClient
 }
 
 var AviClientInstance *AviRestClientPool
 
 func NewAviRestClientPool(num uint32, api_ep, username,
-	password, authToken, controllerVersion, ctrlCAData string) (*AviRestClientPool, string, error) {
+	password, authToken, controllerVersion, ctrlCAData, tenant string) (*AviRestClientPool, string, error) {
 	var clientPool AviRestClientPool
 	var wg sync.WaitGroup
 	var globalErr error
@@ -45,6 +45,7 @@ func NewAviRestClientPool(num uint32, api_ep, username,
 	options := []func(*session.AviSession) error{
 		session.DisableControllerStatusCheckOnFailure(true),
 		session.SetTransport(transport),
+		session.SetTenant(tenant),
 	}
 
 	if !isSecure {
@@ -58,7 +59,7 @@ func NewAviRestClientPool(num uint32, api_ep, username,
 		options = append(options, session.SetRefreshAuthTokenCallbackV2(GetAuthtokenFromCache))
 	}
 
-	clientPool.AviClient = make([]*clients.AviClient, num)
+	clientPool.AviClient = make(map[string][]*clients.AviClient)
 	for i := uint32(0); i < num; i++ {
 		wg.Add(1)
 		go func(i uint32) {
@@ -73,7 +74,7 @@ func NewAviRestClientPool(num uint32, api_ep, username,
 				globalErr = err
 				return
 			}
-			clientPool.AviClient[i] = aviClient
+			clientPool.AviClient[tenant] = append(clientPool.AviClient[tenant], aviClient)
 		}(i)
 	}
 
@@ -85,7 +86,7 @@ func NewAviRestClientPool(num uint32, api_ep, username,
 
 	// Get the controller version if it is not present in env variable.
 	if controllerVersion == "" {
-		version, err := clientPool.AviClient[0].AviSession.GetControllerVersion()
+		version, err := clientPool.AviClient[tenant][0].AviSession.GetControllerVersion()
 		if err != nil {
 			return &clientPool, controllerVersion, err
 		}

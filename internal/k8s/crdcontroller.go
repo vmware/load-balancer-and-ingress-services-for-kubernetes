@@ -953,13 +953,13 @@ func (c *AviController) SetupServiceImportEventHandlers(numWorkers uint32) {
 	c.informers.ServiceImportInformer.Informer().AddEventHandler(serviceImportEventHandler)
 }
 
-func checkRefsOnController(key string, refMap map[string]string) error {
+func checkRefsOnController(key string, refMap map[string]string, tenant string) error {
 	for k, value := range refMap {
 		if k == "" {
 			continue
 		}
 
-		if err := checkRefOnController(key, value, k); err != nil {
+		if err := checkRefOnController(key, value, k, tenant); err != nil {
 			return err
 		}
 	}
@@ -992,10 +992,10 @@ var refModelMap = map[string]string{
 }
 
 // checkRefOnController checks whether a provided ref on the controller
-func checkRefOnController(key, refKey, refValue string) error {
+func checkRefOnController(key, refKey, refValue, tenant string) error {
 	// assign the last avi client for ref checks
 	aviClientLen := lib.GetshardSize()
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(tenant)
 	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type,labels,created_by", refModelMap[refKey], refValue)
 
 	// For public clouds, check using network UUID in AWS, normal network API for GCP, skip altogether for Azure.
@@ -1005,7 +1005,7 @@ func checkRefOnController(key, refKey, refValue string) error {
 			var rest_response interface{}
 			utils.AviLog.Infof("Cloud is  %s, checking network ref using uuid", lib.GetCloudType())
 			uri := fmt.Sprintf("/api/%s/%s?cloud_uuid=%s", refModelMap[refKey], refValue, lib.GetCloudUUID())
-			err := lib.AviGet(clients.AviClient[aviClientLen], uri, &rest_response)
+			err := lib.AviGet(clients.AviClient[tenant][aviClientLen], uri, &rest_response)
 			if err != nil {
 				utils.AviLog.Warnf("key: %s, msg: Get uri %v returned err %v", key, uri, err)
 				return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
@@ -1019,7 +1019,7 @@ func checkRefOnController(key, refKey, refValue string) error {
 		}
 	}
 
-	result, err := lib.AviGetCollectionRaw(clients.AviClient[aviClientLen], uri)
+	result, err := lib.AviGetCollectionRaw(clients.AviClient[tenant][aviClientLen], uri)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Get uri %v returned err %v", key, uri, err)
 		return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
@@ -1094,10 +1094,10 @@ func checkForL4SSLAppProfile(key, refValue string) (bool, error) {
 	// assign the last avi client for ref checks
 	refKey := "AppProfile"
 	aviClientLen := lib.GetshardSize()
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(lib.GetTenant())
 	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type,labels,created_by", refModelMap[refKey], refValue)
 
-	result, err := lib.AviGetCollectionRaw(clients.AviClient[aviClientLen], uri)
+	result, err := lib.AviGetCollectionRaw(clients.AviClient[lib.GetTenant()][aviClientLen], uri)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Get uri %v returned err %v", key, uri, err)
 		return false, fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
@@ -1140,10 +1140,10 @@ func checkForNetworkProfileTypeTCP(key, refValue string) (bool, error) {
 	// assign the last avi client for ref checks
 	refKey := "NetworkProfile"
 	aviClientLen := lib.GetshardSize()
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(lib.GetTenant())
 	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,profile,labels,created_by", refModelMap[refKey], refValue)
 
-	result, err := lib.AviGetCollectionRaw(clients.AviClient[aviClientLen], uri)
+	result, err := lib.AviGetCollectionRaw(clients.AviClient[lib.GetTenant()][aviClientLen], uri)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Get uri %v returned err %v", key, uri, err)
 		return false, fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
@@ -1187,31 +1187,31 @@ func addSeGroupLabel(key, segName string) {
 	}
 
 	// assign the last avi client for ref checks
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(lib.GetTenant())
 	aviClientLen := lib.GetshardSize()
 
 	// configure labels on SeGroup if not present already.
-	seGroup, err := avicache.GetAviSeGroup(clients.AviClient[aviClientLen], segName)
+	seGroup, err := avicache.GetAviSeGroup(clients.AviClient[lib.GetTenant()][aviClientLen], segName)
 	if err != nil {
 		utils.AviLog.Errorf("Failed to get SE group")
 		return
 	}
 
-	avicache.ConfigureSeGroupLabels(clients.AviClient[aviClientLen], seGroup)
+	avicache.ConfigureSeGroupLabels(clients.AviClient[lib.GetTenant()][aviClientLen], seGroup)
 }
 
-func SetAviInfrasettingVIPNetworks(name, segMgmtNetwork, infraSEGName string, netAviInfra []akov1beta1.AviInfraSettingVipNetwork) {
+func SetAviInfrasettingVIPNetworks(name, segMgmtNetwork, infraSEGName string, netAviInfra []akov1beta1.AviInfraSettingVipNetwork, tenant string) {
 	// assign the last avi client for ref checks
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(tenant)
 	aviClientLen := lib.GetshardSize()
 	network := netAviInfra
 	var err error
 	if lib.GetCloudType() == lib.CLOUD_VCENTER || lib.GetCloudType() == lib.CLOUD_NONE {
 		// SEG mgmt network is required to find out host overlap. Not applicable for No Access cloud.
 		if lib.GetCloudType() == lib.CLOUD_VCENTER && infraSEGName == "" && segMgmtNetwork == "" {
-			segMgmtNetwork = avicache.GetCMSEGManagementNetwork(clients.AviClient[aviClientLen])
+			segMgmtNetwork = avicache.GetCMSEGManagementNetwork(clients.AviClient[tenant][aviClientLen])
 		}
-		network, err = avicache.PopulateVipNetworkwithUUID(segMgmtNetwork, clients.AviClient[aviClientLen], netAviInfra)
+		network, err = avicache.PopulateVipNetworkwithUUID(segMgmtNetwork, clients.AviClient[tenant][aviClientLen], netAviInfra)
 		if len(network) == 0 {
 			utils.AviLog.Errorf("Infrasetting: %s not applied, Error occurred while populating vip network list. Err: %s", name, err.Error())
 			// Need to check this return
@@ -1223,9 +1223,9 @@ func SetAviInfrasettingVIPNetworks(name, segMgmtNetwork, infraSEGName string, ne
 	lib.SetVipInfraNetworkList(name, network)
 }
 
-func SetAviInfrasettingNodeNetworks(name, segMgmtNetwork, infraSEGName string, netAviInfra []akov1beta1.AviInfraSettingNodeNetwork) {
+func SetAviInfrasettingNodeNetworks(name, segMgmtNetwork, infraSEGName string, netAviInfra []akov1beta1.AviInfraSettingNodeNetwork, tenant string) {
 	// assign the last avi client for ref checks
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(tenant)
 	aviClientLen := lib.GetshardSize()
 	nodeNetorkList := make(map[string]lib.NodeNetworkMap)
 	var err error
@@ -1245,9 +1245,9 @@ func SetAviInfrasettingNodeNetworks(name, segMgmtNetwork, infraSEGName string, n
 
 	if lib.GetCloudType() == lib.CLOUD_VCENTER || lib.GetCloudType() == lib.CLOUD_NONE {
 		if lib.GetCloudType() == lib.CLOUD_VCENTER && infraSEGName == "" && segMgmtNetwork == "" {
-			segMgmtNetwork = avicache.GetCMSEGManagementNetwork(clients.AviClient[aviClientLen])
+			segMgmtNetwork = avicache.GetCMSEGManagementNetwork(clients.AviClient[tenant][aviClientLen])
 		}
-		ret := avicache.FetchNodeNetworks(segMgmtNetwork, clients.AviClient[aviClientLen], &err, nodeNetorkList)
+		ret := avicache.FetchNodeNetworks(segMgmtNetwork, clients.AviClient[tenant][aviClientLen], &err, nodeNetorkList)
 		if !ret {
 			utils.AviLog.Infof("Infrasetting: %s is not applied, Error occurred: %s", name, err.Error())
 			return
@@ -1259,12 +1259,12 @@ func SetAviInfrasettingNodeNetworks(name, segMgmtNetwork, infraSEGName string, n
 }
 
 // Fetch SEG mgmt network
-func GetSEGManagementNetwork(name string) string {
+func GetSEGManagementNetwork(name, tenant string) string {
 	mgmtNetwork := ""
 	// assign the last avi client for ref checks
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(tenant)
 	aviClientLen := lib.GetshardSize()
-	seg, err := avicache.GetAviSeGroup(clients.AviClient[aviClientLen], name)
+	seg, err := avicache.GetAviSeGroup(clients.AviClient[tenant][aviClientLen], name)
 	if err == nil {
 		// seg MgmtNetwork ref contains network-uuid based url.
 		if seg.MgmtNetworkRef != nil {
