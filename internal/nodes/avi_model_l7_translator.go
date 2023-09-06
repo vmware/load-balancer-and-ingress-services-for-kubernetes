@@ -61,11 +61,14 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 
-	var vrfcontext string
+	tenant := lib.GetTenant()
 	infraSetting := routeIgrObj.GetAviInfraSetting()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
+		tenant = *infraSetting.Spec.NSXSettings.Project
+	}
 	avi_vs_meta := &AviVsNode{
 		Name:               vsName,
-		Tenant:             lib.GetTenant(),
+		Tenant:             tenant,
 		ServiceEngineGroup: lib.GetSEGName(),
 		EnableRhi:          proto.Bool(lib.GetEnableRHI()),
 		NetworkProfile:     utils.DEFAULT_TCP_NW_PROFILE,
@@ -92,6 +95,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 	}
 
 	// If NSX-T LR path is empty, set vrfContext
+	var vrfcontext string
 	t1lr := lib.GetT1LRPath()
 	if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
 		t1lr = *infraSetting.Spec.NSXSettings.T1LR
@@ -113,7 +117,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 
 	vsVipNode := &AviVSVIPNode{
 		Name:        lib.GetVsVipName(vsName),
-		Tenant:      lib.GetTenant(),
+		Tenant:      tenant,
 		FQDNs:       fqdns,
 		VrfContext:  vrfcontext,
 		VipNetworks: utils.GetVipNetworkList(),
@@ -138,7 +142,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 
 func (o *AviObjectGraph) ConstructShardVsPGNode(vsName string, key string, vsNode *AviVsNode) *AviPoolGroupNode {
 	pgName := lib.GetL7SharedPGName(vsName)
-	pgNode := &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant(), ImplicitPriorityLabel: true}
+	pgNode := &AviPoolGroupNode{Name: pgName, Tenant: vsNode.Tenant, ImplicitPriorityLabel: true}
 	pgNode.AttachedToSharedVS = vsNode.SharedVS
 	vsNode.PoolGroupRefs = append(vsNode.PoolGroupRefs, pgNode)
 	o.AddModelNode(pgNode)
@@ -153,7 +157,7 @@ func (o *AviObjectGraph) ConstructHTTPDataScript(vsName string, key string, vsNo
 	poolGroupRefs = append(poolGroupRefs, pgName)
 	dsName := lib.GetL7InsecureDSName(vsName)
 	script := &DataScript{Script: scriptStr, Evt: evt}
-	dsScriptNode := &AviHTTPDataScriptNode{Name: dsName, Tenant: lib.GetTenant(), DataScript: script, PoolGroupRefs: poolGroupRefs}
+	dsScriptNode := &AviHTTPDataScriptNode{Name: dsName, Tenant: vsNode.Tenant, DataScript: script, PoolGroupRefs: poolGroupRefs}
 	if len(dsScriptNode.PoolGroupRefs) > 0 {
 		dsScriptNode.Script = fmt.Sprintf(dsScriptNode.Script, dsScriptNode.PoolGroupRefs[0])
 	}
@@ -164,7 +168,7 @@ func (o *AviObjectGraph) ConstructHTTPDataScript(vsName string, key string, vsNo
 
 // BuildCACertNode : Build a new node to store CA cert, this would be referred by the corresponding keycert
 func (o *AviObjectGraph) BuildCACertNode(tlsNode *AviVsNode, cacert, infraSettingName, host, key string) string {
-	cacertNode := &AviTLSKeyCertNode{Name: lib.GetCACertNodeName(infraSettingName, host), Tenant: lib.GetTenant()}
+	cacertNode := &AviTLSKeyCertNode{Name: lib.GetCACertNodeName(infraSettingName, host), Tenant: tlsNode.Tenant}
 	cacertNode.Type = lib.CertTypeCA
 	cacertNode.Cert = []byte(cacert)
 	cacertNode.AviMarkers = lib.PopulateTLSKeyCertNode(host, infraSettingName)
@@ -211,7 +215,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 	if !foundTLSKeyCertNode {
 		certNode = &AviTLSKeyCertNode{
 			Name:   lib.GetTLSKeyCertNodeName(infraSettingName, sniHost, tlsData.SecretName),
-			Tenant: lib.GetTenant(),
+			Tenant: tlsNode.GetTenant(),
 			Type:   lib.CertTypeVS,
 		}
 		certNode.AviMarkers = lib.PopulateTLSKeyCertNode(sniHost, infraSettingName)
@@ -281,7 +285,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 				if !foundTLSKeyCertNode {
 					altCertNode = &AviTLSKeyCertNode{
 						Name:       lib.GetTLSKeyCertNodeName(infraSettingName, sniHost, tlsData.SecretName+"-alt"),
-						Tenant:     lib.GetTenant(),
+						Tenant:     tlsNode.GetTenant(),
 						Type:       lib.CertTypeVS,
 						AviMarkers: certNode.AviMarkers,
 						Cert:       altCert,
@@ -348,7 +352,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 			}
 		}
 		if policyNode == nil {
-			policyNode = &AviHttpPolicySetNode{Name: httpPolName, Tenant: lib.GetTenant()}
+			policyNode = &AviHttpPolicySetNode{Name: httpPolName, Tenant: tlsNode.GetTenant()}
 			tlsNode.HttpPolicyRefs = append(tlsNode.HttpPolicyRefs, policyNode)
 		}
 
@@ -393,7 +397,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				pgName := lib.GetSniPGName(ingName, namespace, host, path.Path, infraSettingName, vsNode[0].Dedicated)
 				pgNode, pgfound = localPGList[pgName]
 				if !pgfound {
-					pgNode = &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
+					pgNode = &AviPoolGroupNode{Name: pgName, Tenant: tlsNode.GetTenant()}
 				}
 				localPGList[pgName] = pgNode
 				httpPGPath.PoolGroup = pgNode.Name
@@ -405,7 +409,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				Name:          poolName,
 				IngressName:   ingName,
 				PortName:      path.PortName,
-				Tenant:        lib.GetTenant(),
+				Tenant:        vsNode[0].Tenant,
 				PriorityLabel: priorityLabel,
 				Port:          path.Port,
 				TargetPort:    path.TargetPort,
@@ -504,7 +508,7 @@ func (o *AviObjectGraph) BuildPoolSecurity(poolNode *AviPoolNode, tlsData TlsSet
 	}
 	pkiProfile := AviPkiProfileNode{
 		Name:   lib.GetPoolPKIProfileName(poolNode.Name),
-		Tenant: lib.GetTenant(),
+		Tenant: poolNode.Tenant,
 		CACert: tlsData.destCA,
 	}
 	pkiProfile.AviMarkers = lib.PopulatePoolNodeMarkers(aviMarkers.Namespace, aviMarkers.Host[0],
@@ -523,7 +527,7 @@ func (o *AviObjectGraph) BuildPolicyRedirectForVS(vsNode []*AviVsNode, hostnames
 	}
 
 	redirectPolicy := &AviHttpPolicySetNode{
-		Tenant:        lib.GetTenant(),
+		Tenant:        vsNode[0].Tenant,
 		Name:          policyname,
 		RedirectPorts: []AviRedirectPort{myHppMap},
 	}
@@ -547,7 +551,7 @@ func (o *AviObjectGraph) BuildHeaderRewrite(vsNode []*AviVsNode, gslbHost, local
 	}
 
 	rewritePolicy := &AviHttpPolicySetNode{
-		Tenant:        lib.GetTenant(),
+		Tenant:        vsNode[0].Tenant,
 		Name:          policyname,
 		HeaderReWrite: &rewriteRule,
 	}
@@ -682,6 +686,10 @@ func buildWithInfraSetting(key, namespace string, vs *AviVsNode, vsvip *AviVSVIP
 		}
 		if infraSetting.Spec.NSXSettings.T1LR != nil {
 			vsvip.T1Lr = *infraSetting.Spec.NSXSettings.T1LR
+		}
+		if infraSetting.Spec.NSXSettings.Project != nil {
+			vs.Tenant = *infraSetting.Spec.NSXSettings.Project
+			vsvip.Tenant = *infraSetting.Spec.NSXSettings.Project
 		}
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 	}

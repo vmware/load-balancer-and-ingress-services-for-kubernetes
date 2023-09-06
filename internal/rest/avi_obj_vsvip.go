@@ -73,7 +73,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 	autoAllocate := true
 
 	if cache_obj != nil {
-		vsvip, err := rest.AviVsVipGet(key, cache_obj.Uuid, name)
+		vsvip, err := rest.AviVsVipGet(key, cache_obj.Uuid, name, vsvip_meta.Tenant)
 		if err != nil {
 			return nil, err
 		}
@@ -284,7 +284,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvip_key)
 		if ok {
 			vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
-			vsvip_avi, err := rest.AviVsVipGet(key, vsvip_cache_obj.Uuid, name)
+			vsvip_avi, err := rest.AviVsVipGet(key, vsvip_cache_obj.Uuid, name, vsvip_meta.Tenant)
 			if err != nil {
 				if strings.Contains(err.Error(), lib.VSVIPNotFoundError) {
 					// Clear the cache for this key
@@ -352,7 +352,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 	return &rest_op, nil
 }
 
-func (rest *RestOperations) AviVsVipGet(key, uuid, name string) (*avimodels.VsVip, error) {
+func (rest *RestOperations) AviVsVipGet(key, uuid, name, tenant string) (*avimodels.VsVip, error) {
 	if rest.aviRestPoolClient == nil {
 		utils.AviLog.Warnf("key: %s, msg: aviRestPoolClient during vsvip not initialized", key)
 		return nil, errors.New("client in aviRestPoolClient during vsvip not initialized")
@@ -361,7 +361,7 @@ func (rest *RestOperations) AviVsVipGet(key, uuid, name string) (*avimodels.VsVi
 		utils.AviLog.Warnf("key: %s, msg: client in aviRestPoolClient during vsvip not initialized", key)
 		return nil, errors.New("client in aviRestPoolClient during vsvip not initialized")
 	}
-	client := rest.aviRestPoolClient.AviClient[0]
+	client := rest.aviRestPoolClient.AviClient[tenant][0]
 	uri := "/api/vsvip/" + uuid + "/?include_name"
 
 	rawData, err := lib.AviGetRaw(client, uri)

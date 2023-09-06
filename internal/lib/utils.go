@@ -15,18 +15,23 @@
 package lib
 
 import (
+	"context"
+	"fmt"
 	"regexp"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/runtime"
 )
 
 type NPLAnnotation struct {
@@ -285,4 +290,101 @@ func CheckAndShortenLabelToFollowRFC1035(svcName string, svcNamespace string) (s
 		}
 	}
 	return svcName, svcNamespace
+}
+
+func CreateAviInfraSetting(name, network, t1lr, project string) (*akov1beta1.AviInfraSetting, error) {
+	infraSettingCR := &akov1beta1.AviInfraSetting{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: akov1beta1.AviInfraSettingSpec{
+			L7Settings: akov1beta1.AviInfraL7Settings{
+				ShardSize: "DEDICATED",
+			},
+			NSXSettings: akov1beta1.AviInfraNSXSettings{
+				T1LR: &t1lr,
+			},
+			SeGroup: akov1beta1.AviInfraSettingSeGroup{
+				Name: GetClusterID(),
+			},
+		},
+	}
+	if network != "" {
+		infraSettingCR.Spec.Network = akov1beta1.AviInfraSettingNetwork{
+			VipNetworks: []akov1beta1.AviInfraSettingVipNetwork{
+				{
+					NetworkName: network,
+				},
+			},
+		}
+	}
+	if project != "" {
+		infraSettingCR.Spec.NSXSettings.Project = &project
+	}
+
+	return AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Create(context.TODO(), infraSettingCR, metav1.CreateOptions{})
+}
+
+func AnnotateNamespaceWithInfraSetting(namespace, infraSettingName string) error {
+	nsObj, err := utils.GetInformers().ClientSet.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
+	if err != nil {
+		utils.AviLog.Warnf("Failed to GET the namespace details, namespace: %s, error :%s", namespace, err.Error())
+		return err
+	}
+	if nsObj.Annotations == nil {
+		nsObj.Annotations = make(map[string]string)
+	}
+	nsObj.Annotations[InfraSettingNameAnnotation] = infraSettingName
+	_, err = utils.GetInformers().ClientSet.CoreV1().Namespaces().Update(context.TODO(), nsObj, metav1.UpdateOptions{})
+	if err != nil {
+		utils.AviLog.Warnf("Error occurred while Updating namespace: %s", err.Error())
+		return err
+	}
+	utils.AviLog.Infof("Annotated Namespace %s with AviInfraSetting %s", namespace, infraSettingName)
+	return nil
+}
+
+func AnnotateSystemNamespaceWithInfraSetting() {
+	namespaces, err := utils.GetInformers().ClientSet.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return
+	}
+
+	systemNamespaces := make([]corev1.Namespace, 0)
+	systemNSVPC := ""
+	for _, namespace := range namespaces.Items {
+		for key, val := range namespace.GetAnnotations() {
+			if key != "nsx.vmware.com/vpc_name" {
+				continue
+			}
+			systemNSVPC = val
+			systemNamespaces = append(systemNamespaces, namespace)
+		}
+	}
+
+	arr := strings.Split(systemNSVPC, "/")
+	namespace, vpcName := arr[0], arr[1]
+	vpcCR, err := GetDynamicClientSet().Resource(VPCGVR).Namespace(namespace).Get(context.TODO(), vpcName, metav1.GetOptions{})
+	if err != nil {
+		return
+	}
+	metadata, _ := vpcCR.Object["metadata"].(map[string]interface{})
+	vpcUUID, _ := metadata["uid"].(string)
+	for _, namespace := range systemNamespaces {
+		namespace.Annotations[InfraSettingNameAnnotation] = vpcUUID
+		_, err = utils.GetInformers().ClientSet.CoreV1().Namespaces().Update(context.TODO(), &namespace, metav1.UpdateOptions{})
+		if err != nil {
+			utils.AviLog.Warnf("Error occurred while Updating namespace: %s", err.Error())
+			return
+		}
+	}
+}
+
+func RunAviInfraSettingInformer(stopCh <-chan struct{}) {
+	go AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh, AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
+	} else {
+		utils.AviLog.Infof("Caches synced")
+	}
 }

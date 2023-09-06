@@ -87,7 +87,7 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 	statusQueueParams := utils.WorkerQueue{NumWorkers: numGraphWorkers, WorkqueueName: utils.StatusQueue}
 	graphQueue = utils.SharedWorkQueue(&ingestionQueueParams, &graphQueueParams, &slowRetryQParams, &fastRetryQParams, &statusQueueParams).GetQueueByName(utils.GraphLayer)
 
-	err := k8s.PopulateCache()
+	err := k8s.PopulateCache(lib.GetTenant())
 	if err != nil {
 		c.DisableSync = true
 		utils.AviLog.Errorf("failed to populate cache, disabling sync")
@@ -326,14 +326,14 @@ func (c *GatewayController) publishAllParentVSKeysToRestLayer() {
 }
 
 func (c *GatewayController) FullSync() {
-	aviRestClientPool := avicache.SharedAVIClients()
+	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
 	aviObjCache := avicache.SharedAviObjCache()
 
 	// Randomly pickup a client.
 	if len(aviRestClientPool.AviClient) > 0 {
-		aviObjCache.AviClusterStatusPopulate(aviRestClientPool.AviClient[0])
+		aviObjCache.AviClusterStatusPopulate(aviRestClientPool.AviClient[lib.GetTenant()][0])
 
-		aviObjCache.AviCacheRefresh(aviRestClientPool.AviClient[0], utils.CloudName)
+		aviObjCache.AviCacheRefresh(aviRestClientPool.AviClient[lib.GetTenant()][0], utils.CloudName)
 
 		allModelsMap := objects.SharedAviGraphLister().GetAll()
 		var allModels []string
@@ -363,7 +363,7 @@ func SyncFromNodesLayer(key interface{}, wg *sync.WaitGroup) error {
 		return nil
 	}
 	cache := avicache.SharedAviObjCache()
-	aviclient := avicache.SharedAVIClients()
+	aviclient := avicache.SharedAVIClients(lib.GetTenant())
 	restlayer := rest.NewRestOperations(cache, aviclient)
 	restlayer.DequeueNodes(keyStr)
 	return nil
@@ -413,7 +413,7 @@ func SyncFromStatusQueue(key interface{}, wg *sync.WaitGroup) error {
 
 func (c *GatewayController) cleanupStaleVSes() {
 
-	aviRestClientPool := avicache.SharedAVIClients()
+	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
 	aviObjCache := avicache.SharedAviObjCache()
 
 	delModels := k8s.DeleteConfigFromConfigmap(c.informers.ClientSet)
