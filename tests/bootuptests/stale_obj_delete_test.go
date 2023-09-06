@@ -153,7 +153,7 @@ func TestObjDeletion(t *testing.T) {
 	injectMWForObjDeletion()
 	integrationtest.AddConfigMap(KubeClient)
 	k8s.PopulateControllerProperties(KubeClient)
-	go k8s.PopulateCache()
+	go k8s.PopulateCache(lib.GetTenant())
 	// DeleteConfigMap(t)
 	integrationtest.ResetMiddleware()
 }
@@ -162,7 +162,7 @@ func TestObjDeletion(t *testing.T) {
 func TestNetworkIssueCacheValidationDuringBootup(t *testing.T) {
 	injectMWForCloud()
 	k8s.PopulateControllerProperties(KubeClient)
-	err := k8s.PopulateCache()
+	err := k8s.PopulateCache(lib.GetTenant())
 	if err == nil {
 		t.Fatalf("Cache validation failed.")
 	}
