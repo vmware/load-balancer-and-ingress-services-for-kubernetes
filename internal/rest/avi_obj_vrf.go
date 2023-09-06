@@ -40,7 +40,7 @@ func (rest *RestOperations) AviVrfGet(key, uuid, name string) *avimodels.VrfCont
 		return nil
 	}
 
-	client := rest.aviRestPoolClient.AviClient[0]
+	client := rest.aviRestPoolClient.AviClient[lib.GetTenant()][0]
 	uri := "/api/vrfcontext/" + uuid
 
 	rawData, err := lib.AviGetRaw(client, uri)

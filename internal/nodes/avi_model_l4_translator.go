@@ -59,24 +59,29 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		}
 	}
 
-	vsName := lib.GetL4VSName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
-	avi_vs_meta = &AviVsNode{
-		Name:   vsName,
-		Tenant: lib.GetTenant(),
-		ServiceMetadata: lib.ServiceMetadataObj{
-			NamespaceServiceName: []string{svcObj.ObjectMeta.Namespace + "/" + svcObj.ObjectMeta.Name},
-			HostNames:            fqdns,
-		},
-		ServiceEngineGroup: lib.GetSEGName(),
-		EnableRhi:          proto.Bool(lib.GetEnableRHI()),
-	}
-
 	infraSetting, err := getL4InfraSetting(key, svcObj.Namespace, svcObj, nil)
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
 			utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
 			return nil
 		}
+	}
+	tenant := lib.GetTenant()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
+		tenant = *infraSetting.Spec.NSXSettings.Project
+		objects.InfraSettingL7Lister().UpdateGwSvcToInfraSettingMapping(svcObj.GetNamespace()+"/"+svcObj.GetName(), infraSetting.Name)
+	}
+
+	vsName := lib.GetL4VSName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
+	avi_vs_meta = &AviVsNode{
+		Name:   vsName,
+		Tenant: tenant,
+		ServiceMetadata: lib.ServiceMetadataObj{
+			NamespaceServiceName: []string{svcObj.ObjectMeta.Namespace + "/" + svcObj.ObjectMeta.Name},
+			HostNames:            fqdns,
+		},
+		ServiceEngineGroup: lib.GetSEGName(),
+		EnableRhi:          proto.Bool(lib.GetEnableRHI()),
 	}
 
 	vrfcontext := lib.GetVrf()
@@ -121,7 +126,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	vsVipName := lib.GetL4VSVipName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
 	vsVipNode := &AviVSVIPNode{
 		Name:        vsVipName,
-		Tenant:      lib.GetTenant(),
+		Tenant:      tenant,
 		FQDNs:       fqdns,
 		VrfContext:  vrfcontext,
 		VipNetworks: utils.GetVipNetworkList(),
@@ -169,13 +174,24 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 			isSSLEnabled = true
 		}
 	}
+	infraSetting, err := getL4InfraSetting(key, svcObj.Namespace, svcObj, nil)
+	if err != nil {
+		if !k8serrors.IsNotFound(err) {
+			utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
+			return
+		}
+	}
+	tenant := lib.GetTenant()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
+		tenant = *infraSetting.Spec.NSXSettings.Project
+	}
 
 	protocolSet := sets.NewString()
 	for _, portProto := range vsNode.PortProto {
 		filterPort := portProto.Port
 		poolNode := &AviPoolNode{
 			Name:       lib.GetL4PoolName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace, portProto.Protocol, filterPort),
-			Tenant:     lib.GetTenant(),
+			Tenant:     tenant,
 			Protocol:   portProto.Protocol,
 			PortName:   portProto.Name,
 			Port:       portProto.Port,
@@ -191,13 +207,6 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 		protocolSet.Insert(portProto.Protocol)
 		poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
 
-		infraSetting, err := getL4InfraSetting(key, svcObj.Namespace, svcObj, nil)
-		if err != nil {
-			if !k8serrors.IsNotFound(err) {
-				utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
-				return
-			}
-		}
 		t1lr := lib.GetT1LRPath()
 		if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
 			t1lr = *infraSetting.Spec.NSXSettings.T1LR
@@ -254,6 +263,12 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 		l4Policies = append(l4Policies, l4policyNode)
 		vsNode.L4PolicyRefs = l4Policies
 	}
+	l4policyNode := &AviL4PolicyNode{Name: vsNode.Name, Tenant: tenant, PortPool: portPoolSet}
+	sort.Strings(protocolSet.List())
+	protocols := strings.Join(protocolSet.List(), ",")
+	l4policyNode.AviMarkers = lib.PopulateL4PolicysetMarkers(svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, protocols)
+	l4Policies = append(l4Policies, l4policyNode)
+	vsNode.L4PolicyRefs = l4Policies
 	//As pool naming covention changed for L4 pools marking flag, so that cksum will be changed
 	vsNode.IsL4VS = true
 	if len(vsNode.L4PolicyRefs) != 0 {
