@@ -105,6 +105,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 	routeTypeNsName := lib.HTTPRoute + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName()
 	parentNs, _, parentName := lib.ExtractTypeNameNamespace(parentNsName)
 	_, listeners := akogatewayapiobjects.GatewayApiLister().GetRouteToGatewayListener(routeTypeNsName)
+	//ListenerName/port/protocol/allowedRouteSpec
 	listenerSlice := strings.Split(listeners[0], "/")
 	listenerProtocol := listenerSlice[2]
 	PGName := akogatewayapilib.GetPoolGroupName(parentNs, parentName,

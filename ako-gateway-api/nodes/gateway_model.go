@@ -144,6 +144,7 @@ func BuildVsVipNodeForGateway(gateway *gatewayv1beta1.Gateway, vsName string) *n
 	}
 
 	//Type is validated at ingestion
+	//TODO IPV6 handdling
 	if len(gateway.Spec.Addresses) == 1 {
 		vsvipNode.IPAddress = gateway.Spec.Addresses[0].Value
 	}
