@@ -101,6 +101,15 @@ spec:
                 type: object
                 required:
                 - shardSize
+              nsxSettings:
+                properties:
+                  project:
+                    type: string
+                  t1lr:
+                    type: string
+                type: object
+                required:
+                - t1lr
             type: object
           status:
             properties:

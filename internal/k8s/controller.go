@@ -167,10 +167,7 @@ func isNamespaceUpdated(oldNS, newNS *corev1.Namespace) bool {
 	}
 	oldLabelHash := utils.Hash(utils.Stringify(oldNS.Labels))
 	newLabelHash := utils.Hash(utils.Stringify(newNS.Labels))
-	if oldLabelHash != newLabelHash {
-		return true
-	}
-	return false
+	return oldLabelHash != newLabelHash
 }
 
 func AddIngressFromNSToIngestionQueue(numWorkers uint32, c *AviController, namespace string, msg string) {
@@ -313,7 +310,10 @@ func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 				oldNSAccepted := utils.CheckIfNamespaceAccepted(nsOld.GetName(), nsOld.Labels, false)
 				newNSAccepted := utils.CheckIfNamespaceAccepted(nsCur.GetName(), nsCur.Labels, false)
 
-				if !oldNSAccepted && newNSAccepted {
+				infraSettingOld := nsOld.Annotations[lib.InfraSettingNameAnnotation]
+				infraSettingNew := nsCur.Annotations[lib.InfraSettingNameAnnotation]
+
+				if !oldNSAccepted && newNSAccepted || (infraSettingOld != infraSettingNew) {
 					//Case 1: Namespace updated with valid labels
 					//Call ingress/route and service add
 					utils.AddNamespaceToFilter(nsCur.GetName())
@@ -324,14 +324,6 @@ func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 						utils.AviLog.Debugf("Adding routes for namespaces: %s", nsCur.GetName())
 						AddRoutesFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
 					}
-					if utils.GetInformers().MultiClusterIngressInformer != nil {
-						utils.AviLog.Debugf("Adding multi-cluster ingresses for namespaces: %s", nsCur.GetName())
-						AddMultiClusterIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
-					}
-					if utils.GetInformers().ServiceImportInformer != nil {
-						utils.AviLog.Debugf("Adding service imports for namespaces: %s", nsCur.GetName())
-						AddServiceImportsFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
-					}
 					if utils.GetInformers().ServiceInformer != nil {
 						utils.AviLog.Debugf("Adding L4 services for namespaces: %s", nsCur.GetName())
 						AddServicesFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
@@ -339,6 +331,16 @@ func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 					if lib.UseServicesAPI() {
 						utils.AviLog.Debugf("Adding Gatways for namespaces: %s", nsCur.GetName())
 						AddGatewaysFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
+					}
+					if !oldNSAccepted && newNSAccepted {
+						if utils.GetInformers().MultiClusterIngressInformer != nil {
+							utils.AviLog.Debugf("Adding multi-cluster ingresses for namespaces: %s", nsCur.GetName())
+							AddMultiClusterIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
+						}
+						if utils.GetInformers().ServiceImportInformer != nil {
+							utils.AviLog.Debugf("Adding service imports for namespaces: %s", nsCur.GetName())
+							AddServiceImportsFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
+						}
 					}
 				} else if oldNSAccepted && !newNSAccepted {
 					//Case 2: Old valid namespace updated with invalid labels
@@ -372,6 +374,40 @@ func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 		},
 	}
 	return namespaceEventHandler
+}
+
+func AddNamespaceAnnotationEventHandler(numWorkers uint32, c *AviController) cache.ResourceEventHandler {
+	nsEventHandler := cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(old, cur interface{}) {
+			if c.DisableSync {
+				return
+			}
+			nsOld := old.(*corev1.Namespace)
+			nsCur := cur.(*corev1.Namespace)
+			if isNamespaceUpdated(nsOld, nsCur) {
+				infraSettingOld := nsOld.Annotations[lib.InfraSettingNameAnnotation]
+				infraSettingNew := nsCur.Annotations[lib.InfraSettingNameAnnotation]
+				if infraSettingOld != infraSettingNew {
+					if utils.GetInformers().IngressInformer != nil {
+						utils.AviLog.Debugf("Adding ingresses for namespaces: %s", nsCur.GetName())
+						AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
+					} else if utils.GetInformers().RouteInformer != nil {
+						utils.AviLog.Debugf("Adding routes for namespaces: %s", nsCur.GetName())
+						AddRoutesFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
+					}
+					if utils.GetInformers().ServiceInformer != nil {
+						utils.AviLog.Debugf("Adding L4 services for namespaces: %s", nsCur.GetName())
+						AddServicesFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
+					}
+					if lib.UseServicesAPI() {
+						utils.AviLog.Debugf("Adding Gatways for namespaces: %s", nsCur.GetName())
+						AddGatewaysFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
+					}
+				}
+			}
+		},
+	}
+	return nsEventHandler
 }
 
 func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEventHandler {
@@ -962,10 +998,18 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		c.informers.SecretInformer.Informer().AddEventHandler(secretEventHandler)
 	}
 
+	// Add CRD handlers HostRule/HTTPRule/AviInfraSettings/SSORule
+	c.SetupAKOCRDEventHandlers(numWorkers)
+
+	if c.informers.NSInformer != nil {
+		nsEventHandler := AddNamespaceAnnotationEventHandler(numWorkers, c)
+		c.informers.NSInformer.Informer().AddEventHandler(nsEventHandler)
+	}
+
 	if lib.IsWCP() {
 		// servicesAPI handlers GW/GWClass
 		c.SetupAdvL4EventHandlers(numWorkers)
-		c.SetupNamespaceDeletionEventHandler(numWorkers)
+		c.SetupNamespaceEventHandler(numWorkers)
 		if lib.GetAdvancedL4() {
 			return
 		}
@@ -1209,9 +1253,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		c.informers.RouteInformer.Informer().AddEventHandler(routeEventHandler)
 	}
 
-	// Add CRD handlers HostRule/HTTPRule/AviInfraSettings/SSORule
-	c.SetupAKOCRDEventHandlers(numWorkers)
-
 	// Add MultiClusterIngress and ServiceImport CRD event handlers
 	if utils.IsMultiClusterIngressEnabled() {
 		c.SetupMultiClusterIngressEventHandlers(numWorkers)
@@ -1308,6 +1349,8 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 		informersList = append(informersList, lib.AKOControlConfig().AdvL4Informers().GatewayClassInformer.Informer().HasSynced)
 		go lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Informer().Run(stopCh)
 		informersList = append(informersList, lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Informer().HasSynced)
+		go lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().Run(stopCh)
+		informersList = append(informersList, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().HasSynced)
 	} else {
 		if lib.UseServicesAPI() {
 			go lib.AKOControlConfig().SvcAPIInformers().GatewayClassInformer.Informer().Run(stopCh)

@@ -62,6 +62,14 @@ func NewCRDInformers(cs akocrd.Interface) {
 	})
 }
 
+func NewInfraSettingCRDInformer(cs akocrd.Interface) {
+	akoInformerFactory := akoinformers.NewSharedInformerFactoryWithOptions(cs, time.Second*30)
+	aviSettingsInformer := akoInformerFactory.Ako().V1alpha1().AviInfraSettings()
+	lib.AKOControlConfig().SetCRDInformers(&lib.AKOCrdInformers{
+		AviInfraSettingInformer: aviSettingsInformer,
+	})
+}
+
 func NewIstioCRDInformers(cs istiocrd.Interface) {
 	var istioInformerFactory istioinformers.SharedInformerFactory
 
