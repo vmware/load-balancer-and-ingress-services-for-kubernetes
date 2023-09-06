@@ -1442,25 +1442,25 @@ type FakeHostRule struct {
 	GslbFqdn           string
 }
 
-func (hr FakeHostRule) HostRule() *akov1alpha1.HostRule {
+func (hr FakeHostRule) HostRule() *akov1beta1.HostRule {
 	enable := true
-	hostrule := &akov1alpha1.HostRule{
+	hostrule := &akov1beta1.HostRule{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: hr.Namespace,
 			Name:      hr.Name,
 		},
-		Spec: akov1alpha1.HostRuleSpec{
-			VirtualHost: akov1alpha1.HostRuleVirtualHost{
+		Spec: akov1beta1.HostRuleSpec{
+			VirtualHost: akov1beta1.HostRuleVirtualHost{
 				Fqdn: hr.Fqdn,
-				TLS: akov1alpha1.HostRuleTLS{
-					SSLKeyCertificate: akov1alpha1.HostRuleSSLKeyCertificate{
+				TLS: akov1beta1.HostRuleTLS{
+					SSLKeyCertificate: akov1beta1.HostRuleSSLKeyCertificate{
 						Name: hr.SslKeyCertificate,
 						Type: "ref",
 					},
 					SSLProfile:  hr.SslProfile,
 					Termination: "edge",
 				},
-				HTTPPolicy: akov1alpha1.HostRuleHTTPPolicy{
+				HTTPPolicy: akov1beta1.HostRuleHTTPPolicy{
 					PolicySets: hr.HttpPolicySets,
 					Overwrite:  false,
 				},
@@ -1471,7 +1471,7 @@ func (hr FakeHostRule) HostRule() *akov1alpha1.HostRule {
 				ErrorPageProfile:   hr.ErrorPageProfile,
 				Datascripts:        hr.Datascripts,
 				EnableVirtualHost:  &enable,
-				Gslb: akov1alpha1.HostRuleGSLB{
+				Gslb: akov1beta1.HostRuleGSLB{
 					Fqdn: hr.GslbFqdn,
 				},
 			},
@@ -1500,7 +1500,7 @@ func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool, gslbHost ...s
 		hostrule.GslbFqdn = gslbHost[0]
 		hrUpdate := hostrule.HostRule()
 		hrUpdate.ResourceVersion = "2"
-		if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{}); err != nil {
+		if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{}); err != nil {
 			t.Fatalf("error in updating HostRule: %v", err)
 		}
 		return
@@ -1511,7 +1511,7 @@ func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool, gslbHost ...s
 	}
 
 	hrCreate := hostrule.HostRule()
-	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Create(context.TODO(), hrCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Create(context.TODO(), hrCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding HostRule: %v", err)
 	}
 }

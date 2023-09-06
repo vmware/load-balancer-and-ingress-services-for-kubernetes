@@ -26,6 +26,10 @@ import (
 type Interface interface {
 	// AviInfraSettings returns a AviInfraSettingInformer.
 	AviInfraSettings() AviInfraSettingInformer
+	// HTTPRules returns a HTTPRuleInformer.
+	HTTPRules() HTTPRuleInformer
+	// HostRules returns a HostRuleInformer.
+	HostRules() HostRuleInformer
 }
 
 type version struct {
@@ -42,4 +46,14 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // AviInfraSettings returns a AviInfraSettingInformer.
 func (v *version) AviInfraSettings() AviInfraSettingInformer {
 	return &aviInfraSettingInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+}
+
+// HTTPRules returns a HTTPRuleInformer.
+func (v *version) HTTPRules() HTTPRuleInformer {
+	return &hTTPRuleInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// HostRules returns a HostRuleInformer.
+func (v *version) HostRules() HostRuleInformer {
+	return &hostRuleInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

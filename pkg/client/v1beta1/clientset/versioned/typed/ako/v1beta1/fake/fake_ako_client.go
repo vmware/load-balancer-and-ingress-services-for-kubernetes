@@ -32,6 +32,14 @@ func (c *FakeAkoV1beta1) AviInfraSettings() v1beta1.AviInfraSettingInterface {
 	return &FakeAviInfraSettings{c}
 }
 
+func (c *FakeAkoV1beta1) HTTPRules(namespace string) v1beta1.HTTPRuleInterface {
+	return &FakeHTTPRules{c, namespace}
+}
+
+func (c *FakeAkoV1beta1) HostRules(namespace string) v1beta1.HostRuleInterface {
+	return &FakeHostRules{c, namespace}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeAkoV1beta1) RESTClient() rest.Interface {

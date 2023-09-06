@@ -21,3 +21,19 @@ package v1beta1
 // AviInfraSettingListerExpansion allows custom methods to be added to
 // AviInfraSettingLister.
 type AviInfraSettingListerExpansion interface{}
+
+// HTTPRuleListerExpansion allows custom methods to be added to
+// HTTPRuleLister.
+type HTTPRuleListerExpansion interface{}
+
+// HTTPRuleNamespaceListerExpansion allows custom methods to be added to
+// HTTPRuleNamespaceLister.
+type HTTPRuleNamespaceListerExpansion interface{}
+
+// HostRuleListerExpansion allows custom methods to be added to
+// HostRuleLister.
+type HostRuleListerExpansion interface{}
+
+// HostRuleNamespaceListerExpansion allows custom methods to be added to
+// HostRuleNamespaceLister.
+type HostRuleNamespaceListerExpansion interface{}

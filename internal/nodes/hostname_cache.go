@@ -19,7 +19,8 @@ import (
 	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -104,11 +105,11 @@ func (h *HostNamePathStore) GetHostsFromHostPathStore(host, fqdnMatchType string
 	returnHosts := []string{}
 
 	for _, mHost := range allHosts {
-		if fqdnMatchType == string(akov1alpha1.Exact) && mHost == host {
+		if fqdnMatchType == string(akov1beta1.Exact) && mHost == host {
 			returnHosts = append(returnHosts, mHost)
-		} else if fqdnMatchType == string(akov1alpha1.Contains) && strings.Contains(host, mHost) {
+		} else if fqdnMatchType == string(akov1beta1.Contains) && strings.Contains(host, mHost) {
 			returnHosts = append(returnHosts, mHost)
-		} else if fqdnMatchType == string(akov1alpha1.Wildcard) && strings.HasPrefix(host, "*") {
+		} else if fqdnMatchType == string(akov1beta1.Wildcard) && strings.HasPrefix(host, "*") {
 			wildcardFqdn := strings.Split(host, "*")[1]
 			if strings.HasSuffix(mHost, wildcardFqdn) {
 				returnHosts = append(returnHosts, mHost)

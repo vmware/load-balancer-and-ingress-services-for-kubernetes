@@ -46,7 +46,6 @@ func NewCRDInformers(cs akocrd.Interface) {
 	var akoInformerFactory akoinformers.SharedInformerFactory
 
 	akoInformerFactory = akoinformers.NewSharedInformerFactoryWithOptions(cs, time.Second*30)
-	hostRuleInformer := akoInformerFactory.Ako().V1alpha1().HostRules()
 	httpRuleInformer := akoInformerFactory.Ako().V1alpha1().HTTPRules()
 
 	v1alpha2akoInformerFactory := v1alpha2akoinformers.NewSharedInformerFactoryWithOptions(
@@ -58,6 +57,7 @@ func NewCRDInformers(cs akocrd.Interface) {
 	v1beta1akoInformerFactory := v1beta1akoinformers.NewSharedInformerFactoryWithOptions(
 		lib.AKOControlConfig().V1beta1CRDClientset(), time.Second*30)
 	aviInfraSettingInformerv1Beta1 := v1beta1akoInformerFactory.Ako().V1beta1().AviInfraSettings()
+	hostRuleInformer := v1beta1akoInformerFactory.Ako().V1beta1().HostRules()
 
 	lib.AKOControlConfig().SetCRDInformers(&lib.AKOCrdInformers{
 		HostRuleInformer:             hostRuleInformer,
@@ -91,7 +91,7 @@ func NewIstioCRDInformers(cs istiocrd.Interface) {
 	})
 }
 
-func isHostRuleUpdated(oldHostRule, newHostRule *akov1alpha1.HostRule) bool {
+func isHostRuleUpdated(oldHostRule, newHostRule *akov1beta1.HostRule) bool {
 	if oldHostRule.ResourceVersion == newHostRule.ResourceVersion {
 		return false
 	}
@@ -161,7 +161,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				if c.DisableSync {
 					return
 				}
-				hostrule := obj.(*akov1alpha1.HostRule)
+				hostrule := obj.(*akov1beta1.HostRule)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
 				key := lib.HostRule + "/" + utils.ObjKey(hostrule)
 				if err := c.GetValidator().ValidateHostRuleObj(key, hostrule); err != nil {
@@ -175,8 +175,8 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				if c.DisableSync {
 					return
 				}
-				oldObj := old.(*akov1alpha1.HostRule)
-				hostrule := new.(*akov1alpha1.HostRule)
+				oldObj := old.(*akov1beta1.HostRule)
+				hostrule := new.(*akov1beta1.HostRule)
 				if isHostRuleUpdated(oldObj, hostrule) {
 					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hostrule))
 					key := lib.HostRule + "/" + utils.ObjKey(hostrule)
@@ -192,14 +192,14 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				if c.DisableSync {
 					return
 				}
-				hostrule, ok := obj.(*akov1alpha1.HostRule)
+				hostrule, ok := obj.(*akov1beta1.HostRule)
 				if !ok {
 					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 					if !ok {
 						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
 						return
 					}
-					hostrule, ok = tombstone.Obj.(*akov1alpha1.HostRule)
+					hostrule, ok = tombstone.Obj.(*akov1beta1.HostRule)
 					if !ok {
 						utils.AviLog.Errorf("Tombstone contained object that is not an HostRule: %#v", obj)
 						return

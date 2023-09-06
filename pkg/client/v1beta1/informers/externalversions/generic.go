@@ -55,6 +55,10 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	// Group=ako.vmware.com, Version=v1beta1
 	case v1beta1.SchemeGroupVersion.WithResource("aviinfrasettings"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ako().V1beta1().AviInfraSettings().Informer()}, nil
+	case v1beta1.SchemeGroupVersion.WithResource("httprules"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ako().V1beta1().HTTPRules().Informer()}, nil
+	case v1beta1.SchemeGroupVersion.WithResource("hostrules"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ako().V1beta1().HostRules().Informer()}, nil
 
 	}
 

@@ -38,7 +38,7 @@ type UpdateCRDStatusOptions struct {
 }
 
 // UpdateHostRuleStatus HostRule status updates
-func UpdateHostRuleStatus(key string, hr *akov1alpha1.HostRule, updateStatus UpdateCRDStatusOptions, retryNum ...int) {
+func UpdateHostRuleStatus(key string, hr *akov1beta1.HostRule, updateStatus UpdateCRDStatusOptions, retryNum ...int) {
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
@@ -49,10 +49,10 @@ func UpdateHostRuleStatus(key string, hr *akov1alpha1.HostRule, updateStatus Upd
 	}
 
 	patchPayload, _ := json.Marshal(map[string]interface{}{
-		"status": akov1alpha1.HostRuleStatus(updateStatus),
+		"status": akov1beta1.HostRuleStatus(updateStatus),
 	})
 
-	_, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules(hr.Namespace).Patch(context.TODO(), hr.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+	_, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules(hr.Namespace).Patch(context.TODO(), hr.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the hostrule status: %+v", key, err)
 		updatedHr, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(hr.Namespace).Get(hr.Name)

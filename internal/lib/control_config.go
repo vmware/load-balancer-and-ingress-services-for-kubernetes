@@ -57,7 +57,7 @@ type ServicesAPIInformers struct {
 }
 
 type AKOCrdInformers struct {
-	HostRuleInformer             akoinformer.HostRuleInformer
+	HostRuleInformer             v1beta1akoinformer.HostRuleInformer
 	HTTPRuleInformer             akoinformer.HTTPRuleInformer
 	AviInfraSettingBeta1Informer v1beta1akoinformer.AviInfraSettingInformer
 	SSORuleInformer              v1alpha2akoinformer.SSORuleInformer
@@ -264,8 +264,7 @@ func (c *akoControlConfig) Setv1beta1CRDEnabledParams(cs v1beta1akocrd.Interface
 
 // CRDs are by default installed on all AKO deployments. So always enable CRD parameters.
 func (c *akoControlConfig) SetCRDEnabledParams(cs akocrd.Interface) {
-	c.aviInfraSettingEnabled = true
-	c.hostRuleEnabled = true
+	//c.hostRuleEnabled = true
 	c.httpRuleEnabled = true
 }
 

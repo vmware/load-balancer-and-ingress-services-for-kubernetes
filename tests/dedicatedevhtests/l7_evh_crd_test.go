@@ -28,9 +28,11 @@ import (
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
+	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
+
 	v1alpha2crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned/fake"
 	utils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
@@ -43,6 +45,7 @@ import (
 
 var KubeClient *k8sfake.Clientset
 var CRDClient *crdfake.Clientset
+var v1beta1CRDClient *v1beta1crdfake.Clientset
 var v1alpha2CRDClient *v1alpha2crdfake.Clientset
 var ctrl *k8s.AviController
 var akoApiServer *api.FakeApiServer
@@ -85,8 +88,9 @@ func TestMain(m *testing.M) {
 	akoControlConfig := lib.AKOControlConfig()
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
+	v1beta1CRDClient = v1beta1crdfake.NewSimpleClientset()
 	v1alpha2CRDClient = v1alpha2crdfake.NewSimpleClientset()
-	akoControlConfig.SetCRDClientset(CRDClient)
+	akoControlConfig.Setv1beta1CRDClientset(v1beta1CRDClient)
 	akoControlConfig.Setv1alpha2CRDClientset(v1alpha2CRDClient)
 	akoControlConfig.SetAKOInstanceFlag(true)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
@@ -445,14 +449,14 @@ func TestApplyHostruleToDedicatedVS(t *testing.T) {
 	}
 	hrObj := hostrule.HostRule()
 	hrObj.Spec.VirtualHost.Fqdn = "foo.com"
-	hrObj.Spec.VirtualHost.FqdnType = v1alpha1.Contains
+	hrObj.Spec.VirtualHost.FqdnType = v1beta1.Contains
 
-	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Create(context.TODO(), hrObj, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Create(context.TODO(), hrObj, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding HostRule: %v", err)
 	}
 
 	g.Eventually(func() string {
-		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 30*time.Second).Should(gomega.Equal("Accepted"))
 
