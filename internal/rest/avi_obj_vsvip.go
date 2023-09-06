@@ -59,7 +59,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 	}
 	name := vsvip_meta.Name
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", vsvip_meta.Tenant)
-	cloudRef := "/api/cloud?name=" + utils.CloudName
+	cloudRef := utils.GetCloudRef(lib.GetTenant())
 	var dns_info_arr []*avimodels.DNSInfo
 	var path string
 	var networkRef string
@@ -73,7 +73,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 	autoAllocate := true
 
 	if cache_obj != nil {
-		vsvip, err := rest.AviVsVipGet(key, cache_obj.Uuid, name)
+		vsvip, err := rest.AviVsVipGet(key, cache_obj.Uuid, name, vsvip_meta.Tenant)
 		if err != nil {
 			return nil, err
 		}
@@ -117,6 +117,10 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 				vips := networkNamesToVips(vsvip_meta.VipNetworks, vsvip_meta.EnablePublicIP)
 				vsvip.Vip = []*avimodels.Vip{}
 				vsvip.Vip = append(vsvip.Vip, vips...)
+			} else if lib.GetCloudType() == lib.CLOUD_NSXT && lib.GetVPCMode() {
+				vpcArr := strings.Split(vsvip_meta.T1Lr, "/")
+				vipNetwork := fmt.Sprintf("%s_AVISEPARATOR_%s_AVISEPARATOR_PUBLIC", vsvip_meta.Tenant, vpcArr[len(vpcArr)-1])
+				vip.SubnetUUID = &vipNetwork
 			} else {
 				// Set the IPAM network subnet for all clouds except AWS and Azure
 				if len(vsvip_meta.VipNetworks) != 0 {
@@ -191,6 +195,10 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		// usable network configuration in ipamdnsproviderprofile
 		if lib.IsPublicCloud() && lib.GetCloudType() != lib.CLOUD_GCP {
 			vips = networkNamesToVips(vsvip_meta.VipNetworks, vsvip_meta.EnablePublicIP)
+		} else if lib.GetCloudType() == lib.CLOUD_NSXT && lib.GetVPCMode() {
+			vpcArr := strings.Split(vsvip_meta.T1Lr, "/")
+			vipNetwork := fmt.Sprintf("%s_AVISEPARATOR_%s_AVISEPARATOR_PUBLIC", vsvip_meta.Tenant, vpcArr[len(vpcArr)-1])
+			vip.SubnetUUID = &vipNetwork
 		} else {
 			// Set the IPAM network subnet for all clouds except AWS and Azure
 			if len(vsvip_meta.VipNetworks) != 0 {
@@ -292,7 +300,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		vsvip_cache, ok := rest.cache.VSVIPCache.AviCacheGet(vsvip_key)
 		if ok {
 			vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
-			vsvip_avi, err := rest.AviVsVipGet(key, vsvip_cache_obj.Uuid, name)
+			vsvip_avi, err := rest.AviVsVipGet(key, vsvip_cache_obj.Uuid, name, vsvip_meta.Tenant)
 			if err != nil {
 				if strings.Contains(err.Error(), lib.VSVIPNotFoundError) {
 					// Clear the cache for this key
@@ -360,16 +368,17 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 	return &rest_op, nil
 }
 
-func (rest *RestOperations) AviVsVipGet(key, uuid, name string) (*avimodels.VsVip, error) {
-	if rest.aviRestPoolClient == nil {
+func (rest *RestOperations) AviVsVipGet(key, uuid, name, tenant string) (*avimodels.VsVip, error) {
+	aviRestPoolClient := avicache.SharedAVIClients(tenant)
+	if aviRestPoolClient == nil {
 		utils.AviLog.Warnf("key: %s, msg: aviRestPoolClient during vsvip not initialized", key)
 		return nil, errors.New("client in aviRestPoolClient during vsvip not initialized")
 	}
-	if len(rest.aviRestPoolClient.AviClient) < 1 {
+	if len(aviRestPoolClient.AviClient) < 1 {
 		utils.AviLog.Warnf("key: %s, msg: client in aviRestPoolClient during vsvip not initialized", key)
 		return nil, errors.New("client in aviRestPoolClient during vsvip not initialized")
 	}
-	client := rest.aviRestPoolClient.AviClient[0]
+	client := aviRestPoolClient.AviClient[0]
 	uri := "/api/vsvip/" + uuid + "/?include_name"
 
 	rawData, err := lib.AviGetRaw(client, uri)

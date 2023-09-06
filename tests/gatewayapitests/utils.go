@@ -33,8 +33,8 @@ import (
 	gatewayfake "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/fake"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 )
@@ -60,10 +60,10 @@ func NewAviFakeClientInstance(kubeclient *k8sfake.Clientset, skipCachePopulation
 		os.Setenv("CTRL_IPADDRESS", url)
 		os.Setenv("FULL_SYNC_INTERVAL", "600")
 		// resets avi client pool instance, allows to connect with the new `ts` server
-		cache.AviClientInstance = nil
+		//cache.AviClientInstanceMap = nil
 		k8s.PopulateControllerProperties(kubeclient)
 		if len(skipCachePopulation) == 0 || !skipCachePopulation[0] {
-			k8s.PopulateCache()
+			k8s.PopulateCache(lib.GetTenant())
 		}
 	}
 }
