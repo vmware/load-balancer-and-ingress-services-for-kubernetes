@@ -241,7 +241,7 @@ type AviRestClientPool struct {
 }
 
 type RestOperator interface {
-	AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, key string) error
+	AviRestOperate(c *utils.AviRestClientPool, rest_ops []*utils.RestOp, key string, bkt uint32) error
 	isRetryRequired(key string, err error) bool
 	SyncObjectStatuses()
 	RestRespArrToObjByType(rest_op *utils.RestOp, obj_type string, key string) []map[string]interface{}
@@ -268,7 +268,7 @@ func (l *leader) isRetryRequired(key string, err error) bool {
 	return false
 }
 
-func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, key string) error {
+func (l *leader) AviRestOperate(pool *utils.AviRestClientPool, rest_ops []*utils.RestOp, key string, bkt uint32) error {
 	for i, op := range rest_ops {
 		// This condition check is introduced to prevent any keys which is already present in the Graph
 		// Queue from doing any POST/PUT/PATCH/GET operations at the controller when the `deleteConfig` is set.
@@ -279,8 +279,7 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 			continue
 		}
 		lib.IncrementRestOpCouter(utils.Stringify(op.Method), op.ObjName)
-		SetTenant := session.SetTenant(op.Tenant)
-		SetTenant(c.AviSession)
+		c := pool.AviClient[op.Tenant][bkt]
 		if op.Version != "" {
 			SetVersion := session.SetVersion(op.Version)
 			SetVersion(c.AviSession)
@@ -350,7 +349,7 @@ func (f *follower) isRetryRequired(key string, err error) bool {
 	return false
 }
 
-func (f *follower) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, key string) error {
+func (f *follower) AviRestOperate(pool *utils.AviRestClientPool, rest_ops []*utils.RestOp, key string, bkt uint32) error {
 
 	// Adding a delay of 500ms before doing a GET operation in the follower AKO.
 	// 500ms is selected to give leader AKO enough time to create the objects in the controller,
@@ -359,8 +358,7 @@ func (f *follower) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp
 	<-time.After(500 * time.Millisecond)
 
 	for i, op := range rest_ops {
-		SetTenant := session.SetTenant(op.Tenant)
-		SetTenant(c.AviSession)
+		c := pool.AviClient[op.Tenant][bkt]
 		if op.Version != "" {
 			SetVersion := session.SetVersion(op.Version)
 			SetVersion(c.AviSession)

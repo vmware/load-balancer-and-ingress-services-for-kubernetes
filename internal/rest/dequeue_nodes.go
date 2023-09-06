@@ -581,10 +581,9 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 	}
 	var retry, fastRetry, processNextObj bool
 	bkt := utils.Bkt(key, shardSize)
-	if len(rest.aviRestPoolClient.AviClient) > 0 && len(rest_ops) > 0 {
+	if len(rest.aviRestPoolClient.AviClient[aviObjKey.Namespace]) > 0 && len(rest_ops) > 0 {
 		utils.AviLog.Infof("key: %s, msg: processing in rest queue number: %v", key, bkt)
-		aviclient := rest.aviRestPoolClient.AviClient[bkt]
-		err := rest.AviRestOperateWrapper(aviclient, rest_ops, key)
+		err := rest.AviRestOperateWrapper(rest.aviRestPoolClient, rest_ops, key, bkt)
 		if err == nil {
 			models.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
 			utils.AviLog.Debugf("key: %s, msg: rest call executed successfully, will update cache", key)
@@ -646,6 +645,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 							utils.AviLog.Infof("key: %s, msg: Error is not of type AviError, err: %v, %T", key, rest_ops[i].Err, rest_ops[i].Err)
 							continue
 						}
+						aviclient := rest.aviRestPoolClient.AviClient[rest_ops[i].Tenant][bkt]
 						retryable, fastRetryable, nextObj := rest.RefreshCacheForRetryLayer(publishKey, aviObjKey, rest_ops[i], aviError, aviclient, avimodel, key, isEvh)
 						retry = retry || retryable
 						processNextObj = processNextObj || nextObj
@@ -792,10 +792,10 @@ func (rest *RestOperations) PublishKeyToSlowRetryLayer(parentVsKey string, key s
 	utils.AviLog.Infof("key: %s, msg: Published key with vs_key to slow path retry queue: %s", key, parentVsKey)
 }
 
-func (rest *RestOperations) AviRestOperateWrapper(aviClient *clients.AviClient, rest_ops []*utils.RestOp, key string) error {
+func (rest *RestOperations) AviRestOperateWrapper(aviClient *utils.AviRestClientPool, rest_ops []*utils.RestOp, key string, bkt uint32) error {
 	restTimeoutChan := make(chan error, 1)
 	go func() {
-		err := rest.restOperator.AviRestOperate(aviClient, rest_ops, key)
+		err := rest.restOperator.AviRestOperate(aviClient, rest_ops, key, bkt)
 		restTimeoutChan <- err
 	}()
 	select {
@@ -852,7 +852,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 					// PG error with pool object not found.
 					aviObjCache.AviPopulateOnePGCache(c, utils.CloudName, pgObjName)
 					// After the refresh - get the members
-					pgKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: pgObjName}
+					pgKey := avicache.NamespaceName{Namespace: aviObjKey.Namespace, Name: pgObjName}
 					pgCache, ok := rest.cache.PgCache.AviCacheGet(pgKey)
 					if ok {
 						pgCacheObj, _ := pgCache.(*avicache.AviPGCache)
@@ -1044,7 +1044,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				}
 				aviObjCache.AviPopulateOnePKICache(c, utils.CloudName, PKIprofile)
 			case "VirtualService":
-				aviObjCache.AviObjOneVSCachePopulate(c, utils.CloudName, aviObjKey.Name)
+				aviObjCache.AviObjOneVSCachePopulate(c, utils.CloudName, aviObjKey.Name, aviObjKey.Namespace)
 				vsObjMeta, ok := rest.cache.VsCacheMeta.AviCacheGet(aviObjKey)
 				if !ok {
 					// Object deleted
@@ -1129,7 +1129,7 @@ func (rest *RestOperations) VSVipDelete(vsvip_to_delete []avicache.NamespaceName
 			vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
 			var restOp *utils.RestOp
 			if lib.IsShardVS(del_vsvip.Name) && !lib.IsWCP() {
-				vsvip_avi, err := rest.AviVsVipGet(key, vsvip_cache_obj.Uuid, del_vsvip.Name)
+				vsvip_avi, err := rest.AviVsVipGet(key, vsvip_cache_obj.Uuid, del_vsvip.Name, vsvip_cache_obj.Tenant)
 				if err != nil {
 					utils.AviLog.Errorf("key: %s, msg: failed to get VS VIP %s", key, del_vsvip.Name)
 					return rest_ops
@@ -1270,9 +1270,9 @@ func (rest *RestOperations) SNINodeDelete(del_sni avicache.NamespaceName, namesp
 			if shardSize != 0 {
 				bkt := utils.Bkt(key, shardSize)
 				utils.AviLog.Warnf("key: %s, msg: corrupted sni cache found, retrying in bkt: %v", key, bkt)
-				if len(rest.aviRestPoolClient.AviClient) > 0 {
-					aviclient := rest.aviRestPoolClient.AviClient[bkt]
-					aviObjCache.AviObjOneVSCachePopulate(aviclient, utils.CloudName, del_sni.Name)
+				if len(rest.aviRestPoolClient.AviClient[del_sni.Namespace]) > 0 {
+					aviclient := rest.aviRestPoolClient.AviClient[del_sni.Namespace][bkt]
+					aviObjCache.AviObjOneVSCachePopulate(aviclient, utils.CloudName, del_sni.Name, del_sni.Namespace)
 					vsObjMeta, ok := rest.cache.VsCacheMeta.AviCacheGet(sni_key)
 					if !ok {
 						// Object deleted

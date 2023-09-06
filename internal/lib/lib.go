@@ -70,6 +70,7 @@ var fqdnMap = map[string]string{
 }
 
 var ClusterID string
+var VPCMode bool
 
 type CRDMetadata struct {
 	Type   string `json:"type"`
@@ -685,6 +686,22 @@ func GetVrf() string {
 		return utils.GlobalVRF
 	}
 	return VRFContext
+}
+
+func SetVPCMode(vpcMode string) {
+	if strings.ToLower(vpcMode) == "true" {
+		VPCMode = true
+	} else {
+		VPCMode = false
+	}
+}
+
+func GetVPCMode() bool {
+	vpcMode := os.Getenv("VPC_MODE")
+	if vpcMode == "" {
+		return VPCMode
+	}
+	return strings.ToLower(vpcMode) == "true"
 }
 
 func GetAdminTenant() string {
@@ -1838,8 +1855,12 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 		layout := "2006-01-02T15:04:05.000000+00:00"
 		expiryTime, err := time.Parse(layout, expiry)
 		if err != nil {
-			utils.AviLog.Errorf("Unable to parse token expiry time, err: %+v", err)
-			return
+			layout = "2006-01-02T15:04:05.000000000Z"
+			expiryTime, err = time.Parse(layout, expiry)
+			if err != nil {
+				utils.AviLog.Errorf("Unable to parse token expiry time, err: %+v", err)
+				return
+			}
 		}
 		if time.Until(expiryTime) > (utils.RefreshAuthTokenPeriod*utils.AuthTokenExpiry)*time.Hour {
 			utils.AviLog.Infof("Skipping AuthToken Refresh")

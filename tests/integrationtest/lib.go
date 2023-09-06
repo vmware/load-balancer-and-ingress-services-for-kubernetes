@@ -1108,7 +1108,7 @@ func NewAviFakeClientInstance(kubeclient *k8sfake.Clientset, skipCachePopulation
 		cache.AviClientInstance = nil
 		k8s.PopulateControllerProperties(kubeclient)
 		if len(skipCachePopulation) == 0 || skipCachePopulation[0] == false {
-			k8s.PopulateCache()
+			k8s.PopulateCache(lib.GetTenant())
 		}
 	}
 }
