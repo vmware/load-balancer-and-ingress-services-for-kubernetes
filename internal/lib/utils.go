@@ -15,18 +15,27 @@
 package lib
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"regexp"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/cache"
+
+	"github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/alb-sdk/go/models"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/runtime"
 )
 
 type NPLAnnotation struct {
@@ -285,4 +294,223 @@ func CheckAndShortenLabelToFollowRFC1035(svcName string, svcNamespace string) (s
 		}
 	}
 	return svcName, svcNamespace
+}
+
+func isInfraSettingUpdateRequired(infraSettingCR *akov1beta1.AviInfraSetting, network, t1lr string) bool {
+	if infraSettingCR.Spec.NSXSettings.T1LR != nil && *infraSettingCR.Spec.NSXSettings.T1LR != t1lr {
+		return true
+	}
+	infraNetwork := ""
+	if len(infraSettingCR.Spec.Network.VipNetworks) > 0 {
+		infraNetwork = infraSettingCR.Spec.Network.VipNetworks[0].NetworkName
+	}
+	if network != infraNetwork {
+		return true
+	}
+	return false
+}
+
+func CreateOrUpdateAviInfraSetting(name, network, t1lr string) (*akov1beta1.AviInfraSetting, error) {
+	infraSettingCR, err := AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(name)
+	if err != nil {
+		if !k8serrors.IsNotFound(err) {
+			utils.AviLog.Errorf("failed to get AviInfraSetting %s, error: %s", name, err.Error())
+			return nil, err
+		}
+		infraSettingCR = nil
+	}
+	updateRequired := false
+	if infraSettingCR != nil {
+		updateRequired = isInfraSettingUpdateRequired(infraSettingCR, network, t1lr)
+		if !updateRequired {
+			return infraSettingCR, nil
+		}
+	}
+	infraSettingCR = &akov1beta1.AviInfraSetting{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: akov1beta1.AviInfraSettingSpec{
+			L7Settings: akov1beta1.AviInfraL7Settings{
+				ShardSize: "SMALL",
+			},
+			NSXSettings: akov1beta1.AviInfraNSXSettings{
+				T1LR: &t1lr,
+			},
+			SeGroup: akov1beta1.AviInfraSettingSeGroup{
+				Name: GetClusterID(),
+			},
+		},
+	}
+	if network != "" {
+		infraSettingCR.Spec.Network = akov1beta1.AviInfraSettingNetwork{
+			VipNetworks: []akov1beta1.AviInfraSettingVipNetwork{
+				{
+					NetworkName: network,
+				},
+			},
+		}
+	}
+
+	if updateRequired {
+		return AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Update(context.TODO(), infraSettingCR, metav1.UpdateOptions{})
+	}
+	return AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Create(context.TODO(), infraSettingCR, metav1.CreateOptions{})
+}
+
+func RemoveInfraSettingAnnotationFromNamespaces(infraSettingCRs map[string]struct{}) error {
+	if len(infraSettingCRs) == 0 {
+		return nil
+	}
+	namespaces, err := utils.GetInformers().NSInformer.Lister().List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Warnf("failed to list all namespaces, error: %s", err.Error())
+		return err
+	}
+	infraSettingToNamespacesMap := make(map[string][]string)
+	for _, namespace := range namespaces {
+		infraSettingName, ok := namespace.Annotations[InfraSettingNameAnnotation]
+		if !ok {
+			continue
+		}
+		infraSettingToNamespacesMap[infraSettingName] = append(infraSettingToNamespacesMap[infraSettingName], namespace.GetName())
+	}
+	for infraSettinName := range infraSettingCRs {
+		namespaces := infraSettingToNamespacesMap[infraSettinName]
+		for _, namespace := range namespaces {
+			removeInfraSettingAnnotationFromNamespace(namespace, infraSettinName)
+		}
+	}
+	return nil
+}
+
+func removeInfraSettingAnnotationFromNamespace(namespace string, infraSettingName ...string) error {
+	nsObj, err := utils.GetInformers().NSInformer.Lister().Get(namespace)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to GET the namespace details, namespace: %s, error :%s", namespace, err.Error())
+		return err
+	}
+	if nsObj.Annotations == nil {
+		return nil
+	}
+	if len(infraSettingName) > 0 && nsObj.Annotations[InfraSettingNameAnnotation] != infraSettingName[0] {
+		utils.AviLog.Infof("AviInfraSetting %s is not annotated to the Namespace %s", infraSettingName[0], nsObj.GetName())
+		return nil
+	}
+	delete(nsObj.Annotations, InfraSettingNameAnnotation)
+	_, err = utils.GetInformers().ClientSet.CoreV1().Namespaces().Update(context.TODO(), nsObj, metav1.UpdateOptions{})
+	if err != nil {
+		utils.AviLog.Warnf("Error occurred while Updating namespace: %s", err.Error())
+		return err
+	}
+	utils.AviLog.Infof("Removed AviInfraSetting %s annotation from Namespace %s", infraSettingName[0], namespace)
+	return nil
+}
+
+func AnnotateNamespaceWithInfraSetting(namespace, infraSettingName string) error {
+	nsObj, err := utils.GetInformers().NSInformer.Lister().Get(namespace)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to GET the namespace details, namespace: %s, error :%s", namespace, err.Error())
+		return err
+	}
+	if nsObj.Annotations == nil {
+		nsObj.Annotations = make(map[string]string)
+	}
+	if nsObj.Annotations[InfraSettingNameAnnotation] == infraSettingName {
+		return nil
+	}
+	nsObj.Annotations[InfraSettingNameAnnotation] = infraSettingName
+	_, err = utils.GetInformers().ClientSet.CoreV1().Namespaces().Update(context.TODO(), nsObj, metav1.UpdateOptions{})
+	if err != nil {
+		utils.AviLog.Warnf("Error occurred while Updating namespace: %s", err.Error())
+		return err
+	}
+	utils.AviLog.Infof("Annotated Namespace %s with AviInfraSetting %s", namespace, infraSettingName)
+	return nil
+}
+
+func AnnotateNamespaceWithTenant(namespace, tenant string) error {
+	nsObj, err := utils.GetInformers().NSInformer.Lister().Get(namespace)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to GET the namespace details, namespace: %s, error :%s", namespace, err.Error())
+		return err
+	}
+	if nsObj.Annotations == nil {
+		nsObj.Annotations = make(map[string]string)
+	}
+	if nsObj.Annotations[TenantAnnotation] == tenant {
+		return nil
+	}
+	nsObj.Annotations[TenantAnnotation] = tenant
+	_, err = utils.GetInformers().ClientSet.CoreV1().Namespaces().Update(context.TODO(), nsObj, metav1.UpdateOptions{})
+	if err != nil {
+		utils.AviLog.Warnf("Error occurred while Updating namespace: %s", err.Error())
+		return err
+	}
+	utils.AviLog.Infof("Annotated Namespace %s with tenant %s", namespace, tenant)
+	return nil
+}
+
+func RunAviInfraSettingInformer(stopCh <-chan struct{}) {
+	go AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh, AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
+	} else {
+		utils.AviLog.Infof("Caches synced")
+	}
+}
+
+func GetTenantInNamespace(namespace string) string {
+	nsObj, err := utils.GetInformers().NSInformer.Lister().Get(namespace)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to GET the namespace details falling back to the default tenant, namespace: %s, error :%s", namespace, err.Error())
+		return GetTenant()
+	}
+	tenant, ok := nsObj.Annotations[TenantAnnotation]
+	if !ok {
+		return GetTenant()
+	}
+	return tenant
+}
+
+func GetCloudRef(tenant string) string {
+	if CompareVersions(AKOControlConfig().ControllerVersion(), ">", CtrlVersion_22_1_6) {
+		return fmt.Sprintf("/api/cloud?tenant=%s&name=%s", tenant, utils.CloudName)
+	}
+	// 22.1.x python webapp is not able to parse cloud name from above reference
+	return fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)
+}
+
+func GetAllTenants(c *clients.AviClient, tenants map[string]struct{}, nextPage ...string) error {
+	uri := "/api/tenant"
+	result, err := AviGetCollectionRaw(c, uri)
+	if err != nil {
+		return err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal tenant result, err: %v", err)
+		return err
+	}
+	for i := 0; i < len(elems); i++ {
+		tenant := models.Tenant{}
+		err = json.Unmarshal(elems[i], &tenant)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal tenant data, err: %v", err)
+			return err
+		}
+		tenants[*tenant.Name] = struct{}{}
+	}
+	if result.Next != "" {
+		next_uri := strings.Split(result.Next, "/api/tenant")
+		if len(next_uri) > 1 {
+			nextPage := "/api/tenant" + next_uri[1]
+			err = GetAllTenants(c, tenants, nextPage)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

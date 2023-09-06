@@ -143,7 +143,11 @@ func DequeueIngestion(key string, fullsync bool) {
 		if found {
 			objects.SharedlbLister().Delete(namespace + "/" + name)
 			utils.AviLog.Infof("key: %s, msg: service transitioned from type loadbalancer to ClusterIP or NodePort, will delete model", name)
-			model_name := lib.GetModelName(lib.GetTenant(), lib.Encode(lib.GetNamePrefix()+namespace+"-"+name, lib.L4VS))
+			tenant := objects.SharedNamespaceTenantLister().GetTenantInNamespace(namespace + "/" + name)
+			if tenant == "" {
+				tenant = lib.GetTenant()
+			}
+			model_name := lib.GetModelName(tenant, lib.Encode(lib.GetNamePrefix()+namespace+"-"+name, lib.L4VS))
 			objects.SharedAviGraphLister().Save(model_name, nil)
 			if !fullsync {
 				PublishKeyToRestLayer(model_name, key, sharedQueue)
@@ -226,7 +230,7 @@ func DequeueIngestion(key string, fullsync bool) {
 					aviModelGraph.BuildL4LBGraph(namespace, name, key)
 				}
 				if len(aviModelGraph.GetOrderedNodes()) > 0 {
-					model_name := lib.GetModelName(lib.GetTenant(), aviModelGraph.GetAviVS()[0].Name)
+					model_name := lib.GetModelName(aviModelGraph.GetAviVS()[0].Tenant, aviModelGraph.GetAviVS()[0].Name)
 					ok := saveAviModel(model_name, aviModelGraph, key)
 					if ok && !fullsync {
 						PublishKeyToRestLayer(model_name, key, sharedQueue)
@@ -244,7 +248,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	// handle the services APIs
 	if (lib.IsWCP() && objType == utils.L4LBService) ||
 		(lib.UseServicesAPI() && (objType == utils.Service || objType == utils.L4LBService)) ||
-		((lib.IsWCP() || lib.UseServicesAPI()) && (objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints || objType == lib.AviInfraSetting || objType == utils.NamespaceNetworkInfo)) {
+		((lib.IsWCP() || lib.UseServicesAPI()) && (objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints || objType == lib.AviInfraSetting)) {
 		if !valid && objType == utils.L4LBService {
 			// Required for advl4 schemas.
 			schema, _ = ConfigDescriptor().GetByType(utils.Service)
@@ -257,9 +261,13 @@ func DequeueIngestion(key string, fullsync bool) {
 			for _, gatewayKey := range gateways {
 				// Check the gateway has a valid subscription or not. If not, delete it.
 				namespace, _, gwName := lib.ExtractTypeNameNamespace(gatewayKey)
-				modelName := lib.GetModelName(lib.GetTenant(), lib.Encode(lib.GetNamePrefix()+namespace+"-"+gwName, lib.ADVANCED_L4))
 				if isGatewayDelete(gatewayKey, key) {
 					// Check if a model corresponding to the gateway exists or not in memory.
+					tenant := objects.SharedNamespaceTenantLister().GetTenantInNamespace(namespace + "/" + gwName)
+					if tenant == "" {
+						tenant = lib.GetTenant()
+					}
+					modelName := lib.GetModelName(tenant, lib.Encode(lib.GetNamePrefix()+namespace+"-"+gwName, lib.ADVANCED_L4))
 					if found, _ := objects.SharedAviGraphLister().Get(modelName); found {
 						objects.SharedAviGraphLister().Save(modelName, nil)
 						if !fullsync {
@@ -270,6 +278,7 @@ func DequeueIngestion(key string, fullsync bool) {
 					aviModelGraph := NewAviObjectGraph()
 					aviModelGraph.BuildAdvancedL4Graph(namespace, gwName, key, false)
 					if len(aviModelGraph.GetOrderedNodes()) > 0 {
+						modelName := lib.GetModelName(aviModelGraph.GetAviVS()[0].Tenant, lib.Encode(lib.GetNamePrefix()+namespace+"-"+gwName, lib.ADVANCED_L4))
 						ok := saveAviModel(modelName, aviModelGraph, key)
 						if ok && !fullsync {
 							PublishKeyToRestLayer(modelName, key, sharedQueue)
@@ -284,7 +293,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		vsKeys := cache.VsCacheMeta.AviCacheGetAllParentVSKeys()
 		for _, vsKey := range vsKeys {
 			if strings.HasSuffix(vsKey.Name, name) {
-				modelName := lib.GetModelName(lib.GetTenant(), vsKey.Name)
+				modelName := lib.GetModelName(vsKey.Namespace, vsKey.Name)
 				if found, _ := objects.SharedAviGraphLister().Get(modelName); found {
 					objects.SharedAviGraphLister().Save(modelName, nil)
 				}
@@ -562,7 +571,8 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	_, namespace, name := lib.ExtractTypeNameNamespace(key)
-	modelName := lib.GetModelName(lib.GetTenant(), lib.Encode(lib.GetNamePrefix()+strings.ReplaceAll(namespacedVipKey, "/", "-"), lib.ADVANCED_L4))
+	tenant := lib.GetTenantInNamespace(namespace)
+	modelName := lib.GetModelName(tenant, lib.Encode(lib.GetNamePrefix()+strings.ReplaceAll(namespacedVipKey, "/", "-"), lib.ADVANCED_L4))
 
 	found, serviceNSNames := objects.SharedlbLister().GetSharedVipKeyToServices(namespacedVipKey)
 	isShareVipKeyDelete := !found || len(serviceNSNames) == 0
@@ -701,7 +711,7 @@ func handleL4Service(key string, fullsync bool) {
 		// Save the LB service in memory
 		objects.SharedlbLister().Save(namespace+"/"+name, name)
 		if len(aviModelGraph.GetOrderedNodes()) > 0 {
-			model_name := lib.GetModelName(lib.GetTenant(), aviModelGraph.GetAviVS()[0].Name)
+			model_name := lib.GetModelName(aviModelGraph.GetAviVS()[0].Tenant, aviModelGraph.GetAviVS()[0].Name)
 			ok := saveAviModel(model_name, aviModelGraph, key)
 			if ok && !fullsync {
 				PublishKeyToRestLayer(model_name, key, sharedQueue)
@@ -722,7 +732,11 @@ func handleL4Service(key string, fullsync bool) {
 	}
 	// This is a DELETE event. The avi graph is set to nil.
 	utils.AviLog.Debugf("key: %s, msg: received DELETE event for service", key)
-	model_name := lib.GetModelName(lib.GetTenant(), lib.Encode(lib.GetNamePrefix()+namespace+"-"+name, lib.L4VS))
+	tenant := objects.SharedNamespaceTenantLister().GetTenantInNamespace(namespace + "/" + name)
+	if tenant == "" {
+		tenant = lib.GetTenant()
+	}
+	model_name := lib.GetModelName(tenant, lib.Encode(lib.GetNamePrefix()+namespace+"-"+name, lib.L4VS))
 	objects.SharedAviGraphLister().Save(model_name, nil)
 	if !fullsync {
 		bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
@@ -883,7 +897,7 @@ func GetShardVSPrefix(key string) string {
 	return shardVsPrefix
 }
 
-func GetShardVSName(s string, key string, shardSize uint32, prefix ...string) lib.VSNameMetadata {
+func GetShardVSName(s string, key string, shardSize uint32, tenant string, prefix ...string) lib.VSNameMetadata {
 	var vsNum uint32
 	var vsNameMeta lib.VSNameMetadata
 	extraPrefix := strings.Join(prefix, "-")
@@ -904,6 +918,7 @@ func GetShardVSName(s string, key string, shardSize uint32, prefix ...string) li
 		return vsNameMeta
 	}
 	vsNameMeta.Dedicated = false
+	vsNameMeta.Tenant = tenant
 
 	shardVsPrefix := GetShardVSPrefix(key)
 	if extraPrefix != "" {
@@ -919,6 +934,7 @@ func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (
 	utils.AviLog.Debugf("key: %s, msg: hostname for sharding: %s", key, hostname)
 	var newInfraPrefix, oldInfraPrefix string
 	oldShardSize, newShardSize := lib.GetshardSize(), lib.GetshardSize()
+	oldTenant, newTenant := lib.GetTenant(), lib.GetTenant()
 
 	// get stored infrasetting from ingress/route
 	// figure out the current infrasetting via class/annotation
@@ -928,7 +944,10 @@ func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (
 		if found, shardSize := objects.InfraSettingL7Lister().GetInfraSettingToShardSize(oldSettingName); found && shardSize != "" {
 			oldShardSize = lib.ShardSizeMap[shardSize]
 		}
-		oldInfraPrefix = oldSettingName
+		tenant := objects.SharedNamespaceTenantLister().GetTenantInNamespace(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName())
+		if tenant != "" {
+			oldTenant = tenant
+		}
 	} else {
 		utils.AviLog.Debugf("AviInfraSetting %s not found in cache", oldSettingName)
 	}
@@ -938,14 +957,15 @@ func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (
 		// get the old ones.
 		newShardSize = oldShardSize
 		newInfraPrefix = oldInfraPrefix
+		newTenant = oldTenant
 	} else if newSetting != nil {
 		if newSetting.Spec.L7Settings != (akov1beta1.AviInfraL7Settings{}) {
 			newShardSize = lib.ShardSizeMap[newSetting.Spec.L7Settings.ShardSize]
 		}
-		newInfraPrefix = newSetting.Name
+		newTenant = lib.GetTenantInNamespace(routeIgrObj.GetNamespace())
 	}
 
-	oldVsName, newVsName := GetShardVSName(hostname, key, oldShardSize, oldInfraPrefix), GetShardVSName(hostname, key, newShardSize, newInfraPrefix)
+	oldVsName, newVsName := GetShardVSName(hostname, key, oldShardSize, oldTenant, oldInfraPrefix), GetShardVSName(hostname, key, newShardSize, newTenant, newInfraPrefix)
 	utils.AviLog.Infof("key: %s, msg: ShardVSNames: %v %v", key, oldVsName, newVsName)
 	return oldVsName, newVsName
 }

@@ -355,7 +355,7 @@ func (c *GatewayController) publishAllParentVSKeysToRestLayer() {
 }
 
 func (c *GatewayController) FullSync() {
-	aviRestClientPool := avicache.SharedAVIClients()
+	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
 	aviObjCache := avicache.SharedAviObjCache()
 
 	// Randomly pickup a client.
@@ -392,8 +392,7 @@ func SyncFromNodesLayer(key interface{}, wg *sync.WaitGroup) error {
 		return nil
 	}
 	cache := avicache.SharedAviObjCache()
-	aviclient := avicache.SharedAVIClients()
-	restlayer := rest.NewRestOperations(cache, aviclient)
+	restlayer := rest.NewRestOperations(cache)
 	restlayer.DequeueNodes(keyStr)
 	return nil
 }
@@ -442,7 +441,6 @@ func SyncFromStatusQueue(key interface{}, wg *sync.WaitGroup) error {
 
 func (c *GatewayController) cleanupStaleVSes() {
 
-	aviRestClientPool := avicache.SharedAVIClients()
 	aviObjCache := avicache.SharedAviObjCache()
 
 	delModels, err := DeleteConfigFromConfigmap(c.informers.ClientSet)
@@ -454,7 +452,7 @@ func (c *GatewayController) cleanupStaleVSes() {
 	if delModels {
 		go SetDeleteSyncChannel()
 		parentKeys := aviObjCache.VsCacheMeta.AviCacheGetAllParentVSKeys()
-		k8s.DeleteAviObjects(parentKeys, aviObjCache, aviRestClientPool)
+		k8s.DeleteAviObjects(parentKeys, aviObjCache)
 	}
 
 	// Delete Stale objects by deleting model for dummy VS
@@ -462,17 +460,15 @@ func (c *GatewayController) cleanupStaleVSes() {
 		utils.AviLog.Errorf("AKO cluster name is invalid.")
 		return
 	}
-	if aviRestClientPool != nil && len(aviRestClientPool.AviClient) > 0 {
-		utils.AviLog.Infof("Starting clean up of stale objects")
-		restlayer := rest.NewRestOperations(aviObjCache, aviRestClientPool)
-		staleVSKey := lib.GetTenant() + "/" + lib.DummyVSForStaleData
-		restlayer.CleanupVS(staleVSKey, true)
-		staleCacheKey := avicache.NamespaceName{
-			Name:      lib.DummyVSForStaleData,
-			Namespace: lib.GetTenant(),
-		}
-		aviObjCache.VsCacheMeta.AviCacheDelete(staleCacheKey)
+	utils.AviLog.Infof("Starting clean up of stale objects")
+	restlayer := rest.NewRestOperations(aviObjCache)
+	staleVSKey := lib.GetTenant() + "/" + lib.DummyVSForStaleData
+	restlayer.CleanupVS(staleVSKey, true)
+	staleCacheKey := avicache.NamespaceName{
+		Name:      lib.DummyVSForStaleData,
+		Namespace: lib.GetTenant(),
 	}
+	aviObjCache.VsCacheMeta.AviCacheDelete(staleCacheKey)
 
 	vsKeysPending := aviObjCache.VsCacheMeta.AviGetAllKeys()
 
@@ -486,7 +482,7 @@ func (c *GatewayController) cleanupStaleVSes() {
 // When the configmap is created, enable sync for other k8s objects. When the configmap is disabled, disable sync.
 func (c *GatewayController) HandleConfigMap(k8sinfo k8s.K8sinformers, ctrlCh chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}) error {
 	cs := k8sinfo.Cs
-	aviClientPool := avicache.SharedAVIClients()
+	aviClientPool := avicache.SharedAVIClients(lib.GetTenant())
 	if aviClientPool == nil || len(aviClientPool.AviClient) < 1 {
 		c.DisableSync = true
 		lib.SetDisableSync(true)

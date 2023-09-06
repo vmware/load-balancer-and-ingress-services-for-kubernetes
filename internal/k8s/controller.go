@@ -55,6 +55,8 @@ var ctrlonce sync.Once
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;
 // +kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=topology.tanzu.vmware.com,resources=availabilityzones,verbs=get;list;watch
+// +kubebuilder:rbac:groups=nsx.vmware.com,resources=vpcnetworkconfigurations,verbs=get;list;watch
+// +kubebuilder:rbac:groups=ako.vmware.com,resources=aviinfrasettings;aviinfrasettings/status,verbs=get;list;watch;create;update;patch;delete
 
 type AviController struct {
 	worker_id uint32
@@ -174,7 +176,9 @@ func isNamespaceUpdated(oldNS, newNS *corev1.Namespace) bool {
 	}
 	oldLabelHash := utils.Hash(utils.Stringify(oldNS.Labels))
 	newLabelHash := utils.Hash(utils.Stringify(newNS.Labels))
-	return oldLabelHash != newLabelHash
+	oldTenant := oldNS.Annotations[lib.TenantAnnotation]
+	newTenant := newNS.Annotations[lib.TenantAnnotation]
+	return oldLabelHash != newLabelHash || oldTenant != newTenant
 }
 
 func AddIngressFromNSToIngestionQueue(numWorkers uint32, c *AviController, namespace string, msg string) {
@@ -311,7 +315,6 @@ func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 					utils.DeleteNamespaceFromFilter(ns.GetName())
 				}
 			}
-
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			if c.DisableSync {
@@ -323,10 +326,10 @@ func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 				oldNSAccepted := utils.CheckIfNamespaceAccepted(nsOld.GetName(), nsOld.Labels, false)
 				newNSAccepted := utils.CheckIfNamespaceAccepted(nsCur.GetName(), nsCur.Labels, false)
 
-				infraSettingOld := nsOld.Annotations[lib.InfraSettingNameAnnotation]
-				infraSettingNew := nsCur.Annotations[lib.InfraSettingNameAnnotation]
+				oldTenant := nsOld.Annotations[lib.TenantAnnotation]
+				newTenant := nsCur.Annotations[lib.TenantAnnotation]
 
-				if !oldNSAccepted && newNSAccepted || (infraSettingOld != infraSettingNew) {
+				if !oldNSAccepted && newNSAccepted || oldTenant != newTenant {
 					//Case 1: Namespace updated with valid labels
 					//Call ingress/route and service add
 					utils.AddNamespaceToFilter(nsCur.GetName())
@@ -398,9 +401,9 @@ func AddNamespaceAnnotationEventHandler(numWorkers uint32, c *AviController) cac
 			nsOld := old.(*corev1.Namespace)
 			nsCur := cur.(*corev1.Namespace)
 			if isNamespaceUpdated(nsOld, nsCur) {
-				infraSettingOld := nsOld.Annotations[lib.InfraSettingNameAnnotation]
-				infraSettingNew := nsCur.Annotations[lib.InfraSettingNameAnnotation]
-				if infraSettingOld != infraSettingNew {
+				oldTenant := nsOld.Annotations[lib.TenantAnnotation]
+				newTenant := nsCur.Annotations[lib.TenantAnnotation]
+				if oldTenant != newTenant {
 					if utils.GetInformers().IngressInformer != nil {
 						utils.AviLog.Debugf("Adding ingresses for namespaces: %s", nsCur.GetName())
 						AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)

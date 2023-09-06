@@ -995,7 +995,7 @@ var refModelMap = map[string]string{
 func checkRefOnController(key, refKey, refValue string) error {
 	// assign the last avi client for ref checks
 	aviClientLen := lib.GetshardSize()
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(lib.GetTenant())
 	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type,labels,created_by", refModelMap[refKey], refValue)
 
 	// For public clouds, check using network UUID in AWS, normal network API for GCP, skip altogether for Azure.
@@ -1094,7 +1094,7 @@ func checkForL4SSLAppProfile(key, refValue string) (bool, error) {
 	// assign the last avi client for ref checks
 	refKey := "AppProfile"
 	aviClientLen := lib.GetshardSize()
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(lib.GetTenant())
 	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type,labels,created_by", refModelMap[refKey], refValue)
 
 	result, err := lib.AviGetCollectionRaw(clients.AviClient[aviClientLen], uri)
@@ -1140,7 +1140,7 @@ func checkForNetworkProfileTypeTCP(key, refValue string) (bool, error) {
 	// assign the last avi client for ref checks
 	refKey := "NetworkProfile"
 	aviClientLen := lib.GetshardSize()
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(lib.GetTenant())
 	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,profile,labels,created_by", refModelMap[refKey], refValue)
 
 	result, err := lib.AviGetCollectionRaw(clients.AviClient[aviClientLen], uri)
@@ -1187,7 +1187,7 @@ func addSeGroupLabel(key, segName string) {
 	}
 
 	// assign the last avi client for ref checks
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(lib.GetTenant())
 	aviClientLen := lib.GetshardSize()
 
 	// configure labels on SeGroup if not present already.
@@ -1202,7 +1202,7 @@ func addSeGroupLabel(key, segName string) {
 
 func SetAviInfrasettingVIPNetworks(name, segMgmtNetwork, infraSEGName string, netAviInfra []akov1beta1.AviInfraSettingVipNetwork) {
 	// assign the last avi client for ref checks
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(lib.GetTenant())
 	aviClientLen := lib.GetshardSize()
 	network := netAviInfra
 	var err error
@@ -1225,7 +1225,7 @@ func SetAviInfrasettingVIPNetworks(name, segMgmtNetwork, infraSEGName string, ne
 
 func SetAviInfrasettingNodeNetworks(name, segMgmtNetwork, infraSEGName string, netAviInfra []akov1beta1.AviInfraSettingNodeNetwork) {
 	// assign the last avi client for ref checks
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(lib.GetTenant())
 	aviClientLen := lib.GetshardSize()
 	nodeNetorkList := make(map[string]lib.NodeNetworkMap)
 	var err error
@@ -1262,7 +1262,7 @@ func SetAviInfrasettingNodeNetworks(name, segMgmtNetwork, infraSEGName string, n
 func GetSEGManagementNetwork(name string) string {
 	mgmtNetwork := ""
 	// assign the last avi client for ref checks
-	clients := avicache.SharedAVIClients()
+	clients := avicache.SharedAVIClients(lib.GetTenant())
 	aviClientLen := lib.GetshardSize()
 	seg, err := avicache.GetAviSeGroup(clients.AviClient[aviClientLen], name)
 	if err == nil {

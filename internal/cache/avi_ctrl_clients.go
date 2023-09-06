@@ -15,6 +15,8 @@
 package cache
 
 import (
+	"sync"
+
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/vmware/alb-sdk/go/session"
@@ -24,10 +26,10 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
-var AviClientInstance *utils.AviRestClientPool
+var AviClientInstanceMap sync.Map
 
 // This class is in control of AKC. It uses utils from the common project.
-func SharedAVIClients() *utils.AviRestClientPool {
+func SharedAVIClients(tenant string) *utils.AviRestClientPool {
 	var err error
 	var connectionStatus string
 
@@ -53,41 +55,44 @@ func SharedAVIClients() *utils.AviRestClientPool {
 		utils.AviLog.Fatalf("Avi Controller information missing (username: %s, password: %s, authToken: %s, controller: %s). Update them in avi-secret.", ctrlUsername, passwordLog, authTokenLog, ctrlIpAddress)
 	}
 
-	if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 {
-		// Always create 9 clients irrespective of shard size
-		var currentControllerVersion string
-		ctrlVersion := lib.AKOControlConfig().ControllerVersion()
-		AviClientInstance, currentControllerVersion, err = utils.NewAviRestClientPool(
-			9,
-			ctrlIpAddress,
-			ctrlUsername,
-			ctrlPassword,
-			ctrlAuthToken,
-			ctrlVersion,
-			ctrlCAData,
-		)
-
-		connectionStatus = utils.AVIAPI_CONNECTED
-		if err != nil {
-			connectionStatus = utils.AVIAPI_DISCONNECTED
-			utils.AviLog.Errorf("AVI controller initialization failed")
-			return nil
-		}
-
-		if ctrlVersion == "" {
-			lib.AKOControlConfig().SetControllerVersion(currentControllerVersion)
-			ctrlVersion = currentControllerVersion
-		}
-		// set the tenant and controller version in avisession obj
-		for _, client := range AviClientInstance.AviClient {
-			SetTenant := session.SetTenant(lib.GetTenant())
-			SetTenant(client.AviSession)
-
-			SetVersion := session.SetVersion(ctrlVersion)
-			SetVersion(client.AviSession)
-		}
+	aviClientInstance, ok := AviClientInstanceMap.Load(tenant)
+	if ok {
+		models.RestStatus.UpdateAviApiRestStatus(connectionStatus, err)
+		return aviClientInstance.(*utils.AviRestClientPool)
 	}
 
+	// Always create 9 clients irrespective of shard size
+	var currentControllerVersion string
+	var aviRestClientPool *utils.AviRestClientPool
+	ctrlVersion := lib.AKOControlConfig().ControllerVersion()
+	aviRestClientPool, currentControllerVersion, err = utils.NewAviRestClientPool(
+		9,
+		ctrlIpAddress,
+		ctrlUsername,
+		ctrlPassword,
+		ctrlAuthToken,
+		ctrlVersion,
+		ctrlCAData,
+		tenant,
+	)
+
+	connectionStatus = utils.AVIAPI_CONNECTED
+	if err != nil {
+		connectionStatus = utils.AVIAPI_DISCONNECTED
+		utils.AviLog.Errorf("AVI controller initialization failed")
+		return nil
+	}
+
+	if ctrlVersion == "" {
+		lib.AKOControlConfig().SetControllerVersion(currentControllerVersion)
+		ctrlVersion = currentControllerVersion
+	}
+	// set the tenant and controller version in avisession obj
+	for _, client := range aviRestClientPool.AviClient {
+		SetVersion := session.SetVersion(ctrlVersion)
+		SetVersion(client.AviSession)
+	}
+	AviClientInstanceMap.Store(tenant, aviRestClientPool)
 	models.RestStatus.UpdateAviApiRestStatus(connectionStatus, err)
-	return AviClientInstance
+	return aviRestClientPool
 }

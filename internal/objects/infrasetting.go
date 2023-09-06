@@ -33,6 +33,7 @@ func InfraSettingL7Lister() *AviInfraSettingL7Lister {
 
 type AviInfraSettingL7Lister struct {
 	InfraSettingIngRouteLock sync.RWMutex
+	InfraSettingGwSvcLock    sync.RWMutex
 
 	// namespaced ingress/route -> infrasetting
 	IngRouteInfraSettingStore *ObjectMapStore
