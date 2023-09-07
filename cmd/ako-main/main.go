@@ -25,6 +25,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
+
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -72,14 +74,14 @@ func InitializeAKC() {
 	utils.AviLog.Infof("AKO is running with version: %s", version)
 
 	// set the logger for k8s as AviLogger.
-	klog.SetLogger(utils.AviLog)
+	klog.SetLogger(logr.New(&utils.AviLog))
 
 	// Check if we are running inside kubernetes. Hence try authenticating with service token
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
 		utils.AviLog.Warnf("We are not running inside kubernetes cluster. %s", err.Error())
 	} else {
-		utils.AviLog.Info("We are running inside kubernetes cluster. Won't use kubeconfig files.")
+		utils.AviLog.Infof("We are running inside kubernetes cluster. Won't use kubeconfig files.")
 		kubeCluster = true
 	}
 

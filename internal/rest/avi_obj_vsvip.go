@@ -386,7 +386,7 @@ func (rest *RestOperations) AviVsVipDel(uuid string, tenant string, key string) 
 		Tenant: tenant,
 		Model:  "VsVip",
 	}
-	utils.AviLog.Info(spew.Sprintf("key: %s, msg: VSVIP DELETE Restop %v ", key,
+	utils.AviLog.Infof(spew.Sprintf("key: %s, msg: VSVIP DELETE Restop %v ", key,
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
@@ -400,7 +400,7 @@ func (rest *RestOperations) AviVsVipPut(uuid string, vsvipObj *avimodels.VsVip, 
 		Tenant: tenant,
 		Model:  "VsVip",
 	}
-	utils.AviLog.Info(spew.Sprintf("key: %s, msg: VSVIP PUT Restop %v ", key,
+	utils.AviLog.Infof(spew.Sprintf("key: %s, msg: VSVIP PUT Restop %v ", key,
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
@@ -676,7 +676,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 				// rest.StatusUpdateForVS(vs_cache_obj, key)
 			}
 		}
-		utils.AviLog.Info(spew.Sprintf("key: %s, msg: added vsvip cache k %v val %v", key, k,
+		utils.AviLog.Infof(spew.Sprintf("key: %s, msg: added vsvip cache k %v val %v", key, k,
 			vsvip_cache_obj))
 
 	}

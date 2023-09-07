@@ -2563,7 +2563,7 @@ func ValidateUserInput(client *clients.AviClient) (bool, error) {
 			isCloudValid &&
 			isRequiredValuesValid &&
 			isSegroupValid {
-			utils.AviLog.Info("All values verified for advanced L4, proceeding with bootup.")
+			utils.AviLog.Infof("All values verified for advanced L4, proceeding with bootup.")
 			return true, nil
 		}
 		return false, err
