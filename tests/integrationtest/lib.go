@@ -2001,7 +2001,7 @@ func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string) {
 		ShardSize:     shardSize,
 		T1LR:          "avi-domain-c9:1234",
 		Listeners: []akov1alpha1.AviInfraListeners{
-	            {Port: &port8081, EnableSSL: &enable, EnableHTTP2: &enable}, {Port: &port8083, EnableSSL: &disable, EnableHTTP2: &disable},
+			{Port: &port8081, EnableSSL: &enable, EnableHTTP2: &enable}, {Port: &port8083, EnableSSL: &disable, EnableHTTP2: &disable},
 		},
 	}
 	settingCreate := setting.AviInfraSetting()
