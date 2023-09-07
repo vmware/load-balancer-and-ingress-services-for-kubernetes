@@ -288,7 +288,7 @@ with the private registry name.
 
 ### image.pullSecrets
 
-If you are setting the [image.repository](#imagerepository) field to use a private container image registry for ako image, then you must specify the pull secrets in this field. The pull secrets are a list of Kubernetes Secret objects that are created from the login credentials of the image registry. The container runtime uses the pull secrets to authenticate with the registry in order to pull the ako image. The image pull secrets must be created in the `avi-system` namespace before deploying AKO.
+If you are setting the [image.repository](#imagerepository) field to use a secure private container image registry for ako image, then you must specify the pull secrets in this field. The pull secrets are a list of Kubernetes Secret objects that are created from the login credentials of the scure private image registry. The container runtime uses the pull secrets to authenticate with the registry in order to pull the ako image. The image pull secrets must be created in the `avi-system` namespace before deploying AKO.
 
     pullSecrets:
     - name: regcred

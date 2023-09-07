@@ -182,7 +182,7 @@ The following table lists the configurable parameters of the AKO chart and their
 | `avicredentials.password` | Avi controller password | empty |
 | `avicredentials.authtoken` | Avi controller authentication token | empty |
 | `image.repository` | Specify docker-registry that has the AKO image | avinetworks/ako |
-| `image.pullSecrets` | Specify the pull secrets for the private container image registry that has the AKO image | `Empty List` |
+| `image.pullSecrets` | Specify the pull secrets for the secure private container image registry that has the AKO image | `Empty List` |
 
 > From AKO 1.5.1, fields `subnetIP` and `subnetPrefix` have been deprecated. See [Upgrade Notes](../upgrade/upgrade.md) for more details.
 
