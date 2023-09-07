@@ -625,7 +625,7 @@ func TestOshiftHTTPRuleCreateDeleteWithPkiRef(t *testing.T) {
 	}
 
 	rrCreate := httprule.HTTPRule()
-	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HTTPRules("default").Create(context.TODO(), rrCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HTTPRules("default").Create(context.TODO(), rrCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding HTTPRule: %v", err)
 	}
 
@@ -700,7 +700,7 @@ func TestOshiftHTTPRuleHostSwitch(t *testing.T) {
 		}},
 	}.HTTPRule()
 	rrUpdate.ResourceVersion = "2"
-	if _, err := CRDClient.AkoV1alpha1().HTTPRules("default").Update(context.TODO(), rrUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := V1beta1CRDClient.AkoV1beta1().HTTPRules("default").Update(context.TODO(), rrUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 

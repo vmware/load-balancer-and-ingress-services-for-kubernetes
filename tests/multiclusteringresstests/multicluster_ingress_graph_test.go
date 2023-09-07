@@ -89,7 +89,7 @@ func TestMain(m *testing.M) {
 	args[utils.INFORMERS_AKO_CLIENT] = CRDClient
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers, args)
 	informers := k8s.K8sinformers{Cs: KubeClient}
-	k8s.NewCRDInformers(CRDClient)
+	k8s.NewCRDInformers()
 
 	mcache := cache.SharedAviObjCache()
 	cloudObj := &cache.AviCloudPropertyCache{Name: "Default-Cloud", VType: "mock"}

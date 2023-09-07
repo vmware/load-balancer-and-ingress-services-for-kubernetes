@@ -32,8 +32,6 @@ import (
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
-	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
-	akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions"
 	v1alpha2akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/informers/externalversions"
 	v1beta1akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/informers/externalversions"
 
@@ -42,12 +40,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-func NewCRDInformers(cs akocrd.Interface) {
-	var akoInformerFactory akoinformers.SharedInformerFactory
-
-	akoInformerFactory = akoinformers.NewSharedInformerFactoryWithOptions(cs, time.Second*30)
-	httpRuleInformer := akoInformerFactory.Ako().V1alpha1().HTTPRules()
-
+func NewCRDInformers() {
 	v1alpha2akoInformerFactory := v1alpha2akoinformers.NewSharedInformerFactoryWithOptions(
 		lib.AKOControlConfig().V1alpha2CRDClientset(), time.Second*30)
 	ssoRuleInformer := v1alpha2akoInformerFactory.Ako().V1alpha2().SSORules()
@@ -58,6 +51,7 @@ func NewCRDInformers(cs akocrd.Interface) {
 		lib.AKOControlConfig().V1beta1CRDClientset(), time.Second*30)
 	aviInfraSettingInformerv1Beta1 := v1beta1akoInformerFactory.Ako().V1beta1().AviInfraSettings()
 	hostRuleInformer := v1beta1akoInformerFactory.Ako().V1beta1().HostRules()
+	httpRuleInformer := v1beta1akoInformerFactory.Ako().V1beta1().HTTPRules()
 
 	lib.AKOControlConfig().SetCRDInformers(&lib.AKOCrdInformers{
 		HostRuleInformer:             hostRuleInformer,
@@ -102,7 +96,7 @@ func isHostRuleUpdated(oldHostRule, newHostRule *akov1beta1.HostRule) bool {
 	return oldSpecHash != newSpecHash
 }
 
-func isHTTPRuleUpdated(oldHTTPRule, newHTTPRule *akov1alpha1.HTTPRule) bool {
+func isHTTPRuleUpdated(oldHTTPRule, newHTTPRule *akov1beta1.HTTPRule) bool {
 	if oldHTTPRule.ResourceVersion == newHTTPRule.ResourceVersion {
 		return false
 	}
@@ -223,7 +217,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				if c.DisableSync {
 					return
 				}
-				httprule := obj.(*akov1alpha1.HTTPRule)
+				httprule := obj.(*akov1beta1.HTTPRule)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httprule))
 				key := lib.HTTPRule + "/" + utils.ObjKey(httprule)
 				if err := c.GetValidator().ValidateHTTPRuleObj(key, httprule); err != nil {
@@ -237,8 +231,8 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				if c.DisableSync {
 					return
 				}
-				oldObj := old.(*akov1alpha1.HTTPRule)
-				httprule := new.(*akov1alpha1.HTTPRule)
+				oldObj := old.(*akov1beta1.HTTPRule)
+				httprule := new.(*akov1beta1.HTTPRule)
 				// reflect.DeepEqual does not work on type []byte,
 				// unable to capture edits in destinationCA
 				if isHTTPRuleUpdated(oldObj, httprule) {
@@ -256,14 +250,14 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				if c.DisableSync {
 					return
 				}
-				httprule, ok := obj.(*akov1alpha1.HTTPRule)
+				httprule, ok := obj.(*akov1beta1.HTTPRule)
 				if !ok {
 					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 					if !ok {
 						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
 						return
 					}
-					httprule, ok = tombstone.Obj.(*akov1alpha1.HTTPRule)
+					httprule, ok = tombstone.Obj.(*akov1beta1.HTTPRule)
 					if !ok {
 						utils.AviLog.Errorf("Tombstone contained object that is not an HTTPRule: %#v", obj)
 						return

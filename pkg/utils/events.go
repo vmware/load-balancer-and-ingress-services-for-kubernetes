@@ -30,7 +30,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	networkingv1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
 
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 )
 
 var EventScheme = runtime.NewScheme()
@@ -41,7 +41,7 @@ var localSchemeBuilder = runtime.SchemeBuilder{
 	routev1.AddToScheme,
 
 	// AKO CRDs
-	akov1alpha1.AddToScheme,
+	akov1beta1.AddToScheme,
 
 	// WCP gateway
 	networkingv1alpha1pre1.AddToScheme,

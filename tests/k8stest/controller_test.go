@@ -125,7 +125,7 @@ func TestMain(m *testing.M) {
 	args := make(map[string]interface{})
 	args[utils.INFORMERS_AKO_CLIENT] = crdClient
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, args)
-	k8s.NewCRDInformers(crdClient)
+	k8s.NewCRDInformers()
 	integrationtest.InitializeFakeAKOAPIServer()
 
 	integrationtest.NewAviFakeClientInstance(kubeClient)

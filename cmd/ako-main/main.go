@@ -128,19 +128,24 @@ func InitializeAKC() {
 			akoControlConfig.SetServicesAPIClientset(svcAPIClient)
 		}
 
-		akoControlConfig.SetCRDClientset(crdClient)
-
+		/*
+			crdClient, err = crd.NewForConfig(cfg)
+			if err != nil {
+				utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
+			}
+			akoControlConfig.SetCRDClientset(crdClient)
+		*/
+		v1beta1crdClient, err := v1beta1crd.NewForConfig(cfg)
+		if err != nil {
+			utils.AviLog.Fatalf("Error building AKO CRD v1beta1 clientset: %s", err.Error())
+		}
+		akoControlConfig.Setv1beta1CRDClientset(v1beta1crdClient)
 		v1alpha2crdClient, err := v1alpha2crd.NewForConfig(cfg)
 		if err != nil {
 			utils.AviLog.Fatalf("Error building AKO CRD v1alpha2 clientset: %s", err.Error())
 		}
 		akoControlConfig.Setv1alpha2CRDClientset(v1alpha2crdClient)
 
-		v1beta1crdClient, err := v1beta1crd.NewForConfig(cfg)
-		if err != nil {
-			utils.AviLog.Fatalf("Error building AKO CRD v1beta1 clientset: %s", err.Error())
-		}
-		akoControlConfig.Setv1beta1CRDClientset(v1beta1crdClient)
 	}
 
 	dynamicClient, err := lib.NewDynamicClientSet(cfg)
@@ -203,7 +208,7 @@ func InitializeAKC() {
 		k8s.NewInfraSettingCRDInformer(crdClient)
 		k8s.NewAdvL4Informers(advl4Client)
 	} else {
-		k8s.NewCRDInformers(crdClient)
+		k8s.NewCRDInformers()
 		if lib.UseServicesAPI() {
 			k8s.NewSvcApiInformers(svcAPIClient)
 		}

@@ -33,7 +33,7 @@ func TestCreateHostRule(t *testing.T) {
 
 	// AKO is running as follower, hence the status won't be updated.
 	g.Eventually(func() string {
-		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 30*time.Second).Should(gomega.Equal(""))
 }
@@ -46,7 +46,7 @@ func TestCreateHTTPRule(t *testing.T) {
 
 	// AKO is running as follower, hence the status won't be updated.
 	g.Eventually(func() string {
-		httprule, _ := CRDClient.AkoV1alpha1().HTTPRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		httprule, _ := v1beta1CRDClient.AkoV1beta1().HTTPRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
 		return httprule.Status.Status
 	}, 30*time.Second).Should(gomega.Equal(""))
 }

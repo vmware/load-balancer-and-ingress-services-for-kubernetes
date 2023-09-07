@@ -1610,7 +1610,7 @@ func SetupSSORule(t *testing.T, srname, fqdn string, ssoType string) {
 }
 
 func TeardownHostRule(t *testing.T, g *gomega.WithT, vskey cache.NamespaceName, hrname string) {
-	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
+	if err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting HostRule: %v", err)
 	}
 	VerifyMetadataHostRule(t, g, vskey, "default/"+hrname, false)
@@ -1624,7 +1624,7 @@ func TeardownSSORule(t *testing.T, g *gomega.WithT, vskey cache.NamespaceName, s
 }
 
 func TearDownHostRuleWithNoVerify(t *testing.T, g *gomega.WithT, hrname string) {
-	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
+	if err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting HostRule: %v", err)
 	}
 }
@@ -1646,17 +1646,17 @@ type FakeHTTPRulePath struct {
 	Hash           string
 }
 
-func (rr FakeHTTPRule) HTTPRule() *akov1alpha1.HTTPRule {
-	var rrPaths []akov1alpha1.HTTPRulePaths
+func (rr FakeHTTPRule) HTTPRule() *akov1beta1.HTTPRule {
+	var rrPaths []akov1beta1.HTTPRulePaths
 	for _, p := range rr.PathProperties {
-		rrForPath := akov1alpha1.HTTPRulePaths{
+		rrForPath := akov1beta1.HTTPRulePaths{
 			Target:         p.Path,
 			HealthMonitors: p.HealthMonitors,
-			TLS: akov1alpha1.HTTPRuleTLS{
+			TLS: akov1beta1.HTTPRuleTLS{
 				Type:       "reencrypt",
 				SSLProfile: p.SslProfile,
 			},
-			LoadBalancerPolicy: akov1alpha1.HTTPRuleLBPolicy{
+			LoadBalancerPolicy: akov1beta1.HTTPRuleLBPolicy{
 				Algorithm: p.LbAlgorithm,
 				Hash:      p.Hash,
 			},
@@ -1669,12 +1669,12 @@ func (rr FakeHTTPRule) HTTPRule() *akov1alpha1.HTTPRule {
 		}
 		rrPaths = append(rrPaths, rrForPath)
 	}
-	return &akov1alpha1.HTTPRule{
+	return &akov1beta1.HTTPRule{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: rr.Namespace,
 			Name:      rr.Name,
 		},
-		Spec: akov1alpha1.HTTPRuleSpec{
+		Spec: akov1beta1.HTTPRuleSpec{
 			Fqdn:  rr.Fqdn,
 			Paths: rrPaths,
 		},
@@ -1697,13 +1697,13 @@ func SetupHTTPRule(t *testing.T, rrname, fqdn, path string) {
 	}
 
 	rrCreate := httprule.HTTPRule()
-	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HTTPRules("default").Create(context.TODO(), rrCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HTTPRules("default").Create(context.TODO(), rrCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding HTTPRule: %v", err)
 	}
 }
 
 func TeardownHTTPRule(t *testing.T, rrname string) {
-	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HTTPRules("default").Delete(context.TODO(), rrname, metav1.DeleteOptions{}); err != nil {
+	if err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HTTPRules("default").Delete(context.TODO(), rrname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting HTTPRule: %v", err)
 	}
 }

@@ -33,7 +33,7 @@ import (
 )
 
 type Validator interface {
-	ValidateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error
+	ValidateHTTPRuleObj(key string, httprule *akov1beta1.HTTPRule) error
 	ValidateHostRuleObj(key string, hostrule *akov1beta1.HostRule) error
 	ValidateAviInfraSetting(key string, infraSetting *akov1beta1.AviInfraSetting) error
 	ValidateMultiClusterIngressObj(key string, multiClusterIngress *akov1alpha1.MultiClusterIngress) error
@@ -243,7 +243,7 @@ func validateSecretReferenceInSSORule(namespace, secretName string) (*v1.Secret,
 
 // validateHTTPRuleObj would do validation checks
 // update internal CRD caches, and push relevant ingresses to ingestion
-func (l *leader) ValidateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
+func (l *leader) ValidateHTTPRuleObj(key string, httprule *akov1beta1.HTTPRule) error {
 
 	refData := make(map[string]string)
 	for _, path := range httprule.Spec.Paths {
@@ -736,7 +736,7 @@ func validateLBAlgorithm(backendProperties *akov1alpha2.BackendProperties) error
 	return nil
 }
 
-func (f *follower) ValidateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
+func (f *follower) ValidateHTTPRuleObj(key string, httprule *akov1beta1.HTTPRule) error {
 	utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating HTTPRule object", key)
 	return nil
 }

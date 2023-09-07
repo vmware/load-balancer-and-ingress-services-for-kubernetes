@@ -260,7 +260,7 @@ func TestMain(m *testing.M) {
 	akoControlConfig.SetAKOInstanceFlag(true)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, true)
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, RegisteredInformers)
-	k8s.NewCRDInformers(crdClient)
+	k8s.NewCRDInformers()
 
 	integrationtest.InitializeFakeAKOAPIServer()
 	integrationtest.NewAviFakeClientInstance(kubeClient)

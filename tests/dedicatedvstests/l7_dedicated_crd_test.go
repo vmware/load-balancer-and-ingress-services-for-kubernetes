@@ -87,7 +87,7 @@ func TestHostruleFQDNAliasesForDedicatedVS(t *testing.T) {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := V1beta1Client.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -112,7 +112,7 @@ func TestHostruleFQDNAliasesForDedicatedVS(t *testing.T) {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := V1beta1Client.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -137,7 +137,7 @@ func TestHostruleFQDNAliasesForDedicatedVS(t *testing.T) {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := V1beta1Client.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 

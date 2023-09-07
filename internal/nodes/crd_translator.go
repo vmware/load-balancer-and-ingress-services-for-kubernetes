@@ -25,7 +25,6 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
@@ -228,7 +227,7 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 	}
 
 	// maintains map of rrname+path: rrobj.spec.paths, prefetched for compute ahead
-	httpruleNameObjMap := make(map[string]akov1alpha1.HTTPRulePaths)
+	httpruleNameObjMap := make(map[string]akov1beta1.HTTPRulePaths)
 	for _, httprule := range getHTTPRules {
 		pathNSName := strings.Split(httprule, "/")
 		httpRuleObj, err := lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Lister().HTTPRules(pathNSName[0]).Get(pathNSName[1])

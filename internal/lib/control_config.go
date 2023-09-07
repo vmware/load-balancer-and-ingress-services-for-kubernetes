@@ -33,7 +33,7 @@ import (
 	"github.com/vmware/alb-sdk/go/models"
 
 	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
-	akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions/ako/v1alpha1"
+
 	v1alpha2akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned"
 	v1alpha2akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/informers/externalversions/ako/v1alpha2"
 	v1beta1akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned"
@@ -58,7 +58,7 @@ type ServicesAPIInformers struct {
 
 type AKOCrdInformers struct {
 	HostRuleInformer             v1beta1akoinformer.HostRuleInformer
-	HTTPRuleInformer             akoinformer.HTTPRuleInformer
+	HTTPRuleInformer             v1beta1akoinformer.HTTPRuleInformer
 	AviInfraSettingBeta1Informer v1beta1akoinformer.AviInfraSettingInformer
 	SSORuleInformer              v1alpha2akoinformer.SSORuleInformer
 	L4RuleInformer               v1alpha2akoinformer.L4RuleInformer
@@ -90,6 +90,7 @@ type akoControlConfig struct {
 	svcAPIInformers *ServicesAPIInformers
 
 	// client-set and informer for v1alpha1 AKO CRDs.
+	//TODO: Akshay: Check this
 	crdClientset akocrd.Interface
 	crdInformers *AKOCrdInformers
 
@@ -264,7 +265,8 @@ func (c *akoControlConfig) Setv1beta1CRDEnabledParams(cs v1beta1akocrd.Interface
 
 // CRDs are by default installed on all AKO deployments. So always enable CRD parameters.
 func (c *akoControlConfig) SetCRDEnabledParams(cs akocrd.Interface) {
-	//c.hostRuleEnabled = true
+	c.aviInfraSettingEnabled = true
+	c.hostRuleEnabled = true
 	c.httpRuleEnabled = true
 }
 
