@@ -32,6 +32,8 @@ import (
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	v1beta1akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned"
+
 	v1alpha2akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/informers/externalversions"
 	v1beta1akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/informers/externalversions"
 
@@ -49,22 +51,22 @@ func NewCRDInformers() {
 	//v1beta1 informer initialization
 	v1beta1akoInformerFactory := v1beta1akoinformers.NewSharedInformerFactoryWithOptions(
 		lib.AKOControlConfig().V1beta1CRDClientset(), time.Second*30)
-	aviInfraSettingInformerv1Beta1 := v1beta1akoInformerFactory.Ako().V1beta1().AviInfraSettings()
+	aviInfraSettingInformer := v1beta1akoInformerFactory.Ako().V1beta1().AviInfraSettings()
 	hostRuleInformer := v1beta1akoInformerFactory.Ako().V1beta1().HostRules()
 	httpRuleInformer := v1beta1akoInformerFactory.Ako().V1beta1().HTTPRules()
 
 	lib.AKOControlConfig().SetCRDInformers(&lib.AKOCrdInformers{
-		HostRuleInformer:             hostRuleInformer,
-		HTTPRuleInformer:             httpRuleInformer,
-		SSORuleInformer:              ssoRuleInformer,
-		L4RuleInformer:               l4RuleInformer,
-		AviInfraSettingBeta1Informer: aviInfraSettingInformerv1Beta1,
+		HostRuleInformer:        hostRuleInformer,
+		HTTPRuleInformer:        httpRuleInformer,
+		SSORuleInformer:         ssoRuleInformer,
+		L4RuleInformer:          l4RuleInformer,
+		AviInfraSettingInformer: aviInfraSettingInformer,
 	})
 }
 
-func NewInfraSettingCRDInformer(cs akocrd.Interface) {
-	akoInformerFactory := akoinformers.NewSharedInformerFactoryWithOptions(cs, time.Second*30)
-	aviSettingsInformer := akoInformerFactory.Ako().V1alpha1().AviInfraSettings()
+func NewInfraSettingCRDInformer(cs v1beta1akocrd.Interface) {
+	akoInformerFactory := v1beta1akoinformers.NewSharedInformerFactoryWithOptions(cs, time.Second*30)
+	aviSettingsInformer := akoInformerFactory.Ako().V1beta1().AviInfraSettings()
 	lib.AKOControlConfig().SetCRDInformers(&lib.AKOCrdInformers{
 		AviInfraSettingInformer: aviSettingsInformer,
 	})
@@ -336,7 +338,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			},
 		}
 
-		informer.AviInfraSettingBeta1Informer.Informer().AddEventHandler(aviInfraEventHandler)
+		informer.AviInfraSettingInformer.Informer().AddEventHandler(aviInfraEventHandler)
 	}
 
 	if lib.AKOControlConfig().SsoRuleEnabled() {
@@ -1048,7 +1050,7 @@ func addSeGroupLabel(key, segName string) {
 	avicache.ConfigureSeGroupLabels(clients.AviClient[aviClientLen], seGroup)
 }
 
-func SetAviInfrasettingVIPNetworks(name, segMgmtNetwork, infraSEGName string, netAviInfra []akov1alpha1.AviInfraSettingVipNetwork) {
+func SetAviInfrasettingVIPNetworks(name, segMgmtNetwork, infraSEGName string, netAviInfra []akov1beta1.AviInfraSettingVipNetwork) {
 	// assign the last avi client for ref checks
 	clients := avicache.SharedAVIClients()
 	aviClientLen := lib.GetshardSize()
@@ -1064,7 +1066,7 @@ func SetAviInfrasettingVIPNetworks(name, segMgmtNetwork, infraSEGName string, ne
 	lib.SetVipInfraNetworkList(name, network)
 }
 
-func SetAviInfrasettingNodeNetworks(name, segMgmtNetwork, infraSEGName string, netAviInfra []akov1alpha1.AviInfraSettingNodeNetwork) {
+func SetAviInfrasettingNodeNetworks(name, segMgmtNetwork, infraSEGName string, netAviInfra []akov1beta1.AviInfraSettingNodeNetwork) {
 	// assign the last avi client for ref checks
 	clients := avicache.SharedAVIClients()
 	aviClientLen := lib.GetshardSize()

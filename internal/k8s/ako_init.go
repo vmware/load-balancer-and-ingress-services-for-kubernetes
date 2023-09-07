@@ -704,7 +704,7 @@ func (c *AviController) addIndexers() {
 
 	informer := lib.AKOControlConfig().CRDInformers()
 	if lib.AKOControlConfig().AviInfraSettingEnabled() {
-		informer.AviInfraSettingBeta1Informer.Informer().AddIndexers(
+		informer.AviInfraSettingInformer.Informer().AddIndexers(
 			cache.Indexers{
 				lib.SeGroupAviSettingIndex: func(obj interface{}) ([]string, error) {
 					seg := ""
@@ -889,7 +889,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			}
 		}
 
-		aviInfraObjs, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingBeta1Informer.Lister().List(labels.Set(nil).AsSelector())
+		aviInfraObjs, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the avinfrasettings during full sync: %s", err)
 		} else {

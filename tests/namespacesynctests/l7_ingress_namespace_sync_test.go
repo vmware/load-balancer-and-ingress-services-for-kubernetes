@@ -36,11 +36,13 @@ import (
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
+	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
 )
 
 var KubeClient *k8sfake.Clientset
 var ctrl *k8s.AviController
 var CRDClient *crdfake.Clientset
+var V1beta1CRDClient *v1beta1crdfake.Clientset
 
 func TestMain(m *testing.M) {
 	os.Setenv("INGRESS_API", "extensionv1")
@@ -56,7 +58,9 @@ func TestMain(m *testing.M) {
 	akoControlConfig := lib.AKOControlConfig()
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
+	V1beta1CRDClient = v1beta1crdfake.NewSimpleClientset()
 	akoControlConfig.SetCRDClientset(CRDClient)
+	akoControlConfig.Setv1beta1CRDClientset(V1beta1CRDClient)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
 	akoControlConfig.SetAKOInstanceFlag(true)
 	data := map[string][]byte{

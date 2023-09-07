@@ -27,6 +27,8 @@ import (
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
+	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
+
 	v1alpha2crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned/fake"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
@@ -45,6 +47,7 @@ import (
 var KubeClient *k8sfake.Clientset
 var CRDClient *crdfake.Clientset
 var v1alpha2CRDClient *v1alpha2crdfake.Clientset
+var v1beta1CRDClient *v1beta1crdfake.Clientset
 var ctrl *k8s.AviController
 var DynamicClient *dynamicfake.FakeDynamicClient
 
@@ -68,6 +71,7 @@ func TestMain(m *testing.M) {
 	akoControlConfig := lib.AKOControlConfig()
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
+	v1beta1CRDClient = v1beta1crdfake.NewSimpleClientset()
 	v1alpha2CRDClient = v1alpha2crdfake.NewSimpleClientset()
 
 	gvrToKind := make(map[schema.GroupVersionResource]string)
@@ -123,6 +127,7 @@ func TestMain(m *testing.M) {
 	lib.SetDynamicClientSet(DynamicClient)
 	akoControlConfig.SetCRDClientset(CRDClient)
 	akoControlConfig.Setv1alpha2CRDClientset(v1alpha2CRDClient)
+	akoControlConfig.Setv1beta1CRDClientset(v1beta1CRDClient)
 	akoControlConfig.SetAKOInstanceFlag(true)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
 	data := map[string][]byte{

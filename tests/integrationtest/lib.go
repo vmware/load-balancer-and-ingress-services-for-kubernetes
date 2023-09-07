@@ -1954,7 +1954,7 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1beta1.AviInfraSe
 				BgpPeerLabels:  infraSetting.BGPPeerLabels,
 				EnablePublicIP: &infraSetting.EnablePublicIP,
 			},
-			NSXSettings: akov1alpha1.AviInfraNSXSettings{
+			NSXSettings: akov1beta1.AviInfraNSXSettings{
 				T1LR: &infraSetting.T1LR,
 			},
 		},

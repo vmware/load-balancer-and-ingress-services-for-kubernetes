@@ -57,11 +57,11 @@ type ServicesAPIInformers struct {
 }
 
 type AKOCrdInformers struct {
-	HostRuleInformer             v1beta1akoinformer.HostRuleInformer
-	HTTPRuleInformer             v1beta1akoinformer.HTTPRuleInformer
-	AviInfraSettingBeta1Informer v1beta1akoinformer.AviInfraSettingInformer
-	SSORuleInformer              v1alpha2akoinformer.SSORuleInformer
-	L4RuleInformer               v1alpha2akoinformer.L4RuleInformer
+	HostRuleInformer        v1beta1akoinformer.HostRuleInformer
+	HTTPRuleInformer        v1beta1akoinformer.HTTPRuleInformer
+	AviInfraSettingInformer v1beta1akoinformer.AviInfraSettingInformer
+	SSORuleInformer         v1alpha2akoinformer.SSORuleInformer
+	L4RuleInformer          v1alpha2akoinformer.L4RuleInformer
 }
 
 type IstioCRDInformers struct {
@@ -90,7 +90,7 @@ type akoControlConfig struct {
 	svcAPIInformers *ServicesAPIInformers
 
 	// client-set and informer for v1alpha1 AKO CRDs.
-	//TODO: Akshay: Check this
+	// can't remove it as MCI and serviceimport uses it.
 	crdClientset akocrd.Interface
 	crdInformers *AKOCrdInformers
 
@@ -231,8 +231,8 @@ func (c *akoControlConfig) SetCRDClientset(cs akocrd.Interface) {
 	c.SetCRDEnabledParams(cs)
 }
 
-func (c *akoControlConfig) SetCRDClientsetAndEnableInfraSettingParam(cs akocrd.Interface) {
-	c.crdClientset = cs
+func (c *akoControlConfig) SetCRDClientsetAndEnableInfraSettingParam(cs v1beta1akocrd.Interface) {
+	c.v1beta1crdClientset = cs
 	c.aviInfraSettingEnabled = true
 }
 

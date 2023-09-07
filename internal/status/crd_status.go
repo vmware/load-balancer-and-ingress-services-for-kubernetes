@@ -195,7 +195,7 @@ func UpdateAviInfraSettingStatus(key string, infraSetting *akov1beta1.AviInfraSe
 	_, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Patch(context.TODO(), infraSetting.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: %d there was an error in updating the aviinfrasetting status: %+v", key, retry, err)
-		updatedInfraSetting, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingBeta1Informer.Lister().Get(infraSetting.Name)
+		updatedInfraSetting, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(infraSetting.Name)
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: aviinfrasetting not found %v", key, err)
 			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {

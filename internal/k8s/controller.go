@@ -1378,8 +1378,8 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 		informersList = append(informersList, c.informers.NodeInformer.Informer().HasSynced)
 
 		if lib.AKOControlConfig().AviInfraSettingEnabled() {
-			go lib.AKOControlConfig().CRDInformers().AviInfraSettingBeta1Informer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().AviInfraSettingBeta1Informer.Informer().HasSynced)
+			go lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().HasSynced)
 
 		}
 

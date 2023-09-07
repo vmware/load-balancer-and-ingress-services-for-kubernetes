@@ -265,7 +265,7 @@ func getL7IngressInfraSetting(key string, ingClassName string, namespace string)
 		return nil, err
 	} else {
 		if ingClass.Spec.Parameters != nil && *ingClass.Spec.Parameters.APIGroup == lib.AkoGroup && ingClass.Spec.Parameters.Kind == lib.AviInfraSetting {
-			infraSetting, err = lib.AKOControlConfig().CRDInformers().AviInfraSettingBeta1Informer.Lister().Get(ingClass.Spec.Parameters.Name)
+			infraSetting, err = lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(ingClass.Spec.Parameters.Name)
 			if err != nil {
 				utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via IngressClass %s", key, err.Error())
 				return nil, err
@@ -286,7 +286,7 @@ func getL7RouteInfraSetting(key string, routeAnnotations map[string]string, name
 	var infraSetting *akov1beta1.AviInfraSetting
 
 	if infraSettingAnnotation, ok := routeAnnotations[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
-		infraSetting, err = lib.AKOControlConfig().CRDInformers().AviInfraSettingBeta1Informer.Lister().Get(infraSettingAnnotation)
+		infraSetting, err = lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingAnnotation)
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via annotation %s", key, err.Error())
 			return nil, err

@@ -33,6 +33,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
+
 	v1alpha2crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned"
 	v1beta1crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned"
 
@@ -108,7 +109,11 @@ func InitializeAKC() {
 	var advl4Client *advl4.Clientset
 	var svcAPIClient *svcapi.Clientset
 
-	crdClient, err = crd.NewForConfig(cfg)
+	v1beta1crdClient, err := v1beta1crd.NewForConfig(cfg)
+	if err != nil {
+		utils.AviLog.Fatalf("Error building AKO CRD v1beta1 clientset: %s", err.Error())
+	}
+	akoControlConfig.Setv1beta1CRDClientset(v1beta1crdClient)
 	if err != nil {
 		utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
 	}
@@ -118,7 +123,7 @@ func InitializeAKC() {
 			utils.AviLog.Fatalf("Error building service-api v1alpha1pre1 clientset: %s", err.Error())
 		}
 		akoControlConfig.SetAdvL4Clientset(advl4Client)
-		akoControlConfig.SetCRDClientsetAndEnableInfraSettingParam(crdClient)
+		akoControlConfig.SetCRDClientsetAndEnableInfraSettingParam(v1beta1crdClient)
 	} else {
 		if lib.UseServicesAPI() {
 			svcAPIClient, err = svcapi.NewForConfig(cfg)
@@ -128,18 +133,14 @@ func InitializeAKC() {
 			akoControlConfig.SetServicesAPIClientset(svcAPIClient)
 		}
 
-		/*
-			crdClient, err = crd.NewForConfig(cfg)
-			if err != nil {
-				utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
-			}
-			akoControlConfig.SetCRDClientset(crdClient)
-		*/
-		v1beta1crdClient, err := v1beta1crd.NewForConfig(cfg)
+		// This is kept as MCI and Service Import uses v1alpha1
+		// In Next release, MCI and serviceImport should be taken out
+		crdClient, err = crd.NewForConfig(cfg)
 		if err != nil {
-			utils.AviLog.Fatalf("Error building AKO CRD v1beta1 clientset: %s", err.Error())
+			utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
 		}
-		akoControlConfig.Setv1beta1CRDClientset(v1beta1crdClient)
+		akoControlConfig.SetCRDClientset(crdClient)
+
 		v1alpha2crdClient, err := v1alpha2crd.NewForConfig(cfg)
 		if err != nil {
 			utils.AviLog.Fatalf("Error building AKO CRD v1alpha2 clientset: %s", err.Error())
@@ -190,7 +191,7 @@ func InitializeAKC() {
 
 	informersArg := make(map[string]interface{})
 	informersArg[utils.INFORMERS_OPENSHIFT_CLIENT] = oshiftClient
-	informersArg[utils.INFORMERS_AKO_CLIENT] = crdClient
+	informersArg[utils.INFORMERS_AKO_CLIENT] = v1beta1crdClient
 
 	if lib.GetNamespaceToSync() != "" {
 		informersArg[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
@@ -205,7 +206,7 @@ func InitializeAKC() {
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
 	lib.NewDynamicInformers(dynamicClient, false)
 	if lib.IsWCP() {
-		k8s.NewInfraSettingCRDInformer(crdClient)
+		k8s.NewInfraSettingCRDInformer(v1beta1crdClient)
 		k8s.NewAdvL4Informers(advl4Client)
 	} else {
 		k8s.NewCRDInformers()

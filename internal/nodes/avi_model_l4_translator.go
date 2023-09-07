@@ -586,7 +586,7 @@ func getL4InfraSetting(key, namespace string, svc *corev1.Service, advl4GWClassN
 			return nil, err
 		}
 		if gwClass.Spec.ParametersRef != nil && gwClass.Spec.ParametersRef.Group == lib.AkoGroup && gwClass.Spec.ParametersRef.Kind == lib.AviInfraSetting {
-			infraSetting, err = lib.AKOControlConfig().CRDInformers().AviInfraSettingBeta1Informer.Lister().Get(gwClass.Spec.ParametersRef.Name)
+			infraSetting, err = lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(gwClass.Spec.ParametersRef.Name)
 			if err != nil {
 				utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via GatewayClass %s", key, err.Error())
 				return nil, err
@@ -595,7 +595,7 @@ func getL4InfraSetting(key, namespace string, svc *corev1.Service, advl4GWClassN
 		}
 	} else if svc != nil {
 		if infraSettingAnnotation, ok := svc.GetAnnotations()[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
-			infraSetting, err = lib.AKOControlConfig().CRDInformers().AviInfraSettingBeta1Informer.Lister().Get(infraSettingAnnotation)
+			infraSetting, err = lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingAnnotation)
 			if err != nil {
 				utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via annotation %s", key, err.Error())
 				return nil, err

@@ -18,10 +18,12 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
+	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
 )
 
 var KubeClient *k8sfake.Clientset
 var CRDClient *crdfake.Clientset
+var V1beta1CRDClient *v1beta1crdfake.Clientset
 var restChan chan bool
 var uuidMap map[string]bool
 
@@ -44,8 +46,10 @@ func TestMain(m *testing.M) {
 	akoControlConfig := lib.AKOControlConfig()
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
+	V1beta1CRDClient = v1beta1crdfake.NewSimpleClientset()
 	akoControlConfig.SetCRDClientset(CRDClient)
 	akoControlConfig.SetAKOInstanceFlag(true)
+	akoControlConfig.Setv1beta1CRDClientset(V1beta1CRDClient)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
 	lib.AKOControlConfig().SetControllerVersion("20.1.1")
 	data := map[string][]byte{

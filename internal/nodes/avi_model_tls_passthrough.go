@@ -19,14 +19,13 @@ import (
 	"strings"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
 )
 
-func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key string, infraSetting *akov1alpha1.AviInfraSetting) *AviVsNode {
+func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key string, infraSetting *akov1beta1.AviInfraSetting) *AviVsNode {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	var avi_vs_meta *AviVsNode

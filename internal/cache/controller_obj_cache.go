@@ -27,7 +27,6 @@ import (
 	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -2631,13 +2630,13 @@ func findHostRefs(client *clients.AviClient, nwUUID string) []string {
 }
 
 // Function to find max host overlap between mgmt network and vipNetwork/nodenetwoeklist
-func findHostWithMaxOverlapping(segMgmtNetwork string, client *clients.AviClient, localNetworkList []models.Network) akov1alpha1.AviInfraSettingVipNetwork {
+func findHostWithMaxOverlapping(segMgmtNetwork string, client *clients.AviClient, localNetworkList []models.Network) akov1beta1.AviInfraSettingVipNetwork {
 	cloudMgmtNW := lib.GetCloudMgmtNetwork()
 	// Use SEG Mgmt network to fetch host refs
 	if segMgmtNetwork != "" {
 		cloudMgmtNW = segMgmtNetwork
 	}
-	var matchedNW akov1alpha1.AviInfraSettingVipNetwork
+	var matchedNW akov1beta1.AviInfraSettingVipNetwork
 	mgmtHostRefs := findHostRefs(client, cloudMgmtNW)
 	utils.AviLog.Infof("For Management network:%s, hosts are: %v", cloudMgmtNW, utils.Stringify(mgmtHostRefs))
 	mgmtHostsSet := sets.NewString(mgmtHostRefs...)
@@ -2681,7 +2680,7 @@ func findHostWithMaxOverlapping(segMgmtNetwork string, client *clients.AviClient
 	return matchedNW
 }
 
-func FindCIDROverlapping(networks []models.Network, ipNet akov1alpha1.AviInfraSettingVipNetwork) (bool, models.Network) {
+func FindCIDROverlapping(networks []models.Network, ipNet akov1beta1.AviInfraSettingVipNetwork) (bool, models.Network) {
 	localVIPNetwork := models.Network{}
 	countOfCidrMatchReq := 0
 	if ipNet.Cidr != "" {
@@ -2729,14 +2728,14 @@ func FindCIDROverlapping(networks []models.Network, ipNet akov1alpha1.AviInfraSe
 	return networkFound, localVIPNetwork
 }
 
-func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient, vipNetworks []akov1alpha1.AviInfraSettingVipNetwork) []akov1alpha1.AviInfraSettingVipNetwork {
-	var ipNetworkList []akov1alpha1.AviInfraSettingVipNetwork
-	var ipNetwork akov1alpha1.AviInfraSettingVipNetwork
+func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient, vipNetworks []akov1beta1.AviInfraSettingVipNetwork) []akov1beta1.AviInfraSettingVipNetwork {
+	var ipNetworkList []akov1beta1.AviInfraSettingVipNetwork
+	var ipNetwork akov1beta1.AviInfraSettingVipNetwork
 	// In Public cloud we allow multiple network, so loop.
 	for _, vipNet := range vipNetworks {
 		// If Network uuid is present, use that.
 		if vipNet.NetworkUUID != "" {
-			ipNetwork = akov1alpha1.AviInfraSettingVipNetwork{
+			ipNetwork = akov1beta1.AviInfraSettingVipNetwork{
 				NetworkName: vipNet.NetworkName,
 				NetworkUUID: vipNet.NetworkUUID,
 				Cidr:        vipNet.Cidr,
@@ -2744,7 +2743,7 @@ func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient
 			}
 		} else {
 			//default value
-			ipNetwork = akov1alpha1.AviInfraSettingVipNetwork{
+			ipNetwork = akov1beta1.AviInfraSettingVipNetwork{
 				NetworkName: vipNet.NetworkName,
 				Cidr:        vipNet.Cidr,
 				V6Cidr:      vipNet.V6Cidr,
@@ -2779,7 +2778,7 @@ func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient
 				found, netLocal := FindCIDROverlapping(localVIPNetworkList, ipNetwork)
 				if found {
 					utils.AviLog.Infof("Network found from CIDR overlapping is: %v", utils.Stringify(netLocal))
-					ipNetwork = akov1alpha1.AviInfraSettingVipNetwork{
+					ipNetwork = akov1beta1.AviInfraSettingVipNetwork{
 						NetworkName: *netLocal.Name,
 						NetworkUUID: *netLocal.UUID,
 						Cidr:        vipNet.Cidr,
@@ -2793,11 +2792,11 @@ func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient
 					utils.AviLog.Infof("Network found from Host overlapping is: %v", utils.Stringify(ipNetwork))
 				}
 			}
-			if len(localVIPNetworkList) == 1 || ipNetwork == (akov1alpha1.AviInfraSettingVipNetwork{}) {
+			if len(localVIPNetworkList) == 1 || ipNetwork == (akov1beta1.AviInfraSettingVipNetwork{}) {
 				// If empty network returned or len 1, fill with first network
 				// with cidr provided in configmap or aviinfra
 
-				ipNetwork = akov1alpha1.AviInfraSettingVipNetwork{
+				ipNetwork = akov1beta1.AviInfraSettingVipNetwork{
 					NetworkName: *localVIPNetworkList[0].Name,
 					Cidr:        vipNet.Cidr,
 					V6Cidr:      vipNet.V6Cidr,

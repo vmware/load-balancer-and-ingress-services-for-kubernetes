@@ -660,7 +660,7 @@ func (v *Validator) ParseHostPathForMultiClusterIngress(ns string, ingName strin
 	return ingressConfig
 }
 
-func getNamespaceAviInfraSetting(key, ns string) (*v1alpha1.AviInfraSetting, error) {
+func getNamespaceAviInfraSetting(key, ns string) (*v1beta1.AviInfraSetting, error) {
 	namespace, err := utils.GetInformers().NSInformer.Lister().Get(ns)
 	if err != nil {
 		return nil, err
