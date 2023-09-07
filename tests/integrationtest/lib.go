@@ -1999,10 +1999,10 @@ func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string) {
 		EnableRhi:     true,
 		BGPPeerLabels: []string{"peer1", "peer2"},
 		ShardSize:     shardSize,
-		Listeners: []akov1alpha1.AviInfraListeners{
-			{Port: &port8081, EnableSSL: &enable, EnableHTTP2: &enable}, {Port: &port8083, EnableSSL: &disable, EnableHTTP2: &disable},
-		},
 		T1LR:          "avi-domain-c9:1234",
+		Listeners: []akov1alpha1.AviInfraListeners{
+	            {Port: &port8081, EnableSSL: &enable, EnableHTTP2: &enable}, {Port: &port8083, EnableSSL: &disable, EnableHTTP2: &disable},
+		},
 	}
 	settingCreate := setting.AviInfraSetting()
 	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
