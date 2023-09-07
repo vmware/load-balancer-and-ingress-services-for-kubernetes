@@ -24,28 +24,38 @@ spec:
                 properties:
                   vipNetworks:
                     items:
+                      oneOf:
+                      - required:
+                        - networkName
+                      - required:
+                        - networkUUID
                       properties:
                         networkName:
+                          type: string
+                        networkUUID:
                           type: string
                         cidr:
                           type: string
                         v6cidr:
                           type: string
-                      required:
-                      - networkName
                       type: object
                     type: array
                   nodeNetworks:
                     items:
+                      oneOf:
+                      - required:
+                        - networkName
+                      - required:
+                        - networkUUID
                       properties:
                         networkName:
+                          type: string
+                        networkUUID:
                           type: string
                         cidrs:
                           type: array
                           items:
                             type: string
-                      required:
-                      - networkName
                       type: object
                     type: array
                   enableRhi:
@@ -91,6 +101,15 @@ spec:
                 type: object
                 required:
                 - shardSize
+              nsxSettings:
+                properties:
+                  project:
+                    type: string
+                  t1lr:
+                    type: string
+                type: object
+                required:
+                - t1lr
             type: object
           status:
             properties:

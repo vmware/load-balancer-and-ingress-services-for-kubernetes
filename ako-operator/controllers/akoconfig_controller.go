@@ -244,7 +244,7 @@ func (r *AKOConfigReconciler) CleanupArtifacts(ctx context.Context, log logr.Log
 			return err
 		}
 	}
-	err := deleteCRDs(r.Config)
+	err := deleteCRDs(r.Config, log)
 	if err != nil {
 		log.Error(err, "error while deleting crds")
 		return err

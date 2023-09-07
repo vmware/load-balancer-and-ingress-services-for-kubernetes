@@ -284,7 +284,7 @@ func ProcessPassthroughHosts(routeIgrObj RouteIngressModel, key string, parsedIn
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {
 			aviModel = NewAviObjectGraph()
-			aviModel.(*AviObjectGraph).BuildVSForPassthrough(shardVsName, routeIgrObj.GetNamespace(), host, key)
+			aviModel.(*AviObjectGraph).BuildVSForPassthrough(shardVsName, routeIgrObj.GetNamespace(), host, key, infraSetting)
 		}
 		vsNode := aviModel.(*AviObjectGraph).GetAviVS()
 		if len(vsNode) < 1 {

@@ -651,7 +651,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				parentKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: ExtractVsName(vh_parent_uuid.(string))}
 				vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(parentKey)
 				vs_cache_obj.AddToSNIChildCollection(uuid)
-				utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during SNI update %v val %v", key, parentKey,
+				utils.AviLog.Infof(spew.Sprintf("key: %s, msg: added VS cache key during SNI update %v val %v", key, parentKey,
 					vs_cache_obj))
 			}
 		}
@@ -851,7 +851,7 @@ func (rest *RestOperations) AviVSDel(uuid string, tenant string, key string) (*u
 		Tenant: tenant,
 		Model:  "VirtualService",
 	}
-	utils.AviLog.Info(spew.Sprintf("key: %s, msg: VirtualService DELETE Restop %v ",
+	utils.AviLog.Infof(spew.Sprintf("key: %s, msg: VirtualService DELETE Restop %v ",
 		key, utils.Stringify(rest_op)))
 	return &rest_op, true
 }

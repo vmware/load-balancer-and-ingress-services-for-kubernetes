@@ -22,6 +22,11 @@ The following schemas show the changed structure.
           vipNetworkList:
             - networkName: "net1"
               cidr: "10.10.10.0/24"
+      or
+         NetworkSettings:
+          vipNetworkList:
+            - networkUUID: "dvportgroup-2167-cloud-d4b24fc7-a435-408d-af9f-150229a6fea6f"
+              cidr: "10.10.10.0/24"
 
 
 ### AviInfraSetting CRD
@@ -39,6 +44,11 @@ The following schemas show the changed structure of `spec.network` field.
           network:
             vipNetworks:
               - networkName: vip-network-10-10-10-0-24
+      or
+        spec:
+          network:
+            vipNetworks:
+              - networkUUID: dvportgroup-3167-cloud-d4b24fc7-a435-408d-af9f-150229a6fea6f
 
 Existing AviInfraSetting CRDs would need an explicit update after applying the updated CRD schema yamls. CRD schema yamls are applied during the [helm upgrade](../install/helm.md#upgrade-ako-using-helm) step. <br/>
 

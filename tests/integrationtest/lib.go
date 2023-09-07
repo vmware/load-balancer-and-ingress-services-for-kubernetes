@@ -178,6 +178,18 @@ func AddNamespace(t *testing.T, nsName string, labels map[string]string) error {
 	return err
 }
 
+func AddDefaultNamespace(ns ...string) {
+	namespace := "default"
+	if len(ns) > 0 {
+		namespace = ns[0]
+	}
+	nsMetaOptions := (FakeNamespace{
+		Name: namespace,
+	}).Namespace()
+	nsMetaOptions.ResourceVersion = "1"
+	KubeClient.CoreV1().Namespaces().Create(context.TODO(), nsMetaOptions, metav1.CreateOptions{})
+}
+
 func UpdateNamespace(t *testing.T, nsName string, labels map[string]string) error {
 	nsMetaOptions := (FakeNamespace{
 		Name:   nsName,
@@ -1269,6 +1281,26 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			w.WriteHeader(http.StatusOK)
 			data, _ := os.ReadFile(fmt.Sprintf("%s/l4crd_mock.json", mockFilePath))
 			w.Write(data)
+		} else if strings.Contains(url, "/api/network") && strings.Contains(r.URL.RawQuery, "thisisaviref") {
+			w.WriteHeader(http.StatusOK)
+			data, _ := os.ReadFile(fmt.Sprintf("%s/crd_network_mock.json", mockFilePath))
+			query_components := strings.Split(r.URL.RawQuery, "&")
+			infraname := ""
+			if len(query_components) == 2 {
+				name_split := strings.Split(query_components[0], "=")
+				infraname = name_split[1]
+			} else if len(query_components) == 3 {
+				name_split := strings.Split(query_components[1], "=")
+				infraname = name_split[1]
+			}
+			json.Unmarshal(data, &resp)
+			resp1 := (resp["results"].([]interface{})[0]).(map[string]interface{})
+			name := resp1["name"]
+			if name != infraname {
+				resp1["name"] = infraname
+			}
+			finalResponse, _ = json.Marshal(resp)
+			w.Write(finalResponse)
 		} else if strings.Contains(r.URL.RawQuery, "thisisaviref") {
 			w.WriteHeader(http.StatusOK)
 			data, _ := os.ReadFile(fmt.Sprintf("%s/crd_mock.json", mockFilePath))
@@ -1331,7 +1363,17 @@ func FeedMockCollectionData(w http.ResponseWriter, r *http.Request, mockFilePath
 	if r.Method == "GET" {
 		var data []byte
 		if len(splitURL) == 2 {
-			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, splitURL[1]))
+			filePath := ""
+			if strings.Contains(r.URL.RawQuery, "multivip-network1") {
+				filePath = fmt.Sprintf("%s/crd_network_ipam1.json", mockFilePath)
+			} else if strings.Contains(r.URL.RawQuery, "multivip-network2") {
+				filePath = fmt.Sprintf("%s/crd_network_ipam2.json", mockFilePath)
+			} else if strings.Contains(r.URL.RawQuery, "multivip-network3") {
+				filePath = fmt.Sprintf("%s/crd_network_ipam3.json", mockFilePath)
+			} else {
+				filePath = fmt.Sprintf("%s/%s_mock.json", mockFilePath, splitURL[1])
+			}
+			data, _ = os.ReadFile(filePath)
 		} else if len(splitURL) == 3 {
 			// with uuid
 			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_uuid_mock.json", mockFilePath, splitURL[1]))
@@ -1814,8 +1856,54 @@ func SetupIngressClass(t *testing.T, ingclassName, controller, infraSetting stri
 	}
 
 	ingClassCreate := ingclass.IngressClass()
-	if _, err := KubeClient.NetworkingV1().IngressClasses().Create(context.TODO(), ingClassCreate, metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error in adding IngressClass: %v", err)
+	if _, err := KubeClient.NetworkingV1().IngressClasses().Get(context.TODO(), ingclassName, metav1.GetOptions{}); err != nil {
+		if _, err := KubeClient.NetworkingV1().IngressClasses().Create(context.TODO(), ingClassCreate, metav1.CreateOptions{}); err != nil {
+			t.Fatalf("error in adding IngressClass: %v", err)
+		}
+	} else {
+		ingClassCreate.ResourceVersion = "2"
+		if _, err := KubeClient.NetworkingV1().IngressClasses().Update(context.TODO(), ingClassCreate, metav1.UpdateOptions{}); err != nil {
+			t.Fatalf("error in adding IngressClass: %v", err)
+		}
+	}
+}
+
+func AnnotateAKONamespaceWithInfraSetting(t *testing.T, ns, infraSettingName string) {
+	namespace, err := KubeClient.CoreV1().Namespaces().Get(context.TODO(), ns, metav1.GetOptions{})
+	if err != nil {
+		namespace := (FakeNamespace{
+			Name:   ns,
+			Labels: map[string]string{},
+		}).Namespace()
+		namespace.ResourceVersion = "1"
+		namespace.Annotations = map[string]string{
+			lib.InfraSettingNameAnnotation: infraSettingName,
+		}
+		_, err = KubeClient.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
+		if err != nil {
+			t.Fatalf("Error occurred while Adding namespace: %v", err)
+		}
+	} else {
+		namespace.ResourceVersion = "2"
+		namespace.Annotations = map[string]string{
+			lib.InfraSettingNameAnnotation: infraSettingName,
+		}
+		_, err = KubeClient.CoreV1().Namespaces().Update(context.TODO(), namespace, metav1.UpdateOptions{})
+		if err != nil {
+			t.Fatalf("Error occurred while Updating namespace: %v", err)
+		}
+	}
+}
+
+func RemoveAnnotateAKONamespaceWithInfraSetting(t *testing.T, ns string) {
+	namespace := (FakeNamespace{
+		Name:   ns,
+		Labels: map[string]string{},
+	}).Namespace()
+	namespace.ResourceVersion = "3"
+	_, err := KubeClient.CoreV1().Namespaces().Update(context.TODO(), namespace, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("Error occurred while Updating namespace: %v", err)
 	}
 }
 
@@ -1833,6 +1921,7 @@ type FakeAviInfraSetting struct {
 	EnablePublicIP bool
 	ShardSize      string
 	BGPPeerLabels  []string
+	T1LR           string
 }
 
 func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraSetting {
@@ -1848,6 +1937,9 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraS
 				EnableRhi:      &infraSetting.EnableRhi,
 				BgpPeerLabels:  infraSetting.BGPPeerLabels,
 				EnablePublicIP: &infraSetting.EnablePublicIP,
+			},
+			NSXSettings: akov1alpha1.AviInfraNSXSettings{
+				T1LR: &infraSetting.T1LR,
 			},
 		},
 	}
@@ -1873,6 +1965,7 @@ func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string) {
 		EnableRhi:     true,
 		BGPPeerLabels: []string{"peer1", "peer2"},
 		ShardSize:     shardSize,
+		T1LR:          "avi-domain-c9:1234",
 	}
 	settingCreate := setting.AviInfraSetting()
 	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {

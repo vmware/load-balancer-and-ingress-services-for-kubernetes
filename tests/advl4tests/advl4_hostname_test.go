@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 	advl4fake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned/fake"
@@ -40,6 +41,7 @@ import (
 
 var KubeClient *k8sfake.Clientset
 var AdvL4Client *advl4fake.Clientset
+var CRDClient *crdfake.Clientset
 var ctrl *k8s.AviController
 
 func TestMain(m *testing.M) {
@@ -52,8 +54,10 @@ func TestMain(m *testing.M) {
 	akoControlConfig := lib.AKOControlConfig()
 	KubeClient = k8sfake.NewSimpleClientset()
 	AdvL4Client = advl4fake.NewSimpleClientset()
+	CRDClient = crdfake.NewSimpleClientset()
 	akoControlConfig.SetAKOInstanceFlag(true)
 	akoControlConfig.SetAdvL4Clientset(AdvL4Client)
+	akoControlConfig.SetCRDClientsetAndEnableInfraSettingParam(CRDClient)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
 	data := map[string][]byte{
 		"username": []byte("admin"),
@@ -72,7 +76,7 @@ func TestMain(m *testing.M) {
 	}
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
-	// k8s.NewCRDInformers(CRDClient)
+	k8s.NewCRDInformers(CRDClient)
 	k8s.NewAdvL4Informers(AdvL4Client)
 
 	mcache := cache.SharedAviObjCache()
@@ -110,6 +114,7 @@ func TestMain(m *testing.M) {
 	integrationtest.PollForSyncStart(ctrl, 10)
 
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
+	//integrationtest.AddDefaultNamespace()
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	integrationtest.KubeClient = KubeClient
 	os.Exit(m.Run())

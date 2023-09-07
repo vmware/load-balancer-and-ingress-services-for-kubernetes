@@ -832,6 +832,15 @@ func AviSettingToIng(infraSettingName, namespace, key string) ([]string, bool) {
 		}
 	}
 
+	if nsIngresses, found := infraSettingNSToIngress(infraSettingName, key); found {
+		// Go through the list of ingresses again to populate the ingress Service mapping and annotate services if needed
+		for _, ingress := range nsIngresses {
+			ns, ingr := utils.ExtractNamespaceObjectName(ingress)
+			IngressChanges(ingr, ns, key)
+		}
+		allIngresses = append(allIngresses, nsIngresses...)
+	}
+
 	utils.AviLog.Infof("key: %s, msg: Ingresses retrieved %s", key, allIngresses)
 	return allIngresses, true
 }
@@ -844,6 +853,10 @@ func AviSettingToRoute(infraSettingName, namespace, key string) ([]string, bool)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Unable to fetch Routes corresponding to AviInfraSetting %s", key, infraSettingName)
 		return allRoutes, false
+	}
+
+	if nsRoutes, found := infraSettingNSToRoutes(infraSettingName, key); found {
+		routes = append(routes, nsRoutes...)
 	}
 
 	for _, route := range routes {
@@ -860,27 +873,33 @@ func AviSettingToGateway(infraSettingName string, namespace string, key string) 
 	allGateways := make([]string, 0)
 
 	// Get all GatewayClasses from AviInfraSetting.
-	gwClasses, err := lib.AKOControlConfig().SvcAPIInformers().GatewayClassInformer.Informer().GetIndexer().ByIndex(lib.AviSettingGWClassIndex, lib.AkoGroup+"/"+lib.AviInfraSetting+"/"+infraSettingName)
-	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: Unable to fetch GatewayClasses corresponding to AviInfraSetting %s", key, infraSettingName)
-		return allGateways, false
-	}
+	if lib.UseServicesAPI() {
+		gwClasses, err := lib.AKOControlConfig().SvcAPIInformers().GatewayClassInformer.Informer().GetIndexer().ByIndex(lib.AviSettingGWClassIndex, lib.AkoGroup+"/"+lib.AviInfraSetting+"/"+infraSettingName)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: Unable to fetch GatewayClasses corresponding to AviInfraSetting %s", key, infraSettingName)
+			return allGateways, false
+		}
 
-	for _, gwClass := range gwClasses {
-		// Get all Gateways from GatewayClass.
-		gwClassObj, isGwClass := gwClass.(*servicesapi.GatewayClass)
-		if isGwClass {
-			gateways, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Informer().GetIndexer().ByIndex(lib.GatewayClassGatewayIndex, gwClassObj.Name)
-			if err != nil {
-				utils.AviLog.Warnf("key: %s, msg: Unable to fetch Gateways %v", key, err)
-				continue
-			}
-			for _, gateway := range gateways {
-				if gatewayObj, isGw := gateway.(*servicesapi.Gateway); isGw {
-					allGateways = append(allGateways, gatewayObj.Namespace+"/"+gatewayObj.Name)
+		for _, gwClass := range gwClasses {
+			// Get all Gateways from GatewayClass.
+			gwClassObj, isGwClass := gwClass.(*servicesapi.GatewayClass)
+			if isGwClass {
+				gateways, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Informer().GetIndexer().ByIndex(lib.GatewayClassGatewayIndex, gwClassObj.Name)
+				if err != nil {
+					utils.AviLog.Warnf("key: %s, msg: Unable to fetch Gateways %v", key, err)
+					continue
+				}
+				for _, gateway := range gateways {
+					if gatewayObj, isGw := gateway.(*servicesapi.Gateway); isGw {
+						allGateways = append(allGateways, gatewayObj.Namespace+"/"+gatewayObj.Name)
+					}
 				}
 			}
 		}
+	}
+
+	if nsGateways, found := infraSettingNSToGateway(infraSettingName, key); found {
+		allGateways = append(allGateways, nsGateways...)
 	}
 
 	utils.AviLog.Debugf("key: %s, msg: Gateways retrieved %s", key, allGateways)
@@ -901,6 +920,10 @@ func AviSettingToSvc(infraSettingName string, namespace string, key string) ([]s
 		if isSvc {
 			allSvcs = append(allSvcs, svcObj.Namespace+"/"+svcObj.Name)
 		}
+	}
+
+	if nsServices, found := infraSettingNSToServices(infraSettingName, key); found {
+		allSvcs = append(allSvcs, nsServices...)
 	}
 
 	utils.AviLog.Debugf("key: %s, msg: total services retrieved from AviInfraSettings: %s", key, allSvcs)
@@ -1098,4 +1121,91 @@ func t1LRNSToIngress(t1LR, namespace, key string) ([]string, bool) {
 		allIngresses = append(allIngresses, key)
 	}
 	return allIngresses, true
+}
+
+func infraSettingNSToIngress(infraSettingName, key string) ([]string, bool) {
+	allIngresses := make([]string, 0)
+	namespaces, err := utils.GetInformers().NSInformer.Informer().GetIndexer().ByIndex(lib.AviSettingNamespaceIndex, infraSettingName)
+	if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: Failed to fetch the namespace corresponding to the AviInfraSetting %s with error %s", key, infraSettingName, err.Error())
+		return allIngresses, false
+	}
+	for _, ns := range namespaces {
+		namespace, _ := ns.(string)
+		ingresses, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: Failed to list Ingresses in the namespace %s", key, namespace)
+			return allIngresses, false
+		}
+		for _, ing := range ingresses {
+			key := ing.GetNamespace() + "/" + ing.GetName()
+			allIngresses = append(allIngresses, key)
+		}
+	}
+	return allIngresses, true
+}
+
+func infraSettingNSToGateway(infraSettingName, key string) ([]string, bool) {
+	allGateways := make([]string, 0)
+	namespaces, err := utils.GetInformers().NSInformer.Informer().GetIndexer().ByIndex(lib.AviSettingNamespaceIndex, infraSettingName)
+	if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: Failed to fetch the namespace corresponding to the AviInfraSetting %s with error %s", key, infraSettingName, err.Error())
+		return allGateways, false
+	}
+	for _, ns := range namespaces {
+		namespace, _ := ns.(string)
+		gateways, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: Failed to list Gateways in the namespace %s", key, namespace)
+			return allGateways, false
+		}
+		for _, gw := range gateways {
+			key := gw.GetNamespace() + "/" + gw.GetName()
+			allGateways = append(allGateways, key)
+		}
+	}
+	return allGateways, true
+}
+
+func infraSettingNSToServices(infraSettingName, key string) ([]string, bool) {
+	allServices := make([]string, 0)
+	namespaces, err := utils.GetInformers().NSInformer.Informer().GetIndexer().ByIndex(lib.AviSettingNamespaceIndex, infraSettingName)
+	if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: Failed to fetch the namespace corresponding to the AviInfraSetting %s with error %s", key, infraSettingName, err.Error())
+		return allServices, false
+	}
+	for _, ns := range namespaces {
+		namespace, _ := ns.(string)
+		services, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: Failed to list Services in the namespace %s", key, namespace)
+			return allServices, false
+		}
+		for _, svc := range services {
+			key := svc.GetNamespace() + "/" + svc.GetName()
+			allServices = append(allServices, key)
+		}
+	}
+	return allServices, true
+}
+
+func infraSettingNSToRoutes(infraSettingName, key string) ([]interface{}, bool) {
+	allRoutes := make([]interface{}, 0)
+	namespaces, err := utils.GetInformers().NSInformer.Informer().GetIndexer().ByIndex(lib.AviSettingNamespaceIndex, infraSettingName)
+	if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: Failed to fetch the namespace corresponding to the AviInfraSetting %s with error %s", key, infraSettingName, err.Error())
+		return allRoutes, false
+	}
+	for _, ns := range namespaces {
+		namespace, _ := ns.(string)
+		routes, err := utils.GetInformers().RouteInformer.Lister().Routes(namespace).List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: Failed to list Routes in the namespace %s", key, namespace)
+			return allRoutes, false
+		}
+		for _, route := range routes {
+			allRoutes = append(allRoutes, route)
+		}
+	}
+	return allRoutes, true
 }

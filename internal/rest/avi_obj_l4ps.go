@@ -238,10 +238,10 @@ func (rest *RestOperations) AviL4PolicyCacheAdd(rest_op *utils.RestOp, vsKey avi
 		} else {
 			vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToL4PolicyCollection(k)
-			utils.AviLog.Info(spew.Sprintf("Added VS cache key during l4 policy update %v val %v", vsKey,
+			utils.AviLog.Infof(spew.Sprintf("Added VS cache key during l4 policy update %v val %v", vsKey,
 				vs_cache_obj))
 		}
-		utils.AviLog.Info(spew.Sprintf("Added L4 Policy Set cache k %v val %v", k,
+		utils.AviLog.Infof(spew.Sprintf("Added L4 Policy Set cache k %v val %v", k,
 			l4_cache_obj))
 	}
 

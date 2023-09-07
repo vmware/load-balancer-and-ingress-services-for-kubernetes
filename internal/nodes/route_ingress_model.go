@@ -93,7 +93,7 @@ func GetOshiftRouteModel(name, namespace, key string) (*OshiftRouteModel, error,
 		err := errors.New("validation failed for alternate backends for route: " + name)
 		return &routeModel, err, false
 	}
-	routeModel.infrasetting, err = getL7RouteInfraSetting(key, routeObj.GetAnnotations())
+	routeModel.infrasetting, err = getL7RouteInfraSetting(key, routeObj.GetAnnotations(), routeObj.GetNamespace())
 	return &routeModel, err, processObj
 }
 
@@ -176,9 +176,7 @@ func GetK8sIngressModel(name, namespace, key string) (*K8sIngressModel, error, b
 	processObj = lib.ValidateIngressForClass(key, ingObj) && utils.CheckIfNamespaceAccepted(namespace)
 	ingrModel.spec = ingObj.Spec
 	ingrModel.annotations = ingObj.GetAnnotations()
-	if ingObj.Spec.IngressClassName != nil {
-		ingrModel.infrasetting, err = getL7IngressInfraSetting(key, *ingObj.Spec.IngressClassName)
-	}
+	ingrModel.infrasetting, err = getL7IngressInfraSetting(key, utils.String(ingObj.Spec.IngressClassName), namespace)
 	return &ingrModel, err, processObj
 }
 
@@ -247,12 +245,13 @@ func (m *K8sIngressModel) GetAviInfraSetting() *akov1alpha1.AviInfraSetting {
 	return m.infrasetting.DeepCopy()
 }
 
-func getL7IngressInfraSetting(key string, ingClassName string) (*akov1alpha1.AviInfraSetting, error) {
+func getL7IngressInfraSetting(key string, ingClassName string, namespace string) (*akov1alpha1.AviInfraSetting, error) {
 	var infraSetting *akov1alpha1.AviInfraSetting
 
 	if ingClassName == "" {
 		if defaultIngressClass, found := lib.IsAviLBDefaultIngressClass(); !found {
-			return nil, nil
+			//No ingress class is found, return namespace specific infra setting CR
+			return getNamespaceAviInfraSetting(key, namespace)
 		} else {
 			ingClassName = defaultIngressClass
 		}
@@ -273,13 +272,14 @@ func getL7IngressInfraSetting(key string, ingClassName string) (*akov1alpha1.Avi
 				utils.AviLog.Warnf("key: %s, msg: Referred AviInfraSetting %s is invalid", key, infraSetting.Name)
 				return nil, fmt.Errorf("Referred AviInfraSetting %s is invalid", infraSetting.Name)
 			}
+			return infraSetting, nil
 		}
 	}
 
-	return infraSetting, nil
+	return getNamespaceAviInfraSetting(key, namespace)
 }
 
-func getL7RouteInfraSetting(key string, routeAnnotations map[string]string) (*akov1alpha1.AviInfraSetting, error) {
+func getL7RouteInfraSetting(key string, routeAnnotations map[string]string, namespace string) (*akov1alpha1.AviInfraSetting, error) {
 	var err error
 	var infraSetting *akov1alpha1.AviInfraSetting
 
@@ -293,6 +293,10 @@ func getL7RouteInfraSetting(key string, routeAnnotations map[string]string) (*ak
 			utils.AviLog.Warnf("key: %s, msg: Referred AviInfraSetting %s is invalid", key, infraSetting.Name)
 			return nil, fmt.Errorf("Referred AviInfraSetting %s is invalid", infraSetting.Name)
 		}
+	}
+
+	if infraSetting == nil {
+		return getNamespaceAviInfraSetting(key, namespace)
 	}
 
 	return infraSetting, nil

@@ -1285,6 +1285,11 @@ func (v *AviVSVIPNode) CalculateCheckSum() {
 			if vipNetwork.V6Cidr != "" {
 				chksumstr += ":" + vipNetwork.V6Cidr
 			}
+			// Network UUID will be published for networks with duplicate nw only.
+			// For existing vip(with no dup nw) cksum should be same
+			if vipNetwork.NetworkUUID != "" {
+				chksumstr += ":" + vipNetwork.NetworkUUID
+			}
 			vipNetworkStringList = append(vipNetworkStringList, chksumstr)
 
 		}
@@ -1490,7 +1495,7 @@ type AviPoolNode struct {
 	ServiceMetadata          lib.ServiceMetadataObj
 	SniEnabled               bool
 	PkiProfile               *AviPkiProfileNode
-	NetworkPlacementSettings map[string][]string
+	NetworkPlacementSettings map[string]lib.NodeNetworkMap
 	VrfContext               string
 	T1Lr                     string // Only applicable to NSX-T cloud, if this value is set, we automatically should unset the VRF context value.
 	AviMarkers               utils.AviObjectMarkers

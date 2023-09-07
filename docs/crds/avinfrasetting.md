@@ -15,7 +15,7 @@ spec:
     name: compact-se-group
   network:
     vipNetworks:
-      - networkName: vip-network-10-10-10-0-24
+      - networkUUID: dvportgroup-2167-cloud-d4b24fc7-a435-408d-af9f-150229a6fea6f
         cidr: 10.10.10.0/24
         v6cidr: 2002::1234:abcd:ffff:c0a8:101/64
     nodeNetworks:
@@ -119,10 +119,23 @@ Please make sure that the SEGs have no member Service Engines deployed, before s
 
 AviInfraSetting CRD can be used to configure VIP networks for virtualservices created corresponding to Services/Ingresses/Openshift Routes. The Networks must be present in the Avi Controller prior to this CRD creation.
 
+Wth AKO 1.10.3, `networkUUID` field has been introduced as part of `vipNetworks` setting to choose appropriate network. User can specify either `networkName` or `networkUUID` while specifying the network.
         network:
           vipNetworks:
             - networkName: vip-network-10-10-10-0-24
               cidr: 10.10.10.0/24
+
+or
+
+        network:
+          vipNetworks:
+            - networkUUID: dvportgroup-2167-cloud-d4b24fc7-a435-408d-af9f-150229a6fea6f
+              cidr: 10.10.10.0/24
+
+As shown in the examples, each unique network can be specified using either `networkName` or `networkUUID` with appropriate `cidr`.
+
+***Note***
+If there are duplicate network entries at Avi-Controller side, AKO recommends to use `networkUUID` while choosing `vipNetwork` for new aviinfrasetting object creation.
 
 Note that multiple networks names can be added to the CRD (only in case of AWS cloud). The Avi virtualservices will acquire a VIP from each of these specified networks. Failure in allocating even a single vip (for example, in case of IP exhaustion) **will** result in complete failure of entire request. *This is same as vip allocation failures in single vip.*
 
@@ -130,11 +143,25 @@ Note that multiple networks names can be added to the CRD (only in case of AWS c
 
 AviInfraSetting CRD can be used to configure Pool Placement Settings on the AKO created Pools in order for the Service Engines to place the Pools on appropriate interfaces.
 
+Wth AKO 1.10.3, `networkUUID` field has been introduced as part of `nodeNetworks` setting to choose appropriate network. User can specify either `networkName` or `networkUUID` while specifying the network.
+
         network:
           nodeNetworks:
             - networkName: node-network-10-10-20-0-24
               cidrs:
               - 10.10.20.0/24
+or
+
+        network:
+          nodeNetworks:
+            - networUUID: dvportgroup-4167-cloud-d4b24fc7-a435-408d-af9f-150229a6fea6f
+              cidrs:
+              - 10.10.20.0/24
+
+As shown in the examples, each unique network can be specified using either `networkName` or `networkUUID` with appropriate `cidrs`.
+
+***Note***
+If there are duplicate network entries at Avi-Controller side, AKO recommends to use `networkUUID` while choosing `nodeNetworks` for new aviinfrasetting object creation.
 
 If two Kubernetes clusters have overlapping Pod CIDRs, the service engine needs to identify the right gateway for each of the overlapping CIDR groups. This is achieved by specifying the right placement network for the pools that helps the Service Engine place the pools appropriately.
 

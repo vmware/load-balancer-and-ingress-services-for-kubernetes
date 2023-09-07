@@ -291,6 +291,11 @@ const (
 	// Service objects. This helps in fetching all Services
 	// with a given L4Rule CRD name.
 	L4RuleToServicesIndex = "l4RuleToServicesIndex"
+
+	// AviSettingNamespaceIndex maintains a map of AviInfraSetting Objects to
+	// Namespace objects. This helps in fettching a Namespace with a given
+	// AviInfraSetting.
+	AviSettingNamespaceIndex = "aviSettingNamespaces"
 )
 
 // Passthrough deployment same in EVH and SNI. Not changing log messages.

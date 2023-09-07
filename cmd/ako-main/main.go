@@ -25,6 +25,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
+
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -72,14 +74,14 @@ func InitializeAKC() {
 	utils.AviLog.Infof("AKO is running with version: %s", version)
 
 	// set the logger for k8s as AviLogger.
-	klog.SetLogger(utils.AviLog)
+	klog.SetLogger(logr.New(&utils.AviLog))
 
 	// Check if we are running inside kubernetes. Hence try authenticating with service token
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
 		utils.AviLog.Warnf("We are not running inside kubernetes cluster. %s", err.Error())
 	} else {
-		utils.AviLog.Info("We are running inside kubernetes cluster. Won't use kubeconfig files.")
+		utils.AviLog.Infof("We are running inside kubernetes cluster. Won't use kubeconfig files.")
 		kubeCluster = true
 	}
 
@@ -104,12 +106,17 @@ func InitializeAKC() {
 	var advl4Client *advl4.Clientset
 	var svcAPIClient *svcapi.Clientset
 
+	crdClient, err = crd.NewForConfig(cfg)
+	if err != nil {
+		utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
+	}
 	if lib.IsWCP() {
 		advl4Client, err = advl4.NewForConfig(cfg)
 		if err != nil {
 			utils.AviLog.Fatalf("Error building service-api v1alpha1pre1 clientset: %s", err.Error())
 		}
 		akoControlConfig.SetAdvL4Clientset(advl4Client)
+		akoControlConfig.SetCRDClientsetAndEnableInfraSettingParam(crdClient)
 	} else {
 		if lib.UseServicesAPI() {
 			svcAPIClient, err = svcapi.NewForConfig(cfg)
@@ -119,10 +126,6 @@ func InitializeAKC() {
 			akoControlConfig.SetServicesAPIClientset(svcAPIClient)
 		}
 
-		crdClient, err = crd.NewForConfig(cfg)
-		if err != nil {
-			utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
-		}
 		akoControlConfig.SetCRDClientset(crdClient)
 
 		v1alpha2crdClient, err := v1alpha2crd.NewForConfig(cfg)
@@ -189,6 +192,7 @@ func InitializeAKC() {
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
 	lib.NewDynamicInformers(dynamicClient, false)
 	if lib.IsWCP() {
+		k8s.NewInfraSettingCRDInformer(crdClient)
 		k8s.NewAdvL4Informers(advl4Client)
 	} else {
 		k8s.NewCRDInformers(crdClient)
