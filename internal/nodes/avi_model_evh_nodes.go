@@ -800,7 +800,6 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 		}
 	}
 
-	var vrfcontext string
 	infraSetting := routeIgrObj.GetAviInfraSetting()
 	t1lr := lib.GetT1LRPath()
 	if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
