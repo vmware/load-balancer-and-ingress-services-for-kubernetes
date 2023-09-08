@@ -687,7 +687,7 @@ func handleL4Service(key string, fullsync bool) {
 		// Save the LB service in memory
 		objects.SharedlbLister().Save(namespace+"/"+name, name)
 		if len(aviModelGraph.GetOrderedNodes()) > 0 {
-			model_name := lib.GetModelName(lib.GetTenant(), aviModelGraph.GetAviVS()[0].Name)
+			model_name := lib.GetModelName(aviModelGraph.GetAviVS()[0].Tenant, aviModelGraph.GetAviVS()[0].Name)
 			ok := saveAviModel(model_name, aviModelGraph, key)
 			if ok && !fullsync {
 				PublishKeyToRestLayer(model_name, key, sharedQueue)

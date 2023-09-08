@@ -320,12 +320,8 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 	pathSet := sets.NewString(tlsNode.Paths...)
 
 	var infraSettingName string
-	tenant := lib.GetTenant()
 	if infraSetting != nil {
 		infraSettingName = infraSetting.Name
-		if infraSetting.Spec.NSXSettings.Project != nil {
-			tenant = *infraSetting.Spec.NSXSettings.Project
-		}
 	}
 
 	ingressNameSet := sets.NewString(tlsNode.IngressNames...)
@@ -413,7 +409,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				Name:          poolName,
 				IngressName:   ingName,
 				PortName:      path.PortName,
-				Tenant:        tenant,
+				Tenant:        vsNode[0].Tenant,
 				PriorityLabel: priorityLabel,
 				Port:          path.Port,
 				TargetPort:    path.TargetPort,
@@ -531,7 +527,7 @@ func (o *AviObjectGraph) BuildPolicyRedirectForVS(vsNode []*AviVsNode, hostnames
 	}
 
 	redirectPolicy := &AviHttpPolicySetNode{
-		Tenant:        lib.GetTenant(),
+		Tenant:        vsNode[0].Tenant,
 		Name:          policyname,
 		RedirectPorts: []AviRedirectPort{myHppMap},
 	}
@@ -555,7 +551,7 @@ func (o *AviObjectGraph) BuildHeaderRewrite(vsNode []*AviVsNode, gslbHost, local
 	}
 
 	rewritePolicy := &AviHttpPolicySetNode{
-		Tenant:        lib.GetTenant(),
+		Tenant:        vsNode[0].Tenant,
 		Name:          policyname,
 		HeaderReWrite: &rewriteRule,
 	}

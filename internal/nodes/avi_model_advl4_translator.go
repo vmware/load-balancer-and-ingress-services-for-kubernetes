@@ -87,7 +87,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		}
 	}
 	tenant := lib.GetTenant()
-	if infraSetting.Spec.NSXSettings.Project != nil {
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
 		tenant = *infraSetting.Spec.NSXSettings.Project
 	}
 
@@ -223,7 +223,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		}
 	}
 	tenant := lib.GetTenant()
-	if infraSetting.Spec.NSXSettings.Project != nil {
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
 		tenant = *infraSetting.Spec.NSXSettings.Project
 	}
 
@@ -334,11 +334,6 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		}
 	}
 
-	tenant := lib.GetTenant()
-	if infraSetting.Spec.NSXSettings.Project != nil {
-		tenant = *infraSetting.Spec.NSXSettings.Project
-	}
-
 	t1lr := lib.GetT1LRPath()
 	if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
 		t1lr = *infraSetting.Spec.NSXSettings.T1LR
@@ -369,7 +364,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 
 		poolNode := &AviPoolNode{
 			Name:     poolName,
-			Tenant:   tenant,
+			Tenant:   vsNode.Tenant,
 			Protocol: portProto[0],
 			PortName: "",
 			ServiceMetadata: lib.ServiceMetadataObj{
@@ -443,7 +438,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 
 	l4policyNode := &AviL4PolicyNode{
 		Name:       vsNode.Name,
-		Tenant:     tenant,
+		Tenant:     vsNode.Tenant,
 		PortPool:   portPoolSet,
 		AviMarkers: lib.PopulateAdvL4VSNodeMarkers(namespace, gwName),
 	}
@@ -637,7 +632,7 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 			poolName := lib.GetSvcApiL4PoolName(svcNSName[1], namespace, sharedVipKey, protocol, port)
 			poolNode := &AviPoolNode{
 				Name:     poolName,
-				Tenant:   lib.GetTenant(),
+				Tenant:   vsNode.Tenant,
 				Protocol: protocol,
 				PortName: listener.Name,
 				ServiceMetadata: lib.ServiceMetadataObj{
@@ -698,7 +693,7 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 
 	l4policyNode := &AviL4PolicyNode{
 		Name:       vsNode.Name,
-		Tenant:     lib.GetTenant(),
+		Tenant:     vsNode.Tenant,
 		PortPool:   portPoolSet,
 		AviMarkers: lib.PopulateAdvL4VSNodeMarkers(namespace, sharedVipKey),
 	}

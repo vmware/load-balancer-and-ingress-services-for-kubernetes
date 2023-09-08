@@ -26,6 +26,7 @@ func InfraSettingL7Lister() *AviInfraSettingL7Lister {
 		infral7lister = &AviInfraSettingL7Lister{
 			IngRouteInfraSettingStore:  NewObjectMapStore(),
 			InfraSettingShardSizeStore: NewObjectMapStore(),
+			InfraSettingTenantStore:    NewObjectMapStore(),
 		}
 	})
 	return infral7lister

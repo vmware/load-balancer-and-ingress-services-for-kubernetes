@@ -848,7 +848,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				}
 				if strings.Contains(errorStr, "Pool object not found!") {
 					// PG error with pool object not found.
-					aviObjCache.AviPopulateOnePGCache(c, utils.CloudName, pgObjName, aviObjKey.Namespace)
+					aviObjCache.AviPopulateOnePGCache(c, utils.CloudName, pgObjName)
 					// After the refresh - get the members
 					pgKey := avicache.NamespaceName{Namespace: aviObjKey.Namespace, Name: pgObjName}
 					pgCache, ok := rest.cache.PgCache.AviCacheGet(pgKey)
@@ -986,7 +986,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				case avimodels.Pool:
 					poolObjName = *rest_op.Obj.(avimodels.Pool).Name
 				}
-				aviObjCache.AviPopulateOnePoolCache(c, utils.CloudName, poolObjName, aviObjKey.Namespace)
+				aviObjCache.AviPopulateOnePoolCache(c, utils.CloudName, poolObjName)
 			case "PoolGroup":
 				var pgObjName string
 				switch rest_op.Obj.(type) {
@@ -995,7 +995,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				case avimodels.PoolGroup:
 					pgObjName = *rest_op.Obj.(avimodels.PoolGroup).Name
 				}
-				aviObjCache.AviPopulateOnePGCache(c, utils.CloudName, pgObjName, aviObjKey.Namespace)
+				aviObjCache.AviPopulateOnePGCache(c, utils.CloudName, pgObjName)
 			case "VsVip":
 				var VsVip string
 				switch rest_op.Obj.(type) {
@@ -1004,7 +1004,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				case avimodels.VsVip:
 					VsVip = *rest_op.Obj.(avimodels.VsVip).Name
 				}
-				aviObjCache.AviPopulateOneVsVipCache(c, utils.CloudName, VsVip, aviObjKey.Namespace)
+				aviObjCache.AviPopulateOneVsVipCache(c, utils.CloudName, VsVip)
 			case "HTTPPolicySet":
 				var HTTPPolicySet string
 				switch rest_op.Obj.(type) {
@@ -1013,7 +1013,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				case avimodels.HTTPPolicySet:
 					HTTPPolicySet = *rest_op.Obj.(avimodels.HTTPPolicySet).Name
 				}
-				aviObjCache.AviPopulateOneVsHttpPolCache(c, utils.CloudName, HTTPPolicySet, aviObjKey.Namespace)
+				aviObjCache.AviPopulateOneVsHttpPolCache(c, utils.CloudName, HTTPPolicySet)
 			case "L4PolicySet":
 				var L4PolicySet string
 				switch rest_op.Obj.(type) {
@@ -1022,7 +1022,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				case avimodels.L4PolicySet:
 					L4PolicySet = *rest_op.Obj.(avimodels.L4PolicySet).Name
 				}
-				aviObjCache.AviPopulateOneVsL4PolCache(c, utils.CloudName, L4PolicySet, aviObjKey.Namespace)
+				aviObjCache.AviPopulateOneVsL4PolCache(c, utils.CloudName, L4PolicySet)
 			case "SSLKeyAndCertificate":
 				var SSLKeyAndCertificate string
 				switch rest_op.Obj.(type) {
@@ -1031,7 +1031,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				case avimodels.SSLKeyAndCertificate:
 					SSLKeyAndCertificate = *rest_op.Obj.(avimodels.SSLKeyAndCertificate).Name
 				}
-				aviObjCache.AviPopulateOneSSLCache(c, utils.CloudName, SSLKeyAndCertificate, aviObjKey.Namespace)
+				aviObjCache.AviPopulateOneSSLCache(c, utils.CloudName, SSLKeyAndCertificate)
 			case "PKIprofile":
 				var PKIprofile string
 				switch rest_op.Obj.(type) {
@@ -1040,7 +1040,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				case avimodels.PKIprofile:
 					PKIprofile = *rest_op.Obj.(avimodels.PKIprofile).Name
 				}
-				aviObjCache.AviPopulateOnePKICache(c, utils.CloudName, PKIprofile, aviObjKey.Namespace)
+				aviObjCache.AviPopulateOnePKICache(c, utils.CloudName, PKIprofile)
 			case "VirtualService":
 				aviObjCache.AviObjOneVSCachePopulate(c, utils.CloudName, aviObjKey.Name, aviObjKey.Namespace)
 				vsObjMeta, ok := rest.cache.VsCacheMeta.AviCacheGet(aviObjKey)
@@ -1062,7 +1062,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 				case avimodels.VSDataScriptSet:
 					VSDataScriptSet = *rest_op.Obj.(avimodels.VSDataScriptSet).Name
 				}
-				aviObjCache.AviPopulateOneVsDSCache(c, utils.CloudName, VSDataScriptSet, aviObjKey.Namespace)
+				aviObjCache.AviPopulateOneVsDSCache(c, utils.CloudName, VSDataScriptSet)
 			}
 		} else if statuscode == 408 {
 			// This status code refers to a problem with the controller timeouts. We need to re-init the session object.
