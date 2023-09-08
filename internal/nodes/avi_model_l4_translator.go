@@ -624,7 +624,7 @@ func getL4Rule(key string, svc *corev1.Service) (*akov1alpha2.L4Rule, error) {
 	listenerPortProtoMap := make(map[string]bool)
 	if len(l4Rule.Spec.Services) != 0 {
 		if len(l4Rule.Spec.Services) != svcPortsLen {
-			err := fmt.Errorf("No. of port definitions in %s l4rule listener spec does not match with the port definitons in %s service", l4RuleName, svc.Name)
+			err := fmt.Errorf("Number of port definitions in %s l4rule listener spec does not match with the port definitons in %s service", l4RuleName, svc.Name)
 			utils.AviLog.Warnf("key: %s, msg: %s", key, err.Error())
 			return nil, err
 		}
