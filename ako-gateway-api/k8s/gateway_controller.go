@@ -94,7 +94,7 @@ func (c *GatewayController) Start(stopCh <-chan struct{}) {
 	if !cache.WaitForCacheSync(stopCh, informersList...) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
-		utils.AviLog.Info("Caches synced")
+		utils.AviLog.Infof("Caches synced")
 	}
 }
 
