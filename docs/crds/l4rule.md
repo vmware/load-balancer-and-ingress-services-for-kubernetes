@@ -48,6 +48,13 @@ A sample L4Rule CRD looks like this:
       analyticsPolicy:
         enableRealtimeMetrics: true
       minServersUp: 1
+    listenerProperties:
+    - port: 80
+      protocol: TCP
+      enableSsl: true
+    sslKeyAndCertificateRefs:
+    - "Custom-L4-SSL-Key-Cert"
+    sslProfileRef: Custom-L4-SSL-Profile
 ```
 
 **NOTE**: The L4Rule CRD must be configured in the same namespace as the service of type LoadBalancer.
@@ -121,7 +128,7 @@ L4Rule CRD can be used to express application profile references. The applicatio
     applicationProfile: Custom-L4-Application-Profile
  ```
 
-**NOTE**: The application profile should be of type `L4`. `L4 SSL/TLS` is not supported currently.
+**NOTE**: The application profile should be of type `L4` or `L4 SSL/TLS`. If SSL is enabled for any port in [listenerProperties](#configure-listener-properties) section then application profile should be of type `L4 SSL/TLS`. `L4 SSL/TLS` is supported starting AKO 1.11.1.
 
 #### Express custom Load Balancer IP
 
@@ -155,7 +162,7 @@ The L4Rule CRD can be used to express a custom network profile. The network prof
 
 The AKO defaults the network profile to `System-TCP-Proxy`.
 
-**NOTE**: The network profile settings are dependent on the license configured in the AVI controller. Please refer to the [document](https://avinetworks.com/docs/22.1/nsx-alb-license-editions/) before configuring the profile in the CRD.
+**NOTE**: The network profile settings are dependent on the license configured in the AVI controller. Please refer to the [document](https://avinetworks.com/docs/22.1/nsx-alb-license-editions/) before configuring the profile in the CRD. Also, SSL support has been added for L4 VS starting AKO 1.11.1. If SSL is enabled for any port in [listenerProperties](#configure-listener-properties) section then network profile should be of type TCP proxy, since only a single **TCP** port definition is allowed in the LoadBalancer service for L4 SSL.
 
 #### Express custom Network Security Policy
 
@@ -335,6 +342,52 @@ The L4Rule CRD can be used to configure the minimum number of servers in the UP 
 
 **NOTE**: The value given must be equal to or less than the number of health monitors attached to the pool. 
 
+### Configure Listener Properties
+
+The `listenerProperties` section in the L4Rule can be used to enable/disable SSL support for L4 virtual services. Each item in the `listenerProperties` array corresponds to a port definition in the LoadBalancer service along with the option to enable SSL termination in the service/listener settings created for that port as part of the AVI virtual service. When an L4Rule object is created with listener properties, AKO identifies the service/listener setting on the virtual service based on the port and protocol, and applies the SSL configuration to it. AKO logs a WARNING if the port and protocol don't match the service's port and protocol configurations. There are also some limitations and conditions for using listener properties. Please refer to the [Conditions and Caveats](#conditions-and-caveats) section for more details.
+
+A sample `listenerProperties` looks like this:
+
+```yaml
+    listenerProperties
+    - port: 80
+      protocol: TCP
+      enableSsl: true
+```
+
+**NOTE**: The fields `port` and `protocol` are **mandatory** and AKO uses these fields to identify the corresponding service/listener setting in the virtual service. The `port` and `protocol` must equal the service's port and protocol. Currently, only a single `TCP` port is allowed in the LoadBalancer service definition if SSL is required to be enabled. Hence, the same limitation also applies to `listenerProperties` which can also have only one matching **TCP** based port definition.
+
+#### Enable/Disable SSL
+
+The field `enableSsl` in the L4Rule can be used to enable SSL termination and offload for traffic from clients for an L4 VS. The `enableSsl` field is specified for a port and AKO configures the associated service/listener setting in the VS with the value. By default, the value of this field is **false** and the user has to set the value to **true** to enable SSL.
+
+```yaml
+      enableSsl: true # or false
+```
+
+#### Express custom SSL Profile for Virtual Service
+
+The custom SSL profile can be used to configure the desired set of SSL versions and ciphers to accept SSL/TLS terminated connections for the virtual service.
+
+```yaml
+      sslProfileRef: Custom-SSL-Profile
+```
+
+The custom SSL profile should have been created in the AVI Controller before the CRD creation.
+
+**NOTE**: The `sslProfileRef` should only be specified when SSL is enabled for a virtual service. The L4Rule will otherwise be rejected.
+
+#### Express custom SSL Keys And Certificates for Virtual Service
+
+The L4Rule CRD can be used to express custom SSL key and certificate references for a virtual service. These certificates will be presented to SSL/TLS terminated connections. The custom SSL keys and certificates should have been created in the AVI Controller before the CRD creation.
+
+```yaml
+      sslKeyAndCertificateRefs:
+      - "Custom-SSL-Key-Cert"
+```
+
+**NOTE**: The `sslKeyAndCertificateRefs` should only be specified when SSL is enabled for a virtual service. The L4Rule will otherwise be rejected.
+
 #### Status Messages
 
 The status messages are used to give instantaneous feedback to the users about the reference objects specified in the L4Rule CRD.
@@ -368,7 +421,7 @@ The detailed rejection reason can be obtained from the status:
 
 ##### Sharing L4Rule with Load Balancer IP
 
-The L4Rule CRD with load balancer IP can be shared among services only when the services contain the `ako.vmware.com/enable-shared-vip` annotation.
+The L4Rule CRD with load balancer IP can be shared among services only when the services contain the `ako.vmware.com/enable-shared-vip` annotation. However, L4Rule cannot be shared if SSL termination is required to be enabled for the services. So, if **enableSsl** is set to true for any port in `listenerProperties` section, then that L4Rule should only be applied to a signle LoadBalancer service.
 
 ##### L4Rule deletion
 
@@ -379,3 +432,15 @@ If an L4Rule is deleted, the L4 VSes and Pools in the AVI controller will be con
 An L4Rule CRD is only admitted if all the objects referenced in it, exist in the AVI Controller. If after admission the object references are
 deleted out-of-band, then AKO does not re-validate the associated HostRule CRD objects. The user needs to manually edit or delete the object
 for new changes to take effect.
+
+##### Enabling SSL with L4Rule
+
+There are some limitations when trying to enable SSL termintaion for an L4 virtual service with L4Rule.
+
+1. Currently, only a single `TCP` port is allowed in the LoadBalancer service definition if SSL is required to be enabled. Hence, the same limitation also applies to `listenerProperties` which can also have only one matching **TCP** based port definition along with `enableSsl` field. This is because Avi only supports SSL termination with TCP protocol and also a VS of type L4 SSL can have only one backend pool configured.
+
+2. If **enableSsl** is set to true for any port in `listenerProperties` section then `applicationProfile` should be of type `L4 SSL/TLS`. If application profile is not of type `L4 SSL/TLS`, then L4Rule will be rejected. If `applicationProfile` is not set, then it defaults to **System-L4-Application** in the CRD, but AKO intermally sets the application profile as **System-SSL-Application** which is the default value when SSL is enabled.
+
+3. If **enableSsl** is set to true for any port in `listenerProperties` section then `networkProfileRef` should be of type TCP proxy, since only a single **TCP** port definition is allowed in the LoadBalancer service and listener properties.
+
+4. The `sslProfileRef` and `sslKeyAndCertificateRefs` should be set for the VS only if SSL termination is enabled for any port in `listenerProperties` and application profile is of type `L4 SSL/TLS`, otherwise the L4Rule will be rejected. If **enableSsl** is set to true but `sslProfileRef` and `sslKeyAndCertificateRefs` are not set specified in the L4Rule, then these fields will be set with their default values in Avi.

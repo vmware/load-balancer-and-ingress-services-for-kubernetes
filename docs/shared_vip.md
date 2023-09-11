@@ -133,7 +133,7 @@ There are a few things that must be considered while configuring the Services wi
 2. In order to avoid any errors while configuring the Virtual Service on the Avi controller, it is required that there is no conflicting Port-Protocol pairs in the LB Services that share the Annotation value. With the example shown above both Services are exposing a unique, non-conflicting Port-Protocol for the backend application i.e. 80/TCP and 80/UDP. Explicit checks will be added around this to ensure misconfigurations in future AKO releases.
 3. The annotation must be provided only on Service of type LoadBalancers.
 
-An L4Rule CRD can also be used to specify a preferred IP for the LoadBalancers. Please refer to [this](crds/l4rule.md#express-custom-load-balancer-ip) document for more information.
+An L4Rule CRD can also be used to specify a preferred IP for the LoadBalancers. Please refer to [this](crds/l4rule.md#express-custom-load-balancer-ip) document for more information. However, L4Rule cannot be used for services with shared vip if **SSL** termination is required to be enabled for the services.
 
 ## AviInfrasetting Support
 
@@ -143,6 +143,6 @@ AviInfraSetting resources can be attached to LoadBalancer kubernetes services us
 
 ## L4Rule CRD Support
 
-An L4Rule CRD can be attached to the Services of type LoadBalancer that are intended to share the VIP using the annotation `ako.vmware.com/l4rule: <name-of-the-l4-rule-crd>`. More details of the L4Rule CRD can be found [here](crds/l4rule.md).
+An L4Rule CRD can be attached to the Services of type LoadBalancer that are intended to share the VIP using the annotation `ako.vmware.com/l4rule: <name-of-the-l4-rule-crd>`. More details of the L4Rule CRD can be found [here](crds/l4rule.md). However, there is an exception if SSL termination is required to be enabled for the services. So, if **enableSsl** is set to true for any port in `listenerProperties` section of the L4Rule, then that L4Rule should only be applied to a signle LoadBalancer service. This exception is because a VS of type L4 SSL can have only one backend pool configured.
 
 > ***Note***: The Services of type LoadBalancer, which are intended to share a VIP, must have **same** L4Rule CRD annotation value.
