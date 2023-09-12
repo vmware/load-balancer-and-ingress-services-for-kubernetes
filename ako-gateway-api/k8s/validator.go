@@ -261,84 +261,78 @@ func validateParentReference(key string, httpRoute *gatewayv1beta1.HTTPRoute, ht
 		ObservedGeneration(httpRoute.ObjectMeta.Generation)
 
 	//section name is optional
-	//TODO check
-	if httpRoute.Spec.ParentRefs[index].SectionName == nil {
-		// can't attach to any so update the httproute status
-		utils.AviLog.Errorf("key: %s, msg: Section Name in Parent Reference %s is empty, HTTPRoute object %s cannot be attached to a listener", key, name, httpRoute.Name)
-		err := fmt.Errorf("Listener not specified")
-		defaultCondition.
-			Message(err.Error()).
-			SetIn(&httpRouteStatus.Parents[index].Conditions)
-		return err
+	var listenersForRoute []gatewayv1beta1.Listener
+	if httpRoute.Spec.ParentRefs[index].SectionName != nil {
+		listenerName := *httpRoute.Spec.ParentRefs[index].SectionName
+		httpRouteStatus.Parents[index].ParentRef.SectionName = &listenerName
+		i := akogatewayapilib.FindListenerByName(string(listenerName), gateway.Spec.Listeners)
+		if i == -1 {
+			// listener is not present in gateway
+			utils.AviLog.Errorf("key: %s, msg: unable to find the listener from the Section Name %s in Parent Reference %s", key, name, listenerName)
+			err := fmt.Errorf("Invalid listener name provided")
+			defaultCondition.
+				Message(err.Error()).
+				SetIn(&httpRouteStatus.Parents[index].Conditions)
+			return err
+		}
+		listenersForRoute = append(listenersForRoute, gateway.Spec.Listeners[i])
+	} else {
+		listenersForRoute = append(listenersForRoute, gateway.Spec.Listeners...)
 	}
 
-	listenerName := *httpRoute.Spec.ParentRefs[index].SectionName
-	httpRouteStatus.Parents[index].ParentRef.SectionName = &listenerName
-	i := akogatewayapilib.FindListenerByName(string(listenerName), gateway.Spec.Listeners)
-	if i == -1 {
-		// listener is not present in gateway
-		utils.AviLog.Errorf("key: %s, msg: unable to find the listener from the Section Name %s in Parent Reference %s", key, name, listenerName)
-		err := fmt.Errorf("Invalid listener name provided")
-		defaultCondition.
-			Message(err.Error()).
-			SetIn(&httpRouteStatus.Parents[index].Conditions)
-		return err
+	var listenersMatchedToRoute []gatewayv1beta1.Listener
+	for _, listenerObj := range listenersForRoute {
+		// TODO: Don't attach to a invalid listener configuration
+		// check from store
+		hostInListener := listenerObj.Hostname
+
+		if hostInListener == nil {
+			utils.AviLog.Errorf("key: %s, msg: no hostname found in parent", key)
+			continue
+		}
+		// replace the wildcard character with a regex
+		replacedHostname := strings.Replace(string(*hostInListener), "*", "([a-zA-Z0-9-]{1,})", 1)
+		// create the expression for pattern matching
+		pattern := fmt.Sprintf("^%s$", replacedHostname)
+		expr, err := regexp.Compile(pattern)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: unable to match the hostname with listener hostname. err: %s", key, err)
+			continue
+		}
+		var matched bool
+		for _, host := range httpRoute.Spec.Hostnames {
+			matched = matched || expr.MatchString(string(host))
+		}
+		if !matched {
+			utils.AviLog.Warnf("key: %s, msg: Gateway object %s don't have any listeners that matches the hostnames in HTTPRoute %s", key, gateway.Name, httpRoute.Name)
+			continue
+		}
+		listenersMatchedToRoute = append(listenersMatchedToRoute, listenerObj)
 	}
-
-	// TODO: Don't attach to a invalid listener configuration
-	// check from store
-
-	hostInListener := gateway.Spec.Listeners[i].Hostname
-
-	if hostInListener == nil {
-		utils.AviLog.Errorf("key: %s, msg: no hostname found in parent", key)
-		err := fmt.Errorf("No hostname found in parent")
-		defaultCondition.
-			Message(err.Error()).
-			SetIn(&httpRouteStatus.Parents[index].Conditions)
-		return err
-	}
-
-	// replace the wildcard character with a regex
-	replacedHostname := strings.Replace(string(*hostInListener), "*", "([a-zA-Z0-9-]{1,})", 1)
-
-	// create the expression for pattern matching
-	pattern := fmt.Sprintf("^%s$", replacedHostname)
-	expr, err := regexp.Compile(pattern)
-	if err != nil {
-		utils.AviLog.Errorf("key: %s, msg: unable to match the hostname with listener hostname. err: %s", key, err)
-		err := fmt.Errorf("Invalid hostname in parent reference")
-		defaultCondition.
-			Message(err.Error()).
-			SetIn(&httpRouteStatus.Parents[index].Conditions)
-		return err
-	}
-	var matched bool
-	for _, host := range httpRoute.Spec.Hostnames {
-		matched = matched || expr.MatchString(string(host))
-	}
-	if !matched {
-		utils.AviLog.Errorf("key: %s, msg: Gateway object %s don't have any listeners that matches the hostnames in HTTPRoute %s", key, gateway.Name, httpRoute.Name)
+	if len(listenersMatchedToRoute) == 0 {
 		err := fmt.Errorf("Hostname in Gateway Listener doesn't match with any of the hostnames in HTTPRoute")
 		defaultCondition.
 			Message(err.Error()).
 			SetIn(&httpRouteStatus.Parents[index].Conditions)
 		return err
 	}
-
-	// Increment the attached routes of the listener in the Gateway object
 	gatewayStatus := gateway.Status.DeepCopy()
-	i = akogatewayapilib.FindListenerStatusByName(string(listenerName), gatewayStatus.Listeners)
-	if i == -1 {
-		utils.AviLog.Errorf("key: %s, msg: Gateway status is missing for the listener with name %s", key, listenerName)
-		err := fmt.Errorf("Couldn't find the listener %s in the Gateway status", listenerName)
-		defaultCondition.
-			Message(err.Error()).
-			SetIn(&httpRouteStatus.Parents[index].Conditions)
-		return err
-	}
+	for _, listenerObj := range listenersMatchedToRoute {
+		listenerName := listenerObj.Name
+		// Increment the attached routes of the listener in the Gateway object
 
-	gatewayStatus.Listeners[index].AttachedRoutes += 1
+		i := akogatewayapilib.FindListenerStatusByName(string(listenerName), gatewayStatus.Listeners)
+		if i == -1 {
+			utils.AviLog.Errorf("key: %s, msg: Gateway status is missing for the listener with name %s", key, listenerName)
+			err := fmt.Errorf("Couldn't find the listener %s in the Gateway status", listenerName)
+			defaultCondition.
+				Message(err.Error()).
+				SetIn(&httpRouteStatus.Parents[index].Conditions)
+			return err
+		}
+
+		gatewayStatus.Listeners[i].AttachedRoutes += 1
+	}
 	akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
 
 	defaultCondition.
