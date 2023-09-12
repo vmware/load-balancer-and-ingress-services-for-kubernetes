@@ -47,17 +47,17 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 
 	c.informers = utils.NewInformers(utils.KubeClientIntf{ClientSet: informers.Cs}, registeredInformers, informersArg)
 
-	var ingestionwg *sync.WaitGroup
-	var graphwg *sync.WaitGroup
-	var fastretrywg *sync.WaitGroup
-	var slowretrywg *sync.WaitGroup
+	var ingestionWG *sync.WaitGroup
+	var graphWG *sync.WaitGroup
+	var fastretryWG *sync.WaitGroup
+	var slowretryWG *sync.WaitGroup
 	var statusWG *sync.WaitGroup
 	if len(waitGroupMap) > 0 {
 		// Fetch all the waitgroups
-		ingestionwg, _ = waitGroupMap[0]["ingestion"]
-		graphwg, _ = waitGroupMap[0]["graph"]
-		fastretrywg, _ = waitGroupMap[0]["fastretry"]
-		slowretrywg, _ = waitGroupMap[0]["slowretry"]
+		ingestionWG, _ = waitGroupMap[0]["ingestion"]
+		graphWG, _ = waitGroupMap[0]["graph"]
+		fastretryWG, _ = waitGroupMap[0]["fastretry"]
+		slowretryWG, _ = waitGroupMap[0]["slowretry"]
 		statusWG, _ = waitGroupMap[0]["status"]
 	}
 
@@ -127,7 +127,7 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 	c.cleanupStaleVSes()
 
 	graphQueue.SyncFunc = SyncFromNodesLayer
-	graphQueue.Run(stopCh, graphwg)
+	graphQueue.Run(stopCh, graphWG)
 
 	c.SetupEventHandlers(informers)
 	c.SetupGatewayApiEventHandlers(numWorkers)
@@ -140,15 +140,15 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 
 	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
 	ingestionQueue.SyncFunc = SyncFromIngestionLayer
-	ingestionQueue.Run(stopCh, ingestionwg)
+	ingestionQueue.Run(stopCh, ingestionWG)
 
 	fastRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.FAST_RETRY_LAYER)
 	fastRetryQueue.SyncFunc = SyncFromFastRetryLayer
-	fastRetryQueue.Run(stopCh, fastretrywg)
+	fastRetryQueue.Run(stopCh, fastretryWG)
 
 	slowRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.SLOW_RETRY_LAYER)
 	slowRetryQueue.SyncFunc = SyncFromSlowRetryLayer
-	slowRetryQueue.Run(stopCh, slowretrywg)
+	slowRetryQueue.Run(stopCh, slowretryWG)
 
 	statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
 	statusQueue.SyncFunc = SyncFromStatusQueue
@@ -378,7 +378,6 @@ func SyncFromIngestionLayer(key interface{}, wg *sync.WaitGroup) error {
 	// Let's route the key to the graph layer.
 	// NOTE: There's no error propagation from the graph layer back to the workerqueue. We will evaluate
 	// This condition in the future and visit as needed. But right now, there's no necessity for it.
-	// sharedQueue := SharedWorkQueueWrappers().GetQueueByName(queue.GraphLayer)
 
 	keyStr, ok := key.(string)
 	if !ok {
