@@ -20,7 +20,6 @@ import (
 	"strings"
 
 	"github.com/vmware/alb-sdk/go/models"
-	avimodels "github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
@@ -116,15 +115,16 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 		Tenant: lib.GetTenant(),
 	}
 	for _, backend := range rule.Backends {
-		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(backend.Namespace).Get(backend.Name)
-		if err != nil {
-			utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service", key)
-			return
-		}
 		poolName := akogatewayapilib.GetPoolName(parentNs, parentName,
 			routeModel.GetNamespace(), routeModel.GetName(),
 			utils.Stringify(rule.Matches),
 			backend.Namespace, backend.Name, strconv.Itoa(int(backend.Port)))
+		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(backend.Namespace).Get(backend.Name)
+		if err != nil {
+			utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service", key)
+			o.RemovePoolRefsFromPG(poolName, o.GetPoolGroupByName(PGName))
+			continue
+		}
 		poolNode := &nodes.AviPoolNode{
 			Name:     poolName,
 			Tenant:   lib.GetTenant(),
@@ -153,7 +153,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 			childVsNode.ReplaceEvhPoolInEVHNode(poolNode, key)
 		}
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
-		PG.Members = append(PG.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, Ratio: &backend.Weight})
+		PG.Members = append(PG.Members, &models.PoolGroupMember{PoolRef: &pool_ref, Ratio: &backend.Weight})
 	}
 	childVsNode.PoolGroupRefs = []*nodes.AviPoolGroupNode{PG}
 	childVsNode.DefaultPoolGroup = PG.Name

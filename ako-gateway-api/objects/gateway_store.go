@@ -351,19 +351,27 @@ func (g *GWLister) UpdateGatewayServiceMappings(gwNsName, svcNsName string) {
 	}
 }
 
-func (g *GWLister) DeleteGatewayToServiceMappings(gwNsName, svcNsName string) {
+func (g *GWLister) DeleteGatewayServiceMappings(gwNsName string, svcNsName string) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 
-	// delete service to gateway mapping
-	_, gwNsNameList := g.GetServiceToGateway(gwNsName)
-	gwNsNameList = utils.Remove(gwNsNameList, gwNsName)
-	g.serviceToGateway.AddOrUpdate(svcNsName, gwNsNameList)
-
-	// delete gateway to service mapping
+	// delete gateway to gateway mapping
 	_, svcNsNameList := g.GetGatewayToService(gwNsName)
 	svcNsNameList = utils.Remove(svcNsNameList, svcNsName)
-	g.gatewayToService.AddOrUpdate(gwNsName, svcNsNameList)
+	if len(svcNsNameList) == 0 {
+		g.gatewayToService.Delete(gwNsName)
+	} else {
+		g.gatewayToService.AddOrUpdate(gwNsName, svcNsNameList)
+	}
+
+	// delete service to gateway mapping
+	_, gwNsNameList := g.GetServiceToGateway(svcNsName)
+	gwNsNameList = utils.Remove(gwNsNameList, gwNsName)
+	if len(gwNsNameList) == 0 {
+		g.serviceToGateway.Delete(svcNsName)
+	} else {
+		g.serviceToGateway.AddOrUpdate(svcNsName, gwNsNameList)
+	}
 }
 
 //=====All route <-> service mappings go here.
@@ -422,12 +430,20 @@ func (g *GWLister) DeleteRouteToServiceMappings(routeTypeNsName, svcNsName strin
 	// delete service to route mapping
 	_, routeTypeNsNameList := g.GetServiceToRoute(svcNsName)
 	routeTypeNsNameList = utils.Remove(routeTypeNsNameList, routeTypeNsName)
-	g.serviceToRoute.AddOrUpdate(svcNsName, routeTypeNsNameList)
+	if len(routeTypeNsNameList) == 0 {
+		g.serviceToRoute.Delete(svcNsName)
+	} else {
+		g.serviceToRoute.AddOrUpdate(svcNsName, routeTypeNsNameList)
+	}
 
 	// delete route to service mapping
 	_, svcNsNameList := g.GetRouteToService(routeTypeNsName)
 	svcNsNameList = utils.Remove(svcNsNameList, svcNsName)
-	g.routeToService.AddOrUpdate(routeTypeNsName, svcNsNameList)
+	if len(svcNsNameList) == 0 {
+		g.routeToService.Delete(routeTypeNsName)
+	} else {
+		g.routeToService.AddOrUpdate(routeTypeNsName, svcNsNameList)
+	}
 }
 
 //=====All Gateway <-> Secret go here
@@ -472,21 +488,18 @@ func (g *GWLister) UpdateGatewayToSecret(gwNsName string, secretNsNameList []str
 
 	//delete secret to gateway mapping for removed secret
 	for _, secret := range removedSecrets {
-		if found, obj := g.secretToGateway.Get(secret); found {
-			gwNsNameList := obj.([]string)
+		if found, gwNsNameList := g.GetSecretToGateway(secret); found {
 			gwNsNameList = utils.Remove(gwNsNameList, gwNsName)
-			g.gatewayToRoute.AddOrUpdate(secret, gwNsNameList)
+			g.secretToGateway.AddOrUpdate(secret, gwNsNameList)
 		}
 	}
 
-	//add secret to gatewaymapping for new secrets
+	//add secret to gateway mapping for new secrets
 	for _, secret := range secretNsNameList {
-		if found, obj := g.secretToGateway.Get(secret); found {
-			gwNsNameList := obj.([]string)
-			if !utils.HasElem(gwNsNameList, gwNsName) {
-				gwNsNameList = append(gwNsNameList, gwNsName)
-				g.secretToGateway.AddOrUpdate(secret, gwNsNameList)
-			}
+		_, gwNsNameList := g.GetSecretToGateway(secret)
+		if !utils.HasElem(gwNsNameList, gwNsName) {
+			gwNsNameList = append(gwNsNameList, gwNsName)
+			g.secretToGateway.AddOrUpdate(secret, gwNsNameList)
 		}
 	}
 }
@@ -497,10 +510,13 @@ func (g *GWLister) DeleteGatewayToSecret(gwNsName string) {
 
 	_, secretNsNameList := g.GetGatewayToSecret(gwNsName)
 	for _, secretNsName := range secretNsNameList {
-		if found, obj := g.secretToGateway.Get(secretNsName); found {
-			gwList := obj.([]string)
-			gwList = utils.Remove(gwList, gwNsName)
-			g.secretToGateway.AddOrUpdate(gwNsName, gwList)
+		if found, gwNsNameList := g.GetSecretToGateway(secretNsName); found {
+			gwNsNameList = utils.Remove(gwNsNameList, gwNsName)
+			if len(gwNsNameList) == 0 {
+				g.secretToGateway.Delete(secretNsName)
+				continue
+			}
+			g.secretToGateway.AddOrUpdate(secretNsName, gwNsNameList)
 		}
 	}
 	g.gatewayToSecret.Delete(gwNsName)
@@ -560,7 +576,7 @@ func (g *GWLister) DeleteRouteChildVSMappings(routeTypeNsName, childVS string) {
 	g.routeToChildVS.AddOrUpdate(routeTypeNsName, childVSList)
 }
 
-//=====All route function go here.
+//=====All route functions go here.
 
 func (g *GWLister) DeleteRouteGatewayMappings(routeTypeNsName string) {
 	g.gwLock.Lock()
@@ -588,63 +604,18 @@ func (g *GWLister) DeleteRouteServiceMappings(routeTypeNsName string) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 
-	found, obj := g.routeToService.Get(routeTypeNsName)
-	if !found {
-		return
-	}
-	svcNsNameList := obj.([]string)
-	g.routeToService.Delete(routeTypeNsName)
-
+	_, svcNsNameList := g.GetRouteToService(routeTypeNsName)
 	for _, svcNsName := range svcNsNameList {
-		if found, obj := g.serviceToRoute.Get(svcNsName); found {
-			routeTypeNsNameList := obj.([]string)
+		if found, routeTypeNsNameList := g.GetServiceToRoute(svcNsName); found {
 			routeTypeNsNameList = utils.Remove(routeTypeNsNameList, routeTypeNsName)
+			if len(routeTypeNsNameList) == 0 {
+				g.serviceToRoute.Delete(svcNsName)
+				continue
+			}
 			g.serviceToRoute.AddOrUpdate(svcNsName, routeTypeNsNameList)
 		}
 	}
-}
-
-//=====All service function go here.
-
-func (g *GWLister) DeleteServiceGatewayMappings(svcNsName string) {
-	g.gwLock.Lock()
-	defer g.gwLock.Unlock()
-
-	// delete service to gateway mapping
-	found, obj := g.serviceToGateway.Get(svcNsName)
-	if !found {
-		return
-	}
-	gwNsNameList := obj.([]string)
-	g.serviceToGateway.Delete(svcNsName)
-
-	for _, gwNsName := range gwNsNameList {
-		if found, obj := g.gatewayToService.Get(gwNsName); found {
-			svcNsNameList := obj.([]string)
-			svcNsNameList = utils.Remove(svcNsNameList, svcNsName)
-			g.gatewayToService.AddOrUpdate(gwNsName, svcNsNameList)
-		}
-	}
-}
-
-func (g *GWLister) DeleteServiceRouteMappings(svcNsName string) {
-	g.gwLock.Lock()
-	defer g.gwLock.Unlock()
-
-	found, obj := g.serviceToRoute.Get(svcNsName)
-	if !found {
-		return
-	}
-	routeTypeNsNameList := obj.([]string)
-	g.serviceToRoute.Delete(svcNsName)
-
-	for _, routeTypeNsName := range routeTypeNsNameList {
-		if found, obj := g.routeToService.Get(routeTypeNsName); found {
-			svcNsNameList := obj.([]string)
-			svcNsNameList = utils.Remove(svcNsNameList, svcNsName)
-			g.routeToService.AddOrUpdate(svcNsName, svcNsNameList)
-		}
-	}
+	g.routeToService.Delete(routeTypeNsName)
 }
 
 //=====All gateway/route <-> hostname go here.

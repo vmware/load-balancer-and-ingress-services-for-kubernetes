@@ -19,13 +19,12 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 type AviObjectGraph struct {
