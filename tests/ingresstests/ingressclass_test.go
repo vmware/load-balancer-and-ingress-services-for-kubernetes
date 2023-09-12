@@ -16,6 +16,7 @@ package ingresstests
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -29,6 +30,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 )
@@ -1834,4 +1836,114 @@ func TestAddIngressClassWithInfraSettingMultipleIngressDedicated(t *testing.T) {
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
 	TearDownTestForIngress(t, modelName1, modelName2)
+}
+
+func TestApplyPortsWithHostruleAndAviInfraSettingsSNI(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
+	secretName := "my-secret"
+	modelName := "admin/cluster--Shared-L7-1"
+	settingModelName := "admin/cluster--Shared-L7-my-infrasetting-1"
+	hrname := "samplehr-baz"
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-my-infrasetting-1"}
+
+	SetUpTestForIngress(t, modelName, settingModelName)
+	integrationtest.SetupAviInfraSetting(t, settingName, "LARGE")
+	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
+	waitAndVerify(t, ingClassName)
+	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
+
+	hostrule := integrationtest.FakeHostRule{
+		Name:               hrname,
+		Namespace:          "default",
+		Fqdn:               "Shared-L7",
+		WafPolicy:          "thisisaviref-waf",
+		ApplicationProfile: "thisisaviref-appprof",
+		AnalyticsProfile:   "thisisaviref-analyticsprof",
+		ErrorPageProfile:   "thisisaviref-errorprof",
+		Datascripts:        []string{"thisisaviref-ds2", "thisisaviref-ds1"},
+		HttpPolicySets:     []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
+	}
+	hrCreate := hostrule.HostRule()
+	hrCreate.Spec.VirtualHost.FqdnType = v1alpha1.Contains
+	hrCreate.Spec.VirtualHost.TCPSettings = &v1alpha1.HostRuleTCPSettings{
+		Listeners: []v1alpha1.HostRuleTCPListeners{
+			{Port: 8081}, {Port: 8082, EnableSSL: true},
+		},
+	}
+	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Create(context.TODO(), hrCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding HostRule: %v", err)
+	}
+
+	ingressCreate := (integrationtest.FakeIngress{
+		Name:        ingressName,
+		Namespace:   ns,
+		ClassName:   ingClassName,
+		DnsNames:    []string{"baz.com"},
+		ServiceName: "avisvc",
+		HostNames:   []string{"cluster--Shared-L7-1"},
+		TlsSecretDNS: map[string][]string{
+			secretName: {"baz.com"},
+		},
+	}).Ingress()
+	_, err := KubeClient.NetworkingV1().Ingresses(ns).Create(context.TODO(), ingressCreate, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+
+	g.Eventually(func() string {
+		hostrule, _ := CRDClient.AkoV1alpha1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/"+hrname, true)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(settingModelName)
+		return found
+	}, 40*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(settingModelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(*nodes[0].Enabled).To(gomega.Equal(true))
+	var ports []int
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(5))
+	sslPorts := [3]int{443, 8081, 8082}
+	for _, port := range nodes[0].PortProto {
+		ports = append(ports, int(port.Port))
+		if port.EnableSSL {
+			g.Expect(int(port.Port)).Should(gomega.BeElementOf(sslPorts))
+		}
+	}
+	sort.Ints(ports)
+	g.Expect(ports[0]).To(gomega.Equal(80))
+	g.Expect(ports[1]).To(gomega.Equal(443))
+	g.Expect(ports[2]).To(gomega.Equal(8081))
+	g.Expect(ports[3]).To(gomega.Equal(8082))
+	g.Expect(ports[4]).To(gomega.Equal(8083))
+
+	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
+	integrationtest.TeardownAviInfraSetting(t, settingName)
+	integrationtest.TeardownIngressClass(t, ingClassName)
+	waitAndVerify(t, ingClassName)
+	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	integrationtest.DeleteSecret(secretName, ns)
+	g.Eventually(func() bool {
+		sniCache1, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		sniCacheObj1, _ := sniCache1.(*cache.AviVsCache)
+		if found {
+			return len(sniCacheObj1.PoolKeyCollection) == 0
+		}
+		return false
+	}, 50*time.Second).Should(gomega.Equal(true))
+	TearDownTestForIngress(t, modelName, settingModelName)
+
+	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
+	ingestionQueue.SyncFunc = k8s.SyncFromIngestionLayer
+	integrationtest.AddDefaultIngressClass()
 }
