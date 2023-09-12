@@ -15,12 +15,14 @@
 package lib
 
 import (
+	"context"
 	"regexp"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -285,4 +287,85 @@ func CheckAndShortenLabelToFollowRFC1035(svcName string, svcNamespace string) (s
 		}
 	}
 	return svcName, svcNamespace
+}
+
+func CreateAviInfraSetting(name, network, t1lr, project string) (*akov1alpha1.AviInfraSetting, error) {
+	infraSettingCR := &akov1alpha1.AviInfraSetting{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: akov1alpha1.AviInfraSettingSpec{
+			NSXSettings: akov1alpha1.AviInfraNSXSettings{
+				T1LR: &t1lr,
+			},
+		},
+	}
+	if network != "" {
+		infraSettingCR.Spec.Network = akov1alpha1.AviInfraSettingNetwork{
+			VipNetworks: []akov1alpha1.AviInfraSettingVipNetwork{
+				{
+					NetworkName: network,
+				},
+			},
+		}
+	}
+	if project != "" {
+		infraSettingCR.Spec.NSXSettings.Project = &project
+	}
+
+	return AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Create(context.TODO(), infraSettingCR, metav1.CreateOptions{})
+}
+
+func AnnotateNamespaceWithInfraSetting(namespace, infraSettingName string) error {
+	nsObj, err := utils.GetInformers().ClientSet.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
+	if err != nil {
+		utils.AviLog.Warnf("Failed to GET the namespace details, namespace: %s, error :%s", namespace, err.Error())
+		return err
+	}
+	if nsObj.Annotations == nil {
+		nsObj.Annotations = make(map[string]string)
+	}
+	nsObj.Annotations[InfraSettingNameAnnotation] = infraSettingName
+	_, err = utils.GetInformers().ClientSet.CoreV1().Namespaces().Update(context.TODO(), nsObj, metav1.UpdateOptions{})
+	if err != nil {
+		utils.AviLog.Warnf("Error occurred while Updating namespace: %s", err.Error())
+		return err
+	}
+	return nil
+}
+
+func AnnotateSystemNamespaceWithInfraSetting() {
+	namespaces, err := utils.GetInformers().ClientSet.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return
+	}
+
+	systemNamespaces := make([]corev1.Namespace, 0)
+	systemNSVPC := ""
+	for _, namespace := range namespaces.Items {
+		for key, val := range namespace.GetAnnotations() {
+			if key != "nsx.vmware.com/vpc_name" {
+				continue
+			}
+			systemNSVPC = val
+			systemNamespaces = append(systemNamespaces, namespace)
+		}
+	}
+
+	arr := strings.Split(systemNSVPC, "/")
+	namespace, vpcName := arr[0], arr[1]
+	vpcCR, err := GetDynamicClientSet().Resource(VPCGVR).Namespace(namespace).Get(context.TODO(), vpcName, metav1.GetOptions{})
+	if err != nil {
+		return
+	}
+	metadata, _ := vpcCR.Object["metadata"].(map[string]interface{})
+	vpcUUID, _ := metadata["uid"].(string)
+	for _, namespace := range systemNamespaces {
+		namespace.Annotations[InfraSettingNameAnnotation] = vpcUUID
+		_, err = utils.GetInformers().ClientSet.CoreV1().Namespaces().Update(context.TODO(), &namespace, metav1.UpdateOptions{})
+		if err != nil {
+			utils.AviLog.Warnf("Error occurred while Updating namespace: %s", err.Error())
+			return
+		}
+	}
 }

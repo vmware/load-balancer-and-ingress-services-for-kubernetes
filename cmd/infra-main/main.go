@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/ingestion"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -111,12 +110,12 @@ func InitializeAKOInfra() {
 	c.AddSecretEventHandler(stopCh)
 	a.SetupSEGroup(transportZone)
 	c.AddAvailabilityZoneCREventHandler(stopCh)
-	avirest.SyncLSLRNetwork()
+	c.Sync()
 	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName)
 	c.AddNetworkInfoEventHandler(stopCh)
 	c.AddNamespaceEventHandler(stopCh)
 
-	worker := avirest.NewLRLSFullSyncWorker()
+	worker := c.InitFullSyncWorker()
 	go worker.Run()
 
 	<-stopCh
