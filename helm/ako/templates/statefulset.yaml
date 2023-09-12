@@ -42,6 +42,8 @@ spec:
         persistentVolumeClaim:
           claimName: {{ .Values.persistentVolumeClaim }}
       {{ end }}
+      imagePullSecrets:
+        {{- toYaml .Values.image.pullSecrets | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
           {{ if or .Values.persistentVolumeClaim .Values.AKOSettings.istioEnabled }}
