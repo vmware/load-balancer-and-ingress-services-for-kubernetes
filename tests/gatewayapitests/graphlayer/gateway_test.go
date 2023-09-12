@@ -352,7 +352,7 @@ func TestGatewayTLSToNoTLS(t *testing.T) {
 }
 
 /*
-Positive Case
+Negative Case
 Delete Gateway 1 listener
 */
 

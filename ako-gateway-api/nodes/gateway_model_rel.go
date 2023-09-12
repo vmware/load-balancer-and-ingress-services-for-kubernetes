@@ -202,7 +202,6 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 		if !found {
 			return []string{}, true
 		}
-		akogatewayapiobjects.GatewayApiLister().DeleteRouteGatewayMappings(routeTypeNsName)
 		return gwNsNameList, true
 	}
 	var listenerList []string
@@ -278,7 +277,15 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 			utils.AviLog.Errorf("key: %s, msg: got error while getting gateway: %v", key, err)
 			return []string{}, false
 		}
+		_, svcNsNameList := akogatewayapiobjects.GatewayApiLister().GetRouteToService(routeTypeNsName)
+		_, gwNsNameList := akogatewayapiobjects.GatewayApiLister().GetRouteToGateway(routeTypeNsName)
+		for _, gwNsName := range gwNsNameList {
+			for _, svcNsName := range svcNsNameList {
+				akogatewayapiobjects.GatewayApiLister().DeleteGatewayServiceMappings(gwNsName, svcNsName)
+			}
+		}
 		akogatewayapiobjects.GatewayApiLister().DeleteRouteServiceMappings(routeTypeNsName)
+		akogatewayapiobjects.GatewayApiLister().DeleteRouteGatewayMappings(routeTypeNsName)
 		return []string{routeTypeNsName}, true
 	}
 
@@ -301,10 +308,28 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 			}
 			svcNsName := ns + "/" + string(backendRef.Name)
 			svcNsNameList = append(svcNsNameList, svcNsName)
-			akogatewayapiobjects.GatewayApiLister().UpdateRouteServiceMappings(routeTypeNsName, svcNsName)
 		}
 	}
 
+	// deletes the services, which are removed, from the gateway <-> service and route <-> service mappings
+	found, oldSvcs := akogatewayapiobjects.GatewayApiLister().GetRouteToService(routeTypeNsName)
+	if found {
+		for _, svcNsName := range oldSvcs {
+			if !utils.HasElem(svcNsNameList, svcNsName) {
+				akogatewayapiobjects.GatewayApiLister().DeleteRouteToServiceMappings(routeTypeNsName, svcNsName)
+				for _, gwNsName := range gwNsNameList {
+					akogatewayapiobjects.GatewayApiLister().DeleteGatewayServiceMappings(gwNsName, svcNsName)
+				}
+			}
+		}
+	}
+
+	// updates route <-> service mappings with new services
+	for _, svcNsName := range svcNsNameList {
+		akogatewayapiobjects.GatewayApiLister().UpdateRouteServiceMappings(routeTypeNsName, svcNsName)
+	}
+
+	// updates gateway <-> service mappings with new services
 	for _, gwNsName := range gwNsNameList {
 		for _, svcNsName := range svcNsNameList {
 			akogatewayapiobjects.GatewayApiLister().UpdateGatewayServiceMappings(gwNsName, svcNsName)
@@ -317,21 +342,9 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 
 func ServiceToGateways(namespace, name, key string) ([]string, bool) {
 	svcNsName := namespace + "/" + name
-	var svcDeleted bool
-	_, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			utils.AviLog.Errorf("key: %s, msg: got error while getting gateway: %v", key, err)
-			return []string{}, false
-		}
-		svcDeleted = true
-	}
 	found, gwNsNameList := akogatewayapiobjects.GatewayApiLister().GetServiceToGateway(svcNsName)
 	if !found {
 		return []string{}, true
-	}
-	if svcDeleted {
-		akogatewayapiobjects.GatewayApiLister().DeleteServiceGatewayMappings(svcNsName)
 	}
 	utils.AviLog.Debugf("key: %s, msg: Gateways retrieved %s", key, gwNsNameList)
 	return gwNsNameList, found
@@ -339,21 +352,9 @@ func ServiceToGateways(namespace, name, key string) ([]string, bool) {
 
 func ServiceToRoutes(namespace, name, key string) ([]string, bool) {
 	svcNsName := namespace + "/" + name
-	var svcDeleted bool
-	_, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			utils.AviLog.Errorf("key: %s, msg: got error while getting gateway: %v", key, err)
-			return []string{}, false
-		}
-		svcDeleted = true
-	}
-	found, routeTypeNsNameList := akogatewayapiobjects.GatewayApiLister().GetServiceToRoute(namespace + "/" + name)
+	found, routeTypeNsNameList := akogatewayapiobjects.GatewayApiLister().GetServiceToRoute(svcNsName)
 	if !found {
 		return []string{}, true
-	}
-	if svcDeleted {
-		akogatewayapiobjects.GatewayApiLister().DeleteServiceRouteMappings(svcNsName)
 	}
 	utils.AviLog.Debugf("key: %s, msg: Routes retrieved %s", key, routeTypeNsNameList)
 	return routeTypeNsNameList, found
@@ -369,21 +370,9 @@ func EndpointToRoutes(namespace, name, key string) ([]string, bool) {
 
 func SecretToGateways(namespace, name, key string) ([]string, bool) {
 	secretNsName := namespace + "/" + name
-	var secretDeleted bool
-	_, err := utils.GetInformers().SecretInformer.Lister().Secrets(namespace).Get(name)
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			utils.AviLog.Errorf("key: %s, msg: got error while getting secret: %v", key, err)
-			return []string{}, false
-		}
-		secretDeleted = true
-	}
 	found, gwNsNameList := akogatewayapiobjects.GatewayApiLister().GetSecretToGateway(secretNsName)
 	if !found {
 		return []string{}, true
-	}
-	if secretDeleted {
-		akogatewayapiobjects.GatewayApiLister().DeleteSecretToGateway(secretNsName)
 	}
 	utils.AviLog.Debugf("key: %s, msg: Gateways retrieved %s", key, gwNsNameList)
 	return gwNsNameList, found
