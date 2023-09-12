@@ -320,7 +320,7 @@ ciliumtests:
 .PHONY: helmtests
 helmtests:
 	sudo docker run \
-	-u root:root -it \
+	-u root:root \
 	-v $(PWD)/helm/ako:/apps \
 	-v $(PWD)/tests/helmtests:/apps/tests \
 	helmunittest/helm-unittest:3.11.1-0.3.0 .
