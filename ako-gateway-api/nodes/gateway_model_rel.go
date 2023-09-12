@@ -113,23 +113,24 @@ func GatewayGetGw(namespace, name, key string) ([]string, bool) {
 	var secrets []string
 	hostnames := make(map[string]string, 0)
 	//var hostnames map[string]string
-	for _, l := range gwObj.Spec.Listeners {
-		s := string(l.Name) + "/" + strconv.Itoa(int(l.Port)) + "/" + string(l.Protocol)
-		if l.AllowedRoutes == nil {
-			s += "/" + string(gwObj.Namespace)
+	for _, listenerObj := range gwObj.Spec.Listeners {
+		listenerString := string(listenerObj.Name) + "/" +
+			strconv.Itoa(int(listenerObj.Port)) + "/" + string(listenerObj.Protocol)
+		if listenerObj.AllowedRoutes == nil {
+			listenerString += "/" + string(gwObj.Namespace)
 		} else {
-			if l.AllowedRoutes.Namespaces != nil {
-				if l.AllowedRoutes.Namespaces.From != nil {
-					if string(*l.AllowedRoutes.Namespaces.From) == "Same" {
-						s += "/" + string(gwObj.Namespace)
-					} else if string(*l.AllowedRoutes.Namespaces.From) == "All" {
-						s += "/All"
+			if listenerObj.AllowedRoutes.Namespaces != nil {
+				if listenerObj.AllowedRoutes.Namespaces.From != nil {
+					if string(*listenerObj.AllowedRoutes.Namespaces.From) == "Same" {
+						listenerString += "/" + string(gwObj.Namespace)
+					} else if string(*listenerObj.AllowedRoutes.Namespaces.From) == "All" {
+						listenerString += "/All"
 					}
 				}
 			}
 		}
-		if l.TLS != nil {
-			for _, cert := range l.TLS.CertificateRefs {
+		if listenerObj.TLS != nil {
+			for _, cert := range listenerObj.TLS.CertificateRefs {
 				certNs := gwObj.Namespace
 				if cert.Namespace != nil {
 					certNs = string(*cert.Namespace)
@@ -137,8 +138,8 @@ func GatewayGetGw(namespace, name, key string) ([]string, bool) {
 				secrets = append(secrets, certNs+"/"+string(cert.Name))
 			}
 		}
-		listeners = append(listeners, s)
-		hostnames[string(l.Name)] = string(*l.Hostname)
+		listeners = append(listeners, listenerString)
+		hostnames[string(listenerObj.Name)] = string(*listenerObj.Hostname)
 	}
 	sort.Strings(listeners)
 	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToListener(gwNsName, listeners)
