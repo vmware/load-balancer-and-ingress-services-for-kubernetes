@@ -166,8 +166,8 @@ func InitializeAKC() {
 	}
 
 	oshiftClient, err := oshiftclient.NewForConfig(cfg)
-	if err != nil {
-		utils.AviLog.Warnf("Error in creating openshift clientset")
+	if err != nil && (lib.GetCNIPlugin() == lib.OPENSHIFT_CNI || lib.GetCNIPlugin() == lib.OVN_KUBERNETES_CNI) {
+		utils.AviLog.Fatalf("Failed to initialize Openshift ClientSet")
 	}
 
 	registeredInformers, err := lib.InformersToRegister(kubeClient, oshiftClient)
