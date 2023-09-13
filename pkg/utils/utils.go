@@ -37,8 +37,9 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
-	// TODO: Check this to convert to v1beta1
+	// TODO: Check this to convert to v1beta1 in next release. Couldn't conver as MCI and SI uses that.
 	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
+
 	akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions"
 )
 
@@ -249,6 +250,11 @@ func NewInformers(kubeClient KubeClientIntf, registeredInformers []string, args 
 					AviLog.Warnf("arg namespace is not of type string")
 				}
 			case INFORMERS_AKO_CLIENT:
+				// From main call, this `v` is of type v1beta1 but as there is no field changes
+				// so conversion should happen.
+				// ako client is used for initializing MCI and SI CRDs which are disabled by default.
+				// These CRDs will be removed in future. So this code path of conversion should be hit
+				// in normal AKO flow
 				akoClient, ok = v.(akocrd.Interface)
 				if !ok {
 					AviLog.Warnf("arg akoClient is not of type akocrd.Interface")

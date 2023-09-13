@@ -114,6 +114,14 @@ func InitializeAKC() {
 		utils.AviLog.Fatalf("Error building AKO CRD v1beta1 clientset: %s", err.Error())
 	}
 	akoControlConfig.Setv1beta1CRDClientset(v1beta1crdClient)
+
+	// This is kept as MCI and Service Import uses v1alpha1
+	// In Next release, MCI and serviceImport should be taken out
+	crdClient, err = crd.NewForConfig(cfg)
+	if err != nil {
+		utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
+	}
+	akoControlConfig.SetCRDClientset(crdClient)
 	if err != nil {
 		utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
 	}
@@ -132,14 +140,6 @@ func InitializeAKC() {
 			}
 			akoControlConfig.SetServicesAPIClientset(svcAPIClient)
 		}
-
-		// This is kept as MCI and Service Import uses v1alpha1
-		// In Next release, MCI and serviceImport should be taken out
-		crdClient, err = crd.NewForConfig(cfg)
-		if err != nil {
-			utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
-		}
-		akoControlConfig.SetCRDClientset(crdClient)
 
 		v1alpha2crdClient, err := v1alpha2crd.NewForConfig(cfg)
 		if err != nil {
@@ -191,7 +191,7 @@ func InitializeAKC() {
 
 	informersArg := make(map[string]interface{})
 	informersArg[utils.INFORMERS_OPENSHIFT_CLIENT] = oshiftClient
-	informersArg[utils.INFORMERS_AKO_CLIENT] = v1beta1crdClient
+	informersArg[utils.INFORMERS_AKO_CLIENT] = crdClient
 
 	if lib.GetNamespaceToSync() != "" {
 		informersArg[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
@@ -206,7 +206,7 @@ func InitializeAKC() {
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
 	lib.NewDynamicInformers(dynamicClient, false)
 	if lib.IsWCP() {
-		k8s.NewInfraSettingCRDInformer(v1beta1crdClient)
+		k8s.NewInfraSettingCRDInformer()
 		k8s.NewAdvL4Informers(advl4Client)
 	} else {
 		k8s.NewCRDInformers()

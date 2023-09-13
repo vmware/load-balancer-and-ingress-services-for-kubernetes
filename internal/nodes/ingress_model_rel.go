@@ -24,7 +24,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -654,7 +653,7 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 func SSORuleToIng(srname string, namespace string, key string) ([]string, bool) {
 	var err error
 	var oldFqdn, fqdn string
-	var fqdnType, oldFqdnType = string(akov1alpha1.Exact), string(akov1alpha1.Exact)
+	var fqdnType, oldFqdnType = string(akov1beta1.Exact), string(akov1beta1.Exact)
 	var oldFound bool
 
 	allIngresses := make([]string, 0)

@@ -707,14 +707,11 @@ func (c *AviController) addIndexers() {
 		informer.AviInfraSettingInformer.Informer().AddIndexers(
 			cache.Indexers{
 				lib.SeGroupAviSettingIndex: func(obj interface{}) ([]string, error) {
-					seg := ""
 					infraSetting, ok := obj.(*akov1beta1.AviInfraSetting)
 					if !ok {
 						return []string{}, nil
-					} else {
-						seg = infraSetting.Spec.SeGroup.Name
 					}
-					return []string{seg}, nil
+					return []string{infraSetting.Spec.SeGroup.Name}, nil
 				},
 			},
 		)

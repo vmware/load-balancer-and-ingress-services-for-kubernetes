@@ -18,13 +18,7 @@ limitations under the License.
 
 package v1alpha1
 
-type AviInfraSettingExpansion interface{}
-
 type ClusterSetExpansion interface{}
-
-type HTTPRuleExpansion interface{}
-
-type HostRuleExpansion interface{}
 
 type MultiClusterIngressExpansion interface{}
 

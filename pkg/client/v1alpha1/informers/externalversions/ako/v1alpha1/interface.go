@@ -24,14 +24,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// AviInfraSettings returns a AviInfraSettingInformer.
-	AviInfraSettings() AviInfraSettingInformer
 	// ClusterSets returns a ClusterSetInformer.
 	ClusterSets() ClusterSetInformer
-	// HTTPRules returns a HTTPRuleInformer.
-	HTTPRules() HTTPRuleInformer
-	// HostRules returns a HostRuleInformer.
-	HostRules() HostRuleInformer
 	// MultiClusterIngresses returns a MultiClusterIngressInformer.
 	MultiClusterIngresses() MultiClusterIngressInformer
 	// ServiceImports returns a ServiceImportInformer.
@@ -49,24 +43,9 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// AviInfraSettings returns a AviInfraSettingInformer.
-func (v *version) AviInfraSettings() AviInfraSettingInformer {
-	return &aviInfraSettingInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
-}
-
 // ClusterSets returns a ClusterSetInformer.
 func (v *version) ClusterSets() ClusterSetInformer {
 	return &clusterSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
-// HTTPRules returns a HTTPRuleInformer.
-func (v *version) HTTPRules() HTTPRuleInformer {
-	return &hTTPRuleInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
-// HostRules returns a HostRuleInformer.
-func (v *version) HostRules() HostRuleInformer {
-	return &hostRuleInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // MultiClusterIngresses returns a MultiClusterIngressInformer.

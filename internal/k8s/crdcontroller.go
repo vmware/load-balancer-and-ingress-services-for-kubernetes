@@ -32,7 +32,6 @@ import (
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
-	v1beta1akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned"
 
 	v1alpha2akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/informers/externalversions"
 	v1beta1akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/informers/externalversions"
@@ -64,8 +63,8 @@ func NewCRDInformers() {
 	})
 }
 
-func NewInfraSettingCRDInformer(cs v1beta1akocrd.Interface) {
-	akoInformerFactory := v1beta1akoinformers.NewSharedInformerFactoryWithOptions(cs, time.Second*30)
+func NewInfraSettingCRDInformer() {
+	akoInformerFactory := v1beta1akoinformers.NewSharedInformerFactoryWithOptions(lib.AKOControlConfig().V1beta1CRDClientset(), time.Second*30)
 	aviSettingsInformer := akoInformerFactory.Ako().V1beta1().AviInfraSettings()
 	lib.AKOControlConfig().SetCRDInformers(&lib.AKOCrdInformers{
 		AviInfraSettingInformer: aviSettingsInformer,
