@@ -571,11 +571,78 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 		refData[*l4RuleSpec.AnalyticsProfileRef] = "AnalyticsProfile"
 	}
 
+	var isNetworkProfileTypeTCP bool
 	if l4RuleSpec.ApplicationProfileRef != nil {
-		refData[*l4RuleSpec.ApplicationProfileRef] = "AppProfile"
+		isSSLEnabled := false
+		for _, svc := range l4RuleSpec.Services {
+			if *svc.EnableSsl {
+				isSSLEnabled = true
+			}
+		}
+		isL4SSL, err := checkForL4SSLAppProfile(key, *l4RuleSpec.ApplicationProfileRef)
+		if err != nil {
+			status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
+				Status: lib.StatusRejected,
+				Error:  err.Error(),
+			})
+			return err
+		}
+		if isL4SSL {
+			if !isSSLEnabled {
+				sslErr := fmt.Errorf("SSL is not enabled in l4rule listener Spec but App Profile %s is of type SSL", *l4RuleSpec.ApplicationProfileRef)
+				status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
+					Status: lib.StatusRejected,
+					Error:  sslErr.Error(),
+				})
+				return sslErr
+			}
+			if l4RuleSpec.SslProfileRef != nil {
+				refData[*l4RuleSpec.SslProfileRef] = "SslProfile"
+			}
+			for _, ref := range l4RuleSpec.SslKeyAndCertificateRefs {
+				refData[ref] = "SslKeyCert"
+			}
+			if l4RuleSpec.NetworkProfileRef != nil {
+				isNetworkProfileTypeTCP, err = checkForNetworkProfileTypeTCP(key, *l4RuleSpec.NetworkProfileRef)
+				if err != nil {
+					status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
+						Status: lib.StatusRejected,
+						Error:  err.Error(),
+					})
+					return err
+				}
+			}
+		} else {
+			if *l4RuleSpec.ApplicationProfileRef != utils.DEFAULT_L4_APP_PROFILE {
+				if isSSLEnabled {
+					sslErr := fmt.Errorf("SSL is enabled in l4rule listener Spec but App Profile %s is not of type SSL", *l4RuleSpec.ApplicationProfileRef)
+					status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
+						Status: lib.StatusRejected,
+						Error:  sslErr.Error(),
+					})
+					return sslErr
+				}
+			}
+			if l4RuleSpec.SslProfileRef != nil {
+				sslProfileErr := fmt.Errorf("App Profile %s is not of type SSL but SslProfileRef is set", *l4RuleSpec.ApplicationProfileRef)
+				status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
+					Status: lib.StatusRejected,
+					Error:  sslProfileErr.Error(),
+				})
+				return sslProfileErr
+			}
+			if len(l4RuleSpec.SslKeyAndCertificateRefs) != 0 {
+				sslKeyCertErr := fmt.Errorf("App Profile %s is not of type SSL but SslKeyAndCertificateRefs are set", *l4RuleSpec.ApplicationProfileRef)
+				status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
+					Status: lib.StatusRejected,
+					Error:  sslKeyCertErr.Error(),
+				})
+				return sslKeyCertErr
+			}
+		}
 	}
 
-	if l4RuleSpec.NetworkProfileRef != nil {
+	if l4RuleSpec.NetworkProfileRef != nil && !isNetworkProfileTypeTCP {
 		refData[*l4RuleSpec.NetworkProfileRef] = "NetworkProfile"
 	}
 

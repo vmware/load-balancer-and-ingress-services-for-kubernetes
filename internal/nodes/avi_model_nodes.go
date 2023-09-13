@@ -167,7 +167,7 @@ func (v *AviVsNode) CalculateForGraphChecksum() uint32 {
 	for _, sslkey := range v.SSLKeyCertRefs {
 		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(sslkey.GetCheckSum()))
 	}
-	for _, sslkey := range v.SSLKeyCertAviRef {
+	for _, sslkey := range v.SslKeyAndCertificateRefs {
 		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(utils.Hash(sslkey)))
 	}
 	for _, httppol := range v.HttpPolicyRefs {
@@ -406,7 +406,6 @@ type AviVsNode struct {
 	ICAPProfileRefs       []string
 	ErrorPageProfileRef   string
 	HttpPolicySetRefs     []string
-	SSLKeyCertAviRef      []string
 	AviMarkers            utils.AviObjectMarkers
 	Paths                 []string
 	IngressNames          []string
@@ -425,12 +424,13 @@ type AviVsNode struct {
 // This struct is added to avoid any collision between the generated and
 // existing struct fields.
 type AviVsNodeCommonFields struct {
-	AnalyticsPolicy       *avimodels.AnalyticsPolicy
-	AnalyticsProfileRef   *string
-	ApplicationProfileRef *string
-	SslProfileRef         *string
-	VsDatascriptRefs      []string
-	WafPolicyRef          *string
+	AnalyticsPolicy          *avimodels.AnalyticsPolicy
+	AnalyticsProfileRef      *string
+	ApplicationProfileRef    *string
+	SslProfileRef            *string
+	VsDatascriptRefs         []string
+	WafPolicyRef             *string
+	SslKeyAndCertificateRefs []string // refs to avi sslkeyandcertificate objs
 }
 
 // Implementing AviVsEvhSniModel
@@ -499,12 +499,12 @@ func (v *AviVsNode) SetServiceMetadata(serviceMetadata lib.ServiceMetadataObj) {
 	v.ServiceMetadata = serviceMetadata
 }
 
-func (v *AviVsNode) GetSSLKeyCertAviRef() []string {
-	return v.SSLKeyCertAviRef
+func (v *AviVsNode) GetSslKeyAndCertificateRefs() []string {
+	return v.SslKeyAndCertificateRefs
 }
 
-func (v *AviVsNode) SetSSLKeyCertAviRef(sslKeyCertAviRef []string) {
-	v.SSLKeyCertAviRef = sslKeyCertAviRef
+func (v *AviVsNode) SetSslKeyAndCertificateRefs(sslKeyAndCertificateRefs []string) {
+	v.SslKeyAndCertificateRefs = sslKeyAndCertificateRefs
 }
 
 func (v *AviVsNode) GetWafPolicyRef() *string {
@@ -916,8 +916,8 @@ func (v *AviVsNode) CalculateCheckSum() {
 	for _, sslkeycert := range v.SSLKeyCertRefs {
 		checksumStringSlice = append(checksumStringSlice, "SSLKeyCert"+sslkeycert.Name)
 	}
-	for _, sslkeycert := range v.SSLKeyCertAviRef {
-		checksumStringSlice = append(checksumStringSlice, "SSLKeyCertAvi"+sslkeycert)
+	for _, sslkeycert := range v.SslKeyAndCertificateRefs {
+		checksumStringSlice = append(checksumStringSlice, "SslKeyAndCertificate"+sslkeycert)
 	}
 	for _, vsvipref := range v.VSVIPRefs {
 		checksumStringSlice = append(checksumStringSlice, "VSVIP"+vsvipref.Name)

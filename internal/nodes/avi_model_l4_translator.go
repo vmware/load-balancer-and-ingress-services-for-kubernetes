@@ -158,6 +158,13 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 		utils.AviLog.Warnf("key: %s, msg: Error while fetching L4Rule. Err: %s", key, err.Error())
 	}
 
+	isSSLEnabled := false
+	for _, aviSvc := range vsNode.Services {
+		if *aviSvc.EnableSsl {
+			isSSLEnabled = true
+		}
+	}
+
 	protocolSet := sets.NewString()
 	for _, portProto := range vsNode.PortProto {
 		filterPort := portProto.Port
@@ -224,19 +231,26 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 
 		buildPoolWithInfraSetting(key, poolNode, infraSetting)
 
+		if isSSLEnabled {
+			vsNode.DefaultPool = poolNode.Name
+		}
 		vsNode.PoolRefs = append(vsNode.PoolRefs, poolNode)
 		utils.AviLog.Infof("key: %s, msg: evaluated L4 pool values :%v", key, utils.Stringify(poolNode))
 	}
 
-	l4policyNode := &AviL4PolicyNode{Name: vsNode.Name, Tenant: lib.GetTenant(), PortPool: portPoolSet}
-	sort.Strings(protocolSet.List())
-	protocols := strings.Join(protocolSet.List(), ",")
-	l4policyNode.AviMarkers = lib.PopulateL4PolicysetMarkers(svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, protocols)
-	l4Policies = append(l4Policies, l4policyNode)
-	vsNode.L4PolicyRefs = l4Policies
+	if !isSSLEnabled {
+		l4policyNode := &AviL4PolicyNode{Name: vsNode.Name, Tenant: lib.GetTenant(), PortPool: portPoolSet}
+		sort.Strings(protocolSet.List())
+		protocols := strings.Join(protocolSet.List(), ",")
+		l4policyNode.AviMarkers = lib.PopulateL4PolicysetMarkers(svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, protocols)
+		l4Policies = append(l4Policies, l4policyNode)
+		vsNode.L4PolicyRefs = l4Policies
+	}
 	//As pool naming covention changed for L4 pools marking flag, so that cksum will be changed
 	vsNode.IsL4VS = true
-	utils.AviLog.Infof("key: %s, msg: evaluated L4 pool policies :%v", key, utils.Stringify(vsNode.L4PolicyRefs))
+	if len(vsNode.L4PolicyRefs) != 0 {
+		utils.AviLog.Infof("key: %s, msg: evaluated L4 pool policies :%v", key, utils.Stringify(vsNode.L4PolicyRefs))
+	}
 }
 
 func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string, ingress bool, key string) []AviPoolMetaServer {
@@ -620,6 +634,33 @@ func getL4Rule(key string, svc *corev1.Service) (*akov1alpha2.L4Rule, error) {
 	if l4Rule != nil && l4Rule.Status.Status != lib.StatusAccepted {
 		return nil, fmt.Errorf("referred L4Rule %s is invalid", l4Rule.Name)
 	}
+	svcPortsLen := len(svc.Spec.Ports)
+	listenerPortProtoMap := make(map[string]bool)
+	if len(l4Rule.Spec.Services) != 0 {
+		if len(l4Rule.Spec.Services) != svcPortsLen {
+			err := fmt.Errorf("Number of port definitions in %s l4rule listener spec does not match with the port definitons in %s service", l4RuleName, svc.Name)
+			utils.AviLog.Warnf("key: %s, msg: %s", key, err.Error())
+			return nil, err
+		}
+		for _, l4Svc := range l4Rule.Spec.Services {
+			if *l4Svc.EnableSsl && svcPortsLen > 1 {
+				err := fmt.Errorf("Port %d requires enabling SSL for L4 but there are multiple ports defined in %s service definition", int(*l4Svc.Port), svc.Name)
+				utils.AviLog.Warnf("key: %s, msg: %s", key, err.Error())
+				return nil, err
+			}
+			key := strconv.Itoa(int(*l4Svc.Port)) + *l4Svc.Protocol
+			listenerPortProtoMap[key] = *l4Svc.EnableSsl
+		}
+
+		for _, port := range svc.Spec.Ports {
+			portProtocol := strconv.Itoa(int(port.Port)) + fmt.Sprint(port.Protocol)
+			if _, ok := listenerPortProtoMap[portProtocol]; !ok {
+				err := fmt.Errorf("Port %d defined in %s service definition is not present in %s l4rule listener spec", int(port.Port), svc.Name, l4RuleName)
+				utils.AviLog.Warnf("key: %s, msg: %s", key, err.Error())
+				return nil, err
+			}
+		}
+	}
 
 	utils.AviLog.Debugf("key: %s, Got L4Rule %v", key, l4Rule)
 	return l4Rule, nil
@@ -630,9 +671,21 @@ func buildWithL4Rule(key string, vs *AviVsNode, l4Rule *akov1alpha2.L4Rule) {
 	if l4Rule == nil {
 		return
 	}
-
+	isSSLEnabled := false
+	for _, svc := range l4Rule.Spec.Services {
+		if *svc.EnableSsl {
+			isSSLEnabled = true
+		}
+	}
+	if isSSLEnabled && vs.NetworkProfile != utils.DEFAULT_TCP_NW_PROFILE {
+		utils.AviLog.Warnf("key: %s, msg: L4Rule %s cannot be applied to the service as network profile is not equal to %s", key, l4Rule.Name, utils.DEFAULT_TCP_NW_PROFILE)
+		return
+	}
 	copier.Copy(vs, &l4Rule.Spec)
-
+	if isSSLEnabled && *l4Rule.Spec.ApplicationProfileRef == utils.DEFAULT_L4_APP_PROFILE {
+		defaultAppProfile := utils.DEFAULT_L4_SSL_APP_PROFILE
+		vs.ApplicationProfileRef = &defaultAppProfile
+	}
 	vs.AviVsNodeCommonFields.ConvertToRef()
 	vs.AviVsNodeGeneratedFields.ConvertToRef()
 

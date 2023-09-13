@@ -209,7 +209,7 @@ func TestApplyHostruleToDedicatedVS(t *testing.T) {
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].Enabled).To(gomega.BeNil())
-	g.Expect(nodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].SslKeyAndCertificateRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].WafPolicyRef).To(gomega.BeNil())
 	g.Expect(nodes[0].ApplicationProfileRef).To(gomega.BeNil())
 	g.Expect(nodes[0].AnalyticsProfileRef).To(gomega.BeNil())

@@ -1281,6 +1281,10 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			w.WriteHeader(http.StatusOK)
 			data, _ := os.ReadFile(fmt.Sprintf("%s/l4crd_mock.json", mockFilePath))
 			w.Write(data)
+		} else if strings.Contains(r.URL.RawQuery, "networkprofile-tcp-proxy") {
+			w.WriteHeader(http.StatusOK)
+			data, _ := os.ReadFile(fmt.Sprintf("%s/network_profile_tcp_proxy_mock.json", mockFilePath))
+			w.Write(data)
 		} else if strings.Contains(url, "/api/network") && strings.Contains(r.URL.RawQuery, "thisisaviref") {
 			w.WriteHeader(http.StatusOK)
 			data, _ := os.ReadFile(fmt.Sprintf("%s/crd_network_mock.json", mockFilePath))
@@ -1301,6 +1305,10 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			}
 			finalResponse, _ = json.Marshal(resp)
 			w.Write(finalResponse)
+		} else if strings.Contains(r.URL.RawQuery, "l4-ssl-appprofile") {
+			w.WriteHeader(http.StatusOK)
+			data, _ := os.ReadFile(fmt.Sprintf("%s/l4crd_ssl_mock.json", mockFilePath))
+			w.Write(data)
 		} else if strings.Contains(r.URL.RawQuery, "thisisaviref") {
 			w.WriteHeader(http.StatusOK)
 			data, _ := os.ReadFile(fmt.Sprintf("%s/crd_mock.json", mockFilePath))
@@ -1309,7 +1317,10 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"results": [], "count": 0}`))
 		}
-
+	} else if r.Method == "GET" && strings.Contains(r.URL.RawQuery, "System-L4-Application") {
+		w.WriteHeader(http.StatusOK)
+		data, _ := os.ReadFile(fmt.Sprintf("%s/l4crd_mock.json", mockFilePath))
+		w.Write(data)
 	} else if r.Method == "GET" && strings.Contains(url, "/api/cloud/") {
 		var data []byte
 		if strings.HasSuffix(r.URL.RawQuery, "CLOUD_NONE") {
@@ -2126,9 +2137,10 @@ func TearDownOAuthSecret() (err error) {
 
 // L4Rule lib functions
 type FakeL4Rule struct {
-	Name      string
-	Namespace string
-	Ports     []int
+	Name       string
+	Namespace  string
+	Ports      []int
+	SSLEnabled bool
 }
 
 func (lr FakeL4Rule) L4Rule() *akov1alpha2.L4Rule {
@@ -2178,7 +2190,26 @@ func (lr FakeL4Rule) L4Rule() *akov1alpha2.L4Rule {
 			SslProfileRef:                    proto.String("thisisaviref-sslprofileref"),
 		})
 	}
+	return l4Rule
+}
 
+func convertL4RuleToSSL(l4Rule *akov1alpha2.L4Rule, ports []int, applicationProfileRef *string, networkProfileRef *string, sslProfileRef *string, sslKeyAndCertificateRefs ...string) *akov1alpha2.L4Rule {
+	if applicationProfileRef == nil {
+		l4Rule.Spec.ApplicationProfileRef = proto.String("System-L4-Application")
+	} else {
+		l4Rule.Spec.ApplicationProfileRef = applicationProfileRef
+	}
+	l4Rule.Spec.NetworkProfileRef = networkProfileRef
+	l4Rule.Spec.SslKeyAndCertificateRefs = sslKeyAndCertificateRefs
+	l4Rule.Spec.SslProfileRef = sslProfileRef
+	for _, port := range ports {
+		port32 := int32(port)
+		l4Rule.Spec.Services = append(l4Rule.Spec.Services, &akov1alpha2.Service{
+			Port:      &port32,
+			Protocol:  proto.String("TCP"),
+			EnableSsl: proto.Bool(true),
+		})
+	}
 	return l4Rule
 }
 
@@ -2189,6 +2220,20 @@ func SetupL4Rule(t *testing.T, name, namespace string, port []int) {
 		Ports:     port,
 	}
 	obj := l4Rule.L4Rule()
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(namespace).Create(context.TODO(), obj, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding L4Rule: %v", err)
+	}
+}
+
+func SetupL4RuleSSL(t *testing.T, name, namespace string, port []int, applicationProfileRef *string, networkProfileRef *string, sslProfileRef *string, sslKeyAndCertificateRefs ...string) {
+	l4Rule := FakeL4Rule{
+		Name:       name,
+		Namespace:  namespace,
+		Ports:      port,
+		SSLEnabled: true,
+	}
+	obj := l4Rule.L4Rule()
+	convertL4RuleToSSL(obj, port, applicationProfileRef, networkProfileRef, sslProfileRef, sslKeyAndCertificateRefs...)
 	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(namespace).Create(context.TODO(), obj, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding L4Rule: %v", err)
 	}

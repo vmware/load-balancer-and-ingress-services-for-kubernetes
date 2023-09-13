@@ -50,8 +50,8 @@ func TestCreateDeleteHostRule(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(*nodes[0].SniNodes[0].Enabled).To(gomega.Equal(true))
-	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef[0]).To(gomega.ContainSubstring("thisisaviref-sslkey"))
+	g.Expect(nodes[0].SniNodes[0].SslKeyAndCertificateRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].SniNodes[0].SslKeyAndCertificateRefs[0]).To(gomega.ContainSubstring("thisisaviref-sslkey"))
 	g.Expect(nodes[0].SniNodes[0].ICAPProfileRefs).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].SniNodes[0].ICAPProfileRefs[0]).To(gomega.ContainSubstring("thisisaviref-icapprof"))
 	g.Expect(*nodes[0].SniNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
@@ -94,7 +94,7 @@ func TestCreateDeleteHostRule(t *testing.T) {
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].Enabled).To(gomega.BeNil())
-	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].SniNodes[0].SslKeyAndCertificateRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].SniNodes[0].ICAPProfileRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].SniNodes[0].WafPolicyRef).To(gomega.BeNil())
 	g.Expect(nodes[0].SniNodes[0].ApplicationProfileRef).To(gomega.BeNil())
@@ -174,7 +174,7 @@ func TestCreateDeleteSharedVSHostRule(t *testing.T) {
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].Enabled).To(gomega.BeNil())
-	g.Expect(nodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].SslKeyAndCertificateRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].WafPolicyRef).To(gomega.BeNil())
 	g.Expect(nodes[0].ApplicationProfileRef).To(gomega.BeNil())
 	g.Expect(nodes[0].AnalyticsProfileRef).To(gomega.BeNil())
@@ -213,8 +213,8 @@ func TestCreateHostRuleBeforeIngress(t *testing.T) {
 	g.Eventually(func() string {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		if len(nodes[0].SniNodes) == 1 && len(nodes[0].SniNodes[0].SSLKeyCertAviRef) == 1 {
-			return nodes[0].SniNodes[0].SSLKeyCertAviRef[0]
+		if len(nodes[0].SniNodes) == 1 && len(nodes[0].SniNodes[0].SslKeyAndCertificateRefs) == 1 {
+			return nodes[0].SniNodes[0].SslKeyAndCertificateRefs[0]
 		}
 		return ""
 	}, 10*time.Second).Should(gomega.ContainSubstring("thisisaviref-sslkey"))
@@ -225,8 +225,8 @@ func TestCreateHostRuleBeforeIngress(t *testing.T) {
 	g.Eventually(func() string {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		if len(nodes[0].SniNodes) == 1 && len(nodes[0].SniNodes[0].SSLKeyCertAviRef) == 1 {
-			return nodes[0].SniNodes[0].SSLKeyCertAviRef[0]
+		if len(nodes[0].SniNodes) == 1 && len(nodes[0].SniNodes[0].SslKeyAndCertificateRefs) == 1 {
+			return nodes[0].SniNodes[0].SslKeyAndCertificateRefs[0]
 		}
 		return ""
 	}, 10*time.Second).Should(gomega.Equal(""))
@@ -262,8 +262,8 @@ func TestInsecureToSecureHostRule(t *testing.T) {
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef[0]).To(gomega.ContainSubstring("thisisaviref-sslkey"))
+	g.Expect(nodes[0].SniNodes[0].SslKeyAndCertificateRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].SniNodes[0].SslKeyAndCertificateRefs[0]).To(gomega.ContainSubstring("thisisaviref-sslkey"))
 	g.Expect(*nodes[0].SniNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
 	g.Expect(nodes[0].HttpPolicyRefs[0].RedirectPorts[0].StatusCode).To(gomega.Equal("HTTP_REDIRECT_STATUS_CODE_302"))
 
@@ -357,8 +357,8 @@ func TestMultiIngressToSecureHostRule(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].PoolRefs).To(gomega.HaveLen(2))
-	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef[0]).To(gomega.ContainSubstring("thisisaviref-sslkey"))
+	g.Expect(nodes[0].SniNodes[0].SslKeyAndCertificateRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].SniNodes[0].SslKeyAndCertificateRefs[0]).To(gomega.ContainSubstring("thisisaviref-sslkey"))
 	g.Expect(nodes[0].SniNodes[0].SSLKeyCertRefs).To(gomega.HaveLen(0))
 	if len(nodes[0].HttpPolicyRefs) > 0 {
 		g.Expect(nodes[0].HttpPolicyRefs[0].RedirectPorts[0].StatusCode).To(gomega.Equal("HTTP_REDIRECT_STATUS_CODE_302"))
@@ -487,8 +487,8 @@ func TestGoodToBadHostRule(t *testing.T) {
 	g.Eventually(func() string {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		if len(nodes[0].SniNodes[0].SSLKeyCertAviRef) == 1 {
-			return nodes[0].SniNodes[0].SSLKeyCertAviRef[0]
+		if len(nodes[0].SniNodes[0].SslKeyAndCertificateRefs) == 1 {
+			return nodes[0].SniNodes[0].SslKeyAndCertificateRefs[0]
 		}
 		return ""
 	}, 10*time.Second).Should(gomega.ContainSubstring("thisisaviref"))
@@ -1072,7 +1072,7 @@ func TestApplyHostruleToParentVS(t *testing.T) {
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].Enabled).To(gomega.BeNil())
-	g.Expect(nodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].SslKeyAndCertificateRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].WafPolicyRef).To(gomega.BeNil())
 	g.Expect(nodes[0].ApplicationProfileRef).To(gomega.BeNil())
 	g.Expect(nodes[0].AnalyticsProfileRef).To(gomega.BeNil())
@@ -1111,7 +1111,7 @@ func TestHostRuleWithEmptyConfig(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(*nodes[0].SniNodes[0].Enabled).To(gomega.Equal(true))
-	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].SniNodes[0].SslKeyAndCertificateRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].SniNodes[0].ICAPProfileRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].SniNodes[0].WafPolicyRef).To(gomega.BeNil())
 	g.Expect(nodes[0].SniNodes[0].ApplicationProfileRef).To(gomega.BeNil())
@@ -1127,7 +1127,7 @@ func TestHostRuleWithEmptyConfig(t *testing.T) {
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].SniNodes[0].Enabled).To(gomega.BeNil())
-	g.Expect(nodes[0].SniNodes[0].SSLKeyCertAviRef).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].SniNodes[0].SslKeyAndCertificateRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].SniNodes[0].ICAPProfileRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].SniNodes[0].WafPolicyRef).To(gomega.BeNil())
 	g.Expect(nodes[0].SniNodes[0].ApplicationProfileRef).To(gomega.BeNil())
