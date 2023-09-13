@@ -41,7 +41,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		return
 	}
 
-	if updatesParent(objType) {
+	if objType == lib.Gateway {
 		handleGateway(namespace, name, fullsync, key)
 	}
 
@@ -62,6 +62,11 @@ func DequeueIngestion(key string, fullsync bool) {
 			utils.AviLog.Errorf("key: %s, msg: no model found: %s", key, modelName)
 			continue
 		}
+		if objType == utils.Secret {
+			handleGateway(parentNs, parentName, fullsync, key)
+			continue
+		}
+
 		model := &AviObjectGraph{modelIntf.(*nodes.AviObjectGraph)}
 		for _, routeTypeNsName := range routeTypeNsNameList {
 			objType, namespace, name := lib.ExtractTypeNameNamespace(routeTypeNsName)
@@ -222,8 +227,4 @@ func (o *AviObjectGraph) DeleteStaleChildVSes(key string, routeModel RouteModel,
 		modelName := lib.GetTenant() + "/" + parentNode[0].Name
 		_ = saveAviModel(modelName, o.AviObjectGraph, key)
 	}
-}
-
-func updatesParent(objType string) bool {
-	return objType == lib.Gateway || objType == utils.Secret
 }

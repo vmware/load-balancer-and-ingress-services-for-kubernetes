@@ -6,15 +6,14 @@
 featureGates:
   GatewayAPI: false # Enables/disables processing of Kubernetes Gateway API CRDs.
 
-### FeatureGates is to enable or disable experimental features.
-featureGates:
-  GatewayAPI: false # Enables/disables processing of Kubernetes Gateway API CRDs.
-
 replicaCount: 1
 
 image:
   repository: 10.79.172.11:5000/avi-buildops/ako
   pullPolicy: IfNotPresent
+  pullSecrets: [] # Setting this will add pull secrets to the statefulset for AKO. Required if using secure private container image registry for AKO image.
+  #pullSecrets:
+  # - name: regcred
 
 GatewayAPI:
   image:
