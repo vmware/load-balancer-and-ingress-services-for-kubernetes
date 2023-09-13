@@ -173,6 +173,7 @@ const (
 	FQDN_SVCNAME_PREFIX                        = "s"
 	FQDN_SVCNAMESPACE_PREFIX                   = "n"
 	FQDN_SUBDOMAIN_PREFIX                      = "d"
+	DNS_LABEL_LENGTH                           = 63
 	VCF_NETWORK                                = "vcf-ako-net"
 	VIP_PER_NAMESPACE                          = "VIP_PER_NAMESPACE"
 	PRIMARY_AKO_FLAG                           = "PRIMARY_AKO_FLAG"

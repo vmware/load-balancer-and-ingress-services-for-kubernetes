@@ -47,6 +47,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	}
 
 	if extDNS, ok := svcObj.Annotations[lib.ExternalDNSAnnotation]; ok && autoFQDN {
+		autoFQDN = false
 		fqdns = append(fqdns, extDNS)
 	}
 
@@ -547,6 +548,10 @@ func getAutoFQDNForService(svcNamespace, svcName string) string {
 		fqdn = svcName + "." + svcNamespace + "." + subdomain
 
 	} else if lib.GetL4FqdnFormat() == lib.AutoFQDNFlat {
+
+		// check and shorten the length of name and namespace to follow RFC 1035.
+		svcName, svcNamespace := lib.CheckAndShortenLabelToFollowRFC1035(svcName, svcNamespace)
+
 		// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
 		fqdn = svcName + "-" + svcNamespace + "." + subdomain
 	}
