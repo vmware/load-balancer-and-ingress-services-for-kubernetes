@@ -3679,7 +3679,8 @@ func ExtractUuid(word, pattern string) string {
 	if len(result) == 1 {
 		return result[0][:len(result[0])-1]
 	}
-	return ""
+	utils.AviLog.Debugf("Uid extraction not successful from: %s, will retry without hash pattern", word)
+	return ExtractUuidWithoutHash(word, pattern[:len(pattern)-1])
 }
 
 func ExtractUuidWithoutHash(word, pattern string) string {
