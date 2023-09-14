@@ -1309,8 +1309,10 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 				allInformers = append(allInformers, utils.RouteInformer)
 				isOshift = true
 			} else {
-				// error out
-				return allInformers, errors.New("Error in fetching Openshift routes: " + err.Error())
+				// error out for Openshift CNI and OVN CNI
+				if GetCNIPlugin() == OPENSHIFT_CNI || GetCNIPlugin() == OVN_KUBERNETES_CNI {
+					return allInformers, errors.New("Error in fetching Openshift routes: " + err.Error())
+				}
 			}
 		}
 		if !isOshift {
