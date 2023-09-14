@@ -265,6 +265,8 @@ func TestMain(m *testing.M) {
 
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	AddDefaultIngressClass()
+	AddDefaultNamespace()
+	AddDefaultNamespace(NAMESPACE)
 
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
@@ -914,14 +916,14 @@ func TestWithInfraSettingStatusUpdates(t *testing.T) {
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL); found && aviModel != nil {
 			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
-				return nodes[0].ServiceEngineGroup == lib.GetSEGName() &&
+				return nodes[0].ServiceEngineGroup == "thisisaviref-seGroup" &&
 					len(nodes[0].VSVIPRefs[0].VipNetworks) > 0 &&
-					nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName == netList[0].NetworkName &&
-					!*nodes[0].EnableRhi
+					nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName == "thisisaviref-networkName" &&
+					*nodes[0].EnableRhi
 			}
 		}
 		return false
-	}, 40*time.Second).Should(gomega.Equal(true))
+	}, 45*time.Second).Should(gomega.Equal(true))
 
 	settingUpdate = (FakeAviInfraSetting{
 		Name:        settingName,
@@ -939,21 +941,21 @@ func TestWithInfraSettingStatusUpdates(t *testing.T) {
 		return setting.Status.Status
 	}, 15*time.Second).Should(gomega.Equal("Accepted"))
 
-	g.Eventually(func() string {
+	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL); found && aviModel != nil {
 			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
-				return nodes[0].ServiceEngineGroup
+				if len(nodes[0].VSVIPRefs[0].VipNetworks) == 3 &&
+					nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName == "multivip-network1" &&
+					nodes[0].VSVIPRefs[0].VipNetworks[1].NetworkName == "multivip-network2" &&
+					nodes[0].VSVIPRefs[0].VipNetworks[2].NetworkName == "multivip-network3" &&
+					*nodes[0].EnableRhi == true &&
+					nodes[0].ServiceEngineGroup == "thisisaviref-seGroup" {
+					return true
+				}
 			}
 		}
-		return ""
-	}, 35*time.Second).Should(gomega.Equal("thisisaviref-seGroup"))
-	_, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
-	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(len(nodes[0].VSVIPRefs[0].VipNetworks)).Should(gomega.Equal(3))
-	g.Expect(nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName).Should(gomega.Equal("multivip-network1"))
-	g.Expect(nodes[0].VSVIPRefs[0].VipNetworks[1].NetworkName).Should(gomega.Equal("multivip-network2"))
-	g.Expect(nodes[0].VSVIPRefs[0].VipNetworks[2].NetworkName).Should(gomega.Equal("multivip-network3"))
-	g.Expect(*nodes[0].EnableRhi).Should(gomega.Equal(true))
+		return false
+	}, 35*time.Second).Should(gomega.Equal(true))
 
 	TeardownAviInfraSetting(t, settingName)
 	TearDownTestForSvcLB(t, g)

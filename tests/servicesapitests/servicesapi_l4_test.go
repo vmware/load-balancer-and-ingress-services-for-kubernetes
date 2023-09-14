@@ -130,6 +130,8 @@ func TestMain(m *testing.M) {
 	ctrl.SetSEGroupCloudNameFromNSAnnotations()
 
 	integrationtest.PollForSyncStart(ctrl, 10)
+	integrationtest.KubeClient = KubeClient
+	integrationtest.AddDefaultNamespace()
 
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)

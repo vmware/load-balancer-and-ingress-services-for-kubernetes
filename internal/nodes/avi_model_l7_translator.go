@@ -670,6 +670,8 @@ func buildWithInfraSetting(key, namespace string, vs *AviVsNode, vsvip *AviVSVIP
 
 		if infraSetting.Spec.Network.VipNetworks != nil && len(infraSetting.Spec.Network.VipNetworks) > 0 {
 			vsvip.VipNetworks = lib.GetVipInfraNetworkList(infraSetting.Name)
+		} else {
+			vsvip.VipNetworks = utils.GetVipNetworkList()
 		}
 		if lib.IsPublicCloud() {
 			vsvip.EnablePublicIP = infraSetting.Spec.Network.EnablePublicIP

@@ -2126,6 +2126,9 @@ func buildWithInfraSettingForEvh(key, namespace string, vs *AviEvhVsNode, vsvip 
 			portProto := buildListenerPortsWithInfraSetting(infraSetting, vs.PortProto)
 			vs.SetPortProtocols(portProto)
 		}
+		if infraSetting.Spec.NSXSettings.T1LR != nil {
+			vsvip.T1Lr = *infraSetting.Spec.NSXSettings.T1LR
+		}
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 	}
 }

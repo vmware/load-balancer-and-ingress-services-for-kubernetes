@@ -1182,6 +1182,9 @@ func infraSettingNSToServices(infraSettingName, key string) ([]string, bool) {
 			return allServices, false
 		}
 		for _, svc := range services {
+			if svc.Spec.Type != "LoadBalancer" {
+				continue
+			}
 			key := svc.GetNamespace() + "/" + svc.GetName()
 			allServices = append(allServices, key)
 		}

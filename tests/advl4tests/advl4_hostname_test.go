@@ -85,6 +85,7 @@ func TestMain(m *testing.M) {
 	cloudObj.NSIpamDNS = subdomains
 	mcache.CloudKeyCache.AviCacheAdd("Default-Cloud", cloudObj)
 
+	integrationtest.KubeClient = KubeClient
 	integrationtest.InitializeFakeAKOAPIServer()
 
 	integrationtest.NewAviFakeClientInstance(KubeClient)
@@ -114,9 +115,8 @@ func TestMain(m *testing.M) {
 	integrationtest.PollForSyncStart(ctrl, 10)
 
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
-	//integrationtest.AddDefaultNamespace()
+	integrationtest.AddDefaultNamespace()
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
-	integrationtest.KubeClient = KubeClient
 	os.Exit(m.Run())
 }
 
