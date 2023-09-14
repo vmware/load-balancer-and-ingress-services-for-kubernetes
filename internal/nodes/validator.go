@@ -21,7 +21,8 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -96,7 +97,7 @@ func validateRouteSpecFromHostnameCache(key, ns, routeName string, routeSpec rou
 	}
 }
 
-func findHostRuleMappingForFqdn(key, host string) (bool, *v1alpha1.HostRule) {
+func findHostRuleMappingForFqdn(key, host string) (bool, *v1beta1.HostRule) {
 	// from host check if hostrule is present
 	found, hrNSNameStr := objects.SharedCRDLister().GetFQDNToHostruleMappingWithType(host)
 	if !found {
@@ -118,23 +119,23 @@ func findHostRuleMappingForFqdn(key, host string) (bool, *v1alpha1.HostRule) {
 	}
 }
 
-func sslKeyCertHostRulePresent(hostRuleObj *v1alpha1.HostRule, key string) (bool, []string) {
+func sslKeyCertHostRulePresent(hostRuleObj *v1beta1.HostRule, key string) (bool, []string) {
 	var sslKeyCerts []string
 	if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {
 		utils.AviLog.Infof("key: %s, msg: secret %s found for host %s in hostrule.ako.vmware.com %s",
 			key, hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name, hostRuleObj.Spec.VirtualHost.Fqdn, hostRuleObj.Name)
-		if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
+		if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1beta1.HostRuleSecretTypeSecretReference {
 			sslKeyCerts = append(sslKeyCerts, lib.DummySecretK8s+"/"+hostRuleObj.Namespace+"/"+hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name)
-		} else if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference {
+		} else if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1beta1.HostRuleSecretTypeAviReference {
 			sslKeyCerts = append(sslKeyCerts, lib.DummySecret+"/"+hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name)
 		}
 	}
 	if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name != "" {
 		utils.AviLog.Infof("key: %s, msg: alternate secret %s found for host %s in hostrule.ako.vmware.com %s",
 			key, hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name, hostRuleObj.Spec.VirtualHost.Fqdn, hostRuleObj.Name)
-		if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
+		if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1beta1.HostRuleSecretTypeSecretReference {
 			sslKeyCerts = append(sslKeyCerts, lib.DummySecretK8s+"/"+hostRuleObj.Namespace+"/"+hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name)
-		} else if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference {
+		} else if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1beta1.HostRuleSecretTypeAviReference {
 			sslKeyCerts = append(sslKeyCerts, lib.DummySecret+"/"+hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name)
 		}
 	}
@@ -144,7 +145,7 @@ func sslKeyCertHostRulePresent(hostRuleObj *v1alpha1.HostRule, key string) (bool
 	return false, sslKeyCerts
 }
 
-func getGslbFqdnFromHostRule(hostRuleObj *v1alpha1.HostRule) (bool, string) {
+func getGslbFqdnFromHostRule(hostRuleObj *v1beta1.HostRule) (bool, string) {
 	if hostRuleObj.Spec.VirtualHost.Gslb.Fqdn != "" {
 		return true, hostRuleObj.Spec.VirtualHost.Gslb.Fqdn
 	}
@@ -659,7 +660,7 @@ func (v *Validator) ParseHostPathForMultiClusterIngress(ns string, ingName strin
 	return ingressConfig
 }
 
-func getNamespaceAviInfraSetting(key, ns string) (*v1alpha1.AviInfraSetting, error) {
+func getNamespaceAviInfraSetting(key, ns string) (*v1beta1.AviInfraSetting, error) {
 	namespace, err := utils.GetInformers().NSInformer.Lister().Get(ns)
 	if err != nil {
 		return nil, err

@@ -21,7 +21,7 @@ package fake
 import (
 	"context"
 
-	v1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	v1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -32,27 +32,27 @@ import (
 
 // FakeAviInfraSettings implements AviInfraSettingInterface
 type FakeAviInfraSettings struct {
-	Fake *FakeAkoV1alpha1
+	Fake *FakeAkoV1beta1
 }
 
-var aviinfrasettingsResource = schema.GroupVersionResource{Group: "ako.vmware.com", Version: "v1alpha1", Resource: "aviinfrasettings"}
+var aviinfrasettingsResource = schema.GroupVersionResource{Group: "ako.vmware.com", Version: "v1beta1", Resource: "aviinfrasettings"}
 
-var aviinfrasettingsKind = schema.GroupVersionKind{Group: "ako.vmware.com", Version: "v1alpha1", Kind: "AviInfraSetting"}
+var aviinfrasettingsKind = schema.GroupVersionKind{Group: "ako.vmware.com", Version: "v1beta1", Kind: "AviInfraSetting"}
 
 // Get takes name of the aviInfraSetting, and returns the corresponding aviInfraSetting object, and an error if there is any.
-func (c *FakeAviInfraSettings) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.AviInfraSetting, err error) {
+func (c *FakeAviInfraSettings) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.AviInfraSetting, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(aviinfrasettingsResource, name), &v1alpha1.AviInfraSetting{})
+		Invokes(testing.NewRootGetAction(aviinfrasettingsResource, name), &v1beta1.AviInfraSetting{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.AviInfraSetting), err
+	return obj.(*v1beta1.AviInfraSetting), err
 }
 
 // List takes label and field selectors, and returns the list of AviInfraSettings that match those selectors.
-func (c *FakeAviInfraSettings) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.AviInfraSettingList, err error) {
+func (c *FakeAviInfraSettings) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.AviInfraSettingList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(aviinfrasettingsResource, aviinfrasettingsKind, opts), &v1alpha1.AviInfraSettingList{})
+		Invokes(testing.NewRootListAction(aviinfrasettingsResource, aviinfrasettingsKind, opts), &v1beta1.AviInfraSettingList{})
 	if obj == nil {
 		return nil, err
 	}
@@ -61,8 +61,8 @@ func (c *FakeAviInfraSettings) List(ctx context.Context, opts v1.ListOptions) (r
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &v1alpha1.AviInfraSettingList{ListMeta: obj.(*v1alpha1.AviInfraSettingList).ListMeta}
-	for _, item := range obj.(*v1alpha1.AviInfraSettingList).Items {
+	list := &v1beta1.AviInfraSettingList{ListMeta: obj.(*v1beta1.AviInfraSettingList).ListMeta}
+	for _, item := range obj.(*v1beta1.AviInfraSettingList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -77,40 +77,40 @@ func (c *FakeAviInfraSettings) Watch(ctx context.Context, opts v1.ListOptions) (
 }
 
 // Create takes the representation of a aviInfraSetting and creates it.  Returns the server's representation of the aviInfraSetting, and an error, if there is any.
-func (c *FakeAviInfraSettings) Create(ctx context.Context, aviInfraSetting *v1alpha1.AviInfraSetting, opts v1.CreateOptions) (result *v1alpha1.AviInfraSetting, err error) {
+func (c *FakeAviInfraSettings) Create(ctx context.Context, aviInfraSetting *v1beta1.AviInfraSetting, opts v1.CreateOptions) (result *v1beta1.AviInfraSetting, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(aviinfrasettingsResource, aviInfraSetting), &v1alpha1.AviInfraSetting{})
+		Invokes(testing.NewRootCreateAction(aviinfrasettingsResource, aviInfraSetting), &v1beta1.AviInfraSetting{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.AviInfraSetting), err
+	return obj.(*v1beta1.AviInfraSetting), err
 }
 
 // Update takes the representation of a aviInfraSetting and updates it. Returns the server's representation of the aviInfraSetting, and an error, if there is any.
-func (c *FakeAviInfraSettings) Update(ctx context.Context, aviInfraSetting *v1alpha1.AviInfraSetting, opts v1.UpdateOptions) (result *v1alpha1.AviInfraSetting, err error) {
+func (c *FakeAviInfraSettings) Update(ctx context.Context, aviInfraSetting *v1beta1.AviInfraSetting, opts v1.UpdateOptions) (result *v1beta1.AviInfraSetting, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(aviinfrasettingsResource, aviInfraSetting), &v1alpha1.AviInfraSetting{})
+		Invokes(testing.NewRootUpdateAction(aviinfrasettingsResource, aviInfraSetting), &v1beta1.AviInfraSetting{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.AviInfraSetting), err
+	return obj.(*v1beta1.AviInfraSetting), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeAviInfraSettings) UpdateStatus(ctx context.Context, aviInfraSetting *v1alpha1.AviInfraSetting, opts v1.UpdateOptions) (*v1alpha1.AviInfraSetting, error) {
+func (c *FakeAviInfraSettings) UpdateStatus(ctx context.Context, aviInfraSetting *v1beta1.AviInfraSetting, opts v1.UpdateOptions) (*v1beta1.AviInfraSetting, error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(aviinfrasettingsResource, "status", aviInfraSetting), &v1alpha1.AviInfraSetting{})
+		Invokes(testing.NewRootUpdateSubresourceAction(aviinfrasettingsResource, "status", aviInfraSetting), &v1beta1.AviInfraSetting{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.AviInfraSetting), err
+	return obj.(*v1beta1.AviInfraSetting), err
 }
 
 // Delete takes name of the aviInfraSetting and deletes it. Returns an error if one occurs.
 func (c *FakeAviInfraSettings) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(aviinfrasettingsResource, name), &v1alpha1.AviInfraSetting{})
+		Invokes(testing.NewRootDeleteAction(aviinfrasettingsResource, name), &v1beta1.AviInfraSetting{})
 	return err
 }
 
@@ -118,16 +118,16 @@ func (c *FakeAviInfraSettings) Delete(ctx context.Context, name string, opts v1.
 func (c *FakeAviInfraSettings) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
 	action := testing.NewRootDeleteCollectionAction(aviinfrasettingsResource, listOpts)
 
-	_, err := c.Fake.Invokes(action, &v1alpha1.AviInfraSettingList{})
+	_, err := c.Fake.Invokes(action, &v1beta1.AviInfraSettingList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched aviInfraSetting.
-func (c *FakeAviInfraSettings) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.AviInfraSetting, err error) {
+func (c *FakeAviInfraSettings) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.AviInfraSetting, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(aviinfrasettingsResource, name, pt, data, subresources...), &v1alpha1.AviInfraSetting{})
+		Invokes(testing.NewRootPatchSubresourceAction(aviinfrasettingsResource, name, pt, data, subresources...), &v1beta1.AviInfraSetting{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.AviInfraSetting), err
+	return obj.(*v1beta1.AviInfraSetting), err
 }

@@ -25,7 +25,8 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
@@ -43,7 +44,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 
 	var err error
 	var hrNSName []string
-	var hostrule *akov1alpha1.HostRule
+	var hostrule *akov1beta1.HostRule
 	if !deleteCase {
 		hrNSName = strings.Split(hrNamespaceName, "/")
 		hostrule, err = lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(hrNSName[0]).Get(hrNSName[1])
@@ -78,13 +79,13 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	}
 
 	if !deleteCase {
-		if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference &&
+		if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1beta1.HostRuleSecretTypeAviReference &&
 			hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {
 			vsSslKeyCertificates = append(vsSslKeyCertificates, fmt.Sprintf("/api/sslkeyandcertificate?name=%s", hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name))
 			vsNode.SetSSLKeyCertRefs([]*AviTLSKeyCertNode{})
 		}
 
-		if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference &&
+		if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1beta1.HostRuleSecretTypeAviReference &&
 			hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name != "" {
 			vsSslKeyCertificates = append(vsSslKeyCertificates, fmt.Sprintf("/api/sslkeyandcertificate?name=%s", hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name))
 			vsNode.SetSSLKeyCertRefs([]*AviTLSKeyCertNode{})
@@ -226,7 +227,7 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 	}
 
 	// maintains map of rrname+path: rrobj.spec.paths, prefetched for compute ahead
-	httpruleNameObjMap := make(map[string]akov1alpha1.HTTPRulePaths)
+	httpruleNameObjMap := make(map[string]akov1beta1.HTTPRulePaths)
 	for _, httprule := range getHTTPRules {
 		pathNSName := strings.Split(httprule, "/")
 		httpRuleObj, err := lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Lister().HTTPRules(pathNSName[0]).Get(pathNSName[1])

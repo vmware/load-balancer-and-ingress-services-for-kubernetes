@@ -22,8 +22,9 @@ import (
 	"strings"
 	"sync"
 
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
@@ -1253,7 +1254,7 @@ type AviVSVIPNode struct {
 	FQDNs                   []string
 	VrfContext              string
 	IPAddress               string
-	VipNetworks             []akov1alpha1.AviInfraSettingVipNetwork
+	VipNetworks             []akov1beta1.AviInfraSettingVipNetwork
 	EnablePublicIP          *bool
 	BGPPeerLabels           []string
 	SecurePassthroughNode   *AviVsNode

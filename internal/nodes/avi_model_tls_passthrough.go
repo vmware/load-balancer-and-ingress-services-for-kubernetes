@@ -19,13 +19,13 @@ import (
 	"strings"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
 )
 
-func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key string, infraSetting *akov1alpha1.AviInfraSetting) *AviVsNode {
+func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key string, infraSetting *akov1beta1.AviInfraSetting) *AviVsNode {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	var avi_vs_meta *AviVsNode
@@ -85,7 +85,7 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 	return avi_vs_meta
 }
 
-func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, objName, hostname, namespace, key string, redirect bool, infraSetting *akov1alpha1.AviInfraSetting) {
+func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, objName, hostname, namespace, key string, redirect bool, infraSetting *akov1beta1.AviInfraSetting) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	vsList := o.GetAviVS()

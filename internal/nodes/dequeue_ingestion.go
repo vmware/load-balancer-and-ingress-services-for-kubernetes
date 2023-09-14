@@ -23,7 +23,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -332,7 +332,7 @@ func handleHostRuleForSharedVS(key string, fullsync bool) {
 				objects.SharedCRDLister().UpdateFQDNHostruleMapping(fqdn, namespace+"/"+hrName)
 				fqdnType = string(hostrule.Spec.VirtualHost.FqdnType)
 				if fqdnType == "" {
-					fqdnType = string(akov1alpha1.Exact)
+					fqdnType = string(akov1beta1.Exact)
 				}
 				objects.SharedCRDLister().UpdateFQDNFQDNTypeMapping(fqdn, fqdnType)
 			}
@@ -923,7 +923,7 @@ func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (
 		newShardSize = oldShardSize
 		newInfraPrefix = oldInfraPrefix
 	} else if newSetting != nil {
-		if newSetting.Spec.L7Settings != (akov1alpha1.AviInfraL7Settings{}) {
+		if newSetting.Spec.L7Settings != (akov1beta1.AviInfraL7Settings{}) {
 			newShardSize = lib.ShardSizeMap[newSetting.Spec.L7Settings.ShardSize]
 		}
 		newInfraPrefix = newSetting.Name
@@ -958,7 +958,7 @@ func DerivePassthroughVS(hostname string, key string, routeIgrObj RouteIngressMo
 		newShardSize = oldShardSize
 		newInfraPrefix = oldInfraPrefix
 	} else if newSetting != nil {
-		if newSetting.Spec.L7Settings != (akov1alpha1.AviInfraL7Settings{}) {
+		if newSetting.Spec.L7Settings != (akov1beta1.AviInfraL7Settings{}) {
 			newShardSize = lib.ShardSizeMap[newSetting.Spec.L7Settings.ShardSize]
 		}
 		newInfraPrefix = newSetting.Name

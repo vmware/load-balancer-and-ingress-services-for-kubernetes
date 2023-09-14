@@ -53,14 +53,8 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=ako.vmware.com, Version=v1alpha1
-	case v1alpha1.SchemeGroupVersion.WithResource("aviinfrasettings"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Ako().V1alpha1().AviInfraSettings().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("clustersets"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ako().V1alpha1().ClusterSets().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("httprules"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Ako().V1alpha1().HTTPRules().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("hostrules"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Ako().V1alpha1().HostRules().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("multiclusteringresses"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ako().V1alpha1().MultiClusterIngresses().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("serviceimports"):

@@ -25,8 +25,8 @@ import (
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -587,9 +587,9 @@ func GetDefaultSubDomain() []string {
 	return cloudProperty.NSIpamDNS
 }
 
-func getL4InfraSetting(key, namespace string, svc *corev1.Service, advl4GWClassName *string) (*akov1alpha1.AviInfraSetting, error) {
+func getL4InfraSetting(key, namespace string, svc *corev1.Service, advl4GWClassName *string) (*akov1beta1.AviInfraSetting, error) {
 	var err error
-	var infraSetting *akov1alpha1.AviInfraSetting
+	var infraSetting *akov1beta1.AviInfraSetting
 
 	if lib.UseServicesAPI() && advl4GWClassName != nil {
 		gwClass, err := lib.AKOControlConfig().SvcAPIInformers().GatewayClassInformer.Lister().Get(*advl4GWClassName)

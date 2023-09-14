@@ -24,6 +24,8 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
+	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
 	corev1 "k8s.io/api/core/v1"
@@ -41,6 +43,7 @@ import (
 
 var kubeClient *k8sfake.Clientset
 var crdClient *crdfake.Clientset
+var v1beta1crdClient *v1beta1crdfake.Clientset
 var dynamicClient *dynamicfake.FakeDynamicClient
 var keyChan chan string
 var ctrl *k8s.AviController
@@ -106,7 +109,9 @@ func TestMain(m *testing.M) {
 
 	akoControlConfig := lib.AKOControlConfig()
 	crdClient = crdfake.NewSimpleClientset()
+	v1beta1crdClient = v1beta1crdfake.NewSimpleClientset()
 	akoControlConfig.SetCRDClientset(crdClient)
+	akoControlConfig.Setv1beta1CRDClientset(v1beta1crdClient)
 	akoControlConfig.SetAKOInstanceFlag(true)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, true)
 
@@ -125,7 +130,7 @@ func TestMain(m *testing.M) {
 	args := make(map[string]interface{})
 	args[utils.INFORMERS_AKO_CLIENT] = crdClient
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, args)
-	k8s.NewCRDInformers(crdClient)
+	k8s.NewCRDInformers()
 	integrationtest.InitializeFakeAKOAPIServer()
 
 	integrationtest.NewAviFakeClientInstance(kubeClient)

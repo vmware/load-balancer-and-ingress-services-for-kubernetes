@@ -27,6 +27,8 @@ import (
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
+	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 	advl4fake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned/fake"
@@ -42,6 +44,7 @@ import (
 var KubeClient *k8sfake.Clientset
 var AdvL4Client *advl4fake.Clientset
 var CRDClient *crdfake.Clientset
+var V1beta1CRDClient *v1beta1crdfake.Clientset
 var ctrl *k8s.AviController
 
 func TestMain(m *testing.M) {
@@ -55,9 +58,11 @@ func TestMain(m *testing.M) {
 	KubeClient = k8sfake.NewSimpleClientset()
 	AdvL4Client = advl4fake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
+	V1beta1CRDClient = v1beta1crdfake.NewSimpleClientset()
 	akoControlConfig.SetAKOInstanceFlag(true)
 	akoControlConfig.SetAdvL4Clientset(AdvL4Client)
-	akoControlConfig.SetCRDClientsetAndEnableInfraSettingParam(CRDClient)
+	akoControlConfig.Setv1beta1CRDClientset(V1beta1CRDClient)
+	akoControlConfig.SetCRDClientsetAndEnableInfraSettingParam(V1beta1CRDClient)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
 	data := map[string][]byte{
 		"username": []byte("admin"),
@@ -76,7 +81,7 @@ func TestMain(m *testing.M) {
 	}
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
-	k8s.NewCRDInformers(CRDClient)
+	k8s.NewCRDInformers()
 	k8s.NewAdvL4Informers(AdvL4Client)
 
 	mcache := cache.SharedAviObjCache()

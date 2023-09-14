@@ -35,9 +35,13 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
 	v1alpha2crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned/fake"
+	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/onsi/gomega"
@@ -76,6 +80,7 @@ const (
 var KubeClient *k8sfake.Clientset
 var CRDClient *crdfake.Clientset
 var v1alpha2CRDClient *v1alpha2crdfake.Clientset
+var v1beta1CRDClient *v1beta1crdfake.Clientset
 var ctrl *k8s.AviController
 
 var AllModels = []string{
@@ -1437,25 +1442,25 @@ type FakeHostRule struct {
 	GslbFqdn           string
 }
 
-func (hr FakeHostRule) HostRule() *akov1alpha1.HostRule {
+func (hr FakeHostRule) HostRule() *akov1beta1.HostRule {
 	enable := true
-	hostrule := &akov1alpha1.HostRule{
+	hostrule := &akov1beta1.HostRule{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: hr.Namespace,
 			Name:      hr.Name,
 		},
-		Spec: akov1alpha1.HostRuleSpec{
-			VirtualHost: akov1alpha1.HostRuleVirtualHost{
+		Spec: akov1beta1.HostRuleSpec{
+			VirtualHost: akov1beta1.HostRuleVirtualHost{
 				Fqdn: hr.Fqdn,
-				TLS: akov1alpha1.HostRuleTLS{
-					SSLKeyCertificate: akov1alpha1.HostRuleSSLKeyCertificate{
+				TLS: akov1beta1.HostRuleTLS{
+					SSLKeyCertificate: akov1beta1.HostRuleSSLKeyCertificate{
 						Name: hr.SslKeyCertificate,
 						Type: "ref",
 					},
 					SSLProfile:  hr.SslProfile,
 					Termination: "edge",
 				},
-				HTTPPolicy: akov1alpha1.HostRuleHTTPPolicy{
+				HTTPPolicy: akov1beta1.HostRuleHTTPPolicy{
 					PolicySets: hr.HttpPolicySets,
 					Overwrite:  false,
 				},
@@ -1466,7 +1471,7 @@ func (hr FakeHostRule) HostRule() *akov1alpha1.HostRule {
 				ErrorPageProfile:   hr.ErrorPageProfile,
 				Datascripts:        hr.Datascripts,
 				EnableVirtualHost:  &enable,
-				Gslb: akov1alpha1.HostRuleGSLB{
+				Gslb: akov1beta1.HostRuleGSLB{
 					Fqdn: hr.GslbFqdn,
 				},
 			},
@@ -1495,7 +1500,7 @@ func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool, gslbHost ...s
 		hostrule.GslbFqdn = gslbHost[0]
 		hrUpdate := hostrule.HostRule()
 		hrUpdate.ResourceVersion = "2"
-		if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{}); err != nil {
+		if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{}); err != nil {
 			t.Fatalf("error in updating HostRule: %v", err)
 		}
 		return
@@ -1506,7 +1511,7 @@ func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool, gslbHost ...s
 	}
 
 	hrCreate := hostrule.HostRule()
-	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Create(context.TODO(), hrCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Create(context.TODO(), hrCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding HostRule: %v", err)
 	}
 }
@@ -1605,7 +1610,7 @@ func SetupSSORule(t *testing.T, srname, fqdn string, ssoType string) {
 }
 
 func TeardownHostRule(t *testing.T, g *gomega.WithT, vskey cache.NamespaceName, hrname string) {
-	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
+	if err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting HostRule: %v", err)
 	}
 	VerifyMetadataHostRule(t, g, vskey, "default/"+hrname, false)
@@ -1619,7 +1624,7 @@ func TeardownSSORule(t *testing.T, g *gomega.WithT, vskey cache.NamespaceName, s
 }
 
 func TearDownHostRuleWithNoVerify(t *testing.T, g *gomega.WithT, hrname string) {
-	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
+	if err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting HostRule: %v", err)
 	}
 }
@@ -1641,17 +1646,17 @@ type FakeHTTPRulePath struct {
 	Hash           string
 }
 
-func (rr FakeHTTPRule) HTTPRule() *akov1alpha1.HTTPRule {
-	var rrPaths []akov1alpha1.HTTPRulePaths
+func (rr FakeHTTPRule) HTTPRule() *akov1beta1.HTTPRule {
+	var rrPaths []akov1beta1.HTTPRulePaths
 	for _, p := range rr.PathProperties {
-		rrForPath := akov1alpha1.HTTPRulePaths{
+		rrForPath := akov1beta1.HTTPRulePaths{
 			Target:         p.Path,
 			HealthMonitors: p.HealthMonitors,
-			TLS: akov1alpha1.HTTPRuleTLS{
+			TLS: akov1beta1.HTTPRuleTLS{
 				Type:       "reencrypt",
 				SSLProfile: p.SslProfile,
 			},
-			LoadBalancerPolicy: akov1alpha1.HTTPRuleLBPolicy{
+			LoadBalancerPolicy: akov1beta1.HTTPRuleLBPolicy{
 				Algorithm: p.LbAlgorithm,
 				Hash:      p.Hash,
 			},
@@ -1664,12 +1669,12 @@ func (rr FakeHTTPRule) HTTPRule() *akov1alpha1.HTTPRule {
 		}
 		rrPaths = append(rrPaths, rrForPath)
 	}
-	return &akov1alpha1.HTTPRule{
+	return &akov1beta1.HTTPRule{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: rr.Namespace,
 			Name:      rr.Name,
 		},
-		Spec: akov1alpha1.HTTPRuleSpec{
+		Spec: akov1beta1.HTTPRuleSpec{
 			Fqdn:  rr.Fqdn,
 			Paths: rrPaths,
 		},
@@ -1692,13 +1697,13 @@ func SetupHTTPRule(t *testing.T, rrname, fqdn, path string) {
 	}
 
 	rrCreate := httprule.HTTPRule()
-	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HTTPRules("default").Create(context.TODO(), rrCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HTTPRules("default").Create(context.TODO(), rrCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding HTTPRule: %v", err)
 	}
 }
 
 func TeardownHTTPRule(t *testing.T, rrname string) {
-	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HTTPRules("default").Delete(context.TODO(), rrname, metav1.DeleteOptions{}); err != nil {
+	if err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HTTPRules("default").Delete(context.TODO(), rrname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting HTTPRule: %v", err)
 	}
 }
@@ -1935,28 +1940,28 @@ type FakeAviInfraSetting struct {
 	T1LR           string
 }
 
-func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraSetting {
-	setting := &akov1alpha1.AviInfraSetting{
+func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1beta1.AviInfraSetting {
+	setting := &akov1beta1.AviInfraSetting{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: infraSetting.Name,
 		},
-		Spec: akov1alpha1.AviInfraSettingSpec{
-			SeGroup: akov1alpha1.AviInfraSettingSeGroup{
+		Spec: akov1beta1.AviInfraSettingSpec{
+			SeGroup: akov1beta1.AviInfraSettingSeGroup{
 				Name: infraSetting.SeGroupName,
 			},
-			Network: akov1alpha1.AviInfraSettingNetwork{
+			Network: akov1beta1.AviInfraSettingNetwork{
 				EnableRhi:      &infraSetting.EnableRhi,
 				BgpPeerLabels:  infraSetting.BGPPeerLabels,
 				EnablePublicIP: &infraSetting.EnablePublicIP,
 			},
-			NSXSettings: akov1alpha1.AviInfraNSXSettings{
+			NSXSettings: akov1beta1.AviInfraNSXSettings{
 				T1LR: &infraSetting.T1LR,
 			},
 		},
 	}
 
 	for _, networkName := range infraSetting.Networks {
-		setting.Spec.Network.VipNetworks = append(setting.Spec.Network.VipNetworks, akov1alpha1.AviInfraSettingVipNetwork{
+		setting.Spec.Network.VipNetworks = append(setting.Spec.Network.VipNetworks, akov1beta1.AviInfraSettingVipNetwork{
 			NetworkName: networkName,
 		})
 	}
@@ -1979,13 +1984,13 @@ func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string) {
 		T1LR:          "avi-domain-c9:1234",
 	}
 	settingCreate := setting.AviInfraSetting()
-	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding AviInfraSetting: %v", err)
 	}
 }
 
 func TeardownAviInfraSetting(t *testing.T, infraSettingName string) {
-	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Delete(context.TODO(), infraSettingName, metav1.DeleteOptions{}); err != nil {
+	if err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Delete(context.TODO(), infraSettingName, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting AviInfraSetting: %v", err)
 	}
 }

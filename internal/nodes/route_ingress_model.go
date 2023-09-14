@@ -21,6 +21,8 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -42,7 +44,7 @@ type RouteIngressModel interface {
 	// later if we decide to have common naming for ingress and route, then we can hav a common method
 	GetDiffPathSvc(map[string][]string, []IngressHostPathSvc, bool) map[string][]string
 
-	GetAviInfraSetting() *akov1alpha1.AviInfraSetting
+	GetAviInfraSetting() *akov1beta1.AviInfraSetting
 }
 
 // OshiftRouteModel : Model for openshift routes with it's own service lister
@@ -51,7 +53,7 @@ type OshiftRouteModel struct {
 	name         string
 	namespace    string
 	spec         routev1.RouteSpec
-	infrasetting *akov1alpha1.AviInfraSetting
+	infrasetting *akov1beta1.AviInfraSetting
 	annotations  map[string]string
 }
 
@@ -61,7 +63,7 @@ type K8sIngressModel struct {
 	name         string
 	namespace    string
 	spec         networkingv1.IngressSpec
-	infrasetting *akov1alpha1.AviInfraSetting
+	infrasetting *akov1beta1.AviInfraSetting
 	annotations  map[string]string
 }
 
@@ -155,7 +157,7 @@ func (m *OshiftRouteModel) GetDiffPathSvc(storedPathSvc map[string][]string, cur
 	return pathSvcCopy
 }
 
-func (m *OshiftRouteModel) GetAviInfraSetting() *akov1alpha1.AviInfraSetting {
+func (m *OshiftRouteModel) GetAviInfraSetting() *akov1beta1.AviInfraSetting {
 	return m.infrasetting.DeepCopy()
 }
 
@@ -241,12 +243,12 @@ func (m *K8sIngressModel) GetDiffPathSvc(storedPathSvc map[string][]string, curr
 	return pathSvcCopy
 }
 
-func (m *K8sIngressModel) GetAviInfraSetting() *akov1alpha1.AviInfraSetting {
+func (m *K8sIngressModel) GetAviInfraSetting() *akov1beta1.AviInfraSetting {
 	return m.infrasetting.DeepCopy()
 }
 
-func getL7IngressInfraSetting(key string, ingClassName string, namespace string) (*akov1alpha1.AviInfraSetting, error) {
-	var infraSetting *akov1alpha1.AviInfraSetting
+func getL7IngressInfraSetting(key string, ingClassName string, namespace string) (*akov1beta1.AviInfraSetting, error) {
+	var infraSetting *akov1beta1.AviInfraSetting
 
 	if ingClassName == "" {
 		if defaultIngressClass, found := lib.IsAviLBDefaultIngressClass(); !found {
@@ -279,9 +281,9 @@ func getL7IngressInfraSetting(key string, ingClassName string, namespace string)
 	return getNamespaceAviInfraSetting(key, namespace)
 }
 
-func getL7RouteInfraSetting(key string, routeAnnotations map[string]string, namespace string) (*akov1alpha1.AviInfraSetting, error) {
+func getL7RouteInfraSetting(key string, routeAnnotations map[string]string, namespace string) (*akov1beta1.AviInfraSetting, error) {
 	var err error
-	var infraSetting *akov1alpha1.AviInfraSetting
+	var infraSetting *akov1beta1.AviInfraSetting
 
 	if infraSettingAnnotation, ok := routeAnnotations[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
 		infraSetting, err = lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingAnnotation)
@@ -377,15 +379,15 @@ func (mciModel *multiClusterIngressModel) GetDiffPathSvc(storedPathSvc map[strin
 	return pathSvcCopy
 }
 
-func (mciModel *multiClusterIngressModel) GetAviInfraSetting() *akov1alpha1.AviInfraSetting {
+func (mciModel *multiClusterIngressModel) GetAviInfraSetting() *akov1beta1.AviInfraSetting {
 	enablePublicIP := true
-	return &akov1alpha1.AviInfraSetting{
-		Spec: akov1alpha1.AviInfraSettingSpec{
-			Network: akov1alpha1.AviInfraSettingNetwork{
+	return &akov1beta1.AviInfraSetting{
+		Spec: akov1beta1.AviInfraSettingSpec{
+			Network: akov1beta1.AviInfraSettingNetwork{
 				EnablePublicIP: &enablePublicIP,
 			},
 		},
-		Status: akov1alpha1.AviInfraSettingStatus{
+		Status: akov1beta1.AviInfraSettingStatus{
 			Status: lib.StatusAccepted,
 		},
 	}

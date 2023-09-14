@@ -20,7 +20,7 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
@@ -308,7 +308,7 @@ func (o *AviObjectGraph) BuildTlsCertNode(svcLister *objects.SvcLister, tlsNode 
 	return true
 }
 
-func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string, isIngr bool, infraSetting *akov1alpha1.AviInfraSetting, hostName string) {
+func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *AviVsNode, namespace string, ingName string, hostpath TlsSettings, secretName string, key string, isIngr bool, infraSetting *akov1beta1.AviInfraSetting, hostName string) {
 	localPGList := make(map[string]*AviPoolGroupNode)
 	var sniFQDNs []string
 	var priorityLabel string
@@ -642,7 +642,7 @@ func RemoveFqdnFromVIP(vsNode *AviVsNode, key string, Fqdns []string) {
 		}
 	}
 }
-func buildWithInfraSetting(key, namespace string, vs *AviVsNode, vsvip *AviVSVIPNode, infraSetting *akov1alpha1.AviInfraSetting) {
+func buildWithInfraSetting(key, namespace string, vs *AviVsNode, vsvip *AviVSVIPNode, infraSetting *akov1beta1.AviInfraSetting) {
 	if infraSetting != nil && infraSetting.Status.Status == lib.StatusAccepted {
 		if infraSetting.Spec.SeGroup.Name != "" {
 			// This assumes that the SeGroup has the appropriate labels configured
@@ -687,7 +687,7 @@ func buildWithInfraSetting(key, namespace string, vs *AviVsNode, vsvip *AviVSVIP
 	}
 }
 
-func buildPoolWithInfraSetting(key string, pool *AviPoolNode, infraSetting *akov1alpha1.AviInfraSetting) {
+func buildPoolWithInfraSetting(key string, pool *AviPoolNode, infraSetting *akov1beta1.AviInfraSetting) {
 	if infraSetting != nil && infraSetting.Status.Status == lib.StatusAccepted {
 		if infraSetting.Spec.Network.NodeNetworks != nil && len(infraSetting.Spec.Network.NodeNetworks) > 0 {
 			pool.NetworkPlacementSettings = lib.GetNodeInfraNetworkList(infraSetting.Name)
@@ -699,7 +699,7 @@ func buildPoolWithInfraSetting(key string, pool *AviPoolNode, infraSetting *akov
 	}
 }
 
-func buildListenerPortsWithInfraSetting(infraSetting *akov1alpha1.AviInfraSetting, aviPortProto []AviPortHostProtocol) []AviPortHostProtocol {
+func buildListenerPortsWithInfraSetting(infraSetting *akov1beta1.AviInfraSetting, aviPortProto []AviPortHostProtocol) []AviPortHostProtocol {
 	for _, listener := range infraSetting.Spec.Network.Listeners {
 		found := false
 		if listener.Port == nil {
