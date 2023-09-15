@@ -1380,6 +1380,7 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 		if lib.AKOControlConfig().AviInfraSettingEnabled() {
 			go lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().Run(stopCh)
 			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().HasSynced)
+
 		}
 
 		// separate wait steps to try getting hostrules synced first,

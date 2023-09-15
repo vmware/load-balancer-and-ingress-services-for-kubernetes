@@ -18,10 +18,6 @@ limitations under the License.
 
 package v1alpha1
 
-// AviInfraSettingListerExpansion allows custom methods to be added to
-// AviInfraSettingLister.
-type AviInfraSettingListerExpansion interface{}
-
 // ClusterSetListerExpansion allows custom methods to be added to
 // ClusterSetLister.
 type ClusterSetListerExpansion interface{}
@@ -29,22 +25,6 @@ type ClusterSetListerExpansion interface{}
 // ClusterSetNamespaceListerExpansion allows custom methods to be added to
 // ClusterSetNamespaceLister.
 type ClusterSetNamespaceListerExpansion interface{}
-
-// HTTPRuleListerExpansion allows custom methods to be added to
-// HTTPRuleLister.
-type HTTPRuleListerExpansion interface{}
-
-// HTTPRuleNamespaceListerExpansion allows custom methods to be added to
-// HTTPRuleNamespaceLister.
-type HTTPRuleNamespaceListerExpansion interface{}
-
-// HostRuleListerExpansion allows custom methods to be added to
-// HostRuleLister.
-type HostRuleListerExpansion interface{}
-
-// HostRuleNamespaceListerExpansion allows custom methods to be added to
-// HostRuleNamespaceLister.
-type HostRuleNamespaceListerExpansion interface{}
 
 // MultiClusterIngressListerExpansion allows custom methods to be added to
 // MultiClusterIngressLister.

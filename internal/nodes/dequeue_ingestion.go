@@ -23,7 +23,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -263,9 +263,11 @@ func DequeueIngestion(key string, fullsync bool) {
 				} else {
 					aviModelGraph := NewAviObjectGraph()
 					aviModelGraph.BuildAdvancedL4Graph(namespace, gwName, key, false)
-					ok := saveAviModel(modelName, aviModelGraph, key)
-					if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
-						PublishKeyToRestLayer(modelName, key, sharedQueue)
+					if len(aviModelGraph.GetOrderedNodes()) > 0 {
+						ok := saveAviModel(modelName, aviModelGraph, key)
+						if ok && !fullsync {
+							PublishKeyToRestLayer(modelName, key, sharedQueue)
+						}
 					}
 				}
 			}
@@ -330,7 +332,7 @@ func handleHostRuleForSharedVS(key string, fullsync bool) {
 				objects.SharedCRDLister().UpdateFQDNHostruleMapping(fqdn, namespace+"/"+hrName)
 				fqdnType = string(hostrule.Spec.VirtualHost.FqdnType)
 				if fqdnType == "" {
-					fqdnType = string(akov1alpha1.Exact)
+					fqdnType = string(akov1beta1.Exact)
 				}
 				objects.SharedCRDLister().UpdateFQDNFQDNTypeMapping(fqdn, fqdnType)
 			}
@@ -644,9 +646,11 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 		aviModelGraph := NewAviObjectGraph()
 		vipKey := strings.Split(namespacedVipKey, "/")[1]
 		aviModelGraph.BuildAdvancedL4Graph(namespace, vipKey, key, true)
-		ok := saveAviModel(modelName, aviModelGraph, key)
-		if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
-			PublishKeyToRestLayer(modelName, key, sharedQueue)
+		if len(aviModelGraph.GetOrderedNodes()) > 0 {
+			ok := saveAviModel(modelName, aviModelGraph, key)
+			if ok && !fullsync {
+				PublishKeyToRestLayer(modelName, key, sharedQueue)
+			}
 		}
 	}
 }
@@ -919,7 +923,7 @@ func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (
 		newShardSize = oldShardSize
 		newInfraPrefix = oldInfraPrefix
 	} else if newSetting != nil {
-		if newSetting.Spec.L7Settings != (akov1alpha1.AviInfraL7Settings{}) {
+		if newSetting.Spec.L7Settings != (akov1beta1.AviInfraL7Settings{}) {
 			newShardSize = lib.ShardSizeMap[newSetting.Spec.L7Settings.ShardSize]
 		}
 		newInfraPrefix = newSetting.Name
@@ -954,7 +958,7 @@ func DerivePassthroughVS(hostname string, key string, routeIgrObj RouteIngressMo
 		newShardSize = oldShardSize
 		newInfraPrefix = oldInfraPrefix
 	} else if newSetting != nil {
-		if newSetting.Spec.L7Settings != (akov1alpha1.AviInfraL7Settings{}) {
+		if newSetting.Spec.L7Settings != (akov1beta1.AviInfraL7Settings{}) {
 			newShardSize = lib.ShardSizeMap[newSetting.Spec.L7Settings.ShardSize]
 		}
 		newInfraPrefix = newSetting.Name

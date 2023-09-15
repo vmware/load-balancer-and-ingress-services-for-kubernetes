@@ -64,6 +64,7 @@ const (
 	SYSTEM_SCTP_PROXY             = "System-SCTP-Proxy"
 	MIXED_NET_PROFILE             = "Mixed-Network-Profile-Internal"
 	DEFAULT_L4_APP_PROFILE        = "System-L4-Application"
+	DEFAULT_L4_SSL_APP_PROFILE    = "System-SSL-Application"
 	DEFAULT_L7_APP_PROFILE        = "System-HTTP"
 	DEFAULT_L7_SECURE_APP_PROFILE = "System-Secure-HTTP"
 	DEFAULT_SHARD_VS_PREFIX       = "Shard-VS-"

@@ -33,9 +33,12 @@ import (
 	"github.com/vmware/alb-sdk/go/models"
 
 	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
-	akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions/ako/v1alpha1"
+
 	v1alpha2akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned"
 	v1alpha2akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/informers/externalversions/ako/v1alpha2"
+	v1beta1akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned"
+	v1beta1akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/informers/externalversions/ako/v1beta1"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 
@@ -54,9 +57,9 @@ type ServicesAPIInformers struct {
 }
 
 type AKOCrdInformers struct {
-	HostRuleInformer        akoinformer.HostRuleInformer
-	HTTPRuleInformer        akoinformer.HTTPRuleInformer
-	AviInfraSettingInformer akoinformer.AviInfraSettingInformer
+	HostRuleInformer        v1beta1akoinformer.HostRuleInformer
+	HTTPRuleInformer        v1beta1akoinformer.HTTPRuleInformer
+	AviInfraSettingInformer v1beta1akoinformer.AviInfraSettingInformer
 	SSORuleInformer         v1alpha2akoinformer.SSORuleInformer
 	L4RuleInformer          v1alpha2akoinformer.L4RuleInformer
 }
@@ -87,6 +90,7 @@ type akoControlConfig struct {
 	svcAPIInformers *ServicesAPIInformers
 
 	// client-set and informer for v1alpha1 AKO CRDs.
+	// can't remove it as MCI and serviceimport uses it.
 	crdClientset akocrd.Interface
 	crdInformers *AKOCrdInformers
 
@@ -113,6 +117,9 @@ type akoControlConfig struct {
 
 	// client-set and informer for v1alpha2 of AKO CRD.
 	v1alpha2crdClientset v1alpha2akocrd.Interface
+
+	//client set and informer for v1beta1
+	v1beta1crdClientset v1beta1akocrd.Interface
 
 	// ssoRuleEnabled is set to true if the cluster has
 	// SSORule CRD installed.
@@ -224,8 +231,8 @@ func (c *akoControlConfig) SetCRDClientset(cs akocrd.Interface) {
 	c.SetCRDEnabledParams(cs)
 }
 
-func (c *akoControlConfig) SetCRDClientsetAndEnableInfraSettingParam(cs akocrd.Interface) {
-	c.crdClientset = cs
+func (c *akoControlConfig) SetCRDClientsetAndEnableInfraSettingParam(cs v1beta1akocrd.Interface) {
+	c.v1beta1crdClientset = cs
 	c.aviInfraSettingEnabled = true
 }
 
@@ -242,8 +249,21 @@ func (c *akoControlConfig) V1alpha2CRDClientset() v1alpha2akocrd.Interface {
 	return c.v1alpha2crdClientset
 }
 
+func (c *akoControlConfig) Setv1beta1CRDClientset(cs v1beta1akocrd.Interface) {
+	c.v1beta1crdClientset = cs
+	c.Setv1beta1CRDEnabledParams(cs)
+}
+
+func (c *akoControlConfig) V1beta1CRDClientset() v1beta1akocrd.Interface {
+	return c.v1beta1crdClientset
+}
+func (c *akoControlConfig) Setv1beta1CRDEnabledParams(cs v1beta1akocrd.Interface) {
+	c.aviInfraSettingEnabled = true
+	c.hostRuleEnabled = true
+	c.httpRuleEnabled = true
+}
+
 // CRDs are by default installed on all AKO deployments. So always enable CRD parameters.
-// TODO: Optimise
 func (c *akoControlConfig) SetCRDEnabledParams(cs akocrd.Interface) {
 	c.aviInfraSettingEnabled = true
 	c.hostRuleEnabled = true

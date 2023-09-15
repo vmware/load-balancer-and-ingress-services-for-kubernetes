@@ -24,7 +24,7 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
@@ -60,8 +60,8 @@ type AviVsEvhSniModel interface {
 	GetServiceMetadata() lib.ServiceMetadataObj
 	SetServiceMetadata(lib.ServiceMetadataObj)
 
-	GetSSLKeyCertAviRef() []string
-	SetSSLKeyCertAviRef([]string)
+	GetSslKeyAndCertificateRefs() []string
+	SetSslKeyAndCertificateRefs([]string)
 
 	GetWafPolicyRef() *string
 	SetWafPolicyRef(*string)
@@ -137,10 +137,10 @@ type AviEvhVsNode struct {
 	ICAPProfileRefs     []string
 	ErrorPageProfileRef string
 	HttpPolicySetRefs   []string
-	SSLKeyCertAviRef    []string
 	Paths               []string
 	IngressNames        []string
 	Dedicated           bool
+	VHMatches           []*avimodels.VHMatch
 
 	AviVsNodeCommonFields
 
@@ -213,12 +213,12 @@ func (v *AviEvhVsNode) SetServiceMetadata(serviceMetadata lib.ServiceMetadataObj
 	v.ServiceMetadata = serviceMetadata
 }
 
-func (v *AviEvhVsNode) GetSSLKeyCertAviRef() []string {
-	return v.SSLKeyCertAviRef
+func (v *AviEvhVsNode) GetSslKeyAndCertificateRefs() []string {
+	return v.SslKeyAndCertificateRefs
 }
 
-func (v *AviEvhVsNode) SetSSLKeyCertAviRef(sslKeyCertAviRef []string) {
-	v.SSLKeyCertAviRef = sslKeyCertAviRef
+func (v *AviEvhVsNode) SetSslKeyAndCertificateRefs(sslKeyAndCertificateRefs []string) {
+	v.SslKeyAndCertificateRefs = sslKeyAndCertificateRefs
 }
 
 func (v *AviEvhVsNode) GetWafPolicyRef() *string {
@@ -621,7 +621,7 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 
 	for _, evhnode := range v.EvhNodes {
 		checksumStringSlice = append(checksumStringSlice, "EVHNode"+evhnode.Name)
-		for _, evhcert := range evhnode.SSLKeyCertAviRef {
+		for _, evhcert := range evhnode.SslKeyAndCertificateRefs {
 			checksumStringSlice = append(checksumStringSlice, "EVHNodeSSL"+evhcert)
 
 		}
@@ -694,6 +694,14 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 	}
 
 	checksum += v.AviVsNodeGeneratedFields.CalculateCheckSumOfGeneratedCode()
+
+	if v.VHMatches != nil {
+		checksum += utils.Hash(utils.Stringify(v.VHMatches))
+	}
+
+	if v.DefaultPoolGroup != "" {
+		checksum += utils.Hash(v.DefaultPoolGroup)
+	}
 
 	v.CloudConfigCksum = checksum
 }
@@ -821,7 +829,7 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 	}
 }
 
-func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childNode *AviEvhVsNode, namespace, ingName, key string, infraSetting *akov1alpha1.AviInfraSetting, hosts []string, paths []IngressHostPathSvc, tlsSettings *TlsSettings, modelType string) {
+func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childNode *AviEvhVsNode, namespace, ingName, key string, infraSetting *akov1beta1.AviInfraSetting, hosts []string, paths []IngressHostPathSvc, tlsSettings *TlsSettings, modelType string) {
 	localPGList := make(map[string]*AviPoolGroupNode)
 	var httppolname string
 	var policyNode *AviHttpPolicySetNode
@@ -1034,7 +1042,7 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 	utils.AviLog.Debugf("key: %s, msg: Storedhosts after processing insecurehosts: %s", key, utils.Stringify(Storedhosts))
 }
 
-func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressModel, host string, infraSetting *akov1alpha1.AviInfraSetting, key string, pathsvcmap HostMetadata) {
+func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressModel, host string, infraSetting *akov1beta1.AviInfraSetting, key string, pathsvcmap HostMetadata) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	var evhNode *AviEvhVsNode
@@ -1389,7 +1397,7 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 	return hostPathSvcMap
 }
 
-func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressModel, ingressHostMap SecureHostNameMapProp, hosts []string, tlssetting TlsSettings, ingName, namespace string, infraSetting *akov1alpha1.AviInfraSetting, host, key string, paths HostMetadata) {
+func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressModel, ingressHostMap SecureHostNameMapProp, hosts []string, tlssetting TlsSettings, ingName, namespace string, infraSetting *akov1beta1.AviInfraSetting, host, key string, paths HostMetadata) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	var evhNode *AviEvhVsNode
@@ -1713,7 +1721,7 @@ func DeriveShardVSForEvh(hostname, key string, routeIgrObj RouteIngressModel) (l
 		newShardSize = oldShardSize
 		newInfraPrefix = oldInfraPrefix
 	} else if newSetting != nil {
-		if newSetting.Spec.L7Settings != (akov1alpha1.AviInfraL7Settings{}) {
+		if newSetting.Spec.L7Settings != (akov1beta1.AviInfraL7Settings{}) {
 			newShardSize = lib.ShardSizeMap[newSetting.Spec.L7Settings.ShardSize]
 		}
 		newInfraPrefix = newSetting.Name
@@ -2089,7 +2097,7 @@ func DeleteStaleDataForModelChangeForEvh(routeIgrObj RouteIngressModel, namespac
 	}
 }
 
-func buildWithInfraSettingForEvh(key, namespace string, vs *AviEvhVsNode, vsvip *AviVSVIPNode, infraSetting *akov1alpha1.AviInfraSetting) {
+func buildWithInfraSettingForEvh(key, namespace string, vs *AviEvhVsNode, vsvip *AviVSVIPNode, infraSetting *akov1beta1.AviInfraSetting) {
 	if infraSetting != nil && infraSetting.Status.Status == lib.StatusAccepted {
 		if infraSetting.Spec.SeGroup.Name != "" {
 			// This assumes that the SeGroup has the appropriate labels configured
@@ -2126,6 +2134,9 @@ func buildWithInfraSettingForEvh(key, namespace string, vs *AviEvhVsNode, vsvip 
 		if (vs.EVHParent || vs.Dedicated) && (infraSetting.Spec.Network.Listeners != nil && len(infraSetting.Spec.Network.Listeners) > 0) {
 			portProto := buildListenerPortsWithInfraSetting(infraSetting, vs.PortProto)
 			vs.SetPortProtocols(portProto)
+		}
+		if infraSetting.Spec.NSXSettings.T1LR != nil {
+			vsvip.T1Lr = *infraSetting.Spec.NSXSettings.T1LR
 		}
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 	}

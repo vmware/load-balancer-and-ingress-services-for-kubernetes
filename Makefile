@@ -5,9 +5,11 @@ GOGET=$(GOCMD) get
 GOTEST=$(GOCMD) test
 BINARY_NAME_AKO=ako
 BINARY_NAME_AKO_INFRA=ako-infra
+BINARY_NAME_AKO_GATEWAY_API=ako-gateway-api
 PACKAGE_PATH_AKO=github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
 REL_PATH_AKO=$(PACKAGE_PATH_AKO)/cmd/ako-main
 REL_PATH_AKO_INFRA=$(PACKAGE_PATH_AKO)/cmd/infra-main
+REL_PATH_AKO_GATEWAY_API=$(PACKAGE_PATH_AKO)/cmd/gateway-api
 AKO_OPERATOR_IMAGE=ako-operator
 
 define GetSupportabilityMatrix
@@ -94,6 +96,17 @@ build-infra: pre-build glob-vars
 		-mod=vendor \
 		/go/src/$(REL_PATH_AKO_INFRA)
 
+.PHONY: build-gateway-api
+build-gateway-api: glob-vars
+		sudo docker run \
+		-w=/go/src/$(PACKAGE_PATH_AKO) \
+		-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+		$(GOBUILD) \
+		-o /go/src/$(PACKAGE_PATH_AKO)/bin/$(BINARY_NAME_AKO_GATEWAY_API) \
+		-ldflags $(AKO_LDFLAGS) \
+		-mod=vendor \
+		/go/src/$(REL_PATH_AKO_GATEWAY_API)
+
 .PHONY: build-local
 build-local: pre-build
 		$(GOBUILD) \
@@ -146,6 +159,15 @@ ako-operator-docker: glob-vars
 	--label "BUILD_TIME=$(BUILD_TIME)" \
 	$(BUILD_ARG_GOLANG) $(BUILD_ARG_UBI) \
 	-f Dockerfile.ako-operator .
+
+.PHONY: ako-gateway-api-docker
+ako-gateway-api-docker: glob-vars
+	sudo docker build \
+	-t $(BINARY_NAME_AKO_GATEWAY_API):latest \
+	--label "BUILD_TAG=$(BUILD_TAG)" \
+	--label "BUILD_TIME=$(BUILD_TIME)" \
+	$(BUILD_ARG_GOLANG) $(BUILD_ARG_PHOTON) $(BUILD_ARG_AKO_LDFLAGS) \
+	-f Dockerfile.ako-gateway-api .
 
 # tests
 .PHONY: k8stest
@@ -295,9 +317,24 @@ ciliumtests:
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/cnitests -failfast -cniPlugin=cilium
 
+.PHONY: helmtests
+helmtests:
+	sudo docker run \
+	-u root:root \
+	-v $(PWD)/helm/ako:/apps \
+	-v $(PWD)/tests/helmtests:/apps/tests \
+	helmunittest/helm-unittest:3.11.1-0.3.0 .
+
+.PHONY: gatewayapitests
+gatewayapitests:
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	$(GOTEST) -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/... -failfast -timeout 0
+
 .PHONY: int_test
 int_test:
-	make -j 1 k8stest integrationtest ingresstests evhtests vippernstests dedicatedevhtests dedicatedvippernstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc dedicatedvstests multiclusteringresstests hatests calicotests ciliumtests
+	make -j 1 k8stest integrationtest ingresstests evhtests vippernstests dedicatedevhtests dedicatedvippernstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc dedicatedvstests multiclusteringresstests hatests calicotests ciliumtests helmtests gatewayapitests
 
 .PHONY: scale_test
 scale_test:

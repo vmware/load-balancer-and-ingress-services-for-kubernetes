@@ -27,7 +27,8 @@ import (
 	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
@@ -2024,6 +2025,19 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 						}
 					}
 				}
+				if vs["pool_ref"] != nil {
+					poolRef, ok := vs["pool_ref"].(string)
+					if ok {
+						poolNameFromRef := strings.Split(poolRef, "#")[1]
+						poolUuid := ExtractUuid(poolRef, "pool-.*.#")
+						poolNameFromCache, foundPool := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
+						if foundPool && poolNameFromCache.(string) == poolNameFromRef {
+							poolKey := NamespaceName{Namespace: lib.GetTenant(), Name: poolNameFromCache.(string)}
+							poolKeys = append(poolKeys, poolKey)
+						}
+					}
+				}
+
 				// Populate the vscache meta object here.
 				vsMetaObj := AviVsCache{
 					Name:                 vs["name"].(string),
@@ -2616,13 +2630,13 @@ func findHostRefs(client *clients.AviClient, nwUUID string) []string {
 }
 
 // Function to find max host overlap between mgmt network and vipNetwork/nodenetwoeklist
-func findHostWithMaxOverlapping(segMgmtNetwork string, client *clients.AviClient, localNetworkList []models.Network) akov1alpha1.AviInfraSettingVipNetwork {
+func findHostWithMaxOverlapping(segMgmtNetwork string, client *clients.AviClient, localNetworkList []models.Network) akov1beta1.AviInfraSettingVipNetwork {
 	cloudMgmtNW := lib.GetCloudMgmtNetwork()
 	// Use SEG Mgmt network to fetch host refs
 	if segMgmtNetwork != "" {
 		cloudMgmtNW = segMgmtNetwork
 	}
-	var matchedNW akov1alpha1.AviInfraSettingVipNetwork
+	var matchedNW akov1beta1.AviInfraSettingVipNetwork
 	mgmtHostRefs := findHostRefs(client, cloudMgmtNW)
 	utils.AviLog.Infof("For Management network:%s, hosts are: %v", cloudMgmtNW, utils.Stringify(mgmtHostRefs))
 	mgmtHostsSet := sets.NewString(mgmtHostRefs...)
@@ -2666,7 +2680,7 @@ func findHostWithMaxOverlapping(segMgmtNetwork string, client *clients.AviClient
 	return matchedNW
 }
 
-func FindCIDROverlapping(networks []models.Network, ipNet akov1alpha1.AviInfraSettingVipNetwork) (bool, models.Network) {
+func FindCIDROverlapping(networks []models.Network, ipNet akov1beta1.AviInfraSettingVipNetwork) (bool, models.Network) {
 	localVIPNetwork := models.Network{}
 	countOfCidrMatchReq := 0
 	if ipNet.Cidr != "" {
@@ -2714,14 +2728,14 @@ func FindCIDROverlapping(networks []models.Network, ipNet akov1alpha1.AviInfraSe
 	return networkFound, localVIPNetwork
 }
 
-func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient, vipNetworks []akov1alpha1.AviInfraSettingVipNetwork) []akov1alpha1.AviInfraSettingVipNetwork {
-	var ipNetworkList []akov1alpha1.AviInfraSettingVipNetwork
-	var ipNetwork akov1alpha1.AviInfraSettingVipNetwork
+func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient, vipNetworks []akov1beta1.AviInfraSettingVipNetwork) []akov1beta1.AviInfraSettingVipNetwork {
+	var ipNetworkList []akov1beta1.AviInfraSettingVipNetwork
+	var ipNetwork akov1beta1.AviInfraSettingVipNetwork
 	// In Public cloud we allow multiple network, so loop.
 	for _, vipNet := range vipNetworks {
 		// If Network uuid is present, use that.
 		if vipNet.NetworkUUID != "" {
-			ipNetwork = akov1alpha1.AviInfraSettingVipNetwork{
+			ipNetwork = akov1beta1.AviInfraSettingVipNetwork{
 				NetworkName: vipNet.NetworkName,
 				NetworkUUID: vipNet.NetworkUUID,
 				Cidr:        vipNet.Cidr,
@@ -2729,7 +2743,7 @@ func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient
 			}
 		} else {
 			//default value
-			ipNetwork = akov1alpha1.AviInfraSettingVipNetwork{
+			ipNetwork = akov1beta1.AviInfraSettingVipNetwork{
 				NetworkName: vipNet.NetworkName,
 				Cidr:        vipNet.Cidr,
 				V6Cidr:      vipNet.V6Cidr,
@@ -2764,7 +2778,7 @@ func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient
 				found, netLocal := FindCIDROverlapping(localVIPNetworkList, ipNetwork)
 				if found {
 					utils.AviLog.Infof("Network found from CIDR overlapping is: %v", utils.Stringify(netLocal))
-					ipNetwork = akov1alpha1.AviInfraSettingVipNetwork{
+					ipNetwork = akov1beta1.AviInfraSettingVipNetwork{
 						NetworkName: *netLocal.Name,
 						NetworkUUID: *netLocal.UUID,
 						Cidr:        vipNet.Cidr,
@@ -2778,11 +2792,11 @@ func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient
 					utils.AviLog.Infof("Network found from Host overlapping is: %v", utils.Stringify(ipNetwork))
 				}
 			}
-			if len(localVIPNetworkList) == 1 || ipNetwork == (akov1alpha1.AviInfraSettingVipNetwork{}) {
+			if len(localVIPNetworkList) == 1 || ipNetwork == (akov1beta1.AviInfraSettingVipNetwork{}) {
 				// If empty network returned or len 1, fill with first network
 				// with cidr provided in configmap or aviinfra
 
-				ipNetwork = akov1alpha1.AviInfraSettingVipNetwork{
+				ipNetwork = akov1beta1.AviInfraSettingVipNetwork{
 					NetworkName: *localVIPNetworkList[0].Name,
 					Cidr:        vipNet.Cidr,
 					V6Cidr:      vipNet.V6Cidr,
@@ -2805,9 +2819,9 @@ func checkRequiredValuesYaml(client *clients.AviClient, returnErr *error) bool {
 		return false
 	}
 
-	lib.SetNamePrefix()
+	lib.SetNamePrefix("")
 	// after clusterName validation, set AKO User to be used in created_by fields for Avi Objects
-	lib.SetAKOUser()
+	lib.SetAKOUser(lib.AKOPrefix)
 	//Set clusterlabel checksum
 	lib.SetClusterLabelChecksum()
 
@@ -2863,7 +2877,7 @@ func validateAndConfigureSeGroup(client *clients.AviClient, returnErr *error) bo
 	// This takes care of syncing SeGroup label settings during reboots.
 	seGroupSet := sets.NewString()
 	if lib.AKOControlConfig().AviInfraSettingEnabled() {
-		infraSettingList, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().List(context.TODO(), metav1.ListOptions{})
+		infraSettingList, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("Unable to list AviInfraSettings %s", err.Error())
 		}
@@ -3180,7 +3194,7 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 
 	// 2. AKO created VIP network for AKO in VCF
 	if utils.IsVCFCluster() {
-		vipNetList := []akov1alpha1.AviInfraSettingVipNetwork{
+		vipNetList := []akov1beta1.AviInfraSettingVipNetwork{
 			{
 				NetworkName: lib.GetVCFNetworkName(),
 			},
@@ -3220,7 +3234,7 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 
 		if markerNetworkFound != "" {
 
-			vipList := []akov1alpha1.AviInfraSettingVipNetwork{{
+			vipList := []akov1beta1.AviInfraSettingVipNetwork{{
 				NetworkName: markerNetworkFound,
 			}}
 			utils.SetVipNetworkList(vipList)
@@ -3231,7 +3245,7 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 
 	// 4. Empty VipNetworkList
 	if lib.IsWCP() && markerNetworkFound == "" {
-		utils.SetVipNetworkList([]akov1alpha1.AviInfraSettingVipNetwork{})
+		utils.SetVipNetworkList([]akov1beta1.AviInfraSettingVipNetwork{})
 		return true, nil
 	}
 
@@ -3596,7 +3610,7 @@ func checkBGPParams(returnErr *error) bool {
 	return true
 }
 
-func validateNetworkNames(client *clients.AviClient, vipNetworkList []akov1alpha1.AviInfraSettingVipNetwork) bool {
+func validateNetworkNames(client *clients.AviClient, vipNetworkList []akov1beta1.AviInfraSettingVipNetwork) bool {
 	for _, vipNetwork := range vipNetworkList {
 		if vipNetwork.Cidr != "" {
 			re := regexp.MustCompile(lib.IPCIDRRegex)
@@ -3665,7 +3679,8 @@ func ExtractUuid(word, pattern string) string {
 	if len(result) == 1 {
 		return result[0][:len(result[0])-1]
 	}
-	return ""
+	utils.AviLog.Debugf("Uid extraction not successful from: %s, will retry without hash pattern", word)
+	return ExtractUuidWithoutHash(word, pattern[:len(pattern)-1])
 }
 
 func ExtractUuidWithoutHash(word, pattern string) string {

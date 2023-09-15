@@ -31,7 +31,8 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
@@ -147,8 +148,8 @@ func CheckObjectNameLength(objName, objType string) bool {
 	return false
 }
 
-func SetNamePrefix() {
-	NamePrefix = GetClusterName() + "--"
+func SetNamePrefix(prefix string) {
+	NamePrefix = prefix + GetClusterName() + "--"
 }
 
 func GetNamePrefix() string {
@@ -291,8 +292,8 @@ func GetDeleteConfigMap() bool {
 
 var AKOUser string
 
-func SetAKOUser() {
-	AKOUser = "ako-" + GetClusterName()
+func SetAKOUser(prefix string) {
+	AKOUser = prefix + GetClusterName()
 	isPrimaryAKO := akoControlConfigInstance.GetAKOInstanceFlag()
 	if !isPrimaryAKO {
 		AKOUser = AKOUser + "-" + os.Getenv("POD_NAMESPACE")
@@ -318,7 +319,7 @@ func GetshardSize() uint32 {
 	}
 }
 
-func GetShardSizeFromAviInfraSetting(infraSetting *akov1alpha1.AviInfraSetting) uint32 {
+func GetShardSizeFromAviInfraSetting(infraSetting *akov1beta1.AviInfraSetting) uint32 {
 	if infraSetting != nil &&
 		infraSetting.Spec.L7Settings.ShardSize != "" {
 		return ShardSizeMap[infraSetting.Spec.L7Settings.ShardSize]
@@ -678,25 +679,25 @@ func GetAkoApiServerPort() string {
 	return "8080"
 }
 
-var VipNetworkList []akov1alpha1.AviInfraSettingVipNetwork
-var VipInfraNetworkList map[string][]akov1alpha1.AviInfraSettingVipNetwork
+var VipNetworkList []akov1beta1.AviInfraSettingVipNetwork
+var VipInfraNetworkList map[string][]akov1beta1.AviInfraSettingVipNetwork
 
-func SetVipNetworkList(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork) {
+func SetVipNetworkList(vipNetworks []akov1beta1.AviInfraSettingVipNetwork) {
 	VipNetworkList = vipNetworks
 }
 
-func GetVipNetworkList() []akov1alpha1.AviInfraSettingVipNetwork {
+func GetVipNetworkList() []akov1beta1.AviInfraSettingVipNetwork {
 	return VipNetworkList
 }
 
-func SetVipInfraNetworkList(infraName string, vipNetworks []akov1alpha1.AviInfraSettingVipNetwork) {
+func SetVipInfraNetworkList(infraName string, vipNetworks []akov1beta1.AviInfraSettingVipNetwork) {
 	if VipInfraNetworkList == nil {
-		VipInfraNetworkList = make(map[string][]akov1alpha1.AviInfraSettingVipNetwork)
+		VipInfraNetworkList = make(map[string][]akov1beta1.AviInfraSettingVipNetwork)
 	}
 	VipInfraNetworkList[infraName] = vipNetworks
 }
 
-func GetVipInfraNetworkList(infraName string) []akov1alpha1.AviInfraSettingVipNetwork {
+func GetVipInfraNetworkList(infraName string) []akov1beta1.AviInfraSettingVipNetwork {
 	return VipInfraNetworkList[infraName]
 }
 
@@ -713,8 +714,8 @@ func GetNodeInfraNetworkList(name string) map[string]NodeNetworkMap {
 	return NodeInfraNetworkList[name]
 }
 
-func GetVipNetworkListEnv() ([]akov1alpha1.AviInfraSettingVipNetwork, error) {
-	var vipNetworkList []akov1alpha1.AviInfraSettingVipNetwork
+func GetVipNetworkListEnv() ([]akov1beta1.AviInfraSettingVipNetwork, error) {
+	var vipNetworkList []akov1beta1.AviInfraSettingVipNetwork
 	if IsWCP() {
 		// do not return error in case of WCP deployments.
 		return vipNetworkList, nil
@@ -1302,11 +1303,17 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 			return allInformers, errors.New("Error in fetching services: " + err.Error())
 		}
 		if oclient != nil {
+			// This will change once we start supporting ingress in Openshift
 			_, err = oclient.RouteV1().Routes(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &informerTimeout})
 			if err == nil {
 				// Openshift cluster with route support, we will just add route informer
 				allInformers = append(allInformers, utils.RouteInformer)
 				isOshift = true
+			} else {
+				// error out for Openshift CNI and OVN CNI
+				if GetCNIPlugin() == OPENSHIFT_CNI || GetCNIPlugin() == OVN_KUBERNETES_CNI {
+					return allInformers, errors.New("Error in fetching Openshift routes: " + err.Error())
+				}
 			}
 		}
 		if !isOshift {
@@ -1915,7 +1922,7 @@ func GetThrottle(key string) *int32 {
 	return &throttle
 }
 
-func UpdateV6(vip *models.Vip, vipNetwork *akov1alpha1.AviInfraSettingVipNetwork) {
+func UpdateV6(vip *models.Vip, vipNetwork *akov1beta1.AviInfraSettingVipNetwork) {
 	if vipNetwork.Cidr != "" {
 		vip.AutoAllocateIPType = proto.String("V4_V6")
 	} else {

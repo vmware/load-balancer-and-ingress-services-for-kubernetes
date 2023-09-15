@@ -20,13 +20,14 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
 	"google.golang.org/protobuf/proto"
 	v1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	utilsnet "k8s.io/utils/net"
 	svcapiv1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
 )
@@ -92,7 +93,10 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 	var vrfcontext string
 	infraSetting, err := getL4InfraSetting(key, namespace, nil, &gw.Spec.Class)
 	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Gateway %s", key, err.Error())
+		if !k8serrors.IsNotFound(err) {
+			utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Gateway %s", key, err.Error())
+			return nil
+		}
 	}
 	t1lr := lib.GetT1LRPath()
 	if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
@@ -220,7 +224,10 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 	var vrfcontext string
 	infraSetting, err := getL4InfraSetting(key, namespace, nil, &gw.Spec.GatewayClassName)
 	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Gateway %s", key, err.Error())
+		if !k8serrors.IsNotFound(err) {
+			utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Gateway %s", key, err.Error())
+			return nil
+		}
 	}
 	t1lr := lib.GetT1LRPath()
 	if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
@@ -352,7 +359,10 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 
 		infraSetting, err := getL4InfraSetting(key, namespace, nil, &gwClassName)
 		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Gateway %s", key, err.Error())
+			if !k8serrors.IsNotFound(err) {
+				utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Gateway %s", key, err.Error())
+				return
+			}
 		}
 
 		t1lr := lib.GetT1LRPath()
@@ -453,6 +463,7 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 			if err == nil {
 				if extDNS, ok := svcObj.Annotations[lib.ExternalDNSAnnotation]; ok {
 					fqdns = append(fqdns, extDNS)
+					continue
 				}
 			}
 
@@ -542,9 +553,14 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 
 	// configures VS and VsVip nodes using infraSetting object (via CRD).
 	if serviceObject != nil {
-		if infraSetting, err := getL4InfraSetting(key, namespace, serviceObject, nil); err == nil {
-			buildWithInfraSetting(key, namespace, avi_vs_meta, vsVipNode, infraSetting)
+		infraSetting, err := getL4InfraSetting(key, namespace, serviceObject, nil)
+		if err != nil {
+			if !k8serrors.IsNotFound(err) {
+				utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting %s", key, err.Error())
+				return nil
+			}
 		}
+		buildWithInfraSetting(key, namespace, avi_vs_meta, vsVipNode, infraSetting)
 
 		// Copy the VS properties from L4Rule object
 		if l4Rule, err := getL4Rule(key, serviceObject); err == nil {
@@ -571,7 +587,7 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 	}
 
 	var l4Policies []*AviL4PolicyNode
-	var infraSetting *v1alpha1.AviInfraSetting
+	var infraSetting *v1beta1.AviInfraSetting
 	var l4Rule *akov1alpha2.L4Rule
 
 	var portPoolSet []AviHostPathPortPoolPG
@@ -586,7 +602,10 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 		if i == 0 {
 			infraSetting, err = getL4InfraSetting(key, namespace, svcObj, nil)
 			if err != nil {
-				utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
+				if !k8serrors.IsNotFound(err) {
+					utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
+					return
+				}
 			}
 
 			l4Rule, err = getL4Rule(key, svcObj)

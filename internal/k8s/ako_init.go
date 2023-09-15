@@ -32,7 +32,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/retry"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
@@ -74,11 +74,11 @@ func (c *AviController) cleanupStaleVSes() {
 	aviRestClientPool := avicache.SharedAVIClients()
 	aviObjCache := avicache.SharedAviObjCache()
 
-	delModels := deleteConfigFromConfigmap(c.informers.ClientSet)
+	delModels := DeleteConfigFromConfigmap(c.informers.ClientSet)
 	if delModels {
 		go SetDeleteSyncChannel()
 		parentKeys := aviObjCache.VsCacheMeta.AviCacheGetAllParentVSKeys()
-		deleteAviObjects(parentKeys, aviObjCache, aviRestClientPool)
+		DeleteAviObjects(parentKeys, aviObjCache, aviRestClientPool)
 	} else {
 		status.NewStatusPublisher().ResetStatefulSetAnnotation()
 	}
@@ -112,7 +112,7 @@ func (c *AviController) cleanupStaleVSes() {
 	}
 }
 
-func deleteAviObjects(parentVSKeys []avicache.NamespaceName, avi_obj_cache *avicache.AviObjCache, avi_rest_client_pool *utils.AviRestClientPool) {
+func DeleteAviObjects(parentVSKeys []avicache.NamespaceName, avi_obj_cache *avicache.AviObjCache, avi_rest_client_pool *utils.AviRestClientPool) {
 	for _, pvsKey := range parentVSKeys {
 		// Fetch the parent VS cache and update the SNI child
 		vsObj, parentFound := avi_obj_cache.VsCacheMeta.AviCacheGet(pvsKey)
@@ -162,7 +162,7 @@ func delConfigFromData(data map[string]string) bool {
 	return delConf
 }
 
-func deleteConfigFromConfigmap(cs kubernetes.Interface) bool {
+func DeleteConfigFromConfigmap(cs kubernetes.Interface) bool {
 	cmNS := utils.GetAKONamespace()
 	cm, err := cs.CoreV1().ConfigMaps(cmNS).Get(context.TODO(), lib.AviConfigMap, metav1.GetOptions{})
 	if err == nil {
@@ -257,7 +257,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	if !validateUserInput {
 		return errors.New("sync is disabled because of configmap unavailability during bootup")
 	}
-	c.DisableSync = deleteConfigFromConfigmap(cs)
+	c.DisableSync = DeleteConfigFromConfigmap(cs)
 	lib.SetDisableSync(c.DisableSync)
 
 	configMapEventHandler := cache.ResourceEventHandlerFuncs{
@@ -707,7 +707,7 @@ func (c *AviController) addIndexers() {
 		informer.AviInfraSettingInformer.Informer().AddIndexers(
 			cache.Indexers{
 				lib.SeGroupAviSettingIndex: func(obj interface{}) ([]string, error) {
-					infraSetting, ok := obj.(*akov1alpha1.AviInfraSetting)
+					infraSetting, ok := obj.(*akov1beta1.AviInfraSetting)
 					if !ok {
 						return []string{}, nil
 					}
