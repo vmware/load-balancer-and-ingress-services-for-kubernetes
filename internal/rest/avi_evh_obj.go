@@ -557,11 +557,20 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 
 	evhChild.VhMatches = vhMatches
 
+	if vs_meta.VHMatches != nil {
+		evhChild.VhMatches = vs_meta.VHMatches
+	}
+
 	evhChild.Markers = lib.GetAllMarkers(vs_meta.AviMarkers)
 
 	if vs_meta.DefaultPool != "" {
 		pool_ref := "/api/pool/?name=" + vs_meta.DefaultPool
 		evhChild.PoolRef = &pool_ref
+	}
+
+	if vs_meta.DefaultPoolGroup != "" {
+		pg_ref := "/api/poolgroup/?name=" + vs_meta.DefaultPoolGroup
+		evhChild.PoolGroupRef = &pg_ref
 	}
 
 	//DS from hostrule

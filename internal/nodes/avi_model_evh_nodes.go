@@ -140,6 +140,7 @@ type AviEvhVsNode struct {
 	Paths               []string
 	IngressNames        []string
 	Dedicated           bool
+	VHMatches           []*avimodels.VHMatch
 
 	AviVsNodeCommonFields
 
@@ -693,6 +694,14 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 	}
 
 	checksum += v.AviVsNodeGeneratedFields.CalculateCheckSumOfGeneratedCode()
+
+	if v.VHMatches != nil {
+		checksum += utils.Hash(utils.Stringify(v.VHMatches))
+	}
+
+	if v.DefaultPoolGroup != "" {
+		checksum += utils.Hash(v.DefaultPoolGroup)
+	}
 
 	v.CloudConfigCksum = checksum
 }

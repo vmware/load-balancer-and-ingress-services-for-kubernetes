@@ -1096,6 +1096,8 @@ type AviHttpPolicySetNode struct {
 	SecurityRules      []AviHTTPSecurity
 	AviMarkers         utils.AviObjectMarkers
 	AttachedToSharedVS bool
+	RequestRules       []*avimodels.HTTPRequestRule
+	ResponseRules      []*avimodels.HTTPResponseRule
 }
 
 func (v *AviHttpPolicySetNode) GetCheckSum() uint32 {
@@ -1123,6 +1125,14 @@ func (v *AviHttpPolicySetNode) CalculateCheckSum() {
 	}
 
 	checksum += lib.GetMarkersChecksum(v.AviMarkers)
+
+	if v.RequestRules != nil {
+		checksum += utils.Hash(utils.Stringify(v.RequestRules))
+	}
+
+	if v.ResponseRules != nil {
+		checksum += utils.Hash(utils.Stringify(v.ResponseRules))
+	}
 
 	v.CloudConfigCksum = checksum
 }

@@ -148,8 +148,8 @@ func CheckObjectNameLength(objName, objType string) bool {
 	return false
 }
 
-func SetNamePrefix() {
-	NamePrefix = GetClusterName() + "--"
+func SetNamePrefix(prefix string) {
+	NamePrefix = prefix + GetClusterName() + "--"
 }
 
 func GetNamePrefix() string {
@@ -292,8 +292,8 @@ func GetDeleteConfigMap() bool {
 
 var AKOUser string
 
-func SetAKOUser() {
-	AKOUser = "ako-" + GetClusterName()
+func SetAKOUser(prefix string) {
+	AKOUser = prefix + GetClusterName()
 	isPrimaryAKO := akoControlConfigInstance.GetAKOInstanceFlag()
 	if !isPrimaryAKO {
 		AKOUser = AKOUser + "-" + os.Getenv("POD_NAMESPACE")
