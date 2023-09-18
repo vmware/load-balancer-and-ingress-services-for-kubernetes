@@ -782,7 +782,9 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 				}
 				utils.AviLog.Debugf("key: %s, msg: Computing for path %s in ingresses %v", key, path, ingresses)
 				for _, ing := range ingresses {
-					if !utils.HasElem(allIngresses, ing) {
+					ing_namespace, _, _ := lib.ExtractTypeNameNamespace(ing)
+					// httprule is namespace specific. So only add those ingresses which are in same namespace of rule.
+					if namespace == ing_namespace && !utils.HasElem(allIngresses, ing) {
 						allIngresses = append(allIngresses, ing)
 					}
 				}
@@ -802,7 +804,9 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 				}
 				utils.AviLog.Debugf("key: %s, msg: Computing for oldPath %s in oldIngresses %v", key, oldPath, oldIngresses)
 				for _, oldIng := range oldIngresses {
-					if !utils.HasElem(allIngresses, oldIng) {
+					ing_namespace, _, _ := lib.ExtractTypeNameNamespace(oldIng)
+					// httprule is namespace specific. So only add those ingresses which are in same namespace of rule.
+					if namespace == ing_namespace && !utils.HasElem(allIngresses, oldIng) {
 						allIngresses = append(allIngresses, oldIng)
 					}
 				}
