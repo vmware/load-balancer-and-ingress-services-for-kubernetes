@@ -421,7 +421,7 @@ The detailed rejection reason can be obtained from the status:
 
 ##### Sharing L4Rule with Load Balancer IP
 
-The L4Rule CRD with load balancer IP can be shared among services only when the services contain the `ako.vmware.com/enable-shared-vip` annotation. However, L4Rule cannot be shared if SSL termination is required to be enabled for the services. So, if **enableSsl** is set to true for any port in `listenerProperties` section, then that L4Rule should only be applied to a signle LoadBalancer service.
+The L4Rule CRD with load balancer IP can be shared among services only when the services contain the `ako.vmware.com/enable-shared-vip` annotation. However, L4Rule cannot be shared if SSL termination is required to be enabled for the services. So, if **enableSsl** is set to true for any port in `listenerProperties` section, then that L4Rule should only be applied to a single LoadBalancer service.
 
 ##### L4Rule deletion
 
