@@ -376,7 +376,7 @@ The detailed rejection reason can be obtained from the status:
 
 ##### SSORule is only supported for Enhanced Virtual Hosting (EVH)
 
-SSORule CRD is only supported for Enhanced Virtual Hosting (EVH). The OAuth and SAML settings will only be configured on virtual services when EVH is enabled. When shard virtual service size is **LARGE** or **MEDIUM** or **SMALL**, the OAuth and SAML settings will only be configured on the EVH child virtual services.
+SSORule CRD is only supported for Enhanced Virtual Hosting (EVH). The OAuth and SAML settings will only be configured on virtual services when EVH is enabled. When shard virtual service size is **LARGE** or **MEDIUM** or **SMALL**, the OAuth and SAML settings will only be configured on the EVH child virtual services. However, for Avi Controller version less than `30.1.1`, when [authnReqAcsType](#express-assertion-consumer-service-type-for-authentication-request) is set to `SAML_AUTHN_REQ_ACS_TYPE_URL`, **Request Body Buffering** needs to be enabled for EVH parent virtual service for SAML traffic to work. This can be achieved by creating a custom application profile of type `HTTP` in the AVI controller with **Request Body Buffering** enabled, and attaching that application profile to the EVH parent VS by using a [HostRule](hostrule.md) CRD object. Avi Controller version `30.1.1` is supported starting with AKO version `1.11.1`.
 
 ##### SSORule may get rejected on Openshift if useDefaultSecretsOnly is true in the AKO configuration
 
