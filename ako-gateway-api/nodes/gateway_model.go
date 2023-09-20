@@ -149,3 +149,60 @@ func BuildVsVipNodeForGateway(gateway *gatewayv1beta1.Gateway, vsName string) *n
 	}
 	return vsvipNode
 }
+
+func DeleteTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1beta1.Gateway, secretObj *corev1.Secret, encodedCertNameIndexMap map[string][]int) {
+	var tlsNodes []*nodes.AviTLSKeyCertNode
+	_, _, secretName := lib.ExtractTypeNameNamespace(key)
+	evhVsCertRefs := object.GetAviEvhVS()[0].SSLKeyCertRefs
+	for _, listener := range gateway.Spec.Listeners {
+		if listener.TLS != nil {
+			for _, certRef := range listener.TLS.CertificateRefs {
+				name := string(certRef.Name)
+				encodedCertName := lib.GetTLSKeyCertNodeName("", string(*listener.Hostname), name)
+				indexlist, exists := encodedCertNameIndexMap[encodedCertName]
+				if exists {
+					if name != secretName {
+						tlsNodes = append(tlsNodes, evhVsCertRefs[indexlist[0]])
+					}
+					if len(indexlist) > 1 {
+						encodedCertNameIndexMap[encodedCertName] = indexlist[1:]
+					} else {
+						delete(encodedCertNameIndexMap, encodedCertName)
+					}
+				}
+			}
+		}
+	}
+	utils.AviLog.Infof("key: %s, msg: Updated cert_refs in parentVS: %s", key, object.GetAviEvhVS()[0].Name)
+	object.GetAviEvhVS()[0].SSLKeyCertRefs = tlsNodes
+}
+
+func AddTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1beta1.Gateway, secretObj *corev1.Secret, encodedCertNameIndexMap map[string][]int) {
+	var tlsNodes []*nodes.AviTLSKeyCertNode
+	_, _, secretName := lib.ExtractTypeNameNamespace(key)
+	evhVsCertRefs := object.GetAviEvhVS()[0].SSLKeyCertRefs
+	for _, listener := range gateway.Spec.Listeners {
+		if listener.TLS != nil {
+			for _, certRef := range listener.TLS.CertificateRefs {
+				name := string(certRef.Name)
+				encodedCertName := lib.GetTLSKeyCertNodeName("", string(*listener.Hostname), name)
+				indexlist, exists := encodedCertNameIndexMap[encodedCertName]
+				if exists {
+					tlsNodes = append(tlsNodes, evhVsCertRefs[indexlist[0]])
+					if len(indexlist) > 1 {
+						encodedCertNameIndexMap[encodedCertName] = indexlist[1:]
+					} else {
+						delete(encodedCertNameIndexMap, encodedCertName)
+					}
+				} else {
+					if name == secretName {
+						tlsNode := TLSNodeFromSecret(secretObj, string(*listener.Hostname), name, key)
+						tlsNodes = append(tlsNodes, tlsNode)
+					}
+				}
+			}
+		}
+	}
+	utils.AviLog.Infof("key: %s, msg: Updated cert_refs in parentVS: %s", key, object.GetAviEvhVS()[0].Name)
+	object.GetAviEvhVS()[0].SSLKeyCertRefs = tlsNodes
+}

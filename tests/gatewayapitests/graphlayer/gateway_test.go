@@ -73,6 +73,7 @@ func TestMain(m *testing.M) {
 		utils.SecretInformer,
 		utils.NSInformer,
 	}
+	utils.AviLog.SetLevel("DEBUG")
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: tests.KubeClient}, registeredInformers, make(map[string]interface{}))
 	data := map[string][]byte{
 		"username": []byte("admin"),
@@ -394,5 +395,60 @@ func TestGatewayDelete(t *testing.T) {
 		return true
 	}, 25*time.Second).Should(gomega.Equal(true))
 
+	tests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestSecretCreateDelete(t *testing.T) {
+
+	gatewayName := "gateway-06"
+	gatewayClassName := "gateway-class-06"
+	ports := []int32{8080}
+	secrets := []string{"secret-06"}
+
+	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := tests.GetListenersV1Beta1(ports, secrets...)
+	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(DEFAULT_NAMESPACE, gatewayName))
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(0))
+
+	integrationtest.AddSecret(secrets[0], DEFAULT_NAMESPACE, "cert", "key")
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if found {
+			nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+			g.Expect(nodes).To(gomega.HaveLen(1))
+			g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(1))
+			return true
+		}
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// delete
+	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if found {
+			nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+			g.Expect(nodes).To(gomega.HaveLen(1))
+			g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(0))
+			return true
+		}
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	tests.TeardownGatewayClass(t, gatewayClassName)
 }

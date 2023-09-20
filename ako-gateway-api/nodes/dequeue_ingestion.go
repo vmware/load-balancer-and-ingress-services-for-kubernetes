@@ -15,7 +15,10 @@
 package nodes
 
 import (
+	"context"
+
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
@@ -41,7 +44,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		return
 	}
 
-	if updatesParent(objType) {
+	if objType == lib.Gateway {
 		handleGateway(namespace, name, fullsync, key)
 	}
 
@@ -62,7 +65,11 @@ func DequeueIngestion(key string, fullsync bool) {
 			utils.AviLog.Errorf("key: %s, msg: no model found: %s", key, modelName)
 			continue
 		}
+
 		model := &AviObjectGraph{modelIntf.(*nodes.AviObjectGraph)}
+		if objType == utils.Secret {
+			handleSecrets(parentNs, parentName, key, model)
+		}
 		for _, routeTypeNsName := range routeTypeNsNameList {
 			objType, namespace, name := lib.ExtractTypeNameNamespace(routeTypeNsName)
 			utils.AviLog.Infof("key: %s, msg: processing route %s mapped to gateway %s", key, routeTypeNsName, gatewayNsName)
@@ -96,7 +103,30 @@ func DequeueIngestion(key string, fullsync bool) {
 		}
 	}
 }
-
+func handleSecrets(gatewayNamespace string, gatewayName string, key string, object *AviObjectGraph) {
+	_, _, secretName := lib.ExtractTypeNameNamespace(key)
+	utils.AviLog.Infof("key: %s, msg: Processing secret update %s has been added.", key, secretName)
+	cs := utils.GetInformers().ClientSet
+	evhVsCertRefs := object.GetAviEvhVS()[0].SSLKeyCertRefs
+	gatewayObj, _ := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(gatewayNamespace).Get(gatewayName)
+	secretObj, err := cs.CoreV1().Secrets(gatewayNamespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	encodedCertNameIndexMap := make(map[string][]int)
+	for index, evhVsCertRef := range evhVsCertRefs {
+		_, exists := encodedCertNameIndexMap[evhVsCertRef.Name]
+		if exists {
+			encodedCertNameIndexMap[evhVsCertRef.Name] = append(encodedCertNameIndexMap[evhVsCertRef.Name], index)
+		} else {
+			encodedCertNameIndexMap[evhVsCertRef.Name] = []int{index}
+		}
+	}
+	if err != nil || secretObj == nil {
+		utils.AviLog.Warnf("key: %s, msg: secret %s has been deleted, err: %s", key, secretName, err)
+		DeleteTLSNode(key, object, gatewayObj, secretObj, encodedCertNameIndexMap)
+	} else {
+		utils.AviLog.Infof("key: %s, msg: secret %s has been added.", key, secretName)
+		AddTLSNode(key, object, gatewayObj, secretObj, encodedCertNameIndexMap)
+	}
+}
 func handleGateway(namespace, name string, fullsync bool, key string) {
 	utils.AviLog.Debugf("key: %s, msg: processing gateway: %s", key, name)
 
@@ -222,8 +252,4 @@ func (o *AviObjectGraph) DeleteStaleChildVSes(key string, routeModel RouteModel,
 		modelName := lib.GetTenant() + "/" + parentNode[0].Name
 		_ = saveAviModel(modelName, o.AviObjectGraph, key)
 	}
-}
-
-func updatesParent(objType string) bool {
-	return objType == lib.Gateway || objType == utils.Secret
 }
