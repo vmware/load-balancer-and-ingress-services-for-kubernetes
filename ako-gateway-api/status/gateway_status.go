@@ -67,7 +67,7 @@ func (o *gateway) GetAll(key string) map[string]*gatewayv1beta1.Gateway {
 
 	gwClassOwnedByAko := make(map[string]struct{})
 	for i := range gwClassList {
-		if gwClassList[i].Spec.ControllerName == "ako.vmware.com/avi-lb" { // TODO: re-use the constant
+		if gwClassList[i].Spec.ControllerName == akogatewayapilib.GatewayController {
 			gwClassOwnedByAko[gwClassList[i].Name] = struct{}{}
 		}
 	}

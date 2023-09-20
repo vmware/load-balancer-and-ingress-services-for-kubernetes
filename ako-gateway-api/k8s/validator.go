@@ -19,12 +19,14 @@ import (
 	"regexp"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	akogatewayapistatus "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/status"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -201,6 +203,8 @@ func IsHTTPRouteValid(key string, obj *gatewayv1beta1.HTTPRoute) bool {
 	for _, hostname := range httpRoute.Spec.Hostnames {
 		if strings.Contains(string(hostname), "*") {
 			utils.AviLog.Errorf("key: %s, msg: Wildcard in hostname is not supported for the HTTPRoute %s", key, httpRoute.Name)
+			akogatewayapilib.AKOControlConfig().EventRecorder().Eventf(httpRoute, corev1.EventTypeWarning,
+				lib.Detached, "Wildcard in hostname is not supported for the HTTPRoute %s", httpRoute.Name)
 			return false
 		}
 	}
@@ -221,6 +225,8 @@ func IsHTTPRouteValid(key string, obj *gatewayv1beta1.HTTPRoute) bool {
 	// No valid attachment, we can't proceed with this HTTPRoute object.
 	if invalidParentRefCount == len(httpRoute.Spec.ParentRefs) {
 		utils.AviLog.Errorf("key: %s, msg: HTTPRoute object %s is not valid", key, httpRoute.Name)
+		akogatewayapilib.AKOControlConfig().EventRecorder().Eventf(httpRoute, corev1.EventTypeWarning,
+			lib.Detached, "HTTPRoute object %s is not valid", httpRoute.Name)
 		return false
 	}
 	utils.AviLog.Infof("key: %s, msg: HTTPRoute object %s is valid", key, httpRoute.Name)
