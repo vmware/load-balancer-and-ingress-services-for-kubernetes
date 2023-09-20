@@ -1,4 +1,3 @@
-
 # Copyright 2019-2020 VMware, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -71,30 +70,52 @@ set -e
 
 sudo sed -i --regexp-extended "s/^(\s*)(appVersion\s*:\s*latest\s*$)/\1appVersion: $build_version/" $target_path/Chart.yaml
 
-#collecting source provenance data
+#collecting provenance data
 PRODUCT_NAME="Avi Kubernetes Operator"
 JENKINS_INSTANCE=$(echo $JENKINS_URL | sed -E 's/^\s*.*:\/\///g' | sed -E 's/:.*//g')
 COMP_UID="uid.obj.build.jenkins(instance='$JENKINS_INSTANCE',job_name='$JENKINS_JOB_NAME',build_number='$BUILD_NUMBER')"
-provenance_source_file="$WORKSPACE/provenance/source.json"
 
-# Function to run srp source provenance command
-function source_provenance() {
-    sudo /srp-tools/srp provenance source --scm-type git --name "$PRODUCT_NAME" --path ./ --saveto $provenance_source_file --comp-uid $COMP_UID --build-number ${version_build_num} --version $branch_version --all-ephemeral true --build-type release $@
-}
+# initialize credentials that are required for submission
+sudo /srp-tools/srp config auth --client-id=swx10jEKzeQUzO0hHEoS4RYm01wxCkt8Xn0 --client-secret=astx3Ii7lENqIx3FPviWC8besLaepD66eShdBHRSTwiRJsVIvr
 
-output=( $(find $WORKSPACE/ -type d  -not -path "$WORKSPACE/build/*" -name '.git') )
-for line in "${output[@]}"
-do
-    cd $(dirname $line)
-    if [ -f  $provenance_source_file ]
-    then
-        source_provenance --append
-    else
-        source_provenance
-    fi
-done
-cd $WORKSPACE
-sudo /srp-tools/srp provenance merge --source ./provenance/source.json --network ./provenance/provenance.json --saveto ./provenance/merged.json
+# initialize blank provenance in the working directory, $SRP_WORKING_DIR
+sudo /srp-tools/srp provenance init --working-dir $WORKSPACE/provenance
+sudo /srp-tools/srp provenance add-build jenkins --instance $JENKINS_INSTANCE --build-number $BUILD_NUMBER --job-name $JENKINS_JOB_NAME --working-dir $WORKSPACE/provenance
+
+# add an action for the golang build, importing the observations that were captured in the build-golang-app step
+sudo /srp-tools/srp provenance action start --name=ako-build --working-dir $WORKSPACE/provenance
+sudo /srp-tools/srp provenance action import-observation --name=ako-obs --file=$WORKSPACE/provenance/network_provenance.json --working-dir $WORKSPACE/provenance
+sudo /srp-tools/srp provenance action stop --working-dir $WORKSPACE/provenance
+
+# declare the git source tree for the build.  We refer to this declaration below when adding source inputs.
+sudo /srp-tools/srp provenance declare-source git --verbose --set-key=mainsrc --path=$WORKSPACE --branch=$BRANCH --working-dir $WORKSPACE/provenance
+
+CI_REGISTRY_IMAGE=10.79.172.11:5000/avi-buildops/ako
+IMAGE_DIGEST=`sudo docker images $CI_REGISTRY_IMAGE  --digests | grep sha256 | xargs | cut -d " " -f3`
+echo $IMAGE_DIGEST
+sudo /srp-tools/srp provenance add-output package.oci --set-key=ako-image --action-key=ako-bld --name=${CI_REGISTRY_IMAGE}  --digest=${IMAGE_DIGEST} --working-dir $WORKSPACE/provenance
+
+CI_REGISTRY_IMAGE=10.79.172.11:5000/avi-buildops/ako-operator
+IMAGE_DIGEST=`sudo docker images $CI_REGISTRY_IMAGE  --digests | grep sha256 | xargs | cut -d " " -f3`
+echo $IMAGE_DIGEST
+sudo /srp-tools/srp provenance add-output package.oci --set-key=ako-operator-image --action-key=ako-bld --name=${CI_REGISTRY_IMAGE}  --digest=${IMAGE_DIGEST} --working-dir $WORKSPACE/provenance
+
+# use the syft plugin to scan the container and add all inputs it discovers. This will include the golang application we added
+# to the container, which are duplicate of the inputs above, but in this case we KNOW they are incorporated.
+sudo /srp-tools/srp provenance add-input syft --output-key=ako-image --usage functionality --incorporated true --working-dir $WORKSPACE/provenance
+sudo /srp-tools/srp provenance add-input syft --output-key=ako-operator-image --usage functionality --incorporated true --working-dir $WORKSPACE/provenance
+
+# adding source input
+sudo /srp-tools/srp provenance add-input source --source-key=mainsrc --output-key=ako-image --is-component-source --incorporated=true --working-dir $WORKSPACE/provenance
+sudo /srp-tools/srp provenance add-input source --source-key=mainsrc --output-key=ako-operator-image --is-component-source --incorporated=true --working-dir $WORKSPACE/provenance
+
+# compile the provenance to a file and then dump it out to the console for reference
+sudo /srp-tools/srp provenance compile --saveto $WORKSPACE/provenance/srp_prov3_fragment.json --working-dir $WORKSPACE/provenance
+cat $WORKSPACE/provenance/srp_prov3_fragment.json
+
+# submit the created provenance to SRP
+sudo /srp-tools/srp provenance submit --verbose --path $WORKSPACE/provenance/srp_prov3_fragment.json --working-dir $WORKSPACE/provenance
+
 provenance_path=$target_path/provenance
 sudo mkdir -p $provenance_path
-sudo cp $WORKSPACE/provenance/*json $provenance_path/;
+sudo cp $WORKSPACE/provenance/* $provenance_path/;
