@@ -16,6 +16,7 @@ package dedicatedvstests
 
 import (
 	"context"
+	"sort"
 	"testing"
 	"time"
 
@@ -178,6 +179,11 @@ func TestApplyHostruleToDedicatedVS(t *testing.T) {
 	hrObj := hostrule.HostRule()
 	hrObj.Spec.VirtualHost.Fqdn = "foo.com"
 	hrObj.Spec.VirtualHost.FqdnType = v1beta1.Contains
+	hrObj.Spec.VirtualHost.TCPSettings = &v1beta1.HostRuleTCPSettings{
+		Listeners: []v1beta1.HostRuleTCPListeners{
+			{Port: 8081}, {Port: 8082, EnableSSL: true},
+		},
+	}
 
 	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Create(context.TODO(), hrObj, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding HostRule: %v", err)
@@ -203,6 +209,20 @@ func TestApplyHostruleToDedicatedVS(t *testing.T) {
 	g.Expect(nodes[0].VsDatascriptRefs).To(gomega.HaveLen(2))
 	g.Expect(nodes[0].VsDatascriptRefs[0]).To(gomega.ContainSubstring("thisisaviref-ds2"))
 	g.Expect(nodes[0].VsDatascriptRefs[1]).To(gomega.ContainSubstring("thisisaviref-ds1"))
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(4))
+	var portsWithHostRule []int
+	sslPorts := [2]int{443, 8082}
+	for _, port := range nodes[0].PortProto {
+		portsWithHostRule = append(portsWithHostRule, int(port.Port))
+		if port.EnableSSL {
+			g.Expect(int(port.Port)).Should(gomega.BeElementOf(sslPorts))
+		}
+	}
+	sort.Ints(portsWithHostRule)
+	g.Expect(portsWithHostRule[0]).To(gomega.Equal(80))
+	g.Expect(portsWithHostRule[1]).To(gomega.Equal(443))
+	g.Expect(portsWithHostRule[2]).To(gomega.Equal(8081))
+	g.Expect(portsWithHostRule[3]).To(gomega.Equal(8082))
 
 	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
 	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/hr-cluster--foo.com-L7-dedicated", false)
@@ -217,6 +237,72 @@ func TestApplyHostruleToDedicatedVS(t *testing.T) {
 	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].VsDatascriptRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].SslProfileRef).To(gomega.BeNil())
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(2))
+	var portWithoutHostRule []int
+	for _, port := range nodes[0].PortProto {
+		portWithoutHostRule = append(portWithoutHostRule, int(port.Port))
+		if port.EnableSSL {
+			g.Expect(int(port.Port)).To(gomega.Equal(443))
+		}
+	}
+	sort.Ints(portWithoutHostRule)
+	g.Expect(portWithoutHostRule[0]).To(gomega.Equal(80))
+	g.Expect(portWithoutHostRule[1]).To(gomega.Equal(443))
+
+	TearDownIngressForCacheSyncCheck(t, modelName)
+
+}
+
+func TestHostruleNoListenerDedicatedVS(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/cluster--foo.com-L7-dedicated"
+	hrname := "hr-cluster--foo.com-L7-dedicated"
+
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+
+	hostrule := integrationtest.FakeHostRule{
+		Name:               hrname,
+		Namespace:          "default",
+		WafPolicy:          "thisisaviref-waf",
+		ApplicationProfile: "thisisaviref-appprof",
+		AnalyticsProfile:   "thisisaviref-analyticsprof",
+		ErrorPageProfile:   "thisisaviref-errorprof",
+		Datascripts:        []string{"thisisaviref-ds2", "thisisaviref-ds1"},
+		HttpPolicySets:     []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
+	}
+	hrObj := hostrule.HostRule()
+	hrObj.Spec.VirtualHost.Fqdn = "foo.com"
+	hrObj.Spec.VirtualHost.FqdnType = v1beta1.Contains
+
+	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Create(context.TODO(), hrObj, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding HostRule: %v", err)
+	}
+
+	g.Eventually(func() string {
+		hostrule, _ := V1beta1Client.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com-L7-dedicated"}
+	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/hr-cluster--foo.com-L7-dedicated", true)
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(*nodes[0].Enabled).To(gomega.Equal(true))
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(2))
+	var portsWithHostRule []int
+	for _, port := range nodes[0].PortProto {
+		portsWithHostRule = append(portsWithHostRule, int(port.Port))
+		if port.EnableSSL {
+			g.Expect(int(port.Port)).To(gomega.Equal(443))
+		}
+	}
+	sort.Ints(portsWithHostRule)
+	g.Expect(portsWithHostRule[0]).To(gomega.Equal(80))
+	g.Expect(portsWithHostRule[1]).To(gomega.Equal(443))
+
+	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
+	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/hr-cluster--foo.com-L7-dedicated", false)
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
 
