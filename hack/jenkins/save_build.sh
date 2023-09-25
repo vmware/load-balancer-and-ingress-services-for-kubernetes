@@ -76,7 +76,7 @@ JENKINS_INSTANCE=$(echo $JENKINS_URL | sed -E 's/^\s*.*:\/\///g' | sed -E 's/:.*
 COMP_UID="uid.obj.build.jenkins(instance='$JENKINS_INSTANCE',job_name='$JENKINS_JOB_NAME',build_number='$BUILD_NUMBER')"
 
 # initialize credentials that are required for submission
-sudo /srp-tools/srp config auth --client-id=swx10jEKzeQUzO0hHEoS4RYm01wxCkt8Xn0 --client-secret=astx3Ii7lENqIx3FPviWC8besLaepD66eShdBHRSTwiRJsVIvr
+sudo /srp-tools/srp config auth --client-id=${SRP_CLIENT_ID} --client-secret=${SRP_CLIENT_SECRECT}
 
 # initialize blank provenance in the working directory, $SRP_WORKING_DIR
 sudo /srp-tools/srp provenance init --working-dir $WORKSPACE/provenance
