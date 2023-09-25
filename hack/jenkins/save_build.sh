@@ -75,7 +75,7 @@ PRODUCT_NAME="Avi Kubernetes Operator"
 JENKINS_INSTANCE=$(echo $JENKINS_URL | sed -E 's/^\s*.*:\/\///g' | sed -E 's/:.*//g')
 COMP_UID="uid.obj.build.jenkins(instance='$JENKINS_INSTANCE',job_name='$JENKINS_JOB_NAME',build_number='$BUILD_NUMBER')"
 
-# initialize credentials that are required for submission
+# initialize credentials that are required for submission, Credentials value set by jenkins vault plugin
 sudo /srp-tools/srp config auth --client-id=${SRP_CLIENT_ID} --client-secret=${SRP_CLIENT_SECRECT}
 
 # initialize blank provenance in the working directory, $SRP_WORKING_DIR
