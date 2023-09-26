@@ -395,7 +395,7 @@ func TestCreateDeleteSharedVSHostRuleForEvh(t *testing.T) {
 	g.Expect(nodes[0].VsDatascriptRefs[1]).To(gomega.ContainSubstring("thisisaviref-ds1"))
 	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(5))
 	var ports []int
-	sslPorts := [3]int{443, 8083}
+	sslPorts := [2]int{443, 8083}
 	for _, port := range nodes[0].PortProto {
 		ports = append(ports, int(port.Port))
 		if port.EnableSSL {
