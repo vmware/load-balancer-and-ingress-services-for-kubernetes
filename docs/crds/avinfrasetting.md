@@ -34,6 +34,8 @@ spec:
       - peer2
   l7Settings:
     shardSize: MEDIUM
+  nsxSettings:
+    t1lr: /infra/tier1/tier1_974b13d5-9f68-4be8-8149-a48a5686a3ef
 ```
 
 ### AviInfraSetting with Services/Ingress/Routes
@@ -99,6 +101,13 @@ AviInrfaSetting integrates with Openshift Routes, via the annotation
     aviinfrasetting.ako.vmware.com/name: "my-infrasetting"
 ```
 
+### Using Namespace Annotation
+AviInfraSetting also integrates with all the above objects - Services/Ingresses/Routes, via the Namespace annotation. By annotating a namespace with an AviInfraSetting CR, it can be applied on all the services, ingresses and routes in that namespace. AviInfraSetting CR specified via Ingress/Gateway class or direct annotation on Services and Routes will take priority over the AviInfraSetting CR specified at the namespace level via the namespace annotation.
+
+```
+  annotations:
+    aviinfrasetting.ako.vmware.com/name: "my-infrasetting"
+```
 
 ### AviInfraSetting CRD Usage
 
@@ -224,3 +233,10 @@ AviInfraSetting CRD can be used to enable IPv6, IPv4 or both IPv4 and IPv6 vips 
             - networkName: vip-network-10-10-10-0-24
               cidr: 10.10.10.0/24
               v6cidr: 2002::1234:abcd:ffff:c0a8:101/64
+
+#### Configure T1LR for NSX-T Cloud
+
+AviInfraSetting CRD can be used to configure T1LR. For all the Services and Ingresses that refer to an AviInfraSetting CR with T1LR configured, AKO will use the T1LR defined in the AviInfraSetting while creating objects in Avi. For the rest of the resources, AKO will use the gloabl T1LR configured in the ako config map.
+
+        nsxSettings:
+          t1lr: /infra/tier1/tier1_974b13d5-9f68-4be8-8149-a48a5686a3ef
