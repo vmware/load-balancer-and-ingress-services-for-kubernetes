@@ -108,7 +108,11 @@ func handleSecrets(gatewayNamespace string, gatewayName string, key string, obje
 	utils.AviLog.Infof("key: %s, msg: Processing secret update %s has been added.", key, secretName)
 	cs := utils.GetInformers().ClientSet
 	evhVsCertRefs := object.GetAviEvhVS()[0].SSLKeyCertRefs
-	gatewayObj, _ := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(gatewayNamespace).Get(gatewayName)
+	gatewayObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(gatewayNamespace).Get(gatewayName)
+	if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: unable to get the gateway object. err: %s", key, err)
+		return
+	}
 	secretObj, err := cs.CoreV1().Secrets(gatewayNamespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	encodedCertNameIndexMap := make(map[string][]int)
 	for index, evhVsCertRef := range evhVsCertRefs {

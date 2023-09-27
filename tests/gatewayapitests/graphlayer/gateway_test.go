@@ -202,6 +202,7 @@ func TestGatewayWithTLS(t *testing.T) {
 
 	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	tests.TeardownGatewayClass(t, gatewayClassName)
+	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
 }
 
 /*
@@ -281,6 +282,7 @@ func TestGatewayNoTLSToTLS(t *testing.T) {
 
 	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	tests.TeardownGatewayClass(t, gatewayClassName)
+	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
 }
 
 func TestGatewayTLSToNoTLS(t *testing.T) {
@@ -350,6 +352,7 @@ func TestGatewayTLSToNoTLS(t *testing.T) {
 
 	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	tests.TeardownGatewayClass(t, gatewayClassName)
+	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
 }
 
 /*
