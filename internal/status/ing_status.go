@@ -520,7 +520,7 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the IngressClass object for UpdateStatus: %s", err)
 			// retry get if request timeout
-			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) || strings.Contains(err.Error(), utils.K8S_UNAUTHORIZED) {
 				return getIngresses(ingressNSNames, bulk, retry+1)
 			}
 			return ingressMap
@@ -540,7 +540,7 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the ingress object for UpdateStatus: %v", err)
 			// retry get if request timeout
-			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) || strings.Contains(err.Error(), utils.K8S_UNAUTHORIZED) {
 				return getIngresses(ingressNSNames, bulk, retry+1)
 			}
 		}
@@ -573,7 +573,7 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the ingress object for UpdateStatus: %v", err)
 			// retry get if request timeout
-			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) || strings.Contains(err.Error(), utils.K8S_UNAUTHORIZED) {
 				return getIngresses(ingressNSNames, bulk, retry+1)
 			}
 			continue

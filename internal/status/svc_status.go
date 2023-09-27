@@ -223,7 +223,7 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the service object for UpdateStatus: %s", err)
 			// retry get if request timeout
-			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) || strings.Contains(err.Error(), utils.K8S_UNAUTHORIZED) {
 				return getServices(serviceNSNames, bulk, retry+1)
 			}
 		}
@@ -252,7 +252,7 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the service object for UpdateStatus: %s", err)
 			// retry get if request timeout
-			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) || strings.Contains(err.Error(), utils.K8S_UNAUTHORIZED) {
 				return getServices(serviceNSNames, bulk, retry+1)
 			}
 			continue
