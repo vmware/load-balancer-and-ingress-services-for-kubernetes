@@ -493,20 +493,17 @@ func TestApplyHostruleToDedicatedVS(t *testing.T) {
 	g.Expect(evhNode.VsDatascriptRefs[0]).To(gomega.ContainSubstring("thisisaviref-ds2"))
 	g.Expect(evhNode.VsDatascriptRefs[1]).To(gomega.ContainSubstring("thisisaviref-ds1"))
 	if *isVipPerNS != "true" {
-		g.Expect(evhNode.PortProto).To(gomega.HaveLen(4))
+		g.Expect(evhNode.PortProto).To(gomega.HaveLen(2))
 		var portsWithHostRule []int
-		sslPorts := [2]int{443, 8082}
 		for _, port := range nodes[0].PortProto {
 			portsWithHostRule = append(portsWithHostRule, int(port.Port))
 			if port.EnableSSL {
-				g.Expect(int(port.Port)).Should(gomega.BeElementOf(sslPorts))
+				g.Expect(int(port.Port)).Should(gomega.Equal(8082))
 			}
 		}
 		sort.Ints(portsWithHostRule)
-		g.Expect(portsWithHostRule[0]).To(gomega.Equal(80))
-		g.Expect(portsWithHostRule[1]).To(gomega.Equal(443))
-		g.Expect(portsWithHostRule[2]).To(gomega.Equal(8081))
-		g.Expect(portsWithHostRule[3]).To(gomega.Equal(8082))
+		g.Expect(portsWithHostRule[0]).To(gomega.Equal(8081))
+		g.Expect(portsWithHostRule[1]).To(gomega.Equal(8082))
 	}
 
 	integrationtest.TeardownHostRule(t, g, vsKey, hrname)

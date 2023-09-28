@@ -136,6 +136,9 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 
 		if hostrule.Spec.VirtualHost.TCPSettings != nil {
 			if vsNode.IsSharedVS() || vsNode.IsDedicatedVS() {
+				if hostrule.Spec.VirtualHost.TCPSettings.Listeners != nil {
+					portProtocols = []AviPortHostProtocol{}
+				}
 				for _, listener := range hostrule.Spec.VirtualHost.TCPSettings.Listeners {
 					portProtocol := AviPortHostProtocol{
 						Port:     int32(listener.Port),
