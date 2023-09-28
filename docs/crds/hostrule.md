@@ -3,9 +3,12 @@
 HostRule CRD is primarily targeted to be used by the Operator. This CRD can be used to express additional virtual host
 properties. The virtual host FQDN is matched from either Kubernetes Ingress or OpenShift Route based objects. 
 
+***Note***
+With AKO 1.11.1, HostRule is transitioned to v1beta1 version. There are no schema changes between version v1alpha1 and v1beta1. AKO 1.11.1 supports both v1alpha1 and v1beta1 but recommendation is to create new CRD objects in v1beta1 version and transition existing objects to v1beta1 version. AKO will deprecate v1alpha1 version in future releases.
+
 A sample HostRule CRD looks like this:
 
-    apiVersion: ako.vmware.com/v1alpha1
+    apiVersion: ako.vmware.com/v1beta1
     kind: HostRule
     metadata:
       name: my-host-rule

@@ -405,3 +405,26 @@ All notable changes to this project will be documented in this file. The format 
  - Fix: AKO crashes on reboot in IPV6 environment when IPV6 ingress or LB service is there.
  - Fix: AKO doesn't create VS for ingress/route associated with HTTP Rule where LB Algorithm is not set.
  - Fix: AKO does not choose correct network reference for VIP subnet and Pool placement when there are duplicate networks, with same name, present on Avi Controller and management network is being overriden in the Service Engine Group (SEG). This SEG is defined either in AviInfrasetting CRD or in AKO configmap.
+
+ ## AKO-1.11.1
+
+### Added
+ - AKO now supports [GatewayAPI](./docs/gateway-api/gateway-api-v1beta1.md)(TechPreview).
+ - Support for setting/change the nsxt1lr in AviInfrasetting.
+ - SSL support for L4 virtual services with L4Rule CRD.
+ - AKO supports `image pull secret` to pull AKO image from secured registries.
+
+
+### Changed
+ - API version for AviInfrasetting, Hostrule and HTTPRule has been updated from `v1alpha1` to `v1beta1`. User have to update CRD definitions before upgrading AKO to 1.11.1.
+ - Add Hostname from external-dns annotation only when AutoFQDN is flat or default for service type LB.
+ - Reduce the length of the label created by the AKO when the AutoFQDN is set as flat for service of Type LB.
+ - Do not add gslbFqdn, mentioned in Hostrule, to the vsvip fqdn when AKO is running in Dedicated mode.
+
+### Fixed
+ - Fix: AKO programs routes with secondary IPs in Openshift.
+ - Fix: When HTTPRules are applied to the ingresses, with same FQDN and path but deployed in different namespaces, then httprule config is removed from one of the pool when another httprule is applied.
+ - Fix: VS and Pools are not deleted when multiple ingress use same infrasetting for shard size.
+ - Fix: DNS mentioned in `external-dns.alpha.kubernetes.io/hostname` is not added as part `host-fqdn-vs-uuid-map` or vsvip dns info if `ako.vmware.com/enable-shared-vip` annotation is also applied to the LB service.
+
+ ### Known Issues
