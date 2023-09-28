@@ -17,16 +17,16 @@ oc new-project avi-system
 Search for available charts
 
 ```
-helm show chart oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.10.3
+helm show chart oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.11.1
 
-Pulled: projects.registry.vmware.com/ako/helm-charts/ako:1.10.3
+Pulled: projects.registry.vmware.com/ako/helm-charts/ako:1.11.1
 Digest: sha256:xyxyxxyxyx
 apiVersion: v2
-appVersion: 1.10.3
+appVersion: 1.11.1
 description: A helm chart for Avi Kubernetes Operator
 name: ako
 type: application
-version: 1.10.3
+version: 1.11.1
 ```
 
 *Step-3*
@@ -34,7 +34,7 @@ version: 1.10.3
 Edit the [values.yaml](../install/helm.md#parameters) file and update the details according to your environment.
 
 ```
-helm show values oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.10.3 > values.yaml
+helm show values oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.11.1 > values.yaml
 
 ```
 
@@ -43,7 +43,7 @@ helm show values oci://projects.registry.vmware.com/ako/helm-charts/ako --versio
 Install AKO.
 
 ```
-helm install --generate-name oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.10.3 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --namespace=avi-system
+helm install --generate-name oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.11.1 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --namespace=avi-system
 ```
 
 
@@ -55,7 +55,7 @@ Verify the installation
 helm list -n avi-system
 
 NAME          	NAMESPACE 	REVISION	UPDATED     STATUS  	CHART    	APP VERSION
-ako-1691752136	avi-system	1       	2023-08-11	deployed	ako-1.10.3	1.10.3
+ako-1691752136	avi-system	1       	2023-09-28	deployed	ako-1.11.1	1.11.1
 ```
 
 
