@@ -519,8 +519,8 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 		ingClassList, err := utils.GetInformers().IngressClassInformer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the IngressClass object for UpdateStatus: %s", err)
-			// retry get if request timeout
-			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+			// retry get if request timeout or Unauthorized
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) || strings.Contains(err.Error(), utils.K8S_UNAUTHORIZED) {
 				return getIngresses(ingressNSNames, bulk, retry+1)
 			}
 			return ingressMap
@@ -539,8 +539,8 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 		ingressList, err := utils.GetInformers().IngressInformer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the ingress object for UpdateStatus: %v", err)
-			// retry get if request timeout
-			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+			// retry get if request timeout or Unauthorized
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) || strings.Contains(err.Error(), utils.K8S_UNAUTHORIZED) {
 				return getIngresses(ingressNSNames, bulk, retry+1)
 			}
 		}
@@ -572,8 +572,8 @@ func getIngresses(ingressNSNames []string, bulk bool, retryNum ...int) map[strin
 		mIngress, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses(nsNameSplit[0]).Get(context.TODO(), nsNameSplit[1], metav1.GetOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the ingress object for UpdateStatus: %v", err)
-			// retry get if request timeout
-			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+			// retry get if request timeout or Unauthorized
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) || strings.Contains(err.Error(), utils.K8S_UNAUTHORIZED) {
 				return getIngresses(ingressNSNames, bulk, retry+1)
 			}
 			continue

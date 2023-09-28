@@ -222,8 +222,8 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 		serviceLBList, err := utils.GetInformers().ServiceInformer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the service object for UpdateStatus: %s", err)
-			// retry get if request timeout
-			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+			// retry get if request timeout or Unauthorized
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) || strings.Contains(err.Error(), utils.K8S_UNAUTHORIZED) {
 				return getServices(serviceNSNames, bulk, retry+1)
 			}
 		}
@@ -251,8 +251,8 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 		serviceLB, err := utils.GetInformers().ServiceInformer.Lister().Services(nsNameSplit[0]).Get(nsNameSplit[1])
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the service object for UpdateStatus: %s", err)
-			// retry get if request timeout
-			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+			// retry get if request timeout or Unauthorized
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) || strings.Contains(err.Error(), utils.K8S_UNAUTHORIZED) {
 				return getServices(serviceNSNames, bulk, retry+1)
 			}
 			continue
