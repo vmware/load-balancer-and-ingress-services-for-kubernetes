@@ -2066,8 +2066,11 @@ func GetIPFromNode(node *v1.Node) (string, string) {
 		if addr.Type == corev1.NodeInternalIP {
 			nodeIP := addr.Address
 			if utils.IsV4(nodeIP) {
-				nodeV4 = nodeIP
-			} else {
+				//Use first IP in the list
+				if nodeV4 == "" {
+					nodeV4 = nodeIP
+				}
+			} else if nodeV6 == "" {
 				nodeV6 = nodeIP
 			}
 		}
