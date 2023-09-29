@@ -13,7 +13,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/jinzhu/copier v0.3.5
 	github.com/jupp0r/go-priority-queue v0.0.0-20160601094913-ab1073853bde
-	github.com/onsi/gomega v1.19.0
+	github.com/onsi/gomega v1.23.0
 	github.com/openshift/api v0.0.0-20201019163320-c6a5ec25f267
 	github.com/openshift/client-go v0.0.0-20201020082437-7737f16e53fc
 	github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
@@ -60,6 +60,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/onsi/ginkgo/v2 v2.4.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.12.1 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
@@ -81,6 +82,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	istio.io/api v0.0.0-20210512213424-c42041d3366d // indirect
 	istio.io/gogo-genproto v0.0.0-20210113155706-4daf5697332f // indirect
+	k8s.io/code-generator v0.26.0 // indirect
 	k8s.io/component-base v0.24.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20221012153701-172d655c2280 // indirect
 	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect

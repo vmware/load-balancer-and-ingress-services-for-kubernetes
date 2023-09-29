@@ -74,7 +74,10 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 	return c.tracker
 }
 
-var _ clientset.Interface = &Clientset{}
+var (
+	_ clientset.Interface = &Clientset{}
+	_ testing.FakeClient  = &Clientset{}
+)
 
 // AkoV1alpha2 retrieves the AkoV1alpha2Client
 func (c *Clientset) AkoV1alpha2() akov1alpha2.AkoV1alpha2Interface {

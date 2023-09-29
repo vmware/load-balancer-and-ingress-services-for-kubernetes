@@ -110,7 +110,7 @@ func (c *FakeAviInfraSettings) UpdateStatus(ctx context.Context, aviInfraSetting
 // Delete takes name of the aviInfraSetting and deletes it. Returns an error if one occurs.
 func (c *FakeAviInfraSettings) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(aviinfrasettingsResource, name), &v1beta1.AviInfraSetting{})
+		Invokes(testing.NewRootDeleteActionWithOptions(aviinfrasettingsResource, name, opts), &v1beta1.AviInfraSetting{})
 	return err
 }
 
