@@ -1856,6 +1856,9 @@ func GetAviMinSupportedVersion() string {
 }
 
 func GetAviMaxSupportedVersion() string {
+	if CompareVersions(aviMaxVersion, ">", utils.MaxAviVersion) {
+		aviMaxVersion = utils.MaxAviVersion
+	}
 	return aviMaxVersion
 }
 
