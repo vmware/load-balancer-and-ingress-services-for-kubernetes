@@ -1161,6 +1161,9 @@ func TestSharedVSHostRuleNoListenerForSNI(t *testing.T) {
 		HttpPolicySets:     []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
 	}
 	hrCreate := hostrule.HostRule()
+	hrCreate.Spec.VirtualHost.TCPSettings = &v1beta1.HostRuleTCPSettings{
+		LoadBalancerIP: "80.80.80.80",
+	}
 	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Create(context.TODO(), hrCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding HostRule: %v", err)
 	}
@@ -1186,6 +1189,7 @@ func TestSharedVSHostRuleNoListenerForSNI(t *testing.T) {
 	sort.Ints(ports)
 	g.Expect(ports[0]).To(gomega.Equal(80))
 	g.Expect(ports[1]).To(gomega.Equal(443))
+	g.Expect(nodes[0].VSVIPRefs[0].IPAddress).To(gomega.Equal("80.80.80.80"))
 
 	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
 	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/samplehr-foo", false)

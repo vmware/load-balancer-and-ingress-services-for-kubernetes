@@ -271,6 +271,9 @@ func TestHostruleNoListenerDedicatedVS(t *testing.T) {
 	hrObj := hostrule.HostRule()
 	hrObj.Spec.VirtualHost.Fqdn = "foo.com"
 	hrObj.Spec.VirtualHost.FqdnType = v1beta1.Contains
+	hrObj.Spec.VirtualHost.TCPSettings = &v1beta1.HostRuleTCPSettings{
+		LoadBalancerIP: "80.80.80.80",
+	}
 
 	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Create(context.TODO(), hrObj, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding HostRule: %v", err)
@@ -297,6 +300,7 @@ func TestHostruleNoListenerDedicatedVS(t *testing.T) {
 	sort.Ints(portsWithHostRule)
 	g.Expect(portsWithHostRule[0]).To(gomega.Equal(80))
 	g.Expect(portsWithHostRule[1]).To(gomega.Equal(443))
+	g.Expect(nodes[0].VSVIPRefs[0].IPAddress).To(gomega.Equal("80.80.80.80"))
 
 	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
 	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/hr-cluster--foo.com-L7-dedicated", false)
