@@ -1770,7 +1770,7 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 		layout := "2006-01-02T15:04:05.000000+00:00"
 		expiryTime, err := time.Parse(layout, expiry)
 		if err != nil {
-			layout = "2006-01-02T15:04:05.000000000Z"
+			layout = "2006-01-02T15:04:05.000000Z"
 			expiryTime, err = time.Parse(layout, expiry)
 			if err != nil {
 				utils.AviLog.Errorf("Unable to parse token expiry time, err: %+v", err)
