@@ -290,7 +290,8 @@ func (c *VCFK8sController) ValidBootStrapData() bool {
 		return false
 	}
 
-	lib.SetVPCMode(configmap.Data["vpcMode"])
+	//lib.SetVPCMode(configmap.Data["vpcMode"])
+	lib.SetVPCMode("true")
 	lib.SetClusterID(clusterID)
 	setTranzportZone(transportzone)
 	return c.ValidBootstrapSecretData(controllerIP, secretName, secretNamespace)
