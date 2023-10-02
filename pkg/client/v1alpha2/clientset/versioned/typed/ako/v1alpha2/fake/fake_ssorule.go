@@ -117,7 +117,7 @@ func (c *FakeSSORules) UpdateStatus(ctx context.Context, sSORule *v1alpha2.SSORu
 // Delete takes name of the sSORule and deletes it. Returns an error if one occurs.
 func (c *FakeSSORules) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(ssorulesResource, c.ns, name), &v1alpha2.SSORule{})
+		Invokes(testing.NewDeleteActionWithOptions(ssorulesResource, c.ns, name, opts), &v1alpha2.SSORule{})
 
 	return err
 }

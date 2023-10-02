@@ -117,7 +117,7 @@ func (c *FakeHostRules) UpdateStatus(ctx context.Context, hostRule *v1beta1.Host
 // Delete takes name of the hostRule and deletes it. Returns an error if one occurs.
 func (c *FakeHostRules) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(hostrulesResource, c.ns, name), &v1beta1.HostRule{})
+		Invokes(testing.NewDeleteActionWithOptions(hostrulesResource, c.ns, name, opts), &v1beta1.HostRule{})
 
 	return err
 }
