@@ -606,13 +606,13 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 		}
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
+		oldVsVipCache, oldVsVipFound := rest.cache.VSVIPCache.AviCacheGet(k)
 		rest.cache.VSVIPCache.AviCacheAdd(k, &vsvip_cache_obj)
 		// Update the VS object
 		vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
 		if ok {
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found {
-				oldVsVipCache, oldVsVipFound := rest.cache.VSVIPCache.AviCacheGet(k)
 				var oldVsVips, oldVsFips, oldVsV6ips []string
 				if oldVsVipFound {
 					oldVsVipCacheObj, ok := oldVsVipCache.(*avicache.AviVSVIPCache)
