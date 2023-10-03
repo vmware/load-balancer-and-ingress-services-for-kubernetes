@@ -117,7 +117,7 @@ func (c *FakeL4Rules) UpdateStatus(ctx context.Context, l4Rule *v1alpha2.L4Rule,
 // Delete takes name of the l4Rule and deletes it. Returns an error if one occurs.
 func (c *FakeL4Rules) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(l4rulesResource, c.ns, name), &v1alpha2.L4Rule{})
+		Invokes(testing.NewDeleteActionWithOptions(l4rulesResource, c.ns, name, opts), &v1alpha2.L4Rule{})
 
 	return err
 }

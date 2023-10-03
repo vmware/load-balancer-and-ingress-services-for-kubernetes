@@ -117,7 +117,7 @@ func (c *FakeHTTPRules) UpdateStatus(ctx context.Context, hTTPRule *v1beta1.HTTP
 // Delete takes name of the hTTPRule and deletes it. Returns an error if one occurs.
 func (c *FakeHTTPRules) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(httprulesResource, c.ns, name), &v1beta1.HTTPRule{})
+		Invokes(testing.NewDeleteActionWithOptions(httprulesResource, c.ns, name, opts), &v1beta1.HTTPRule{})
 
 	return err
 }
