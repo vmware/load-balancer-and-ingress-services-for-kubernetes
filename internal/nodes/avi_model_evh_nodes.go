@@ -41,6 +41,7 @@ type AviVsEvhSniModel interface {
 
 	IsSharedVS() bool
 	IsDedicatedVS() bool
+	IsSecure() bool
 
 	GetPortProtocols() []AviPortHostProtocol
 	SetPortProtocols([]AviPortHostProtocol)
@@ -141,6 +142,7 @@ type AviEvhVsNode struct {
 	IngressNames        []string
 	Dedicated           bool
 	VHMatches           []*avimodels.VHMatch
+	Secure              bool
 
 	AviVsNodeCommonFields
 
@@ -163,6 +165,10 @@ func (v *AviEvhVsNode) IsSharedVS() bool {
 
 func (v *AviEvhVsNode) IsDedicatedVS() bool {
 	return v.Dedicated
+}
+
+func (v *AviEvhVsNode) IsSecure() bool {
+	return v.Secure
 }
 
 func (v *AviEvhVsNode) GetPortProtocols() []AviPortHostProtocol {
@@ -772,6 +778,8 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 		ApplicationProfile: utils.DEFAULT_L7_APP_PROFILE,
 		NetworkProfile:     utils.DEFAULT_TCP_NW_PROFILE,
 	}
+
+	avi_vs_meta.Secure = secure
 
 	if !dedicated || secure {
 		httpsPort := AviPortHostProtocol{Port: 443, Protocol: utils.HTTP, EnableSSL: true}

@@ -75,7 +75,10 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 
 	portProtocols := []AviPortHostProtocol{
 		{Port: 80, Protocol: utils.HTTP},
-		{Port: 443, Protocol: utils.HTTP, EnableSSL: true},
+	}
+
+	if vsNode.IsSecure() || !vsNode.IsDedicatedVS() {
+		portProtocols = append(portProtocols, AviPortHostProtocol{Port: 443, Protocol: utils.HTTP, EnableSSL: true})
 	}
 
 	if !deleteCase {
@@ -133,7 +136,9 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 
 		if hostrule.Spec.VirtualHost.TCPSettings != nil {
 			if vsNode.IsSharedVS() || vsNode.IsDedicatedVS() {
-				portProtocols = []AviPortHostProtocol{}
+				if hostrule.Spec.VirtualHost.TCPSettings.Listeners != nil {
+					portProtocols = []AviPortHostProtocol{}
+				}
 				for _, listener := range hostrule.Spec.VirtualHost.TCPSettings.Listeners {
 					portProtocol := AviPortHostProtocol{
 						Port:     int32(listener.Port),
@@ -199,7 +204,9 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	vsNode.SetVsDatascriptRefs(vsDatascripts)
 	vsNode.SetEnabled(vsEnabled)
 	vsNode.SetAnalyticsPolicy(analyticsPolicy)
-	vsNode.SetPortProtocols(portProtocols)
+	if len(portProtocols) != 0 {
+		vsNode.SetPortProtocols(portProtocols)
+	}
 	vsNode.SetVSVIPLoadBalancerIP(lbIP)
 	vsNode.SetVHDomainNames(VHDomainNames)
 

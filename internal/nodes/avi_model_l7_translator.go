@@ -74,6 +74,9 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 			{Port: 80, Protocol: utils.HTTP},
 		},
 	}
+
+	avi_vs_meta.Secure = secureVS
+
 	if !dedicatedVs {
 		avi_vs_meta.SharedVS = true
 		avi_vs_meta.SNIParent = true

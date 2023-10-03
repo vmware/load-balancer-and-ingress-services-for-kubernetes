@@ -412,6 +412,7 @@ type AviVsNode struct {
 	IngressNames          []string
 	Dedicated             bool
 	IsL4VS                bool
+	Secure                bool
 
 	AviVsNodeCommonFields
 
@@ -450,6 +451,10 @@ func (v *AviVsNode) IsSharedVS() bool {
 
 func (v *AviVsNode) IsDedicatedVS() bool {
 	return v.Dedicated
+}
+
+func (v *AviVsNode) IsSecure() bool {
+	return v.Secure
 }
 
 func (v *AviVsNode) GetPortProtocols() []AviPortHostProtocol {

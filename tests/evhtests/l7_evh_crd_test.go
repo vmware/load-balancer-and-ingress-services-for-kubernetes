@@ -398,7 +398,7 @@ func TestCreateDeleteSharedVSHostRuleForEvh(t *testing.T) {
 	for _, port := range nodes[0].PortProto {
 		ports = append(ports, int(port.Port))
 		if port.EnableSSL {
-			g.Expect(int(port.Port)).To(gomega.Equal(8083))
+			g.Expect(int(port.Port)).Should(gomega.Equal(8083))
 		}
 	}
 	sort.Ints(ports)
@@ -1012,6 +1012,64 @@ func TestHostRuleWithEmptyConfig(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].EvhNodes[0].VsDatascriptRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].SslProfileRef).To(gomega.BeNil())
+	TearDownIngressForCacheSyncCheck(t, modelName)
+}
+
+func TestSharedVSHostRuleNoListenerForEvh(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName, _ := GetModelName("foo.com", "default")
+	hrname := "samplehr-foo"
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+
+	fqdn := "cluster--Shared-L7-EVH-0.admin.com"
+	if lib.VIPPerNamespace() {
+		fqdn = "cluster--Shared-L7-EVH-NS-default.admin.com"
+	}
+	hostrule := integrationtest.FakeHostRule{
+		Name:               hrname,
+		Namespace:          "default",
+		Fqdn:               fqdn,
+		WafPolicy:          "thisisaviref-waf",
+		ApplicationProfile: "thisisaviref-appprof",
+		ICAPProfile:        []string{"thisisaviref-icapprof"},
+		AnalyticsProfile:   "thisisaviref-analyticsprof",
+		ErrorPageProfile:   "thisisaviref-errorprof",
+		Datascripts:        []string{"thisisaviref-ds2", "thisisaviref-ds1"},
+		HttpPolicySets:     []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
+	}
+	hrCreate := hostrule.HostRule()
+	hrCreate.Spec.VirtualHost.TCPSettings = &v1beta1.HostRuleTCPSettings{
+		LoadBalancerIP: "80.80.80.80",
+	}
+	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Create(context.TODO(), hrCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding HostRule: %v", err)
+	}
+
+	g.Eventually(func() string {
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 10*time.Second).Should(gomega.Equal("Accepted"))
+
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: strings.Split(modelName, "/")[1]}
+	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/samplehr-foo", true)
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(*nodes[0].Enabled).To(gomega.Equal(true))
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(2))
+	var ports []int
+	for _, port := range nodes[0].PortProto {
+		ports = append(ports, int(port.Port))
+		if port.EnableSSL {
+			g.Expect(int(port.Port)).To(gomega.Equal(443))
+		}
+	}
+	sort.Ints(ports)
+	g.Expect(ports[0]).To(gomega.Equal(80))
+	g.Expect(ports[1]).To(gomega.Equal(443))
+	g.Expect(nodes[0].VSVIPRefs[0].IPAddress).To(gomega.Equal("80.80.80.80"))
+
+	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
