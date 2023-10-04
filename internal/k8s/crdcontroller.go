@@ -38,6 +38,8 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -1111,4 +1113,68 @@ func GetSEGManagementNetwork(name string) string {
 		}
 	}
 	return mgmtNetwork
+}
+
+func (c *AviController) SyncCRDObjects() {
+	utils.AviLog.Debugf("Starting syncing all CRD objects")
+	hostRuleObjs, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("Unable to retrieve the hostrules during full sync: %s", err)
+	} else {
+		for _, hostRuleObj := range hostRuleObjs {
+			key := lib.HostRule + "/" + utils.ObjKey(hostRuleObj)
+			if err := c.GetValidator().ValidateHostRuleObj(key, hostRuleObj); err != nil {
+				utils.AviLog.Warnf("key: %s, Error during validation of HostRule: %v", key, err)
+			}
+		}
+	}
+
+	httpRuleObjs, err := lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Lister().HTTPRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("Unable to retrieve the httprules during full sync: %s", err)
+	} else {
+		for _, httpRuleObj := range httpRuleObjs {
+			key := lib.HTTPRule + "/" + utils.ObjKey(httpRuleObj)
+			if err := c.GetValidator().ValidateHTTPRuleObj(key, httpRuleObj); err != nil {
+				utils.AviLog.Warnf("key: %s, Error during validation of HTTPRule: %v", key, err)
+			}
+		}
+	}
+
+	aviInfraObjs, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("Unable to retrieve the avinfrasettings during full sync: %s", err)
+	} else {
+		for _, aviInfraObj := range aviInfraObjs {
+			key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfraObj)
+			if err := c.GetValidator().ValidateAviInfraSetting(key, aviInfraObj); err != nil {
+				utils.AviLog.Warnf("key: %s, Error during validation of AviInfraSetting: %v", key, err)
+			}
+		}
+	}
+
+	ssoRuleObjs, err := lib.AKOControlConfig().CRDInformers().SSORuleInformer.Lister().SSORules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("Unable to retrieve the SsoRules during full sync: %s", err)
+	} else {
+		for _, ssoRuleObj := range ssoRuleObjs {
+			key := lib.SSORule + "/" + utils.ObjKey(ssoRuleObj)
+			if err := c.GetValidator().ValidateSSORuleObj(key, ssoRuleObj); err != nil {
+				utils.AviLog.Warnf("key: %s, Error during validation of SSORule : %v", key, err)
+			}
+		}
+	}
+
+	l4RuleObjs, err := lib.AKOControlConfig().CRDInformers().L4RuleInformer.Lister().List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("Unable to retrieve the L4Rules during full sync: %s", err)
+	} else {
+		for _, l4Rule := range l4RuleObjs {
+			key := lib.L4Rule + "/" + utils.ObjKey(l4Rule)
+			if err := c.GetValidator().ValidateL4RuleObj(key, l4Rule); err != nil {
+				utils.AviLog.Warnf("key: %s, Error during validation of L4Rule: %v", key, err)
+			}
+		}
+	}
+	utils.AviLog.Debugf("Successfully synced all CRD objects")
 }
