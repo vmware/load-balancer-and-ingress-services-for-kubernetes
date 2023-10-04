@@ -428,3 +428,4 @@ All notable changes to this project will be documented in this file. The format 
  - Fix: DNS mentioned in `external-dns.alpha.kubernetes.io/hostname` is not added as part `host-fqdn-vs-uuid-map` or vsvip dns info if `ako.vmware.com/enable-shared-vip` annotation is also applied to the LB service.
 
  ### Known Issues
+ - For Avi Controller version less than `30.1.1`, when using SSORule CRD, if `authnReqAcsType` is set to `SAML_AUTHN_REQ_ACS_TYPE_URL`, **Request Body Buffering** needs to be enabled for EVH parent virtual service for SAML traffic to work. This can be achieved by creating a custom application profile of type `HTTP` in the AVI controller with **Request Body Buffering** enabled and attaching that application profile to the EVH parent VS by using a HostRule CRD object. Avi Controller version `30.1.1` is supported starting with AKO version `1.11.1`.
