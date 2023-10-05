@@ -339,12 +339,27 @@ func GetPodCIDR(node *v1.Node) ([]string, error) {
 		if err != nil {
 			return nil, errors.New("Error while unmarshalling k8s.ovn.org/node-subnets annotation in Node Metadata : " + err.Error())
 		}
-		podCIDR := nodeSubnetJson["default"].(string)
-		if podCIDR == "" {
-			utils.AviLog.Errorf("Error in fetching Pod CIDR from Node Metadata %v", node.ObjectMeta.Name)
-			return nil, errors.New("podcidr not found")
+		if podCIDR, ok := nodeSubnetJson["default"].(string); ok {
+			if podCIDR == "" {
+				utils.AviLog.Errorf("Error in fetching Pod CIDR from Node Metadata %v", node.ObjectMeta.Name)
+				return nil, errors.New("podcidr not found")
+			}
+			podCIDRs = append(podCIDRs, podCIDR)
+		} else if podCIDRList, ok := nodeSubnetJson["default"].([]interface{}); ok {
+			if len(podCIDRList) == 0 {
+				utils.AviLog.Errorf("Error in fetching Pod CIDR from Node Metadata %v", node.ObjectMeta.Name)
+				return nil, errors.New("podcidr not found")
+			}
+			for _, cidr := range podCIDRList {
+				if podCIDR, ok := cidr.(string); ok {
+					if podCIDR == "" {
+						utils.AviLog.Errorf("Error in fetching Pod CIDR from Node Metadata %v", node.ObjectMeta.Name)
+						return nil, errors.New("podcidr not found")
+					}
+					podCIDRs = append(podCIDRs, podCIDR)
+				}
+			}
 		}
-		podCIDRs = append(podCIDRs, podCIDR)
 	} else if GetCNIPlugin() == CILIUM_CNI && dynamicClientSet != nil {
 		crdClient := dynamicClient.Resource(CiliumNodeGVR)
 		crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
@@ -399,7 +414,6 @@ func GetPodCIDR(node *v1.Node) ([]string, error) {
 			podCIDRs = append(podCIDRs, node.Spec.PodCIDRs...)
 		}
 	}
-
 	return podCIDRs, nil
 }
 
