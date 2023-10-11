@@ -236,7 +236,7 @@ AviInfraSetting CRD can be used to enable IPv6, IPv4 or both IPv4 and IPv6 vips 
 
 #### Configure T1LR for NSX-T Cloud
 
-AviInfraSetting CRD can be used to configure T1LR. For all the Services and Ingresses that refer to an AviInfraSetting CR with T1LR configured, AKO will use the T1LR defined in the AviInfraSetting while creating objects in Avi. For the rest of the resources, AKO will use the gloabl T1LR configured in the ako config map.
+AviInfraSetting CRD can be used to configure T1LR. For all the Services and Ingresses that refer to an AviInfraSetting CR with T1LR configured, AKO will use the T1LR defined in the AviInfraSetting while creating objects in Avi. For the rest of the resources, AKO will use the gloabl T1LR configured in the ako config map. In case of an update in nsxSettings.t1lr, the existing Virtual Services will continue to use the old t1lr value. The updated t1lr value will only be applicable for the newly created Virtual Services.
 
         nsxSettings:
           t1lr: /infra/tier1/tier1_974b13d5-9f68-4be8-8149-a48a5686a3ef
