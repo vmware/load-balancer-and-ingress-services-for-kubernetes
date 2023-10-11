@@ -17,8 +17,8 @@
 set -xe
 
 
-if [ $# -lt 5 ] ; then
-    echo "Usage: ./save_build.sh <BRANCH> <BUILD_NUMBER> <WORKSPACE> <JENKINS_JOB_NAME> <JENKINS_URL>";
+if [ $# -lt 7 ] ; then
+    echo "Usage: ./save_build.sh <BRANCH> <BUILD_NUMBER> <WORKSPACE> <JENKINS_JOB_NAME> <JENKINS_URL> <CI_REGISTRY_IMAGE_AKO> <CI_REGISTRY_IMAGE_AKO_OPERATOR>";
     exit 1
 fi
 
@@ -27,6 +27,8 @@ BUILD_NUMBER=$2
 WORKSPACE=$3
 JENKINS_JOB_NAME=$4
 JENKINS_URL=$5
+CI_REGISTRY_IMAGE_AKO=$6
+CI_REGISTRY_IMAGE_AKO_OPERATOR=$7
 
 SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
@@ -90,15 +92,13 @@ sudo /srp-tools/srp provenance action stop --working-dir $WORKSPACE/provenance
 # declare the git source tree for the build.  We refer to this declaration below when adding source inputs.
 sudo /srp-tools/srp provenance declare-source git --verbose --set-key=mainsrc --path=$WORKSPACE --branch=$BRANCH --working-dir $WORKSPACE/provenance
 
-CI_REGISTRY_IMAGE=10.79.172.11:5000/avi-buildops/ako
-IMAGE_DIGEST=`sudo docker images $CI_REGISTRY_IMAGE  --digests | grep sha256 | xargs | cut -d " " -f3`
+IMAGE_DIGEST=`sudo docker images $CI_REGISTRY_IMAGE_AKO  --digests | grep sha256 | xargs | cut -d " " -f3`
 echo $IMAGE_DIGEST
-sudo /srp-tools/srp provenance add-output package.oci --set-key=ako-image --action-key=ako-bld --name=${CI_REGISTRY_IMAGE}  --digest=${IMAGE_DIGEST} --working-dir $WORKSPACE/provenance
+sudo /srp-tools/srp provenance add-output package.oci --set-key=ako-image --action-key=ako-bld --name=${CI_REGISTRY_IMAGE_AKO}  --digest=${IMAGE_DIGEST} --working-dir $WORKSPACE/provenance
 
-CI_REGISTRY_IMAGE=10.79.172.11:5000/avi-buildops/ako-operator
-IMAGE_DIGEST=`sudo docker images $CI_REGISTRY_IMAGE  --digests | grep sha256 | xargs | cut -d " " -f3`
+IMAGE_DIGEST=`sudo docker images $CI_REGISTRY_IMAGE_AKO_OPERATOR  --digests | grep sha256 | xargs | cut -d " " -f3`
 echo $IMAGE_DIGEST
-sudo /srp-tools/srp provenance add-output package.oci --set-key=ako-operator-image --action-key=ako-bld --name=${CI_REGISTRY_IMAGE}  --digest=${IMAGE_DIGEST} --working-dir $WORKSPACE/provenance
+sudo /srp-tools/srp provenance add-output package.oci --set-key=ako-operator-image --action-key=ako-bld --name=${CI_REGISTRY_IMAGE_AKO_OPERATOR}  --digest=${IMAGE_DIGEST} --working-dir $WORKSPACE/provenance
 
 # use the syft plugin to scan the container and add all inputs it discovers. This will include the golang application we added
 # to the container, which are duplicate of the inputs above, but in this case we KNOW they are incorporated.
