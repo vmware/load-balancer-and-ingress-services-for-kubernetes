@@ -4,9 +4,12 @@ The HTTPRule CRD is primarily targetted for the developers. While the path match
 traffic routing rules to the microservices, the HTTPRule CRD can be used as a complimentary object to control additional layer 7
 properties like: algorithm, hash, tls re-encrypt use cases.
 
+***Note***
+With AKO 1.11.1, HTTPRule is transitioned to v1beta1 version. There are no schema changes between version v1alpha1 and v1beta1. AKO 1.11.1 supports both v1alpha1 and v1beta1 but recommendation is to create new CRD objects in v1beta1 version and transition existing objects to v1beta1 version. AKO will deprecate v1alpha1 version in future releases.
+
 A sample HTTPRule object looks like this:
 
-    apiVersion: ako.vmware.com/v1alpha1
+    apiVersion: ako.vmware.com/v1beta1
     kind: HTTPRule
     metadata:
        name: my-http-rule

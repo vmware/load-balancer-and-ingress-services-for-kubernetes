@@ -3,10 +3,13 @@
 AviInfraSetting provides a way to segregate Layer-4/Layer-7 VirtualServices to have properties based on different underlying infrastructure components,
 like ServiceEngineGroup, intended VIP Network etc.
 
+***Note***
+With AKO 1.11.1, AviInfrasetting is transitioned to v1beta1 version. There are no schema changes between version v1alpha1 and v1beta1. AKO 1.11.1 supports both v1alpha1 and v1beta1 but recommendation is to create new CRD objects in v1beta1 version and transition existing objects to v1beta1 version. AKO will deprecate v1alpha1 version in future releases.
+
 A sample AviInfraSetting CRD looks like this:
 
 ```
-apiVersion: ako.vmware.com/v1alpha1
+apiVersion: ako.vmware.com/v1beta1
 kind: AviInfraSetting
 metadata:
   name: my-infra-setting

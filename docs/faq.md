@@ -304,3 +304,20 @@ Way to figure out `networkUUID` for given `networkName` from web browser is as f
 2. On Web browser, type fqdn as `https://<controller-ip-or-fqdn>/api/network?name=<NameOfNetwork>`
 3. Choose `uuid` field of one of the retrieved records.
 4. In case of multiple records are retrieved, user has to use `switch_name` and/or `configured_subnet` fields of the record, to choose correct network.
+
+
+### Which are AKO CRDs transitioned to v1beta1 version?
+
+With AKO 1.11.1, AviInfrasetting, Hostrule, HttpRule CRD schemas are transitioned to v1beta1 version.
+
+### My existing cluster have hostrule, aviinfrasetting and httprule CRD objects in v1alpha1 version. What will be impact if AKO is upgraded to 1.11.1 and above?
+
+AKO 1.11.1 supports CRD objects in v1alpha1 and v1beta1 version. So existing objects will be processed by AKO. It is recommended to create new CRD objects in `v1beta1` version. Also please transition existing objects to `v1beta1` version as AKO will deprecate `v1alpha1` in future releases.
+
+### When AKO is upgraded to 1.11.1 version or above, following error is seen in AKO logs:
+```
+2023-09-21T05:08:47.280Z	INFO	logr/logr.go:261	github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s/controller.go:1389: failed to list *v1beta1.HostRule: the server could not find the requested resource (get hostrules.ako.vmware.com)
+```
+How can it be resolved?
+
+During AKO upgrade, first step is to apply latest `crd` definitions. This step might have been skipped. Due to that, this error could be there. Please refer [AKO upgrade steps](./install/helm.md#upgrade-ako-using-helm).
