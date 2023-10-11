@@ -324,3 +324,16 @@ SecurityContext holds security configuration that will be applied to the AKO pod
 ### podSecurityContext
 
 This can be used to set securityContext of AKO pod, if necessary. For example, in openshift environment, if a persistent storage with hostpath is used for logging, then securityContext must have privileged: true (Reference - https://docs.openshift.com/container-platform/4.11/storage/persistent_storage/persistent-storage-hostpath.html)
+
+
+### featureGates.GatewayAPI (Tech Preview)
+
+Use this flag if you want to enable Gateway API feature for AKO. It is disabled by default. Set the flag to `true` to enable the flag.
+
+### GatewayAPI
+
+Enable Gateway API in the featureGate to use this field.
+
+### GatewayAPI.image.repository
+
+If you are using a private container registry and you'd like to override the default dockerhub settings, then this field can be edited with the private registry name.
