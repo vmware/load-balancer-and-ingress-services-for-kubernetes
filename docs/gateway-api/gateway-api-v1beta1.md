@@ -82,6 +82,12 @@ A sample Gateway object is shown below:
 
 The above Gateway object would correspond to a single Layer 7 virtual service in the AVI controller, with two ports (80, 443) exposed and a sslKeyAndCertificate created based on the secret **bar-example-com-cert**.
 
+The hostname field `.spec.listeners[i].hostname` is mandatory. It can be configured with or without a wildcard, but cannot be only `*`.
+
+AKO currently only supports HTTP and HTTPS as protocol.
+
+AKO currently only supports Secret kind for certificateRefs.
+
 Users can also configure a user-preferred static IPv4 address in the Gateway Object using the `.spec.addresses` field as shown below. This would configure the Layer 7 virtual service with a static IP as mentioned in the Gateway Object.
 
   ```yaml
@@ -141,6 +147,12 @@ A sample HTTPRoute object is shown below:
   ```
 
 The above HTTPRoute object gets translated to two child VS in the AVI controller. One child VS with match criteria as the path begins with `/bar` and a single Pool Group with a single pool and another child VS with match criteria as path begins with `/foo`, a single Pool Group with two pools, and an HTTP Request policy to add `my-header` to the HTTP request forwarded to the backends.
+
+Hostnames are mandatory and cannot contain wildcard.
+
+AKO currently does not support filters within backendRefs.
+
+Gateway should be created before an HTTPRoute is created. If Gateways are created after HTTPRoute is created, then the HTTPRoute needs to be updated to trigger the informer.
 
 ### HTTP Traffic Splitting
 
