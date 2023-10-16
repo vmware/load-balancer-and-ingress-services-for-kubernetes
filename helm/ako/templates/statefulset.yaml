@@ -256,6 +256,9 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: useDefaultSecretsOnly
+          {{- if .Values.ControllerSettings.extraEnv -}}
+          {{ toYaml .Values.ControllerSettings.extraEnv | nindent 10 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:

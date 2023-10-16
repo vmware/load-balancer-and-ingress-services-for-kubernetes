@@ -102,6 +102,12 @@ ControllerSettings:
   cloudName: "Default-Cloud" # The configured cloud name on the Avi controller.
   controllerHost: "" # IP address or Hostname of Avi Controller
   tenantName: "admin" # Name of the tenant where all the AKO objects will be created in AVI.
+  extraEnv: {}
+  # - name: CTRL_USERNAME
+  #   valuesFrom:
+  #   secretKeyRef:
+  #     name: avi-external-secret
+  #     key: ctrl_user
 
 nodePortSelector: # Only applicable if serviceType is NodePort
   key: ""
