@@ -8,6 +8,10 @@ metadata:
 spec:
   imageRepository: {{ .Values.akoImage.repository }}
   imagePullPolicy: {{ .Values.akoImage.pullPolicy }}
+{{- with .Values.AKOPullSecrets }}
+  imagePullSecrets:
+{{- toYaml . | nindent 4 }}
+{{- end }}
   replicaCount: {{ .Values.replicaCount }}
   akoSettings:
     enableEvents: {{ .Values.AKOSettings.enableEvents }}
@@ -90,3 +94,11 @@ spec:
 
   mountPath: {{ .Values.mountPath }}
   logFile: {{ .Values.logFile }}
+  featureGates:
+    gatewayAPI: {{ .Values.featureGates.gatewayAPI }}
+  akoGatewayLogFile: {{ .Values.akoGatewayLogFile }}
+  gatewayAPI:
+    image:
+      repository: {{ .Values.GatewayAPI.image.repository }}
+      pullPolicy: {{ .Values.GatewayAPI.image.pullPolicy }}
+  

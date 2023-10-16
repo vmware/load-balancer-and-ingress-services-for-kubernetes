@@ -81,19 +81,22 @@ type AKOSettings struct {
 type NodeNetwork struct {
 	NetworkName string   `json:"networkName,omitempty"`
 	Cidrs       []string `json:"cidrs,omitempty"`
+	NetworkUUID string   `json:"networkUUID,omitempty"`
 }
 
 type VipNetwork struct {
 	NetworkName string `json:"networkName,omitempty"`
 	Cidr        string `json:"cidr,omitempty"`
 	//V6Cidr will enable the VS networks to use ipv6
-	V6Cidr string `json:"v6cidr,omitempty"`
+	V6Cidr      string `json:"v6cidr,omitempty"`
+	NetworkUUID string `json:"networkUUID,omitempty"`
 }
 
 // NetworkSettings defines the network details required for the AKO controller
 type NetworkSettings struct {
 	// NodeNetworkList is the list of networks and their cidrs used in pool placement network for vcenter
-	// cloud. This is not required for either of these cases:
+	// cloud. Either networkName or networkUUID should be specified. If duplicate networks are present for
+	// the network name, networkUUID should be used for appropriate network. This is not required for either of these cases:
 	// 1. nodeport is enabled
 	// 2. static routes are disabled
 	// 3. non vcenter clouds
@@ -104,7 +107,9 @@ type NetworkSettings struct {
 	NsxtT1LR string `json:"nsxtT1LR,omitempty"`
 	// BGPPeerLabels enable selection of BGP peers, for selective VsVip advertisement.
 	BGPPeerLabels []string `json:"bgpPeerLabels,omitempty"`
-	// VipNetworkList holds the names and subnet information of networks as specified in Avi
+	// VipNetworkList holds the names and subnet information of networks as specified in Avi.
+	// Either networkName or networkUUID should be specified. If duplicate networks are present
+	// for the network name, networkUUID should be used for appropriate network.
 	VipNetworkList []VipNetwork `json:"vipNetworkList,omitempty"`
 }
 
@@ -180,12 +185,35 @@ type Rbac struct {
 	PSPEnable bool `json:"pspEnable,omitempty"`
 }
 
+type ImagePullSecret struct {
+	Name string `json:"name,omitempty"`
+}
+
+// FeatureGates is to enable or disable experimental features
+type FeatureGates struct {
+	// GatewayAPI enables/disables processing of Kubernetes Gateway API CRDs
+	GatewayAPI bool `json:"gatewayAPI,omitempty"`
+}
+
+// GatewayAPI defines settings for AKO Gateway API container
+type GatewayAPI struct {
+	// Image defines image related settings for AKO Gateway API container
+	Image Image `json:"image,omitempty"`
+}
+
+type Image struct {
+	Repository string `json:"repository,omitempty"`
+	PullPolicy string `json:"pullPolicy,omitempty"`
+}
+
 // AKOConfigSpec defines the desired state of AKOConfig
 type AKOConfigSpec struct {
 	// ImageRepository is where the AKO controller resides.
 	ImageRepository string `json:"imageRepository,omitempty"`
 	// ImagePullPolicy defines when the AKO controller image gets pulled.
 	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
+	// ImagePullSecrets will add pull secrets to the statefulset for AKO. Required if using secure private container image registry for AKO image
+	ImagePullSecrets []ImagePullSecret `json:"imagePullSecrets,omitempty"`
 	// ReplicaCount defines the number of replicas for AKO Statefulset
 	ReplicaCount          int `json:"replicaCount,omitempty"`
 	AKOSettings           `json:"akoSettings,omitempty"`
@@ -199,6 +227,10 @@ type AKOConfigSpec struct {
 	PersistentVolumeClaim string `json:"pvc,omitempty"`
 	MountPath             string `json:"mountPath,omitempty"`
 	LogFile               string `json:"logFile,omitempty"`
+	// AKOGatewayLogFile is the name of the file where ako-gateway-api container will dump its logs
+	AKOGatewayLogFile string       `json:"akoGatewayLogFile,omitempty"`
+	FeatureGates      FeatureGates `json:"featureGates,omitempty"`
+	GatewayAPI        GatewayAPI   `json:"gatewayAPI,omitempty"`
 }
 
 // AKOConfigStatus defines the observed state of AKOConfig

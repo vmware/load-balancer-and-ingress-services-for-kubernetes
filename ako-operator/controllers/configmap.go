@@ -182,6 +182,7 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 		Cidr        string `json:"cidr"`
 		NetworkName string `json:"networkName"`
 		V6Cidr      string `json:"v6cidr"`
+		NetworkUUID string `json:"networkUUID"`
 	}
 
 	vipListRows := []VipNetworkListRow{}
@@ -191,6 +192,7 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 			Cidr:        row.Cidr,
 			NetworkName: row.NetworkName,
 			V6Cidr:      row.V6Cidr,
+			NetworkUUID: row.NetworkUUID,
 		})
 	}
 	if len(vipListRows) != 0 {
@@ -225,6 +227,7 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	type NodeNetworkListRow struct {
 		Cidrs       []string `json:"cidrs"`
 		NetworkName string   `json:"networkName"`
+		NetworkUUID string   `json:"networkUUID"`
 	}
 
 	nwListRows := []NodeNetworkListRow{}
@@ -233,6 +236,7 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 		nwListRows = append(nwListRows, NodeNetworkListRow{
 			Cidrs:       row.Cidrs,
 			NetworkName: row.NetworkName,
+			NetworkUUID: row.NetworkUUID,
 		})
 	}
 	if len(nwListRows) != 0 {

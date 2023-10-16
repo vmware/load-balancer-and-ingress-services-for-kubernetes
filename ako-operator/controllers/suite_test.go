@@ -117,6 +117,19 @@ func getTestDefaultAKOConfig() akov1alpha1.AKOConfig {
 		},
 		MountPath: "/log",
 		LogFile:   "ako.log",
+		ImagePullSecrets: []akov1alpha1.ImagePullSecret{
+			{
+				Name: "regcred",
+			},
+		},
+		AKOGatewayLogFile: "avi-gw.log",
+		FeatureGates:      akov1alpha1.FeatureGates{GatewayAPI: true},
+		GatewayAPI: akov1alpha1.GatewayAPI{
+			Image: akov1alpha1.Image{
+				PullPolicy: "Always",
+				Repository: "test-repo-gateway-api",
+			},
+		},
 	}
 	akoConfig := akov1alpha1.AKOConfig{
 		TypeMeta: v1.TypeMeta{
@@ -231,4 +244,12 @@ func TestStatefulset(t *testing.T) {
 	t.Log("verifying the volume mounts after setting istioEnabled to true")
 	container = sfIstio.Spec.Template.Spec.Containers[0]
 	g.Expect(container.VolumeMounts[1].MountPath).To(gomega.Equal("/etc/istio-output-certs/"))
+
+	t.Log("updating gateway api feature gate to false and verifying statefulset update")
+	akoConfig.Spec.FeatureGates.GatewayAPI = false
+	sfFeatureGate := buildStatefulSetAndVerify(sfIstio, akoConfig, true, false, t)
+
+	t.Log("verifying the removal of ako-gateway-api container from ako sts")
+	lenContainers := len(sfFeatureGate.Spec.Template.Spec.Containers)
+	g.Expect(lenContainers).To(gomega.Equal(1))
 }

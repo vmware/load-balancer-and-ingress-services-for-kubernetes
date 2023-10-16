@@ -1,6 +1,6 @@
 ## AKOConfig Custom Resource
 
-The `AKOConfig` custom resource is used to deploy and manage the AKO controller and is meant to be consumed by the AKO operator. This is what a sample AKOConfig looks like:
+The `AKOConfig` custom resource is used to deploy and manage the AKO controller and is meant to be consumed by the AKO operator. The schema for the `AKOConfig` custom resource can be found [here](../ako-operator/bundle/manifests/ako.vmware.com_akoconfigs.yaml). This is what a sample AKOConfig looks like:
 ```yaml
 apiVersion: ako.vmware.com/v1alpha1
 kind: AKOConfig
@@ -11,8 +11,10 @@ metadata:
   namespace: avi-system
 spec:
   replicaCount: 1
-  imageRepository: projects.registry.vmware.com/ako/ako:1.10.1
+  imageRepository: projects.registry.vmware.com/ako/ako:1.11.1
   imagePullPolicy: "IfNotPresent"
+  imagePullSecrets:
+    - name: regcred
   akoSettings:
     enableEvents: true
     logLevel: "WARN"
@@ -80,13 +82,22 @@ spec:
   pvc: ""
   mountPath: "/log"
   logFile: "avi.log"
+  featureGates:
+    gatewayAPI: true
+  gatewayAPI:
+    image:
+      repository: "projects.registry.vmware.com/ako/ako-gateway-api@sha256:089e4ccd0642954cc031eba541b0e3c84b5d88c1c96ae5f788edeed30ecfd26d"
+      pullPolicy: "IfNotPresent"
+  akoGatewayLogFile: "avi-gw.log"
   ```
 
   - `metadata.finalizers`: Used for garbage collection. This field must have this element: `ako.vmware.com/cleanup`. Whenever, the AKOConfig object is deleted, the ako operator takes care of removing all the AKO related artifacts because of this finalizer.
   - `metadata.name`: Name of the AKOConfig object.
   - `metadata.namespace`: The namespace in which the AKOConfig object (and hence, the ako-operator) will be created. Only `avi-system` namespace is allowed for the ako-operator.
-  - `spec.imageRepository`: The image repository for the ako-operator.
-  - `spec.replicaCount`: The number of replicas for AKO StatefulSet
+  - `spec.imageRepository`: The image repository for the ako controller.
+  - `spec.imagePullPolicy`: The image pull policy for the AKO controller image. It defines when the image gets pulled.
+  - `spec.imagePullSecrets`: ImagePullSecrets will add pull secrets to the statefulset for AKO. Required if using secure private container image registry for AKO image.
+  - `spec.replicaCount`: The number of replicas for AKO StatefulSet.
   - `spec.akoSettings`: Settings for the AKO Controller.
     * `enableEvents`: Enables/disables Event broadcasting via AKO 
     * `logLevel`: Log level for the AKO controller. Supported enum values: `INFO`, `DEBUG`, `WARN`, `ERROR`.
@@ -107,11 +118,11 @@ spec:
     * `blockedNamespaceList`: This is the list of system namespaces from which AKO will not listen any Kubernetes or Openshift object event.
     * `useDefaultSecretsOnly`: If this flag is set to true, AKO will only handle default secrets from the namespace where AKO is installed. This flag is applicable only to Openshift clusters.
   - `networkSettings`: Data network setting
-    * `nodeNetworkList`: This list of network and cidrs are used in pool placement network for vcenter cloud. Node Network details are not needed when in nodeport mode / static routes are disabled / non vcenter clouds.
+    * `nodeNetworkList`: This list of Network Names/UUIDs and Cidrs are used in pool placement network for vcenter cloud. Either networkName or networkUUID should be specified. If duplicate networks are present for the network name, networkUUID should be used for appropriate network. Node Network details are not needed when in nodeport mode / static routes are disabled / non vcenter clouds.
     * `enableRHI`: This is a cluster wide setting for BGP peering.
     * `nsxtT1LR`: T1 Logical Segment mapping for backend network. Only applies to NSX-T cloud.
     * `bgpPeerLabels`: Select BGP peers using bgpPeerLabels, for selective VsVip advertisement.
-    * `vipNetworkList`: List of Network Names and Subnet Information for VIP network, multiple networks allowed only for AWS Cloud.
+    * `vipNetworkList`: List of Network Names/UUIDs and Subnet Information for VIP network, multiple networks allowed only for AWS Cloud. Either networkName or networkUUID should be specified. If duplicate networks are present for the network name, networkUUID should be used for appropriate network.
   - `l7Settings`: Settings for L7 Virtual Services
     * `defaultIngController`: Set to `true` if AKO controller is the default Ingress controller on the cluster.
     * `noPGForSNI`: Switching this knob to true, will get rid of poolgroups from SNI VSes. Do not use this flag, if you don't want http caching. This will be deprecated once the controller support caching on PGs.
@@ -136,6 +147,11 @@ spec:
   - `pvc`: Persistent Volume Claim name which AKO controller will use to store its logs.
   - `mountPath`: Mount path for the logs.
   - `logFile`: Log file name where the AKO controller will add it's logs.
+  - `featureGates`: FeatureGates is to enable or disable experimental features.
+    * `gatewayAPI`: GatewayAPI enables/disables processing of Kubernetes Gateway API CRDs.
+  - `gatewayAPI`: GatewayAPI defines settings for AKO Gateway API container. These settings will only be used if **gatewayAPI** feature gate is enabled.
+    * `image`: Image defines image related settings for AKO Gateway API container.
+  - `akoGatewayLogFile`: AKOGatewayLogFile is the name of the file where ako-gateway-api container will dump its logs. This setting will only be used if **gatewayAPI** feature gate is enabled.
 
   ## Editing the AKOConfig custom resource
   If we need any changes in the way the AKO controller was deployed, or if we want to tweak a knob in the above list, we can do that in the runtime. However, note that, only `spec.akoSettings.logLevel` and `spec.akoSettings.deleteConfig` can be changed without triggering a restart of the AKO controller. If any other knobs are changed, the ako-operator WILL trigger a restart of the AKO controller.

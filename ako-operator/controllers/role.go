@@ -157,6 +157,11 @@ func BuildClusterrole(ako akov1alpha1.AKOConfig, r *AKOConfigReconciler, log log
 				Resources: []string{"ciliumnodes"},
 				Verbs:     []string{"get", "watch", "list"},
 			},
+			{
+				APIGroups: []string{"gateway.networking.k8s.io"},
+				Resources: []string{"gatewayclasses", "gatewayclasses/status", "gateways", "gateways/status", "httproutes", "httproutes/status"},
+				Verbs:     []string{"get", "watch", "list", "patch", "update"},
+			},
 		},
 	}
 

@@ -69,10 +69,6 @@ const (
 	UseDefaultSecretsOnly  = "useDefaultSecretsOnly"
 )
 
-var SecretEnvVars = map[string]string{
-	"CTRL_CA_DATA": "certificateAuthorityData",
-}
-
 var ConfigMapEnvVars = map[string]string{
 	"CTRL_IPADDRESS":             ControllerIP,
 	"CTRL_VERSION":               ControllerVersion,
@@ -108,6 +104,17 @@ var ConfigMapEnvVars = map[string]string{
 	"BLOCKED_NS_LIST":            BlockedNamespaceList,
 	"VIP_PER_NAMESPACE":          VipPerNamespace,
 	"USE_DEFAULT_SECRETS_ONLY":   UseDefaultSecretsOnly,
+}
+
+var ConfigMapEnvVarsGateway = map[string]string{
+	"CTRL_IPADDRESS":     ControllerIP,
+	"CTRL_VERSION":       ControllerVersion,
+	"FULL_SYNC_INTERVAL": FullSyncFrequency,
+	"CLOUD_NAME":         CloudName,
+	"CLUSTER_NAME":       ClusterName,
+	"SEG_NAME":           ServiceEngineGroupName,
+	"TENANT_NAME":        TenantName,
+	"PRIMARY_AKO_FLAG":   PrimaryInstance,
 }
 
 func getSFNamespacedName() types.NamespacedName {
@@ -187,38 +194,52 @@ func isEnvListEqual(aEnvList, bEnvList map[string]v1.EnvVar) bool {
 }
 
 func isSfUpdateRequired(existingSf appsv1.StatefulSet, newSf appsv1.StatefulSet) bool {
-	newContainer := newSf.Spec.Template.Spec.Containers[0]
+	newAKOContainer := newSf.Spec.Template.Spec.Containers[0]
 
 	// update to the statefulset required?
 	if existingSf.Spec.Replicas != nil {
 		if newSf.Spec.Replicas != nil && *newSf.Spec.Replicas != *existingSf.Spec.Replicas {
 			return true
 		}
-		if len(existingSf.Spec.Template.Spec.Containers) != 1 {
+		if len(existingSf.Spec.Template.Spec.Containers) != len(newSf.Spec.Template.Spec.Containers) {
 			return true
 		}
+		newGatewayContainer := newSf.Spec.Template.Spec.Containers[1]
 		akoContainer := existingSf.Spec.Template.Spec.Containers[0]
-		if newContainer.Image != akoContainer.Image {
+		gatewayContainer := existingSf.Spec.Template.Spec.Containers[1]
+		if newAKOContainer.Image != akoContainer.Image && newGatewayContainer.Image != gatewayContainer.Image {
 			return true
 		}
-		if newContainer.ImagePullPolicy != akoContainer.ImagePullPolicy {
+		if newAKOContainer.ImagePullPolicy != akoContainer.ImagePullPolicy && newGatewayContainer.ImagePullPolicy != gatewayContainer.ImagePullPolicy {
 			return true
 		}
 		existingEnv := getListOfEnvVars(akoContainer)
-		newEnv := getListOfEnvVars(newContainer)
+		newEnv := getListOfEnvVars(newAKOContainer)
 		if !isEnvListEqual(existingEnv, newEnv) {
 			return true
 		}
-		if !reflect.DeepEqual(akoContainer.Ports, newContainer.Ports) {
+
+		existingGatewayEnv := getListOfEnvVars(gatewayContainer)
+		newGatewayEnv := getListOfEnvVars(newGatewayContainer)
+		if !isEnvListEqual(existingGatewayEnv, newGatewayEnv) {
 			return true
 		}
-		if !reflect.DeepEqual(akoContainer.Resources, newContainer.Resources) {
+		if !reflect.DeepEqual(akoContainer.Ports, newAKOContainer.Ports) {
 			return true
 		}
-		if newContainer.LivenessProbe.HTTPGet.Port != akoContainer.LivenessProbe.HTTPGet.Port {
+		if !reflect.DeepEqual(akoContainer.Resources, newAKOContainer.Resources) && !reflect.DeepEqual(gatewayContainer.Resources, newGatewayContainer.Resources) {
 			return true
 		}
-		if len(akoContainer.VolumeMounts) != 0 && !reflect.DeepEqual(akoContainer.VolumeMounts, newContainer.VolumeMounts) {
+		if newAKOContainer.LivenessProbe.HTTPGet.Port != akoContainer.LivenessProbe.HTTPGet.Port {
+			return true
+		}
+		if len(akoContainer.VolumeMounts) != 0 && !reflect.DeepEqual(akoContainer.VolumeMounts, newAKOContainer.VolumeMounts) {
+			return true
+		}
+		if len(gatewayContainer.VolumeMounts) != 0 && !reflect.DeepEqual(gatewayContainer.VolumeMounts, newGatewayContainer.VolumeMounts) {
+			return true
+		}
+		if !reflect.DeepEqual(existingSf.Spec.Template.Spec.ImagePullSecrets, newSf.Spec.Template.Spec.ImagePullSecrets) {
 			return true
 		}
 	} else {
@@ -243,25 +264,6 @@ func getEnvVars(ako akov1alpha1.AKOConfig, aviSecret v1.Secret) []v1.EnvVar {
 				ConfigMapKeyRef: &v1.ConfigMapKeySelector{
 					LocalObjectReference: v1.LocalObjectReference{
 						Name: ConfigMapName,
-					},
-					Key: v,
-				},
-			},
-		}
-		envVars = append(envVars, envVar)
-	}
-
-	cacertRef, ok := aviSecret.Data["certificateAuthorityData"]
-	for k, v := range SecretEnvVars {
-		if k == "CTRL_CA_DATA" && (!ok || string(cacertRef) == "") {
-			continue
-		}
-		envVar := v1.EnvVar{
-			Name: k,
-			ValueFrom: &v1.EnvVarSource{
-				SecretKeyRef: &v1.SecretKeySelector{
-					LocalObjectReference: v1.LocalObjectReference{
-						Name: "avi-secret",
 					},
 					Key: v,
 				},
@@ -296,6 +298,62 @@ func getEnvVars(ako akov1alpha1.AKOConfig, aviSecret v1.Secret) []v1.EnvVar {
 	envVars = append(envVars, v1.EnvVar{
 		Name:  "LOG_FILE_NAME",
 		Value: ako.Spec.LogFile,
+	})
+	envVars = append(envVars, v1.EnvVar{
+		Name: "POD_NAMESPACE",
+		ValueFrom: &v1.EnvVarSource{
+			FieldRef: &v1.ObjectFieldSelector{
+				FieldPath:  "metadata.namespace",
+				APIVersion: "v1",
+			},
+		},
+	})
+	return envVars
+}
+
+func getEnvVarsForGateway(ako akov1alpha1.AKOConfig) []v1.EnvVar {
+	envVars := []v1.EnvVar{}
+	for k, v := range ConfigMapEnvVarsGateway {
+		envVar := v1.EnvVar{
+			Name: k,
+			ValueFrom: &v1.EnvVarSource{
+				ConfigMapKeyRef: &v1.ConfigMapKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: ConfigMapName,
+					},
+					Key: v,
+				},
+			},
+		}
+		envVars = append(envVars, envVar)
+	}
+
+	envVars = append(envVars, v1.EnvVar{
+		Name: "POD_NAME",
+		ValueFrom: &v1.EnvVarSource{
+			FieldRef: &v1.ObjectFieldSelector{
+				FieldPath:  "metadata.name",
+				APIVersion: "v1",
+			},
+		},
+	})
+
+	// add logfile and pvc
+	if ako.Spec.PersistentVolumeClaim != "" {
+		envVars = append(envVars, v1.EnvVar{
+			Name:  "USE_PVC",
+			Value: "true",
+		})
+	}
+
+	envVars = append(envVars, v1.EnvVar{
+		Name:  "LOG_FILE_PATH",
+		Value: ako.Spec.MountPath,
+	})
+
+	envVars = append(envVars, v1.EnvVar{
+		Name:  "LOG_FILE_NAME",
+		Value: ako.Spec.AKOGatewayLogFile,
 	})
 	envVars = append(envVars, v1.EnvVar{
 		Name: "POD_NAMESPACE",

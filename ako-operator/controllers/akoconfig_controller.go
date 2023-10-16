@@ -193,6 +193,10 @@ func (r *AKOConfigReconciler) ReconcileAllArtifacts(ctx context.Context, ako ako
 		return err
 	}
 
+	err = createK8sObjcetsFromManifests(r.Config, ako, log)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

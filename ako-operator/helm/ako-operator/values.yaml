@@ -11,8 +11,21 @@ operatorImage:
 
 # AKO Controller image settings
 akoImage:
-  repository: projects.registry.vmware.com/ako/ako:1.10.1
+  repository: projects.registry.vmware.com/ako/ako:1.11.1
   pullPolicy: IfNotPresent
+
+### FeatureGates is to enable or disable experimental features.
+featureGates:
+  GatewayAPI: false # Enables/disables processing of Kubernetes Gateway API CRDs.
+
+GatewayAPI:
+  image:
+    repository: 10.79.172.11:5000/avi-buildops/ako/ako-gateway-api
+    pullPolicy: IfNotPresent
+
+AKOPullSecrets: [] # Setting this will add pull secrets to the statefulset for AKO. Required if using secure private container image registry for AKO image.
+#AKOPullSecrets:
+# - name: regcred
 
 ### This section outlines the generic AKO controller settings
 AKOSettings:
@@ -115,3 +128,4 @@ avicredentials:
 persistentVolumeClaim: ""
 mountPath: "/log"
 logFile: "avi.log"
+akoGatewayLogFile: "avi-gw.log"
