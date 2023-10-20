@@ -421,7 +421,6 @@ func (c *VCFK8sController) Sync() {
 
 func (c *VCFK8sController) InitFullSyncWorker() *utils.FullSyncThread {
 	worker := c.NetHandler.NewLRLSFullSyncWorker()
-	go worker.Run()
 	return worker
 }
 
