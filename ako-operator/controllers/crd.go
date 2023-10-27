@@ -9,9 +9,6 @@ import (
 	"sync"
 
 	logr "github.com/go-logr/logr"
-	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
-	gatewayclientset "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
-
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator/api/v1alpha1"
 	apiextensionv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextension "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
@@ -21,6 +18,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	myscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+	gatewayclientset "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
 )
 
 const (
@@ -327,7 +326,7 @@ func createCRDs(cfg *rest.Config, log logr.Logger) error {
 	return nil
 }
 
-func createK8sObjcetsFromManifests(cfg *rest.Config, ako akov1alpha1.AKOConfig, log logr.Logger) error {
+func createK8sObjectsFromManifests(cfg *rest.Config, ako akov1alpha1.AKOConfig, log logr.Logger) error {
 	if ako.Spec.FeatureGates.GatewayAPI {
 		gwApiClient, _ := gatewayclientset.NewForConfig(cfg)
 		err := createGatewayClass(gwApiClient, log)
