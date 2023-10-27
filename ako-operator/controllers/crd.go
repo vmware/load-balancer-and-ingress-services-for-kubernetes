@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	logr "github.com/go-logr/logr"
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator/api/v1alpha1"
 	apiextensionv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextension "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -20,6 +19,8 @@ import (
 	"k8s.io/client-go/rest"
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 	gatewayclientset "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
+
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator/api/v1alpha1"
 )
 
 const (
