@@ -17,7 +17,7 @@
 set -xe
 
 
-if [ $# -lt 7 ] ; then
+if [ $# -lt 6 ] ; then
     echo "Usage: ./save_build.sh <BRANCH> <BUILD_NUMBER> <WORKSPACE> <JENKINS_JOB_NAME> <JENKINS_URL> <CI_REGISTRY_PATH>";
     exit 1
 fi
