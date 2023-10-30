@@ -97,7 +97,7 @@ const (
 	MCI_ENABLED                   = "MCI_ENABLED"
 	USE_DEFAULT_SECRETS_ONLY      = "USE_DEFAULT_SECRETS_ONLY"
 	Namespace                     = "Namespace"
-	MaxAviVersion                 = "30.2.1"
+	MaxAviVersion                 = "30.1.1"
 	NamespaceNetworkInfo          = "NamespaceNetworkInfos"
 
 	RefreshAuthTokenInterval = 12  //hours

@@ -51,6 +51,7 @@ func (v *VPCHandler) SyncLSLRNetwork() {
 		utils.AviLog.Errorf("Failed to list VPCs, error: %s", err)
 		return
 	}
+	utils.AviLog.Infof("Got VPC to NS Map: %v", vpcToNSMap)
 	client := InfraAviClientInstance()
 	found, cloudModel := getAviCloudFromCache(client, utils.CloudName)
 	if !found {
@@ -103,6 +104,8 @@ func (v *VPCHandler) SyncLSLRNetwork() {
 			index++
 		}
 		cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs = cloudLSLRList
+		vpcMode := true
+		cloudModel.NsxtConfiguration.VpcMode = &vpcMode
 		path := "/api/cloud/" + *cloudModel.UUID
 		restOp := utils.RestOp{
 			ObjName: utils.CloudName,
