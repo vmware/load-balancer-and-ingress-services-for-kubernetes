@@ -1767,15 +1767,11 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 			utils.AviLog.Errorf("Failed to parse token object")
 			return
 		}
-		layout := "2006-01-02T15:04:05.000000+00:00"
-		expiryTime, err := time.Parse(layout, expiry)
+		expiryTime, err := time.Parse(time.RFC3339, expiry)
+
 		if err != nil {
-			layout = "2006-01-02T15:04:05.000000Z"
-			expiryTime, err = time.Parse(layout, expiry)
-			if err != nil {
-				utils.AviLog.Errorf("Unable to parse token expiry time, err: %+v", err)
-				return
-			}
+			utils.AviLog.Errorf("Unable to parse token expiry time, err: %+v", err)
+			return
 		}
 		if time.Until(expiryTime) > (utils.RefreshAuthTokenPeriod*utils.AuthTokenExpiry)*time.Hour {
 			utils.AviLog.Infof("Skipping AuthToken Refresh")
