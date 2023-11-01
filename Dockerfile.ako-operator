@@ -36,8 +36,6 @@ COPY ./helm/ako/crds/ako.vmware.com_httprules.yaml /var/crds/
 COPY ./helm/ako/crds/ako.vmware.com_aviinfrasettings.yaml /var/crds/
 COPY ./helm/ako/crds/ako.vmware.com_l4rules.yaml /var/crds/
 COPY ./helm/ako/crds/ako.vmware.com_ssorules.yaml /var/crds/
-RUN mkdir -p /var/templates
-COPY ./helm/ako/templates/gatewayclass.yaml /var/templates/
 RUN adduser nonroot
 USER nonroot:nonroot
 

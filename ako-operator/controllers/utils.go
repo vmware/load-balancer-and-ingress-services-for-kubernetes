@@ -24,6 +24,8 @@ const (
 	AKOServiceAccount  = "ako-sa"
 	PSPName            = "ako"
 	AviSecretName      = "avi-secret"
+	GWClassName        = "avi-lb"
+	GWClassController  = "ako.vmware.com/avi-lb"
 )
 
 // below properties are applicable to a configmap object for AKO controller
@@ -155,6 +157,12 @@ func getConfigMapName() types.NamespacedName {
 	}
 }
 
+func getGWClassName() types.NamespacedName {
+	return types.NamespacedName{
+		Name: GWClassName,
+	}
+}
+
 func getChecksum(cm v1.ConfigMap, skipList []string) uint32 {
 	cmValues := []string{}
 
@@ -194,8 +202,6 @@ func isEnvListEqual(aEnvList, bEnvList map[string]v1.EnvVar) bool {
 }
 
 func isSfUpdateRequired(existingSf appsv1.StatefulSet, newSf appsv1.StatefulSet) bool {
-	newAKOContainer := newSf.Spec.Template.Spec.Containers[0]
-
 	// update to the statefulset required?
 	if existingSf.Spec.Replicas != nil {
 		if newSf.Spec.Replicas != nil && *newSf.Spec.Replicas != *existingSf.Spec.Replicas {
@@ -204,13 +210,12 @@ func isSfUpdateRequired(existingSf appsv1.StatefulSet, newSf appsv1.StatefulSet)
 		if len(existingSf.Spec.Template.Spec.Containers) != len(newSf.Spec.Template.Spec.Containers) {
 			return true
 		}
-		newGatewayContainer := newSf.Spec.Template.Spec.Containers[1]
+		newAKOContainer := newSf.Spec.Template.Spec.Containers[0]
 		akoContainer := existingSf.Spec.Template.Spec.Containers[0]
-		gatewayContainer := existingSf.Spec.Template.Spec.Containers[1]
-		if newAKOContainer.Image != akoContainer.Image && newGatewayContainer.Image != gatewayContainer.Image {
+		if newAKOContainer.Image != akoContainer.Image {
 			return true
 		}
-		if newAKOContainer.ImagePullPolicy != akoContainer.ImagePullPolicy && newGatewayContainer.ImagePullPolicy != gatewayContainer.ImagePullPolicy {
+		if newAKOContainer.ImagePullPolicy != akoContainer.ImagePullPolicy {
 			return true
 		}
 		existingEnv := getListOfEnvVars(akoContainer)
@@ -218,16 +223,10 @@ func isSfUpdateRequired(existingSf appsv1.StatefulSet, newSf appsv1.StatefulSet)
 		if !isEnvListEqual(existingEnv, newEnv) {
 			return true
 		}
-
-		existingGatewayEnv := getListOfEnvVars(gatewayContainer)
-		newGatewayEnv := getListOfEnvVars(newGatewayContainer)
-		if !isEnvListEqual(existingGatewayEnv, newGatewayEnv) {
-			return true
-		}
 		if !reflect.DeepEqual(akoContainer.Ports, newAKOContainer.Ports) {
 			return true
 		}
-		if !reflect.DeepEqual(akoContainer.Resources, newAKOContainer.Resources) && !reflect.DeepEqual(gatewayContainer.Resources, newGatewayContainer.Resources) {
+		if !reflect.DeepEqual(akoContainer.Resources, newAKOContainer.Resources) {
 			return true
 		}
 		if newAKOContainer.LivenessProbe.HTTPGet.Port != akoContainer.LivenessProbe.HTTPGet.Port {
@@ -236,12 +235,32 @@ func isSfUpdateRequired(existingSf appsv1.StatefulSet, newSf appsv1.StatefulSet)
 		if len(akoContainer.VolumeMounts) != 0 && !reflect.DeepEqual(akoContainer.VolumeMounts, newAKOContainer.VolumeMounts) {
 			return true
 		}
-		if len(gatewayContainer.VolumeMounts) != 0 && !reflect.DeepEqual(gatewayContainer.VolumeMounts, newGatewayContainer.VolumeMounts) {
-			return true
-		}
 		if !reflect.DeepEqual(existingSf.Spec.Template.Spec.ImagePullSecrets, newSf.Spec.Template.Spec.ImagePullSecrets) {
 			return true
 		}
+
+		if len(existingSf.Spec.Template.Spec.Containers) == 2 {
+			newGatewayContainer := newSf.Spec.Template.Spec.Containers[1]
+			gatewayContainer := existingSf.Spec.Template.Spec.Containers[1]
+			if newGatewayContainer.Image != gatewayContainer.Image {
+				return true
+			}
+			if newGatewayContainer.ImagePullPolicy != gatewayContainer.ImagePullPolicy {
+				return true
+			}
+			existingGatewayEnv := getListOfEnvVars(gatewayContainer)
+			newGatewayEnv := getListOfEnvVars(newGatewayContainer)
+			if !isEnvListEqual(existingGatewayEnv, newGatewayEnv) {
+				return true
+			}
+			if !reflect.DeepEqual(gatewayContainer.Resources, newGatewayContainer.Resources) {
+				return true
+			}
+			if len(gatewayContainer.VolumeMounts) != 0 && !reflect.DeepEqual(gatewayContainer.VolumeMounts, newGatewayContainer.VolumeMounts) {
+				return true
+			}
+		}
+
 	} else {
 		return true
 	}

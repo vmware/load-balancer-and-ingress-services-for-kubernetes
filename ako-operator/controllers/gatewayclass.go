@@ -18,44 +18,76 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 
 	logr "github.com/go-logr/logr"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator/api/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
-	gatewayclientset "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
+	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 )
 
-func createGatewayClass(gwApiClient *gatewayclientset.Clientset, log logr.Logger) error {
-	var err error
-	gwClassOnce.Do(func() {
-		gatewayClass, err = readGatewayClassFromManifest(gatewayClassLocation, log)
-	})
-	existingGWClass, err := gwApiClient.GatewayV1beta1().GatewayClasses().Get(context.TODO(), gatewayClassName, v1.GetOptions{})
-	if err == nil && existingGWClass != nil {
-		if gatewayClass.GetResourceVersion() == existingGWClass.GetResourceVersion() {
-			log.Info(fmt.Sprintf("no updates required for %s Gateway Class", gatewayClassName))
-		} else {
-			gatewayClass.SetResourceVersion(existingGWClass.GetResourceVersion())
-			_, err = gwApiClient.GatewayV1beta1().GatewayClasses().Update(context.TODO(), gatewayClass, v1.UpdateOptions{})
-			if err != nil {
-				log.Error(err, fmt.Sprintf("Error while updating %s Gateway Class", gatewayClassName))
-				return err
-			} else {
-				log.Info(fmt.Sprintf("successfully updated %s Gateway Class", gatewayClassName))
+func createOrUpdateGatewayClass(ctx context.Context, ako akov1alpha1.AKOConfig, log logr.Logger, r *AKOConfigReconciler) error {
+	var oldGWClass gatewayv1beta1.GatewayClass
+
+	if err := r.Get(ctx, getGWClassName(), &oldGWClass); err != nil {
+		log.V(0).Info("no existing gatewayclass with name", "name", GWClassName)
+	} else {
+		if oldGWClass.GetName() != "" {
+			log.V(0).Info("a gatewayclass with name already exists", "name",
+				oldGWClass.GetName())
+			if !ako.Spec.FeatureGates.GatewayAPI {
+				log.V(0).Info("GatewayAPI feature gate is disabled, will delete gatewayclass with", "name", GWClassName)
+				err := r.Delete(ctx, &oldGWClass)
+				if err != nil {
+					log.Error(err, "unable to delete gatewayclass", "name", oldGWClass.GetName())
+				}
+				return nil
 			}
+
+			// add this object in the global list
+			objList := getObjectList()
+			objList[types.NamespacedName{
+				Name: oldGWClass.GetName(),
+			}] = &oldGWClass
+			return nil
 		}
+	}
+	if !ako.Spec.FeatureGates.GatewayAPI {
+		log.V(0).Info("GatewayAPI feature gate is disabled, will not create gatewayclass with name", "name", GWClassName)
 		return nil
 	}
 
-	_, err = gwApiClient.GatewayV1beta1().GatewayClasses().Create(context.TODO(), gatewayClass, v1.CreateOptions{})
-	if err == nil {
-		log.Info(fmt.Sprintf("%s Gateway Class created", gatewayClassName))
-		return nil
-	} else if apierrors.IsAlreadyExists(err) {
-		log.Info(fmt.Sprintf("%s Gateway Class already exists", gatewayClassName))
-		return nil
+	gwClass := BuildGatewayClass(ako, r, log)
+	err := r.Create(ctx, &gwClass)
+	if err != nil {
+		log.Error(err, "unable to create gatewayclass", "name", gwClass.GetName())
+		return err
 	}
-	return err
+
+	var newGWClass gatewayv1beta1.GatewayClass
+	err = r.Get(ctx, getGWClassName(), &newGWClass)
+	if err != nil {
+		log.V(0).Info("error getting a gatewayclass with name", "name", getGWClassName().Name, "err", err)
+	}
+	// update this object in the global list
+	objList := getObjectList()
+	objList[types.NamespacedName{
+		Name: newGWClass.GetName(),
+	}] = &newGWClass
+
+	return nil
+}
+
+// BuildGatewayClass builds a gatewayclass object if GatewayAPI feature gate is enabled
+func BuildGatewayClass(ako akov1alpha1.AKOConfig, r *AKOConfigReconciler, log logr.Logger) gatewayv1beta1.GatewayClass {
+	gwClass := gatewayv1beta1.GatewayClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: GWClassName,
+		},
+		Spec: gatewayv1beta1.GatewayClassSpec{
+			ControllerName: GWClassController,
+		},
+	}
+	return gwClass
 }

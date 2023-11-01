@@ -59,7 +59,7 @@ func createOrUpdateServiceAccount(ctx context.Context, ako akov1alpha1.AKOConfig
 	var newSA v1.ServiceAccount
 	err = r.Get(ctx, getSAName(), &newSA)
 	if err != nil {
-		log.V(0).Info("error getting a clusterrole with name", "name", getCRName().Name, "err", err)
+		log.V(0).Info("error getting a serviceaccount with name", "name", getCRName().Name, "err", err)
 	}
 	// update this object in the global list
 	objList := getObjectList()

@@ -9,6 +9,8 @@ import (
 	"sync"
 
 	logr "github.com/go-logr/logr"
+	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+
 	apiextensionv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextension "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -17,10 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	myscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
-	gatewayclientset "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
-
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator/api/v1alpha1"
 )
 
 const (
@@ -32,7 +30,6 @@ const (
 	aviinfrasettingCRDLocation = "/var/crds/ako.vmware.com_aviinfrasettings.yaml"
 	l4ruleCRDLocation          = "/var/crds/ako.vmware.com_l4rules.yaml"
 	ssoruleCRDLocation         = "/var/crds/ako.vmware.com_ssorules.yaml"
-	gatewayClassLocation       = "/var/templates/gatewayclass.yaml"
 	hostRuleFullCRDName        = "hostrules.ako.vmware.com"
 	httpRuleFullCRDName        = "httprules.ako.vmware.com"
 	aviInfraSettingFullCRDName = "aviinfrasettings.ako.vmware.com"
@@ -79,31 +76,6 @@ func readCRDFromManifest(crdLocation string, log logr.Logger) (*apiextensionv1.C
 		return nil, err
 	}
 	return &crd, nil
-}
-
-func readGatewayClassFromManifest(gatewayClassLocation string, log logr.Logger) (*gatewayv1beta1.GatewayClass, error) {
-	gwClassYaml, err := ioutil.ReadFile(gatewayClassLocation)
-	if err != nil {
-		log.Error(err, fmt.Sprintf("unable to read file : %s", gatewayClassLocation))
-		return nil, err
-	}
-	gwClassObj := parseK8sYaml([]byte(gwClassYaml), log)
-	if len(gwClassObj) == 0 {
-		return nil, errors.New(fmt.Sprintf("Error while parsing yaml file at %s", gatewayClassLocation))
-	}
-
-	// convert the runtime.Object to unstructured.Unstructured
-	gwClassUnstructuredObjMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(gwClassObj[0])
-	if err != nil {
-		log.Error(err, "unable to convert parsed gateway class obj to unstrectured map")
-		return nil, err
-	}
-
-	var gwClass gatewayv1beta1.GatewayClass
-	if err = runtime.DefaultUnstructuredConverter.FromUnstructured(gwClassUnstructuredObjMap, &gwClass); err != nil {
-		return nil, err
-	}
-	return &gwClass, nil
 }
 
 func createHostRuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.Logger) error {
@@ -323,17 +295,6 @@ func createCRDs(cfg *rest.Config, log logr.Logger) error {
 	err = createSSORuleCRD(kubeClient, log)
 	if err != nil {
 		return err
-	}
-	return nil
-}
-
-func createK8sObjectsFromManifests(cfg *rest.Config, ako akov1alpha1.AKOConfig, log logr.Logger) error {
-	if ako.Spec.FeatureGates.GatewayAPI {
-		gwApiClient, _ := gatewayclientset.NewForConfig(cfg)
-		err := createGatewayClass(gwApiClient, log)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
