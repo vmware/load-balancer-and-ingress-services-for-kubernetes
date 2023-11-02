@@ -15,6 +15,7 @@ package rest
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"sort"
 	"strconv"
@@ -230,7 +231,7 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 
 // CheckAndPublishForRetry : Check if the error is of type 401, has string "Rest request error" or was timed out,
 // then publish the key to retry layer. These error do not depend on the object state, hence cache refresh is not required.
-func (rest *RestOperations) CheckAndPublishForRetry(err error, publishKey, key string, avimodel *nodes.AviObjectGraph) bool {
+func (rest *RestOperations) CheckAndPublishForRetry(err error, publishKey avicache.NamespaceName, key string, avimodel *nodes.AviObjectGraph) bool {
 	if err == nil {
 		return false
 	}
@@ -259,7 +260,7 @@ func (rest *RestOperations) CheckAndPublishForRetry(err error, publishKey, key s
 					rest.PublishKeyToSlowRetryLayer(publishKey, key)
 					return true
 				}
-				if strings.Contains(*aviError.Message, lib.VrfContextNotFoundError) {
+				if strings.Contains(*aviError.Message, lib.VrfContextNotFoundError) || strings.Contains(*aviError.Message, lib.VrfContextObjectNotFoundError) {
 					utils.AviLog.Warnf("key: %s, msg: VrfContext not found, adding to slow retry queue", key)
 					rest.PublishKeyToSlowRetryLayer(publishKey, key)
 					return true
@@ -310,12 +311,13 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 			publishKey = splitKeys[1]
 		}
 	}
+	nsPublishKey := avicache.NamespaceName{Namespace: namespace, Name: publishKey}
 	// Order would be this: 1. Pools 2. PGs  3. DS. 4. SSLKeyCert 5. VS
 	if vs_cache_obj != nil {
 		var rest_ops []*utils.RestOp
 		vsvip_to_delete, rest_ops, vsvipErr = rest.VSVipCU(aviVsNode.VSVIPRefs, vs_cache_obj, namespace, rest_ops, key)
 		if vsvipErr != nil {
-			if rest.CheckAndPublishForRetry(vsvipErr, publishKey, key, avimodel) {
+			if rest.CheckAndPublishForRetry(vsvipErr, nsPublishKey, key, avimodel) {
 				return
 			}
 		}
@@ -350,7 +352,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		var rest_ops []*utils.RestOp
 		_, rest_ops, vsvipErr = rest.VSVipCU(aviVsNode.VSVIPRefs, nil, namespace, rest_ops, key)
 		if vsvipErr != nil {
-			if rest.CheckAndPublishForRetry(vsvipErr, publishKey, key, avimodel) {
+			if rest.CheckAndPublishForRetry(vsvipErr, nsPublishKey, key, avimodel) {
 				return
 			}
 		}
@@ -616,13 +618,14 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 					publishKey = splitKeys[1]
 				}
 			}
+			nsPublishKey := avicache.NamespaceName{Namespace: aviObjKey.Namespace, Name: publishKey}
 
 			if rest.restOperator.isRetryRequired(key, err) {
-				rest.PublishKeyToRetryLayer(publishKey, key)
+				rest.PublishKeyToRetryLayer(nsPublishKey, key)
 				return false, processNextObj
 			}
 
-			if rest.CheckAndPublishForRetry(err, publishKey, key, avimodel) {
+			if rest.CheckAndPublishForRetry(err, nsPublishKey, key, avimodel) {
 				return false, processNextObj
 			}
 			utils.AviLog.Warnf("key: %s, msg: there was an error sending the macro %v", key, err.Error())
@@ -669,9 +672,9 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 							if statuscode != 404 {
 								if statuscode == 412 {
 									// concurrent update scenario currently happens for VRFContext only
-									rest.PublishKeyToRetryLayer(publishKey, key)
+									rest.PublishKeyToRetryLayer(nsPublishKey, key)
 								} else {
-									rest.PublishKeyToSlowRetryLayer(publishKey, key)
+									rest.PublishKeyToSlowRetryLayer(nsPublishKey, key)
 								}
 								return false, true
 							} else {
@@ -686,9 +689,9 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 
 			if retry {
 				if fastRetry {
-					rest.PublishKeyToRetryLayer(publishKey, key)
+					rest.PublishKeyToRetryLayer(nsPublishKey, key)
 				} else {
-					rest.PublishKeyToSlowRetryLayer(publishKey, key)
+					rest.PublishKeyToSlowRetryLayer(nsPublishKey, key)
 				}
 			}
 			return false, processNextObj
@@ -783,16 +786,16 @@ func (rest *RestOperations) DataScriptDelete(dsToDelete []avicache.NamespaceName
 	return restOps
 }
 
-func (rest *RestOperations) PublishKeyToRetryLayer(parentVsKey string, key string) {
+func (rest *RestOperations) PublishKeyToRetryLayer(parentVsKey avicache.NamespaceName, key string) {
 	fastRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.FAST_RETRY_LAYER)
-	fastRetryQueue.Workqueue[0].AddRateLimited(parentVsKey)
+	fastRetryQueue.Workqueue[0].AddRateLimited(fmt.Sprintf("%s/%s", parentVsKey.Namespace, parentVsKey.Name))
 	lib.IncrementQueueCounter(lib.FAST_RETRY_LAYER)
 	utils.AviLog.Infof("key: %s, msg: Published key with vs_key to fast path retry queue: %s", key, parentVsKey)
 }
 
-func (rest *RestOperations) PublishKeyToSlowRetryLayer(parentVsKey string, key string) {
+func (rest *RestOperations) PublishKeyToSlowRetryLayer(parentVsKey avicache.NamespaceName, key string) {
 	slowRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.SLOW_RETRY_LAYER)
-	slowRetryQueue.Workqueue[0].AddRateLimited(parentVsKey)
+	slowRetryQueue.Workqueue[0].AddRateLimited(fmt.Sprintf("%s/%s", parentVsKey.Namespace, parentVsKey.Name))
 	lib.IncrementQueueCounter(lib.SLOW_RETRY_LAYER)
 	utils.AviLog.Infof("key: %s, msg: Published key with vs_key to slow path retry queue: %s", key, parentVsKey)
 }

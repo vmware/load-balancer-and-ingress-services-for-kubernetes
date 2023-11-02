@@ -2058,7 +2058,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 						poolUuid := ExtractUuid(poolRef, "pool-.*.#")
 						poolNameFromCache, foundPool := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
 						if foundPool && poolNameFromCache.(string) == poolNameFromRef {
-							poolKey := NamespaceName{Namespace: lib.GetTenant(), Name: poolNameFromCache.(string)}
+							poolKey := NamespaceName{Namespace: tenant, Name: poolNameFromCache.(string)}
 							poolKeys = append(poolKeys, poolKey)
 						}
 					}
