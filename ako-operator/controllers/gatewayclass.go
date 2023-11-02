@@ -20,11 +20,11 @@ import (
 	"context"
 
 	logr "github.com/go-logr/logr"
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator/api/v1alpha1"
 )
 
 func createOrUpdateGatewayClass(ctx context.Context, ako akov1alpha1.AKOConfig, log logr.Logger, r *AKOConfigReconciler) error {

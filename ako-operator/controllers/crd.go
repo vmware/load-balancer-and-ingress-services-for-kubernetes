@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	logr "github.com/go-logr/logr"
-	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
 	apiextensionv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextension "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
@@ -35,7 +34,6 @@ const (
 	aviInfraSettingFullCRDName = "aviinfrasettings.ako.vmware.com"
 	l4RuleFullCRDName          = "l4rules.ako.vmware.com"
 	ssoRuleFullCRDName         = "ssorules.ako.vmware.com"
-	gatewayClassName           = "avi-lb"
 )
 
 var (
@@ -44,13 +42,11 @@ var (
 	aviinfrasettingCRD  *apiextensionv1.CustomResourceDefinition
 	l4ruleCRD           *apiextensionv1.CustomResourceDefinition
 	ssoruleCRD          *apiextensionv1.CustomResourceDefinition
-	gatewayClass        *gatewayv1beta1.GatewayClass
 	hostruleOnce        sync.Once
 	httpruleOnce        sync.Once
 	aviinfrasettingOnce sync.Once
 	l4ruleOnce          sync.Once
 	ssoruleOnce         sync.Once
-	gwClassOnce         sync.Once
 )
 
 func readCRDFromManifest(crdLocation string, log logr.Logger) (*apiextensionv1.CustomResourceDefinition, error) {
