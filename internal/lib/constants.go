@@ -195,6 +195,7 @@ const (
 	FullSyncInterval                           = 300
 	Namespace                                  = "Namespace"
 	VrfContextNotFoundError                    = "VrfContext not found"
+	VrfContextObjectNotFoundError              = "VrfContext object not found"
 	K8s_1_28                                   = "1.28"
 	NetworkNotFoundError                       = "Network object not found"
 

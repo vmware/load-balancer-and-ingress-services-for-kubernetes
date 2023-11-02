@@ -53,12 +53,13 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 			publishKey = splitKeys[1]
 		}
 	}
+	nsPublishKey := avicache.NamespaceName{Namespace: namespace, Name: publishKey}
 	// Order would be this: 1. Pools 2. PGs  3. DS. 4. SSLKeyCert 5. VS
 	if vs_cache_obj != nil {
 		var rest_ops []*utils.RestOp
 		vsvip_to_delete, rest_ops, vsvipErr = rest.VSVipCU(aviVsNode.VSVIPRefs, vs_cache_obj, namespace, rest_ops, key)
 		if vsvipErr != nil {
-			if rest.CheckAndPublishForRetry(vsvipErr, publishKey, key, avimodel) {
+			if rest.CheckAndPublishForRetry(vsvipErr, nsPublishKey, key, avimodel) {
 				return
 			}
 		}
@@ -88,7 +89,7 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 		var rest_ops []*utils.RestOp
 		_, rest_ops, vsvipErr = rest.VSVipCU(aviVsNode.VSVIPRefs, nil, namespace, rest_ops, key)
 		if vsvipErr != nil {
-			if rest.CheckAndPublishForRetry(vsvipErr, publishKey, key, avimodel) {
+			if rest.CheckAndPublishForRetry(vsvipErr, nsPublishKey, key, avimodel) {
 				return
 			}
 		}
