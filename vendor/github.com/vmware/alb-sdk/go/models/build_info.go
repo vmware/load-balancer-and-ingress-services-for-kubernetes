@@ -26,6 +26,9 @@ type BuildInfo struct {
 	// Product Name. Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ProductName *string `json:"product_name,omitempty"`
 
+	// Remote reference of the container image. Field introduced in 30.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	RemoteImageRef *string `json:"remote_image_ref,omitempty"`
+
 	// Tag related to the package. Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Tag *string `json:"tag,omitempty"`
 

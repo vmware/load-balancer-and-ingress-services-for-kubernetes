@@ -14,6 +14,9 @@ type DNSServiceApplicationProfile struct {
 	// Email address of the administrator responsible for this zone . This field is used in SOA records (rname) pertaining to all domain names specified as authoritative domain names. If not configured, the default value 'hostmaster' is used in SOA responses. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AdminEmail *string `json:"admin_email,omitempty"`
 
+	// If enabled, the Service Engine initiates closure of client TCP connections after the first DNS response, for pass-through/proxy cases. This behavior applies to all DNS request types other than AX-FR. Field introduced in 21.1.7, 22.1.4, 30.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	CloseTCPConnectionPostResponse *bool `json:"close_tcp_connection_post_response,omitempty"`
+
 	// Enable DNS query/response over TCP. This enables analytics for pass-through queries as well. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DNSOverTCPEnabled *bool `json:"dns_over_tcp_enabled,omitempty"`
 

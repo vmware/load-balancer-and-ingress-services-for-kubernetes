@@ -596,6 +596,9 @@ type EventDetails struct {
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VcaInfraDetails *VCASetup `json:"vca_infra_details,omitempty"`
 
+	// Details of objects still referred to cloud. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	VcenterCloudDeleteDetails *VcenterCloudDeleteDetails `json:"vcenter_cloud_delete_details,omitempty"`
+
 	// VCenter Cluster event. Field introduced in 20.1.7, 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	VcenterClusterDetails *VcenterClusterDetails `json:"vcenter_cluster_details,omitempty"`
 

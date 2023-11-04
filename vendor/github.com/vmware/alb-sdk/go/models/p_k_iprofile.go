@@ -12,6 +12,9 @@ type PKIprofile struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
+	// Exempt errors during certificate verification. Enum options - ALLOW_EXPIRED_CRL, ALLOW_ALL_ERRORS. Field introduced in 30.1.1. Maximum of 1 items allowed. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	AllowPkiErrors []string `json:"allow_pki_errors,omitempty"`
+
 	// List of Certificate Authorities (Root and Intermediate) trusted that is used for certificate validation. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CaCerts []*SSLCertificate `json:"ca_certs,omitempty"`
 

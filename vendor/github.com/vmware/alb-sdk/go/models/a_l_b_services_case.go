@@ -8,6 +8,9 @@ package models
 // swagger:model ALBServicesCase
 type ALBServicesCase struct {
 
+	// Additional emails to get notified when the case gets created. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	AdditionalEmails []string `json:"additional_emails,omitempty"`
+
 	//  Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AssetID *string `json:"asset_id,omitempty"`
 
@@ -76,6 +79,9 @@ type ALBServicesCase struct {
 
 	//  Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Subject *string `json:"subject,omitempty"`
+
+	// Tenant information. Field introduced in 30.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	TenantUUID *string `json:"tenant_uuid,omitempty"`
 
 	//  Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Time *string `json:"time,omitempty"`

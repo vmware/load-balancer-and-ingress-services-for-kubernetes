@@ -33,6 +33,9 @@ type Image struct {
 	// Image events for image upload operation. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Events []*ImageEventMap `json:"events,omitempty"`
 
+	// Specifies whether FIPS mode can be enabled on this image. Field introduced in 30.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	FipsModeTransitionApplicable *bool `json:"fips_mode_transition_applicable,omitempty"`
+
 	// Status of the image. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	ImgState *ImageUploadOpsStatus `json:"img_state,omitempty"`
 

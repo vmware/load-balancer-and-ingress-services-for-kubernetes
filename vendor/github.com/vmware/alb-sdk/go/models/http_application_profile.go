@@ -29,6 +29,9 @@ type HTTPApplicationProfile struct {
 	// Maximum size in Kbytes of all the client HTTP request headers.This value can be overriden by client_max_header_size if that is larger. Allowed values are 1-256. Unit is KB. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ClientMaxRequestSize *int32 `json:"client_max_request_size,omitempty"`
 
+	// Close server-side connection when an error response is received. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	CloseServerSideConnectionOnError *bool `json:"close_server_side_connection_on_error,omitempty"`
+
 	// If enabled, the client's TLS fingerprint will be collected and included in the Application Log. For Virtual Services with Bot Detection enabled, TLS fingerprints are always computed if 'use_tls_fingerprint' is enabled in the Bot Detection Policy's User-Agent detection component. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	CollectClientTLSFingerprint *bool `json:"collect_client_tls_fingerprint,omitempty"`
 
@@ -142,6 +145,9 @@ type HTTPApplicationProfile struct {
 
 	// When terminating client SSL sessions at Avi, servers may incorrectly send redirect to clients as HTTP.  This option will rewrite the server's redirect responses for this virtual service from HTTP to HTTPS. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- false), Basic edition(Allowed values- false), Enterprise with Cloud Services edition.
 	ServerSideRedirectToHTTPS *bool `json:"server_side_redirect_to_https,omitempty"`
+
+	// HTTP session configuration. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	SessionConfig *HttpsessionConfig `json:"session_config,omitempty"`
 
 	// Set of match/action rules that govern what happens when the client certificate request is enabled. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	SslClientCertificateAction *SSLClientCertificateAction `json:"ssl_client_certificate_action,omitempty"`

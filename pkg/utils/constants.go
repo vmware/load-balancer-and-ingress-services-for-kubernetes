@@ -96,8 +96,6 @@ const (
 	VCF_CLUSTER                   = "VCF_CLUSTER"
 	MCI_ENABLED                   = "MCI_ENABLED"
 	USE_DEFAULT_SECRETS_ONLY      = "USE_DEFAULT_SECRETS_ONLY"
-	CTRL_VERSION_22_1_3           = "22.1.3"
-	CTRL_VERSION_22_1_2           = "22.1.2"
 	Namespace                     = "Namespace"
 	MaxAviVersion                 = "22.1.3"
 	NamespaceNetworkInfo          = "NamespaceNetworkInfos"

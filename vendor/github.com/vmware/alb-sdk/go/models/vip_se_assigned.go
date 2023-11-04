@@ -56,6 +56,9 @@ type VipSeAssigned struct {
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SnatIP *IPAddr `json:"snat_ip,omitempty"`
 
+	// IPV6 address for SE snat. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	SnatIp6Address *IPAddr `json:"snat_ip6_address,omitempty"`
+
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Standby *bool `json:"standby,omitempty"`
 }
