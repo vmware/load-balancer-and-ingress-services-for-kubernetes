@@ -268,7 +268,7 @@ type AnalyticsProfile struct {
 	//  It is a reference to an object of type Tenant. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
-	// SE connection establishment latency tracking configuration. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Time Tracker Properties for connection establishment audit. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	TimeTrackerProps *TimeTrackerProperties `json:"time_tracker_props,omitempty"`
 
 	// url

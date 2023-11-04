@@ -38,6 +38,9 @@ type WafLog struct {
 	// Latency (in microseconds) in WAF Response Header Phase. Field introduced in 17.2.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LatencyResponseHeaderPhase *int64 `json:"latency_response_header_phase,omitempty"`
 
+	// Indicate if this request is used for learning. If it is not used, this field contains the reason for this decision. Enum options - NOT_ACTIVE, LEARNED, NOTHING_TO_LEARN, SERVER_ERROR, FLAGGED_BY_WAF, SKIPPED_BY_SAMPLING, CLIENT_IS_NOT_AUTHENTICATED, CLIENT_IS_NOT_TRUSTED, CLIENT_IS_A_BOT, ERROR. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	LearningStatus *string `json:"learning_status,omitempty"`
+
 	// The total memory (in bytes) consumed by WAF to process this request. Field introduced in 22.1.1. Unit is BYTES. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	MemoryAllocated *int64 `json:"memory_allocated,omitempty"`
 

@@ -19,6 +19,9 @@ type WafApplicationSignatureProvider struct {
 	// Protobuf versioning for config pbs. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
 	ConfigpbAttributes *ConfigPbAttributes `json:"configpb_attributes,omitempty"`
 
+	// If this is set to false, all provided rules are imported when updating this object. If this is set to true, only newer rules are considered for import. Newer rules are rules where the rule id is not in the range of 2,000,000 to 2,080,000 or where the rule has a tag with a CVE from 2013 or newer. All other rules are ignored on rule import. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	FilterRulesOnImport *bool `json:"filter_rules_on_import,omitempty"`
+
 	// Name of Application Specific Ruleset Provider. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`
 
@@ -26,7 +29,7 @@ type WafApplicationSignatureProvider struct {
 	// Read Only: true
 	RulesetVersion *string `json:"ruleset_version,omitempty"`
 
-	// If this object is managed by the Application Signatures update  service, this field contain the status of this syncronization. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// If this object is managed by the Application Signatures update service, this field contain the status of this syncronization. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	ServiceStatus *WebApplicationSignatureServiceStatus `json:"service_status,omitempty"`
 
 	// The WAF rules. Not visible in the API. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.

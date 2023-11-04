@@ -26,6 +26,9 @@ type AzureConfiguration struct {
 	// Azure resource group dedicated for Avi Controller. Avi Controller will create all its resources in this resource group. Field introduced in 17.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ResourceGroup *string `json:"resource_group,omitempty"`
 
+	// Storage Account to be used for uploading SE VHD images to Azure. Must include the resource group name. Format '<resource-group> <storage-account-name>'. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	SeStorageAccount *string `json:"se_storage_account,omitempty"`
+
 	// Subscription Id for the Azure subscription. Field introduced in 17.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SubscriptionID *string `json:"subscription_id,omitempty"`
 

@@ -12,6 +12,12 @@ type VsVip struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
+	// LOCAL_PREF to be used for VsVip advertised. Applicable only over iBGP. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	BgpLocalPreference *int32 `json:"bgp_local_preference,omitempty"`
+
+	// Number of times the local AS should be prepended additionally to VsVip. Applicable only over eBGP. Allowed values are 1-10. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	BgpNumAsPathPrepend *int32 `json:"bgp_num_as_path_prepend,omitempty"`
+
 	// Select BGP peers, using peer label, for VsVip advertisement. Field introduced in 20.1.5. Maximum of 128 items allowed. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	BgpPeerLabels []string `json:"bgp_peer_labels,omitempty"`
 
