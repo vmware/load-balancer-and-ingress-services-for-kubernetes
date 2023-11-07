@@ -294,8 +294,8 @@ func TestIngressNoUpdate(t *testing.T) {
 	waitAndverify(t, "Ingress/red-ns/testingr-noupdate")
 
 	ingrNoUpdate.Status = networkingv1.IngressStatus{
-		LoadBalancer: corev1.LoadBalancerStatus{
-			Ingress: []corev1.LoadBalancerIngress{
+		LoadBalancer: networkingv1.IngressLoadBalancerStatus{
+			Ingress: []networkingv1.IngressLoadBalancerIngress{
 				{
 					IP:       "1.1.1.1",
 					Hostname: "testingr.avi.internal",
@@ -310,8 +310,8 @@ func TestIngressNoUpdate(t *testing.T) {
 	}
 
 	ingrNoUpdate.Status = networkingv1.IngressStatus{
-		LoadBalancer: corev1.LoadBalancerStatus{
-			Ingress: []corev1.LoadBalancerIngress{
+		LoadBalancer: networkingv1.IngressLoadBalancerStatus{
+			Ingress: []networkingv1.IngressLoadBalancerIngress{
 				{
 					IP:       "1.1.1.1",
 					Hostname: "testingr.avi.internal",

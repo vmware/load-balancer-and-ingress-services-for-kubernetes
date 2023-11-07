@@ -23,7 +23,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
-	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	gatewayfake "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/fake"
 
 	akogatewayapik8s "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/k8s"
@@ -128,7 +128,7 @@ func TestGatewayCUD(t *testing.T) {
 	gwName := "gw-example-00"
 	gwClassName := "gw-class-example-00"
 	gwKey := "Gateway/" + DEFAULT_NAMESPACE + "/" + gwName
-	gateway := gatewayv1beta1.Gateway{
+	gateway := gatewayv1.Gateway{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "gateway.networking.k8s.io/v1beta1",
 			Kind:       "Gateway",
@@ -137,15 +137,15 @@ func TestGatewayCUD(t *testing.T) {
 			Name:      gwName,
 			Namespace: "default",
 		},
-		Spec:   gatewayv1beta1.GatewaySpec{},
-		Status: gatewayv1beta1.GatewayStatus{},
+		Spec:   gatewayv1.GatewaySpec{},
+		Status: gatewayv1.GatewayStatus{},
 	}
 	akogatewayapitests.SetGatewayGatewayClass(&gateway, gwClassName)
-	akogatewayapitests.AddGatewayListener(&gateway, "listener-example", 80, gatewayv1beta1.HTTPProtocolType, false)
+	akogatewayapitests.AddGatewayListener(&gateway, "listener-example", 80, gatewayv1.HTTPProtocolType, false)
 	akogatewayapitests.SetListenerHostname(&gateway.Spec.Listeners[0], "foo.example.com")
 
 	//create
-	gw, err := akogatewayapitests.GatewayClient.GatewayV1beta1().Gateways("default").Create(context.TODO(), &gateway, metav1.CreateOptions{})
+	gw, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Create(context.TODO(), &gateway, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't create, err: %+v", err)
 	}
@@ -154,7 +154,7 @@ func TestGatewayCUD(t *testing.T) {
 
 	//update
 	akogatewayapitests.SetGatewayGatewayClass(&gateway, "gw-class-new")
-	gw, err = akogatewayapitests.GatewayClient.GatewayV1beta1().Gateways("default").Update(context.TODO(), &gateway, metav1.UpdateOptions{})
+	gw, err = akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Update(context.TODO(), &gateway, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't update, err: %+v", err)
 	}
@@ -162,7 +162,7 @@ func TestGatewayCUD(t *testing.T) {
 	waitAndverify(t, gwKey)
 
 	//delete
-	err = akogatewayapitests.GatewayClient.GatewayV1beta1().Gateways("default").Delete(context.TODO(), gateway.Name, metav1.DeleteOptions{})
+	err = akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Delete(context.TODO(), gateway.Name, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't delete, err: %+v", err)
 	}
@@ -174,7 +174,7 @@ func TestGatewayInvalidListenerCount(t *testing.T) {
 	gwName := "gw-example-01"
 	gwClassName := "gw-class-example-01"
 	gwKey := "Gateway/" + DEFAULT_NAMESPACE + "/" + gwName
-	gateway := gatewayv1beta1.Gateway{
+	gateway := gatewayv1.Gateway{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "gateway.networking.k8s.io/v1beta1",
 			Kind:       "Gateway",
@@ -183,13 +183,13 @@ func TestGatewayInvalidListenerCount(t *testing.T) {
 			Name:      gwName,
 			Namespace: "default",
 		},
-		Spec:   gatewayv1beta1.GatewaySpec{},
-		Status: gatewayv1beta1.GatewayStatus{},
+		Spec:   gatewayv1.GatewaySpec{},
+		Status: gatewayv1.GatewayStatus{},
 	}
 	akogatewayapitests.SetGatewayGatewayClass(&gateway, gwClassName)
 
 	//create
-	gw, err := akogatewayapitests.GatewayClient.GatewayV1beta1().Gateways("default").Create(context.TODO(), &gateway, metav1.CreateOptions{})
+	gw, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Create(context.TODO(), &gateway, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't create, err: %+v", err)
 	}
@@ -197,9 +197,9 @@ func TestGatewayInvalidListenerCount(t *testing.T) {
 	waitAndverify(t, "")
 
 	//update
-	akogatewayapitests.AddGatewayListener(&gateway, "listener-example", 80, gatewayv1beta1.HTTPProtocolType, false)
+	akogatewayapitests.AddGatewayListener(&gateway, "listener-example", 80, gatewayv1.HTTPProtocolType, false)
 	akogatewayapitests.SetListenerHostname(&gateway.Spec.Listeners[0], "*.example.com")
-	gw, err = akogatewayapitests.GatewayClient.GatewayV1beta1().Gateways("default").Update(context.TODO(), &gateway, metav1.UpdateOptions{})
+	gw, err = akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Update(context.TODO(), &gateway, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't update, err: %+v", err)
 	}
@@ -215,7 +215,7 @@ func TestGatewayInvalidAddress(t *testing.T) {
 	gwName := "gw-example-02"
 	gwClassName := "gw-class-example-02"
 	gwKey := "Gateway/" + DEFAULT_NAMESPACE + "/" + gwName
-	gateway := gatewayv1beta1.Gateway{
+	gateway := gatewayv1.Gateway{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "gateway.networking.k8s.io/v1beta1",
 			Kind:       "Gateway",
@@ -224,14 +224,14 @@ func TestGatewayInvalidAddress(t *testing.T) {
 			Name:      gwName,
 			Namespace: "default",
 		},
-		Spec:   gatewayv1beta1.GatewaySpec{},
-		Status: gatewayv1beta1.GatewayStatus{},
+		Spec:   gatewayv1.GatewaySpec{},
+		Status: gatewayv1.GatewayStatus{},
 	}
 	akogatewayapitests.SetGatewayGatewayClass(&gateway, gwClassName)
-	akogatewayapitests.AddGatewayListener(&gateway, "listener-example", 80, gatewayv1beta1.HTTPProtocolType, false)
+	akogatewayapitests.AddGatewayListener(&gateway, "listener-example", 80, gatewayv1.HTTPProtocolType, false)
 	akogatewayapitests.SetListenerHostname(&gateway.Spec.Listeners[0], "foo.example.com")
-	hostnameType := gatewayv1beta1.AddressType("Hostname")
-	gateway.Spec.Addresses = []gatewayv1beta1.GatewayAddress{
+	hostnameType := gatewayv1.AddressType("Hostname")
+	gateway.Spec.Addresses = []gatewayv1.GatewayAddress{
 		{
 			Type:  &hostnameType,
 			Value: "some.fqdn.address",
@@ -239,7 +239,7 @@ func TestGatewayInvalidAddress(t *testing.T) {
 	}
 
 	//create
-	gw, err := akogatewayapitests.GatewayClient.GatewayV1beta1().Gateways("default").Create(context.TODO(), &gateway, metav1.CreateOptions{})
+	gw, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Create(context.TODO(), &gateway, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't create, err: %+v", err)
 	}
@@ -247,15 +247,15 @@ func TestGatewayInvalidAddress(t *testing.T) {
 	waitAndverify(t, "")
 
 	//update with IPv6
-	ipAddressType := gatewayv1beta1.AddressType("IPAddress")
-	gateway.Spec.Addresses = []gatewayv1beta1.GatewayAddress{
+	ipAddressType := gatewayv1.AddressType("IPAddress")
+	gateway.Spec.Addresses = []gatewayv1.GatewayAddress{
 		{
 			Type: &ipAddressType,
 			//TODO replace with constant from utils
 			Value: "2001:db8:3333:4444:5555:6666:7777:8888",
 		},
 	}
-	gw, err = akogatewayapitests.GatewayClient.GatewayV1beta1().Gateways("default").Update(context.TODO(), &gateway, metav1.UpdateOptions{})
+	gw, err = akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Update(context.TODO(), &gateway, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't update, err: %+v", err)
 	}
@@ -263,14 +263,14 @@ func TestGatewayInvalidAddress(t *testing.T) {
 	waitAndverify(t, "")
 
 	//update with IPv4
-	gateway.Spec.Addresses = []gatewayv1beta1.GatewayAddress{
+	gateway.Spec.Addresses = []gatewayv1.GatewayAddress{
 		{
 			Type: &ipAddressType,
 			//TODO replace with constant from utils
 			Value: "1.2.3.4",
 		},
 	}
-	gw, err = akogatewayapitests.GatewayClient.GatewayV1beta1().Gateways("default").Update(context.TODO(), &gateway, metav1.UpdateOptions{})
+	gw, err = akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Update(context.TODO(), &gateway, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't update, err: %+v", err)
 	}
@@ -286,7 +286,7 @@ func TestGatewayInvalidListenerHostname(t *testing.T) {
 	gwName := "gw-example-03"
 	gwClassName := "gw-class-example-03"
 	gwKey := "Gateway/" + DEFAULT_NAMESPACE + "/" + gwName
-	gateway := gatewayv1beta1.Gateway{
+	gateway := gatewayv1.Gateway{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "gateway.networking.k8s.io/v1beta1",
 			Kind:       "Gateway",
@@ -295,15 +295,15 @@ func TestGatewayInvalidListenerHostname(t *testing.T) {
 			Name:      gwName,
 			Namespace: "default",
 		},
-		Spec:   gatewayv1beta1.GatewaySpec{},
-		Status: gatewayv1beta1.GatewayStatus{},
+		Spec:   gatewayv1.GatewaySpec{},
+		Status: gatewayv1.GatewayStatus{},
 	}
 	akogatewayapitests.SetGatewayGatewayClass(&gateway, gwClassName)
-	akogatewayapitests.AddGatewayListener(&gateway, "listener-example", 80, gatewayv1beta1.HTTPProtocolType, false)
+	akogatewayapitests.AddGatewayListener(&gateway, "listener-example", 80, gatewayv1.HTTPProtocolType, false)
 	akogatewayapitests.SetListenerHostname(&gateway.Spec.Listeners[0], "*")
 
 	//create
-	gw, err := akogatewayapitests.GatewayClient.GatewayV1beta1().Gateways("default").Create(context.TODO(), &gateway, metav1.CreateOptions{})
+	gw, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Create(context.TODO(), &gateway, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't create, err: %+v", err)
 	}
@@ -312,7 +312,7 @@ func TestGatewayInvalidListenerHostname(t *testing.T) {
 
 	//update
 	akogatewayapitests.SetListenerHostname(&gateway.Spec.Listeners[0], "*.example.com")
-	gw, err = akogatewayapitests.GatewayClient.GatewayV1beta1().Gateways("default").Update(context.TODO(), &gateway, metav1.UpdateOptions{})
+	gw, err = akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Update(context.TODO(), &gateway, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't update, err: %+v", err)
 	}
@@ -328,7 +328,7 @@ func TestGatewayInvalidListenerProtocol(t *testing.T) {
 	gwName := "gw-example-04"
 	gwClassName := "gw-class-example-04"
 	gwKey := "Gateway/" + DEFAULT_NAMESPACE + "/" + gwName
-	gateway := gatewayv1beta1.Gateway{
+	gateway := gatewayv1.Gateway{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "gateway.networking.k8s.io/v1beta1",
 			Kind:       "Gateway",
@@ -337,15 +337,15 @@ func TestGatewayInvalidListenerProtocol(t *testing.T) {
 			Name:      gwName,
 			Namespace: "default",
 		},
-		Spec:   gatewayv1beta1.GatewaySpec{},
-		Status: gatewayv1beta1.GatewayStatus{},
+		Spec:   gatewayv1.GatewaySpec{},
+		Status: gatewayv1.GatewayStatus{},
 	}
 	akogatewayapitests.SetGatewayGatewayClass(&gateway, gwClassName)
-	akogatewayapitests.AddGatewayListener(&gateway, "listener-example", 80, gatewayv1beta1.TCPProtocolType, false)
+	akogatewayapitests.AddGatewayListener(&gateway, "listener-example", 80, gatewayv1.TCPProtocolType, false)
 	akogatewayapitests.SetListenerHostname(&gateway.Spec.Listeners[0], "*.example.com")
 
 	//create
-	gw, err := akogatewayapitests.GatewayClient.GatewayV1beta1().Gateways("default").Create(context.TODO(), &gateway, metav1.CreateOptions{})
+	gw, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Create(context.TODO(), &gateway, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't create, err: %+v", err)
 	}
@@ -353,8 +353,8 @@ func TestGatewayInvalidListenerProtocol(t *testing.T) {
 	waitAndverify(t, "")
 
 	//update
-	gateway.Spec.Listeners[0].Protocol = gatewayv1beta1.HTTPProtocolType
-	gw, err = akogatewayapitests.GatewayClient.GatewayV1beta1().Gateways("default").Update(context.TODO(), &gateway, metav1.UpdateOptions{})
+	gateway.Spec.Listeners[0].Protocol = gatewayv1.HTTPProtocolType
+	gw, err = akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Update(context.TODO(), &gateway, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't update, err: %+v", err)
 	}
@@ -378,17 +378,17 @@ func TestGatewayInvalidListenerTLS(t *testing.T) {
 		waitAndverify(t, "Secret/"+DEFAULT_NAMESPACE+"/"+secret)
 	}
 
-	listeners := akogatewayapitests.GetListenersV1Beta1(ports, secrets...)
-	tlsModePassthrough := gatewayv1beta1.TLSModePassthrough
+	listeners := akogatewayapitests.GetListenersV1(ports, secrets...)
+	tlsModePassthrough := gatewayv1.TLSModePassthrough
 	listeners[0].TLS.Mode = &tlsModePassthrough
 	//create
 	akogatewayapitests.SetupGateway(t, gwName, DEFAULT_NAMESPACE, gwClassName, nil, listeners)
 	waitAndverify(t, "")
 	//update
-	gateway, _ := akogatewayapitests.GatewayClient.GatewayV1beta1().Gateways("default").Get(context.TODO(), gwName, metav1.GetOptions{})
-	tlsModeTerminate := gatewayv1beta1.TLSModeTerminate
+	gateway, _ := akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Get(context.TODO(), gwName, metav1.GetOptions{})
+	tlsModeTerminate := gatewayv1.TLSModeTerminate
 	gateway.Spec.Listeners[0].TLS.Mode = &tlsModeTerminate
-	gw, err := akogatewayapitests.GatewayClient.GatewayV1beta1().Gateways("default").Update(context.TODO(), gateway, metav1.UpdateOptions{})
+	gw, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Update(context.TODO(), gateway, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't update, err: %+v", err)
 	}
@@ -401,7 +401,7 @@ func TestGatewayInvalidListenerTLS(t *testing.T) {
 }
 
 func TestGatewayClassCUD(t *testing.T) {
-	gatewayClass := gatewayv1beta1.GatewayClass{
+	gatewayClass := gatewayv1.GatewayClass{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "gateway.networking.k8s.io/v1beta1",
 			Kind:       "GatewayClass",
@@ -409,14 +409,14 @@ func TestGatewayClassCUD(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "gw-class-example",
 		},
-		Spec: gatewayv1beta1.GatewayClassSpec{
+		Spec: gatewayv1.GatewayClassSpec{
 			ControllerName: "ako.vmware.com/avi-lb",
 		},
-		Status: gatewayv1beta1.GatewayClassStatus{},
+		Status: gatewayv1.GatewayClassStatus{},
 	}
 
 	//create
-	gw, err := akogatewayapitests.GatewayClient.GatewayV1beta1().GatewayClasses().Create(context.TODO(), &gatewayClass, metav1.CreateOptions{})
+	gw, err := akogatewayapitests.GatewayClient.GatewayV1().GatewayClasses().Create(context.TODO(), &gatewayClass, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't create, err: %+v", err)
 	}
@@ -426,7 +426,7 @@ func TestGatewayClassCUD(t *testing.T) {
 	//update
 	testDesc := "test description for update"
 	gatewayClass.Spec.Description = &testDesc
-	gw, err = akogatewayapitests.GatewayClient.GatewayV1beta1().GatewayClasses().Update(context.TODO(), &gatewayClass, metav1.UpdateOptions{})
+	gw, err = akogatewayapitests.GatewayClient.GatewayV1().GatewayClasses().Update(context.TODO(), &gatewayClass, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't update gatewayClass, err: %+v", err)
 	}
@@ -434,7 +434,7 @@ func TestGatewayClassCUD(t *testing.T) {
 	waitAndverify(t, "GatewayClass/gw-class-example")
 
 	//delete
-	err = akogatewayapitests.GatewayClient.GatewayV1beta1().GatewayClasses().Delete(context.TODO(), gatewayClass.Name, metav1.DeleteOptions{})
+	err = akogatewayapitests.GatewayClient.GatewayV1().GatewayClasses().Delete(context.TODO(), gatewayClass.Name, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't delete, err: %+v", err)
 	}

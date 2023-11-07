@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
@@ -32,7 +32,7 @@ import (
 
 type httproute struct{}
 
-func (o *httproute) Get(key string, name string, namespace string) *gatewayv1beta1.HTTPRoute {
+func (o *httproute) Get(key string, name string, namespace string) *gatewayv1.HTTPRoute {
 
 	obj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).Get(name)
 	if err != nil {
@@ -43,7 +43,7 @@ func (o *httproute) Get(key string, name string, namespace string) *gatewayv1bet
 	return obj.DeepCopy()
 }
 
-func (o *httproute) GetAll(key string) map[string]*gatewayv1beta1.HTTPRoute {
+func (o *httproute) GetAll(key string) map[string]*gatewayv1.HTTPRoute {
 
 	objs, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().List(labels.Everything())
 	if err != nil {
@@ -51,7 +51,7 @@ func (o *httproute) GetAll(key string) map[string]*gatewayv1beta1.HTTPRoute {
 		return nil
 	}
 
-	httpRouteMap := make(map[string]*gatewayv1beta1.HTTPRoute)
+	httpRouteMap := make(map[string]*gatewayv1.HTTPRoute)
 	for _, obj := range objs {
 		httpRouteMap[obj.Namespace+"/"+obj.Name] = obj.DeepCopy()
 	}
@@ -82,7 +82,7 @@ func (o *httproute) Patch(key string, obj runtime.Object, status *Status, retryN
 		}
 	}
 
-	httpRoute := obj.(*gatewayv1beta1.HTTPRoute)
+	httpRoute := obj.(*gatewayv1.HTTPRoute)
 	if o.isStatusEqual(&httpRoute.Status, status.HTTPRouteStatus) {
 		return
 	}
@@ -90,7 +90,7 @@ func (o *httproute) Patch(key string, obj runtime.Object, status *Status, retryN
 	patchPayload, _ := json.Marshal(map[string]interface{}{
 		"status": status.HTTPRouteStatus,
 	})
-	_, err := akogatewayapilib.AKOControlConfig().GatewayAPIClientset().GatewayV1beta1().HTTPRoutes(httpRoute.Namespace).Patch(context.TODO(), httpRoute.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+	_, err := akogatewayapilib.AKOControlConfig().GatewayAPIClientset().GatewayV1().HTTPRoutes(httpRoute.Namespace).Patch(context.TODO(), httpRoute.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: there was an error in updating the HTTPRoute status. err: %+v, retry: %d", key, err, retry)
 		updatedObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(httpRoute.Namespace).Get(httpRoute.Name)
@@ -105,7 +105,7 @@ func (o *httproute) Patch(key string, obj runtime.Object, status *Status, retryN
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the HTTPRoute %s/%s status %+v", key, httpRoute.Namespace, httpRoute.Name, utils.Stringify(status))
 }
 
-func (o *httproute) isStatusEqual(old, new *gatewayv1beta1.HTTPRouteStatus) bool {
+func (o *httproute) isStatusEqual(old, new *gatewayv1.HTTPRouteStatus) bool {
 	oldStatus, newStatus := old.DeepCopy(), new.DeepCopy()
 	currentTime := metav1.Now()
 	for i := range oldStatus.Parents {

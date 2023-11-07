@@ -19,7 +19,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -35,7 +35,7 @@ func NewAviObjectGraph() *AviObjectGraph {
 	return &AviObjectGraph{&nodes.AviObjectGraph{}}
 }
 
-func (o *AviObjectGraph) BuildGatewayVs(gateway *gatewayv1beta1.Gateway, key string) {
+func (o *AviObjectGraph) BuildGatewayVs(gateway *gatewayv1.Gateway, key string) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 
@@ -46,7 +46,7 @@ func (o *AviObjectGraph) BuildGatewayVs(gateway *gatewayv1beta1.Gateway, key str
 	utils.AviLog.Infof("key: %s, msg: checksum for AVI VS object %v", key, vsNode.GetCheckSum())
 }
 
-func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1beta1.Gateway, key string) *nodes.AviEvhVsNode {
+func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key string) *nodes.AviEvhVsNode {
 	vsName := akogatewayapilib.GetGatewayParentName(gateway.Namespace, gateway.Name)
 	parentVsNode := &nodes.AviEvhVsNode{
 		Name:               vsName,
@@ -74,7 +74,7 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1beta1.Gateway, key
 	return parentVsNode
 }
 
-func BuildPortProtocols(gateway *gatewayv1beta1.Gateway, key string) []nodes.AviPortHostProtocol {
+func BuildPortProtocols(gateway *gatewayv1.Gateway, key string) []nodes.AviPortHostProtocol {
 	var portProtocols []nodes.AviPortHostProtocol
 	for _, listener := range gateway.Spec.Listeners {
 		pp := nodes.AviPortHostProtocol{Port: int32(listener.Port), Protocol: string(listener.Protocol)}
@@ -87,7 +87,7 @@ func BuildPortProtocols(gateway *gatewayv1beta1.Gateway, key string) []nodes.Avi
 	return portProtocols
 }
 
-func BuildTLSNodesForGateway(gateway *gatewayv1beta1.Gateway, key string) []*nodes.AviTLSKeyCertNode {
+func BuildTLSNodesForGateway(gateway *gatewayv1.Gateway, key string) []*nodes.AviTLSKeyCertNode {
 	var tlsNodes []*nodes.AviTLSKeyCertNode
 	var ns, name string
 	cs := utils.GetInformers().ClientSet
@@ -134,7 +134,7 @@ func TLSNodeFromSecret(secretObj *corev1.Secret, hostname, certName, key string)
 	return tlsNode
 }
 
-func BuildVsVipNodeForGateway(gateway *gatewayv1beta1.Gateway, vsName string) *nodes.AviVSVIPNode {
+func BuildVsVipNodeForGateway(gateway *gatewayv1.Gateway, vsName string) *nodes.AviVSVIPNode {
 	vsvipNode := &nodes.AviVSVIPNode{
 		Name:        lib.GetVsVipName(vsName),
 		Tenant:      lib.GetTenant(),
@@ -150,7 +150,7 @@ func BuildVsVipNodeForGateway(gateway *gatewayv1beta1.Gateway, vsName string) *n
 	return vsvipNode
 }
 
-func DeleteTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1beta1.Gateway, secretObj *corev1.Secret, encodedCertNameIndexMap map[string][]int) {
+func DeleteTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gateway, secretObj *corev1.Secret, encodedCertNameIndexMap map[string][]int) {
 	var tlsNodes []*nodes.AviTLSKeyCertNode
 	_, _, secretName := lib.ExtractTypeNameNamespace(key)
 	evhVsCertRefs := object.GetAviEvhVS()[0].SSLKeyCertRefs
@@ -177,7 +177,7 @@ func DeleteTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1beta1.G
 	object.GetAviEvhVS()[0].SSLKeyCertRefs = tlsNodes
 }
 
-func AddTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1beta1.Gateway, secretObj *corev1.Secret, encodedCertNameIndexMap map[string][]int) {
+func AddTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gateway, secretObj *corev1.Secret, encodedCertNameIndexMap map[string][]int) {
 	var tlsNodes []*nodes.AviTLSKeyCertNode
 	_, _, secretName := lib.ExtractTypeNameNamespace(key)
 	evhVsCertRefs := object.GetAviEvhVS()[0].SSLKeyCertRefs

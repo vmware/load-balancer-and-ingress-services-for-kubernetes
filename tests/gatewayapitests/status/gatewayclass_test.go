@@ -22,7 +22,7 @@ import (
 	"github.com/onsi/gomega"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapitests "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/gatewayapitests"
@@ -35,27 +35,27 @@ func TestGatewayClassValidation(t *testing.T) {
 
 	g := gomega.NewGomegaWithT(t)
 	g.Eventually(func() bool {
-		gatewayClass, err := akogatewayapitests.GatewayClient.GatewayV1beta1().GatewayClasses().Get(context.TODO(), gatewayClassName, metav1.GetOptions{})
+		gatewayClass, err := akogatewayapitests.GatewayClient.GatewayV1().GatewayClasses().Get(context.TODO(), gatewayClassName, metav1.GetOptions{})
 		if err != nil || gatewayClass == nil {
 			t.Logf("Couldn't get the GatewayClass, err: %+v", err)
 			return false
 		}
-		return apimeta.IsStatusConditionTrue(gatewayClass.Status.Conditions, string(gatewayv1beta1.GatewayClassConditionStatusAccepted))
+		return apimeta.IsStatusConditionTrue(gatewayClass.Status.Conditions, string(gatewayv1.GatewayClassConditionStatusAccepted))
 	}, 30*time.Second).Should(gomega.Equal(true))
 
-	expectedStatus := &gatewayv1beta1.GatewayClassStatus{
+	expectedStatus := &gatewayv1.GatewayClassStatus{
 		Conditions: []metav1.Condition{
 			{
-				Type:               string(gatewayv1beta1.GatewayClassConditionStatusAccepted),
+				Type:               string(gatewayv1.GatewayClassConditionStatusAccepted),
 				Status:             metav1.ConditionTrue,
 				Message:            "GatewayClass is valid",
 				ObservedGeneration: 1,
-				Reason:             string(gatewayv1beta1.GatewayClassReasonAccepted),
+				Reason:             string(gatewayv1.GatewayClassReasonAccepted),
 			},
 		},
 	}
 
-	gatewayClass, err := akogatewayapitests.GatewayClient.GatewayV1beta1().GatewayClasses().Get(context.TODO(), gatewayClassName, metav1.GetOptions{})
+	gatewayClass, err := akogatewayapitests.GatewayClient.GatewayV1().GatewayClasses().Get(context.TODO(), gatewayClassName, metav1.GetOptions{})
 	if err != nil || gatewayClass == nil {
 		t.Fatalf("Couldn't get the GatewayClass, err: %+v", err)
 	}
@@ -71,12 +71,12 @@ func TestGatewayClassWithNonAKOController(t *testing.T) {
 
 	g := gomega.NewGomegaWithT(t)
 	g.Eventually(func() bool {
-		gatewayClass, err := akogatewayapitests.GatewayClient.GatewayV1beta1().GatewayClasses().Get(context.TODO(), gatewayClassName, metav1.GetOptions{})
+		gatewayClass, err := akogatewayapitests.GatewayClient.GatewayV1().GatewayClasses().Get(context.TODO(), gatewayClassName, metav1.GetOptions{})
 		if err != nil || gatewayClass == nil {
 			t.Logf("Couldn't get the GatewayClass, err: %+v", err)
 			return false
 		}
-		return apimeta.FindStatusCondition(gatewayClass.Status.Conditions, string(gatewayv1beta1.GatewayClassConditionStatusAccepted)) == nil
+		return apimeta.FindStatusCondition(gatewayClass.Status.Conditions, string(gatewayv1.GatewayClassConditionStatusAccepted)) == nil
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)

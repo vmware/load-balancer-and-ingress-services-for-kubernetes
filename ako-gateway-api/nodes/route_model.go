@@ -19,7 +19,7 @@ import (
 	"sort"
 
 	"k8s.io/apimachinery/pkg/util/sets"
-	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -123,7 +123,7 @@ type httpRoute struct {
 	name        string
 	namespace   string
 	routeConfig *RouteConfig
-	spec        *gatewayv1beta1.HTTPRouteSpec
+	spec        *gatewayv1.HTTPRouteSpec
 }
 
 func GetHTTPRouteModel(key string, name, namespace string) (RouteModel, error) {

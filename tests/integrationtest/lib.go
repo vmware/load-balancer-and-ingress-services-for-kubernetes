@@ -285,8 +285,8 @@ func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
 			Rules: []networking.IngressRule{},
 		},
 		Status: networking.IngressStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: []corev1.LoadBalancerIngress{},
+			LoadBalancer: networking.IngressLoadBalancerStatus{
+				Ingress: []networking.IngressLoadBalancerIngress{},
 			},
 		},
 	}
@@ -343,7 +343,7 @@ func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
 		if len(ing.HostNames) >= i+1 {
 			hostname = ing.HostNames[i]
 		}
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
 			IP:       ing.Ips[i],
 			Hostname: hostname,
 		})
@@ -365,8 +365,8 @@ func (ing FakeIngress) IngressMultiPort() *networking.Ingress {
 			Rules: []networking.IngressRule{},
 		},
 		Status: networking.IngressStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: []corev1.LoadBalancerIngress{},
+			LoadBalancer: networking.IngressLoadBalancerStatus{
+				Ingress: []networking.IngressLoadBalancerIngress{},
 			},
 		},
 	}
@@ -406,7 +406,7 @@ func (ing FakeIngress) IngressMultiPort() *networking.Ingress {
 		if len(ing.HostNames) >= i+1 {
 			hostname = ing.HostNames[i]
 		}
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
 			IP:       ing.Ips[i],
 			Hostname: hostname,
 		})
@@ -428,8 +428,8 @@ func (ing FakeIngress) SecureIngress() *networking.Ingress {
 			Rules: []networking.IngressRule{},
 		},
 		Status: networking.IngressStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: []corev1.LoadBalancerIngress{},
+			LoadBalancer: networking.IngressLoadBalancerStatus{
+				Ingress: []networking.IngressLoadBalancerIngress{},
 			},
 		},
 	}
@@ -452,12 +452,12 @@ func (ing FakeIngress) SecureIngress() *networking.Ingress {
 	}
 
 	for _, ip := range ing.Ips {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
 			IP: ip,
 		})
 	}
 	for _, hostName := range ing.HostNames {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
 			Hostname: hostName,
 		})
 	}
@@ -478,8 +478,8 @@ func (ing FakeIngress) IngressNoHost() *networking.Ingress {
 			Rules: []networking.IngressRule{},
 		},
 		Status: networking.IngressStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: []corev1.LoadBalancerIngress{},
+			LoadBalancer: networking.IngressLoadBalancerStatus{
+				Ingress: []networking.IngressLoadBalancerIngress{},
 			},
 		},
 	}
@@ -496,12 +496,12 @@ func (ing FakeIngress) IngressNoHost() *networking.Ingress {
 		)
 	}
 	for _, ip := range ing.Ips {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
 			IP: ip,
 		})
 	}
 	for _, hostName := range ing.HostNames {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
 			Hostname: hostName,
 		})
 	}
@@ -545,8 +545,8 @@ func (ing FakeIngress) IngressMultiPath() *networking.Ingress {
 			Rules: []networking.IngressRule{},
 		},
 		Status: networking.IngressStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: []corev1.LoadBalancerIngress{},
+			LoadBalancer: networking.IngressLoadBalancerStatus{
+				Ingress: []networking.IngressLoadBalancerIngress{},
 			},
 		},
 	}
@@ -582,12 +582,12 @@ func (ing FakeIngress) IngressMultiPath() *networking.Ingress {
 		})
 	}
 	for _, ip := range ing.Ips {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
 			IP: ip,
 		})
 	}
 	for _, hostName := range ing.HostNames {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
 			Hostname: hostName,
 		})
 	}
