@@ -332,6 +332,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: fullSyncFrequency
+          - name: SERVICE_TYPE
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: serviceType
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
         {{ end }}
