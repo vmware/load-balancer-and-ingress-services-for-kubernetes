@@ -181,9 +181,24 @@ func TestConfigmap(t *testing.T) {
 	akoConfig.Spec.AKOSettings.DisableStaticRouteSync = true
 	cmDisable := buildConfigMapAndVerify(cmDelete, akoConfig, true, false, t)
 
+	t.Log("updating networkUUID in place of networkName and verifying")
+	akoConfig.Spec.NetworkSettings.NodeNetworkList = []akov1alpha1.NodeNetwork{
+		{
+			NetworkUUID: "test-nw-uuid",
+			Cidrs:       []string{"10.10.10.0/24"},
+		},
+	}
+	akoConfig.Spec.NetworkSettings.VipNetworkList = []akov1alpha1.VipNetwork{
+		{
+			NetworkUUID: "test-nw-uuid",
+			Cidr:        "10.10.10.0/24",
+		},
+	}
+	cmNetworkUUID := buildConfigMapAndVerify(cmDisable, akoConfig, true, false, t)
+
 	t.Log("updating nodeNetworkList and verifying")
 	akoConfig.Spec.NetworkSettings.NodeNetworkList = []akov1alpha1.NodeNetwork{}
-	cmNodeNetwork := buildConfigMapAndVerify(cmDisable, akoConfig, true, false, t)
+	cmNodeNetwork := buildConfigMapAndVerify(cmNetworkUUID, akoConfig, true, false, t)
 
 	t.Log("updating ipFamily and verifying")
 	akoConfig.Spec.AKOSettings.IPFamily = "V6"

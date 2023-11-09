@@ -86,7 +86,7 @@ spec:
     gatewayAPI: true
   gatewayAPI:
     image:
-      repository: "projects.registry.vmware.com/ako/ako-gateway-api@sha256:089e4ccd0642954cc031eba541b0e3c84b5d88c1c96ae5f788edeed30ecfd26d"
+      repository: "projects.registry.vmware.com/ako/ako-gateway-api:1.11.1"
       pullPolicy: "IfNotPresent"
   akoGatewayLogFile: "avi-gw.log"
   ```
