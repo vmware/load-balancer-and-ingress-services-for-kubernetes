@@ -284,8 +284,29 @@ func BuildStatefulSet(ako akov1alpha1.AKOConfig, aviSecret corev1.Secret) (appsv
 			},
 		},
 	}
-
+	if len(ako.Spec.ImagePullSecrets) != 0 {
+		var imagePullSecrets []corev1.LocalObjectReference
+		for _, secret := range ako.Spec.ImagePullSecrets {
+			imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: secret.Name})
+		}
+		template.Spec.ImagePullSecrets = imagePullSecrets
+	}
+	if ako.Spec.FeatureGates.GatewayAPI {
+		gatewayImagePullPolicy, err := getPullPolicy(ako.Spec.GatewayAPI.Image.PullPolicy)
+		if err != nil {
+			return sf, err
+		}
+		envVarsGateway := getEnvVarsForGateway(ako)
+		gatewayContainer := corev1.Container{
+			Name:            "ako-gateway-api",
+			VolumeMounts:    volumeMounts,
+			Image:           ako.Spec.GatewayAPI.Image.Repository,
+			ImagePullPolicy: gatewayImagePullPolicy,
+			Resources:       resources,
+			Env:             envVarsGateway,
+		}
+		template.Spec.Containers = append(template.Spec.Containers, gatewayContainer)
+	}
 	sf.Spec.Template = template
-
 	return sf, nil
 }
