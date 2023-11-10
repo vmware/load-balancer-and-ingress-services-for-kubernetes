@@ -12,12 +12,10 @@ type DataNetworkConfig struct {
 	Tier1SegmentConfig *NsxtTier1SegmentConfig `json:"tier1_segment_config,omitempty"`
 
 	// Data transport zone path for Avi Service Engines. Example- /infra/sites/default/enforcement-points/default/transport-zones/xxx-xxx-xxxx. Field introduced in 20.1.5. Allowed in Enterprise edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
-	// Required: true
-	TransportZone *string `json:"transport_zone"`
+	TransportZone *string `json:"transport_zone,omitempty"`
 
 	// Data transport zone type overlay or vlan. Enum options - OVERLAY, VLAN. Field introduced in 20.1.5. Allowed in Enterprise edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
-	// Required: true
-	TzType *string `json:"tz_type"`
+	TzType *string `json:"tz_type,omitempty"`
 
 	// Data vlan segments path to use for Avi Service Engines. Example- /infra/segments/vlanls. This should be set only when transport zone is of type VLAN. Field introduced in 20.1.5. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	VlanSegments []string `json:"vlan_segments,omitempty"`

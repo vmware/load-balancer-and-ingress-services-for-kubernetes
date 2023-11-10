@@ -8,7 +8,7 @@ package models
 // swagger:model IpamDnsInfobloxProfile
 type IPAMDNSInfobloxProfile struct {
 
-	// DNS view. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// DNS view used for Infoblox host record creation, If this field is not configured by the user, then its value will be set to 'default'. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DNSView *string `json:"dns_view,omitempty"`
 
 	// Custom parameters that will passed to the Infoblox provider as extensible attributes. Field introduced in 18.2.7, 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
@@ -18,7 +18,7 @@ type IPAMDNSInfobloxProfile struct {
 	// Required: true
 	IPAddress *IPAddr `json:"ip_address"`
 
-	// Network view. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// Network view used for Infoblox host record creation, If this field is not configured by the user, then its value will be set to 'default'. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NetworkView *string `json:"network_view,omitempty"`
 
 	// Password for API access for Infoblox appliance. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.

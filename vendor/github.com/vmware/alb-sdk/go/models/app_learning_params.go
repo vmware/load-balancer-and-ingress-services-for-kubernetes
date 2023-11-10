@@ -14,6 +14,9 @@ type AppLearningParams struct {
 	// If true, learning will only be performed on requests from clients who have passed the authentication process configured in the Virtual Service's Auth Profile. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	LearnFromAuthenticatedClientsOnly *bool `json:"learn_from_authenticated_clients_only,omitempty"`
 
+	// If Bot detection is active for this Virtual Service, learning will only be performed on requests from clients within the configured bot classification types. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	LearnFromBots *BotDetectionMatch `json:"learn_from_bots,omitempty"`
+
 	// Maximum number of params programmed for an application. Allowed values are 10-1000. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxParams *int32 `json:"max_params,omitempty"`
 

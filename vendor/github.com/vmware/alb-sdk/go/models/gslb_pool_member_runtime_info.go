@@ -29,6 +29,9 @@ type GslbPoolMemberRuntimeInfo struct {
 	// The GSLB service to which this member belongs. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	GsUUID *string `json:"gs_uuid,omitempty"`
 
+	// This field will provide information on origin(site name) of the health monitoring information. Field introduced in 22.1.5. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	HealthMonitorInfo []string `json:"health_monitor_info,omitempty"`
+
 	// GSLB pool member's configured VIP. . Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IP *IPAddr `json:"ip,omitempty"`
 

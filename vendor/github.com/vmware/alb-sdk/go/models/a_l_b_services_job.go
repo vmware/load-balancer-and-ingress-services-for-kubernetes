@@ -19,7 +19,7 @@ type ALBServicesJob struct {
 	// Protobuf versioning for config pbs. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
 	ConfigpbAttributes *ConfigPbAttributes `json:"configpb_attributes,omitempty"`
 
-	// The time at which the albservicesjob is ended. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Time at which the albservicesjob ended. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	EndTime *TimeStamp `json:"end_time,omitempty"`
 
 	// The name of the albservicesjob. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
@@ -29,16 +29,16 @@ type ALBServicesJob struct {
 	// Job params. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Params []*ALBServicesJobParam `json:"params,omitempty"`
 
-	// A unique identifier for this job entry on the Pulse portal. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// A unique identifier for this job entry on the Pulse Cloud Services. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	PulseJobID *string `json:"pulse_job_id,omitempty"`
 
-	// Status of sync to pulse(result uploads/state updates). Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Status of sync to Pulse Cloud Services(result uploads/state updates). Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	PulseSyncStatus *bool `json:"pulse_sync_status,omitempty"`
 
 	// Job result. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Result *string `json:"result,omitempty"`
 
-	// The time at which the albservicesjob is started. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Time at which the albservicesjob started. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	StartTime *TimeStamp `json:"start_time,omitempty"`
 
 	// The status of the albservicesjob. Enum options - UNDETERMINED, PENDING, IN_PROGRESS, COMPLETED, FAILED, NOT_ENABLED. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.

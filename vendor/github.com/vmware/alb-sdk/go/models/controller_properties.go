@@ -126,11 +126,17 @@ type ControllerProperties struct {
 	// Period for file object cleanup job. Field introduced in 20.1.1. Unit is MIN. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FileObjectCleanupPeriod *int32 `json:"file_object_cleanup_period,omitempty"`
 
+	// List of mapping for file reference and their absolute path . Field introduced in 30.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	FileReferenceMappings []*FileReferenceMapping `json:"file_reference_mappings,omitempty"`
+
 	// Batch size for the vs_mgr to perform datastrorecleanup during a GSLB purge. Allowed values are 50-1200. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	GslbPurgeBatchSize *int32 `json:"gslb_purge_batch_size,omitempty"`
 
 	// Sleep time in the vs_mgr during a FederatedPurge RPC call. Allowed values are 50-100. Field introduced in 22.1.3. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	GslbPurgeSleepTimeMs *int32 `json:"gslb_purge_sleep_time_ms,omitempty"`
+
+	// Ignore the vrf_context filter for /networksubnetlist API. Field introduced in 22.1.4. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	IgnoreVrfInNetworksubnetlist *bool `json:"ignore_vrf_in_networksubnetlist,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxDeadSeInGrp *int32 `json:"max_dead_se_in_grp,omitempty"`
@@ -219,10 +225,13 @@ type ControllerProperties struct {
 	//  Unit is MIN. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SecureChannelSeTokenTimeout *int32 `json:"secure_channel_se_token_timeout,omitempty"`
 
+	// This parameter defines the buffer size during SE image downloads in a SeGroup. It is used to pace the SE downloads so that controller network/CPU bandwidth is a bounded operation. Field introduced in 22.1.4. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	SeupgradeCopyBufferSize *int32 `json:"seupgrade_copy_buffer_size,omitempty"`
+
 	// This parameter defines the number of simultaneous SE image downloads in a SeGroup. It is used to pace the SE downloads so that controller network/CPU bandwidth is a bounded operation. A value of 0 will disable the pacing scheme and all the SE(s) in the SeGroup will attempt to download the image. . Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeupgradeCopyPoolSize *int32 `json:"seupgrade_copy_pool_size,omitempty"`
 
-	// Pool size used for all fabric commands during se upgrade. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// The pool size is used to control the number of concurrent segroup upgrades. This field value takes affect upon controller warm reboot. Allowed values are 2-20. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeupgradeFabricPoolSize *int32 `json:"seupgrade_fabric_pool_size,omitempty"`
 
 	// Time to wait before marking segroup upgrade as stuck. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
@@ -230,6 +239,15 @@ type ControllerProperties struct {
 
 	// SSL Certificates in the admin tenant can be used in non-admin tenants. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SharedSslCertificates *bool `json:"shared_ssl_certificates,omitempty"`
+
+	// Time interval (in seconds) between retires for skopeo commands. Field introduced in 30.1.1. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	SkopeoRetryInterval *int32 `json:"skopeo_retry_interval,omitempty"`
+
+	// Number of times to try skopeo commands for remote image registries. Field introduced in 30.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	SkopeoRetryLimit *int32 `json:"skopeo_retry_limit,omitempty"`
+
+	// Soft Limit on the minimum SE Memory that an SE needs to have on SE Register. Field introduced in 30.1.1. Unit is MB. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	SoftMinMemPerSeLimit *int32 `json:"soft_min_mem_per_se_limit,omitempty"`
 
 	// Number of days for SSL Certificate expiry warning. Unit is DAYS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SslCertificateExpiryWarningDays []int64 `json:"ssl_certificate_expiry_warning_days,omitempty,omitempty"`
@@ -282,6 +300,9 @@ type ControllerProperties struct {
 
 	//  Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VsSeBootupFail *int32 `json:"vs_se_bootup_fail,omitempty"`
+
+	// Wait for longer for patch SEs to boot up. Field introduced in 30.2.1. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	VsSeBootupFailPatch *int32 `json:"vs_se_bootup_fail_patch,omitempty"`
 
 	//  Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VsSeCreateFail *int32 `json:"vs_se_create_fail,omitempty"`

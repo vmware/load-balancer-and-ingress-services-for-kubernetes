@@ -65,7 +65,7 @@ type Gslb struct {
 	//  It is a reference to an object of type Tenant. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
-	// This field indicates tenant visibility for GS pool member selection across the Gslb federated objects. Field introduced in 18.2.12,20.1.4. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// This field indicates tenant visibility for GS pool member selection across the Gslb federated objects.Tenant scope can be set only during the Gslb create and cannot be changed once it is set. Field introduced in 18.2.12,20.1.4. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	TenantScoped *bool `json:"tenant_scoped,omitempty"`
 
 	// Third party site member belonging to this Gslb. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.

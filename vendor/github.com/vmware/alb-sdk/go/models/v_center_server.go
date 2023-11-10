@@ -19,8 +19,7 @@ type VCenterServer struct {
 	ConfigpbAttributes *ConfigPbAttributes `json:"configpb_attributes,omitempty"`
 
 	// VCenter template to create Service Engine. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	// Required: true
-	ContentLib *ContentLibConfig `json:"content_lib"`
+	ContentLib *ContentLibConfig `json:"content_lib,omitempty"`
 
 	// Availabilty zone where VCenter list belongs to. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
@@ -37,10 +36,8 @@ type VCenterServer struct {
 	UUID *string `json:"uuid,omitempty"`
 
 	// Credentials to access VCenter. It is a reference to an object of type CloudConnectorUser. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	// Required: true
-	VcenterCredentialsRef *string `json:"vcenter_credentials_ref"`
+	VcenterCredentialsRef *string `json:"vcenter_credentials_ref,omitempty"`
 
 	// VCenter hostname or IP address. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	// Required: true
-	VcenterURL *string `json:"vcenter_url"`
+	VcenterURL *string `json:"vcenter_url,omitempty"`
 }

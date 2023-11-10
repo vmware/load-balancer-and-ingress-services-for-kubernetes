@@ -8,6 +8,9 @@ package models
 // swagger:model CaseConfig
 type CaseConfig struct {
 
+	// Additional emails to get notified when the case gets created. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	AdditionalEmails []string `json:"additional_emails,omitempty"`
+
 	// Enable pro-active support case creation when a controller failure occurs. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- false), Basic edition(Allowed values- false), Enterprise with Cloud Services edition.
 	EnableAutoCaseCreationOnControllerFailure *bool `json:"enable_auto_case_creation_on_controller_failure,omitempty"`
 

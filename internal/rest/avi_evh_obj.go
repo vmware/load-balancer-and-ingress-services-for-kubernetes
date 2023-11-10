@@ -533,7 +533,6 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 			MatchCase:     &match_case,
 			MatchStr:      []string{"/"},
 		}
-		pathMatches := make([]*avimodels.PathMatch, 0)
 		vHMatchRules := make([]*avimodels.VHMatchRule, 0)
 		matchTarget := &avimodels.MatchTarget{
 			Path: &path_match,
@@ -543,15 +542,9 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 			Matches: matchTarget,
 		}
 		vHMatchRules = append(vHMatchRules, vHMatchRule)
-		pathMatches = append(pathMatches, &path_match)
 
 		hostname := Vhostname
-		var vhMatch *avimodels.VHMatch
-		if utils.CtrlVersion >= utils.CTRL_VERSION_22_1_3 {
-			vhMatch = &avimodels.VHMatch{Host: &hostname, Rules: vHMatchRules}
-		} else {
-			vhMatch = &avimodels.VHMatch{Host: &hostname, Path: pathMatches, Rules: vHMatchRules}
-		}
+		vhMatch := &avimodels.VHMatch{Host: &hostname, Rules: vHMatchRules}
 		vhMatches = append(vhMatches, vhMatch)
 	}
 

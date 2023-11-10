@@ -81,6 +81,9 @@ type UpgradeStatusInfo struct {
 	// Image path of previous patch image. Field introduced in 18.2.10, 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PrevPatchImagePath *string `json:"prev_patch_image_path,omitempty"`
 
+	// Remote image reference of previous base image. Field introduced in 30.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	PrevRemoteImageRef *string `json:"prev_remote_image_ref,omitempty"`
+
 	// Image uuid for identifying previous base image.Example  Base-image was 18.2.5 and an upgrade was done to 18.2.6, then this field will indicate the 18.2.5 value. . It is a reference to an object of type Image. Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PreviousImageRef *string `json:"previous_image_ref,omitempty"`
 
@@ -101,6 +104,9 @@ type UpgradeStatusInfo struct {
 
 	// Descriptive reason for the Upgrade state. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Reason *string `json:"reason,omitempty"`
+
+	// Remote image reference of current base image. Field introduced in 30.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	RemoteImageRef *string `json:"remote_image_ref,omitempty"`
 
 	// Image path of se patch image.(required in case of reimage and upgrade + patch). Field introduced in 18.2.10, 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SePatchImagePath *string `json:"se_patch_image_path,omitempty"`
