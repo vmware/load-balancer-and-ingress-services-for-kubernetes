@@ -33,6 +33,7 @@ import (
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator/api/v1alpha1"
 )
@@ -183,12 +184,17 @@ func (r *AKOConfigReconciler) ReconcileAllArtifacts(ctx context.Context, ako ako
 		return err
 	}
 
-	err = createOrUpdateStatefulSet(ctx, ako, log, r, aviSecret)
+	err = createCRDs(r.Config, log)
 	if err != nil {
 		return err
 	}
 
-	err = createCRDs(r.Config, log)
+	err = createOrUpdateGatewayClass(ctx, ako, log, r)
+	if err != nil {
+		return err
+	}
+
+	err = createOrUpdateStatefulSet(ctx, ako, log, r, aviSecret)
 	if err != nil {
 		return err
 	}
@@ -236,6 +242,12 @@ func (r *AKOConfigReconciler) CleanupArtifacts(ctx context.Context, log logr.Log
 			log.V(0).Info("error getting podsecuritypolicy", "error", err)
 		} else {
 			objList[getPSPName()] = &psp
+		}
+		var gwClass gatewayv1beta1.GatewayClass
+		if err := r.Get(ctx, getGWClassName(), &gwClass); err != nil {
+			log.V(0).Info("error getting gatewayclass", "error", err)
+		} else {
+			objList[getGWClassName()] = &gwClass
 		}
 	}
 	for objName, obj := range objList {

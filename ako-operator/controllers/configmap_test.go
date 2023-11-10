@@ -63,7 +63,7 @@ var cmJson = `
 		"shardVSSize": "LARGE",
 		"noPGForSni": "false",
 		"bgpPeerLabels": "[]",
-		"vipNetworkList": "[{\"cidr\":\"10.10.10.0/24\",\"networkName\":\"test-nw\",\"v6cidr\":\"\"}]",
+		"vipNetworkList": "[{\"cidr\":\"10.10.10.0/24\",\"networkName\":\"test-nw\"}]",
 		"nsSyncLabelKey": "",
 		"nsSyncLabelValue": "",
 		"enableMCI": "false",

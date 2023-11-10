@@ -33,6 +33,10 @@ spec:
           spec:
             description: AKOConfigSpec defines the desired state of AKOConfig
             properties:
+              akoGatewayLogFile:
+                description: AKOGatewayLogFile is the name of the file where ako-gateway-api
+                  container will dump its logs
+                type: string
               akoSettings:
                 description: AKOSettings defines the settings required for the AKO
                   controller
@@ -144,10 +148,41 @@ spec:
                       k8s cluster uniquely to a tenant in Avi
                     type: boolean
                 type: object
+              featureGates:
+                description: FeatureGates is to enable or disable experimental features
+                properties:
+                  gatewayAPI:
+                    description: GatewayAPI enables/disables processing of Kubernetes
+                      Gateway API CRDs
+                    type: boolean
+                type: object
+              gatewayAPI:
+                description: GatewayAPI defines settings for AKO Gateway API container
+                properties:
+                  image:
+                    description: Image defines image related settings for AKO Gateway
+                      API container
+                    properties:
+                      pullPolicy:
+                        type: string
+                      repository:
+                        type: string
+                    type: object
+                type: object
               imagePullPolicy:
                 description: ImagePullPolicy defines when the AKO controller image
                   gets pulled.
                 type: string
+              imagePullSecrets:
+                description: ImagePullSecrets will add pull secrets to the statefulset
+                  for AKO. Required if using secure private container image registry
+                  for AKO image
+                items:
+                  properties:
+                    name:
+                      type: string
+                  type: object
+                type: array
               imageRepository:
                 description: ImageRepository is where the AKO controller resides.
                 type: string
@@ -224,9 +259,12 @@ spec:
                     type: boolean
                   nodeNetworkList:
                     description: 'NodeNetworkList is the list of networks and their
-                      cidrs used in pool placement network for vcenter cloud. This
-                      is not required for either of these cases: 1. nodeport is enabled
-                      2. static routes are disabled 3. non vcenter clouds'
+                      cidrs used in pool placement network for vcenter cloud. Either
+                      networkName or networkUUID should be specified. If duplicate
+                      networks are present for the network name, networkUUID should
+                      be used for appropriate network. This is not required for either
+                      of these cases: 1. nodeport is enabled 2. static routes are
+                      disabled 3. non vcenter clouds'
                     items:
                       properties:
                         cidrs:
@@ -234,6 +272,8 @@ spec:
                             type: string
                           type: array
                         networkName:
+                          type: string
+                        networkUUID:
                           type: string
                       type: object
                     type: array
@@ -243,12 +283,16 @@ spec:
                     type: string
                   vipNetworkList:
                     description: VipNetworkList holds the names and subnet information
-                      of networks as specified in Avi
+                      of networks as specified in Avi. Either networkName or networkUUID
+                      should be specified. If duplicate networks are present for the
+                      network name, networkUUID should be used for appropriate network.
                     items:
                       properties:
                         cidr:
                           type: string
                         networkName:
+                          type: string
+                        networkUUID:
                           type: string
                         v6cidr:
                           description: V6Cidr will enable the VS networks to use ipv6
