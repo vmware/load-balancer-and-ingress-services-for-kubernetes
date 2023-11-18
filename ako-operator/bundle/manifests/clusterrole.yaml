@@ -64,3 +64,6 @@ rules:
 - apiGroups: ["cilium.io"]
   resources: ["ciliumnodes"]
   verbs: ["get", "watch", "list"]
+- apiGroups: ["gateway.networking.k8s.io"]
+  resources: ["gatewayclasses", "gatewayclasses/status", "gateways", "gateways/status", "httproutes", "httproutes/status"]
+  verbs: ["get", "watch", "list", "patch", "update", "create", "delete"]

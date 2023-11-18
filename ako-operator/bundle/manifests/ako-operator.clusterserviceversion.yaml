@@ -44,7 +44,8 @@ metadata:
             },
             "replicaCount": 1,
             "imagePullPolicy": "IfNotPresent",
-            "imageRepository": "projects.registry.vmware.com/ako/ako@sha256:7c4f8c84eb5b1216f917ad1183c7e9ae19cd9b58d2a9669d7fb24b70156fc7e3",
+            "imageRepository": "projects.registry.vmware.com/ako/ako@sha256:403e629eeb194a56cc5f71c29363df5c94ebb6afe0cb823120ce23dc701fe1de",
+            "imagePullSecrets": [],
             "l4Settings": {
               "autoFQDN": "default",
               "defaultDomain": ""
@@ -71,8 +72,7 @@ metadata:
               "vipNetworkList": [
                 {
                   "networkName": "",
-                  "cidr": "",
-                  "v6cidr": ""
+                  "cidr": ""
                 }
               ]
             },
@@ -92,7 +92,17 @@ metadata:
             },
             "rbac": {
               "pspEnable": false
-            }
+            },
+            "featureGates": {
+              "gatewayAPI": false
+            },
+            "gatewayAPI": {
+              "image": {
+                "repository": "projects.registry.vmware.com/ako/ako-gateway-api@sha256:089e4ccd0642954cc031eba541b0e3c84b5d88c1c96ae5f788edeed30ecfd26d",
+                "pullPolicy": "IfNotPresent"
+              }
+            },
+            "akoGatewayLogFile": "avi-gw.log"
           },
           "status": {}
         }
@@ -101,8 +111,8 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.16.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     operatorframework.io/suggested-namespace: avi-system
-    containerImage: projects.registry.vmware.com/ako/ako-operator@sha256:629c50ebe19c035d292ff5a3c45ccb4482f4b839234891f54087e6e4654b26ee
-  name: ako-operator.v1.10.1
+    containerImage: projects.registry.vmware.com/ako/ako-operator@sha256:ed71b04ad93ef35920329662e9fecedec9079243dfa0561b62e05d618f6dce6f
+  name: ako-operator.v1.11.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -163,6 +173,18 @@ spec:
       - description: PersistentVolumeClaim where the logs needs to be stored
         displayName: PVC
         path: pvc
+      - description: ImagePullSecrets will add pull secrets to the statefulset for AKO. Required if using secure private container image registry for AKO image
+        displayName: Image Pull Secrets
+        path: imagePullSecrets
+      - description: AKOGatewayLogFile is the name of the file where ako-gateway-api container will dump its logs
+        displayName: AKO Gateway Log File
+        path: akoGatewayLogFile
+      - description: FeatureGates is to enable or disable experimental features
+        displayName: Feature Gates
+        path: featureGates
+      - description: GatewayAPI defines settings for AKO Gateway API container
+        displayName: Gateway API
+        path: gatewayAPI
       statusDescriptors:
       - description: Status of the AKO Operator deployment
         displayName: Deployed
@@ -516,6 +538,23 @@ spec:
           - get
           - watch
           - list
+        - apiGroups:
+          - gateway.networking.k8s.io
+          resources:
+          - gatewayclasses
+          - gatewayclasses/status
+          - gateways
+          - gateways/status
+          - httproutes
+          - httproutes/status
+          verbs:
+          - get
+          - watch
+          - list
+          - patch
+          - update
+          - create
+          - delete
         serviceAccountName: default
       deployments:
       - name: ako-operator-controller-manager
@@ -533,7 +572,7 @@ spec:
               containers:
               - command:
                 - /ako-operator
-                image: projects.registry.vmware.com/ako/ako-operator@sha256:629c50ebe19c035d292ff5a3c45ccb4482f4b839234891f54087e6e4654b26ee
+                image: projects.registry.vmware.com/ako/ako-operator@sha256:ed71b04ad93ef35920329662e9fecedec9079243dfa0561b62e05d618f6dce6f
                 name: ako-operator
                 resources:
                   limits:
@@ -586,9 +625,11 @@ spec:
     supported: false
   relatedImages:
   - name: ako-operator
-    image: projects.registry.vmware.com/ako/ako-operator@sha256:629c50ebe19c035d292ff5a3c45ccb4482f4b839234891f54087e6e4654b26ee
+    image: projects.registry.vmware.com/ako/ako-operator@sha256:ed71b04ad93ef35920329662e9fecedec9079243dfa0561b62e05d618f6dce6f
   - name: ako
-    image: projects.registry.vmware.com/ako/ako@sha256:7c4f8c84eb5b1216f917ad1183c7e9ae19cd9b58d2a9669d7fb24b70156fc7e3
+    image: projects.registry.vmware.com/ako/ako@sha256:403e629eeb194a56cc5f71c29363df5c94ebb6afe0cb823120ce23dc701fe1de
+  - name: ako-gateway-api
+    image: projects.registry.vmware.com/ako/ako-gateway-api@sha256:089e4ccd0642954cc031eba541b0e3c84b5d88c1c96ae5f788edeed30ecfd26d
   keywords:
   - AKO
   - AKO Operator
@@ -596,15 +637,15 @@ spec:
   - Ingress Controller
   links:
   - name: AKO Operator
-    url: https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tree/release-1.10.1-operator/ako-operator#readme
+    url: https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tree/release-1.11.1-operator/ako-operator#readme
   - name: AKO Repository
     url: https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
   - name: AKO
-    url: https://avinetworks.com/docs/ako/1.10/avi-kubernetes-operator/
+    url: https://avinetworks.com/docs/ako/1.11/avi-kubernetes-operator/
   maintainers:
   - email: aakashd1@vmware.com
     name: Aakash Kumar Dixit
   maturity: stable
   provider:
     name: VMware
-  version: 1.10.1
+  version: 1.11.1
