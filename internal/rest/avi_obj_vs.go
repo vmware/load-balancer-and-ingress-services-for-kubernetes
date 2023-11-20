@@ -264,7 +264,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			vs.SslProfileRef = vs_meta.SslProfileRef
 		}
 
-		if len(vs_meta.SslKeyAndCertificateRefs) != 0 {
+		if len(vs_meta.SslKeyAndCertificateRefs) != 0 && !vs_meta.Dedicated {
 			vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, vs_meta.SslKeyAndCertificateRefs...)
 		}
 
