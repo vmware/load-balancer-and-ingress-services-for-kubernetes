@@ -635,6 +635,7 @@ spec:
   - AKO Operator
   - Load Balancer
   - Ingress Controller
+  - GatewayAPI
   links:
   - name: AKO Operator
     url: https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tree/release-1.11.1-operator/ako-operator#readme
