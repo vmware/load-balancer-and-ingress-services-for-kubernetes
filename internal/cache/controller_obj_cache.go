@@ -936,7 +936,7 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient, cloud str
 	if len(nextPage) == 1 {
 		uri = nextPage[0].NextURI
 	} else {
-		uri = "/api/sslkeyandcertificate/?" + "&created_by=" + akoUser + "&page_size=100"
+		uri = "/api/sslkeyandcertificate/?" + "&include_name=true" + "&created_by=" + akoUser + "&page_size=100"
 	}
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
@@ -1008,7 +1008,7 @@ func (c *AviObjCache) AviPopulateOneSSLCache(client *clients.AviClient,
 	var uri string
 	akoUser := lib.AKOUser
 
-	uri = "/api/sslkeyandcertificate?name=" + objName + "&created_by=" + akoUser
+	uri = "/api/sslkeyandcertificate?name=" + objName + "&include_name=true" + "&created_by=" + akoUser
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -1071,7 +1071,7 @@ func (c *AviObjCache) AviPopulateOnePKICache(client *clients.AviClient,
 	var uri string
 	akoUser := lib.AKOUser
 
-	uri = "/api/pkiprofile?name=" + objName + "&created_by=" + akoUser
+	uri = "/api/pkiprofile?name=" + objName + "&include_name=true" + "&created_by=" + akoUser
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -1119,7 +1119,7 @@ func (c *AviObjCache) AviPopulateOnePoolCache(client *clients.AviClient,
 	var uri string
 	akoUser := lib.AKOUser
 
-	uri = "/api/pool?name=" + objName + "&created_by=" + akoUser
+	uri = "/api/pool?name=" + objName + "&include_name=true" + "&created_by=" + akoUser
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -1186,7 +1186,7 @@ func (c *AviObjCache) AviPopulateOneVsDSCache(client *clients.AviClient,
 	var uri string
 	akoUser := lib.AKOUser
 
-	uri = "/api/vsdatascriptset?name=" + objName + "&created_by=" + akoUser
+	uri = "/api/vsdatascriptset?name=" + objName + "&include_name=true" + "&created_by=" + akoUser
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -1249,7 +1249,7 @@ func (c *AviObjCache) AviPopulateOnePGCache(client *clients.AviClient,
 	var uri string
 	akoUser := lib.AKOUser
 
-	uri = "/api/poolgroup?name=" + objName + "&created_by=" + akoUser
+	uri = "/api/poolgroup?name=" + objName + "&include_name=true" + "&created_by=" + akoUser
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -1309,7 +1309,7 @@ func (c *AviObjCache) AviPopulateOneVsVipCache(client *clients.AviClient,
 	cloud string, objName string) error {
 	var uri string
 
-	uri = "/api/vsvip?name=" + objName + "&cloud_ref.name=" + cloud
+	uri = "/api/vsvip?name=" + objName + "&cloud_ref.name=" + cloud + "&include_name=true"
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -1396,7 +1396,7 @@ func (c *AviObjCache) AviPopulateOneVsHttpPolCache(client *clients.AviClient,
 	var uri string
 	akoUser := lib.AKOUser
 
-	uri = "/api/httppolicyset?name=" + objName + "&created_by=" + akoUser
+	uri = "/api/httppolicyset?name=" + objName + "&include_name=true" + "&created_by=" + akoUser
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -1470,7 +1470,7 @@ func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
 	var uri string
 	akoUser := lib.AKOUser
 
-	uri = "/api/l4policyset?name=" + objName + "&created_by=" + akoUser
+	uri = "/api/l4policyset?name=" + objName + "&include_name=true" + "&created_by=" + akoUser
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -2111,7 +2111,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 	akoUser := lib.AKOUser
 	var uri string
 
-	uri = "/api/virtualservice?name=" + vsName + "&cloud_ref.name=" + cloud + "&created_by=" + akoUser
+	uri = "/api/virtualservice?name=" + vsName + "&cloud_ref.name=" + cloud + "&include_name=true" + "&created_by=" + akoUser
 
 	utils.AviLog.Debugf("Refreshing cache for vs uri: %s", uri)
 	err := lib.AviGet(client, uri, &rest_response)
