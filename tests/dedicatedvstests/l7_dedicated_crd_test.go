@@ -250,6 +250,39 @@ func TestApplyHostruleToDedicatedVS(t *testing.T) {
 
 }
 
+func TestHostruleSSLKeyCertToDedicatedVS(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/cluster--foo.com-L7-dedicated"
+	hrname := "hr-cluster--foo.com-L7-dedicated"
+
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+
+	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
+
+	g.Eventually(func() string {
+		hostrule, _ := V1beta1Client.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com-L7-dedicated"}
+	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/hr-cluster--foo.com-L7-dedicated", true)
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(*nodes[0].Enabled).To(gomega.Equal(true))
+	g.Expect(nodes[0].SslKeyAndCertificateRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].SslKeyAndCertificateRefs[0]).To(gomega.ContainSubstring("thisisaviref-sslkey"))
+
+	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
+	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/hr-cluster--foo.com-L7-dedicated", false)
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].Enabled).To(gomega.BeNil())
+	g.Expect(nodes[0].SslKeyAndCertificateRefs).To(gomega.HaveLen(0))
+
+	TearDownIngressForCacheSyncCheck(t, modelName)
+}
+
 func TestHostruleNoListenerDedicatedVS(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
