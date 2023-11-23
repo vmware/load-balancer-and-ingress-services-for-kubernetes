@@ -72,7 +72,8 @@ metadata:
               "vipNetworkList": [
                 {
                   "networkName": "",
-                  "cidr": ""
+                  "cidr": "",
+                  "v6cidr": ""
                 }
               ]
             },
