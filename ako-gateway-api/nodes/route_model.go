@@ -32,7 +32,7 @@ type RouteModel interface {
 	GetSpec() interface{}
 	ParseRouteRules() *RouteConfig
 	Exists() bool
-	GetParents() sets.String
+	GetParents() sets.Set[string]
 }
 
 func NewRouteModel(key, objType, name, namespace string) (RouteModel, error) {
@@ -305,8 +305,8 @@ func (hr *httpRoute) Exists() bool {
 	return hr != nil
 }
 
-func (hr *httpRoute) GetParents() sets.String {
-	var parents sets.String
+func (hr *httpRoute) GetParents() sets.Set[string] {
+	var parents sets.Set[string]
 	for _, ref := range hr.spec.ParentRefs {
 		namespace := hr.namespace
 		if ref.Namespace != nil {

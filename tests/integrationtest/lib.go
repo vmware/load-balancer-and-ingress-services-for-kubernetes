@@ -1710,7 +1710,8 @@ func TeardownHTTPRule(t *testing.T, rrname string) {
 
 func VerifyMetadataHostRule(t *testing.T, g *gomega.WithT, vsKey cache.NamespaceName, hrnsname string, active bool) {
 	mcache := cache.SharedAviObjCache()
-	wait.Poll(2*time.Second, 50*time.Second, func() (bool, error) {
+
+	wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 50*time.Second, false, func(context.Context) (bool, error) {
 		sniCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		if active && !found {
 			t.Logf("SNI Cache not found.")
@@ -1750,7 +1751,7 @@ func VerifyMetadataHostRule(t *testing.T, g *gomega.WithT, vsKey cache.Namespace
 
 func VerifyMetadataSSORule(t *testing.T, g *gomega.WithT, vsKey cache.NamespaceName, srnsname string, active bool) {
 	mcache := cache.SharedAviObjCache()
-	wait.Poll(2*time.Second, 50*time.Second, func() (bool, error) {
+	wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 50*time.Second, false, func(context.Context) (bool, error) {
 		sniCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		if active && !found {
 			t.Logf("SNI Cache not found.")
@@ -1790,7 +1791,7 @@ func VerifyMetadataSSORule(t *testing.T, g *gomega.WithT, vsKey cache.NamespaceN
 
 func VerifyMetadataHTTPRule(t *testing.T, g *gomega.WithT, poolKey cache.NamespaceName, httpruleNSNamePath string, active bool) {
 	mcache := cache.SharedAviObjCache()
-	wait.Poll(2*time.Second, 50*time.Second, func() (bool, error) {
+	wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 50*time.Second, false, func(context.Context) (bool, error) {
 		poolCache, found := mcache.PoolCache.AviCacheGet(poolKey)
 		if !found {
 			t.Logf("Pool Cache not found.")

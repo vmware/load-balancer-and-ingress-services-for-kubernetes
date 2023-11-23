@@ -59,6 +59,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("FULL_SYNC_INTERVAL", utils.AKO_DEFAULT_NS)
 	os.Setenv("ENABLE_EVH", "true")
 	os.Setenv("TENANT", "admin")
+	os.Setenv("POD_NAME", "ako-0")
 
 	// Set the user with prefix
 	_ = lib.AKOControlConfig()

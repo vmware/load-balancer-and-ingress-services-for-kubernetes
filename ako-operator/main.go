@@ -47,8 +47,7 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:    scheme,
-		Namespace: controllers.AviSystemNS,
+		Scheme: scheme,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

@@ -89,6 +89,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("CLOUD_NAME", "CLOUD_VCENTER")
 	os.Setenv("SEG_NAME", "Default-Group")
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
+	os.Setenv("POD_NAME", "ako-0")
 
 	// Set the user with prefix
 	_ = lib.AKOControlConfig()
