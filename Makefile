@@ -323,7 +323,7 @@ helmtests:
 	-u root:root \
 	-v $(PWD)/helm/ako:/apps \
 	-v $(PWD)/tests/helmtests:/apps/tests \
-	helmunittest/helm-unittest:3.11.1-0.3.0 .
+	10.79.172.11:5000/avi-buildops/helmunittest/helm-unittest:3.11.1-0.3.0 .
 
 .PHONY: gatewayapitests
 gatewayapitests:
