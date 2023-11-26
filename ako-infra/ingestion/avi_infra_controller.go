@@ -417,6 +417,7 @@ func PopulateControllerProperties(cs kubernetes.Interface) error {
 	if err != nil {
 		return err
 	}
+	ctrlProps = lib.OverrrideControllerCredsFromEnv(ctrlProps)
 	ctrlPropCache.PopulateCtrlProp(ctrlProps)
 	return nil
 }

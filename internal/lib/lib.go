@@ -1807,6 +1807,19 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 	}
 }
 
+func OverrrideControllerCredsFromEnv(prop map[string]string) map[string]string {
+	u := os.Getenv("CTRL_USERNAME")
+	p := os.Getenv("CTRL_PASSWORD")
+	if u != "" {
+		prop[utils.ENV_CTRL_USERNAME] = u
+	}
+	if p != "" {
+		prop[utils.ENV_CTRL_PASSWORD] = p
+	}
+
+	return prop
+}
+
 func GetControllerPropertiesFromSecret(cs kubernetes.Interface) (map[string]string, error) {
 	ctrlProps := make(map[string]string)
 	aviSecret, err := cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), AviSecret, metav1.GetOptions{})
