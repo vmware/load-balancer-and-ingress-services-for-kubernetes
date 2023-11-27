@@ -14,7 +14,11 @@
 
 package models
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/prometheus/client_golang/prometheus"
+)
 
 type OperationMap struct {
 	Route   string
@@ -24,5 +28,5 @@ type OperationMap struct {
 
 type ApiModel interface {
 	InitModel()
-	ApiOperationMap() []OperationMap
+	ApiOperationMap(prometheusEnavbled bool, reg *prometheus.Registry) []OperationMap
 }

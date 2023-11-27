@@ -823,6 +823,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 					resVer := meta.GetResourceVersion()
 					objects.SharedResourceVerInstanceLister().Save(key, resVer)
 				}
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				nodes.DequeueIngestion(key, true)
 			}
 			// Publish vrfcontext model now, this has to be processed first
@@ -864,6 +865,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 				if err := c.GetValidator().ValidateHostRuleObj(key, hostRuleObj); err != nil {
 					utils.AviLog.Warnf("key: %s, Error retrieved during validation of HostRule: %v", key, err)
 				}
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				nodes.DequeueIngestion(key, true)
 			}
 		}
@@ -882,6 +884,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 				if err := c.GetValidator().ValidateHTTPRuleObj(key, httpRuleObj); err != nil {
 					utils.AviLog.Warnf("key: %s, Error retrieved during validation of HTTPRule: %v", key, err)
 				}
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				nodes.DequeueIngestion(key, true)
 			}
 		}
@@ -900,6 +903,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 				if err := c.GetValidator().ValidateAviInfraSetting(key, aviInfraObj); err != nil {
 					utils.AviLog.Warnf("key: %s, Error retrieved during validation of AviInfraSetting: %v", key, err)
 				}
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				nodes.DequeueIngestion(key, true)
 			}
 		}
@@ -918,6 +922,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 				if err := c.GetValidator().ValidateSSORuleObj(key, ssoRuleObj); err != nil {
 					utils.AviLog.Warnf("key: %s, Error retrieved during validation of SSORule : %v", key, err)
 				}
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				nodes.DequeueIngestion(key, true)
 			}
 		}
@@ -936,6 +941,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 				if err := c.GetValidator().ValidateL4RuleObj(key, l4Rule); err != nil {
 					utils.AviLog.Warnf("key: %s, Error retrieved during validation of L4Rule: %v", key, err)
 				}
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				nodes.DequeueIngestion(key, true)
 			}
 		}
@@ -970,6 +976,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 				resVer := meta.GetResourceVersion()
 				objects.SharedResourceVerInstanceLister().Save(key, resVer)
 			}
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			nodes.DequeueIngestion(key, true)
 		}
 	}
@@ -996,6 +1003,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 				resVer := meta.GetResourceVersion()
 				objects.SharedResourceVerInstanceLister().Save(key, resVer)
 			}
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			nodes.DequeueIngestion(key, true)
 		}
 	}
@@ -1015,6 +1023,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 						objects.SharedResourceVerInstanceLister().Save(key, resVer)
 					}
 					utils.AviLog.Debugf("Dequeue for ingressClass key: %v", key)
+					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 					nodes.DequeueIngestion(key, true)
 				}
 			}
@@ -1034,6 +1043,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 							objects.SharedResourceVerInstanceLister().Save(key, resVer)
 						}
 						utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
+						lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 						nodes.DequeueIngestion(key, true)
 					}
 				}
@@ -1056,6 +1066,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 						objects.SharedResourceVerInstanceLister().Save(key, resVer)
 					}
 					utils.AviLog.Debugf("Dequeue for route key: %v", key)
+					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 					nodes.DequeueIngestion(key, true)
 				}
 			}
@@ -1077,6 +1088,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 						objects.SharedResourceVerInstanceLister().Save(key, resVer)
 					}
 					InformerStatusUpdatesForSvcApiGateway(key, gatewayObj)
+					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 					nodes.DequeueIngestion(key, true)
 				}
 			}
@@ -1093,6 +1105,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 					resVer := meta.GetResourceVersion()
 					objects.SharedResourceVerInstanceLister().Save(key, resVer)
 				}
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				nodes.DequeueIngestion(key, true)
 			}
 		}
@@ -1112,6 +1125,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 						resVer := meta.GetResourceVersion()
 						objects.SharedResourceVerInstanceLister().Save(key, resVer)
 					}
+					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 					nodes.DequeueIngestion(key, true)
 				}
 			}
@@ -1130,6 +1144,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 						resVer := meta.GetResourceVersion()
 						objects.SharedResourceVerInstanceLister().Save(key, resVer)
 					}
+					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 					nodes.DequeueIngestion(key, true)
 				}
 			}
@@ -1149,6 +1164,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 				if err := c.GetValidator().ValidateAviInfraSetting(key, aviInfraObj); err != nil {
 					utils.AviLog.Warnf("key: %s, Error retrieved during validation of AviInfraSetting: %v", key, err)
 				}
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				nodes.DequeueIngestion(key, true)
 			}
 		}
@@ -1168,6 +1184,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 							objects.SharedResourceVerInstanceLister().Save(key, resVer)
 						}
 						utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
+						lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 						nodes.DequeueIngestion(key, true)
 					}
 				}
@@ -1187,6 +1204,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			}
 			key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
 			InformerStatusUpdatesForGateway(key, gatewayObj)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			nodes.DequeueIngestion(key, true)
 		}
 
@@ -1197,6 +1215,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 		}
 		for _, gwClassObj := range gwClassObjs {
 			key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			nodes.DequeueIngestion(key, true)
 		}
 	}
@@ -1285,6 +1304,7 @@ func (c *AviController) DeleteModels() {
 		}
 		bkt := utils.Bkt(modelName, sharedQueue.NumWorkers)
 		utils.AviLog.Infof("Deleting objects for model: %s", modelName)
+		//graph queue prometheus
 		sharedQueue.Workqueue[bkt].AddRateLimited(modelName)
 	}
 
@@ -1350,6 +1370,7 @@ func SyncFromIngestionLayer(key interface{}, wg *sync.WaitGroup) error {
 	keyStr, ok := key.(string)
 	if !ok {
 		utils.AviLog.Warnf("Unexpected object type: expected string, got %T", key)
+		lib.DecrementQueueCounter(utils.ObjectIngestionLayer)
 		return nil
 	}
 	nodes.DequeueIngestion(keyStr, false)
@@ -1358,6 +1379,7 @@ func SyncFromIngestionLayer(key interface{}, wg *sync.WaitGroup) error {
 
 func SyncFromFastRetryLayer(key interface{}, wg *sync.WaitGroup) error {
 	keyStr, ok := key.(string)
+	lib.DecrementQueueCounter(lib.FAST_RETRY_LAYER)
 	if !ok {
 		utils.AviLog.Warnf("Unexpected object type: expected string, got %T", key)
 		return nil
@@ -1368,6 +1390,7 @@ func SyncFromFastRetryLayer(key interface{}, wg *sync.WaitGroup) error {
 
 func SyncFromSlowRetryLayer(key interface{}, wg *sync.WaitGroup) error {
 	keyStr, ok := key.(string)
+	lib.DecrementQueueCounter(lib.SLOW_RETRY_LAYER)
 	if !ok {
 		utils.AviLog.Warnf("Unexpected object type: expected string, got %T", key)
 		return nil
@@ -1380,6 +1403,7 @@ func SyncFromNodesLayer(key interface{}, wg *sync.WaitGroup) error {
 	keyStr, ok := key.(string)
 	if !ok {
 		utils.AviLog.Warnf("Unexpected object type: expected string, got %T", key)
+		lib.DecrementQueueCounter(utils.GraphLayer)
 		return nil
 	}
 	cache := avicache.SharedAviObjCache()

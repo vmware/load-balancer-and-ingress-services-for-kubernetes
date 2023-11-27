@@ -19,8 +19,9 @@ spec:
       {{- include "ako.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{ if .Values.AKOSettings.istioEnabled }}
+      {{ if or (.Values.AKOSettings.istioEnabled) (.Values.featureGates.EnablePrometheus) }}
       annotations:
+        {{ if .Values.AKOSettings.istioEnabled }}
         sidecar.istio.io/inject: "true"
         traffic.sidecar.istio.io/includeInboundPorts: ""
         traffic.sidecar.istio.io/includeOutboundIPRanges: ""
@@ -29,6 +30,12 @@ spec:
             OUTPUT_CERTS: /etc/istio-output-certs
         sidecar.istio.io/userVolume: '[{"name": "istio-certs", "emptyDir": {"medium":"Memory"}}]'
         sidecar.istio.io/userVolumeMount: '[{"name": "istio-certs", "mountPath": "/etc/istio-output-certs"}]'
+        {{ end }}
+        {{ if .Values.featureGates.EnablePrometheus }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ .Values.AKOSettings.apiServerPort | quote}}
+        prometheus.io/path: "/metrics"
+        {{ end }}
       {{ end }}
       labels:
         {{- include "ako.selectorLabels" . | nindent 8 }}
@@ -61,6 +68,11 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{ if .Values.featureGates.EnablePrometheus }}
+          ports:
+          - containerPort:  {{ default "8080" .Values.AKOSettings.apiServerPort }}
+            name: prometheus-port
+          {{ end }}
           lifecycle:
             preStop:
               exec:
@@ -256,6 +268,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: useDefaultSecretsOnly
+          - name: PROMETHEUS_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: enablePrometheus
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:

@@ -5,6 +5,7 @@
 ### FeatureGates is to enable or disable experimental features.
 featureGates:
   GatewayAPI: false # Enables/disables processing of Kubernetes Gateway API CRDs.
+  EnablePrometheus: false # Enable/Disable prometheus scraping for AKO container
 
 replicaCount: 1
 

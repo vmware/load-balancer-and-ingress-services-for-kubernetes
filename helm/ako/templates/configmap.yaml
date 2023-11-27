@@ -49,3 +49,4 @@ data:
   ipFamily: {{ .Values.AKOSettings.ipFamily | quote }}
   istioEnabled: {{ .Values.AKOSettings.istioEnabled | quote }}
   useDefaultSecretsOnly: {{ .Values.AKOSettings.useDefaultSecretsOnly | quote }}
+  enablePrometheus: {{ default "false" .Values.featureGates.EnablePrometheus | quote }}

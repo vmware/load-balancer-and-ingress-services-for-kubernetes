@@ -278,6 +278,7 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 			utils.AviLog.Warnf("key: %s, msg: Sync is disabled, Only DELETE operation is allowed for models other than VRF model", key)
 			continue
 		}
+		lib.IncrementRestOpCouter(utils.Stringify(op.Method), op.ObjName)
 		SetTenant := session.SetTenant(op.Tenant)
 		SetTenant(c.AviSession)
 		if op.Version != "" {
