@@ -10,6 +10,12 @@ ifneq ($(origin DEFAULT_CHANNEL), undefined)
 BUNDLE_DEFAULT_CHANNEL := --default-channel=$(DEFAULT_CHANNEL)
 endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
+PACKAGE_PATH_AKO=github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
+ifdef GOLANG_SRC_REPO
+	BUILD_GO_IMG=$(GOLANG_SRC_REPO)
+else
+	BUILD_GO_IMG=golang:latest
+endif
 
 # Image URL to use all building/pushing image targets
 IMG ?= ako-operator:latest
@@ -22,6 +28,9 @@ GOBIN=$(shell go env GOPATH)/bin
 else
 GOBIN=$(shell go env GOBIN)
 endif
+
+GOCMD=go
+GOTEST=$(GOCMD) test
 
 all: ako-operator
 
@@ -111,3 +120,9 @@ bundle: manifests
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	operator-sdk bundle validate ./bundle
 
+.PHONY: ako-operator-tests
+ako-operator-tests:
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/ako-operator/controllers -failfast -coverprofile cover-op-1.out -coverpkg=./...
