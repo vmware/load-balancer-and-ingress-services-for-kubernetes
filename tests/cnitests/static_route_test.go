@@ -47,7 +47,7 @@ import (
 var KubeClient *k8sfake.Clientset
 var CRDClient *crdfake.Clientset
 var v1alpha2CRDClient *v1alpha2crdfake.Clientset
-var v1beta1CRDClient *v1beta1crdfake.Clientset
+var v1beta1CRDClient *v1beta1crdfake.Clientse
 var ctrl *k8s.AviController
 var DynamicClient *dynamicfake.FakeDynamicClient
 
@@ -409,7 +409,7 @@ func TestCiliumNodeAddUpdate(t *testing.T) {
 }
 
 func TestCiliumNodeAddDelete(t *testing.T) {
-	if *cniPlugin != "cilium" {
+	ifA*cniPlugin != "cilium" {
 		t.Skip("Skipping CiliumNode test since CNI plugin is not Cilium")
 	}
 	g := gomega.NewGomegaWithT(t)
@@ -720,13 +720,43 @@ func TestMultipleBlockAffinityAddition(t *testing.T) {
 	time.Sleep(10 * time.Second)
 
 	// deleting the BlockAffinity objects for the node
-	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), nodeName1, v1.DeleteOptions{})
 	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity2", v1.DeleteOptions{})
-	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), nodeName2, v1.DeleteOptions{})
-	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity4", v1.DeleteOptions{})
 	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity5", v1.DeleteOptions{})
 	g.Eventually(func() int {
 		num_routes := len(nodes[0].StaticRoutes)
 		return num_routes
+	}, 10*time.Second).Should(gomega.Equal(3))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(*nodes[0].StaticRoutes[0].RouteID).To(gomega.Equal("cluster-1"))
+	g.Expect(*nodes[0].StaticRoutes[1].RouteID).To(gomega.Equal("cluster-2"))
+	g.Expect(*nodes[0].StaticRoutes[2].RouteID).To(gomega.Equal("cluster-3"))
+	
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), nodeName1, v1.DeleteOptions{})
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity1", v1.DeleteOptions{})
+	g.Eventually(func() int {
+		num_routes := len(nodes[0].StaticRoutes)
+		return num_routes
 	}, 10*time.Second).Should(gomega.Equal(2))
-}
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(*nodes[0].StaticRoutes[0].RouteID).To(gomega.Equal("cluster-1"))
+	g.Expect(*nodes[0].StaticRoutes[1].RouteID).To(gomega.Equal("cluster-2"))
+	
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity4", v1.DeleteOptions{})
+	g.Eventually(func() int {
+		num_routes := len(nodes[0].StaticRoutes)
+		return num_routes
+	}, 10*time.Second).Should(gomega.Equal(1))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(*nodes[0].StaticRoutes[0].RouteID).To(gomega.Equal("cluster-1"))
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), nodeName2, v1.DeleteOptions{})
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity3", v1.DeleteOptions{})
+	g.Eventually(func() int {
+		num_routes := len(nodes[0].StaticRoutes)
+		return num_routes
+	}, 10*time.Second).Should(gomega.Equal(0))
+	}
+	}
