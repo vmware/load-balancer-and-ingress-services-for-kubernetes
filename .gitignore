@@ -1,6 +1,7 @@
 bin/ako
 bin/avi.log
 .golangci-bin/
+cover-*.out
 
 # IDE
 .idea
