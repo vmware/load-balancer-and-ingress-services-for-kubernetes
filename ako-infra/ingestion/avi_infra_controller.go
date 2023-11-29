@@ -75,11 +75,11 @@ func (a *AviControllerInfra) VerifyAviControllerLicense() error {
 		return err
 	}
 
-	if *response.DefaultLicenseTier != AVI_ENTERPRISE {
+	if *response.DefaultLicenseTier != AVI_ENTERPRISE && *response.DefaultLicenseTier != AviEnterpriseWithCloudServices {
 		errStr := fmt.Sprintf("Avi Controller license is not ENTERPRISE. License tier is: %s", *response.DefaultLicenseTier)
 		return errors.New(errStr)
 	} else {
-		utils.AviLog.Infof("Avi Controller is running with ENTERPRISE license, proceeding with bootup")
+		utils.AviLog.Infof("Avi Controller is running with %s license, proceeding with bootup", *response.DefaultLicenseTier)
 	}
 	return nil
 }
