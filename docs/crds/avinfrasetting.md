@@ -243,3 +243,5 @@ AviInfraSetting CRD can be used to configure T1LR. For all the Services and Ingr
 
         nsxSettings:
           t1lr: /infra/tier1/tier1_974b13d5-9f68-4be8-8149-a48a5686a3ef
+
+**Note**: AKO sets up routes in Avi VRF corresponding to the global T1lr defined in the config map. However, for the T1lr defined in the AviInfraSetting CR, AKO will not setup any routes in AviController. This will create connectivity issue between Service Engine and Pool servers when AKO is deployed in ClusterIP mode. To resolve this connectivity issue, user can manually add routes in VRF, associated with the given T1LR. Connectivity issue will not be there when AKO is deployed in NodePort or NPL mode or using NCP as CNI.
