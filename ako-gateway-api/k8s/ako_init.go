@@ -416,7 +416,12 @@ func (c *GatewayController) cleanupStaleVSes() {
 	aviRestClientPool := avicache.SharedAVIClients()
 	aviObjCache := avicache.SharedAviObjCache()
 
-	delModels := k8s.DeleteConfigFromConfigmap(c.informers.ClientSet)
+	delModels, err := k8s.DeleteConfigFromConfigmap(c.informers.ClientSet)
+	if err != nil {
+		c.DisableSync = true
+		utils.AviLog.Errorf("Error occurred while fetching values from configmap. Err: %s", utils.Stringify(err))
+		return
+	}
 	if delModels {
 		go k8s.SetDeleteSyncChannel()
 		parentKeys := aviObjCache.VsCacheMeta.AviCacheGetAllParentVSKeys()
