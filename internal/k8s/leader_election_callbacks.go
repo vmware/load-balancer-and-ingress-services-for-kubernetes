@@ -56,7 +56,7 @@ func (c *AviController) OnStoppedLeading() {
 // Event Handler functions
 func (c *AviController) OnStartedLeadingDuringBootup() {
 	c.publishAllParentVSKeysToRestLayer()
-	c.cleanupStaleVSes()
+	c.CleanupStaleVSes()
 	// once the l3 cache is populated, we can call the updatestatus functions from here
 	restlayer := rest.NewRestOperations(avicache.SharedAviObjCache(), avicache.SharedAVIClients())
 	restlayer.SyncObjectStatuses()
@@ -72,7 +72,7 @@ func (c *AviController) OnStartedLeadingAfterFailover() {
 
 func (c *AviController) OnNewLeaderDuringBootup() {
 	c.publishAllParentVSKeysToRestLayer()
-	c.cleanupStaleVSes()
+	c.CleanupStaleVSes()
 }
 
 func (c *AviController) OnLostLeadership() {
