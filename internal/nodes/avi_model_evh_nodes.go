@@ -640,6 +640,7 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 	policies := v.HttpPolicySetRefs
 	scripts := v.VsDatascriptRefs
 	icaprefs := v.ICAPProfileRefs
+	sslKeyAndCertificateRefs := v.SslKeyAndCertificateRefs
 
 	var vsRefs string
 
@@ -671,6 +672,10 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 
 	if len(icaprefs) > 0 {
 		vsRefs += utils.Stringify(icaprefs)
+	}
+
+	if len(sslKeyAndCertificateRefs) > 0 {
+		vsRefs += utils.Stringify(sslKeyAndCertificateRefs)
 	}
 
 	sort.Strings(checksumStringSlice)
