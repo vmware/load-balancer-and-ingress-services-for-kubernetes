@@ -172,7 +172,7 @@ ako-gateway-api-docker: glob-vars
 # tests
 .PHONY: k8stest
 k8stest:
-	sudo docker run \
+	sudo docker run --privileged \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/k8stest -failfast -coverprofile cover-1.out -coverpkg=./...
