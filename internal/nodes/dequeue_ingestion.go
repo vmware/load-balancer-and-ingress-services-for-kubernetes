@@ -137,7 +137,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		if found {
 			objects.SharedlbLister().Delete(namespace + "/" + name)
 			utils.AviLog.Infof("key: %s, msg: service transitioned from type loadbalancer to ClusterIP or NodePort, will delete model", name)
-			model_name := lib.GetModelName(lib.GetTenant(), lib.Encode(lib.GetNamePrefix()+namespace+"-"+name, lib.L4VS))
+			model_name := lib.GetModelName(lib.GetTenantFromInfraSetting(namespace, name), lib.Encode(lib.GetNamePrefix()+namespace+"-"+name, lib.L4VS))
 			objects.SharedAviGraphLister().Save(model_name, nil)
 			if !fullsync {
 				PublishKeyToRestLayer(model_name, key, sharedQueue)
@@ -252,7 +252,7 @@ func DequeueIngestion(key string, fullsync bool) {
 			for _, gatewayKey := range gateways {
 				// Check the gateway has a valid subscription or not. If not, delete it.
 				namespace, _, gwName := lib.ExtractTypeNameNamespace(gatewayKey)
-				modelName := lib.GetModelName(lib.GetTenant(), lib.Encode(lib.GetNamePrefix()+namespace+"-"+gwName, lib.ADVANCED_L4))
+				modelName := lib.GetModelName(lib.GetTenantFromInfraSetting(namespace, gwName), lib.Encode(lib.GetNamePrefix()+namespace+"-"+gwName, lib.ADVANCED_L4))
 				if isGatewayDelete(gatewayKey, key) {
 					// Check if a model corresponding to the gateway exists or not in memory.
 					if found, _ := objects.SharedAviGraphLister().Get(modelName); found {
@@ -558,7 +558,7 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	_, namespace, name := lib.ExtractTypeNameNamespace(key)
-	modelName := lib.GetModelName(lib.GetTenant(), lib.Encode(lib.GetNamePrefix()+strings.ReplaceAll(namespacedVipKey, "/", "-"), lib.ADVANCED_L4))
+	modelName := lib.GetModelName(lib.GetTenantFromInfraSetting(namespace, name), lib.Encode(lib.GetNamePrefix()+strings.ReplaceAll(namespacedVipKey, "/", "-"), lib.ADVANCED_L4))
 
 	found, serviceNSNames := objects.SharedlbLister().GetSharedVipKeyToServices(namespacedVipKey)
 	isShareVipKeyDelete := !found || len(serviceNSNames) == 0
@@ -709,7 +709,7 @@ func handleL4Service(key string, fullsync bool) {
 	}
 	// This is a DELETE event. The avi graph is set to nil.
 	utils.AviLog.Debugf("key: %s, msg: received DELETE event for service", key)
-	model_name := lib.GetModelName(lib.GetTenant(), lib.Encode(lib.GetNamePrefix()+namespace+"-"+name, lib.L4VS))
+	model_name := lib.GetModelName(lib.GetTenantFromInfraSetting(namespace, name), lib.Encode(lib.GetNamePrefix()+namespace+"-"+name, lib.L4VS))
 	objects.SharedAviGraphLister().Save(model_name, nil)
 	if !fullsync {
 		bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)

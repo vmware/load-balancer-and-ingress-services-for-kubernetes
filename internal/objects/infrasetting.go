@@ -27,6 +27,7 @@ func InfraSettingL7Lister() *AviInfraSettingL7Lister {
 			IngRouteInfraSettingStore:  NewObjectMapStore(),
 			InfraSettingShardSizeStore: NewObjectMapStore(),
 			InfraSettingTenantStore:    NewObjectMapStore(),
+			GWSvcInfraSettingStore:     NewObjectMapStore(),
 		}
 	})
 	return infral7lister
@@ -34,6 +35,7 @@ func InfraSettingL7Lister() *AviInfraSettingL7Lister {
 
 type AviInfraSettingL7Lister struct {
 	InfraSettingIngRouteLock sync.RWMutex
+	InfraSettingGwSvcLock    sync.RWMutex
 
 	// namespaced ingress/route -> infrasetting
 	IngRouteInfraSettingStore *ObjectMapStore
@@ -43,6 +45,9 @@ type AviInfraSettingL7Lister struct {
 
 	// infrasetting -> tenant
 	InfraSettingTenantStore *ObjectMapStore
+
+	// namespaced gw/svc -> infrasetting
+	GWSvcInfraSettingStore *ObjectMapStore
 }
 
 func (v *AviInfraSettingL7Lister) GetIngRouteToInfraSetting(ingrouteNsName string) (bool, string) {
@@ -84,8 +89,6 @@ func (v *AviInfraSettingL7Lister) GetInfraSettingToShardSize(infraSettingName st
 }
 
 func (v *AviInfraSettingL7Lister) UpdateAviInfraToTenantMapping(infraSettingName, tenant string) {
-	v.InfraSettingIngRouteLock.Lock()
-	defer v.InfraSettingIngRouteLock.Unlock()
 	v.InfraSettingTenantStore.AddOrUpdate(infraSettingName, tenant)
 }
 
@@ -103,4 +106,18 @@ func (v *AviInfraSettingL7Lister) GetAllTenants() map[string]struct{} {
 		tenantMap[tenant.(string)] = struct{}{}
 	}
 	return tenantMap
+}
+
+func (v *AviInfraSettingL7Lister) GetGwSvcToInfraSetting(name string) string {
+	found, infraSetting := v.GWSvcInfraSettingStore.Get(name)
+	if !found {
+		return ""
+	}
+	return infraSetting.(string)
+}
+
+func (v *AviInfraSettingL7Lister) UpdateGwSvcToInfraSettingMapping(resourceNSName, infraSetting string) {
+	v.InfraSettingGwSvcLock.Lock()
+	defer v.InfraSettingGwSvcLock.Unlock()
+	v.GWSvcInfraSettingStore.AddOrUpdate(resourceNSName, infraSetting)
 }

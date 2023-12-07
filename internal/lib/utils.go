@@ -393,3 +393,15 @@ func RunAviInfraSettingInformer(stopCh <-chan struct{}) {
 		utils.AviLog.Infof("Caches synced")
 	}
 }
+
+func GetTenantFromInfraSetting(namespace, objName string) string {
+	infraSetting := objects.InfraSettingL7Lister().GetGwSvcToInfraSetting(namespace + "/" + objName)
+	if infraSetting == "" {
+		return GetTenant()
+	}
+	tenant := objects.InfraSettingL7Lister().GetAviInfraSettingToTenant(infraSetting)
+	if tenant == "" {
+		tenant = GetTenant()
+	}
+	return tenant
+}
