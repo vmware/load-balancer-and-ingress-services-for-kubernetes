@@ -197,6 +197,10 @@ func (c *AviController) SetupNamespaceEventHandler(numWorkers uint32) {
 					AddGatewaysFromNSToIngestionQueueWCP(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
 				}
 			}
+			key := lib.Namespace + "/" + utils.ObjKey(nsCur.GetName())
+			utils.AviLog.Infof("key: %s, msg: DELETE", key)
+			bkt := utils.Bkt(nsCur.GetName(), numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
 		},
 		DeleteFunc: func(obj interface{}) {
 			ns, ok := obj.(*corev1.Namespace)

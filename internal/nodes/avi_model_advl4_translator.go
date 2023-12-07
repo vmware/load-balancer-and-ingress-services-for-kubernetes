@@ -89,6 +89,7 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 	tenant := lib.GetTenant()
 	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
 		tenant = *infraSetting.Spec.NSXSettings.Project
+		objects.InfraSettingL7Lister().UpdateGwSvcToInfraSettingMapping(namespace+"/"+gatewayName, infraSetting.Name)
 	}
 
 	avi_vs_meta := &AviVsNode{
@@ -225,6 +226,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 	tenant := lib.GetTenant()
 	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
 		tenant = *infraSetting.Spec.NSXSettings.Project
+		objects.InfraSettingL7Lister().UpdateGwSvcToInfraSettingMapping(namespace+"/"+gatewayName, infraSetting.Name)
 	}
 
 	avi_vs_meta := &AviVsNode{

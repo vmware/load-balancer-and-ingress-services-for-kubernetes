@@ -488,7 +488,7 @@ func GetVPCs(clientSet dynamic.Interface) (map[string]string, map[string]string,
 			continue
 		}
 		if vpcPath == "" || aviSubnetPath == "" {
-			utils.AviLog.Warnf("invalid values for vpcPath: %s or aviSubnetPath: %s in the namespace", vpcPath, aviSubnetPath, obj.GetNamespace())
+			utils.AviLog.Warnf("invalid values for vpcPath: %s or aviSubnetPath: %s in the namespace %s", vpcPath, aviSubnetPath, obj.GetNamespace())
 			continue
 		}
 		vpcToNSMap[vpcPath] = obj.GetNamespace()

@@ -69,6 +69,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	tenant := lib.GetTenant()
 	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
 		tenant = *infraSetting.Spec.NSXSettings.Project
+		objects.InfraSettingL7Lister().UpdateGwSvcToInfraSettingMapping(svcObj.GetNamespace()+"/"+svcObj.GetName(), infraSetting.Name)
 	}
 
 	vsName := lib.GetL4VSName(svcObj.ObjectMeta.Name, svcObj.ObjectMeta.Namespace)
