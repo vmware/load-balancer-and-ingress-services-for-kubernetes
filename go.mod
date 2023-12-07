@@ -93,14 +93,6 @@ replace (
 	github.com/google/gofuzz => github.com/google/gofuzz v1.2.0
 	github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
 	golang.org/x/oauth2 => golang.org/x/oauth2 v0.0.0-20201109201403-9fd604954f58
-	google.golang.org/protobuf => google.golang.org/protobuf v1.26.0
-	k8s.io/api => k8s.io/api v0.28.3
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.28.3
-	k8s.io/apimachinery => k8s.io/apimachinery v0.28.3
-	k8s.io/client-go => k8s.io/client-go v0.28.3
-	k8s.io/klog/v2 => k8s.io/klog/v2 v2.80.1
 	k8s.io/utils => k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
-	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.16.3
-	sigs.k8s.io/gateway-api => sigs.k8s.io/gateway-api v1.0.0
 	sigs.k8s.io/service-apis => sigs.k8s.io/service-apis v0.1.0
 )
