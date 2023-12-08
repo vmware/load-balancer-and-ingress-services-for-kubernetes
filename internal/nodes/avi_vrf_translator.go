@@ -158,11 +158,22 @@ func updateNodeStaticRoutes(aviVrfNode *AviVrfNode, isDelete bool, nodeName stri
 		for i := len(aviVrfNode.Nodes) - 1; i > index; i-- {
 			nodeNameToUpdate := aviVrfNode.Nodes[i]
 			nodeDetails := aviVrfNode.NodeStaticRoutes[nodeNameToUpdate]
+			oldIndex := nodeDetails.StartIndex
 			nodeDetails.StartIndex = nodeDetails.StartIndex + diff
 			nodeDetails.routeID = nodeDetails.StartIndex + 1
 			aviVrfNode.NodeStaticRoutes[nodeNameToUpdate] = nodeDetails
-			newRouteName := clusterName + "-" + strconv.Itoa(nodeDetails.routeID)
-			aviVrfNode.StaticRoutes[i].RouteID = &newRouteName
+			newRouteId := nodeDetails.routeID
+			var tempStartIndex int
+			if isDelete {
+				tempStartIndex = oldIndex
+			} else {
+				tempStartIndex = nodeDetails.StartIndex
+			}
+			for j := tempStartIndex; j < nodeDetails.Count+tempStartIndex; j++ {
+				newRouteName := clusterName + "-" + strconv.Itoa(newRouteId)
+				aviVrfNode.StaticRoutes[j].RouteID = &newRouteName
+				newRouteId++
+			}
 		}
 		if isDelete {
 			// now remove nodename from Nodes list
