@@ -441,8 +441,7 @@ func (c *AviController) InitVCFHandlers(kubeClient kubernetes.Interface, ctrlCh 
 		utils.AviLog.Fatalf("Avi controllerIP not found.")
 	}
 
-	//lib.SetVPCMode(configmap.Data["vpcMode"])
-	lib.SetVPCMode("true")
+	lib.SetVPCMode(configmap.Data["vpcMode"])
 
 	if !c.ValidAviSecret() {
 		lib.WaitForInitSecretRecreateAndReboot()
