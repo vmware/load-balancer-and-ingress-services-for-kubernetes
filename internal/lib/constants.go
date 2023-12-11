@@ -195,7 +195,6 @@ const (
 	FullSyncInterval                           = 300
 	Namespace                                  = "Namespace"
 	VrfContextNotFoundError                    = "VrfContext not found"
-	K8s_1_28                                   = "1.28"
 
 	// AKO Event constants
 	AKOEventComponent        = "avi-kubernetes-operator"
