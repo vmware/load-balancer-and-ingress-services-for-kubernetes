@@ -24,6 +24,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type ApiServer struct {
@@ -33,17 +34,17 @@ type ApiServer struct {
 }
 
 type ApiServerInterface interface {
-	SetRouter() *mux.Router
+	SetRouter(prometheusEnavbled bool, reg *prometheus.Registry) *mux.Router
 	InitApi()
 	ShutDown()
 }
 
-func (a *ApiServer) SetRouter() *mux.Router {
+func (a *ApiServer) SetRouter(prometheusEnavbled bool, reg *prometheus.Registry) *mux.Router {
 	router := mux.NewRouter()
 	routerMap := make(map[string]bool)
 
 	for _, model := range a.Models {
-		opermaps := model.ApiOperationMap()
+		opermaps := model.ApiOperationMap(prometheusEnavbled, reg)
 		for _, o := range opermaps {
 			routerMapKey := fmt.Sprintf("%s:%s", o.Method, o.Route)
 
@@ -86,7 +87,7 @@ func (a *ApiServer) initModels() {
 	}
 }
 
-func NewServer(port string, models []models.ApiModel) *ApiServer {
+func NewServer(port string, models []models.ApiModel, prometheusEnavbled bool, reg *prometheus.Registry) *ApiServer {
 
 	s := &ApiServer{
 		Server: http.Server{
@@ -97,7 +98,7 @@ func NewServer(port string, models []models.ApiModel) *ApiServer {
 	}
 	s.Models = models
 	s.initModels()
-	router := s.SetRouter()
+	router := s.SetRouter(prometheusEnavbled, reg)
 
 	//set http server handler
 	s.Handler = router

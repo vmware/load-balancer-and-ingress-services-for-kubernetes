@@ -182,6 +182,7 @@ func AddIngressFromNSToIngestionQueue(numWorkers uint32, c *AviController, names
 		key := utils.Ingress + "/" + utils.ObjKey(ingObj)
 		bkt := utils.Bkt(namespace, numWorkers)
 		c.workqueue[bkt].AddRateLimited(key)
+		lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
 	}
 }
@@ -196,6 +197,7 @@ func AddRoutesFromNSToIngestionQueue(numWorkers uint32, c *AviController, namesp
 		key := utils.OshiftRoute + "/" + utils.ObjKey(routeObj)
 		bkt := utils.Bkt(namespace, numWorkers)
 		c.workqueue[bkt].AddRateLimited(key)
+		lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
 	}
 }
@@ -220,6 +222,7 @@ func AddServicesFromNSToIngestionQueue(numWorkers uint32, c *AviController, name
 		}
 		bkt := utils.Bkt(namespace, numWorkers)
 		c.workqueue[bkt].AddRateLimited(key)
+		lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
 	}
 }
@@ -236,6 +239,7 @@ func AddGatewaysFromNSToIngestionQueue(numWorkers uint32, c *AviController, name
 		InformerStatusUpdatesForSvcApiGateway(key, gatewayObj)
 		bkt := utils.Bkt(namespace, numWorkers)
 		c.workqueue[bkt].AddRateLimited(key)
+		lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
 	}
 }
@@ -250,6 +254,7 @@ func AddMultiClusterIngressFromNSToIngestionQueue(numWorkers uint32, c *AviContr
 		key := lib.MultiClusterIngress + "/" + utils.ObjKey(mciObj)
 		bkt := utils.Bkt(namespace, numWorkers)
 		c.workqueue[bkt].AddRateLimited(key)
+		lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
 	}
 }
@@ -264,6 +269,7 @@ func AddServiceImportsFromNSToIngestionQueue(numWorkers uint32, c *AviController
 		key := lib.MultiClusterIngress + "/" + utils.ObjKey(siObj)
 		bkt := utils.Bkt(namespace, numWorkers)
 		c.workqueue[bkt].AddRateLimited(key)
+		lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
 	}
 }
@@ -435,6 +441,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 				status.UpdateRouteStatusWithErrMsg(key, route.Name, namespace, lib.DuplicateBackends)
 			}
 			c.workqueue[bkt].AddRateLimited(key)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -462,6 +469,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			objects.SharedResourceVerInstanceLister().Delete(key)
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 		},
@@ -483,6 +491,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 					status.UpdateRouteStatusWithErrMsg(key, newRoute.Name, namespace, lib.DuplicateBackends)
 				}
 				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 			}
 		},
@@ -514,6 +523,7 @@ func AddPodEventHandler(numWorkers uint32, c *AviController) cache.ResourceEvent
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -546,6 +556,7 @@ func AddPodEventHandler(numWorkers uint32, c *AviController) cache.ResourceEvent
 			bkt := utils.Bkt(namespace, numWorkers)
 			objects.SharedResourceVerInstanceLister().Delete(key)
 			c.workqueue[bkt].AddRateLimited(key)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 		},
 		UpdateFunc: func(old, cur interface{}) {
@@ -567,6 +578,7 @@ func AddPodEventHandler(numWorkers uint32, c *AviController) cache.ResourceEvent
 				}
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 			}
 		},
@@ -593,6 +605,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -621,6 +634,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 		},
 		UpdateFunc: func(old, cur interface{}) {
@@ -638,6 +652,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				}
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 			}
 		},
@@ -683,6 +698,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -726,6 +742,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			objects.SharedResourceVerInstanceLister().Delete(key)
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 		},
@@ -776,9 +793,11 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					}
 				}
 				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 				if oldKey != "" && key != oldKey {
 					c.workqueue[bkt].AddRateLimited(oldKey)
+					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", oldKey)
 				}
 			}
@@ -805,6 +824,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				key := utils.NodeObj + "/" + specJSON["node"]
 				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			},
 			DeleteFunc: func(obj interface{}) {
 				utils.AviLog.Debugf("calico blockaffinity DELETE Event")
@@ -820,6 +840,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				key := utils.NodeObj + "/" + specJSON["node"]
 				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			},
 		}
 
@@ -843,6 +864,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				key := utils.NodeObj + "/" + host
 				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			},
 			DeleteFunc: func(obj interface{}) {
 				utils.AviLog.Debugf("hostsubnets DELETE Event")
@@ -858,6 +880,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				key := utils.NodeObj + "/" + host
 				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			},
 		}
 
@@ -876,6 +899,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				key := utils.NodeObj + "/" + nodename
 				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			},
 			UpdateFunc: func(oldObj interface{}, newObj interface{}) {
 				utils.AviLog.Debugf("ciliumnode UPDATE Event")
@@ -887,6 +911,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				key := utils.NodeObj + "/" + nodename
 				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			},
 			DeleteFunc: func(obj interface{}) {
 				utils.AviLog.Debugf("ciliumnode DELETE Event")
@@ -898,6 +923,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				key := utils.NodeObj + "/" + nodename
 				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			},
 		}
 
@@ -912,6 +938,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					key := utils.Secret + "/" + utils.GetAKONamespace() + "/" + lib.IstioSecret
 					bkt := utils.Bkt(utils.GetAKONamespace(), numWorkers)
 					c.workqueue[bkt].AddRateLimited(key)
+					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 					utils.AviLog.Debugf("key: %s, msg: ADD", key)
 				}
 			}
@@ -927,6 +954,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -961,6 +989,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				}
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 			}
 		},
@@ -971,6 +1000,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					key := utils.Secret + "/" + utils.GetAKONamespace() + "/" + lib.IstioSecret
 					bkt := utils.Bkt(utils.GetAKONamespace(), numWorkers)
 					c.workqueue[bkt].AddRateLimited(key)
+					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 				}
 			}
@@ -990,6 +1020,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					}
 					bkt := utils.Bkt(namespace, numWorkers)
 					c.workqueue[bkt].AddRateLimited(key)
+					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 				}
 			}
@@ -1045,6 +1076,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -1079,6 +1111,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			objects.SharedResourceVerInstanceLister().Delete(key)
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 		},
 		UpdateFunc: func(old, cur interface{}) {
@@ -1096,6 +1129,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				}
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 			}
 		},
@@ -1122,6 +1156,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				return
 			}
 			c.workqueue[bkt].AddRateLimited(key)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -1151,6 +1186,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 			objects.SharedResourceVerInstanceLister().Delete(key)
 			c.workqueue[bkt].AddRateLimited(key)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 		},
 		UpdateFunc: func(old, cur interface{}) {
@@ -1169,6 +1205,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if isNodeUpdated(oldobj, node) {
 				bkt := utils.Bkt(lib.GetTenant(), numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 			} else {
 				utils.AviLog.Debugf("key: %s, msg: node object did not change", key)
@@ -1196,6 +1233,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				}
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 			},
 			DeleteFunc: func(obj interface{}) {
@@ -1220,6 +1258,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				bkt := utils.Bkt(namespace, numWorkers)
 				objects.SharedResourceVerInstanceLister().Delete(key)
 				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 			},
 			UpdateFunc: func(old, cur interface{}) {
@@ -1234,6 +1273,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					key := utils.IngressClass + "/" + utils.ObjKey(ingClass)
 					bkt := utils.Bkt(namespace, numWorkers)
 					c.workqueue[bkt].AddRateLimited(key)
+					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 				}
 			},

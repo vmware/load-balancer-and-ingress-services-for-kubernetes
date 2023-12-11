@@ -40,7 +40,9 @@ import (
 	"github.com/Masterminds/semver"
 	routev1 "github.com/openshift/api/route/v1"
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/vmware/alb-sdk/go/models"
+	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -48,8 +50,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
-
-	"google.golang.org/protobuf/proto"
 )
 
 var ShardSchemeMap = map[string]string{
@@ -131,6 +131,80 @@ func (c ServiceMetadataObj) ServiceMetadataMapping(objType string) ServiceMetada
 		return SNIInsecureOrEVHPool
 	}
 	return ""
+}
+
+var RestOpPerKeyType *prometheus.CounterVec
+var TotalRestOp prometheus.Counter
+var ObjectsInQueue *prometheus.GaugeVec
+var reg *prometheus.Registry
+
+func SetPrometheusRegistry() {
+	// creating new registry so no default metrics (which contains basic go related metrics)
+	reg = prometheus.NewRegistry()
+}
+func GetPrometheusRegistry() *prometheus.Registry {
+	return reg
+}
+func RegisterPromMetrics() *prometheus.Registry {
+	subSystem := *proto.String(os.Getenv("POD_NAME") + "_" + os.Getenv("POD_NAMESPACE"))
+	subSystem = strings.ReplaceAll(subSystem, "-", "_")
+	RestOpPerKeyType = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "ako",
+			Subsystem: subSystem,
+			Name:      "rest_api_to_controller",
+			Help:      "Number of rest operations sent to controller from AKO per key per rest type.",
+		},
+		[]string{
+			// Which key has requested the operation?
+			"key",
+			// Of what type is the operation?
+			"type",
+		},
+	)
+	reg.MustRegister(RestOpPerKeyType)
+
+	TotalRestOp = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "ako",
+			Subsystem: subSystem,
+			Name:      "total_rest_api_to_controller",
+			Help:      "Total number of rest operations sent to controller from AKO .",
+		},
+	)
+	reg.MustRegister(TotalRestOp)
+
+	ObjectsInQueue = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: "ako",
+			Subsystem: subSystem,
+			Name:      "total_objects_in_queue",
+			Help:      "Number of objects present in the queue",
+		},
+		[]string{
+			// Queue name
+			"queuename",
+		},
+	)
+	reg.MustRegister(ObjectsInQueue)
+	return reg
+}
+
+func IncrementQueueCounter(queueName string) {
+	if IsPrometheusEnabled() {
+		ObjectsInQueue.With(prometheus.Labels{"queuename": queueName}).Inc()
+	}
+}
+func DecrementQueueCounter(queueName string) {
+	if IsPrometheusEnabled() {
+		ObjectsInQueue.With(prometheus.Labels{"queuename": queueName}).Dec()
+	}
+}
+func IncrementRestOpCouter(restOpMethod, objName string) {
+	if IsPrometheusEnabled() {
+		TotalRestOp.Inc()
+		RestOpPerKeyType.With(prometheus.Labels{"type": restOpMethod, "key": objName}).Inc()
+	}
 }
 
 type VSNameMetadata struct {
@@ -677,6 +751,17 @@ func GetAkoApiServerPort() string {
 	}
 	// Default case, if not specified.
 	return "8080"
+}
+
+// TODO: Can be optimized by setting up variable at bootup and then do GET for that
+// instead of fetching each time.
+func IsPrometheusEnabled() bool {
+	if ok, _ := strconv.ParseBool(os.Getenv("PROMETHEUS_ENABLED")); ok {
+		utils.AviLog.Debugf("Prometheus is enabled")
+		return true
+	}
+	utils.AviLog.Debugf("Prometheus is not enabled")
+	return false
 }
 
 var VipNetworkList []akov1beta1.AviInfraSettingVipNetwork

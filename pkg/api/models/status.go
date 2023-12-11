@@ -21,6 +21,9 @@ import (
 	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // AviApiRestStatus holds status details for AKO/AMKO <-> AVI connection
@@ -54,7 +57,7 @@ func (a *StatusModel) InitModel() {
 	})
 }
 
-func (a *StatusModel) ApiOperationMap() []OperationMap {
+func (a *StatusModel) ApiOperationMap(prometheusEnavbled bool, reg *prometheus.Registry) []OperationMap {
 	var operationMapList []OperationMap
 
 	get := OperationMap{
@@ -65,8 +68,15 @@ func (a *StatusModel) ApiOperationMap() []OperationMap {
 			utils.Respond(w, response)
 		},
 	}
-
 	operationMapList = append(operationMapList, get)
+	if prometheusEnavbled {
+		metrics := OperationMap{
+			Route:   "/metrics",
+			Method:  "GET",
+			Handler: promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg}).ServeHTTP,
+		}
+		operationMapList = append(operationMapList, metrics)
+	}
 	return operationMapList
 }
 

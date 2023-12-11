@@ -37,6 +37,7 @@ func AviGetCollectionRaw(client *clients.AviClient, uri string, retryNum ...int)
 	}
 
 	result, err := client.AviSession.GetCollectionRaw(uri)
+	IncrementRestOpCouter(HTTPMethodGet, uri)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to fetch collection data from uri %s %v", uri, err)
 		CheckForInvalidCredentials(uri, err)
@@ -61,6 +62,7 @@ func AviGet(client *clients.AviClient, uri string, response interface{}, retryNu
 	}
 
 	err := client.AviSession.Get(uri, &response)
+	IncrementRestOpCouter(HTTPMethodGet, uri)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to fetch data from uri %s %v", uri, err)
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
@@ -100,6 +102,7 @@ func AviGetRaw(client *clients.AviClient, uri string, retryNum ...int) ([]byte, 
 	}
 
 	rawData, err := client.AviSession.GetRaw(uri)
+	IncrementRestOpCouter(HTTPMethodGet, uri)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to fetch data from uri %s %v", uri, err)
 		CheckForInvalidCredentials(uri, err)
@@ -128,6 +131,7 @@ func AviPut(client *clients.AviClient, uri string, payload interface{}, response
 	}
 
 	err := client.AviSession.Put(uri, payload, &response)
+	IncrementRestOpCouter(HTTPMethodPut, uri)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to execute Put on uri %s %v", uri, err)
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {

@@ -66,7 +66,10 @@ func main() {
 }
 
 func InitializeAKOApi() {
-	akoApi := api.NewServer(lib.GetAkoApiServerPort(), []models.ApiModel{})
+	if lib.IsPrometheusEnabled() {
+		lib.SetPrometheusRegistry()
+	}
+	akoApi := api.NewServer(lib.GetAkoApiServerPort(), []models.ApiModel{}, lib.IsPrometheusEnabled(), lib.GetPrometheusRegistry())
 	akoApi.InitApi()
 	lib.SetApiServerInstance(akoApi)
 }
@@ -271,6 +274,9 @@ func InitializeAKC() {
 		utils.AviLog.Fatalf("Avi client not initialized")
 	}
 
+	if lib.IsPrometheusEnabled() {
+		lib.RegisterPromMetrics()
+	}
 	if aviRestClientPool != nil && !avicache.IsAviClusterActive(aviRestClientPool.AviClient[0]) {
 		akoControlConfig.PodEventf(corev1.EventTypeWarning, lib.AKOShutdown, "Avi Controller Cluster state is not Active")
 		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO")

@@ -58,7 +58,7 @@ func (rest *RestOperations) CleanupVS(key string, skipVS bool) {
 
 func (rest *RestOperations) DequeueNodes(key string) {
 	utils.AviLog.Infof("key: %s, msg: start rest layer sync.", key)
-
+	lib.DecrementQueueCounter(utils.GraphLayer)
 	// Got the key from the Graph Layer - let's fetch the model
 	ok, avimodelIntf := objects.SharedAviGraphLister().Get(key)
 	if !ok {
@@ -781,12 +781,14 @@ func (rest *RestOperations) DataScriptDelete(dsToDelete []avicache.NamespaceName
 func (rest *RestOperations) PublishKeyToRetryLayer(parentVsKey string, key string) {
 	fastRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.FAST_RETRY_LAYER)
 	fastRetryQueue.Workqueue[0].AddRateLimited(parentVsKey)
+	lib.IncrementQueueCounter(lib.FAST_RETRY_LAYER)
 	utils.AviLog.Infof("key: %s, msg: Published key with vs_key to fast path retry queue: %s", key, parentVsKey)
 }
 
 func (rest *RestOperations) PublishKeyToSlowRetryLayer(parentVsKey string, key string) {
 	slowRetryQueue := utils.SharedWorkQueue().GetQueueByName(lib.SLOW_RETRY_LAYER)
 	slowRetryQueue.Workqueue[0].AddRateLimited(parentVsKey)
+	lib.IncrementQueueCounter(lib.SLOW_RETRY_LAYER)
 	utils.AviLog.Infof("key: %s, msg: Published key with vs_key to slow path retry queue: %s", key, parentVsKey)
 }
 

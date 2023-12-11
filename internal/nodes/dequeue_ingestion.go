@@ -36,6 +36,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	var ingressFound, routeFound, mciFound bool
 	var ingressNames, routeNames, mciNames []string
 	utils.AviLog.Infof("key: %s, msg: starting graph Sync", key)
+	lib.DecrementQueueCounter(utils.ObjectIngestionLayer)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 
 	objType, namespace, name := lib.ExtractTypeNameNamespace(key)
@@ -825,6 +826,7 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsy
 func PublishKeyToRestLayer(modelName string, key string, sharedQueue *utils.WorkerQueue) {
 	bkt := utils.Bkt(modelName, sharedQueue.NumWorkers)
 	sharedQueue.Workqueue[bkt].AddRateLimited(modelName)
+	lib.IncrementQueueCounter(utils.GraphLayer)
 	utils.AviLog.Infof("key: %s, msg: Published key with modelName: %s", key, modelName)
 }
 
