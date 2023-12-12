@@ -24,7 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	gatewayclientset "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
 	gatewayexternalversions "sigs.k8s.io/gateway-api/pkg/client/informers/externalversions"
 
@@ -59,9 +59,9 @@ func SharedGatewayController() *GatewayController {
 func (c *GatewayController) InitGatewayAPIInformers(cs gatewayclientset.Interface) {
 	gatewayFactory := gatewayexternalversions.NewSharedInformerFactory(cs, time.Second*30)
 	akogatewayapilib.AKOControlConfig().SetGatewayApiInformers(&akogatewayapilib.GatewayAPIInformers{
-		GatewayInformer:      gatewayFactory.Gateway().V1beta1().Gateways(),
-		GatewayClassInformer: gatewayFactory.Gateway().V1beta1().GatewayClasses(),
-		HTTPRouteInformer:    gatewayFactory.Gateway().V1beta1().HTTPRoutes(),
+		GatewayInformer:      gatewayFactory.Gateway().V1().Gateways(),
+		GatewayClassInformer: gatewayFactory.Gateway().V1().GatewayClasses(),
+		HTTPRouteInformer:    gatewayFactory.Gateway().V1().HTTPRoutes(),
 	})
 }
 
@@ -319,7 +319,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			gw := obj.(*gatewayv1beta1.Gateway)
+			gw := obj.(*gatewayv1.Gateway)
 			key := lib.Gateway + "/" + utils.ObjKey(gw)
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == gw.ResourceVersion {
@@ -338,7 +338,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			gw, ok := obj.(*gatewayv1beta1.Gateway)
+			gw, ok := obj.(*gatewayv1.Gateway)
 			if !ok {
 				// gateway was deleted but its final state is unrecorded.
 				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
@@ -346,7 +346,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
 					return
 				}
-				gw, ok = tombstone.Obj.(*gatewayv1beta1.Gateway)
+				gw, ok = tombstone.Obj.(*gatewayv1.Gateway)
 				if !ok {
 					utils.AviLog.Errorf("Tombstone contained object that is not a Gateway: %#v", obj)
 					return
@@ -363,8 +363,8 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			oldGw := old.(*gatewayv1beta1.Gateway)
-			gw := obj.(*gatewayv1beta1.Gateway)
+			oldGw := old.(*gatewayv1.Gateway)
+			gw := obj.(*gatewayv1.Gateway)
 			if IsGatewayUpdated(oldGw, gw) {
 				key := lib.Gateway + "/" + utils.ObjKey(gw)
 				if !IsValidGateway(key, gw) {
@@ -384,7 +384,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			gwClass := obj.(*gatewayv1beta1.GatewayClass)
+			gwClass := obj.(*gatewayv1.GatewayClass)
 			key := lib.GatewayClass + "/" + utils.ObjKey(gwClass)
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == gwClass.ResourceVersion {
@@ -403,7 +403,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			gwClass, ok := obj.(*gatewayv1beta1.GatewayClass)
+			gwClass, ok := obj.(*gatewayv1.GatewayClass)
 			if !ok {
 				// gateway class was deleted but its final state is unrecorded.
 				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
@@ -411,7 +411,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
 					return
 				}
-				gwClass, ok = tombstone.Obj.(*gatewayv1beta1.GatewayClass)
+				gwClass, ok = tombstone.Obj.(*gatewayv1.GatewayClass)
 				if !ok {
 					utils.AviLog.Errorf("Tombstone contained object that is not a GatewayClass: %#v", obj)
 					return
@@ -432,8 +432,8 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			oldGwClass := old.(*gatewayv1beta1.GatewayClass)
-			gwClass := obj.(*gatewayv1beta1.GatewayClass)
+			oldGwClass := old.(*gatewayv1.GatewayClass)
+			gwClass := obj.(*gatewayv1.GatewayClass)
 			if !reflect.DeepEqual(oldGwClass.Spec, gwClass.Spec) || gwClass.GetDeletionTimestamp() != nil {
 				key := lib.GatewayClass + "/" + utils.ObjKey(gwClass)
 				if !IsGatewayClassValid(key, gwClass) {
@@ -453,7 +453,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			httpRoute := obj.(*gatewayv1beta1.HTTPRoute)
+			httpRoute := obj.(*gatewayv1.HTTPRoute)
 			key := lib.HTTPRoute + "/" + utils.ObjKey(httpRoute)
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == httpRoute.ResourceVersion {
@@ -472,7 +472,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			httpRoute, ok := obj.(*gatewayv1beta1.HTTPRoute)
+			httpRoute, ok := obj.(*gatewayv1.HTTPRoute)
 			if !ok {
 				// httpRoute was deleted but its final state is unrecorded.
 				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
@@ -480,7 +480,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
 					return
 				}
-				httpRoute, ok = tombstone.Obj.(*gatewayv1beta1.HTTPRoute)
+				httpRoute, ok = tombstone.Obj.(*gatewayv1.HTTPRoute)
 				if !ok {
 					utils.AviLog.Errorf("Tombstone contained object that is not an HTTPRoute: %#v", obj)
 					return
@@ -497,8 +497,8 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			oldHTTPRoute := old.(*gatewayv1beta1.HTTPRoute)
-			newHTTPRoute := obj.(*gatewayv1beta1.HTTPRoute)
+			oldHTTPRoute := old.(*gatewayv1.HTTPRoute)
+			newHTTPRoute := obj.(*gatewayv1.HTTPRoute)
 			if IsHTTPRouteUpdated(oldHTTPRoute, newHTTPRoute) {
 				key := lib.HTTPRoute + "/" + utils.ObjKey(newHTTPRoute)
 				if !IsHTTPRouteValid(key, newHTTPRoute) {
@@ -514,7 +514,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 	informer.HTTPRouteInformer.Informer().AddEventHandler(httpRouteEventHandler)
 }
 
-func IsGatewayUpdated(oldGateway, newGateway *gatewayv1beta1.Gateway) bool {
+func IsGatewayUpdated(oldGateway, newGateway *gatewayv1.Gateway) bool {
 	if newGateway.GetDeletionTimestamp() != nil {
 		return true
 	}
@@ -523,7 +523,7 @@ func IsGatewayUpdated(oldGateway, newGateway *gatewayv1beta1.Gateway) bool {
 	return oldHash != newHash
 }
 
-func IsHTTPRouteUpdated(oldHTTPRoute, newHTTPRoute *gatewayv1beta1.HTTPRoute) bool {
+func IsHTTPRouteUpdated(oldHTTPRoute, newHTTPRoute *gatewayv1.HTTPRoute) bool {
 	if newHTTPRoute.GetDeletionTimestamp() != nil {
 		return true
 	}

@@ -293,8 +293,8 @@ func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
 			Rules: []networking.IngressRule{},
 		},
 		Status: networking.IngressStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: []corev1.LoadBalancerIngress{},
+			LoadBalancer: networking.IngressLoadBalancerStatus{
+				Ingress: []networking.IngressLoadBalancerIngress{},
 			},
 		},
 	}
@@ -351,7 +351,7 @@ func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
 		if len(ing.HostNames) >= i+1 {
 			hostname = ing.HostNames[i]
 		}
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
 			IP:       ing.Ips[i],
 			Hostname: hostname,
 		})
@@ -373,8 +373,8 @@ func (ing FakeIngress) IngressMultiPort() *networking.Ingress {
 			Rules: []networking.IngressRule{},
 		},
 		Status: networking.IngressStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: []corev1.LoadBalancerIngress{},
+			LoadBalancer: networking.IngressLoadBalancerStatus{
+				Ingress: []networking.IngressLoadBalancerIngress{},
 			},
 		},
 	}
@@ -414,7 +414,7 @@ func (ing FakeIngress) IngressMultiPort() *networking.Ingress {
 		if len(ing.HostNames) >= i+1 {
 			hostname = ing.HostNames[i]
 		}
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
 			IP:       ing.Ips[i],
 			Hostname: hostname,
 		})
@@ -436,8 +436,8 @@ func (ing FakeIngress) SecureIngress() *networking.Ingress {
 			Rules: []networking.IngressRule{},
 		},
 		Status: networking.IngressStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: []corev1.LoadBalancerIngress{},
+			LoadBalancer: networking.IngressLoadBalancerStatus{
+				Ingress: []networking.IngressLoadBalancerIngress{},
 			},
 		},
 	}
@@ -460,12 +460,12 @@ func (ing FakeIngress) SecureIngress() *networking.Ingress {
 	}
 
 	for _, ip := range ing.Ips {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
 			IP: ip,
 		})
 	}
 	for _, hostName := range ing.HostNames {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
 			Hostname: hostName,
 		})
 	}
@@ -486,8 +486,8 @@ func (ing FakeIngress) IngressNoHost() *networking.Ingress {
 			Rules: []networking.IngressRule{},
 		},
 		Status: networking.IngressStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: []corev1.LoadBalancerIngress{},
+			LoadBalancer: networking.IngressLoadBalancerStatus{
+				Ingress: []networking.IngressLoadBalancerIngress{},
 			},
 		},
 	}
@@ -504,12 +504,12 @@ func (ing FakeIngress) IngressNoHost() *networking.Ingress {
 		)
 	}
 	for _, ip := range ing.Ips {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
 			IP: ip,
 		})
 	}
 	for _, hostName := range ing.HostNames {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
 			Hostname: hostName,
 		})
 	}
@@ -553,8 +553,8 @@ func (ing FakeIngress) IngressMultiPath() *networking.Ingress {
 			Rules: []networking.IngressRule{},
 		},
 		Status: networking.IngressStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: []corev1.LoadBalancerIngress{},
+			LoadBalancer: networking.IngressLoadBalancerStatus{
+				Ingress: []networking.IngressLoadBalancerIngress{},
 			},
 		},
 	}
@@ -590,12 +590,12 @@ func (ing FakeIngress) IngressMultiPath() *networking.Ingress {
 		})
 	}
 	for _, ip := range ing.Ips {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
 			IP: ip,
 		})
 	}
 	for _, hostName := range ing.HostNames {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
 			Hostname: hostName,
 		})
 	}
@@ -1718,7 +1718,8 @@ func TeardownHTTPRule(t *testing.T, rrname string) {
 
 func VerifyMetadataHostRule(t *testing.T, g *gomega.WithT, vsKey cache.NamespaceName, hrnsname string, active bool) {
 	mcache := cache.SharedAviObjCache()
-	wait.Poll(2*time.Second, 50*time.Second, func() (bool, error) {
+
+	wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 50*time.Second, false, func(context.Context) (bool, error) {
 		sniCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		if active && !found {
 			t.Logf("SNI Cache not found.")
@@ -1758,7 +1759,7 @@ func VerifyMetadataHostRule(t *testing.T, g *gomega.WithT, vsKey cache.Namespace
 
 func VerifyMetadataSSORule(t *testing.T, g *gomega.WithT, vsKey cache.NamespaceName, srnsname string, active bool) {
 	mcache := cache.SharedAviObjCache()
-	wait.Poll(2*time.Second, 50*time.Second, func() (bool, error) {
+	wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 50*time.Second, false, func(context.Context) (bool, error) {
 		sniCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		if active && !found {
 			t.Logf("SNI Cache not found.")
@@ -1798,7 +1799,7 @@ func VerifyMetadataSSORule(t *testing.T, g *gomega.WithT, vsKey cache.NamespaceN
 
 func VerifyMetadataHTTPRule(t *testing.T, g *gomega.WithT, poolKey cache.NamespaceName, httpruleNSNamePath string, active bool) {
 	mcache := cache.SharedAviObjCache()
-	wait.Poll(2*time.Second, 50*time.Second, func() (bool, error) {
+	wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 50*time.Second, false, func(context.Context) (bool, error) {
 		poolCache, found := mcache.PoolCache.AviCacheGet(poolKey)
 		if !found {
 			t.Logf("Pool Cache not found.")

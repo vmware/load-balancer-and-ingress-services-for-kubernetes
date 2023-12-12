@@ -98,6 +98,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("MCI_ENABLED", "true")
+	os.Setenv("POD_NAME", "ako-0")
 
 	data := map[string][]byte{
 		"username": []byte("admin"),
@@ -294,8 +295,8 @@ func TestIngressNoUpdate(t *testing.T) {
 	waitAndverify(t, "Ingress/red-ns/testingr-noupdate")
 
 	ingrNoUpdate.Status = networkingv1.IngressStatus{
-		LoadBalancer: corev1.LoadBalancerStatus{
-			Ingress: []corev1.LoadBalancerIngress{
+		LoadBalancer: networkingv1.IngressLoadBalancerStatus{
+			Ingress: []networkingv1.IngressLoadBalancerIngress{
 				{
 					IP:       "1.1.1.1",
 					Hostname: "testingr.avi.internal",
@@ -310,8 +311,8 @@ func TestIngressNoUpdate(t *testing.T) {
 	}
 
 	ingrNoUpdate.Status = networkingv1.IngressStatus{
-		LoadBalancer: corev1.LoadBalancerStatus{
-			Ingress: []corev1.LoadBalancerIngress{
+		LoadBalancer: networkingv1.IngressLoadBalancerStatus{
+			Ingress: []networkingv1.IngressLoadBalancerIngress{
 				{
 					IP:       "1.1.1.1",
 					Hostname: "testingr.avi.internal",

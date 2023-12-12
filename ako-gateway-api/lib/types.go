@@ -15,12 +15,12 @@
 package lib
 
 import (
-	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 )
 
-var SupportedKinds = map[gatewayv1beta1.ProtocolType][]gatewayv1beta1.RouteGroupKind{
-	gatewayv1beta1.HTTPProtocolType:  {{Kind: lib.HTTPRoute}},
-	gatewayv1beta1.HTTPSProtocolType: {{Kind: lib.HTTPRoute}},
+var SupportedKinds = map[gatewayv1.ProtocolType][]gatewayv1.RouteGroupKind{
+	gatewayv1.HTTPProtocolType:  {{Kind: lib.HTTPRoute}},
+	gatewayv1.HTTPSProtocolType: {{Kind: lib.HTTPRoute}},
 }

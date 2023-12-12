@@ -61,6 +61,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("SERVICE_TYPE", "NodePort")
 	os.Setenv("ENABLE_EVH", "true")
 	os.Setenv("MCI_ENABLED", "true")
+	os.Setenv("POD_NAME", "ako-0")
 
 	akoControlConfig := lib.AKOControlConfig()
 	KubeClient = k8sfake.NewSimpleClientset()

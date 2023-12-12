@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 	"sync"
 
@@ -50,7 +50,7 @@ var (
 )
 
 func readCRDFromManifest(crdLocation string, log logr.Logger) (*apiextensionv1.CustomResourceDefinition, error) {
-	crdYaml, err := ioutil.ReadFile(crdLocation)
+	crdYaml, err := os.ReadFile(crdLocation)
 	if err != nil {
 		log.Error(err, fmt.Sprintf("unable to read file : %s", crdLocation))
 		return nil, err

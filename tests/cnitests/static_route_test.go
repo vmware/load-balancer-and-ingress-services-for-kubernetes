@@ -67,6 +67,7 @@ func TestMain(m *testing.M) {
 	if *cniPlugin != "" {
 		os.Setenv("CNI_PLUGIN", *cniPlugin)
 	}
+	os.Setenv("POD_NAME", "ako-0")
 
 	akoControlConfig := lib.AKOControlConfig()
 	KubeClient = k8sfake.NewSimpleClientset()

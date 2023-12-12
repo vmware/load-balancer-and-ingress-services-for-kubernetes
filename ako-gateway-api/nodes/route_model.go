@@ -19,7 +19,7 @@ import (
 	"sort"
 
 	"k8s.io/apimachinery/pkg/util/sets"
-	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -32,7 +32,7 @@ type RouteModel interface {
 	GetSpec() interface{}
 	ParseRouteRules() *RouteConfig
 	Exists() bool
-	GetParents() sets.String
+	GetParents() sets.Set[string]
 }
 
 func NewRouteModel(key, objType, name, namespace string) (RouteModel, error) {
@@ -123,7 +123,7 @@ type httpRoute struct {
 	name        string
 	namespace   string
 	routeConfig *RouteConfig
-	spec        *gatewayv1beta1.HTTPRouteSpec
+	spec        *gatewayv1.HTTPRouteSpec
 }
 
 func GetHTTPRouteModel(key string, name, namespace string) (RouteModel, error) {
@@ -305,8 +305,8 @@ func (hr *httpRoute) Exists() bool {
 	return hr != nil
 }
 
-func (hr *httpRoute) GetParents() sets.String {
-	var parents sets.String
+func (hr *httpRoute) GetParents() sets.Set[string] {
+	var parents sets.Set[string]
 	for _, ref := range hr.spec.ParentRefs {
 		namespace := hr.namespace
 		if ref.Namespace != nil {

@@ -22,7 +22,7 @@ import (
 	"github.com/onsi/gomega"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -38,18 +38,18 @@ func TestGatewayClassCDC(t *testing.T) {
 	ports := []int32{8080}
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := akogatewayapitests.GetListenersV1Beta1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports)
 	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
 
 	g.Eventually(func() bool {
-		gateway, err := akogatewayapitests.GatewayClient.GatewayV1beta1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 		if err != nil || gateway == nil {
 			t.Logf("Couldn't get the gateway, err: %+v", err)
 			return false
 		}
-		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1beta1.GatewayConditionAccepted)) != nil
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
 	}, 30*time.Second).Should(gomega.BeTrue())
 
 	modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(DEFAULT_NAMESPACE, gatewayName))

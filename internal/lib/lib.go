@@ -2125,16 +2125,16 @@ func GetIstioWorkloadCertificateName() string {
 	return "istio-workload-" + GetClusterName() + "-" + utils.GetAKONamespace()
 }
 
-var istioCertSet sets.String
+var istioCertSet sets.Set[string]
 
 func updateIstioCertSet(s string) {
 	if istioCertSet == nil {
-		istioCertSet = sets.NewString()
+		istioCertSet = sets.Set[string]{}
 	}
 	istioCertSet.Insert(s)
 }
 
-func GetIstioCertSet() sets.String {
+func GetIstioCertSet() sets.Set[string] {
 	return istioCertSet
 }
 

@@ -16,7 +16,7 @@ package status
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
-	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
@@ -31,9 +31,9 @@ type StatusUpdater interface {
 }
 
 type Status struct {
-	*gatewayv1beta1.GatewayClassStatus
-	*gatewayv1beta1.GatewayStatus
-	*gatewayv1beta1.HTTPRouteStatus
+	*gatewayv1.GatewayClassStatus
+	*gatewayv1.GatewayStatus
+	*gatewayv1.HTTPRouteStatus
 }
 
 func New(ObjectType string) StatusUpdater {
@@ -79,11 +79,11 @@ func BulkUpdate(key string, objectType string, options []status.StatusOptions) e
 func Record(key string, obj runtime.Object, status *Status) {
 	var objectType string
 	switch obj.(type) {
-	case *gatewayv1beta1.GatewayClass:
+	case *gatewayv1.GatewayClass:
 		objectType = lib.GatewayClass
-	case *gatewayv1beta1.Gateway:
+	case *gatewayv1.Gateway:
 		objectType = lib.Gateway
-	case *gatewayv1beta1.HTTPRoute:
+	case *gatewayv1.HTTPRoute:
 		objectType = lib.HTTPRoute
 	default:
 		utils.AviLog.Warnf("key %s, msg: Unsupported object received at the status layer, %T", key, obj)

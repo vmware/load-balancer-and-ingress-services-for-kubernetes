@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
@@ -32,7 +32,7 @@ import (
 
 type gatewayClass struct{}
 
-func (o *gatewayClass) Get(key string, name string) *gatewayv1beta1.GatewayClass {
+func (o *gatewayClass) Get(key string, name string) *gatewayv1.GatewayClass {
 
 	obj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Lister().Get(name)
 	if err != nil {
@@ -43,7 +43,7 @@ func (o *gatewayClass) Get(key string, name string) *gatewayv1beta1.GatewayClass
 	return obj.DeepCopy()
 }
 
-func (o *gatewayClass) GetAll(key string) map[string]*gatewayv1beta1.GatewayClass {
+func (o *gatewayClass) GetAll(key string) map[string]*gatewayv1.GatewayClass {
 
 	objs, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Lister().List(labels.Everything())
 	if err != nil {
@@ -51,7 +51,7 @@ func (o *gatewayClass) GetAll(key string) map[string]*gatewayv1beta1.GatewayClas
 		return nil
 	}
 
-	gatewayClassMap := make(map[string]*gatewayv1beta1.GatewayClass)
+	gatewayClassMap := make(map[string]*gatewayv1.GatewayClass)
 	for _, obj := range objs {
 		gatewayClassMap[obj.Name] = obj.DeepCopy()
 	}
@@ -82,7 +82,7 @@ func (o *gatewayClass) Patch(key string, obj runtime.Object, status *Status, ret
 		}
 	}
 
-	gatewayClass := obj.(*gatewayv1beta1.GatewayClass)
+	gatewayClass := obj.(*gatewayv1.GatewayClass)
 	if o.isStatusEqual(&gatewayClass.Status, status.GatewayClassStatus) {
 		return
 	}
@@ -90,7 +90,7 @@ func (o *gatewayClass) Patch(key string, obj runtime.Object, status *Status, ret
 	patchPayload, _ := json.Marshal(map[string]interface{}{
 		"status": status.GatewayClassStatus,
 	})
-	_, err := akogatewayapilib.AKOControlConfig().GatewayAPIClientset().GatewayV1beta1().GatewayClasses().Patch(context.TODO(), gatewayClass.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+	_, err := akogatewayapilib.AKOControlConfig().GatewayAPIClientset().GatewayV1().GatewayClasses().Patch(context.TODO(), gatewayClass.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: there was an error in updating the GatewayClass status. err: %+v, retry: %d", key, err, retry)
 		updatedObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Lister().Get(gatewayClass.Name)
@@ -105,7 +105,7 @@ func (o *gatewayClass) Patch(key string, obj runtime.Object, status *Status, ret
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the GatewayClass %s status %+v %v", key, gatewayClass.Name, utils.Stringify(status), err)
 }
 
-func (o *gatewayClass) isStatusEqual(old, new *gatewayv1beta1.GatewayClassStatus) bool {
+func (o *gatewayClass) isStatusEqual(old, new *gatewayv1.GatewayClassStatus) bool {
 	oldStatus, newStatus := old.DeepCopy(), new.DeepCopy()
 	currentTime := metav1.Now()
 	for i := range oldStatus.Conditions {

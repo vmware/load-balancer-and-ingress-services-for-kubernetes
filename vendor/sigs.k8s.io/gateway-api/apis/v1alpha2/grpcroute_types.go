@@ -18,6 +18,8 @@ package v1alpha2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	v1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
 // +genclient
@@ -55,8 +57,6 @@ import (
 // for the affected listener with a reason of "UnsupportedProtocol".
 // Implementations MAY also accept HTTP/2 connections with an upgrade from
 // HTTP/1, i.e. without prior knowledge.
-//
-// Support: Extended
 type GRPCRoute struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -145,11 +145,10 @@ type GRPCRouteSpec struct {
 	//
 	// +optional
 	// +kubebuilder:validation:MaxItems=16
-	// +kubebuilder:default={{matches: {{method: {type: "Exact"}}}}}
 	Rules []GRPCRouteRule `json:"rules,omitempty"`
 }
 
-// GRPCRouteRule defines the semantics for matching an gRPC request based on
+// GRPCRouteRule defines the semantics for matching a gRPC request based on
 // conditions (matches), processing it (filters), and forwarding the request to
 // an API object (backendRefs).
 type GRPCRouteRule struct {
@@ -205,7 +204,6 @@ type GRPCRouteRule struct {
 	//
 	// +optional
 	// +kubebuilder:validation:MaxItems=8
-	// +kubebuilder:default={{method: {type: "Exact"}}}
 	Matches []GRPCRouteMatch `json:"matches,omitempty"`
 
 	// Filters define the filters that are applied to requests that match
@@ -222,12 +220,21 @@ type GRPCRouteRule struct {
 	// - Implementation-specific custom filters have no API guarantees across
 	//   implementations.
 	//
-	// Specifying a core filter multiple times has unspecified or
-	// implementation-specific conformance.
+	// Specifying the same filter multiple times is not supported unless explicitly
+	// indicated in the filter.
+	//
+	// If an implementation can not support a combination of filters, it must clearly
+	// document that limitation. In cases where incompatible or unsupported
+	// filters are specified and cause the `Accepted` condition to be set to status
+	// `False`, implementations may use the `IncompatibleFilters` reason to specify
+	// this configuration error.
+	//
 	// Support: Core
 	//
 	// +optional
 	// +kubebuilder:validation:MaxItems=16
+	// +kubebuilder:validation:XValidation:message="RequestHeaderModifier filter cannot be repeated",rule="self.filter(f, f.type == 'RequestHeaderModifier').size() <= 1"
+	// +kubebuilder:validation:XValidation:message="ResponseHeaderModifier filter cannot be repeated",rule="self.filter(f, f.type == 'ResponseHeaderModifier').size() <= 1"
 	Filters []GRPCRouteFilter `json:"filters,omitempty"`
 
 	// BackendRefs defines the backend(s) where matching requests should be
@@ -286,7 +293,6 @@ type GRPCRouteMatch struct {
 	// not specified, all services and methods will match.
 	//
 	// +optional
-	// +kubebuilder:default={type: "Exact"}
 	Method *GRPCMethodMatch `json:"method,omitempty"`
 
 	// Headers specifies gRPC request header matchers. Multiple match values are
@@ -304,6 +310,10 @@ type GRPCRouteMatch struct {
 // request service and/or method.
 //
 // At least one of Service and Method MUST be a non-empty string.
+//
+// +kubebuilder:validation:XValidation:message="One or both of 'service' or 'method' must be specified",rule="has(self.type) ? has(self.service) || has(self.method) : true"
+// +kubebuilder:validation:XValidation:message="service must only contain valid characters (matching ^(?i)\\.?[a-z_][a-z_0-9]*(\\.[a-z_][a-z_0-9]*)*$)",rule="(!has(self.type) || self.type == 'Exact') && has(self.service) ? self.service.matches(r\"\"\"^(?i)\\.?[a-z_][a-z_0-9]*(\\.[a-z_][a-z_0-9]*)*$\"\"\"): true"
+// +kubebuilder:validation:XValidation:message="method must only contain valid characters (matching ^[A-Za-z_][A-Za-z_0-9]*$)",rule="(!has(self.type) || self.type == 'Exact') && has(self.method) ? self.method.matches(r\"\"\"^[A-Za-z_][A-Za-z_0-9]*$\"\"\"): true"
 type GRPCMethodMatch struct {
 	// Type specifies how to match against the service and/or method.
 	// Support: Core (Exact with service and method specified)
@@ -321,12 +331,8 @@ type GRPCMethodMatch struct {
 	//
 	// At least one of Service and Method MUST be a non-empty string.
 	//
-	// A GRPC Service must be a valid Protobuf Type Name
-	// (https://protobuf.com/docs/language-spec#type-references).
-	//
 	// +optional
 	// +kubebuilder:validation:MaxLength=1024
-	// +kubebuilder:validation:Pattern=`^(?i)\.?[a-z_][a-z_0-9]*(\.[a-z_][a-z_0-9]*)*$`
 	Service *string `json:"service,omitempty"`
 
 	// Value of the method to match against. If left empty or omitted, will
@@ -334,12 +340,8 @@ type GRPCMethodMatch struct {
 	//
 	// At least one of Service and Method MUST be a non-empty string.
 	//
-	// A GRPC Method must be a valid Protobuf Method
-	// (https://protobuf.com/docs/language-spec#methods).
-	//
 	// +optional
 	// +kubebuilder:validation:MaxLength=1024
-	// +kubebuilder:validation:Pattern=`^[A-Za-z_][A-Za-z_0-9]*$`
 	Method *string `json:"method,omitempty"`
 }
 
@@ -419,10 +421,7 @@ const (
 	GRPCHeaderMatchRegularExpression GRPCHeaderMatchType = "RegularExpression"
 )
 
-// +kubebuilder:validation:MinLength=1
-// +kubebuilder:validation:MaxLength=256
-// +kubebuilder:validation:Pattern=`^[A-Za-z0-9!#$%&'*+\-.^_\x60|~]+$`
-type GRPCHeaderName string
+type GRPCHeaderName v1.HeaderName
 
 // GRPCRouteFilterType identifies a type of GRPCRoute filter.
 type GRPCRouteFilterType string
@@ -468,6 +467,15 @@ const (
 // examples include request or response modification, implementing
 // authentication strategies, rate-limiting, and traffic shaping. API
 // guarantee/conformance is defined based on the type of the filter.
+//
+// +kubebuilder:validation:XValidation:message="filter.requestHeaderModifier must be nil if the filter.type is not RequestHeaderModifier",rule="!(has(self.requestHeaderModifier) && self.type != 'RequestHeaderModifier')"
+// +kubebuilder:validation:XValidation:message="filter.requestHeaderModifier must be specified for RequestHeaderModifier filter.type",rule="!(!has(self.requestHeaderModifier) && self.type == 'RequestHeaderModifier')"
+// +kubebuilder:validation:XValidation:message="filter.responseHeaderModifier must be nil if the filter.type is not ResponseHeaderModifier",rule="!(has(self.responseHeaderModifier) && self.type != 'ResponseHeaderModifier')"
+// +kubebuilder:validation:XValidation:message="filter.responseHeaderModifier must be specified for ResponseHeaderModifier filter.type",rule="!(!has(self.responseHeaderModifier) && self.type == 'ResponseHeaderModifier')"
+// +kubebuilder:validation:XValidation:message="filter.requestMirror must be nil if the filter.type is not RequestMirror",rule="!(has(self.requestMirror) && self.type != 'RequestMirror')"
+// +kubebuilder:validation:XValidation:message="filter.requestMirror must be specified for RequestMirror filter.type",rule="!(!has(self.requestMirror) && self.type == 'RequestMirror')"
+// +kubebuilder:validation:XValidation:message="filter.extensionRef must be nil if the filter.type is not ExtensionRef",rule="!(has(self.extensionRef) && self.type != 'ExtensionRef')"
+// +kubebuilder:validation:XValidation:message="filter.extensionRef must be specified for ExtensionRef filter.type",rule="!(!has(self.extensionRef) && self.type == 'ExtensionRef')"
 type GRPCRouteFilter struct {
 	// Type identifies the type of filter to apply. As with other API fields,
 	// types are classified into three conformance levels:
@@ -513,12 +521,15 @@ type GRPCRouteFilter struct {
 	// Support: Extended
 	//
 	// +optional
-	// <gateway:experimental>
 	ResponseHeaderModifier *HTTPHeaderFilter `json:"responseHeaderModifier,omitempty"`
 
 	// RequestMirror defines a schema for a filter that mirrors requests.
 	// Requests are sent to the specified destination, but responses from
 	// that destination are ignored.
+	//
+	// This filter can be used multiple times within the same rule. Note that
+	// not all implementations will be able to support mirroring to multiple
+	// backends.
 	//
 	// Support: Extended
 	//
@@ -532,11 +543,35 @@ type GRPCRouteFilter struct {
 	//
 	// Support: Implementation-specific
 	//
+	// This filter can be used multiple times within the same rule.
 	// +optional
 	ExtensionRef *LocalObjectReference `json:"extensionRef,omitempty"`
 }
 
 // GRPCBackendRef defines how a GRPCRoute forwards a gRPC request.
+//
+// Note that when a namespace different than the local namespace is specified, a
+// ReferenceGrant object is required in the referent namespace to allow that
+// namespace's owner to accept the reference. See the ReferenceGrant
+// documentation for details.
+//
+// <gateway:experimental:description>
+//
+// When the BackendRef points to a Kubernetes Service, implementations SHOULD
+// honor the appProtocol field if it is set for the target Service Port.
+//
+// Implementations supporting appProtocol SHOULD recognize the Kubernetes
+// Standard Application Protocols defined in KEP-3726.
+//
+// If a Service appProtocol isn't specified, an implementation MAY infer the
+// backend protocol through its own means. Implementations MAY infer the
+// protocol from the Route type referring to the backend Service.
+//
+// If a Route is not able to send traffic to the backend using the specified
+// protocol then the backend is considered invalid. Implementations MUST set the
+// "ResolvedRefs" condition to "False" with the "UnsupportedProtocol" reason.
+//
+// </gateway:experimental:description>
 type GRPCBackendRef struct {
 	// BackendRef is a reference to a backend to forward matched requests to.
 	//
@@ -562,6 +597,8 @@ type GRPCBackendRef struct {
 	//
 	// Support: Core for Kubernetes Service
 	//
+	// Support: Extended for Kubernetes ServiceImport
+	//
 	// Support: Implementation-specific for any other resource
 	//
 	// Support for weight: Core
@@ -577,5 +614,7 @@ type GRPCBackendRef struct {
 	//
 	// +optional
 	// +kubebuilder:validation:MaxItems=16
+	// +kubebuilder:validation:XValidation:message="RequestHeaderModifier filter cannot be repeated",rule="self.filter(f, f.type == 'RequestHeaderModifier').size() <= 1"
+	// +kubebuilder:validation:XValidation:message="ResponseHeaderModifier filter cannot be repeated",rule="self.filter(f, f.type == 'ResponseHeaderModifier').size() <= 1"
 	Filters []GRPCRouteFilter `json:"filters,omitempty"`
 }

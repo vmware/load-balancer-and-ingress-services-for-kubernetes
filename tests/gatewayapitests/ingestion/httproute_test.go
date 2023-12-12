@@ -17,7 +17,7 @@ package ingestion
 import (
 	"testing"
 
-	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
@@ -37,18 +37,18 @@ func TestHTTPRouteCUD(t *testing.T) {
 	t.Logf("Created GatewayClass %s", gatewayClassName)
 	waitAndverify(t, "GatewayClass/gateway-class-01")
 
-	listeners := akogatewayapitests.GetListenersV1Beta1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 	t.Logf("Created Gateway %s", gatewayName)
 	waitAndverify(t, "Gateway/default/gateway-01")
 
-	parentRefs := akogatewayapitests.GetParentReferencesV1Beta1([]string{gatewayName}, namespace, ports)
-	hostnames := []gatewayv1beta1.Hostname{"foo-8080.com", "foo-8081.com"}
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
+	hostnames := []gatewayv1.Hostname{"foo-8080.com", "foo-8081.com"}
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
 	waitAndverify(t, key)
 
 	// update
-	hostnames = []gatewayv1beta1.Hostname{"foo-8080.com"}
+	hostnames = []gatewayv1.Hostname{"foo-8080.com"}
 	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
 	waitAndverify(t, key)
 
@@ -72,18 +72,18 @@ func TestHTTPRouteInvalidHostname(t *testing.T) {
 	t.Logf("Created GatewayClass %s", gatewayClassName)
 	waitAndverify(t, gwClassKey)
 
-	listeners := akogatewayapitests.GetListenersV1Beta1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 	t.Logf("Created Gateway %s", gatewayName)
 	waitAndverify(t, gwKey)
 
-	parentRefs := akogatewayapitests.GetParentReferencesV1Beta1([]string{gatewayName}, namespace, ports)
-	hostnames := []gatewayv1beta1.Hostname{"*.example.com"}
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
+	hostnames := []gatewayv1.Hostname{"*.example.com"}
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
 	waitAndverify(t, "")
 
 	// update
-	hostnames = []gatewayv1beta1.Hostname{"foo-8080.com"}
+	hostnames = []gatewayv1.Hostname{"foo-8080.com"}
 	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
 	waitAndverify(t, key)
 
@@ -111,17 +111,17 @@ func TestHTTPRouteGatewayNotPresent(t *testing.T) {
 	t.Logf("Created GatewayClass %s", gatewayClassName)
 	waitAndverify(t, gwClassKey)
 
-	parentRefs := akogatewayapitests.GetParentReferencesV1Beta1([]string{gatewayName}, namespace, ports)
-	hostnames := []gatewayv1beta1.Hostname{"foo-8080.com", "foo-8081.com"}
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
+	hostnames := []gatewayv1.Hostname{"foo-8080.com", "foo-8081.com"}
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
 	waitAndverify(t, "")
 
 	// update
-	listeners := akogatewayapitests.GetListenersV1Beta1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 	t.Logf("Created Gateway %s", gatewayName)
 	waitAndverify(t, gwKey)
-	hostnames = []gatewayv1beta1.Hostname{"foo-8080.com"}
+	hostnames = []gatewayv1.Hostname{"foo-8080.com"}
 	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
 	waitAndverify(t, key)
 

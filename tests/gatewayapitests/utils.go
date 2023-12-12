@@ -29,7 +29,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
-	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	gatewayfake "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/fake"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
@@ -73,78 +73,78 @@ func GetModelName(namespace, name string) (string, string) {
 	return "admin/" + vsName, vsName
 }
 
-func SetGatewayName(gw *gatewayv1beta1.Gateway, name string) {
+func SetGatewayName(gw *gatewayv1.Gateway, name string) {
 	gw.Name = name
 }
-func UnsetGatewayName(gw *gatewayv1beta1.Gateway) {
+func UnsetGatewayName(gw *gatewayv1.Gateway) {
 	gw.Name = ""
 }
 
-func SetGatewayGatewayClass(gw *gatewayv1beta1.Gateway, name string) {
-	gw.Spec.GatewayClassName = gatewayv1beta1.ObjectName(name)
+func SetGatewayGatewayClass(gw *gatewayv1.Gateway, name string) {
+	gw.Spec.GatewayClassName = gatewayv1.ObjectName(name)
 }
-func UnsetGatewayGatewayClass(gw *gatewayv1beta1.Gateway) {
+func UnsetGatewayGatewayClass(gw *gatewayv1.Gateway) {
 	gw.Spec.GatewayClassName = ""
 }
 
-func AddGatewayListener(gw *gatewayv1beta1.Gateway, name string, port int32, protocol gatewayv1beta1.ProtocolType, isTLS bool) {
+func AddGatewayListener(gw *gatewayv1.Gateway, name string, port int32, protocol gatewayv1.ProtocolType, isTLS bool) {
 
-	listner := gatewayv1beta1.Listener{
-		Name:     gatewayv1beta1.SectionName(name),
-		Port:     gatewayv1beta1.PortNumber(port),
+	listner := gatewayv1.Listener{
+		Name:     gatewayv1.SectionName(name),
+		Port:     gatewayv1.PortNumber(port),
 		Protocol: protocol,
 	}
 	if isTLS {
-		SetListenerTLS(&listner, gatewayv1beta1.TLSModeTerminate, "secret-example", "default")
+		SetListenerTLS(&listner, gatewayv1.TLSModeTerminate, "secret-example", "default")
 	}
 	gw.Spec.Listeners = append(gw.Spec.Listeners, listner)
 }
 
-func SetListenerTLS(l *gatewayv1beta1.Listener, tlsMode gatewayv1beta1.TLSModeType, secretName, secretNS string) {
-	l.TLS = &gatewayv1beta1.GatewayTLSConfig{Mode: &tlsMode}
-	namespace := gatewayv1beta1.Namespace(secretNS)
-	kind := gatewayv1beta1.Kind("Secret")
-	l.TLS.CertificateRefs = []gatewayv1beta1.SecretObjectReference{
+func SetListenerTLS(l *gatewayv1.Listener, tlsMode gatewayv1.TLSModeType, secretName, secretNS string) {
+	l.TLS = &gatewayv1.GatewayTLSConfig{Mode: &tlsMode}
+	namespace := gatewayv1.Namespace(secretNS)
+	kind := gatewayv1.Kind("Secret")
+	l.TLS.CertificateRefs = []gatewayv1.SecretObjectReference{
 		{
-			Name:      gatewayv1beta1.ObjectName(secretName),
+			Name:      gatewayv1.ObjectName(secretName),
 			Namespace: &namespace,
 			Kind:      &kind,
 		},
 	}
 }
-func UnsetListenerTLS(l *gatewayv1beta1.Listener) {
-	l.TLS = &gatewayv1beta1.GatewayTLSConfig{}
+func UnsetListenerTLS(l *gatewayv1.Listener) {
+	l.TLS = &gatewayv1.GatewayTLSConfig{}
 }
 
-func SetListenerHostname(l *gatewayv1beta1.Listener, hostname string) {
-	l.Hostname = (*gatewayv1beta1.Hostname)(&hostname)
+func SetListenerHostname(l *gatewayv1.Listener, hostname string) {
+	l.Hostname = (*gatewayv1.Hostname)(&hostname)
 }
-func UnsetListenerHostname(l *gatewayv1beta1.Listener) {
-	var hname gatewayv1beta1.Hostname
+func UnsetListenerHostname(l *gatewayv1.Listener) {
+	var hname gatewayv1.Hostname
 	l.Hostname = &hname
 }
 
-func GetListenersV1Beta1(ports []int32, secrets ...string) []gatewayv1beta1.Listener {
-	listeners := make([]gatewayv1beta1.Listener, 0, len(ports))
+func GetListenersV1(ports []int32, secrets ...string) []gatewayv1.Listener {
+	listeners := make([]gatewayv1.Listener, 0, len(ports))
 	for _, port := range ports {
 		hostname := fmt.Sprintf("foo-%d.com", port)
-		listener := gatewayv1beta1.Listener{
-			Name:     gatewayv1beta1.SectionName(fmt.Sprintf("listener-%d", port)),
-			Port:     gatewayv1beta1.PortNumber(port),
-			Protocol: gatewayv1beta1.ProtocolType("HTTPS"),
-			Hostname: (*gatewayv1beta1.Hostname)(&hostname),
+		listener := gatewayv1.Listener{
+			Name:     gatewayv1.SectionName(fmt.Sprintf("listener-%d", port)),
+			Port:     gatewayv1.PortNumber(port),
+			Protocol: gatewayv1.ProtocolType("HTTPS"),
+			Hostname: (*gatewayv1.Hostname)(&hostname),
 		}
 		if len(secrets) > 0 {
-			certRefs := make([]gatewayv1beta1.SecretObjectReference, 0, len(secrets))
+			certRefs := make([]gatewayv1.SecretObjectReference, 0, len(secrets))
 			for _, secret := range secrets {
-				secretRef := gatewayv1beta1.SecretObjectReference{
-					Name: gatewayv1beta1.ObjectName(secret),
+				secretRef := gatewayv1.SecretObjectReference{
+					Name: gatewayv1.ObjectName(secret),
 				}
 				certRefs = append(certRefs, secretRef)
 			}
 			tlsMode := "Terminate"
-			listener.TLS = &gatewayv1beta1.GatewayTLSConfig{
-				Mode:            (*gatewayv1beta1.TLSModeType)(&tlsMode),
+			listener.TLS = &gatewayv1.GatewayTLSConfig{
+				Mode:            (*gatewayv1.TLSModeType)(&tlsMode),
 				CertificateRefs: certRefs,
 			}
 		}
@@ -153,20 +153,20 @@ func GetListenersV1Beta1(ports []int32, secrets ...string) []gatewayv1beta1.List
 	return listeners
 }
 
-func GetListenerStatusV1Beta1(ports []int32, attachedRoutes []int32) []gatewayv1beta1.ListenerStatus {
-	listeners := make([]gatewayv1beta1.ListenerStatus, 0, len(ports))
+func GetListenerStatusV1(ports []int32, attachedRoutes []int32) []gatewayv1.ListenerStatus {
+	listeners := make([]gatewayv1.ListenerStatus, 0, len(ports))
 	for i, port := range ports {
-		listener := gatewayv1beta1.ListenerStatus{
-			Name:           gatewayv1beta1.SectionName(fmt.Sprintf("listener-%d", port)),
+		listener := gatewayv1.ListenerStatus{
+			Name:           gatewayv1.SectionName(fmt.Sprintf("listener-%d", port)),
 			SupportedKinds: akogatewayapilib.SupportedKinds["HTTPS"],
 			AttachedRoutes: attachedRoutes[i],
 			Conditions: []metav1.Condition{
 				{
-					Type:               string(gatewayv1beta1.GatewayConditionAccepted),
+					Type:               string(gatewayv1.GatewayConditionAccepted),
 					Status:             metav1.ConditionTrue,
 					Message:            "Listener is valid",
 					ObservedGeneration: 1,
-					Reason:             string(gatewayv1beta1.GatewayReasonAccepted),
+					Reason:             string(gatewayv1.GatewayReasonAccepted),
 				},
 			},
 		}
@@ -176,18 +176,18 @@ func GetListenerStatusV1Beta1(ports []int32, attachedRoutes []int32) []gatewayv1
 }
 
 type Gateway struct {
-	*gatewayv1beta1.Gateway
+	*gatewayv1.Gateway
 }
 
-func (g *Gateway) GatewayV1Beta1(name, namespace, gatewayClass string, address []gatewayv1beta1.GatewayAddress, listeners []gatewayv1beta1.Listener) *gatewayv1beta1.Gateway {
-	gateway := &gatewayv1beta1.Gateway{
+func (g *Gateway) GatewayV1(name, namespace, gatewayClass string, address []gatewayv1.GatewayAddress, listeners []gatewayv1.Listener) *gatewayv1.Gateway {
+	gateway := &gatewayv1.Gateway{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            name,
 			Namespace:       namespace,
 			ResourceVersion: time.Now().Local().String(),
 		},
-		Spec: gatewayv1beta1.GatewaySpec{
-			GatewayClassName: gatewayv1beta1.ObjectName(gatewayClass),
+		Spec: gatewayv1.GatewaySpec{
+			GatewayClassName: gatewayv1.ObjectName(gatewayClass),
 			Addresses:        address,
 		},
 	}
@@ -197,7 +197,7 @@ func (g *Gateway) GatewayV1Beta1(name, namespace, gatewayClass string, address [
 }
 
 func (g *Gateway) Create(t *testing.T) {
-	_, err := GatewayClient.GatewayV1beta1().Gateways(g.Namespace).Create(context.TODO(), g.Gateway, metav1.CreateOptions{})
+	_, err := GatewayClient.GatewayV1().Gateways(g.Namespace).Create(context.TODO(), g.Gateway, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't create the gateway, err: %+v", err)
 	}
@@ -205,7 +205,7 @@ func (g *Gateway) Create(t *testing.T) {
 }
 
 func (g *Gateway) Update(t *testing.T) {
-	_, err := GatewayClient.GatewayV1beta1().Gateways(g.Namespace).Update(context.TODO(), g.Gateway, metav1.UpdateOptions{})
+	_, err := GatewayClient.GatewayV1().Gateways(g.Namespace).Update(context.TODO(), g.Gateway, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't update the gateway, err: %+v", err)
 	}
@@ -213,28 +213,28 @@ func (g *Gateway) Update(t *testing.T) {
 }
 
 func (g *Gateway) Delete(t *testing.T) {
-	err := GatewayClient.GatewayV1beta1().Gateways(g.Namespace).Delete(context.TODO(), g.Name, metav1.DeleteOptions{})
+	err := GatewayClient.GatewayV1().Gateways(g.Namespace).Delete(context.TODO(), g.Name, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't delete the gateway, err: %+v", err)
 	}
 	t.Logf("Deleted Gateway %s", g.Gateway.Name)
 }
 
-func SetupGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress []gatewayv1beta1.GatewayAddress, listeners []gatewayv1beta1.Listener) {
+func SetupGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress []gatewayv1.GatewayAddress, listeners []gatewayv1.Listener) {
 	g := &Gateway{}
-	g.Gateway = g.GatewayV1Beta1(name, namespace, gatewayClass, ipAddress, listeners)
+	g.Gateway = g.GatewayV1(name, namespace, gatewayClass, ipAddress, listeners)
 	g.Create(t)
 }
 
-func UpdateGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress []gatewayv1beta1.GatewayAddress, listeners []gatewayv1beta1.Listener) {
+func UpdateGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress []gatewayv1.GatewayAddress, listeners []gatewayv1.Listener) {
 	g := &Gateway{}
-	g.Gateway = g.GatewayV1Beta1(name, namespace, gatewayClass, ipAddress, listeners)
+	g.Gateway = g.GatewayV1(name, namespace, gatewayClass, ipAddress, listeners)
 	g.Update(t)
 }
 
 func TeardownGateway(t *testing.T, name, namespace string) {
 	g := &Gateway{}
-	g.Gateway = g.GatewayV1Beta1(name, namespace, "", nil, nil)
+	g.Gateway = g.GatewayV1(name, namespace, "", nil, nil)
 	g.Delete(t)
 }
 
@@ -243,20 +243,20 @@ type FakeGatewayClass struct {
 	ControllerName string
 }
 
-func (gc *FakeGatewayClass) GatewayClassV1Beta1() *gatewayv1beta1.GatewayClass {
-	return &gatewayv1beta1.GatewayClass{
+func (gc *FakeGatewayClass) GatewayClassV1() *gatewayv1.GatewayClass {
+	return &gatewayv1.GatewayClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: gc.Name,
 		},
-		Spec: gatewayv1beta1.GatewayClassSpec{
-			ControllerName: gatewayv1beta1.GatewayController(gc.ControllerName),
+		Spec: gatewayv1.GatewayClassSpec{
+			ControllerName: gatewayv1.GatewayController(gc.ControllerName),
 		},
 	}
 }
 
 func (gc *FakeGatewayClass) Create(t *testing.T) {
-	gatewayClass := gc.GatewayClassV1Beta1()
-	_, err := GatewayClient.GatewayV1beta1().GatewayClasses().Create(context.TODO(), gatewayClass, metav1.CreateOptions{})
+	gatewayClass := gc.GatewayClassV1()
+	_, err := GatewayClient.GatewayV1().GatewayClasses().Create(context.TODO(), gatewayClass, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't create the gateway class, err: %+v", err)
 	}
@@ -264,8 +264,8 @@ func (gc *FakeGatewayClass) Create(t *testing.T) {
 }
 
 func (gc *FakeGatewayClass) Update(t *testing.T) {
-	gatewayClass := gc.GatewayClassV1Beta1()
-	_, err := GatewayClient.GatewayV1beta1().GatewayClasses().Update(context.TODO(), gatewayClass, metav1.UpdateOptions{})
+	gatewayClass := gc.GatewayClassV1()
+	_, err := GatewayClient.GatewayV1().GatewayClasses().Update(context.TODO(), gatewayClass, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't update the gateway class, err: %+v", err)
 	}
@@ -273,7 +273,7 @@ func (gc *FakeGatewayClass) Update(t *testing.T) {
 }
 
 func (gc *FakeGatewayClass) Delete(t *testing.T) {
-	err := GatewayClient.GatewayV1beta1().GatewayClasses().Delete(context.TODO(), gc.Name, metav1.DeleteOptions{})
+	err := GatewayClient.GatewayV1().GatewayClasses().Delete(context.TODO(), gc.Name, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't delete the gateway class, err: %+v", err)
 	}
@@ -297,18 +297,18 @@ func TeardownGatewayClass(t *testing.T, name string) {
 }
 
 type HTTPRoute struct {
-	*gatewayv1beta1.HTTPRoute
+	*gatewayv1.HTTPRoute
 }
 
-func (hr *HTTPRoute) HTTPRouteV1Beta1(name, namespace string, parentRefs []gatewayv1beta1.ParentReference, hostnames []gatewayv1beta1.Hostname, rules []gatewayv1beta1.HTTPRouteRule) *gatewayv1beta1.HTTPRoute {
-	httpRoute := &gatewayv1beta1.HTTPRoute{
+func (hr *HTTPRoute) HTTPRouteV1(name, namespace string, parentRefs []gatewayv1.ParentReference, hostnames []gatewayv1.Hostname, rules []gatewayv1.HTTPRouteRule) *gatewayv1.HTTPRoute {
+	httpRoute := &gatewayv1.HTTPRoute{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            name,
 			Namespace:       namespace,
 			ResourceVersion: time.Now().Local().String(),
 		},
-		Spec: gatewayv1beta1.HTTPRouteSpec{
-			CommonRouteSpec: gatewayv1beta1.CommonRouteSpec{
+		Spec: gatewayv1.HTTPRouteSpec{
+			CommonRouteSpec: gatewayv1.CommonRouteSpec{
 				ParentRefs: parentRefs,
 			},
 			Hostnames: hostnames,
@@ -318,14 +318,14 @@ func (hr *HTTPRoute) HTTPRouteV1Beta1(name, namespace string, parentRefs []gatew
 	return httpRoute
 }
 
-func GetParentReferencesV1Beta1(gatewayNames []string, namespace string, ports []int32) []gatewayv1beta1.ParentReference {
-	parentRefs := make([]gatewayv1beta1.ParentReference, 0)
+func GetParentReferencesV1(gatewayNames []string, namespace string, ports []int32) []gatewayv1.ParentReference {
+	parentRefs := make([]gatewayv1.ParentReference, 0)
 	for _, gwName := range gatewayNames {
 		for _, port := range ports {
-			sectionName := gatewayv1beta1.SectionName(fmt.Sprintf("listener-%d", port))
-			parentRef := gatewayv1beta1.ParentReference{
-				Name:        gatewayv1beta1.ObjectName(gwName),
-				Namespace:   (*gatewayv1beta1.Namespace)(&namespace),
+			sectionName := gatewayv1.SectionName(fmt.Sprintf("listener-%d", port))
+			parentRef := gatewayv1.ParentReference{
+				Name:        gatewayv1.ObjectName(gwName),
+				Namespace:   (*gatewayv1.Namespace)(&namespace),
 				SectionName: &sectionName,
 			}
 			parentRefs = append(parentRefs, parentRef)
@@ -334,18 +334,18 @@ func GetParentReferencesV1Beta1(gatewayNames []string, namespace string, ports [
 	return parentRefs
 }
 
-func GetRouteStatusV1Beta1(gatewayNames []string, namespace string, ports []int32, conditions map[string][]metav1.Condition) *gatewayv1beta1.RouteStatus {
-	routeStatus := &gatewayv1beta1.RouteStatus{}
-	routeStatus.Parents = make([]gatewayv1beta1.RouteParentStatus, 0, len(gatewayNames)+len(ports))
+func GetRouteStatusV1(gatewayNames []string, namespace string, ports []int32, conditions map[string][]metav1.Condition) *gatewayv1.RouteStatus {
+	routeStatus := &gatewayv1.RouteStatus{}
+	routeStatus.Parents = make([]gatewayv1.RouteParentStatus, 0, len(gatewayNames)+len(ports))
 	for _, gatewayName := range gatewayNames {
 		for _, port := range ports {
-			parent := gatewayv1beta1.RouteParentStatus{}
+			parent := gatewayv1.RouteParentStatus{}
 			parent.ControllerName = akogatewayapilib.GatewayController
 			parent.Conditions = conditions[fmt.Sprintf("%s-%d", gatewayName, port)]
-			sectionName := gatewayv1beta1.SectionName(fmt.Sprintf("listener-%d", port))
-			parent.ParentRef = gatewayv1beta1.ParentReference{
-				Name:        gatewayv1beta1.ObjectName(gatewayName),
-				Namespace:   (*gatewayv1beta1.Namespace)(&namespace),
+			sectionName := gatewayv1.SectionName(fmt.Sprintf("listener-%d", port))
+			parent.ParentRef = gatewayv1.ParentReference{
+				Name:        gatewayv1.ObjectName(gatewayName),
+				Namespace:   (*gatewayv1.Namespace)(&namespace),
 				SectionName: &sectionName,
 			}
 			routeStatus.Parents = append(routeStatus.Parents, parent)
@@ -354,30 +354,30 @@ func GetRouteStatusV1Beta1(gatewayNames []string, namespace string, ports []int3
 	return routeStatus
 }
 
-func GetHTTPRouteMatchV1Beta1(path string, pathMatchType string, headers []string) gatewayv1beta1.HTTPRouteMatch {
-	routeMatch := gatewayv1beta1.HTTPRouteMatch{}
-	routeMatch.Path = &gatewayv1beta1.HTTPPathMatch{}
-	routeMatch.Path.Type = (*gatewayv1beta1.PathMatchType)(proto.String(pathMatchType))
+func GetHTTPRouteMatchV1(path string, pathMatchType string, headers []string) gatewayv1.HTTPRouteMatch {
+	routeMatch := gatewayv1.HTTPRouteMatch{}
+	routeMatch.Path = &gatewayv1.HTTPPathMatch{}
+	routeMatch.Path.Type = (*gatewayv1.PathMatchType)(proto.String(pathMatchType))
 	routeMatch.Path.Value = &path
 	for _, header := range headers {
-		headerMatch := gatewayv1beta1.HTTPHeaderMatch{}
-		headerMatch.Type = (*gatewayv1beta1.HeaderMatchType)(proto.String("Exact"))
-		headerMatch.Name = gatewayv1beta1.HTTPHeaderName(header)
+		headerMatch := gatewayv1.HTTPHeaderMatch{}
+		headerMatch.Type = (*gatewayv1.HeaderMatchType)(proto.String("Exact"))
+		headerMatch.Name = gatewayv1.HTTPHeaderName(header)
 		headerMatch.Value = "some-value"
 		routeMatch.Headers = append(routeMatch.Headers, headerMatch)
 	}
 	return routeMatch
 }
 
-func GetHTTPHeaderFilterV1Beta1(actions []string) *gatewayv1beta1.HTTPHeaderFilter {
-	headerFilter := &gatewayv1beta1.HTTPHeaderFilter{}
+func GetHTTPHeaderFilterV1(actions []string) *gatewayv1.HTTPHeaderFilter {
+	headerFilter := &gatewayv1.HTTPHeaderFilter{}
 	for _, action := range actions {
 		switch action {
 		case "add":
 			headerFilter.Add =
 				append(headerFilter.Add,
-					gatewayv1beta1.HTTPHeader{
-						Name:  gatewayv1beta1.HTTPHeaderName("new-header"),
+					gatewayv1.HTTPHeader{
+						Name:  gatewayv1.HTTPHeaderName("new-header"),
 						Value: "any-value",
 					},
 				)
@@ -386,8 +386,8 @@ func GetHTTPHeaderFilterV1Beta1(actions []string) *gatewayv1beta1.HTTPHeaderFilt
 		case "replace":
 			headerFilter.Set =
 				append(headerFilter.Set,
-					gatewayv1beta1.HTTPHeader{
-						Name:  gatewayv1beta1.HTTPHeaderName("my-header"),
+					gatewayv1.HTTPHeader{
+						Name:  gatewayv1.HTTPHeaderName("my-header"),
 						Value: "any-value",
 					},
 				)
@@ -396,34 +396,34 @@ func GetHTTPHeaderFilterV1Beta1(actions []string) *gatewayv1beta1.HTTPHeaderFilt
 	return headerFilter
 }
 
-func GetHTTPRouteFilterV1Beta1(filterType string, actions []string) gatewayv1beta1.HTTPRouteFilter {
-	routeFilter := gatewayv1beta1.HTTPRouteFilter{}
-	routeFilter.Type = gatewayv1beta1.HTTPRouteFilterType(filterType)
+func GetHTTPRouteFilterV1(filterType string, actions []string) gatewayv1.HTTPRouteFilter {
+	routeFilter := gatewayv1.HTTPRouteFilter{}
+	routeFilter.Type = gatewayv1.HTTPRouteFilterType(filterType)
 	switch filterType {
 	case "RequestHeaderModifier":
-		routeFilter.RequestHeaderModifier = GetHTTPHeaderFilterV1Beta1(actions)
+		routeFilter.RequestHeaderModifier = GetHTTPHeaderFilterV1(actions)
 	case "ResponseHeaderModifier":
-		routeFilter.ResponseHeaderModifier = GetHTTPHeaderFilterV1Beta1(actions)
+		routeFilter.ResponseHeaderModifier = GetHTTPHeaderFilterV1(actions)
 	case "RequestRedirect":
 		statusCode302 := 302
 		host := "redirect.com"
-		routeFilter.RequestRedirect = &gatewayv1beta1.HTTPRequestRedirectFilter{
-			Hostname:   (*gatewayv1beta1.PreciseHostname)(&host),
+		routeFilter.RequestRedirect = &gatewayv1.HTTPRequestRedirectFilter{
+			Hostname:   (*gatewayv1.PreciseHostname)(&host),
 			StatusCode: &statusCode302,
 		}
 	}
 	return routeFilter
 }
 
-func GetHTTPRouteBackendV1Beta1(backendRefs []string) gatewayv1beta1.HTTPBackendRef {
-	serviceKind := gatewayv1beta1.Kind("Service")
+func GetHTTPRouteBackendV1(backendRefs []string) gatewayv1.HTTPBackendRef {
+	serviceKind := gatewayv1.Kind("Service")
 	port, _ := strconv.Atoi(backendRefs[2])
-	servicePort := gatewayv1beta1.PortNumber(port)
-	backendRef := gatewayv1beta1.HTTPBackendRef{}
-	backendRef.BackendObjectReference = gatewayv1beta1.BackendObjectReference{
+	servicePort := gatewayv1.PortNumber(port)
+	backendRef := gatewayv1.HTTPBackendRef{}
+	backendRef.BackendObjectReference = gatewayv1.BackendObjectReference{
 		Kind:      &serviceKind,
-		Name:      gatewayv1beta1.ObjectName(backendRefs[0]),
-		Namespace: (*gatewayv1beta1.Namespace)(&backendRefs[1]),
+		Name:      gatewayv1.ObjectName(backendRefs[0]),
+		Namespace: (*gatewayv1.Namespace)(&backendRefs[1]),
 		Port:      &servicePort,
 	}
 	weight, _ := strconv.Atoi(backendRefs[3])
@@ -433,53 +433,53 @@ func GetHTTPRouteBackendV1Beta1(backendRefs []string) gatewayv1beta1.HTTPBackend
 
 }
 
-func GetHTTPRouteRuleV1Beta1(paths []string, matchHeaders []string, filterActionMap map[string][]string, backendRefs [][]string) gatewayv1beta1.HTTPRouteRule {
-	matches := make([]gatewayv1beta1.HTTPRouteMatch, 0, len(paths))
+func GetHTTPRouteRuleV1(paths []string, matchHeaders []string, filterActionMap map[string][]string, backendRefs [][]string) gatewayv1.HTTPRouteRule {
+	matches := make([]gatewayv1.HTTPRouteMatch, 0, len(paths))
 	for _, path := range paths {
-		match := GetHTTPRouteMatchV1Beta1(path, "PathPrefix", matchHeaders)
+		match := GetHTTPRouteMatchV1(path, "PathPrefix", matchHeaders)
 		matches = append(matches, match)
 	}
 
-	filters := make([]gatewayv1beta1.HTTPRouteFilter, 0, len(filterActionMap))
+	filters := make([]gatewayv1.HTTPRouteFilter, 0, len(filterActionMap))
 	for filterType, actions := range filterActionMap {
-		filter := GetHTTPRouteFilterV1Beta1(filterType, actions)
+		filter := GetHTTPRouteFilterV1(filterType, actions)
 		filters = append(filters, filter)
 	}
-	backends := make([]gatewayv1beta1.HTTPBackendRef, 0, len(backendRefs))
+	backends := make([]gatewayv1.HTTPBackendRef, 0, len(backendRefs))
 	for _, backendRef := range backendRefs {
-		backend := GetHTTPRouteBackendV1Beta1(backendRef)
+		backend := GetHTTPRouteBackendV1(backendRef)
 		backends = append(backends, backend)
 	}
-	rule := gatewayv1beta1.HTTPRouteRule{}
+	rule := gatewayv1.HTTPRouteRule{}
 	rule.Matches = matches
 	rule.Filters = filters
 	rule.BackendRefs = backends
 	return rule
 }
-func GetHTTPRouteRulesV1Beta1Login() []gatewayv1beta1.HTTPRouteRule {
-	rules := make([]gatewayv1beta1.HTTPRouteRule, 0)
+func GetHTTPRouteRulesV1Login() []gatewayv1.HTTPRouteRule {
+	rules := make([]gatewayv1.HTTPRouteRule, 0)
 	// TODO: add few rules
 
 	//login rule
-	var serviceKind gatewayv1beta1.Kind
-	var servicePort gatewayv1beta1.PortNumber
+	var serviceKind gatewayv1.Kind
+	var servicePort gatewayv1.PortNumber
 	serviceKind = "Service"
 	servicePort = 8080
-	pathPrefix := gatewayv1beta1.PathMatchPathPrefix
+	pathPrefix := gatewayv1.PathMatchPathPrefix
 	path := "/login"
-	rules = append(rules, gatewayv1beta1.HTTPRouteRule{
-		Matches: []gatewayv1beta1.HTTPRouteMatch{
+	rules = append(rules, gatewayv1.HTTPRouteRule{
+		Matches: []gatewayv1.HTTPRouteMatch{
 			{
-				Path: &gatewayv1beta1.HTTPPathMatch{
+				Path: &gatewayv1.HTTPPathMatch{
 					Type:  &pathPrefix,
 					Value: &path,
 				},
 			},
 		},
-		BackendRefs: []gatewayv1beta1.HTTPBackendRef{
+		BackendRefs: []gatewayv1.HTTPBackendRef{
 			{
-				BackendRef: gatewayv1beta1.BackendRef{
-					BackendObjectReference: gatewayv1beta1.BackendObjectReference{
+				BackendRef: gatewayv1.BackendRef{
+					BackendObjectReference: gatewayv1.BackendObjectReference{
 						Kind: &serviceKind,
 						Name: "avisvc",
 						Port: &servicePort,
@@ -492,7 +492,7 @@ func GetHTTPRouteRulesV1Beta1Login() []gatewayv1beta1.HTTPRouteRule {
 }
 
 func (hr *HTTPRoute) Create(t *testing.T) {
-	_, err := GatewayClient.GatewayV1beta1().HTTPRoutes(hr.Namespace).Create(context.TODO(), hr.HTTPRoute, metav1.CreateOptions{})
+	_, err := GatewayClient.GatewayV1().HTTPRoutes(hr.Namespace).Create(context.TODO(), hr.HTTPRoute, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't create the HTTPRoute, err: %+v", err)
 	}
@@ -500,7 +500,7 @@ func (hr *HTTPRoute) Create(t *testing.T) {
 }
 
 func (hr *HTTPRoute) Update(t *testing.T) {
-	_, err := GatewayClient.GatewayV1beta1().HTTPRoutes(hr.Namespace).Update(context.TODO(), hr.HTTPRoute, metav1.UpdateOptions{})
+	_, err := GatewayClient.GatewayV1().HTTPRoutes(hr.Namespace).Update(context.TODO(), hr.HTTPRoute, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't update the HTTPRoute, err: %+v", err)
 	}
@@ -508,32 +508,32 @@ func (hr *HTTPRoute) Update(t *testing.T) {
 }
 
 func (hr *HTTPRoute) Delete(t *testing.T) {
-	err := GatewayClient.GatewayV1beta1().HTTPRoutes(hr.Namespace).Delete(context.TODO(), hr.Name, metav1.DeleteOptions{})
+	err := GatewayClient.GatewayV1().HTTPRoutes(hr.Namespace).Delete(context.TODO(), hr.Name, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't delete the HTTPRoute, err: %+v", err)
 	}
 	t.Logf("Deleted HTTPRoute %s", hr.Name)
 }
 
-func SetupHTTPRoute(t *testing.T, name, namespace string, parentRefs []gatewayv1beta1.ParentReference, hostnames []gatewayv1beta1.Hostname, rules []gatewayv1beta1.HTTPRouteRule) {
+func SetupHTTPRoute(t *testing.T, name, namespace string, parentRefs []gatewayv1.ParentReference, hostnames []gatewayv1.Hostname, rules []gatewayv1.HTTPRouteRule) {
 	hr := &HTTPRoute{}
-	hr.HTTPRoute = hr.HTTPRouteV1Beta1(name, namespace, parentRefs, hostnames, rules)
+	hr.HTTPRoute = hr.HTTPRouteV1(name, namespace, parentRefs, hostnames, rules)
 	hr.Create(t)
 }
 
-func UpdateHTTPRoute(t *testing.T, name, namespace string, parentRefs []gatewayv1beta1.ParentReference, hostnames []gatewayv1beta1.Hostname, rules []gatewayv1beta1.HTTPRouteRule) {
+func UpdateHTTPRoute(t *testing.T, name, namespace string, parentRefs []gatewayv1.ParentReference, hostnames []gatewayv1.Hostname, rules []gatewayv1.HTTPRouteRule) {
 	hr := &HTTPRoute{}
-	hr.HTTPRoute = hr.HTTPRouteV1Beta1(name, namespace, parentRefs, hostnames, rules)
+	hr.HTTPRoute = hr.HTTPRouteV1(name, namespace, parentRefs, hostnames, rules)
 	hr.Update(t)
 }
 
 func TeardownHTTPRoute(t *testing.T, name, namespace string) {
 	hr := &HTTPRoute{}
-	hr.HTTPRoute = hr.HTTPRouteV1Beta1(name, namespace, nil, nil, nil)
+	hr.HTTPRoute = hr.HTTPRouteV1(name, namespace, nil, nil, nil)
 	hr.Delete(t)
 }
 
-func ValidateGatewayStatus(t *testing.T, actualStatus, expectedStatus *gatewayv1beta1.GatewayStatus) {
+func ValidateGatewayStatus(t *testing.T, actualStatus, expectedStatus *gatewayv1.GatewayStatus) {
 
 	g := gomega.NewGomegaWithT(t)
 
@@ -555,7 +555,7 @@ func ValidateGatewayStatus(t *testing.T, actualStatus, expectedStatus *gatewayv1
 	}
 }
 
-func ValidateGatewayListeners(t *testing.T, actual, expected *gatewayv1beta1.ListenerStatus) {
+func ValidateGatewayListeners(t *testing.T, actual, expected *gatewayv1.ListenerStatus) {
 	g := gomega.NewGomegaWithT(t)
 	g.Expect(actual.Name).Should(gomega.Equal(expected.Name))
 	g.Expect(actual.AttachedRoutes).Should(gomega.Equal(expected.AttachedRoutes))
@@ -577,7 +577,7 @@ func ValidateConditions(t *testing.T, actualConditions, expectedConditions []met
 	}
 }
 
-func ValidateHTTPRouteStatus(t *testing.T, actualStatus, expectedStatus *gatewayv1beta1.HTTPRouteStatus) {
+func ValidateHTTPRouteStatus(t *testing.T, actualStatus, expectedStatus *gatewayv1.HTTPRouteStatus) {
 	g := gomega.NewGomegaWithT(t)
 	g.Expect(actualStatus.Parents).To(gomega.HaveLen(len(expectedStatus.Parents)))
 	for i := 0; i < len(actualStatus.Parents); i++ {
