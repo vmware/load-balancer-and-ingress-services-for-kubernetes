@@ -39,7 +39,7 @@ type BgpPeer struct {
 	Label *string `json:"label,omitempty"`
 
 	// Local AS to use for this ebgp peer. If specified, this will override the local AS configured at the VRF level. Allowed values are 1-4294967295. Field introduced in 17.1.6,17.2.2.
-	LocalAs *int32 `json:"local_as,omitempty"`
+	LocalAs *uint32 `json:"local_as,omitempty"`
 
 	// Peer Autonomous System Md5 Digest Secret Key.
 	Md5Secret *string `json:"md5_secret,omitempty"`
@@ -54,7 +54,7 @@ type BgpPeer struct {
 	PeerIp6 *IPAddr `json:"peer_ip6,omitempty"`
 
 	// Peer Autonomous System ID. Allowed values are 1-4294967295.
-	RemoteAs *int32 `json:"remote_as,omitempty"`
+	RemoteAs *uint32 `json:"remote_as,omitempty"`
 
 	// Shutdown the BGP peer. Field introduced in 17.2.4.
 	Shutdown *bool `json:"shutdown,omitempty"`
