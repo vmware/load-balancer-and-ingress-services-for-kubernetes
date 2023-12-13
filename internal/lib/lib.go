@@ -2150,37 +2150,39 @@ func IsChanClosed(ch <-chan struct{}) bool {
 func GetIPFromNode(node *v1.Node) (string, string) {
 	var nodeV4, nodeV6 string
 	nodeAddrs := node.Status.Addresses
-	for _, addr := range nodeAddrs {
-		if addr.Type == corev1.NodeInternalIP {
-			nodeIP := addr.Address
-			if utils.IsV4(nodeIP) {
-				//Use first IP in the list
-				if nodeV4 == "" {
+
+	if GetCNIPlugin() == CALICO_CNI {
+		if nodeIP, ok := node.Annotations["projectcalico.org/IPv4Address"]; ok {
+			nodeV4 = strings.Split(nodeIP, "/")[0]
+		}
+		if nodeIP, ok := node.Annotations["projectcalico.org/IPv6Address"]; ok {
+			nodeV6 = strings.Split(nodeIP, "/")[0]
+		}
+
+	} else if GetCNIPlugin() == ANTREA_CNI {
+		if nodeIPstr, ok := node.Annotations["node.antrea.io/transport-addresses"]; ok {
+			nodeIPlist := strings.Split(nodeIPstr, ",")
+			for _, nodeIP := range nodeIPlist {
+				if utils.IsV4(nodeIP) {
 					nodeV4 = nodeIP
+				} else {
+					nodeV6 = nodeIP
 				}
-			} else if nodeV6 == "" {
-				nodeV6 = nodeIP
 			}
 		}
 	}
-	if GetIPFamily() == "V6" {
-		if GetCNIPlugin() == CALICO_CNI {
-			if nodeIP, ok := node.Annotations["projectcalico.org/IPv4Address"]; ok {
-				nodeV4 = strings.Split(nodeIP, "/")[0]
-			}
-			if nodeIP, ok := node.Annotations["projectcalico.org/IPv6Address"]; ok {
-				nodeV6 = strings.Split(nodeIP, "/")[0]
-			}
-		}
-		if GetCNIPlugin() == ANTREA_CNI {
-			if nodeIPstr, ok := node.Annotations["node.antrea.io/transport-addresses"]; ok {
-				nodeIPlist := strings.Split(nodeIPstr, ",")
-				for _, nodeIP := range nodeIPlist {
-					if utils.IsV4(nodeIP) {
+
+	if nodeV4 == "" && nodeV6 == "" {
+		for _, addr := range nodeAddrs {
+			if addr.Type == corev1.NodeInternalIP {
+				nodeIP := addr.Address
+				if utils.IsV4(nodeIP) {
+					//Use first IP in the list
+					if nodeV4 == "" {
 						nodeV4 = nodeIP
-					} else {
-						nodeV6 = nodeIP
 					}
+				} else if nodeV6 == "" {
+					nodeV6 = nodeIP
 				}
 			}
 		}
