@@ -292,3 +292,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Changed
  - Annotation `external-dns.alpha.kubernetes.io/hostname` on the Service of type LoadBalancer overrides the `autoFQDN` feature for it.
+
+## AKO-1.7.6
+
+### Fixed
+ - AKO does not create static routes when a value greater than **2147483647** is specified for **LocalAs** (Local Autonomous System ID) field in Bgp profile. This scenario is applicable only when Bgp profile is specified for VRF Context.

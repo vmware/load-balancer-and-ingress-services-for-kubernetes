@@ -26,7 +26,7 @@ type BgpProfile struct {
 
 	// Local Autonomous System ID. Allowed values are 1-4294967295.
 	// Required: true
-	LocalAs *int32 `json:"local_as"`
+	LocalAs *uint32 `json:"local_as"`
 
 	// LOCAL_PREF to be used for routes advertised. Applicable only over iBGP. Field introduced in 20.1.1.
 	LocalPreference *int32 `json:"local_preference,omitempty"`
