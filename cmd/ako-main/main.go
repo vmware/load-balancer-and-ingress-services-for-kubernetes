@@ -174,11 +174,8 @@ func InitializeAKC() {
 		utils.AviLog.Infof("Kubernetes cluster apiserver version %s", serverVersion)
 		if lib.CompareVersions(serverVersion, ">", lib.GetK8sMaxSupportedVersion()) ||
 			lib.CompareVersions(serverVersion, "<", lib.GetK8sMinSupportedVersion()) {
-			// Temporary check of supporting 1.28 till we change it in version matrix
-			if serverVersion != lib.K8s_1_28 {
-				akoControlConfig.PodEventf(corev1.EventTypeWarning, lib.AKOShutdown, "Unsupported kubernetes apiserver %s version detected", serverVersion)
-				utils.AviLog.Fatalf("Unsupported kubernetes apiserver version detected. Please check the supportability guide.")
-			}
+			akoControlConfig.PodEventf(corev1.EventTypeWarning, lib.AKOShutdown, "Unsupported kubernetes apiserver %s version detected", serverVersion)
+			utils.AviLog.Fatalf("Unsupported kubernetes apiserver version detected. Please check the supportability guide.")
 		}
 	}
 
