@@ -308,7 +308,7 @@ func SetCloudName(cloudName string) {
 }
 
 func GetCloudRef(tenant string) string {
-	return fmt.Sprintf("/api/cloud?tenant=%s&name=%s", tenant, CloudName)
+	return fmt.Sprintf("/api/cloud?name=%s", CloudName)
 }
 
 func init() {
