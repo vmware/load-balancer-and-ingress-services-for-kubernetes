@@ -359,7 +359,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 			svcFQDN = getAutoFQDNForService(svcNSName[0], svcNSName[1])
 		}
 
-		poolName := lib.GetAdvL4PoolName(svcNSName[1], namespace, gwName, int32(port))
+		poolName := lib.GetAdvL4PoolName(svcNSName[1], namespace, gwName, portProto[0], int32(port))
 		if lib.UseServicesAPI() {
 			poolName = lib.GetSvcApiL4PoolName(svcNSName[1], namespace, gwName, portProto[0], int32(port))
 		}
