@@ -437,8 +437,8 @@ func GetL4PoolName(svcName, namespace, protocol string, port int32) string {
 	return Encode(poolName, L4Pool)
 }
 
-func GetAdvL4PoolName(svcName, namespace, gwName string, port int32) string {
-	poolName := NamePrefix + namespace + "-" + svcName + "-" + gwName + "--" + strconv.Itoa(int(port))
+func GetAdvL4PoolName(svcName, namespace, gwName, protocol string, port int32) string {
+	poolName := NamePrefix + namespace + "-" + svcName + "-" + gwName + "-" + protocol + "--" + strconv.Itoa(int(port))
 	return Encode(poolName, L4AdvPool)
 }
 
