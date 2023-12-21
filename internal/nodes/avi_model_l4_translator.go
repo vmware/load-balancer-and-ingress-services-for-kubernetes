@@ -298,7 +298,7 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 			var atype string
 			if v4Family && utils.IsV4(a.NodeIP) {
 				atype = "V4"
-			} else if v6Family {
+			} else if v6Family && utils.IsV6(a.NodeIP) {
 				atype = "V6"
 			} else {
 				continue
@@ -379,23 +379,14 @@ func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName st
 			nodeIP, nodeIP6 := lib.GetIPFromNode(node)
 			var atype string
 			var serverIP avimodels.IPAddr
-			if v4Family {
-				if nodeIP == "" {
-					utils.AviLog.Warnf("key: %s,msg: NodeIP not found for node: %s", key, node.Name)
-					continue
-				} else {
-					atype = "V4"
-					serverIP = avimodels.IPAddr{Type: &atype, Addr: &nodeIP}
-				}
-			} else if v6Family {
-				if nodeIP6 == "" {
-					utils.AviLog.Warnf("key: %s,msg: NodeIP6 not found for node: %s", key, node.Name)
-					continue
-				} else {
-					atype = "V6"
-					serverIP = avimodels.IPAddr{Type: &atype, Addr: &nodeIP6}
-				}
+			if v4Family && nodeIP != "" {
+				atype = "V4"
+				serverIP = avimodels.IPAddr{Type: &atype, Addr: &nodeIP}
+			} else if v6Family && nodeIP6 != "" {
+				atype = "V6"
+				serverIP = avimodels.IPAddr{Type: &atype, Addr: &nodeIP6}
 			} else {
+				utils.AviLog.Warnf("key: %s,msg: Correct NodeIP not found for node: %s", key, node.Name)
 				continue
 			}
 
@@ -457,12 +448,13 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 			var atype string
 			utils.AviLog.Infof("key: %s, msg: found port match for port %v", key, poolNode.Port)
 			for _, addr := range ss.Addresses {
-
 				ip := addr.IP
 				if v4Family && utils.IsV4(addr.IP) {
 					atype = "V4"
-				} else if v6Family {
+				} else if v6Family && utils.IsV6(addr.IP) {
 					atype = "V6"
+				} else {
+					continue
 				}
 				a := avimodels.IPAddr{Type: &atype, Addr: &ip}
 				server := AviPoolMetaServer{Ip: a}
@@ -479,7 +471,6 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 
 func PopulateServersForMultiClusterIngress(poolNode *AviPoolNode, ns, cluster, serviceNamespace, serviceName string, key string) []AviPoolMetaServer {
 
-	ipFamily := lib.GetIPFamily()
 	var servers []AviPoolMetaServer
 	svcName := generateMultiClusterKey(cluster, serviceNamespace, serviceName)
 	success, siNames := objects.SharedMultiClusterIngressSvcLister().MultiClusterIngressMappings(ns).GetSvcToSI(svcName)
@@ -499,17 +490,7 @@ func PopulateServersForMultiClusterIngress(poolNode *AviPoolNode, ns, cluster, s
 				addr := ep.IP
 				var addrType string
 				if utils.IsV4(addr) {
-					if ipFamily != "V4" {
-						utils.AviLog.Infof("Skipping server %s, ipFamily is %s", addr, ipFamily)
-						continue
-					}
 					addrType = "V4"
-				} else {
-					if ipFamily != "V6" {
-						utils.AviLog.Infof("Skipping server %s, ipFamily is %s", addr, ipFamily)
-						continue
-					}
-					addrType = "V6"
 				}
 				Ip := avimodels.IPAddr{
 					Addr: &addr,

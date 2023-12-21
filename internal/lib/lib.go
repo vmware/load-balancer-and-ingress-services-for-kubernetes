@@ -2018,39 +2018,7 @@ func UpdateV6(vip *models.Vip, vipNetwork *akov1beta1.AviInfraSettingVipNetwork)
 	}
 }
 
-var IPfamily string
-
-func SetIPFamily() {
-	ipFamily := os.Getenv(IP_FAMILY)
-	if GetCloudType() == CLOUD_VCENTER {
-		if ipFamily != "" {
-			utils.AviLog.Debugf("ipFamily is set to %s", ipFamily)
-			IPfamily = ipFamily
-			return
-		} else {
-			utils.AviLog.Debugf("ipFamily is not set, default is V4")
-			ipFamily = "V4"
-		}
-	} else {
-		ipFamily = "V4"
-	}
-	IPfamily = ipFamily
-}
-
-func GetIPFamily() string {
-	if IPfamily == "" {
-		SetIPFamily()
-	}
-	return IPfamily
-}
-
 func IsValidV6Config(returnErr *error) bool {
-	ipFamily := GetIPFamily()
-	if !(ipFamily == "V4" || ipFamily == "V6") {
-		*returnErr = fmt.Errorf("ipFamily is not one of (V4, V6)")
-		return false
-	}
-
 	vipNetworkList := utils.GetVipNetworkList()
 	isCloudVCenter := (GetCloudType() == CLOUD_VCENTER)
 	for _, vipNetwork := range vipNetworkList {
@@ -2165,7 +2133,7 @@ func GetIPFromNode(node *v1.Node) (string, string) {
 			for _, nodeIP := range nodeIPlist {
 				if utils.IsV4(nodeIP) {
 					nodeV4 = nodeIP
-				} else {
+				} else if utils.IsV6(nodeIP) {
 					nodeV6 = nodeIP
 				}
 			}
@@ -2176,12 +2144,9 @@ func GetIPFromNode(node *v1.Node) (string, string) {
 		for _, addr := range nodeAddrs {
 			if addr.Type == corev1.NodeInternalIP {
 				nodeIP := addr.Address
-				if utils.IsV4(nodeIP) {
-					//Use first IP in the list
-					if nodeV4 == "" {
-						nodeV4 = nodeIP
-					}
-				} else if nodeV6 == "" {
+				if utils.IsV4(nodeIP) && nodeV4 == "" {
+					nodeV4 = nodeIP
+				} else if utils.IsV6(nodeIP) && nodeV6 == "" {
 					nodeV6 = nodeIP
 				}
 			}
