@@ -102,6 +102,9 @@ type AviVsEvhSniModel interface {
 
 	GetGeneratedFields() *AviVsNodeGeneratedFields
 	GetCommonFields() *AviVsNodeCommonFields
+
+	GetNetworkSecurityPolicyRef() *string
+	SetNetworkSecurityPolicyRef(*string)
 }
 
 type AviEvhVsNode struct {
@@ -334,6 +337,14 @@ func (v *AviEvhVsNode) GetGeneratedFields() *AviVsNodeGeneratedFields {
 
 func (v *AviEvhVsNode) GetCommonFields() *AviVsNodeCommonFields {
 	return &v.AviVsNodeCommonFields
+}
+
+func (v *AviEvhVsNode) GetNetworkSecurityPolicyRef() *string {
+	return v.NetworkSecurityPolicyRef
+}
+
+func (v *AviEvhVsNode) SetNetworkSecurityPolicyRef(networkSecuirtyPolicyRef *string) {
+	v.NetworkSecurityPolicyRef = networkSecuirtyPolicyRef
 }
 
 func (o *AviObjectGraph) GetAviEvhVS() []*AviEvhVsNode {
@@ -678,6 +689,9 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 		vsRefs += utils.Stringify(sslKeyAndCertificateRefs)
 	}
 
+	if v.NetworkSecurityPolicyRef != nil {
+		vsRefs += *v.NetworkSecurityPolicyRef
+	}
 	sort.Strings(checksumStringSlice)
 	checksum := utils.Hash(strings.Join(checksumStringSlice, delim) +
 		v.ApplicationProfile +

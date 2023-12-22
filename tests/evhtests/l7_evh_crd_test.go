@@ -262,6 +262,8 @@ func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].VHDomainNames).To(gomega.ContainElement("bar.com"))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[1].RedirectPorts[0].Hosts).To(gomega.ContainElement("bar.com"))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Host).To(gomega.ContainElement("bar.com"))
+	// Hostrule with normal FQDN should not have reference to network security policy
+	g.Expect(nodes[0].NetworkSecurityPolicyRef).Should(gomega.BeNil())
 
 	//Update with another fqdn
 	hrUpdate := integrationtest.FakeHostRule{
@@ -351,16 +353,17 @@ func TestCreateDeleteSharedVSHostRuleForEvh(t *testing.T) {
 		fqdn = "cluster--Shared-L7-EVH-NS-default.admin.com"
 	}
 	hostrule := integrationtest.FakeHostRule{
-		Name:               hrname,
-		Namespace:          "default",
-		Fqdn:               fqdn,
-		WafPolicy:          "thisisaviref-waf",
-		ApplicationProfile: "thisisaviref-appprof",
-		ICAPProfile:        []string{"thisisaviref-icapprof"},
-		AnalyticsProfile:   "thisisaviref-analyticsprof",
-		ErrorPageProfile:   "thisisaviref-errorprof",
-		Datascripts:        []string{"thisisaviref-ds2", "thisisaviref-ds1"},
-		HttpPolicySets:     []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
+		Name:                  hrname,
+		Namespace:             "default",
+		Fqdn:                  fqdn,
+		WafPolicy:             "thisisaviref-waf",
+		ApplicationProfile:    "thisisaviref-appprof",
+		ICAPProfile:           []string{"thisisaviref-icapprof"},
+		AnalyticsProfile:      "thisisaviref-analyticsprof",
+		ErrorPageProfile:      "thisisaviref-errorprof",
+		Datascripts:           []string{"thisisaviref-ds2", "thisisaviref-ds1"},
+		HttpPolicySets:        []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
+		NetworkSecurityPolicy: "thisisaviref-networksecuritypolicyref",
 	}
 	hrCreate := hostrule.HostRule()
 	hrCreate.Spec.VirtualHost.TCPSettings = &v1beta1.HostRuleTCPSettings{
@@ -394,6 +397,7 @@ func TestCreateDeleteSharedVSHostRuleForEvh(t *testing.T) {
 	g.Expect(nodes[0].VsDatascriptRefs).To(gomega.HaveLen(2))
 	g.Expect(nodes[0].VsDatascriptRefs[0]).To(gomega.ContainSubstring("thisisaviref-ds2"))
 	g.Expect(nodes[0].VsDatascriptRefs[1]).To(gomega.ContainSubstring("thisisaviref-ds1"))
+	g.Expect(*nodes[0].NetworkSecurityPolicyRef).To(gomega.ContainSubstring("thisisaviref-networksecuritypolicyref"))
 	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(3))
 	var ports []int
 	for _, port := range nodes[0].PortProto {
@@ -420,6 +424,7 @@ func TestCreateDeleteSharedVSHostRuleForEvh(t *testing.T) {
 	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].VsDatascriptRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].SslProfileRef).To(gomega.BeNil())
+	g.Expect(nodes[0].NetworkSecurityPolicyRef).To(gomega.BeNil())
 	ports = []int{}
 	for _, port := range nodes[0].PortProto {
 		ports = append(ports, int(port.Port))

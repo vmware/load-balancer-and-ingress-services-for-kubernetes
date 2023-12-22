@@ -1434,20 +1434,21 @@ func (ing FakeIngress) UpdateIngress() (*networking.Ingress, error) {
 
 // HostRule/HTTPRule lib functions
 type FakeHostRule struct {
-	Name               string
-	Namespace          string
-	Fqdn               string
-	SslKeyCertificate  string
-	SslProfile         string
-	WafPolicy          string
-	ApplicationProfile string
-	ICAPProfile        []string
-	EnableVirtualHost  bool
-	AnalyticsProfile   string
-	ErrorPageProfile   string
-	Datascripts        []string
-	HttpPolicySets     []string
-	GslbFqdn           string
+	Name                  string
+	Namespace             string
+	Fqdn                  string
+	SslKeyCertificate     string
+	SslProfile            string
+	WafPolicy             string
+	ApplicationProfile    string
+	ICAPProfile           []string
+	EnableVirtualHost     bool
+	AnalyticsProfile      string
+	ErrorPageProfile      string
+	Datascripts           []string
+	HttpPolicySets        []string
+	GslbFqdn              string
+	NetworkSecurityPolicy string
 }
 
 func (hr FakeHostRule) HostRule() *akov1beta1.HostRule {
@@ -1482,6 +1483,10 @@ func (hr FakeHostRule) HostRule() *akov1beta1.HostRule {
 				Gslb: akov1beta1.HostRuleGSLB{
 					Fqdn: hr.GslbFqdn,
 				},
+				NetworkSecurityPolicy: akov1beta1.HostRuleNetworkSecurityPolicy{
+					Name: hr.NetworkSecurityPolicy,
+					Type: "ref",
+				},
 			},
 		},
 	}
@@ -1491,17 +1496,18 @@ func (hr FakeHostRule) HostRule() *akov1beta1.HostRule {
 
 func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool, gslbHost ...string) {
 	hostrule := FakeHostRule{
-		Name:               hrname,
-		Namespace:          "default",
-		Fqdn:               fqdn,
-		WafPolicy:          "thisisaviref-waf",
-		ApplicationProfile: "thisisaviref-appprof",
-		AnalyticsProfile:   "thisisaviref-analyticsprof",
-		ErrorPageProfile:   "thisisaviref-errorprof",
-		ICAPProfile:        []string{"thisisaviref-icapprof"},
-		Datascripts:        []string{"thisisaviref-ds2", "thisisaviref-ds1"},
-		HttpPolicySets:     []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
-		GslbFqdn:           "bar.com",
+		Name:                  hrname,
+		Namespace:             "default",
+		Fqdn:                  fqdn,
+		WafPolicy:             "thisisaviref-waf",
+		ApplicationProfile:    "thisisaviref-appprof",
+		AnalyticsProfile:      "thisisaviref-analyticsprof",
+		ErrorPageProfile:      "thisisaviref-errorprof",
+		ICAPProfile:           []string{"thisisaviref-icapprof"},
+		Datascripts:           []string{"thisisaviref-ds2", "thisisaviref-ds1"},
+		HttpPolicySets:        []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
+		NetworkSecurityPolicy: "thisisaviref-networksecuritypolicyref",
+		GslbFqdn:              "bar.com",
 	}
 	if len(gslbHost) > 0 {
 		// It's assumed that the update case updates the gslb fqdn else bar.com is used.

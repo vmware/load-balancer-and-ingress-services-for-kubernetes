@@ -430,6 +430,9 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		}
 		vs.AnalyticsPolicy = vs_meta.GetAnalyticsPolicy()
 
+		if vs_meta.NetworkSecurityPolicyRef != nil {
+			vs.NetworkSecurityPolicyRef = vs_meta.NetworkSecurityPolicyRef
+		}
 		if err := copier.CopyWithOption(&vs, &vs_meta.AviVsNodeGeneratedFields, copier.Option{IgnoreEmpty: true}); err != nil {
 			utils.AviLog.Warnf("key: %s, msg: unable to set few parameters in the VS, err: %v", key, err)
 		}
