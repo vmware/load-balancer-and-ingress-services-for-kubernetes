@@ -1132,6 +1132,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 		evhNode = vsNode[0]
 		evhNode.DeletSSLRefInDedicatedNode(key)
 		evhNode.DeleteSSLPort(key)
+		evhNode.Secure = false
 		evhNode.DeleteSecureAppProfile(key)
 	} else {
 		vsNode[0].DeleteSSLRefInEVHNode(lib.GetTLSKeyCertNodeName(infraSettingName, host, ""), key)
@@ -1457,6 +1458,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 		vsNode[0].ServiceMetadata.Namespace = namespace
 		vsNode[0].ServiceMetadata.HostNames = hosts
 		vsNode[0].AddSSLPort(key)
+		vsNode[0].Secure = true
 		vsNode[0].ApplicationProfile = utils.DEFAULT_L7_SECURE_APP_PROFILE
 		vsNode[0].AviMarkers = lib.PopulateVSNodeMarkers(namespace, host, infraSettingName)
 	}
