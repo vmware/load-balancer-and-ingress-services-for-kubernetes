@@ -689,9 +689,6 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 		vsRefs += utils.Stringify(sslKeyAndCertificateRefs)
 	}
 
-	if v.NetworkSecurityPolicyRef != nil {
-		vsRefs += *v.NetworkSecurityPolicyRef
-	}
 	sort.Strings(checksumStringSlice)
 	checksum := utils.Hash(strings.Join(checksumStringSlice, delim) +
 		v.ApplicationProfile +

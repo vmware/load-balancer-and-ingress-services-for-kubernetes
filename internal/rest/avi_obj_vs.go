@@ -217,9 +217,6 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			setDedicatedVSNodeProperties(&vs, vs_meta)
 		}
 
-		if vs_meta.NetworkSecurityPolicyRef != nil {
-			vs.NetworkSecurityPolicyRef = vs_meta.NetworkSecurityPolicyRef
-		}
 		bufferLen := int32(len(httpPolicyCollection)) + internalPolicyIndexBuffer + 5
 		for i, policy := range vs_meta.HttpPolicySetRefs {
 			j := int32(i) + bufferLen

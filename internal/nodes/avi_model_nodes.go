@@ -991,9 +991,6 @@ func (v *AviVsNode) CalculateCheckSum() {
 		vsRefs += utils.Stringify(icaprefs)
 	}
 
-	if v.NetworkSecurityPolicyRef != nil {
-		vsRefs += *v.NetworkSecurityPolicyRef
-	}
 	if len(v.ServiceMetadata.HostNames) > 0 {
 		sort.Strings(v.ServiceMetadata.HostNames)
 		vsRefs += utils.Stringify(v.ServiceMetadata.HostNames)
