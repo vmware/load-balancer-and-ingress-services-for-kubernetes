@@ -22,6 +22,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	gatewayclientset "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
 	gatewayinformerv1 "sigs.k8s.io/gateway-api/pkg/client/informers/externalversions/apis/v1"
+	gatewayinformerv1beta1 "sigs.k8s.io/gateway-api/pkg/client/informers/externalversions/apis/v1beta1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -31,6 +32,7 @@ type GatewayAPIInformers struct {
 	GatewayInformer      gatewayinformerv1.GatewayInformer
 	GatewayClassInformer gatewayinformerv1.GatewayClassInformer
 	HTTPRouteInformer    gatewayinformerv1.HTTPRouteInformer
+	ReferenceGrantInformer gatewayinformerv1beta1.ReferenceGrantInformer
 }
 
 // akoControlConfig struct is intended to store all AKO related global

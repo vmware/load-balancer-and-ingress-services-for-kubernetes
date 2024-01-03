@@ -22,6 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
+	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
@@ -50,6 +51,78 @@ func IsGatewayClassValid(key string, gatewayClass *gatewayv1.GatewayClass) bool 
 	utils.AviLog.Infof("key: %s, msg: GatewayClass object %s is valid", key, gatewayClass.Name)
 	return true
 }
+
+func IsValidReferenceGrant(key string, referenceGrant *gatewayv1beta1.ReferenceGrant) bool {	
+	referenceGrantobj := referenceGrant.DeepCopy()
+
+	//Length of From section should not be greater than 1
+	if len(referenceGrantobj.Spec.From)>1{
+	utils.AviLog.Errorf("key: %s, msg: Length of From section should not be greater than one for ReferenceGrant %s", key, referenceGrantobj.Name)
+	akogatewayapilib.AKOControlConfig().EventRecorder().Eventf(referenceGrantobj, corev1.EventTypeWarning,
+				lib.Detached, "Length of From section should not be greater than one for ReferenceGrant %s", referenceGrantobj.Name)
+			return false
+	}
+
+	//Length of To section should not be greater than 1
+	if len(referenceGrantobj.Spec.To)>1{
+		utils.AviLog.Errorf("key: %s, msg: Length of To section should not be greater than one for ReferenceGrant %s", key, referenceGrantobj.Name)
+		akogatewayapilib.AKOControlConfig().EventRecorder().Eventf(referenceGrantobj, corev1.EventTypeWarning,
+					lib.Detached, "Length of To section should not be greater than one for ReferenceGrant %s", referenceGrantobj.Name)
+				return false
+		}
+
+	//Only one namespace should be allowed in From Section
+	if len(referenceGrantobj.Spec.From[0].Namespace)>1{
+		utils.AviLog.Errorf("key: %s, msg: Only one namespace should be allowed in From Section for ReferenceGrant %s", key, referenceGrantobj.Name)
+		akogatewayapilib.AKOControlConfig().EventRecorder().Eventf(referenceGrantobj, corev1.EventTypeWarning,
+					lib.Detached, "Only one namespace should be allowed in From Section for ReferenceGrant %s", referenceGrantobj.Name)
+				return false
+		}
+
+	//Group should only be in from "gateway.networking.k8s.io"
+	if referenceGrantobj.Spec.From[0].Group!=lib.GateWayNetworkingK8Group{
+		utils.AviLog.Errorf("key: %s, msg: Invalid Group in From section for ReferenceGrant %s", key, referenceGrantobj.Name)
+		akogatewayapilib.AKOControlConfig().EventRecorder().Eventf(referenceGrantobj, corev1.EventTypeWarning,
+					lib.Detached, "Invalid Group in From section for ReferenceGrant %s", referenceGrantobj.Name)
+				return false
+		}
+
+	//Group should only be "networking.k8s.io or "" in To section"
+	if referenceGrantobj.Spec.To[0].Group!="" && referenceGrantobj.Spec.To[0].Group!=lib.NetworkingK8Group{
+		utils.AviLog.Errorf("key: %s, msg: Invalid Group in To section for ReferenceGrant %s", key, referenceGrantobj.Name)
+		akogatewayapilib.AKOControlConfig().EventRecorder().Eventf(referenceGrantobj, corev1.EventTypeWarning,
+					lib.Detached, "Invalid Group in To section for ReferenceGrant %s", referenceGrantobj.Name)
+				return false
+		}
+
+	//Kind should only be gateway/httproute in From Section
+	if referenceGrantobj.Spec.From[0].Kind!=lib.Gateway && referenceGrantobj.Spec.From[0].Kind!=lib.HTTPRoute{
+		utils.AviLog.Errorf("key: %s, msg: Invalid kind in From Section for ReferenceGrant %s", key, referenceGrantobj.Name)
+		akogatewayapilib.AKOControlConfig().EventRecorder().Eventf(referenceGrantobj, corev1.EventTypeWarning,
+					lib.Detached, "Invalid kind in From Section for ReferenceGrant %s", referenceGrantobj.Name)
+				return false
+		}
+
+	//Kind should only be services/secrets in To Section
+	if referenceGrantobj.Spec.To[0].Kind!=lib.Secret && referenceGrantobj.Spec.To[0].Kind!=lib.Service{
+		utils.AviLog.Errorf("key: %s, msg: Invalid kind in To Section for ReferenceGrant %s", key, referenceGrantobj.Name)
+		akogatewayapilib.AKOControlConfig().EventRecorder().Eventf(referenceGrantobj, corev1.EventTypeWarning,
+					lib.Detached, "Invalid kind in To Section for ReferenceGrant %s", referenceGrantobj.Name)
+				return false
+		}
+
+	//Only Gateway->Secrets and Httproutes->Services allowed
+	if (referenceGrantobj.Spec.From[0].Kind==lib.Gateway && referenceGrantobj.Spec.To[0].Kind!=lib.Secret) || (referenceGrantobj.Spec.From[0].Kind==lib.HTTPRoute && referenceGrantobj.Spec.To[0].Kind!=lib.Service){
+		utils.AviLog.Errorf("key: %s, msg: Only Gateway->Secret and HTTPRoute-> Service Reference is allowed for ReferenceGrant %s", key, referenceGrantobj.Name)
+		akogatewayapilib.AKOControlConfig().EventRecorder().Eventf(referenceGrantobj, corev1.EventTypeWarning,
+					lib.Detached, " Only Gateway->Secret and HTTPRoute-> Service Reference is allowed for ReferenceGrant %s", referenceGrantobj.Name)
+				return false
+		}
+
+	utils.AviLog.Infof("key: %s, msg: ReferenceGrant object %s is valid", key, referenceGrant.Name)
+	return true
+}
+
 
 func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 	spec := gateway.Spec

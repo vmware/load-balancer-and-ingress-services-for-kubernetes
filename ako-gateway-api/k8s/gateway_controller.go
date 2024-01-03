@@ -25,6 +25,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
+	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 	gatewayclientset "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
 	gatewayexternalversions "sigs.k8s.io/gateway-api/pkg/client/informers/externalversions"
 
@@ -62,6 +63,7 @@ func (c *GatewayController) InitGatewayAPIInformers(cs gatewayclientset.Interfac
 		GatewayInformer:      gatewayFactory.Gateway().V1().Gateways(),
 		GatewayClassInformer: gatewayFactory.Gateway().V1().GatewayClasses(),
 		HTTPRouteInformer:    gatewayFactory.Gateway().V1().HTTPRoutes(),
+		ReferenceGrantInformer: gatewayFactory.Gateway().V1beta1().ReferenceGrants(),
 	})
 }
 
@@ -83,7 +85,8 @@ func (c *GatewayController) Start(stopCh <-chan struct{}) {
 		go c.informers.PodInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.informers.PodInformer.Informer().HasSynced)
 	}
-
+	go akogatewayapilib.AKOControlConfig().GatewayApiInformers().ReferenceGrantInformer.Informer().Run(stopCh)
+	informersList = append(informersList, akogatewayapilib.AKOControlConfig().GatewayApiInformers().ReferenceGrantInformer.Informer().HasSynced)
 	go akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Informer().Run(stopCh)
 	informersList = append(informersList, akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Informer().HasSynced)
 	go akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Informer().Run(stopCh)
@@ -314,6 +317,71 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 	utils.AviLog.Infof("Setting up Gateway API Event handlers")
 	informer := akogatewayapilib.AKOControlConfig().GatewayApiInformers()
 
+	referenceGrantEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			referenceGrant := obj.(*gatewayv1beta1.ReferenceGrant)
+			key := lib.ReferenceGrant + "/" + utils.ObjKey(referenceGrant)
+			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
+			if ok && resVer.(string) == referenceGrant.ResourceVersion {
+				utils.AviLog.Debugf("key: %s, msg: same resource version returning", key)
+				return
+			}
+			if !IsValidReferenceGrant(key, referenceGrant) {
+				return
+			}
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(referenceGrant))
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+		},
+		DeleteFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			referenceGrant, ok := obj.(*gatewayv1beta1.ReferenceGrant)
+			if !ok {
+				// ReferenceGrant was deleted but its final state is unrecorded.
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				referenceGrant, ok = tombstone.Obj.(*gatewayv1beta1.ReferenceGrant)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not a ReferenceGrant: %#v", obj)
+					return
+				}
+			}
+			key := lib.ReferenceGrant + "/" + utils.ObjKey(referenceGrant)
+			objects.SharedResourceVerInstanceLister().Delete(key)
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(referenceGrant))
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+		},
+		UpdateFunc: func(old, obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			oldReferenceGrant := old.(*gatewayv1beta1.ReferenceGrant)
+			referenceGrant := obj.(*gatewayv1beta1.ReferenceGrant)
+			if IsReferenceGrantUpdated(oldReferenceGrant, referenceGrant) {
+				key := lib.ReferenceGrant + "/" + utils.ObjKey(referenceGrant)
+				if !IsValidReferenceGrant(key, referenceGrant) {
+					return
+				}
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(referenceGrant))
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+			}
+		},
+	}
+	informer.ReferenceGrantInformer.Informer().AddEventHandler(referenceGrantEventHandler)
+
 	gatewayEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -529,5 +597,14 @@ func IsHTTPRouteUpdated(oldHTTPRoute, newHTTPRoute *gatewayv1.HTTPRoute) bool {
 	}
 	oldHash := utils.Hash(utils.Stringify(oldHTTPRoute.Spec))
 	newHash := utils.Hash(utils.Stringify(newHTTPRoute.Spec))
+	return oldHash != newHash
+}
+
+func IsReferenceGrantUpdated(oldReferenceGrant, newReferenceGrant *gatewayv1beta1.ReferenceGrant) bool {
+	if newReferenceGrant.GetDeletionTimestamp() != nil {
+		return true
+	}
+	oldHash := utils.Hash(utils.Stringify(oldReferenceGrant.Spec))
+	newHash := utils.Hash(utils.Stringify(newReferenceGrant.Spec))
 	return oldHash != newHash
 }

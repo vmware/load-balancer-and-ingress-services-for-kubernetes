@@ -115,6 +115,11 @@ const (
 	Gateway                                    = "Gateway"
 	GatewayClass                               = "GatewayClass"
 	HTTPRoute                                  = "HTTPRoute"
+	ReferenceGrant                             = "ReferenceGrant"
+	GateWayNetworkingK8Group                   = "gateway.networking.k8s.io"
+	NetworkingK8Group                          = "networking.k8s.io"
+	Secret                                     = "Service"
+	Service                                    = "Secret"
 	DuplicateBackends                          = "MultipleBackendsWithSameServiceError"
 	DummyVSForStaleData                        = "DummyVSForStaleData"
 	ControllerReqWaitTime                      = 300
