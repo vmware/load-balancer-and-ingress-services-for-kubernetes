@@ -261,7 +261,10 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	if !validateUserInput {
 		return errors.New("sync is disabled because of configmap unavailability during bootup")
 	}
-	c.DisableSync, _ = DeleteConfigFromConfigmap(cs)
+	c.DisableSync, err = DeleteConfigFromConfigmap(cs)
+	if err != nil {
+		return err
+	}
 	lib.SetDisableSync(c.DisableSync)
 
 	configMapEventHandler := cache.ResourceEventHandlerFuncs{
