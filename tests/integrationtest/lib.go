@@ -984,7 +984,11 @@ func CreateEP(t *testing.T, ns string, Name string, multiPort bool, multiAddress
 		}
 		var epAddresses []corev1.EndpointAddress
 		for j := 0; j < numAddresses; j++ {
-			epAddresses = append(epAddresses, corev1.EndpointAddress{IP: fmt.Sprintf("%s.%d", addressPrefix, addressStartIndex+j+1)})
+			if strings.Contains(addressPrefix, "::") {
+				epAddresses = append(epAddresses, corev1.EndpointAddress{IP: fmt.Sprintf("%s%d", addressPrefix, addressStartIndex+j+1)})
+			} else {
+				epAddresses = append(epAddresses, corev1.EndpointAddress{IP: fmt.Sprintf("%s.%d", addressPrefix, addressStartIndex+j+1)})
+			}
 		}
 		numAddresses = numAddresses - 1
 		addressStart = addressStart + numAddresses
