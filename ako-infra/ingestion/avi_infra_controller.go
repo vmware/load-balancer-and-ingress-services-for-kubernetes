@@ -113,8 +113,12 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 			continue
 		}
 		if cloud.NsxtConfiguration.ManagementNetworkConfig == nil ||
-			cloud.NsxtConfiguration.ManagementNetworkConfig.TransportZone == nil ||
-			*cloud.NsxtConfiguration.ManagementNetworkConfig.TransportZone != tz {
+			cloud.NsxtConfiguration.ManagementNetworkConfig.TransportZone == nil {
+			continue
+		}
+		if cloud.NsxtConfiguration.DataNetworkConfig == nil ||
+			cloud.NsxtConfiguration.DataNetworkConfig.TransportZone == nil ||
+			*cloud.NsxtConfiguration.DataNetworkConfig.TransportZone != tz {
 			continue
 		}
 		utils.AviLog.Infof("Found NSX-T cloud: %s match Transport Zone: %s", *cloud.Name, tz)
