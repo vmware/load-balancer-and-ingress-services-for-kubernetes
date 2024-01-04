@@ -681,12 +681,15 @@ func (svc FakeService) Service() *corev1.Service {
 			NodePort:   svcport.NodePort,
 		})
 	}
+	ipFamilyPolicy := corev1.IPFamilyPolicy("SingleStack")
 	svcExample := &corev1.Service{
 		Spec: corev1.ServiceSpec{
 			Type:           svc.Type,
 			Ports:          ports,
 			LoadBalancerIP: svc.LoadBalancerIP,
 			Selector:       svc.Selectors,
+			IPFamilyPolicy: &ipFamilyPolicy,
+			IPFamilies:     []corev1.IPFamily{"IPv4"},
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:   svc.Namespace,

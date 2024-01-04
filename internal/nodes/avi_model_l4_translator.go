@@ -280,11 +280,13 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 	if len(svcObj.Spec.IPFamilies) == 2 {
 		v4Family = true
 		v6Family = true
-	} else if svcObj.Spec.IPFamilies[0] == "IPv4" {
-		v4Family = true
 	} else if svcObj.Spec.IPFamilies[0] == "IPv6" {
 		v6Family = true
+	} else {
+		v4Family = true
 	}
+	v4ServerCount := 0
+	v6ServerCount := 0
 	var poolMeta []AviPoolMetaServer
 
 	for _, pod := range pods {
@@ -297,8 +299,10 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 		for _, a := range annotations {
 			var atype string
 			if v4Family && utils.IsV4(a.NodeIP) {
+				v4ServerCount++
 				atype = "V4"
 			} else if v6Family && utils.IsV6(a.NodeIP) {
+				v6ServerCount++
 				atype = "V6"
 			} else {
 				continue
@@ -315,7 +319,18 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 			}
 		}
 	}
-	utils.AviLog.Infof("key: %s, msg: servers for port: %v (%v), are: %v", key, poolNode.Port, poolNode.PortName, utils.Stringify(poolMeta))
+	if len(poolMeta) == 0 {
+		utils.AviLog.Warnf("key: %s, msg: no servers for port: %v (%v)", key, poolNode.Port, poolNode.PortName)
+	} else {
+		if v4Family && v4ServerCount == 0 {
+			utils.AviLog.Warnf("key: %s, msg: expected IPv4 servers but found none for port %v (%v)", key, poolNode.Port, poolNode.PortName)
+		}
+		if v6Family && v6ServerCount == 0 {
+			utils.AviLog.Warnf("key: %s, msg: expected IPv6 servers but found none for port %v (%v)", key, poolNode.Port, poolNode.PortName)
+		}
+		utils.AviLog.Infof("key: %s, msg: servers for port: %v (%v), are: %v", key, poolNode.Port, poolNode.PortName, utils.Stringify(poolMeta))
+	}
+
 	return poolMeta
 }
 
@@ -323,6 +338,8 @@ func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName st
 
 	v4Family := false
 	v6Family := false
+	v4ServerCount := 0
+	v6ServerCount := 0
 	// Get all nodes which match nodePortSelector
 	nodePortSelector := lib.GetNodePortsSelector()
 	nodePortFilter := map[string]string{}
@@ -342,10 +359,10 @@ func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName st
 	if len(svcObj.Spec.IPFamilies) == 2 {
 		v4Family = true
 		v6Family = true
-	} else if svcObj.Spec.IPFamilies[0] == "IPv4" {
-		v4Family = true
 	} else if svcObj.Spec.IPFamilies[0] == "IPv6" {
 		v6Family = true
+	} else {
+		v4Family = true
 	}
 	// Populate pool servers
 	if lib.IsServiceClusterIPType(svcObj) {
@@ -380,19 +397,32 @@ func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName st
 			var atype string
 			var serverIP avimodels.IPAddr
 			if v4Family && nodeIP != "" {
+				v4ServerCount++
 				atype = "V4"
 				serverIP = avimodels.IPAddr{Type: &atype, Addr: &nodeIP}
 			} else if v6Family && nodeIP6 != "" {
+				v6ServerCount++
 				atype = "V6"
 				serverIP = avimodels.IPAddr{Type: &atype, Addr: &nodeIP6}
 			} else {
-				utils.AviLog.Warnf("key: %s,msg: Correct NodeIP not found for node: %s", key, node.Name)
 				continue
 			}
 
 			server := AviPoolMetaServer{Ip: serverIP}
 			poolMeta = append(poolMeta, server)
 		}
+	}
+
+	if len(poolMeta) == 0 {
+		utils.AviLog.Warnf("key: %s, msg: no servers for port: %v (%v)", key, poolNode.Port, poolNode.PortName)
+	} else {
+		if v4Family && v4ServerCount == 0 {
+			utils.AviLog.Warnf("key: %s, msg: expected IPv4 servers but found none for port %v (%v)", key, poolNode.Port, poolNode.PortName)
+		}
+		if v6Family && v6ServerCount == 0 {
+			utils.AviLog.Warnf("key: %s, msg: expected IPv6 servers but found none for port %v (%v)", key, poolNode.Port, poolNode.PortName)
+		}
+		utils.AviLog.Infof("key: %s, msg: servers for port: %v (%v), are: %v", key, poolNode.Port, poolNode.PortName, utils.Stringify(poolMeta))
 	}
 
 	return poolMeta
@@ -416,13 +446,15 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 	}
 	v4Family := false
 	v6Family := false
+	v4ServerCount := 0
+	v6ServerCount := 0
 	if len(svcObj.Spec.IPFamilies) == 2 {
 		v4Family = true
 		v6Family = true
-	} else if svcObj.Spec.IPFamilies[0] == "IPv4" {
-		v4Family = true
 	} else if svcObj.Spec.IPFamilies[0] == "IPv6" {
 		v6Family = true
+	} else {
+		v4Family = true
 	}
 	epObj, err := utils.GetInformers().EpInformer.Lister().Endpoints(ns).Get(serviceName)
 	if err != nil {
@@ -450,8 +482,10 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 			for _, addr := range ss.Addresses {
 				ip := addr.IP
 				if v4Family && utils.IsV4(addr.IP) {
+					v4ServerCount++
 					atype = "V4"
 				} else if v6Family && utils.IsV6(addr.IP) {
+					v6ServerCount++
 					atype = "V6"
 				} else {
 					continue
@@ -465,7 +499,17 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 			}
 		}
 	}
-	utils.AviLog.Infof("key: %s, msg: servers for port: %v, are: %v", key, poolNode.Port, utils.Stringify(pool_meta))
+	if len(pool_meta) == 0 {
+		utils.AviLog.Warnf("key: %s, msg: no servers for port: %v", key, poolNode.Port)
+	} else {
+		if v4Family && v4ServerCount == 0 {
+			utils.AviLog.Warnf("key: %s, msg: expected IPv4 servers but found none for port %v", key, poolNode.Port)
+		}
+		if v6Family && v6ServerCount == 0 {
+			utils.AviLog.Warnf("key: %s, msg: expected IPv6 servers but found none for port %v", key, poolNode.Port)
+		}
+		utils.AviLog.Infof("key: %s, msg: servers for port: %v , are: %v", key, poolNode.Port, utils.Stringify(pool_meta))
+	}
 	return pool_meta
 }
 

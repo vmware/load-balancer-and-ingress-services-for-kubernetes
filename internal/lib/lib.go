@@ -2140,7 +2140,7 @@ func GetIPFromNode(node *v1.Node) (string, string) {
 		}
 	}
 
-	if nodeV4 == "" && nodeV6 == "" {
+	if nodeV4 == "" || nodeV6 == "" {
 		for _, addr := range nodeAddrs {
 			if addr.Type == corev1.NodeInternalIP {
 				nodeIP := addr.Address
