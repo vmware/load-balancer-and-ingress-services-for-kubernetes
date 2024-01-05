@@ -163,7 +163,7 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: disableStaticRouteSync
-           {{ if .Values.NetworkSettings.nsxtT1LR }}
+          {{ if .Values.NetworkSettings.nsxtT1LR }}
           - name: NSXT_T1_LR
             valueFrom:
               configMapKeyRef:
@@ -293,14 +293,6 @@ spec:
           image: "{{ .Values.GatewayAPI.image.repository }}:{{ .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.GatewayAPI.image.pullPolicy }}
           env:
-          {{ if .Values.persistentVolumeClaim }}
-          - name: USE_PVC
-            value: "true"
-          {{ end }}
-          - name: LOG_FILE_PATH
-            value: {{ .Values.mountPath }}
-          - name: LOG_FILE_NAME
-            value: {{ .Values.akoGatewayLogFile }}
           - name: CTRL_IPADDRESS
             valueFrom:
               configMapKeyRef:
@@ -311,11 +303,16 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: controllerVersion
-          - name: CLUSTER_NAME
+          - name: CNI_PLUGIN
             valueFrom:
               configMapKeyRef:
                 name: avi-k8s-config
-                key: clusterName
+                key: cniPlugin
+          - name: FULL_SYNC_INTERVAL
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: fullSyncFrequency
           - name: PRIMARY_AKO_FLAG
             valueFrom:
               configMapKeyRef:
@@ -331,6 +328,61 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: tenantName
+          - name: CLUSTER_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: clusterName
+          - name: ENABLE_RHI
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: enableRHI
+          - name: SEG_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: serviceEngineGroupName
+          - name: BGP_PEER_LABELS
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: bgpPeerLabels
+          - name: NODE_NETWORK_LIST
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: nodeNetworkList
+          - name: VIP_NETWORK_LIST
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: vipNetworkList
+          - name: SERVICE_TYPE
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: serviceType
+          {{ if eq .Values.L7Settings.serviceType "NodePort" }}
+          - name: NODE_KEY
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: nodeKey
+          - name: NODE_VALUE
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: nodeValue
+          {{ end }}
+          {{ if .Values.persistentVolumeClaim }}
+          - name: USE_PVC
+            value: "true"
+          {{ end }}
+          - name: LOG_FILE_PATH
+            value: {{ .Values.mountPath }}
+          - name: LOG_FILE_NAME
+            value: {{ .Values.akoGatewayLogFile }}
           - name: POD_NAME
             valueFrom:
               fieldRef:
@@ -339,21 +391,6 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-          - name: SEG_NAME
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: serviceEngineGroupName
-          - name: FULL_SYNC_INTERVAL
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: fullSyncFrequency
-          - name: SERVICE_TYPE
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: serviceType
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
         {{ end }}
