@@ -1483,10 +1483,7 @@ func (hr FakeHostRule) HostRule() *akov1beta1.HostRule {
 				Gslb: akov1beta1.HostRuleGSLB{
 					Fqdn: hr.GslbFqdn,
 				},
-				NetworkSecurityPolicy: akov1beta1.HostRuleNetworkSecurityPolicy{
-					Name: hr.NetworkSecurityPolicy,
-					Type: "ref",
-				},
+				NetworkSecurityPolicy: hr.NetworkSecurityPolicy,
 			},
 		},
 	}

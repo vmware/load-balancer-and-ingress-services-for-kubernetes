@@ -157,9 +157,9 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 				}
 			}
 		}
-		if hostrule.Spec.VirtualHost.NetworkSecurityPolicy.Name != "" {
+		if hostrule.Spec.VirtualHost.NetworkSecurityPolicy != "" {
 			if vsNode.IsSharedVS() || vsNode.IsDedicatedVS() {
-				vsNetworkSecurityPolicy = proto.String(fmt.Sprintf("/api/networksecuritypolicy?name=%s", hostrule.Spec.VirtualHost.NetworkSecurityPolicy.Name))
+				vsNetworkSecurityPolicy = proto.String(fmt.Sprintf("/api/networksecuritypolicy?name=%s", hostrule.Spec.VirtualHost.NetworkSecurityPolicy))
 			} else {
 				utils.AviLog.Warnf("key: %s, can not associate network security policy with host which is attached to child virtual service. Configuration is ignored", key)
 				lib.AKOControlConfig().EventRecorder().Eventf(hostrule, corev1.EventTypeWarning, lib.InvalidConfiguration,

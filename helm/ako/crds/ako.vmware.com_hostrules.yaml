@@ -60,19 +60,6 @@ spec:
                           type: string
                         type: array
                     type: object
-                  networkSecurityPolicy:
-                    properties:
-                      name:
-                        type: string
-                      type:
-                        type: string
-                        enum:
-                        - ref
-                        - custom
-                        default: ref
-                    required:
-                    - name
-                    type: object
                   gslb:
                     properties:
                       fqdn:
@@ -219,18 +206,7 @@ spec:
                         type: array
                     type: object
                   networkSecurityPolicy:
-                    properties:
-                      name:
-                        type: string
-                      type:
-                        type: string
-                        enum:
-                        - ref
-                        - custom
-                        default: ref
-                    required:
-                    - name
-                    type: object
+                    type: string
                   gslb:
                     properties:
                       fqdn:

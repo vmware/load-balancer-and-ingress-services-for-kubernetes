@@ -199,12 +199,8 @@ func (l *leader) ValidateHostRuleObj(key string, hostrule *akov1beta1.HostRule) 
 
 	// Validation for Network Security Policy
 	// Check networkSecurityPolicy is of type ref.
-	if hostrule.Spec.VirtualHost.NetworkSecurityPolicy.Name != "" {
-		if hostrule.Spec.VirtualHost.NetworkSecurityPolicy.Type != akov1beta1.HostRuleProfileTypeAviReference {
-			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: "can have only ref type of Network security policy"})
-			return fmt.Errorf("can have only ref type of Network security policy")
-		}
-		refData[hostrule.Spec.VirtualHost.NetworkSecurityPolicy.Name] = "NetworkSecurityPolicy"
+	if hostrule.Spec.VirtualHost.NetworkSecurityPolicy != "" {
+		refData[hostrule.Spec.VirtualHost.NetworkSecurityPolicy] = "NetworkSecurityPolicy"
 	}
 
 	if err := checkRefsOnController(key, refData); err != nil {

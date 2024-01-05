@@ -494,7 +494,10 @@ func TestApplyHostruleToDedicatedVS(t *testing.T) {
 	g.Expect(evhNode.VsDatascriptRefs).To(gomega.HaveLen(2))
 	g.Expect(evhNode.VsDatascriptRefs[0]).To(gomega.ContainSubstring("thisisaviref-ds2"))
 	g.Expect(evhNode.VsDatascriptRefs[1]).To(gomega.ContainSubstring("thisisaviref-ds1"))
-	g.Expect(*evhNode.NetworkSecurityPolicyRef).To(gomega.ContainSubstring("thisisaviref-networksecuritypolicyref"))
+	if *isVipPerNS == "false" {
+		// Not applicable in Vip per ns scenario
+		g.Expect(*evhNode.NetworkSecurityPolicyRef).To(gomega.ContainSubstring("thisisaviref-networksecuritypolicyref"))
+	}
 
 	if *isVipPerNS != "true" {
 		g.Expect(evhNode.PortProto).To(gomega.HaveLen(2))
