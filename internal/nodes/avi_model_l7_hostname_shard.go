@@ -85,6 +85,7 @@ func (o *AviObjectGraph) BuildDedicatedL7VSGraphHostNameShard(vsName, hostname s
 	RemoveRedirectHTTPPolicyInModel(vsNode[0], pathFQDNs, key)
 	vsNode[0].DeletSSLRefInDedicatedNode(key)
 	vsNode[0].DeleteSSLPort(key)
+	vsNode[0].Secure = false
 	vsNode[0].DeleteSecureAppProfile(key)
 	objType := routeIgrObj.GetType()
 	isIngr := objType == utils.Ingress
@@ -638,6 +639,7 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 		vsNode[0].ServiceMetadata.Namespace = namespace
 		vsNode[0].ServiceMetadata.HostNames = sniHosts
 		vsNode[0].AddSSLPort(key)
+		vsNode[0].Secure = true
 		vsNode[0].ApplicationProfile = utils.DEFAULT_L7_SECURE_APP_PROFILE
 		vsNode[0].AviMarkers = lib.PopulateVSNodeMarkers(namespace, sniHost, infraSettingName)
 	}
