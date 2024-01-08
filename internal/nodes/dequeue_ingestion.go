@@ -137,6 +137,9 @@ func DequeueIngestion(key string, fullsync bool) {
 		if found {
 			objects.SharedlbLister().Delete(namespace + "/" + name)
 			utils.AviLog.Infof("key: %s, msg: service transitioned from type loadbalancer to ClusterIP or NodePort, will delete model", name)
+			defer func() {
+				objects.InfraSettingL7Lister().RemoveGwSvcToInfraSettingMapping(namespace + "/" + name)
+			}()
 			model_name := lib.GetModelName(lib.GetTenantFromInfraSetting(namespace, name), lib.Encode(lib.GetNamePrefix()+namespace+"-"+name, lib.L4VS))
 			objects.SharedAviGraphLister().Save(model_name, nil)
 			if !fullsync {
@@ -252,9 +255,12 @@ func DequeueIngestion(key string, fullsync bool) {
 			for _, gatewayKey := range gateways {
 				// Check the gateway has a valid subscription or not. If not, delete it.
 				namespace, _, gwName := lib.ExtractTypeNameNamespace(gatewayKey)
-				modelName := lib.GetModelName(lib.GetTenantFromInfraSetting(namespace, gwName), lib.Encode(lib.GetNamePrefix()+namespace+"-"+gwName, lib.ADVANCED_L4))
 				if isGatewayDelete(gatewayKey, key) {
+					defer func() {
+						objects.InfraSettingL7Lister().RemoveGwSvcToInfraSettingMapping(namespace + "/" + gwName)
+					}()
 					// Check if a model corresponding to the gateway exists or not in memory.
+					modelName := lib.GetModelName(lib.GetTenantFromInfraSetting(namespace, gwName), lib.Encode(lib.GetNamePrefix()+namespace+"-"+gwName, lib.ADVANCED_L4))
 					if found, _ := objects.SharedAviGraphLister().Get(modelName); found {
 						objects.SharedAviGraphLister().Save(modelName, nil)
 						if !fullsync {
@@ -265,7 +271,7 @@ func DequeueIngestion(key string, fullsync bool) {
 					aviModelGraph := NewAviObjectGraph()
 					aviModelGraph.BuildAdvancedL4Graph(namespace, gwName, key, false)
 					if len(aviModelGraph.GetOrderedNodes()) > 0 {
-						modelName = lib.GetModelName(aviModelGraph.GetAviVS()[0].Tenant, lib.Encode(lib.GetNamePrefix()+namespace+"-"+gwName, lib.ADVANCED_L4))
+						modelName := lib.GetModelName(aviModelGraph.GetAviVS()[0].Tenant, lib.Encode(lib.GetNamePrefix()+namespace+"-"+gwName, lib.ADVANCED_L4))
 						ok := saveAviModel(modelName, aviModelGraph, key)
 						if ok && !fullsync {
 							PublishKeyToRestLayer(modelName, key, sharedQueue)
@@ -709,6 +715,9 @@ func handleL4Service(key string, fullsync bool) {
 	}
 	// This is a DELETE event. The avi graph is set to nil.
 	utils.AviLog.Debugf("key: %s, msg: received DELETE event for service", key)
+	defer func() {
+		objects.InfraSettingL7Lister().RemoveGwSvcToInfraSettingMapping(namespace + "/" + name)
+	}()
 	model_name := lib.GetModelName(lib.GetTenantFromInfraSetting(namespace, name), lib.Encode(lib.GetNamePrefix()+namespace+"-"+name, lib.L4VS))
 	objects.SharedAviGraphLister().Save(model_name, nil)
 	if !fullsync {
