@@ -528,3 +528,24 @@ func GetAllTenantsDefinedInAviInfraSettingCRs() (map[string]struct{}, error) {
 	}
 	return tenants, nil
 }
+
+// Do not use Avi Infra Setting in Avi object names if it's annotated to a namespace
+func IsInfraSettingNSScoped(infraSetting, namespace string) bool {
+	storedNamespaces := objects.InfraSettingL7Lister().GetInfraSettingScopedNamespaces(infraSetting)
+	for _, ns := range storedNamespaces {
+		if ns.(*corev1.Namespace).GetName() == namespace {
+			return true
+		}
+	}
+	allNamespaces, err := utils.GetInformers().NSInformer.Informer().GetIndexer().ByIndex(AviSettingNamespaceIndex, infraSetting)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to fetch the namespace corresponding to the AviInfraSetting %s with error %s", infraSetting, err.Error())
+		return false
+	}
+	for _, ns := range allNamespaces {
+		if ns.(*corev1.Namespace).GetName() == namespace {
+			return true
+		}
+	}
+	return false
+}

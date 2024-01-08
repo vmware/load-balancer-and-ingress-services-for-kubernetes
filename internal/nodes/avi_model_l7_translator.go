@@ -332,7 +332,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 	pathSet := sets.NewString(tlsNode.Paths...)
 
 	var infraSettingName string
-	if infraSetting != nil {
+	if infraSetting != nil && !lib.IsInfraSettingNSScoped(infraSetting.Name, namespace) {
 		infraSettingName = infraSetting.Name
 	}
 
