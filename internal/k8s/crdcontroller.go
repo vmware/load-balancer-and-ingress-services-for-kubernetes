@@ -357,6 +357,7 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviinfra))
 				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 				objects.SharedResourceVerInstanceLister().Delete(key)
+				objects.InfraSettingL7Lister().DeleteInfraSettingToNamespaceMapping(aviinfra.GetName())
 				// no need to validate for delete handler
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
