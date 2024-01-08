@@ -938,7 +938,9 @@ func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (
 		if found, shardSize := objects.InfraSettingL7Lister().GetInfraSettingToShardSize(oldSettingName); found && shardSize != "" {
 			oldShardSize = lib.ShardSizeMap[shardSize]
 		}
-		oldInfraPrefix = oldSettingName
+		if !lib.IsInfraSettingNSScoped(oldSettingName, routeIgrObj.GetNamespace()) {
+			oldInfraPrefix = oldSettingName
+		}
 	} else {
 		utils.AviLog.Debugf("AviInfraSetting %s not found in cache", oldSettingName)
 	}
@@ -952,7 +954,9 @@ func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (
 		if newSetting.Spec.L7Settings != (akov1beta1.AviInfraL7Settings{}) {
 			newShardSize = lib.ShardSizeMap[newSetting.Spec.L7Settings.ShardSize]
 		}
-		newInfraPrefix = newSetting.Name
+		if !lib.IsInfraSettingNSScoped(newSetting.Name, routeIgrObj.GetNamespace()) {
+			newInfraPrefix = newSetting.Name
+		}
 	}
 
 	oldVsName, newVsName := GetShardVSName(hostname, key, oldShardSize, oldInfraPrefix), GetShardVSName(hostname, key, newShardSize, newInfraPrefix)
@@ -973,7 +977,9 @@ func DerivePassthroughVS(hostname string, key string, routeIgrObj RouteIngressMo
 		if found, shardSize := objects.InfraSettingL7Lister().GetInfraSettingToShardSize(oldSettingName); found && shardSize != "" {
 			oldShardSize = lib.ShardSizeMap[shardSize]
 		}
-		oldInfraPrefix = oldSettingName
+		if !lib.IsInfraSettingNSScoped(oldSettingName, routeIgrObj.GetNamespace()) {
+			oldInfraPrefix = oldSettingName
+		}
 	} else {
 		utils.AviLog.Debugf("AviInfraSetting %s not found in cache", oldSettingName)
 	}
@@ -987,7 +993,9 @@ func DerivePassthroughVS(hostname string, key string, routeIgrObj RouteIngressMo
 		if newSetting.Spec.L7Settings != (akov1beta1.AviInfraL7Settings{}) {
 			newShardSize = lib.ShardSizeMap[newSetting.Spec.L7Settings.ShardSize]
 		}
-		newInfraPrefix = newSetting.Name
+		if !lib.IsInfraSettingNSScoped(newSetting.Name, routeIgrObj.GetNamespace()) {
+			newInfraPrefix = newSetting.Name
+		}
 	}
 	oldVsName, newVsName := lib.GetPassthroughShardVSName(hostname, oldInfraPrefix, key, oldShardSize), lib.GetPassthroughShardVSName(hostname, newInfraPrefix, key, newShardSize)
 

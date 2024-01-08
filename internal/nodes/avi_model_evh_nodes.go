@@ -869,7 +869,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 	pathSet := sets.NewString(childNode.Paths...)
 
 	var infraSettingName string
-	if infraSetting != nil {
+	if infraSetting != nil && !lib.IsInfraSettingNSScoped(infraSetting.Name, namespace) {
 		infraSettingName = infraSetting.Name
 	}
 
@@ -1090,7 +1090,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 	namespace := routeIgrObj.GetNamespace()
 	isDedicated := vsNode[0].Dedicated
 	var infraSettingName string
-	if infraSetting != nil {
+	if infraSetting != nil && !lib.IsInfraSettingNSScoped(infraSetting.Name, namespace) {
 		infraSettingName = infraSetting.Name
 	}
 
@@ -1454,7 +1454,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 	}
 
 	var infraSettingName string
-	if infraSetting != nil {
+	if infraSetting != nil && !lib.IsInfraSettingNSScoped(infraSetting.Name, namespace) {
 		infraSettingName = infraSetting.Name
 	}
 	if !isDedicated {
@@ -1684,7 +1684,9 @@ func DeleteStaleDataForEvh(routeIgrObj RouteIngressModel, key string, modelList 
 	var infraSettingName string
 	tenant := lib.GetTenant()
 	if aviInfraSetting := routeIgrObj.GetAviInfraSetting(); aviInfraSetting != nil {
-		infraSettingName = aviInfraSetting.Name
+		if !lib.IsInfraSettingNSScoped(aviInfraSetting.Name, routeIgrObj.GetNamespace()) {
+			infraSettingName = aviInfraSetting.Name
+		}
 		if aviInfraSetting.Spec.NSXSettings.Project != nil {
 			tenant = *aviInfraSetting.Spec.NSXSettings.Project
 		}
@@ -1759,7 +1761,9 @@ func DeriveShardVSForEvh(hostname, key string, routeIgrObj RouteIngressModel) (l
 		if found, shardSize := objects.InfraSettingL7Lister().GetInfraSettingToShardSize(oldSettingName); found && shardSize != "" {
 			oldShardSize = lib.ShardSizeMap[shardSize]
 		}
-		oldInfraPrefix = oldSettingName
+		if !lib.IsInfraSettingNSScoped(oldSettingName, routeIgrObj.GetNamespace()) {
+			oldInfraPrefix = oldSettingName
+		}
 	} else {
 		utils.AviLog.Debugf("AviInfraSetting %s not found in cache", oldSettingName)
 	}
@@ -1773,7 +1777,9 @@ func DeriveShardVSForEvh(hostname, key string, routeIgrObj RouteIngressModel) (l
 		if newSetting.Spec.L7Settings != (akov1beta1.AviInfraL7Settings{}) {
 			newShardSize = lib.ShardSizeMap[newSetting.Spec.L7Settings.ShardSize]
 		}
-		newInfraPrefix = newSetting.Name
+		if !lib.IsInfraSettingNSScoped(newSetting.Name, routeIgrObj.GetNamespace()) {
+			newInfraPrefix = newSetting.Name
+		}
 	}
 	shardVsPrefix := lib.GetNamePrefix() + lib.GetAKOIDPrefix() + lib.ShardEVHVSPrefix
 	oldVsName, newVsName := shardVsPrefix, shardVsPrefix
@@ -2049,6 +2055,9 @@ func RouteIngrDeletePoolsByHostnameForEvh(routeIgrObj RouteIngressModel, namespa
 	if tenant == "" {
 		tenant = lib.GetTenant()
 	}
+	if lib.IsInfraSettingNSScoped(infraSettingName, namespace) {
+		infraSettingName = ""
+	}
 
 	utils.AviLog.Debugf("key: %s, msg: hosts to delete are :%s", key, utils.Stringify(hostMap))
 	for host, hostData := range hostMap {
@@ -2120,6 +2129,9 @@ func DeleteStaleDataForModelChangeForEvh(routeIgrObj RouteIngressModel, namespac
 		tenant := objects.InfraSettingL7Lister().GetAviInfraSettingToTenant(infraSettingName)
 		if tenant == "" {
 			tenant = lib.GetTenant()
+		}
+		if lib.IsInfraSettingNSScoped(infraSettingName, namespace) {
+			infraSettingName = ""
 		}
 		modelName := lib.GetModelName(tenant, shardVsName.Name)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)

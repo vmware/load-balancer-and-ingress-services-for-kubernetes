@@ -311,6 +311,10 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1beta1.Av
 	}
 
 	objects.InfraSettingL7Lister().UpdateAviInfraToTenantMapping(infraSetting.Name, tenant)
+	namespaces, err := utils.GetInformers().NSInformer.Informer().GetIndexer().ByIndex(lib.AviSettingNamespaceIndex, infraSetting.GetName())
+	if err == nil {
+		objects.InfraSettingL7Lister().UpdateInfraSettingToNamespaceMapping(infraSetting.GetName(), namespaces)
+	}
 
 	if ((infraSetting.Spec.Network.EnableRhi != nil && !*infraSetting.Spec.Network.EnableRhi) || infraSetting.Spec.Network.EnableRhi == nil) &&
 		len(infraSetting.Spec.Network.BgpPeerLabels) > 0 {
