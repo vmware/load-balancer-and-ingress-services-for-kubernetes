@@ -121,3 +121,9 @@ func (v *AviInfraSettingL7Lister) UpdateGwSvcToInfraSettingMapping(resourceNSNam
 	defer v.InfraSettingGwSvcLock.Unlock()
 	v.GWSvcInfraSettingStore.AddOrUpdate(resourceNSName, infraSetting)
 }
+
+func (v *AviInfraSettingL7Lister) RemoveGwSvcToInfraSettingMapping(resourceNSName string) bool {
+	v.InfraSettingGwSvcLock.Lock()
+	defer v.InfraSettingGwSvcLock.Unlock()
+	return v.GWSvcInfraSettingStore.Delete(resourceNSName)
+}
