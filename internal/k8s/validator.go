@@ -407,6 +407,13 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1beta1.Av
 	if infraSetting.Spec.NSXSettings.Project != nil {
 		objects.InfraSettingL7Lister().UpdateAviInfraToTenantMapping(infraSetting.Name, *infraSetting.Spec.NSXSettings.Project)
 	}
+	namespaces, err := utils.GetInformers().NSInformer.Informer().GetIndexer().ByIndex(lib.AviSettingNamespaceIndex, infraSetting.GetName())
+	if err == nil && len(namespaces) > 0 {
+		objects.InfraSettingL7Lister().UpdateInfraSettingToNamespaceMapping(infraSetting.GetName(), namespaces)
+	} else {
+		// This handles the case where an NS scoped infrasetting was deleted and later recreated without NS scope.
+		objects.InfraSettingL7Lister().DeleteInfraSettingToNamespaceMapping(infraSetting.GetName())
+	}
 
 	// No need to update status of infra setting object as accepted since it was accepted before.
 	if infraSetting.Status.Status == lib.StatusAccepted {

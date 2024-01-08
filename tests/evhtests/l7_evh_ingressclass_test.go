@@ -272,7 +272,6 @@ func TestEVHAviInfraSettingNamingConvention(t *testing.T) {
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-my-infrasetting-0"}
 	evhKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--my-infrasetting-baz.com", lib.EVHVS)}
 	integrationtest.SetupAviInfraSetting(t, settingName, "SMALL")
-	integrationtest.AnnotateAKONamespaceWithInfraSetting(t, ns, settingName)
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
 	waitAndVerify(t, ingClassName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
@@ -332,7 +331,6 @@ func TestEVHAviInfraSettingNamingConvention(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.DeleteSecret(secretName, ns)
-	integrationtest.RemoveAnnotateAKONamespaceWithInfraSetting(t, ns)
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	TearDownTestForIngress(t, modelName, settingModelName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
@@ -355,11 +353,11 @@ func TestEVHAviInfraSettingPerNSNamingConvention(t *testing.T) {
 
 	SetUpTestForIngress(t, modelName)
 
-	settingModelName := "admin/cluster--Shared-L7-EVH-my-infrasetting-0"
-	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-my-infrasetting-0"}
-	evhKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--my-infrasetting-baz.com", lib.EVHVS)}
-	integrationtest.SetupAviInfraSetting(t, settingName, "SMALL")
+	settingModelName := "admin/cluster--Shared-L7-EVH-0"
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-0"}
+	evhKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--baz.com", lib.EVHVS)}
 	integrationtest.AnnotateAKONamespaceWithInfraSetting(t, ns, settingName)
+	integrationtest.SetupAviInfraSetting(t, settingName, "SMALL")
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, "")
 	waitAndVerify(t, ingClassName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
@@ -380,12 +378,12 @@ func TestEVHAviInfraSettingPerNSNamingConvention(t *testing.T) {
 	}
 
 	// shardVsName := "cluster--Shared-L7-EVH-my-infrasetting-0"
-	secureVsName := "cluster--my-infrasetting-baz.com"
-	insecureVsName := "cluster--my-infrasetting-bar.com"
-	insecurePoolName := "cluster--my-infrasetting-default-bar.com_foo-foo-with-class-avisvc"
-	securePoolName := "cluster--my-infrasetting-default-baz.com_foo-foo-with-class-avisvc"
-	insecurePGName := "cluster--my-infrasetting-default-bar.com_foo-foo-with-class"
-	securePGName := "cluster--my-infrasetting-default-baz.com_foo-foo-with-class"
+	secureVsName := "cluster--baz.com"
+	insecureVsName := "cluster--bar.com"
+	insecurePoolName := "cluster--default-bar.com_foo-foo-with-class-avisvc"
+	securePoolName := "cluster--default-baz.com_foo-foo-with-class-avisvc"
+	insecurePGName := "cluster--default-bar.com_foo-foo-with-class"
+	securePGName := "cluster--default-baz.com_foo-foo-with-class"
 
 	g.Eventually(func() int {
 		if found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName); found {
