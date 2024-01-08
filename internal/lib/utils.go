@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -404,4 +405,25 @@ func GetTenantFromInfraSetting(namespace, objName string) string {
 		tenant = GetTenant()
 	}
 	return tenant
+}
+
+// Do not use Avi Infra Setting in Avi object names if it's annotated to a namespace
+func IsInfraSettingNSScoped(infraSetting, namespace string) bool {
+	storedNamespaces := objects.InfraSettingL7Lister().GetInfraSettingScopedNamespaces(infraSetting)
+	for _, ns := range storedNamespaces {
+		if ns.(*v1.Namespace).GetName() == namespace {
+			return true
+		}
+	}
+	allNamespaces, err := utils.GetInformers().NSInformer.Informer().GetIndexer().ByIndex(AviSettingNamespaceIndex, infraSetting)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to fetch the namespace corresponding to the AviInfraSetting %s with error %s", infraSetting, err.Error())
+		return false
+	}
+	for _, ns := range allNamespaces {
+		if ns.(*v1.Namespace).GetName() == namespace {
+			return true
+		}
+	}
+	return false
 }

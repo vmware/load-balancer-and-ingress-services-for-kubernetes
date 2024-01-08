@@ -28,6 +28,7 @@ func InfraSettingL7Lister() *AviInfraSettingL7Lister {
 			InfraSettingShardSizeStore: NewObjectMapStore(),
 			InfraSettingTenantStore:    NewObjectMapStore(),
 			GWSvcInfraSettingStore:     NewObjectMapStore(),
+			NSScopedInfraSettingStore:  NewObjectMapStore(),
 		}
 	})
 	return infral7lister
@@ -48,6 +49,9 @@ type AviInfraSettingL7Lister struct {
 
 	// namespaced gw/svc -> infrasetting
 	GWSvcInfraSettingStore *ObjectMapStore
+
+	// infrasettig -> namespaces
+	NSScopedInfraSettingStore *ObjectMapStore
 }
 
 func (v *AviInfraSettingL7Lister) GetIngRouteToInfraSetting(ingrouteNsName string) (bool, string) {
@@ -126,4 +130,20 @@ func (v *AviInfraSettingL7Lister) RemoveGwSvcToInfraSettingMapping(resourceNSNam
 	v.InfraSettingGwSvcLock.Lock()
 	defer v.InfraSettingGwSvcLock.Unlock()
 	return v.GWSvcInfraSettingStore.Delete(resourceNSName)
+}
+
+func (v *AviInfraSettingL7Lister) UpdateInfraSettingToNamespaceMapping(infraSetting string, namespaces []interface{}) {
+	v.NSScopedInfraSettingStore.AddOrUpdate(infraSetting, namespaces)
+}
+
+func (v *AviInfraSettingL7Lister) GetInfraSettingScopedNamespaces(infraSetting string) []interface{} {
+	found, namespaces := v.NSScopedInfraSettingStore.Get(infraSetting)
+	if !found {
+		return []interface{}{}
+	}
+	return namespaces.([]interface{})
+}
+
+func (v *AviInfraSettingL7Lister) DeleteInfraSettingToNamespaceMapping(infraSetting string) {
+	v.NSScopedInfraSettingStore.Delete(infraSetting)
 }

@@ -110,8 +110,10 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 	var pgName string
 	tenant := lib.GetTenant()
 	if infraSetting != nil {
-		infrasettingName = infraSetting.Name
-		infraSettingNameWithSuffix = infrasettingName + "-"
+		if !lib.IsInfraSettingNSScoped(infraSetting.Name, namespace) {
+			infrasettingName = infraSetting.Name
+			infraSettingNameWithSuffix = infrasettingName + "-"
+		}
 		if infraSetting.Spec.NSXSettings.Project != nil {
 			tenant = *infraSetting.Spec.NSXSettings.Project
 		}
