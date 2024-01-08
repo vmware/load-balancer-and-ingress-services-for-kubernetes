@@ -104,8 +104,10 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 	var infraSettingNameWithSuffix string
 	var pgName string
 	if infraSetting != nil {
-		infrasettingName = infraSetting.Name
-		infraSettingNameWithSuffix = infrasettingName + "-"
+		if !lib.IsInfraSettingNSScoped(infraSetting.Name, namespace) {
+			infrasettingName = infraSetting.Name
+			infraSettingNameWithSuffix = infrasettingName + "-"
+		}
 	}
 	//Replace AVIINFRA with infrasettingname if present
 	dsNode.Script = strings.Replace(dsNode.Script, "AVIINFRA", infraSettingNameWithSuffix, 1)

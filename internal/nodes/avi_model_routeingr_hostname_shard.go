@@ -310,7 +310,9 @@ func DeleteStaleData(routeIgrObj RouteIngressModel, key string, modelList *[]str
 	var infraSettingName string
 
 	if aviInfraSetting := routeIgrObj.GetAviInfraSetting(); aviInfraSetting != nil {
-		infraSettingName = aviInfraSetting.Name
+		if !lib.IsInfraSettingNSScoped(aviInfraSetting.Name, routeIgrObj.GetNamespace()) {
+			infraSettingName = aviInfraSetting.Name
+		}
 	}
 
 	for host, hostData := range Storedhosts {
@@ -374,6 +376,9 @@ func DeleteStaleDataForModelChange(routeIgrObj RouteIngressModel, namespace, obj
 		}
 
 		_, infraSettingName := objects.InfraSettingL7Lister().GetIngRouteToInfraSetting(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName())
+		if lib.IsInfraSettingNSScoped(infraSettingName, namespace) {
+			infraSettingName = ""
+		}
 		modelName := lib.GetModelName(shardVsName.Tenant, shardVsName.Name)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {
@@ -410,6 +415,9 @@ func RouteIngrDeletePoolsByHostname(routeIgrObj RouteIngressModel, namespace, ob
 	tenant := objects.SharedNamespaceTenantLister().GetTenantInNamespace(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName())
 	if tenant == "" {
 		tenant = lib.GetTenant()
+	}
+	if lib.IsInfraSettingNSScoped(infraSettingName, namespace) {
+		infraSettingName = ""
 	}
 
 	utils.AviLog.Debugf("key: %s, msg: hosts to delete are :%s", key, utils.Stringify(hostMap))

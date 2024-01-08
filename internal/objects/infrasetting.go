@@ -26,6 +26,7 @@ func InfraSettingL7Lister() *AviInfraSettingL7Lister {
 		infral7lister = &AviInfraSettingL7Lister{
 			IngRouteInfraSettingStore:  NewObjectMapStore(),
 			InfraSettingShardSizeStore: NewObjectMapStore(),
+			NSScopedInfraSettingStore:  NewObjectMapStore(),
 		}
 	})
 	return infral7lister
@@ -40,6 +41,9 @@ type AviInfraSettingL7Lister struct {
 
 	// infrasetting -> shardSize
 	InfraSettingShardSizeStore *ObjectMapStore
+
+	// infrasettig -> namespaces
+	NSScopedInfraSettingStore *ObjectMapStore
 }
 
 func (v *AviInfraSettingL7Lister) GetIngRouteToInfraSetting(ingrouteNsName string) (bool, string) {
@@ -78,4 +82,20 @@ func (v *AviInfraSettingL7Lister) GetInfraSettingToShardSize(infraSettingName st
 		return false, ""
 	}
 	return true, shardSize.(string)
+}
+
+func (v *AviInfraSettingL7Lister) UpdateInfraSettingToNamespaceMapping(infraSetting string, namespaces []interface{}) {
+	v.NSScopedInfraSettingStore.AddOrUpdate(infraSetting, namespaces)
+}
+
+func (v *AviInfraSettingL7Lister) GetInfraSettingScopedNamespaces(infraSetting string) []interface{} {
+	found, namespaces := v.NSScopedInfraSettingStore.Get(infraSetting)
+	if !found {
+		return []interface{}{}
+	}
+	return namespaces.([]interface{})
+}
+
+func (v *AviInfraSettingL7Lister) DeleteInfraSettingToNamespaceMapping(infraSetting string) {
+	v.NSScopedInfraSettingStore.Delete(infraSetting)
 }
