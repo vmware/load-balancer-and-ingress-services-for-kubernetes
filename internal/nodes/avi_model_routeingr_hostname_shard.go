@@ -421,13 +421,10 @@ func RouteIngrDeletePoolsByHostname(routeIgrObj RouteIngressModel, namespace, ob
 		return
 	}
 
-	var infraSettingName string
-	tenant := lib.GetTenant()
-	if aviInfraSetting := routeIgrObj.GetAviInfraSetting(); aviInfraSetting != nil {
-		infraSettingName = aviInfraSetting.Name
-		if aviInfraSetting.Spec.NSXSettings.Project != nil {
-			tenant = *aviInfraSetting.Spec.NSXSettings.Project
-		}
+	_, infraSettingName := objects.InfraSettingL7Lister().GetIngRouteToInfraSetting(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName())
+	tenant := objects.InfraSettingL7Lister().GetAviInfraSettingToTenant(infraSettingName)
+	if tenant == "" {
+		tenant = lib.GetTenant()
 	}
 
 	utils.AviLog.Debugf("key: %s, msg: hosts to delete are :%s", key, utils.Stringify(hostMap))
