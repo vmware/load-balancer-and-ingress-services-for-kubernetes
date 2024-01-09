@@ -906,21 +906,16 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 
 	secretEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			if lib.IsIstioEnabled() {
-				secret := obj.(*corev1.Secret)
-				if secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.IstioSecret {
-					key := utils.Secret + "/" + utils.GetAKONamespace() + "/" + lib.IstioSecret
-					bkt := utils.Bkt(utils.GetAKONamespace(), numWorkers)
-					c.workqueue[bkt].AddRateLimited(key)
-					utils.AviLog.Debugf("key: %s, msg: ADD", key)
-				}
-			}
 			if c.DisableSync {
 				return
 			}
 			secret := obj.(*corev1.Secret)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
 			key := "Secret" + "/" + utils.ObjKey(secret)
+			if lib.IsIstioEnabled() && secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.IstioSecret {
+				key = utils.Secret + "/" + utils.GetAKONamespace() + "/" + lib.IstioSecret
+				utils.AviLog.Infof("key: %s, msg: Istio Secret ADD", key)
+			}
 			if lib.IsNamespaceBlocked(namespace) {
 				utils.AviLog.Debugf("key: %s, msg: secret add event. namespace: %s didn't qualify filter", key, namespace)
 				return
@@ -930,16 +925,13 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 		},
 		DeleteFunc: func(obj interface{}) {
-			if lib.IsIstioEnabled() {
-				secret := obj.(*corev1.Secret)
-				if secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.IstioSecret {
-					utils.AviLog.Warnf("Istio secret deleted")
-				}
-			}
 			if c.DisableSync {
 				return
 			}
 			secret, ok := obj.(*corev1.Secret)
+			if lib.IsIstioEnabled() && secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.IstioSecret {
+				utils.AviLog.Warnf("Istio secret deleted")
+			}
 			if !ok {
 				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 				if !ok {
@@ -965,15 +957,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			if lib.IsIstioEnabled() {
-				secret := cur.(*corev1.Secret)
-				if secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.IstioSecret {
-					key := utils.Secret + "/" + utils.GetAKONamespace() + "/" + lib.IstioSecret
-					bkt := utils.Bkt(utils.GetAKONamespace(), numWorkers)
-					c.workqueue[bkt].AddRateLimited(key)
-					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-				}
-			}
 			if c.DisableSync {
 				return
 			}
@@ -984,6 +967,10 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					// Only add the key if the resource versions have changed.
 					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
 					key := "Secret" + "/" + utils.ObjKey(secret)
+					if lib.IsIstioEnabled() && secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.IstioSecret {
+						key = utils.Secret + "/" + utils.GetAKONamespace() + "/" + lib.IstioSecret
+						utils.AviLog.Infof("key: %s, msg: Istio Secret UPDATE", key)
+					}
 					if lib.IsNamespaceBlocked(namespace) {
 						utils.AviLog.Debugf("key: %s, msg: secret update event. namespace: %s didn't qualify filter", key, namespace)
 						return
