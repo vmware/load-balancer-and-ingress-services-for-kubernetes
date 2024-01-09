@@ -69,6 +69,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		if ok {
 			PublishKeyToRestLayer(lib.IstioModel, key, sharedQueue)
 		}
+		return
 	}
 	schema, valid := ConfigDescriptor().GetByType(objType)
 	if valid {
