@@ -102,6 +102,9 @@ type AviVsEvhSniModel interface {
 
 	GetGeneratedFields() *AviVsNodeGeneratedFields
 	GetCommonFields() *AviVsNodeCommonFields
+
+	GetNetworkSecurityPolicyRef() *string
+	SetNetworkSecurityPolicyRef(*string)
 }
 
 type AviEvhVsNode struct {
@@ -334,6 +337,14 @@ func (v *AviEvhVsNode) GetGeneratedFields() *AviVsNodeGeneratedFields {
 
 func (v *AviEvhVsNode) GetCommonFields() *AviVsNodeCommonFields {
 	return &v.AviVsNodeCommonFields
+}
+
+func (v *AviEvhVsNode) GetNetworkSecurityPolicyRef() *string {
+	return v.NetworkSecurityPolicyRef
+}
+
+func (v *AviEvhVsNode) SetNetworkSecurityPolicyRef(networkSecuirtyPolicyRef *string) {
+	v.NetworkSecurityPolicyRef = networkSecuirtyPolicyRef
 }
 
 func (o *AviObjectGraph) GetAviEvhVS() []*AviEvhVsNode {

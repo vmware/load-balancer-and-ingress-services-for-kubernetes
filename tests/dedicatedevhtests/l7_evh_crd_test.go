@@ -440,14 +440,15 @@ func TestApplyHostruleToDedicatedVS(t *testing.T) {
 	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	hostrule := integrationtest.FakeHostRule{
-		Name:               hrname,
-		Namespace:          "default",
-		WafPolicy:          "thisisaviref-waf",
-		ApplicationProfile: "thisisaviref-appprof",
-		AnalyticsProfile:   "thisisaviref-analyticsprof",
-		ErrorPageProfile:   "thisisaviref-errorprof",
-		Datascripts:        []string{"thisisaviref-ds2", "thisisaviref-ds1"},
-		HttpPolicySets:     []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
+		Name:                  hrname,
+		Namespace:             "default",
+		WafPolicy:             "thisisaviref-waf",
+		ApplicationProfile:    "thisisaviref-appprof",
+		AnalyticsProfile:      "thisisaviref-analyticsprof",
+		ErrorPageProfile:      "thisisaviref-errorprof",
+		Datascripts:           []string{"thisisaviref-ds2", "thisisaviref-ds1"},
+		HttpPolicySets:        []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
+		NetworkSecurityPolicy: "thisisaviref-networksecuritypolicyref",
 	}
 	hrObj := hostrule.HostRule()
 	hrObj.Spec.VirtualHost.Fqdn = "foo.com"
@@ -493,6 +494,11 @@ func TestApplyHostruleToDedicatedVS(t *testing.T) {
 	g.Expect(evhNode.VsDatascriptRefs).To(gomega.HaveLen(2))
 	g.Expect(evhNode.VsDatascriptRefs[0]).To(gomega.ContainSubstring("thisisaviref-ds2"))
 	g.Expect(evhNode.VsDatascriptRefs[1]).To(gomega.ContainSubstring("thisisaviref-ds1"))
+	if *isVipPerNS == "false" {
+		// Not applicable in Vip per ns scenario
+		g.Expect(*evhNode.NetworkSecurityPolicyRef).To(gomega.ContainSubstring("thisisaviref-networksecuritypolicyref"))
+	}
+
 	if *isVipPerNS != "true" {
 		g.Expect(evhNode.PortProto).To(gomega.HaveLen(2))
 		var portsWithHostRule []int

@@ -197,6 +197,12 @@ func (l *leader) ValidateHostRuleObj(key string, hostrule *akov1beta1.HostRule) 
 		refData[script] = "VsDatascript"
 	}
 
+	// Validation for Network Security Policy
+	// Check networkSecurityPolicy is of type ref.
+	if hostrule.Spec.VirtualHost.NetworkSecurityPolicy != "" {
+		refData[hostrule.Spec.VirtualHost.NetworkSecurityPolicy] = "NetworkSecurityPolicy"
+	}
+
 	if err := checkRefsOnController(key, refData); err != nil {
 		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 		return err

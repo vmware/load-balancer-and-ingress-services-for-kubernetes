@@ -205,6 +205,8 @@ spec:
                           type: string
                         type: array
                     type: object
+                  networkSecurityPolicy:
+                    type: string
                   gslb:
                     properties:
                       fqdn:

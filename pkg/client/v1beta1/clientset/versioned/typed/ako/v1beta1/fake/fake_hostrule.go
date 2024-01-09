@@ -24,7 +24,6 @@ import (
 	v1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,9 +35,9 @@ type FakeHostRules struct {
 	ns   string
 }
 
-var hostrulesResource = schema.GroupVersionResource{Group: "ako.vmware.com", Version: "v1beta1", Resource: "hostrules"}
+var hostrulesResource = v1beta1.SchemeGroupVersion.WithResource("hostrules")
 
-var hostrulesKind = schema.GroupVersionKind{Group: "ako.vmware.com", Version: "v1beta1", Kind: "HostRule"}
+var hostrulesKind = v1beta1.SchemeGroupVersion.WithKind("HostRule")
 
 // Get takes name of the hostRule, and returns the corresponding hostRule object, and an error if there is any.
 func (c *FakeHostRules) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.HostRule, err error) {

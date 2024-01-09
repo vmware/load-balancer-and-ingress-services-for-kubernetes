@@ -22,6 +22,7 @@ import (
 	"github.com/jinzhu/copier"
 	"github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -58,7 +59,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	}
 
 	// host specific
-	var vsWafPolicy, vsAppProfile, vsAnalyticsProfile, vsSslProfile *string
+	var vsWafPolicy, vsAppProfile, vsAnalyticsProfile, vsSslProfile, vsNetworkSecurityPolicy *string
 	var vsErrorPageProfile, lbIP string
 	var vsSslKeyCertificates []string
 	var vsEnabled *bool
@@ -156,7 +157,15 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 				}
 			}
 		}
-
+		if hostrule.Spec.VirtualHost.NetworkSecurityPolicy != "" {
+			if vsNode.IsSharedVS() || vsNode.IsDedicatedVS() {
+				vsNetworkSecurityPolicy = proto.String(fmt.Sprintf("/api/networksecuritypolicy?name=%s", hostrule.Spec.VirtualHost.NetworkSecurityPolicy))
+			} else {
+				utils.AviLog.Warnf("key: %s, can not associate network security policy with host which is attached to child virtual service. Configuration is ignored", key)
+				lib.AKOControlConfig().EventRecorder().Eventf(hostrule, corev1.EventTypeWarning, lib.InvalidConfiguration,
+					"can not associate network security policy with host which is attached to child virtual service. Configuration is ignored")
+			}
+		}
 		vsEnabled = hostrule.Spec.VirtualHost.EnableVirtualHost
 		crdStatus = lib.CRDMetadata{
 			Type:   "HostRule",
@@ -209,6 +218,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	}
 	vsNode.SetVSVIPLoadBalancerIP(lbIP)
 	vsNode.SetVHDomainNames(VHDomainNames)
+	vsNode.SetNetworkSecurityPolicyRef(vsNetworkSecurityPolicy)
 
 	serviceMetadataObj := vsNode.GetServiceMetadata()
 	serviceMetadataObj.CRDStatus = crdStatus

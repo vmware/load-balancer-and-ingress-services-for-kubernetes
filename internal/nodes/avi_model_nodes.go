@@ -622,6 +622,14 @@ func (v *AviVsNode) GetCommonFields() *AviVsNodeCommonFields {
 	return &v.AviVsNodeCommonFields
 }
 
+func (v *AviVsNode) GetNetworkSecurityPolicyRef() *string {
+	return v.NetworkSecurityPolicyRef
+}
+
+func (v *AviVsNode) SetNetworkSecurityPolicyRef(networkSecurityPolicyRef *string) {
+	v.NetworkSecurityPolicyRef = networkSecurityPolicyRef
+}
+
 func (o *AviObjectGraph) GetAviVS() []*AviVsNode {
 	var aviVs []*AviVsNode
 	for _, model := range o.modelNodes {

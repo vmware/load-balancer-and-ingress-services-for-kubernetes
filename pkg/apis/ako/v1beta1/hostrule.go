@@ -60,21 +60,22 @@ const (
 
 // HostRuleVirtualHost defines properties for a host
 type HostRuleVirtualHost struct {
-	AnalyticsProfile   string                   `json:"analyticsProfile,omitempty"`
-	ApplicationProfile string                   `json:"applicationProfile,omitempty"`
-	Datascripts        []string                 `json:"datascripts,omitempty"`
-	EnableVirtualHost  *bool                    `json:"enableVirtualHost,omitempty"`
-	ErrorPageProfile   string                   `json:"errorPageProfile,omitempty"`
-	Fqdn               string                   `json:"fqdn,omitempty"`
-	FqdnType           FqdnType                 `json:"fqdnType,omitempty"`
-	HTTPPolicy         HostRuleHTTPPolicy       `json:"httpPolicy,omitempty"`
-	Gslb               HostRuleGSLB             `json:"gslb,omitempty"`
-	TLS                HostRuleTLS              `json:"tls,omitempty"`
-	WAFPolicy          string                   `json:"wafPolicy,omitempty"`
-	AnalyticsPolicy    *HostRuleAnalyticsPolicy `json:"analyticsPolicy,omitempty"`
-	TCPSettings        *HostRuleTCPSettings     `json:"tcpSettings,omitempty"`
-	Aliases            []string                 `json:"aliases,omitempty"`
-	ICAPProfile        []string                 `json:"icapProfile,omitempty"`
+	AnalyticsProfile      string                   `json:"analyticsProfile,omitempty"`
+	ApplicationProfile    string                   `json:"applicationProfile,omitempty"`
+	Datascripts           []string                 `json:"datascripts,omitempty"`
+	EnableVirtualHost     *bool                    `json:"enableVirtualHost,omitempty"`
+	ErrorPageProfile      string                   `json:"errorPageProfile,omitempty"`
+	Fqdn                  string                   `json:"fqdn,omitempty"`
+	FqdnType              FqdnType                 `json:"fqdnType,omitempty"`
+	HTTPPolicy            HostRuleHTTPPolicy       `json:"httpPolicy,omitempty"`
+	Gslb                  HostRuleGSLB             `json:"gslb,omitempty"`
+	TLS                   HostRuleTLS              `json:"tls,omitempty"`
+	WAFPolicy             string                   `json:"wafPolicy,omitempty"`
+	AnalyticsPolicy       *HostRuleAnalyticsPolicy `json:"analyticsPolicy,omitempty"`
+	TCPSettings           *HostRuleTCPSettings     `json:"tcpSettings,omitempty"`
+	Aliases               []string                 `json:"aliases,omitempty"`
+	ICAPProfile           []string                 `json:"icapProfile,omitempty"`
+	NetworkSecurityPolicy string                   `json:"networkSecurityPolicy,omitempty"`
 }
 
 // HostRuleTCPSettings allows for customizing TCP settings

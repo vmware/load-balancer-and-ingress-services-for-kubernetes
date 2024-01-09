@@ -68,6 +68,7 @@ func TestRouteCreateDeleteHostRule(t *testing.T) {
 	g.Expect(nodes[0].SniNodes[0].VsDatascriptRefs[0]).To(gomega.ContainSubstring("thisisaviref-ds2"))
 	g.Expect(nodes[0].SniNodes[0].VsDatascriptRefs[1]).To(gomega.ContainSubstring("thisisaviref-ds1"))
 	g.Expect(*nodes[0].SniNodes[0].SslProfileRef).To(gomega.ContainSubstring("thisisaviref-sslprof"))
+	g.Expect(nodes[0].NetworkSecurityPolicyRef).To(gomega.BeNil())
 
 	hrUpdate := integrationtest.FakeHostRule{
 		Name:              hrname,
