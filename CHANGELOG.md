@@ -445,3 +445,4 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
  - Fix: Certificate, from hostrule CRD, can not be assigned to L7 VirtualService when AKO is deployed in Dedicated mode.
  - Fix: Virtualservices are getting deleted when there is an issue with an access to the kube_api server which results in setting up `deleteConfig` flag to true.
+ - Fix: Insecure Dedicated Virtual Service does not get port `443` when attaching SSL certificate via a HostRule CRD object which does not specify any SSL enabled ports in Listener section
