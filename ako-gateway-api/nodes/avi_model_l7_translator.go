@@ -31,16 +31,23 @@ import (
 
 func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, parentNsName string, childVSes map[string]struct{}) {
 	for _, rule := range routeModel.ParseRouteRules().Rules {
+		containsRequestRedirect := false
+		for _, filter := range rule.Filters {
+			if filter.RedirectFilter != nil {
+				containsRequestRedirect = true
+				break
+			}
+		}
 
 		// TODO: add the scenarios where we will not create child VS here.
-		if rule.Matches == nil || rule.Backends == nil {
+		if !containsRequestRedirect && (rule.Matches == nil || rule.Backends == nil) {
 			continue
 		}
-		o.BuildChildVS(key, routeModel, parentNsName, rule, childVSes)
+		o.BuildChildVS(key, routeModel, parentNsName, rule, childVSes, containsRequestRedirect)
 	}
 }
 
-func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentNsName string, rule *Rule, childVSes map[string]struct{}) {
+func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentNsName string, rule *Rule, childVSes map[string]struct{}, containsRequestRedirect bool) {
 
 	parentNode := o.GetAviEvhVS()
 	parentNs, _, parentName := lib.ExtractTypeNameNamespace(parentNsName)
@@ -81,7 +88,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	}
 
 	// create pg pool from the backend
-	o.BuildPGPool(key, parentNsName, childNode, routeModel, rule)
+	o.BuildPGPool(key, parentNsName, childNode, routeModel, rule, containsRequestRedirect)
 
 	// create vhmatch from the match
 	o.BuildVHMatch(key, childNode, routeModel, rule)
@@ -98,8 +105,14 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	utils.AviLog.Infof("key: %s, msg: processing of child vs %s attached to parent vs %s completed", key, childNode.Name, childNode.VHParentName)
 }
 
-func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
+func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule, containsRequestRedirect bool) {
 
+	if containsRequestRedirect {
+		childVsNode.PoolGroupRefs = nil
+		childVsNode.DefaultPoolGroup = ""
+		childVsNode.PoolRefs = nil
+		return
+	}
 	// create the PG from backends
 	routeTypeNsName := lib.HTTPRoute + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName()
 	parentNs, _, parentName := lib.ExtractTypeNameNamespace(parentNsName)
@@ -237,19 +250,23 @@ func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestRules(key string, vsNode *
 	requestRule := &models.HTTPRequestRule{Name: &vsNode.Name, Enable: proto.Bool(true), Index: proto.Int32(1)}
 	for _, filter := range filters {
 		if filter.RequestFilter != nil {
+			var j int32 = 0
 			for i := range filter.RequestFilter.Add {
-				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_ADD_HDR", filter.RequestFilter.Add[i])
+				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_ADD_HDR", filter.RequestFilter.Add[i], j)
 				requestRule.HdrAction = append(requestRule.HdrAction, action)
+				j += 1
 			}
 
 			for i := range filter.RequestFilter.Set {
-				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_REPLACE_HDR", filter.RequestFilter.Set[i])
+				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_REPLACE_HDR", filter.RequestFilter.Set[i], j)
 				requestRule.HdrAction = append(requestRule.HdrAction, action)
+				j += 1
 			}
 
 			for i := range filter.RequestFilter.Remove {
-				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_REMOVE_HDR", &Header{Name: filter.RequestFilter.Remove[i]})
+				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_REMOVE_HDR", &Header{Name: filter.RequestFilter.Remove[i]}, j)
 				requestRule.HdrAction = append(requestRule.HdrAction, action)
+				j += 1
 			}
 		}
 	}
@@ -263,33 +280,38 @@ func (o *AviObjectGraph) BuildHTTPPolicySetHTTPResponseRules(key string, vsNode 
 	responseRule := &models.HTTPResponseRule{Name: &vsNode.Name, Enable: proto.Bool(true), Index: proto.Int32(1)}
 	for _, filter := range filters {
 		if filter.ResponseFilter != nil {
+			var j int32 = 0
 			for i := range filter.ResponseFilter.Add {
-				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_ADD_HDR", filter.ResponseFilter.Add[i])
+				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_ADD_HDR", filter.ResponseFilter.Add[i], j)
 				responseRule.HdrAction = append(responseRule.HdrAction, action)
+				j += 1
 			}
 
 			for i := range filter.ResponseFilter.Set {
-				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_REPLACE_HDR", filter.ResponseFilter.Set[i])
+				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_REPLACE_HDR", filter.ResponseFilter.Set[i], j)
 				responseRule.HdrAction = append(responseRule.HdrAction, action)
+				j += 1
 			}
 
 			for i := range filter.ResponseFilter.Remove {
-				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_REMOVE_HDR", &Header{Name: filter.ResponseFilter.Remove[i]})
+				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_REMOVE_HDR", &Header{Name: filter.ResponseFilter.Remove[i]}, j)
 				responseRule.HdrAction = append(responseRule.HdrAction, action)
+				j += 1
 			}
 		}
 	}
 	if len(responseRule.HdrAction) != 0 {
 		vsNode.HttpPolicyRefs[0].ResponseRules = []*models.HTTPResponseRule{responseRule}
-		utils.AviLog.Debugf("key: %s, msg: Attached HTTP response policies %s to vs %s", key, utils.Stringify(vsNode.HttpPolicyRefs[0].RequestRules), vsNode.Name)
+		utils.AviLog.Debugf("key: %s, msg: Attached HTTP response policies %s to vs %s", key, utils.Stringify(vsNode.HttpPolicyRefs[0].ResponseRules), vsNode.Name)
 	}
 }
 
-func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRuleHdrAction(key string, action string, header *Header) *models.HTTPHdrAction {
+func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRuleHdrAction(key string, action string, header *Header, headerIndex int32) *models.HTTPHdrAction {
 	hdrAction := &models.HTTPHdrAction{}
 	hdrAction.Action = proto.String(action)
 	hdrAction.Hdr = &models.HTTPHdrData{}
 	hdrAction.Hdr.Name = proto.String(header.Name)
+	hdrAction.HdrIndex = &headerIndex
 	if header.Value != "" {
 		hdrAction.Hdr.Value = &models.HTTPHdrValue{}
 		hdrAction.Hdr.Value.IsSensitive = proto.Bool(false)
