@@ -65,7 +65,8 @@ NetworkSettings:
   #       - 10.0.0.1/24
   #       - 11.0.0.1/24
   enableRHI: false # This is a cluster wide setting for BGP peering.
-  nsxtT1LR: "" # T1 Logical Segment mapping for backend network. Only applies to NSX-T cloud.
+  nsxtT1LR: "" # Unique ID (note: not display name) of the T1 Logical Router for Service Engine connectivity. Only applies to NSX-T cloud.
+  # nsxtT1LR: "/infra/tier-1s/avi-t1"
   bgpPeerLabels: [] # Select BGP peers using bgpPeerLabels, for selective VsVip advertisement.
   # bgpPeerLabels:
   #   - peer1
