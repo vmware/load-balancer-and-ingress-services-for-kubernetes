@@ -13,10 +13,10 @@ type GslbPool struct {
 	Algorithm *string `json:"algorithm"`
 
 	// Mask to be applied on client IP for consistent hash algorithm. Allowed values are 1-31. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ConsistentHashMask *int32 `json:"consistent_hash_mask,omitempty"`
+	ConsistentHashMask uint32 `json:"consistent_hash_mask,omitempty"`
 
 	// Mask to be applied on client IPV6 address for consistent hash algorithm. Allowed values are 1-127. Field introduced in 18.2.8, 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ConsistentHashMask6 *int32 `json:"consistent_hash_mask6,omitempty"`
+	ConsistentHashMask6 uint32 `json:"consistent_hash_mask6,omitempty"`
 
 	// User provided information that records member details such as application owner name, contact, etc. Field introduced in 17.1.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Description *string `json:"description,omitempty"`
@@ -34,12 +34,12 @@ type GslbPool struct {
 	Members []*GslbPoolMember `json:"members,omitempty"`
 
 	// Minimum number of health monitors in UP state to mark the member UP. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MinHealthMonitorsUp *int32 `json:"min_health_monitors_up,omitempty"`
+	MinHealthMonitorsUp uint32 `json:"min_health_monitors_up,omitempty"`
 
 	// Name of the GSLB service pool. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Name *string `json:"name"`
 
 	// Priority of this pool of Members. The higher the number, the higher is the priority of the pool. The DNS Service chooses the pool with the highest priority that is operationally up. Allowed values are 0-100. Special values are 0 - Do not choose members from this pool.A priority of 0 is equivalent to disabling the pool.. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Priority *int32 `json:"priority,omitempty"`
+	Priority *uint32 `json:"priority,omitempty"`
 }

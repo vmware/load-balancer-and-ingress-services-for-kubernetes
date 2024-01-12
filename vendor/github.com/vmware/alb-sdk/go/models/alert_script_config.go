@@ -25,6 +25,9 @@ type AlertScriptConfig struct {
 	//  It is a reference to an object of type Tenant. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
+	// controlscript excution timeout. Field introduced in 22.1.6. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	Timeout *int32 `json:"timeout,omitempty"`
+
 	// url
 	// Read Only: true
 	URL *string `json:"url,omitempty"`

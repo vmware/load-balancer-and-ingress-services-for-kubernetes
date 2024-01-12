@@ -141,11 +141,11 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		}
 		isTCPPortPresent := false
 		for i, pp := range vs_meta.PortProto {
-			port := pp.Port
+			port := uint32(pp.Port)
 			svc := avimodels.Service{
 				Port:         &port,
 				EnableSsl:    &vs_meta.PortProto[i].EnableSSL,
-				PortRangeEnd: &port,
+				PortRangeEnd: port,
 				EnableHttp2:  &vs_meta.PortProto[i].EnableHTTP2,
 			}
 			if vs_meta.NetworkProfile == utils.MIXED_NET_PROFILE {

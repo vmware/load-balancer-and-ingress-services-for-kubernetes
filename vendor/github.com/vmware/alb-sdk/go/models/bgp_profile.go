@@ -12,7 +12,7 @@ type BgpProfile struct {
 	Community []string `json:"community,omitempty"`
 
 	// Hold time for Peers. Allowed values are 3-7200. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	HoldTime *int32 `json:"hold_time,omitempty"`
+	HoldTime *uint32 `json:"hold_time,omitempty"`
 
 	// BGP peer type. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
@@ -22,17 +22,17 @@ type BgpProfile struct {
 	IPCommunities []*IPCommunity `json:"ip_communities,omitempty"`
 
 	// Keepalive interval for Peers. Allowed values are 0-3600. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	KeepaliveInterval *int32 `json:"keepalive_interval,omitempty"`
+	KeepaliveInterval *uint32 `json:"keepalive_interval,omitempty"`
 
 	// Local Autonomous System ID. Allowed values are 1-4294967295. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	LocalAs *int32 `json:"local_as"`
+	LocalAs *uint32 `json:"local_as"`
 
 	// LOCAL_PREF to be used for routes advertised. Applicable only over iBGP. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	LocalPreference *int32 `json:"local_preference,omitempty"`
+	LocalPreference uint32 `json:"local_preference,omitempty"`
 
 	// Number of times the local AS should be prepended additionally. Allowed values are 1-10. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	NumAsPathPrepend *int32 `json:"num_as_path_prepend,omitempty"`
+	NumAsPathPrepend uint32 `json:"num_as_path_prepend,omitempty"`
 
 	// BGP Peers. Maximum of 128 items allowed. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Peers []*BgpPeer `json:"peers,omitempty"`

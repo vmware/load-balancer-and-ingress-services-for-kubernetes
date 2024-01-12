@@ -10,7 +10,7 @@ type HSMSafenetLunaServer struct {
 
 	//  Field introduced in 16.5.2,17.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	Index *int32 `json:"index"`
+	Index *uint32 `json:"index"`
 
 	// Password of the partition assigned to this client. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PartitionPasswd *string `json:"partition_passwd,omitempty"`

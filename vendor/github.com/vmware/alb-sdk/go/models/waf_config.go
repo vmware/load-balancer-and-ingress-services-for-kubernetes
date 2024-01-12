@@ -21,25 +21,25 @@ type WafConfig struct {
 	ArgumentSeparator *string `json:"argument_separator,omitempty"`
 
 	// Maximum size for the client request body scanned by WAF. Allowed values are 1-32768. Field introduced in 18.1.5, 18.2.1. Unit is KB. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ClientRequestMaxBodySize *int32 `json:"client_request_max_body_size,omitempty"`
+	ClientRequestMaxBodySize *uint32 `json:"client_request_max_body_size,omitempty"`
 
-	// WAF Content-Types and their request body parsers. Use this field to configure which Content-Types should be handled by WAF and which parser should be used. All Content-Types here are treated as 'allowed'. The order of entries matters. If the request's Content-Type matches an entry, its request body parser will run and no other parser will be invoked. Field introduced in 21.1.3. Maximum of 256 items allowed. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// WAF Content-Types and their request body parsers. Use this field to configure which Content-Types should be handled by WAF and which parser should be used. All Content-Types here are treated as 'allowed'. The order of entries matters. If the request's Content-Type matches an entry, its request body parser will run and no other parser will be invoked. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	ContentTypeMappings []*WafContentTypeMapping `json:"content_type_mappings,omitempty"`
 
 	// 0  For Netscape Cookies. 1  For version 1 cookies. Allowed values are 0-1. Field introduced in 17.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	CookieFormatVersion *int32 `json:"cookie_format_version,omitempty"`
+	CookieFormatVersion uint32 `json:"cookie_format_version,omitempty"`
 
 	// Ignore request body parsing errors due to partial scanning. Field introduced in 18.1.5, 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IgnoreIncompleteRequestBodyError *bool `json:"ignore_incomplete_request_body_error,omitempty"`
 
 	// The maximum period of time WAF processing is allowed to take for a single request. A value of 0 (zero) means no limit and should not be chosen in production deployments. It is only used for exceptional situations where crashes of se_dp processes are acceptable. The behavior of the system if this time is exceeded depends on two other configuration settings, the WAF policy mode and the WAF failure mode. In WAF policy mode 'Detection', the request is allowed and flagged for both failure mode 'Closed' and 'Open'. In enforcement node, 'Closed' means the request is rejected, 'Open' means the request is allowed and flagged. Irrespective of these settings, no subsequent WAF rules of this or other phases will be executed once the maximum execution time has been exceeded. Allowed values are 0-5000. Field introduced in 17.2.12, 18.1.2. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxExecutionTime *int32 `json:"max_execution_time,omitempty"`
+	MaxExecutionTime *uint32 `json:"max_execution_time,omitempty"`
 
 	// Limit CPU utilization for each regular expression match when processing rules. Field introduced in 17.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	RegexMatchLimit *int32 `json:"regex_match_limit,omitempty"`
+	RegexMatchLimit *uint32 `json:"regex_match_limit,omitempty"`
 
 	// Limit depth of recursion for each regular expression match when processing rules. Field introduced in 18.2.9. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	RegexRecursionLimit *int32 `json:"regex_recursion_limit,omitempty"`
+	RegexRecursionLimit *uint32 `json:"regex_recursion_limit,omitempty"`
 
 	// WAF default action for Request Body Phase. Field introduced in 17.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
@@ -67,7 +67,7 @@ type WafConfig struct {
 	SendStatusHeader *bool `json:"send_status_header,omitempty"`
 
 	// Maximum size for response body scanned by WAF. Allowed values are 1-32768. Field introduced in 17.2.1. Unit is KB. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ServerResponseMaxBodySize *int32 `json:"server_response_max_body_size,omitempty"`
+	ServerResponseMaxBodySize *uint32 `json:"server_response_max_body_size,omitempty"`
 
 	// WAF Static File Extensions. GET and HEAD requests with no query args and one of these extensions are allowed and not checked by the ruleset. Field introduced in 17.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	StaticExtensions []string `json:"static_extensions,omitempty"`

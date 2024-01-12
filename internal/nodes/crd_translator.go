@@ -174,7 +174,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 		}
 
 		if hostrule.Spec.VirtualHost.AnalyticsPolicy != nil {
-			var infinite int32 = 0 // Special value to set log duration as infinite
+			var infinite uint32 = 0 // Special value to set log duration as infinite
 			analyticsPolicy = &models.AnalyticsPolicy{
 				FullClientLogs: &models.FullClientLogs{
 					Duration: &infinite,

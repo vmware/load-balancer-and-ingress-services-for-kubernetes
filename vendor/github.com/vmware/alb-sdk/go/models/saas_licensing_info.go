@@ -8,7 +8,7 @@ package models
 // swagger:model SaasLicensingInfo
 type SaasLicensingInfo struct {
 
-	// Maximum service units limit for controller. Allowed values are 0-1000. Special values are 0 - infinite. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Maximum service units limit for controller. Allowed values are 0-100000. Special values are 0 - infinite. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	MaxServiceUnits *float64 `json:"max_service_units,omitempty"`
 
 	// Minimum service units that always remain reserved on controller. Allowed values are 0-1000. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.

@@ -15,6 +15,10 @@ type BotDetectionPolicy struct {
 	// Allow the user to skip BotManagement for selected requests. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	AllowList *BotAllowList `json:"allow_list,omitempty"`
 
+	// The client behavior configuration used in this policy. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Required: true
+	ClientBehaviorDetector *BotConfigClientBehavior `json:"client_behavior_detector"`
+
 	// Human-readable description of this Bot Detection Policy. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Description *string `json:"description,omitempty"`
 

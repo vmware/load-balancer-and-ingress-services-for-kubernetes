@@ -18,7 +18,7 @@ type BotAllowRule struct {
 
 	// Rules are processed in order of this index field. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	// Required: true
-	Index *int32 `json:"index"`
+	Index *uint32 `json:"index"`
 
 	// A name describing the rule in a short form. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`

@@ -34,7 +34,7 @@ type BackupConfiguration struct {
 	ConfigpbAttributes *ConfigPbAttributes `json:"configpb_attributes,omitempty"`
 
 	// Rotate the backup files based on this count. Allowed values are 1-20. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaximumBackupsStored *int32 `json:"maximum_backups_stored,omitempty"`
+	MaximumBackupsStored *uint32 `json:"maximum_backups_stored,omitempty"`
 
 	// Name of backup configuration. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true

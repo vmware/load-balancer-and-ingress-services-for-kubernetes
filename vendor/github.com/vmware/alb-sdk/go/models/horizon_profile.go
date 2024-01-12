@@ -9,8 +9,8 @@ package models
 type HorizonProfile struct {
 
 	// Horizon blast port of the UAG server. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	BlastPort *int32 `json:"blast_port,omitempty"`
+	BlastPort *uint32 `json:"blast_port,omitempty"`
 
 	// Horizon pcoip port of the UAG server. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	PcoipPort *int32 `json:"pcoip_port,omitempty"`
+	PcoipPort *uint32 `json:"pcoip_port,omitempty"`
 }

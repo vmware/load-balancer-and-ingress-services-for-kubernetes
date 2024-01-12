@@ -9,7 +9,7 @@ package models
 type SEFaultInjectSeParam struct {
 
 	// Inject fault in specific core. Field introduced in 18.1.5,18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Core *int32 `json:"core,omitempty"`
+	Core *uint32 `json:"core,omitempty"`
 
 	// Inject Fault on Objects. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	ObjNames []string `json:"obj_names,omitempty"`

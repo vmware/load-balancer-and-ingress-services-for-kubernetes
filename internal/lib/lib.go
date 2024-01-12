@@ -84,7 +84,7 @@ type ServiceMetadataObj struct {
 	HostNames             []string    `json:"hostnames"`
 	NamespaceServiceName  []string    `json:"namespace_svc_name"` // []string{ns/name}
 	CRDStatus             CRDMetadata `json:"crd_status"`
-	PoolRatio             int32       `json:"pool_ratio"`
+	PoolRatio             uint32      `json:"pool_ratio"`
 	PassthroughParentRef  string      `json:"passthrough_parent_ref"`
 	PassthroughChildRef   string      `json:"passthrough_child_ref"`
 	Gateway               string      `json:"gateway"` // ns/name
@@ -2005,8 +2005,8 @@ var throttle = map[string]uint32{
 	"DISABLED": 0,
 }
 
-func GetThrottle(key string) *int32 {
-	throttle := int32(throttle[key])
+func GetThrottle(key string) *uint32 {
+	throttle := uint32(throttle[key])
 	return &throttle
 }
 

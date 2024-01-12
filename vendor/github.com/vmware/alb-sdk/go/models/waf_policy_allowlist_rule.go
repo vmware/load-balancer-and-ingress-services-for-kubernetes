@@ -19,7 +19,7 @@ type WafPolicyAllowlistRule struct {
 
 	// Rules are processed in order of this index field. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	// Required: true
-	Index *int32 `json:"index"`
+	Index *uint32 `json:"index"`
 
 	// Match criteria describing requests to which this rule should be applied. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	// Required: true
@@ -30,5 +30,5 @@ type WafPolicyAllowlistRule struct {
 	Name *string `json:"name"`
 
 	// Percentage of traffic that is sampled. Allowed values are 0-100. Field introduced in 20.1.3. Unit is PERCENT. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	SamplingPercent *int32 `json:"sampling_percent,omitempty"`
+	SamplingPercent *uint32 `json:"sampling_percent,omitempty"`
 }

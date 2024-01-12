@@ -23,12 +23,12 @@ type AlertSyslogServer struct {
 	// strict verificiation of certificate given by the server. Field introduced in 30.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	StrictCertVerify *bool `json:"strict_cert_verify,omitempty"`
 
-	// The destination Syslog server IP address or hostname. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// The destination Syslog server IP(v4/v6) address or FQDN. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	SyslogServer *string `json:"syslog_server"`
 
 	// The destination Syslog server's service port. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SyslogServerPort *int32 `json:"syslog_server_port,omitempty"`
+	SyslogServerPort *uint32 `json:"syslog_server_port,omitempty"`
 
 	// Enable TLS to the syslog server. Field introduced in 17.2.16, 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TLSEnable *bool `json:"tls_enable,omitempty"`

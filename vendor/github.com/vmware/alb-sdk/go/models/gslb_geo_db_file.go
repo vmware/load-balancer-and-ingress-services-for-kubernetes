@@ -24,5 +24,5 @@ type GslbGeoDbFile struct {
 
 	// Internal timestamp associated with the file. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
 	// Read Only: true
-	Timestamp *int64 `json:"timestamp,omitempty"`
+	Timestamp uint64 `json:"timestamp,omitempty"`
 }

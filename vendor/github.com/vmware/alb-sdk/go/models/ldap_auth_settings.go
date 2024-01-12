@@ -21,13 +21,13 @@ type LdapAuthSettings struct {
 	FullNameAttribute *string `json:"full_name_attribute,omitempty"`
 
 	// Query the LDAP servers on this port. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Port *int32 `json:"port,omitempty"`
+	Port *uint32 `json:"port,omitempty"`
 
 	// LDAP connection security mode. Enum options - AUTH_LDAP_SECURE_NONE, AUTH_LDAP_SECURE_USE_LDAPS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	SecurityMode *string `json:"security_mode"`
 
-	// LDAP server IP address or Hostname. Use IP address if an auth profile is used to configure Virtual Service. Minimum of 1 items required. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// LDAP server IP(v4/v6) address or FQDN. Use IP address if an auth profile is used to configure Virtual Service. Minimum of 1 items required. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Server []string `json:"server,omitempty"`
 
 	// LDAP full directory configuration with administrator credentials. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.

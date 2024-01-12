@@ -28,8 +28,8 @@ type Service struct {
 
 	// The Virtual Service's port number. Allowed values are 0-65535. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	Port *int32 `json:"port"`
+	Port *uint32 `json:"port"`
 
 	// The end of the Virtual Service's port number range. Allowed values are 1-65535. Special values are 0- single port. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	PortRangeEnd *int32 `json:"port_range_end,omitempty"`
+	PortRangeEnd uint32 `json:"port_range_end,omitempty"`
 }

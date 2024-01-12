@@ -11,6 +11,9 @@ type ConfigActionDetails struct {
 	// Name of the action. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ActionName *string `json:"action_name,omitempty"`
 
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	ClientIP *string `json:"client_ip,omitempty"`
+
 	// Error message if request failed. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ErrorMessage *string `json:"error_message,omitempty"`
 
@@ -31,4 +34,7 @@ type ConfigActionDetails struct {
 
 	// Request user. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	User *string `json:"user,omitempty"`
+
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	UserAgent *string `json:"user_agent,omitempty"`
 }

@@ -153,7 +153,8 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 			childVsNode.ReplaceEvhPoolInEVHNode(poolNode, key)
 		}
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
-		PG.Members = append(PG.Members, &models.PoolGroupMember{PoolRef: &pool_ref, Ratio: &backend.Weight})
+		ratio := uint32(backend.Weight)
+		PG.Members = append(PG.Members, &models.PoolGroupMember{PoolRef: &pool_ref, Ratio: &ratio})
 	}
 	childVsNode.PoolGroupRefs = []*nodes.AviPoolGroupNode{PG}
 	childVsNode.DefaultPoolGroup = PG.Name

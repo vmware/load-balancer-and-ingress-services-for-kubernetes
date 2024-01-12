@@ -100,7 +100,7 @@ type UpgradeStatusInfo struct {
 	PreviousVersion *string `json:"previous_version,omitempty"`
 
 	// Upgrade operations progress which holds value between 0-100. Allowed values are 0-100. Field introduced in 18.2.8, 20.1.1. Unit is PERCENT. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Progress *int32 `json:"progress,omitempty"`
+	Progress uint32 `json:"progress,omitempty"`
 
 	// Descriptive reason for the Upgrade state. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Reason *string `json:"reason,omitempty"`

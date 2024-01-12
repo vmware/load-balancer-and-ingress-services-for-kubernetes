@@ -26,10 +26,10 @@ type RoutingService struct {
 	// Floating Interface IPs for the RoutingService. Field introduced in 18.2.5. Maximum of 32 items allowed. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FloatingIntfIP []*IPAddr `json:"floating_intf_ip,omitempty"`
 
-	// IPv6 Floating Interface IPs for the RoutingService. Field introduced in 30.2.1. Maximum of 32 items allowed. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// IPv6 Floating Interface IPs for the RoutingService. Field introduced in 22.1.6, 30.2.1. Maximum of 32 items allowed. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	FloatingIntfIp6Addresses []*IPAddr `json:"floating_intf_ip6_addresses,omitempty"`
 
-	// If ServiceEngineGroup is configured for Legacy 1+1 Active Standby HA Mode, IPv6 Floating IP's will be advertised only by the Active SE in the Pair. Virtual Services in this group must be disabled/enabled for any changes to the IPv6 Floating IP's to take effect. Only active SE hosting VS tagged with Active Standby SE 2 Tag will advertise this floating IP when manual load distribution is enabled. Field introduced in 30.2.1. Maximum of 32 items allowed. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// If ServiceEngineGroup is configured for Legacy 1+1 Active Standby HA Mode, IPv6 Floating IP's will be advertised only by the Active SE in the Pair. Virtual Services in this group must be disabled/enabled for any changes to the IPv6 Floating IP's to take effect. Only active SE hosting VS tagged with Active Standby SE 2 Tag will advertise this floating IP when manual load distribution is enabled. Field introduced in 22.1.6, 30.2.1. Maximum of 32 items allowed. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	FloatingIntfIp6Se2Addresses []*IPAddr `json:"floating_intf_ip6_se_2_addresses,omitempty"`
 
 	// If ServiceEngineGroup is configured for Legacy 1+1 Active Standby HA Mode, Floating IP's will be advertised only by the Active SE in the Pair. Virtual Services in this group must be disabled/enabled for any changes to the Floating IP's to take effect. Only active SE hosting VS tagged with Active Standby SE 2 Tag will advertise this floating IP when manual load distribution is enabled. Field introduced in 18.2.5. Maximum of 32 items allowed. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.

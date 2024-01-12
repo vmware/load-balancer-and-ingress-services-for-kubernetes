@@ -33,6 +33,9 @@ type DebugServiceEngine struct {
 	// Params for SE pcap. Field introduced in 17.2.14,18.1.5,18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CaptureParams *DebugVirtualServiceCapture `json:"capture_params,omitempty"`
 
+	// Per packet capture filters for Debug Service Engine. Not applicable for DOS pcap capture. . Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	CapturePktFilter *CapturePacketFilter `json:"capture_pkt_filter,omitempty"`
+
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CPUShares []*DebugSeCPUShares `json:"cpu_shares,omitempty"`
 
