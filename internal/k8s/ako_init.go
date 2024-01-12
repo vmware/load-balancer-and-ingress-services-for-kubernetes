@@ -669,6 +669,12 @@ func (c *AviController) addIndexers() {
 				}
 				if service.Spec.Type == corev1.ServiceTypeLoadBalancer {
 					if val, ok := service.Annotations[lib.L4RuleAnnotation]; ok && val != "" {
+						if len(strings.Split(val, "/")) != 2 {
+							// val can be of length 1 or 2
+							// if it is 1, Namespace is not prefixed to l4Rule name. so use service namespace for search
+							l4AnnotationValWithNamespace := fmt.Sprintf("%s/%s", service.Namespace, val)
+							val = l4AnnotationValWithNamespace
+						}
 						return []string{val}, nil
 					}
 				}

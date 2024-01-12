@@ -636,8 +636,13 @@ func getL4Rule(key string, svc *corev1.Service) (*akov1alpha2.L4Rule, error) {
 		// Annotation not present. Return error as nil in that case.
 		return nil, nil
 	}
+	// fetch namespace and name from l4 annotation
+	namespace, _, name := lib.ExtractTypeNameNamespace(l4RuleName)
 
-	l4Rule, err = lib.AKOControlConfig().CRDInformers().L4RuleInformer.Lister().L4Rules(svc.GetNamespace()).Get(l4RuleName)
+	if namespace == "" {
+		namespace = svc.GetNamespace()
+	}
+	l4Rule, err = lib.AKOControlConfig().CRDInformers().L4RuleInformer.Lister().L4Rules(namespace).Get(name)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding L4Rule via annotation. Err: %s", key, err.Error())
 		return nil, err

@@ -15,6 +15,8 @@
 package nodes
 
 import (
+	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
@@ -45,9 +47,10 @@ func L4RuleToSvc(l4RuleName string, namespace string, key string) ([]string, boo
 	}
 
 	// Get all services that are mapped to this L4Rule.
-	services, err := utils.GetInformers().ServiceInformer.Informer().GetIndexer().ByIndex(lib.L4RuleToServicesIndex, l4RuleName)
+	l4RuleNameWithNamespace := fmt.Sprintf("%s/%s", namespace, l4RuleName)
+	services, err := utils.GetInformers().ServiceInformer.Informer().GetIndexer().ByIndex(lib.L4RuleToServicesIndex, l4RuleNameWithNamespace)
 	if err != nil {
-		utils.AviLog.Errorf("key: %s, msg: failed to get the services mapped to L4Rule %s", key, l4RuleName)
+		utils.AviLog.Errorf("key: %s, msg: failed to get the services mapped to L4Rule %s", key, l4RuleNameWithNamespace)
 		return []string{}, false
 	}
 
