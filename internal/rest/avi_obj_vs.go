@@ -537,7 +537,7 @@ func (rest *RestOperations) StatusUpdateForPool(restMethod utils.RestMethod, vs_
 							statusOption.ObjType = lib.MultiClusterIngress
 						}
 						utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
-						status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
+						status.PublishToStatusQueue(updateOptions.ServiceMetadata.HostNames[0], statusOption)
 					}
 				}
 			}
