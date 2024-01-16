@@ -274,6 +274,8 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 		utils.AviLog.Infof("key: %s, msg: got no Pod for Service %s", key, serviceName)
 		return make([]AviPoolMetaServer, 0)
 	}
+	v4enabled := lib.GetIPFamily() == "V4" || lib.GetIPFamily() == "V4_V6"
+	v6enabled := lib.GetIPFamily() == "V6" || lib.GetIPFamily() == "V4_V6"
 	v4Family := false
 	v6Family := false
 	svcObj, _ := utils.GetInformers().ServiceInformer.Lister().Services(ns).Get(serviceName)
@@ -298,10 +300,10 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 		annotations = obj.([]lib.NPLAnnotation)
 		for _, a := range annotations {
 			var atype string
-			if v4Family && utils.IsV4(a.NodeIP) {
+			if v4enabled && v4Family && utils.IsV4(a.NodeIP) {
 				v4ServerCount++
 				atype = "V4"
-			} else if v6Family && utils.IsV6(a.NodeIP) {
+			} else if v6enabled && v6Family && utils.IsV6(a.NodeIP) {
 				v6ServerCount++
 				atype = "V6"
 			} else {
@@ -336,6 +338,8 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 
 func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName string, ingress bool, key string) []AviPoolMetaServer {
 
+	v4enabled := lib.GetIPFamily() == "V4" || lib.GetIPFamily() == "V4_V6"
+	v6enabled := lib.GetIPFamily() == "V6" || lib.GetIPFamily() == "V4_V6"
 	v4Family := false
 	v6Family := false
 	v4ServerCount := 0
@@ -396,11 +400,11 @@ func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName st
 			nodeIP, nodeIP6 := lib.GetIPFromNode(node)
 			var atype string
 			var serverIP avimodels.IPAddr
-			if v4Family && nodeIP != "" {
+			if v4enabled && v4Family && nodeIP != "" {
 				v4ServerCount++
 				atype = "V4"
 				serverIP = avimodels.IPAddr{Type: &atype, Addr: &nodeIP}
-			} else if v6Family && nodeIP6 != "" {
+			} else if v6enabled && v6Family && nodeIP6 != "" {
 				v6ServerCount++
 				atype = "V6"
 				serverIP = avimodels.IPAddr{Type: &atype, Addr: &nodeIP6}
@@ -444,6 +448,8 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 		utils.AviLog.Warnf("key: %s, msg: error while retrieving service: %s", key, err)
 		return nil
 	}
+	v4enabled := lib.GetIPFamily() == "V4" || lib.GetIPFamily() == "V4_V6"
+	v6enabled := lib.GetIPFamily() == "V6" || lib.GetIPFamily() == "V4_V6"
 	v4Family := false
 	v6Family := false
 	v4ServerCount := 0
@@ -481,10 +487,10 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 			utils.AviLog.Infof("key: %s, msg: found port match for port %v", key, poolNode.Port)
 			for _, addr := range ss.Addresses {
 				ip := addr.IP
-				if v4Family && utils.IsV4(addr.IP) {
+				if v4enabled && v4Family && utils.IsV4(addr.IP) {
 					v4ServerCount++
 					atype = "V4"
-				} else if v6Family && utils.IsV6(addr.IP) {
+				} else if v6enabled && v6Family && utils.IsV6(addr.IP) {
 					v6ServerCount++
 					atype = "V6"
 				} else {
