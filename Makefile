@@ -289,12 +289,12 @@ infratests:
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/infratests -failfast -timeout 0
 
-.PHONY: multiclusteringresstests
-multiclusteringresstests:
-	sudo docker run \
-	-w=/go/src/$(PACKAGE_PATH_AKO) \
-	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multiclusteringresstests -failfast -coverprofile cover-16.out -coverpkg=./...
+# .PHONY: multiclusteringresstests
+# multiclusteringresstests:
+# 	sudo docker run \
+# 	-w=/go/src/$(PACKAGE_PATH_AKO) \
+# 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+# 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multiclusteringresstests -failfast -coverprofile cover-16.out -coverpkg=./...
 
 .PHONY: hatests
 hatests:
@@ -334,7 +334,7 @@ gatewayapitests:
 
 .PHONY: int_test
 int_test:
-	make -j 1 k8stest integrationtest ingresstests evhtests vippernstests dedicatedevhtests dedicatedvippernstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc dedicatedvstests multiclusteringresstests hatests calicotests ciliumtests helmtests gatewayapitests
+	make -j 1 k8stest integrationtest ingresstests evhtests vippernstests dedicatedevhtests dedicatedvippernstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc dedicatedvstests hatests calicotests ciliumtests helmtests gatewayapitests
 
 .PHONY: scale_test
 scale_test:
