@@ -575,14 +575,14 @@ func AddPodEventHandler(numWorkers uint32, c *AviController) cache.ResourceEvent
 				utils.AviLog.Warnf("key : %s, msg: 'nodeportlocal.antrea.io' annotation not found, ignoring the pod", key)
 				return
 			}
-			for _, c := range newPod.Status.ContainerStatuses {
-				if !c.Ready {
-					if c.State.Terminated != nil {
-						utils.AviLog.Warnf("key : %s, msg: Container %s is in terminated state, ignoring pod update", key, c.Name)
+			for _, container := range newPod.Status.ContainerStatuses {
+				if !container.Ready {
+					if container.State.Terminated != nil {
+						utils.AviLog.Warnf("key : %s, msg: Container %s is in terminated state, ignoring pod update", key, container.Name)
 						return
 					}
-					if c.State.Waiting != nil && c.State.Waiting.Reason == "CrashLoopBackOff" {
-						utils.AviLog.Warnf("key : %s, msg: Container %s is in CrashLoopBackOff state, ignoring pod update", key, c.Name)
+					if container.State.Waiting != nil && container.State.Waiting.Reason == "CrashLoopBackOff" {
+						utils.AviLog.Warnf("key : %s, msg: Container %s is in CrashLoopBackOff state, ignoring pod update", key, container.Name)
 						return
 					}
 				}
