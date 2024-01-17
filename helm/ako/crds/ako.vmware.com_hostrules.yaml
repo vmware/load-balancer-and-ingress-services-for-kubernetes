@@ -207,6 +207,8 @@ spec:
                     type: object
                   networkSecurityPolicy:
                     type: string
+                  l7Rule:
+                    type: string
                   gslb:
                     properties:
                       fqdn:

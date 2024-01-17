@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 var CRDinstance *CRDLister
@@ -39,6 +40,7 @@ func SharedCRDLister() *CRDLister {
 			FQDNToAliasesCache:     NewObjectMapStore(),
 			FqdnSSORuleCache:       NewObjectMapStore(),
 			SSORuleFQDNCache:       NewObjectMapStore(),
+			L7RuleHostRuleCache:    NewObjectMapStore(),
 		}
 	})
 	return CRDinstance
@@ -84,6 +86,9 @@ type CRDLister struct {
 
 	// hr1: fqdn.com - required for httprule
 	SSORuleFQDNCache *ObjectMapStore
+
+	// L7CRD : HostruleCRD
+	L7RuleHostRuleCache *ObjectMapStore
 }
 
 // FqdnHostRuleCache
@@ -360,4 +365,37 @@ func (c *CRDLister) UpdateFQDNSSORuleMapping(fqdn string, ssoRule string) {
 	defer c.NSLock.Unlock()
 	c.FqdnSSORuleCache.AddOrUpdate(fqdn, ssoRule)
 	c.SSORuleFQDNCache.AddOrUpdate(ssoRule, fqdn)
+}
+
+func (c *CRDLister) GetL7RuleToHostRuleMapping(l7Rule string) (bool, map[string]bool) {
+	found, hostRules := c.L7RuleHostRuleCache.Get(l7Rule)
+	if !found {
+		return false, make(map[string]bool)
+	}
+	utils.AviLog.Debug(l7Rule)
+	for host := range hostRules.(map[string]bool) {
+		utils.AviLog.Debugf(host)
+	}
+
+	return true, hostRules.(map[string]bool)
+}
+
+func (c *CRDLister) DeleteL7RuleToHostRuleMapping(l7Rule string, hostRule string) {
+	c.NSLock.Lock()
+	defer c.NSLock.Unlock()
+	found, hostRules := c.GetL7RuleToHostRuleMapping(l7Rule)
+	if found {
+		delete(hostRules, hostRule)
+		c.L7RuleHostRuleCache.AddOrUpdate(l7Rule, hostRules)
+	}
+	c.GetL7RuleToHostRuleMapping(l7Rule)
+}
+
+func (c *CRDLister) UpdateL7RuleToHostRuleMapping(l7Rule string, hostRule string) {
+	c.NSLock.Lock()
+	defer c.NSLock.Unlock()
+	_, hostRules := c.GetL7RuleToHostRuleMapping(l7Rule)
+	hostRules[hostRule] = true
+	c.L7RuleHostRuleCache.AddOrUpdate(l7Rule, hostRules)
+	c.GetL7RuleToHostRuleMapping(l7Rule)
 }

@@ -858,6 +858,25 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 
 	// Re-order informer loading. all crds- then objects depends upon it.
 	if !lib.IsWCP() {
+		l7RuleObjs, err := lib.AKOControlConfig().CRDInformers().L7RuleInformer.Lister().List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the L7Rules during full sync: %s", err)
+		} else {
+			for _, l7Rule := range l7RuleObjs {
+				key := lib.L7Rule + "/" + utils.ObjKey(l7Rule)
+				meta, err := meta.Accessor(l7Rule)
+				if err == nil {
+					resVer := meta.GetResourceVersion()
+					objects.SharedResourceVerInstanceLister().Save(key, resVer)
+				}
+				if err := c.GetValidator().ValidateL7RuleObj(key, l7Rule); err != nil {
+					utils.AviLog.Warnf("key: %s, Error retrieved during validation of L7Rule: %v", key, err)
+				}
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+				nodes.DequeueIngestion(key, true)
+			}
+		}
+
 		hostRuleObjs, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the hostrules during full sync: %s", err)

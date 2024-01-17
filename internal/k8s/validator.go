@@ -40,6 +40,7 @@ type Validator interface {
 	ValidateServiceImportObj(key string, serviceImport *akov1alpha1.ServiceImport) error
 	ValidateSSORuleObj(key string, ssoRule *akov1alpha2.SSORule) error
 	ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
+	ValidateL7RuleObj(key string, l4Rule *akov1alpha2.L7Rule) error
 }
 
 type (
@@ -206,6 +207,15 @@ func (l *leader) ValidateHostRuleObj(key string, hostrule *akov1beta1.HostRule) 
 	if err := checkRefsOnController(key, refData); err != nil {
 		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 		return err
+	}
+
+	if hostrule.Spec.VirtualHost.L7Rule != "" {
+		objects.SharedCRDLister().UpdateL7RuleToHostRuleMapping(hostrule.Namespace+"/"+hostrule.Spec.VirtualHost.L7Rule, hostrule.Name)
+		_, err := lib.AKOControlConfig().CRDInformers().L7RuleInformer.Lister().L7Rules(hostrule.Namespace).Get(hostrule.Spec.VirtualHost.L7Rule)
+		if err != nil {
+			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+			return err
+		}
 	}
 
 	// No need to update status of hostrule object as accepted since it was accepted before.
@@ -717,6 +727,37 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 	return nil
 }
 
+// ValidateL7RuleObj would do validation checks and updates the status before
+// pushing to ingestion
+func (l *leader) ValidateL7RuleObj(key string, l7Rule *akov1alpha2.L7Rule) error {
+	l7RuleSpec := l7Rule.Spec
+	refData := make(map[string]string)
+	if l7RuleSpec.BotPolicyRef != nil {
+		refData[*l7RuleSpec.BotPolicyRef] = "BotPolicy"
+	}
+
+	if l7RuleSpec.SecurityPolicyRef != nil {
+		refData[*l7RuleSpec.SecurityPolicyRef] = "SecurityPolicy"
+	}
+
+	if l7RuleSpec.TrafficCloneProfileRef != nil {
+		refData[*l7RuleSpec.TrafficCloneProfileRef] = "TrafficCloneProfile"
+	}
+	if err := checkRefsOnController(key, refData); err != nil {
+		status.UpdateL7RuleStatus(key, l7Rule, status.UpdateCRDStatusOptions{
+			Status: lib.StatusRejected,
+			Error:  err.Error(),
+		})
+		return err
+	}
+	// No need to update status of l4rule object as accepted since it was accepted before.
+	if l7Rule.Status.Status == lib.StatusAccepted {
+		return nil
+	}
+	status.UpdateL7RuleStatus(key, l7Rule, status.UpdateCRDStatusOptions{Status: lib.StatusAccepted, Error: ""})
+	return nil
+}
+
 func validateLBAlgorithm(backendProperties *akov1alpha2.BackendProperties) error {
 	if backendProperties.LbAlgorithm == nil {
 		return nil
@@ -797,5 +838,10 @@ func (f *follower) ValidateSSORuleObj(key string, ssoRule *akov1alpha2.SSORule) 
 
 func (l *follower) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error {
 	utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating L4Rule object", key)
+	return nil
+}
+
+func (f *follower) ValidateL7RuleObj(key string, l4Rule *akov1alpha2.L7Rule) error {
+	utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating L7Rule object", key)
 	return nil
 }
