@@ -324,9 +324,9 @@ func TestSecureRouteAlternateBackend(t *testing.T) {
 	}
 	for _, pgmember := range sniVS.PoolGroupRefs[0].Members {
 		if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-avisvc" {
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(100)))
 		} else if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-absvc2" {
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(200)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(200)))
 		} else {
 			t.Fatalf("Unexpected pg member: %s", *pgmember.PoolRef)
 		}
@@ -379,9 +379,9 @@ func TestSecureRouteAlternateBackendUpdateRatio(t *testing.T) {
 	}
 	for _, pgmember := range sniVS.PoolGroupRefs[0].Members {
 		if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-avisvc" {
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(100)))
 		} else if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-absvc2" {
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(150)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(150)))
 		} else {
 			t.Fatalf("Unexpected pg member: %s", *pgmember.PoolRef)
 		}
@@ -434,9 +434,9 @@ func TestSecureRouteAlternateBackendUpdatePath(t *testing.T) {
 	}
 	for _, pgmember := range sniVS.PoolGroupRefs[0].Members {
 		if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_bar-foo-avisvc" {
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(100)))
 		} else if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_bar-foo-absvc2" {
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(200)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(200)))
 		} else {
 			t.Fatalf("Unexpected pg member: %s", *pgmember.PoolRef)
 		}
@@ -489,7 +489,7 @@ func TestSecureRouteRemoveAlternateBackend(t *testing.T) {
 	}
 	for _, pgmember := range sniVS.PoolGroupRefs[0].Members {
 		if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-avisvc" {
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(100)))
 		} else {
 			t.Fatalf("Unexpected pg member: %s", *pgmember.PoolRef)
 		}
@@ -916,9 +916,9 @@ func TestRencryptRouteAlternateBackend(t *testing.T) {
 	}
 	for _, pgmember := range sniVS.PoolGroupRefs[0].Members {
 		if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-avisvc" {
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(100)))
 		} else if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-absvc2" {
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(200)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(200)))
 		} else {
 			t.Fatalf("Unexpected pg member: %s", *pgmember.PoolRef)
 		}

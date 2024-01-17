@@ -420,9 +420,9 @@ func TestPassthroughRouteWithAlternateBackends(t *testing.T) {
 	g.Expect(vs.PoolGroupRefs[0].Members).To(gomega.HaveLen(2))
 	for _, member := range vs.PoolGroupRefs[0].Members {
 		if *member.PoolRef == "/api/pool?name=cluster--foo.com-avisvc" {
-			g.Expect(*member.Ratio).To(gomega.Equal(int32(100)))
+			g.Expect(*member.Ratio).To(gomega.Equal(uint32(100)))
 		} else if *member.PoolRef == "/api/pool?name=cluster--foo.com-absvc2" {
-			g.Expect(*member.Ratio).To(gomega.Equal(int32(200)))
+			g.Expect(*member.Ratio).To(gomega.Equal(uint32(200)))
 		} else {
 			t.Fatalf("Unexpected Pg member: %s", *member.PoolRef)
 		}

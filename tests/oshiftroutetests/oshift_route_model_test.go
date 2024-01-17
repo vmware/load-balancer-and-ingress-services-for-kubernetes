@@ -467,10 +467,10 @@ func TestAlternateBackendNoPath(t *testing.T) {
 	for _, pgmember := range poolgroups[0].Members {
 		if *pgmember.PoolRef == "/api/pool?name=cluster--foo.com-default-foo-avisvc" {
 			g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com"))
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(100)))
 		} else if *pgmember.PoolRef == "/api/pool?name=cluster--foo.com-default-foo-absvc2" {
 			g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com"))
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(200)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(200)))
 		} else {
 			t.Fatalf("unexpected pgmember: %s", *pgmember.PoolRef)
 		}
@@ -510,10 +510,10 @@ func TestAlternateBackendDefaultPath(t *testing.T) {
 	for _, pgmember := range poolgroups[0].Members {
 		if *pgmember.PoolRef == "/api/pool?name=cluster--foo.com_foo-default-foo-avisvc" {
 			g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com/foo"))
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(100)))
 		} else if *pgmember.PoolRef == "/api/pool?name=cluster--foo.com_foo-default-foo-absvc2" {
 			g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com/foo"))
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(200)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(200)))
 		} else {
 			t.Fatalf("unexpected pgmember: %s", *pgmember.PoolRef)
 		}
@@ -559,7 +559,7 @@ func TestRemoveAlternateBackend(t *testing.T) {
 	for _, pgmember := range poolgroups[0].Members {
 		if *pgmember.PoolRef == "/api/pool?name=cluster--foo.com_foo-default-foo-avisvc" {
 			g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com/foo"))
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(100)))
 		} else {
 			t.Fatalf("unexpected pgmember: %s", *pgmember.PoolRef)
 		}
@@ -609,10 +609,10 @@ func TestAlternateBackendUpdatePath(t *testing.T) {
 	for _, pgmember := range poolgroups[0].Members {
 		if *pgmember.PoolRef == "/api/pool?name=cluster--foo.com_bar-default-foo-avisvc" {
 			g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com/bar"))
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(100)))
 		} else if *pgmember.PoolRef == "/api/pool?name=cluster--foo.com_bar-default-foo-absvc2" {
 			g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com/bar"))
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(200)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(200)))
 		} else {
 			t.Fatalf("unexpected pgmember: %s", *pgmember.PoolRef)
 		}
@@ -659,10 +659,10 @@ func TestAlternateBackendUpdateWeight(t *testing.T) {
 	for _, pgmember := range poolgroups[0].Members {
 		if *pgmember.PoolRef == "/api/pool?name=cluster--foo.com_foo-default-foo-avisvc" {
 			g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com/foo"))
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(100)))
 		} else if *pgmember.PoolRef == "/api/pool?name=cluster--foo.com_foo-default-foo-absvc2" {
 			g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com/foo"))
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(300)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(300)))
 		} else {
 			t.Fatalf("unexpected pgmember: %s", *pgmember.PoolRef)
 		}
