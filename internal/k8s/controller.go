@@ -670,6 +670,9 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if isSvcLb && !lib.GetLayer7Only() {
 				//L4 Namespace sync not applicable for advance L4 and service API
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
+				if !lib.ValidateSvcforClass(key, svc) {
+					return
+				}
 				if lib.IsNamespaceBlocked(namespace) || !utils.IsServiceNSValid(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: L4 Service add event: Namespace: %s didn't qualify filter. Not adding service.", key, namespace)
 					return
@@ -724,6 +727,9 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
 			if isSvcLb && !lib.GetLayer7Only() {
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
+				if !lib.ValidateSvcforClass(key, svc) {
+					return
+				}
 				if lib.IsNamespaceBlocked(namespace) || !utils.IsServiceNSValid(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: L4 Service delete event: Namespace: %s didn't qualify filter. Not deleting service.", key, namespace)
 					return
@@ -759,6 +765,9 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				var key string
 				if isSvcLb && !lib.GetLayer7Only() {
 					key = utils.L4LBService + "/" + utils.ObjKey(svc)
+					if !lib.ValidateSvcforClass(key, svc) {
+						return
+					}
 					if lib.IsNamespaceBlocked(namespace) || !utils.IsServiceNSValid(namespace) {
 						utils.AviLog.Debugf("key: %s, msg: L4 Service update event: Namespace: %s didn't qualify filter. Not updating service.", key, namespace)
 						return
