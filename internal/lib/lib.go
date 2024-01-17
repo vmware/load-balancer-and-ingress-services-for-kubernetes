@@ -2153,11 +2153,13 @@ func IsChanClosed(ch <-chan struct{}) bool {
 func GetIPFromNode(node *v1.Node) (string, string) {
 	var nodeV4, nodeV6 string
 	nodeAddrs := node.Status.Addresses
+	ipFamily := GetIPFamily()
+	cniPlugin := GetCNIPlugin()
 
-	v4enabled := GetIPFamily() == "V4" || GetIPFamily() == "V4_V6"
-	v6enabled := GetIPFamily() == "V6" || GetIPFamily() == "V4_V6"
+	v4enabled := ipFamily == "V4" || ipFamily == "V4_V6"
+	v6enabled := ipFamily == "V6" || ipFamily == "V4_V6"
 
-	if GetCNIPlugin() == CALICO_CNI {
+	if cniPlugin == CALICO_CNI {
 		if v4enabled {
 			if nodeIP, ok := node.Annotations["projectcalico.org/IPv4Address"]; ok {
 				nodeV4 = strings.Split(nodeIP, "/")[0]
@@ -2169,7 +2171,7 @@ func GetIPFromNode(node *v1.Node) (string, string) {
 			}
 		}
 
-	} else if GetCNIPlugin() == ANTREA_CNI {
+	} else if cniPlugin == ANTREA_CNI {
 		if nodeIPstr, ok := node.Annotations["node.antrea.io/transport-addresses"]; ok {
 			nodeIPlist := strings.Split(nodeIPstr, ",")
 			for _, nodeIP := range nodeIPlist {
