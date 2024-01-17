@@ -228,27 +228,6 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	if lib.IsEvhEnabled() && !deleteCase {
 		generatedFields := vsNode.GetGeneratedFields()
 		if hostrule.Spec.VirtualHost.L7Rule != "" {
-			/* 			l7Rule, err := lib.AKOControlConfig().CRDInformers().L7RuleInformer.Lister().L7Rules(hrNSName[0]).Get(hostrule.Spec.VirtualHost.L7Rule)
-			   			if err != nil {
-			   				utils.AviLog.Debugf("key: %s, msg: No L7Rule found for virtualhost: %s msg: %v", key, host, err)
-			   				deleteL7RuleCase = true
-			   			} else if l7Rule.Status.Status == lib.StatusRejected {
-			   				// do not apply a rejected L7Rule, this way the VS would retain
-			   				return
-			   			}
-			   			if !deleteL7RuleCase {
-			   				utils.AviLog.Debugf("key: %s, msg: applying l7 Rule %s", key, l7Rule.Name)
-			   				copier.CopyWithOption(vsNode, &l7Rule.Spec, copier.Option{DeepCopy: true})
-			   				utils.AviLog.Infof("key: %s, Successfully attached L7Rule %s on vsNode %s", key, hrNSName[0], vsNode.GetName())
-			   				if !vsNode.IsDedicatedVS() {
-			   					if !vsNode.IsSharedVS() {
-			   						generatedFields.ConvertL7RuleParentOnlyFieldsToNil()
-			   					}
-			   				}
-			   				generatedFields.ConvertToRef()
-			   			} else {
-			   				generatedFields.ConvertL7RuleFieldsToNil()
-			   			} */
 			BuildL7Rule(host, key, hostrule.Spec.VirtualHost.L7Rule, hrNSName[0], vsNode)
 		} else {
 			generatedFields.ConvertL7RuleFieldsToNil()

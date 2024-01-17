@@ -19,7 +19,6 @@ import (
 	"sync"
 
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 var CRDinstance *CRDLister
@@ -372,11 +371,6 @@ func (c *CRDLister) GetL7RuleToHostRuleMapping(l7Rule string) (bool, map[string]
 	if !found {
 		return false, make(map[string]bool)
 	}
-	utils.AviLog.Debug(l7Rule)
-	for host := range hostRules.(map[string]bool) {
-		utils.AviLog.Debugf(host)
-	}
-
 	return true, hostRules.(map[string]bool)
 }
 
