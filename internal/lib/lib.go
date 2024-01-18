@@ -1714,7 +1714,6 @@ func ValidateSvcforClass(key string, svc *corev1.Service) bool {
 	if svc != nil {
 		if svc.Spec.LoadBalancerClass == nil {
 			if isAviDefaultLBController() {
-				utils.AviLog.Infof("key: %s, msg: LoadBalancerClass is not specified for LB service %s but ako.vmware.com/avi-lb is default loadbalancer controller", key, svc.ObjectMeta.Name)
 				return true
 			} else {
 				utils.AviLog.Warnf("key: %s, msg: LoadBalancerClass is not specified for LB service %s and ako.vmware.com/avi-lb is not default loadbalancer controller", key, svc.ObjectMeta.Name)
@@ -1725,7 +1724,6 @@ func ValidateSvcforClass(key string, svc *corev1.Service) bool {
 				utils.AviLog.Warnf("key: %s, msg: LoadBalancerClass for LB service %s is not ako.vmware.com/avi-lb", key, svc.ObjectMeta.Name)
 				return false
 			} else {
-				utils.AviLog.Infof("key: %s, msg: LoadBalancerClass for LB service %s is ako.vmware.com/avi-lb", key, svc.ObjectMeta.Name)
 				return true
 			}
 		}
@@ -1735,8 +1733,7 @@ func ValidateSvcforClass(key string, svc *corev1.Service) bool {
 }
 
 func isAviDefaultLBController() bool {
-	defaultLBCtrl := os.Getenv("DEFAULT_LB_CONTROLLER")
-	return defaultLBCtrl == "true"
+	return AKOControlConfig().IsAviDefaultLBController()
 }
 
 func ValidateIngressForClass(key string, ingress *networkingv1.Ingress) bool {

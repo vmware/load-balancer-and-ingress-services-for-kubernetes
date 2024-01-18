@@ -581,7 +581,7 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 		svcNSName := strings.Split(serviceNSName, "/")
 		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(svcNSName[0]).Get(svcNSName[1])
 		if !lib.ValidateSvcforClass(key, svcObj) {
-			continue
+			break
 		}
 		if err != nil {
 			utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service", key)
