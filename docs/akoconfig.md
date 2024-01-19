@@ -126,7 +126,8 @@ spec:
     * `controllerVersion`: The controller API version.
     * `cloudName`: The configured cloud name on the AVI controller.
     * `controllerIP`: The IP Address (URL) of the AVI Controller.
-    * `tenantName`: Name of the tenant where the AKO controller will create objects in AVI.
+    * `tenantName`: Name of the tenant where the AVI controller will create objects in AVI.
+    * `vrfName`: Name of the vrfContext present. All AKO created objects, static routes will be associated with this VRF Context.
   - `nodePortSelector`: Only applicable if `l7Settings.serviceType` is set to `NodePort`.
     * `key`
     * `value`

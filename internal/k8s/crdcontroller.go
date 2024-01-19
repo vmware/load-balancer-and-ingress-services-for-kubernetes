@@ -1085,11 +1085,17 @@ func SetAviInfrasettingVIPNetworks(name, segMgmtNetwork, infraSEGName string, ne
 	clients := avicache.SharedAVIClients()
 	aviClientLen := lib.GetshardSize()
 	network := netAviInfra
+	var err error
 	if lib.GetCloudType() == lib.CLOUD_VCENTER {
 		if infraSEGName == "" && segMgmtNetwork == "" {
 			segMgmtNetwork = avicache.GetCMSEGManagementNetwork(clients.AviClient[aviClientLen])
 		}
-		network = avicache.PopulateVipNetworkwithUUID(segMgmtNetwork, clients.AviClient[aviClientLen], netAviInfra)
+		network, err = avicache.PopulateVipNetworkwithUUID(segMgmtNetwork, clients.AviClient[aviClientLen], netAviInfra)
+		if len(network) == 0 {
+			utils.AviLog.Errorf("Infrasetting: %s not applied, Error occurred while populating vip network list. Err: %s", name, err.Error())
+			// Need to check this return
+			return
+		}
 	}
 	utils.AviLog.Debugf("Infrasetting: %s, VIP Network Obtained in AviInfrasetting: %v", name, utils.Stringify(network))
 	//set infrasetting name specific vip network
@@ -1120,7 +1126,11 @@ func SetAviInfrasettingNodeNetworks(name, segMgmtNetwork, infraSEGName string, n
 		if infraSEGName == "" && segMgmtNetwork == "" {
 			segMgmtNetwork = avicache.GetCMSEGManagementNetwork(clients.AviClient[aviClientLen])
 		}
-		avicache.FetchNodeNetworks(segMgmtNetwork, clients.AviClient[aviClientLen], &err, nodeNetorkList)
+		ret := avicache.FetchNodeNetworks(segMgmtNetwork, clients.AviClient[aviClientLen], &err, nodeNetorkList)
+		if !ret {
+			utils.AviLog.Infof("Infrasetting: %s is not applied, Error occurred: %s", name, err.Error())
+			return
+		}
 	}
 	utils.AviLog.Debugf("Infrasetting: %s Node Network Obtained in AviInfrasetting: %v", name, utils.Stringify(nodeNetorkList))
 	//set infrasetting name specific node network

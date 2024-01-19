@@ -146,6 +146,9 @@ type akoControlConfig struct {
 	// controllerVersion stores the version of the controller to
 	// which AKO is communicating with
 	controllerVersion string
+
+	//Controller VRF Context is stored
+	controllerVRFContext string
 }
 
 var akoControlConfigInstance *akoControlConfig
@@ -301,6 +304,14 @@ func (c *akoControlConfig) ControllerVersion() string {
 
 func (c *akoControlConfig) SetControllerVersion(v string) {
 	c.controllerVersion = v
+}
+
+func (c *akoControlConfig) ControllerVRFContext() string {
+	return c.controllerVRFContext
+}
+
+func (c *akoControlConfig) SetControllerVRFContext(v string) {
+	c.controllerVRFContext = v
 }
 
 func initControllerVersion() string {

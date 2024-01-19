@@ -18,6 +18,7 @@ data:
   layer7Only: {{ .Values.AKOSettings.layer7Only | quote }}
   vipPerNamespace: {{ .Values.AKOSettings.vipPerNamespace | quote }}
   tenantName: {{ .Values.ControllerSettings.tenantName | quote }}
+  vrfName: {{ .Values.ControllerSettings.vrfName | quote }}
   defaultDomain: {{ .Values.L4Settings.defaultDomain | quote }}
   disableStaticRouteSync: {{ .Values.AKOSettings.disableStaticRouteSync | quote }}
   defaultIngController: {{ .Values.L7Settings.defaultIngController | quote }}
