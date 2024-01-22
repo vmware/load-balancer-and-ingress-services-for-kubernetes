@@ -35,6 +35,9 @@ type SeList struct {
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FloatingIntfIP []*IPAddr `json:"floating_intf_ip,omitempty"`
 
+	// IPv6 Floating Interface IPs for the RoutingService. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	FloatingIntfIp6Addresses []*IPAddr `json:"floating_intf_ip6_addresses,omitempty"`
+
 	// Updated whenever this entry is created. When the sees this has changed, it means that the SE should disrupt, since there was a delete then create, not an update. Field introduced in 18.1.5,18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Incarnation *string `json:"incarnation,omitempty"`
 

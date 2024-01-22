@@ -2782,3 +2782,184 @@ func TestPortsForInsecureAndSecureSNI(t *testing.T) {
 
 	TearDownTestForIngress(t, modelName)
 }
+
+func TestV6BackendService(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/cluster--Shared-L7-0"
+	objects.SharedAviGraphLister().Delete(modelName)
+
+	v6Svc := integrationtest.ConstructService("default", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, make(map[string]string))
+	ipFamilyPolicy := corev1.IPFamilyPolicy("SingleStack")
+	v6Svc.Spec.IPFamilies = []corev1.IPFamily{"IPv6"}
+	v6Svc.Spec.IPFamilyPolicy = &ipFamilyPolicy
+	_, err := KubeClient.CoreV1().Services("default").Create(context.TODO(), v6Svc, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	integrationtest.CreateEP(t, "default", "avisvc", false, false, "ff06::")
+
+	ingrFake1 := (integrationtest.FakeIngress{
+		Name:        "ingress-v6-backend-svc",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Paths:       []string{"/foo"},
+		ServiceName: "avisvc",
+	}).Ingress()
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(*nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal("ff06::1"))
+
+	} else {
+		t.Fatalf("Could not find model: %s", modelName)
+	}
+
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-v6-backend-svc", metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	integrationtest.DelSVC(t, "default", "avisvc")
+	integrationtest.DelEP(t, "default", "avisvc")
+	VerifyIngressDeletion(t, g, aviModel, 0)
+
+	TearDownTestForIngress(t, modelName)
+}
+
+func TestDualStackBackendService(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/cluster--Shared-L7-0"
+	objects.SharedAviGraphLister().Delete(modelName)
+
+	dsSvc := integrationtest.ConstructService("default", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, make(map[string]string))
+	ipFamilyPolicy := corev1.IPFamilyPolicy("RequireDualStack")
+	dsSvc.Spec.IPFamilies = []corev1.IPFamily{"IPv4", "IPv6"}
+	dsSvc.Spec.IPFamilyPolicy = &ipFamilyPolicy
+	_, err := KubeClient.CoreV1().Services("default").Create(context.TODO(), dsSvc, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	integrationtest.CreateEP(t, "default", "avisvc", false, false, "1.1.1")
+
+	ingrFake1 := (integrationtest.FakeIngress{
+		Name:        "ingress-ds-backend-svc",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Paths:       []string{"/foo"},
+		ServiceName: "avisvc",
+	}).Ingress()
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(*nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal("1.1.1.1"))
+
+	} else {
+		t.Fatalf("Could not find model: %s", modelName)
+	}
+
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-ds-backend-svc", metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	integrationtest.DelSVC(t, "default", "avisvc")
+	integrationtest.DelEP(t, "default", "avisvc")
+	VerifyIngressDeletion(t, g, aviModel, 0)
+
+	TearDownTestForIngress(t, modelName)
+}
+
+func TestDualStackMultipleBackendService(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/cluster--Shared-L7-0"
+	objects.SharedAviGraphLister().Delete(modelName)
+
+	v4Svc := integrationtest.ConstructService("default", "avisvc1", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, make(map[string]string))
+	ipFamilyPolicy := corev1.IPFamilyPolicy("SingleStack")
+	v4Svc.Spec.IPFamilies = []corev1.IPFamily{"IPv4"}
+	v4Svc.Spec.IPFamilyPolicy = &ipFamilyPolicy
+	_, err := KubeClient.CoreV1().Services("default").Create(context.TODO(), v4Svc, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	integrationtest.CreateEP(t, "default", "avisvc1", false, false, "1.1.1")
+
+	v6Svc := integrationtest.ConstructService("default", "avisvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, make(map[string]string))
+	v6Svc.Spec.IPFamilies = []corev1.IPFamily{"IPv6"}
+	v6Svc.Spec.IPFamilyPolicy = &ipFamilyPolicy
+	_, err = KubeClient.CoreV1().Services("default").Create(context.TODO(), v6Svc, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	integrationtest.CreateEP(t, "default", "avisvc2", false, false, "ff06::")
+
+	ingrFake1 := (integrationtest.FakeIngress{
+		Name:        "ingress-ds-multipath",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Paths:       []string{"/foo", "/bar"},
+		ServiceName: "avisvc1",
+	}).IngressMultiPath()
+
+	ingrFake1.Spec.Rules[0].IngressRuleValue.HTTP.Paths[1].Backend.Service.Name = "avisvc2"
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	if found {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		g.Expect(len(nodes)).To(gomega.Equal(1))
+		g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
+		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(2))
+		for _, pool := range nodes[0].PoolRefs {
+			if pool.Name == "cluster--foo.com_foo-default-ingress-ds-multipath" {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
+				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
+				g.Expect(*pool.Servers[0].Ip.Addr).To(gomega.Equal("1.1.1.1"))
+			} else if pool.Name == "cluster--foo.com_bar-default-ingress-ds-multipath" {
+				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
+				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
+				g.Expect(*pool.Servers[0].Ip.Addr).To(gomega.Equal("ff06::1"))
+			} else {
+				t.Fatalf("unexpected pool: %s", pool.Name)
+			}
+		}
+		g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
+		g.Expect(len(nodes[0].PoolGroupRefs[0].Members)).To(gomega.Equal(2))
+		for _, pool := range nodes[0].PoolGroupRefs[0].Members {
+			if *pool.PoolRef == "/api/pool?name=cluster--foo.com_foo-default-ingress-ds-multipath" {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
+			} else if *pool.PoolRef == "/api/pool?name=cluster--foo.com_bar-default-ingress-ds-multipath" {
+				g.Expect(*pool.PriorityLabel).To(gomega.Equal("foo.com/bar"))
+			} else {
+				t.Fatalf("unexpected pool: %s", *pool.PoolRef)
+			}
+		}
+
+	} else {
+		t.Fatalf("Could not find model: %s", modelName)
+	}
+
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "ingress-ds-multipath", metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	integrationtest.DelSVC(t, "default", "avisvc1")
+	integrationtest.DelEP(t, "default", "avisvc1")
+	integrationtest.DelSVC(t, "default", "avisvc2")
+	integrationtest.DelEP(t, "default", "avisvc2")
+	VerifyIngressDeletion(t, g, aviModel, 0)
+
+	TearDownTestForIngress(t, modelName)
+}

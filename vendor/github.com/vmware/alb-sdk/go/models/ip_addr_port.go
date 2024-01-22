@@ -19,5 +19,5 @@ type IPAddrPort struct {
 
 	// Port number of server. Allowed values are 1-65535. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	Port *int32 `json:"port"`
+	Port *uint32 `json:"port"`
 }

@@ -358,7 +358,7 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		// TODO other fields like cloud_ref, mix of TCP & UDP protocols, etc.
 
 		for i, pp := range vs_meta.PortProto {
-			port := pp.Port
+			port := uint32(pp.Port)
 			svc := avimodels.Service{Port: &port, EnableSsl: &vs_meta.PortProto[i].EnableSSL, EnableHttp2: &vs_meta.PortProto[i].EnableHTTP2}
 			vs.Services = append(vs.Services, &svc)
 		}

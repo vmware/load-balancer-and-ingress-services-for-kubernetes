@@ -17,7 +17,7 @@ type ProxyConfiguration struct {
 
 	// Proxy port. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	Port *int32 `json:"port"`
+	Port *uint32 `json:"port"`
 
 	// Username for proxy. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Username *string `json:"username,omitempty"`

@@ -12,10 +12,10 @@ type FeProxyRoutePublishConfig struct {
 	Mode *string `json:"mode,omitempty"`
 
 	// Listener port for publisher. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	PublisherPort *int32 `json:"publisher_port,omitempty"`
+	PublisherPort *uint32 `json:"publisher_port,omitempty"`
 
 	// Subnet for publisher. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Subnet *int32 `json:"subnet,omitempty"`
+	Subnet *uint32 `json:"subnet,omitempty"`
 
 	// Token for tracking changes. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Token *string `json:"token,omitempty"`

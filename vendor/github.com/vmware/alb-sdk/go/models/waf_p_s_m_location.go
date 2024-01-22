@@ -13,7 +13,7 @@ type WafPSMLocation struct {
 
 	// Location index, this is used to determine the order of the locations. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	Index *int32 `json:"index"`
+	Index *uint32 `json:"index"`
 
 	// Apply these rules only if the request is matching this description. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Match *WafPSMLocationMatch `json:"match,omitempty"`

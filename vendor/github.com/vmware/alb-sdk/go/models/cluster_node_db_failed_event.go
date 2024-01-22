@@ -9,7 +9,7 @@ package models
 type ClusterNodeDbFailedEvent struct {
 
 	// Number of failures. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	FailureCount *int32 `json:"failure_count,omitempty"`
+	FailureCount uint32 `json:"failure_count,omitempty"`
 
 	// IP address of the controller VM. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IP *IPAddr `json:"ip,omitempty"`

@@ -154,7 +154,7 @@ func addNetworkInCloud(objKey string, cidrToNS map[string]map[string]struct{}, c
 			endIPStr := gocidr.Dec(endIP).String()
 			ipStr := ipnet.IP.String()
 			addrType := "V4"
-			if !utils.IsV4(ipStr) {
+			if utils.IsV6(ipStr) {
 				addrType = "V6"
 			}
 			mask, _ := ipnet.Mask.Size()

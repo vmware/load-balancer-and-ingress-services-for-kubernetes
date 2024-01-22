@@ -18,5 +18,5 @@ type MesosMetricsDebugFilter struct {
 	MetricEntity *string `json:"metric_entity,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MetricsCollectionFrq *int32 `json:"metrics_collection_frq,omitempty"`
+	MetricsCollectionFrq *uint32 `json:"metrics_collection_frq,omitempty"`
 }

@@ -17,7 +17,7 @@ type SSLCertificate struct {
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ChainVerified *bool `json:"chain_verified,omitempty"`
 
-	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// Valid range  1-3650. Allowed values are 1-3650. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DaysUntilExpire *int32 `json:"days_until_expire,omitempty"`
 
 	//  Enum options - SSL_CERTIFICATE_GOOD, SSL_CERTIFICATE_EXPIRY_WARNING, SSL_CERTIFICATE_EXPIRED. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.

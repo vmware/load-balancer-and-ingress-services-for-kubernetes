@@ -12,5 +12,5 @@ type GCPVIPRoutes struct {
 	MatchSeGroupSubnet *bool `json:"match_se_group_subnet,omitempty"`
 
 	// Priority of the routes created in GCP. Field introduced in 20.1.7, 21.1.2. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	RoutePriority *int32 `json:"route_priority,omitempty"`
+	RoutePriority *uint32 `json:"route_priority,omitempty"`
 }

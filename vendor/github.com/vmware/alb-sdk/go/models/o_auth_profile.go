@@ -39,7 +39,7 @@ type OAuthProfile struct {
 	// Type of OAuth Provider when using controller oauth as oauth profile type. Enum options - OAUTH_CSP. Field introduced in 30.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	OauthProvider *string `json:"oauth_provider,omitempty"`
 
-	// Buffering size for the responses from the OAUTH enpoints. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Buffering size for the responses from the OAUTH enpoints. Allowed values are 0-32768000. Field introduced in 21.1.3. Unit is BYTES. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	OauthRespBufferSz *int32 `json:"oauth_resp_buffer_sz,omitempty"`
 
 	// Organization Id for OAuth. Field introduced in 30.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.

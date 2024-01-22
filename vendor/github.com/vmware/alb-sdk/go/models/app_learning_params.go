@@ -18,20 +18,20 @@ type AppLearningParams struct {
 	LearnFromBots *BotDetectionMatch `json:"learn_from_bots,omitempty"`
 
 	// Maximum number of params programmed for an application. Allowed values are 10-1000. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxParams *int32 `json:"max_params,omitempty"`
+	MaxParams *uint32 `json:"max_params,omitempty"`
 
 	// Maximum number of URI paths programmed for an application. Allowed values are 10-10000. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxUris *int32 `json:"max_uris,omitempty"`
+	MaxUris *uint32 `json:"max_uris,omitempty"`
 
 	// Minimum number of occurances required for a Param to qualify for learning. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MinHitsToLearn *int64 `json:"min_hits_to_learn,omitempty"`
+	MinHitsToLearn *uint64 `json:"min_hits_to_learn,omitempty"`
 
 	// Percent of the requests subjected to Application learning. Allowed values are 1-100. Field introduced in 18.2.3. Unit is PERCENT. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SamplingPercent *int32 `json:"sampling_percent,omitempty"`
+	SamplingPercent *uint32 `json:"sampling_percent,omitempty"`
 
 	// If configured, learning will only be performed on requests from client IPs within the configured IP Address Group. It is a reference to an object of type IpAddrGroup. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	TrustedIpgroupRef *string `json:"trusted_ipgroup_ref,omitempty"`
 
 	// Frequency with which SE publishes Application learning data to controller. Allowed values are 1-60. Field introduced in 18.2.3. Unit is MIN. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	UpdateInterval *int32 `json:"update_interval,omitempty"`
+	UpdateInterval *uint32 `json:"update_interval,omitempty"`
 }

@@ -21,7 +21,7 @@ type TCPProxyProfile struct {
 	CcAlgo *string `json:"cc_algo,omitempty"`
 
 	// Congestion window scaling factor after recovery. Allowed values are 0-8. Field introduced in 17.2.12, 18.1.3, 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	CongestionRecoveryScalingFactor *int32 `json:"congestion_recovery_scaling_factor,omitempty"`
+	CongestionRecoveryScalingFactor *uint32 `json:"congestion_recovery_scaling_factor,omitempty"`
 
 	// The duration for keepalive probes or session idle timeout. Max value is 14400 seconds, min is 5.  Set to 0 to allow infinite idle time. Allowed values are 5-14400. Special values are 0 - infinite. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IDLEConnectionTimeout *int32 `json:"idle_connection_timeout,omitempty"`
@@ -48,22 +48,22 @@ type TCPProxyProfile struct {
 	MaxSynRetransmissions *int32 `json:"max_syn_retransmissions,omitempty"`
 
 	// The minimum wait time (in millisec) to retransmit packet. Allowed values are 50-5000. Field introduced in 17.2.8. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MinRexmtTimeout *int32 `json:"min_rexmt_timeout,omitempty"`
+	MinRexmtTimeout uint32 `json:"min_rexmt_timeout,omitempty"`
 
 	// Consolidates small data packets to send clients fewer but larger packets.  Adversely affects real time protocols such as telnet or SSH. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NaglesAlgorithm *bool `json:"nagles_algorithm,omitempty"`
 
 	// Maximum number of TCP segments that can be queued for reassembly. Configuring this to 0 disables the feature and provides unlimited queuing. Field introduced in 17.2.13, 18.1.4, 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ReassemblyQueueSize *int32 `json:"reassembly_queue_size,omitempty"`
+	ReassemblyQueueSize uint32 `json:"reassembly_queue_size,omitempty"`
 
 	// Size of the receive window. Allowed values are 2-65536. Unit is KB. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ReceiveWindow *int32 `json:"receive_window,omitempty"`
 
 	// Controls the number of duplicate acks required to trigger retransmission. Setting a higher value reduces retransmission caused by packet reordering. A larger value is recommended in public cloud environments where packet reordering is quite common. The default value is 8 in public cloud platforms (AWS, Azure, GCP), and 3 in other environments. Allowed values are 1-100. Field introduced in 17.2.7. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ReorderThreshold *int32 `json:"reorder_threshold,omitempty"`
+	ReorderThreshold uint32 `json:"reorder_threshold,omitempty"`
 
 	// Congestion window scaling factor during slow start. Allowed values are 0-8. Field introduced in 17.2.12, 18.1.3, 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SlowStartScalingFactor *int32 `json:"slow_start_scaling_factor,omitempty"`
+	SlowStartScalingFactor *uint32 `json:"slow_start_scaling_factor,omitempty"`
 
 	// The time (in millisec) to wait before closing a connection in the TIME_WAIT state. Allowed values are 500-2000. Special values are 0 - immediate. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TimeWaitDelay *int32 `json:"time_wait_delay,omitempty"`

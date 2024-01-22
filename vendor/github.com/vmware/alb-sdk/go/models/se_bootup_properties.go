@@ -9,22 +9,22 @@ package models
 type SeBootupProperties struct {
 
 	// End of the Local TCP port range used by SE for backend connections in docker environment. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DockerBackendPortend *int32 `json:"docker_backend_portend,omitempty"`
+	DockerBackendPortend *uint32 `json:"docker_backend_portend,omitempty"`
 
 	// Start of the Local TCP port range used by SE for backend connections in docker environment. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DockerBackendPortstart *int32 `json:"docker_backend_portstart,omitempty"`
+	DockerBackendPortstart *uint32 `json:"docker_backend_portstart,omitempty"`
 
 	// Enable or disable fair queueing for packet transmission among virtualservices on an SE. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FairQueueingEnabled *bool `json:"fair_queueing_enabled,omitempty"`
 
 	// Granularity or Resolution of co-ordinates used. When the value is 1 the co-ordinates provided in the geo-db are used as is (highest resolution.This value provides a 'zoom-out' value so that coarser co-ordinates are used. With higher resolution, logs can contain finer location information. But, lower resolution provides significant memory and cpu benefits on the service engine. Besides, given a smaller number of members that are separated geographically, a lower resolution is sufficient for correct load-balancing. Allowed values are 1-20. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 1), Basic edition(Allowed values- 1), Enterprise with Cloud Services edition.
-	GeoDbGranularity *int32 `json:"geo_db_granularity,omitempty"`
+	GeoDbGranularity *uint32 `json:"geo_db_granularity,omitempty"`
 
 	// Number of L7 connections that can be cached per core. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	L7ConnsPerCore *int32 `json:"l7_conns_per_core,omitempty"`
+	L7ConnsPerCore *uint32 `json:"l7_conns_per_core,omitempty"`
 
 	// Number of reserved L7 listener connections per core. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	L7ResvdListenConnsPerCore *int32 `json:"l7_resvd_listen_conns_per_core,omitempty"`
+	L7ResvdListenConnsPerCore *uint32 `json:"l7_resvd_listen_conns_per_core,omitempty"`
 
 	// Deprecated in 21.1.1. Enable debug logs by default on Service Engine. This includes all other debugging logs. Debug logs can also be explcitly enabled from the CLI shell. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LogAgentDebugEnabled *bool `json:"log_agent_debug_enabled,omitempty"`
@@ -36,38 +36,38 @@ type SeBootupProperties struct {
 	SeDpCompression *SeBootupCompressionProperties `json:"se_dp_compression,omitempty"`
 
 	// Deprecated in 21.1.3. Use config in ServiceEngineGroup instead. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 0), Basic edition(Allowed values- 0), Enterprise with Cloud Services edition.
-	SeEmulatedCores *int32 `json:"se_emulated_cores,omitempty"`
+	SeEmulatedCores uint32 `json:"se_emulated_cores,omitempty"`
 
 	// Determines if SE-SE IPC messages are encapsulated in an IP header   Note  This field has been moved to se_group properties 20.1.3 onwards.    0        Automatically determine based on hypervisor type    1        Use IP encap unconditionally    ~[0,1]   Don't use IP encap. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SeIPEncapIpc *int32 `json:"se_ip_encap_ipc,omitempty"`
+	SeIPEncapIpc uint32 `json:"se_ip_encap_ipc,omitempty"`
 
 	// Determines if SE-SE IPC messages use SE interface IP instead of VIP    Note  This field has been moved to se_group properties 20.1.3 onwards.    0        Automatically determine based on hypervisor type    1        Use SE interface IP unconditionally    ~[0,1]   Don't use SE interface IP. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SeL3EncapIpc *int32 `json:"se_l3_encap_ipc,omitempty"`
+	SeL3EncapIpc uint32 `json:"se_l3_encap_ipc,omitempty"`
 
 	// Deprecated in 21.1.1. Internal flag that blocks dataplane until all application logs are flushed to log-agent process. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeLogBufferAppBlockingDequeue *bool `json:"se_log_buffer_app_blocking_dequeue,omitempty"`
 
 	// Internal application log buffer size to use on Service Engine. Can be fine tuned for better performance of data plane in specific environments. Unit is WORD. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SeLogBufferApplogSize *int32 `json:"se_log_buffer_applog_size,omitempty"`
+	SeLogBufferApplogSize *uint32 `json:"se_log_buffer_applog_size,omitempty"`
 
 	// Number of internal buffer chunks to use on Service Engine. Can be fine tuned for better performance of data plane in specific environments. Unit is BYTES. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SeLogBufferChunkCount *int32 `json:"se_log_buffer_chunk_count,omitempty"`
+	SeLogBufferChunkCount *uint32 `json:"se_log_buffer_chunk_count,omitempty"`
 
 	// Deprecated in 21.1.1. Internal flag that blocks dataplane until all connection logs are flushed to log-agent process. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeLogBufferConnBlockingDequeue *bool `json:"se_log_buffer_conn_blocking_dequeue,omitempty"`
 
 	// Internal connection log buffer size to use on Service Engine. Can be fine tuned for better performance of data plane in specific environments. Unit is WORD. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SeLogBufferConnlogSize *int32 `json:"se_log_buffer_connlog_size,omitempty"`
+	SeLogBufferConnlogSize *uint32 `json:"se_log_buffer_connlog_size,omitempty"`
 
 	// Deprecated in 21.1.1. Internal flag that blocks dataplane until all outstanding events are flushed to log-agent process. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeLogBufferEventsBlockingDequeue *bool `json:"se_log_buffer_events_blocking_dequeue,omitempty"`
 
 	// Internal events buffer size to use on Service Engine. Can be fine tuned for better performance of data plane in specific environments. Unit is WORD. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SeLogBufferEventsSize *int32 `json:"se_log_buffer_events_size,omitempty"`
+	SeLogBufferEventsSize *uint32 `json:"se_log_buffer_events_size,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SslSessCachePerVs *int32 `json:"ssl_sess_cache_per_vs,omitempty"`
+	SslSessCachePerVs *uint32 `json:"ssl_sess_cache_per_vs,omitempty"`
 
 	// Size of the TCP SYN cache hash table. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	TCPSyncacheHashsize *int32 `json:"tcp_syncache_hashsize,omitempty"`
+	TCPSyncacheHashsize *uint32 `json:"tcp_syncache_hashsize,omitempty"`
 }

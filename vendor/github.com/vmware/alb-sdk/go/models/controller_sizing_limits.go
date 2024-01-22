@@ -37,4 +37,7 @@ type ControllerSizingLimits struct {
 
 	// Maximum number of vrfcontexts. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumVrfs *int32 `json:"num_vrfs,omitempty"`
+
+	// Maximum number of virtualservices configured with WAF. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	NumWafVirtualservices *int32 `json:"num_waf_virtualservices,omitempty"`
 }

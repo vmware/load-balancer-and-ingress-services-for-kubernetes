@@ -20,5 +20,5 @@ type MesosSeResources struct {
 	CPU *float32 `json:"cpu,omitempty"`
 
 	// Obsolete - ignored. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Memory *int32 `json:"memory,omitempty"`
+	Memory *uint32 `json:"memory,omitempty"`
 }

@@ -9,11 +9,11 @@ package models
 type ObjSyncConfig struct {
 
 	// SE CPU limit for InterSE Object Distribution. Allowed values are 15-80. Field introduced in 20.1.3. Unit is PERCENT. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	ObjsyncCPULimit *int32 `json:"objsync_cpu_limit,omitempty"`
+	ObjsyncCPULimit *uint32 `json:"objsync_cpu_limit,omitempty"`
 
 	// Hub election interval for InterSE Object Distribution. Allowed values are 30-300. Field introduced in 20.1.3. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	ObjsyncHubElectInterval *int32 `json:"objsync_hub_elect_interval,omitempty"`
+	ObjsyncHubElectInterval *uint32 `json:"objsync_hub_elect_interval,omitempty"`
 
 	// Reconcile interval for InterSE Object Distribution. Allowed values are 1-120. Field introduced in 20.1.3. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	ObjsyncReconcileInterval *int32 `json:"objsync_reconcile_interval,omitempty"`
+	ObjsyncReconcileInterval *uint32 `json:"objsync_reconcile_interval,omitempty"`
 }

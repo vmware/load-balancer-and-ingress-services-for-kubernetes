@@ -61,7 +61,7 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 				}
 				addr := ipnet.IP.String()
 				atype := "V4"
-				if !utils.IsV4(addr) {
+				if utils.IsV6(addr) {
 					atype = "V6"
 				}
 

@@ -13,7 +13,7 @@ type NetworkSecurityRule struct {
 	Action *string `json:"action"`
 
 	// Time in minutes after which rule will be deleted. Allowed values are 1-4294967295. Special values are 0- blocked for ever. Unit is MIN. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 0), Basic edition(Allowed values- 0), Enterprise with Cloud Services edition.
-	Age *int32 `json:"age,omitempty"`
+	Age uint32 `json:"age,omitempty"`
 
 	// Creator name. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CreatedBy *string `json:"created_by,omitempty"`
@@ -24,7 +24,7 @@ type NetworkSecurityRule struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	Index *int32 `json:"index"`
+	Index *uint32 `json:"index"`
 
 	//  Allowed in Enterprise edition with any value, Essentials edition(Allowed values- false), Basic edition(Allowed values- false), Enterprise with Cloud Services edition.
 	Log *bool `json:"log,omitempty"`

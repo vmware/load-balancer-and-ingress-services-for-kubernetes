@@ -86,7 +86,7 @@ func (in *BackendProperties) DeepCopyInto(out *BackendProperties) {
 	}
 	if in.MinServersUp != nil {
 		in, out := &in.MinServersUp, &out.MinServersUp
-		*out = new(int32)
+		*out = new(uint32)
 		**out = **in
 	}
 	if in.PkiProfileRef != nil {
@@ -132,7 +132,7 @@ func (in *FullClientLogs) DeepCopyInto(out *FullClientLogs) {
 	*out = *in
 	if in.Duration != nil {
 		in, out := &in.Duration, &out.Duration
-		*out = new(int32)
+		*out = new(uint32)
 		**out = **in
 	}
 	if in.Enabled != nil {
@@ -142,7 +142,7 @@ func (in *FullClientLogs) DeepCopyInto(out *FullClientLogs) {
 	}
 	if in.Throttle != nil {
 		in, out := &in.Throttle, &out.Throttle
-		*out = new(int32)
+		*out = new(uint32)
 		**out = **in
 	}
 	return
@@ -935,7 +935,7 @@ func (in *Service) DeepCopyInto(out *Service) {
 	}
 	if in.Port != nil {
 		in, out := &in.Port, &out.Port
-		*out = new(int32)
+		*out = new(uint32)
 		**out = **in
 	}
 	if in.Protocol != nil {

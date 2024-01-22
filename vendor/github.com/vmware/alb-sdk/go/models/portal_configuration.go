@@ -12,7 +12,7 @@ type PortalConfiguration struct {
 	AllowBasicAuthentication *bool `json:"allow_basic_authentication,omitempty"`
 
 	// Force API session timeout after the specified time (in hours). Allowed values are 1-24. Field introduced in 18.2.3. Unit is HOURS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	APIForceTimeout *int32 `json:"api_force_timeout,omitempty"`
+	APIForceTimeout *uint32 `json:"api_force_timeout,omitempty"`
 
 	// Disable Remote CLI Shell Client access. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DisableRemoteCliShell *bool `json:"disable_remote_cli_shell,omitempty"`
@@ -30,16 +30,19 @@ type PortalConfiguration struct {
 	EnableHTTPS *bool `json:"enable_https,omitempty"`
 
 	// HTTP port. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	HTTPPort *int32 `json:"http_port,omitempty"`
+	HTTPPort uint32 `json:"http_port,omitempty"`
 
 	// HTTPS port. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	HTTPSPort *int32 `json:"https_port,omitempty"`
+	HTTPSPort uint32 `json:"https_port,omitempty"`
 
 	// Minimum password length for user accounts. Allowed values are 6-32. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	MinimumPasswordLength *int32 `json:"minimum_password_length,omitempty"`
+	MinimumPasswordLength *uint32 `json:"minimum_password_length,omitempty"`
 
 	// Strict checking of password strength for user accounts. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PasswordStrengthCheck *bool `json:"password_strength_check,omitempty"`
+
+	// Reference to PKIProfile Config used for CRL validation. It is a reference to an object of type PKIProfile. Field introduced in 30.1.2. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	PkiprofileRef *string `json:"pkiprofile_ref,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	RedirectToHTTPS *bool `json:"redirect_to_https,omitempty"`

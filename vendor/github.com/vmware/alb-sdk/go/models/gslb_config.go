@@ -9,16 +9,16 @@ package models
 type GslbConfig struct {
 
 	// Frequency with which messages are propagated to Vs Mgr. Value of 0 disables async behavior and RPC are sent inline. Allowed values are 0-5. Field introduced in 22.1.1. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	AsyncInterval *int32 `json:"async_interval,omitempty"`
+	AsyncInterval uint32 `json:"async_interval,omitempty"`
 
 	// Max retries after which the remote site is treated as a fresh start. In fresh start all the configs are downloaded. Allowed values are 1-1024. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	ClearOnMaxRetries *int32 `json:"clear_on_max_retries,omitempty"`
+	ClearOnMaxRetries *uint32 `json:"clear_on_max_retries,omitempty"`
 
 	// Allows enable/disable of GslbService pool groups and pool members from the gslb follower members. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	EnableConfigByMembers *bool `json:"enable_config_by_members,omitempty"`
 
 	// Frequency with which errored messages are resynced to follower sites. Value of 0 disables resync behavior. Allowed values are 60-3600. Special values are 0 - Disable. Field introduced in 22.1.1. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	ErrorResyncInterval *int32 `json:"error_resync_interval,omitempty"`
+	ErrorResyncInterval *uint32 `json:"error_resync_interval,omitempty"`
 
 	// This field indicates that this object is replicated across GSLB federation. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	IsFederated *bool `json:"is_federated,omitempty"`
@@ -38,7 +38,7 @@ type GslbConfig struct {
 	ReplicationPolicy *ReplicationPolicy `json:"replication_policy,omitempty"`
 
 	// Frequency with which group members communicate. Allowed values are 1-3600. Field introduced in 22.1.1. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	SendInterval *int32 `json:"send_interval,omitempty"`
+	SendInterval *uint32 `json:"send_interval,omitempty"`
 
 	// Select Avi site member belonging to this Gslb. Field introduced in 22.1.1. Minimum of 1 items required. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Sites []*GslbSite `json:"sites,omitempty"`
@@ -56,5 +56,5 @@ type GslbConfig struct {
 	UUID *string `json:"uuid,omitempty"`
 
 	// The view-id is used in change-leader mode to differentiate partitioned groups while they have the same GSLB namespace. Each partitioned group will be able to operate independently by using the view-id. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	ViewID *int64 `json:"view_id,omitempty"`
+	ViewID uint64 `json:"view_id,omitempty"`
 }

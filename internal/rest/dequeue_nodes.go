@@ -64,6 +64,12 @@ func (rest *RestOperations) DequeueNodes(key string) {
 	if !ok {
 		utils.AviLog.Warnf("key: %s, msg: no model found for the key", key)
 	}
+	if key == lib.IstioModel {
+		avimodel := avimodelIntf.(*nodes.AviObjectGraph)
+		utils.AviLog.Infof("key: %s, msg: processing istio object", key)
+		rest.IstioCU(key, avimodel)
+		return
+	}
 	namespace, name := utils.ExtractNamespaceObjectName(key)
 	vsKey := avicache.NamespaceName{Namespace: namespace, Name: name}
 	vs_cache_obj := rest.getVsCacheObj(vsKey, key)
@@ -101,12 +107,6 @@ func (rest *RestOperations) DequeueNodes(key string) {
 			return
 		}
 		utils.AviLog.Debugf("key: %s, msg: VS create/update.", key)
-		if key == lib.IstioModel {
-			utils.AviLog.Infof("key: %s, msg: processing istio object", key)
-			rest.IstioCU(key, avimodel)
-			return
-		}
-
 		if strings.Contains(name, "-EVH") && lib.IsEvhEnabled() {
 			if len(avimodel.GetAviEvhVS()) != 1 {
 				utils.AviLog.Warnf("key: %s, msg: virtualservice in the model is not equal to 1:%v", key, avimodel.GetAviEvhVS())
@@ -129,10 +129,11 @@ func (rest *RestOperations) IstioCU(key string, avimodel *nodes.AviObjectGraph) 
 	var restOps []*utils.RestOp
 	var pkiSuccess, sslSuccess bool
 
-	pkiKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: lib.GetIstioPKIProfileName()}
-	sslKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: lib.GetIstioWorkloadCertificateName()}
 	pkiNode, sslNode := avimodel.GetIstioNodes()
-	pkiCacheObj, ok := rest.cache.PKIProfileCache.AviCacheGet(lib.GetIstioPKIProfileName())
+	pkiKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: pkiNode.Name}
+	sslKey := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: sslNode.Name}
+
+	pkiCacheObj, ok := rest.cache.PKIProfileCache.AviCacheGet(pkiKey)
 	if !ok {
 		restOp := rest.AviPkiProfileBuild(pkiNode, nil)
 		restOps = []*utils.RestOp{restOp}
@@ -146,7 +147,7 @@ func (rest *RestOperations) IstioCU(key string, avimodel *nodes.AviObjectGraph) 
 		}
 	}
 
-	sslCacheObj, ok := rest.cache.SSLKeyCache.AviCacheGet(lib.GetIstioWorkloadCertificateName())
+	sslCacheObj, ok := rest.cache.SSLKeyCache.AviCacheGet(sslKey)
 	if !ok {
 		restOp := rest.AviSSLBuild(sslNode, nil)
 		restOps = []*utils.RestOp{restOp}

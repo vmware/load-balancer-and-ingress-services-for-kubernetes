@@ -106,7 +106,11 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 
 			// This would throw an error for advl4 the error is propagated to the gateway status.
 			if vsvip_meta.IPAddress != "" {
-				vip.IPAddress = &avimodels.IPAddr{Type: &ipType, Addr: &vsvip_meta.IPAddress}
+				if utils.IsV4(vsvip_meta.IPAddress) {
+					vip.IPAddress = &avimodels.IPAddr{Type: &ipType, Addr: &vsvip_meta.IPAddress}
+				} else {
+					vip.Ip6Address = &avimodels.IPAddr{Type: &ip6Type, Addr: &vsvip_meta.IPAddress}
+				}
 			}
 
 			if lib.IsPublicCloud() && lib.GetCloudType() != lib.CLOUD_GCP {
@@ -176,7 +180,11 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 
 		// configuring static IP, from gateway.Addresses (advl4, svcapi) and service.loadBalancerIP (l4)
 		if vsvip_meta.IPAddress != "" {
-			vip.IPAddress = &avimodels.IPAddr{Type: &ipType, Addr: &vsvip_meta.IPAddress}
+			if utils.IsV4(vsvip_meta.IPAddress) {
+				vip.IPAddress = &avimodels.IPAddr{Type: &ipType, Addr: &vsvip_meta.IPAddress}
+			} else {
+				vip.Ip6Address = &avimodels.IPAddr{Type: &ip6Type, Addr: &vsvip_meta.IPAddress}
+			}
 		}
 
 		// selecting network with user input, in case user input is not provided AKO relies on

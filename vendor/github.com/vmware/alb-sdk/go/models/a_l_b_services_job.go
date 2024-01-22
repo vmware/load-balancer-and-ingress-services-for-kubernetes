@@ -44,6 +44,9 @@ type ALBServicesJob struct {
 	// The status of the albservicesjob. Enum options - UNDETERMINED, PENDING, IN_PROGRESS, COMPLETED, FAILED, NOT_ENABLED. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Status *string `json:"status,omitempty"`
 
+	// Time at which the status of albservicesjob updated. Field introduced in 22.1.6. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	StatusUpdateTime *TimeStamp `json:"status_update_time,omitempty"`
+
 	// The unique identifier of the tenant to which this albservicesjob belongs. It is a reference to an object of type Tenant. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 

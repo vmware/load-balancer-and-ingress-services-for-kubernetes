@@ -74,6 +74,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		if ok {
 			PublishKeyToRestLayer(lib.IstioModel, key, sharedQueue)
 		}
+		return
 	}
 	schema, valid := ConfigDescriptor().GetByType(objType)
 	if valid {
@@ -167,14 +168,13 @@ func DequeueIngestion(key string, fullsync bool) {
 	// L4Rule CRD processing.
 	if objType == lib.L4Rule {
 
+		if !utils.CheckIfNamespaceAccepted(namespace) {
+			utils.AviLog.Debugf("key: %s, msg: namespace of l4rule is not in accepted state", key)
+			return
+		}
 		svcNames, found := schema.GetParentServices(name, namespace, key)
 		if !found {
 			utils.AviLog.Debugf("key: %s, msg: no service found with L4Rule annotation", key)
-			return
-		}
-
-		if !utils.CheckIfNamespaceAccepted(namespace) {
-			utils.AviLog.Debugf("key: %s, msg: namespace of l4rule is not in accepted state", key)
 			return
 		}
 

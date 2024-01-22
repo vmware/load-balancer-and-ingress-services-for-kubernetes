@@ -26,7 +26,7 @@ type SecurityPolicy struct {
 
 	// Index of the dns policy to use for the mitigation rules applied to the dns attacks. Field introduced in 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	DNSPolicyIndex *int32 `json:"dns_policy_index"`
+	DNSPolicyIndex *uint32 `json:"dns_policy_index"`
 
 	// List of labels to be used for granular RBAC. Field introduced in 20.1.5. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
 	Markers []*RoleFilterMatchLabel `json:"markers,omitempty"`
@@ -37,7 +37,7 @@ type SecurityPolicy struct {
 
 	// Index of the network security policy to use for the mitigation rules applied to the attacks. Field introduced in 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	NetworkSecurityPolicyIndex *int32 `json:"network_security_policy_index"`
+	NetworkSecurityPolicyIndex *uint32 `json:"network_security_policy_index"`
 
 	// Mode of dealing with the attacks - perform detection only, or detect and mitigate the attacks. Enum options - DETECTION, MITIGATION. Field introduced in 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	OperMode *string `json:"oper_mode,omitempty"`

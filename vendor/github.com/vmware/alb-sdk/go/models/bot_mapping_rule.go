@@ -14,7 +14,7 @@ type BotMappingRule struct {
 
 	// Rules are processed in order of this index field. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	// Required: true
-	Index *int32 `json:"index"`
+	Index *uint32 `json:"index"`
 
 	// How to match the request  all the specified properties must be fulfilled. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	// Required: true

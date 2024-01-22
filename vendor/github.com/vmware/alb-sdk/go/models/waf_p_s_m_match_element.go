@@ -13,7 +13,7 @@ type WafPSMMatchElement struct {
 
 	// Match_element index. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	Index *int32 `json:"index"`
+	Index *uint32 `json:"index"`
 
 	// Case sensitivity of match_op operation. Enum options - SENSITIVE, INSENSITIVE. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	MatchCase *string `json:"match_case,omitempty"`

@@ -12,7 +12,7 @@ type RancherConfiguration struct {
 	AccessKey *string `json:"access_key,omitempty"`
 
 	// Sync frequency in seconds with frameworks. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	AppSyncFrequency *int32 `json:"app_sync_frequency,omitempty"`
+	AppSyncFrequency *uint32 `json:"app_sync_frequency,omitempty"`
 
 	// Perform container port matching to create a HTTP Virtualservice instead of a TCP/UDP VirtualService. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ContainerPortMatchHTTPService *bool `json:"container_port_match_http_service,omitempty"`
@@ -66,7 +66,7 @@ type RancherConfiguration struct {
 	SeIncludeAttributes []*MesosAttribute `json:"se_include_attributes,omitempty"`
 
 	// New SE spawn rate per minute. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SeSpawnRate *int32 `json:"se_spawn_rate,omitempty"`
+	SeSpawnRate *uint32 `json:"se_spawn_rate,omitempty"`
 
 	// Host volume to be used as a disk for Avi SE, This is a disruptive change. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeVolume *string `json:"se_volume,omitempty"`

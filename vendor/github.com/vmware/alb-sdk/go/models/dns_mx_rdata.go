@@ -14,5 +14,5 @@ type DNSMxRdata struct {
 
 	// The priority field identifies which mail server should be preferred. Allowed values are 0-65535. Field introduced in 18.2.9, 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	Priority *int32 `json:"priority"`
+	Priority *uint32 `json:"priority"`
 }
