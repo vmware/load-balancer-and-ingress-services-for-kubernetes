@@ -40,7 +40,7 @@ type Validator interface {
 	ValidateServiceImportObj(key string, serviceImport *akov1alpha1.ServiceImport) error
 	ValidateSSORuleObj(key string, ssoRule *akov1alpha2.SSORule) error
 	ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
-	ValidateL7RuleObj(key string, l4Rule *akov1alpha2.L7Rule) error
+	ValidateL7RuleObj(key string, l7Rule *akov1alpha2.L7Rule) error
 }
 
 type (
@@ -750,7 +750,7 @@ func (l *leader) ValidateL7RuleObj(key string, l7Rule *akov1alpha2.L7Rule) error
 		})
 		return err
 	}
-	// No need to update status of l4rule object as accepted since it was accepted before.
+	// No need to update status of l7rule object as accepted since it was accepted before.
 	if l7Rule.Status.Status == lib.StatusAccepted {
 		return nil
 	}
@@ -841,7 +841,7 @@ func (l *follower) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) err
 	return nil
 }
 
-func (f *follower) ValidateL7RuleObj(key string, l4Rule *akov1alpha2.L7Rule) error {
+func (f *follower) ValidateL7RuleObj(key string, l7Rule *akov1alpha2.L7Rule) error {
 	utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating L7Rule object", key)
 	return nil
 }
