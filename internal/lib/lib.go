@@ -2022,14 +2022,14 @@ var IPfamily string
 
 func SetIPFamily() {
 	ipFamily := os.Getenv(IP_FAMILY)
-	if GetCloudType() == CLOUD_VCENTER {
+	if IsV6EnabledCloud() {
 		if ipFamily != "" {
 			utils.AviLog.Debugf("ipFamily is set to %s", ipFamily)
 			IPfamily = ipFamily
 			return
 		} else {
-			utils.AviLog.Debugf("ipFamily is not set, default is V4")
-			ipFamily = "V4"
+			utils.AviLog.Debugf("ipFamily is not set, default mode is dual stack")
+			ipFamily = "V4_V6"
 		}
 	} else {
 		ipFamily = "V4"
@@ -2044,17 +2044,20 @@ func GetIPFamily() string {
 	return IPfamily
 }
 
+func IsV6EnabledCloud() bool {
+	cloudType := GetCloudType()
+	return cloudType == CLOUD_VCENTER || cloudType == CLOUD_NONE || cloudType == CLOUD_NSXT
+}
+
 func IsValidV6Config(returnErr *error) bool {
 	ipFamily := GetIPFamily()
-	if !(ipFamily == "V4" || ipFamily == "V6") {
+	if !(ipFamily == "V4" || ipFamily == "V6" || ipFamily == "V4_V6") {
 		*returnErr = fmt.Errorf("ipFamily is not one of (V4, V6)")
 		return false
 	}
-
 	vipNetworkList := utils.GetVipNetworkList()
-	isCloudVCenter := (GetCloudType() == CLOUD_VCENTER)
 	for _, vipNetwork := range vipNetworkList {
-		if !isCloudVCenter && vipNetwork.V6Cidr != "" {
+		if !IsV6EnabledCloud() && vipNetwork.V6Cidr != "" {
 			*returnErr = fmt.Errorf("IPv6 CIDR is only supported for vCenter Clouds")
 			return false
 		}
@@ -2150,37 +2153,45 @@ func IsChanClosed(ch <-chan struct{}) bool {
 func GetIPFromNode(node *v1.Node) (string, string) {
 	var nodeV4, nodeV6 string
 	nodeAddrs := node.Status.Addresses
-	for _, addr := range nodeAddrs {
-		if addr.Type == corev1.NodeInternalIP {
-			nodeIP := addr.Address
-			if utils.IsV4(nodeIP) {
-				//Use first IP in the list
-				if nodeV4 == "" {
-					nodeV4 = nodeIP
-				}
-			} else if nodeV6 == "" {
-				nodeV6 = nodeIP
-			}
-		}
-	}
-	if GetIPFamily() == "V6" {
-		if GetCNIPlugin() == CALICO_CNI {
+	ipFamily := GetIPFamily()
+	cniPlugin := GetCNIPlugin()
+
+	v4enabled := ipFamily == "V4" || ipFamily == "V4_V6"
+	v6enabled := ipFamily == "V6" || ipFamily == "V4_V6"
+
+	if cniPlugin == CALICO_CNI {
+		if v4enabled {
 			if nodeIP, ok := node.Annotations["projectcalico.org/IPv4Address"]; ok {
 				nodeV4 = strings.Split(nodeIP, "/")[0]
 			}
+		}
+		if v6enabled {
 			if nodeIP, ok := node.Annotations["projectcalico.org/IPv6Address"]; ok {
 				nodeV6 = strings.Split(nodeIP, "/")[0]
 			}
 		}
-		if GetCNIPlugin() == ANTREA_CNI {
-			if nodeIPstr, ok := node.Annotations["node.antrea.io/transport-addresses"]; ok {
-				nodeIPlist := strings.Split(nodeIPstr, ",")
-				for _, nodeIP := range nodeIPlist {
-					if utils.IsV4(nodeIP) {
-						nodeV4 = nodeIP
-					} else {
-						nodeV6 = nodeIP
-					}
+
+	} else if cniPlugin == ANTREA_CNI {
+		if nodeIPstr, ok := node.Annotations["node.antrea.io/transport-addresses"]; ok {
+			nodeIPlist := strings.Split(nodeIPstr, ",")
+			for _, nodeIP := range nodeIPlist {
+				if v4enabled && utils.IsV4(nodeIP) {
+					nodeV4 = nodeIP
+				} else if v6enabled && utils.IsV6(nodeIP) {
+					nodeV6 = nodeIP
+				}
+			}
+		}
+	}
+
+	if nodeV4 == "" || nodeV6 == "" {
+		for _, addr := range nodeAddrs {
+			if addr.Type == corev1.NodeInternalIP {
+				nodeIP := addr.Address
+				if v4enabled && utils.IsV4(nodeIP) && nodeV4 == "" {
+					nodeV4 = nodeIP
+				} else if v6enabled && utils.IsV6(nodeIP) && nodeV6 == "" {
+					nodeV6 = nodeIP
 				}
 			}
 		}

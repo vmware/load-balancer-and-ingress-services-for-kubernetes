@@ -930,12 +930,16 @@ func (rest *RestOperations) GetIPAddrsFromCache(vsCache *avicache.AviVsCache) []
 			vsvip_cache_obj, found := vsvip_cache.(*avicache.AviVSVIPCache)
 			if found {
 				if len(vsvip_cache_obj.Fips) != 0 {
-					IPAddrs = vsvip_cache_obj.Fips
-				} else if len(vsvip_cache_obj.V6IPs) != 0 {
-					IPAddrs = vsvip_cache_obj.V6IPs
+					IPAddrs = append(IPAddrs, vsvip_cache_obj.Fips...)
 				} else {
-					IPAddrs = vsvip_cache_obj.Vips
+					if len(vsvip_cache_obj.Vips) != 0 {
+						IPAddrs = append(IPAddrs, vsvip_cache_obj.Vips...)
+					}
+					if len(vsvip_cache_obj.V6IPs) != 0 {
+						IPAddrs = append(IPAddrs, vsvip_cache_obj.V6IPs...)
+					}
 				}
+
 			}
 		}
 	}
