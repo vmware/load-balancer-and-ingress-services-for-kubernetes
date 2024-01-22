@@ -109,7 +109,7 @@ spec:
   - `networkSettings`: Data network setting
     * `nodeNetworkList`: This list of network and cidrs are used in pool placement network for vcenter cloud. Node Network details are not needed when in nodeport mode / static routes are disabled / non vcenter clouds.
     * `enableRHI`: This is a cluster wide setting for BGP peering.
-    * `nsxtT1LR`: T1 Logical Segment mapping for backend network. Only applies to NSX-T cloud.
+    * `nsxtT1LR`: Unique ID (note: not display name) of the T1 Logical Router for Service Engine connectivity. Only applies to NSX-T cloud.
     * `bgpPeerLabels`: Select BGP peers using bgpPeerLabels, for selective VsVip advertisement.
     * `vipNetworkList`: List of Network Names and Subnet Information for VIP network, multiple networks allowed only for AWS Cloud.
   - `l7Settings`: Settings for L7 Virtual Services
