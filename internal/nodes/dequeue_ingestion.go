@@ -581,6 +581,7 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 		svcNSName := strings.Split(serviceNSName, "/")
 		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(svcNSName[0]).Get(svcNSName[1])
 		if !lib.ValidateSvcforClass(key, svcObj) {
+			isShareVipKeyDelete = true
 			break
 		}
 		if err != nil {
