@@ -35,7 +35,7 @@ type AviVsNodeGeneratedFields struct {
 	HostNameXlate                 *string
 	IgnPoolNetReach               *bool
 	LoadBalancerIP                *string
-	MinPoolsUp                    *int32
+	MinPoolsUp                    *uint32
 	NetworkProfileRef             *string
 	NetworkSecurityPolicyRef      *string
 	OauthVsConfig                 *v1alpha2.OAuthVSConfig
@@ -44,7 +44,7 @@ type AviVsNodeGeneratedFields struct {
 	SamlSpConfig                  *v1alpha2.SAMLSPConfig
 	SecurityPolicyRef             *string
 	Services                 []*v1alpha2.Service
-	SslSessCacheAvgSize           *int32
+	SslSessCacheAvgSize           *uint32
 	SsoPolicyRef                  *string
 	TrafficCloneProfileRef        *string
 }

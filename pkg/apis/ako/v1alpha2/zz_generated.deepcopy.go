@@ -440,7 +440,7 @@ func (in *L7RuleSpec) DeepCopyInto(out *L7RuleSpec) {
 	}
 	if in.MinPoolsUp != nil {
 		in, out := &in.MinPoolsUp, &out.MinPoolsUp
-		*out = new(int32)
+		*out = new(uint32)
 		**out = **in
 	}
 	if in.PerformanceLimits != nil {
@@ -460,7 +460,7 @@ func (in *L7RuleSpec) DeepCopyInto(out *L7RuleSpec) {
 	}
 	if in.SslSessCacheAvgSize != nil {
 		in, out := &in.SslSessCacheAvgSize, &out.SslSessCacheAvgSize
-		*out = new(int32)
+		*out = new(uint32)
 		**out = **in
 	}
 	if in.TrafficCloneProfileRef != nil {

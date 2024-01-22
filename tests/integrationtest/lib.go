@@ -1655,10 +1655,10 @@ type FakeL7Rule struct {
 	CloseClientConnOnConfigUpdate bool
 	HostNameXlate                 string
 	IgnPoolNetReach               bool
-	MinPoolsUp                    int32
+	MinPoolsUp                    uint32
 	RemoveListeningPortOnVsDown   bool
 	SecurityPolicyRef             string
-	SslSessCacheAvgSize           int32
+	SslSessCacheAvgSize           uint32
 	Name                          string
 	Namespace                     string
 }

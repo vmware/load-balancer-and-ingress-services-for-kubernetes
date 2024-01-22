@@ -27,11 +27,11 @@ type L7RuleSpec struct {
 	CloseClientConnOnConfigUpdate *bool              `json:"closeClientConnOnConfigUpdate,omitempty"`
 	HostNameXlate                 *string            `json:"hostNameXlate,omitempty"`
 	IgnPoolNetReach               *bool              `json:"ignPoolNetReach,omitempty"`
-	MinPoolsUp                    *int32             `json:"minPoolsUp,omitempty"`
+	MinPoolsUp                    *uint32             `json:"minPoolsUp,omitempty"`
 	PerformanceLimits             *PerformanceLimits `json:"performanceLimits,omitempty"`
 	RemoveListeningPortOnVsDown   *bool              `json:"removeListeningPortOnVsDown,omitempty"`
 	SecurityPolicyRef             *string            `json:"securityPolicyRef,omitempty"`
-	SslSessCacheAvgSize           *int32             `json:"sslSessCacheAvgSize,omitempty"`
+	SslSessCacheAvgSize           *uint32             `json:"sslSessCacheAvgSize,omitempty"`
 	TrafficCloneProfileRef        *string            `json:"trafficCloneProfileRef,omitempty"`
 }
 
