@@ -63,7 +63,7 @@ type Vip struct {
 	PortUUID *string `json:"port_uuid,omitempty"`
 
 	// Mask applied for the Vip, non-default mask supported only for wildcard Vip. Allowed values are 0-32. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 32), Basic edition(Allowed values- 32), Enterprise with Cloud Services edition.
-	PrefixLength *int32 `json:"prefix_length,omitempty"`
+	PrefixLength *uint32 `json:"prefix_length,omitempty"`
 
 	// Subnet providing reachability for client facing Vip IP. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Subnet *IPAddrPrefix `json:"subnet,omitempty"`

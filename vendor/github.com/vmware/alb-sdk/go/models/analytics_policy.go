@@ -30,8 +30,8 @@ type AnalyticsPolicy struct {
 	MetricsRealtimeUpdate *MetricsRealTimeUpdate `json:"metrics_realtime_update,omitempty"`
 
 	// This setting limits the number of significant logs generated per second for this VS on each SE. Default is 10 logs per second. Set it to zero (0) to deactivate throttling. Field introduced in 17.1.3. Unit is PER_SECOND. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SignificantLogThrottle *int32 `json:"significant_log_throttle,omitempty"`
+	SignificantLogThrottle *uint32 `json:"significant_log_throttle,omitempty"`
 
 	// This setting limits the total number of UDF logs generated per second for this VS on each SE. UDF logs are generated due to the configured client log filters or the rules with logging enabled. Default is 10 logs per second. Set it to zero (0) to deactivate throttling. Field introduced in 17.1.3. Unit is PER_SECOND. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	UdfLogThrottle *int32 `json:"udf_log_throttle,omitempty"`
+	UdfLogThrottle *uint32 `json:"udf_log_throttle,omitempty"`
 }

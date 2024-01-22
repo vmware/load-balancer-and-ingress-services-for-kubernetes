@@ -267,7 +267,7 @@ func TestUpdateDeleteL4Rule(t *testing.T) {
 	obj.Spec.PerformanceLimits.MaxConcurrentConnections = proto.Int32(100)
 	obj.Spec.PerformanceLimits.MaxThroughput = proto.Int32(30)
 	obj.Spec.VsDatascriptRefs = []string{"thisisaviref--new-ds1", "thisisaviref-new-ds2"}
-	obj.Spec.BackendProperties[0].MinServersUp = proto.Int32(2)
+	obj.Spec.BackendProperties[0].MinServersUp = proto.Uint32(2)
 	obj.Spec.BackendProperties[0].HealthMonitorRefs = []string{"thisisaviref-new-hm1", "thisisaviref-new-hm2"}
 	obj.Spec.BackendProperties[0].Enabled = proto.Bool(false)
 	obj.ResourceVersion = "2"

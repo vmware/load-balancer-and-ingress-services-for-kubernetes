@@ -13,31 +13,31 @@ type AnalyticsProfile struct {
 	LastModified *string `json:"_last_modified,omitempty"`
 
 	// If a client receives an HTTP response in less than the Satisfactory Latency Threshold, the request is considered Satisfied. It is considered Tolerated if it is not Satisfied and less than Tolerated Latency Factor multiplied by the Satisfactory Latency Threshold. Greater than this number and the client's request is considered Frustrated. Allowed values are 1-30000. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 500), Basic edition(Allowed values- 500), Enterprise with Cloud Services edition.
-	ApdexResponseThreshold *int32 `json:"apdex_response_threshold,omitempty"`
+	ApdexResponseThreshold *uint32 `json:"apdex_response_threshold,omitempty"`
 
 	// Client tolerated response latency factor. Client must receive a response within this factor times the satisfactory threshold (apdex_response_threshold) to be considered tolerated. Allowed values are 1-1000. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 4), Basic edition(Allowed values- 4), Enterprise with Cloud Services edition.
 	ApdexResponseToleratedFactor *float64 `json:"apdex_response_tolerated_factor,omitempty"`
 
 	// Satisfactory client to Avi Round Trip Time(RTT). Allowed values are 1-2000. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 250), Basic edition(Allowed values- 250), Enterprise with Cloud Services edition.
-	ApdexRttThreshold *int32 `json:"apdex_rtt_threshold,omitempty"`
+	ApdexRttThreshold *uint32 `json:"apdex_rtt_threshold,omitempty"`
 
 	// Tolerated client to Avi Round Trip Time(RTT) factor.  It is a multiple of apdex_rtt_tolerated_factor. Allowed values are 1-1000. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 4), Basic edition(Allowed values- 4), Enterprise with Cloud Services edition.
 	ApdexRttToleratedFactor *float64 `json:"apdex_rtt_tolerated_factor,omitempty"`
 
 	// If a client is able to load a page in less than the Satisfactory Latency Threshold, the PageLoad is considered Satisfied.  It is considered tolerated if it is greater than Satisfied but less than the Tolerated Latency multiplied by Satisifed Latency. Greater than this number and the client's request is considered Frustrated.  A PageLoad includes the time for DNS lookup, download of all HTTP objects, and page render time. Allowed values are 1-30000. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 5000), Basic edition(Allowed values- 5000), Enterprise with Cloud Services edition.
-	ApdexRumThreshold *int32 `json:"apdex_rum_threshold,omitempty"`
+	ApdexRumThreshold *uint32 `json:"apdex_rum_threshold,omitempty"`
 
 	// Virtual service threshold factor for tolerated Page Load Time (PLT) as multiple of apdex_rum_threshold. Allowed values are 1-1000. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 4), Basic edition(Allowed values- 4), Enterprise with Cloud Services edition.
 	ApdexRumToleratedFactor *float64 `json:"apdex_rum_tolerated_factor,omitempty"`
 
 	// A server HTTP response is considered Satisfied if latency is less than the Satisfactory Latency Threshold. The response is considered tolerated when it is greater than Satisfied but less than the Tolerated Latency Factor * S_Latency.  Greater than this number and the server response is considered Frustrated. Allowed values are 1-30000. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 400), Basic edition(Allowed values- 400), Enterprise with Cloud Services edition.
-	ApdexServerResponseThreshold *int32 `json:"apdex_server_response_threshold,omitempty"`
+	ApdexServerResponseThreshold *uint32 `json:"apdex_server_response_threshold,omitempty"`
 
 	// Server tolerated response latency factor. Servermust response within this factor times the satisfactory threshold (apdex_server_response_threshold) to be considered tolerated. Allowed values are 1-1000. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 4), Basic edition(Allowed values- 4), Enterprise with Cloud Services edition.
 	ApdexServerResponseToleratedFactor *float64 `json:"apdex_server_response_tolerated_factor,omitempty"`
 
 	// Satisfactory client to Avi Round Trip Time(RTT). Allowed values are 1-2000. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 125), Basic edition(Allowed values- 125), Enterprise with Cloud Services edition.
-	ApdexServerRttThreshold *int32 `json:"apdex_server_rtt_threshold,omitempty"`
+	ApdexServerRttThreshold *uint32 `json:"apdex_server_rtt_threshold,omitempty"`
 
 	// Tolerated client to Avi Round Trip Time(RTT) factor.  It is a multiple of apdex_rtt_tolerated_factor. Allowed values are 1-1000. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 4), Basic edition(Allowed values- 4), Enterprise with Cloud Services edition.
 	ApdexServerRttToleratedFactor *float64 `json:"apdex_server_rtt_tolerated_factor,omitempty"`
@@ -52,28 +52,28 @@ type AnalyticsProfile struct {
 	ConfigpbAttributes *ConfigPbAttributes `json:"configpb_attributes,omitempty"`
 
 	// A connection between client and Avi is considered lossy when more than this percentage of out of order packets are received. Allowed values are 1-100. Unit is PERCENT. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 50), Basic edition(Allowed values- 50), Enterprise with Cloud Services edition.
-	ConnLossyOooThreshold *int32 `json:"conn_lossy_ooo_threshold,omitempty"`
+	ConnLossyOooThreshold *uint32 `json:"conn_lossy_ooo_threshold,omitempty"`
 
 	// A connection between client and Avi is considered lossy when more than this percentage of packets are retransmitted due to timeout. Allowed values are 1-100. Unit is PERCENT. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 20), Basic edition(Allowed values- 20), Enterprise with Cloud Services edition.
-	ConnLossyTimeoRexmtThreshold *int32 `json:"conn_lossy_timeo_rexmt_threshold,omitempty"`
+	ConnLossyTimeoRexmtThreshold *uint32 `json:"conn_lossy_timeo_rexmt_threshold,omitempty"`
 
 	// A connection between client and Avi is considered lossy when more than this percentage of packets are retransmitted. Allowed values are 1-100. Unit is PERCENT. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 50), Basic edition(Allowed values- 50), Enterprise with Cloud Services edition.
-	ConnLossyTotalRexmtThreshold *int32 `json:"conn_lossy_total_rexmt_threshold,omitempty"`
+	ConnLossyTotalRexmtThreshold *uint32 `json:"conn_lossy_total_rexmt_threshold,omitempty"`
 
 	// A client connection is considered lossy when percentage of times a packet could not be trasmitted due to TCP zero window is above this threshold. Allowed values are 0-100. Unit is PERCENT. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 2), Basic edition(Allowed values- 2), Enterprise with Cloud Services edition.
-	ConnLossyZeroWinSizeEventThreshold *int32 `json:"conn_lossy_zero_win_size_event_threshold,omitempty"`
+	ConnLossyZeroWinSizeEventThreshold *uint32 `json:"conn_lossy_zero_win_size_event_threshold,omitempty"`
 
 	// A connection between Avi and server is considered lossy when more than this percentage of out of order packets are received. Allowed values are 1-100. Unit is PERCENT. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 50), Basic edition(Allowed values- 50), Enterprise with Cloud Services edition.
-	ConnServerLossyOooThreshold *int32 `json:"conn_server_lossy_ooo_threshold,omitempty"`
+	ConnServerLossyOooThreshold *uint32 `json:"conn_server_lossy_ooo_threshold,omitempty"`
 
 	// A connection between Avi and server is considered lossy when more than this percentage of packets are retransmitted due to timeout. Allowed values are 1-100. Unit is PERCENT. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 20), Basic edition(Allowed values- 20), Enterprise with Cloud Services edition.
-	ConnServerLossyTimeoRexmtThreshold *int32 `json:"conn_server_lossy_timeo_rexmt_threshold,omitempty"`
+	ConnServerLossyTimeoRexmtThreshold *uint32 `json:"conn_server_lossy_timeo_rexmt_threshold,omitempty"`
 
 	// A connection between Avi and server is considered lossy when more than this percentage of packets are retransmitted. Allowed values are 1-100. Unit is PERCENT. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 50), Basic edition(Allowed values- 50), Enterprise with Cloud Services edition.
-	ConnServerLossyTotalRexmtThreshold *int32 `json:"conn_server_lossy_total_rexmt_threshold,omitempty"`
+	ConnServerLossyTotalRexmtThreshold *uint32 `json:"conn_server_lossy_total_rexmt_threshold,omitempty"`
 
 	// A server connection is considered lossy when percentage of times a packet could not be trasmitted due to TCP zero window is above this threshold. Allowed values are 0-100. Unit is PERCENT. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 2), Basic edition(Allowed values- 2), Enterprise with Cloud Services edition.
-	ConnServerLossyZeroWinSizeEventThreshold *int32 `json:"conn_server_lossy_zero_win_size_event_threshold,omitempty"`
+	ConnServerLossyZeroWinSizeEventThreshold *uint32 `json:"conn_server_lossy_zero_win_size_event_threshold,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Description *string `json:"description,omitempty"`
@@ -154,25 +154,25 @@ type AnalyticsProfile struct {
 	ExcludeUnsupportedDNSQueryAsError *bool `json:"exclude_unsupported_dns_query_as_error,omitempty"`
 
 	// Skips health score computation of pool servers when number of servers in a pool is more than this setting. Allowed values are 0-5000. Special values are 0- server health score is deactivated. Field introduced in 17.2.13, 18.1.4. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 0), Basic edition(Allowed values- 0), Enterprise with Cloud Services edition. Special default for Essentials edition is 0, Basic edition is 0, Enterprise is 20.
-	HealthscoreMaxServerLimit *int32 `json:"healthscore_max_server_limit,omitempty"`
+	HealthscoreMaxServerLimit *uint32 `json:"healthscore_max_server_limit,omitempty"`
 
 	// Time window (in secs) within which only unique health change events should occur. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 1209600), Basic edition(Allowed values- 1209600), Enterprise with Cloud Services edition.
-	HsEventThrottleWindow *int32 `json:"hs_event_throttle_window,omitempty"`
+	HsEventThrottleWindow *uint32 `json:"hs_event_throttle_window,omitempty"`
 
 	// Maximum penalty that may be deducted from health score for anomalies. Allowed values are 0-100. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 10), Basic edition(Allowed values- 10), Enterprise with Cloud Services edition.
-	HsMaxAnomalyPenalty *int32 `json:"hs_max_anomaly_penalty,omitempty"`
+	HsMaxAnomalyPenalty *uint32 `json:"hs_max_anomaly_penalty,omitempty"`
 
 	// Maximum penalty that may be deducted from health score for high resource utilization. Allowed values are 0-100. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 25), Basic edition(Allowed values- 25), Enterprise with Cloud Services edition.
-	HsMaxResourcesPenalty *int32 `json:"hs_max_resources_penalty,omitempty"`
+	HsMaxResourcesPenalty *uint32 `json:"hs_max_resources_penalty,omitempty"`
 
 	// Maximum penalty that may be deducted from health score based on security assessment. Allowed values are 0-100. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 100), Basic edition(Allowed values- 100), Enterprise with Cloud Services edition.
-	HsMaxSecurityPenalty *int32 `json:"hs_max_security_penalty,omitempty"`
+	HsMaxSecurityPenalty *uint32 `json:"hs_max_security_penalty,omitempty"`
 
 	// DoS connection rate below which the DoS security assessment will not kick in. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 1000), Basic edition(Allowed values- 1000), Enterprise with Cloud Services edition.
-	HsMinDosRate *int32 `json:"hs_min_dos_rate,omitempty"`
+	HsMinDosRate *uint32 `json:"hs_min_dos_rate,omitempty"`
 
 	// Adds free performance score credits to health score. It can be used for compensating health score for known slow applications. Allowed values are 0-100. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 0), Basic edition(Allowed values- 0), Enterprise with Cloud Services edition.
-	HsPerformanceBoost *int32 `json:"hs_performance_boost,omitempty"`
+	HsPerformanceBoost uint32 `json:"hs_performance_boost,omitempty"`
 
 	// Threshold number of connections in 5min, below which apdexr, apdexc, rum_apdex, and other network quality metrics are not computed. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 10), Basic edition(Allowed values- 10), Enterprise with Cloud Services edition.
 	HsPscoreTrafficThresholdL4Client *float64 `json:"hs_pscore_traffic_threshold_l4_client,omitempty"`
@@ -251,7 +251,7 @@ type AnalyticsProfile struct {
 	Name *string `json:"name"`
 
 	// This flag sets the time duration of no live data traffic after which Virtual Service metrics processing is suspended. It is applicable only when enable_ondemand_metrics is set to false. Field introduced in 18.1.1. Unit is SECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	OndemandMetricsIDLETimeout *int32 `json:"ondemand_metrics_idle_timeout,omitempty"`
+	OndemandMetricsIDLETimeout *uint32 `json:"ondemand_metrics_idle_timeout,omitempty"`
 
 	// List of HTTP status code ranges to be excluded from being classified as an error. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Ranges []*HttpstatusRange `json:"ranges,omitempty"`
@@ -263,7 +263,7 @@ type AnalyticsProfile struct {
 	SensitiveLogProfile *SensitiveLogProfile `json:"sensitive_log_profile,omitempty"`
 
 	// Maximum number of SIP messages added in logs for a SIP transaction. By default, this value is 20. Allowed values are 1-1000. Field introduced in 17.2.13, 18.1.5, 18.2.1. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 20), Basic edition(Allowed values- 20), Enterprise with Cloud Services edition.
-	SipLogDepth *int32 `json:"sip_log_depth,omitempty"`
+	SipLogDepth *uint32 `json:"sip_log_depth,omitempty"`
 
 	//  It is a reference to an object of type Tenant. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TenantRef *string `json:"tenant_ref,omitempty"`

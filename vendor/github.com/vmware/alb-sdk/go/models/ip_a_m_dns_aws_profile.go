@@ -27,7 +27,7 @@ type IPAMDNSAwsProfile struct {
 	SecretAccessKey *string `json:"secret_access_key,omitempty"`
 
 	// Default TTL for all records. Allowed values are 1-172800. Field introduced in 17.1.3. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	TTL *int32 `json:"ttl,omitempty"`
+	TTL *uint32 `json:"ttl,omitempty"`
 
 	// Usable domains to pick from Amazon Route 53. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UsableDomains []string `json:"usable_domains,omitempty"`

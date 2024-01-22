@@ -15,7 +15,7 @@ type NuageSDNController struct {
 	NuagePassword *string `json:"nuage_password,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	NuagePort *int32 `json:"nuage_port,omitempty"`
+	NuagePort *uint32 `json:"nuage_port,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NuageUsername *string `json:"nuage_username,omitempty"`

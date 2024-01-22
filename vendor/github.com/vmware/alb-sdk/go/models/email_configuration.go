@@ -26,11 +26,11 @@ type EmailConfiguration struct {
 	// Friendly name in From field. Field introduced in 21.1.4, 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	FromName *string `json:"from_name,omitempty"`
 
-	// Mail server host. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// Mail server FQDN or IP(v4/v6) address. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MailServerName *string `json:"mail_server_name,omitempty"`
 
 	// Mail server port. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MailServerPort *int32 `json:"mail_server_port,omitempty"`
+	MailServerPort *uint32 `json:"mail_server_port,omitempty"`
 
 	// Type of SMTP Mail Service. Enum options - SMTP_NONE, SMTP_LOCAL_HOST, SMTP_SERVER, SMTP_ANONYMOUS_SERVER. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true

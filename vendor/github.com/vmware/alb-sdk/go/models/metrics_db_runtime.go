@@ -8,27 +8,30 @@ package models
 // swagger:model MetricsDbRuntime
 type MetricsDbRuntime struct {
 
-	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DbNumClientQueries *int32 `json:"db_num_client_queries,omitempty"`
+	// Db Client name. Can be of DB_CLIENT_RT/DB_CLIENT_BATCH/DB_CLIENT_RT_ARR. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	DbClientName *string `json:"db_client_name,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DbNumClientResp *int32 `json:"db_num_client_resp,omitempty"`
+	DbNumClientQueries uint32 `json:"db_num_client_queries,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DbNumDbQueries *int32 `json:"db_num_db_queries,omitempty"`
+	DbNumClientResp uint32 `json:"db_num_client_resp,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DbNumDbResp *int32 `json:"db_num_db_resp,omitempty"`
+	DbNumDbQueries uint32 `json:"db_num_db_queries,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DbNumOom *int32 `json:"db_num_oom,omitempty"`
+	DbNumDbResp uint32 `json:"db_num_db_resp,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DbQueueSize *int32 `json:"db_queue_size,omitempty"`
+	DbNumOom uint32 `json:"db_num_oom,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DbRumQueries *int32 `json:"db_rum_queries,omitempty"`
+	DbQueueSize uint32 `json:"db_queue_size,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DbRumRows *int32 `json:"db_rum_rows,omitempty"`
+	DbRumQueries uint32 `json:"db_rum_queries,omitempty"`
+
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	DbRumRows uint32 `json:"db_rum_rows,omitempty"`
 }

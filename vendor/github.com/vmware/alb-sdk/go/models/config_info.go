@@ -12,11 +12,11 @@ type ConfigInfo struct {
 	Queue []*VersionInfo `json:"queue,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ReaderCount *int32 `json:"reader_count,omitempty"`
+	ReaderCount uint32 `json:"reader_count,omitempty"`
 
 	//  Enum options - REPL_NONE, REPL_ENABLED, REPL_DISABLED. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	State *string `json:"state,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	WriterCount *int32 `json:"writer_count,omitempty"`
+	WriterCount uint32 `json:"writer_count,omitempty"`
 }

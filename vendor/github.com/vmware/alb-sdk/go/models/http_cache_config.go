@@ -18,7 +18,7 @@ type HTTPCacheConfig struct {
 	DateHeader *bool `json:"date_header,omitempty"`
 
 	// Default expiration time of cache objects received from the server without a Cache-Control expiration header.  This value may be overwritten by the Heuristic Expire setting. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DefaultExpire *int32 `json:"default_expire,omitempty"`
+	DefaultExpire *uint32 `json:"default_expire,omitempty"`
 
 	// Enable/disable HTTP object caching.When enabling caching for the first time, SE Group app_cache_percent must be set to allocate shared memory required for caching (A service engine restart is needed after setting/resetting the SE group value). Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Enabled *bool `json:"enabled,omitempty"`
@@ -30,10 +30,10 @@ type HTTPCacheConfig struct {
 	IgnoreRequestCacheControl *bool `json:"ignore_request_cache_control,omitempty"`
 
 	// Max size, in bytes, of the cache.  The default, zero, indicates auto configuration. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxCacheSize *int64 `json:"max_cache_size,omitempty"`
+	MaxCacheSize uint64 `json:"max_cache_size,omitempty"`
 
 	// Maximum size of an object to store in the cache. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxObjectSize *int32 `json:"max_object_size,omitempty"`
+	MaxObjectSize *uint32 `json:"max_object_size,omitempty"`
 
 	// Blocklist *string group of non-cacheable mime types. It is a reference to an object of type StringGroup. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	MimeTypesBlockGroupRefs []string `json:"mime_types_block_group_refs,omitempty"`
@@ -48,7 +48,7 @@ type HTTPCacheConfig struct {
 	MimeTypesList []string `json:"mime_types_list,omitempty"`
 
 	// Minimum size of an object to store in the cache. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MinObjectSize *int32 `json:"min_object_size,omitempty"`
+	MinObjectSize *uint32 `json:"min_object_size,omitempty"`
 
 	// Allow caching of objects whose URI included a query argument.  When disabled, these objects are not cached.  When enabled, the request must match the URI query to be considered a hit. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	QueryCacheable *bool `json:"query_cacheable,omitempty"`

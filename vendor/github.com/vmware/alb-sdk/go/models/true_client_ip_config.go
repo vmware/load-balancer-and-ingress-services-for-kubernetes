@@ -15,5 +15,5 @@ type TrueClientIPConfig struct {
 	Headers []string `json:"headers,omitempty"`
 
 	// Position in the configured direction, in the specified header's value, to be used to set true client IP. If the value is greater than the number of IP addresses in the header, then the last IP address in the configured direction in the header will be used. Allowed values are 1-1000. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	IndexInHeader *int32 `json:"index_in_header,omitempty"`
+	IndexInHeader *uint32 `json:"index_in_header,omitempty"`
 }

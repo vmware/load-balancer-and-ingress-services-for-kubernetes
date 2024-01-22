@@ -8,7 +8,7 @@ package models
 // swagger:model SecMgrDataEvent
 type SecMgrDataEvent struct {
 
-	// Type of the generated for an application. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// Error type generated for an application. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Error *string `json:"error,omitempty"`
 
 	// Name of the application. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.

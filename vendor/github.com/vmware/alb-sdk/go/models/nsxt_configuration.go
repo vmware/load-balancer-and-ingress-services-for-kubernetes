@@ -8,6 +8,9 @@ package models
 // swagger:model NsxtConfiguration
 type NsxtConfiguration struct {
 
+	// Automatically create/delete DFW objects such as NSGroups and NSServices in NSX-T Manager. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	AutomateDfwObjects *bool `json:"automate_dfw_objects,omitempty"`
+
 	// Automatically create DFW rules for VirtualService in NSX-T Manager. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Basic edition(Allowed values- false), Essentials, Enterprise with Cloud Services edition.
 	AutomateDfwRules *bool `json:"automate_dfw_rules,omitempty"`
 

@@ -10,9 +10,9 @@ type SeThreshEventDetails struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	CurrValue *int64 `json:"curr_value"`
+	CurrValue *uint64 `json:"curr_value"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	Thresh *int64 `json:"thresh"`
+	Thresh *uint64 `json:"thresh"`
 }

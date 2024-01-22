@@ -33,10 +33,10 @@ type VipSummary struct {
 	IPAddress *IPAddr `json:"ip_address,omitempty"`
 
 	//  Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	NumSeAssigned *int32 `json:"num_se_assigned,omitempty"`
+	NumSeAssigned uint32 `json:"num_se_assigned,omitempty"`
 
 	//  Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	NumSeRequested *int32 `json:"num_se_requested,omitempty"`
+	NumSeRequested uint32 `json:"num_se_requested,omitempty"`
 
 	//  Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	OperStatus *OperationalStatus `json:"oper_status,omitempty"`
@@ -48,7 +48,7 @@ type VipSummary struct {
 	PlacementNetworks []*VipPlacementNetwork `json:"placement_networks,omitempty"`
 
 	// Mask applied for the Vip, non-default mask supported only for wildcard Vip. Allowed values are 0-32. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	PrefixLength *int32 `json:"prefix_length,omitempty"`
+	PrefixLength *uint32 `json:"prefix_length,omitempty"`
 
 	//  Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	ServiceEngine []*VipSeAssigned `json:"service_engine,omitempty"`

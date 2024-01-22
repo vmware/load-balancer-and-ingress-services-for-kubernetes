@@ -15,6 +15,18 @@ type WebappUT struct {
 	// Protobuf versioning for config pbs. Field introduced in 21.1.5, 22.1.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
 	ConfigpbAttributes *ConfigPbAttributes `json:"configpb_attributes,omitempty"`
 
+	// default uint64 field. Field introduced in 30.1.2. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	DefaultFirstInt *uint64 `json:"default_first_int,omitempty"`
+
+	// default *int64 field. Field introduced in 30.1.2. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	DefaultSecondInt *int64 `json:"default_second_int,omitempty"`
+
+	// Default *string field. Field introduced in 30.1.2. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	DefaultString *string `json:"default_string,omitempty"`
+
+	// default *int32 field. Field introduced in 30.1.2. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	DefaultThirdInt *int32 `json:"default_third_int,omitempty"`
+
 	// Optional message for nested f_mandatory test cases defined at level1. Field introduced in 21.1.5, 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	MandatoryTest *L1FMandatoryTestCase `json:"mandatory_test,omitempty"`
 
@@ -30,6 +42,9 @@ type WebappUT struct {
 
 	// Repeated message for nested f_sensitive test cases-level1. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	SensitiveTests []*L1FSensitiveTestCase `json:"sensitive_tests,omitempty"`
+
+	// Optional *bool for nested skip_optional_check test cases-level1. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	SkipOptionalCheckTests *bool `json:"skip_optional_check_tests,omitempty"`
 
 	// Optional message for nested  max *string length test cases. Field introduced in 21.1.5, 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	StringLengthTest *L1StringLengthTestCase `json:"string_length_test,omitempty"`

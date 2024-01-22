@@ -24,7 +24,6 @@ import (
 	v1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,9 +35,9 @@ type FakeL4Rules struct {
 	ns   string
 }
 
-var l4rulesResource = schema.GroupVersionResource{Group: "ako.vmware.com", Version: "v1alpha2", Resource: "l4rules"}
+var l4rulesResource = v1alpha2.SchemeGroupVersion.WithResource("l4rules")
 
-var l4rulesKind = schema.GroupVersionKind{Group: "ako.vmware.com", Version: "v1alpha2", Kind: "L4Rule"}
+var l4rulesKind = v1alpha2.SchemeGroupVersion.WithKind("L4Rule")
 
 // Get takes name of the l4Rule, and returns the corresponding l4Rule object, and an error if there is any.
 func (c *FakeL4Rules) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha2.L4Rule, err error) {

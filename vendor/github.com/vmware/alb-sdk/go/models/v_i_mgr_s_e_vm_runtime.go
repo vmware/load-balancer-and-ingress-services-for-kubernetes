@@ -52,10 +52,10 @@ type VIMgrSEVMRuntime struct {
 	DiscoveryResponse *string `json:"discovery_response,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DiscoveryStatus *int32 `json:"discovery_status,omitempty"`
+	DiscoveryStatus uint32 `json:"discovery_status,omitempty"`
 
 	// Disk space in GB for each service engine VM. Field introduced in 18.2.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DiskGb *int32 `json:"disk_gb,omitempty"`
+	DiskGb uint32 `json:"disk_gb,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Flavor *string `json:"flavor,omitempty"`
@@ -82,14 +82,14 @@ type VIMgrSEVMRuntime struct {
 	InitVnics *int32 `json:"init_vnics,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	LastDiscovery *int32 `json:"last_discovery,omitempty"`
+	LastDiscovery uint32 `json:"last_discovery,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	ManagedObjectID *string `json:"managed_object_id"`
 
 	// Memory in MB for each service engine VM. Field introduced in 18.2.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MemoryMb *int32 `json:"memory_mb,omitempty"`
+	MemoryMb uint32 `json:"memory_mb,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
@@ -158,7 +158,7 @@ type VIMgrSEVMRuntime struct {
 	VcenterVMType *string `json:"vcenter_vm_type,omitempty"`
 
 	// Count of vcpus for each service engine VM. Field introduced in 18.2.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Vcpus *int32 `json:"vcpus,omitempty"`
+	Vcpus uint32 `json:"vcpus,omitempty"`
 
 	// VSphere HA on cluster enabled or not. Field introduced in 20.1.7, 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	VsphereHaEnabled *bool `json:"vsphere_ha_enabled,omitempty"`

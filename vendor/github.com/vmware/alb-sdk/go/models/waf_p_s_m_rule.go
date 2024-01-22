@@ -16,7 +16,7 @@ type WafPSMRule struct {
 
 	// Rule index, this is used to determine the order of the rules. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	Index *int32 `json:"index"`
+	Index *uint32 `json:"index"`
 
 	// The field match_value_pattern regular expression is case sensitive. Enum options - SENSITIVE, INSENSITIVE. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MatchCase *string `json:"match_case,omitempty"`
@@ -25,7 +25,7 @@ type WafPSMRule struct {
 	MatchElements []*WafPSMMatchElement `json:"match_elements,omitempty"`
 
 	// The maximum allowed length of the match_value. If this is not set, the length will not be checked. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MatchValueMaxLength *int32 `json:"match_value_max_length,omitempty"`
+	MatchValueMaxLength uint32 `json:"match_value_max_length,omitempty"`
 
 	// A regular expression which describes the expected value. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MatchValuePattern *string `json:"match_value_pattern,omitempty"`

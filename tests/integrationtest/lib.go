@@ -2170,9 +2170,9 @@ func (lr FakeL4Rule) L4Rule() *akov1alpha2.L4Rule {
 		Spec: akov1alpha2.L4RuleSpec{
 			AnalyticsPolicy: &akov1alpha2.AnalyticsPolicy{
 				FullClientLogs: &akov1alpha2.FullClientLogs{
-					Duration: proto.Int32(10),
+					Duration: proto.Uint32(10),
 					Enabled:  proto.Bool(true),
-					Throttle: proto.Int32(20),
+					Throttle: proto.Uint32(20),
 				},
 			},
 			AnalyticsProfileRef:      proto.String("thisisaviref-analyticsprofile"),
@@ -2199,7 +2199,7 @@ func (lr FakeL4Rule) L4Rule() *akov1alpha2.L4Rule {
 			LbAlgorithm:                      proto.String("LB_ALGORITHM_CONSISTENT_HASH"),
 			LbAlgorithmHash:                  proto.String("LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER"),
 			LbAlgorithmConsistentHashHdr:     proto.String("custom-header"),
-			MinServersUp:                     proto.Int32(1),
+			MinServersUp:                     proto.Uint32(1),
 			PkiProfileRef:                    proto.String("thisisaviref-pkiprofileref"),
 			Port:                             &lr.Ports[i],
 			Protocol:                         proto.String("TCP"),
@@ -2220,7 +2220,7 @@ func convertL4RuleToSSL(l4Rule *akov1alpha2.L4Rule, ports []int, applicationProf
 	l4Rule.Spec.SslKeyAndCertificateRefs = sslKeyAndCertificateRefs
 	l4Rule.Spec.SslProfileRef = sslProfileRef
 	for _, port := range ports {
-		port32 := int32(port)
+		port32 := uint32(port)
 		l4Rule.Spec.Services = append(l4Rule.Spec.Services, &akov1alpha2.Service{
 			Port:      &port32,
 			Protocol:  proto.String("TCP"),

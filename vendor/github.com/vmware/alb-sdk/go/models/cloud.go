@@ -13,7 +13,7 @@ type Cloud struct {
 	LastModified *string `json:"_last_modified,omitempty"`
 
 	// CloudConnector polling interval in seconds for external autoscale groups, minimum 60 seconds. Allowed values are 60-3600. Field introduced in 18.2.2. Unit is SECONDS. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 60), Basic edition(Allowed values- 60), Enterprise with Cloud Services edition.
-	AutoscalePollingInterval *int32 `json:"autoscale_polling_interval,omitempty"`
+	AutoscalePollingInterval *uint32 `json:"autoscale_polling_interval,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	AwsConfiguration *AwsConfiguration `json:"aws_configuration,omitempty"`
@@ -82,10 +82,16 @@ type Cloud struct {
 	Markers []*RoleFilterMatchLabel `json:"markers,omitempty"`
 
 	// Cloud metrics collector polling interval in seconds. Field introduced in 22.1.1. Unit is SECONDS. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
-	MetricsPollingInterval *int32 `json:"metrics_polling_interval,omitempty"`
+	MetricsPollingInterval *uint32 `json:"metrics_polling_interval,omitempty"`
+
+	// Enable IPv4 on the Management interface of the ServiceEngine. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	MgmtIPV4Enabled *bool `json:"mgmt_ip_v4_enabled,omitempty"`
+
+	// Enable IPv6 on the Management interface of the ServiceEngine. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	MgmtIPV6Enabled *bool `json:"mgmt_ip_v6_enabled,omitempty"`
 
 	// MTU setting for the cloud. Unit is BYTES. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Mtu *int32 `json:"mtu,omitempty"`
+	Mtu *uint32 `json:"mtu,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
