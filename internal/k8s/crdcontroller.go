@@ -987,6 +987,8 @@ var refModelMap = map[string]string{
 	"NetworkProfile":         "networkprofile",
 	"SecurityPolicy":         "securitypolicy",
 	"NetworkSecurityPolicy":  "networksecuritypolicy",
+	"BotPolicy":              "botdetectionpolicy",
+	"TrafficCloneProfile":    "trafficcloneprofile",
 }
 
 // checkRefOnController checks whether a provided ref on the controller

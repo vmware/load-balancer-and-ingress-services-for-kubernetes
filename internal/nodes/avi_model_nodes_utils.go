@@ -222,6 +222,7 @@ func (o *AviVsNodeGeneratedFields) ConvertL7RuleParentOnlyFieldsToNil(){
 	if o != nil {
 		o.HostNameXlate = nil
 		o.SecurityPolicyRef =nil
+		o.PerformanceLimits =nil
 
 	}
 }
