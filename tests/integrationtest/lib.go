@@ -1683,7 +1683,7 @@ func (l7 FakeL7Rule) L7Rule() *akov1alpha2.L7Rule {
 	return &l7Rule
 }
 
-func SetupL7Rule(t *testing.T, name string) {
+func SetupL7Rule(t *testing.T, name string, g *gomega.WithT) {
 	l7rule := FakeL7Rule{
 		Name:                          name,
 		Namespace:                     "default",
@@ -1701,6 +1701,11 @@ func SetupL7Rule(t *testing.T, name string) {
 	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L7Rules("default").Create(context.TODO(), srCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding L7Rule: %v", err)
 	}
+	g.Eventually(func() string {
+		l7Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L7Rules("default").Get(context.TODO(), name, metav1.GetOptions{})
+		return l7Rule.Status.Status
+	}, 10*time.Second).Should(gomega.Equal("Accepted"))
+
 }
 
 type FakeHTTPRule struct {

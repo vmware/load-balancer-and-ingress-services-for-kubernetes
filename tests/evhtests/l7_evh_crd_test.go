@@ -1889,7 +1889,7 @@ func TestCreateUpdateDeleteL7RuleInHostRule(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	l7ruleName := "samplel7rule"
-	integrationtest.SetupL7Rule(t, l7ruleName)
+	integrationtest.SetupL7Rule(t, l7ruleName, g)
 
 	//Update hostrule with L7rule
 	hrUpdate := integrationtest.FakeHostRule{
@@ -1994,7 +1994,7 @@ func TestDeleteL7RulePresentInHostRule(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	l7ruleName := "samplel7rule"
-	integrationtest.SetupL7Rule(t, l7ruleName)
+	integrationtest.SetupL7Rule(t, l7ruleName, g)
 	//Update hostrule with L7rule
 	hrUpdate := integrationtest.FakeHostRule{
 		Name:      hrname,
@@ -2086,7 +2086,7 @@ func TestChangeL7RuleInHostRule(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	l7ruleName := "samplel7rule"
-	integrationtest.SetupL7Rule(t, l7ruleName)
+	integrationtest.SetupL7Rule(t, l7ruleName, g)
 	//Update hostrule with L7rule
 	hrUpdate := integrationtest.FakeHostRule{
 		Name:      hrname,
@@ -2123,7 +2123,7 @@ func TestChangeL7RuleInHostRule(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HostNameXlate).To(gomega.BeNil())
 	g.Expect(nodes[0].EvhNodes[0].SecurityPolicyRef).To(gomega.BeNil())
 	l7ruleName2 := "samplel7rule2"
-	integrationtest.SetupL7Rule(t, l7ruleName2)
+	integrationtest.SetupL7Rule(t, l7ruleName2, g)
 	l7rule2 := integrationtest.FakeL7Rule{Name: l7ruleName2,
 		Namespace:                     "default",
 		AllowInvalidClientCert:        false,
@@ -2142,8 +2142,8 @@ func TestChangeL7RuleInHostRule(t *testing.T) {
 		t.Fatalf("error in updating L7Rule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1alpha2CRDClient.AkoV1alpha2().L7Rules("default").Get(context.TODO(), l7ruleName2, metav1.GetOptions{})
-		return hostrule.Status.Status
+		l7Rule, _ := v1alpha2CRDClient.AkoV1alpha2().L7Rules("default").Get(context.TODO(), l7ruleName2, metav1.GetOptions{})
+		return l7Rule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
 	//Update hostrule with L7rule2
@@ -2189,6 +2189,7 @@ func TestChangeL7RuleInHostRule(t *testing.T) {
 	if err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L7Rules("default").Delete(context.TODO(), l7ruleName2, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting l7Rule: %v", err)
 	}
+	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
 func TestValidToInvalidL7rule(t *testing.T) {
@@ -2210,7 +2211,7 @@ func TestValidToInvalidL7rule(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	l7ruleName := "samplel7rule"
-	integrationtest.SetupL7Rule(t, l7ruleName)
+	integrationtest.SetupL7Rule(t, l7ruleName, g)
 	//Update hostrule with L7rule
 	hrUpdate := integrationtest.FakeHostRule{
 		Name:      hrname,
@@ -2262,8 +2263,8 @@ func TestValidToInvalidL7rule(t *testing.T) {
 	}
 
 	g.Eventually(func() string {
-		hostrule, _ := v1alpha2CRDClient.AkoV1alpha2().L7Rules("default").Get(context.TODO(), l7ruleName, metav1.GetOptions{})
-		return hostrule.Status.Status
+		l7Rule, _ := v1alpha2CRDClient.AkoV1alpha2().L7Rules("default").Get(context.TODO(), l7ruleName, metav1.GetOptions{})
+		return l7Rule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Rejected"))
 	g.Eventually(func() bool {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -2282,8 +2283,8 @@ func TestValidToInvalidL7rule(t *testing.T) {
 	}
 
 	g.Eventually(func() string {
-		hostrule, _ := v1alpha2CRDClient.AkoV1alpha2().L7Rules("default").Get(context.TODO(), l7ruleName, metav1.GetOptions{})
-		return hostrule.Status.Status
+		l7Rule, _ := v1alpha2CRDClient.AkoV1alpha2().L7Rules("default").Get(context.TODO(), l7ruleName, metav1.GetOptions{})
+		return l7Rule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
 	g.Eventually(func() bool {
@@ -2308,4 +2309,5 @@ func TestValidToInvalidL7rule(t *testing.T) {
 	if err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L7Rules("default").Delete(context.TODO(), l7ruleName, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting l7Rule: %v", err)
 	}
+	TearDownIngressForCacheSyncCheck(t, modelName)
 }
