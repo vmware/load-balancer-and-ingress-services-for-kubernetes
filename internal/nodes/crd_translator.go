@@ -190,6 +190,13 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 				VHDomainNames = append(VHDomainNames, alias)
 			}
 		}
+		if lib.IsEvhEnabled() {
+			if hostrule.Spec.VirtualHost.L7Rule != "" {
+				BuildL7Rule(host, key, hostrule.Spec.VirtualHost.L7Rule, hrNSName[0], vsNode)
+			} else {
+				vsNode.GetGeneratedFields().ConvertL7RuleFieldsToNil()
+			}
+		}
 
 		utils.AviLog.Infof("key: %s, Successfully attached hostrule %s on vsNode %s", key, hrNamespaceName, vsNode.GetName())
 	} else {
@@ -225,14 +232,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	serviceMetadataObj.CRDStatus = crdStatus
 	vsNode.SetServiceMetadata(serviceMetadataObj)
 
-	if lib.IsEvhEnabled() && !deleteCase {
-		generatedFields := vsNode.GetGeneratedFields()
-		if hostrule.Spec.VirtualHost.L7Rule != "" {
-			BuildL7Rule(host, key, hostrule.Spec.VirtualHost.L7Rule, hrNSName[0], vsNode)
-		} else {
-			generatedFields.ConvertL7RuleFieldsToNil()
-		}
-	}
+	
 }
 
 // BuildPoolHTTPRule notes

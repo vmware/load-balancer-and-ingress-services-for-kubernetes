@@ -878,8 +878,6 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 				if err := c.GetValidator().ValidateL7RuleObj(key, l7Rule); err != nil {
 					utils.AviLog.Warnf("key: %s, Error retrieved during validation of L7Rule: %v", key, err)
 				}
-				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-				nodes.DequeueIngestion(key, true)
 			}
 		}
 

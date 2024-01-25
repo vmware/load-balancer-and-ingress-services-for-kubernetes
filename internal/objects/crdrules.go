@@ -382,7 +382,6 @@ func (c *CRDLister) DeleteL7RuleToHostRuleMapping(l7Rule string, hostRule string
 		delete(hostRules, hostRule)
 		c.L7RuleHostRuleCache.AddOrUpdate(l7Rule, hostRules)
 	}
-	c.GetL7RuleToHostRuleMapping(l7Rule)
 }
 
 func (c *CRDLister) UpdateL7RuleToHostRuleMapping(l7Rule string, hostRule string) {
@@ -391,5 +390,4 @@ func (c *CRDLister) UpdateL7RuleToHostRuleMapping(l7Rule string, hostRule string
 	_, hostRules := c.GetL7RuleToHostRuleMapping(l7Rule)
 	hostRules[hostRule] = true
 	c.L7RuleHostRuleCache.AddOrUpdate(l7Rule, hostRules)
-	c.GetL7RuleToHostRuleMapping(l7Rule)
 }

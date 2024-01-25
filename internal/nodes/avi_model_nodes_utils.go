@@ -50,7 +50,7 @@ type AviVsNodeGeneratedFields struct {
 }
 
 func (v *AviVsNodeGeneratedFields) CalculateCheckSumOfGeneratedCode() uint32 {
-	checksumStringSlice := make([]string, 0, 18)
+	checksumStringSlice := make([]string, 0, 20)
 	if v.AllowInvalidClientCert != nil {
 		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.AllowInvalidClientCert))
 	}
@@ -118,7 +118,7 @@ func (v *AviVsNodeGeneratedFields) CalculateCheckSumOfGeneratedCode() uint32 {
 	if v.Services != nil {
 		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.Services))
 	}
-	
+
 	if v.SsoPolicyRef != nil {
 		checksumStringSlice = append(checksumStringSlice, *v.SsoPolicyRef)
 	}
