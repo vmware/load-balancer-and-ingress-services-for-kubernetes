@@ -938,7 +938,8 @@ func ConstructService(ns string, Name string, protocol corev1.Protocol, Type cor
 	if LBClass != "" {
 		svcObj.LoadBalancerClass = LBClass
 	}
-	return svcObj.Service()
+	svc := svcObj.Service()
+	return svc
 }
 
 func DelSVC(t *testing.T, ns string, Name string) {

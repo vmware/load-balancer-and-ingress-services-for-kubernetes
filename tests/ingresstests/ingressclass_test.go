@@ -16,11 +16,13 @@ package ingresstests
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
@@ -303,6 +305,61 @@ func TestIngressWithNonAVILBIngressClass(t *testing.T) {
 }
 
 // AviInfraSetting CRD
+
+func TestAviInfraSettingForLBSvcWithInvalidLBClass(t *testing.T) {
+	// create invalid LB SVC, aviinfrasetting CRD
+	// update SVC with aviinfrasetting annotation
+	// VS should not come up
+	g := gomega.NewWithT(t)
+	model_name, svc_name, ns, infraSettingName := "admin/cluster--default-testsvc", "testsvc", "default", "my-infrasetting"
+
+	objects.SharedAviGraphLister().Delete(model_name)
+	integrationtest.CreateSVCWithValidOrInvalidLBClass(t, ns, svc_name, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, integrationtest.INVALID_LB_CLASS)
+	integrationtest.CreateEP(t, ns, svc_name, false, false, "1.1.1")
+	integrationtest.PollForCompletion(t, model_name, 5)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(model_name)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(false))
+
+	setting := integrationtest.FakeAviInfraSetting{
+		Name:        infraSettingName,
+		SeGroupName: "thisisaviref-" + infraSettingName + "-seGroup",
+	}
+	settingCreate := setting.AviInfraSetting()
+	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding AviInfraSetting: %v", err)
+	}
+
+	svcObj := (integrationtest.FakeService{
+		Name:      svc_name,
+		Namespace: ns,
+		Type:      corev1.ServiceTypeLoadBalancer,
+	}).Service()
+	svcObj.Annotations = map[string]string{lib.InfraSettingNameAnnotation: infraSettingName}
+	svcObj.ResourceVersion = "2"
+	_, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(model_name)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(false))
+
+	objects.SharedAviGraphLister().Delete(model_name)
+	integrationtest.DelSVC(t, ns, svc_name)
+	integrationtest.DelEP(t, ns, svc_name)
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: fmt.Sprintf("cluster--%s-%s", ns, svc_name)}
+	g.Eventually(func() bool {
+		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		return found
+	}, 5*time.Second).Should(gomega.Equal(false))
+
+	integrationtest.TeardownAviInfraSetting(t, infraSettingName)
+}
 func TestAviInfraSettingNamingConvention(t *testing.T) {
 	// create secure and insecure host ingress, connect with infrasetting
 	// check for names of all Avi objects
