@@ -181,6 +181,7 @@ func TestMain(m *testing.M) {
 	akoControlConfig.SetCRDClientset(CRDClient)
 	akoControlConfig.Setv1beta1CRDClientset(V1beta1CRDClient)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
+	akoControlConfig.SetDefaultLBController(true)
 	akoControlConfig.SetAKOInstanceFlag(true)
 	data := map[string][]byte{
 		"username": []byte("admin"),

@@ -77,6 +77,7 @@ func TestMain(m *testing.M) {
 	akoControlConfig.Setv1beta1CRDClientset(v1beta1CRDClient)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
 	akoControlConfig.SetAKOInstanceFlag(true)
+	akoControlConfig.SetDefaultLBController(true)
 	k8s.NewCRDInformers()
 
 	data := map[string][]byte{

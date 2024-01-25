@@ -156,7 +156,7 @@ func DequeueIngestion(key string, fullsync bool) {
 			for _, svcNSNameKey := range svcNames {
 				svcNSName := strings.Split(svcNSNameKey, "/")
 				if svcObj, _ := utils.GetInformers().ServiceInformer.Lister().Services(svcNSName[0]).Get(svcNSName[1]); !lib.ValidateSvcforClass(key, svcObj) {
-					utils.AviLog.Warnf("key: %s, msg: not processing Service %s for %s %s", key, svcNSNameKey, objType, name)
+					utils.AviLog.Warnf("key: %s, msg: not processing Service %s for %s %s due to invalid LoadBalancerClass", key, svcNSNameKey, objType, name)
 					continue
 				}
 				handleL4Service(utils.L4LBService+"/"+svcNSNameKey, fullsync)
@@ -181,7 +181,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		for _, svcNSNameKey := range svcNames {
 			svcName := strings.Split(svcNSNameKey, "/")[1]
 			if svcObj, _ := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName); !lib.ValidateSvcforClass(key, svcObj) {
-				utils.AviLog.Warnf("key: %s, msg: not processing Service %s for %s %s", key, svcNSNameKey, objType, name)
+				utils.AviLog.Warnf("key: %s, msg: not processing Service %s for %s %s due to invalid LoadBalancerClass", key, svcNSNameKey, objType, name)
 				continue
 			}
 			if lib.HasSharedVIPAnnotation(svcName, namespace) {
