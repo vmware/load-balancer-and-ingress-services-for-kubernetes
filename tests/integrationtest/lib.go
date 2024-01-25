@@ -75,6 +75,7 @@ const (
 	SHAREDVIPSVC02      = "shared-vip-svc-02"
 	EXTDNSANNOTATION    = "custom-fqdn.com"
 	EXTDNSSVC           = "custom-fqdn-svc"
+	INVALID_LB_CLASS    = "not-ako-lb"
 )
 
 var KubeClient *k8sfake.Clientset
@@ -652,14 +653,15 @@ func PollForSyncStart(ctrl *k8s.AviController, counter int) bool {
 }
 
 type FakeService struct {
-	Namespace      string
-	Name           string
-	Labels         map[string]string
-	Type           corev1.ServiceType
-	LoadBalancerIP string
-	ServicePorts   []Serviceport
-	Selectors      map[string]string
-	Annotations    map[string]string
+	Namespace         string
+	Name              string
+	Labels            map[string]string
+	Type              corev1.ServiceType
+	LoadBalancerIP    string
+	ServicePorts      []Serviceport
+	Selectors         map[string]string
+	Annotations       map[string]string
+	LoadBalancerClass string
 }
 
 type Serviceport struct {
@@ -694,6 +696,9 @@ func (svc FakeService) Service() *corev1.Service {
 			Labels:      svc.Labels,
 			Annotations: svc.Annotations,
 		},
+	}
+	if svc.LoadBalancerClass != "" {
+		svcExample.Spec.LoadBalancerClass = &svc.LoadBalancerClass
 	}
 	return svcExample
 }
@@ -863,8 +868,18 @@ func CreateSVC(t *testing.T, ns string, Name string, protocol corev1.Protocol, T
 	time.Sleep(2 * time.Second)
 }
 
+func CreateSVCWithValidOrInvalidLBClass(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, LBClass string, multiProtocol ...corev1.Protocol) {
+	selectors := make(map[string]string)
+	svcExample := ConstructService(ns, Name, protocol, Type, multiPort, selectors, LBClass, multiProtocol...)
+	_, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svcExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	time.Sleep(2 * time.Second)
+}
+
 func CreateServiceWithSelectors(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, selectors map[string]string, multiProtocol ...corev1.Protocol) {
-	svcExample := ConstructService(ns, Name, protocol, Type, multiPort, selectors, multiProtocol...)
+	svcExample := ConstructService(ns, Name, protocol, Type, multiPort, selectors, "", multiProtocol...)
 	_, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svcExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
@@ -877,7 +892,7 @@ func UpdateSVC(t *testing.T, ns string, Name string, protocol corev1.Protocol, T
 }
 
 func UpdateServiceWithSelectors(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
-	svcExample := ConstructService(ns, Name, protocol, Type, multiPort, selectors)
+	svcExample := ConstructService(ns, Name, protocol, Type, multiPort, selectors, "")
 	svcExample.ResourceVersion = "2"
 	_, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
 	if err != nil {
@@ -885,7 +900,7 @@ func UpdateServiceWithSelectors(t *testing.T, ns string, Name string, protocol c
 	}
 }
 
-func ConstructService(ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, selectors map[string]string, multiProtocol ...corev1.Protocol) *corev1.Service {
+func ConstructService(ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, selectors map[string]string, LBClass string, multiProtocol ...corev1.Protocol) *corev1.Service {
 	var servicePorts []Serviceport
 	numPorts := 1
 	if multiPort {
@@ -919,9 +934,11 @@ func ConstructService(ns string, Name string, protocol corev1.Protocol, Type cor
 		}
 		servicePorts = append(servicePorts, sp)
 	}
-
-	svcExample := (FakeService{Name: Name, Namespace: ns, Type: Type, ServicePorts: servicePorts, Selectors: selectors}).Service()
-	return svcExample
+	svcObj := (FakeService{Name: Name, Namespace: ns, Type: Type, ServicePorts: servicePorts, Selectors: selectors})
+	if LBClass != "" {
+		svcObj.LoadBalancerClass = LBClass
+	}
+	return svcObj.Service()
 }
 
 func DelSVC(t *testing.T, ns string, Name string) {
