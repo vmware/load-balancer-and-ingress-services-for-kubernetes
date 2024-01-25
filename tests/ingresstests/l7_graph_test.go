@@ -2789,7 +2789,7 @@ func TestV6BackendService(t *testing.T) {
 	modelName := "admin/cluster--Shared-L7-0"
 	objects.SharedAviGraphLister().Delete(modelName)
 
-	v6Svc := integrationtest.ConstructService("default", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, make(map[string]string))
+	v6Svc := integrationtest.ConstructService("default", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, make(map[string]string), "")
 	ipFamilyPolicy := corev1.IPFamilyPolicy("SingleStack")
 	v6Svc.Spec.IPFamilies = []corev1.IPFamily{"IPv6"}
 	v6Svc.Spec.IPFamilyPolicy = &ipFamilyPolicy
@@ -2836,7 +2836,7 @@ func TestDualStackBackendService(t *testing.T) {
 	modelName := "admin/cluster--Shared-L7-0"
 	objects.SharedAviGraphLister().Delete(modelName)
 
-	dsSvc := integrationtest.ConstructService("default", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, make(map[string]string))
+	dsSvc := integrationtest.ConstructService("default", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, make(map[string]string), "")
 	ipFamilyPolicy := corev1.IPFamilyPolicy("RequireDualStack")
 	dsSvc.Spec.IPFamilies = []corev1.IPFamily{"IPv4", "IPv6"}
 	dsSvc.Spec.IPFamilyPolicy = &ipFamilyPolicy
@@ -2883,7 +2883,7 @@ func TestDualStackMultipleBackendService(t *testing.T) {
 	modelName := "admin/cluster--Shared-L7-0"
 	objects.SharedAviGraphLister().Delete(modelName)
 
-	v4Svc := integrationtest.ConstructService("default", "avisvc1", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, make(map[string]string))
+	v4Svc := integrationtest.ConstructService("default", "avisvc1", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, make(map[string]string), "")
 	ipFamilyPolicy := corev1.IPFamilyPolicy("SingleStack")
 	v4Svc.Spec.IPFamilies = []corev1.IPFamily{"IPv4"}
 	v4Svc.Spec.IPFamilyPolicy = &ipFamilyPolicy
@@ -2893,7 +2893,7 @@ func TestDualStackMultipleBackendService(t *testing.T) {
 	}
 	integrationtest.CreateEP(t, "default", "avisvc1", false, false, "1.1.1")
 
-	v6Svc := integrationtest.ConstructService("default", "avisvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, make(map[string]string))
+	v6Svc := integrationtest.ConstructService("default", "avisvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, make(map[string]string), "")
 	v6Svc.Spec.IPFamilies = []corev1.IPFamily{"IPv6"}
 	v6Svc.Spec.IPFamilyPolicy = &ipFamilyPolicy
 	_, err = KubeClient.CoreV1().Services("default").Create(context.TODO(), v6Svc, metav1.CreateOptions{})
