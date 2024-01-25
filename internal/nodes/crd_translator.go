@@ -232,7 +232,6 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	serviceMetadataObj.CRDStatus = crdStatus
 	vsNode.SetServiceMetadata(serviceMetadataObj)
 
-	
 }
 
 // BuildPoolHTTPRule notes
