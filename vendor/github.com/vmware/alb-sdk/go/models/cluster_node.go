@@ -14,9 +14,11 @@ type ClusterNode struct {
 	// Interface details of the controller node. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Interfaces []*ControllerInterface `json:"interfaces,omitempty"`
 
-	// IP address of controller VM. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	// Required: true
-	IP *IPAddr `json:"ip"`
+	// V4 IP address of controller VM. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	IP *IPAddr `json:"ip,omitempty"`
+
+	// V6 IP address of controller VM. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	Ip6 *IPAddr `json:"ip6,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`

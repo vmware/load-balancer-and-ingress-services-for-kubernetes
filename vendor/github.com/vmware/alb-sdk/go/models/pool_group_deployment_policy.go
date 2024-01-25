@@ -22,7 +22,7 @@ type PoolGroupDeploymentPolicy struct {
 	Description *string `json:"description,omitempty"`
 
 	// Duration of evaluation period for automatic deployment. Allowed values are 60-86400. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	EvaluationDuration *int32 `json:"evaluation_duration,omitempty"`
+	EvaluationDuration *uint32 `json:"evaluation_duration,omitempty"`
 
 	// List of labels to be used for granular RBAC. Field introduced in 20.1.5. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
 	Markers []*RoleFilterMatchLabel `json:"markers,omitempty"`
@@ -38,13 +38,13 @@ type PoolGroupDeploymentPolicy struct {
 	Scheme *string `json:"scheme,omitempty"`
 
 	// Target traffic ratio before pool is made production. Allowed values are 1-100. Unit is RATIO. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	TargetTestTrafficRatio *int32 `json:"target_test_traffic_ratio,omitempty"`
+	TargetTestTrafficRatio *uint32 `json:"target_test_traffic_ratio,omitempty"`
 
 	//  It is a reference to an object of type Tenant. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
 	// Ratio of the traffic that is sent to the pool under test. test ratio of 100 means blue green. Allowed values are 1-100. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	TestTrafficRatioRampup *int32 `json:"test_traffic_ratio_rampup,omitempty"`
+	TestTrafficRatioRampup *uint32 `json:"test_traffic_ratio_rampup,omitempty"`
 
 	// url
 	// Read Only: true

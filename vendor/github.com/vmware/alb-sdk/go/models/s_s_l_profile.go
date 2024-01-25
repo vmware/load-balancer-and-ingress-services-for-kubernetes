@@ -65,7 +65,7 @@ type SSLProfile struct {
 	SslRating *SSLRating `json:"ssl_rating,omitempty"`
 
 	// The amount of time in seconds before an SSL session expires. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SslSessionTimeout *int32 `json:"ssl_session_timeout,omitempty"`
+	SslSessionTimeout *uint32 `json:"ssl_session_timeout,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Tags []*Tag `json:"tags,omitempty"`

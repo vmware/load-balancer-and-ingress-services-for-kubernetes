@@ -141,11 +141,11 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		}
 		isTCPPortPresent := false
 		for i, pp := range vs_meta.PortProto {
-			port := pp.Port
+			port := uint32(pp.Port)
 			svc := avimodels.Service{
 				Port:         &port,
 				EnableSsl:    &vs_meta.PortProto[i].EnableSSL,
-				PortRangeEnd: &port,
+				PortRangeEnd: port,
 				EnableHttp2:  &vs_meta.PortProto[i].EnableHTTP2,
 			}
 			if vs_meta.NetworkProfile == utils.MIXED_NET_PROFILE {
@@ -930,12 +930,16 @@ func (rest *RestOperations) GetIPAddrsFromCache(vsCache *avicache.AviVsCache) []
 			vsvip_cache_obj, found := vsvip_cache.(*avicache.AviVSVIPCache)
 			if found {
 				if len(vsvip_cache_obj.Fips) != 0 {
-					IPAddrs = vsvip_cache_obj.Fips
-				} else if len(vsvip_cache_obj.V6IPs) != 0 {
-					IPAddrs = vsvip_cache_obj.V6IPs
+					IPAddrs = append(IPAddrs, vsvip_cache_obj.Fips...)
 				} else {
-					IPAddrs = vsvip_cache_obj.Vips
+					if len(vsvip_cache_obj.Vips) != 0 {
+						IPAddrs = append(IPAddrs, vsvip_cache_obj.Vips...)
+					}
+					if len(vsvip_cache_obj.V6IPs) != 0 {
+						IPAddrs = append(IPAddrs, vsvip_cache_obj.V6IPs...)
+					}
 				}
+
 			}
 		}
 	}

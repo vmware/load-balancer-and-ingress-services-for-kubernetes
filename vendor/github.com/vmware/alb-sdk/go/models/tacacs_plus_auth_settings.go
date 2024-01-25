@@ -15,7 +15,7 @@ type TacacsPlusAuthSettings struct {
 	Password *string `json:"password,omitempty"`
 
 	// TACACS+ server listening port. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Port *int32 `json:"port,omitempty"`
+	Port *uint32 `json:"port,omitempty"`
 
 	// TACACS+ server IP address or FQDN. Minimum of 1 items required. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Server []string `json:"server,omitempty"`

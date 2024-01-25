@@ -20,8 +20,14 @@ type WAFLimits struct {
 	// Number of applications for which we use rules from sig provider. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	NumApplications *int32 `json:"num_applications,omitempty"`
 
+	// Number of allowed request content type mappings in waf profile. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	NumContentTypeMappings *int32 `json:"num_content_type_mappings,omitempty"`
+
 	// Number of datafiles used in WAF. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	NumDataFiles *int32 `json:"num_data_files,omitempty"`
+
+	// Number of exclude list entries in waf rule group. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	NumExcludeListPerRuleGroup *int32 `json:"num_exclude_list_per_rule_group,omitempty"`
 
 	// Number of pre, post CRS groups. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	NumPrePostCrsGroups *int32 `json:"num_pre_post_crs_groups,omitempty"`

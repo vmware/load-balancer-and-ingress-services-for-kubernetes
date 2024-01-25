@@ -69,6 +69,12 @@ type SystemConfiguration struct {
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ProxyConfiguration *ProxyConfiguration `json:"proxy_configuration,omitempty"`
 
+	// Users can specify and update the time limit of RekeyLimit in sshd_config.If nothing is specified, the default setting will be none. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	RekeyTimeLimit *string `json:"rekey_time_limit,omitempty"`
+
+	// Users can specify and update the size/volume limit of RekeyLimit in sshd_config.If nothing is specified, the default setting will be default. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	RekeyVolumeLimit *string `json:"rekey_volume_limit,omitempty"`
+
 	// Configure Secure Channel properties. Field introduced in 18.1.4, 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SecureChannelConfiguration *SecureChannelConfiguration `json:"secure_channel_configuration,omitempty"`
 

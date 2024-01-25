@@ -94,7 +94,7 @@ type VNIC struct {
 	VnicNetworks []*VNICNetwork `json:"vnic_networks,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	VrfID *int32 `json:"vrf_id,omitempty"`
+	VrfID uint32 `json:"vrf_id,omitempty"`
 
 	//  It is a reference to an object of type VrfContext. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VrfRef *string `json:"vrf_ref,omitempty"`

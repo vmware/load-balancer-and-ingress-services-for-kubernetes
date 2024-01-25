@@ -12,9 +12,9 @@ type MetricsEventThreshold struct {
 	// Required: true
 	MetricsEventThresholdType *string `json:"metrics_event_threshold_type"`
 
-	// This value is used to reset the event state machine. Allowed values are 0-100. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// This value is used to reset the event state machine. Allowed values are 1-100. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	ResetThreshold *float64 `json:"reset_threshold,omitempty"`
 
-	// Threshold value for which event in raised. There can be multiple thresholds defined.Health score degrades when the the target is higher than this threshold. Allowed values are 0-100. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Threshold value for which event in raised. There can be multiple thresholds defined.Health score degrades when the the target is higher than this threshold. Allowed values are 1-100. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	WatermarkThresholds []int64 `json:"watermark_thresholds,omitempty,omitempty"`
 }

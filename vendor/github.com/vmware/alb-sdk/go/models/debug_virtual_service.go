@@ -21,6 +21,9 @@ type DebugVirtualService struct {
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CaptureParams *DebugVirtualServiceCapture `json:"capture_params,omitempty"`
 
+	// Per packet capture filters for Debug Virtual Service. Applies to both frontend and backend packets. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	CapturePktFilter *CapturePacketFilter `json:"capture_pkt_filter,omitempty"`
+
 	//  It is a reference to an object of type Cloud. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CloudRef *string `json:"cloud_ref,omitempty"`
 

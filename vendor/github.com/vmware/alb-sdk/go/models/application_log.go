@@ -19,16 +19,16 @@ type ApplicationLog struct {
 	AllResponseHeaders *string `json:"all_response_headers,omitempty"`
 
 	//  Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	AppResponseTime *int64 `json:"app_response_time,omitempty"`
+	AppResponseTime uint64 `json:"app_response_time,omitempty"`
 
 	// Set the Session Authentication Status. Enum options - AUTH_STATUS_NO_AUTHENTICATION, AUTH_STATUS_AUTHENTICATION_SUCCESS, AUTH_STATUS_AUTHENTICATION_FAILURE, AUTH_STATUS_UNAUTHORIZED, AUTH_STATUS_AUTHENTICATED_REQUEST, AUTH_STATUS_AUTHZ_FAILED. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	AuthStatus *string `json:"auth_status,omitempty"`
 
 	// Average packet processing latency for the backend flow. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	AvgIngressLatencyBe *int32 `json:"avg_ingress_latency_be,omitempty"`
+	AvgIngressLatencyBe uint32 `json:"avg_ingress_latency_be,omitempty"`
 
 	// Average packet processing latency for the frontend flow. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	AvgIngressLatencyFe *int32 `json:"avg_ingress_latency_fe,omitempty"`
+	AvgIngressLatencyFe uint32 `json:"avg_ingress_latency_fe,omitempty"`
 
 	//  Enum options - NOT_UPDATED, BY_CONTENT_REWRITE_PROFILE, BY_DATA_SCRIPT. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	BodyUpdated *string `json:"body_updated,omitempty"`
@@ -56,7 +56,7 @@ type ApplicationLog struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	ClientDestPort *int32 `json:"client_dest_port"`
+	ClientDestPort *uint32 `json:"client_dest_port"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ClientDevice *string `json:"client_device,omitempty"`
@@ -69,7 +69,7 @@ type ApplicationLog struct {
 
 	// IPv4 address of the client. When true client IP feature is enabled, this will be derived from the header configured in the true client IP feature, if present in the request. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	ClientIP *int32 `json:"client_ip"`
+	ClientIP *uint32 `json:"client_ip"`
 
 	// IPv6 address of the client. Field introduced in 18.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ClientIp6 *string `json:"client_ip6,omitempty"`
@@ -85,11 +85,11 @@ type ApplicationLog struct {
 
 	//  Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	ClientRtt *int32 `json:"client_rtt"`
+	ClientRtt *uint32 `json:"client_rtt"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	ClientSrcPort *int32 `json:"client_src_port"`
+	ClientSrcPort *uint32 `json:"client_src_port"`
 
 	//  Enum options - NO_COMPRESSION_DISABLED, NO_COMPRESSION_GZIP_CONTENT, NO_COMPRESSION_CONTENT_TYPE, NO_COMPRESSION_CUSTOM_FILTER, NO_COMPRESSION_AUTO_FILTER, NO_COMPRESSION_MIN_LENGTH, NO_COMPRESSION_CAN_BE_COMPRESSED, COMPRESSED. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Compression *string `json:"compression,omitempty"`
@@ -98,10 +98,10 @@ type ApplicationLog struct {
 	CompressionPercentage *int32 `json:"compression_percentage,omitempty"`
 
 	// TCP connection establishment time for the backend flow. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	ConnEstTimeBe *int32 `json:"conn_est_time_be,omitempty"`
+	ConnEstTimeBe uint32 `json:"conn_est_time_be,omitempty"`
 
 	// TCP connection establishment time for the frontend flow. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	ConnEstTimeFe *int32 `json:"conn_est_time_fe,omitempty"`
+	ConnEstTimeFe uint32 `json:"conn_est_time_fe,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ConnectionErrorInfo *ConnErrorInfo `json:"connection_error_info,omitempty"`
@@ -110,7 +110,7 @@ type ApplicationLog struct {
 	CriticalErrorEncountered *bool `json:"critical_error_encountered,omitempty"`
 
 	//  Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DataTransferTime *int64 `json:"data_transfer_time,omitempty"`
+	DataTransferTime uint64 `json:"data_transfer_time,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DatascriptErrorTrace *DataScriptErrorTrace `json:"datascript_error_trace,omitempty"`
@@ -143,7 +143,7 @@ type ApplicationLog struct {
 	Host *string `json:"host,omitempty"`
 
 	// Stream identifier corresponding to an HTTP2 request. Field introduced in 18.1.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Http2StreamID *int32 `json:"http2_stream_id,omitempty"`
+	Http2StreamID uint32 `json:"http2_stream_id,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	HTTPRequestPolicyRuleName *string `json:"http_request_policy_rule_name,omitempty"`
@@ -165,13 +165,13 @@ type ApplicationLog struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	LogID *int32 `json:"log_id"`
+	LogID *uint32 `json:"log_id"`
 
 	// Maximum packet processing latency for the backend flow. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	MaxIngressLatencyBe *int32 `json:"max_ingress_latency_be,omitempty"`
+	MaxIngressLatencyBe uint32 `json:"max_ingress_latency_be,omitempty"`
 
 	// Maximum packet processing latency for the frontend flow. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	MaxIngressLatencyFe *int32 `json:"max_ingress_latency_fe,omitempty"`
+	MaxIngressLatencyFe uint32 `json:"max_ingress_latency_fe,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Method *string `json:"method,omitempty"`
@@ -207,7 +207,7 @@ type ApplicationLog struct {
 	PersistenceUsed *bool `json:"persistence_used,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	PersistentSessionID *int64 `json:"persistent_session_id,omitempty"`
+	PersistentSessionID uint64 `json:"persistent_session_id,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Pool *string `json:"pool,omitempty"`
@@ -223,19 +223,19 @@ type ApplicationLog struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	ReportTimestamp *int64 `json:"report_timestamp"`
+	ReportTimestamp *uint64 `json:"report_timestamp"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	RequestContentType *string `json:"request_content_type,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	RequestHeaders *int32 `json:"request_headers,omitempty"`
+	RequestHeaders uint32 `json:"request_headers,omitempty"`
 
 	// Unique HTTP Request ID . Field introduced in 17.2.4. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	RequestID *string `json:"request_id,omitempty"`
 
 	//  Unit is BYTES. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	RequestLength *int64 `json:"request_length,omitempty"`
+	RequestLength uint64 `json:"request_length,omitempty"`
 
 	// Flag to indicate if request was served locally because the remote site was down. Field introduced in 17.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	RequestServedLocallyRemoteSiteDown *bool `json:"request_served_locally_remote_site_down,omitempty"`
@@ -244,22 +244,22 @@ type ApplicationLog struct {
 	RequestState *string `json:"request_state,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ResponseCode *int32 `json:"response_code,omitempty"`
+	ResponseCode uint32 `json:"response_code,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ResponseContentType *string `json:"response_content_type,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ResponseHeaders *int32 `json:"response_headers,omitempty"`
+	ResponseHeaders uint32 `json:"response_headers,omitempty"`
 
 	//  Unit is BYTES. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ResponseLength *int64 `json:"response_length,omitempty"`
+	ResponseLength uint64 `json:"response_length,omitempty"`
 
 	//  Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ResponseTimeFirstByte *int64 `json:"response_time_first_byte,omitempty"`
+	ResponseTimeFirstByte uint64 `json:"response_time_first_byte,omitempty"`
 
 	//  Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ResponseTimeLastByte *int64 `json:"response_time_last_byte,omitempty"`
+	ResponseTimeLastByte uint64 `json:"response_time_last_byte,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	RewrittenURIPath *string `json:"rewritten_uri_path,omitempty"`
@@ -274,7 +274,7 @@ type ApplicationLog struct {
 	SamlAuthResponseReceived *bool `json:"saml_auth_response_received,omitempty"`
 
 	// SAML authentication session ID. Field introduced in 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SamlAuthSessionID *int64 `json:"saml_auth_session_id,omitempty"`
+	SamlAuthSessionID uint64 `json:"saml_auth_session_id,omitempty"`
 
 	// SAML authentication is used. Field introduced in 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SamlAuthenticationUsed *bool `json:"saml_authentication_used,omitempty"`
@@ -286,7 +286,7 @@ type ApplicationLog struct {
 	SamlSessionCookieValid *bool `json:"saml_session_cookie_valid,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ServerConnSrcIP *int32 `json:"server_conn_src_ip,omitempty"`
+	ServerConnSrcIP uint32 `json:"server_conn_src_ip,omitempty"`
 
 	// IPv6 address used to connect to Server. Field introduced in 18.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ServerConnSrcIp6 *string `json:"server_conn_src_ip6,omitempty"`
@@ -295,10 +295,10 @@ type ApplicationLog struct {
 	ServerConnectionReused *bool `json:"server_connection_reused,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ServerDestPort *int32 `json:"server_dest_port,omitempty"`
+	ServerDestPort uint32 `json:"server_dest_port,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ServerIP *int32 `json:"server_ip,omitempty"`
+	ServerIP uint32 `json:"server_ip,omitempty"`
 
 	// IPv6 address of the Server. Field introduced in 18.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ServerIp6 *string `json:"server_ip6,omitempty"`
@@ -313,25 +313,25 @@ type ApplicationLog struct {
 	ServerPushedRequest *bool `json:"server_pushed_request,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ServerResponseCode *int32 `json:"server_response_code,omitempty"`
+	ServerResponseCode uint32 `json:"server_response_code,omitempty"`
 
 	//  Unit is BYTES. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ServerResponseLength *int64 `json:"server_response_length,omitempty"`
+	ServerResponseLength uint64 `json:"server_response_length,omitempty"`
 
 	//  Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ServerResponseTimeFirstByte *int64 `json:"server_response_time_first_byte,omitempty"`
+	ServerResponseTimeFirstByte uint64 `json:"server_response_time_first_byte,omitempty"`
 
 	//  Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ServerResponseTimeLastByte *int64 `json:"server_response_time_last_byte,omitempty"`
+	ServerResponseTimeLastByte uint64 `json:"server_response_time_last_byte,omitempty"`
 
 	//  Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ServerRtt *int32 `json:"server_rtt,omitempty"`
+	ServerRtt uint32 `json:"server_rtt,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ServerSideRedirectURI *string `json:"server_side_redirect_uri,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ServerSrcPort *int32 `json:"server_src_port,omitempty"`
+	ServerSrcPort uint32 `json:"server_src_port,omitempty"`
 
 	// SSL session id for the backend connection. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ServerSslSessionID *string `json:"server_ssl_session_id,omitempty"`
@@ -340,7 +340,7 @@ type ApplicationLog struct {
 	ServerSslSessionReused *bool `json:"server_ssl_session_reused,omitempty"`
 
 	// Number of servers tried during server reselect before the response is sent back. Field introduced in 18.2.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ServersTried *int32 `json:"servers_tried,omitempty"`
+	ServersTried uint32 `json:"servers_tried,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
@@ -354,7 +354,7 @@ type ApplicationLog struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	Significant *int64 `json:"significant"`
+	Significant *uint64 `json:"significant"`
 
 	// List of enums which indicate why a log is significant. Enum options - ADF_CLIENT_CONN_SETUP_REFUSED, ADF_SERVER_CONN_SETUP_REFUSED, ADF_CLIENT_CONN_SETUP_TIMEDOUT, ADF_SERVER_CONN_SETUP_TIMEDOUT, ADF_CLIENT_CONN_SETUP_FAILED_INTERNAL, ADF_SERVER_CONN_SETUP_FAILED_INTERNAL, ADF_CLIENT_CONN_SETUP_FAILED_BAD_PACKET, ADF_UDP_CONN_SETUP_FAILED_INTERNAL, ADF_UDP_SERVER_CONN_SETUP_FAILED_INTERNAL, ADF_CLIENT_SENT_RESET, ADF_SERVER_SENT_RESET, ADF_CLIENT_CONN_TIMEDOUT, ADF_SERVER_CONN_TIMEDOUT, ADF_USER_DELETE_OPERATION, ADF_CLIENT_REQUEST_TIMEOUT, ADF_CLIENT_CONN_ABORTED, ADF_CLIENT_SSL_HANDSHAKE_FAILURE, ADF_CLIENT_CONN_FAILED, ADF_SERVER_CERTIFICATE_VERIFICATION_FAILED, ADF_SERVER_SIDE_SSL_HANDSHAKE_FAILED.... Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SignificantLog []string `json:"significant_log,omitempty"`
@@ -363,7 +363,7 @@ type ApplicationLog struct {
 	SniHostname *string `json:"sni_hostname,omitempty"`
 
 	// Source IP of the client connection to the VS. This can be different from client IP when true client IP feature is enabled. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	SourceIP *int32 `json:"source_ip,omitempty"`
+	SourceIP uint32 `json:"source_ip,omitempty"`
 
 	// IPv6 address of the source of the client connection to the VS. This can be different from client IPv6 address when true client IP feature is enabled. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	SourceIp6 *string `json:"source_ip6,omitempty"`
@@ -381,7 +381,7 @@ type ApplicationLog struct {
 	SslVersion *string `json:"ssl_version,omitempty"`
 
 	//  Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	TotalTime *int64 `json:"total_time,omitempty"`
+	TotalTime uint64 `json:"total_time,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
@@ -401,7 +401,7 @@ type ApplicationLog struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	VcpuID *int32 `json:"vcpu_id"`
+	VcpuID *uint32 `json:"vcpu_id"`
 
 	// EVH rule matching the request. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	VhMatchRule *string `json:"vh_match_rule,omitempty"`
@@ -411,7 +411,7 @@ type ApplicationLog struct {
 	Virtualservice *string `json:"virtualservice"`
 
 	//  Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	VsIP *int32 `json:"vs_ip,omitempty"`
+	VsIP uint32 `json:"vs_ip,omitempty"`
 
 	// Virtual IPv6 address of the VS. Field introduced in 18.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VsIp6 *string `json:"vs_ip6,omitempty"`

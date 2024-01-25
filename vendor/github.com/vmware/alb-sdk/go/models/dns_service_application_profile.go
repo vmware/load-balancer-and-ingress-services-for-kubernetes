@@ -14,6 +14,9 @@ type DNSServiceApplicationProfile struct {
 	// Email address of the administrator responsible for this zone . This field is used in SOA records (rname) pertaining to all domain names specified as authoritative domain names. If not configured, the default value 'hostmaster' is used in SOA responses. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AdminEmail *string `json:"admin_email,omitempty"`
 
+	// The maximum time allowed for a client to transmit an entire DNS request over TCP. This helps mitigate various forms of SlowLoris attacks. Allowed values are 10-100000000. Field introduced in 22.1.5, 30.1.2, 30.2.1. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	ClientDNSTCPRequestTimeout *uint32 `json:"client_dns_tcp_request_timeout,omitempty"`
+
 	// If enabled, the Service Engine initiates closure of client TCP connections after the first DNS response, for pass-through/proxy cases. This behavior applies to all DNS request types other than AX-FR. Field introduced in 21.1.7, 22.1.4, 30.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	CloseTCPConnectionPostResponse *bool `json:"close_tcp_connection_post_response,omitempty"`
 
@@ -33,7 +36,7 @@ type DNSServiceApplicationProfile struct {
 	Edns *bool `json:"edns,omitempty"`
 
 	// Specifies the IP address prefix length to use in the EDNS client subnet (ECS) option. When the incoming request does not have any ECS option and the prefix length is specified, an ECS option is inserted in the request passed to upstream server. If the incoming request already has an ECS option, the prefix length (and correspondingly the address) in the ECS option is updated, with the minimum of the prefix length present in the incoming and the configured prefix length, before passing the request to upstream server. Allowed values are 1-32. Field introduced in 17.1.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	EdnsClientSubnetPrefixLen *int32 `json:"edns_client_subnet_prefix_len,omitempty"`
+	EdnsClientSubnetPrefixLen uint32 `json:"edns_client_subnet_prefix_len,omitempty"`
 
 	// Drop or respond to client when the DNS service encounters an error processing a client query. By default, such a request is dropped without any response, or passed through to a passthrough pool, if configured. When set to respond, an appropriate response is sent to client, e.g. NXDOMAIN response for non-existent records, empty NOERROR response for unsupported queries, etc. Enum options - DNS_ERROR_RESPONSE_ERROR, DNS_ERROR_RESPONSE_NONE. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ErrorResponse *string `json:"error_response,omitempty"`
@@ -42,11 +45,11 @@ type DNSServiceApplicationProfile struct {
 	NameServer *string `json:"name_server,omitempty"`
 
 	// Specifies the TTL value (in seconds) for SOA (Start of Authority) (corresponding to a authoritative domain owned by this DNS Virtual Service) record's minimum TTL served by the DNS Virtual Service. Allowed values are 0-86400. Field introduced in 17.2.4. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	NegativeCachingTTL *int32 `json:"negative_caching_ttl,omitempty"`
+	NegativeCachingTTL *uint32 `json:"negative_caching_ttl,omitempty"`
 
 	// Specifies the number of IP addresses returned by the DNS Service. Enter 0 to return all IP addresses. Allowed values are 1-20. Special values are 0- Return all IP addresses. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	NumDNSIP *int32 `json:"num_dns_ip,omitempty"`
+	NumDNSIP *uint32 `json:"num_dns_ip,omitempty"`
 
 	// Specifies the TTL value (in seconds) for records served by DNS Service. Allowed values are 0-86400. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	TTL *int32 `json:"ttl,omitempty"`
+	TTL *uint32 `json:"ttl,omitempty"`
 }

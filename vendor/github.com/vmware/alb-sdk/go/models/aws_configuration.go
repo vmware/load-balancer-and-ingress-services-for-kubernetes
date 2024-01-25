@@ -12,7 +12,7 @@ type AwsConfiguration struct {
 	AccessKeyID *string `json:"access_key_id,omitempty"`
 
 	// Time interval between periodic polling of all Auto Scaling Groups. Allowed values are 60-1800. Field introduced in 17.1.3. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	AsgPollInterval *int32 `json:"asg_poll_interval,omitempty"`
+	AsgPollInterval *uint32 `json:"asg_poll_interval,omitempty"`
 
 	// EBS encryption mode and the master key to be used for encrypting SE AMI, Volumes, and Snapshots. Field introduced in 17.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EbsEncryption *AwsEncryption `json:"ebs_encryption,omitempty"`
@@ -42,7 +42,7 @@ type AwsConfiguration struct {
 	SqsEncryption *AwsEncryption `json:"sqs_encryption,omitempty"`
 
 	// Default TTL for all records. Allowed values are 1-172800. Field introduced in 17.1.3. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	TTL *int32 `json:"ttl,omitempty"`
+	TTL *uint32 `json:"ttl,omitempty"`
 
 	// Use IAM roles instead of access and secret key. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UseIamRoles *bool `json:"use_iam_roles,omitempty"`

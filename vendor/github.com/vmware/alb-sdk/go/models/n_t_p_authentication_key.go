@@ -17,5 +17,5 @@ type NTPAuthenticationKey struct {
 
 	// Key number to be assigned to the authentication-key. Allowed values are 1-65534. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	KeyNumber *int32 `json:"key_number"`
+	KeyNumber *uint32 `json:"key_number"`
 }

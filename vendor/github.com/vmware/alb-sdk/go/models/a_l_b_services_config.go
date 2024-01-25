@@ -41,7 +41,7 @@ type ALBServicesConfig struct {
 	Name *string `json:"name,omitempty"`
 
 	// Time interval in minutes. Allowed values are 5-60. Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	PollingInterval *int32 `json:"polling_interval,omitempty"`
+	PollingInterval *uint32 `json:"polling_interval,omitempty"`
 
 	// The FQDN or IP address of the Pulse Cloud Services. Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
@@ -51,9 +51,15 @@ type ALBServicesConfig struct {
 	// Required: true
 	SaasLicensingConfig *SaasLicensingInfo `json:"saas_licensing_config"`
 
+	// Session configuration data. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
+	SessionConfig *PulseServicesSessionConfig `json:"session_config,omitempty"`
+
 	// Split proxy configuration to connect external Pulse Cloud Services. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	SplitProxyConfiguration *ProxyConfiguration `json:"split_proxy_configuration"`
+
+	// Tenant based configuration data. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
+	TenantConfig *PulseServicesTenantConfig `json:"tenant_config,omitempty"`
 
 	// Tenant UUID associated with the Object. It is a reference to an object of type Tenant. Field introduced in 30.1.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
 	TenantRef *string `json:"tenant_ref,omitempty"`

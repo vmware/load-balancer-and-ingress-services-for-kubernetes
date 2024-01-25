@@ -37,7 +37,7 @@ type Pool struct {
 	CapacityEstimation *bool `json:"capacity_estimation,omitempty"`
 
 	// The maximum time-to-first-byte of a server. Allowed values are 1-5000. Special values are 0 - Automatic. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 0), Basic edition(Allowed values- 0), Enterprise with Cloud Services edition.
-	CapacityEstimationTtfbThresh *int32 `json:"capacity_estimation_ttfb_thresh,omitempty"`
+	CapacityEstimationTtfbThresh uint32 `json:"capacity_estimation_ttfb_thresh,omitempty"`
 
 	// Checksum of cloud configuration for Pool. Internally set by cloud connector. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CloudConfigCksum *string `json:"cloud_config_cksum,omitempty"`
@@ -85,10 +85,13 @@ type Pool struct {
 	FailAction *FailAction `json:"fail_action,omitempty"`
 
 	// Periodicity of feedback for fewest tasks server selection algorithm. Allowed values are 1-300. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	FewestTasksFeedbackDelay *int32 `json:"fewest_tasks_feedback_delay,omitempty"`
+	FewestTasksFeedbackDelay *uint32 `json:"fewest_tasks_feedback_delay,omitempty"`
 
 	// Used to gracefully disable a server. Virtual service waits for the specified time before terminating the existing connections  to the servers that are disabled. Allowed values are 1-7200. Special values are 0 - Immediate, -1 - Infinite. Unit is MIN. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	GracefulDisableTimeout *int32 `json:"graceful_disable_timeout,omitempty"`
+
+	// Time interval for gracefully closing the connections on server, When health monitoring marks the server down. Allowed values are 1-432000. Special values are 0 - Immediate, -1 - Infinite. Field introduced in 30.2.1. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	GracefulHmDownDisableTimeout *int32 `json:"graceful_hm_down_disable_timeout,omitempty"`
 
 	// Indicates if the pool is a site-persistence pool. . Field introduced in 17.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	// Read Only: true
@@ -125,7 +128,7 @@ type Pool struct {
 	LbAlgorithmConsistentHashHdr *string `json:"lb_algorithm_consistent_hash_hdr,omitempty"`
 
 	// Degree of non-affinity for core affinity based server selection. Allowed values are 1-65535. Field introduced in 17.1.3. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 2), Basic edition(Allowed values- 2), Enterprise with Cloud Services edition.
-	LbAlgorithmCoreNonaffinity *int32 `json:"lb_algorithm_core_nonaffinity,omitempty"`
+	LbAlgorithmCoreNonaffinity *uint32 `json:"lb_algorithm_core_nonaffinity,omitempty"`
 
 	// Criteria used as a key for determining the hash between the client and  server. Enum options - LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS, LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS_AND_PORT, LB_ALGORITHM_CONSISTENT_HASH_URI, LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER, LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_STRING, LB_ALGORITHM_CONSISTENT_HASH_CALLID. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS), Basic edition(Allowed values- LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS), Enterprise with Cloud Services edition.
 	LbAlgorithmHash *string `json:"lb_algorithm_hash,omitempty"`
@@ -143,10 +146,10 @@ type Pool struct {
 	MaxConnRatePerServer *RateProfile `json:"max_conn_rate_per_server,omitempty"`
 
 	// Minimum number of health monitors in UP state to mark server UP. Field introduced in 18.2.1, 17.2.12. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	MinHealthMonitorsUp *int32 `json:"min_health_monitors_up,omitempty"`
+	MinHealthMonitorsUp uint32 `json:"min_health_monitors_up,omitempty"`
 
 	// Minimum number of servers in UP state for marking the pool UP. Field introduced in 18.2.1, 17.2.12. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MinServersUp *int32 `json:"min_servers_up,omitempty"`
+	MinServersUp uint32 `json:"min_servers_up,omitempty"`
 
 	// The name of the pool. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
@@ -168,7 +171,7 @@ type Pool struct {
 	PoolType *string `json:"pool_type,omitempty"`
 
 	// Minimum number of requests to be queued when pool is full. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 128), Basic edition(Allowed values- 128), Enterprise with Cloud Services edition.
-	RequestQueueDepth *int32 `json:"request_queue_depth,omitempty"`
+	RequestQueueDepth *uint32 `json:"request_queue_depth,omitempty"`
 
 	// Enable request queue when pool is full. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- false), Basic edition(Allowed values- false), Enterprise with Cloud Services edition.
 	RequestQueueEnabled *bool `json:"request_queue_enabled,omitempty"`
@@ -195,7 +198,7 @@ type Pool struct {
 	ServerReselect *HttpserverReselect `json:"server_reselect,omitempty"`
 
 	// Server timeout value specifies the time within which a server connection needs to be established and a request-response exchange completes between AVI and the server. Value of 0 results in using default timeout of 60 minutes. Allowed values are 0-21600000. Field introduced in 18.1.5,18.2.1. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ServerTimeout *int32 `json:"server_timeout,omitempty"`
+	ServerTimeout uint32 `json:"server_timeout,omitempty"`
 
 	// The pool directs load balanced traffic to this list of destination servers. The servers can be configured by IP address, name, network or via IP Address Group. Maximum of 5000 items allowed. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Servers []*Server `json:"servers,omitempty"`

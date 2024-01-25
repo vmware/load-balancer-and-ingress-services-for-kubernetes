@@ -11,6 +11,9 @@ type DebugIPAddr struct {
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Addrs []*IPAddr `json:"addrs,omitempty"`
 
+	// Match criteria. Enum options - IS_IN, IS_NOT_IN. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	MatchOperation *string `json:"match_operation,omitempty"`
+
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Prefixes []*IPAddrPrefix `json:"prefixes,omitempty"`
 

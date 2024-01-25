@@ -9,7 +9,7 @@ package models
 type CloudConfig struct {
 
 	// CloudConnector polling interval in seconds for external autoscale groups, minimum 60 seconds. Allowed values are 60-3600. Field introduced in 22.1.1. Unit is SECONDS. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	AutoscalePollingInterval *int32 `json:"autoscale_polling_interval,omitempty"`
+	AutoscalePollingInterval *uint32 `json:"autoscale_polling_interval,omitempty"`
 
 	// Select the IP address management scheme. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	DhcpEnabled *bool `json:"dhcp_enabled,omitempty"`
@@ -36,7 +36,7 @@ type CloudConfig struct {
 	MaintenanceMode *bool `json:"maintenance_mode,omitempty"`
 
 	// MTU setting for the cloud. Field introduced in 22.1.1. Unit is BYTES. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	Mtu *int32 `json:"mtu,omitempty"`
+	Mtu *uint32 `json:"mtu,omitempty"`
 
 	// Name of the cloud. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	// Required: true

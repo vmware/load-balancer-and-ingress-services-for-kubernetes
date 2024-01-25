@@ -373,7 +373,7 @@ func TestUpdateDeleteL4Rule(t *testing.T) {
 	obj.Spec.PerformanceLimits.MaxConcurrentConnections = proto.Int32(100)
 	obj.Spec.PerformanceLimits.MaxThroughput = proto.Int32(30)
 	obj.Spec.VsDatascriptRefs = []string{"thisisaviref--new-ds1", "thisisaviref-new-ds2"}
-	obj.Spec.BackendProperties[0].MinServersUp = proto.Int32(2)
+	obj.Spec.BackendProperties[0].MinServersUp = proto.Uint32(2)
 	obj.Spec.BackendProperties[0].HealthMonitorRefs = []string{"thisisaviref-new-hm1", "thisisaviref-new-hm2"}
 	obj.Spec.BackendProperties[0].Enabled = proto.Bool(false)
 	obj.ResourceVersion = "2"
@@ -1639,4 +1639,102 @@ func TestCreateDeleteL4RuleSSLWrongNetworkProfile(t *testing.T) {
 
 	TearDownTestForSvcLB(t, g)
 	TeardownL4Rule(t, L4RuleName, NAMESPACE)
+}
+
+func TestCreateDeleteL4RuleInOtherNS(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	L4RuleName := "test-l4rule-Other"
+	ports := []int{8080}
+
+	SetUpTestForSvcLB(t)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+
+	// Check for the pools
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	address := "1.1.1.1"
+	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
+
+	// Create the L4Rule
+	SetupL4Rule(t, L4RuleName, "default", ports)
+
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules("default").Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	// Apply the  L4Rule to Service
+	svcObj := (FakeService{
+		Name:         SINGLEPORTSVC,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+	l4Ruleannotation := fmt.Sprintf("default/%s", L4RuleName)
+	svcObj.Annotations = map[string]string{lib.L4RuleAnnotation: l4Ruleannotation}
+	svcObj.ResourceVersion = "2"
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		if !found {
+			return false
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return g.Expect(nodes[0].AviVsNodeCommonFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].AviVsNodeGeneratedFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolCommonFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolGeneratedFields).NotTo(gomega.BeZero())
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	l4Rule := FakeL4Rule{
+		Name:      L4RuleName,
+		Namespace: "default",
+		Ports:     ports,
+	}
+	obj := l4Rule.L4Rule()
+
+	_, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+
+	validateCRDValues(t, g, obj.Spec, nodes[0].AviVsNodeGeneratedFields, nodes[0].AviVsNodeCommonFields)
+
+	validateCRDValues(t, g, obj.Spec.BackendProperties[0],
+		nodes[0].PoolRefs[0].AviPoolGeneratedFields, nodes[0].PoolRefs[0].AviPoolCommonFields)
+
+	// Remove the  L4Rule from Service
+	svcObj.Annotations = nil
+	svcObj.ResourceVersion = "3"
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		if !found {
+			return false
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return g.Expect(nodes[0].AviVsNodeCommonFields).To(gomega.BeZero()) &&
+			g.Expect(nodes[0].AviVsNodeGeneratedFields).To(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolCommonFields).To(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolGeneratedFields).To(gomega.BeZero())
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	TearDownTestForSvcLB(t, g)
+	TeardownL4Rule(t, L4RuleName, "default")
 }

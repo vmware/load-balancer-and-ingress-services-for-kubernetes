@@ -15,7 +15,7 @@ type ClientLogFilter struct {
 	ClientIP *IPAddrMatch `json:"client_ip,omitempty"`
 
 	//  Special values are 0 - infinite. Unit is MIN. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Duration *int32 `json:"duration,omitempty"`
+	Duration *uint32 `json:"duration,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
@@ -23,7 +23,7 @@ type ClientLogFilter struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	Index *int32 `json:"index"`
+	Index *uint32 `json:"index"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true

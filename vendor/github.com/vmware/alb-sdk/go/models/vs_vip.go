@@ -13,10 +13,10 @@ type VsVip struct {
 	LastModified *string `json:"_last_modified,omitempty"`
 
 	// LOCAL_PREF to be used for VsVip advertised. Applicable only over iBGP. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	BgpLocalPreference *int32 `json:"bgp_local_preference,omitempty"`
+	BgpLocalPreference uint32 `json:"bgp_local_preference,omitempty"`
 
 	// Number of times the local AS should be prepended additionally to VsVip. Applicable only over eBGP. Allowed values are 1-10. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	BgpNumAsPathPrepend *int32 `json:"bgp_num_as_path_prepend,omitempty"`
+	BgpNumAsPathPrepend uint32 `json:"bgp_num_as_path_prepend,omitempty"`
 
 	// Select BGP peers, using peer label, for VsVip advertisement. Field introduced in 20.1.5. Maximum of 128 items allowed. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	BgpPeerLabels []string `json:"bgp_peer_labels,omitempty"`
@@ -27,7 +27,7 @@ type VsVip struct {
 	// Protobuf versioning for config pbs. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
 	ConfigpbAttributes *ConfigPbAttributes `json:"configpb_attributes,omitempty"`
 
-	// Service discovery specific data including fully qualified domain name, type and Time-To-Live of the DNS record. Field introduced in 17.1.1. Maximum of 1000 items allowed. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Service discovery specific data including fully qualified domain name, type and Time-To-Live of the DNS record. This takes effect only if dns profile isassociated with cloud. Field introduced in 17.1.1. Maximum of 1000 items allowed. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	DNSInfo []*DNSInfo `json:"dns_info,omitempty"`
 
 	// Force placement on all Service Engines in the Service Engine Group (Container clouds only). Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- false), Basic edition(Allowed values- false), Enterprise with Cloud Services edition.

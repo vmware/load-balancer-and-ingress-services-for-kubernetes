@@ -449,7 +449,7 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 	if !v.IsValidHostName(hostName) {
 		return ingressConfig
 	}
-	defaultWeight := int32(100)
+	defaultWeight := uint32(100)
 	var hostPathMapSvcList HostMetadata
 
 	hostPathMapSvc := IngressHostPathSvc{}
@@ -457,7 +457,7 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 	hostPathMapSvc.ServiceName = routeSpec.To.Name
 	hostPathMapSvc.weight = defaultWeight
 	if routeSpec.To.Weight != nil {
-		hostPathMapSvc.weight = *routeSpec.To.Weight
+		hostPathMapSvc.weight = uint32(*routeSpec.To.Weight)
 	}
 
 	if routeSpec.Port != nil {
@@ -478,7 +478,7 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 		hostPathMapSvc.ServiceName = backend.Name
 		hostPathMapSvc.weight = defaultWeight
 		if backend.Weight != nil {
-			hostPathMapSvc.weight = *backend.Weight
+			hostPathMapSvc.weight = uint32(*backend.Weight)
 		}
 		hostPathMapSvcList.ingressHPSvc = append(hostPathMapSvcList.ingressHPSvc, hostPathMapSvc)
 	}
@@ -623,7 +623,7 @@ func (v *Validator) ParseHostPathForMultiClusterIngress(ns string, ingName strin
 			Path:           config.Path,
 			PathType:       networkingv1.PathTypeImplementationSpecific,
 			Port:           int32(config.Service.Port),
-			weight:         int32(config.Weight),
+			weight:         uint32(config.Weight),
 			clusterContext: config.ClusterContext,
 			svcNamespace:   config.Service.Namespace,
 		}

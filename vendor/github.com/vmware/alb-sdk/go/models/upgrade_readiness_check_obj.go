@@ -15,7 +15,7 @@ type UpgradeReadinessCheckObj struct {
 	ChecksCompleted *int32 `json:"checks_completed,omitempty"`
 
 	// Time taken to complete upgrade readiness checks in seconds. Field introduced in 22.1.3. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	Duration *int32 `json:"duration,omitempty"`
+	Duration uint32 `json:"duration,omitempty"`
 
 	// Time at which execution of upgrade readiness checks was completed. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	EndTime *string `json:"end_time,omitempty"`

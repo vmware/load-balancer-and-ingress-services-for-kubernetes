@@ -10,9 +10,9 @@ type PortRange struct {
 
 	// TCP/UDP port range end (inclusive). Allowed values are 1-65535. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	End *int32 `json:"end"`
+	End *uint32 `json:"end"`
 
 	// TCP/UDP port range start (inclusive). Allowed values are 1-65535. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	Start *int32 `json:"start"`
+	Start *uint32 `json:"start"`
 }

@@ -19,5 +19,5 @@ type PoolGroupMember struct {
 	PriorityLabel *string `json:"priority_label,omitempty"`
 
 	// Ratio of selecting eligible pools in the pool group. . Allowed values are 1-1000. Special values are 0 - Do not select this pool for new connections. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 1), Basic edition(Allowed values- 1), Enterprise with Cloud Services edition.
-	Ratio *int32 `json:"ratio,omitempty"`
+	Ratio *uint32 `json:"ratio,omitempty"`
 }
