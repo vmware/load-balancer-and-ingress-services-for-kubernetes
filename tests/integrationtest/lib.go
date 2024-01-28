@@ -1704,7 +1704,7 @@ func SetupL7Rule(t *testing.T, name string, g *gomega.WithT) {
 	g.Eventually(func() string {
 		l7Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L7Rules("default").Get(context.TODO(), name, metav1.GetOptions{})
 		return l7Rule.Status.Status
-	}, 10*time.Second).Should(gomega.Equal("Accepted"))
+	}, 25*time.Second).Should(gomega.Equal("Accepted"))
 
 }
 

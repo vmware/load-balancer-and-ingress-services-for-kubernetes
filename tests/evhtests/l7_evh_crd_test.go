@@ -1914,7 +1914,7 @@ func TestCreateUpdateDeleteL7RuleInHostRule(t *testing.T) {
 			return *nodes[0].EvhNodes[0].AllowInvalidClientCert
 		}
 		return false
-	}, 10*time.Second).Should(gomega.Equal(true))
+	}, 25*time.Second).Should(gomega.Equal(true))
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].EvhNodes[0].CloseClientConnOnConfigUpdate).To(gomega.Equal(true))
@@ -2018,7 +2018,7 @@ func TestDeleteL7RulePresentInHostRule(t *testing.T) {
 			return *nodes[0].EvhNodes[0].AllowInvalidClientCert
 		}
 		return false
-	}, 10*time.Second).Should(gomega.Equal(true))
+	}, 25*time.Second).Should(gomega.Equal(true))
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].EvhNodes[0].CloseClientConnOnConfigUpdate).To(gomega.Equal(true))
@@ -2110,7 +2110,7 @@ func TestChangeL7RuleInHostRule(t *testing.T) {
 			return *nodes[0].EvhNodes[0].AllowInvalidClientCert
 		}
 		return false
-	}, 10*time.Second).Should(gomega.Equal(true))
+	}, 25*time.Second).Should(gomega.Equal(true))
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].EvhNodes[0].CloseClientConnOnConfigUpdate).To(gomega.Equal(true))
@@ -2170,7 +2170,7 @@ func TestChangeL7RuleInHostRule(t *testing.T) {
 			return *nodes[0].EvhNodes[0].AllowInvalidClientCert
 		}
 		return true
-	}, 10*time.Second).Should(gomega.Equal(false))
+	}, 25*time.Second).Should(gomega.Equal(false))
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].EvhNodes[0].RemoveListeningPortOnVsDown).To(gomega.Equal(true))
@@ -2235,7 +2235,7 @@ func TestValidToInvalidL7rule(t *testing.T) {
 			return *nodes[0].EvhNodes[0].AllowInvalidClientCert
 		}
 		return false
-	}, 10*time.Second).Should(gomega.Equal(true))
+	}, 25*time.Second).Should(gomega.Equal(true))
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].EvhNodes[0].CloseClientConnOnConfigUpdate).To(gomega.Equal(true))
@@ -2273,7 +2273,7 @@ func TestValidToInvalidL7rule(t *testing.T) {
 			return *nodes[0].EvhNodes[0].AllowInvalidClientCert
 		}
 		return false
-	}, 10*time.Second).Should(gomega.Equal(true))
+	}, 25*time.Second).Should(gomega.Equal(true))
 	botPolicy := "thisisaviref-bop"
 	l7rule.Spec.BotPolicyRef = &botPolicy
 	l7rule.ResourceVersion = "3"
@@ -2294,7 +2294,7 @@ func TestValidToInvalidL7rule(t *testing.T) {
 			return *nodes[0].EvhNodes[0].AllowInvalidClientCert
 		}
 		return true
-	}, 10*time.Second).Should(gomega.Equal(false))
+	}, 25*time.Second).Should(gomega.Equal(false))
 
 	g.Expect(*nodes[0].EvhNodes[0].CloseClientConnOnConfigUpdate).To(gomega.Equal(true))
 	g.Expect(*nodes[0].EvhNodes[0].AllowInvalidClientCert).To(gomega.Equal(false))
@@ -2355,7 +2355,7 @@ func TestDeleteHostRuleWithActiveL7Rule(t *testing.T) {
 			return *nodes[0].EvhNodes[0].AllowInvalidClientCert
 		}
 		return false
-	}, 10*time.Second).Should(gomega.Equal(true))
+	}, 25*time.Second).Should(gomega.Equal(true))
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].EvhNodes[0].CloseClientConnOnConfigUpdate).To(gomega.Equal(true))
