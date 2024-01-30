@@ -2603,7 +2603,6 @@ func ValidateUserInput(client *clients.AviClient) (bool, error) {
 
 	isValid := isTenantValid &&
 		isCloudValid &&
-		isVRFValid &&
 		isSegroupValid &&
 		isRequiredValuesValid &&
 		isNodeNetworkValid &&
@@ -2761,11 +2760,7 @@ func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient
 				uri := fmt.Sprintf("/api/network/%s?cloud_uuid=%s&include_name", vipNet.NetworkUUID, lib.GetCloudUUID())
 				var rest_response interface{}
 				err := lib.AviGet(client, uri, &rest_response)
-				if err != nil {
-					utils.AviLog.Warnf("No networks found for network: %s", vipNet.NetworkUUID)
-					retErr = fmt.Errorf("no networks found for network: %s", vipNet.NetworkUUID)
-					continue
-				} else if rest_response == nil {
+				if err != nil || rest_response == nil {
 					utils.AviLog.Warnf("No networks found for network: %s", vipNet.NetworkUUID)
 					retErr = fmt.Errorf("no networks found for network: %s", vipNet.NetworkUUID)
 					continue
@@ -3450,11 +3445,7 @@ func FetchNodeNetworks(segMgmtNetwork string, client *clients.AviClient, returnE
 				uri := fmt.Sprintf("/api/network/%s?cloud_uuid=%s&include_name", nodeNetworkCIDRs.NetworkUUID, lib.GetCloudUUID())
 				var rest_response interface{}
 				err := lib.AviGet(client, uri, &rest_response)
-				if err != nil {
-					utils.AviLog.Warnf("No networks found for network: %s", nodeNetworkCIDRs.NetworkUUID)
-					*returnErr = fmt.Errorf("no networks found for network: %s", nodeNetworkCIDRs.NetworkUUID)
-					continue
-				} else if rest_response == nil {
+				if err != nil || rest_response == nil {
 					utils.AviLog.Warnf("No networks found for network: %s", nodeNetworkCIDRs.NetworkUUID)
 					*returnErr = fmt.Errorf("no networks found for network: %s", nodeNetworkCIDRs.NetworkUUID)
 					continue
@@ -3583,12 +3574,13 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient, returnErr *error) bool
 	}
 	cmVrfContext := lib.AKOControlConfig().ControllerVRFContext()
 	if lib.IsNodePortMode() {
-		utils.AviLog.Infof("Using global VRF for NodePort mode")
 		//set it from cm
 		if cmVrfContext == "" {
 			lib.SetVrf(utils.GlobalVRF)
+			utils.AviLog.Infof("Using global VRF for NodePort mode")
 		} else {
 			lib.SetVrf(cmVrfContext)
+			utils.AviLog.Infof("Using %s VRF for NodePort mode", cmVrfContext)
 		}
 		return true
 	}

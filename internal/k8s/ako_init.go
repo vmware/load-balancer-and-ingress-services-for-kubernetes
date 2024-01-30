@@ -284,7 +284,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 			delModels := delConfigFromData(cm.Data)
 
 			validateUserInput, err := avicache.ValidateUserInput(aviclient)
-			if validateUserInput && err != nil {
+			if err != nil {
 				utils.AviLog.Errorf("Error while validating input: %s", err.Error())
 				lib.AKOControlConfig().PodEventf(v1.EventTypeWarning, lib.SyncDisabled, "Invalid user input %s", err.Error())
 			} else {
