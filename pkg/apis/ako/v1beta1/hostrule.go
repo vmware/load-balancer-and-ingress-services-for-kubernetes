@@ -76,6 +76,7 @@ type HostRuleVirtualHost struct {
 	Aliases               []string                 `json:"aliases,omitempty"`
 	ICAPProfile           []string                 `json:"icapProfile,omitempty"`
 	NetworkSecurityPolicy string                   `json:"networkSecurityPolicy,omitempty"`
+	L7Rule                string                   `json:"l7Rule,omitempty"`
 }
 
 // HostRuleTCPSettings allows for customizing TCP settings

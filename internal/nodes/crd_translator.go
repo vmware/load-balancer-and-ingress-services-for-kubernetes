@@ -190,6 +190,13 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 				VHDomainNames = append(VHDomainNames, alias)
 			}
 		}
+		if lib.IsEvhEnabled() {
+			if hostrule.Spec.VirtualHost.L7Rule != "" {
+				BuildL7Rule(host, key, hostrule.Spec.VirtualHost.L7Rule, hrNSName[0], vsNode)
+			} else {
+				vsNode.GetGeneratedFields().ConvertL7RuleFieldsToNil()
+			}
+		}
 
 		utils.AviLog.Infof("key: %s, Successfully attached hostrule %s on vsNode %s", key, hrNamespaceName, vsNode.GetName())
 	} else {
@@ -200,6 +207,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 		if hrNamespaceName != "" {
 			utils.AviLog.Infof("key: %s, Successfully detached hostrule %s from vsNode %s", key, hrNamespaceName, vsNode.GetName())
 		}
+		vsNode.GetGeneratedFields().ConvertL7RuleFieldsToNil()
 	}
 
 	vsNode.SetSslKeyAndCertificateRefs(vsSslKeyCertificates)
@@ -223,6 +231,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	serviceMetadataObj := vsNode.GetServiceMetadata()
 	serviceMetadataObj.CRDStatus = crdStatus
 	vsNode.SetServiceMetadata(serviceMetadataObj)
+
 }
 
 // BuildPoolHTTPRule notes
@@ -478,4 +487,30 @@ func BuildL7SSORule(host, key string, vsNode AviVsEvhSniModel) {
 	serviceMetadataObj := vsNode.GetServiceMetadata()
 	serviceMetadataObj.CRDStatus = crdStatus
 	vsNode.SetServiceMetadata(serviceMetadataObj)
+}
+
+func BuildL7Rule(host, key, l7RuleName, namespace string, vsNode AviVsEvhSniModel) {
+	deleteL7RuleCase := false
+	l7Rule, err := lib.AKOControlConfig().CRDInformers().L7RuleInformer.Lister().L7Rules(namespace).Get(l7RuleName)
+	if err != nil {
+		utils.AviLog.Debugf("key: %s, msg: No L7Rule found for virtualhost: %s msg: %v", key, host, err)
+		deleteL7RuleCase = true
+	} else if l7Rule.Status.Status == lib.StatusRejected {
+		// do not apply a rejected L7Rule, this way the VS would retain
+		return
+	}
+	generatedFields := vsNode.GetGeneratedFields()
+	if !deleteL7RuleCase {
+		utils.AviLog.Debugf("key: %s, msg: applying l7 Rule %s", key, l7Rule.Name)
+		copier.CopyWithOption(vsNode, &l7Rule.Spec, copier.Option{DeepCopy: true})
+		if !vsNode.IsDedicatedVS() {
+			if !vsNode.IsSharedVS() {
+				generatedFields.ConvertL7RuleParentOnlyFieldsToNil()
+			}
+		}
+		utils.AviLog.Infof("key: %s, Successfully attached L7Rule %s on vsNode %s", key, l7RuleName, vsNode.GetName())
+		generatedFields.ConvertToRef()
+	} else {
+		generatedFields.ConvertL7RuleFieldsToNil()
+	}
 }

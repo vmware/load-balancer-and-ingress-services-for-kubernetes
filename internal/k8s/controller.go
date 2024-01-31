@@ -1424,6 +1424,12 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 
 		// separate wait steps to try getting hostrules synced first,
 		// since httprule has a key relation to hostrules.
+
+		if lib.AKOControlConfig().L7RuleEnabled() {
+			go lib.AKOControlConfig().CRDInformers().L7RuleInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().L7RuleInformer.Informer().HasSynced)
+		}
+
 		if lib.AKOControlConfig().HostRuleEnabled() {
 			go lib.AKOControlConfig().CRDInformers().HostRuleInformer.Informer().Run(stopCh)
 			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().HostRuleInformer.Informer().HasSynced)

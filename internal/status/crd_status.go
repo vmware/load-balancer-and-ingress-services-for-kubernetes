@@ -349,3 +349,74 @@ func SSORuleEventBroadcast(vsName string, vsCacheMetadataOld, vsMetadataNew lib.
 		lib.AKOControlConfig().EventRecorder().Eventf(ssoRule, corev1.EventTypeNormal, lib.Attached, "Configuration removed from VirtualService %s", vsName)
 	}
 }
+
+// UpdateL7RuleStatus updates the L7Rule status
+func UpdateL7RuleStatus(key string, l7Rule *akov1alpha2.L7Rule, updateStatus UpdateCRDStatusOptions, retryNum ...int) {
+	retry := 0
+	if len(retryNum) > 0 {
+		retry = retryNum[0]
+		if retry >= 3 {
+			utils.AviLog.Errorf("key: %s, msg: UpdateL7RuleStatus retried 3 times, aborting", key)
+			return
+		}
+	}
+
+	patchPayload, _ := json.Marshal(map[string]interface{}{
+		"status": akov1alpha2.L7RuleStatus(updateStatus),
+	})
+
+	_, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L7Rules(l7Rule.Namespace).Patch(context.TODO(), l7Rule.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+	if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: %d there was an error in updating the L7Rule status: %+v", key, retry, err)
+		updatedL7RuleObj, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L7Rules(l7Rule.Namespace).Get(context.TODO(), l7Rule.Name, metav1.GetOptions{})
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: L7Rule not found %v", key, err)
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
+				UpdateL7RuleStatus(key, updatedL7RuleObj, updateStatus, retry+1)
+			}
+			return
+		}
+		UpdateL7RuleStatus(key, updatedL7RuleObj, updateStatus, retry+1)
+	}
+
+	utils.AviLog.Infof("key: %s, msg: Successfully updated the L7Rule %s status %+v", key, l7Rule.Name, utils.Stringify(updateStatus))
+}
+
+// L7RuleEventBroadcast is responsible from broadcasting L7Rule specific events when the VS Cache is Added/Updated/Deleted.
+func L7RuleEventBroadcast(vsName string, vsCacheMetadataOld, vsMetadataNew lib.CRDMetadata) {
+	if vsCacheMetadataOld.Value != vsMetadataNew.Value {
+		oldLRNamespaceName := strings.Split(vsCacheMetadataOld.Value, "/")
+		newLRNamespaceName := strings.Split(vsMetadataNew.Value, "/")
+
+		if len(oldLRNamespaceName) != 2 || len(newLRNamespaceName) != 2 {
+			return
+		}
+
+		oldL7Rule, _ := lib.AKOControlConfig().CRDInformers().L7RuleInformer.Lister().L7Rules(oldLRNamespaceName[0]).Get(oldLRNamespaceName[1])
+		newL7Rule, _ := lib.AKOControlConfig().CRDInformers().L7RuleInformer.Lister().L7Rules(newLRNamespaceName[0]).Get(newLRNamespaceName[1])
+		if oldL7Rule == nil || newL7Rule == nil {
+			return
+		}
+
+		lib.AKOControlConfig().EventRecorder().Eventf(oldL7Rule, corev1.EventTypeNormal, lib.Attached, "Configuration removed from VirtualService %s", vsName)
+		lib.AKOControlConfig().EventRecorder().Eventf(newL7Rule, corev1.EventTypeNormal, lib.Attached, "Configuration applied to VirtualService %s", vsName)
+	}
+
+	lrNamespaceName := strings.Split(vsMetadataNew.Value, "/")
+	if len(lrNamespaceName) != 2 {
+		return
+	}
+
+	l7Rule, _ := lib.AKOControlConfig().CRDInformers().L7RuleInformer.Lister().L7Rules(lrNamespaceName[0]).Get(lrNamespaceName[1])
+	if l7Rule == nil {
+		return
+	}
+
+	if (vsCacheMetadataOld.Status == lib.CRDInactive || vsCacheMetadataOld.Status == "") && vsMetadataNew.Status == lib.CRDActive {
+		// CRD was added, INACTIVE -> ACTIVE transitions
+		lib.AKOControlConfig().EventRecorder().Eventf(l7Rule, corev1.EventTypeNormal, lib.Attached, "Configuration applied to VirtualService %s", vsName)
+	} else if vsCacheMetadataOld.Status == lib.CRDActive && (vsMetadataNew.Status == "" || vsMetadataNew.Status == lib.CRDInactive) {
+		// CRD was removed, ACTIVE -> INACTIVE transitions
+		lib.AKOControlConfig().EventRecorder().Eventf(l7Rule, corev1.EventTypeNormal, lib.Attached, "Configuration removed from VirtualService %s", vsName)
+	}
+}

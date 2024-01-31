@@ -48,6 +48,7 @@ func NewCRDInformers() {
 		lib.AKOControlConfig().V1alpha2CRDClientset(), time.Second*30)
 	ssoRuleInformer := v1alpha2akoInformerFactory.Ako().V1alpha2().SSORules()
 	l4RuleInformer := v1alpha2akoInformerFactory.Ako().V1alpha2().L4Rules()
+	l7RuleInformer := v1alpha2akoInformerFactory.Ako().V1alpha2().L7Rules()
 
 	//v1beta1 informer initialization
 	v1beta1akoInformerFactory := v1beta1akoinformers.NewSharedInformerFactoryWithOptions(
@@ -61,6 +62,7 @@ func NewCRDInformers() {
 		HTTPRuleInformer:        httpRuleInformer,
 		SSORuleInformer:         ssoRuleInformer,
 		L4RuleInformer:          l4RuleInformer,
+		L7RuleInformer:          l7RuleInformer,
 		AviInfraSettingInformer: aviInfraSettingInformer,
 	})
 }
@@ -143,6 +145,17 @@ func isL4RuleUpdated(oldL4Rule, newL4Rule *akov1alpha2.L4Rule) bool {
 	return oldSpecHash != newSpecHash
 }
 
+func isL7RuleUpdated(oldL7Rule, newL7Rule *akov1alpha2.L7Rule) bool {
+	if oldL7Rule.ResourceVersion == newL7Rule.ResourceVersion {
+		return false
+	}
+
+	oldSpecHash := utils.Hash(utils.Stringify(oldL7Rule.Spec) + oldL7Rule.Status.Status)
+	newSpecHash := utils.Hash(utils.Stringify(newL7Rule.Spec) + newL7Rule.Status.Status)
+
+	return oldSpecHash != newSpecHash
+}
+
 // SetupAKOCRDEventHandlers handles setting up of AKO CRD event handlers
 // TODO: The CRD are getting re-enqueued for the same resourceVersion via fullsync as well as via these handlers.
 // We can leverage the resourceVersion checks to optimize this code. However the CRDs would need a check on
@@ -180,6 +193,9 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 					key := lib.HostRule + "/" + utils.ObjKey(hostrule)
 					if err := c.GetValidator().ValidateHostRuleObj(key, hostrule); err != nil {
 						utils.AviLog.Warnf("key: %s, Error retrieved during validation of HostRule: %v", key, err)
+					}
+					if oldObj.Spec.VirtualHost.L7Rule != "" && oldObj.Spec.VirtualHost.L7Rule != hostrule.Spec.VirtualHost.L7Rule {
+						objects.SharedCRDLister().DeleteL7RuleToHostRuleMapping(namespace+"/"+oldObj.Spec.VirtualHost.L7Rule, oldObj.Name)
 					}
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 					bkt := utils.Bkt(namespace, numWorkers)
@@ -476,6 +492,108 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			},
 		}
 		informer.L4RuleInformer.Informer().AddEventHandler(l4RuleEventHandler)
+	}
+
+	if lib.AKOControlConfig().L7RuleEnabled() {
+		l7RuleEventHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				l7Rule := obj.(*akov1alpha2.L7Rule)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(l7Rule))
+				key := lib.L7Rule + "/" + utils.ObjKey(l7Rule)
+				if err := c.GetValidator().ValidateL7RuleObj(key, l7Rule); err != nil {
+					utils.AviLog.Warnf("Error retrieved during validation of L7Rule: %v", err)
+					return
+				}
+				utils.AviLog.Debugf("key: %s, msg: Add", key)
+				found, hostRules := objects.SharedCRDLister().GetL7RuleToHostRuleMapping(namespace + "/" + l7Rule.Name)
+				if found {
+					for hr := range hostRules {
+						hostrule, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(namespace).Get(hr)
+						if err != nil {
+							utils.AviLog.Warnf("key: %s, msg: HostRule %s not found for L7Rule msg: %v", key, hr, err)
+							continue
+						}
+						key := lib.HostRule + "/" + utils.ObjKey(hostrule)
+						utils.AviLog.Debugf("key: %s, msg: Update", key)
+						bkt := utils.Bkt(namespace, numWorkers)
+						c.workqueue[bkt].AddRateLimited(key)
+						lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+					}
+				}
+			},
+			UpdateFunc: func(old, new interface{}) {
+				if c.DisableSync {
+					return
+				}
+				oldObj := old.(*akov1alpha2.L7Rule)
+				l7Rule := new.(*akov1alpha2.L7Rule)
+				if isL7RuleUpdated(oldObj, l7Rule) {
+					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(l7Rule))
+					key := lib.L7Rule + "/" + utils.ObjKey(l7Rule)
+					if err := c.GetValidator().ValidateL7RuleObj(key, l7Rule); err != nil {
+						utils.AviLog.Warnf("Error retrieved during validation of L7Rule: %v", err)
+						return
+					}
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+					found, hostRules := objects.SharedCRDLister().GetL7RuleToHostRuleMapping(namespace + "/" + l7Rule.Name)
+					if found {
+						for hr := range hostRules {
+							hostrule, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(namespace).Get(hr)
+							if err != nil {
+								utils.AviLog.Warnf("key: %s, msg: HostRule %s not found for L7Rule msg: %v", key, hr, err)
+								continue
+							}
+							key := lib.HostRule + "/" + utils.ObjKey(hostrule)
+							utils.AviLog.Debugf("key: %s, msg: Update", key)
+							bkt := utils.Bkt(namespace, numWorkers)
+							c.workqueue[bkt].AddRateLimited(key)
+							lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+						}
+					}
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				l7Rule, ok := obj.(*akov1alpha2.L7Rule)
+				if !ok {
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					l7Rule, ok = tombstone.Obj.(*akov1alpha2.L7Rule)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not an L7Rule: %#v", obj)
+						return
+					}
+				}
+				key := lib.L7Rule + "/" + utils.ObjKey(l7Rule)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(l7Rule))
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+				objects.SharedResourceVerInstanceLister().Delete(key)
+				found, hostRules := objects.SharedCRDLister().GetL7RuleToHostRuleMapping(namespace + "/" + l7Rule.Name)
+				if found {
+					for hr := range hostRules {
+						hostrule, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(namespace).Get(hr)
+						if err != nil {
+							utils.AviLog.Warnf("key: %s, msg: HostRule %s not found for L7Rule msg: %v", key, hr, err)
+							continue
+						}
+						key := lib.HostRule + "/" + utils.ObjKey(hostrule)
+						utils.AviLog.Debugf("key: %s, msg: Update", key)
+						bkt := utils.Bkt(namespace, numWorkers)
+						c.workqueue[bkt].AddRateLimited(key)
+						lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+					}
+				}
+			},
+		}
+		informer.L7RuleInformer.Informer().AddEventHandler(l7RuleEventHandler)
 	}
 	return
 }
@@ -869,6 +987,8 @@ var refModelMap = map[string]string{
 	"NetworkProfile":         "networkprofile",
 	"SecurityPolicy":         "securitypolicy",
 	"NetworkSecurityPolicy":  "networksecuritypolicy",
+	"BotPolicy":              "botdetectionpolicy",
+	"TrafficCloneProfile":    "trafficcloneprofile",
 }
 
 // checkRefOnController checks whether a provided ref on the controller
@@ -1156,6 +1276,19 @@ func GetSEGManagementNetwork(name string) string {
 
 func (c *AviController) SyncCRDObjects() {
 	utils.AviLog.Debugf("Starting syncing all CRD objects")
+
+	l7RuleObjs, err := lib.AKOControlConfig().CRDInformers().L7RuleInformer.Lister().List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("Unable to retrieve the L7Rules during full sync: %s", err)
+	} else {
+		for _, l7Rule := range l7RuleObjs {
+			key := lib.L7Rule + "/" + utils.ObjKey(l7Rule)
+			if err := c.GetValidator().ValidateL7RuleObj(key, l7Rule); err != nil {
+				utils.AviLog.Warnf("key: %s, Error during validation of L7Rule: %v", key, err)
+			}
+		}
+	}
+
 	hostRuleObjs, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Errorf("Unable to retrieve the hostrules during full sync: %s", err)

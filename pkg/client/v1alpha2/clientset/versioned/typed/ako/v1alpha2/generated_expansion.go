@@ -20,4 +20,6 @@ package v1alpha2
 
 type L4RuleExpansion interface{}
 
+type L7RuleExpansion interface{}
+
 type SSORuleExpansion interface{}
