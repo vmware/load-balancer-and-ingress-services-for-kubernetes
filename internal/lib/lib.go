@@ -843,6 +843,10 @@ func GetGlobalBlockedNSList() []string {
 	return blockedNs
 }
 
+// return VRF from configmap
+func GetControllerVRFContext() string {
+	return os.Getenv("VRF_NAME")
+}
 func GetT1LRPath() string {
 	return os.Getenv("NSXT_T1_LR")
 }

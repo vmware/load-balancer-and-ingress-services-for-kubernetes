@@ -243,6 +243,10 @@ The `tenantName` field  is used to specify the name of the tenant where all the
 
 This field is used to specify the name of the IaaS cloud in Avi controller. For example, if you have the VCenter cloud named as "Demo"
 then specify the `name` of the cloud name with this field. This helps AKO determine the IaaS cloud to create the service engines on.
+
+### ControllerSettings.vrfName
+
+The `vrfName` field  is used to specify the name of the VRFContext where all the AKO objects will be created. The VRFContext in AVI needs to be created by the AVI controller admin before the AKO bootsup. This is applicable in VCenter cloud only.
 <br>
 
 #### AWS and Azure Cloud in NodePort mode of AKO
