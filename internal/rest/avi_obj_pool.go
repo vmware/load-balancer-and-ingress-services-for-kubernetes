@@ -33,6 +33,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/copier"
 	avimodels "github.com/vmware/alb-sdk/go/models"
+	k8net "k8s.io/utils/net"
 )
 
 func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj *avicache.AviPoolCache, key string) *utils.RestOp {
@@ -61,7 +62,7 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 				}
 				addr := ipnet.IP.String()
 				atype := "V4"
-				if utils.IsV6(addr) {
+				if k8net.IsIPv6CIDR(ipnet) {
 					atype = "V6"
 				}
 

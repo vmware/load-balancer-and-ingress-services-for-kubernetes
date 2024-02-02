@@ -50,6 +50,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
+	k8net "k8s.io/utils/net"
 )
 
 var ShardSchemeMap = map[string]string{
@@ -2181,7 +2182,7 @@ func GetIPFromNode(node *v1.Node) (string, string) {
 			for _, nodeIP := range nodeIPlist {
 				if v4enabled && utils.IsV4(nodeIP) {
 					nodeV4 = nodeIP
-				} else if v6enabled && utils.IsV6(nodeIP) {
+				} else if v6enabled && k8net.IsIPv6String(nodeIP) {
 					nodeV6 = nodeIP
 				}
 			}
@@ -2194,7 +2195,7 @@ func GetIPFromNode(node *v1.Node) (string, string) {
 				nodeIP := addr.Address
 				if v4enabled && utils.IsV4(nodeIP) && nodeV4 == "" {
 					nodeV4 = nodeIP
-				} else if v6enabled && utils.IsV6(nodeIP) && nodeV6 == "" {
+				} else if v6enabled && k8net.IsIPv6String(nodeIP) && nodeV6 == "" {
 					nodeV6 = nodeIP
 				}
 			}

@@ -32,6 +32,7 @@ import (
 
 	gocidr "github.com/apparentlymart/go-cidr/cidr"
 	"github.com/vmware/alb-sdk/go/models"
+	k8net "k8s.io/utils/net"
 )
 
 var CloudCache *models.Cloud
@@ -154,7 +155,7 @@ func addNetworkInCloud(objKey string, cidrToNS map[string]map[string]struct{}, c
 			endIPStr := gocidr.Dec(endIP).String()
 			ipStr := ipnet.IP.String()
 			addrType := "V4"
-			if utils.IsV6(ipStr) {
+			if k8net.IsIPv6CIDR(ipnet) {
 				addrType = "V6"
 			}
 			mask, _ := ipnet.Mask.Size()
