@@ -37,6 +37,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
+	k8net "k8s.io/utils/net"
 )
 
 func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string) *AviVsNode {
@@ -304,7 +305,7 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 			if v4enabled && v4Family && utils.IsV4(a.NodeIP) {
 				v4ServerCount++
 				atype = "V4"
-			} else if v6enabled && v6Family && utils.IsV6(a.NodeIP) {
+			} else if v6enabled && v6Family && k8net.IsIPv6String(a.NodeIP) {
 				v6ServerCount++
 				atype = "V6"
 			} else {
@@ -493,7 +494,7 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 				if v4enabled && v4Family && utils.IsV4(addr.IP) {
 					v4ServerCount++
 					atype = "V4"
-				} else if v6enabled && v6Family && utils.IsV6(addr.IP) {
+				} else if v6enabled && v6Family && k8net.IsIPv6String(addr.IP) {
 					v6ServerCount++
 					atype = "V6"
 				} else {

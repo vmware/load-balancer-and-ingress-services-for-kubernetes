@@ -133,6 +133,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: tenantName
+          - name: VRF_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: vrfName
           - name: CLUSTER_NAME
             valueFrom:
               configMapKeyRef:

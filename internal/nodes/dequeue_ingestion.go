@@ -40,6 +40,11 @@ func DequeueIngestion(key string, fullsync bool) {
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 
 	objType, namespace, name := lib.ExtractTypeNameNamespace(key)
+
+	if objType == lib.L7Rule {
+		return
+	}
+
 	if objType == utils.Pod {
 		handlePod(key, namespace, name, fullsync)
 	}

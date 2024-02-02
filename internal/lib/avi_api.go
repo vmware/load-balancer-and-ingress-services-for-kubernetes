@@ -51,6 +51,31 @@ func AviGetCollectionRaw(client *clients.AviClient, uri string, retryNum ...int)
 	return result, nil
 }
 
+func AviGetCollectionRawWithTenantSwitch(client *clients.AviClient, uri string) (session.AviCollectionResult, error) {
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("msg: Unable to fetch collection data from uri %s %v", uri, err)
+		if aviError, ok := err.(session.AviError); ok && (aviError.HttpStatusCode == 403 || aviError.HttpStatusCode == 404) {
+			utils.AviLog.Debugf("Switching to admin context from  %s", GetTenant())
+			SetAdminTenant := session.SetTenant(GetAdminTenant())
+			SetTenant := session.SetTenant(GetTenant())
+			SetAdminTenant(client.AviSession)
+			defer SetTenant(client.AviSession)
+			result, err = AviGetCollectionRaw(client, uri)
+			if err != nil {
+				utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+				return session.AviCollectionResult{}, err
+
+			}
+		} else {
+			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+			return session.AviCollectionResult{}, err
+		}
+	}
+
+	return result, nil
+}
+
 func AviGet(client *clients.AviClient, uri string, response interface{}, retryNum ...int) error {
 	retry := 0
 	if len(retryNum) > 0 {

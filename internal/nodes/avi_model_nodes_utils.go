@@ -28,26 +28,59 @@ import (
 )
 
 type AviVsNodeGeneratedFields struct {
-	Fqdn                     *string
-	LoadBalancerIP           *string
-	NetworkProfileRef        *string
-	NetworkSecurityPolicyRef *string
-	OauthVsConfig            *v1alpha2.OAuthVSConfig
-	PerformanceLimits        *v1alpha2.PerformanceLimits
-	SamlSpConfig             *v1alpha2.SAMLSPConfig
-	SecurityPolicyRef        *string
+	AllowInvalidClientCert        *bool
+	BotPolicyRef                  *string
+	CloseClientConnOnConfigUpdate *bool
+	Fqdn                          *string
+	HostNameXlate                 *string
+	IgnPoolNetReach               *bool
+	LoadBalancerIP                *string
+	MinPoolsUp                    *uint32
+	NetworkProfileRef             *string
+	NetworkSecurityPolicyRef      *string
+	OauthVsConfig                 *v1alpha2.OAuthVSConfig
+	PerformanceLimits             *v1alpha2.PerformanceLimits
+	RemoveListeningPortOnVsDown   *bool
+	SamlSpConfig                  *v1alpha2.SAMLSPConfig
+	SecurityPolicyRef             *string
 	Services                 []*v1alpha2.Service
-	SsoPolicyRef             *string
+	SslSessCacheAvgSize           *uint32
+	SsoPolicyRef                  *string
+	TrafficCloneProfileRef        *string
 }
 
 func (v *AviVsNodeGeneratedFields) CalculateCheckSumOfGeneratedCode() uint32 {
-	checksumStringSlice := make([]string, 0, 11)
+	checksumStringSlice := make([]string, 0, 20)
+	if v.AllowInvalidClientCert != nil {
+		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.AllowInvalidClientCert))
+	}
+
+	if v.BotPolicyRef != nil {
+		checksumStringSlice = append(checksumStringSlice, *v.BotPolicyRef)
+	}
+
+	if v.CloseClientConnOnConfigUpdate != nil {
+		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.CloseClientConnOnConfigUpdate))
+	}
+
 	if v.Fqdn != nil {
 		checksumStringSlice = append(checksumStringSlice, *v.Fqdn)
 	}
 
+	if v.HostNameXlate != nil {
+		checksumStringSlice = append(checksumStringSlice, *v.HostNameXlate)
+	}
+
+	if v.IgnPoolNetReach != nil {
+		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.IgnPoolNetReach))
+	}
+
 	if v.LoadBalancerIP != nil {
 		checksumStringSlice = append(checksumStringSlice, *v.LoadBalancerIP)
+	}
+
+	if v.MinPoolsUp != nil {
+		checksumStringSlice = append(checksumStringSlice, strconv.Itoa(int(*v.MinPoolsUp)))
 	}
 
 	if v.NetworkProfileRef != nil {
@@ -66,12 +99,20 @@ func (v *AviVsNodeGeneratedFields) CalculateCheckSumOfGeneratedCode() uint32 {
 		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.PerformanceLimits))
 	}
 
+	if v.RemoveListeningPortOnVsDown != nil {
+		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.RemoveListeningPortOnVsDown))
+	}
+
 	if v.SamlSpConfig != nil {
 		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.SamlSpConfig))
 	}
 
 	if v.SecurityPolicyRef != nil {
 		checksumStringSlice = append(checksumStringSlice, *v.SecurityPolicyRef)
+	}
+
+	if v.SslSessCacheAvgSize != nil {
+		checksumStringSlice = append(checksumStringSlice, strconv.Itoa(int(*v.SslSessCacheAvgSize)))
 	}
 
 	if v.Services != nil {
@@ -82,6 +123,10 @@ func (v *AviVsNodeGeneratedFields) CalculateCheckSumOfGeneratedCode() uint32 {
 		checksumStringSlice = append(checksumStringSlice, *v.SsoPolicyRef)
 	}
 
+	if v.TrafficCloneProfileRef != nil {
+		checksumStringSlice = append(checksumStringSlice, *v.TrafficCloneProfileRef)
+	}
+
 	chksumStr := strings.Join(checksumStringSlice, delim)
 	checksum := utils.Hash(chksumStr)
 	return checksum
@@ -89,6 +134,9 @@ func (v *AviVsNodeGeneratedFields) CalculateCheckSumOfGeneratedCode() uint32 {
 
 func (o *AviVsNodeGeneratedFields) ConvertToRef() {
 	if o != nil {
+		if o.BotPolicyRef != nil {
+			o.BotPolicyRef = proto.String("/api/botpolicy?name=" + *o.BotPolicyRef)
+		}
 		if o.NetworkProfileRef != nil {
 			o.NetworkProfileRef = proto.String("/api/networkprofile?name=" + *o.NetworkProfileRef)
 		}
@@ -114,6 +162,9 @@ func (o *AviVsNodeGeneratedFields) ConvertToRef() {
 		}
 		if o.SsoPolicyRef != nil {
 			o.SsoPolicyRef = proto.String("/api/ssopolicy?name=" + *o.SsoPolicyRef)
+		}
+		if o.TrafficCloneProfileRef != nil {
+			o.TrafficCloneProfileRef = proto.String("/api/trafficcloneprofile?name=" + *o.TrafficCloneProfileRef)
 		}
 	}
 }
@@ -148,6 +199,31 @@ func (o *AviVsNodeCommonFields) ConvertToRef() {
 		if o.WafPolicyRef != nil {
 			o.WafPolicyRef = proto.String("/api/wafpolicy?name=" + *o.WafPolicyRef)
 		}
+	}
+}
+
+func (o *AviVsNodeGeneratedFields) ConvertL7RuleFieldsToNil() {
+	if o != nil {
+		o.AllowInvalidClientCert = nil
+		o.BotPolicyRef =nil
+		o.CloseClientConnOnConfigUpdate =nil
+		o.HostNameXlate =nil
+		o.IgnPoolNetReach =nil
+		o.MinPoolsUp =nil
+		o.PerformanceLimits =nil
+		o.RemoveListeningPortOnVsDown =nil
+		o.SslSessCacheAvgSize =nil
+		o.TrafficCloneProfileRef =nil
+		o.SecurityPolicyRef =nil
+	}
+}
+
+func (o *AviVsNodeGeneratedFields) ConvertL7RuleParentOnlyFieldsToNil(){
+	if o != nil {
+		o.HostNameXlate = nil
+		o.SecurityPolicyRef =nil
+		o.PerformanceLimits =nil
+
 	}
 }
 

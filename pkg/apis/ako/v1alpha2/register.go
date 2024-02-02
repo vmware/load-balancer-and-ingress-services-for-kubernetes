@@ -50,6 +50,8 @@ func Resource(resource string) schema.GroupResource {
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(
 		SchemeGroupVersion,
+		&L7Rule{},
+		&L7RuleList{},
 		&SSORule{},
 		&SSORuleList{},
 		&L4Rule{},

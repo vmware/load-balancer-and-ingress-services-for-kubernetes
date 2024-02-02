@@ -108,6 +108,7 @@ func InitializeAKC() {
 	}
 	akoControlConfig.SetAKOInstanceFlag(isPrimaryAKO)
 	akoControlConfig.SetAKOBlockedNSList(lib.GetGlobalBlockedNSList())
+	akoControlConfig.SetControllerVRFContext(lib.GetControllerVRFContext())
 	var crdClient *crd.Clientset
 	var advl4Client *advl4.Clientset
 	var svcAPIClient *svcapi.Clientset

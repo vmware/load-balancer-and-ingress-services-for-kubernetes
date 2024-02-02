@@ -62,6 +62,7 @@ type AKOCrdInformers struct {
 	AviInfraSettingInformer v1beta1akoinformer.AviInfraSettingInformer
 	SSORuleInformer         v1alpha2akoinformer.SSORuleInformer
 	L4RuleInformer          v1alpha2akoinformer.L4RuleInformer
+	L7RuleInformer          v1alpha2akoinformer.L7RuleInformer
 }
 
 type IstioCRDInformers struct {
@@ -129,6 +130,10 @@ type akoControlConfig struct {
 	// L4Rule CRD installed.
 	l4RuleEnabled bool
 
+	// l7RuleEnabled is set to true if the cluster has
+	// L7Rule CRD installed.
+	l7RuleEnabled bool
+
 	// licenseType holds the default license tier which would be used by new Clouds. Enum options - ENTERPRISE_16, ENTERPRISE, ENTERPRISE_18, BASIC, ESSENTIALS.
 	licenseType string
 
@@ -149,6 +154,9 @@ type akoControlConfig struct {
 
 	// defaultLBController is set to true/false as per defaultLBController value in values.yaml
 	defaultLBController bool
+  
+	//Controller VRF Context is stored
+	controllerVRFContext string
 }
 
 var akoControlConfigInstance *akoControlConfig
@@ -280,6 +288,7 @@ func (c *akoControlConfig) SetCRDEnabledParams(cs akocrd.Interface) {
 func (c *akoControlConfig) Setv1alpha2CRDEnabledParams(cs v1alpha2akocrd.Interface) {
 	c.ssoRuleEnabled = true
 	c.l4RuleEnabled = true
+	c.l7RuleEnabled = true
 }
 
 func (c *akoControlConfig) AviInfraSettingEnabled() bool {
@@ -301,6 +310,9 @@ func (c *akoControlConfig) SsoRuleEnabled() bool {
 func (c *akoControlConfig) L4RuleEnabled() bool {
 	return c.l4RuleEnabled
 }
+func (c *akoControlConfig) L7RuleEnabled() bool {
+	return c.l7RuleEnabled
+}
 
 func (c *akoControlConfig) ControllerVersion() string {
 	return c.controllerVersion
@@ -312,6 +324,13 @@ func (c *akoControlConfig) SetControllerVersion(v string) {
 
 func (c *akoControlConfig) IsAviDefaultLBController() bool {
 	return c.defaultLBController
+
+func (c *akoControlConfig) ControllerVRFContext() string {
+	return c.controllerVRFContext
+}
+
+func (c *akoControlConfig) SetControllerVRFContext(v string) {
+	c.controllerVRFContext = v
 }
 
 func initControllerVersion() string {
