@@ -324,6 +324,7 @@ func (c *akoControlConfig) SetControllerVersion(v string) {
 
 func (c *akoControlConfig) IsAviDefaultLBController() bool {
 	return c.defaultLBController
+}
 
 func (c *akoControlConfig) ControllerVRFContext() string {
 	return c.controllerVRFContext
