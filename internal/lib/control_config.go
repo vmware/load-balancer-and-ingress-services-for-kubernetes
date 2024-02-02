@@ -154,7 +154,7 @@ type akoControlConfig struct {
 
 	// defaultLBController is set to true/false as per defaultLBController value in values.yaml
 	defaultLBController bool
-  
+
 	//Controller VRF Context is stored
 	controllerVRFContext string
 }
