@@ -351,14 +351,6 @@ func TestServiceAPISvcWithLoadBalancerClass(t *testing.T) {
 		return ""
 	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
 
-	g.Eventually(func() string {
-		svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), "svc", metav1.GetOptions{})
-		if len(svc.Status.LoadBalancer.Ingress) > 0 {
-			return svc.Status.LoadBalancer.Ingress[0].IP
-		}
-		return ""
-	}, 30*time.Second).Should(gomega.Equal("10.250.250.1"))
-
 	_, aviModel := objects.SharedAviGraphLister().Get("admin/cluster--default-svc")
 	g.Expect(aviModel).To(gomega.BeNil())
 

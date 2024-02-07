@@ -1718,7 +1718,7 @@ func GetDefaultSecretForRoutes() string {
 func ValidateSvcforClass(key string, svc *corev1.Service) bool {
 	if svc != nil {
 		// only check gateway labels for AdvancedL4 case, and skip validation if found
-		if !UseServicesAPI() {
+		if IsWCP() {
 			_, found_name := svc.ObjectMeta.Labels[GatewayNameLabelKey]
 			_, found_namespace := svc.ObjectMeta.Labels[GatewayNamespaceLabelKey]
 			if found_name || found_namespace {
