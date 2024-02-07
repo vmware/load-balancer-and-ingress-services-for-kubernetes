@@ -289,9 +289,8 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 		// not required since we don't create a model out of service
 	}
 
-	if sync {
-		c.publishAllParentVSKeysToRestLayer()
-	}
+	c.publishAllParentVSKeysToRestLayer()
+
 	return nil
 }
 
