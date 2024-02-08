@@ -9,7 +9,8 @@ rm -rf $WORKSPACE/$REPORT_FILE
 cd $WORKSPACE/ako_cicd/jenkins/git-changelog;
 
 python -m pip install jinja2
-python -m pip install pygal
+python -m pip uninstall pygal
+python -m pip install pygal==2.4.0
 python -m pip install python-dateutil
 
 # Extract, print, and generate report file for GIT change logs
