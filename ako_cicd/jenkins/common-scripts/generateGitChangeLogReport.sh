@@ -8,6 +8,9 @@ rm -rf $WORKSPACE/$REPORT_FILE
 
 cd $WORKSPACE/ako_cicd/jenkins/git-changelog;
 
+python -m pip install jinja2
+python -m pip install pygal
+
 # Extract, print, and generate report file for GIT change logs
 python gitChangeLogExtractor.py CI smoke $BUILD_NUMBER -r $REPORT_FILE --file-mode
 
