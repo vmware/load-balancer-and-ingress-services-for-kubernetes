@@ -2568,8 +2568,19 @@ func ValidateUserInput(client *clients.AviClient) (bool, error) {
 	// add other step0 validation logics here -> isValid := check1 && check2 && ...
 
 	var err error
+	// default it to true, only for VCenter use this flag
+	isVRFValid := true
 	isTenantValid := checkTenant(client, &err)
 	isCloudValid := checkAndSetCloudType(client, &err)
+	if lib.GetCloudType() == lib.CLOUD_VCENTER {
+		isVRFValid = checkVRF(client, &err)
+		if !isVRFValid {
+			utils.AviLog.Warnf("Invalid input detected, AKO will be rebooted to retry %s", err.Error())
+			lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, lib.AKOShutdown, "Invalid user input %s", err.Error())
+			lib.ShutdownApi()
+			return isVRFValid, err
+		}
+	}
 	isRequiredValuesValid := checkRequiredValuesYaml(client, &err)
 	isSegroupValid := validateAndConfigureSeGroup(client, &err)
 	if lib.IsWCP() {
@@ -2600,7 +2611,6 @@ func ValidateUserInput(client *clients.AviClient) (bool, error) {
 		isCNIConfigValid &&
 		isBGPConfigurationValid &&
 		isValidV6Config
-
 	if !isValid {
 		if !isCloudValid || !isSegroupValid || !isNodeNetworkValid || !isBGPConfigurationValid {
 			utils.AviLog.Warnf("Invalid input detected, AKO will be rebooted to retry %s", err.Error())
@@ -2727,9 +2737,12 @@ func FindCIDROverlapping(networks []models.Network, ipNet akov1beta1.AviInfraSet
 	return networkFound, localVIPNetwork
 }
 
-func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient, vipNetworks []akov1beta1.AviInfraSettingVipNetwork) []akov1beta1.AviInfraSettingVipNetwork {
+// This is called for Vcenter cloud only
+func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient, vipNetworks []akov1beta1.AviInfraSettingVipNetwork) ([]akov1beta1.AviInfraSettingVipNetwork, error) {
 	var ipNetworkList []akov1beta1.AviInfraSettingVipNetwork
 	var ipNetwork akov1beta1.AviInfraSettingVipNetwork
+	cmVRFName := lib.AKOControlConfig().ControllerVRFContext()
+	var retErr error
 	// In Public cloud we allow multiple network, so loop.
 	for _, vipNet := range vipNetworks {
 		// If Network uuid is present, use that.
@@ -2740,6 +2753,30 @@ func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient
 				Cidr:        vipNet.Cidr,
 				V6Cidr:      vipNet.V6Cidr,
 			}
+			// Whether vrfContext is correct or not.
+			// This vip list is mentioned in configmap and aviinfrasetting
+			// only add this when vrf is mentioned in configmap
+			if cmVRFName != "" {
+				uri := fmt.Sprintf("/api/network/%s?cloud_uuid=%s&include_name", vipNet.NetworkUUID, lib.GetCloudUUID())
+				var rest_response interface{}
+				err := lib.AviGet(client, uri, &rest_response)
+				if err != nil || rest_response == nil {
+					utils.AviLog.Warnf("No networks found for network: %s", vipNet.NetworkUUID)
+					retErr = fmt.Errorf("no networks found for network: %s", vipNet.NetworkUUID)
+					continue
+				}
+				result := rest_response.(map[string]interface{})
+				tempVrf := result["vrf_context_ref"].(string)
+				if tempVrf != "" {
+					vrf_uuid_name := strings.Split(tempVrf, "#")
+					if len(vrf_uuid_name) != 2 || vrf_uuid_name[1] != cmVRFName {
+						utils.AviLog.Warnf("Network %s does not have correct vrf %s", vipNet.NetworkUUID, cmVRFName)
+						retErr = fmt.Errorf("network %s does not have correct vrf %s", vipNet.NetworkUUID, cmVRFName)
+						continue
+					}
+				}
+			}
+
 		} else {
 			//default value
 			ipNetwork = akov1beta1.AviInfraSettingVipNetwork{
@@ -2747,26 +2784,38 @@ func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient
 				Cidr:        vipNet.Cidr,
 				V6Cidr:      vipNet.V6Cidr,
 			}
-			// For Each network from config/aviingra, perform following set of operations.
+			// For Each network from config/aviinfra, perform following set of operations.
+			//  of vrfcontext and tenant for vcenter cloud (it will good to fetch vrfuuid and use it)
+			// check network against vrf and tenant name
 			localVIPNetworkList := []models.Network{}
 			networkURI := "/api/network/?include_name=true&name=" + vipNet.NetworkName + "&cloud_ref.name=" + utils.CloudName
-
+			// only add this when vrf is mentioned in configmap. Achieves backward compatibility even if vrf is not mentioned
+			if cmVRFName != "" {
+				networkURI = networkURI + "&vrf_context_ref.name=" + cmVRFName
+			}
 			result, err := lib.AviGetCollectionRaw(client, networkURI)
 			if err != nil {
-				utils.AviLog.Warnf("Error while retrieving network %v details.", vipNet.NetworkName)
+				utils.AviLog.Warnf("Error while retrieving network %v details. Error: %v", vipNet.NetworkName, err)
+				retErr = fmt.Errorf("error while retrieving network %v details. Error: %v", vipNet.NetworkName, err)
 				continue
 			}
 			elems := make([]json.RawMessage, result.Count)
 			err = json.Unmarshal(result.Results, &elems)
 			if err != nil {
 				utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+				retErr = fmt.Errorf("failed to unmarshal data, err: %v", err)
 				continue
 			}
-
+			if result.Count == 0 {
+				//network not found
+				retErr = fmt.Errorf("network %s not found under vrf %s", vipNet.NetworkName, cmVRFName)
+				continue
+			}
 			for _, elem := range elems {
 				net := models.Network{}
 				if err = json.Unmarshal(elem, &net); err != nil {
 					utils.AviLog.Warnf("Failed to unmarshal network  data, err: %v", err)
+					retErr = fmt.Errorf("failed to unmarshal network  data, err: %v", err)
 					continue
 				}
 				localVIPNetworkList = append(localVIPNetworkList, net)
@@ -2806,10 +2855,9 @@ func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient
 				}
 			}
 		}
-
 		ipNetworkList = append(ipNetworkList, ipNetwork)
 	}
-	return ipNetworkList
+	return ipNetworkList, retErr
 }
 
 func checkRequiredValuesYaml(client *clients.AviClient, returnErr *error) bool {
@@ -2826,25 +2874,31 @@ func checkRequiredValuesYaml(client *clients.AviClient, returnErr *error) bool {
 
 	cloudName := utils.CloudName
 	if cloudName == "" {
-		*returnErr = fmt.Errorf("Required param cloudName not specified, syncing will be disabled")
+		*returnErr = fmt.Errorf("required param cloudName not specified, syncing will be disabled")
 		return false
 	}
 
 	if vipList, err := lib.GetVipNetworkListEnv(); err != nil {
-		*returnErr = fmt.Errorf("Error in getting VIP network %s, shutting down AKO", err)
+		*returnErr = fmt.Errorf("error in getting VIP network %s, shutting down AKO", err)
 		return false
 	} else if len(vipList) > 0 {
 
 		vipListUpdated := vipList
+		var err error
 		if lib.GetCloudType() == lib.CLOUD_VCENTER {
 			segMgmtNetwork := GetCMSEGManagementNetwork(client)
-			vipListUpdated = PopulateVipNetworkwithUUID(segMgmtNetwork, client, vipList)
+			vipListUpdated, err = PopulateVipNetworkwithUUID(segMgmtNetwork, client, vipList)
+			if err != nil {
+				*returnErr = err
+				return false
+			}
 		}
 		utils.SetVipNetworkList(vipListUpdated)
 		return true
 	}
 
 	// check if config map exists
+	// TODO: Check if this code will ever git hit
 	k8sClient := utils.GetInformers().ClientSet
 	aviCMNamespace := utils.GetAKONamespace()
 	if lib.GetNamespaceToSync() != "" {
@@ -2852,7 +2906,7 @@ func checkRequiredValuesYaml(client *clients.AviClient, returnErr *error) bool {
 	}
 	_, err := k8sClient.CoreV1().ConfigMaps(aviCMNamespace).Get(context.TODO(), lib.AviConfigMap, metav1.GetOptions{})
 	if err != nil {
-		*returnErr = fmt.Errorf("Configmap %s/%s not found, error: %v, syncing will be disabled", aviCMNamespace, lib.AviConfigMap, err)
+		*returnErr = fmt.Errorf("configmap %s/%s not found, error: %v, syncing will be disabled", aviCMNamespace, lib.AviConfigMap, err)
 		return false
 	}
 
@@ -3085,15 +3139,47 @@ func checkTenant(client *clients.AviClient, returnError *error) bool {
 	defer SetTenant(client.AviSession)
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
-		*returnError = fmt.Errorf("Get uri %v returned err %v", uri, err)
+		*returnError = fmt.Errorf("get uri %v returned err %v", uri, err)
 		return false
 	}
 
 	if result.Count != 1 {
-		*returnError = fmt.Errorf("Tenant details not found for the tenant: %s", lib.GetTenant())
+		*returnError = fmt.Errorf("tenant details not found for the tenant: %s", lib.GetTenant())
 		return false
 	}
+	return true
+}
 
+// Check VRF in given tenant
+// IF 403 or 404, switch to Admin tenant
+func checkVRF(client *clients.AviClient, returnError *error) bool {
+	// Here fetch vrf details for vcenter cloud
+	vrfName := lib.AKOControlConfig().ControllerVRFContext()
+	if vrfName != "" {
+		uri := "/api/vrfcontext/?include_name&name=" + vrfName + "&cloud_ref.name=" + utils.CloudName
+		result, err := lib.AviGetCollectionRaw(client, uri)
+		if err != nil {
+			if aviError, ok := err.(session.AviError); ok && (aviError.HttpStatusCode == 403 || aviError.HttpStatusCode == 404) {
+				utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
+				SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
+				SetTenant := session.SetTenant(lib.GetTenant())
+				SetAdminTenant(client.AviSession)
+				defer SetTenant(client.AviSession)
+				result, err = lib.AviGetCollectionRaw(client, uri)
+				if err != nil {
+					*returnError = fmt.Errorf("get uri %v returned err %v", uri, err)
+					return false
+				}
+			} else {
+				*returnError = fmt.Errorf("get uri %v returned err %v", uri, err)
+				return false
+			}
+		}
+		if result.Count != 1 {
+			*returnError = fmt.Errorf("vrf %s details not found", vrfName)
+			return false
+		}
+	}
 	return true
 }
 
@@ -3176,16 +3262,19 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 	// 2. If not provided, check for markers in ipam's usable networks.
 	// 3. If marker based usable network is not available, keep vipNetworkList empty.
 	// 4. vipNetworkList can be empty only in WCP usecases, for all others, mark invalid configuration.
-
+	var ret_err error
 	// 1. User input
 	if vipList, err := lib.GetVipNetworkListEnv(); err != nil {
-		return false, fmt.Errorf("Error in getting VIP network %s, shutting down AKO", err)
+		return false, fmt.Errorf("error in getting VIP network %s, shutting down AKO", err)
 	} else if len(vipList) > 0 {
 
 		vipListUpdated := vipList
 		if lib.GetCloudType() == lib.CLOUD_VCENTER {
 			segMgmtNetwork := GetCMSEGManagementNetwork(client)
-			vipListUpdated = PopulateVipNetworkwithUUID(segMgmtNetwork, client, vipList)
+			vipListUpdated, ret_err = PopulateVipNetworkwithUUID(segMgmtNetwork, client, vipList)
+			if len(vipListUpdated) == 0 {
+				return false, ret_err
+			}
 		}
 		utils.SetVipNetworkList(vipListUpdated)
 		return true, nil
@@ -3309,7 +3398,7 @@ func checkPublicCloud(client *clients.AviClient, returnErr *error) bool {
 		// Handle all public cloud validations here
 		vipNetworkList := utils.GetVipNetworkList()
 		if len(vipNetworkList) == 0 {
-			*returnErr = fmt.Errorf("vipNetworkList not specified, syncing will be disabled.")
+			*returnErr = fmt.Errorf("vipNetworkList not specified, syncing will be disabled")
 			return false
 		}
 	}
@@ -3318,7 +3407,7 @@ func checkPublicCloud(client *clients.AviClient, returnErr *error) bool {
 
 func FetchNodeNetworks(segMgmtNetwork string, client *clients.AviClient, returnErr *error, nodeNetworkMap map[string]lib.NodeNetworkMap) bool {
 	isVcenterCloud := lib.GetCloudType() == lib.CLOUD_VCENTER
-
+	cmVRFName := lib.AKOControlConfig().ControllerVRFContext()
 	for nodeNetworkName, nodeNetworkCIDRs := range nodeNetworkMap {
 		localNodeNetworkList := []models.Network{}
 		uri := ""
@@ -3327,13 +3416,13 @@ func FetchNodeNetworks(segMgmtNetwork string, client *clients.AviClient, returnE
 		for _, cidr := range nodeNetworkCIDRs.Cidrs {
 			_, _, err := net.ParseCIDR(cidr)
 			if err != nil {
-				*returnErr = fmt.Errorf("The value of CIDR couldn't be parsed. Failed with error: %v.", err.Error())
+				*returnErr = fmt.Errorf("value of CIDR couldn't be parsed. Failed with error: %v", err.Error())
 				return false
 			}
 			mask := strings.Split(cidr, "/")[1]
 			_, err = strconv.ParseInt(mask, 10, 32)
 			if err != nil {
-				*returnErr = fmt.Errorf("The value of CIDR couldn't be converted to int32")
+				*returnErr = fmt.Errorf("value of CIDR couldn't be converted to int32")
 				return false
 			}
 		}
@@ -3344,16 +3433,44 @@ func FetchNodeNetworks(segMgmtNetwork string, client *clients.AviClient, returnE
 			uri = fmt.Sprintf("/api/network/%s?cloud_uuid=%s&include_name", nodeNetworkCIDRs.NetworkUUID, lib.GetCloudUUID())
 			var rest_response interface{}
 			err := lib.AviGet(client, uri, &rest_response)
+			// here validate response field against vrf for vcenter cloud
 			if err != nil {
-				*returnErr = fmt.Errorf("no networks found for networkName: %s", nodeNetworkName)
+				*returnErr = fmt.Errorf("no networks found for network: %s", nodeNetworkCIDRs.NetworkUUID)
 				return false
 			} else if rest_response == nil {
-				*returnErr = fmt.Errorf("no networks found for networkName: %s", nodeNetworkName)
+				*returnErr = fmt.Errorf("no networks found for network: %s", nodeNetworkCIDRs.NetworkUUID)
 				return false
 			}
+			if isVcenterCloud && cmVRFName != "" {
+				uri := fmt.Sprintf("/api/network/%s?cloud_uuid=%s&include_name", nodeNetworkCIDRs.NetworkUUID, lib.GetCloudUUID())
+				var rest_response interface{}
+				err := lib.AviGet(client, uri, &rest_response)
+				if err != nil || rest_response == nil {
+					utils.AviLog.Warnf("No networks found for network: %s", nodeNetworkCIDRs.NetworkUUID)
+					*returnErr = fmt.Errorf("no networks found for network: %s", nodeNetworkCIDRs.NetworkUUID)
+					continue
+				}
+				result := rest_response.(map[string]interface{})
+				tempVrf := result["vrf_context_ref"].(string)
+				if tempVrf != "" {
+					vrf_uuid_name := strings.Split(tempVrf, "#")
+					if len(vrf_uuid_name) != 2 || vrf_uuid_name[1] != cmVRFName {
+						utils.AviLog.Warnf("Network %s does not have correct vrf %s", nodeNetworkCIDRs.NetworkUUID, cmVRFName)
+						*returnErr = fmt.Errorf("network %s does not have correct vrf %s", nodeNetworkCIDRs.NetworkUUID, cmVRFName)
+						continue
+					}
+				}
+			}
 		} else {
+			var result session.AviCollectionResult
+			var err error
 			uri = "/api/network/?include_name&name=" + nodeNetworkName + "&cloud_ref.name=" + utils.CloudName
-			result, err := lib.AviGetCollectionRaw(client, uri)
+			if isVcenterCloud && cmVRFName != "" {
+				uri = uri + "&vrf_context_ref.name=" + cmVRFName
+				result, err = lib.AviGetCollectionRawWithTenantSwitch(client, uri)
+			} else {
+				result, err = lib.AviGetCollectionRaw(client, uri)
+			}
 			if err != nil {
 				*returnErr = fmt.Errorf("get uri %v returned err %v", uri, err)
 				return false
@@ -3455,12 +3572,26 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient, returnErr *error) bool
 		}
 		return true
 	}
+	cmVrfContext := lib.AKOControlConfig().ControllerVRFContext()
 	if lib.IsNodePortMode() {
-		utils.AviLog.Infof("Using global VRF for NodePort mode")
-		lib.SetVrf(utils.GlobalVRF)
+		//set it from cm
+		if cmVrfContext == "" {
+			lib.SetVrf(utils.GlobalVRF)
+			utils.AviLog.Infof("Using global VRF for NodePort mode")
+		} else {
+			lib.SetVrf(cmVrfContext)
+			utils.AviLog.Infof("Using %s VRF for NodePort mode", cmVrfContext)
+		}
 		return true
 	}
 
+	// Cluster IP mode: vcenter cloud if vrfContext is in CM use that
+	if lib.GetCloudType() == lib.CLOUD_VCENTER && cmVrfContext != "" {
+		lib.SetVrf(cmVrfContext)
+		return true
+	}
+
+	// validation of vip networklist with vrf in vcenter cloud is already done in checkRequiredValues function
 	networkList := utils.GetVipNetworkList()
 	if len(networkList) == 0 {
 		utils.AviLog.Warnf("Network name not specified, skipping fetching of the VRF setting from network")
@@ -3468,7 +3599,7 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient, returnErr *error) bool
 	}
 
 	if !validateNetworkNames(client, networkList) {
-		*returnErr = fmt.Errorf("Failed to validate Network Names specified in VIP Network List")
+		*returnErr = fmt.Errorf("failed to validate Network Names specified in VIP Network List")
 		return false
 	}
 
@@ -3494,24 +3625,24 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient, returnErr *error) bool
 		uri := "/api/network/?include_name&name=" + networkName + "&cloud_ref.name=" + utils.CloudName
 		result, err := lib.AviGetCollectionRaw(client, uri)
 		if err != nil {
-			*returnErr = fmt.Errorf("Get uri %v returned err %v", uri, err)
+			*returnErr = fmt.Errorf("get uri %v returned err %v", uri, err)
 			return false
 		}
 		elems := make([]json.RawMessage, result.Count)
 		err = json.Unmarshal(result.Results, &elems)
 		if err != nil {
-			*returnErr = fmt.Errorf("Failed to unmarshal data, err: %v", err)
+			*returnErr = fmt.Errorf("failed to unmarshal data, err: %v", err)
 			return false
 		}
 
 		if result.Count == 0 {
-			*returnErr = fmt.Errorf("No networks found for networkName: %s", networkName)
+			*returnErr = fmt.Errorf("no networks found for networkName: %s", networkName)
 			return false
 		}
 
 		err = json.Unmarshal(elems[0], &network)
 		if err != nil {
-			*returnErr = fmt.Errorf("Failed to unmarshal data, err: %v", err)
+			*returnErr = fmt.Errorf("failed to unmarshal data, err: %v", err)
 			return false
 		}
 	}

@@ -104,6 +104,7 @@ ControllerSettings:
   cloudName: "Default-Cloud" # The configured cloud name on the Avi controller.
   controllerHost: "" # IP address or Hostname of Avi Controller
   tenantName: "admin" # Name of the tenant where all the AKO objects will be created in AVI.
+  vrfName: "" # Name of the VRFContext. All Avi objects will be under this VRF. Applicable only in Vcenter Cloud.
 
 nodePortSelector: # Only applicable if serviceType is NodePort
   key: ""

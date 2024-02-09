@@ -33,6 +33,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/jinzhu/copier"
 	avimodels "github.com/vmware/alb-sdk/go/models"
+	k8net "k8s.io/utils/net"
 )
 
 func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj *avicache.AviPoolCache, key string) *utils.RestOp {
@@ -61,7 +62,7 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 				}
 				addr := ipnet.IP.String()
 				atype := "V4"
-				if utils.IsV6(addr) {
+				if k8net.IsIPv6CIDR(ipnet) {
 					atype = "V6"
 				}
 
@@ -363,8 +364,8 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 							if pool_cache_obj.ServiceMetadataObj.IsMCIIngress {
 								statusOption.ObjType = lib.MultiClusterIngress
 							}
-							utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
-							status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
+							utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.HostNames[0], utils.Stringify(statusOption))
+							status.PublishToStatusQueue(updateOptions.ServiceMetadata.HostNames[0], statusOption)
 						}
 					}
 				}
@@ -445,8 +446,8 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 				if pool_cache_obj.ServiceMetadataObj.IsMCIIngress {
 					statusOption.ObjType = lib.MultiClusterIngress
 				}
-				utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
-				status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
+				utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.HostNames[0], utils.Stringify(statusOption))
+				status.PublishToStatusQueue(updateOptions.ServiceMetadata.HostNames[0], statusOption)
 			}
 		}
 	}

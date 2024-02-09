@@ -1456,6 +1456,7 @@ type FakeHostRule struct {
 	HttpPolicySets        []string
 	GslbFqdn              string
 	NetworkSecurityPolicy string
+	L7Rule                string
 }
 
 func (hr FakeHostRule) HostRule() *akov1beta1.HostRule {
@@ -1491,6 +1492,7 @@ func (hr FakeHostRule) HostRule() *akov1beta1.HostRule {
 					Fqdn: hr.GslbFqdn,
 				},
 				NetworkSecurityPolicy: hr.NetworkSecurityPolicy,
+				L7Rule:                hr.L7Rule,
 			},
 		},
 	}
@@ -1645,6 +1647,65 @@ func TearDownHostRuleWithNoVerify(t *testing.T, g *gomega.WithT, hrname string) 
 	if err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting HostRule: %v", err)
 	}
+}
+
+type FakeL7Rule struct {
+	AllowInvalidClientCert        bool
+	BotPolicyRef                  string
+	CloseClientConnOnConfigUpdate bool
+	HostNameXlate                 string
+	IgnPoolNetReach               bool
+	MinPoolsUp                    uint32
+	RemoveListeningPortOnVsDown   bool
+	SecurityPolicyRef             string
+	SslSessCacheAvgSize           uint32
+	Name                          string
+	Namespace                     string
+}
+
+func (l7 FakeL7Rule) L7Rule() *akov1alpha2.L7Rule {
+	l7Rule := akov1alpha2.L7Rule{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: l7.Namespace,
+			Name:      l7.Name,
+		},
+		Spec: akov1alpha2.L7RuleSpec{
+			AllowInvalidClientCert:        &l7.AllowInvalidClientCert,
+			BotPolicyRef:                  &l7.BotPolicyRef,
+			CloseClientConnOnConfigUpdate: &l7.CloseClientConnOnConfigUpdate,
+			HostNameXlate:                 &l7.HostNameXlate,
+			IgnPoolNetReach:               &l7.IgnPoolNetReach,
+			MinPoolsUp:                    &l7.MinPoolsUp,
+			RemoveListeningPortOnVsDown:   &l7.RemoveListeningPortOnVsDown,
+			SecurityPolicyRef:             &l7.SecurityPolicyRef,
+			SslSessCacheAvgSize:           &l7.SslSessCacheAvgSize,
+		}}
+	return &l7Rule
+}
+
+func SetupL7Rule(t *testing.T, name string, g *gomega.WithT) {
+	l7rule := FakeL7Rule{
+		Name:                          name,
+		Namespace:                     "default",
+		AllowInvalidClientCert:        true,
+		BotPolicyRef:                  "thisisaviref-botpolicy",
+		CloseClientConnOnConfigUpdate: true,
+		HostNameXlate:                 "hostname.com",
+		IgnPoolNetReach:               false,
+		MinPoolsUp:                    0,
+		SecurityPolicyRef:             "thisisaviref-secpolicy",
+		RemoveListeningPortOnVsDown:   false,
+		SslSessCacheAvgSize:           2024,
+	}
+	srCreate := l7rule.L7Rule()
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L7Rules("default").Create(context.TODO(), srCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding L7Rule: %v", err)
+	}
+	g.Eventually(func() string {
+		l7Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L7Rules("default").Get(context.TODO(), name, metav1.GetOptions{})
+		return l7Rule.Status.Status
+	}, 25*time.Second).Should(gomega.Equal("Accepted"))
+
 }
 
 type FakeHTTPRule struct {

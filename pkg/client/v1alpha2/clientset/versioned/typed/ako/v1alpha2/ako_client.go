@@ -29,6 +29,7 @@ import (
 type AkoV1alpha2Interface interface {
 	RESTClient() rest.Interface
 	L4RulesGetter
+	L7RulesGetter
 	SSORulesGetter
 }
 
@@ -39,6 +40,10 @@ type AkoV1alpha2Client struct {
 
 func (c *AkoV1alpha2Client) L4Rules(namespace string) L4RuleInterface {
 	return newL4Rules(c, namespace)
+}
+
+func (c *AkoV1alpha2Client) L7Rules(namespace string) L7RuleInterface {
+	return newL7Rules(c, namespace)
 }
 
 func (c *AkoV1alpha2Client) SSORules(namespace string) SSORuleInterface {
