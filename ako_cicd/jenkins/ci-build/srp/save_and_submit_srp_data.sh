@@ -16,29 +16,10 @@
 
 set -xe
 
+BRANCH=$branch
+CI_REGISTRY_PATH=$PVT_DOCKER_REGISTRY/$PVT_DOCKER_REPOSITORY
 
-if [ $# -lt 6 ] ; then
-    echo "Usage: ./save_srp_data_on_mnt.sh <BRANCH> <BUILD_NUMBER> <WORKSPACE> <JENKINS_JOB_NAME> <JENKINS_URL> <CI_REGISTRY_PATH>";
-    exit 1
-fi
-
-BRANCH=$1
-BUILD_NUMBER=$2
-WORKSPACE=$3
-JENKINS_JOB_NAME=$4
-JENKINS_URL=$5
-CI_REGISTRY_PATH=$6
-
-SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
-
-# Function to get GIT workspace root location
-function get_git_ws {
-    git_ws=$(git rev-parse --show-toplevel)
-    [ -z "$git_ws" ] && echo "Couldn't find git workspace root" && exit 1
-    echo $git_ws
-}
-
-BUILD_VERSION_SCRIPT=$SCRIPTPATH/get_build_version.sh
+BUILD_VERSION_SCRIPT=$WORKSPACE/hack/jenkins/get_build_version.sh
 build_version=$(bash $BUILD_VERSION_SCRIPT "dummy" $BUILD_NUMBER)
 
 target_path=/mnt/builds/ako_OS/$BRANCH/ci-build-$build_version
