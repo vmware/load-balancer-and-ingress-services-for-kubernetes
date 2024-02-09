@@ -14,10 +14,3 @@ sudo mkdir /srp-tools/observer
 cd /srp-tools/observer
 sudo tar zxf /tmp/linux-observer-2.0.0.tar.gz
 sudo /srp-tools/observer/bin/observer_agent --version
-
-SRP_WORKING_DIR=$WORKSPACE/provenance
-#start observer
-[ -d "$SRP_WORKING_DIR" ] && sudo rm -rf "$SRP_WORKING_DIR"
-mkdir -p $SRP_WORKING_DIR
-sudo /srp-tools/observer/bin/observer_agent -m start_observer --output_environment ${SRP_WORKING_DIR}/envs.sh --env_to_shell
-source ${SRP_WORKING_DIR}/envs.sh
