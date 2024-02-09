@@ -55,6 +55,14 @@ func main() {
 func Initialize() {
 
 	os.Setenv(lib.ENABLE_EVH, "true")
+	os.Setenv(lib.VIP_PER_NAMESPACE, "false")
+	os.Setenv("ISTIO_ENABLED", "false")
+	os.Setenv("SHARD_VS_SIZE", "LARGE")
+	os.Setenv("PASSTHROUGH_SHARD_SIZE", "LARGE")
+	os.Setenv(lib.DISABLE_STATIC_ROUTE_SYNC, "false")
+	os.Setenv("PROMETHEUS_ENABLED", "false")
+	os.Setenv("PRIMARY_AKO_FLAG", "false")
+
 	utils.AviLog.SetLevel("DEBUG") // TODO: integrate the configmap to this pod and remove this hardcoding.
 	utils.AviLog.Infof("AKO is running with version: %s", version)
 
