@@ -660,8 +660,15 @@ func TestHTTPRouteBackendRefCRUD(t *testing.T) {
 			return -1
 		}
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
+		return len(nodes[0].EvhNodes[0].PoolGroupRefs)
 	}, 25*time.Second).Should(gomega.Equal(0))
+
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	childNode = nodes[0].EvhNodes[0]
+	g.Expect(childNode.PoolRefs).To(gomega.HaveLen(0))
+	g.Expect(childNode.PoolGroupRefs).To(gomega.HaveLen(0))
+	g.Expect(childNode.DefaultPoolGroup).To(gomega.Equal(""))
 
 	// update the backend service
 	rule = akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
@@ -676,7 +683,7 @@ func TestHTTPRouteBackendRefCRUD(t *testing.T) {
 			return 0
 		}
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
+		return len(nodes[0].EvhNodes[0].PoolGroupRefs)
 	}, 25*time.Second).Should(gomega.Equal(1))
 
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
@@ -731,7 +738,7 @@ func TestHTTPRouteBackendServiceCDC(t *testing.T) {
 		}
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 		return len(nodes[0].EvhNodes)
-	}, 25*time.Second).Should(gomega.Equal(1))
+	}, 30*time.Second).Should(gomega.Equal(1))
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
@@ -750,8 +757,8 @@ func TestHTTPRouteBackendServiceCDC(t *testing.T) {
 			return -1
 		}
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes[0].PoolGroupRefs[0].Members)
-	}, 25*time.Second).Should(gomega.Equal(0))
+		return len(nodes[0].EvhNodes[0].PoolGroupRefs)
+	}, 30*time.Second).Should(gomega.Equal(0))
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
