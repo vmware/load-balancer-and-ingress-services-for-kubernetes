@@ -12,6 +12,10 @@ export GOLANG_SRC_REPO=${PVT_DOCKER_REGISTRY}/golang:latest
 export PHOTON_SRC_REPO=projects.registry.vmware.com/photon/photon4:latest
 
 make build
+make BUILD_TAG=$version_tag docker
+make BUILD_TAG=$version_tag ako-operator-docker
+make BUILD_TAG=$version_tag build-gateway-api
+make BUILD_TAG=$version_tag ako-gateway-api-docker
 
 echo "--- Start of Pre-Build Steps ---"
 
