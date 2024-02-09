@@ -64,7 +64,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	childNode.EVHParent = false
 
 	childNode.ServiceMetadata = lib.ServiceMetadataObj{
-		Gateway: parentName,
+		Gateway: parentNsName,
 	}
 	childNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
 	childNode.ServiceEngineGroup = lib.GetSEGName()
@@ -126,10 +126,12 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 			continue
 		}
 		poolNode := &nodes.AviPoolNode{
-			Name:     poolName,
-			Tenant:   lib.GetTenant(),
-			Protocol: listenerProtocol,
-			PortName: "",
+			Name:       poolName,
+			Tenant:     lib.GetTenant(),
+			Protocol:   listenerProtocol,
+			PortName:   akogatewayapilib.FindPortName(backend.Name, backend.Namespace, backend.Port, key),
+			TargetPort: akogatewayapilib.FindTargetPort(backend.Name, backend.Namespace, backend.Port, key),
+			Port:       backend.Port,
 			ServiceMetadata: lib.ServiceMetadataObj{
 				NamespaceServiceName: []string{backend.Namespace + "/" + backend.Name},
 			},
