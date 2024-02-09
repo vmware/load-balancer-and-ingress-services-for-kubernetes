@@ -21,7 +21,6 @@ echo $GIT_COMMIT > $WORKSPACE/HEAD_COMMIT;
 
 CI_REGISTRY_PATH=$PVT_DOCKER_REGISTRY/$PVT_DOCKER_REPOSITORY
 BRANCH=$branch
-SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
 # Function to get GIT workspace root location
 function get_git_ws {
@@ -30,9 +29,8 @@ function get_git_ws {
     echo $git_ws
 }
 
-echo $SCRIPTPATH
 
-BUILD_VERSION_SCRIPT=$SCRIPTPATH/get_build_version.sh
+BUILD_VERSION_SCRIPT=$WORKSPACE/hack/jenkins/get_build_version.sh
 CHARTS_PATH="$(get_git_ws)/helm/ako"
 AKO_OPERATOR_CHARTS_PATH="$(get_git_ws)/ako-operator/helm/ako-operator"
 
