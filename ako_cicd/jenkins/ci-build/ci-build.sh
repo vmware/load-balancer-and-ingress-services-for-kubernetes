@@ -5,9 +5,10 @@ set -xe
 SRP_SCRIPT_DIR=$WORKSPACE/ako_cicd/jenkins/ci-build/srp
 SRP_WORKING_DIR=$WORKSPACE/provenance
 if [ "$SRP_UPDATE" = true ]; then
-    sh ${SRP_SCRIPT_DIR}/srp_install.sh
     [ -d "$SRP_WORKING_DIR" ] && sudo rm -rf "$SRP_WORKING_DIR"
     mkdir -p $SRP_WORKING_DIR
+    sh ${SRP_SCRIPT_DIR}/srp_cleanup.sh
+    sh ${SRP_SCRIPT_DIR}/srp_install.sh
     sudo /srp-tools/observer/bin/observer_agent -m start_observer --output_environment ${SRP_WORKING_DIR}/envs.sh --env_to_shell
     source ${SRP_WORKING_DIR}/envs.sh
 fi
