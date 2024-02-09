@@ -2,8 +2,8 @@
 
 set -xe
 
-export GIT_USER=$GIT_USER
-export GIT_PASS=$GIT_PASS
+export GIT_USER=$GITHUB_USER_NAME
+export GIT_PASS=$GITHUB_PASSWORD
 
 cd $WORKSPACE/hack/jenkins
 if [ "$ENABLE_PUSH_TAGS_MODE" == "true" ]; then
