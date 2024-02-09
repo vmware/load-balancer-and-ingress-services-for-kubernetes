@@ -11,7 +11,7 @@ WORKDIR $GOPATH/src/$BUILD_PATH
 RUN GOARCH=amd64 \
     CGO_ENABLED=0 \
     GOOS=linux \
-    go build -o $GOPATH/bin/akc \
+    go build -buildvcs=false -o $GOPATH/bin/akc \
     -ldflags "$AKO_LDFLAGS" \
     -mod=vendor \
     $BUILD_PATH/cmd/ako-main
