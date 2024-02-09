@@ -23,7 +23,6 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -458,7 +457,7 @@ func (c *GatewayController) cleanupStaleVSes() {
 	}
 }
 
-// HandleConfigMap : initialise the controller, start informer for configmap and wait for the akc configmap to be created.
+// HandleConfigMap : initialise the controller, start informer for configmap and wait for the ako configmap to be created.
 // When the configmap is created, enable sync for other k8s objects. When the configmap is disabled, disable sync.
 func (c *GatewayController) HandleConfigMap(k8sinfo k8s.K8sinformers, ctrlCh chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}) error {
 	cs := k8sinfo.Cs
@@ -493,9 +492,9 @@ func (c *GatewayController) HandleConfigMap(k8sinfo k8s.K8sinformers, ctrlCh cha
 			validateUserInput, err := avicache.ValidateUserInput(aviclient)
 			if err != nil {
 				utils.AviLog.Errorf("Error while validating input: %s", err.Error())
-				akogatewayapilib.AKOControlConfig().PodEventf(v1.EventTypeWarning, lib.SyncDisabled, "Invalid user input %s", err.Error())
+				akogatewayapilib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, lib.SyncDisabled, "Invalid user input %s", err.Error())
 			} else {
-				akogatewayapilib.AKOControlConfig().PodEventf(v1.EventTypeNormal, lib.ValidatedUserInput, "User input validation completed.")
+				akogatewayapilib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.ValidatedUserInput, "User input validation completed.")
 			}
 			c.DisableSync = !validateUserInput || delModels
 			lib.SetDisableSync(c.DisableSync)
