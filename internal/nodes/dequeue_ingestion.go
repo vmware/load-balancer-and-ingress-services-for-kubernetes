@@ -216,8 +216,8 @@ func DequeueIngestion(key string, fullsync bool) {
 				return
 			}
 
-			// Do not handle service update if it belongs to unaccepted namespace
-			if svcObj.Spec.Type == utils.LoadBalancer && !lib.GetLayer7Only() && utils.CheckIfNamespaceAccepted(namespace) {
+			// Do not handle service update if it belongs to unaccepted namespace or if associated LBService is under different LBClass
+			if svcObj.Spec.Type == utils.LoadBalancer && !lib.GetLayer7Only() && utils.CheckIfNamespaceAccepted(namespace) && lib.ValidateSvcforClass(key, svcObj) {
 				// This endpoint update affects a LB service.
 				aviModelGraph := NewAviObjectGraph()
 				if sharedVipKey, ok := svcObj.Annotations[lib.SharedVipSvcLBAnnotation]; ok && sharedVipKey != "" {
@@ -576,6 +576,10 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 	for i, serviceNSName := range serviceNSNames {
 		svcNSName := strings.Split(serviceNSName, "/")
 		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(svcNSName[0]).Get(svcNSName[1])
+		if !lib.ValidateSvcforClass(key, svcObj) {
+			isShareVipKeyDelete = true
+			break
+		}
 		if err != nil {
 			utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service", key)
 			isShareVipKeyDelete = true
@@ -685,6 +689,11 @@ func handleL4Service(key string, fullsync bool) {
 				return
 			}
 		}
+		svcObj, _ := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
+		if svcObj.Spec.Type == utils.LoadBalancer && !lib.ValidateSvcforClass(key, svcObj) {
+			return
+		}
+
 		utils.AviLog.Infof("key: %s, msg: service is of type loadbalancer. Will create dedicated VS nodes", key)
 		aviModelGraph := NewAviObjectGraph()
 		aviModelGraph.BuildL4LBGraph(namespace, name, key)

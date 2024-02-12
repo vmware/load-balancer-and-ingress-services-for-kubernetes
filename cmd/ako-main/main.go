@@ -113,6 +113,12 @@ func InitializeAKC() {
 	var advl4Client *advl4.Clientset
 	var svcAPIClient *svcapi.Clientset
 
+	isDefaultLBController, err := strconv.ParseBool(os.Getenv("DEFAULT_LB_CONTROLLER"))
+	if err != nil {
+		isDefaultLBController = true
+	}
+	akoControlConfig.SetDefaultLBController(isDefaultLBController)
+
 	v1beta1crdClient, err := v1beta1crd.NewForConfig(cfg)
 	if err != nil {
 		utils.AviLog.Fatalf("Error building AKO CRD v1beta1 clientset: %s", err.Error())

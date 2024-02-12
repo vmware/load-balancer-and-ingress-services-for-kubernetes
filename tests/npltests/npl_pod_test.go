@@ -92,7 +92,7 @@ func setUpTestForSvcLB(t *testing.T) {
 	objects.SharedAviGraphLister().Delete(integrationtest.SINGLEPORTMODEL)
 	selectors := make(map[string]string)
 	selectors["app"] = "npl"
-	svcExample := integrationtest.ConstructService(defaultNS, integrationtest.SINGLEPORTSVC, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, selectors)
+	svcExample := integrationtest.ConstructService(defaultNS, integrationtest.SINGLEPORTSVC, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, selectors, "")
 	svcExample.Annotations = make(map[string]string)
 	svcExample.Annotations[lib.NPLSvcAnnotation] = "true"
 	_, err := KubeClient.CoreV1().Services(defaultNS).Create(context.TODO(), svcExample, metav1.CreateOptions{})
@@ -181,6 +181,7 @@ func TestMain(m *testing.M) {
 	akoControlConfig.SetCRDClientset(CRDClient)
 	akoControlConfig.Setv1beta1CRDClientset(V1beta1CRDClient)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
+	akoControlConfig.SetDefaultLBController(true)
 	akoControlConfig.SetAKOInstanceFlag(true)
 	data := map[string][]byte{
 		"username": []byte("admin"),
@@ -1198,7 +1199,7 @@ func TestNPLSvcNodePort(t *testing.T) {
 		return false
 	}, 20*time.Second).Should(gomega.Equal(true))
 
-	svc := integrationtest.ConstructService(defaultNS, "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeNodePort, false, selectors)
+	svc := integrationtest.ConstructService(defaultNS, "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeNodePort, false, selectors, "")
 	ann := make(map[string]string)
 	ann[lib.NPLSvcAnnotation] = "true"
 	svc.Annotations = ann

@@ -190,6 +190,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: defaultIngController
+          - name: DEFAULT_LB_CONTROLLER
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: defaultLBController
           - name: SEG_NAME
             valueFrom:
               configMapKeyRef:

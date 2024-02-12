@@ -94,6 +94,7 @@ L7Settings:
 
 ### This section outlines all the knobs  used to control Layer 4 loadbalancing settings in AKO.
 L4Settings:
+  defaultLBController: "true"
   defaultDomain: "" # If multiple sub-domains are configured in the cloud, use this knob to set the default sub-domain to use for L4 VSes.
   autoFQDN: "default" # ENUM: default(<svc>.<ns>.<subdomain>), flat (<svc>-<ns>.<subdomain>), "disabled" If the value is disabled then the FQDN generation is disabled.
 
