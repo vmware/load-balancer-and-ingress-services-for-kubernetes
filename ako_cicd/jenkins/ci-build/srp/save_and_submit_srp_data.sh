@@ -27,14 +27,14 @@ target_path=/mnt/builds/ako_OS/$BRANCH/ci-build-$build_version
 #collecting provenance data
 PRODUCT_NAME="Avi Kubernetes Operator"
 JENKINS_INSTANCE=$(echo $JENKINS_URL | sed -E 's/^\s*.*:\/\///g' | sed -E 's/:.*//g')
-COMP_UID="uid.obj.build.jenkins(instance='$JENKINS_INSTANCE',job_name='$JENKINS_JOB_NAME',build_number='$BUILD_NUMBER')"
+COMP_UID="uid.obj.build.jenkins(instance='$JENKINS_INSTANCE',job_name='$JOB_NAME',build_number='$BUILD_NUMBER')"
 
 # initialize credentials that are required for submission, Credentials value set by jenkins vault plugin
 sudo /srp-tools/srp config auth --client-id=${SRP_CLIENT_ID} --client-secret=${SRP_CLIENT_SECRECT}
 
 # initialize blank provenance in the working directory, $SRP_WORKING_DIR
 sudo /srp-tools/srp provenance init --working-dir $WORKSPACE/provenance
-sudo /srp-tools/srp provenance add-build jenkins --instance $JENKINS_INSTANCE --build-number $BUILD_NUMBER --job-name $JENKINS_JOB_NAME --working-dir $WORKSPACE/provenance
+sudo /srp-tools/srp provenance add-build jenkins --instance $JENKINS_INSTANCE --build-number $BUILD_NUMBER --job-name $JOB_NAME --working-dir $WORKSPACE/provenance
 
 # add an action for the golang build, importing the observations that were captured in the build-golang-app step
 sudo /srp-tools/srp provenance action start --name=ako-build --working-dir $WORKSPACE/provenance
