@@ -2269,6 +2269,19 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 						}
 					}
 				}
+				if vs["pool_group_ref"] != nil {
+					pgRef, ok := vs["pool_group_ref"].(string)
+					if ok {
+						pgUuid := ExtractUuid(pgRef, "poolgroup-.*.#")
+						pgName, foundpg := c.PgCache.AviCacheGetNameByUuid(pgUuid)
+						if foundpg {
+							pgKey := NamespaceName{Namespace: lib.GetTenant(), Name: pgName.(string)}
+							poolgroupKeys = append(poolgroupKeys, pgKey)
+							pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName.(string))
+							poolKeys = append(poolKeys, pgpoolKeys...)
+						}
+					}
+				}
 				// Populate the vscache meta object here.
 				vsMetaObj := AviVsCache{
 					Name:                 vs["name"].(string),

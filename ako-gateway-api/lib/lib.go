@@ -15,11 +15,14 @@
 package lib
 
 import (
+	"strings"
+
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -118,4 +121,23 @@ func FindTargetPort(serviceName, ns string, svcPort int32, key string) intstr.In
 		}
 	}
 	return intstr.IntOrString{}
+}
+
+func VerifyHostnameSubdomainMatch(hostname string) bool {
+	// Check if a hostname is valid or not by verifying if it has a prefix that
+	// matches any of the sub-domains.
+	subDomains := nodes.GetDefaultSubDomain()
+	//subDomains := nodes.GetDefaultSubDomain()
+	if len(subDomains) == 0 {
+		// No IPAM DNS configured, we simply pass the hostname
+		return true
+	} else {
+		for _, subd := range subDomains {
+			if strings.HasSuffix(hostname, subd) {
+				return true
+			}
+		}
+	}
+	utils.AviLog.Warnf("Didn't find match for hostname :%s Available sub-domains:%s", hostname, subDomains)
+	return false
 }

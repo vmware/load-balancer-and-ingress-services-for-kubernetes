@@ -236,7 +236,7 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 					}
 					hostnameMatched := false
 					for _, routeHostname := range hrObj.Spec.Hostnames {
-						if strings.HasSuffix(string(routeHostname), listenerHostname) {
+						if strings.HasSuffix(string(routeHostname), listenerHostname) && akogatewayapilib.VerifyHostnameSubdomainMatch(string(routeHostname)) {
 							hostnameIntersection = append(hostnameIntersection, string(routeHostname))
 							hostnameMatched = true
 						}

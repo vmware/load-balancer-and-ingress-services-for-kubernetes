@@ -29,17 +29,17 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
-func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, parentNsName string, childVSes map[string]struct{}) {
+func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, parentNsName string, childVSes map[string]struct{}, fullsync bool) {
 	for _, rule := range routeModel.ParseRouteRules().Rules {
 		// TODO: add the scenarios where we will not create child VS here.
 		if rule.Matches == nil {
 			continue
 		}
-		o.BuildChildVS(key, routeModel, parentNsName, rule, childVSes)
+		o.BuildChildVS(key, routeModel, parentNsName, rule, childVSes, fullsync)
 	}
 }
 
-func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentNsName string, rule *Rule, childVSes map[string]struct{}) {
+func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentNsName string, rule *Rule, childVSes map[string]struct{}, fullsync bool) {
 
 	parentNode := o.GetAviEvhVS()
 	parentNs, _, parentName := lib.ExtractTypeNameNamespace(parentNsName)
@@ -79,11 +79,17 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 		}
 	}
 
+	// create vhmatch from the match
+	o.BuildVHMatch(key, childNode, rule, hosts)
+
+	if len(childNode.VHMatches) == 0 {
+		utils.AviLog.Warnf("key: %s, msg: No valid domain name added for child virtual service", key)
+		o.ProcessRouteDeletion(key, routeModel, fullsync)
+		return
+	}
+
 	// create pg pool from the backend
 	o.BuildPGPool(key, parentNsName, childNode, routeModel, rule)
-
-	// create vhmatch from the match
-	o.BuildVHMatch(key, childNode, routeModel, rule)
 
 	// create the httppolicyset if the filter is present
 	o.BuildHTTPPolicySet(key, childNode, routeModel, rule)
@@ -106,6 +112,10 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 	routeTypeNsName := lib.HTTPRoute + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName()
 	parentNs, _, parentName := lib.ExtractTypeNameNamespace(parentNsName)
 	_, listeners := akogatewayapiobjects.GatewayApiLister().GetRouteToGatewayListener(routeTypeNsName)
+	if len(listeners) == 0 {
+		utils.AviLog.Warnf("key: %s, msg: No matching listener available for the route : %s", key, routeTypeNsName)
+		return
+	}
 	//ListenerName/port/protocol/allowedRouteSpec
 	listenerSlice := strings.Split(listeners[0], "/")
 	listenerProtocol := listenerSlice[2]
@@ -166,10 +176,9 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 	}
 }
 
-func (o *AviObjectGraph) BuildVHMatch(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
+func (o *AviObjectGraph) BuildVHMatch(key string, vsNode *nodes.AviEvhVsNode, rule *Rule, hosts []string) {
 	var vhMatches []*models.VHMatch
-
-	for _, host := range routeModel.ParseRouteRules().Hosts {
+	for _, host := range hosts {
 		hostname := host
 		vhMatch := &models.VHMatch{
 			Host: &hostname,

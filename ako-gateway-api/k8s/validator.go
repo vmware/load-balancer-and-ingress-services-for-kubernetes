@@ -176,6 +176,12 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 			}
 		}
 	}
+	if !akogatewayapilib.VerifyHostnameSubdomainMatch(string(*listener.Hostname)) {
+		defaultCondition.
+			Message(fmt.Sprintf("Didn't find match for hostname :%s in available sub-domains", string(*listener.Hostname))).
+			SetIn(&gatewayStatus.Listeners[index].Conditions)
+		return false
+	}
 
 	// protocol validation
 	if listener.Protocol != gatewayv1.HTTPProtocolType &&
@@ -376,6 +382,12 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		defaultCondition.
 			Message(err.Error()).
 			SetIn(&httpRouteStatus.Parents[index].Conditions)
+		found, hosts := akogatewayapiobjects.GatewayApiLister().GetGatewayRouteToHostname(namespace, name)
+		if found {
+			utils.AviLog.Warnf("key: %s, msg: Hostname in Gateway Listener doesn't match with any of the hostnames in HTTPRoute", key)
+			utils.AviLog.Debugf("key: %s, msg: %d hosts mapped to the route %s/%s/%s", key, len(hosts), "HTTPRoute", httpRoute.Namespace, httpRoute.Name)
+			return nil
+		}
 		return err
 	}
 	gatewayStatus := gateway.Status.DeepCopy()
