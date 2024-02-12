@@ -27,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
@@ -42,7 +43,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/retry"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	"k8s.io/client-go/kubernetes"
 )
 
 func (c *GatewayController) InitController(informers k8s.K8sinformers, registeredInformers []string, ctrlCh <-chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}, waitGroupMap ...map[string]*sync.WaitGroup) {
@@ -594,7 +594,7 @@ func (c *GatewayController) DeleteModels() {
 		return
 	}
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	for modelName, _ := range allModelsMap {
+	for modelName := range allModelsMap {
 		objects.SharedAviGraphLister().Save(modelName, nil)
 		bkt := utils.Bkt(modelName, sharedQueue.NumWorkers)
 		utils.AviLog.Infof("Deleting objects for model: %s", modelName)

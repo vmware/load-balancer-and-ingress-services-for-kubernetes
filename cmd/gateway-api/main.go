@@ -135,7 +135,6 @@ func Initialize() {
 		akoControlConfig.PodEventf(corev1.EventTypeWarning, lib.AKOShutdown, "Avi Controller Cluster state is not Active")
 		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO")
 	}
-	//TODO read from config map
 	err = c.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	if err != nil {
 		utils.AviLog.Errorf("Handle configmap error during reboot, shutting down AKO. Error is: %v", err)
