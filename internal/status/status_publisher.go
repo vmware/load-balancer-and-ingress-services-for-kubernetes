@@ -45,8 +45,8 @@ type StatusPublisher interface {
 	UpdateMultiClusterIngressStatusAndAnnotation(key string, option *UpdateOptions)
 	DeleteMultiClusterIngressStatusAndAnnotation(key string, option *UpdateOptions)
 
-	AddStatefulSetAnnotation(reason string)
-	ResetStatefulSetAnnotation()
+	AddStatefulSetAnnotation(statusName string, reason string)
+	ResetStatefulSetAnnotation(statusName string)
 }
 
 type (

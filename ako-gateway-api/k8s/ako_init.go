@@ -420,14 +420,14 @@ func (c *GatewayController) cleanupStaleVSes() {
 	aviRestClientPool := avicache.SharedAVIClients()
 	aviObjCache := avicache.SharedAviObjCache()
 
-	delModels, err := k8s.DeleteConfigFromConfigmap(c.informers.ClientSet)
+	delModels, err := DeleteConfigFromConfigmap(c.informers.ClientSet)
 	if err != nil {
 		c.DisableSync = true
 		utils.AviLog.Errorf("Error occurred while fetching values from configmap. Err: %s", utils.Stringify(err))
 		return
 	}
 	if delModels {
-		go k8s.SetDeleteSyncChannel()
+		go SetDeleteSyncChannel()
 		parentKeys := aviObjCache.VsCacheMeta.AviCacheGetAllParentVSKeys()
 		k8s.DeleteAviObjects(parentKeys, aviObjCache, aviRestClientPool)
 	}
@@ -534,7 +534,7 @@ func (c *GatewayController) HandleConfigMap(k8sinfo k8s.K8sinformers, ctrlCh cha
 					SetDeleteSyncChannel()
 
 				} else {
-					status.NewStatusPublisher().ResetStatefulSetAnnotation()
+					status.NewStatusPublisher().ResetStatefulSetAnnotation(status.GatewayObjectDeletionStatus)
 					akogatewayapilib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigUnset, "DeleteConfig unset in configmap, sync would be enabled")
 					quickSyncCh <- struct{}{}
 				}
@@ -585,12 +585,12 @@ func delConfigFromData(data map[string]string) bool {
 func (c *GatewayController) DeleteModels() {
 	utils.AviLog.Infof("Deletion of all avi objects triggered")
 	publisher := status.NewStatusPublisher()
-	publisher.AddStatefulSetAnnotation(lib.ObjectDeletionStartStatus)
+	publisher.AddStatefulSetAnnotation(status.GatewayObjectDeletionStatus, lib.ObjectDeletionStartStatus)
 	allModels := objects.SharedAviGraphLister().GetAll()
 	allModelsMap := allModels.(map[string]interface{})
 	if len(allModelsMap) == 0 {
 		utils.AviLog.Infof("No Avi Object to delete, status would be updated in Statefulset")
-		publisher.AddStatefulSetAnnotation(lib.ObjectDeletionDoneStatus)
+		publisher.AddStatefulSetAnnotation(status.GatewayObjectDeletionStatus, lib.ObjectDeletionDoneStatus)
 		return
 	}
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
@@ -611,12 +611,12 @@ func SetDeleteSyncChannel() {
 
 	select {
 	case <-lib.ConfigDeleteSyncChan:
-		status.NewStatusPublisher().AddStatefulSetAnnotation(lib.ObjectDeletionDoneStatus)
+		status.NewStatusPublisher().AddStatefulSetAnnotation(status.GatewayObjectDeletionStatus, lib.ObjectDeletionDoneStatus)
 		utils.AviLog.Infof("Processing done for deleteConfig, user would be notified through statefulset update")
 		akogatewayapilib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigDone, "AKO has removed all objects from Avi Controller")
 
 	case <-time.After(lib.AviObjDeletionTime * time.Minute):
-		status.NewStatusPublisher().AddStatefulSetAnnotation(lib.ObjectDeletionTimeoutStatus)
+		status.NewStatusPublisher().AddStatefulSetAnnotation(status.GatewayObjectDeletionStatus, lib.ObjectDeletionTimeoutStatus)
 		utils.AviLog.Warnf("Timed out while waiting for rest layer to respond for delete config")
 		akogatewayapilib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigTimeout, "Timed out while waiting for rest layer to respond for delete config")
 	}
