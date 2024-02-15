@@ -259,6 +259,9 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 	httpRouteStatus.Parents[index].ControllerName = akogatewayapilib.GatewayController
 	httpRouteStatus.Parents[index].ParentRef.Name = gatewayv1.ObjectName(name)
 	httpRouteStatus.Parents[index].ParentRef.Namespace = (*gatewayv1.Namespace)(&namespace)
+	if httpRoute.Spec.ParentRefs[index].SectionName != nil{
+		httpRouteStatus.Parents[index].ParentRef.SectionName = httpRoute.Spec.ParentRefs[index].SectionName
+	}
 
 	defaultCondition := akogatewayapistatus.NewCondition().
 		Type(string(gatewayv1.GatewayConditionAccepted)).
@@ -266,11 +269,32 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		Status(metav1.ConditionFalse).
 		ObservedGeneration(httpRoute.ObjectMeta.Generation)
 
+	if len(gateway.Status.Conditions)==0{
+		// Gateway processing by AKO has not started.
+		utils.AviLog.Errorf("key: %s, msg: AKO is yet to process Gateway %s for parent reference %s.", key, gateway.Name, name)
+		err := fmt.Errorf("AKO is yet to process Gateway %s for parent reference %s", gateway.Name, name)
+		defaultCondition.
+			Message(err.Error()).
+			SetIn(&httpRouteStatus.Parents[index].Conditions)
+		return err
+	}
+
+	// Attach only when gateway configuration is valid
+	currentGatewayStatusCondition := gateway.Status.Conditions[len(gateway.Status.Conditions)-1]
+	if currentGatewayStatusCondition.Status != metav1.ConditionTrue{
+		// Gateway is not in an expected state.
+		utils.AviLog.Errorf("key: %s, msg: Gateway %s for parent reference %s is not in expected state. Current state: %s, Expected state: %s ", key, gateway.Name, name, currentGatewayStatusCondition.Type, string(gatewayv1.GatewayConditionProgrammed))
+		err := fmt.Errorf("Gateway %s is not in expected state. Current state: %s, Expected state: %s ", gateway.Name, currentGatewayStatusCondition.Type, string(gatewayv1.GatewayConditionProgrammed))
+		defaultCondition.
+			Message(err.Error()).
+			SetIn(&httpRouteStatus.Parents[index].Conditions)
+		return err
+	}
+
 	//section name is optional
 	var listenersForRoute []gatewayv1.Listener
 	if httpRoute.Spec.ParentRefs[index].SectionName != nil {
 		listenerName := *httpRoute.Spec.ParentRefs[index].SectionName
-		httpRouteStatus.Parents[index].ParentRef.SectionName = &listenerName
 		i := akogatewayapilib.FindListenerByName(string(listenerName), gateway.Spec.Listeners)
 		if i == -1 {
 			// listener is not present in gateway
@@ -288,7 +312,6 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 
 	var listenersMatchedToRoute []gatewayv1.Listener
 	for _, listenerObj := range listenersForRoute {
-		// TODO: Don't attach to a invalid listener configuration
 		// check from store
 		hostInListener := listenerObj.Hostname
 
