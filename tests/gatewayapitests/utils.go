@@ -53,7 +53,7 @@ func NewAviFakeClientInstance(kubeclient *k8sfake.Clientset, skipCachePopulation
 				return
 			}
 
-			integrationtest.NormalControllerServer(w, r, "../../avimockobjects")
+			integrationtest.NormalControllerServer(w, r, "../../avimockobjectsgw")
 		}))
 
 		url := strings.Split(integrationtest.AviFakeClientInstance.URL, "https://")[1]

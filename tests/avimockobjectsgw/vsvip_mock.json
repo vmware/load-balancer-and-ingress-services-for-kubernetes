@@ -1,0 +1,64 @@
+{
+  "count": 1,
+  "results": [
+    {
+      "_last_modified": "1708532981366591",
+      "cloud_ref": "https://100.65.9.44/api/cloud/cloud-cd21d36d-4345-40c3-a7c8-e0f7eb29e973",
+      "east_west_placement": false,
+      "markers": [
+        {
+          "key": "clustername",
+          "values": [
+            "cluster"
+          ]
+        }
+      ],
+      "name": "ako-gw-cluster--default-gateway-trans-01-EVH",
+      "tenant_ref": "https://100.65.9.44/api/tenant/admin",
+      "url": "https://100.65.9.44/api/vsvip/vsvip-8c4de2a1-9936-4cfb-b2aa-177854508711",
+      "uuid": "vsvip-8c4de2a1-9936-4cfb-b2aa-177854508711",
+      "vip": [
+        {
+          "auto_allocate_floating_ip": false,
+          "auto_allocate_ip": true,
+          "auto_allocate_ip_type": "V4_ONLY",
+          "avi_allocated_fip": false,
+          "avi_allocated_vip": false,
+          "discovered_networks": [
+            {
+              "network_ref": "https://100.65.9.44/api/network/dvportgroup-2191-cloud-cd21d36d-4345-40c3-a7c8-e0f7eb29e973",
+              "subnet": [
+                {
+                  "ip_addr": {
+                    "addr": "100.66.173.0",
+                    "type": "V4"
+                  },
+                  "mask": 24
+                }
+              ]
+            }
+          ],
+          "enabled": true,
+          "ip_address": {
+            "addr": "100.66.173.12",
+            "type": "V4"
+          },
+          "ipam_network_subnet": {
+            "network_ref": "https://100.65.9.44/api/network/dvportgroup-2191-cloud-cd21d36d-4345-40c3-a7c8-e0f7eb29e973",
+            "subnet": {
+              "ip_addr": {
+                "addr": "100.66.173.0",
+                "type": "V4"
+              },
+              "mask": 24
+            }
+          },
+          "prefix_length": 32,
+          "vip_id": "0"
+        }
+      ],
+      "vrf_context_ref": "https://100.65.9.44/api/vrfcontext/vrfcontext-2f02b8b1-bc72-4d25-9904-0f4b7e6c4379",
+      "vsvip_cloud_config_cksum": "3276593474"
+    }
+  ]
+}

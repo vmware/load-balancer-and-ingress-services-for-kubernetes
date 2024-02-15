@@ -55,6 +55,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("SEG_NAME", "Default-Group")
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("POD_NAME", "ako-0")
+	os.Setenv("ENABLE_EVH", "true")
 
 	utils.AviLog.SetLevel("DEBUG")
 	// Set the user with prefix
@@ -119,7 +120,7 @@ func TestMain(m *testing.M) {
  */
 func TestGatewayWithValidListenersAndGatewayClass(t *testing.T) {
 
-	gatewayName := "gateway-01"
+	gatewayName := "gateway-hr-01"
 	gatewayClassName := "gateway-class-01"
 	ports := []int32{8080, 8081}
 
@@ -134,7 +135,7 @@ func TestGatewayWithValidListenersAndGatewayClass(t *testing.T) {
 			t.Logf("Couldn't get the gateway, err: %+v", err)
 			return false
 		}
-		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionProgrammed)) != nil
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	expectedStatus := &gatewayv1.GatewayStatus{
@@ -145,6 +146,13 @@ func TestGatewayWithValidListenersAndGatewayClass(t *testing.T) {
 				Message:            "Gateway configuration is valid",
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.GatewayReasonAccepted),
+			},
+			{
+				Type:               string(gatewayv1.GatewayConditionProgrammed),
+				Status:             metav1.ConditionTrue,
+				Message:            "Virtual service configured/updated",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.GatewayReasonProgrammed),
 			},
 		},
 		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
@@ -816,6 +824,7 @@ func TestGatewayWithInvalidAllowedRoute(t *testing.T) {
 	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonInvalidRouteKinds)
 	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionFalse
 	expectedStatus.Listeners[0].Conditions[0].Message = "AllowedRoute kind is invalid. Only HTTPRoute is supported currently"
+	expectedStatus.Listeners[0].Conditions[0].Type = string(gatewayv1.ListenerConditionResolvedRefs)
 
 	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 	if err != nil || gateway == nil {
@@ -857,6 +866,7 @@ func TestGatewayWithInvalidAllowedRoute(t *testing.T) {
 	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonInvalidRouteKinds)
 	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionFalse
 	expectedStatus.Listeners[0].Conditions[0].Message = "AllowedRoute Group is invalid."
+	expectedStatus.Listeners[0].Conditions[0].Type = string(gatewayv1.ListenerConditionResolvedRefs)
 
 	gateway, err = tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 	if err != nil || gateway == nil {

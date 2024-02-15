@@ -1,0 +1,155 @@
+{
+  "count": 1,
+  "results": [
+    {
+      "_last_modified": "1708532981462161",
+      "active_standby_se_tag": "ACTIVE_STANDBY_SE_1",
+      "advertise_down_vs": false,
+      "allow_invalid_client_cert": false,
+      "analytics_profile_ref": "https://100.65.9.44/api/analyticsprofile/analyticsprofile-3b90ba22-f540-4e68-995f-684d304c55bb",
+      "application_profile_ref": "https://100.65.9.44/api/applicationprofile/applicationprofile-cd29ccaf-9094-4cfa-9865-c3b7b04d7d4a",
+      "bulk_sync_kvcache": false,
+      "close_client_conn_on_config_update": false,
+      "cloud_config_cksum": "921705296",
+      "cloud_ref": "https://100.65.9.44/api/cloud/cloud-cd21d36d-4345-40c3-a7c8-e0f7eb29e973",
+      "cloud_type": "CLOUD_VCENTER",
+      "created_by": "ako-k8-node-2-avi-system",
+      "delay_fairness": false,
+      "east_west_placement": false,
+      "enable_autogw": true,
+      "enable_session": false,
+      "enabled": true,
+      "error_page_profile_ref": "https://100.65.9.44/api/errorpageprofile/errorpageprofile-ef76a622-b545-4fc0-9344-750756683c6d",
+      "flow_dist": "LOAD_AWARE",
+      "flow_label_type": "NO_LABEL",
+      "ign_pool_net_reach": false,
+      "limit_doser": false,
+      "marked_for_delete": false,
+      "markers": [
+        {
+          "key": "clustername",
+          "values": [
+            "cluster"
+          ]
+        }
+      ],
+      "max_cps_per_client": 0,
+      "name": "ako-gw-cluster--default-gateway-hr-01-EVH",
+      "network_profile_ref": "https://100.65.9.44/api/networkprofile/networkprofile-c78c0bf2-8118-4d6a-86ba-d8a57e1435c1",
+      "redis_db": 6,
+      "redis_port": 5023,
+      "remove_listening_port_on_vs_down": false,
+      "revoke_vip_route": false,
+      "scaleout_ecmp": false,
+      "se_group_ref": "https://100.65.9.44/api/serviceenginegroup/serviceenginegroup-711cf182-307b-49a8-af9a-22c9b9fc654b",
+      "self_se_election": true,
+      "service_metadata": "{\"namespace_ingress_name\":null,\"ingress_name\":\"\",\"namespace\":\"\",\"hostnames\":null,\"namespace_svc_name\":null,\"crd_status\":{\"type\":\"\",\"value\":\"\",\"status\":\"\"},\"pool_ratio\":0,\"passthrough_parent_ref\":\"\",\"passthrough_child_ref\":\"\",\"gateway\":\"default/gateway-hr-01\",\"insecureedgetermallow\":false,\"is_mci_ingress\":false}",
+      "services": [
+        {
+          "enable_http2": false,
+          "enable_ssl": false,
+          "horizon_internal_ports": false,
+          "is_active_ftp_data_port": false,
+          "port": 80,
+          "port_range_end": 80
+        }
+      ],
+      "ssl_sess_cache_avg_size": 1024,
+      "tenant_ref": "https://100.65.9.44/api/tenant/admin",
+      "tls_ticket_key": [
+        {
+          "aes_key": "qMQzlnagp7PmDWY9568sOw==",
+          "hmac_key": "T6RU4675I0uQEP6krK9Pqw==",
+          "name": "f66b6ab4-9afa-4f22-8826-c33dafecb4b8"
+        },
+        {
+          "aes_key": "SHvRLyJPk3UUEbOdNC5bkA==",
+          "hmac_key": "aoJfYRDtVKGtIQ1+d++5Dg==",
+          "name": "7d8b5c29-35f9-4bd3-83d5-4a10844b1e10"
+        },
+        {
+          "aes_key": "bkTIbNNgABIkW2O/qMhT0Q==",
+          "hmac_key": "pZGTxvyUKbhyMxjpfNSejg==",
+          "name": "3cbd0c9c-ea4d-4719-99be-056b8d0a0875"
+        }
+      ],
+      "traffic_enabled": true,
+      "type": "VS_TYPE_VH_PARENT",
+      "url": "https://100.65.9.44/api/virtualservice/virtualservice-3bfaf659-52f3-4867-9372-f26ce555a67e",
+      "use_bridge_ip_as_vip": false,
+      "use_vip_as_snat": false,
+      "uuid": "virtualservice-3bfaf659-52f3-4867-9372-f26ce555a67e",
+      "version": 10,
+      "vh_type": "VS_TYPE_VH_ENHANCED",
+      "vip_runtime": [
+        {
+          "first_se_assigned_time": {
+            "secs": 1708533211,
+            "usecs": 438438
+          },
+          "num_additional_se": 0,
+          "requested_resource": {
+            "num_se": 1,
+            "num_standby_se": 0
+          },
+          "se_list": [
+            {
+              "active_on_cloud": true,
+              "active_on_se": true,
+              "admin_down_requested": false,
+              "attach_ip_in_progress": false,
+              "cloud_programming_done": true,
+              "cloud_programming_status": "Virtual Service IP is reachable in the Cloud",
+              "delete_in_progress": false,
+              "detach_ip_in_progress": false,
+              "incarnation": "2024-02-21 16:33:31.439955",
+              "is_portchannel": false,
+              "is_primary": true,
+              "is_standby": false,
+              "memory": 1971,
+              "mgmt_ip": {
+                "addr": "100.65.4.135",
+                "type": "V4"
+              },
+              "scaleout_in_progress": false,
+              "se_programming_done": true,
+              "se_ready_in_progress": false,
+              "se_ref": "https://100.65.9.44/api/serviceengine/se-0f651471-aaa3-4fdd-85a1-4409888f8cbb",
+              "sec_idx": 0,
+              "vcpus": 1,
+              "vip6_subnet_mask": 128,
+              "vip_intf_list": [
+                {
+                  "is_portchannel": false,
+                  "vip_intf_ip": {
+                    "addr": "100.66.173.17",
+                    "type": "V4"
+                  },
+                  "vip_intf_mac": "00:50:56:8c:0c:6c",
+                  "vlan_id": 0
+                }
+              ],
+              "vip_intf_mac": "00:50:56:8c:0c:6c",
+              "vip_subnet_mask": 32,
+              "vlan_id": 0,
+              "vnic": [
+                {
+                  "mac": "00:50:56:8c:0c:6c",
+                  "type": "VNIC_TYPE_FE"
+                },
+                {
+                  "mac": "00:50:56:8c:0c:6c",
+                  "type": "VNIC_TYPE_BE"
+                }
+              ]
+            }
+          ],
+          "vip_id": "0"
+        }
+      ],
+      "vrf_context_ref": "https://100.65.9.44/api/vrfcontext/vrfcontext-2f02b8b1-bc72-4d25-9904-0f4b7e6c4379",
+      "vsvip_ref": "https://100.65.9.44/api/vsvip/vsvip-8c4de2a1-9936-4cfb-b2aa-177854508711",
+      "weight": 1
+    }
+  ]
+}
