@@ -182,6 +182,30 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 		}
 	}
 
+	//allowedRoutes validation
+	if listener.AllowedRoutes != nil {
+		if listener.AllowedRoutes.Kinds != nil {
+			for _, kindInAllowedRoute := range listener.AllowedRoutes.Kinds {
+				if kindInAllowedRoute.Kind != "" && string(kindInAllowedRoute.Kind) != utils.HTTPRoute {
+					utils.AviLog.Errorf("key: %s, msg: AllowedRoute kind is invalid %+v/%+v. Supported AllowedRoute kind is HTTPRoute.", key, gateway.Name, listener.Name)
+					defaultCondition.
+						Reason(string(gatewayv1.ListenerReasonInvalidRouteKinds)).
+						Message("AllowedRoute kind is invalid. Only HTTPRoute is supported currently").
+						SetIn(&gatewayStatus.Listeners[index].Conditions)
+					return false
+				}
+				if kindInAllowedRoute.Group != nil && *kindInAllowedRoute.Group != "" && string(*kindInAllowedRoute.Group) != gatewayv1.GroupName {
+					utils.AviLog.Errorf("key: %s, msg: AllowedRoute Group is invalid %+v/%+v.", key, gateway.Name, listener.Name)
+					defaultCondition.
+						Reason(string(gatewayv1.ListenerReasonInvalidRouteKinds)).
+						Message("AllowedRoute Group is invalid.").
+						SetIn(&gatewayStatus.Listeners[index].Conditions)
+					return false
+				}
+			}
+		}
+	}
+
 	// Valid listener
 	defaultCondition.
 		Reason(string(gatewayv1.GatewayReasonAccepted)).

@@ -772,3 +772,275 @@ func TestGatewayWithInvalidTLSConfigInListeners(t *testing.T) {
 		integrationtest.DeleteSecret(secret, DEFAULT_NAMESPACE)
 	}
 }
+
+func TestGatewayWithInvalidAllowedRoute(t *testing.T) {
+
+	gatewayName := "gateway-neg-06"
+	gatewayClassName := "gateway-class-06"
+	ports := []int32{8080}
+
+	// Checking for Invalid RouteKind -> Kind
+	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := tests.GetListenersV1(ports)
+	allowedRoutes := gatewayv1.AllowedRoutes{
+		Kinds: []gatewayv1.RouteGroupKind{{
+			Kind: "Services",
+		},
+		},
+	}
+	listeners[0].AllowedRoutes = &allowedRoutes
+	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	expectedStatus := &gatewayv1.GatewayStatus{
+		Conditions: []metav1.Condition{
+			{
+				Type:               string(gatewayv1.GatewayConditionAccepted),
+				Status:             metav1.ConditionFalse,
+				Message:            "Gateway contains 1 invalid listener(s)",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.GatewayReasonListenersNotValid),
+			},
+		},
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+	}
+	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonInvalidRouteKinds)
+	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionFalse
+	expectedStatus.Listeners[0].Conditions[0].Message = "AllowedRoute kind is invalid. Only HTTPRoute is supported currently"
+
+	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+	if err != nil || gateway == nil {
+		t.Fatalf("Couldn't get the gateway, err: %+v", err)
+	}
+
+	tests.ValidateGatewayStatus(t, &gateway.Status, expectedStatus)
+	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+
+	// Checking for Invalid RouteKind -> Group
+	allowedRoutes.Kinds[0].Kind = "HTTPRoute"
+	invalidGroup := "InvalidGroup.example.com"
+	allowedRoutes.Kinds[0].Group = (*gatewayv1.Group)(&invalidGroup)
+
+	listeners[0].AllowedRoutes = &allowedRoutes
+	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	expectedStatus = &gatewayv1.GatewayStatus{
+		Conditions: []metav1.Condition{
+			{
+				Type:               string(gatewayv1.GatewayConditionAccepted),
+				Status:             metav1.ConditionFalse,
+				Message:            "Gateway contains 1 invalid listener(s)",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.GatewayReasonListenersNotValid),
+			},
+		},
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+	}
+	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonInvalidRouteKinds)
+	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionFalse
+	expectedStatus.Listeners[0].Conditions[0].Message = "AllowedRoute Group is invalid."
+
+	gateway, err = tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+	if err != nil || gateway == nil {
+		t.Fatalf("Couldn't get the gateway, err: %+v", err)
+	}
+
+	tests.ValidateGatewayStatus(t, &gateway.Status, expectedStatus)
+
+	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	tests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestGatewayWithValidAllowedRoute(t *testing.T) {
+
+	gatewayName := "gateway-07"
+	gatewayClassName := "gateway-class-07"
+	ports := []int32{8080}
+
+	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	// Checking for Valid RouteKind -> Kind and Group as nil
+	listeners := tests.GetListenersV1(ports)
+	allowedRoutes := gatewayv1.AllowedRoutes{
+		Kinds: []gatewayv1.RouteGroupKind{{
+			Kind: "HTTPRoute",
+		},
+		},
+	}
+	listeners[0].AllowedRoutes = &allowedRoutes
+	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	expectedStatus := &gatewayv1.GatewayStatus{
+		Conditions: []metav1.Condition{
+			{
+				Type:               string(gatewayv1.GatewayConditionAccepted),
+				Status:             metav1.ConditionTrue,
+				Message:            "Gateway configuration is valid",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.GatewayReasonAccepted),
+			},
+		},
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+	}
+	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerConditionAccepted)
+	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionTrue
+	expectedStatus.Listeners[0].Conditions[0].Message = "Listener is valid"
+
+	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+	if err != nil || gateway == nil {
+		t.Fatalf("Couldn't get the gateway, err: %+v", err)
+	}
+
+	tests.ValidateGatewayStatus(t, &gateway.Status, expectedStatus)
+	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+
+	// Checking for Without RouteKinds-> Kind  and Valid RouteKinds-> Group
+	allowedRoutes = gatewayv1.AllowedRoutes{
+		Kinds: []gatewayv1.RouteGroupKind{{
+			Group: (*gatewayv1.Group)(&gatewayv1.GroupVersion.Group),
+		},
+		},
+	}
+
+	listeners[0].AllowedRoutes = &allowedRoutes
+	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	expectedStatus = &gatewayv1.GatewayStatus{
+		Conditions: []metav1.Condition{
+			{
+				Type:               string(gatewayv1.GatewayConditionAccepted),
+				Status:             metav1.ConditionTrue,
+				Message:            "Gateway configuration is valid",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.GatewayReasonAccepted),
+			},
+		},
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+	}
+	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonAccepted)
+	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionTrue
+	expectedStatus.Listeners[0].Conditions[0].Message = "Listener is valid"
+
+	gateway, err = tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+	if err != nil || gateway == nil {
+		t.Fatalf("Couldn't get the gateway, err: %+v", err)
+	}
+
+	tests.ValidateGatewayStatus(t, &gateway.Status, expectedStatus)
+	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+
+	//Checking for Without RouteKinds-> Kind  and empty RouteKinds-> Group
+	emptyGroupKind := ""
+	allowedRoutes.Kinds[0].Group = (*gatewayv1.Group)(&emptyGroupKind)
+	listeners[0].AllowedRoutes = &allowedRoutes
+	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	expectedStatus = &gatewayv1.GatewayStatus{
+		Conditions: []metav1.Condition{
+			{
+				Type:               string(gatewayv1.GatewayConditionAccepted),
+				Status:             metav1.ConditionTrue,
+				Message:            "Gateway configuration is valid",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.GatewayReasonAccepted),
+			},
+		},
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+	}
+	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonAccepted)
+	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionTrue
+	expectedStatus.Listeners[0].Conditions[0].Message = "Listener is valid"
+
+	gateway, err = tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+	if err != nil || gateway == nil {
+		t.Fatalf("Couldn't get the gateway, err: %+v", err)
+	}
+
+	tests.ValidateGatewayStatus(t, &gateway.Status, expectedStatus)
+	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+
+	//Checking with populated RouteKinds-> Kind  and RouteKinds-> Group
+	allowedRoutes.Kinds[0].Group = (*gatewayv1.Group)(&emptyGroupKind)
+	allowedRoutes.Kinds[0].Kind = "HTTPRoute"
+	listeners[0].AllowedRoutes = &allowedRoutes
+	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	expectedStatus = &gatewayv1.GatewayStatus{
+		Conditions: []metav1.Condition{
+			{
+				Type:               string(gatewayv1.GatewayConditionAccepted),
+				Status:             metav1.ConditionTrue,
+				Message:            "Gateway configuration is valid",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.GatewayReasonAccepted),
+			},
+		},
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+	}
+	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonAccepted)
+	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionTrue
+	expectedStatus.Listeners[0].Conditions[0].Message = "Listener is valid"
+
+	gateway, err = tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+	if err != nil || gateway == nil {
+		t.Fatalf("Couldn't get the gateway, err: %+v", err)
+	}
+
+	tests.ValidateGatewayStatus(t, &gateway.Status, expectedStatus)
+	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	tests.TeardownGatewayClass(t, gatewayClassName)
+}
