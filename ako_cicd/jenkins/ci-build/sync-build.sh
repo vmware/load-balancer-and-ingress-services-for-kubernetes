@@ -27,6 +27,7 @@ which virtualenv
 whereis virtualenv
 virtualenv -p python3 venv
 source venv/bin/activate
+pip install -U google-api-python-client
 pip install -U gsutil setuptools
 pip install -U crcmod
 
