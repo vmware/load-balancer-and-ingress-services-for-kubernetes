@@ -46,20 +46,29 @@ sudo /srp-tools/srp provenance action stop --working-dir $WORKSPACE/provenance
 # declare the git source tree for the build.  We refer to this declaration below when adding source inputs.
 sudo /srp-tools/srp provenance declare-source git --verbose --set-key=mainsrc --path=$WORKSPACE --branch=$BRANCH --working-dir $WORKSPACE/provenance
 
+#Enable this option to create image manifest.json
+export DOCKER_CLI_EXPERIMENTAL=enabled
+
 CI_REGISTRY_IMAGE_AKO=$CI_REGISTRY_PATH/ako
 IMAGE_DIGEST=`sudo docker images $CI_REGISTRY_IMAGE_AKO  --digests | grep sha256 | xargs | cut -d " " -f3`
 echo $IMAGE_DIGEST
-sudo /srp-tools/srp provenance add-output package.oci --set-key=ako-image --action-key=ako-build --name=${CI_REGISTRY_IMAGE_AKO}  --digest=${IMAGE_DIGEST} --working-dir $WORKSPACE/provenance
+sudo docker manifest inspect $CI_REGISTRY_PATH/ako:${build_version} --insecure > ako_manifest.json
+cat ako_manifest.json
+sudo /srp-tools/srp provenance add-output package.oci --set-key=ako-image --action-key=ako-build --name=${CI_REGISTRY_IMAGE_AKO}  --digest=${IMAGE_DIGEST} --manifest-file $WORKSPACE/ako_manifest.json --working-dir $WORKSPACE/provenance
 
 CI_REGISTRY_IMAGE_AKO_OPERATOR=$CI_REGISTRY_PATH/ako-operator
 IMAGE_DIGEST=`sudo docker images $CI_REGISTRY_IMAGE_AKO_OPERATOR  --digests | grep sha256 | xargs | cut -d " " -f3`
 echo $IMAGE_DIGEST
-sudo /srp-tools/srp provenance add-output package.oci --set-key=ako-operator-image --action-key=ako-build --name=${CI_REGISTRY_IMAGE_AKO_OPERATOR}  --digest=${IMAGE_DIGEST} --working-dir $WORKSPACE/provenance
+sudo docker manifest inspect $CI_REGISTRY_PATH/ako-operator:${build_version} --insecure > ako_operator_manifest.json
+cat ako_operator_manifest.json
+sudo /srp-tools/srp provenance add-output package.oci --set-key=ako-operator-image --action-key=ako-build --name=${CI_REGISTRY_IMAGE_AKO_OPERATOR}  --digest=${IMAGE_DIGEST} --manifest-file $WORKSPACE/ako_operator_manifest.json --working-dir $WORKSPACE/provenance
 
 CI_REGISTRY_IMAGE_AKO_GATEWAY_API=$CI_REGISTRY_PATH/ako-gateway-api
 IMAGE_DIGEST=`sudo docker images $CI_REGISTRY_IMAGE_AKO_GATEWAY_API  --digests | grep sha256 | xargs | cut -d " " -f3`
 echo $IMAGE_DIGEST
-sudo /srp-tools/srp provenance add-output package.oci --set-key=ako-gateway-api-image --action-key=ako-build --name=${CI_REGISTRY_IMAGE_AKO_GATEWAY_API}  --digest=${IMAGE_DIGEST} --working-dir $WORKSPACE/provenance
+sudo docker manifest inspect $CI_REGISTRY_PATH/ako-gateway-api:${build_version} --insecure > ako_gateway_api_manifest.json
+cat ako_gateway_api_manifest.json
+sudo /srp-tools/srp provenance add-output package.oci --set-key=ako-gateway-api-image --action-key=ako-build --name=${CI_REGISTRY_IMAGE_AKO_GATEWAY_API}  --digest=${IMAGE_DIGEST} --manifest-file $WORKSPACE/ako_gateway_api_manifest.json --working-dir $WORKSPACE/provenance
 
 # use the syft plugin to scan the container and add all inputs it discovers. This will include the golang application we added
 # to the container, which are duplicate of the inputs above, but in this case we KNOW they are incorporated.
