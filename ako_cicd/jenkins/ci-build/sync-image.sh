@@ -32,9 +32,6 @@ rc=$?
 set -e
 
 if [ "$rc" != "0" ]; then
-    echo $JUMPHOST_PVT_KEY > ~/.ssh/id_jumphost_rsa
-    echo $JUMPHOST_PUBLIC_KEY > ~/.ssh/id_jumphost_rsa.pub
-    cat ~/.ssh/id_jumphost_rsa
     sshuttle -D -r $JUMPHOST_USER@$JUMPHOST_IP $JUMPHOST_PROXY/$JUMPHOST_PROXY_PORT -e "ssh -i  $SSH_PVT_KEY_FILE" -v
 fi
 
