@@ -24,6 +24,8 @@ build_version=$(bash $BUILD_VERSION_SCRIPT "dummy" $BUILD_NUMBER)
 
 target_path=/mnt/builds/ako_OS/$BRANCH/ci-build-$build_version
 
+sudo mkdir -p $target_path
+
 #collecting provenance data
 PRODUCT_NAME="Avi Kubernetes Operator"
 JENKINS_INSTANCE=$(echo $JENKINS_URL | sed -E 's/^\s*.*:\/\///g' | sed -E 's/:.*//g')
