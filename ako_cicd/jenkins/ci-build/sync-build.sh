@@ -29,6 +29,7 @@ virtualenv -p python3 venv
 source venv/bin/activate
 pip install -U google-api-python-client
 pip install -U gsutil setuptools
+pip install requests==2.22.0
 pip install -U crcmod
 
 set +e
