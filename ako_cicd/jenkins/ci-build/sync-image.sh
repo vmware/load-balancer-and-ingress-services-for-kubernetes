@@ -19,7 +19,7 @@ if [ ! -d "$VENV_PATH" ]; then
 fi
 
 source $VENV_PATH/bin/activate
-pip install sshuttle
+pip install sshuttle==1.0.4
 
 set +e
 pgrep -f sshuttle | xargs -r sudo kill -9
