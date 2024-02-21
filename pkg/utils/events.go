@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/record"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	networkingv1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
 
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
@@ -53,6 +54,7 @@ var localSchemeBuilder = runtime.SchemeBuilder{
 	corev1.AddToScheme,
 	networkingv1.AddToScheme,
 	networkingv1beta1.AddToScheme,
+	gatewayv1.Install,
 }
 
 var AddToScheme = localSchemeBuilder.AddToScheme
