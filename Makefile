@@ -333,7 +333,7 @@ gatewayapitests:
 	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/... -failfast -timeout 0 -coverprofile cover-20.out -coverpkg=./...
+	$(GOTEST) -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/... -failfast -timeout 0 -coverprofile cover-20.out -coverpkg=./...
 
 .PHONY: int_test
 int_test:
