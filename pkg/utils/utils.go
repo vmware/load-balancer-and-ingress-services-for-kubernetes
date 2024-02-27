@@ -55,11 +55,13 @@ func init() {
 func IsV4(addr string) bool {
 	ip := net.ParseIP(addr)
 	v4 := ip.To4()
-	if v4 == nil {
-		return false
-	} else {
-		return true
-	}
+	return v4 != nil
+}
+
+func IsV6(addr string) bool {
+	ip := net.ParseIP(addr)
+	v6 := ip.To16()
+	return v6 != nil
 }
 
 /*
