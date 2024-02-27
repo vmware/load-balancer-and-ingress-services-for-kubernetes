@@ -947,9 +947,10 @@ func TestHTTPRouteMultiportBackendSvc(t *testing.T) {
 
 func TestHTTPRouteInvalidHostname(t *testing.T) {
 
-	gatewayName := "gateway-hr-01"
-	gatewayClassName := "gateway-class-hr-01"
-	httpRouteName := "http-route-hr-01"
+	gatewayName := "gateway-hr-06"
+	gatewayClassName := "gateway-class-hr-06"
+	httpRouteName := "http-route-hr-06"
+	svcName := "avisvc-hr-056"
 	ports := []int32{8080}
 	modelName, parentVSName := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
 
@@ -963,36 +964,14 @@ func TestHTTPRouteInvalidHostname(t *testing.T) {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
 	}, 25*time.Second).Should(gomega.Equal(true))
-	svcExample := (integrationtest.FakeService{
-		Name:         "avisvc",
-		Namespace:    "default",
-		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
-	}).Service()
 
-	_, err := akogatewayapitests.KubeClient.CoreV1().Services("default").Create(context.TODO(), svcExample, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
-	epExample := &corev1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "default",
-			Name:      "avisvc",
-		},
-		Subsets: []corev1.EndpointSubset{{
-			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
-			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
-		}},
-	}
-	_, err = akogatewayapitests.KubeClient.CoreV1().Endpoints("default").Create(context.TODO(), epExample, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in creating Endpoint: %v", err)
-	}
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
 	rule := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
-		[][]string{{"avisvc", "default", "8080", "1"}})
+		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}})
 	rules := []gatewayv1.HTTPRouteRule{rule}
 	hostnames := []gatewayv1.Hostname{"foo-8080.com", "test-failure.com"}
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
@@ -1029,6 +1008,8 @@ func TestHTTPRouteInvalidHostname(t *testing.T) {
 		return len(nodes[0].EvhNodes)
 	}, 25*time.Second).Should(gomega.Equal(0))
 
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
+	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName)
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 }
