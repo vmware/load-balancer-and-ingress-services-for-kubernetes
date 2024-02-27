@@ -58,6 +58,7 @@ type PathMatch struct {
 type Match struct {
 	PathMatch   *PathMatch
 	HeaderMatch []*HeaderMatch
+	PortMatch   int32
 }
 
 type Matches []*Match

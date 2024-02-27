@@ -39,8 +39,7 @@ func (o *AviObjectGraph) BuildGatewayVs(gateway *gatewayv1.Gateway, key string) 
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 
-	var vsNode *nodes.AviEvhVsNode
-	vsNode = o.BuildGatewayParent(gateway, key)
+	vsNode := o.BuildGatewayParent(gateway, key)
 
 	o.AddModelNode(vsNode)
 	utils.AviLog.Infof("key: %s, msg: checksum for AVI VS object %v", key, vsNode.GetCheckSum())
@@ -146,7 +145,10 @@ func BuildVsVipNodeForGateway(gateway *gatewayv1.Gateway, vsName string) *nodes.
 	//Type is validated at ingestion
 	//TODO IPV6 handdling
 	if len(gateway.Spec.Addresses) == 1 {
-		vsvipNode.IPAddress = gateway.Spec.Addresses[0].Value
+		ipAddr := gateway.Spec.Addresses[0].Value
+		if utils.IsV4(ipAddr) || utils.IsV6(ipAddr) {
+			vsvipNode.IPAddress = ipAddr
+		}
 	}
 	return vsvipNode
 }

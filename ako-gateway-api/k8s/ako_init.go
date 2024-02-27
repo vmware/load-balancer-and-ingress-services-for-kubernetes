@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -226,6 +227,8 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 	// TODO: sort before calling dequeue
 	// sort by timestamp and name length
 	// as per gateway guidelines
+
+	var filteredGatewayClasses []*gatewayv1.GatewayClass
 	for _, gwClassObj := range gwClassObjs {
 		key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
 		meta, err := meta.Accessor(gwClassObj)
@@ -234,11 +237,20 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 			objects.SharedResourceVerInstanceLister().Save(key, resVer)
 		}
 		if IsGatewayClassValid(key, gwClassObj) {
-			akogatewayapinodes.DequeueIngestion(key, true)
+			filteredGatewayClasses = append(filteredGatewayClasses, gwClassObj)
+			//akogatewayapinodes.DequeueIngestion(key, true)
 		}
+	}
+	sort.Slice(filteredGatewayClasses, func(i, j int) bool {
+		return filteredGatewayClasses[i].GetCreationTimestamp().Unix() < filteredGatewayClasses[j].GetCreationTimestamp().Unix()
+	})
+	for _, filteredGatewayClass := range filteredGatewayClasses {
+		key := lib.GatewayClass + "/" + utils.ObjKey(filteredGatewayClass)
+		akogatewayapinodes.DequeueIngestion(key, true)
 	}
 
 	// Gateway Section
+	var filteredGateways []*gatewayv1.Gateway
 	gatewayObjs, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Errorf("Unable to retrieve the gateways during full sync: %s", err)
@@ -253,11 +265,23 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 			objects.SharedResourceVerInstanceLister().Save(key, resVer)
 		}
 		if IsValidGateway(key, gatewayObj) {
-			akogatewayapinodes.DequeueIngestion(key, true)
+			filteredGateways = append(filteredGateways, gatewayObj)
+			//akogatewayapinodes.DequeueIngestion(key, true)
 		}
+	}
+	sort.Slice(filteredGateways, func(i, j int) bool {
+		if filteredGateways[i].GetCreationTimestamp().Unix() == filteredGateways[j].GetCreationTimestamp().Unix() {
+			return filteredGateways[i].Namespace+"/"+filteredGateways[i].Name < filteredGateways[j].Namespace+"/"+filteredGateways[j].Name
+		}
+		return filteredGateways[i].GetCreationTimestamp().Unix() < filteredGateways[j].GetCreationTimestamp().Unix()
+	})
+	for _, filteredGateway := range filteredGateways {
+		key := lib.Gateway + "/" + utils.ObjKey(filteredGateway)
+		akogatewayapinodes.DequeueIngestion(key, true)
 	}
 
 	// HTTPRoute Section
+	var filteredHTTPRoutes []*gatewayv1.HTTPRoute
 	httpRouteObjs, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Errorf("Unable to retrieve the httproutes during full sync: %s", err)
@@ -272,8 +296,19 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 			objects.SharedResourceVerInstanceLister().Save(key, resVer)
 		}
 		if IsHTTPRouteValid(key, httpRouteObj) {
-			akogatewayapinodes.DequeueIngestion(key, true)
+			filteredHTTPRoutes = append(filteredHTTPRoutes, httpRouteObj)
+			//akogatewayapinodes.DequeueIngestion(key, true)
 		}
+	}
+	sort.Slice(filteredHTTPRoutes, func(i, j int) bool {
+		if filteredHTTPRoutes[i].GetCreationTimestamp().Unix() == filteredHTTPRoutes[j].GetCreationTimestamp().Unix() {
+			return filteredHTTPRoutes[i].Namespace+"/"+filteredHTTPRoutes[i].Name < filteredHTTPRoutes[j].Namespace+"/"+filteredHTTPRoutes[j].Name
+		}
+		return filteredHTTPRoutes[i].GetCreationTimestamp().Unix() < filteredHTTPRoutes[j].GetCreationTimestamp().Unix()
+	})
+	for _, filteredHTTPRoute := range filteredHTTPRoutes {
+		key := lib.HTTPRoute + "/" + utils.ObjKey(filteredHTTPRoute)
+		akogatewayapinodes.DequeueIngestion(key, true)
 	}
 
 	// Service Section
