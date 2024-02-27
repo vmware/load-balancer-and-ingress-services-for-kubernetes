@@ -250,7 +250,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	}
 	aviclient := aviClientPool.AviClient[0]
 
-	validateUserInput, err := avicache.ValidateUserInput(aviclient)
+	validateUserInput, err := avicache.ValidateUserInput(aviclient, false)
 	if err != nil {
 		utils.AviLog.Errorf("Error while validating input: %s", err.Error())
 		lib.AKOControlConfig().PodEventf(v1.EventTypeWarning, lib.SyncDisabled, "Invalid user input %s", err.Error())
@@ -283,7 +283,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 
 			delModels := delConfigFromData(cm.Data)
 
-			validateUserInput, err := avicache.ValidateUserInput(aviclient)
+			validateUserInput, err := avicache.ValidateUserInput(aviclient, false)
 			if err != nil {
 				utils.AviLog.Errorf("Error while validating input: %s", err.Error())
 				lib.AKOControlConfig().PodEventf(v1.EventTypeWarning, lib.SyncDisabled, "Invalid user input %s", err.Error())
@@ -315,7 +315,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 				return
 			}
 			// if DeleteConfig value has changed, then check if we need to enable/disable sync
-			isValidUserInput, err := avicache.ValidateUserInput(aviclient)
+			isValidUserInput, err := avicache.ValidateUserInput(aviclient, false)
 			if err != nil {
 				utils.AviLog.Errorf("Error while validating input: %s", err.Error())
 			}
