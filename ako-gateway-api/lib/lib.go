@@ -127,7 +127,6 @@ func VerifyHostnameSubdomainMatch(hostname string) bool {
 	// Check if a hostname is valid or not by verifying if it has a prefix that
 	// matches any of the sub-domains.
 	subDomains := nodes.GetDefaultSubDomain()
-	//subDomains := nodes.GetDefaultSubDomain()
 	if len(subDomains) == 0 {
 		// No IPAM DNS configured, we simply pass the hostname
 		return true
