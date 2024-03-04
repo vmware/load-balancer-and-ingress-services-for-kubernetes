@@ -52,6 +52,7 @@ func DeleteServiceEngines(nextURI ...string) error {
 
 	for _, seUUID := range seUUIDs {
 		deleteUri := "/api/serviceengine/" + seUUID
+		utils.AviLog.Infof("Deleting Service Engine %s", seUUID)
 		if err := lib.AviDelete(client, deleteUri); err != nil {
 			utils.AviLog.Errorf("Error during Delete call for the SE: %s, %s", seUUID, err.Error())
 			return err
@@ -91,6 +92,7 @@ func DeleteServiceEngineGroup() error {
 
 	segUuid := *response.Results[0].UUID
 	deleteSEGUri := "/api/serviceenginegroup/" + segUuid
+	utils.AviLog.Infof("Deleting Service Engine Group %s", segUuid)
 	if err := lib.AviDelete(client, deleteSEGUri); err != nil {
 		utils.AviLog.Errorf("Error during Delete call for the SE: %s, %s", segUuid, err.Error())
 		return err

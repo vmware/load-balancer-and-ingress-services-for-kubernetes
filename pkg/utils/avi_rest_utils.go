@@ -29,6 +29,7 @@ import (
 )
 
 type AviRestClientPool struct {
+	// stores clients per tenant
 	AviClient map[string][]*clients.AviClient
 }
 

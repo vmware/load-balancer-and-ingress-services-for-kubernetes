@@ -245,6 +245,9 @@ func Encode(s, objType string) string {
 }
 
 func IsNameEncoded(name string) bool {
+	if IsWCP() {
+		return true
+	}
 	split := strings.Split(name, "--")
 	if len(split) == 2 {
 		_, err := hex.DecodeString(split[1])
