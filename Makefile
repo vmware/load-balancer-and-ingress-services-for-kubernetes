@@ -289,12 +289,12 @@ infratests:
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/infratests -failfast -timeout 0
 
-#.PHONY: multiclusteringresstests
-#multiclusteringresstests:
-#	sudo docker run \
-#	-w=/go/src/$(PACKAGE_PATH_AKO) \
-#	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-#	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multiclusteringresstests -failfast -coverprofile cover-16.out -coverpkg=./...
+# .PHONY: multiclusteringresstests
+# multiclusteringresstests:
+# 	sudo docker run \
+# 	-w=/go/src/$(PACKAGE_PATH_AKO) \
+# 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
+# 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multiclusteringresstests -failfast -coverprofile cover-16.out -coverpkg=./...
 
 .PHONY: hatests
 hatests:
