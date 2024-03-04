@@ -140,7 +140,7 @@ func (c *AviObjCache) AviObjCachePopulate(client []*clients.AviClient, version s
 		return vsCacheCopy, allVsKeys, err
 	}
 	// Populate the SNI VS keys to their respective parents
-	c.PopulateVsMetaCache()
+	c.PopulateVsMetaCache(tenant)
 	// Delete all the VS keys that are left in the copy.
 	for _, key := range allVsKeys {
 		utils.AviLog.Debugf("Removing vs key from cache: %s", key)
@@ -148,9 +148,11 @@ func (c *AviObjCache) AviObjCachePopulate(client []*clients.AviClient, version s
 		vsCacheCopy = RemoveNamespaceName(vsCacheCopy, key)
 		c.VsCacheMeta.AviCacheDelete(key)
 	}
-	err = c.AviCloudPropertiesPopulate(client[0], cloud)
-	if err != nil {
-		return vsCacheCopy, allVsKeys, err
+	if tenant == lib.GetTenant() {
+		err = c.AviCloudPropertiesPopulate(client[0], cloud)
+		if err != nil {
+			return vsCacheCopy, allVsKeys, err
+		}
 	}
 	if lib.GetDeleteConfigMap() {
 		allParentVsKeys := c.VsCacheMeta.AviCacheGetAllParentVSKeys()
@@ -182,7 +184,7 @@ func (c *AviObjCache) listEVHChildrenToDelete(vs_cache_obj *AviVsCache, childUui
 	return childNSNameToDelete, childUuidToDelete
 }
 
-func (c *AviObjCache) PopulateVsMetaCache() {
+func (c *AviObjCache) PopulateVsMetaCache(tenant string) {
 	// The vh_child_uuids field is used to populate the SNI children during cache population. However, due to the datastore to PG delay - that field may
 	// not always be accurate. We would reduce the problem with accuracy by refreshing the SNI cache through reverse mapping sni's to parent
 	// Go over the entire VS cache.
@@ -234,7 +236,7 @@ func (c *AviObjCache) PopulateVsMetaCache() {
 			}
 		}
 	}
-	c.DeleteUnmarked(childUuidToDelete)
+	c.DeleteUnmarked(childUuidToDelete, tenant)
 }
 
 // MarkReference : check objects referred by a VS and mark they they have reference
@@ -299,7 +301,7 @@ func (c *AviObjCache) MarkReference(vsCacheObj *AviVsCache) {
 
 // DeleteUnmarked : Adds non referenced cached objects to a Dummy VS, which
 // would be used later to delete these objects from AVI Controller
-func (c *AviObjCache) DeleteUnmarked(childCollection []string) {
+func (c *AviObjCache) DeleteUnmarked(childCollection []string, tenant string) {
 
 	var dsKeys, vsVipKeys, httpKeys, sslKeys []NamespaceName
 	var pgKeys, poolKeys, l4Keys []NamespaceName
@@ -396,7 +398,7 @@ func (c *AviObjCache) DeleteUnmarked(childCollection []string) {
 		SNIChildCollection:   childCollection,
 	}
 	vsKey := NamespaceName{
-		Namespace: lib.GetTenant(),
+		Namespace: tenant,
 		Name:      lib.DummyVSForStaleData,
 	}
 	utils.AviLog.Infof("Dummy VS for stale objects Deletion %s", utils.Stringify(&vsMetaObj))
@@ -2504,12 +2506,14 @@ func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, clou
 	cloud_obj.IPAMType = ipamType
 	utils.AviLog.Infof("IPAM Provider type configured as %s for Cloud %s", cloud_obj.IPAMType, cloud_obj.Name)
 
-	subdomains := c.AviDNSPropertyPopulate(client, *cloud.UUID)
-	if len(subdomains) == 0 {
-		utils.AviLog.Warnf("Cloud: %v does not have a dns provider configured", cloudName)
-	}
-	if subdomains != nil {
-		cloud_obj.NSIpamDNS = subdomains
+	if !lib.IsWCP() {
+		subdomains := c.AviDNSPropertyPopulate(client, *cloud.UUID)
+		if len(subdomains) == 0 {
+			utils.AviLog.Warnf("Cloud: %v does not have a dns provider configured", cloudName)
+		}
+		if subdomains != nil {
+			cloud_obj.NSIpamDNS = subdomains
+		}
 	}
 
 	c.CloudKeyCache.AviCacheAdd(cloudName, cloud_obj)
