@@ -3,7 +3,7 @@
 set -xe
 
 export GOLANG_SRC_REPO=${PVT_DOCKER_REGISTRY}/golang:latest
-export PHOTON_SRC_REPO=projects.registry.vmware.com/photon/photon4:latest
+export PHOTON_SRC_REPO=${VMWARE_DOCKER_REGISTRY}/photon/photon4:latest
 
 make build
 make BUILD_TAG=$version_tag docker
