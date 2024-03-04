@@ -50,6 +50,7 @@ const (
 	Service                       = "Service"
 	Secret                        = "Secret"
 	HTTP                          = "HTTP"
+	HTTPRoute                     = "HTTPRoute"
 	HeaderMethod                  = ":method"
 	HeaderAuthority               = ":authority"
 	HeaderScheme                  = ":scheme"

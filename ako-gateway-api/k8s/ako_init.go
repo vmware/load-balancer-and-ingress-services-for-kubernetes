@@ -15,6 +15,8 @@
 package k8s
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"strconv"
 	"sync"
@@ -24,6 +26,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
@@ -37,6 +41,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/retry"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -415,14 +420,14 @@ func (c *GatewayController) cleanupStaleVSes() {
 	aviRestClientPool := avicache.SharedAVIClients()
 	aviObjCache := avicache.SharedAviObjCache()
 
-	delModels, err := k8s.DeleteConfigFromConfigmap(c.informers.ClientSet)
+	delModels, err := DeleteConfigFromConfigmap(c.informers.ClientSet)
 	if err != nil {
 		c.DisableSync = true
 		utils.AviLog.Errorf("Error occurred while fetching values from configmap. Err: %s", utils.Stringify(err))
 		return
 	}
 	if delModels {
-		go k8s.SetDeleteSyncChannel()
+		go SetDeleteSyncChannel()
 		parentKeys := aviObjCache.VsCacheMeta.AviCacheGetAllParentVSKeys()
 		k8s.DeleteAviObjects(parentKeys, aviObjCache, aviRestClientPool)
 	}
@@ -450,4 +455,170 @@ func (c *GatewayController) cleanupStaleVSes() {
 		close(lib.ConfigDeleteSyncChan)
 		lib.ConfigDeleteSyncChan = nil
 	}
+}
+
+// HandleConfigMap : initialise the controller, start informer for configmap and wait for the ako configmap to be created.
+// When the configmap is created, enable sync for other k8s objects. When the configmap is disabled, disable sync.
+func (c *GatewayController) HandleConfigMap(k8sinfo k8s.K8sinformers, ctrlCh chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}) error {
+	cs := k8sinfo.Cs
+	aviClientPool := avicache.SharedAVIClients()
+	if aviClientPool == nil || len(aviClientPool.AviClient) < 1 {
+		c.DisableSync = true
+		lib.SetDisableSync(true)
+		utils.AviLog.Errorf("could not get client to connect to Avi Controller, disabling sync")
+	}
+	aviclient := aviClientPool.AviClient[0]
+
+	var err error
+
+	c.DisableSync, err = DeleteConfigFromConfigmap(cs)
+	lib.SetDisableSync(c.DisableSync)
+	if err != nil {
+		return err
+	}
+
+	configMapEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			cm, ok := validateAviConfigMap(obj)
+			if !ok {
+				return
+			}
+			utils.AviLog.Infof("avi k8s configmap created")
+			utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
+			akogatewayapilib.AKOControlConfig().EventsSetEnabled(cm.Data[lib.EnableEvents])
+
+			delModels := delConfigFromData(cm.Data)
+
+			validateUserInput, err := avicache.ValidateUserInput(aviclient, true)
+			if err != nil {
+				utils.AviLog.Errorf("Error while validating input: %s", err.Error())
+				akogatewayapilib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, lib.SyncDisabled, "Invalid user input %s", err.Error())
+			} else {
+				akogatewayapilib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.ValidatedUserInput, "User input validation completed.")
+			}
+			c.DisableSync = !validateUserInput || delModels
+			lib.SetDisableSync(c.DisableSync)
+		},
+		UpdateFunc: func(old, obj interface{}) {
+			cm, ok := validateAviConfigMap(obj)
+			oldcm, oldok := validateAviConfigMap(old)
+			if !ok || !oldok {
+				return
+			}
+			if oldcm.ResourceVersion == cm.ResourceVersion {
+				return
+			}
+			// if resourceversions and loglevel change, set new loglevel
+			if oldcm.Data[lib.LOG_LEVEL] != cm.Data[lib.LOG_LEVEL] {
+				utils.AviLog.SetLevel(cm.Data[lib.LOG_LEVEL])
+			}
+
+			if oldcm.Data[lib.EnableEvents] != cm.Data[lib.EnableEvents] {
+				akogatewayapilib.AKOControlConfig().EventsSetEnabled(cm.Data[lib.EnableEvents])
+			}
+
+			if oldcm.Data[lib.DeleteConfig] == cm.Data[lib.DeleteConfig] {
+				return
+			}
+			// if DeleteConfig value has changed, then check if we need to enable/disable sync
+			isValidUserInput, err := avicache.ValidateUserInput(aviclient, true)
+			if err != nil {
+				utils.AviLog.Errorf("Error while validating input: %s", err.Error())
+			}
+			delModels := delConfigFromData(cm.Data)
+			c.DisableSync = !isValidUserInput || delModels
+			lib.SetDisableSync(c.DisableSync)
+			if isValidUserInput {
+				if delModels {
+					c.DeleteModels()
+					SetDeleteSyncChannel()
+
+				} else {
+					status.NewStatusPublisher().ResetStatefulSetAnnotation(status.GatewayObjectDeletionStatus)
+					akogatewayapilib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigUnset, "DeleteConfig unset in configmap, sync would be enabled")
+					quickSyncCh <- struct{}{}
+				}
+			}
+
+		},
+		DeleteFunc: func(obj interface{}) {
+			utils.AviLog.Warnf("avi k8s configmap deleted, shutting down api server")
+		},
+	}
+
+	c.informers.ConfigMapInformer.Informer().AddEventHandler(configMapEventHandler)
+	go c.informers.ConfigMapInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh,
+		c.informers.ConfigMapInformer.Informer().HasSynced,
+	) {
+		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
+	} else {
+		utils.AviLog.Infof("Caches synced")
+	}
+	return nil
+}
+
+func DeleteConfigFromConfigmap(cs kubernetes.Interface) (bool, error) {
+	cmNS := utils.GetAKONamespace()
+	cm, err := cs.CoreV1().ConfigMaps(cmNS).Get(context.TODO(), lib.AviConfigMap, metav1.GetOptions{})
+	if err == nil {
+		return delConfigFromData(cm.Data), err
+	}
+	utils.AviLog.Warnf("error while reading configmap, sync would be disabled: %v", err)
+	return true, err
+}
+func delConfigFromData(data map[string]string) bool {
+	var delConf bool
+	if val, ok := data[lib.DeleteConfig]; ok {
+		if val == "true" {
+			utils.AviLog.Infof("deleteConfig set in configmap, sync would be disabled")
+			akogatewayapilib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigSet, "DeleteConfig set in configmap, sync would be disabled")
+			delConf = true
+		}
+	}
+	lib.SetDeleteConfigMap(delConf)
+	return delConf
+}
+
+// DeleteModels : Delete models and add the model name in the queue.
+// The rest layer would pick up the model key and delete the objects in Avi
+func (c *GatewayController) DeleteModels() {
+	utils.AviLog.Infof("Deletion of all avi objects triggered")
+	publisher := status.NewStatusPublisher()
+	publisher.AddStatefulSetAnnotation(status.GatewayObjectDeletionStatus, lib.ObjectDeletionStartStatus)
+	allModels := objects.SharedAviGraphLister().GetAll()
+	allModelsMap := allModels.(map[string]interface{})
+	if len(allModelsMap) == 0 {
+		utils.AviLog.Infof("No Avi Object to delete, status would be updated in Statefulset")
+		publisher.AddStatefulSetAnnotation(status.GatewayObjectDeletionStatus, lib.ObjectDeletionDoneStatus)
+		return
+	}
+	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+	for modelName := range allModelsMap {
+		objects.SharedAviGraphLister().Save(modelName, nil)
+		bkt := utils.Bkt(modelName, sharedQueue.NumWorkers)
+		utils.AviLog.Infof("Deleting objects for model: %s", modelName)
+		//graph queue prometheus
+		sharedQueue.Workqueue[bkt].AddRateLimited(modelName)
+	}
+}
+
+func SetDeleteSyncChannel() {
+	// Wait for maximum 30 minutes for the sync to get completed
+	if lib.ConfigDeleteSyncChan == nil {
+		lib.SetConfigDeleteSyncChan()
+	}
+
+	select {
+	case <-lib.ConfigDeleteSyncChan:
+		status.NewStatusPublisher().AddStatefulSetAnnotation(status.GatewayObjectDeletionStatus, lib.ObjectDeletionDoneStatus)
+		utils.AviLog.Infof("Processing done for deleteConfig, user would be notified through statefulset update")
+		akogatewayapilib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigDone, "AKO has removed all objects from Avi Controller")
+
+	case <-time.After(lib.AviObjDeletionTime * time.Minute):
+		status.NewStatusPublisher().AddStatefulSetAnnotation(status.GatewayObjectDeletionStatus, lib.ObjectDeletionTimeoutStatus)
+		utils.AviLog.Warnf("Timed out while waiting for rest layer to respond for delete config")
+		akogatewayapilib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigTimeout, "Timed out while waiting for rest layer to respond for delete config")
+	}
+
 }

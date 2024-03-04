@@ -265,6 +265,7 @@ func TestMain(m *testing.M) {
 	akoControlConfig.Setv1beta1CRDClientset(v1beta1CRDClient)
 	akoControlConfig.SetAKOInstanceFlag(true)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, true)
+	akoControlConfig.SetDefaultLBController(true)
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, RegisteredInformers)
 	k8s.NewCRDInformers()
 

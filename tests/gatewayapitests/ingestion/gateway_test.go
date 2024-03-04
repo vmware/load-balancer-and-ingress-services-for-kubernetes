@@ -401,6 +401,128 @@ func TestGatewayInvalidListenerTLS(t *testing.T) {
 	waitAndverify(t, gwKey)
 }
 
+func TestMultipleGatewaySameHostname(t *testing.T) {
+	//create first gateway
+	gwName1 := "gw-example-05"
+	gwClassName := "gw-class-example-05"
+	gwKey1 := "Gateway/" + DEFAULT_NAMESPACE + "/" + gwName1
+	gateway1 := gatewayv1.Gateway{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "gateway.networking.k8s.io/v1beta1",
+			Kind:       "Gateway",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      gwName1,
+			Namespace: "default",
+		},
+		Spec:   gatewayv1.GatewaySpec{},
+		Status: gatewayv1.GatewayStatus{},
+	}
+	akogatewayapitests.SetGatewayGatewayClass(&gateway1, gwClassName)
+	akogatewayapitests.AddGatewayListener(&gateway1, "listener-example", 80, gatewayv1.HTTPProtocolType, false)
+	akogatewayapitests.SetListenerHostname(&gateway1.Spec.Listeners[0], "*.example.com")
+
+	gw, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Create(context.TODO(), &gateway1, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't create, err: %+v", err)
+	}
+	t.Logf("Created %+v", gw.Name)
+	waitAndverify(t, gwKey1)
+
+	gwName2 := "gw-example-06"
+	gwKey2 := "Gateway/" + DEFAULT_NAMESPACE + "/" + gwName2
+	gateway2 := gatewayv1.Gateway{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "gateway.networking.k8s.io/v1beta1",
+			Kind:       "Gateway",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      gwName2,
+			Namespace: "default",
+		},
+		Spec:   gatewayv1.GatewaySpec{},
+		Status: gatewayv1.GatewayStatus{},
+	}
+	akogatewayapitests.SetGatewayGatewayClass(&gateway2, gwClassName)
+	akogatewayapitests.AddGatewayListener(&gateway2, "listener-example", 80, gatewayv1.HTTPProtocolType, false)
+	akogatewayapitests.SetListenerHostname(&gateway2.Spec.Listeners[0], "*.example.com")
+
+	//create second gateway
+	gw, err = akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Create(context.TODO(), &gateway2, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't create, err: %+v", err)
+	}
+	t.Logf("Created %+v", gw.Name)
+	waitAndverify(t, "")
+
+	//delete
+	akogatewayapitests.TeardownGateway(t, gwName1, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gwName2, DEFAULT_NAMESPACE)
+	waitAndverify(t, gwKey1)
+	waitAndverify(t, gwKey2)
+}
+
+func TestMultipleGatewayOverlappingHostname(t *testing.T) {
+	//create first gateway
+	gwName1 := "gw-example-07"
+	gwClassName := "gw-class-example-07"
+	gwKey1 := "Gateway/" + DEFAULT_NAMESPACE + "/" + gwName1
+	gateway1 := gatewayv1.Gateway{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "gateway.networking.k8s.io/v1beta1",
+			Kind:       "Gateway",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      gwName1,
+			Namespace: "default",
+		},
+		Spec:   gatewayv1.GatewaySpec{},
+		Status: gatewayv1.GatewayStatus{},
+	}
+	akogatewayapitests.SetGatewayGatewayClass(&gateway1, gwClassName)
+	akogatewayapitests.AddGatewayListener(&gateway1, "listener-example", 80, gatewayv1.HTTPProtocolType, false)
+	akogatewayapitests.SetListenerHostname(&gateway1.Spec.Listeners[0], "*.example.com")
+
+	gw, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Create(context.TODO(), &gateway1, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't create, err: %+v", err)
+	}
+	t.Logf("Created %+v", gw.Name)
+	waitAndverify(t, gwKey1)
+
+	gwName2 := "gw-example-08"
+	gwKey2 := "Gateway/" + DEFAULT_NAMESPACE + "/" + gwName2
+	gateway2 := gatewayv1.Gateway{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "gateway.networking.k8s.io/v1beta1",
+			Kind:       "Gateway",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      gwName2,
+			Namespace: "default",
+		},
+		Spec:   gatewayv1.GatewaySpec{},
+		Status: gatewayv1.GatewayStatus{},
+	}
+	akogatewayapitests.SetGatewayGatewayClass(&gateway2, gwClassName)
+	akogatewayapitests.AddGatewayListener(&gateway2, "listener-example", 80, gatewayv1.HTTPProtocolType, false)
+	akogatewayapitests.SetListenerHostname(&gateway2.Spec.Listeners[0], "products.example.com")
+
+	//create second gateway
+	gw, err = akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Create(context.TODO(), &gateway2, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't create, err: %+v", err)
+	}
+	t.Logf("Created %+v", gw.Name)
+	waitAndverify(t, "")
+
+	//delete
+	akogatewayapitests.TeardownGateway(t, gwName1, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gwName2, DEFAULT_NAMESPACE)
+	waitAndverify(t, gwKey1)
+	waitAndverify(t, gwKey2)
+}
+
 func TestGatewayClassCUD(t *testing.T) {
 	gatewayClass := gatewayv1.GatewayClass{
 		TypeMeta: metav1.TypeMeta{
@@ -441,4 +563,163 @@ func TestGatewayClassCUD(t *testing.T) {
 	}
 	t.Logf("Deleted %+v", gw.Name)
 	waitAndverify(t, "GatewayClass/gw-class-example")
+}
+
+func TestGatewayWithInvalidAllowedRoute(t *testing.T) {
+	gwName := "gw-example-03"
+	gwClassName := "gw-class-example-03"
+	gwKey := "Gateway/" + DEFAULT_NAMESPACE + "/" + gwName
+	gateway := gatewayv1.Gateway{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "gateway.networking.k8s.io/v1",
+			Kind:       "Gateway",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      gwName,
+			Namespace: "default",
+		},
+		Spec:   gatewayv1.GatewaySpec{},
+		Status: gatewayv1.GatewayStatus{},
+	}
+	akogatewayapitests.AddGatewayListener(&gateway, "listener-example", 80, gatewayv1.HTTPProtocolType, false)
+	akogatewayapitests.SetListenerHostname(&gateway.Spec.Listeners[0], "foo.example.com")
+
+	// Checking for Invalid RouteKind -> Kind
+	allowedRoutes := gatewayv1.AllowedRoutes{
+		Kinds: []gatewayv1.RouteGroupKind{{
+			Kind: "Services",
+		},
+		},
+	}
+	gateway.Spec.Listeners[0].AllowedRoutes = &allowedRoutes
+	akogatewayapitests.SetGatewayGatewayClass(&gateway, gwClassName)
+
+	//create
+	gw, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Create(context.TODO(), &gateway, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't create, err: %+v", err)
+	}
+	t.Logf("Created %+v", gw.Name)
+	waitAndverify(t, "")
+
+	akogatewayapitests.TeardownGateway(t, gwName, DEFAULT_NAMESPACE)
+	waitAndverify(t, gwKey)
+
+	// Checking for Invalid RouteKind -> Group
+	allowedRoutes.Kinds[0].Kind = "HTTPRoute"
+	invalidGroup := "InvalidGroup.example.com"
+	allowedRoutes.Kinds[0].Group = (*gatewayv1.Group)(&invalidGroup)
+	gateway.Spec.Listeners[0].AllowedRoutes = &allowedRoutes
+	akogatewayapitests.SetGatewayGatewayClass(&gateway, gwClassName)
+
+	//create
+	gw, err = akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Create(context.TODO(), &gateway, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't create, err: %+v", err)
+	}
+	t.Logf("Created %+v", gw.Name)
+	waitAndverify(t, "")
+
+	akogatewayapitests.TeardownGateway(t, gwName, DEFAULT_NAMESPACE)
+	waitAndverify(t, gwKey)
+}
+
+func TestGatewayWithValidAllowedRoute(t *testing.T) {
+	gwName := "gw-example-04"
+	gwClassName := "gw-class-example-04"
+	gwKey := "Gateway/" + DEFAULT_NAMESPACE + "/" + gwName
+	gateway := gatewayv1.Gateway{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "gateway.networking.k8s.io/v1",
+			Kind:       "Gateway",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      gwName,
+			Namespace: "default",
+		},
+		Spec:   gatewayv1.GatewaySpec{},
+		Status: gatewayv1.GatewayStatus{},
+	}
+	akogatewayapitests.AddGatewayListener(&gateway, "listener-example", 80, gatewayv1.HTTPProtocolType, false)
+	akogatewayapitests.SetListenerHostname(&gateway.Spec.Listeners[0], "foo.example.com")
+
+	//Checking with populated RouteKinds-> Kind  and RouteKinds-> Group
+	allowedRoutes := gatewayv1.AllowedRoutes{
+		Kinds: []gatewayv1.RouteGroupKind{{
+			Kind:  "HTTPRoute",
+			Group: (*gatewayv1.Group)(&gatewayv1.GroupVersion.Group),
+		},
+		},
+	}
+	gateway.Spec.Listeners[0].AllowedRoutes = &allowedRoutes
+	akogatewayapitests.SetGatewayGatewayClass(&gateway, gwClassName)
+
+	//create
+	gw, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Create(context.TODO(), &gateway, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't create, err: %+v", err)
+	}
+	t.Logf("Created %+v", gw.Name)
+	waitAndverify(t, gwKey)
+
+	akogatewayapitests.TeardownGateway(t, gwName, DEFAULT_NAMESPACE)
+	waitAndverify(t, gwKey)
+
+	// Checking for Valid RouteKind -> Kind and Group as nil
+	allowedRoutes = gatewayv1.AllowedRoutes{
+		Kinds: []gatewayv1.RouteGroupKind{{
+			Kind: "HTTPRoute",
+		},
+		},
+	}
+	gateway.Spec.Listeners[0].AllowedRoutes = &allowedRoutes
+	akogatewayapitests.SetGatewayGatewayClass(&gateway, gwClassName)
+
+	//create
+	gw, err = akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Create(context.TODO(), &gateway, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't create, err: %+v", err)
+	}
+	t.Logf("Created %+v", gw.Name)
+	waitAndverify(t, gwKey)
+
+	akogatewayapitests.TeardownGateway(t, gwName, DEFAULT_NAMESPACE)
+	waitAndverify(t, gwKey)
+
+	// Checking for Without RouteKinds-> Kind  and Valid RouteKinds-> Group
+	allowedRoutes = gatewayv1.AllowedRoutes{
+		Kinds: []gatewayv1.RouteGroupKind{{
+			Group: (*gatewayv1.Group)(&gatewayv1.GroupVersion.Group),
+		},
+		},
+	}
+	gateway.Spec.Listeners[0].AllowedRoutes = &allowedRoutes
+	akogatewayapitests.SetGatewayGatewayClass(&gateway, gwClassName)
+
+	//create
+	gw, err = akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Create(context.TODO(), &gateway, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't create, err: %+v", err)
+	}
+	t.Logf("Created %+v", gw.Name)
+	waitAndverify(t, gwKey)
+
+	akogatewayapitests.TeardownGateway(t, gwName, DEFAULT_NAMESPACE)
+	waitAndverify(t, gwKey)
+
+	//Checking for Without RouteKinds-> Kind  and empty RouteKinds-> Group
+	emptyGroupKind := ""
+	allowedRoutes.Kinds[0].Group = (*gatewayv1.Group)(&emptyGroupKind)
+	akogatewayapitests.SetGatewayGatewayClass(&gateway, gwClassName)
+
+	//create
+	gw, err = akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Create(context.TODO(), &gateway, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't create, err: %+v", err)
+	}
+	t.Logf("Created %+v", gw.Name)
+	waitAndverify(t, gwKey)
+
+	akogatewayapitests.TeardownGateway(t, gwName, DEFAULT_NAMESPACE)
+	waitAndverify(t, gwKey)
 }

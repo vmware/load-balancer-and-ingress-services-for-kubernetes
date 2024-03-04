@@ -152,6 +152,9 @@ type akoControlConfig struct {
 	// which AKO is communicating with
 	controllerVersion string
 
+	// defaultLBController is set to true/false as per defaultLBController value in values.yaml
+	defaultLBController bool
+
 	//Controller VRF Context is stored
 	controllerVRFContext string
 }
@@ -171,6 +174,10 @@ func (c *akoControlConfig) SetIsLeaderFlag(flag bool) {
 	c.isLeaderLock.Lock()
 	defer c.isLeaderLock.Unlock()
 	c.isLeader = flag
+}
+
+func (c *akoControlConfig) SetDefaultLBController(flag bool) {
+	c.defaultLBController = flag
 }
 
 func (c *akoControlConfig) IsLeader() bool {
@@ -313,6 +320,10 @@ func (c *akoControlConfig) ControllerVersion() string {
 
 func (c *akoControlConfig) SetControllerVersion(v string) {
 	c.controllerVersion = v
+}
+
+func (c *akoControlConfig) IsAviDefaultLBController() bool {
+	return c.defaultLBController
 }
 
 func (c *akoControlConfig) ControllerVRFContext() string {

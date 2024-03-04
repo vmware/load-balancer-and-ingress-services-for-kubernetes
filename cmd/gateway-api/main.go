@@ -55,6 +55,14 @@ func main() {
 func Initialize() {
 
 	os.Setenv(lib.ENABLE_EVH, "true")
+	os.Setenv(lib.VIP_PER_NAMESPACE, "false")
+	os.Setenv("ISTIO_ENABLED", "false")
+	os.Setenv("SHARD_VS_SIZE", "LARGE")
+	os.Setenv("PASSTHROUGH_SHARD_SIZE", "LARGE")
+	os.Setenv(lib.DISABLE_STATIC_ROUTE_SYNC, "false")
+	os.Setenv("PROMETHEUS_ENABLED", "false")
+	os.Setenv("PRIMARY_AKO_FLAG", "false")
+
 	utils.AviLog.SetLevel("DEBUG") // TODO: integrate the configmap to this pod and remove this hardcoding.
 	utils.AviLog.Infof("AKO is running with version: %s", version)
 
@@ -135,9 +143,11 @@ func Initialize() {
 		akoControlConfig.PodEventf(corev1.EventTypeWarning, lib.AKOShutdown, "Avi Controller Cluster state is not Active")
 		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO")
 	}
-	//TODO read from config map
-	c.DisableSync = false
-	lib.SetDisableSync(c.DisableSync)
+	err = c.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
+	if err != nil {
+		utils.AviLog.Errorf("Handle configmap error during reboot, shutting down AKO. Error is: %v", err)
+		return
+	}
 
 	waitGroupMap := make(map[string]*sync.WaitGroup)
 	wgIngestion := &sync.WaitGroup{}

@@ -23,12 +23,26 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
+	"k8s.io/apimachinery/pkg/labels"
+
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	akogatewayapistatus "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
+
+func isRegexMatch(stringWithWildCard string, stringToBeMatched string, key string) bool {
+	// replace the wildcard character with a regex
+	replacedHostname := strings.Replace(stringWithWildCard, "*", "([a-zA-Z0-9-]{1,})", 1)
+	// create the expression for pattern matching
+	pattern := fmt.Sprintf("^%s$", replacedHostname)
+	expr, err := regexp.Compile(pattern)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: unable to compile wildcard string to regex object. Err: %s", key, err)
+	}
+	return expr.MatchString(stringToBeMatched)
+}
 
 func IsGatewayClassValid(key string, gatewayClass *gatewayv1.GatewayClass) bool {
 
@@ -61,8 +75,6 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 		ObservedGeneration(gateway.ObjectMeta.Generation)
 
 	gatewayStatus := gateway.Status.DeepCopy()
-
-	//TODO check hostname overlap across gateway using store
 
 	// has 1 or more listeners
 	if len(spec.Listeners) == 0 {
@@ -145,6 +157,26 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 		return false
 	}
 
+	// hostname should not overlap with hostname of an existing gateway
+	gatewayNsList, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(gateway.Namespace).List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Errorf("Unable to retrieve the gateways during validation: %s", err)
+		return false
+	}
+	for _, gatewayInNamespace := range gatewayNsList {
+		if gateway.Name != gatewayInNamespace.Name {
+			for _, gwListener := range gatewayInNamespace.Spec.Listeners {
+				if *listener.Hostname == *gwListener.Hostname || isRegexMatch(string(*listener.Hostname), string(*gwListener.Hostname), key) || isRegexMatch(string(*gwListener.Hostname), string(*listener.Hostname), key) {
+					utils.AviLog.Errorf("key: %s, msg: Hostname overlaps or is same as an existing gateway %s hostname %s", key, gatewayInNamespace.Name, *gwListener.Hostname)
+					defaultCondition.
+						Message("Hostname overlaps or is same as an existing gateway hostname").
+						SetIn(&gatewayStatus.Listeners[index].Conditions)
+					return false
+				}
+			}
+		}
+	}
+
 	// protocol validation
 	if listener.Protocol != gatewayv1.HTTPProtocolType &&
 		listener.Protocol != gatewayv1.HTTPSProtocolType {
@@ -179,6 +211,30 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 				return false
 			}
 
+		}
+	}
+
+	//allowedRoutes validation
+	if listener.AllowedRoutes != nil {
+		if listener.AllowedRoutes.Kinds != nil {
+			for _, kindInAllowedRoute := range listener.AllowedRoutes.Kinds {
+				if kindInAllowedRoute.Kind != "" && string(kindInAllowedRoute.Kind) != utils.HTTPRoute {
+					utils.AviLog.Errorf("key: %s, msg: AllowedRoute kind is invalid %+v/%+v. Supported AllowedRoute kind is HTTPRoute.", key, gateway.Name, listener.Name)
+					defaultCondition.
+						Reason(string(gatewayv1.ListenerReasonInvalidRouteKinds)).
+						Message("AllowedRoute kind is invalid. Only HTTPRoute is supported currently").
+						SetIn(&gatewayStatus.Listeners[index].Conditions)
+					return false
+				}
+				if kindInAllowedRoute.Group != nil && *kindInAllowedRoute.Group != "" && string(*kindInAllowedRoute.Group) != gatewayv1.GroupName {
+					utils.AviLog.Errorf("key: %s, msg: AllowedRoute Group is invalid %+v/%+v.", key, gateway.Name, listener.Name)
+					defaultCondition.
+						Reason(string(gatewayv1.ListenerReasonInvalidRouteKinds)).
+						Message("AllowedRoute Group is invalid.").
+						SetIn(&gatewayStatus.Listeners[index].Conditions)
+					return false
+				}
+			}
 		}
 	}
 

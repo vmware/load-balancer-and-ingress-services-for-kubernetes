@@ -51,6 +51,13 @@ func SetUpTestForSvcLB(t *testing.T) {
 	PollForCompletion(t, SINGLEPORTMODEL, 5)
 }
 
+func SetUpTestForSvcLBWithLBClass(t *testing.T, LBClass string) {
+	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
+	CreateSVCWithValidOrInvalidLBClass(t, NAMESPACE, SINGLEPORTSVC, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, LBClass)
+	CreateEP(t, NAMESPACE, SINGLEPORTSVC, false, false, "1.1.1")
+	PollForCompletion(t, SINGLEPORTMODEL, 5)
+}
+
 func TearDownTestForSvcLB(t *testing.T, g *gomega.GomegaWithT) {
 	objects.SharedAviGraphLister().Delete(SINGLEPORTMODEL)
 	DelSVC(t, NAMESPACE, SINGLEPORTSVC)
@@ -66,7 +73,7 @@ func TearDownTestForSvcLB(t *testing.T, g *gomega.GomegaWithT) {
 func SetUpTestForSvcLBWithExtDNS(t *testing.T) {
 	modelSvcDNS01 := "admin/cluster--red-ns-" + EXTDNSSVC
 	objects.SharedAviGraphLister().Delete(modelSvcDNS01)
-	svcObj := ConstructService(NAMESPACE, EXTDNSSVC, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
+	svcObj := ConstructService(NAMESPACE, EXTDNSSVC, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string), "")
 	svcObj.Annotations = map[string]string{lib.ExternalDNSAnnotation: EXTDNSANNOTATION}
 	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcObj, metav1.CreateOptions{})
 	if err != nil {
@@ -118,7 +125,7 @@ func TearDownTestForSvcLBMultiport(t *testing.T, g *gomega.GomegaWithT) {
 func SetUpTestForSharedVIPSvcLB(t *testing.T, proto1, proto2 corev1.Protocol) {
 	modelSvc01 := "admin/cluster--red-ns-" + SHAREDVIPSVC01
 	objects.SharedAviGraphLister().Delete(modelSvc01)
-	svcObj := ConstructService(NAMESPACE, SHAREDVIPSVC01, proto1, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
+	svcObj := ConstructService(NAMESPACE, SHAREDVIPSVC01, proto1, corev1.ServiceTypeLoadBalancer, false, make(map[string]string), "")
 	svcObj.Annotations = map[string]string{lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
 	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcObj, metav1.CreateOptions{})
 	if err != nil {
@@ -129,7 +136,7 @@ func SetUpTestForSharedVIPSvcLB(t *testing.T, proto1, proto2 corev1.Protocol) {
 
 	modelSvc02 := "admin/cluster--red-ns-" + SHAREDVIPSVC02
 	objects.SharedAviGraphLister().Delete(modelSvc01)
-	svcObj = ConstructService(NAMESPACE, SHAREDVIPSVC02, proto2, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
+	svcObj = ConstructService(NAMESPACE, SHAREDVIPSVC02, proto2, corev1.ServiceTypeLoadBalancer, false, make(map[string]string), "")
 	svcObj.Annotations = map[string]string{lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
 	_, err = KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcObj, metav1.CreateOptions{})
 	if err != nil {
@@ -166,7 +173,7 @@ func TearDownTestForSharedVIPSvcLB(t *testing.T, g *gomega.GomegaWithT) {
 func SetUpTestForSharedVIPSvcLBWithExtDNS(t *testing.T, proto1, proto2 corev1.Protocol) {
 	modelSvc01 := "admin/cluster--red-ns-" + SHAREDVIPSVC01
 	objects.SharedAviGraphLister().Delete(modelSvc01)
-	svcObj := ConstructService(NAMESPACE, SHAREDVIPSVC01, proto1, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
+	svcObj := ConstructService(NAMESPACE, SHAREDVIPSVC01, proto1, corev1.ServiceTypeLoadBalancer, false, make(map[string]string), "")
 	svcObj.Annotations = map[string]string{lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY, lib.ExternalDNSAnnotation: EXTDNSANNOTATION}
 	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcObj, metav1.CreateOptions{})
 	if err != nil {
@@ -177,7 +184,7 @@ func SetUpTestForSharedVIPSvcLBWithExtDNS(t *testing.T, proto1, proto2 corev1.Pr
 
 	modelSvc02 := "admin/cluster--red-ns-" + SHAREDVIPSVC02
 	objects.SharedAviGraphLister().Delete(modelSvc01)
-	svcObj = ConstructService(NAMESPACE, SHAREDVIPSVC02, proto2, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
+	svcObj = ConstructService(NAMESPACE, SHAREDVIPSVC02, proto2, corev1.ServiceTypeLoadBalancer, false, make(map[string]string), "")
 	svcObj.Annotations = map[string]string{lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
 	_, err = KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcObj, metav1.CreateOptions{})
 	if err != nil {
@@ -208,6 +215,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("POD_NAME", "ako-0")
+	os.Setenv("DEFAULT_LB_CONTROLLER", "true")
 
 	akoControlConfig := lib.AKOControlConfig()
 	KubeClient = k8sfake.NewSimpleClientset()
@@ -219,6 +227,7 @@ func TestMain(m *testing.M) {
 	akoControlConfig.Setv1beta1CRDClientset(v1beta1CRDClient)
 	akoControlConfig.SetAKOInstanceFlag(true)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
+	akoControlConfig.SetDefaultLBController(true)
 	data := map[string][]byte{
 		"username": []byte("admin"),
 		"password": []byte("admin"),
@@ -275,6 +284,92 @@ func TestMain(m *testing.M) {
 
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
+}
+
+func TestLBSvcWithLBClassWithAviDefaultLBController(t *testing.T) {
+	// This test expects to start with defaultLBController = true
+	g := gomega.NewWithT(t)
+
+	// test invalid service spec.LoadBalancerClass != ako.vmware.com/avi-lb
+	SetUpTestForSvcLBWithLBClass(t, INVALID_LB_CLASS)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(false))
+	TearDownTestForSvcLB(t, g)
+
+	// test valid service with spec.LoadBalancerClass == ako.vmware.com/avi-lb
+	SetUpTestForSvcLBWithLBClass(t, "ako.vmware.com/avi-lb")
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	address := "1.1.1.1"
+	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
+	TearDownTestForSvcLB(t, g)
+
+	// test valid service with spec.LoadBalancerClass == "" (unpopulated)
+	SetUpTestForSvcLB(t)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel = objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
+	TearDownTestForSvcLB(t, g)
+}
+
+func TestLBSvcWithLBClassWithoutAviDefaultLBController(t *testing.T) {
+	g := gomega.NewWithT(t)
+	lib.AKOControlConfig().SetDefaultLBController(false)
+
+	// test invalid service spec.LoadBalancerClass != ako.vmware.com/avi-lb
+	SetUpTestForSvcLBWithLBClass(t, INVALID_LB_CLASS)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(false))
+	TearDownTestForSvcLB(t, g)
+
+	// test valid service with spec.LoadBalancerClass = ako.vmware.com/avi-lb
+	SetUpTestForSvcLBWithLBClass(t, "ako.vmware.com/avi-lb")
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	address := "1.1.1.1"
+	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
+	TearDownTestForSvcLB(t, g)
+
+	// test invalid service with spec.LoadBalancerClass == "" (unpopulated)
+	SetUpTestForSvcLB(t)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(false))
+	TearDownTestForSvcLB(t, g)
+
+	lib.AKOControlConfig().SetDefaultLBController(true)
 }
 
 func TestAviSvcCreationSinglePort(t *testing.T) {
@@ -1108,6 +1203,74 @@ func TestSharedVIPSvcWithTCPUDPProtocols(t *testing.T) {
 	TearDownTestForSharedVIPSvcLB(t, g)
 }
 
+func TestSharedVipSvcWithInvalidLBClass(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/cluster--red-ns-" + SHAREDVIPKEY
+
+	// create 1 valid and 1 invalid svc
+	modelSvc01 := "admin/cluster--red-ns-" + SHAREDVIPSVC01
+	objects.SharedAviGraphLister().Delete(modelSvc01)
+	svcObj := ConstructService(NAMESPACE, SHAREDVIPSVC01, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string), lib.AviIngressController)
+	svcObj.Annotations = map[string]string{lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcObj, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	CreateEP(t, NAMESPACE, SHAREDVIPSVC01, false, false, "1.1.1")
+	PollForCompletion(t, modelSvc01, 5)
+
+	// after valid svc creation VS should get created
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+
+	modelSvc02 := "admin/cluster--red-ns-" + SHAREDVIPSVC02
+	objects.SharedAviGraphLister().Delete(modelSvc01)
+	svcObj = ConstructService(NAMESPACE, SHAREDVIPSVC02, corev1.ProtocolSCTP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string), INVALID_LB_CLASS)
+	svcObj.Annotations = map[string]string{lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcObj, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	CreateEP(t, NAMESPACE, SHAREDVIPSVC02, false, false, "2.1.1")
+	PollForCompletion(t, modelSvc02, 5)
+
+	// after invalid svc is created, the model should get invalidated and be nil
+	time.Sleep(5 * time.Second)
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	g.Expect(aviModel).To(gomega.BeNil())
+
+	// after deletion of invalid svc, model should be valid again
+	objects.SharedAviGraphLister().Delete(modelSvc02)
+	DelSVC(t, NAMESPACE, SHAREDVIPSVC02)
+	DelEP(t, NAMESPACE, SHAREDVIPSVC02)
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, SHAREDVIPSVC02)}
+	g.Eventually(func() bool {
+		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		return found
+	}, 5*time.Second).Should(gomega.Equal(false))
+
+	time.Sleep(5 * time.Second)
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+
+	// teardown valid svc
+	objects.SharedAviGraphLister().Delete(modelSvc01)
+	DelSVC(t, NAMESPACE, SHAREDVIPSVC01)
+	DelEP(t, NAMESPACE, SHAREDVIPSVC01)
+	mcache = cache.SharedAviObjCache()
+	vsKey = cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, SHAREDVIPSVC01)}
+	g.Eventually(func() bool {
+		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		return found
+	}, 5*time.Second).Should(gomega.Equal(false))
+}
 func TestSharedVIPSvcWithTCPSCTProtocols(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
@@ -1420,7 +1583,7 @@ func TestLBSvcWithAutoFQDNAsFlat(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--" + svcNamespace + "-" + svcName
 	objects.SharedAviGraphLister().Delete(modelName)
-	svcObj := ConstructService(svcNamespace, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
+	svcObj := ConstructService(svcNamespace, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string), "")
 	_, err := KubeClient.CoreV1().Services(svcNamespace).Create(context.TODO(), svcObj, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
@@ -1455,7 +1618,7 @@ func TestLBSvcFQDNLengthValidation(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--" + svcNamespace + "-" + svcName
 	objects.SharedAviGraphLister().Delete(modelName)
-	svcObj := ConstructService(svcNamespace, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
+	svcObj := ConstructService(svcNamespace, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string), "")
 	_, err := KubeClient.CoreV1().Services(svcNamespace).Create(context.TODO(), svcObj, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
@@ -1490,7 +1653,7 @@ func TestLBSvcWithNameLen63(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--" + svcNamespace + "-" + svcName
 	objects.SharedAviGraphLister().Delete(modelName)
-	svcObj := ConstructService(svcNamespace, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
+	svcObj := ConstructService(svcNamespace, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string), "")
 	_, err := KubeClient.CoreV1().Services(svcNamespace).Create(context.TODO(), svcObj, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
@@ -1525,7 +1688,7 @@ func TestLBSvcWithNamespaceNameLen63(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--" + svcNamespace + "-" + svcName
 	objects.SharedAviGraphLister().Delete(modelName)
-	svcObj := ConstructService(svcNamespace, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
+	svcObj := ConstructService(svcNamespace, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string), "")
 	_, err := KubeClient.CoreV1().Services(svcNamespace).Create(context.TODO(), svcObj, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
@@ -1560,7 +1723,7 @@ func TestLBSvcWithNameLen63AndNamespaceNameLen63(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--" + svcNamespace + "-" + svcName
 	objects.SharedAviGraphLister().Delete(modelName)
-	svcObj := ConstructService(svcNamespace, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string))
+	svcObj := ConstructService(svcNamespace, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string), "")
 	_, err := KubeClient.CoreV1().Services(svcNamespace).Create(context.TODO(), svcObj, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)

@@ -2564,7 +2564,7 @@ func GetControllerClusterUUID() string {
 	return controllerClusterUUID
 }
 
-func ValidateUserInput(client *clients.AviClient) (bool, error) {
+func ValidateUserInput(client *clients.AviClient, isGateway bool) (bool, error) {
 	// add other step0 validation logics here -> isValid := check1 && check2 && ...
 
 	var err error
@@ -2581,7 +2581,7 @@ func ValidateUserInput(client *clients.AviClient) (bool, error) {
 			return isVRFValid, err
 		}
 	}
-	isRequiredValuesValid := checkRequiredValuesYaml(client, &err)
+	isRequiredValuesValid := checkRequiredValuesYaml(client, isGateway, &err)
 	isSegroupValid := validateAndConfigureSeGroup(client, &err)
 	if lib.IsWCP() {
 		if isTenantValid &&
@@ -2860,15 +2860,18 @@ func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient
 	return ipNetworkList, retErr
 }
 
-func checkRequiredValuesYaml(client *clients.AviClient, returnErr *error) bool {
+func checkRequiredValuesYaml(client *clients.AviClient, isGateway bool, returnErr *error) bool {
 	if _, err := lib.IsClusterNameValid(); err != nil {
 		*returnErr = err
 		return false
 	}
 
-	lib.SetNamePrefix("")
+	// Set the ako user with prefix
 	// after clusterName validation, set AKO User to be used in created_by fields for Avi Objects
-	lib.SetAKOUser(lib.AKOPrefix)
+	if !isGateway {
+		lib.SetNamePrefix("")
+		lib.SetAKOUser(lib.AKOPrefix)
+	}
 	//Set clusterlabel checksum
 	lib.SetClusterLabelChecksum()
 

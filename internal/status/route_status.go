@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -267,6 +268,28 @@ func UpdateRouteStatusWithErrMsg(key, routeName, namespace, msg string, retryNum
 	return
 }
 
+func routeVsUUIDStatus(key, hostname string, updateOption UpdateOptions) string {
+	vsAnnotations := make(map[string]string)
+	ctrlAnnotationValStr := avicache.GetControllerClusterUUID()
+	for i := 0; i < len(updateOption.ServiceMetadata.HostNames); i++ {
+		// only update for given hostname
+		if updateOption.ServiceMetadata.HostNames[i] == hostname {
+			vsAnnotations[hostname] = updateOption.VirtualServiceUUID
+		}
+	}
+	vsAnnotationsBytes, err := json.Marshal(vsAnnotations)
+	if err != nil {
+		utils.AviLog.Errorf("error in marshalling vs annotations: %v", err)
+		return ""
+	}
+	vsAnnotationsStrStr := string(vsAnnotationsBytes)
+	patchPayload := map[string]string{
+		lib.VSAnnotation:         vsAnnotationsStrStr,
+		lib.ControllerAnnotation: ctrlAnnotationValStr,
+	}
+	return utils.Stringify(patchPayload)
+}
+
 func routeStatusCheck(key string, oldStatus []routev1.RouteIngress, hostname string) bool {
 	for _, status := range oldStatus {
 		if len(status.Conditions) < 1 {
@@ -314,11 +337,15 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateOptions, retryN
 	for _, host := range hostnames {
 		now := metav1.Now()
 		for _, vip := range updateOption.Vip {
+			// In 1.12.1, populate both reason and annotation fields.
+			//So that during upgrade there will not be any issue of GSLB pools going down.
+			reason := routeVsUUIDStatus(key, host, updateOption)
 			condition := routev1.RouteIngressCondition{
 				Message:            vip,
 				Status:             corev1.ConditionTrue,
 				LastTransitionTime: &now,
 				Type:               routev1.RouteAdmitted,
+				Reason:             reason,
 			}
 			rtIngress := routev1.RouteIngress{
 				Host:       host,

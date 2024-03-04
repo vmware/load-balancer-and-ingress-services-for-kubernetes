@@ -77,6 +77,7 @@ func TestMain(m *testing.M) {
 	akoControlConfig.Setv1beta1CRDClientset(v1beta1CRDClient)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
 	akoControlConfig.SetAKOInstanceFlag(true)
+	akoControlConfig.SetDefaultLBController(true)
 	k8s.NewCRDInformers()
 
 	data := map[string][]byte{
@@ -297,6 +298,25 @@ func SetupSvcApiService(t *testing.T, svcname, namespace, gwname, gwnamespace, p
 	integrationtest.CreateEP(t, namespace, svcname, false, true, "1.1.1")
 }
 
+func SetupSvcApiLBServiceWithLBClass(t *testing.T, svcname, namespace, gwname, gwnamespace, protocol string, LBClass string) {
+	svc := integrationtest.FakeService{
+		Name:      svcname,
+		Namespace: namespace,
+		Labels: map[string]string{
+			lib.SvcApiGatewayNameLabelKey:      gwname,
+			lib.SvcApiGatewayNamespaceLabelKey: gwnamespace,
+		},
+		Type:              corev1.ServiceTypeLoadBalancer,
+		ServicePorts:      []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.Protocol(protocol), PortNumber: 8081, TargetPort: intstr.FromInt(8081)}},
+		LoadBalancerClass: LBClass,
+	}
+	svcCreate := svc.Service()
+	if _, err := KubeClient.CoreV1().Services(namespace).Create(context.TODO(), svcCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	integrationtest.CreateEP(t, namespace, svcname, false, true, "1.1.1")
+}
+
 func TeardownAdvLBService(t *testing.T, svcname, namespace string) {
 	if err := KubeClient.CoreV1().Services(namespace).Delete(context.TODO(), svcname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting AdvLB Service: %v", err)
@@ -311,6 +331,51 @@ func VerifyGatewayVSNodeDeletion(g *gomega.WithT, modelName string) {
 	}, 30*time.Second).Should(gomega.BeNil())
 }
 
+func TestServiceAPISvcWithLoadBalancerClass(t *testing.T) {
+	// This test checks whether AKO ignores gateway labels for LB services in ServiceAPI scenario
+	g := gomega.NewGomegaWithT(t)
+
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/cluster--default-my-gateway"
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
+	SetupGateway(t, gatewayName, ns, gwClassName)
+
+	// LB Service with invalid LBClass should be processed for DedicatedVS and be invalidated with AKO ignoring gateway labels
+	SetupSvcApiLBServiceWithLBClass(t, "svc", ns, gatewayName, ns, "TCP", integrationtest.INVALID_LB_CLASS)
+
+	g.Eventually(func() string {
+		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if len(gw.Status.Addresses) > 0 {
+			return gw.Status.Addresses[0].Value
+		}
+		return ""
+	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
+
+	_, aviModel := objects.SharedAviGraphLister().Get("admin/cluster--default-svc")
+	g.Expect(aviModel).To(gomega.BeNil())
+
+	TeardownAdvLBService(t, "svc", ns)
+
+	// LB Service with valid LBClass should be processed for DedicatedVS and be validated with AKO ignoring gateway labels
+	SetupSvcApiLBServiceWithLBClass(t, "svc", ns, gatewayName, ns, "TCP", lib.AviIngressController)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get("admin/cluster--default-svc")
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+	_, aviModel = objects.SharedAviGraphLister().Get("admin/cluster--default-svc")
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+
+	TeardownGatewayClass(t, gwClassName)
+	g.Eventually(func() int {
+		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		return len(gw.Status.Addresses)
+	}, 40*time.Second).Should(gomega.Equal(0))
+
+	TeardownGateway(t, gatewayName, ns)
+	TeardownAdvLBService(t, "svc", ns)
+	VerifyGatewayVSNodeDeletion(g, modelName)
+}
 func TestServicesAPISvcHostnameStatusUpdate(t *testing.T) {
 	// create gw, svc1, svc2 on separate listeners
 	// assign hostname to svc1, autofqdn for svc2, check model, check status

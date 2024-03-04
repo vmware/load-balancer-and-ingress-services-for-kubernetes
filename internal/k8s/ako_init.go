@@ -84,7 +84,7 @@ func (c *AviController) CleanupStaleVSes() {
 		parentKeys := aviObjCache.VsCacheMeta.AviCacheGetAllParentVSKeys()
 		DeleteAviObjects(parentKeys, aviObjCache, aviRestClientPool)
 	} else {
-		status.NewStatusPublisher().ResetStatefulSetAnnotation()
+		status.NewStatusPublisher().ResetStatefulSetAnnotation(status.ObjectDeletionStatus)
 	}
 
 	// Delete Stale objects by deleting model for dummy VS
@@ -250,7 +250,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	}
 	aviclient := aviClientPool.AviClient[0]
 
-	validateUserInput, err := avicache.ValidateUserInput(aviclient)
+	validateUserInput, err := avicache.ValidateUserInput(aviclient, false)
 	if err != nil {
 		utils.AviLog.Errorf("Error while validating input: %s", err.Error())
 		lib.AKOControlConfig().PodEventf(v1.EventTypeWarning, lib.SyncDisabled, "Invalid user input %s", err.Error())
@@ -283,7 +283,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 
 			delModels := delConfigFromData(cm.Data)
 
-			validateUserInput, err := avicache.ValidateUserInput(aviclient)
+			validateUserInput, err := avicache.ValidateUserInput(aviclient, false)
 			if err != nil {
 				utils.AviLog.Errorf("Error while validating input: %s", err.Error())
 				lib.AKOControlConfig().PodEventf(v1.EventTypeWarning, lib.SyncDisabled, "Invalid user input %s", err.Error())
@@ -315,7 +315,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 				return
 			}
 			// if DeleteConfig value has changed, then check if we need to enable/disable sync
-			isValidUserInput, err := avicache.ValidateUserInput(aviclient)
+			isValidUserInput, err := avicache.ValidateUserInput(aviclient, false)
 			if err != nil {
 				utils.AviLog.Errorf("Error while validating input: %s", err.Error())
 			}
@@ -331,7 +331,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 						avicache.DeConfigureSeGroupLabels()
 					}
 				} else {
-					status.NewStatusPublisher().ResetStatefulSetAnnotation()
+					status.NewStatusPublisher().ResetStatefulSetAnnotation(status.ObjectDeletionStatus)
 					lib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigUnset, "DeleteConfig unset in configmap, sync would be enabled")
 					quickSyncCh <- struct{}{}
 				}
@@ -1307,12 +1307,12 @@ func (c *AviController) publishAllParentVSKeysToRestLayer() {
 func (c *AviController) DeleteModels() {
 	utils.AviLog.Infof("Deletion of all avi objects triggered")
 	publisher := status.NewStatusPublisher()
-	publisher.AddStatefulSetAnnotation(lib.ObjectDeletionStartStatus)
+	publisher.AddStatefulSetAnnotation(status.ObjectDeletionStatus, lib.ObjectDeletionStartStatus)
 	allModels := objects.SharedAviGraphLister().GetAll()
 	allModelsMap := allModels.(map[string]interface{})
 	if len(allModelsMap) == 0 {
 		utils.AviLog.Infof("No Avi Object to delete, status would be updated in Statefulset")
-		publisher.AddStatefulSetAnnotation(lib.ObjectDeletionDoneStatus)
+		publisher.AddStatefulSetAnnotation(status.ObjectDeletionStatus, lib.ObjectDeletionDoneStatus)
 		return
 	}
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
@@ -1349,12 +1349,12 @@ func SetDeleteSyncChannel() {
 
 	select {
 	case <-lib.ConfigDeleteSyncChan:
-		status.NewStatusPublisher().AddStatefulSetAnnotation(lib.ObjectDeletionDoneStatus)
+		status.NewStatusPublisher().AddStatefulSetAnnotation(status.ObjectDeletionStatus, lib.ObjectDeletionDoneStatus)
 		utils.AviLog.Infof("Processing done for deleteConfig, user would be notified through statefulset update")
 		lib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigDone, "AKO has removed all objects from Avi Controller")
 
 	case <-time.After(lib.AviObjDeletionTime * time.Minute):
-		status.NewStatusPublisher().AddStatefulSetAnnotation(lib.ObjectDeletionTimeoutStatus)
+		status.NewStatusPublisher().AddStatefulSetAnnotation(status.ObjectDeletionStatus, lib.ObjectDeletionTimeoutStatus)
 		utils.AviLog.Warnf("Timed out while waiting for rest layer to respond for delete config")
 		lib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigTimeout, "Timed out while waiting for rest layer to respond for delete config")
 	}

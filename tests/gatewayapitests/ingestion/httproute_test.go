@@ -31,6 +31,7 @@ func TestHTTPRouteCUD(t *testing.T) {
 	namespace := "default"
 	ports := []int32{8080, 8081}
 	key := "HTTPRoute" + "/" + namespace + "/" + httpRouteName
+	gwkey := "Gateway/" + DEFAULT_NAMESPACE + "/" + gatewayName
 	akogatewayapiobjects.GatewayApiLister().UpdateGatewayClass(gatewayClassName, true)
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
@@ -55,6 +56,8 @@ func TestHTTPRouteCUD(t *testing.T) {
 	// delete
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
 	waitAndverify(t, key)
+	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
+	waitAndverify(t, gwkey)
 }
 
 func TestHTTPRouteInvalidHostname(t *testing.T) {

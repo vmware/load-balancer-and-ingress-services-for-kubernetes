@@ -989,7 +989,6 @@ func parseSecretsForIngress(ingSpec networkingv1.IngressSpec, key string) []stri
 func ParseL4ServiceForGateway(svc *corev1.Service, key string) (string, []string) {
 	var gateway string
 	var portProtocols []string
-
 	if lib.UseServicesAPI() && svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
 		utils.AviLog.Infof("key: %s, msg: Service of Type LoadBalancer is not supported with Gateway APIs, will create dedicated VSes", key)
 		return gateway, portProtocols

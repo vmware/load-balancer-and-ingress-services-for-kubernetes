@@ -1715,6 +1715,42 @@ func GetDefaultSecretForRoutes() string {
 	return DefaultRouteCert
 }
 
+func ValidateSvcforClass(key string, svc *corev1.Service) bool {
+	if svc != nil {
+		// only check gateway labels for AdvancedL4 case, and skip validation if found
+		if IsWCP() {
+			_, found_name := svc.ObjectMeta.Labels[GatewayNameLabelKey]
+			_, found_namespace := svc.ObjectMeta.Labels[GatewayNamespaceLabelKey]
+			if found_name || found_namespace {
+				utils.AviLog.Warnf("key: %s, msg: skipping LoadBalancerClass validation as LB service has Gateway labels, will use GatewayClass for AdvancedL4 validation", key)
+				return true
+			}
+		}
+
+		if svc.Spec.LoadBalancerClass == nil {
+			if isAviDefaultLBController() {
+				return true
+			} else {
+				utils.AviLog.Warnf("key: %s, msg: LoadBalancerClass is not specified for LB service %s and ako.vmware.com/avi-lb is not default loadbalancer controller", key, svc.ObjectMeta.Name)
+				return false
+			}
+		} else {
+			if *svc.Spec.LoadBalancerClass != AviIngressController {
+				utils.AviLog.Warnf("key: %s, msg: LoadBalancerClass for LB service %s is not ako.vmware.com/avi-lb", key, svc.ObjectMeta.Name)
+				return false
+			} else {
+				return true
+			}
+		}
+	}
+	utils.AviLog.Warnf("key: %s, msg: Could not find service for LBClass Validation")
+	return false
+}
+
+func isAviDefaultLBController() bool {
+	return AKOControlConfig().IsAviDefaultLBController()
+}
+
 func ValidateIngressForClass(key string, ingress *networkingv1.Ingress) bool {
 	if utils.IsVCFCluster() {
 		return true

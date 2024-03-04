@@ -93,6 +93,112 @@ func validateCRDValues(t *testing.T, g *gomega.GomegaWithT, expectedValues inter
 	}
 }
 
+func TestCreateDeleteL4RuleInvalidLBClass(t *testing.T) {
+	// this test checks the following scenario:
+	// adding a valid l4rule crd annotation to an invalid LBSvc should not cause the VS to come up
+	g := gomega.NewGomegaWithT(t)
+	L4RuleName := "test-l4rule"
+	ports := []int{8080}
+	lib.AKOControlConfig().SetDefaultLBController(true)
+	// test invalid service spec.LoadBalancerClass != ako.vmware.com/avi-lb for DefaultLBContoller == true
+	SetUpTestForSvcLBWithLBClass(t, INVALID_LB_CLASS)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(false))
+
+	SetupL4Rule(t, L4RuleName, NAMESPACE, ports)
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	svcObj := (FakeService{
+		Name:         SINGLEPORTSVC,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+	svcObj.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName}
+	svcObj.ResourceVersion = "2"
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(false))
+	TearDownTestForSvcLB(t, g)
+	TeardownL4Rule(t, L4RuleName, NAMESPACE)
+
+	// test invalid service spec.LoadBalancerClass != ako.vmware.com/avi-lb for DefaultLBContoller == false
+	lib.AKOControlConfig().SetDefaultLBController(false)
+	SetUpTestForSvcLBWithLBClass(t, INVALID_LB_CLASS)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(false))
+
+	SetupL4Rule(t, L4RuleName, NAMESPACE, ports)
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	svcObj = (FakeService{
+		Name:         SINGLEPORTSVC,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+	svcObj.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName}
+	svcObj.ResourceVersion = "2"
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(false))
+	TearDownTestForSvcLB(t, g)
+	TeardownL4Rule(t, L4RuleName, NAMESPACE)
+
+	// test invalid service with spec.LoadBalancerClass empty for defaultLBController == false
+	SetUpTestForSvcLB(t)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(false))
+
+	SetupL4Rule(t, L4RuleName, NAMESPACE, ports)
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	svcObj = (FakeService{
+		Name:         SINGLEPORTSVC,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+	svcObj.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName}
+	svcObj.ResourceVersion = "2"
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(false))
+	TearDownTestForSvcLB(t, g)
+	TeardownL4Rule(t, L4RuleName, NAMESPACE)
+
+	lib.AKOControlConfig().SetDefaultLBController(true)
+}
 func TestCreateDeleteL4Rule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
