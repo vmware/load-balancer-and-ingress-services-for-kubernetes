@@ -50,6 +50,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
+// do not pass tenant, fetch the tenants here using avi client
 func PopulateCache(tenant string) error {
 	var err error
 	aviRestClientPool := avicache.SharedAVIClients(tenant)
@@ -516,21 +517,15 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	c.addIndexers()
 	c.Start(stopCh)
 
-	//limit it to VCF cluster or NSX-T deployment for now
-	infraSettingCRs, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().List(labels.Set(nil).AsSelector())
+	aviClient := avicache.SharedAVIClients(lib.GetTenant()).AviClient[lib.GetTenant()][0]
+	tenants := make(map[string]struct{})
+	err := lib.GetAllTenants(aviClient, tenants)
 	if err != nil {
 		c.DisableSync = true
-		utils.AviLog.Errorf("failed to list AviInfraSetting cr, disabling sync")
+		utils.AviLog.Errorf("failed to list tenants, error: %s", err)
 		lib.ShutdownApi()
 	}
-	tenants := map[string]struct{}{
-		lib.GetTenant(): {},
-	}
-	for _, infraSetting := range infraSettingCRs {
-		if infraSetting.Spec.NSXSettings.Project != nil {
-			tenants[*infraSetting.Spec.NSXSettings.Project] = struct{}{}
-		}
-	}
+
 	for tenant := range tenants {
 		err := PopulateCache(tenant)
 		if err != nil {
