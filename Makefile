@@ -79,7 +79,7 @@ pre-build: sync-crd-files
 build: pre-build glob-vars
 		sudo docker run \
 		-w=/go/src/$(PACKAGE_PATH_AKO) \
-		-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
+		-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 		$(GOBUILD) \
 		-o /go/src/$(PACKAGE_PATH_AKO)/bin/$(BINARY_NAME_AKO) \
 		-ldflags $(AKO_LDFLAGS) \
@@ -90,7 +90,7 @@ build: pre-build glob-vars
 build-infra: pre-build glob-vars
 		sudo docker run \
 		-w=/go/src/$(PACKAGE_PATH_AKO) \
-		-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
+		-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 		$(GOBUILD) \
 		-o /go/src/$(PACKAGE_PATH_AKO)/bin/$(BINARY_NAME_AKO_INFRA) \
 		-ldflags $(AKO_LDFLAGS) \
@@ -101,7 +101,7 @@ build-infra: pre-build glob-vars
 build-gateway-api: glob-vars
 		sudo docker run \
 		-w=/go/src/$(PACKAGE_PATH_AKO) \
-		-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
+		-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 		$(GOBUILD) \
 		-o /go/src/$(PACKAGE_PATH_AKO)/bin/$(BINARY_NAME_AKO_GATEWAY_API) \
 		-ldflags $(AKO_LDFLAGS) \
@@ -294,7 +294,7 @@ infratests:
 # multiclusteringresstests:
 # 	sudo docker run \
 # 	-w=/go/src/$(PACKAGE_PATH_AKO) \
-# 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
+# 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 # 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multiclusteringresstests -failfast -coverprofile cover-16.out -coverpkg=./...
 
 .PHONY: hatests
