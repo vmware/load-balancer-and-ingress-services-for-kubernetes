@@ -87,7 +87,7 @@ func DequeueIngestion(key string, fullsync bool) {
 
 			switch objType {
 			case lib.HTTPRoute:
-				model.ProcessL7Routes(key, routeModel, gatewayNsName, childVSes)
+				model.ProcessL7Routes(key, routeModel, gatewayNsName, childVSes, fullsync)
 			default:
 				utils.AviLog.Warnf("key: %s, msg: route of type %s not supported", key, objType)
 				continue
