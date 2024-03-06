@@ -281,6 +281,8 @@ authtoken = "<authtoken>"
 print(base64.b64encode(authtoken.encode("ascii")))
 ```
 
+**Note:** From release v1.12.1 onwards, AKO supports reading Avi controller credentials from existing `avi-secret` in `avi-system` namespace. If username and either of password or authtoken are not specified, avi-secret will not be created as part of Helm installation. AKO will assume that avi-secret already exists in avi-system namespace and will reference it.
+
 ### avicredentials.certificateAuthorityData
 
 This field allows setting the rootCA of the Avi controller, that AKO uses to verify the server certificate provided by the Avi Controller during the TLS handshake. This also enables AKO to connect securely over SSL with the Avi Controller, which is not possible in case the field is not provided.
