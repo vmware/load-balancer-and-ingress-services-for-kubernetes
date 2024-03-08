@@ -51,6 +51,9 @@ func (l *leader) UpdateGatewayStatusAddress(options []UpdateOptions, bulk bool) 
 	gatewayMap := getGateways(gatewaysToUpdate, bulk)
 	skipDelete := map[string]bool{}
 	for _, option := range updateGWOptions {
+		if option.Message != "" {
+			continue
+		}
 		if gw := gatewayMap[option.IngSvc]; gw != nil {
 			// assuming 1 IP per gateway
 			gwStatus := gw.Status.DeepCopy()

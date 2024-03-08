@@ -14,6 +14,7 @@
 package rest
 
 import (
+	"encoding/json"
 	"errors"
 	"regexp"
 	"sort"
@@ -25,6 +26,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
@@ -632,7 +634,9 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 						rest.PopulateOneCache(rest_ops[i], aviObjKey, key)
 						continue
 					}
-
+					if rest_ops[i].Obj != nil {
+						updateGatewayStatusWithVsError(key, rest_ops[i])
+					}
 					// If it's for a SNI child, publish the parent VS's key
 					refreshCacheForRetry := false
 					if avimodel != nil && isEvh && len(avimodel.GetAviEvhVS()) > 0 {
@@ -691,6 +695,38 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 		}
 	}
 	return true, true
+}
+
+func updateGatewayStatusWithVsError(key string, rest_op *utils.RestOp) {
+	if rest_op.Model == "VirtualService" {
+		vs := rest_op.Obj.(avimodels.VirtualService)
+		if vs.Type != nil && *vs.Type == utils.VS_TYPE_VH_PARENT {
+			if vs.ServiceMetadata != nil {
+				var svc_mdata_obj lib.ServiceMetadataObj
+				utils.AviLog.Infof("key:%s, msg: Service Metadata: %s", key, *vs.ServiceMetadata)
+				if err := json.Unmarshal([]byte(*vs.ServiceMetadata),
+					&svc_mdata_obj); err != nil {
+					utils.AviLog.Warnf("Error parsing service metadata :%v", err)
+					return
+				}
+				if svc_mdata_obj.Gateway != "" {
+					updateOptions := status.UpdateOptions{
+						ServiceMetadata: svc_mdata_obj,
+						Key:             key,
+						VSName:          rest_op.ObjName,
+						Message:         rest_op.Err.Error(),
+					}
+					statusOption := status.StatusOptions{
+						ObjType: lib.Gateway,
+						Op:      lib.UpdateStatus,
+						Key:     key,
+						Options: &updateOptions,
+					}
+					status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
+				}
+			}
+		}
+	}
 }
 
 func checkVsVipUpdateErrors(key string, rest_op *utils.RestOp) bool {

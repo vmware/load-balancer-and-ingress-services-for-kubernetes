@@ -43,6 +43,7 @@ type UpdateOptions struct {
 	Key                string
 	VirtualServiceUUID string
 	VSName             string
+	Message            string
 }
 
 // VSUuidAnnotation is maps a hostname to the UUID of the virtual service where it is placed.
