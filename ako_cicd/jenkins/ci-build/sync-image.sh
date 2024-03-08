@@ -20,7 +20,6 @@ fi
 
 source $VENV_PATH/bin/activate
 pip install sshuttle==1.0.4
-#pip install sshuttle
 
 set +e
 pgrep -f sshuttle | xargs -r sudo kill -9
@@ -33,7 +32,7 @@ rc=$?
 set -e
 
 if [ "$rc" != "0" ]; then
-    sshuttle -D -r $JUMPHOST_USER@$JUMPHOST_IP $JUMPHOST_PROXY/$JUMPHOST_PROXY_PORT -e "ssh -i  $SSH_PVT_KEY_FILE" -vvv
+    sshuttle -D -r $JUMPHOST_USER@$JUMPHOST_IP $JUMPHOST_PROXY/$JUMPHOST_PROXY_PORT -e "ssh -i  $SSH_PVT_KEY_FILE" -v
 fi
 
 ###########
