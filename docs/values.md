@@ -281,7 +281,7 @@ authtoken = "<authtoken>"
 print(base64.b64encode(authtoken.encode("ascii")))
 ```
 
-**Note:** From release v1.12.1 onwards, AKO supports reading Avi controller credentials from existing `avi-secret` in `avi-system` namespace. If username and either of password or authtoken are not specified, avi-secret will not be created as part of Helm installation. AKO will assume that avi-secret already exists in avi-system namespace and will reference it.
+**Note:** From release v1.12.1 onwards, AKO supports reading Avi Controller credentials from existing `avi-secret` from the namespace in which AKO is installed. If username and either password or authtoken are not specified, avi-secret will not be created as part of Helm installation. AKO will assume that avi-secret already exists in the namespace in which the AKO Helm release is installed and will reference it.
 
 ### avicredentials.certificateAuthorityData
 
