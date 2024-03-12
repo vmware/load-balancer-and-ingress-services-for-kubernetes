@@ -1423,9 +1423,14 @@ func FeedMockCollectionData(w http.ResponseWriter, r *http.Request, mockFilePath
 				filePath = fmt.Sprintf("%s/%s_mock.json", mockFilePath, splitURL[1])
 			}
 			data, _ = os.ReadFile(filePath)
+			if strings.Contains(r.URL.RawQuery, "gateway") {
+				gwname := strings.Split(strings.Split(r.URL.RawQuery, "&")[0], "=")[1]
+				data = []byte(strings.ReplaceAll(string(data), "01", strings.Split(gwname, "-")[7]))
+			}
 		} else if len(splitURL) == 3 {
 			// with uuid
 			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_uuid_mock.json", mockFilePath, splitURL[1]))
+
 		}
 		w.WriteHeader(http.StatusOK)
 		w.Write(data)
