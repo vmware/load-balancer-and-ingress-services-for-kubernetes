@@ -328,15 +328,23 @@ func updateSEGroup() {
 	}
 	vcRef := fmt.Sprintf("/api/vcenterserver/?name=%s", vcenterServerName)
 	if len(seGroup.Vcenters) == 0 {
-		seGroup.Vcenters = make([]*avimodels.PlacementScopeConfig, 1)
-	}
-	seGroup.Vcenters[0] = &avimodels.PlacementScopeConfig{
-		VcenterRef: &vcRef,
-		NsxtClusters: &avimodels.NsxtClusters{
+		seGroup.Vcenters = []*avimodels.PlacementScopeConfig{
+			{
+				VcenterRef: &vcRef,
+				NsxtClusters: &avimodels.NsxtClusters{
+					ClusterIds: clusterIDs,
+					Include:    &include,
+				},
+			},
+		}
+	} else {
+		seGroup.Vcenters[0].VcenterRef = &vcRef
+		seGroup.Vcenters[0].NsxtClusters = &avimodels.NsxtClusters{
 			ClusterIds: clusterIDs,
 			Include:    &include,
-		},
+		}
 	}
+
 	response := models.ServiceEngineGroupAPIResponse{}
 	uri = "/api/serviceenginegroup/" + *seGroup.UUID
 	err = lib.AviPut(client, uri, seGroup, response)
