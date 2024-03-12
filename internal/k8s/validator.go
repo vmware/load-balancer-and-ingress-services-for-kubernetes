@@ -312,8 +312,12 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1beta1.Av
 
 	objects.InfraSettingL7Lister().UpdateAviInfraToTenantMapping(infraSetting.Name, tenant)
 	namespaces, err := utils.GetInformers().NSInformer.Informer().GetIndexer().ByIndex(lib.AviSettingNamespaceIndex, infraSetting.GetName())
-	if err == nil {
+	if err == nil && len(namespaces) > 0 {
+		utils.AviLog.Debugf("Marking the infrasetting %s as scoped to %d Namespaces", infraSetting.GetName(), len(namespaces))
 		objects.InfraSettingL7Lister().UpdateInfraSettingToNamespaceMapping(infraSetting.GetName(), namespaces)
+	} else {
+		// This handles the case where an NS scoped infrasetting was deleted and later recreated without NS scope.
+		objects.InfraSettingL7Lister().DeleteInfraSettingToNamespaceMapping(infraSetting.GetName())
 	}
 
 	if ((infraSetting.Spec.Network.EnableRhi != nil && !*infraSetting.Spec.Network.EnableRhi) || infraSetting.Spec.Network.EnableRhi == nil) &&

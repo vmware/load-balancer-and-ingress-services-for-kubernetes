@@ -9,6 +9,7 @@ import (
 	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/models"
 	"github.com/vmware/alb-sdk/go/session"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
@@ -70,7 +71,7 @@ func waitTillDeletion(uri string, client *clients.AviClient, retry int) error {
 
 func deleteAviResource(prefix string, res map[string][]string) error {
 	for tenant, uuids := range res {
-		aviClient := avicache.SharedAVIClients(tenant).AviClient[tenant][0]
+		aviClient := avicache.SharedAVIClients(tenant).AviClient[0]
 		for _, uuid := range uuids {
 			uri := prefix + "/" + uuid
 			utils.AviLog.Infof("Deleting %s in %s tenant", uuid, tenant)
@@ -229,7 +230,7 @@ func (cfg *AKOCleanupConfig) Cleanup() error {
 	}
 
 	tenants := make(map[string]struct{})
-	err = lib.GetAllTenants(aviRestClientPool.AviClient[lib.GetTenant()][0], tenants)
+	err = lib.GetAllTenants(aviRestClientPool.AviClient[0], tenants)
 	if err != nil {
 		return err
 	}
@@ -276,7 +277,7 @@ func (cfg *AKOCleanupConfig) Cleanup() error {
 		return err
 	}
 
-	avirest.InfraAviClientInstance(aviRestClientPool.AviClient[lib.GetTenant()][0])
+	avirest.InfraAviClientInstance(aviRestClientPool.AviClient[0])
 	err = avirest.DeleteServiceEngines()
 	if err != nil {
 		return err
@@ -294,7 +295,7 @@ func setCloudName() error {
 	uri := "/api/serviceenginegroup/?name=" + lib.GetClusterID() + "&include_name=True"
 	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
 	response := models.ServiceEngineGroupAPIResponse{}
-	err := lib.AviGet(aviRestClientPool.AviClient[lib.GetTenant()][0], uri, &response)
+	err := lib.AviGet(aviRestClientPool.AviClient[0], uri, &response)
 	if err != nil {
 		return err
 	}
