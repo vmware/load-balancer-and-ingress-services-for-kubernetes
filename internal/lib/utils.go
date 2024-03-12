@@ -22,11 +22,11 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/models"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -414,7 +414,7 @@ func GetTenantFromInfraSetting(namespace, objName string) string {
 func IsInfraSettingNSScoped(infraSetting, namespace string) bool {
 	storedNamespaces := objects.InfraSettingL7Lister().GetInfraSettingScopedNamespaces(infraSetting)
 	for _, ns := range storedNamespaces {
-		if ns.(*v1.Namespace).GetName() == namespace {
+		if ns.(*corev1.Namespace).GetName() == namespace {
 			return true
 		}
 	}
@@ -424,7 +424,7 @@ func IsInfraSettingNSScoped(infraSetting, namespace string) bool {
 		return false
 	}
 	for _, ns := range allNamespaces {
-		if ns.(*v1.Namespace).GetName() == namespace {
+		if ns.(*corev1.Namespace).GetName() == namespace {
 			return true
 		}
 	}
@@ -432,8 +432,6 @@ func IsInfraSettingNSScoped(infraSetting, namespace string) bool {
 }
 
 func GetAllTenants(c *clients.AviClient, tenants map[string]struct{}, nextPage ...string) error {
-	//setAllTenantMode := session.SetTenant("*")
-	//setAllTenantMode(c.AviSession)
 	uri := "/api/tenant"
 	result, err := AviGetCollectionRaw(c, uri)
 	if err != nil {
