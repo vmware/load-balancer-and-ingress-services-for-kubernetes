@@ -140,12 +140,15 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 
 	status := gw.Status.DeepCopy()
 	addressType := gatewayv1.IPAddressType
-	if len(option.Options.Vip) != 0 {
-		status.Addresses = append(status.Addresses, gatewayv1.GatewayStatusAddress{
+	ipAddrs := []gatewayv1.GatewayStatusAddress{}
+	for _, vip := range option.Options.Vip {
+		ipAddrs = append(ipAddrs, gatewayv1.GatewayStatusAddress{
 			Type:  &addressType,
-			Value: option.Options.Vip[0],
+			Value: vip,
 		})
 	}
+	status.Addresses = ipAddrs
+
 	condition := NewCondition()
 	var conditionType, reason, message string
 	conditionStatus := metav1.ConditionTrue
