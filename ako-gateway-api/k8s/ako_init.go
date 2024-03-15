@@ -224,10 +224,6 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 		return err
 	}
 
-	// TODO: sort before calling dequeue
-	// sort by timestamp and name length
-	// as per gateway guidelines
-
 	var filteredGatewayClasses []*gatewayv1.GatewayClass
 	for _, gwClassObj := range gwClassObjs {
 		key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
@@ -238,12 +234,8 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 		}
 		if IsGatewayClassValid(key, gwClassObj) {
 			filteredGatewayClasses = append(filteredGatewayClasses, gwClassObj)
-			//akogatewayapinodes.DequeueIngestion(key, true)
 		}
 	}
-	sort.Slice(filteredGatewayClasses, func(i, j int) bool {
-		return filteredGatewayClasses[i].GetCreationTimestamp().Unix() < filteredGatewayClasses[j].GetCreationTimestamp().Unix()
-	})
 	for _, filteredGatewayClass := range filteredGatewayClasses {
 		key := lib.GatewayClass + "/" + utils.ObjKey(filteredGatewayClass)
 		akogatewayapinodes.DequeueIngestion(key, true)
@@ -266,7 +258,6 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 		}
 		if IsValidGateway(key, gatewayObj) {
 			filteredGateways = append(filteredGateways, gatewayObj)
-			//akogatewayapinodes.DequeueIngestion(key, true)
 		}
 	}
 	sort.Slice(filteredGateways, func(i, j int) bool {
@@ -297,7 +288,6 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 		}
 		if IsHTTPRouteValid(key, httpRouteObj) {
 			filteredHTTPRoutes = append(filteredHTTPRoutes, httpRouteObj)
-			//akogatewayapinodes.DequeueIngestion(key, true)
 		}
 	}
 	sort.Slice(filteredHTTPRoutes, func(i, j int) bool {

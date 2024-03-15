@@ -82,7 +82,9 @@ func BuildPortProtocols(gateway *gatewayv1.Gateway, key string) []nodes.AviPortH
 		if listener.TLS != nil && len(listener.TLS.CertificateRefs) > 0 {
 			pp.EnableSSL = true
 		}
-		portProtocols = append(portProtocols, pp)
+		if !utils.HasElem(portProtocols, pp) {
+			portProtocols = append(portProtocols, pp)
+		}
 	}
 	return portProtocols
 }
