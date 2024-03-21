@@ -140,33 +140,45 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 
 	status := gw.Status.DeepCopy()
 	addressType := gatewayv1.IPAddressType
-	status.Addresses = append(status.Addresses, gatewayv1.GatewayStatusAddress{
-		Type:  &addressType,
-		Value: option.Options.Vip[0],
-	})
-
-	// TODO: Add a way to propagate the error from the Rest layer to status layer.
-
+	if len(option.Options.Vip) != 0 {
+		status.Addresses = append(status.Addresses, gatewayv1.GatewayStatusAddress{
+			Type:  &addressType,
+			Value: option.Options.Vip[0],
+		})
+	}
 	condition := NewCondition()
+	var conditionType, reason, message string
+	conditionStatus := metav1.ConditionTrue
+
+	if option.Options.Message != "" {
+		conditionType = string(gatewayv1.GatewayConditionAccepted)
+		conditionStatus = metav1.ConditionFalse
+		reason = string(gatewayv1.GatewayReasonInvalid)
+		message = option.Options.Message
+	} else {
+		conditionType = string(gatewayv1.GatewayConditionProgrammed)
+		conditionStatus = metav1.ConditionTrue
+		reason = string(gatewayv1.GatewayReasonProgrammed)
+		message = "Virtual service configured/updated"
+	}
 	condition.
-		Type(string(gatewayv1.GatewayConditionProgrammed)).
-		Status(metav1.ConditionTrue).
-		Reason(string(gatewayv1.GatewayReasonProgrammed)).
+		Type(conditionType).
+		Status(conditionStatus).
+		Reason(reason).
 		ObservedGeneration(gw.ObjectMeta.Generation).
-		Message("Virtual service configured/updated").
+		Message(message).
 		SetIn(&status.Conditions)
 
 	for i := range status.Listeners {
 		listenerCondition := NewCondition()
 		listenerCondition.
-			Type(string(gatewayv1.GatewayConditionProgrammed)).
-			Status(metav1.ConditionTrue).
-			Reason(string(gatewayv1.GatewayReasonProgrammed)).
+			Type(conditionType).
+			Status(conditionStatus).
+			Reason(reason).
 			ObservedGeneration(gw.ObjectMeta.Generation).
-			Message("Virtual service configured/updated").
+			Message(message).
 			SetIn(&status.Listeners[i].Conditions)
 	}
-
 	o.Patch(key, gw, &Status{GatewayStatus: status})
 
 	// TODO: Annotation update code here
