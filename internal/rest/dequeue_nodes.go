@@ -634,7 +634,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 						rest.PopulateOneCache(rest_ops[i], aviObjKey, key)
 						continue
 					}
-					if rest_ops[i].Obj != nil {
+					if rest_ops[i].Obj != nil && rest_ops[i].Caller != "" {
 						updateGatewayStatusWithVsError(key, rest_ops[i])
 					}
 					// If it's for a SNI child, publish the parent VS's key

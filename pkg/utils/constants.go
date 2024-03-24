@@ -79,6 +79,7 @@ const (
 	VS_TYPE_NORMAL                = "VS_TYPE_NORMAL"
 	VS_TYPE_VH_CHILD              = "VS_TYPE_VH_CHILD"
 	VS_TYPE_VH_ENHANCED           = "VS_TYPE_VH_ENHANCED"
+	GATEWAY_API                   = "GATEWAY_API_V2"
 	NodeObj                       = "Node"
 	GlobalVRF                     = "global"
 	VRF_CONTEXT                   = "VRF_CONTEXT"

@@ -116,6 +116,7 @@ type RestOp struct {
 	Model    string
 	Version  string
 	ObjName  string // Optional field - right only to be used for delete.
+	Caller   string // Optional field - used by Gateway in GatewayAPI implementation
 }
 
 type ServiceMetadataObj struct {

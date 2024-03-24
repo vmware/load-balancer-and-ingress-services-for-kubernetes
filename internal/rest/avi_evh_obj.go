@@ -451,6 +451,10 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 				Tenant:  vs_meta.Tenant,
 				Model:   "VirtualService",
 			}
+			// This will be populated for GW in GwAPI deployment
+			if vs_meta.Caller != "" {
+				rest_op.Caller = vs_meta.Caller
+			}
 			rest_ops = append(rest_ops, &rest_op)
 
 		} else {
@@ -463,6 +467,10 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 				Obj:     vs,
 				Tenant:  vs_meta.Tenant,
 				Model:   "VirtualService",
+			}
+			// This will be populated for GW in GwAPI deployment
+			if vs_meta.Caller != "" {
+				rest_op.Caller = vs_meta.Caller
 			}
 			rest_ops = append(rest_ops, &rest_op)
 

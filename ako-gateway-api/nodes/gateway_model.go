@@ -59,6 +59,7 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 		ServiceMetadata: lib.ServiceMetadataObj{
 			Gateway: gateway.Namespace + "/" + gateway.Name,
 		},
+		Caller: utils.GATEWAY_API, // Always Populate this field to recognise caller at rest layer
 	}
 
 	parentVsNode.PortProto = BuildPortProtocols(gateway, key)
