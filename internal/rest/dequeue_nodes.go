@@ -699,7 +699,15 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 
 func updateGatewayStatusWithVsError(key string, rest_op *utils.RestOp) {
 	if rest_op.Model == "VirtualService" {
-		vs := rest_op.Obj.(avimodels.VirtualService)
+		var vs avimodels.VirtualService
+		switch rest_op.Obj.(type) {
+		case avimodels.VirtualService:
+			vs = rest_op.Obj.(avimodels.VirtualService)
+		case *avimodels.VirtualService:
+			vs = *(rest_op.Obj.(*avimodels.VirtualService))
+		default:
+			return
+		}
 		if vs.Type != nil && *vs.Type == utils.VS_TYPE_VH_PARENT {
 			if vs.ServiceMetadata != nil {
 				var svc_mdata_obj lib.ServiceMetadataObj
