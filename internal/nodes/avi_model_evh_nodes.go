@@ -146,6 +146,7 @@ type AviEvhVsNode struct {
 	Dedicated           bool
 	VHMatches           []*avimodels.VHMatch
 	Secure              bool
+	Caller              string
 
 	AviVsNodeCommonFields
 
