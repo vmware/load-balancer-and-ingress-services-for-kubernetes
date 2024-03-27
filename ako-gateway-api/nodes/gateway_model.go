@@ -19,6 +19,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/net"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
@@ -145,10 +146,9 @@ func BuildVsVipNodeForGateway(gateway *gatewayv1.Gateway, vsName string) *nodes.
 	}
 
 	//Type is validated at ingestion
-	//TODO IPV6 handdling
 	if len(gateway.Spec.Addresses) == 1 {
 		ipAddr := gateway.Spec.Addresses[0].Value
-		if utils.IsV4(ipAddr) || utils.IsV6(ipAddr) {
+		if net.IsIPv4String(ipAddr) || net.IsIPv6String(ipAddr) {
 			vsvipNode.IPAddress = ipAddr
 		}
 	}

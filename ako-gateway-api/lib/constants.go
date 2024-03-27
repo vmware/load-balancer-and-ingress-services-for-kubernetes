@@ -17,6 +17,8 @@ package lib
 const (
 	Prefix            = "ako-gw-"
 	GatewayController = "ako.vmware.com/avi-lb"
+	CoreGroup         = "v1"
+	GatewayGroup      = "gateway.networking.k8s.io"
 )
 
 const (
@@ -25,4 +27,9 @@ const (
 
 const (
 	GatewayClassGatewayControllerIndex = "GatewayClassGatewayController"
+)
+
+const (
+	AllowedRoutesNamespaceFromAll  = "All"
+	AllowedRoutesNamespaceFromSame = "Same"
 )

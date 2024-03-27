@@ -104,11 +104,17 @@ type GWLister struct {
 	gatewayRouteToHostnameStore *objects.ObjectMapStore
 }
 
+type GatewayRouteKind struct {
+	Group string
+	Kind  string
+}
+
 type GatewayListenerStore struct {
-	Name         string
-	Port         int32
-	Protocol     string
-	AllowedRoute string
+	Name              string
+	Port              int32
+	Protocol          string
+	AllowedRouteNs    string
+	AllowedRouteTypes []GatewayRouteKind
 }
 
 func (g *GWLister) IsGatewayClassControllerAKO(gwClass string) (bool, bool) {
