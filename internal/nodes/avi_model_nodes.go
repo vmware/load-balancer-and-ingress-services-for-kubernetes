@@ -715,46 +715,62 @@ func (o *AviVsNode) GetPGForVSByName(pgName string) *AviPoolGroupNode {
 	return nil
 }
 
-func (o *AviVsNode) ReplaceSniPoolInSNINode(newPoolNode *AviPoolNode, key string) {
+func (o *AviVsNode) ReplaceSniPoolInSNINode(newPoolNode *AviPoolNode, key string, isPoolNameLenExceedAviLimit bool) {
 	for i, pool := range o.PoolRefs {
 		if pool.Name == newPoolNode.Name {
 			o.PoolRefs = append(o.PoolRefs[:i], o.PoolRefs[i+1:]...)
-			o.PoolRefs = append(o.PoolRefs, newPoolNode)
+			if !isPoolNameLenExceedAviLimit {
+				// Do not append if length exceeds
+				o.PoolRefs = append(o.PoolRefs, newPoolNode)
+			}
 			utils.AviLog.Infof("key: %s, msg: replaced sni pool in model: %s Pool name: %s", key, o.Name, pool.Name)
 			return
 		}
 	}
 	// If we have reached here it means we haven't found a match. Just append the pool.
-	o.PoolRefs = append(o.PoolRefs, newPoolNode)
+	if !isPoolNameLenExceedAviLimit {
+		o.PoolRefs = append(o.PoolRefs, newPoolNode)
+	}
 }
 
-func (o *AviVsNode) ReplaceSniPGInSNINode(newPGNode *AviPoolGroupNode, key string) {
+func (o *AviVsNode) ReplaceSniPGInSNINode(newPGNode *AviPoolGroupNode, key string, isPGNameLenExceedAviLimit bool) {
 	for i, pg := range o.PoolGroupRefs {
 		if pg.Name == newPGNode.Name {
 			o.PoolGroupRefs = append(o.PoolGroupRefs[:i], o.PoolGroupRefs[i+1:]...)
-			o.PoolGroupRefs = append(o.PoolGroupRefs, newPGNode)
-			utils.AviLog.Infof("key: %s, msg: replaced sni pg in model: %s Pool name: %s", key, o.Name, pg.Name)
+			if !isPGNameLenExceedAviLimit {
+				// add only when length is not exceed
+				o.PoolGroupRefs = append(o.PoolGroupRefs, newPGNode)
+			}
+			utils.AviLog.Infof("key: %s, msg: replaced sni pg in model: %s PG name: %s", key, o.Name, pg.Name)
 			return
 		}
 	}
 	// If we have reached here it means we haven't found a match. Just append.
-	o.PoolGroupRefs = append(o.PoolGroupRefs, newPGNode)
+	if !isPGNameLenExceedAviLimit {
+		//append if len < limit
+		o.PoolGroupRefs = append(o.PoolGroupRefs, newPGNode)
+	}
 }
 
-func (o *AviVsNode) ReplaceSniHTTPRefInSNINode(httpPGPath AviHostPathPortPoolPG, httpPolName, key string) {
+func (o *AviVsNode) ReplaceSniHTTPRefInSNINode(httpPGPath AviHostPathPortPoolPG, httpPolName, key string, isHPPNameLengthExceedAviLimit bool) {
 	for i, http := range o.HttpPolicyRefs {
 		if http.Name == httpPolName {
 			for j, hppMap := range o.HttpPolicyRefs[i].HppMap {
 				if hppMap.Name == httpPGPath.Name {
 					o.HttpPolicyRefs[i].HppMap = append(o.HttpPolicyRefs[i].HppMap[:j], o.HttpPolicyRefs[i].HppMap[j+1:]...)
-					o.HttpPolicyRefs[i].HppMap = append(o.HttpPolicyRefs[i].HppMap, httpPGPath)
-
+					if !isHPPNameLengthExceedAviLimit {
+						// Do not append if length exceed
+						o.HttpPolicyRefs[i].HppMap = append(o.HttpPolicyRefs[i].HppMap, httpPGPath)
+					}
 					utils.AviLog.Infof("key: %s, msg: replaced SNI httpmap in model: %s Pool name: %s", key, o.Name, hppMap.Name)
 					return
 				}
 			}
 			// If we have reached here it means we haven't found a match. Just append.
-			o.HttpPolicyRefs[i].HppMap = append(o.HttpPolicyRefs[i].HppMap, httpPGPath)
+			if !isHPPNameLengthExceedAviLimit {
+				// Do not add if length exceeds
+				o.HttpPolicyRefs[i].HppMap = append(o.HttpPolicyRefs[i].HppMap, httpPGPath)
+			}
 		}
 	}
 }
