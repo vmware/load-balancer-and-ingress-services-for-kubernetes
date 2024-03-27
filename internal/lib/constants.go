@@ -116,6 +116,9 @@ const (
 	Gateway                                    = "Gateway"
 	GatewayClass                               = "GatewayClass"
 	HTTPRoute                                  = "HTTPRoute"
+	TCPRoute                                   = "TCPRoute"
+	TLSRoute                                   = "TLSRoute"
+	UDPRoute                                   = "UDPRoute"
 	DuplicateBackends                          = "MultipleBackendsWithSameServiceError"
 	DummyVSForStaleData                        = "DummyVSForStaleData"
 	ControllerReqWaitTime                      = 300

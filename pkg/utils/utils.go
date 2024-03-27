@@ -58,12 +58,6 @@ func IsV4(addr string) bool {
 	return v4 != nil
 }
 
-func IsV6(addr string) bool {
-	ip := net.ParseIP(addr)
-	v6 := ip.To16()
-	return v6 != nil
-}
-
 /*
  * Port name is either "http" or "http-suffix"
  * Following Istio named port convention

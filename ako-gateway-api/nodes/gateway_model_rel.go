@@ -118,15 +118,34 @@ func GatewayGetGw(namespace, name, key string) ([]string, bool) {
 		gwListener.Name = string(listenerObj.Name)
 		gwListener.Port = int32(listenerObj.Port)
 		gwListener.Protocol = string(listenerObj.Protocol)
+
 		if listenerObj.AllowedRoutes == nil {
-			gwListener.AllowedRoute = gwObj.Namespace
+			gwListener.AllowedRouteNs = gwObj.Namespace
+			gwListener.AllowedRouteTypes = []objects.GatewayRouteKind{
+				{Group: akogatewayapilib.GatewayGroup, Kind: akogatewayapilib.ProtocolToRoute(gwListener.Protocol)},
+			}
 		} else {
 			if listenerObj.AllowedRoutes.Namespaces != nil {
 				if listenerObj.AllowedRoutes.Namespaces.From != nil {
-					if string(*listenerObj.AllowedRoutes.Namespaces.From) == "Same" {
-						gwListener.AllowedRoute = gwObj.Namespace
-					} else if string(*listenerObj.AllowedRoutes.Namespaces.From) == "All" {
-						gwListener.AllowedRoute = "All"
+					if string(*listenerObj.AllowedRoutes.Namespaces.From) == akogatewayapilib.AllowedRoutesNamespaceFromSame {
+						gwListener.AllowedRouteNs = gwObj.Namespace
+					} else if string(*listenerObj.AllowedRoutes.Namespaces.From) == akogatewayapilib.AllowedRoutesNamespaceFromAll {
+						gwListener.AllowedRouteNs = akogatewayapilib.AllowedRoutesNamespaceFromAll
+					}
+				}
+			} else {
+				gwListener.AllowedRouteNs = gwObj.Namespace
+			}
+			if listenerObj.AllowedRoutes.Kinds != nil {
+				for _, routeKind := range listenerObj.AllowedRoutes.Kinds {
+					if routeKind.Group == nil {
+						gwListener.AllowedRouteTypes = append(gwListener.AllowedRouteTypes, objects.GatewayRouteKind{Group: akogatewayapilib.GatewayGroup, Kind: string(routeKind.Kind)})
+					} else {
+						if string(*routeKind.Group) == "" {
+							gwListener.AllowedRouteTypes = append(gwListener.AllowedRouteTypes, objects.GatewayRouteKind{Group: akogatewayapilib.CoreGroup, Kind: string(routeKind.Kind)})
+						} else {
+							gwListener.AllowedRouteTypes = append(gwListener.AllowedRouteTypes, objects.GatewayRouteKind{Group: string(*routeKind.Group), Kind: string(routeKind.Kind)})
+						}
 					}
 				}
 			}
@@ -201,6 +220,7 @@ func GatewayClassGetGw(namespace, name, key string) ([]string, bool) {
 func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 
 	routeTypeNsName := lib.HTTPRoute + "/" + namespace + "/" + name
+	httpGroupKind := objects.GatewayRouteKind{Group: akogatewayapilib.GatewayGroup, Kind: lib.HTTPRoute}
 	hrObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).Get(name)
 	if err != nil {
 		if !errors.IsNotFound(err) {
@@ -230,7 +250,8 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 		listeners := akogatewayapiobjects.GatewayApiLister().GetGatewayToListeners(gwNsName)
 		for _, listener := range listeners {
 			//check if namespace is allowed
-			if listener.AllowedRoute == "All" || listener.AllowedRoute == hrObj.Namespace {
+			if (len(listener.AllowedRouteTypes) == 0 || utils.HasElem(listener.AllowedRouteTypes, httpGroupKind)) &&
+				(listener.AllowedRouteNs == akogatewayapilib.AllowedRoutesNamespaceFromAll || listener.AllowedRouteNs == hrObj.Namespace) {
 				//if provided, check if section name and port matches
 				if (parentRef.SectionName == nil || string(*parentRef.SectionName) == listener.Name) &&
 					(parentRef.Port == nil || int32(*parentRef.Port) == listener.Port) {
