@@ -127,18 +127,31 @@ func (o *AviObjectGraph) BuildPoolPGPolicyForDedicatedVS(vsNode []*AviVsNode, na
 	}
 
 	httpPolName := lib.GetSniHttpPolName(namespace, hostname, infraSettingName)
+	isHttpPolNameLengthExceedAviLimit := false
+	if lib.CheckObjectNameLength(httpPolName, lib.HTTPPS) {
+		isHttpPolNameLengthExceedAviLimit = true
+	}
 	for i, http := range vsNode[0].HttpPolicyRefs {
 		if http.Name == httpPolName {
-			policyNode = vsNode[0].HttpPolicyRefs[i]
+			if isHttpPolNameLengthExceedAviLimit {
+				// replace- this is for existing httppolicyset on upgrade
+				vsNode[0].HttpPolicyRefs = append(vsNode[0].HttpPolicyRefs[:i], vsNode[0].HttpPolicyRefs[i+1:]...)
+			} else {
+				policyNode = vsNode[0].HttpPolicyRefs[i]
+			}
 		}
 	}
-	if policyNode == nil {
+	// append only when name length don't exceed
+	if policyNode == nil && !isHttpPolNameLengthExceedAviLimit {
 		policyNode = &AviHttpPolicySetNode{Name: httpPolName, Tenant: lib.GetTenant()}
 		vsNode[0].HttpPolicyRefs = append(vsNode[0].HttpPolicyRefs, policyNode)
 	}
 
 	utils.AviLog.Infof("key: %s, msg: The pathsvc mapping: %v", key, paths)
 	for _, obj := range paths {
+		isPoolNameLenExceedAviLimit := false
+		isPGNameLenExceedAviLimit := false
+
 		var pgNode *AviPoolGroupNode
 		httpPGPath := AviHostPathPortPoolPG{Host: pathFQDNs}
 
@@ -167,43 +180,67 @@ func (o *AviObjectGraph) BuildPoolPGPolicyForDedicatedVS(vsNode []*AviVsNode, na
 			// first, and that is going to mess up the ordering. Hence creating a pool with a different name here. The previous pool will become stale in the process and will get deleted.
 			// An AKO reboot would be required to clean up any stale pools if left behind.
 			poolName = poolName + "--" + lib.PoolNameSuffixForHttpPolToPool
-			httpPGPath.Pool = poolName
+			if lib.CheckObjectNameLength(poolName, lib.Pool) {
+				isPoolNameLenExceedAviLimit = true
+			}
+			if !isPoolNameLenExceedAviLimit {
+				// Add only when pool name is < 255
+				httpPGPath.Pool = poolName
+			}
 			utils.AviLog.Infof("key: %s, msg: using pool name: %s instead of poolgroups for http policy set", key, poolName)
 		} else {
 			pgName := lib.GetSniPGName(ingName, namespace, hostname, obj.Path, infraSettingName, vsNode[0].Dedicated)
-			//var pgfound bool
+			if lib.CheckObjectNameLength(pgName, lib.PG) {
+				isPGNameLenExceedAviLimit = true
+			}
 			pgNode, pgfound = localPGList[pgName]
 			if !pgfound {
 				pgNode = &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
 			}
 			localPGList[pgName] = pgNode
-			httpPGPath.PoolGroup = pgNode.Name
+			if !isPGNameLenExceedAviLimit {
+				httpPGPath.PoolGroup = pgNode.Name
+			}
 			pgNode.AviMarkers = lib.PopulatePGNodeMarkers(namespace, hostname, infraSettingName, []string{ingName}, []string{obj.Path})
 		}
 		var storedHosts []string
 		storedHosts = append(storedHosts, hostname)
 		poolNode := buildPoolNode(key, poolName, ingName, namespace, priorityLabel, hostname, infraSetting, obj.ServiceName, storedHosts, insecureEdgeTermAllow, obj)
+		isPoolNameLenExceedAviLimit = false
+		if lib.CheckObjectNameLength(poolNode.Name, lib.Pool) {
+			isPoolNameLenExceedAviLimit = true
+		}
 		if !lib.GetNoPGForSNI() || !isIngr {
 			pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
+
 			ratio := obj.weight
-			pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, Ratio: &ratio})
-			if vsNode[0].CheckPGNameNChecksum(pgNode.Name, pgNode.GetCheckSum()) {
-				vsNode[0].ReplaceSniPGInSNINode(pgNode, key)
+			if !isPoolNameLenExceedAviLimit {
+				pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, Ratio: &ratio})
+			}
+			// if PG name exceeds limit, do not add it to vs node
+			if isPGNameLenExceedAviLimit || vsNode[0].CheckPGNameNChecksum(pgNode.Name, pgNode.GetCheckSum()) {
+				vsNode[0].ReplaceSniPGInSNINode(pgNode, key, isPGNameLenExceedAviLimit)
 			}
 		}
-		if vsNode[0].CheckPoolNChecksum(poolNode.Name, poolNode.GetCheckSum()) {
+		if isPoolNameLenExceedAviLimit || vsNode[0].CheckPoolNChecksum(poolNode.Name, poolNode.GetCheckSum()) {
 			// Replace the poolNode.
-			vsNode[0].ReplaceSniPoolInSNINode(poolNode, key)
+			vsNode[0].ReplaceSniPoolInSNINode(poolNode, key, isPoolNameLenExceedAviLimit)
 		}
 		if !pgfound {
 			pathSet.Insert(obj.Path)
+			isHPPNameLengthExceedAviLimit := false
 			hppMapName := lib.GetSniHppMapName(ingName, namespace, hostname, obj.Path, infraSettingName, vsNode[0].Dedicated)
+			if lib.CheckObjectNameLength(hppMapName, lib.HTTPPS) {
+				isHPPNameLengthExceedAviLimit = true
+			}
 			httpPGPath.Name = hppMapName
 			httpPGPath.IngName = ingName
-			policyNode.AviMarkers = lib.PopulateHTTPPolicysetNodeMarkers(namespace, hostname, infraSettingName, ingressNameSet.List(), pathSet.List())
+			if !isHttpPolNameLengthExceedAviLimit {
+				policyNode.AviMarkers = lib.PopulateHTTPPolicysetNodeMarkers(namespace, hostname, infraSettingName, ingressNameSet.List(), pathSet.List())
+			}
 			httpPGPath.CalculateCheckSum()
-			if vsNode[0].CheckHttpPolNameNChecksum(httpPolName, hppMapName, httpPGPath.Checksum) {
-				vsNode[0].ReplaceSniHTTPRefInSNINode(httpPGPath, httpPolName, key)
+			if isHPPNameLengthExceedAviLimit || vsNode[0].CheckHttpPolNameNChecksum(httpPolName, hppMapName, httpPGPath.Checksum) {
+				vsNode[0].ReplaceSniHTTPRefInSNINode(httpPGPath, httpPolName, key, isHPPNameLengthExceedAviLimit)
 			}
 		}
 		BuildPoolHTTPRule(hostname, obj.Path, ingName, namespace, infraSettingName, key, vsNode[0], true, vsNode[0].Dedicated)
@@ -276,6 +313,11 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 			// Processsing insecure ingress
 			if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, hostname) {
 				vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, hostname)
+			}
+			// Check poolname length, if >255, don't add it.
+			if lib.CheckObjectNameLength(poolName, lib.Pool) {
+				// as this object will not be created at AviController, continue from here.
+				continue
 			}
 			poolNode := buildPoolNode(key, poolName, ingName, namespace, priorityLabel, hostname, infraSetting, serviceName, storedHosts, insecureEdgeTermAllow, obj)
 			vsNode[0].PoolRefs = append(vsNode[0].PoolRefs, poolNode)
