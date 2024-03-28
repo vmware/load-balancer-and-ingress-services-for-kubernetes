@@ -9,10 +9,10 @@ package models
 type CfgState struct {
 
 	// cfg-version synced to follower. . Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	CfgVersion uint32 `json:"cfg_version,omitempty"`
+	CfgVersion *uint32 `json:"cfg_version,omitempty"`
 
 	// cfg-version in flight to follower. . Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	CfgVersionInFlight uint32 `json:"cfg_version_in_flight,omitempty"`
+	CfgVersionInFlight *uint32 `json:"cfg_version_in_flight,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LastChangedTime *TimeStamp `json:"last_changed_time,omitempty"`

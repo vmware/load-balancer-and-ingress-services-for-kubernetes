@@ -41,6 +41,6 @@ type AzureConfiguration struct {
 	// Use Azure managed disks for SE storage. Field introduced in 17.2.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UseManagedDisks *bool `json:"use_managed_disks,omitempty"`
 
-	// Use Standard SKU Azure Load Balancer. By default Basic SKU Load Balancer is used. Field introduced in 17.2.7. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// Use Standard SKU Azure Load Balancer. By default Standard SKU Load Balancer is used. Field introduced in 17.2.7. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UseStandardAlb *bool `json:"use_standard_alb,omitempty"`
 }

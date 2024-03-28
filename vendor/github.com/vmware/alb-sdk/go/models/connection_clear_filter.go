@@ -12,5 +12,5 @@ type ConnectionClearFilter struct {
 	IPAddr *string `json:"ip_addr,omitempty"`
 
 	// Port number. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Port uint32 `json:"port,omitempty"`
+	Port *uint32 `json:"port,omitempty"`
 }

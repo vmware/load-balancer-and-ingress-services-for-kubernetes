@@ -27,22 +27,22 @@ type WafLog struct {
 	ApplicationRulesProcessed *bool `json:"application_rules_processed,omitempty"`
 
 	// Latency (in microseconds) in WAF Request Body Phase. Field introduced in 17.2.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	LatencyRequestBodyPhase uint64 `json:"latency_request_body_phase,omitempty"`
+	LatencyRequestBodyPhase *uint64 `json:"latency_request_body_phase,omitempty"`
 
 	// Latency (in microseconds) in WAF Request Header Phase. Field introduced in 17.2.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	LatencyRequestHeaderPhase uint64 `json:"latency_request_header_phase,omitempty"`
+	LatencyRequestHeaderPhase *uint64 `json:"latency_request_header_phase,omitempty"`
 
 	// Latency (in microseconds) in WAF Response Body Phase. Field introduced in 17.2.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	LatencyResponseBodyPhase uint64 `json:"latency_response_body_phase,omitempty"`
+	LatencyResponseBodyPhase *uint64 `json:"latency_response_body_phase,omitempty"`
 
 	// Latency (in microseconds) in WAF Response Header Phase. Field introduced in 17.2.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	LatencyResponseHeaderPhase uint64 `json:"latency_response_header_phase,omitempty"`
+	LatencyResponseHeaderPhase *uint64 `json:"latency_response_header_phase,omitempty"`
 
 	// Indicate if this request is used for learning. If it is not used, this field contains the reason for this decision. Enum options - NOT_ACTIVE, LEARNED, NOTHING_TO_LEARN, SERVER_ERROR, FLAGGED_BY_WAF, SKIPPED_BY_SAMPLING, CLIENT_IS_NOT_AUTHENTICATED, CLIENT_IS_NOT_TRUSTED, CLIENT_IS_A_BOT, ERROR. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	LearningStatus *string `json:"learning_status,omitempty"`
 
 	// The total memory (in bytes) consumed by WAF to process this request. Field introduced in 22.1.1. Unit is BYTES. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	MemoryAllocated uint64 `json:"memory_allocated,omitempty"`
+	MemoryAllocated *uint64 `json:"memory_allocated,omitempty"`
 
 	// Omitted Application rule log stats. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	OmittedAppRuleStats *OmittedWafLogStats `json:"omitted_app_rule_stats,omitempty"`

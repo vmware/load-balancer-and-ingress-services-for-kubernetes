@@ -15,7 +15,7 @@ type AttackMetaData struct {
 	IP *string `json:"ip,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxRespTime uint32 `json:"max_resp_time,omitempty"`
+	MaxRespTime *uint32 `json:"max_resp_time,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	URL *string `json:"url,omitempty"`

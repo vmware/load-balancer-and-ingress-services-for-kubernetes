@@ -12,5 +12,5 @@ type AttackDNSAmplification struct {
 	RecordType *string `json:"record_type,omitempty"`
 
 	// The source port for the DNS query. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	SrcPort uint32 `json:"src_port,omitempty"`
+	SrcPort *uint32 `json:"src_port,omitempty"`
 }

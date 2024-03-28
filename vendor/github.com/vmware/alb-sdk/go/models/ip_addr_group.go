@@ -31,7 +31,7 @@ type IPAddrGroup struct {
 	MarathonAppName *string `json:"marathon_app_name,omitempty"`
 
 	// Task port associated with marathon service port. If Marathon app has multiple service ports, this is required. Else, the first task port is used. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MarathonServicePort uint32 `json:"marathon_service_port,omitempty"`
+	MarathonServicePort *uint32 `json:"marathon_service_port,omitempty"`
 
 	// List of labels to be used for granular RBAC. Field introduced in 20.1.5. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
 	Markers []*RoleFilterMatchLabel `json:"markers,omitempty"`

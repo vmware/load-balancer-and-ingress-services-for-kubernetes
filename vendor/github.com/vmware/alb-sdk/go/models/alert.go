@@ -78,10 +78,10 @@ type Alert struct {
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Threshold uint32 `json:"threshold,omitempty"`
+	Threshold *uint32 `json:"threshold,omitempty"`
 
 	// Number of times it was throttled. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ThrottleCount uint32 `json:"throttle_count,omitempty"`
+	ThrottleCount *uint32 `json:"throttle_count,omitempty"`
 
 	// Unix Timestamp of the last throttling in seconds. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true

@@ -49,7 +49,7 @@ type PoolGroup struct {
 	Members []*PoolGroupMember `json:"members,omitempty"`
 
 	// The minimum number of servers to distribute traffic to. Allowed values are 1-65535. Special values are 0 - Disable. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 0), Basic edition(Allowed values- 0), Enterprise with Cloud Services edition.
-	MinServers uint32 `json:"min_servers,omitempty"`
+	MinServers *uint32 `json:"min_servers,omitempty"`
 
 	// The name of the pool group. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true

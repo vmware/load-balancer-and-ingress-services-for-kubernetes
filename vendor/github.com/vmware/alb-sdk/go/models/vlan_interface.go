@@ -25,7 +25,7 @@ type VlanInterface struct {
 	IsMgmt *bool `json:"is_mgmt,omitempty"`
 
 	// VLAN ID. Allowed values are 0-4096. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	VlanID uint32 `json:"vlan_id,omitempty"`
+	VlanID *uint32 `json:"vlan_id,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VnicNetworks []*VNICNetwork `json:"vnic_networks,omitempty"`

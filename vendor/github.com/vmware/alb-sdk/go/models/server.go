@@ -49,7 +49,7 @@ type Server struct {
 	Port *int32 `json:"port,omitempty"`
 
 	// Preference order of this member in the group. The DNS Service chooses the member with the lowest preference that is operationally up. Allowed values are 1-128. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
-	PreferenceOrder uint32 `json:"preference_order,omitempty"`
+	PreferenceOrder *uint32 `json:"preference_order,omitempty"`
 
 	// Header value for custom header persistence. . Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	PrstHdrVal *string `json:"prst_hdr_val,omitempty"`

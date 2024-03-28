@@ -18,7 +18,7 @@ type VsScaleOutEventDetails struct {
 	Ip6 *string `json:"ip6,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	RPCStatus uint64 `json:"rpc_status,omitempty"`
+	RPCStatus *uint64 `json:"rpc_status,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ScaleStatus *ScaleStatus `json:"scale_status,omitempty"`

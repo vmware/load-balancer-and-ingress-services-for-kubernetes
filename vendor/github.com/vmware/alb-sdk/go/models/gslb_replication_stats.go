@@ -9,11 +9,11 @@ package models
 type GslbReplicationStats struct {
 
 	// Last config version acknowledged. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	AcknowledgedVersion uint64 `json:"acknowledged_version,omitempty"`
+	AcknowledgedVersion *uint64 `json:"acknowledged_version,omitempty"`
 
 	// Number of pending objects. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	PendingObjectCount uint64 `json:"pending_object_count,omitempty"`
+	PendingObjectCount *uint64 `json:"pending_object_count,omitempty"`
 
 	// Last config version received. On leader, this represents the version received from federated datastore. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ReceivedVersion uint64 `json:"received_version,omitempty"`
+	ReceivedVersion *uint64 `json:"received_version,omitempty"`
 }

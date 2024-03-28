@@ -37,7 +37,7 @@ type Pool struct {
 	CapacityEstimation *bool `json:"capacity_estimation,omitempty"`
 
 	// The maximum time-to-first-byte of a server. Allowed values are 1-5000. Special values are 0 - Automatic. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 0), Basic edition(Allowed values- 0), Enterprise with Cloud Services edition.
-	CapacityEstimationTtfbThresh uint32 `json:"capacity_estimation_ttfb_thresh,omitempty"`
+	CapacityEstimationTtfbThresh *uint32 `json:"capacity_estimation_ttfb_thresh,omitempty"`
 
 	// Checksum of cloud configuration for Pool. Internally set by cloud connector. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CloudConfigCksum *string `json:"cloud_config_cksum,omitempty"`
@@ -146,10 +146,10 @@ type Pool struct {
 	MaxConnRatePerServer *RateProfile `json:"max_conn_rate_per_server,omitempty"`
 
 	// Minimum number of health monitors in UP state to mark server UP. Field introduced in 18.2.1, 17.2.12. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	MinHealthMonitorsUp uint32 `json:"min_health_monitors_up,omitempty"`
+	MinHealthMonitorsUp *uint32 `json:"min_health_monitors_up,omitempty"`
 
 	// Minimum number of servers in UP state for marking the pool UP. Field introduced in 18.2.1, 17.2.12. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MinServersUp uint32 `json:"min_servers_up,omitempty"`
+	MinServersUp *uint32 `json:"min_servers_up,omitempty"`
 
 	// The name of the pool. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
@@ -198,7 +198,7 @@ type Pool struct {
 	ServerReselect *HttpserverReselect `json:"server_reselect,omitempty"`
 
 	// Server timeout value specifies the time within which a server connection needs to be established and a request-response exchange completes between AVI and the server. Value of 0 results in using default timeout of 60 minutes. Allowed values are 0-21600000. Field introduced in 18.1.5,18.2.1. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ServerTimeout uint32 `json:"server_timeout,omitempty"`
+	ServerTimeout *uint32 `json:"server_timeout,omitempty"`
 
 	// The pool directs load balanced traffic to this list of destination servers. The servers can be configured by IP address, name, network or via IP Address Group. Maximum of 5000 items allowed. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Servers []*Server `json:"servers,omitempty"`

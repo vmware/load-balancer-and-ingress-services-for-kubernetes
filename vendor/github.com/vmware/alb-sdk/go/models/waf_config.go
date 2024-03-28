@@ -27,7 +27,7 @@ type WafConfig struct {
 	ContentTypeMappings []*WafContentTypeMapping `json:"content_type_mappings,omitempty"`
 
 	// 0  For Netscape Cookies. 1  For version 1 cookies. Allowed values are 0-1. Field introduced in 17.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	CookieFormatVersion uint32 `json:"cookie_format_version,omitempty"`
+	CookieFormatVersion *uint32 `json:"cookie_format_version,omitempty"`
 
 	// Ignore request body parsing errors due to partial scanning. Field introduced in 18.1.5, 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IgnoreIncompleteRequestBodyError *bool `json:"ignore_incomplete_request_body_error,omitempty"`

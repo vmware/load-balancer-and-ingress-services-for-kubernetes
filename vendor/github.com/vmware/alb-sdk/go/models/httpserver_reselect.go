@@ -19,7 +19,7 @@ type HttpserverReselect struct {
 	RetryNonidempotent *bool `json:"retry_nonidempotent,omitempty"`
 
 	// Timeout per retry attempt, for a given request. Value of 0 indicates default timeout. Allowed values are 0-3600000. Field introduced in 18.1.5,18.2.1. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	RetryTimeout uint32 `json:"retry_timeout,omitempty"`
+	RetryTimeout *uint32 `json:"retry_timeout,omitempty"`
 
 	// Server response codes which will trigger an HTTP request retry. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SvrRespCode *HTTPReselectRespCode `json:"svr_resp_code,omitempty"`

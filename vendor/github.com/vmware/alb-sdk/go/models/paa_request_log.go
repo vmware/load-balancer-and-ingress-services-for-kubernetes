@@ -24,13 +24,13 @@ type PaaRequestLog struct {
 	PoolName *string `json:"pool_name,omitempty"`
 
 	// The response code received from the PingAccess server. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ResponseCode uint32 `json:"response_code,omitempty"`
+	ResponseCode *uint32 `json:"response_code,omitempty"`
 
 	// The IP of the server that was sent the request. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ServerIP uint32 `json:"server_ip,omitempty"`
+	ServerIP *uint32 `json:"server_ip,omitempty"`
 
 	// Number of servers tried during server reselect before the response is sent back. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ServersTried uint32 `json:"servers_tried,omitempty"`
+	ServersTried *uint32 `json:"servers_tried,omitempty"`
 
 	// The uri of the request. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	URIPath *string `json:"uri_path,omitempty"`

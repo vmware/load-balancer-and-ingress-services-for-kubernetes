@@ -9,7 +9,7 @@ package models
 type ParamSizeClass struct {
 
 	//  Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Hits uint64 `json:"hits,omitempty"`
+	Hits *uint64 `json:"hits,omitempty"`
 
 	//  Enum options - EMPTY, SMALL, MEDIUM, LARGE, UNLIMITED. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Len *string `json:"len,omitempty"`

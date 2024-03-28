@@ -9,7 +9,7 @@ package models
 type BurstLicenseDetails struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Cores uint32 `json:"cores,omitempty"`
+	Cores *uint32 `json:"cores,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EndTime *string `json:"end_time,omitempty"`

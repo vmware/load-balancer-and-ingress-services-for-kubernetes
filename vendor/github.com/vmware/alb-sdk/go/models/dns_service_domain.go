@@ -16,5 +16,5 @@ type DNSServiceDomain struct {
 	PassThrough *bool `json:"pass_through,omitempty"`
 
 	// TTL value for DNS records. Allowed values are 1-604800. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	RecordTTL uint32 `json:"record_ttl,omitempty"`
+	RecordTTL *uint32 `json:"record_ttl,omitempty"`
 }

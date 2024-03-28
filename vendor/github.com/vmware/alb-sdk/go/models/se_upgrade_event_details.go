@@ -12,7 +12,7 @@ type SeUpgradeEventDetails struct {
 	Notes []string `json:"notes,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	NumVs uint32 `json:"num_vs,omitempty"`
+	NumVs *uint32 `json:"num_vs,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeGrpUUID *string `json:"se_grp_uuid,omitempty"`

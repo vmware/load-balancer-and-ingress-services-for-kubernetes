@@ -63,7 +63,7 @@ type SeAgentProperties struct {
 	DpRegPendingMaxWaitTime *uint32 `json:"dp_reg_pending_max_wait_time,omitempty"`
 
 	//  Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	HeadlessTimeoutSec uint32 `json:"headless_timeout_sec,omitempty"`
+	HeadlessTimeoutSec *uint32 `json:"headless_timeout_sec,omitempty"`
 
 	// Deprecated in 21.1.3. Use config in ServiceEngineGroup instead. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IgnoreDockerMacChange *bool `json:"ignore_docker_mac_change,omitempty"`

@@ -15,7 +15,7 @@ type ALBServicesFileDownloadMetadata struct {
 	ChecksumType *string `json:"checksum_type,omitempty"`
 
 	// Checksum size in bytes. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	ChunkSize uint64 `json:"chunk_size,omitempty"`
+	ChunkSize *uint64 `json:"chunk_size,omitempty"`
 
 	// Whether the file can be downloaded in parts or not. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	// Required: true
