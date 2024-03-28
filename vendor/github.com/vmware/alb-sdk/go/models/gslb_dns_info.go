@@ -18,5 +18,5 @@ type GslbDNSInfo struct {
 	GsStatus *GslbDNSGsStatus `json:"gs_status,omitempty"`
 
 	// This field is used to track the retry attempts for SE download errors. . Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	RetryCount uint32 `json:"retry_count,omitempty"`
+	RetryCount *uint32 `json:"retry_count,omitempty"`
 }

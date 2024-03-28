@@ -15,5 +15,5 @@ type LearningLogPolicy struct {
 	Host *string `json:"host,omitempty"`
 
 	// Port number for the service listening for learning logs. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	Port uint32 `json:"port,omitempty"`
+	Port *uint32 `json:"port,omitempty"`
 }

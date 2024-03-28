@@ -22,5 +22,5 @@ type DNSAttack struct {
 	MitigationAction *AttackMitigationAction `json:"mitigation_action,omitempty"`
 
 	// Threshold, in terms of DNS packet per second, for the DNS attack vector. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Threshold uint64 `json:"threshold,omitempty"`
+	Threshold *uint64 `json:"threshold,omitempty"`
 }

@@ -172,7 +172,7 @@ type AnalyticsProfile struct {
 	HsMinDosRate *uint32 `json:"hs_min_dos_rate,omitempty"`
 
 	// Adds free performance score credits to health score. It can be used for compensating health score for known slow applications. Allowed values are 0-100. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 0), Basic edition(Allowed values- 0), Enterprise with Cloud Services edition.
-	HsPerformanceBoost uint32 `json:"hs_performance_boost,omitempty"`
+	HsPerformanceBoost *uint32 `json:"hs_performance_boost,omitempty"`
 
 	// Threshold number of connections in 5min, below which apdexr, apdexc, rum_apdex, and other network quality metrics are not computed. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 10), Basic edition(Allowed values- 10), Enterprise with Cloud Services edition.
 	HsPscoreTrafficThresholdL4Client *float64 `json:"hs_pscore_traffic_threshold_l4_client,omitempty"`

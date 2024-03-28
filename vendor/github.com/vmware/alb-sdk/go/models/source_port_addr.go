@@ -12,8 +12,8 @@ type SourcePortAddr struct {
 	MatchOperation *string `json:"match_operation,omitempty"`
 
 	// TCP/UDP port range end (inclusive). Allowed values are 1-65535. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	SrcPortEnd uint32 `json:"src_port_end,omitempty"`
+	SrcPortEnd *uint32 `json:"src_port_end,omitempty"`
 
 	// TCP/UDP port range start (inclusive). Allowed values are 1-65535. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	SrcPortStart uint32 `json:"src_port_start,omitempty"`
+	SrcPortStart *uint32 `json:"src_port_start,omitempty"`
 }

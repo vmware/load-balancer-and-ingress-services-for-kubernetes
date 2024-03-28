@@ -12,16 +12,16 @@ type SeHighIngressProcLatencyEventDetails struct {
 	DispatcherCore []int64 `json:"dispatcher_core,omitempty,omitempty"`
 
 	// Number of events in a 30 second interval. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	EventCount uint64 `json:"event_count,omitempty"`
+	EventCount *uint64 `json:"event_count,omitempty"`
 
 	// Proxy core which processed the packet. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	FlowCore uint32 `json:"flow_core,omitempty"`
+	FlowCore *uint32 `json:"flow_core,omitempty"`
 
 	// Proxy dequeue latency. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxDispToProxyQueingDelay uint32 `json:"max_disp_to_proxy_queing_delay,omitempty"`
+	MaxDispToProxyQueingDelay *uint32 `json:"max_disp_to_proxy_queing_delay,omitempty"`
 
 	// Dispatcher processing latency. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxDispatcherProcTime uint32 `json:"max_dispatcher_proc_time,omitempty"`
+	MaxDispatcherProcTime *uint32 `json:"max_dispatcher_proc_time,omitempty"`
 
 	// SE name. It is a reference to an object of type ServiceEngine. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeName *string `json:"se_name,omitempty"`

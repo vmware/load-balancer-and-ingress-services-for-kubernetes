@@ -35,15 +35,15 @@ type VirtualService struct {
 	AzureAvailabilitySet *string `json:"azure_availability_set,omitempty"`
 
 	// LOCAL_PREF to be used for VsVip advertised. Applicable only over iBGP. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
-	BgpLocalPreference uint32 `json:"bgp_local_preference,omitempty"`
+	BgpLocalPreference *uint32 `json:"bgp_local_preference,omitempty"`
 
 	// Number of times the local AS should be prepended additionally to VsVip. Applicable only over eBGP. Allowed values are 1-10. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
-	BgpNumAsPathPrepend uint32 `json:"bgp_num_as_path_prepend,omitempty"`
+	BgpNumAsPathPrepend *uint32 `json:"bgp_num_as_path_prepend,omitempty"`
 
 	// Select BGP peers, using peer label, for VsVip advertisement. Field introduced in 20.1.5. Maximum of 128 items allowed. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	BgpPeerLabels []string `json:"bgp_peer_labels,omitempty"`
 
-	// Bot detection policy for the Virtual Service. It is a reference to an object of type BotDetectionPolicy. Field introduced in 21.1.1.
+	// Bot detection policy for the Virtual Service. It is a reference to an object of type BotDetectionPolicy. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	BotPolicyRef *string `json:"bot_policy_ref,omitempty"`
 
 	// (This is a beta feature). Sync Key-Value cache to the new SEs when VS is scaled out. For ex  SSL sessions are stored using VS's Key-Value cache. When the VS is scaled out, the SSL session information is synced to the new SE, allowing existing SSL sessions to be reused on the new SE. . Field introduced in 17.2.7, 18.1.1. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- false), Basic edition(Allowed values- false), Enterprise with Cloud Services edition.
@@ -146,13 +146,13 @@ type VirtualService struct {
 	Markers []*RoleFilterMatchLabel `json:"markers,omitempty"`
 
 	// Maximum connections per second per client IP. Allowed values are 10-1000. Special values are 0- unlimited. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxCpsPerClient uint32 `json:"max_cps_per_client,omitempty"`
+	MaxCpsPerClient *uint32 `json:"max_cps_per_client,omitempty"`
 
 	// Microservice representing the virtual service. It is a reference to an object of type MicroService. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	MicroserviceRef *string `json:"microservice_ref,omitempty"`
 
 	// Minimum number of UP pools to mark VS up. Field introduced in 18.2.1, 17.2.12. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MinPoolsUp uint32 `json:"min_pools_up,omitempty"`
+	MinPoolsUp *uint32 `json:"min_pools_up,omitempty"`
 
 	// Name for the Virtual Service. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true

@@ -9,7 +9,7 @@ package models
 type SeMigrateEventDetails struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	NumVs uint32 `json:"num_vs,omitempty"`
+	NumVs *uint32 `json:"num_vs,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reason []string `json:"reason,omitempty"`

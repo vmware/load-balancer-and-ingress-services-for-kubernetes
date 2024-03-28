@@ -15,7 +15,7 @@ type PoolDeploymentSuccessInfo struct {
 	PrevInServicePoolRef *string `json:"prev_in_service_pool_ref,omitempty"`
 
 	// Operational traffic ratio for the pool. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Ratio uint32 `json:"ratio,omitempty"`
+	Ratio *uint32 `json:"ratio,omitempty"`
 
 	// List of results for each deployment rule. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Results []*PGDeploymentRuleResult `json:"results,omitempty"`

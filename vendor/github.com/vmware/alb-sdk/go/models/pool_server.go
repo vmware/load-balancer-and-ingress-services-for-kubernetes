@@ -16,5 +16,5 @@ type PoolServer struct {
 	IP *IPAddr `json:"ip"`
 
 	// Port of the pool server listening for HTTP/HTTPS. Default value is the default port in the pool. Allowed values are 1-65535. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Port uint32 `json:"port,omitempty"`
+	Port *uint32 `json:"port,omitempty"`
 }

@@ -9,7 +9,7 @@ package models
 type HealthScoreDetails struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	AnomalyPenalty uint32 `json:"anomaly_penalty,omitempty"`
+	AnomalyPenalty *uint32 `json:"anomaly_penalty,omitempty"`
 
 	// Reason for Anomaly Penalty. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AnomalyReason *string `json:"anomaly_reason,omitempty"`
@@ -28,19 +28,19 @@ type HealthScoreDetails struct {
 	Reason *string `json:"reason,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ResourcesPenalty uint32 `json:"resources_penalty,omitempty"`
+	ResourcesPenalty *uint32 `json:"resources_penalty,omitempty"`
 
 	// Reason for Resources Penalty. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ResourcesReason *string `json:"resources_reason,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SecurityPenalty uint32 `json:"security_penalty,omitempty"`
+	SecurityPenalty *uint32 `json:"security_penalty,omitempty"`
 
 	// Reason for Security Threat Level. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SecurityReason *string `json:"security_reason,omitempty"`
 
 	// The step interval in seconds. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Step uint32 `json:"step,omitempty"`
+	Step *uint32 `json:"step,omitempty"`
 
 	// Resource prefix containing entity information. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SubResourcePrefix *string `json:"sub_resource_prefix,omitempty"`

@@ -17,5 +17,5 @@ type HTTPLocalFile struct {
 	FileContent *string `json:"file_content"`
 
 	// File content length. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
-	FileLength uint32 `json:"file_length,omitempty"`
+	FileLength *uint32 `json:"file_length,omitempty"`
 }

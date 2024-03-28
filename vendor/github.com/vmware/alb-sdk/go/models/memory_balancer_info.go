@@ -21,13 +21,13 @@ type MemoryBalancerInfo struct {
 	DebugMessage *string `json:"debug_message,omitempty"`
 
 	// Limit on the memory (in KB) for the Process. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Limit uint32 `json:"limit,omitempty"`
+	Limit *uint32 `json:"limit,omitempty"`
 
 	// Amount of memory (in KB) used by the Process. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MemoryUsed uint32 `json:"memory_used,omitempty"`
+	MemoryUsed *uint32 `json:"memory_used,omitempty"`
 
 	// PID of the Process. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Pid uint32 `json:"pid,omitempty"`
+	Pid *uint32 `json:"pid,omitempty"`
 
 	// Name of the Process. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Process *string `json:"process,omitempty"`

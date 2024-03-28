@@ -55,14 +55,14 @@ type GslbService struct {
 	Markers []*RoleFilterMatchLabel `json:"markers,omitempty"`
 
 	// The minimum number of members to distribute traffic to. Allowed values are 1-65535. Special values are 0 - Disable. Field introduced in 17.2.4. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MinMembers uint32 `json:"min_members,omitempty"`
+	MinMembers *uint32 `json:"min_members,omitempty"`
 
 	// Name for the GSLB service. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Name *string `json:"name"`
 
 	// Number of IP addresses of this GSLB service to be returned by the DNS Service. Enter 0 to return all IP addresses. Allowed values are 1-20. Special values are 0- Return all IP addresses. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	NumDNSIP uint32 `json:"num_dns_ip,omitempty"`
+	NumDNSIP *uint32 `json:"num_dns_ip,omitempty"`
 
 	// PKI profile associated with the Gslb Service. It is a reference to an object of type PKIProfile. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	PkiProfileRef *string `json:"pki_profile_ref,omitempty"`
@@ -83,7 +83,7 @@ type GslbService struct {
 	TopologyPolicyEnabled *bool `json:"topology_policy_enabled,omitempty"`
 
 	// TTL value (in seconds) for records served for this GSLB service by the DNS Service. Allowed values are 0-86400. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	TTL uint32 `json:"ttl,omitempty"`
+	TTL *uint32 `json:"ttl,omitempty"`
 
 	// url
 	// Read Only: true

@@ -15,7 +15,7 @@ type UpgradeReadinessCheckObj struct {
 	ChecksCompleted *int32 `json:"checks_completed,omitempty"`
 
 	// Time taken to complete upgrade readiness checks in seconds. Field introduced in 22.1.3. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	Duration uint32 `json:"duration,omitempty"`
+	Duration *uint32 `json:"duration,omitempty"`
 
 	// Time at which execution of upgrade readiness checks was completed. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	EndTime *string `json:"end_time,omitempty"`
@@ -35,6 +35,6 @@ type UpgradeReadinessCheckObj struct {
 	// Total no. of checks. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	TotalChecks *int32 `json:"total_checks,omitempty"`
 
-	// Upgrade operations along with type requested such as UpgradeSystem UpgradeController etc. Enum options - UPGRADE, PATCH, ROLLBACK, ROLLBACKPATCH, SEGROUP_RESUME, EVAL_UPGRADE, EVAL_PATCH, EVAL_ROLLBACK, EVAL_ROLLBACKPATCH, EVAL_SEGROUP_RESUME. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Upgrade operations along with type requested such as UpgradeSystem UpgradeController etc. Enum options - UPGRADE, PATCH, ROLLBACK, ROLLBACKPATCH, SEGROUP_RESUME, EVAL_UPGRADE, EVAL_PATCH, EVAL_ROLLBACK, EVAL_ROLLBACKPATCH, EVAL_SEGROUP_RESUME, EVAL_RESTORE, RESTORE. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	UpgradeOps *string `json:"upgrade_ops,omitempty"`
 }

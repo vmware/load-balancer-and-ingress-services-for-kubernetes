@@ -78,6 +78,12 @@ type VNIC struct {
 	//  It is a reference to an object of type Network. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NetworkRef *string `json:"network_ref,omitempty"`
 
+	// User defined value for RX descriptor ring size, expressed as power of 2. Setting a value of 0 implies the default value for that environment. (Tech-Preview, vCenter only). Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	NumRxDescriptors *uint32 `json:"num_rx_descriptors,omitempty"`
+
+	// User defined value for TX descriptor ring size, expressed as power of 2. Setting a value of 0 implies the default value for that environment. (Tech-Preview, vCenter only). Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	NumTxDescriptors *uint32 `json:"num_tx_descriptors,omitempty"`
+
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PciID *string `json:"pci_id,omitempty"`
 
@@ -94,7 +100,7 @@ type VNIC struct {
 	VnicNetworks []*VNICNetwork `json:"vnic_networks,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	VrfID uint32 `json:"vrf_id,omitempty"`
+	VrfID *uint32 `json:"vrf_id,omitempty"`
 
 	//  It is a reference to an object of type VrfContext. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VrfRef *string `json:"vrf_ref,omitempty"`

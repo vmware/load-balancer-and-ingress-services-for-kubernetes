@@ -15,7 +15,7 @@ type OperationalStatus struct {
 	Reason []string `json:"reason,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ReasonCode uint64 `json:"reason_code,omitempty"`
+	ReasonCode *uint64 `json:"reason_code,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ReasonCodeString *string `json:"reason_code_string,omitempty"`

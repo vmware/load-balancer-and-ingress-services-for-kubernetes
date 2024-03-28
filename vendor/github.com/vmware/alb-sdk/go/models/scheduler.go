@@ -25,7 +25,7 @@ type Scheduler struct {
 	EndDateTime *string `json:"end_date_time,omitempty"`
 
 	// Frequency at which CUSTOM scheduler will run. Allowed values are 0-60. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Frequency uint32 `json:"frequency,omitempty"`
+	Frequency *uint32 `json:"frequency,omitempty"`
 
 	// Unit at which CUSTOM scheduler will run. Enum options - SCHEDULER_FREQUENCY_UNIT_MIN, SCHEDULER_FREQUENCY_UNIT_HOUR, SCHEDULER_FREQUENCY_UNIT_DAY, SCHEDULER_FREQUENCY_UNIT_WEEK, SCHEDULER_FREQUENCY_UNIT_MONTH. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FrequencyUnit *string `json:"frequency_unit,omitempty"`

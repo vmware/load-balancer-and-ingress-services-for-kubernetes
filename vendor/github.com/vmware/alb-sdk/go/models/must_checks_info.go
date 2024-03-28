@@ -14,14 +14,17 @@ type MustChecksInfo struct {
 	// Reason for must check failure. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Description *string `json:"description,omitempty"`
 
-	// Additional details of the must check failure. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Additional details of the must check. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Details []string `json:"details,omitempty"`
 
 	// Time taken to complete must check in seconds. Field introduced in 22.1.3. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	Duration uint32 `json:"duration,omitempty"`
+	Duration *uint32 `json:"duration,omitempty"`
 
 	// Time at which execution of must check was completed. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	EndTime *string `json:"end_time,omitempty"`
+
+	// Error/Failure details of the must check. Field introduced in 22.1.6. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	ErrorDetails []string `json:"error_details,omitempty"`
 
 	// Time at which execution of must check was started. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	StartTime *string `json:"start_time,omitempty"`

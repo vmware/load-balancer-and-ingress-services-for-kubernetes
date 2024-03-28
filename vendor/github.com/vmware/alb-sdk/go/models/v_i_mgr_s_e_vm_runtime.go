@@ -52,10 +52,10 @@ type VIMgrSEVMRuntime struct {
 	DiscoveryResponse *string `json:"discovery_response,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DiscoveryStatus uint32 `json:"discovery_status,omitempty"`
+	DiscoveryStatus *uint32 `json:"discovery_status,omitempty"`
 
 	// Disk space in GB for each service engine VM. Field introduced in 18.2.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DiskGb uint32 `json:"disk_gb,omitempty"`
+	DiskGb *uint32 `json:"disk_gb,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Flavor *string `json:"flavor,omitempty"`
@@ -82,18 +82,21 @@ type VIMgrSEVMRuntime struct {
 	InitVnics *int32 `json:"init_vnics,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	LastDiscovery uint32 `json:"last_discovery,omitempty"`
+	LastDiscovery *uint32 `json:"last_discovery,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	ManagedObjectID *string `json:"managed_object_id"`
 
 	// Memory in MB for each service engine VM. Field introduced in 18.2.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MemoryMb uint32 `json:"memory_mb,omitempty"`
+	MemoryMb *uint32 `json:"memory_mb,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Name *string `json:"name"`
+
+	// If set to true for NSXT cloud, controller should not hotplug the VNICs. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	NsxtNoHotplug *bool `json:"nsxt_no_hotplug,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Powerstate *string `json:"powerstate,omitempty"`
@@ -158,7 +161,7 @@ type VIMgrSEVMRuntime struct {
 	VcenterVMType *string `json:"vcenter_vm_type,omitempty"`
 
 	// Count of vcpus for each service engine VM. Field introduced in 18.2.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Vcpus uint32 `json:"vcpus,omitempty"`
+	Vcpus *uint32 `json:"vcpus,omitempty"`
 
 	// VSphere HA on cluster enabled or not. Field introduced in 20.1.7, 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	VsphereHaEnabled *bool `json:"vsphere_ha_enabled,omitempty"`

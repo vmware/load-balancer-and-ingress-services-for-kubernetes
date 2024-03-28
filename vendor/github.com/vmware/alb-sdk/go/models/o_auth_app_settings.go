@@ -13,8 +13,7 @@ type OAuthAppSettings struct {
 	ClientID *string `json:"client_id"`
 
 	// Application specific identifier secret. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	// Required: true
-	ClientSecret *string `json:"client_secret"`
+	ClientSecret *string `json:"client_secret,omitempty"`
 
 	// OpenID Connect specific configuration. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	OidcConfig *OIDCConfig `json:"oidc_config,omitempty"`

@@ -19,7 +19,7 @@ type MicroServiceContainer struct {
 	IP *IPAddr `json:"ip"`
 
 	// Port nunber of the instance. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Port uint32 `json:"port,omitempty"`
+	Port *uint32 `json:"port,omitempty"`
 
 	// Marathon Task ID of the instance. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TaskID *string `json:"task_id,omitempty"`

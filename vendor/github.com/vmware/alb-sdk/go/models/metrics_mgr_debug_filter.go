@@ -17,7 +17,7 @@ type MetricsMgrDebugFilter struct {
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Entity *string `json:"entity,omitempty"`
 
-	// setting to reduce the grace period for license expiry in hours. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// Setting to reduce the grace period for license expiry in hours. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LicenseGracePeriod *string `json:"license_grace_period,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
@@ -28,6 +28,9 @@ type MetricsMgrDebugFilter struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MetricInstanceID *string `json:"metric_instance_id,omitempty"`
+
+	// Setting to change the number of queries being processed by per DB connection by Metrics Manager. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	MinDbQueriesEachConn *string `json:"min_db_queries_each_conn,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Obj *string `json:"obj,omitempty"`

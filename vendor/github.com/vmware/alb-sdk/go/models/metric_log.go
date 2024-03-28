@@ -19,7 +19,7 @@ type MetricLog struct {
 	ReportTimestamp *float64 `json:"report_timestamp,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Step uint32 `json:"step,omitempty"`
+	Step *uint32 `json:"step,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TimeSeries *MetricsQueryResponse `json:"time_series,omitempty"`

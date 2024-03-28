@@ -9,7 +9,7 @@ package models
 type LicenseDetails struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	BackendServers uint32 `json:"backend_servers,omitempty"`
+	BackendServers *uint32 `json:"backend_servers,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ExpiryAt *string `json:"expiry_at,omitempty"`

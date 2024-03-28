@@ -9,7 +9,7 @@ package models
 type SSLExpireDetails struct {
 
 	// Number of days until certificate is expired. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DaysLeft uint32 `json:"days_left,omitempty"`
+	DaysLeft *uint32 `json:"days_left,omitempty"`
 
 	// Name of SSL Certificate. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`

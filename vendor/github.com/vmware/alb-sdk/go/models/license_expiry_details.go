@@ -9,13 +9,13 @@ package models
 type LicenseExpiryDetails struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	BackendServers uint32 `json:"backend_servers,omitempty"`
+	BackendServers *uint32 `json:"backend_servers,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	BurstCores uint32 `json:"burst_cores,omitempty"`
+	BurstCores *uint32 `json:"burst_cores,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Cores uint32 `json:"cores,omitempty"`
+	Cores *uint32 `json:"cores,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CPUCores *float64 `json:"cpu_cores,omitempty"`
@@ -33,10 +33,10 @@ type LicenseExpiryDetails struct {
 	LicenseType *string `json:"license_type,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxApps uint32 `json:"max_apps,omitempty"`
+	MaxApps *uint32 `json:"max_apps,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxSes uint32 `json:"max_ses,omitempty"`
+	MaxSes *uint32 `json:"max_ses,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`
@@ -45,8 +45,8 @@ type LicenseExpiryDetails struct {
 	ServiceCores *float64 `json:"service_cores,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Sockets uint32 `json:"sockets,omitempty"`
+	Sockets *uint32 `json:"sockets,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Throughput uint32 `json:"throughput,omitempty"`
+	Throughput *uint32 `json:"throughput,omitempty"`
 }

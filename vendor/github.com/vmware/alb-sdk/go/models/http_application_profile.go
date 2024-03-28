@@ -81,7 +81,7 @@ type HTTPApplicationProfile struct {
 	HTTPToHTTPS *bool `json:"http_to_https,omitempty"`
 
 	// Size of HTTP buffer in kB. Allowed values are 1-256. Special values are 0- Auto compute the size of buffer. Field introduced in 20.1.1. Unit is KB. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 0), Basic edition(Allowed values- 0), Enterprise with Cloud Services edition.
-	HTTPUpstreamBufferSize uint32 `json:"http_upstream_buffer_size,omitempty"`
+	HTTPUpstreamBufferSize *uint32 `json:"http_upstream_buffer_size,omitempty"`
 
 	// Mark HTTP cookies as HTTPonly.  This helps mitigate cross site scripting attacks as browsers will not allow these cookies to be read by third parties, such as javascript. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- false), Basic edition(Allowed values- false), Enterprise with Cloud Services edition.
 	HttponlyEnabled *bool `json:"httponly_enabled,omitempty"`
@@ -93,13 +93,13 @@ type HTTPApplicationProfile struct {
 	KeepaliveTimeout *int32 `json:"keepalive_timeout,omitempty"`
 
 	// Maximum bad requests per second per client IP. Allowed values are 10-1000. Special values are 0- unlimited. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxBadRpsCip uint32 `json:"max_bad_rps_cip,omitempty"`
+	MaxBadRpsCip *uint32 `json:"max_bad_rps_cip,omitempty"`
 
 	// Maximum bad requests per second per client IP and URI. Allowed values are 10-1000. Special values are 0- unlimited. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxBadRpsCipURI uint32 `json:"max_bad_rps_cip_uri,omitempty"`
+	MaxBadRpsCipURI *uint32 `json:"max_bad_rps_cip_uri,omitempty"`
 
 	// Maximum bad requests per second per URI. Allowed values are 10-1000. Special values are 0- unlimited. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxBadRpsURI uint32 `json:"max_bad_rps_uri,omitempty"`
+	MaxBadRpsURI *uint32 `json:"max_bad_rps_uri,omitempty"`
 
 	// Maximum number of headers allowed in HTTP request and response. Allowed values are 0-4096. Special values are 0- unlimited headers in request and response. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 0), Basic edition(Allowed values- 0), Enterprise with Cloud Services edition. Special default for Essentials edition is 0, Basic edition is 0, Enterprise is 256.
 	MaxHeaderCount *int32 `json:"max_header_count,omitempty"`
@@ -111,19 +111,19 @@ type HTTPApplicationProfile struct {
 	MaxResponseHeadersSize *int32 `json:"max_response_headers_size,omitempty"`
 
 	// Maximum requests per second per client IP. Allowed values are 10-1000. Special values are 0- unlimited. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxRpsCip uint32 `json:"max_rps_cip,omitempty"`
+	MaxRpsCip *uint32 `json:"max_rps_cip,omitempty"`
 
 	// Maximum requests per second per client IP and URI. Allowed values are 10-1000. Special values are 0- unlimited. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxRpsCipURI uint32 `json:"max_rps_cip_uri,omitempty"`
+	MaxRpsCipURI *uint32 `json:"max_rps_cip_uri,omitempty"`
 
 	// Maximum unknown client IPs per second. Allowed values are 10-1000. Special values are 0- unlimited. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxRpsUnknownCip uint32 `json:"max_rps_unknown_cip,omitempty"`
+	MaxRpsUnknownCip *uint32 `json:"max_rps_unknown_cip,omitempty"`
 
 	// Maximum unknown URIs per second. Allowed values are 10-1000. Special values are 0- unlimited. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxRpsUnknownURI uint32 `json:"max_rps_unknown_uri,omitempty"`
+	MaxRpsUnknownURI *uint32 `json:"max_rps_unknown_uri,omitempty"`
 
 	// Maximum requests per second per URI. Allowed values are 10-1000. Special values are 0- unlimited. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxRpsURI uint32 `json:"max_rps_uri,omitempty"`
+	MaxRpsURI *uint32 `json:"max_rps_uri,omitempty"`
 
 	// Pass through X-ACCEL headers. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	PassThroughXAccelHeaders *bool `json:"pass_through_x_accel_headers,omitempty"`

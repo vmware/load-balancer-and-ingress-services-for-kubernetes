@@ -9,13 +9,13 @@ package models
 type MetricsDbQueueFullEventDetails struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	High uint64 `json:"high,omitempty"`
+	High *uint64 `json:"high,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Instanceport uint64 `json:"instanceport,omitempty"`
+	Instanceport *uint64 `json:"instanceport,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Low uint64 `json:"low,omitempty"`
+	Low *uint64 `json:"low,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Nodeid *string `json:"nodeid,omitempty"`
@@ -27,5 +27,5 @@ type MetricsDbQueueFullEventDetails struct {
 	Runtime *MetricsDbRuntime `json:"runtime,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Watermark uint64 `json:"watermark,omitempty"`
+	Watermark *uint64 `json:"watermark,omitempty"`
 }

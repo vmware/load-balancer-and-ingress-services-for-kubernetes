@@ -23,12 +23,12 @@ type SCTPProxyProfile struct {
 	// SCTP maximum retransmissions for INIT chunks. Allowed values are 1-247483647. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	MaxRetransmissionsInitChunks *int32 `json:"max_retransmissions_init_chunks,omitempty"`
 
-	// Number of incoming SCTP Streams. Allowed values are 1-65535. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Number of incoming SCTP Streams. Allowed values are 1-100. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	NumberOfStreams *int32 `json:"number_of_streams,omitempty"`
 
 	// SCTP send and receive buffer size. Allowed values are 2-65536. Field introduced in 22.1.3. Unit is KB. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	ReceiveWindow *int32 `json:"receive_window,omitempty"`
 
-	// SCTP reset timeout. 0 means 5 times RTO max. Allowed values are 0-247483647. Field introduced in 22.1.3. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// SCTP reset/shutdown guard timeout. 0 means 5 times RTO max. Allowed values are 0-247483647. Field introduced in 22.1.3. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	ResetTimeout *int32 `json:"reset_timeout,omitempty"`
 }

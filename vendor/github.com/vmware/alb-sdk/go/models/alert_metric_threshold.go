@@ -13,5 +13,5 @@ type AlertMetricThreshold struct {
 	Comparator *string `json:"comparator"`
 
 	// Metric threshold for comparison. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Threshold uint32 `json:"threshold,omitempty"`
+	Threshold *uint32 `json:"threshold,omitempty"`
 }

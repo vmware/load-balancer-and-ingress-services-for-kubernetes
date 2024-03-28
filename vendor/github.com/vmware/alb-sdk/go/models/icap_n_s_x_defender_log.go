@@ -9,7 +9,7 @@ package models
 type IcapNSXDefenderLog struct {
 
 	// Score associated with the uploaded file, if known, value is in between 0 and 100. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	Score uint32 `json:"score,omitempty"`
+	Score *uint32 `json:"score,omitempty"`
 
 	// URL to get details from NSXDefender for the request. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	StatusURL *string `json:"status_url,omitempty"`

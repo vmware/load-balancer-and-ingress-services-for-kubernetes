@@ -16,7 +16,7 @@ type AllSeUpgradeEventDetails struct {
 	NumSe *uint32 `json:"num_se"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	NumVs uint32 `json:"num_vs,omitempty"`
+	NumVs *uint32 `json:"num_vs,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Request *SeUpgradeParams `json:"request,omitempty"`

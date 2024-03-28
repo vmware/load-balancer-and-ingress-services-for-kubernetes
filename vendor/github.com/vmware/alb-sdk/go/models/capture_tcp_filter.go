@@ -20,6 +20,6 @@ type CaptureTCPFilter struct {
 	// Source Port range filter. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	SrcPortRange *SourcePortAddr `json:"src_port_range,omitempty"`
 
-	// TCP flags filter. Or'ed internally and And'ed amongst each other. . Field introduced in 30.2.1. Maximum of 4 items allowed. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	Tcpflags []*CaptureTCP `json:"tcpflags,omitempty"`
+	// TCP flags filter. Or'ed internally and And'ed amongst each other. . Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	Tcpflag *CaptureTCPFlags `json:"tcpflag,omitempty"`
 }

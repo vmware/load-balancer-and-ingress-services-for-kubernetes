@@ -9,7 +9,7 @@ package models
 type HSMSafenetLuna struct {
 
 	// Group Number of generated HA Group. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	HaGroupNum uint64 `json:"ha_group_num,omitempty"`
+	HaGroupNum *uint64 `json:"ha_group_num,omitempty"`
 
 	// Set to indicate HA across more than one servers. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true

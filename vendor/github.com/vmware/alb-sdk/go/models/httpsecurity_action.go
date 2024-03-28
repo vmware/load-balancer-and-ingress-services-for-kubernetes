@@ -16,7 +16,7 @@ type HttpsecurityAction struct {
 	File *HTTPLocalFile `json:"file,omitempty"`
 
 	// Secure SSL/TLS port to redirect the HTTP request to. Allowed values are 1-65535. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	HTTPSPort uint32 `json:"https_port,omitempty"`
+	HTTPSPort *uint32 `json:"https_port,omitempty"`
 
 	// Rate limiting configuration for this action. Field introduced in 18.2.9. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	RateProfile *HttpsecurityActionRateProfile `json:"rate_profile,omitempty"`

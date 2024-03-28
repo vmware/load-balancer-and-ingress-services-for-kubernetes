@@ -30,10 +30,10 @@ type PortalConfiguration struct {
 	EnableHTTPS *bool `json:"enable_https,omitempty"`
 
 	// HTTP port. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	HTTPPort uint32 `json:"http_port,omitempty"`
+	HTTPPort *uint32 `json:"http_port,omitempty"`
 
 	// HTTPS port. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	HTTPSPort uint32 `json:"https_port,omitempty"`
+	HTTPSPort *uint32 `json:"https_port,omitempty"`
 
 	// Minimum password length for user accounts. Allowed values are 6-32. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	MinimumPasswordLength *uint32 `json:"minimum_password_length,omitempty"`

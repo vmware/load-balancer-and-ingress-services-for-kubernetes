@@ -313,7 +313,7 @@ func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRuleHdrAction(key string, action 
 	hdrAction.Action = proto.String(action)
 	hdrAction.Hdr = &models.HTTPHdrData{}
 	hdrAction.Hdr.Name = proto.String(header.Name)
-	hdrAction.HdrIndex = headerIndex
+	hdrAction.HdrIndex = &headerIndex
 	if header.Value != "" {
 		hdrAction.Hdr.Value = &models.HTTPHdrValue{}
 		hdrAction.Hdr.Value.IsSensitive = proto.Bool(false)

@@ -22,8 +22,8 @@ type HSMSafenetClientInfo struct {
 	ClientPrivKey *string `json:"client_priv_key,omitempty"`
 
 	// Major number of the sesseion. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SessionMajorNumber uint32 `json:"session_major_number,omitempty"`
+	SessionMajorNumber *uint32 `json:"session_major_number,omitempty"`
 
 	// Minor number of the sesseion. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SessionMinorNumber uint32 `json:"session_minor_number,omitempty"`
+	SessionMinorNumber *uint32 `json:"session_minor_number,omitempty"`
 }

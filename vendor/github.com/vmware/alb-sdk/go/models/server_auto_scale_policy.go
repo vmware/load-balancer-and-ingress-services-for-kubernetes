@@ -16,7 +16,7 @@ type ServerAutoScalePolicy struct {
 	ConfigpbAttributes *ConfigPbAttributes `json:"configpb_attributes,omitempty"`
 
 	// Delay in minutes after which a down server will be removed from Pool. Value 0 disables this functionality. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	DelayForServerGarbageCollection uint32 `json:"delay_for_server_garbage_collection,omitempty"`
+	DelayForServerGarbageCollection *uint32 `json:"delay_for_server_garbage_collection,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Description *string `json:"description,omitempty"`
@@ -40,10 +40,10 @@ type ServerAutoScalePolicy struct {
 	MaxScaleoutAdjustmentStep *uint32 `json:"max_scaleout_adjustment_step,omitempty"`
 
 	// Maximum number of servers after scale-out. Allowed values are 0-400. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxSize uint32 `json:"max_size,omitempty"`
+	MaxSize *uint32 `json:"max_size,omitempty"`
 
 	// No scale-in happens once number of operationally up servers reach min_servers. Allowed values are 0-400. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MinSize uint32 `json:"min_size,omitempty"`
+	MinSize *uint32 `json:"min_size,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
