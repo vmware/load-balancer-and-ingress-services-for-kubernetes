@@ -866,6 +866,8 @@ func AviSettingToRoute(infraSettingName, namespace, key string) ([]string, bool)
 	for _, route := range routes {
 		if routeObj, isRoute := route.(*routev1.Route); isRoute {
 			RouteChanges(routeObj.Name, routeObj.Namespace, key)
+			routeNSName := routeObj.Namespace + "/" + routeObj.Name
+			allRoutes = append(allRoutes, routeNSName)
 		}
 	}
 
