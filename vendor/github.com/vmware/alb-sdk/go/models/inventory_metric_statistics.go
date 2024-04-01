@@ -18,5 +18,5 @@ type InventoryMetricStatistics struct {
 	Min *float64 `json:"min,omitempty"`
 
 	// Number of actual data samples. It excludes fake data. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	NumSamples uint32 `json:"num_samples,omitempty"`
+	NumSamples *uint32 `json:"num_samples,omitempty"`
 }

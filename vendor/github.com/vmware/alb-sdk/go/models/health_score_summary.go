@@ -9,7 +9,7 @@ package models
 type HealthScoreSummary struct {
 
 	//  Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	AnomalyPenalty uint32 `json:"anomaly_penalty,omitempty"`
+	AnomalyPenalty *uint32 `json:"anomaly_penalty,omitempty"`
 
 	//  Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	HealthScore *float64 `json:"health_score,omitempty"`
@@ -18,8 +18,8 @@ type HealthScoreSummary struct {
 	PerformanceScore *HealthScorePerformanceData `json:"performance_score,omitempty"`
 
 	//  Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	ResourcesPenalty uint32 `json:"resources_penalty,omitempty"`
+	ResourcesPenalty *uint32 `json:"resources_penalty,omitempty"`
 
 	//  Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	SecurityPenalty uint32 `json:"security_penalty,omitempty"`
+	SecurityPenalty *uint32 `json:"security_penalty,omitempty"`
 }

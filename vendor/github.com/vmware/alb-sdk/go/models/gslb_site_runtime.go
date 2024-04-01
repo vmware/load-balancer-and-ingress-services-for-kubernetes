@@ -9,7 +9,7 @@ package models
 type GslbSiteRuntime struct {
 
 	// This field shadows glb_cfg.clear_on_max_retries. Field introduced in 17.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ClearOnMaxRetries uint32 `json:"clear_on_max_retries,omitempty"`
+	ClearOnMaxRetries *uint32 `json:"clear_on_max_retries,omitempty"`
 
 	// This field tracks the glb-uuid. Field introduced in 17.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	GlbUUID *string `json:"glb_uuid,omitempty"`
@@ -24,7 +24,7 @@ type GslbSiteRuntime struct {
 	RxedSiteHs *GslbSiteHealthStatus `json:"rxed_site_hs,omitempty"`
 
 	// Frequency with which group members communicate. This field shadows glb_cfg.send_interval. Field introduced in 17.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SendInterval uint32 `json:"send_interval,omitempty"`
+	SendInterval *uint32 `json:"send_interval,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SiteCfg *GslbSiteRuntimeCfg `json:"site_cfg,omitempty"`
@@ -39,5 +39,5 @@ type GslbSiteRuntime struct {
 	TenantName *string `json:"tenant_name,omitempty"`
 
 	// This field shadows the glb_cfg.view_id.  . Field introduced in 17.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ViewID uint64 `json:"view_id,omitempty"`
+	ViewID *uint64 `json:"view_id,omitempty"`
 }

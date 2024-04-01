@@ -36,13 +36,13 @@ type SeBootupProperties struct {
 	SeDpCompression *SeBootupCompressionProperties `json:"se_dp_compression,omitempty"`
 
 	// Deprecated in 21.1.3. Use config in ServiceEngineGroup instead. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 0), Basic edition(Allowed values- 0), Enterprise with Cloud Services edition.
-	SeEmulatedCores uint32 `json:"se_emulated_cores,omitempty"`
+	SeEmulatedCores *uint32 `json:"se_emulated_cores,omitempty"`
 
 	// Determines if SE-SE IPC messages are encapsulated in an IP header   Note  This field has been moved to se_group properties 20.1.3 onwards.    0        Automatically determine based on hypervisor type    1        Use IP encap unconditionally    ~[0,1]   Don't use IP encap. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SeIPEncapIpc uint32 `json:"se_ip_encap_ipc,omitempty"`
+	SeIPEncapIpc *uint32 `json:"se_ip_encap_ipc,omitempty"`
 
 	// Determines if SE-SE IPC messages use SE interface IP instead of VIP    Note  This field has been moved to se_group properties 20.1.3 onwards.    0        Automatically determine based on hypervisor type    1        Use SE interface IP unconditionally    ~[0,1]   Don't use SE interface IP. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SeL3EncapIpc uint32 `json:"se_l3_encap_ipc,omitempty"`
+	SeL3EncapIpc *uint32 `json:"se_l3_encap_ipc,omitempty"`
 
 	// Deprecated in 21.1.1. Internal flag that blocks dataplane until all application logs are flushed to log-agent process. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeLogBufferAppBlockingDequeue *bool `json:"se_log_buffer_app_blocking_dequeue,omitempty"`

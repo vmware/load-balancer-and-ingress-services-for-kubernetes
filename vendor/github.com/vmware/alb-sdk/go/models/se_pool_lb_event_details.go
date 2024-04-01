@@ -8,7 +8,7 @@ package models
 // swagger:model SePoolLbEventDetails
 type SePoolLbEventDetails struct {
 
-	// Reason code for load balancing failure. Enum options - PERSISTENT_SERVER_INVALID, PERSISTENT_SERVER_DOWN, SRVR_DOWN, ADD_PENDING, SLOW_START_MAX_CONN, MAX_CONN, NO_LPORT, SUSPECT_STATE, MAX_CONN_RATE, CAPEST_RAND_MAX_CONN, GET_NEXT. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// Reason code for load balancing failure. Enum options - PERSISTENT_SERVER_INVALID, PERSISTENT_SERVER_DOWN, SRVR_DOWN, ADD_PENDING, SLOW_START_MAX_CONN, MAX_CONN, NO_LPORT, SUSPECT_STATE, MAX_CONN_RATE, CAPEST_RAND_MAX_CONN, GET_NEXT, PERSISTENT_SERVER_DISABLED. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FailureCode *string `json:"failure_code,omitempty"`
 
 	// Pool name. It is a reference to an object of type Pool. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.

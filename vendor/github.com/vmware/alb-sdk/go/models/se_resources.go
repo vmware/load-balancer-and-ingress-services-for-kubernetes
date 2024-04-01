@@ -26,7 +26,7 @@ type SeResources struct {
 	Memory *int32 `json:"memory"`
 
 	// Indicates the number of active datapath processes. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	NumDatapathProcesses uint32 `json:"num_datapath_processes,omitempty"`
+	NumDatapathProcesses *uint32 `json:"num_datapath_processes,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true

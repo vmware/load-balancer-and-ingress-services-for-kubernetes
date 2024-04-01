@@ -8,7 +8,7 @@ package models
 // swagger:model SamlIdentityProviderSettings
 type SamlIdentityProviderSettings struct {
 
-	// The interval to query and download SAML IDP metadata using the metadata URL. Allowed values are 0-10080. Field introduced in 30.2.1. Unit is MIN. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// The interval to query and download SAML IDP metadata using the metadata URL. Allowed values are 1-10080. Field introduced in 30.2.1. Unit is MIN. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	MetaDataDownloadInterval *int32 `json:"meta_data_download_interval,omitempty"`
 
 	// SAML IDP metadata. Field introduced in 17.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.

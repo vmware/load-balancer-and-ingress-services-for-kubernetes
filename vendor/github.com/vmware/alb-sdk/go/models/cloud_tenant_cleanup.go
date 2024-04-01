@@ -15,14 +15,14 @@ type CloudTenantCleanup struct {
 	Name *string `json:"name,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	NumPorts uint32 `json:"num_ports,omitempty"`
+	NumPorts *uint32 `json:"num_ports,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	NumSe uint32 `json:"num_se,omitempty"`
+	NumSe *uint32 `json:"num_se,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	NumSecgrp uint32 `json:"num_secgrp,omitempty"`
+	NumSecgrp *uint32 `json:"num_secgrp,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	NumSvrgrp uint32 `json:"num_svrgrp,omitempty"`
+	NumSvrgrp *uint32 `json:"num_svrgrp,omitempty"`
 }

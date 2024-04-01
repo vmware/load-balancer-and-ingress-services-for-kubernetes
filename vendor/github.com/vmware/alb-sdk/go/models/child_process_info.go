@@ -9,8 +9,8 @@ package models
 type ChildProcessInfo struct {
 
 	// Amount of memory (in MB) used by the sub process. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Memory uint32 `json:"memory,omitempty"`
+	Memory *uint32 `json:"memory,omitempty"`
 
 	// Process Id of the sub process. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Pid uint32 `json:"pid,omitempty"`
+	Pid *uint32 `json:"pid,omitempty"`
 }

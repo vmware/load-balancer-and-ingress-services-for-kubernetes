@@ -37,7 +37,7 @@ type AuthProfile struct {
 	// OAuth Profile - Common endpoint information. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	OauthProfile *OAuthProfile `json:"oauth_profile,omitempty"`
 
-	// PingAccessAgent uuid. It is a reference to an object of type PingAccessAgent. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// PingAccessAgent uuid. It is a reference to an object of type PingAccessAgent. Field deprecated in 30.2.1. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	PaAgentRef *string `json:"pa_agent_ref,omitempty"`
 
 	// SAML settings. Field introduced in 17.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
@@ -49,7 +49,7 @@ type AuthProfile struct {
 	//  It is a reference to an object of type Tenant. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
-	// Type of the Auth Profile. Enum options - AUTH_PROFILE_LDAP, AUTH_PROFILE_TACACS_PLUS, AUTH_PROFILE_SAML, AUTH_PROFILE_PINGACCESS, AUTH_PROFILE_JWT, AUTH_PROFILE_OAUTH. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// Type of the Auth Profile. Enum options - AUTH_PROFILE_LDAP, AUTH_PROFILE_TACACS_PLUS, AUTH_PROFILE_SAML, AUTH_PROFILE_PINGACCESS, AUTH_PROFILE_JWT, AUTH_PROFILE_OAUTH. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- AUTH_PROFILE_LDAP,AUTH_PROFILE_TACACS_PLUS,AUTH_PROFILE_SAML,AUTH_PROFILE_JWT,AUTH_PROFILE_OAUTH), Basic edition(Allowed values- AUTH_PROFILE_LDAP,AUTH_PROFILE_TACACS_PLUS,AUTH_PROFILE_SAML,AUTH_PROFILE_JWT,AUTH_PROFILE_OAUTH), Enterprise with Cloud Services edition.
 	// Required: true
 	Type *string `json:"type"`
 

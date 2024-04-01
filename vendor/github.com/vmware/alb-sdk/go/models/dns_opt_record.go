@@ -15,8 +15,8 @@ type DNSOptRecord struct {
 	Options []*DNSEdnsOption `json:"options,omitempty"`
 
 	// Client requestor's UDP payload size. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	UDPPayloadSize uint32 `json:"udp_payload_size,omitempty"`
+	UDPPayloadSize *uint32 `json:"udp_payload_size,omitempty"`
 
 	// EDNS version. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Version uint32 `json:"version,omitempty"`
+	Version *uint32 `json:"version,omitempty"`
 }

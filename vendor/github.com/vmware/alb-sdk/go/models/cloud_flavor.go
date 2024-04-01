@@ -12,7 +12,7 @@ type CloudFlavor struct {
 	Cost *string `json:"cost,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DiskGb uint32 `json:"disk_gb,omitempty"`
+	DiskGb *uint32 `json:"disk_gb,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EnhancedNw *bool `json:"enhanced_nw,omitempty"`
@@ -25,13 +25,13 @@ type CloudFlavor struct {
 	IsRecommended *bool `json:"is_recommended,omitempty"`
 
 	// Maximum number of IPv6 addresses that can be configured per NIC. Field introduced in 18.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxIP6SPerNic uint32 `json:"max_ip6s_per_nic,omitempty"`
+	MaxIP6SPerNic *uint32 `json:"max_ip6s_per_nic,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxIpsPerNic uint32 `json:"max_ips_per_nic,omitempty"`
+	MaxIpsPerNic *uint32 `json:"max_ips_per_nic,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxNics uint32 `json:"max_nics,omitempty"`
+	MaxNics *uint32 `json:"max_nics,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Meta []*CloudMeta `json:"meta,omitempty"`
@@ -44,8 +44,8 @@ type CloudFlavor struct {
 	Public *bool `json:"public,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	RAMMb uint32 `json:"ram_mb,omitempty"`
+	RAMMb *uint32 `json:"ram_mb,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Vcpus uint32 `json:"vcpus,omitempty"`
+	Vcpus *uint32 `json:"vcpus,omitempty"`
 }

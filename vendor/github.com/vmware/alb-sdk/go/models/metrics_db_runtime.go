@@ -12,26 +12,26 @@ type MetricsDbRuntime struct {
 	DbClientName *string `json:"db_client_name,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DbNumClientQueries uint32 `json:"db_num_client_queries,omitempty"`
+	DbNumClientQueries *uint32 `json:"db_num_client_queries,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DbNumClientResp uint32 `json:"db_num_client_resp,omitempty"`
+	DbNumClientResp *uint32 `json:"db_num_client_resp,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DbNumDbQueries uint32 `json:"db_num_db_queries,omitempty"`
+	DbNumDbQueries *uint32 `json:"db_num_db_queries,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DbNumDbResp uint32 `json:"db_num_db_resp,omitempty"`
+	DbNumDbResp *uint32 `json:"db_num_db_resp,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DbNumOom uint32 `json:"db_num_oom,omitempty"`
+	DbNumOom *uint32 `json:"db_num_oom,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DbQueueSize uint32 `json:"db_queue_size,omitempty"`
+	DbQueueSize *uint32 `json:"db_queue_size,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DbRumQueries uint32 `json:"db_rum_queries,omitempty"`
+	DbRumQueries *uint32 `json:"db_rum_queries,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DbRumRows uint32 `json:"db_rum_rows,omitempty"`
+	DbRumRows *uint32 `json:"db_rum_rows,omitempty"`
 }

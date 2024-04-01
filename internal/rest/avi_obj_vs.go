@@ -145,7 +145,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			svc := avimodels.Service{
 				Port:         &port,
 				EnableSsl:    &vs_meta.PortProto[i].EnableSSL,
-				PortRangeEnd: port,
+				PortRangeEnd: &port,
 				EnableHttp2:  &vs_meta.PortProto[i].EnableHTTP2,
 			}
 			if vs_meta.NetworkProfile == utils.MIXED_NET_PROFILE {

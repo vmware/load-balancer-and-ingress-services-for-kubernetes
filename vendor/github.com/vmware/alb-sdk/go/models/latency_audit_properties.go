@@ -12,11 +12,11 @@ type LatencyAuditProperties struct {
 	ConnEstAuditMode *string `json:"conn_est_audit_mode,omitempty"`
 
 	// Deprecated in 22.1.1. Field introduced in 21.1.1. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	ConnEstThreshold uint32 `json:"conn_est_threshold,omitempty"`
+	ConnEstThreshold *uint32 `json:"conn_est_threshold,omitempty"`
 
 	// Deprecated in 22.1.1. Enum options - LATENCY_AUDIT_OFF, LATENCY_AUDIT_ON, LATENCY_AUDIT_ON_WITH_SIG. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	LatencyAuditMode *string `json:"latency_audit_mode,omitempty"`
 
 	// Deprecated in 22.1.1. Field introduced in 21.1.1. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	LatencyThreshold uint32 `json:"latency_threshold,omitempty"`
+	LatencyThreshold *uint32 `json:"latency_threshold,omitempty"`
 }

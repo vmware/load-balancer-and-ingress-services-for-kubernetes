@@ -9,7 +9,7 @@ package models
 type GslbConfig struct {
 
 	// Frequency with which messages are propagated to Vs Mgr. Value of 0 disables async behavior and RPC are sent inline. Allowed values are 0-5. Field introduced in 22.1.1. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	AsyncInterval uint32 `json:"async_interval,omitempty"`
+	AsyncInterval *uint32 `json:"async_interval,omitempty"`
 
 	// Max retries after which the remote site is treated as a fresh start. In fresh start all the configs are downloaded. Allowed values are 1-1024. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	ClearOnMaxRetries *uint32 `json:"clear_on_max_retries,omitempty"`
@@ -56,5 +56,5 @@ type GslbConfig struct {
 	UUID *string `json:"uuid,omitempty"`
 
 	// The view-id is used in change-leader mode to differentiate partitioned groups while they have the same GSLB namespace. Each partitioned group will be able to operate independently by using the view-id. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	ViewID uint64 `json:"view_id,omitempty"`
+	ViewID *uint64 `json:"view_id,omitempty"`
 }

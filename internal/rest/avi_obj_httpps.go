@@ -188,7 +188,8 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 		protocol := "HTTPS"
 		redirect_action.StatusCode = &hppmap.StatusCode
 		redirect_action.Protocol = &protocol
-		redirect_action.Port = uint32(hppmap.RedirectPort)
+		port := uint32(hppmap.RedirectPort)
+		redirect_action.Port = &port
 		var j int32
 		j = idx
 		rule := avimodels.HTTPRequestRule{Enable: &enable, Index: &j,
