@@ -119,12 +119,15 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 		utils.AviLog.Infof("key: %s, msg: adding PG %s for the passthrough VS: %s", key, pgName, secureSharedVS.Name)
 		utils.AviLog.Debugf("key: %s, Number of PGs %d, Added PG node %s", key, len(dsNode.PoolGroupRefs), utils.Stringify(pgNode.Members))
 	}
-
+	isPGNameExceedsAviLimit := false
+	if lib.CheckObjectNameLength(pgName, lib.PG) {
+		isPGNameExceedsAviLimit = true
+	}
 	// only add the pg node if not presesnt in the VS
-	if !utils.HasElem(secureSharedVS.PoolGroupRefs, pgNode) {
+	if !utils.HasElem(secureSharedVS.PoolGroupRefs, pgNode) && !isPGNameExceedsAviLimit {
 		secureSharedVS.PoolGroupRefs = append(secureSharedVS.PoolGroupRefs, pgNode)
 	}
-	if !utils.HasElem(dsNode.PoolGroupRefs, pgName) {
+	if !utils.HasElem(dsNode.PoolGroupRefs, pgName) && !isPGNameExceedsAviLimit {
 		dsNode.PoolGroupRefs = append(dsNode.PoolGroupRefs, pgName)
 	}
 
@@ -196,6 +199,10 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 	pgNode.Members = nil
 	// add the pool in the vs and pg members
 	for _, poolNode := range tmpPoolList {
+		if lib.CheckObjectNameLength(poolNode.Name, lib.PG) {
+			// Do not add if length is > limit
+			continue
+		}
 		secureSharedVS.PoolRefs = append(secureSharedVS.PoolRefs, poolNode)
 		ratio := poolNode.ServiceMetadata.PoolRatio
 		poolRef := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)

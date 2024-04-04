@@ -143,7 +143,10 @@ func (o *AviObjectGraph) ConstructShardVsPGNode(vsName string, key string, vsNod
 	pgName := lib.GetL7SharedPGName(vsName)
 	pgNode := &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant(), ImplicitPriorityLabel: true}
 	pgNode.AttachedToSharedVS = vsNode.SharedVS
-	vsNode.PoolGroupRefs = append(vsNode.PoolGroupRefs, pgNode)
+	if !lib.CheckObjectNameLength(pgName, lib.PG) {
+		// append only when name < Avi limit
+		vsNode.PoolGroupRefs = append(vsNode.PoolGroupRefs, pgNode)
+	}
 	o.AddModelNode(pgNode)
 	return pgNode
 }
@@ -153,14 +156,20 @@ func (o *AviObjectGraph) ConstructHTTPDataScript(vsName string, key string, vsNo
 	evt := utils.VS_DATASCRIPT_EVT_HTTP_REQ
 	var poolGroupRefs []string
 	pgName := lib.GetL7SharedPGName(vsName)
-	poolGroupRefs = append(poolGroupRefs, pgName)
+	if !lib.CheckObjectNameLength(pgName, lib.PG) {
+		// append when length is less than limit
+		poolGroupRefs = append(poolGroupRefs, pgName)
+	}
 	dsName := lib.GetL7InsecureDSName(vsName)
 	script := &DataScript{Script: scriptStr, Evt: evt}
 	dsScriptNode := &AviHTTPDataScriptNode{Name: dsName, Tenant: lib.GetTenant(), DataScript: script, PoolGroupRefs: poolGroupRefs}
 	if len(dsScriptNode.PoolGroupRefs) > 0 {
 		dsScriptNode.Script = fmt.Sprintf(dsScriptNode.Script, dsScriptNode.PoolGroupRefs[0])
 	}
-	vsNode.HTTPDSrefs = append(vsNode.HTTPDSrefs, dsScriptNode)
+	if !lib.CheckObjectNameLength(dsName, lib.DataScript) {
+		// append when len is less than limit
+		vsNode.HTTPDSrefs = append(vsNode.HTTPDSrefs, dsScriptNode)
+	}
 	o.AddModelNode(dsScriptNode)
 	return dsScriptNode
 }
@@ -345,18 +354,29 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 
 		}
 		httpPolName := lib.GetSniHttpPolName(namespace, host, infraSettingName)
+		isHttpPolNameLengthExceedAviLimit := false
+		if lib.CheckObjectNameLength(httpPolName, lib.HTTPPS) {
+			isHttpPolNameLengthExceedAviLimit = true
+		}
+		// add it over here for httppolicyset
 		for i, http := range tlsNode.HttpPolicyRefs {
 			if http.Name == httpPolName {
-				policyNode = tlsNode.HttpPolicyRefs[i]
+				if !isHttpPolNameLengthExceedAviLimit {
+					policyNode = tlsNode.HttpPolicyRefs[i]
+				} else {
+					// skip if length exceed
+					tlsNode.HttpPolicyRefs = append(tlsNode.HttpPolicyRefs[:i], tlsNode.HttpPolicyRefs[i+1:]...)
+				}
 			}
 		}
-		if policyNode == nil {
+		if policyNode == nil && !isHttpPolNameLengthExceedAviLimit {
 			policyNode = &AviHttpPolicySetNode{Name: httpPolName, Tenant: lib.GetTenant()}
 			tlsNode.HttpPolicyRefs = append(tlsNode.HttpPolicyRefs, policyNode)
 		}
 
 		for _, path := range paths.ingressHPSvc {
-
+			isPoolNameLenExceedAviLimit := false
+			isPGNameLenExceedAviLimit := false
 			httpPGPath := AviHostPathPortPoolPG{Host: pathFQDNs}
 
 			if path.PathType == networkingv1.PathTypeExact {
@@ -390,7 +410,13 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				// first, and that is going to mess up the ordering. Hence creating a pool with a different name here. The previous pool will become stale in the process and will get deleted.
 				// An AKO reboot would be required to clean up any stale pools if left behind.
 				poolName = poolName + "--" + lib.PoolNameSuffixForHttpPolToPool
-				httpPGPath.Pool = poolName
+				if lib.CheckObjectNameLength(poolName, lib.Pool) {
+					isPoolNameLenExceedAviLimit = true
+				}
+				// Do not add pool if poolname exceeds
+				if !isPoolNameLenExceedAviLimit {
+					httpPGPath.Pool = poolName
+				}
 				utils.AviLog.Infof("key: %s, msg: using pool name: %s instead of poolgroups for http policy set", key, poolName)
 			} else {
 				pgName := lib.GetSniPGName(ingName, namespace, host, path.Path, infraSettingName, vsNode[0].Dedicated)
@@ -399,7 +425,13 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 					pgNode = &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
 				}
 				localPGList[pgName] = pgNode
-				httpPGPath.PoolGroup = pgNode.Name
+				// do not add PG if PG name exceeds
+				if lib.CheckObjectNameLength(pgNode.Name, lib.PG) {
+					isPGNameLenExceedAviLimit = true
+				}
+				if !isPGNameLenExceedAviLimit {
+					httpPGPath.PoolGroup = pgNode.Name
+				}
 				pgNode.AviMarkers = lib.PopulatePGNodeMarkers(namespace, host, infraSettingName, []string{ingName}, []string{path.Path})
 			}
 
@@ -456,30 +488,45 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 
 			buildPoolWithInfraSetting(key, poolNode, infraSetting)
 
+			if lib.CheckObjectNameLength(poolNode.Name, lib.Pool) {
+				isPoolNameLenExceedAviLimit = true
+			}
 			if !lib.GetNoPGForSNI() || !isIngr {
 				pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 				ratio := path.weight
-				pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, Ratio: &ratio})
-
-				if tlsNode.CheckPGNameNChecksum(pgNode.Name, pgNode.GetCheckSum()) {
-					tlsNode.ReplaceSniPGInSNINode(pgNode, key)
+				// add pool to pg member if len does not exceed limit
+				if !isPoolNameLenExceedAviLimit {
+					pgNode.Members = append(pgNode.Members, &avimodels.PoolGroupMember{PoolRef: &pool_ref, Ratio: &ratio})
+				}
+				// do not add PG to VS node if len exceeds.
+				if isPGNameLenExceedAviLimit || tlsNode.CheckPGNameNChecksum(pgNode.Name, pgNode.GetCheckSum()) {
+					// This will replace existing pg or will not add new one
+					tlsNode.ReplaceSniPGInSNINode(pgNode, key, isPGNameLenExceedAviLimit)
 				}
 			}
 
-			if tlsNode.CheckPoolNChecksum(poolNode.Name, poolNode.GetCheckSum()) {
+			// add pool check here.
+			if isPoolNameLenExceedAviLimit || tlsNode.CheckPoolNChecksum(poolNode.Name, poolNode.GetCheckSum()) {
 				// Replace the poolNode.
-				tlsNode.ReplaceSniPoolInSNINode(poolNode, key)
+				tlsNode.ReplaceSniPoolInSNINode(poolNode, key, isPoolNameLenExceedAviLimit)
 			}
 			if !pgfound {
 				pathSet.Insert(path.Path)
 				hppMapName := lib.GetSniHppMapName(ingName, namespace, host, path.Path, infraSettingName, vsNode[0].Dedicated)
 				httpPGPath.Name = hppMapName
 				httpPGPath.IngName = ingName
-				policyNode.AviMarkers = lib.PopulateHTTPPolicysetNodeMarkers(namespace, host, infraSettingName, ingressNameSet.List(), pathSet.List())
+				// add markers if policynode exist
+				if !isHttpPolNameLengthExceedAviLimit {
+					policyNode.AviMarkers = lib.PopulateHTTPPolicysetNodeMarkers(namespace, host, infraSettingName, ingressNameSet.List(), pathSet.List())
+				}
 				httpPGPath.CalculateCheckSum()
-
-				if tlsNode.CheckHttpPolNameNChecksum(httpPolName, hppMapName, httpPGPath.Checksum) {
-					tlsNode.ReplaceSniHTTPRefInSNINode(httpPGPath, httpPolName, key)
+				// add httpps check here.
+				isHTTPPGPathNameExceedsAviLimit := false
+				if lib.CheckObjectNameLength(hppMapName, lib.HPPMAP) {
+					isHTTPPGPathNameExceedsAviLimit = true
+				}
+				if isHTTPPGPathNameExceedsAviLimit || tlsNode.CheckHttpPolNameNChecksum(httpPolName, hppMapName, httpPGPath.Checksum) {
+					tlsNode.ReplaceSniHTTPRefInSNINode(httpPGPath, httpPolName, key, isHTTPPGPathNameExceedsAviLimit)
 				}
 			}
 			BuildPoolHTTPRule(host, path.Path, ingName, namespace, infraSettingName, key, tlsNode, true, vsNode[0].Dedicated)
@@ -544,6 +591,10 @@ func (o *AviObjectGraph) BuildPolicyRedirectForVS(vsNode []*AviVsNode, hostnames
 
 func (o *AviObjectGraph) BuildHeaderRewrite(vsNode []*AviVsNode, gslbHost, localHost, key string) {
 	policyname := lib.GetHeaderRewritePolicy(vsNode[0].Name, localHost)
+	if lib.CheckObjectNameLength(policyname, lib.HTTPRewriteRule) {
+		//Do not add ref to VS if name > 255
+		return
+	}
 	rewriteRule := AviHostHeaderRewrite{
 		SourceHost: gslbHost,
 		TargetHost: localHost,
