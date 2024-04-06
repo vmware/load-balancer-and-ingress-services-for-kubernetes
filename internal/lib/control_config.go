@@ -157,6 +157,9 @@ type akoControlConfig struct {
 
 	//Controller VRF Context is stored
 	controllerVRFContext string
+
+	//Prometheus enabled or not
+	isPrometheusEnabled bool
 }
 
 var akoControlConfigInstance *akoControlConfig
@@ -193,6 +196,15 @@ func (c *akoControlConfig) SetAKOInstanceFlag(flag bool) {
 func (c *akoControlConfig) GetAKOInstanceFlag() bool {
 	return c.primaryaAKO
 }
+
+func (c *akoControlConfig) SetAKOPrometheusFlag(flag bool) {
+	c.isPrometheusEnabled = flag
+}
+
+func (c *akoControlConfig) GetAKOAKOPrometheusFlag() bool {
+	return c.isPrometheusEnabled
+}
+
 func (c *akoControlConfig) SetAKOBlockedNSList(nsList []string) {
 	sort.Strings(nsList)
 	val := strings.Join(nsList, ":")

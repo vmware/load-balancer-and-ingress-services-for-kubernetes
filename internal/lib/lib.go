@@ -192,17 +192,17 @@ func RegisterPromMetrics() *prometheus.Registry {
 }
 
 func IncrementQueueCounter(queueName string) {
-	if IsPrometheusEnabled() {
+	if AKOControlConfig().GetAKOAKOPrometheusFlag() {
 		ObjectsInQueue.With(prometheus.Labels{"queuename": queueName}).Inc()
 	}
 }
 func DecrementQueueCounter(queueName string) {
-	if IsPrometheusEnabled() {
+	if AKOControlConfig().GetAKOAKOPrometheusFlag() {
 		ObjectsInQueue.With(prometheus.Labels{"queuename": queueName}).Dec()
 	}
 }
 func IncrementRestOpCouter(restOpMethod, objName string) {
-	if IsPrometheusEnabled() {
+	if AKOControlConfig().GetAKOAKOPrometheusFlag() {
 		TotalRestOp.Inc()
 		RestOpPerKeyType.With(prometheus.Labels{"type": restOpMethod, "key": objName}).Inc()
 	}
@@ -754,14 +754,12 @@ func GetAkoApiServerPort() string {
 	return "8080"
 }
 
-// TODO: Can be optimized by setting up variable at bootup and then do GET for that
-// instead of fetching each time.
 func IsPrometheusEnabled() bool {
 	if ok, _ := strconv.ParseBool(os.Getenv("PROMETHEUS_ENABLED")); ok {
-		utils.AviLog.Debugf("Prometheus is enabled")
+		utils.AviLog.Infof("Prometheus is enabled")
 		return true
 	}
-	utils.AviLog.Debugf("Prometheus is not enabled")
+	utils.AviLog.Infof("Prometheus is not enabled")
 	return false
 }
 
