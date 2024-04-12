@@ -109,6 +109,8 @@ func InitializeAKC() {
 	akoControlConfig.SetAKOInstanceFlag(isPrimaryAKO)
 	akoControlConfig.SetAKOBlockedNSList(lib.GetGlobalBlockedNSList())
 	akoControlConfig.SetControllerVRFContext(lib.GetControllerVRFContext())
+	akoControlConfig.SetAKOPrometheusFlag(lib.IsPrometheusEnabled())
+
 	var crdClient *crd.Clientset
 	var advl4Client *advl4.Clientset
 	var svcAPIClient *svcapi.Clientset
@@ -278,7 +280,7 @@ func InitializeAKC() {
 		utils.AviLog.Fatalf("Avi client not initialized")
 	}
 
-	if lib.IsPrometheusEnabled() {
+	if akoControlConfig.GetAKOAKOPrometheusFlag() {
 		lib.RegisterPromMetrics()
 	}
 	if aviRestClientPool != nil && !avicache.IsAviClusterActive(aviRestClientPool.AviClient[0]) {
