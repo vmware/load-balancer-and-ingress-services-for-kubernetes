@@ -30,39 +30,7 @@ The markers in the drawing are described below:
     5. The pod responds and the request is sent back to the client.
   * Create a Service Engine Group dedicated to a Kubernetes cluster.
 * <i>**Step 3.1**</i>: If your POD CIDRs are routable then you can skip step 2. Ensure that you skip static route syncing in this case using the `disableStaticRouteSync` flag in the `values.yaml` of your helm chart.
-* <i>**Step 4:**</i> Openshift 4.9+.
-
-<!--
-#### Install using helm
-
-  Step 1: Create the `avi-system` namespace:
-
-    kubectl create ns avi-system
-
-  Step 2: Add this repository to your helm CLI
-
-    helm repo add ako https://projects.registry.vmware.com/chartrepo/ako
-
-Use the `values.yaml` from this repository to edit values related to Avi configuration. Values and their corresponding index can be found [here](#parameters).
-
-  Step 3: Search the available charts for AKO Operator
-
-    helm search repo
-
-    NAME                          CHART VERSION APP VERSION DESCRIPTION
-    ako/ako-operator              1.3.1         1.3.1       A helm chart for AKO Operator
-
- Step 4: Install AKO Operator
-
-    helm install  ako/ako-operator  --generate-name --version 1.3.1 -f values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --namespace=avi-system
-
-  Step 5: Check the installation
-
-    helm list -n avi-system
-
-    NAME                       NAMESPACE
-    ako-operator-2889212993     avi-system
--->
+* <i>**Step 4:**</i> Openshift 4.10+.
 
 ### Install on Openshift cluster from OperatorHub using Openshift Container Platform Web Console
 
@@ -72,7 +40,7 @@ Use the `values.yaml` from this repository to edit values related to Avi configu
 
 <i>**Step 3**</i>: Find `AKO Operator` provided by VMware.
 
-<i>**Step 4**</i>: Click `install` and select the 1.10.1 version. The operator will be installed in `avi-system` namespace. The namespace will be created if it doesn't exist.
+<i>**Step 4**</i>: Click `install` and select the 1.11.1 version. The operator will be installed in `avi-system` namespace. The namespace will be created if it doesn't exist.
 
 <i>**Step 5**</i>: Verify installation by checking the pods in `avi-system` namespace.
 
@@ -104,43 +72,20 @@ Or, if using the Openshift client, use
     
     oc delete ns avi-system
 
-<!--
-#### Uninstall using *helm*
+### AKOConfig Custom Resource
 
-To uninstall the AKO operator and the AKO controller, use the following steps:
+AKO Operator manages the AKO Controller. To deploy and manage the controller, it takes in a custom resource object called `AKOConfig`. Please go through the [description](akoconfig.md#AKOConfig-Custom-Resource) to understand the different fields of this object.
 
-*Step 1:* Remove the aviconfig object, this should cleanup all the related artifacts for the AKO controller.
+#### Parameters
 
-    kubectl delete AKOConfig -n avi-system aviconfig
-
-*Step2:* Remove the AKO operator's resources
-
-    helm delete <ako-operator-release-name> -n avi-system
-
- The `ako-operator-release-name` is obtained by doing helm list as shown in the previous step.
-
- **Note** that this step won't remove the `AKOConfig` object. The finalizer called `ako.vmware.com/cleanup` prevents this `AKOConfig` object from getting deleted. So, after `helm delete`, use:
-
-    kubectl edit akoconfig -n avi-system aviconfig
-
-  And, remove the finalizer string: `ako.vmware.com/cleanup`. This step would clean up the `AKOConfig` object too.
-
-*Step 3:* Delete the `avi-system` namespace.
-
-    kubectl delete ns avi-system
--->
-
-## Parameters
-
-The following table lists the configurable parameters of the AKO chart and their default values. Please refer to this link for more details on [each parameter](values.md).
+The following table also lists the configurable fields in the `AKOConfig` object and their default values.
 
 | **Parameter** | **Description** | **Default** |
 | --- | --- | --- |
 | `replicaCount` | Specify the number of replicas for AKO StatefulSet | 1 |
-| `operatorImage.repository` | Specify docker-registry that has the ako operator image | avinetworks/ako-operator |
-| `operatorImage.pullPolicy` | Specify when and how to pull the ako-operator's image | avinetworks/ako-operator |
-| `akoImage.repository` | Specify docker-registry that has the ako image | projects.registry.vmware.com/ako/ako:1.6.1 |
-| `akoImage.pullPolicy` | Specify when and how to pull the ako image | IfNotPresent |
+| `imageRepository` | Specify docker-registry that has the ako image | projects.registry.vmware.com/ako/ako:1.11.1 |
+| `imagePullPolicy` | Specify when and how to pull the ako image | IfNotPresent |
+| `imagePullSecrets` | ImagePullSecrets will add pull secrets to the statefulset for AKO. Required if using secure private container image registry for images. | `Empty List` |
 | `AKOSettings.clusterName` | Unique identifier for the running AKO instance. AKO identifies objects it created on Avi Controller using this param. | **required** |
 | `AKOSettings.fullSyncFrequency` | Full sync frequency | 1800 |
 | `AKOSettings.cniPlugin` | CNI Plugin being used in Openshift cluster. Specify one of: openshift, ovn-kubernetes | **required** for openshift, ovn-kubernetes |
@@ -159,7 +104,7 @@ The following table lists the configurable parameters of the AKO chart and their
 | `AKOSettings.vipPerNamespace` | Enabling this flag would tell AKO to create Parent VS per Namespace in EVH mode  | false |
 | `AKOSettings.useDefaultSecretsOnly` | If this flag is set to true, AKO will only handle default secrets from the namespace where AKO is installed. This flag is applicable only to Openshift clusters. | false |
 | `ControllerSettings.controllerVersion` | Avi Controller version | 18.2.10 |
-| `ControllerSettings.controllerHost` | Specify Avi controller IP or Hostname | `nil` |
+| `ControllerSettings.controllerIP` | Specify Avi controller IP or Hostname | `nil` |
 | `ControllerSettings.cloudName` | Name of the cloud managed in Avi | Default-Cloud |
 | `ControllerSettings.tenantName` | Name of the tenant where all the AKO objects will be created in AVI. | admin |
 | `ControllerSettings.serviceEngineGroupName` | Name of the Service Engine Group | Default-Group |
@@ -168,16 +113,20 @@ The following table lists the configurable parameters of the AKO chart and their
 | `L7Settings.serviceType` | enum NodePort|ClusterIP|NodePortLocal | ClusterIP |
 | `L7Settings.passthroughShardSize` | Control the passthrough virtualservice numbers using this ENUM. ENUMs: LARGE, MEDIUM, SMALL | SMALL |
 | `L7Settings.noPGForSNI`  | Skip using Pool Groups for SNI children | false |
-| `L7Settings.l7ShardingScheme` | Sharding scheme enum values: hostname, namespace | hostname |
 | `L4Settings.defaultDomain` | Specify a default sub-domain for L4 LB services | First domainname found in cloud's dnsprofile |
 | `L4Settings.autoFQDN`  | Specify the layer 4 FQDN format | default |
 | `NetworkSettings.subnetIP` | Subnet IP of the data network | **DEPRECATED** |
 | `NetworkSettings.subnetPrefix` | Subnet Prefix of the data network | **DEPRECATED** |
-| `NetworkSettings.nodeNetworkList` | List of Networks and corresponding CIDR mappings for the K8s nodes. | `Empty List` |
-| `NetworkSettings.vipNetworkList` | List of Network Names and Subnet information for VIP network, multiple networks allowed only for AWS Cloud | **required** |
+| `NetworkSettings.nodeNetworkList` | List of Network Names/UUIDs and corresponding CIDR mappings for the K8s nodes. | `Empty List` |
+| `NetworkSettings.vipNetworkList` | List of Network Names/UUIDs and Subnet information for VIP network, multiple networks allowed only for AWS Cloud | **required** |
 | `NetworkSettings.enableRHI` | Publish route information to BGP peers | false |
 | `NetworkSettings.bgpPeerLabels` | Select BGP peers using bgpPeerLabels, for selective VsVip advertisement. | `Empty List` |
 | `NetworkSettings.nsxtT1LR` | Specify the T1 router for data backend network, applicable only for NSX-T based deployments| `Empty string` |
+| `FeatureGates.gatewayAPI` | FeatureGates is to enable or disable experimental features. GatewayAPI feature gate enables/disables processing of Kubernetes Gateway API CRDs. | false |
+| `GatewayAPI.Image.repository` | Specify docker-registry that has the ako-gateway-api image | projects.registry.vmware.com/ako/ako-gateway-api:1.11.1 |
+| `GatewayAPI.Image.pullPolicy` | Specify when and how to pull the ako-gateway-api image | IfNotPresent |
+| `logFile` | LogFile is the name of the file where ako container will dump its logs | avi.log |
+| `akoGatewayLogFile` | AKOGatewayLogFile is the name of the file where ako-gateway-api container will dump its logs | avi-gw.log |
 | `avicredentials.username` | Avi controller username | empty |
 | `avicredentials.password` | Avi controller password | empty |
 | `avicredentials.authtoken` | Avi controller authentication token | empty |
@@ -187,10 +136,6 @@ The following table lists the configurable parameters of the AKO chart and their
 > `vipNetworkList` is a required field which is used for allocating VirtualService IP by IPAM Provider module.
 
 > Each AKO instance mapped to a given Avi cloud should have a unique clusterName parameter. This would maintain the uniqueness of object naming across Openshift/Kubernetes clusters.
-
-### AKOConfig Custom Resource
-
-AKO Operator manages the AKO Controller. To deploy and manage the controller, it takes in a custom resource object called `AKOConfig`. Please go through the [description](akoconfig.md#AKOConfig-Custom-Resource) to understand the different fields of this object.
 
 #### Deploying the AKO Controller
 

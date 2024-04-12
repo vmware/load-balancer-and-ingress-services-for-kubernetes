@@ -167,6 +167,29 @@ spec:
                   - protocol
                   type: object
                 type: array
+              listenerProperties:
+                items:
+                  properties:
+                    enableSsl:
+                      default: false
+                      description: Enable SSL termination and offload for traffic
+                        from clients.
+                      type: boolean
+                    port:
+                      description: The Virtual Service's port number.
+                      maximum: 65535
+                      minimum: 0
+                      type: integer
+                    protocol:
+                      description: Protocol for the Virtual Service's port.
+                      enum:
+                      - TCP
+                      type: string
+                  required:
+                  - port
+                  - protocol
+                  type: object
+                type: array
               loadBalancerIP:
                 description: LoadBalancer will get created with the IP specified in
                   this field.
@@ -200,6 +223,16 @@ spec:
                 description: Security policy applied on the traffic of the Virtual
                   Service. This policy is used to perform security actions such as
                   Distributed Denial of Service (DDoS) attack mitigation, etc.
+                type: string
+              sslKeyAndCertificateRefs:
+                description: Select or create one or two certificates, EC and/or RSA,
+                  that will be presented to SSL/TLS terminated connections.
+                items:
+                  type: string
+                type: array
+              sslProfileRef:
+                description: Determines the set of SSL versions and ciphers to accept
+                  for SSL/TLS terminated connections.
                 type: string
               vsDatascriptRefs:
                 description: Datascripts applied on the data traffic of the Virtual

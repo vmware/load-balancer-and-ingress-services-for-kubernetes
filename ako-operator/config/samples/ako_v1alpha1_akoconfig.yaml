@@ -6,8 +6,9 @@ metadata:
   name: ako-sample
   namespace: avi-system
 spec:
-  imageRepository: projects.registry.vmware.com/ako/ako:1.10.1
+  imageRepository: projects.registry.vmware.com/ako/ako:1.11.1
   imagePullPolicy: "IfNotPresent"
+  imagePullSecrets: []
   replicaCount: 1 # Defines the number of replicas for AKO Statefulset
   akoSettings:
     enableEvents: true # Enables/disables Event broadcasting via AKO
@@ -98,3 +99,10 @@ spec:
   pvc: ""
   mountPath: "/log"
   logFile: "avi.log"
+  featureGates:
+    gatewayAPI: true
+  gatewayAPI:
+    image:
+      repository: "projects.registry.vmware.com/ako/ako-gateway-api:1.11.1"
+      pullPolicy: "IfNotPresent"
+  akoGatewayLogFile: "avi-gw.log"
