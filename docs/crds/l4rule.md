@@ -57,7 +57,6 @@ A sample L4Rule CRD looks like this:
     sslProfileRef: Custom-L4-SSL-Profile
 ```
 
-**NOTE**: The L4Rule CRD must be configured in the same namespace as the service of type LoadBalancer.
 
 ### Specific usage of L4Rule CRD
 
@@ -66,21 +65,24 @@ The section below walks over the details and associated rules of using each fiel
 
 #### Attaching L4Rule to LoadBalancer type of Services
 
-An L4Rule is applied to a virtual service and pool created from the LoadBalancer type of Services when the l4rule is attached to the service. An L4Rule can be attached by annotating the service with the name of the L4Rule CRD with `ako.vmware.com/l4rule` as the key and `name of the l4rule crd` as the value.
+An L4Rule is applied to a virtual service and pool created from the LoadBalancer type of Services when the l4rule is attached to the service. An L4Rule can be attached by annotating the service with the name of the L4Rule CRD with `ako.vmware.com/l4rule` as the key and `namespace/l4RuleName of the l4rule crd` as the value. Here `namespace` in the `value` field is optional. If `namespace` is not provided, L4Rule, from same namespace as that of LB service, will be attached to LB service.
 
 ```yaml
   metadata:
     annotations:
-      ako.vmware.com/l4rule: <name-of-the-l4-rule-crd>
+      ako.vmware.com/l4rule: <namespace>/<name-of-the-l4-rule-crd>
 ```
 
-Consider the following example showing a service `my-service` of type LoadBalancer annotated with an L4Rule `my-l4-rule`.
+Consider the following examples showing a service `my-service` of type LoadBalancer annotated with an L4Rule `my-l4-rule`.
+
+***Example 1***
 
 ```yaml
   apiVersion: v1
   kind: Service
   metadata:
     name: my-service
+    namespace: green
     annotations:
       ako.vmware.com/l4rule: my-l4-rule
   spec:
@@ -93,6 +95,29 @@ Consider the following example showing a service `my-service` of type LoadBalanc
     clusterIP: 10.0.171.239
     type: LoadBalancer
 ```
+In above example, AKO will attach `my-l4-rule` L4 CRD present in `green` namespace to LB service `my-service` present in `green` namespace.
+
+***Example 2***
+
+```yaml
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: my-service
+    namespace: default
+    annotations:
+      ako.vmware.com/l4rule: green/my-l4-rule
+  spec:
+    selector:
+      app.kubernetes.io/name: MyApp
+    ports:
+      - protocol: TCP
+        port: 80
+        targetPort: 9376
+    clusterIP: 10.0.171.239
+    type: LoadBalancer
+```
+In above example, AKO will attach `my-l4-rule` L4 CRD present in `green` namespace to LB service `my-service` present in `default` namespace.
 
 #### Express custom analytics profiles
 
