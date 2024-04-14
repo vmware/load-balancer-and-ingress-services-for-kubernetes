@@ -2585,7 +2585,8 @@ func ValidateUserInput(client *clients.AviClient, isGateway bool) (bool, error) 
 	isVRFValid := true
 	isTenantValid := checkTenant(client, &err)
 	isCloudValid := checkAndSetCloudType(client, &err)
-	if lib.GetCloudType() == lib.CLOUD_VCENTER {
+	// Check VRF for both VCENTER and NO Access cloud
+	if lib.GetCloudType() == lib.CLOUD_VCENTER || lib.GetCloudType() == lib.CLOUD_NONE {
 		isVRFValid = checkVRF(client, &err)
 		if !isVRFValid {
 			utils.AviLog.Warnf("Invalid input detected, AKO will be rebooted to retry %s", err.Error())
@@ -2750,7 +2751,7 @@ func FindCIDROverlapping(networks []models.Network, ipNet akov1beta1.AviInfraSet
 	return networkFound, localVIPNetwork
 }
 
-// This is called for Vcenter cloud only
+// This is called for Vcenter and No access cloud only
 func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient, vipNetworks []akov1beta1.AviInfraSettingVipNetwork) ([]akov1beta1.AviInfraSettingVipNetwork, error) {
 	var ipNetworkList []akov1beta1.AviInfraSettingVipNetwork
 	var ipNetwork akov1beta1.AviInfraSettingVipNetwork
@@ -2774,8 +2775,8 @@ func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient
 				var rest_response interface{}
 				err := lib.AviGet(client, uri, &rest_response)
 				if err != nil || rest_response == nil {
-					utils.AviLog.Warnf("No networks found for network: %s", vipNet.NetworkUUID)
-					retErr = fmt.Errorf("no networks found for network: %s", vipNet.NetworkUUID)
+					utils.AviLog.Warnf("No network with UUID %s found", vipNet.NetworkUUID)
+					retErr = fmt.Errorf("no network with UUID %s found", vipNet.NetworkUUID)
 					continue
 				}
 				result := rest_response.(map[string]interface{})
@@ -2783,8 +2784,8 @@ func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient
 				if tempVrf != "" {
 					vrf_uuid_name := strings.Split(tempVrf, "#")
 					if len(vrf_uuid_name) != 2 || vrf_uuid_name[1] != cmVRFName {
-						utils.AviLog.Warnf("Network %s does not have correct vrf %s", vipNet.NetworkUUID, cmVRFName)
-						retErr = fmt.Errorf("network %s does not have correct vrf %s", vipNet.NetworkUUID, cmVRFName)
+						utils.AviLog.Warnf("Network %s does not have vrf %s", vipNet.NetworkUUID, cmVRFName)
+						retErr = fmt.Errorf("network %s does not have vrf %s", vipNet.NetworkUUID, cmVRFName)
 						continue
 					}
 				}
@@ -2834,6 +2835,7 @@ func PopulateVipNetworkwithUUID(segMgmtNetwork string, client *clients.AviClient
 				localVIPNetworkList = append(localVIPNetworkList, net)
 			}
 
+			// For no access cloud, user manages the network. So there should not be duplicate networks.
 			if len(localVIPNetworkList) > 1 {
 				//first check cidr matching
 				found, netLocal := FindCIDROverlapping(localVIPNetworkList, ipNetwork)
@@ -2901,8 +2903,11 @@ func checkRequiredValuesYaml(client *clients.AviClient, isGateway bool, returnEr
 
 		vipListUpdated := vipList
 		var err error
-		if lib.GetCloudType() == lib.CLOUD_VCENTER {
-			segMgmtNetwork := GetCMSEGManagementNetwork(client)
+		if lib.GetCloudType() == lib.CLOUD_VCENTER || lib.GetCloudType() == lib.CLOUD_NONE {
+			segMgmtNetwork := ""
+			if lib.GetCloudType() == lib.CLOUD_VCENTER {
+				segMgmtNetwork = GetCMSEGManagementNetwork(client)
+			}
 			vipListUpdated, err = PopulateVipNetworkwithUUID(segMgmtNetwork, client, vipList)
 			if err != nil {
 				*returnErr = err
@@ -3285,8 +3290,11 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 	} else if len(vipList) > 0 {
 
 		vipListUpdated := vipList
-		if lib.GetCloudType() == lib.CLOUD_VCENTER {
-			segMgmtNetwork := GetCMSEGManagementNetwork(client)
+		if lib.GetCloudType() == lib.CLOUD_VCENTER || lib.GetCloudType() == lib.CLOUD_NONE {
+			segMgmtNetwork := ""
+			if lib.GetCloudType() == lib.CLOUD_VCENTER {
+				segMgmtNetwork = GetCMSEGManagementNetwork(client)
+			}
 			vipListUpdated, ret_err = PopulateVipNetworkwithUUID(segMgmtNetwork, client, vipList)
 			if len(vipListUpdated) == 0 {
 				return false, ret_err
@@ -3422,7 +3430,7 @@ func checkPublicCloud(client *clients.AviClient, returnErr *error) bool {
 }
 
 func FetchNodeNetworks(segMgmtNetwork string, client *clients.AviClient, returnErr *error, nodeNetworkMap map[string]lib.NodeNetworkMap) bool {
-	isVcenterCloud := lib.GetCloudType() == lib.CLOUD_VCENTER
+	isVcenterorNoAccessCloud := lib.GetCloudType() == lib.CLOUD_VCENTER || lib.GetCloudType() == lib.CLOUD_NONE
 	cmVRFName := lib.AKOControlConfig().ControllerVRFContext()
 	for nodeNetworkName, nodeNetworkCIDRs := range nodeNetworkMap {
 		localNodeNetworkList := []models.Network{}
@@ -3451,19 +3459,19 @@ func FetchNodeNetworks(segMgmtNetwork string, client *clients.AviClient, returnE
 			err := lib.AviGet(client, uri, &rest_response)
 			// here validate response field against vrf for vcenter cloud
 			if err != nil {
-				*returnErr = fmt.Errorf("no networks found for network: %s", nodeNetworkCIDRs.NetworkUUID)
+				*returnErr = fmt.Errorf("no networks with UUID %s found", nodeNetworkCIDRs.NetworkUUID)
 				return false
 			} else if rest_response == nil {
-				*returnErr = fmt.Errorf("no networks found for network: %s", nodeNetworkCIDRs.NetworkUUID)
+				*returnErr = fmt.Errorf("no networks with UUID %s found", nodeNetworkCIDRs.NetworkUUID)
 				return false
 			}
-			if isVcenterCloud && cmVRFName != "" {
+			if isVcenterorNoAccessCloud && cmVRFName != "" {
 				uri := fmt.Sprintf("/api/network/%s?cloud_uuid=%s&include_name", nodeNetworkCIDRs.NetworkUUID, lib.GetCloudUUID())
 				var rest_response interface{}
 				err := lib.AviGet(client, uri, &rest_response)
 				if err != nil || rest_response == nil {
-					utils.AviLog.Warnf("No networks found for network: %s", nodeNetworkCIDRs.NetworkUUID)
-					*returnErr = fmt.Errorf("no networks found for network: %s", nodeNetworkCIDRs.NetworkUUID)
+					utils.AviLog.Warnf("No networks with UUID %s found", nodeNetworkCIDRs.NetworkUUID)
+					*returnErr = fmt.Errorf("no networks with UUID %s found", nodeNetworkCIDRs.NetworkUUID)
 					continue
 				}
 				result := rest_response.(map[string]interface{})
@@ -3471,8 +3479,8 @@ func FetchNodeNetworks(segMgmtNetwork string, client *clients.AviClient, returnE
 				if tempVrf != "" {
 					vrf_uuid_name := strings.Split(tempVrf, "#")
 					if len(vrf_uuid_name) != 2 || vrf_uuid_name[1] != cmVRFName {
-						utils.AviLog.Warnf("Network %s does not have correct vrf %s", nodeNetworkCIDRs.NetworkUUID, cmVRFName)
-						*returnErr = fmt.Errorf("network %s does not have correct vrf %s", nodeNetworkCIDRs.NetworkUUID, cmVRFName)
+						utils.AviLog.Warnf("Network with UUID %s does not have correct vrf %s", nodeNetworkCIDRs.NetworkUUID, cmVRFName)
+						*returnErr = fmt.Errorf("network with UUID %s does not have correct vrf %s", nodeNetworkCIDRs.NetworkUUID, cmVRFName)
 						continue
 					}
 				}
@@ -3481,7 +3489,7 @@ func FetchNodeNetworks(segMgmtNetwork string, client *clients.AviClient, returnE
 			var result session.AviCollectionResult
 			var err error
 			uri = "/api/network/?include_name&name=" + nodeNetworkName + "&cloud_ref.name=" + utils.CloudName
-			if isVcenterCloud && cmVRFName != "" {
+			if isVcenterorNoAccessCloud && cmVRFName != "" {
 				uri = uri + "&vrf_context_ref.name=" + cmVRFName
 				result, err = lib.AviGetCollectionRawWithTenantSwitch(client, uri)
 			} else {
@@ -3503,8 +3511,9 @@ func FetchNodeNetworks(segMgmtNetwork string, client *clients.AviClient, returnE
 				return false
 
 			}
-			// Only for vcenter cloud and when networkUUID is empty, then fetch uuid, for remaining types, use as it is.
-			if isVcenterCloud {
+			// Only for vcenter when networkUUID is empty, then fetch uuid, for remaining types, use as it is.
+			// For no access cloud, as user configures the network so no need to run duplicate network check.
+			if lib.GetCloudType() == lib.CLOUD_VCENTER {
 				//Fetch all network associated with network name-> This will fetch duplicate networks
 				for i := 0; i < result.Count; i++ {
 					net := models.Network{}
@@ -3554,6 +3563,7 @@ func checkNodeNetwork(client *clients.AviClient, returnErr *error) bool {
 	}
 
 	segMgmtNetwork := ""
+	// No need to fetch seg mgmt network for no access cloud as AKO doesn't do hostoverlap check
 	if lib.CloudType == lib.CLOUD_VCENTER {
 		segMgmtNetwork = GetCMSEGManagementNetwork(client)
 		utils.AviLog.Infof("SEG Management network is: %v", segMgmtNetwork)
@@ -3601,8 +3611,8 @@ func checkAndSetVRFFromNetwork(client *clients.AviClient, returnErr *error) bool
 		return true
 	}
 
-	// Cluster IP mode: vcenter cloud if vrfContext is in CM use that
-	if lib.GetCloudType() == lib.CLOUD_VCENTER && cmVrfContext != "" {
+	// Cluster IP mode: vcenter cloud (write/no access) if vrfContext is in CM use that
+	if (lib.GetCloudType() == lib.CLOUD_VCENTER || lib.GetCloudType() == lib.CLOUD_NONE) && cmVrfContext != "" {
 		lib.SetVrf(cmVrfContext)
 		return true
 	}

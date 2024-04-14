@@ -1206,8 +1206,9 @@ func SetAviInfrasettingVIPNetworks(name, segMgmtNetwork, infraSEGName string, ne
 	aviClientLen := lib.GetshardSize()
 	network := netAviInfra
 	var err error
-	if lib.GetCloudType() == lib.CLOUD_VCENTER {
-		if infraSEGName == "" && segMgmtNetwork == "" {
+	if lib.GetCloudType() == lib.CLOUD_VCENTER || lib.GetCloudType() == lib.CLOUD_NONE {
+		// SEG mgmt network is required to find out host overlap. Not applicable for No Access cloud.
+		if lib.GetCloudType() == lib.CLOUD_VCENTER && infraSEGName == "" && segMgmtNetwork == "" {
 			segMgmtNetwork = avicache.GetCMSEGManagementNetwork(clients.AviClient[aviClientLen])
 		}
 		network, err = avicache.PopulateVipNetworkwithUUID(segMgmtNetwork, clients.AviClient[aviClientLen], netAviInfra)
@@ -1242,8 +1243,8 @@ func SetAviInfrasettingNodeNetworks(name, segMgmtNetwork, infraSEGName string, n
 		}
 	}
 
-	if lib.GetCloudType() == lib.CLOUD_VCENTER {
-		if infraSEGName == "" && segMgmtNetwork == "" {
+	if lib.GetCloudType() == lib.CLOUD_VCENTER || lib.GetCloudType() == lib.CLOUD_NONE {
+		if lib.GetCloudType() == lib.CLOUD_VCENTER && infraSEGName == "" && segMgmtNetwork == "" {
 			segMgmtNetwork = avicache.GetCMSEGManagementNetwork(clients.AviClient[aviClientLen])
 		}
 		ret := avicache.FetchNodeNetworks(segMgmtNetwork, clients.AviClient[aviClientLen], &err, nodeNetorkList)

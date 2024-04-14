@@ -390,6 +390,7 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1beta1.Av
 	segMgmtNetworK := ""
 	if infraSetting.Spec.SeGroup.Name != "" {
 		addSeGroupLabel(key, infraSetting.Spec.SeGroup.Name)
+		// Not required for NO access cloud
 		if lib.GetCloudType() == lib.CLOUD_VCENTER {
 			segMgmtNetworK = GetSEGManagementNetwork(infraSetting.Spec.SeGroup.Name)
 		}
@@ -802,6 +803,7 @@ func (f *follower) ValidateAviInfraSetting(key string, infraSetting *akov1beta1.
 		segMgmtNetworK := ""
 		if infraSetting.Spec.SeGroup.Name != "" {
 			addSeGroupLabel(key, infraSetting.Spec.SeGroup.Name)
+			// Not required for no access cloud
 			if lib.GetCloudType() == lib.CLOUD_VCENTER {
 				segMgmtNetworK = GetSEGManagementNetwork(infraSetting.Spec.SeGroup.Name)
 			}
