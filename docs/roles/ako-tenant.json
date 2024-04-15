@@ -226,7 +226,7 @@
         "resource": "PERMISSION_ROLE"
     },
     {
-        "type": "NO_ACCESS",
+        "type": "READ_ACCESS",
         "resource": "PERMISSION_TENANT"
     },
     {
