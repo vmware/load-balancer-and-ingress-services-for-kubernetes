@@ -62,7 +62,7 @@ func DequeueIngestion(key string, fullsync bool) {
 
 		modelFound, modelIntf := objects.SharedAviGraphLister().Get(modelName)
 		if !modelFound || modelIntf == nil {
-			utils.AviLog.Errorf("key: %s, msg: no model found: %s", key, modelName)
+			utils.AviLog.Warnf("key: %s, msg: no model found: %s", key, modelName)
 			continue
 		}
 

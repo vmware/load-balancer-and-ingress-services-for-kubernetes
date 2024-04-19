@@ -113,6 +113,7 @@ type GatewayListenerStore struct {
 	Name              string
 	Port              int32
 	Protocol          string
+	Gateway           string
 	AllowedRouteNs    string
 	AllowedRouteTypes []GatewayRouteKind
 }
@@ -263,7 +264,7 @@ func (g *GWLister) UpdateGatewayRouteMappings(gwNsName string, gwListeners []Gat
 				gwListenerListObj = append(gwListenerListObj, gwListener)
 			}
 		}
-		g.routeToGatewayListener.AddOrUpdate(routeTypeNsName, gwListenerList)
+		g.routeToGatewayListener.AddOrUpdate(routeTypeNsName, gwListenerListObj)
 	} else {
 		g.routeToGatewayListener.AddOrUpdate(routeTypeNsName, gwListeners)
 	}
@@ -751,7 +752,7 @@ func (g *GWLister) DeleteRouteServiceMappings(routeTypeNsName string) {
 				if len(routeTypeNsNameListObj) == 0 {
 					g.serviceToRoute.Delete(svcNsName)
 				} else {
-					g.serviceToRoute.AddOrUpdate(svcNsName, routeTypeNsNameList)
+					g.serviceToRoute.AddOrUpdate(svcNsName, routeTypeNsNameListObj)
 				}
 			}
 		}

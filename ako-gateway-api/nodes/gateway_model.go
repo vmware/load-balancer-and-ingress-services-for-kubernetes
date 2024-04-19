@@ -78,6 +78,7 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 func BuildPortProtocols(gateway *gatewayv1.Gateway, key string) []nodes.AviPortHostProtocol {
 	var portProtocols []nodes.AviPortHostProtocol
 	for _, listener := range gateway.Spec.Listeners {
+
 		pp := nodes.AviPortHostProtocol{Port: int32(listener.Port), Protocol: string(listener.Protocol)}
 		//TLS config on listener is present
 		if listener.TLS != nil && len(listener.TLS.CertificateRefs) > 0 {
@@ -86,6 +87,7 @@ func BuildPortProtocols(gateway *gatewayv1.Gateway, key string) []nodes.AviPortH
 		if !utils.HasElem(portProtocols, pp) {
 			portProtocols = append(portProtocols, pp)
 		}
+
 	}
 	return portProtocols
 }

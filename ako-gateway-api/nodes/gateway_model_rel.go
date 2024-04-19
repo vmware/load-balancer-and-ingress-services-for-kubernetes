@@ -116,6 +116,7 @@ func GatewayGetGw(namespace, name, key string) ([]string, bool) {
 	for _, listenerObj := range gwObj.Spec.Listeners {
 		gwListener := objects.GatewayListenerStore{}
 		gwListener.Name = string(listenerObj.Name)
+		gwListener.Gateway = gwNsName
 		gwListener.Port = int32(listenerObj.Port)
 		gwListener.Protocol = string(listenerObj.Protocol)
 

@@ -81,7 +81,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 
 	routeTypeNsName := lib.HTTPRoute + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName()
 	// create vhmatch from the match
-	o.BuildVHMatch(key, routeTypeNsName, childNode, rule, hosts)
+	o.BuildVHMatch(key, parentNsName, routeTypeNsName, childNode, rule, hosts)
 
 	if len(childNode.VHMatches) == 0 {
 		utils.AviLog.Warnf("key: %s, msg: No valid domain name added for child virtual service", key)
@@ -112,7 +112,13 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 	// create the PG from backends
 	routeTypeNsName := lib.HTTPRoute + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName()
 	parentNs, _, parentName := lib.ExtractTypeNameNamespace(parentNsName)
-	listeners := akogatewayapiobjects.GatewayApiLister().GetRouteToGatewayListener(routeTypeNsName)
+	allListeners := akogatewayapiobjects.GatewayApiLister().GetRouteToGatewayListener(routeTypeNsName)
+	listeners := []akogatewayapiobjects.GatewayListenerStore{}
+	for _, listener := range allListeners {
+		if listener.Gateway == parentNsName {
+			listeners = append(listeners, listener)
+		}
+	}
 	//ListenerName/port/protocol/allowedRouteSpec
 	listenerProtocol := listeners[0].Protocol
 	PGName := akogatewayapilib.GetPoolGroupName(parentNs, parentName,
@@ -172,10 +178,16 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 	}
 }
 
-func (o *AviObjectGraph) BuildVHMatch(key string, routeTypeNsName string, vsNode *nodes.AviEvhVsNode, rule *Rule, hosts []string) {
+func (o *AviObjectGraph) BuildVHMatch(key string, parentNsName string, routeTypeNsName string, vsNode *nodes.AviEvhVsNode, rule *Rule, hosts []string) {
 	var vhMatches []*models.VHMatch
 
-	listeners := objects.GatewayApiLister().GetRouteToGatewayListener(routeTypeNsName)
+	allListeners := objects.GatewayApiLister().GetRouteToGatewayListener(routeTypeNsName)
+	listeners := []akogatewayapiobjects.GatewayListenerStore{}
+	for _, listener := range allListeners {
+		if listener.Gateway == parentNsName {
+			listeners = append(listeners, listener)
+		}
+	}
 
 	for _, host := range hosts {
 		hostname := host
