@@ -116,8 +116,8 @@ func (o *ObjectMapStore) Get(objName string) (bool, interface{}) {
 }
 
 func (o *ObjectMapStore) GetAllObjectNames() map[string]interface{} {
-	o.ObjLock.RLock()
-	defer o.ObjLock.RUnlock()
+	o.ObjLock.Lock()
+	defer o.ObjLock.Unlock()
 	// TODO (sudswas): Pass a copy instead of the reference
 	return o.ObjectMap
 
