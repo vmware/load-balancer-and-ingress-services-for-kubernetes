@@ -59,6 +59,9 @@ type SeList struct {
 	// Management IPv6 address of SE. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	MgmtIp6 *IPAddr `json:"mgmt_ip6,omitempty"`
 
+	// VIP Route is revoked as pool went down. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	RouteRevokedPoolDown *bool `json:"route_revoked_pool_down,omitempty"`
+
 	// This flag is set when a VS is actively scaling out to this SE. Field introduced in 18.1.5, 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ScaleoutInProgress *bool `json:"scaleout_in_progress,omitempty"`
 

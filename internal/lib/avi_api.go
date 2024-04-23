@@ -18,12 +18,12 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/alb-sdk/go/session"
+	corev1 "k8s.io/api/core/v1"
+
 	apimodels "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
-
-	corev1 "k8s.io/api/core/v1"
 )
 
 func AviGetCollectionRaw(client *clients.AviClient, uri string, retryNum ...int) (session.AviCollectionResult, error) {
@@ -292,7 +292,7 @@ func NewAviRestClientWithToken(api_ep, username, authToken, cadata string) *clie
 
 	transport, isSecure := utils.GetHTTPTransportWithCert(cadata)
 	options := []func(*session.AviSession) error{
-		session.SetNoControllerStatusCheck,
+		session.DisableControllerStatusCheckOnFailure(true),
 		session.SetTransport(transport),
 		session.SetAuthToken(authToken),
 	}

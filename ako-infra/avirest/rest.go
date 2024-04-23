@@ -17,7 +17,7 @@ package avirest
 import (
 	"sync"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/alb-sdk/go/clients"
 )
 
 var infraAviClientInstance *clients.AviClient

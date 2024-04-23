@@ -17,10 +17,11 @@ package cache
 import (
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/vmware/alb-sdk/go/session"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
 )
 
 var AviClientInstance *utils.AviRestClientPool

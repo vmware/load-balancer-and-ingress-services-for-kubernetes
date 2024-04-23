@@ -24,8 +24,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
+	"github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/alb-sdk/go/session"
 )
 
 type AviRestClientPool struct {
@@ -43,7 +43,7 @@ func NewAviRestClientPool(num uint32, api_ep, username,
 	rootPEMCerts := ctrlCAData
 	transport, isSecure := GetHTTPTransportWithCert(rootPEMCerts)
 	options := []func(*session.AviSession) error{
-		session.SetNoControllerStatusCheck,
+		session.DisableControllerStatusCheckOnFailure(true),
 		session.SetTransport(transport),
 	}
 
