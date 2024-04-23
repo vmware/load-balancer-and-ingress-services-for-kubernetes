@@ -1016,10 +1016,10 @@ func TestWithInfraSettingStatusUpdates(t *testing.T) {
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL); found && aviModel != nil {
 			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
-				return nodes[0].ServiceEngineGroup == "thisisaviref-seGroup" &&
+				return nodes[0].ServiceEngineGroup == lib.GetSEGName() &&
 					len(nodes[0].VSVIPRefs[0].VipNetworks) > 0 &&
-					nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName == "thisisaviref-networkName" &&
-					*nodes[0].EnableRhi
+					nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName == netList[0].NetworkName &&
+					!*nodes[0].EnableRhi
 			}
 		}
 		return false

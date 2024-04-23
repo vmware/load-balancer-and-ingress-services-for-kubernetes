@@ -553,14 +553,9 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 
 	// configures VS and VsVip nodes using infraSetting object (via CRD).
 	if serviceObject != nil {
-		infraSetting, err := getL4InfraSetting(key, namespace, serviceObject, nil)
-		if err != nil {
-			if !k8serrors.IsNotFound(err) {
-				utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting %s", key, err.Error())
-				return nil
-			}
+		if infraSetting, err := getL4InfraSetting(key, namespace, serviceObject, nil); err == nil {
+			buildWithInfraSetting(key, namespace, avi_vs_meta, vsVipNode, infraSetting)
 		}
-		buildWithInfraSetting(key, namespace, avi_vs_meta, vsVipNode, infraSetting)
 
 		// Copy the VS properties from L4Rule object
 		if l4Rule, err := getL4Rule(key, serviceObject); err == nil {
@@ -602,10 +597,7 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 		if i == 0 {
 			infraSetting, err = getL4InfraSetting(key, namespace, svcObj, nil)
 			if err != nil {
-				if !k8serrors.IsNotFound(err) {
-					utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
-					return
-				}
+				utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
 			}
 
 			l4Rule, err = getL4Rule(key, svcObj)

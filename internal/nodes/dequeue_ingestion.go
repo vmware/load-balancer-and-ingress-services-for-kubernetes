@@ -658,11 +658,9 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 		aviModelGraph := NewAviObjectGraph()
 		vipKey := strings.Split(namespacedVipKey, "/")[1]
 		aviModelGraph.BuildAdvancedL4Graph(namespace, vipKey, key, true)
-		if len(aviModelGraph.GetOrderedNodes()) > 0 {
-			ok := saveAviModel(modelName, aviModelGraph, key)
-			if ok && !fullsync {
-				PublishKeyToRestLayer(modelName, key, sharedQueue)
-			}
+		ok := saveAviModel(modelName, aviModelGraph, key)
+		if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
+			PublishKeyToRestLayer(modelName, key, sharedQueue)
 		}
 	}
 }
