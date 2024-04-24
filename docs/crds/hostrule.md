@@ -38,6 +38,7 @@ A sample HostRule CRD looks like this:
         - avi-datascript-redirect-app1
         wafPolicy: avi-waf-policy
         applicationProfile: avi-app-ref
+        networkSecurityPolicy: avi-network-security-policy-ref
         icapProfile: 
         - avi-icap-ref
         analyticsProfile: avi-analytics-ref
@@ -291,6 +292,16 @@ This list of FQDNs inherits all the properties of the root FQDN specified under 
 Traffic would arrive with the host header as bar.com to the VIP hosting foo.region1.com and this CRD property would ensure that the request is routed appropriately to the backend service of `foo.region1.com`.
 
 Aliases field must contain unique FQDNs and must not contain GSLB FQDN or the root FQDN. Users must ensure that the `fqdnType` is set as `Exact` before setting this field.
+
+#### Express custom network security policy object ref
+HostRule CRD can be used to express network security policy object references. The network security policy object should have been created in the Avi Controller prior to this CRD creation.
+The `networkSecurityPolicy` setting, in addition to any other parameters provided in the HostRule, is only applied to Parent VSes and dedicated VSes. The `networkSecurityPolicy` setting does not have any effect on child VSes.
+
+         networkSecurityPolicy: avi-network-security-policy-ref
+
+***Note***
+1. This property is available only in HostRule `v1beta1` schema definition.
+2. The HostRule CRD is not aware of the misconfigurations if it is applied to Child VS while it is being created, therefore the HostRule will be `Accepted` nonetheless. AKO will print warning message regarding this.
 
 #### Status Messages
 
