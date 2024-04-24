@@ -141,9 +141,9 @@ func (rest *RestOperations) IstioCU(key string, avimodel *nodes.AviObjectGraph) 
 		restOps = []*utils.RestOp{restOp}
 		pkiSuccess, _ = rest.ExecuteRestAndPopulateCache(restOps, pkiKey, avimodel, key, false)
 	} else {
-		pkiCache := pkiCacheObj.(avicache.AviPkiProfileCache)
+		pkiCache := pkiCacheObj.(*avicache.AviPkiProfileCache)
 		if pkiCache.CloudConfigCksum != pkiNode.GetCheckSum() {
-			restOp := rest.AviPkiProfileBuild(pkiNode, &pkiCache)
+			restOp := rest.AviPkiProfileBuild(pkiNode, pkiCache)
 			restOps = []*utils.RestOp{restOp}
 			pkiSuccess, _ = rest.ExecuteRestAndPopulateCache(restOps, pkiKey, avimodel, key, false)
 		}
