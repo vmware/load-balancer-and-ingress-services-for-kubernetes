@@ -94,10 +94,6 @@ func isNodeUpdated(oldNode, newNode *corev1.Node) bool {
 		return true
 	}
 
-	if oldNode.ResourceVersion == newNode.ResourceVersion {
-		return false
-	}
-
 	var oldaddr, newaddr string
 	oldAddrs := oldNode.Status.Addresses
 	newAddrs := newNode.Status.Addresses
@@ -125,6 +121,15 @@ func isNodeUpdated(oldNode, newNode *corev1.Node) bool {
 	}
 
 	if !reflect.DeepEqual(oldNode.Labels, newNode.Labels) {
+		return true
+	}
+
+	cniPlugin := lib.GetCNIPlugin()
+	if (cniPlugin == lib.CALICO_CNI) && (!reflect.DeepEqual(oldNode.Annotations[lib.CalicoIPv4AddressAnnotation], newNode.Annotations[lib.CalicoIPv4AddressAnnotation]) ||
+		!reflect.DeepEqual(oldNode.Annotations[lib.CalicoIPv6AddressAnnotation], newNode.Annotations[lib.CalicoIPv6AddressAnnotation])) {
+		return true
+	}
+	if cniPlugin == lib.ANTREA_CNI && !reflect.DeepEqual(oldNode.Annotations[lib.AntreaTransportAddressAnnotation], newNode.Annotations[lib.AntreaTransportAddressAnnotation]) {
 		return true
 	}
 
