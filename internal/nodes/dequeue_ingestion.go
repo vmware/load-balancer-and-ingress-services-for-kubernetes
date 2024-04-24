@@ -640,7 +640,9 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 		}
 	} else {
 		if lib.AutoAnnotateNPLSvc() {
-			if !status.CheckNPLSvcAnnotation(key, namespace, name) {
+			// TO DO : Modify CheckNPLSvcAnnotation method so that we do not try to update annotation in case svc is already deleted
+			_, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
+			if err == nil && !status.CheckNPLSvcAnnotation(key, namespace, name) {
 				statusOption := status.StatusOptions{
 					ObjType:   lib.NPLService,
 					Op:        lib.UpdateStatus,
