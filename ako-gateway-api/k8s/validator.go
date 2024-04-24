@@ -304,7 +304,7 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 	if httpRoute.Spec.ParentRefs[index].Namespace != nil {
 		namespace = string(*httpRoute.Spec.ParentRefs[index].Namespace)
 	}
-
+	gwNsName := namespace + "/" + name
 	obj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).Get(name)
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: unable to get the gateway object. err: %s", key, err)
@@ -407,7 +407,7 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		defaultCondition.
 			Message(err.Error()).
 			SetIn(&httpRouteStatus.Parents[index].Conditions)
-		found, hosts := akogatewayapiobjects.GatewayApiLister().GetGatewayRouteToHostname(namespace, name)
+		found, hosts := akogatewayapiobjects.GatewayApiLister().GetGatewayRouteToHostname(gwNsName)
 		if found {
 			utils.AviLog.Warnf("key: %s, msg: Hostname in Gateway Listener doesn't match with any of the hostnames in HTTPRoute", key)
 			utils.AviLog.Debugf("key: %s, msg: %d hosts mapped to the route %s/%s/%s", key, len(hosts), "HTTPRoute", httpRoute.Namespace, httpRoute.Name)

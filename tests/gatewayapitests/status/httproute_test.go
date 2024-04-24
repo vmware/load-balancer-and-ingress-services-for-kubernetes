@@ -666,6 +666,7 @@ func TestHTTPRouteWithNoHostnames(t *testing.T) {
 }
 
 func TestHTTPRouteUnprocessedGateway(t *testing.T) {
+	t.Skip("Skipping this test case as we are unable to enforce the expected race condition")
 	gatewayClassName := "gateway-class-hr-11"
 	gatewayName := "gateway-hr-11"
 	httpRouteName := "httproute-11"

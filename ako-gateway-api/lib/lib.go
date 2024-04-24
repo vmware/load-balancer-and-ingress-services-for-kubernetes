@@ -140,3 +140,16 @@ func VerifyHostnameSubdomainMatch(hostname string) bool {
 	utils.AviLog.Warnf("Didn't find match for hostname :%s Available sub-domains:%s", hostname, subDomains)
 	return false
 }
+
+func ProtocolToRoute(proto string) string {
+	innerMap := map[string]string{
+		"HTTP":  lib.HTTPRoute,
+		"HTTPS": lib.HTTPRoute,
+		"TCP":   lib.TCPRoute,
+		"TLS":   lib.TLSRoute,
+		"UDP":   lib.UDPRoute,
+	}
+
+	return innerMap[proto]
+
+}

@@ -17,12 +17,12 @@ package nodes
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
@@ -44,7 +44,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	parentNode := o.GetAviEvhVS()
 	parentNs, _, parentName := lib.ExtractTypeNameNamespace(parentNsName)
 
-	found, hosts := akogatewayapiobjects.GatewayApiLister().GetGatewayRouteToHostname(parentNs, parentName)
+	found, hosts := akogatewayapiobjects.GatewayApiLister().GetGatewayRouteToHostname(parentNsName)
 	if !found {
 		utils.AviLog.Warnf("key: %s, msg: No hosts mapped to the route %s/%s/%s", key, routeModel.GetType(), routeModel.GetNamespace(), routeModel.GetName())
 		return
@@ -79,8 +79,9 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 		}
 	}
 
+	routeTypeNsName := lib.HTTPRoute + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName()
 	// create vhmatch from the match
-	o.BuildVHMatch(key, childNode, rule, hosts)
+	o.BuildVHMatch(key, parentNsName, routeTypeNsName, childNode, rule, hosts)
 
 	if len(childNode.VHMatches) == 0 {
 		utils.AviLog.Warnf("key: %s, msg: No valid domain name added for child virtual service", key)
@@ -111,14 +112,15 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 	// create the PG from backends
 	routeTypeNsName := lib.HTTPRoute + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName()
 	parentNs, _, parentName := lib.ExtractTypeNameNamespace(parentNsName)
-	_, listeners := akogatewayapiobjects.GatewayApiLister().GetRouteToGatewayListener(routeTypeNsName)
-	if len(listeners) == 0 {
-		utils.AviLog.Warnf("key: %s, msg: No matching listener available for the route : %s", key, routeTypeNsName)
-		return
+	allListeners := akogatewayapiobjects.GatewayApiLister().GetRouteToGatewayListener(routeTypeNsName)
+	listeners := []akogatewayapiobjects.GatewayListenerStore{}
+	for _, listener := range allListeners {
+		if listener.Gateway == parentNsName {
+			listeners = append(listeners, listener)
+		}
 	}
 	//ListenerName/port/protocol/allowedRouteSpec
-	listenerSlice := strings.Split(listeners[0], "/")
-	listenerProtocol := listenerSlice[2]
+	listenerProtocol := listeners[0].Protocol
 	PGName := akogatewayapilib.GetPoolGroupName(parentNs, parentName,
 		routeModel.GetNamespace(), routeModel.GetName(),
 		utils.Stringify(rule.Matches))
@@ -176,8 +178,17 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 	}
 }
 
-func (o *AviObjectGraph) BuildVHMatch(key string, vsNode *nodes.AviEvhVsNode, rule *Rule, hosts []string) {
+func (o *AviObjectGraph) BuildVHMatch(key string, parentNsName string, routeTypeNsName string, vsNode *nodes.AviEvhVsNode, rule *Rule, hosts []string) {
 	var vhMatches []*models.VHMatch
+
+	allListeners := objects.GatewayApiLister().GetRouteToGatewayListener(routeTypeNsName)
+	listeners := []akogatewayapiobjects.GatewayListenerStore{}
+	for _, listener := range allListeners {
+		if listener.Gateway == parentNsName {
+			listeners = append(listeners, listener)
+		}
+	}
+
 	for _, host := range hosts {
 		hostname := host
 		vhMatch := &models.VHMatch{
@@ -216,6 +227,17 @@ func (o *AviObjectGraph) BuildVHMatch(key string, vsNode *nodes.AviEvhVsNode, ru
 				}
 				rule.Matches.Hdrs = append(rule.Matches.Hdrs, hdrMatch)
 			}
+
+			//port match from listener
+			matchCriteria := "IS_IN"
+			rule.Matches.VsPort = &models.PortMatch{
+				MatchCriteria: &matchCriteria,
+			}
+			for _, listener := range listeners {
+				rule.Matches.VsPort.Ports = append(rule.Matches.VsPort.Ports, int64(listener.Port))
+			}
+			//TODO correctly add protocol
+			//rule.Matches.Protocol.Protocols = &listeners[0].Protocol
 
 			vhMatch.Rules = append(vhMatch.Rules, rule)
 		}
