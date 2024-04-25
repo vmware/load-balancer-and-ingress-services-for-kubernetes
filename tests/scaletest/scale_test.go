@@ -34,9 +34,10 @@ import (
 	"github.com/onsi/gomega"
 	"golang.org/x/crypto/ssh"
 
+	"github.com/vmware/alb-sdk/go/clients"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/scaletest/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 )
 
 const (

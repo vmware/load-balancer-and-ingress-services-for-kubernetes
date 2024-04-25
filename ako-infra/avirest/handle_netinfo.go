@@ -24,15 +24,15 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	gocidr "github.com/apparentlymart/go-cidr/cidr"
+	"github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/alb-sdk/go/models"
+	"github.com/vmware/alb-sdk/go/session"
+	k8net "k8s.io/utils/net"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
-
-	gocidr "github.com/apparentlymart/go-cidr/cidr"
-	"github.com/vmware/alb-sdk/go/models"
-	k8net "k8s.io/utils/net"
 )
 
 var CloudCache *models.Cloud

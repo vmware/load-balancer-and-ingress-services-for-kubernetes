@@ -25,19 +25,9 @@ import (
 	"sync"
 	"time"
 
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/retry"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
-	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
-
 	routev1 "github.com/openshift/api/route/v1"
+	"github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/alb-sdk/go/session"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -48,6 +38,16 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	servicesapi "sigs.k8s.io/service-apis/apis/v1alpha1"
+
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/retry"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 func PopulateCache() error {
@@ -371,7 +371,7 @@ func (c *AviController) ValidAviSecret() bool {
 
 		transport, isSecure := utils.GetHTTPTransportWithCert(caData)
 		options := []func(*session.AviSession) error{
-			session.SetNoControllerStatusCheck,
+			session.DisableControllerStatusCheckOnFailure(true),
 			session.SetTransport(transport),
 		}
 		if !isSecure {
