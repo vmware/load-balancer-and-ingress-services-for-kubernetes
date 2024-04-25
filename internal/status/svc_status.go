@@ -60,44 +60,43 @@ func (l *leader) UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 			if len(svcMetadata.HostNames) > 0 {
 				svcHostname = svcMetadata.HostNames[0]
 			}
+			service.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{}
 			for _, vip := range option.Vip {
-				service.Status = corev1.ServiceStatus{
-					LoadBalancer: corev1.LoadBalancerStatus{
-						Ingress: []corev1.LoadBalancerIngress{{
-							IP:       vip,
-							Hostname: svcHostname,
-						}}}}
+				service.Status.LoadBalancer.Ingress = append(
+					service.Status.LoadBalancer.Ingress,
+					corev1.LoadBalancerIngress{IP: vip, Hostname: svcHostname})
+			}
 
-				sameStatus, _, _ := compareLBStatus(oldServiceStatus, &service.Status.LoadBalancer)
-				var updatedSvc *corev1.Service
-				var err error
-				if !sameStatus {
-					patchPayload, _ := json.Marshal(map[string]interface{}{
-						"status": service.Status,
-					})
+			sameStatus, _, _ := compareLBStatus(oldServiceStatus, &service.Status.LoadBalancer)
+			var updatedSvc *corev1.Service
+			var err error
+			if !sameStatus {
+				patchPayload, _ := json.Marshal(map[string]interface{}{
+					"status": service.Status,
+				})
 
-					updatedSvc, err = utils.GetInformers().ClientSet.CoreV1().Services(service.Namespace).Patch(context.TODO(), service.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
-					if err != nil {
-						utils.AviLog.Errorf("key: %s, msg: there was an error in updating the loadbalancer status: %v", key, err)
-					} else {
-						if len(service.Status.LoadBalancer.Ingress) > 0 {
-							lib.AKOControlConfig().EventRecorder().Eventf(service, corev1.EventTypeNormal, lib.Synced, "Added virtualservice %s for %s", option.VSName, service.Name)
-						} else {
-							lib.AKOControlConfig().EventRecorder().Eventf(service, corev1.EventTypeNormal, lib.Removed, "Removed virtualservice for %s", service.Name)
-						}
-						utils.AviLog.Infof("key: %s, msg: Successfully updated the status of serviceLB: %s old: %+v new %+v",
-							key, option.IngSvc, oldServiceStatus.Ingress, service.Status.LoadBalancer.Ingress)
-					}
+				updatedSvc, err = utils.GetInformers().ClientSet.CoreV1().Services(service.Namespace).Patch(context.TODO(), service.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+				if err != nil {
+					utils.AviLog.Errorf("key: %s, msg: there was an error in updating the loadbalancer status: %v", key, err)
 				} else {
-					utils.AviLog.Debugf("key: %s, msg: No changes detected in service status. old: %+v new: %+v",
-						key, oldServiceStatus.Ingress, service.Status.LoadBalancer.Ingress)
+					if len(service.Status.LoadBalancer.Ingress) > 0 {
+						lib.AKOControlConfig().EventRecorder().Eventf(service, corev1.EventTypeNormal, lib.Synced, "Added virtualservice %s for %s", option.VSName, service.Name)
+					} else {
+						lib.AKOControlConfig().EventRecorder().Eventf(service, corev1.EventTypeNormal, lib.Removed, "Removed virtualservice for %s", service.Name)
+					}
+					utils.AviLog.Infof("key: %s, msg: Successfully updated the status of serviceLB: %s old: %+v new %+v",
+						key, option.IngSvc, oldServiceStatus.Ingress, service.Status.LoadBalancer.Ingress)
 				}
+			} else {
+				utils.AviLog.Debugf("key: %s, msg: No changes detected in service status. old: %+v new: %+v",
+					key, oldServiceStatus.Ingress, service.Status.LoadBalancer.Ingress)
+			}
 
-				if err = updateSvcAnnotations(updatedSvc, option, service, svcHostname); err != nil {
-					utils.AviLog.Errorf("key: %s, msg: there was an error in updating the service annotations: %v", key, err)
-				}
+			if err = updateSvcAnnotations(updatedSvc, option, service, svcHostname); err != nil {
+				utils.AviLog.Errorf("key: %s, msg: there was an error in updating the service annotations: %v", key, err)
 			}
 		}
+
 		skipDelete[option.IngSvc] = true
 	}
 
