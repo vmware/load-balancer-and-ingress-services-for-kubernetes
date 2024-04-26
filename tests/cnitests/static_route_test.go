@@ -540,3 +540,715 @@ func TestCiliumNodeAddDelete(t *testing.T) {
 		return num_routes
 	}, 10*time.Second).Should(gomega.Equal(1))
 }
+func TestMultipleBlockAffinityAddition(t *testing.T) {
+	if *cniPlugin != "calico" {
+		t.Skip("Skipping BlockAffinity test since CNI plugin is not Calico")
+	}
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/global"
+	nodeip1 := "10.102.99.232"
+	nodeName1 := "testNodeCalico1"
+	objects.SharedAviGraphLister().Delete(modelName)
+	time.Sleep(10 * time.Second)
+
+	// mimicking actual scenario where the node will have atleast one BlockAffinity object created from start
+	var testData1 unstructured.Unstructured
+	testData1.SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "crd.projectcalico.org/v1",
+		"kind":       "blockaffinities",
+		"metadata": map[string]interface{}{
+			"name":      "testblockaffinity1",
+			"namespace": "default",
+		},
+		"spec": map[string]interface{}{
+			"cidr":    "192.168.29.64/26",
+			"deleted": "false",
+			"node":    nodeName1,
+			"state":   "confirmed",
+		},
+	})
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Create(context.TODO(), &testData1, v1.CreateOptions{})
+
+	nodeExample := (integrationtest.FakeNode{
+		Name:    nodeName1,
+		Version: "1",
+		NodeIP:  nodeip1,
+	}).NodeCalico()
+
+	_, err := KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Node: %v", err)
+	}
+
+	// creating a new BlockAffinity object for the node
+	var testData2 unstructured.Unstructured
+	testData2.SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "crd.projectcalico.org/v1",
+		"kind":       "blockaffinities",
+		"metadata": map[string]interface{}{
+			"name":      "testblockaffinity2",
+			"namespace": "default",
+		},
+		"spec": map[string]interface{}{
+			"cidr":    "192.168.30.64/26",
+			"deleted": "false",
+			"node":    nodeName1,
+			"state":   "confirmed",
+		},
+	})
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Create(context.TODO(), &testData2, v1.CreateOptions{})
+
+	nodeip2 := "10.102.99.146"
+	nodeName2 := "testNodeCalico2"
+
+	// mimicking actual scenario where the node will have atleast one BlockAffinity object created from start
+	var testData3 unstructured.Unstructured
+	testData3.SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "crd.projectcalico.org/v1",
+		"kind":       "blockaffinities",
+		"metadata": map[string]interface{}{
+			"name":      "testblockaffinity3",
+			"namespace": "default",
+		},
+		"spec": map[string]interface{}{
+			"cidr":    "192.168.247.0/26",
+			"deleted": "false",
+			"node":    nodeName2,
+			"state":   "confirmed",
+		},
+	})
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Create(context.TODO(), &testData3, v1.CreateOptions{})
+
+	nodeExample2 := (integrationtest.FakeNode{
+		Name:    nodeName2,
+		Version: "1",
+		NodeIP:  nodeip2,
+	}).NodeCalico()
+
+	_, err = KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample2, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Node: %v", err)
+	}
+
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	// creating a new BlockAffinity object for the node
+	var testData4 unstructured.Unstructured
+	testData4.SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "crd.projectcalico.org/v1",
+		"kind":       "blockaffinities",
+		"metadata": map[string]interface{}{
+			"name":      "testblockaffinity4",
+			"namespace": "default",
+		},
+		"spec": map[string]interface{}{
+			"cidr":    "192.168.246.0/26",
+			"deleted": "false",
+			"node":    nodeName2,
+			"state":   "confirmed",
+		},
+	})
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Create(context.TODO(), &testData4, v1.CreateOptions{})
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+		if len(nodes[0].StaticRoutes) < 4 {
+			found = false
+		}
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).IsVrf).To(gomega.Equal(true))
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+
+	g.Expect(len(nodes[0].StaticRoutes)).To(gomega.Equal(4))
+	g.Expect(*(nodes[0].StaticRoutes[3].NextHop.Addr)).To(gomega.Equal(nodeip2))
+	g.Expect(*(nodes[0].StaticRoutes[3].Prefix.IPAddr.Addr)).To(gomega.Equal("192.168.246.0"))
+	g.Expect(*(nodes[0].StaticRoutes[3].Prefix.Mask)).To(gomega.Equal(int32(26)))
+
+	var testData5 unstructured.Unstructured
+	testData5.SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "crd.projectcalico.org/v1",
+		"kind":       "blockaffinities",
+		"metadata": map[string]interface{}{
+			"name":      "testblockaffinity5",
+			"namespace": "default",
+		},
+		"spec": map[string]interface{}{
+			"cidr":    "192.168.31.64/26",
+			"deleted": "false",
+			"node":    nodeName1,
+			"state":   "confirmed",
+		},
+	})
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Create(context.TODO(), &testData5, v1.CreateOptions{})
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+		if len(nodes[0].StaticRoutes) < 5 {
+			found = false
+		}
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).IsVrf).To(gomega.Equal(true))
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+
+	g.Expect(len(nodes[0].StaticRoutes)).To(gomega.Equal(5))
+	g.Expect(*nodes[0].StaticRoutes[0].RouteID).To(gomega.Equal("cluster-1"))
+	g.Expect(*nodes[0].StaticRoutes[1].RouteID).To(gomega.Equal("cluster-2"))
+	g.Expect(*nodes[0].StaticRoutes[2].RouteID).To(gomega.Equal("cluster-3"))
+	g.Expect(*nodes[0].StaticRoutes[3].RouteID).To(gomega.Equal("cluster-4"))
+	g.Expect(*nodes[0].StaticRoutes[4].RouteID).To(gomega.Equal("cluster-5"))
+	time.Sleep(10 * time.Second)
+
+	// deleting the BlockAffinity objects for the node
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity2", v1.DeleteOptions{})
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity5", v1.DeleteOptions{})
+	g.Eventually(func() int {
+		num_routes := len(nodes[0].StaticRoutes)
+		return num_routes
+	}, 10*time.Second).Should(gomega.Equal(3))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(*nodes[0].StaticRoutes[0].RouteID).To(gomega.Equal("cluster-1"))
+	g.Expect(*nodes[0].StaticRoutes[1].RouteID).To(gomega.Equal("cluster-2"))
+	g.Expect(*nodes[0].StaticRoutes[2].RouteID).To(gomega.Equal("cluster-3"))
+
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodeName1, metav1.DeleteOptions{})
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity1", v1.DeleteOptions{})
+	g.Eventually(func() int {
+		num_routes := len(nodes[0].StaticRoutes)
+		return num_routes
+	}, 10*time.Second).Should(gomega.Equal(2))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(*nodes[0].StaticRoutes[0].RouteID).To(gomega.Equal("cluster-1"))
+	g.Expect(*nodes[0].StaticRoutes[1].RouteID).To(gomega.Equal("cluster-2"))
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity4", v1.DeleteOptions{})
+	g.Eventually(func() int {
+		num_routes := len(nodes[0].StaticRoutes)
+		return num_routes
+	}, 10*time.Second).Should(gomega.Equal(1))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(*nodes[0].StaticRoutes[0].RouteID).To(gomega.Equal("cluster-1"))
+
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodeName2, metav1.DeleteOptions{})
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity3", v1.DeleteOptions{})
+	g.Eventually(func() int {
+		num_routes := len(nodes[0].StaticRoutes)
+		return num_routes
+	}, 10*time.Second).Should(gomega.Equal(0))
+}
+func TestStaticRoutesWithMultipleNodesUpdate(t *testing.T) {
+	if *cniPlugin != "calico" {
+		t.Skip("Skipping BlockAffinity test since CNI plugin is not Calico")
+	}
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/global"
+	nodesNameList := []string{"testNodeCalico1", "testNodeCalico2", "testNodeCalico3", "testNodeCalico4"}
+	nodeIPList := []string{"10.64.29.32", "10.64.29.33", "10.64.29.34", "10.64.29.35"}
+	objects.SharedAviGraphLister().Delete(modelName)
+	time.Sleep(10 * time.Second)
+
+	// mimicking actual scenario where the node will have atleast one BlockAffinity object created from start
+	var testData1 unstructured.Unstructured
+	testData1.SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "crd.projectcalico.org/v1",
+		"kind":       "blockaffinities",
+		"metadata": map[string]interface{}{
+			"name":      "testblockaffinity1",
+			"namespace": "default",
+		},
+		"spec": map[string]interface{}{
+			"cidr":    "10.244.255.236/30",
+			"deleted": "false",
+			"node":    nodesNameList[0],
+			"state":   "confirmed",
+		},
+	})
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Create(context.TODO(), &testData1, v1.CreateOptions{})
+
+	nodeExample := (integrationtest.FakeNode{
+		Name:    nodesNameList[0],
+		Version: "1",
+		NodeIP:  nodeIPList[0],
+	}).NodeCalico()
+
+	_, err := KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Node: %v", err)
+	}
+
+	// mimicking actual scenario where the node will have atleast one BlockAffinity object created from start
+	var testData2 unstructured.Unstructured
+	testData2.SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "crd.projectcalico.org/v1",
+		"kind":       "blockaffinities",
+		"metadata": map[string]interface{}{
+			"name":      "testblockaffinity2",
+			"namespace": "default",
+		},
+		"spec": map[string]interface{}{
+			"cidr":    "10.244.255.72/30",
+			"deleted": "false",
+			"node":    nodesNameList[1],
+			"state":   "confirmed",
+		},
+	})
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Create(context.TODO(), &testData2, v1.CreateOptions{})
+
+	nodeExample2 := (integrationtest.FakeNode{
+		Name:    nodesNameList[1],
+		Version: "1",
+		NodeIP:  nodeIPList[1],
+	}).NodeCalico()
+
+	_, err = KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample2, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Node: %v", err)
+	}
+
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	// mimicking actual scenario where the node will have atleast one BlockAffinity object created from start
+	var testData3 unstructured.Unstructured
+	testData3.SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "crd.projectcalico.org/v1",
+		"kind":       "blockaffinities",
+		"metadata": map[string]interface{}{
+			"name":      "testblockaffinity3",
+			"namespace": "default",
+		},
+		"spec": map[string]interface{}{
+			"cidr":    "10.244.115.128/25",
+			"deleted": "false",
+			"node":    nodesNameList[2],
+			"state":   "confirmed",
+		},
+	})
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Create(context.TODO(), &testData3, v1.CreateOptions{})
+
+	nodeExample3 := (integrationtest.FakeNode{
+		Name:    nodesNameList[2],
+		Version: "1",
+		NodeIP:  nodeIPList[2],
+	}).NodeCalico()
+
+	_, err = KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample3, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Node: %v", err)
+	}
+
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	// mimicking actual scenario where the node will have atleast one BlockAffinity object created from start
+	var testData4 unstructured.Unstructured
+	testData4.SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "crd.projectcalico.org/v1",
+		"kind":       "blockaffinities",
+		"metadata": map[string]interface{}{
+			"name":      "testblockaffinity4",
+			"namespace": "default",
+		},
+		"spec": map[string]interface{}{
+			"cidr":    "10.244.125.128/25",
+			"deleted": "false",
+			"node":    nodesNameList[3],
+			"state":   "confirmed",
+		},
+	})
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Create(context.TODO(), &testData4, v1.CreateOptions{})
+
+	nodeExample4 := (integrationtest.FakeNode{
+		Name:    nodesNameList[3],
+		Version: "1",
+		NodeIP:  nodeIPList[3],
+	}).NodeCalico()
+
+	_, err = KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample4, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Node: %v", err)
+	}
+
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+		if len(nodes[0].StaticRoutes) < 4 {
+			found = false
+		}
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).IsVrf).To(gomega.Equal(true))
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity2", v1.DeleteOptions{})
+	g.Eventually(func() int {
+		num_routes := len(nodes[0].StaticRoutes)
+		return num_routes
+	}, 10*time.Second).Should(gomega.Equal(3))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).IsVrf).To(gomega.Equal(true))
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[1], metav1.DeleteOptions{})
+	g.Eventually(func() int {
+		num_routes := len(nodes[0].NodeStaticRoutes)
+		return num_routes
+	}, 10*time.Second).Should(gomega.Equal(3))
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+	g.Expect(len(nodes[0].NodeStaticRoutes)).To(gomega.Equal(3))
+	g.Expect(len(nodes[0].Nodes)).To(gomega.Equal(3))
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity1", v1.DeleteOptions{})
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity3", v1.DeleteOptions{})
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity4", v1.DeleteOptions{})
+	g.Eventually(func() int {
+		num_routes := len(nodes[0].StaticRoutes)
+		return num_routes
+	}, 10*time.Second).Should(gomega.Equal(0))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).IsVrf).To(gomega.Equal(true))
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[0], metav1.DeleteOptions{})
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[2], metav1.DeleteOptions{})
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[3], metav1.DeleteOptions{})
+	g.Eventually(func() int {
+		num_routes := len(nodes[0].NodeStaticRoutes)
+		return num_routes
+	}, 10*time.Second).Should(gomega.Equal(0))
+}
+
+func TestStaticRoutesWithMultipleBlockAffinityDeletion(t *testing.T) {
+	if *cniPlugin != "calico" {
+		t.Skip("Skipping BlockAffinity test since CNI plugin is not Calico")
+	}
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/global"
+	nodesNameList := []string{"testNodeCalico1", "testNodeCalico2", "testNodeCalico3", "testNodeCalico4"}
+	nodeIPList := []string{"10.64.29.32", "10.64.29.33", "10.64.29.34", "10.64.29.35"}
+	objects.SharedAviGraphLister().Delete(modelName)
+	time.Sleep(10 * time.Second)
+
+	// mimicking actual scenario where the node will have atleast one BlockAffinity object created from start
+	var testData1 unstructured.Unstructured
+	testData1.SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "crd.projectcalico.org/v1",
+		"kind":       "blockaffinities",
+		"metadata": map[string]interface{}{
+			"name":      "testblockaffinity1",
+			"namespace": "default",
+		},
+		"spec": map[string]interface{}{
+			"cidr":    "10.244.255.236/30",
+			"deleted": "false",
+			"node":    nodesNameList[0],
+			"state":   "confirmed",
+		},
+	})
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Create(context.TODO(), &testData1, v1.CreateOptions{})
+
+	nodeExample := (integrationtest.FakeNode{
+		Name:    nodesNameList[0],
+		Version: "1",
+		NodeIP:  nodeIPList[0],
+	}).NodeCalico()
+
+	_, err := KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Node: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+
+	var banode1 unstructured.Unstructured
+	banode1.SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "crd.projectcalico.org/v1",
+		"kind":       "blockaffinities",
+		"metadata": map[string]interface{}{
+			"name":      "testblockaffinity11",
+			"namespace": "default",
+		},
+		"spec": map[string]interface{}{
+			"cidr":    "10.244.255.239/30",
+			"deleted": "false",
+			"node":    nodesNameList[0],
+			"state":   "confirmed",
+		},
+	})
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Create(context.TODO(), &banode1, v1.CreateOptions{})
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+		if len(nodes[0].StaticRoutes) < 2 {
+			found = false
+		}
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+
+	// mimicking actual scenario where the node will have atleast one BlockAffinity object created from start
+	var testData2 unstructured.Unstructured
+	testData2.SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "crd.projectcalico.org/v1",
+		"kind":       "blockaffinities",
+		"metadata": map[string]interface{}{
+			"name":      "testblockaffinity2",
+			"namespace": "default",
+		},
+		"spec": map[string]interface{}{
+			"cidr":    "10.244.255.72/30",
+			"deleted": "false",
+			"node":    nodesNameList[1],
+			"state":   "confirmed",
+		},
+	})
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Create(context.TODO(), &testData2, v1.CreateOptions{})
+
+	nodeExample2 := (integrationtest.FakeNode{
+		Name:    nodesNameList[1],
+		Version: "1",
+		NodeIP:  nodeIPList[1],
+	}).NodeCalico()
+
+	_, err = KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample2, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Node: %v", err)
+	}
+
+	integrationtest.PollForCompletion(t, modelName, 5)
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+
+	g.Eventually(func() int {
+		num_routes := len(nodes[0].NodeStaticRoutes)
+		return num_routes
+	}, 10*time.Second).Should(gomega.Equal(2))
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+		if len(nodes[0].StaticRoutes) < 3 {
+			found = false
+		}
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	// mimicking actual scenario where the node will have atleast one BlockAffinity object created from start
+	var testData3 unstructured.Unstructured
+	testData3.SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "crd.projectcalico.org/v1",
+		"kind":       "blockaffinities",
+		"metadata": map[string]interface{}{
+			"name":      "testblockaffinity3",
+			"namespace": "default",
+		},
+		"spec": map[string]interface{}{
+			"cidr":    "10.244.115.128/25",
+			"deleted": "false",
+			"node":    nodesNameList[2],
+			"state":   "confirmed",
+		},
+	})
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Create(context.TODO(), &testData3, v1.CreateOptions{})
+
+	nodeExample3 := (integrationtest.FakeNode{
+		Name:    nodesNameList[2],
+		Version: "1",
+		NodeIP:  nodeIPList[2],
+	}).NodeCalico()
+
+	_, err = KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample3, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Node: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+		if len(nodes[0].StaticRoutes) < 4 {
+			found = false
+		}
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+
+	g.Eventually(func() int {
+		num_routes := len(nodes[0].NodeStaticRoutes)
+		return num_routes
+	}, 10*time.Second).Should(gomega.Equal(3))
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity2", v1.DeleteOptions{})
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+		if len(nodes[0].StaticRoutes) > 3 {
+			found = false
+		}
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity3", v1.DeleteOptions{})
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+		if len(nodes[0].StaticRoutes) > 2 {
+			found = false
+		}
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+
+	// mimicking actual scenario where the node will have atleast one BlockAffinity object created from start
+	var testData4 unstructured.Unstructured
+	testData4.SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "crd.projectcalico.org/v1",
+		"kind":       "blockaffinities",
+		"metadata": map[string]interface{}{
+			"name":      "testblockaffinity4",
+			"namespace": "default",
+		},
+		"spec": map[string]interface{}{
+			"cidr":    "10.244.125.128/25",
+			"deleted": "false",
+			"node":    nodesNameList[3],
+			"state":   "confirmed",
+		},
+	})
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Create(context.TODO(), &testData4, v1.CreateOptions{})
+
+	nodeExample4 := (integrationtest.FakeNode{
+		Name:    nodesNameList[3],
+		Version: "1",
+		NodeIP:  nodeIPList[3],
+	}).NodeCalico()
+
+	_, err = KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample4, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Node: %v", err)
+	}
+
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	g.Eventually(func() int {
+		num_routes := len(nodes[0].NodeStaticRoutes)
+		return num_routes
+	}, 10*time.Second).Should(gomega.Equal(2))
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+		if len(nodes[0].StaticRoutes) < 3 {
+			found = false
+		}
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).IsVrf).To(gomega.Equal(true))
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+
+	var banode4 unstructured.Unstructured
+	banode4.SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "crd.projectcalico.org/v1",
+		"kind":       "blockaffinities",
+		"metadata": map[string]interface{}{
+			"name":      "testblockaffinity44",
+			"namespace": "default",
+		},
+		"spec": map[string]interface{}{
+			"cidr":    "10.244.127.128/25",
+			"deleted": "false",
+			"node":    nodesNameList[3],
+			"state":   "confirmed",
+		},
+	})
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Create(context.TODO(), &banode4, v1.CreateOptions{})
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+		if len(nodes[0].StaticRoutes) < 4 {
+			found = false
+		}
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).IsVrf).To(gomega.Equal(true))
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[0], metav1.DeleteOptions{})
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[1], metav1.DeleteOptions{})
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[2], metav1.DeleteOptions{})
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[3], metav1.DeleteOptions{})
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+		if len(nodes[0].StaticRoutes) > 0 {
+			found = false
+		}
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+
+	g.Eventually(func() int {
+		num_routes := len(nodes[0].NodeStaticRoutes)
+		return num_routes
+	}, 10*time.Second).Should(gomega.Equal(0))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(len(nodes[0].StaticRoutes)).To(gomega.Equal(0))
+	g.Expect(len(nodes[0].NodeStaticRoutes)).To(gomega.Equal(0))
+	g.Expect(len(nodes[0].Nodes)).To(gomega.Equal(0))
+	g.Expect(len(nodes[0].NodeIds)).To(gomega.Equal(0))
+}
