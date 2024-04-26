@@ -53,6 +53,9 @@ var DynamicClient *dynamicfake.FakeDynamicClient
 
 var cniPlugin = flag.String("cniPlugin", "", "cni plugin for the setup")
 
+//var calico = "calico"
+//var cniPlugin = &calico
+
 func TestMain(m *testing.M) {
 	flag.Parse()
 	os.Setenv("VIP_NETWORK_LIST", `[{"networkName":"net123"}]`)
@@ -279,9 +282,111 @@ func TestBlockAffinity(t *testing.T) {
 	// deleting the second BlockAffinity object for the node
 	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity2", v1.DeleteOptions{})
 	g.Eventually(func() int {
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
 		num_routes := len(nodes[0].StaticRoutes)
 		return num_routes
 	}, 10*time.Second).Should(gomega.Equal(1))
+
+	err = KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodeExample.Name, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("error in deleting Node: %v", err)
+	}
+	g.Eventually(func() int {
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+		num_routes := len(nodes[0].StaticRoutes)
+		return num_routes
+
+	}, 10*time.Second).Should(gomega.Equal(0))
+}
+
+func TestNodeAnnotationUpdate(t *testing.T) {
+	if *cniPlugin != "calico" {
+		t.Skip("Skipping BlockAffinity test since CNI plugin is not Calico")
+	}
+
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/global"
+	nodeip := "10.1.1.3"
+	nodeName := "testNodeCalicoWithAnnotation"
+	objects.SharedAviGraphLister().Delete(modelName)
+
+	// mimicking actual scenario where the node will have atleast one BlockAffinity object created from start
+	var testData unstructured.Unstructured
+	testData.SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "crd.projectcalico.org/v1",
+		"kind":       "blockaffinities",
+		"metadata": map[string]interface{}{
+			"name":      "testblockaffinityWithAnnotation",
+			"namespace": "default",
+		},
+		"spec": map[string]interface{}{
+			"cidr":    "10.135.0.0/26",
+			"deleted": "false",
+			"node":    nodeName,
+			"state":   "confirmed",
+		},
+	})
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Create(context.TODO(), &testData, v1.CreateOptions{})
+
+	nodeExample := (integrationtest.FakeNode{
+		Name:    nodeName,
+		Version: "1",
+		NodeIP:  nodeip,
+	}).NodeCalico()
+
+	nodeV4IP := "10.0.0.1"
+	nodeV4Mask := "24"
+	nodeExample.ObjectMeta.Annotations = map[string]string{}
+	nodeExample.ObjectMeta.Annotations[lib.CalicoIPv4AddressAnnotation] = nodeV4IP + "/" + nodeV4Mask
+
+	newNode, err := KubeClient.CoreV1().Nodes().Create(context.TODO(), nodeExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Node: %v", err)
+	}
+
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).IsVrf).To(gomega.Equal(true))
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+
+	g.Expect(len(nodes[0].StaticRoutes)).To(gomega.Equal(1))
+	g.Expect(*(nodes[0].StaticRoutes[0].NextHop.Addr)).To(gomega.Equal(nodeV4IP))
+	g.Expect(*(nodes[0].StaticRoutes[0].Prefix.IPAddr.Addr)).To(gomega.Equal("10.135.0.0"))
+	g.Expect(*(nodes[0].StaticRoutes[0].Prefix.Mask)).To(gomega.Equal(int32(26)))
+
+	nodeV4IP = "10.0.0.2"
+	newNode.ObjectMeta.Annotations[lib.CalicoIPv4AddressAnnotation] = nodeV4IP + "/" + nodeV4Mask
+	newNode, err = KubeClient.CoreV1().Nodes().Update(context.TODO(), newNode, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Node: %v", err)
+	}
+	// waiting for routes to get populated after BlockAffinity object creation
+	time.Sleep(30 * time.Second)
+
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).IsVrf).To(gomega.Equal(true))
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+
+	g.Expect(len(nodes[0].StaticRoutes)).To(gomega.Equal(1))
+	g.Expect(*(nodes[0].StaticRoutes[0].NextHop.Addr)).To(gomega.Equal(nodeV4IP))
+	g.Expect(*(nodes[0].StaticRoutes[0].Prefix.IPAddr.Addr)).To(gomega.Equal("10.135.0.0"))
+	g.Expect(*(nodes[0].StaticRoutes[0].Prefix.Mask)).To(gomega.Equal(int32(26)))
+	err = KubeClient.CoreV1().Nodes().Delete(context.TODO(), newNode.Name, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("error in deleting Node: %v", err)
+	}
 }
 
 func TestCiliumNodeAddUpdate(t *testing.T) {

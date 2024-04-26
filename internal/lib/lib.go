@@ -2200,18 +2200,18 @@ func GetIPFromNode(node *v1.Node) (string, string) {
 
 	if cniPlugin == CALICO_CNI {
 		if v4enabled {
-			if nodeIP, ok := node.Annotations["projectcalico.org/IPv4Address"]; ok {
+			if nodeIP, ok := node.Annotations[CalicoIPv4AddressAnnotation]; ok {
 				nodeV4 = strings.Split(nodeIP, "/")[0]
 			}
 		}
 		if v6enabled {
-			if nodeIP, ok := node.Annotations["projectcalico.org/IPv6Address"]; ok {
+			if nodeIP, ok := node.Annotations[CalicoIPv6AddressAnnotation]; ok {
 				nodeV6 = strings.Split(nodeIP, "/")[0]
 			}
 		}
 
 	} else if cniPlugin == ANTREA_CNI {
-		if nodeIPstr, ok := node.Annotations["node.antrea.io/transport-addresses"]; ok {
+		if nodeIPstr, ok := node.Annotations[AntreaTransportAddressAnnotation]; ok {
 			nodeIPlist := strings.Split(nodeIPstr, ",")
 			for _, nodeIP := range nodeIPlist {
 				if v4enabled && utils.IsV4(nodeIP) {
