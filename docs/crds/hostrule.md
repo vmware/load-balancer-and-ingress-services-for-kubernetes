@@ -57,6 +57,7 @@ A sample HostRule CRD looks like this:
         aliases: # optional
         -  bar.com
         -  baz.com
+        l7Rule: my-l7-rule-name
 
 
 ### Specific usage of HostRule CRD
@@ -279,6 +280,11 @@ The `loadBalancerIP` field can be used to provide a valid preferred IPv4 address
 
 **Note**: The HostRule CRD is not aware of the misconfigurations while it is being created, therefore the HostRule will be `Accepted` nonetheless.
 
+#### L7Rule 
+
+L7rule field can be used to specify the name of [L7Rule](./l7rule.md) CRD. It is used to modify select VS Properties which are not part of HostRule CRD.
+
+**Note**: This property is available only in HostRule `v1beta1` schema definition.
 
 #### <a id="aliases"> Configure aliases for FQDN
 
