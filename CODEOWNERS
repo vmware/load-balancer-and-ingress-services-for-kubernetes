@@ -1,0 +1,4 @@
+# Each line is a file pattern followed by one or more owners.
+
+# Any files under ako_cicd/jenkins MUST be reviewed by buildops reviewers
+/ako_cicd/jenkins @jeyapradeen-avi @gurunath-avi @rachitshandilya
