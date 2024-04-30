@@ -31,10 +31,37 @@ var keyChan chan bool
 var V1beta1CRDClient *v1beta1crdfake.Clientset
 
 var gvrToKind = map[schema.GroupVersionResource]string{
-	lib.NetworkInfoGVR:     "namespacenetworkinfosList",
-	lib.ClusterNetworkGVR:  "clusternetworkinfosList",
-	lib.VPCGVR:             "vpcsList",
-	lib.AvailabilityZoneVR: "availabilityzonesList",
+	lib.NetworkInfoGVR:             "namespacenetworkinfosList",
+	lib.ClusterNetworkGVR:          "clusternetworkinfosList",
+	lib.VPCNetworkConfigurationGVR: "vpcnetworkconfigurationsList",
+	lib.AvailabilityZoneVR:         "availabilityzonesList",
+}
+
+func annotateNamespaceWithVpcNetworkConfigCR(t *testing.T, ns, vpcNetConfigCR string) {
+	namespace, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), ns, metav1.GetOptions{})
+	if err != nil {
+		namespace := (integrationtest.FakeNamespace{
+			Name:   ns,
+			Labels: map[string]string{},
+		}).Namespace()
+		namespace.ResourceVersion = "1"
+		namespace.Annotations = map[string]string{
+			"nsx.vmware.com/vpc_network_config": vpcNetConfigCR,
+		}
+		_, err = kubeClient.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
+		if err != nil {
+			t.Fatalf("Error occurred while Adding namespace: %v", err)
+		}
+	} else {
+		namespace.ResourceVersion = "2"
+		namespace.Annotations = map[string]string{
+			"nsx.vmware.com/vpc_network_config": vpcNetConfigCR,
+		}
+		_, err = kubeClient.CoreV1().Namespaces().Update(context.TODO(), namespace, metav1.UpdateOptions{})
+		if err != nil {
+			t.Fatalf("Error occurred while Updating namespace: %v", err)
+		}
+	}
 }
 
 func TestMain(m *testing.M) {
@@ -191,18 +218,22 @@ func TestAKOInfraAviInfraSettingCreationVPC(t *testing.T) {
 	testData = append(testData, &unstructured.Unstructured{})
 	testData[0].SetUnstructuredContent(map[string]interface{}{
 		"apiVersion": "nsx.vmware.com/v1alpha1",
-		"kind":       "vpcs",
+		"kind":       "vpcnetworkconfigurations",
 		"metadata": map[string]interface{}{
-			"name":      "testvpcinfo",
-			"namespace": "default",
+			"name": "testvpcnetworkconfig",
 		},
 		"status": map[string]interface{}{
-			"lbSubnetPath":    "/orgs/default/projects/test-project/vpcs/testGW/subnets/_AVI_SUBNET--LB",
-			"nsxResourcePath": "/orgs/default/projects/test-project/vpcs/testGW",
+			"vpcs": []interface{}{
+				map[string]interface{}{
+					"name":         "vpc1",
+					"lbSubnetPath": "/orgs/default/projects/test-project/vpcs/testGW/subnets/_AVI_SUBNET--LB",
+				},
+			},
 		},
 	})
 
 	setupInfraTest(testData)
+	annotateNamespaceWithVpcNetworkConfigCR(t, "default", "testvpcnetworkconfig")
 
 	os.Setenv("VPC_MODE", "true")
 
@@ -212,7 +243,7 @@ func TestAKOInfraAviInfraSettingCreationVPC(t *testing.T) {
 	worker := c.InitFullSyncWorker()
 	go worker.Run()
 
-	_, err := dynamicClient.Resource(lib.VPCGVR).Namespace("default").Create(context.TODO(), testData[0], v1.CreateOptions{})
+	_, err := dynamicClient.Resource(lib.VPCNetworkConfigurationGVR).Create(context.TODO(), testData[0], v1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("failed to create namespacenetworkinfos CR, error: %s", err.Error())
 	}
@@ -236,7 +267,7 @@ func TestAKOInfraAviInfraSettingCreationVPC(t *testing.T) {
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
 
-	err = dynamicClient.Resource(lib.VPCGVR).Namespace("default").Delete(context.TODO(), "testvpcinfo", v1.DeleteOptions{})
+	err = dynamicClient.Resource(lib.VPCNetworkConfigurationGVR).Delete(context.TODO(), "testvpcnetworkconfig", v1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("failed to delete namespacenetworkinfo CR, error: %s", err.Error())
 	}
@@ -442,42 +473,39 @@ func TestAKOInfraMultiAviInfraSettingCreationVPC(t *testing.T) {
 	testData = append(testData, &unstructured.Unstructured{})
 	testData[0].SetUnstructuredContent(map[string]interface{}{
 		"apiVersion": "nsx.vmware.com/v1alpha1",
-		"kind":       "vpcs",
+		"kind":       "vpcnetworkconfigurations",
 		"metadata": map[string]interface{}{
-			"name":      "testvpcinfo",
-			"namespace": "red",
+			"name": "testvpcnetworkconfig",
 		},
 		"status": map[string]interface{}{
-			"lbSubnetPath":    "/orgs/default/projects/test-project/vpcs/testGW/subnets/_AVI_SUBNET--LB",
-			"nsxResourcePath": "/orgs/default/projects/test-project/vpcs/testGW-red",
+			"vpcs": []interface{}{
+				map[string]interface{}{
+					"name":         "vpc1",
+					"lbSubnetPath": "/orgs/default/projects/test-project/vpcs/testGW/subnets/_AVI_SUBNET--LB",
+				},
+			},
 		},
 	})
 	testData = append(testData, &unstructured.Unstructured{})
 	testData[1].SetUnstructuredContent(map[string]interface{}{
 		"apiVersion": "nsx.vmware.com/v1alpha1",
-		"kind":       "vpcs",
+		"kind":       "vpcnetworkconfigurations",
 		"metadata": map[string]interface{}{
-			"name":      "testvpcinfo",
-			"namespace": "red-ns",
+			"name": "testvpcnetworkconfig-red",
 		},
 		"status": map[string]interface{}{
-			"lbSubnetPath":    "/orgs/default/projects/test-project/vpcs/testGW/subnets/_AVI_SUBNET--LB",
-			"nsxResourcePath": "/orgs/default/projects/test-project/vpcs/testGW",
+			"vpcs": []interface{}{
+				map[string]interface{}{
+					"name":         "vpc1",
+					"lbSubnetPath": "/orgs/default/projects/test-project/vpcs/testGW-red/subnets/_AVI_SUBNET--LB",
+				},
+			},
 		},
 	})
 
-	namespace, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "default", metav1.GetOptions{})
-	if err != nil {
-		t.Fatalf("Error occurred while fetching default namespace: %v", err)
-	}
-	namespace.ResourceVersion = "2"
-	namespace.Annotations = map[string]string{
-		"nsx.vmware.com/vpc_name": "red-ns/testvpcinfo",
-	}
-	_, err = kubeClient.CoreV1().Namespaces().Update(context.TODO(), namespace, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("Error occurred while Updating namespace: %v", err)
-	}
+	annotateNamespaceWithVpcNetworkConfigCR(t, "default", "testvpcnetworkconfig")
+	annotateNamespaceWithVpcNetworkConfigCR(t, "red-ns", "testvpcnetworkconfig")
+	annotateNamespaceWithVpcNetworkConfigCR(t, "red", "testvpcnetworkconfig-red")
 
 	setupInfraTest(testData)
 
@@ -489,11 +517,11 @@ func TestAKOInfraMultiAviInfraSettingCreationVPC(t *testing.T) {
 	worker := c.InitFullSyncWorker()
 	go worker.Run()
 
-	_, err = dynamicClient.Resource(lib.VPCGVR).Namespace("red").Create(context.TODO(), testData[0], v1.CreateOptions{})
+	_, err := dynamicClient.Resource(lib.VPCNetworkConfigurationGVR).Create(context.TODO(), testData[0], v1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("failed to create namespacenetworkinfos CR, error: %s", err.Error())
 	}
-	_, err = dynamicClient.Resource(lib.VPCGVR).Namespace("red-ns").Create(context.TODO(), testData[1], v1.CreateOptions{})
+	_, err = dynamicClient.Resource(lib.VPCNetworkConfigurationGVR).Create(context.TODO(), testData[1], v1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("failed to create namespacenetworkinfos CR, error: %s", err.Error())
 	}
@@ -544,12 +572,12 @@ func TestAKOInfraMultiAviInfraSettingCreationVPC(t *testing.T) {
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
 
-	err = dynamicClient.Resource(lib.VPCGVR).Namespace("red").Delete(context.TODO(), "testvpcinfo", v1.DeleteOptions{})
+	err = dynamicClient.Resource(lib.VPCNetworkConfigurationGVR).Delete(context.TODO(), "testvpcnetworkconfig", v1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("failed to delete namespacenetworkinfo CR, error: %s", err.Error())
 	}
 
-	err = dynamicClient.Resource(lib.VPCGVR).Namespace("red-ns").Delete(context.TODO(), "testvpcinfo", v1.DeleteOptions{})
+	err = dynamicClient.Resource(lib.VPCNetworkConfigurationGVR).Delete(context.TODO(), "testvpcnetworkconfig-red", v1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("failed to delete namespacenetworkinfo CR, error: %s", err.Error())
 	}

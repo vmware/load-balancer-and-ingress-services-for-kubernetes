@@ -22,25 +22,25 @@ type VPCHandler struct {
 }
 
 func (v *VPCHandler) AddNetworkInfoEventHandler(stopCh <-chan struct{}) {
-	vpcEventHandler := cache.ResourceEventHandlerFuncs{
+	vpcNetworkConfigEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			utils.AviLog.Infof("VPC ADD Event")
+			utils.AviLog.Infof("VpcNetworkConfig ADD Event")
 			ScheduleQuickSync()
 		},
 		UpdateFunc: func(oldObj interface{}, newObj interface{}) {
-			utils.AviLog.Infof("VPC UPDATE Event")
+			utils.AviLog.Infof("VpcNetworkConfig UPDATE Event")
 			ScheduleQuickSync()
 
 		},
 		DeleteFunc: func(obj interface{}) {
-			utils.AviLog.Infof("VPC DELETE Event")
+			utils.AviLog.Infof("VpcNetworkConfig DELETE Event")
 			ScheduleQuickSync()
 		},
 	}
-	lib.GetDynamicInformers().VPCInformer.Informer().AddEventHandler(vpcEventHandler)
-	go lib.GetDynamicInformers().VPCInformer.Informer().Run(stopCh)
+	lib.GetDynamicInformers().VPCNetworkConfigurationInformer.Informer().AddEventHandler(vpcNetworkConfigEventHandler)
+	go lib.GetDynamicInformers().VPCNetworkConfigurationInformer.Informer().Run(stopCh)
 	if !cache.WaitForCacheSync(stopCh,
-		lib.GetDynamicInformers().VPCInformer.Informer().HasSynced) {
+		lib.GetDynamicInformers().VPCNetworkConfigurationInformer.Informer().HasSynced) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for VPC caches to sync"))
 	} else {
 		utils.AviLog.Infof("Caches synced for VPC informer")
@@ -48,12 +48,12 @@ func (v *VPCHandler) AddNetworkInfoEventHandler(stopCh <-chan struct{}) {
 }
 
 func (v *VPCHandler) SyncLSLRNetwork() {
-	vpcToSubnetMap, vpcToNSMap, err := lib.GetVPCs(lib.GetDynamicClientSet())
+	vpcToSubnetMap, nsToVPCMap, err := lib.GetVPCs(lib.GetDynamicClientSet())
 	if err != nil {
 		utils.AviLog.Errorf("Failed to list VPCs, error: %s", err)
 		return
 	}
-	utils.AviLog.Infof("Got VPC to NS Map: %v", vpcToNSMap)
+	utils.AviLog.Infof("Got NS to VPC Map: %v", nsToVPCMap)
 	client := InfraAviClientInstance()
 	found, cloudModel := getAviCloudFromCache(client, utils.CloudName)
 	if !found {
@@ -90,7 +90,7 @@ func (v *VPCHandler) SyncLSLRNetwork() {
 			}
 		}
 		if !updateCloud {
-			v.createInfraSettingAndAnnotateNS(vpcToNSMap)
+			v.createInfraSettingAndAnnotateNS(nsToVPCMap)
 			return
 		}
 		cloudLSLRList := make([]*models.Tier1LogicalRouterInfo, len(cloudVPCToSubnetMap))
@@ -119,10 +119,10 @@ func (v *VPCHandler) SyncLSLRNetwork() {
 		}
 		executeRestOp("fullsync", client, &restOp)
 	}
-	v.createInfraSettingAndAnnotateNS(vpcToNSMap)
+	v.createInfraSettingAndAnnotateNS(nsToVPCMap)
 }
 
-func (v *VPCHandler) createInfraSettingAndAnnotateNS(vpcToNSMap map[string]string) {
+func (v *VPCHandler) createInfraSettingAndAnnotateNS(nsToVPCMap map[string]string) {
 	infraSettingCRs, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Errorf("Failed to list AviInfraSetting CRs, error: %s", err.Error())
@@ -135,7 +135,7 @@ func (v *VPCHandler) createInfraSettingAndAnnotateNS(vpcToNSMap map[string]strin
 	}
 
 	wg := sync.WaitGroup{}
-	for vpc, ns := range vpcToNSMap {
+	for ns, vpc := range nsToVPCMap {
 		arr := strings.Split(vpc, "/vpcs/")
 		infraSettingName := arr[len(arr)-1]
 		delete(staleInfraSettingCRSet, infraSettingName)
@@ -146,6 +146,7 @@ func (v *VPCHandler) createInfraSettingAndAnnotateNS(vpcToNSMap map[string]strin
 			_, err := lib.CreateOrUpdateAviInfraSetting(infraSettingName, "", vpc, project)
 			if err != nil {
 				utils.AviLog.Errorf("failed to create aviInfraSetting, name: %s, error: %s", infraSettingName, err.Error())
+				return
 			}
 			utils.AviLog.Infof("Created AviInfraSetting: %s", infraSettingName)
 			lib.AnnotateNamespaceWithInfraSetting(ns, infraSettingName)
@@ -163,11 +164,6 @@ func (v *VPCHandler) createInfraSettingAndAnnotateNS(vpcToNSMap map[string]strin
 		}(infraSettingName)
 	}
 
-	wg.Add(1)
-	go func() {
-		lib.AnnotateSystemNamespaceWithInfraSetting()
-		wg.Done()
-	}()
 	wg.Wait()
 	lib.RemoveInfraSettingAnnotationFromNamespaces(staleInfraSettingCRSet)
 }
