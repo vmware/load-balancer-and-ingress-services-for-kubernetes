@@ -29,6 +29,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
@@ -80,10 +81,10 @@ var (
 		Resource: "availabilityzones",
 	}
 
-	VPCGVR = schema.GroupVersionResource{
+	VPCNetworkConfigurationGVR = schema.GroupVersionResource{
 		Group:    "nsx.vmware.com",
 		Version:  "v1alpha1",
-		Resource: "vpcs",
+		Resource: "vpcnetworkconfigurations",
 	}
 )
 
@@ -134,7 +135,7 @@ type DynamicInformers struct {
 
 	AvailabilityZoneInformer informers.GenericInformer
 
-	VPCInformer informers.GenericInformer
+	VPCNetworkConfigurationInformer informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
@@ -158,7 +159,7 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 		if akoInfra {
 			informers.VCFClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
 			informers.AvailabilityZoneInformer = f.ForResource(AvailabilityZoneVR)
-			informers.VPCInformer = f.ForResource(VPCGVR)
+			informers.VPCNetworkConfigurationInformer = f.ForResource(VPCNetworkConfigurationGVR)
 		}
 	}
 
@@ -469,30 +470,46 @@ func WaitForInitSecretRecreateAndReboot() {
 
 func GetVPCs(clientSet dynamic.Interface) (map[string]string, map[string]string, error) {
 	vpcToSubnetMap := make(map[string]string)
-	vpcToNSMap := make(map[string]string)
-	vpcCRs, err := clientSet.Resource(VPCGVR).List(context.TODO(), metav1.ListOptions{})
+	nsToVPCMap := make(map[string]string)
+	vpcNetworkConfigCRs, err := clientSet.Resource(VPCNetworkConfigurationGVR).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		return vpcToSubnetMap, vpcToNSMap, err
+		return vpcToSubnetMap, nsToVPCMap, err
 	}
-	for _, obj := range vpcCRs.Items {
+	namespaces, err := utils.GetInformers().NSInformer.Lister().List(labels.Set(nil).AsSelector())
+	if err != nil {
+		return vpcToSubnetMap, nsToVPCMap, err
+	}
+	vpcNetworkConfigToNamespaceMap := make(map[string][]string)
+	for _, ns := range namespaces {
+		vpcNetCR := ns.Annotations["nsx.vmware.com/vpc_network_config"]
+		if vpcNetCR == "" {
+			continue
+		}
+		vpcNetworkConfigToNamespaceMap[vpcNetCR] = append(vpcNetworkConfigToNamespaceMap[vpcNetCR], ns.GetName())
+	}
+
+	for _, obj := range vpcNetworkConfigCRs.Items {
 		status, ok := obj.Object["status"].(map[string]interface{})
 		if !ok {
 			continue
 		}
-		aviSubnetPath, ok := status["lbSubnetPath"].(string)
+		lbSubnets, ok := status["lbsubnets"].(map[string]interface{})
 		if !ok {
 			continue
 		}
-		vpcPath, ok := status["nsxResourcePath"].(string)
+		aviSubnetPath, ok := lbSubnets["lbSubnetPath"].(string)
 		if !ok {
 			continue
 		}
-		if vpcPath == "" || aviSubnetPath == "" {
-			utils.AviLog.Warnf("invalid values for vpcPath: %s or aviSubnetPath: %s in the namespace %s", vpcPath, aviSubnetPath, obj.GetNamespace())
+		if aviSubnetPath == "" {
+			utils.AviLog.Warnf("invalid value for aviSubnetPath: %s in the VPCNetworkConfig CR %s", aviSubnetPath, obj.GetName())
 			continue
 		}
-		vpcToNSMap[vpcPath] = obj.GetNamespace()
+		vpcPath := strings.Split(aviSubnetPath, "/subnets/")[0]
 		vpcToSubnetMap[vpcPath] = aviSubnetPath
+		for _, ns := range vpcNetworkConfigToNamespaceMap[obj.GetName()] {
+			nsToVPCMap[ns] = vpcPath
+		}
 	}
-	return vpcToSubnetMap, vpcToNSMap, nil
+	return vpcToSubnetMap, nsToVPCMap, nil
 }

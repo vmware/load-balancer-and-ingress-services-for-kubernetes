@@ -368,7 +368,7 @@ func AnnotateSystemNamespaceWithInfraSetting() {
 
 	arr := strings.Split(systemNSVPC, "/")
 	namespace, vpcName := arr[0], arr[1]
-	vpcCR, err := GetDynamicClientSet().Resource(VPCGVR).Namespace(namespace).Get(context.TODO(), vpcName, metav1.GetOptions{})
+	vpcCR, err := GetDynamicClientSet().Resource(VPCNetworkConfigurationGVR).Namespace(namespace).Get(context.TODO(), vpcName, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Errorf("failed to get VPC, name: %s, error: %s", vpcName, err.Error())
 		return
