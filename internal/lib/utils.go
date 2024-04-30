@@ -435,58 +435,6 @@ func AnnotateNamespaceWithInfraSetting(namespace, infraSettingName string) error
 	return nil
 }
 
-func AnnotateSystemNamespaceWithInfraSetting() {
-	namespaces, err := utils.GetInformers().ClientSet.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return
-	}
-
-	systemNamespaces := make([]corev1.Namespace, 0)
-	systemNSVPC := ""
-	for _, namespace := range namespaces.Items {
-		for key, val := range namespace.GetAnnotations() {
-			if key != "nsx.vmware.com/vpc_name" {
-				continue
-			}
-			systemNSVPC = val
-			systemNamespaces = append(systemNamespaces, namespace)
-		}
-	}
-
-	if systemNSVPC == "" {
-		return
-	}
-	arr := strings.Split(systemNSVPC, "/")
-	namespace, vpcName := arr[0], arr[1]
-	vpcCR, err := GetDynamicClientSet().Resource(VPCGVR).Namespace(namespace).Get(context.TODO(), vpcName, metav1.GetOptions{})
-	if err != nil {
-		utils.AviLog.Errorf("failed to get VPC, name: %s, error: %s", vpcName, err.Error())
-		return
-	}
-	status, ok := vpcCR.Object["status"].(map[string]interface{})
-	if !ok {
-		return
-	}
-	vpcPath, ok := status["nsxResourcePath"].(string)
-	if !ok {
-		return
-	}
-	arr = strings.Split(vpcPath, "/vpcs/")
-	infraSettingName := arr[len(arr)-1]
-	for _, namespace := range systemNamespaces {
-		if val, ok := namespace.Annotations[InfraSettingNameAnnotation]; ok && val == infraSettingName {
-			continue
-		}
-		namespace.Annotations[InfraSettingNameAnnotation] = infraSettingName
-		_, err = utils.GetInformers().ClientSet.CoreV1().Namespaces().Update(context.TODO(), &namespace, metav1.UpdateOptions{})
-		if err != nil {
-			utils.AviLog.Warnf("Error occurred while Updating namespace: %s", err.Error())
-			continue
-		}
-		utils.AviLog.Infof("Annotated Namespace %s with AviInfraSetting %s", namespace.GetName(), infraSettingName)
-	}
-}
-
 func RunAviInfraSettingInformer(stopCh <-chan struct{}) {
 	go AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().Run(stopCh)
 	if !cache.WaitForCacheSync(stopCh, AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().HasSynced) {
