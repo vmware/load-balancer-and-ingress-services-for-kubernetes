@@ -17,6 +17,7 @@ package lib
 import (
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/session"
@@ -295,6 +296,7 @@ func NewAviRestClientWithToken(api_ep, username, authToken, cadata string) *clie
 		session.DisableControllerStatusCheckOnFailure(true),
 		session.SetTransport(transport),
 		session.SetAuthToken(authToken),
+		session.SetTimeout(120 * time.Second),
 	}
 	if !isSecure {
 		options = append(options, session.SetInsecure)

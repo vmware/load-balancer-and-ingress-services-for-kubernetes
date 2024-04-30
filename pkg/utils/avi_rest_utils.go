@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/session"
@@ -45,6 +46,7 @@ func NewAviRestClientPool(num uint32, api_ep, username,
 	options := []func(*session.AviSession) error{
 		session.DisableControllerStatusCheckOnFailure(true),
 		session.SetTransport(transport),
+		session.SetTimeout(120 * time.Second),
 	}
 
 	if !isSecure {
