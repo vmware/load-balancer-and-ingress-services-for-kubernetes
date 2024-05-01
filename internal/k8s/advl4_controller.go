@@ -197,7 +197,7 @@ func (c *AviController) SetupNamespaceEventHandler(numWorkers uint32) {
 					AddGatewaysFromNSToIngestionQueueWCP(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
 				}
 			}
-			objKey := utils.ObjKey(nsCur.GetName())
+			objKey := utils.ObjKey(nsCur)
 			if objKey == "" {
 				return
 			}
@@ -220,7 +220,7 @@ func (c *AviController) SetupNamespaceEventHandler(numWorkers uint32) {
 					return
 				}
 			}
-			objKey := utils.ObjKey(ns.GetName())
+			objKey := utils.ObjKey(ns)
 			if objKey == "" {
 				return
 			}
