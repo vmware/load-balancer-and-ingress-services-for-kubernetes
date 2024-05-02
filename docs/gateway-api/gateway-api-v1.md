@@ -1,19 +1,19 @@
-## Gateway API (Tech Preview)
+## Gateway API
 
-AKO claims support for the v1beta1 release of Gateway API. To enable the feature the field `GatewayAPI` under section `featureGates` must be set to **true**. This spawns a new container within the AKO pod which will handle the Gateway API related objects.
+AKO claims support for the v1 release of Gateway API. To enable this feature the field `GatewayAPI` under section `featureGates` in values.yaml must be set to **true**. This will spin up a new container within the AKO pod which will handle the Gateway API related objects.
 
 In the current release, the following objects in the Gateway API are supported by AKO:
-  1. GatewayClass (v1beta1)
-  2. Gateway (v1beta1)
-  3. HTTPRoute (v1beta1)
+  1. GatewayClass (v1)
+  2. Gateway (v1)
+  3. HTTPRoute (v1)
 
-**NOTE:** AKO currently supports all the fields which are mentioned as **Support: Core** in the above objects for the current release. Other objects in the Gateway API and fields in the GatewayClass, Gateway and HTTPRoute will be supported in the future releases.
+**NOTE:** AKO Gateway API supports all the fields which are mentioned as **Support: Core** in the above objects for the current release(with a few exceptions). See limitations below). Other objects in the Gateway API and fields in the GatewayClass, Gateway and HTTPRoute will be supported in the future releases.
 
 ### Support Matrix
 
-||GatewayClass | Gateway | HTTPRoute | GRPCRoute | TLSRoute | TCPRoute | UDPRoute |
-|:----------:| :--------:| :--------: | :--------: | :--------: | :--------: | :--------: | :--------: |
-| release-1.11.1 | v1beta1 | v1beta1 | v1beta1 | Not Supported | Not Supported | Not Supported | Not Supported |
+|                | GatewayClass | Gateway | HTTPRoute |   GRPCRoute   |   TLSRoute    |   TCPRoute    |   UDPRoute    | ReferenceGrant |
+|:--------------:|:------------:|:-------:|:---------:|:-------------:|:-------------:|:-------------:|:-------------:|----------------|
+| release-1.12.1 |      v1      |   v1    |    v1     | Not Supported | Not Supported | Not Supported | Not Supported | Not Supported  |
 
 ### Installation
 
@@ -37,7 +37,7 @@ AKO identifies GatewayClasses that point to `ako.vmware.com/avi-lb` as the `.spe
 A sample GatewayClass object can look something like this:
 
   ```yaml
-  apiVersion: gateway.networking.k8s.io/v1beta1
+  apiVersion: gateway.networking.k8s.io/v1
   kind: GatewayClass
   metadata:
     name: avi-lb
@@ -58,7 +58,7 @@ The parent VS created by AKO follows the naming convention `ako-gw-<cluster-name
 A sample Gateway object is shown below:
 
   ```yaml
-  apiVersion: gateway.networking.k8s.io/v1beta1
+  apiVersion: gateway.networking.k8s.io/v1
   kind: Gateway
   metadata:
     name: my-gateway
@@ -84,9 +84,9 @@ The above Gateway object would correspond to a single Layer 7 virtual service in
 
 The hostname field `.spec.listeners[i].hostname` is mandatory. It can be configured with or without a wildcard, but cannot be only `*`.
 
-AKO currently only supports HTTP and HTTPS as protocol.
+AKO only supports HTTP and HTTPS as protocol.
 
-AKO currently only supports Secret kind for certificateRefs.
+AKO only supports Secret kind for certificateRefs.
 
 Users can also configure a user-preferred static IPv4 address in the Gateway Object using the `.spec.addresses` field as shown below. This would configure the Layer 7 virtual service with a static IP as mentioned in the Gateway Object.
 
@@ -101,12 +101,12 @@ Users can also configure a user-preferred static IPv4 address in the Gateway Obj
 
 #### HTTPRoute
 
-The HTTPRoute object provides a way to route HTTP requests. The AKO models a child VS based on this object. Currently, AKO supports match requests based on the hostname, path, and header specified. The filters to specify additional processing of the requests will be added as policy in the child VS by the AKO. The filters of type `RequestHeaderModifier`, `RequestRedirect` and `ResponseHeaderModifier` are supported in the current release.
+The HTTPRoute object provides a way to route HTTP requests. The AKO models a child VS based on this object. AKO supports match requests based on the hostname, path, and header specified. The filters to specify additional processing of the requests will be added as policy in the child VS by the AKO. The filters of type `RequestHeaderModifier`, `RequestRedirect` and `ResponseHeaderModifier` are supported in the current release.
 
 A sample HTTPRoute object is shown below:
 
   ```yaml
-  apiVersion: gateway.networking.k8s.io/v1beta1
+  apiVersion: gateway.networking.k8s.io/v1
   kind: HTTPRoute
   metadata:
     name: my-http-app
@@ -150,13 +150,35 @@ The above HTTPRoute object gets translated to two child VS in the AVI controller
 
 Hostnames are mandatory and cannot contain wildcard.
 
-AKO currently does not support filters within backendRefs.
+AKO Gateway APIs does not support `filters` within `backendRefs`.
 
 Gateway should be created before an HTTPRoute is created. If Gateways are created after HTTPRoute is created, then the HTTPRoute needs to be updated to trigger the informer.
 
+### Gateway API Objects to AVI Controller Objects Mapping
+
+In AKO Gateway API Implementation, Gateway objects corresponds to following AVI Controller objects:
+
+  1. `Gateway` translates to an `EVH Parent Virtual Service` with `port/protocol` from each `Listener` added as the `Service` within parent VS.
+  2. `tls specification (certificate refs)` from each `Gateway Listener` will get added to the parent VS as `SSLKeyAndCertificateRef`. 
+  3. Every `Secret` created corresponds to an `SSLKeyAndCertificate` object.
+  4. `Addresses` in a Gateway specification gets added as static ip for `Vsvip` for parent VS.
+  5. Every `Rule` in `HTTPRoute` corresponds to an `EVH Child Virtual Service`, with `Match` translated to `VH match` and `Filters` translated to `HTTPPolicySet` configuration.
+  6. Each `backendRefs` specification (list of backends) in a `HTTPRoute Rule` will be added as a `Pool Group`.
+  7. Each `backendRefs` in a `HTTPRoute Rule` will be translated to a pool. 
+
+### Naming Conventions
+
+AKO Gateway Implementation follows following naming convention:
+
+  1. ParentVS              ako-gw-<cluster-name>--<gateway-namespace>-<gateway-name>-EVH
+  2. ChildVS               ako-gw-<cluster-name>–-<sha1 hash of <gateway-namespace>-<gateway-name>-<route-namespace>-<route-name>-<stringified FNV1a_32 hash of bytes(jsonified match)>> 
+  3. Pool                  ako-gw-<cluster-name>--<sha1 hash of <gateway-namespace>-<gateway-name>-<route-namespace>-<route-name>-<stringified FNV1a_32 hash of bytes(jsonified match)>-<backendRefs_namespace>-<backendRefs_name>-<backendRefs_port>> 
+  4. PoolGroup             ako-gw-<cluster-name>–-<sha1 hash of <gateway-namespace>-<gateway-name>-<route-namespace>-<route-name>-<stringified FNV1a_32 hash of bytes(jsonified match)>> 
+  5. SSLKeyAndCertificate  ako-gw-<cluster-name>--<sha1 hash of ako-gw-<cluster-name>--<hostname>
+
 ### HTTP Traffic Splitting
 
-In the current release, we support the Canary and Blue-Green traffic rollout. The configurations corresponding to this can be found [here](https://gateway-api.sigs.k8s.io/guides/traffic-splitting/)
+In the current release, AKO Gateway will support the Canary and Blue-Green traffic rollout. The configurations corresponding to this can be found [here](https://gateway-api.sigs.k8s.io/guides/traffic-splitting/)
 
 ### Status of Gateway API objects
 
@@ -228,6 +250,11 @@ AKO accepts the following Gateway configuration for this release:
   2. Gateway MUST NOT contain protocols other than HTTP or HTTPS.
   3. Gateway MUST contain a hostname. Hostname as `*` is not supported and `*.domain` is supported.
   4. Gateway MUST NOT contain TLS modes other than `Terminate`.
+  5. If the Secret specified in Gateway-> listeners-> TLSConfig does not exist or is in a namespace other than the Gateway namespace, AKO Gateway implementation will attach `SystemDefaultCert` to the Gateway. Once the Secret is created in the same namespace as that of Gateway, the `certRef` will be updated accordingly.
+  6. Gateway CAN have multiple listeners with same/overlapping hostname. 
+  7. Two Gateways MUST NOT have listeners with same/overlapping hostname.
+  8. `Gateway-> listeners-> allowedRoutes-> namespaces-> from` with value `selector` and thus `Gateway-> listeners-> allowedRoutes-> namespaces-> selector` is not supported.
+  
 
 #### HTTPRoute Limitations
 
@@ -235,15 +262,17 @@ AKO accepts the following HTTPRoute configuration for this release:
 
   1. HTTPRoute MUST contain at least one parent reference.
   2. HTTPRoute MUST NOT contain `*` as hostname.
-  3. HTTPRoute MUST contain at least one hostname match with parent Gateway
+  3. HTTPRoute MUST NOT contain `*` in hostname.
+  4. HTTPRoute MUST contain at least one hostname match with parent Gateway
+  5. Filters nested inside BackendRefs are not supported i.e. HTTPRoute-> spec-> rules-> backendRefs-> filters are not supported whereas HTTPRoute-> spec-> rules-> filters is supported.
 
 #### Resource Creation
 
-For the Tech preview, AKO imposes a restriction on the order of GatewayAPI object creation. An object that is referenced must be created first. For example, GatewayClass must be created before Gateway and Gateway before HTTPRoute creation. This restriction is only applicable to the Gateway API objects and will be removed in the future releases.
+AKO Gateway API imposes a restriction on the order of GatewayAPI object creation. An object that is referenced must be created first. For example, GatewayClass must be created before Gateway and Gateway before HTTPRoute creation. This restriction is only applicable to the Gateway API objects and will be removed in the future releases.
 
 #### High Availability Support
 
-For the Tech Preview, High Availability is not supported.
+AKO in active-stand-by mode does not support Gateway APIs. Avi continues to deliver highly available L4 and L7 LBs for Gateway APIs.
 
 #### Configuring Static IP address
 
@@ -256,4 +285,24 @@ The AKO supports Gateway objects with a single IPv4 address. The user can config
       value: 10.1.1.10
   ```
 
-**NOTE:** Currently, the address of type IPAddress is only supported. The length of the addresses is also limited to a single address.
+**NOTE:** The address of type IPAddress is only supported. The length of the addresses is also limited to a single address.
+
+#### Kubernetes Service types
+
+AKO Gateway API supports `ClusterIP` and `NodePort` Service types.
+
+#### Container Network Interface (CNI) providers
+
+AKO Gateway API claims support for `Calico` as CNI provider.
+
+#### Platforms/ Environments supported
+
+AKO Gateway API is supported on `Kubernetes` platform.
+
+#### Cloud Service Providers
+
+AKO Gateway API claims support for `VMware vCenter/vSphere ESX` Cloud.
+
+#### Known Issues:
+
+When no HTTPRoute rule matching a request is attached to the parent Gateway, a `500: Internal Server Error` is returned.
