@@ -386,3 +386,8 @@ All notable changes to this project will be documented in this file. The format 
  - Fix: AKO crashes on reboot in IPV6 environment when IPV6 ingress or LB service is there.
  - Fix: AKO doesn't create VS for ingress/route associated with HTTP Rule where LB Algorithm is not set.
  - Fix: AKO does not choose correct network reference for VIP subnet and Pool placement when there are duplicate networks, with same name, present on Avi Controller and management network is being overriden in the Service Engine Group (SEG). This SEG is defined either in AviInfrasetting CRD or in AKO configmap.
+
+## AKO-1.10.4
+
+### Fixed
+ - Fix: Static routes are not added due to error `Unique constraints route_id has duplicated value` when calico CNI allocates multiple block-affinities for a node and that may result in AKO crash.
