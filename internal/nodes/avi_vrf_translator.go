@@ -77,7 +77,7 @@ func (o *AviObjectGraph) BuildVRFGraph(key, vrfName, nodeName string, deleteFlag
 		}
 		if !ok {
 			//node not found, check overlapping and then add case
-			if !findRoutePrefix(nodeRoutes, aviVrfNode.StaticRoutes, key) {
+			if len(nodeRoutes) > 0 && !findRoutePrefix(nodeRoutes, aviVrfNode.StaticRoutes, key) {
 				// node is not present and no overlapping of cidr, append at last
 				aviVrfNode.StaticRoutes = append(aviVrfNode.StaticRoutes, nodeRoutes...)
 				nodeStaticRoute := StaticRouteDetails{}
@@ -87,6 +87,10 @@ func (o *AviObjectGraph) BuildVRFGraph(key, vrfName, nodeName string, deleteFlag
 				nodeStaticRoute.routeID = routeid
 				aviVrfNode.NodeStaticRoutes[nodeName] = nodeStaticRoute
 				aviVrfNode.Nodes = append(aviVrfNode.Nodes, nodeName)
+			} else {
+				if len(nodeRoutes) == 0 {
+					delete(aviVrfNode.NodeIds, routeid)
+				}
 			}
 		} else {
 			// update case
