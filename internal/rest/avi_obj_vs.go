@@ -486,6 +486,10 @@ func AviVsHttpPSAdd(vs_meta interface{}, isEVH bool) []*avimodels.HTTPPolicies {
 }
 
 func (rest *RestOperations) StatusUpdateForPool(restMethod utils.RestMethod, vs_cache_obj *avicache.AviVsCache, key string) {
+	if !lib.AKOControlConfig().IsLeader() {
+		utils.AviLog.Debugf("key: %s, AKO is not running as a leader, will not publish the status", key)
+		return
+	}
 	if restMethod == utils.RestPost || restMethod == utils.RestDelete || restMethod == utils.RestPut {
 		for _, poolkey := range vs_cache_obj.PoolKeyCollection {
 			// Fetch the pool object from cache and check the service metadata
@@ -546,6 +550,10 @@ func (rest *RestOperations) StatusUpdateForPool(restMethod utils.RestMethod, vs_
 }
 
 func (rest *RestOperations) StatusUpdateForVS(restMethod utils.RestMethod, vsCacheObj *avicache.AviVsCache, key string) {
+	if !lib.AKOControlConfig().IsLeader() {
+		utils.AviLog.Debugf("key: %s, AKO is not running as a leader, will not publish the status", key)
+		return
+	}
 	IPAddrs := rest.GetIPAddrsFromCache(vsCacheObj)
 	serviceMetadataObj := vsCacheObj.ServiceMetadataObj
 	switch serviceMetadataObj.ServiceMetadataMapping("VS") {
