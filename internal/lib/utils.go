@@ -549,3 +549,11 @@ func IsInfraSettingNSScoped(infraSetting, namespace string) bool {
 	}
 	return false
 }
+
+func GetCloudRef(tenant string) string {
+	if CompareVersions(AKOControlConfig().ControllerVersion(), ">", CtrlVersion_22_1_6) {
+		return fmt.Sprintf("/api/cloud?tenant=%s&name=%s", tenant, utils.CloudName)
+	}
+	// 22.1.x python webapp is not able to parse cloud name from above reference
+	return fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)
+}

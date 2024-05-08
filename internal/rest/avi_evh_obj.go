@@ -297,7 +297,7 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		cksum := vs_meta.CloudConfigCksum
 		checksumstr := strconv.Itoa(int(cksum))
 		cr := lib.AKOUser
-		cloudRef := utils.GetCloudRef(lib.GetTenant())
+		cloudRef := lib.GetCloudRef(lib.GetTenant())
 		svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 		svc_mdata := string(svc_mdata_json)
 
@@ -493,7 +493,7 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		app_prof = *vs_meta.ApplicationProfileRef
 	}
 
-	cloudRef := utils.GetCloudRef(lib.GetTenant())
+	cloudRef := lib.GetCloudRef(lib.GetTenant())
 	network_prof := "/api/networkprofile/?name=" + "System-TCP-Proxy"
 	seGroupRef := fmt.Sprintf("/api/serviceenginegroup?tenant=%s&name=%s", lib.GetTenant(), lib.GetSEGName())
 	svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
