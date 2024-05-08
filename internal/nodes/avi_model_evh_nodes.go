@@ -1734,22 +1734,24 @@ func DeriveShardVSForEvh(hostname, key string, routeIgrObj RouteIngressModel) (l
 	// Read the value of the num_shards from the environment variable.
 	utils.AviLog.Debugf("key: %s, msg: hostname for sharding: %s", key, hostname)
 	var newInfraPrefix, oldInfraPrefix string
-	oldTenant, newTenant := lib.GetTenant(), lib.GetTenant()
 	oldShardSize, newShardSize := lib.GetshardSize(), lib.GetshardSize()
 	var oldVSNameMeta lib.VSNameMetadata
 	var newVSNameMeta lib.VSNameMetadata
 	// get stored infrasetting from ingress/route
 	// figure out the current infrasetting via class/annotation
+	oldTenant := objects.SharedNamespaceTenantLister().GetTenantInNamespace(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName())
+	if oldTenant == "" {
+		oldTenant = lib.GetTenant()
+	}
+	newTenant := lib.GetTenantInNamespace(routeIgrObj.GetNamespace())
+
 	var oldSettingName string
 	var found bool
 	if found, oldSettingName = objects.InfraSettingL7Lister().GetIngRouteToInfraSetting(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName()); found {
 		if found, shardSize := objects.InfraSettingL7Lister().GetInfraSettingToShardSize(oldSettingName); found && shardSize != "" {
 			oldShardSize = lib.ShardSizeMap[shardSize]
 		}
-		tenant := objects.SharedNamespaceTenantLister().GetTenantInNamespace(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName())
-		if tenant != "" {
-			oldTenant = tenant
-		}
+
 		if !lib.IsInfraSettingNSScoped(oldSettingName, routeIgrObj.GetNamespace()) {
 			oldInfraPrefix = oldSettingName
 		}
@@ -1767,7 +1769,6 @@ func DeriveShardVSForEvh(hostname, key string, routeIgrObj RouteIngressModel) (l
 		if newSetting.Spec.L7Settings != (akov1beta1.AviInfraL7Settings{}) {
 			newShardSize = lib.ShardSizeMap[newSetting.Spec.L7Settings.ShardSize]
 		}
-		newTenant = lib.GetTenantInNamespace(routeIgrObj.GetNamespace())
 		if !lib.IsInfraSettingNSScoped(newSetting.Name, routeIgrObj.GetNamespace()) {
 			newInfraPrefix = newSetting.Name
 		}

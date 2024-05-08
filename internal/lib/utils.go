@@ -467,7 +467,7 @@ func GetTenantInNamespace(namespace string) string {
 		return GetTenant()
 	}
 	tenant, ok := nsObj.Annotations[TenantAnnotation]
-	if !ok {
+	if !ok || tenant == "" {
 		return GetTenant()
 	}
 	return tenant

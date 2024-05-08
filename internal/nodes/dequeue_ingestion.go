@@ -899,8 +899,11 @@ func GetShardVSPrefix(key string) string {
 
 func GetShardVSName(s string, key string, shardSize uint32, tenant string, prefix ...string) lib.VSNameMetadata {
 	var vsNum uint32
-	var vsNameMeta lib.VSNameMetadata
 	extraPrefix := strings.Join(prefix, "-")
+
+	var vsNameMeta = lib.VSNameMetadata{
+		Tenant: tenant,
+	}
 
 	if shardSize != 0 {
 		vsNum = utils.Bkt(s, shardSize)
@@ -918,7 +921,6 @@ func GetShardVSName(s string, key string, shardSize uint32, tenant string, prefi
 		return vsNameMeta
 	}
 	vsNameMeta.Dedicated = false
-	vsNameMeta.Tenant = tenant
 
 	shardVsPrefix := GetShardVSPrefix(key)
 	if extraPrefix != "" {
@@ -934,7 +936,11 @@ func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (
 	utils.AviLog.Debugf("key: %s, msg: hostname for sharding: %s", key, hostname)
 	var newInfraPrefix, oldInfraPrefix string
 	oldShardSize, newShardSize := lib.GetshardSize(), lib.GetshardSize()
-	oldTenant, newTenant := lib.GetTenant(), lib.GetTenant()
+	oldTenant := objects.SharedNamespaceTenantLister().GetTenantInNamespace(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName())
+	if oldTenant == "" {
+		oldTenant = lib.GetTenant()
+	}
+	newTenant := lib.GetTenantInNamespace(routeIgrObj.GetNamespace())
 
 	// get stored infrasetting from ingress/route
 	// figure out the current infrasetting via class/annotation
@@ -943,10 +949,6 @@ func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (
 	if found, oldSettingName = objects.InfraSettingL7Lister().GetIngRouteToInfraSetting(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName()); found {
 		if found, shardSize := objects.InfraSettingL7Lister().GetInfraSettingToShardSize(oldSettingName); found && shardSize != "" {
 			oldShardSize = lib.ShardSizeMap[shardSize]
-		}
-		tenant := objects.SharedNamespaceTenantLister().GetTenantInNamespace(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName())
-		if tenant != "" {
-			oldTenant = tenant
 		}
 		if !lib.IsInfraSettingNSScoped(oldSettingName, routeIgrObj.GetNamespace()) {
 			oldInfraPrefix = oldSettingName
@@ -965,7 +967,7 @@ func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (
 		if newSetting.Spec.L7Settings != (akov1beta1.AviInfraL7Settings{}) {
 			newShardSize = lib.ShardSizeMap[newSetting.Spec.L7Settings.ShardSize]
 		}
-		newTenant = lib.GetTenantInNamespace(routeIgrObj.GetNamespace())
+
 		if !lib.IsInfraSettingNSScoped(newSetting.Name, routeIgrObj.GetNamespace()) {
 			newInfraPrefix = newSetting.Name
 		}
