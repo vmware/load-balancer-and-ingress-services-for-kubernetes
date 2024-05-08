@@ -89,7 +89,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			Name:                  proto.String(vs_meta.Name),
 			CloudConfigCksum:      proto.String(strconv.Itoa(int(vs_meta.CloudConfigCksum))),
 			CreatedBy:             proto.String(lib.AKOUser),
-			CloudRef:              proto.String(utils.GetCloudRef(lib.GetTenant())),
+			CloudRef:              proto.String(lib.GetCloudRef(lib.GetTenant())),
 			TenantRef:             proto.String(fmt.Sprintf("/api/tenant/?name=%s", vs_meta.Tenant)),
 			ApplicationProfileRef: proto.String("/api/applicationprofile/?name=" + vs_meta.ApplicationProfile),
 			SeGroupRef:            proto.String("/api/serviceenginegroup?name=" + vs_meta.ServiceEngineGroup),
@@ -319,7 +319,7 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 		app_prof = vs_meta.ApplicationProfileRef
 	}
 
-	cloudRef := utils.GetCloudRef(lib.GetTenant())
+	cloudRef := lib.GetCloudRef(lib.GetTenant())
 	network_prof := "/api/networkprofile/?name=" + "System-TCP-Proxy"
 	seGroupRef := fmt.Sprintf("/api/serviceenginegroup?tenant=%s&name=%s", lib.GetTenant(), lib.GetSEGName())
 	svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)

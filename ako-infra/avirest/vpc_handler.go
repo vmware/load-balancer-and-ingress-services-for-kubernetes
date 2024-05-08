@@ -134,23 +134,21 @@ func (v *VPCHandler) createInfraSettingAndAnnotateNS(vpcToNSMap map[string]strin
 		staleInfraSettingCRSet[infraSettingCR.Name] = struct{}{}
 	}
 
-	newInfraSettingCRSet := make(map[string]struct{})
 	wg := sync.WaitGroup{}
 	for vpc, ns := range vpcToNSMap {
 		arr := strings.Split(vpc, "/vpcs/")
 		infraSettingName := arr[len(arr)-1]
-		newInfraSettingCRSet[infraSettingName] = struct{}{}
 		delete(staleInfraSettingCRSet, infraSettingName)
 		project := strings.Split(arr[0], "/projects/")[1]
 		wg.Add(1)
 		go func(vpc, ns string) {
+			defer wg.Done()
 			_, err := lib.CreateOrUpdateAviInfraSetting(infraSettingName, "", vpc, project)
 			if err != nil {
 				utils.AviLog.Errorf("failed to create aviInfraSetting, name: %s, error: %s", infraSettingName, err.Error())
-			} else {
-				lib.AnnotateNamespaceWithInfraSetting(ns, infraSettingName)
 			}
-			wg.Done()
+			utils.AviLog.Infof("Created AviInfraSetting: %s", infraSettingName)
+			lib.AnnotateNamespaceWithInfraSetting(ns, infraSettingName)
 		}(vpc, ns)
 	}
 

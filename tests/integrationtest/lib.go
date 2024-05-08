@@ -2041,6 +2041,7 @@ type FakeAviInfraSetting struct {
 	ShardSize      string
 	BGPPeerLabels  []string
 	T1LR           string
+	Tenant         string
 }
 
 func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1beta1.AviInfraSetting {
@@ -2057,9 +2058,6 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1beta1.AviInfraSe
 				BgpPeerLabels:  infraSetting.BGPPeerLabels,
 				EnablePublicIP: &infraSetting.EnablePublicIP,
 			},
-			NSXSettings: akov1beta1.AviInfraNSXSettings{
-				T1LR: &infraSetting.T1LR,
-			},
 		},
 	}
 
@@ -2073,10 +2071,18 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1beta1.AviInfraSe
 		setting.Spec.L7Settings.ShardSize = infraSetting.ShardSize
 	}
 
+	if infraSetting.T1LR != "" {
+		setting.Spec.NSXSettings.T1LR = &infraSetting.T1LR
+	}
+
+	if infraSetting.Tenant != "" {
+		setting.Spec.NSXSettings.Project = &infraSetting.Tenant
+	}
+
 	return setting
 }
 
-func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string) {
+func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string, tenant ...string) {
 	setting := FakeAviInfraSetting{
 		Name:          infraSettingName,
 		SeGroupName:   "thisisaviref-" + infraSettingName + "-seGroup",
@@ -2085,6 +2091,9 @@ func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string) {
 		BGPPeerLabels: []string{"peer1", "peer2"},
 		ShardSize:     shardSize,
 		T1LR:          "avi-domain-c9:1234",
+	}
+	if len(tenant) > 0 {
+		setting.Tenant = tenant[0]
 	}
 	settingCreate := setting.AviInfraSetting()
 	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {

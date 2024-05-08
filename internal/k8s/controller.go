@@ -176,7 +176,10 @@ func isNamespaceUpdated(oldNS, newNS *corev1.Namespace) bool {
 	}
 	oldLabelHash := utils.Hash(utils.Stringify(oldNS.Labels))
 	newLabelHash := utils.Hash(utils.Stringify(newNS.Labels))
-	return oldLabelHash != newLabelHash
+
+	infraSettingOld := oldNS.Annotations[lib.InfraSettingNameAnnotation]
+	infraSettingNew := newNS.Annotations[lib.InfraSettingNameAnnotation]
+	return oldLabelHash != newLabelHash || infraSettingOld != infraSettingNew
 }
 
 func AddIngressFromNSToIngestionQueue(numWorkers uint32, c *AviController, namespace string, msg string) {

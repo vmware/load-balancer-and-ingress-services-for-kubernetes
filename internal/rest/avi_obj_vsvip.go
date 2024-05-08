@@ -59,7 +59,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 	}
 	name := vsvip_meta.Name
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", vsvip_meta.Tenant)
-	cloudRef := utils.GetCloudRef(lib.GetTenant())
+	cloudRef := lib.GetCloudRef(lib.GetTenant())
 	var dns_info_arr []*avimodels.DNSInfo
 	var path string
 	var networkRef string
