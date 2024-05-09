@@ -164,17 +164,17 @@ In AKO Gateway API Implementation, Gateway objects corresponds to following AVI 
   4. `Addresses` in a Gateway specification gets added as static ip for `Vsvip` for parent VS.
   5. Every `Rule` in `HTTPRoute` corresponds to an `EVH Child Virtual Service`, with `Match` translated to `VH match` and `Filters` translated to `HTTPPolicySet` configuration.
   6. Each `backendRefs` specification (list of backends) in a `HTTPRoute Rule` will be added as a `Pool Group`.
-  7. Each `backendRefs` in a `HTTPRoute Rule` will be translated to a pool. 
+  7. Each `backendRef` in a `HTTPRoute Rule` will be translated to a pool. 
 
 ### Naming Conventions
 
 AKO Gateway Implementation follows following naming convention:
 
-  1. ParentVS              ako-gw-<cluster-name>--<gateway-namespace>-<gateway-name>-EVH
-  2. ChildVS               ako-gw-<cluster-name>–-<sha1 hash of <gateway-namespace>-<gateway-name>-<route-namespace>-<route-name>-<stringified FNV1a_32 hash of bytes(jsonified match)>> 
-  3. Pool                  ako-gw-<cluster-name>--<sha1 hash of <gateway-namespace>-<gateway-name>-<route-namespace>-<route-name>-<stringified FNV1a_32 hash of bytes(jsonified match)>-<backendRefs_namespace>-<backendRefs_name>-<backendRefs_port>> 
-  4. PoolGroup             ako-gw-<cluster-name>–-<sha1 hash of <gateway-namespace>-<gateway-name>-<route-namespace>-<route-name>-<stringified FNV1a_32 hash of bytes(jsonified match)>> 
-  5. SSLKeyAndCertificate  ako-gw-<cluster-name>--<sha1 hash of ako-gw-<cluster-name>--<hostname>
+  1. ParentVS              `ako-gw-<cluster-name>--<gateway-namespace>-<gateway-name>-EVH`
+  2. ChildVS               `ako-gw-<cluster-name>–-<sha1 hash of <gateway-namespace>-<gateway-name>-<route-namespace>-<route-name>-<stringified FNV1a_32 hash of bytes(jsonified match)>>` 
+  3. Pool                  `ako-gw-<cluster-name>--<sha1 hash of <gateway-namespace>-<gateway-name>-<route-namespace>-<route-name>-<stringified FNV1a_32 hash of bytes(jsonified match)>-<backendRefs_namespace>-<backendRefs_name>-<backendRefs_port>>` 
+  4. PoolGroup             `ako-gw-<cluster-name>–-<sha1 hash of <gateway-namespace>-<gateway-name>-<route-namespace>-<route-name>-<stringified FNV1a_32 hash of bytes(jsonified match)>>` 
+  5. SSLKeyAndCertificate  `ako-gw-<cluster-name>--<sha1 hash of ako-gw-<cluster-name>--<hostname>`
 
 ### HTTP Traffic Splitting
 
@@ -264,7 +264,7 @@ AKO accepts the following HTTPRoute configuration for this release:
   2. HTTPRoute MUST NOT contain `*` as hostname.
   3. HTTPRoute MUST NOT contain `*` in hostname.
   4. HTTPRoute MUST contain at least one hostname match with parent Gateway
-  5. Filters nested inside BackendRefs are not supported i.e. HTTPRoute-> spec-> rules-> backendRefs-> filters are not supported whereas HTTPRoute-> spec-> rules-> filters is supported.
+  5. Filters nested inside BackendRefs are not supported i.e. `HTTPRoute-> spec-> rules-> backendRefs-> filters` are not supported whereas `HTTPRoute-> spec-> rules-> filters` is supported.
 
 #### Resource Creation
 
