@@ -138,6 +138,7 @@ The following table lists the configurable parameters of the AKO chart and their
 | `ControllerSettings.controllerHost` | Specify Avi controller IP or Hostname | `nil` |
 | `ControllerSettings.cloudName` | Name of the cloud managed in Avi | Default-Cloud |
 | `ControllerSettings.tenantName` | Name of the tenant where all the AKO objects will be created in AVI. | admin |
+| `ControllerSettings.vrfName` | Name of the VRF under which all the AKO objects will be created in AVI. Applicable only in VCenter cloud.| `Empty string` |
 | `ControllerSettings.primaryInstance` | Specify AKO instance is primary or not | true |
 | `L7Settings.shardVSSize` | Shard VS size enum values: LARGE, MEDIUM, SMALL, DEDICATED | LARGE |
 | `AKOSettings.fullSyncFrequency` | Full sync frequency | 1800 |
