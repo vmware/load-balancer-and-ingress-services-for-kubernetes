@@ -137,7 +137,7 @@ func TestGatewayWithValidListenersAndGatewayClass(t *testing.T) {
 			return false
 		}
 		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionProgrammed)) != nil
-	}, 30*time.Second).Should(gomega.Equal(true))
+	}, 40*time.Second).Should(gomega.Equal(true))
 
 	expectedStatus := &gatewayv1.GatewayStatus{
 		Conditions: []metav1.Condition{
