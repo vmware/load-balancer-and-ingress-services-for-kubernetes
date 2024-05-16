@@ -155,9 +155,9 @@ func (rest *RestOperations) IstioCU(key string, avimodel *nodes.AviObjectGraph) 
 		restOps = []*utils.RestOp{restOp}
 		sslSuccess, _ = rest.ExecuteRestAndPopulateCache(restOps, sslKey, avimodel, key, false)
 	} else {
-		sslCache := sslCacheObj.(avicache.AviSSLCache)
+		sslCache := sslCacheObj.(*avicache.AviSSLCache)
 		if sslCache.CloudConfigCksum != sslNode.GetCheckSum() {
-			restOp := rest.AviSSLBuild(sslNode, &sslCache)
+			restOp := rest.AviSSLBuild(sslNode, sslCache)
 			restOps = []*utils.RestOp{restOp}
 			sslSuccess, _ = rest.ExecuteRestAndPopulateCache(restOps, sslKey, avimodel, key, false)
 		}
