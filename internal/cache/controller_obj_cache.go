@@ -1624,6 +1624,62 @@ func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient, cl
 	}
 	return httpPolicyData, result.Count, nil
 }
+func (c *AviObjCache) AviPopulateHttpPolicySetbyUUID(client *clients.AviClient, uuid string) error {
+
+	uri := "/api/httppolicyset/" + uuid
+	rawData, err := lib.AviGetRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err for httppolicyset %v", uri, err)
+		return err
+	}
+	httppol := models.HTTPPolicySet{}
+	err = json.Unmarshal(rawData, &httppol)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal httppolicyset data, err: %v", err)
+		return err
+	}
+
+	if httppol.Name == nil || httppol.UUID == nil {
+		utils.AviLog.Warnf("Incomplete http policy data unmarshalled, %s", utils.Stringify(httppol))
+		return errors.New("incomplete http policy data unmarshalled")
+	}
+
+	// Fetch the pgs associated with the http policyset object
+	var poolGroups []string
+	var pools []string
+	if httppol.HTTPRequestPolicy != nil {
+		for _, rule := range httppol.HTTPRequestPolicy.Rules {
+			if rule.SwitchingAction != nil {
+				val := reflect.ValueOf(rule.SwitchingAction)
+				if !val.Elem().FieldByName("PoolGroupRef").IsNil() {
+					pgUuid := ExtractUuid(*rule.SwitchingAction.PoolGroupRef, "poolgroup-.*.#")
+					pgName, found := c.PgCache.AviCacheGetNameByUuid(pgUuid)
+					if found {
+						poolGroups = append(poolGroups, pgName.(string))
+					}
+				} else if !val.Elem().FieldByName("PoolRef").IsNil() {
+					poolUuid := ExtractUuid(*rule.SwitchingAction.PoolRef, "pool-.*.#")
+					poolName, found := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
+					if found {
+						pools = append(pools, poolName.(string))
+					}
+				}
+			}
+
+		}
+	}
+	httpPolCacheObj := AviHTTPPolicyCache{
+		Name:         *httppol.Name,
+		Uuid:         *httppol.UUID,
+		PoolGroups:   poolGroups,
+		Pools:        pools,
+		LastModified: *httppol.LastModified,
+	}
+	key := NamespaceName{Namespace: lib.GetTenant(), Name: httpPolCacheObj.Name}
+	c.HTTPPolicyCache.AviCacheAdd(key, httpPolCacheObj)
+	utils.AviLog.Debugf("added policy with key %s and policyset %v", key, httpPolCacheObj)
+	return nil
+}
 
 func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient, cloud string, overrideUri ...NextPage) {
 	var HttPolData []AviHTTPPolicyCache
@@ -1819,7 +1875,6 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 	var rest_response interface{}
 	akoUser := lib.AKOUser
 	var uri string
-	httpCacheRefreshCount := 1 // Refresh count for http cache is attempted once per page
 	if len(overrideUri) == 1 {
 		uri = overrideUri[0].NextURI
 	} else {
@@ -2000,14 +2055,13 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 							httpUuid := ExtractUuid(httpmap["http_policy_set_ref"].(string), "httppolicyset-.*.#")
 							httpName, foundhttp := c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
 							// If the httppol is not found in the cache, do an explicit get
-							if !foundhttp && !sharedVsOrL4 && httpCacheRefreshCount > 0 {
-								// We do a full refresh of the httpcache once per page, if we detect a data discrepancy
-								httpCacheRefreshCount = httpCacheRefreshCount - 1
-								c.PopulateHttpPolicySetToCache(client, cloud)
-								httpName, foundhttp = c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
-								if !foundhttp {
-									// If still the httpName is not found. Log an error saying, this VS may not behave appropriately.
+							if !foundhttp && !sharedVsOrL4 {
+								err = c.AviPopulateHttpPolicySetbyUUID(client, httpUuid)
+								// If still the httpName is not found. Log an error saying, this VS may not behave appropriately.
+								if err != nil {
 									utils.AviLog.Warnf("HTTPPolicySet not found in Avi for VS: %s for httpUUID: %s", vs["name"].(string), httpUuid)
+								} else {
+									httpName, foundhttp = c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
 								}
 							}
 							if foundhttp {
