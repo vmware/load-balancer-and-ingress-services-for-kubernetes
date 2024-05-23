@@ -88,8 +88,8 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 	}
 
 	tenant := lib.GetTenant()
-	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
-		tenant = *infraSetting.Spec.NSXSettings.Project
+	if infraSetting != nil && infraSetting.Spec.Tenant.Name != nil {
+		tenant = *infraSetting.Spec.Tenant.Name
 	}
 
 	DeleteStaleTenantModelData(gatewayName, namespace, key, tenant, lib.ADVANCED_L4)
@@ -229,8 +229,8 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 		}
 	}
 	tenant := lib.GetTenant()
-	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
-		tenant = *infraSetting.Spec.NSXSettings.Project
+	if infraSetting != nil && infraSetting.Spec.Tenant.Name != nil {
+		tenant = *infraSetting.Spec.Tenant.Name
 	}
 
 	DeleteStaleTenantModelData(gatewayName, namespace, key, tenant, lib.ADVANCED_L4)

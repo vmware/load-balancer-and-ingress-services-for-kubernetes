@@ -961,8 +961,8 @@ func DeriveShardVS(hostname string, key string, routeIgrObj RouteIngressModel) (
 		if newSetting.Spec.L7Settings != (akov1beta1.AviInfraL7Settings{}) {
 			newShardSize = lib.ShardSizeMap[newSetting.Spec.L7Settings.ShardSize]
 		}
-		if newSetting.Spec.NSXSettings.Project != nil {
-			newTenant = *newSetting.Spec.NSXSettings.Project
+		if newSetting.Spec.Tenant.Name != nil {
+			newTenant = *newSetting.Spec.Tenant.Name
 		}
 		if !lib.IsInfraSettingNSScoped(newSetting.Name, routeIgrObj.GetNamespace()) {
 			newInfraPrefix = newSetting.Name

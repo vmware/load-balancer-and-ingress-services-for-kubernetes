@@ -253,7 +253,7 @@ func TestAKOInfraAviInfraSettingCreationVPC(t *testing.T) {
 			return false
 		} else {
 			return *infraSetting.Spec.NSXSettings.T1LR == "/orgs/default/projects/test-project/vpcs/testGW" &&
-				*infraSetting.Spec.NSXSettings.Project == "test-project" &&
+				*infraSetting.Spec.Tenant.Name == "test-project" &&
 				len(infraSetting.Spec.Network.VipNetworks) == 0 &&
 				infraSetting.Spec.SeGroup.Name == lib.GetClusterID()
 		}
@@ -531,7 +531,7 @@ func TestAKOInfraMultiAviInfraSettingCreationVPC(t *testing.T) {
 			return false
 		} else {
 			return *infraSetting.Spec.NSXSettings.T1LR == "/orgs/default/projects/test-project/vpcs/testGW" &&
-				*infraSetting.Spec.NSXSettings.Project == "test-project" &&
+				*infraSetting.Spec.Tenant.Name == "test-project" &&
 				len(infraSetting.Spec.Network.VipNetworks) == 0 &&
 				infraSetting.Spec.SeGroup.Name == lib.GetClusterID()
 		}
@@ -542,7 +542,7 @@ func TestAKOInfraMultiAviInfraSettingCreationVPC(t *testing.T) {
 			return false
 		} else {
 			return *infraSetting.Spec.NSXSettings.T1LR == "/orgs/default/projects/test-project/vpcs/testGW-red" &&
-				*infraSetting.Spec.NSXSettings.Project == "test-project" &&
+				*infraSetting.Spec.Tenant.Name == "test-project" &&
 				len(infraSetting.Spec.Network.VipNetworks) == 0 &&
 				infraSetting.Spec.SeGroup.Name == lib.GetClusterID()
 		}

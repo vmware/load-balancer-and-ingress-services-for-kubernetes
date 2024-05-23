@@ -341,8 +341,8 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 
 func buildPoolNode(key, poolName, ingName, namespace, priorityLabel, hostname string, infraSetting *akov1beta1.AviInfraSetting, serviceName string, storedHosts []string, insecureEdgeTermAllow bool, obj IngressHostPathSvc) *AviPoolNode {
 	tenant := lib.GetTenant()
-	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
-		tenant = *infraSetting.Spec.NSXSettings.Project
+	if infraSetting != nil && infraSetting.Spec.Tenant.Name != nil {
+		tenant = *infraSetting.Spec.Tenant.Name
 	}
 	poolNode := &AviPoolNode{
 		Name:          poolName,
@@ -594,8 +594,8 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 	infraSetting := routeIgrObj.GetAviInfraSetting()
 	dedicated := false
 	tenant := lib.GetTenant()
-	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
-		tenant = *infraSetting.Spec.NSXSettings.Project
+	if infraSetting != nil && infraSetting.Spec.Tenant.Name != nil {
+		tenant = *infraSetting.Spec.Tenant.Name
 	}
 
 	for sniHost, paths := range tlssetting.Hosts {

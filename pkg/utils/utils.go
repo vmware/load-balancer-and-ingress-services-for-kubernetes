@@ -457,7 +457,7 @@ func GetAdvancedL4() bool {
 // statefulset runs.
 func GetAKONamespace() string {
 	akoNS := os.Getenv(POD_NAMESPACE)
-	if GetAdvancedL4() {
+	if GetAdvancedL4() || IsVCFCluster() {
 		akoNS = VMWARE_SYSTEM_AKO
 	}
 	return akoNS

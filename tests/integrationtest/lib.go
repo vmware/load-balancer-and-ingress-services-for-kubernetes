@@ -2076,7 +2076,7 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1beta1.AviInfraSe
 	}
 
 	if infraSetting.Tenant != "" {
-		setting.Spec.NSXSettings.Project = &infraSetting.Tenant
+		setting.Spec.Tenant.Name = &infraSetting.Tenant
 	}
 
 	return setting

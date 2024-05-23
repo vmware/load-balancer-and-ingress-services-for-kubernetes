@@ -790,8 +790,8 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 
 	infraSetting := routeIgrObj.GetAviInfraSetting()
 	tenant := lib.GetTenant()
-	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
-		tenant = *infraSetting.Spec.NSXSettings.Project
+	if infraSetting != nil && infraSetting.Spec.Tenant.Name != nil {
+		tenant = *infraSetting.Spec.Tenant.Name
 	}
 	// This is a shared VS - always created in the admin namespace for now.
 	// Default case
@@ -1025,8 +1025,8 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 	utils.AviLog.Debugf("key: %s, msg: Storedhosts before  processing insecurehosts: %s", key, utils.Stringify(Storedhosts))
 	infraSetting := routeIgrObj.GetAviInfraSetting()
 	tenant := lib.GetTenant()
-	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
-		tenant = *infraSetting.Spec.NSXSettings.Project
+	if infraSetting != nil && infraSetting.Spec.Tenant.Name != nil {
+		tenant = *infraSetting.Spec.Tenant.Name
 	}
 	for host, pathsvcmap := range parsedIng.IngressHostMap {
 		// Remove this entry from storedHosts. First check if the host exists in the stored map or not.
@@ -1390,8 +1390,8 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 	hostPathSvcMap := make(map[string][]IngressHostPathSvc)
 	infraSetting := routeIgrObj.GetAviInfraSetting()
 	tenant := lib.GetTenant()
-	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
-		tenant = *infraSetting.Spec.NSXSettings.Project
+	if infraSetting != nil && infraSetting.Spec.Tenant.Name != nil {
+		tenant = *infraSetting.Spec.Tenant.Name
 	}
 
 	for host, paths := range tlssetting.Hosts {
@@ -1688,8 +1688,8 @@ func DeleteStaleDataForEvh(routeIgrObj RouteIngressModel, key string, modelList 
 		if !lib.IsInfraSettingNSScoped(aviInfraSetting.Name, routeIgrObj.GetNamespace()) {
 			infraSettingName = aviInfraSetting.Name
 		}
-		if aviInfraSetting.Spec.NSXSettings.Project != nil {
-			tenant = *aviInfraSetting.Spec.NSXSettings.Project
+		if aviInfraSetting.Spec.Tenant.Name != nil {
+			tenant = *aviInfraSetting.Spec.Tenant.Name
 		}
 	}
 
@@ -1784,8 +1784,8 @@ func DeriveShardVSForEvh(hostname, key string, routeIgrObj RouteIngressModel) (l
 		if newSetting.Spec.L7Settings != (akov1beta1.AviInfraL7Settings{}) {
 			newShardSize = lib.ShardSizeMap[newSetting.Spec.L7Settings.ShardSize]
 		}
-		if newSetting.Spec.NSXSettings.Project != nil {
-			newTenant = *newSetting.Spec.NSXSettings.Project
+		if newSetting.Spec.Tenant.Name != nil {
+			newTenant = *newSetting.Spec.Tenant.Name
 		}
 		if !lib.IsInfraSettingNSScoped(newSetting.Name, routeIgrObj.GetNamespace()) {
 			newInfraPrefix = newSetting.Name

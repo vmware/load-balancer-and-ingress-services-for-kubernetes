@@ -301,8 +301,8 @@ func isInfraSettingUpdateRequired(infraSettingCR *akov1beta1.AviInfraSetting, ne
 		return true
 	}
 	infraProject := ""
-	if infraSettingCR.Spec.NSXSettings.Project != nil {
-		infraProject = *infraSettingCR.Spec.NSXSettings.Project
+	if infraSettingCR.Spec.Tenant.Name != nil {
+		infraProject = *infraSettingCR.Spec.Tenant.Name
 	}
 	if project != infraProject {
 		return true
@@ -359,7 +359,9 @@ func CreateOrUpdateAviInfraSetting(name, network, t1lr, project string) (*akov1b
 		}
 	}
 	if project != "" {
-		infraSettingCR.Spec.NSXSettings.Project = &project
+		infraSettingCR.Spec.Tenant = akov1beta1.AviInfraSettingTenant{
+			Name: &project,
+		}
 	}
 
 	if updateRequired {
@@ -474,8 +476,8 @@ func GetAllTenantsDefinedInAviInfraSettingCRs() (map[string]struct{}, error) {
 	}
 
 	for _, infraSetting := range infraSettingCRs {
-		if infraSetting.Spec.NSXSettings.Project != nil {
-			tenants[*infraSetting.Spec.NSXSettings.Project] = struct{}{}
+		if infraSetting.Spec.Tenant.Name != nil {
+			tenants[*infraSetting.Spec.Tenant.Name] = struct{}{}
 		}
 	}
 	return tenants, nil
