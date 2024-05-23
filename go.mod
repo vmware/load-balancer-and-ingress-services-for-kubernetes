@@ -17,7 +17,7 @@ require (
 	github.com/openshift/client-go v0.0.0-20201020082437-7737f16e53fc
 	github.com/prometheus/client_golang v1.17.0
 	github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
-	github.com/vmware/alb-sdk v0.0.0-20240422063246-6f25c71c5791
+	github.com/vmware/alb-sdk v0.0.0-20240619053936-3103500da639
 	go.uber.org/zap v1.26.0
 	golang.org/x/crypto v0.21.0
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
@@ -80,7 +80,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	istio.io/api v0.0.0-20210512213424-c42041d3366d // indirect
 	istio.io/gogo-genproto v0.0.0-20210113155706-4daf5697332f // indirect
-	k8s.io/code-generator v0.28.3 // indirect
 	k8s.io/component-base v0.28.3 // indirect
 	k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect

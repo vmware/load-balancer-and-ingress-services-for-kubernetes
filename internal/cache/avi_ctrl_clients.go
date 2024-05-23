@@ -61,6 +61,9 @@ func SharedAVIClients(tenant string) *utils.AviRestClientPool {
 		return aviClientInstance.(*utils.AviRestClientPool)
 	}
 
+	userHeaders := utils.SharedCtrlProp().GetCtrlUserHeader()
+	apiScheme := utils.SharedCtrlProp().GetCtrlAPIScheme()
+
 	// Always create 9 clients irrespective of shard size
 	var currentControllerVersion string
 	var aviRestClientPool *utils.AviRestClientPool
@@ -74,6 +77,8 @@ func SharedAVIClients(tenant string) *utils.AviRestClientPool {
 		ctrlVersion,
 		ctrlCAData,
 		tenant,
+		apiScheme,
+		userHeaders,
 	)
 
 	connectionStatus = utils.AVIAPI_CONNECTED
