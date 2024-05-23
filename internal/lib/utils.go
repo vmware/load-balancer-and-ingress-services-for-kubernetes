@@ -16,12 +16,16 @@ package lib
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/alb-sdk/go/models"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
@@ -504,4 +508,38 @@ func GetCloudRef(tenant string) string {
 	}
 	// 22.1.x python webapp is not able to parse cloud name from above reference
 	return fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)
+}
+
+func GetAllTenants(c *clients.AviClient, tenants map[string]struct{}, nextPage ...string) error {
+	uri := "/api/tenant"
+	result, err := AviGetCollectionRaw(c, uri)
+	if err != nil {
+		return err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal tenant result, err: %v", err)
+		return err
+	}
+	for i := 0; i < len(elems); i++ {
+		tenant := models.Tenant{}
+		err = json.Unmarshal(elems[i], &tenant)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal tenant data, err: %v", err)
+			return err
+		}
+		tenants[*tenant.Name] = struct{}{}
+	}
+	if result.Next != "" {
+		next_uri := strings.Split(result.Next, "/api/tenant")
+		if len(next_uri) > 1 {
+			nextPage := "/api/tenant" + next_uri[1]
+			err = GetAllTenants(c, tenants, nextPage)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
