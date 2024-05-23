@@ -158,8 +158,8 @@ func ProcessInsecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng I
 
 	infraSetting := routeIgrObj.GetAviInfraSetting()
 	tenant := lib.GetTenant()
-	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
-		tenant = *infraSetting.Spec.NSXSettings.Project
+	if infraSetting != nil && infraSetting.Spec.Tenant.Name != nil {
+		tenant = *infraSetting.Spec.Tenant.Name
 	}
 	for host, pathsvcmap := range parsedIng.IngressHostMap {
 		// Remove this entry from storedHosts. First check if the host exists in the stored map or not.
@@ -267,8 +267,8 @@ func ProcessPassthroughHosts(routeIgrObj RouteIngressModel, key string, parsedIn
 	utils.AviLog.Debugf("key: %s, msg: Storedhosts before processing passthrough hosts: %v", key, Storedhosts)
 	infraSetting := routeIgrObj.GetAviInfraSetting()
 	tenant := lib.GetTenant()
-	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
-		tenant = *infraSetting.Spec.NSXSettings.Project
+	if infraSetting != nil && infraSetting.Spec.Tenant.Name != nil {
+		tenant = *infraSetting.Spec.Tenant.Name
 	}
 	for host, pass := range parsedIng.PassthroughCollection {
 		hostData, found := Storedhosts[host]
@@ -320,8 +320,8 @@ func DeleteStaleData(routeIgrObj RouteIngressModel, key string, modelList *[]str
 		if !lib.IsInfraSettingNSScoped(aviInfraSetting.Name, routeIgrObj.GetNamespace()) {
 			infraSettingName = aviInfraSetting.Name
 		}
-		if aviInfraSetting.Spec.NSXSettings.Project != nil {
-			tenant = *aviInfraSetting.Spec.NSXSettings.Project
+		if aviInfraSetting.Spec.Tenant.Name != nil {
+			tenant = *aviInfraSetting.Spec.Tenant.Name
 		}
 	}
 

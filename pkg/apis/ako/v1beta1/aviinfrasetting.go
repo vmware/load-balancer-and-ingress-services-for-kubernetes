@@ -38,11 +38,11 @@ type AviInfraSettingSpec struct {
 	SeGroup     AviInfraSettingSeGroup `json:"seGroup,omitempty"`
 	L7Settings  AviInfraL7Settings     `json:"l7Settings,omitempty"`
 	NSXSettings AviInfraNSXSettings    `json:"nsxSettings,omitempty"`
+	Tenant      AviInfraSettingTenant  `json:"tenant,omitempty"`
 }
 
 type AviInfraNSXSettings struct {
-	Project *string `json:"project,omitempty"`
-	T1LR    *string `json:"t1lr,omitempty"`
+	T1LR *string `json:"t1lr,omitempty"`
 }
 
 type AviInfraSettingNetwork struct {
@@ -78,6 +78,10 @@ type AviInfraSettingSeGroup struct {
 
 type AviInfraL7Settings struct {
 	ShardSize string `json:"shardSize,omitempty"`
+}
+
+type AviInfraSettingTenant struct {
+	Name *string `json:"name,omitempty"`
 }
 
 // AviInfraSettingStatus holds the status of the AviInfraSetting

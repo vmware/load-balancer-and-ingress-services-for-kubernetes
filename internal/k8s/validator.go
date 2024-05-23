@@ -359,6 +359,9 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1beta1.Av
 	if infraSetting.Spec.SeGroup.Name != "" {
 		refData[infraSetting.Spec.SeGroup.Name] = "ServiceEngineGroup"
 	}
+	if infraSetting.Spec.Tenant.Name != nil && !utils.IsVCFCluster() {
+		refData[*infraSetting.Spec.Tenant.Name] = "Tenant"
+	}
 	if len(infraSetting.Spec.Network.Listeners) > 0 {
 		sslEnabled := false
 		for _, listener := range infraSetting.Spec.Network.Listeners {
@@ -404,8 +407,8 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1beta1.Av
 		SetAviInfrasettingNodeNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.SeGroup.Name, infraSetting.Spec.Network.NodeNetworks)
 	}
 
-	if infraSetting.Spec.NSXSettings.Project != nil {
-		objects.InfraSettingL7Lister().UpdateAviInfraToTenantMapping(infraSetting.Name, *infraSetting.Spec.NSXSettings.Project)
+	if infraSetting.Spec.Tenant.Name != nil {
+		objects.InfraSettingL7Lister().UpdateAviInfraToTenantMapping(infraSetting.Name, *infraSetting.Spec.Tenant.Name)
 	}
 	namespaces, err := utils.GetInformers().NSInformer.Informer().GetIndexer().ByIndex(lib.AviSettingNamespaceIndex, infraSetting.GetName())
 	if err == nil && len(namespaces) > 0 {

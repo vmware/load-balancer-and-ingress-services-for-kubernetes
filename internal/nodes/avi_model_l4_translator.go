@@ -65,8 +65,8 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 
 	}
 	tenant := lib.GetTenant()
-	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
-		tenant = *infraSetting.Spec.NSXSettings.Project
+	if infraSetting != nil && infraSetting.Spec.Tenant.Name != nil {
+		tenant = *infraSetting.Spec.Tenant.Name
 	}
 
 	DeleteStaleTenantModelData(svcObj.GetName(), svcObj.GetNamespace(), key, tenant, lib.L4VS)
@@ -181,8 +181,8 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 		utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
 	}
 	tenant := lib.GetTenant()
-	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
-		tenant = *infraSetting.Spec.NSXSettings.Project
+	if infraSetting != nil && infraSetting.Spec.Tenant.Name != nil {
+		tenant = *infraSetting.Spec.Tenant.Name
 	}
 
 	protocolSet := sets.NewString()

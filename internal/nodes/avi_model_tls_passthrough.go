@@ -31,8 +31,8 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key 
 	var avi_vs_meta *AviVsNode
 
 	tenant := lib.GetTenant()
-	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
-		tenant = *infraSetting.Spec.NSXSettings.Project
+	if infraSetting != nil && infraSetting.Spec.Tenant.Name != nil {
+		tenant = *infraSetting.Spec.Tenant.Name
 	}
 
 	// create the secured shared VS to listen on port 443
@@ -114,8 +114,8 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 			infrasettingName = infraSetting.Name
 			infraSettingNameWithSuffix = infrasettingName + "-"
 		}
-		if infraSetting.Spec.NSXSettings.Project != nil {
-			tenant = *infraSetting.Spec.NSXSettings.Project
+		if infraSetting.Spec.Tenant.Name != nil {
+			tenant = *infraSetting.Spec.Tenant.Name
 		}
 	}
 	//Replace AVIINFRA with infrasettingname if present

@@ -63,8 +63,8 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName string, key string, routeIg
 
 	tenant := lib.GetTenant()
 	infraSetting := routeIgrObj.GetAviInfraSetting()
-	if infraSetting != nil && infraSetting.Spec.NSXSettings.Project != nil {
-		tenant = *infraSetting.Spec.NSXSettings.Project
+	if infraSetting != nil && infraSetting.Spec.Tenant.Name != nil {
+		tenant = *infraSetting.Spec.Tenant.Name
 	}
 	avi_vs_meta := &AviVsNode{
 		Name:               vsName,
@@ -741,9 +741,9 @@ func buildWithInfraSetting(key, namespace string, vs *AviVsNode, vsvip *AviVSVIP
 		if infraSetting.Spec.NSXSettings.T1LR != nil {
 			vsvip.T1Lr = *infraSetting.Spec.NSXSettings.T1LR
 		}
-		if infraSetting.Spec.NSXSettings.Project != nil {
-			vs.Tenant = *infraSetting.Spec.NSXSettings.Project
-			vsvip.Tenant = *infraSetting.Spec.NSXSettings.Project
+		if infraSetting.Spec.Tenant.Name != nil {
+			vs.Tenant = *infraSetting.Spec.Tenant.Name
+			vsvip.Tenant = *infraSetting.Spec.Tenant.Name
 		}
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 	}
