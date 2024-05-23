@@ -180,7 +180,7 @@ github.com/spf13/pflag
 # github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
 ## explicit; go 1.13
 github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1
-# github.com/vmware/alb-sdk v0.0.0-20240422063246-6f25c71c5791
+# github.com/vmware/alb-sdk v0.0.0-20240523050727-4d80fdb17abf
 ## explicit; go 1.16
 github.com/vmware/alb-sdk/go/clients
 github.com/vmware/alb-sdk/go/models
