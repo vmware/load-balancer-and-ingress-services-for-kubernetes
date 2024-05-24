@@ -99,7 +99,7 @@ For every log collection, also collect the following information:
 
 ### How do I gather the AKO logs?
 
-Get the script from [here](https://github.com/avinetworks/devops/tree/master/openshift/ako/log_collector.py)
+Get the script from [here](https://github.com/avinetworks/devops/tree/master/tools/ako/log_collector.py)
 
 The script is used to collect all relevant information for the AKO pod.
 
