@@ -64,6 +64,7 @@ func TestMain(m *testing.M) {
 	lib.SetNamePrefix(akogatewayapilib.Prefix)
 	lib.AKOControlConfig().SetIsLeaderFlag(true)
 	akoControlConfig := akogatewayapilib.AKOControlConfig()
+	lib.AKOControlConfig().SetIsLeaderFlag(true)
 	akoControlConfig.SetEventRecorder(lib.AKOGatewayEventComponent, tests.KubeClient, true)
 	registeredInformers := []string{
 		utils.ServiceInformer,

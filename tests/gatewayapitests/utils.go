@@ -433,7 +433,7 @@ func GetHTTPRouteBackendV1(backendRefs []string) gatewayv1.HTTPBackendRef {
 
 }
 
-func GetHTTPRouteRuleV1(paths []string, matchHeaders []string, filterActionMap map[string][]string, backendRefs [][]string) gatewayv1.HTTPRouteRule {
+func GetHTTPRouteRuleV1(paths []string, matchHeaders []string, filterActionMap map[string][]string, backendRefs [][]string, backendRefFilters map[string][]string) gatewayv1.HTTPRouteRule {
 	matches := make([]gatewayv1.HTTPRouteMatch, 0, len(paths))
 	for _, path := range paths {
 		match := GetHTTPRouteMatchV1(path, "PathPrefix", matchHeaders)
@@ -447,8 +447,14 @@ func GetHTTPRouteRuleV1(paths []string, matchHeaders []string, filterActionMap m
 	}
 	backends := make([]gatewayv1.HTTPBackendRef, 0, len(backendRefs))
 	for _, backendRef := range backendRefs {
-		backend := GetHTTPRouteBackendV1(backendRef)
-		backends = append(backends, backend)
+		httpBackend := GetHTTPRouteBackendV1(backendRef)
+		backendFilters := make([]gatewayv1.HTTPRouteFilter, 0, len(filterActionMap))
+		for filterType, actions := range backendRefFilters {
+			filter := GetHTTPRouteFilterV1(filterType, actions)
+			backendFilters = append(backendFilters, filter)
+		}
+		httpBackend.Filters = backendFilters
+		backends = append(backends, httpBackend)
 	}
 	rule := gatewayv1.HTTPRouteRule{}
 	rule.Matches = matches

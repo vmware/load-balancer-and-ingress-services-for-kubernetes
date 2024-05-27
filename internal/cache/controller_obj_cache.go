@@ -88,8 +88,8 @@ func SharedAviObjCache() *AviObjCache {
 
 func (c *AviObjCache) AviRefreshObjectCache(client []*clients.AviClient, cloud string) {
 	var wg sync.WaitGroup
-	// We want to run 8 go routines which will simultanesouly fetch objects from the controller.
-	wg.Add(5)
+	// We want to run 9 go routines which will simultanesouly fetch objects from the controller.
+	wg.Add(6)
 	go func() {
 		defer wg.Done()
 		c.PopulateSSLKeyToCache(client[4], cloud)
@@ -117,7 +117,7 @@ func (c *AviObjCache) AviRefreshObjectCache(client []*clients.AviClient, cloud s
 	}()
 	go func() {
 		defer wg.Done()
-		c.PopulateStringGroupDataToCache(client[3], cloud)
+		c.PopulateStringGroupDataToCache(client[8], cloud)
 	}()
 
 	wg.Wait()
@@ -1805,11 +1805,11 @@ func (c *AviObjCache) AviPopulateAllStringGroups(client *clients.AviClient, clou
 		}
 
 		stringGroupCacheObj := AviStringGroupCache{
-			Name:       *sg.Name,
-			Uuid:       *sg.UUID,
+			Name: *sg.Name,
+			Uuid: *sg.UUID,
 		}
 		checksum := lib.StringGroupChecksum(sg.Kv, *sg.Description, sg.Markers, true)
-		
+
 		stringGroupCacheObj.CloudConfigCksum = checksum
 		*StringGroupData = append(*StringGroupData, stringGroupCacheObj)
 	}
@@ -1834,11 +1834,11 @@ func (c *AviObjCache) PopulateStringGroupDataToCache(client *clients.AviClient, 
 	stringGroupCacheData := c.StringGroupCache.ShallowCopy()
 	for i, StringGroupCacheObj := range StringGroupData {
 		k := NamespaceName{Namespace: lib.GetTenant(), Name: StringGroupCacheObj.Name}
-		oldDSIntf, found := c.StringGroupCache.AviCacheGet(k)
+		oldSGIntf, found := c.StringGroupCache.AviCacheGet(k)
 		if found {
-			oldDSData, ok := oldDSIntf.(*AviStringGroupCache)
+			oldSGData, ok := oldSGIntf.(*AviStringGroupCache)
 			if ok {
-				if oldDSData.InvalidData || oldDSData.LastModified != StringGroupData[i].LastModified {
+				if oldSGData.InvalidData || oldSGData.LastModified != StringGroupData[i].LastModified {
 					StringGroupData[i].InvalidData = true
 					utils.AviLog.Warnf("Invalid cache data for stringgroup: %s", k)
 				}
@@ -1853,7 +1853,7 @@ func (c *AviObjCache) PopulateStringGroupDataToCache(client *clients.AviClient, 
 	// The data that is left in stringGroupCacheData should be explicitly removed
 	for key := range stringGroupCacheData {
 		utils.AviLog.Debugf("Deleting key from stringgroup cache :%s", key)
-		c.DSCache.AviCacheDelete(key)
+		c.StringGroupCache.AviCacheDelete(key)
 	}
 }
 
@@ -2286,7 +2286,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 							dsUuid := ExtractUuidWithoutHash(dsmap["vs_datascript_set_ref"].(string), "vsdatascriptset-.*.")
 
 							dsName, foundDs := c.DSCache.AviCacheGetNameByUuid(dsUuid)
-							if foundDs {
+							if foundDs && !strings.Contains(dsName.(string), "ako-gw") {
 								dsKey := NamespaceName{Namespace: lib.GetTenant(), Name: dsName.(string)}
 								// Fetch the associated PGs with the DS.
 								dsObj, _ := c.DSCache.AviCacheGet(dsKey)

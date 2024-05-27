@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright 2023-2024 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -33,20 +33,16 @@ func (rest *RestOperations) AviStringGroupBuild(sg_meta *nodes.AviStringGroupNod
 		utils.AviLog.Warnf("key: %s not processing stringgroup object", key)
 		return nil
 	}
-	var stringgrouplist []*avimodels.StringGroup
-	
-	stringgrouplist = append(stringgrouplist, sg_meta.StringGroup)
 	tenant_ref := "/api/tenant/?name=" + *sg_meta.TenantRef
 	stringgroup := avimodels.StringGroup{
-		Name:          sg_meta.Name,
-		TenantRef:     &tenant_ref,
-		Kv: sg_meta.Kv,
-		Type: sg_meta.Type,
+		Name:        sg_meta.Name,
+		TenantRef:   &tenant_ref,
+		Kv:          sg_meta.Kv,
+		Type:        sg_meta.Type,
 		Description: sg_meta.Description,
 	}
 
 	stringgroup.Markers = lib.GetMarkers()
-
 
 	var path string
 	var rest_op utils.RestOp
@@ -81,7 +77,7 @@ func (rest *RestOperations) AviStringGroupBuild(sg_meta *nodes.AviStringGroupNod
 				ObjName: *stringgroup.Name,
 				Path:    path,
 				Method:  utils.RestPost,
-				Obj:     stringgrouplist,
+				Obj:     stringgroup,
 				Tenant:  *sg_meta.TenantRef,
 				Model:   "StringGroup",
 			}
@@ -134,32 +130,30 @@ func (rest *RestOperations) AviStringGroupCacheAdd(rest_op *utils.RestOp, vsKey 
 
 		var keyvalues []*avimodels.KeyValue
 		if resp["kv"] != nil {
-			keyvalues = resp["kv"].([]*avimodels.KeyValue)
+			kv := resp["kv"].([]interface{})
+			keyvalues = make([]*avimodels.KeyValue, len(kv))
+			for i, v := range kv {
+				if m, ok := v.(map[string]interface{}); ok {
+					key := m["key"].(string)
+					value := m["value"].(string)
+					keyvalues[i] = &avimodels.KeyValue{
+						Key:   &key,
+						Value: &value,
+					}
+				} else {
+					utils.AviLog.Warnf("key: %s, msg: StringGroup KV value is not a map: %v", key, v)
+				}
+			}
 		}
 		stringgroup_cache_obj := avicache.AviStringGroupCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid: uuid}
-		
 
 		// StringGroup should not have a checksum
-		checksum := lib.StringGroupChecksum(keyvalues, stringgroup_cache_obj.Description , nil, false)
-		stringgroup_cache_obj.CloudConfigCksum = checksum
+		stringgroup_cache_obj.CloudConfigCksum = lib.StringGroupChecksum(keyvalues, stringgroup_cache_obj.Description, nil, false)
 
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		rest.cache.StringGroupCache.AviCacheAdd(k, &stringgroup_cache_obj)
-		// Update the VS object
-		vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
-		if ok {
-			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
-			if found {
-				vs_cache_obj.AddToStringGroupKeyCollection(k)
-				utils.AviLog.Debugf("key: %s, msg: modified the VS cache object for StringGroup Collection. The cache now is :%v", key, utils.Stringify(vs_cache_obj))
-			}
-		} else {
-			vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
-			vs_cache_obj.AddToStringGroupKeyCollection(k)
-			utils.AviLog.Infof(spew.Sprintf("key: %s, msg: added VS cache key during stringgroup update %v val %v", key, vsKey,
-				vs_cache_obj))
-		}
+
 		utils.AviLog.Infof(spew.Sprintf("key: %s, msg: added StringGroup cache k %v val %v", key, k,
 			stringgroup_cache_obj))
 	}
@@ -171,13 +165,5 @@ func (rest *RestOperations) AviStringGroupCacheDel(rest_op *utils.RestOp, vsKey 
 	sgKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: rest_op.ObjName}
 	utils.AviLog.Debugf("Deleting StringGroup: %s", sgKey)
 	rest.cache.StringGroupCache.AviCacheDelete(sgKey)
-	vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
-	if ok {
-		vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
-		if found {
-			vs_cache_obj.RemoveFromStringGroupKeyCollection(sgKey)
-		}
-	}
-
 	return nil
 }

@@ -27,7 +27,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
-	"github.com/vmware/alb-sdk/go/models"
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -1436,6 +1435,7 @@ type AviHTTPDataScriptNode struct {
 	CloudConfigCksum uint32
 	PoolGroupRefs    []string
 	ProtocolParsers  []string
+	StringGroups     []string
 	*DataScript
 }
 
@@ -1480,6 +1480,16 @@ func (o *AviObjectGraph) GetAviHTTPDSNode() []*AviHTTPDataScriptNode {
 		}
 	}
 	return aviDS
+}
+
+func (o *AviObjectGraph) GetAviHTTPDSNodeByName(dataScriptName string) *AviHTTPDataScriptNode {
+	for _, model := range o.modelNodes {
+		ds, ok := model.(*AviHTTPDataScriptNode)
+		if ok && ds.Name == dataScriptName {
+			return ds
+		}
+	}
+	return nil
 }
 
 type DataScript struct {
@@ -1798,9 +1808,10 @@ type HostNamePathSecrets struct {
 }
 
 type AviStringGroupNode struct {
-    CloudConfigCksum uint32
-    *avimodels.StringGroup
+	CloudConfigCksum uint32
+	*avimodels.StringGroup
 }
+
 func (v *AviStringGroupNode) GetCheckSum() uint32 {
 	// Calculate checksum and return
 	v.CalculateCheckSum()
@@ -1808,13 +1819,13 @@ func (v *AviStringGroupNode) GetCheckSum() uint32 {
 }
 
 func (v *AviStringGroupNode) CalculateCheckSum() {
-	// A sum of fields for this VS.
+	// A sum of fields for this StringGroup.
 	checksum := lib.StringGroupChecksum(v.Kv, *v.Description, nil, false)
 	v.CloudConfigCksum = checksum
 }
 
 func (v *AviStringGroupNode) GetNodeType() string {
-	return lib.StringGroup
+	return lib.StringGroupNode
 }
 
 func (v *AviStringGroupNode) CopyNode() AviModelNode {
@@ -1840,27 +1851,57 @@ func (o *AviObjectGraph) GetAviStringGroupNode() []*AviStringGroupNode {
 	}
 	return aviSG
 }
-func (o *AviObjectGraph) AddOrUpdateStringGroupNode(stringGroupName string, stringGroupDescription string, poolName string, requestHeaderString string) {
+
+func (o *AviObjectGraph) GetAviStringGroupNodeByName(stringGroupName string) *AviStringGroupNode {
+	for _, model := range o.modelNodes {
+		sg, ok := model.(*AviStringGroupNode)
+		if ok && *sg.StringGroup.Name == stringGroupName {
+			return sg
+		}
+	}
+	return nil
+}
+
+func (o *AviObjectGraph) AddOrUpdateStringGroupNode(key string, stringGroupName string, stringGroupDescription string, poolName string, requestHeaderString string) {
 	//Check if node already exists and update it
+	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+	stringGroupNamespaceName := lib.GetTenant() + "/" + stringGroupName
 	for _, model := range o.modelNodes {
 		stringGroup, ok := model.(*AviStringGroupNode)
-		if ok && *stringGroup.Name == stringGroupName{
-			stringGroup.Kv = append(stringGroup.Kv, &models.KeyValue{Key : &poolName, Value: &requestHeaderString})
+		if ok && *stringGroup.Name == stringGroupName {
+			var newKv []*avimodels.KeyValue
+			for _, kv := range stringGroup.Kv {
+				if *kv.Key != poolName {
+					newKv = append(newKv, kv)
+				}
+			}
+			if len(requestHeaderString) > 0 {
+				newKv = append(newKv, &avimodels.KeyValue{Key: &poolName, Value: &requestHeaderString})
+			}
+			stringGroup.Kv = newKv
+			ok := saveAviModel(stringGroupNamespaceName, o, key)
+			if ok {
+				PublishKeyToRestLayer(stringGroupNamespaceName, key, sharedQueue)
+			}
 			return
 		}
 	}
-	// If node not found, add node	
+	// If node not found, add node
 	tenant := lib.GetTenant()
 	key_value_sg_type := "SG_TYPE_KEYVAL"
 	stringGroupNode := &AviStringGroupNode{
-	StringGroup: &models.StringGroup{
-	TenantRef: &tenant ,
-	Type : &key_value_sg_type ,
-	Description: &stringGroupDescription,
-	Name : &stringGroupName },
-    }
-	stringGroupNode.Kv = append(stringGroupNode.Kv, &models.KeyValue{Key : &poolName, Value: &requestHeaderString})
-	o.AddModelNode(stringGroupNode)
+		StringGroup: &avimodels.StringGroup{
+			TenantRef:   &tenant,
+			Type:        &key_value_sg_type,
+			Description: &stringGroupDescription,
+			Name:        &stringGroupName},
 	}
-
-
+	if len(requestHeaderString) > 0 {
+		stringGroupNode.Kv = append(stringGroupNode.Kv, &avimodels.KeyValue{Key: &poolName, Value: &requestHeaderString})
+	}
+	o.AddModelNode(stringGroupNode)
+	ok := saveAviModel(stringGroupNamespaceName, o, key)
+	if ok {
+		PublishKeyToRestLayer(stringGroupNamespaceName, key, sharedQueue)
+	}
+}

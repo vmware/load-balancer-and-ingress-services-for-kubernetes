@@ -246,6 +246,7 @@ func setDedicatedEvhVSNodeProperties(vs *avimodels.VirtualService, vs_meta *node
 		}
 	}
 	vs.SslProfileRef = vs_meta.SslProfileRef
+
 	//set datascripts to VS from hostrule crd
 	for i, script := range vs_meta.VsDatascriptRefs {
 		j := int32(i)
@@ -573,14 +574,21 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		pg_ref := "/api/poolgroup/?name=" + vs_meta.DefaultPoolGroup
 		evhChild.PoolGroupRef = &pg_ref
 	}
+	var datascriptCollection []*avimodels.VSDataScripts
+	j := int32(0)
+	for _, ds := range vs_meta.HTTPDSrefs {
+		dsRef := "/api/vsdatascriptset/?name=" + ds.Name
+		vsdatascript := &avimodels.VSDataScripts{Index: &j, VsDatascriptSetRef: &dsRef}
+		datascriptCollection = append(datascriptCollection, vsdatascript)
+		j = j + 1
+	}
 
 	//DS from hostrule
-	var datascriptCollection []*avimodels.VSDataScripts
-	for i, script := range vs_meta.VsDatascriptRefs {
-		j := int32(i)
+	for _, script := range vs_meta.VsDatascriptRefs {
 		datascript := script
 		datascripts := &avimodels.VSDataScripts{VsDatascriptSetRef: &datascript, Index: &j}
 		datascriptCollection = append(datascriptCollection, datascripts)
+		j = j + 1
 	}
 	evhChild.VsDatascripts = datascriptCollection
 
