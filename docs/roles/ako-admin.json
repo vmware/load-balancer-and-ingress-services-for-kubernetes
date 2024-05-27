@@ -66,7 +66,7 @@
         "resource": "PERMISSION_IPADDRGROUP"
       },
       {
-        "type": "NO_ACCESS",
+        "type": "WRITE_ACCESS",
         "resource": "PERMISSION_STRINGGROUP"
       },
       {

@@ -78,7 +78,6 @@ type AviVsCache struct {
 	HTTPKeyCollection    []NamespaceName
 	SSLKeyCertCollection []NamespaceName
 	L4PolicyCollection   []NamespaceName
-	StringGroupKeyCollection []NamespaceName
 	SNIChildCollection   []string
 	ParentVSRef          NamespaceName
 	PassthroughParentRef NamespaceName
@@ -266,22 +265,6 @@ func (v *AviVsCache) RemoveFromSNIChildCollection(k string) {
 		return
 	}
 	v.SNIChildCollection = utils.Remove(v.SNIChildCollection, k)
-}
-
-func (v *AviVsCache) AddToStringGroupKeyCollection(k NamespaceName) {
-	if v.StringGroupKeyCollection == nil {
-		v.StringGroupKeyCollection = []NamespaceName{k}
-	}
-	if !utils.HasElem(v.StringGroupKeyCollection, k) {
-		v.StringGroupKeyCollection = append(v.StringGroupKeyCollection, k)
-	}
-}
-
-func (v *AviVsCache) RemoveFromStringGroupKeyCollection(k NamespaceName) {
-	if v.StringGroupKeyCollection == nil {
-		return
-	}
-	v.StringGroupKeyCollection = RemoveNamespaceName(v.StringGroupKeyCollection, k)
 }
 
 type AviSSLCache struct {
