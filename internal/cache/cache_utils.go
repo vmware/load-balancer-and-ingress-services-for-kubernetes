@@ -78,6 +78,7 @@ type AviVsCache struct {
 	HTTPKeyCollection    []NamespaceName
 	SSLKeyCertCollection []NamespaceName
 	L4PolicyCollection   []NamespaceName
+	StringGroupKeyCollection []NamespaceName
 	SNIChildCollection   []string
 	ParentVSRef          NamespaceName
 	PassthroughParentRef NamespaceName
@@ -267,6 +268,22 @@ func (v *AviVsCache) RemoveFromSNIChildCollection(k string) {
 	v.SNIChildCollection = utils.Remove(v.SNIChildCollection, k)
 }
 
+func (v *AviVsCache) AddToStringGroupKeyCollection(k NamespaceName) {
+	if v.StringGroupKeyCollection == nil {
+		v.StringGroupKeyCollection = []NamespaceName{k}
+	}
+	if !utils.HasElem(v.StringGroupKeyCollection, k) {
+		v.StringGroupKeyCollection = append(v.StringGroupKeyCollection, k)
+	}
+}
+
+func (v *AviVsCache) RemoveFromStringGroupKeyCollection(k NamespaceName) {
+	if v.StringGroupKeyCollection == nil {
+		return
+	}
+	v.StringGroupKeyCollection = RemoveNamespaceName(v.StringGroupKeyCollection, k)
+}
+
 type AviSSLCache struct {
 	Name             string
 	Tenant           string
@@ -347,6 +364,17 @@ type AviVrfCache struct {
 	Name             string
 	Uuid             string
 	CloudConfigCksum uint32
+}
+
+type AviStringGroupCache struct {
+	Name             string
+	Tenant           string
+	Uuid             string
+	LastModified     string
+	InvalidData      bool
+	CloudConfigCksum uint32
+	HasReference     bool
+	Description      string
 }
 
 func (v *AviVsCache) GetVSCopy() (*AviVsCache, bool) {
@@ -499,6 +527,12 @@ func (c *AviCache) AviCacheGetNameByUuid(uuid string) (interface{}, bool) {
 				utils.AviLog.Warnf("Got nil value in cache for pki profile key %v", reflect.ValueOf(key))
 			} else if value.(*AviPkiProfileCache).Uuid == uuid {
 				return value.(*AviPkiProfileCache).Name, true
+			}
+		case *AviStringGroupCache:
+			if value.(*AviStringGroupCache) == nil {
+				utils.AviLog.Warnf("Got nil value in cache for stringgroup key %v", reflect.ValueOf(key))
+			} else if value.(*AviStringGroupCache).Uuid == uuid {
+				return value.(*AviStringGroupCache).Name, true
 			}
 		}
 	}

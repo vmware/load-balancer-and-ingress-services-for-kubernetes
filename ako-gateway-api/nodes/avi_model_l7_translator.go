@@ -17,6 +17,7 @@ package nodes
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
@@ -128,12 +129,12 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 		Name:   PGName,
 		Tenant: lib.GetTenant(),
 	}
-	for _, backend := range rule.Backends {
+	for _, httpbackend := range rule.Backends {
 		poolName := akogatewayapilib.GetPoolName(parentNs, parentName,
-			routeModel.GetNamespace(), routeModel.GetName(),
-			utils.Stringify(rule.Matches),
-			backend.Namespace, backend.Name, strconv.Itoa(int(backend.Port)))
-		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(backend.Namespace).Get(backend.Name)
+		routeModel.GetNamespace(), routeModel.GetName(),
+		utils.Stringify(rule.Matches),
+		httpbackend.Backend.Namespace, httpbackend.Backend.Name, strconv.Itoa(int(httpbackend.Backend.Port)))
+		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(httpbackend.Backend.Namespace).Get(httpbackend.Backend.Name)
 		if err != nil {
 			utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service", key)
 			o.RemovePoolRefsFromPG(poolName, o.GetPoolGroupByName(PGName))
@@ -143,11 +144,11 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 			Name:       poolName,
 			Tenant:     lib.GetTenant(),
 			Protocol:   listenerProtocol,
-			PortName:   akogatewayapilib.FindPortName(backend.Name, backend.Namespace, backend.Port, key),
-			TargetPort: akogatewayapilib.FindTargetPort(backend.Name, backend.Namespace, backend.Port, key),
-			Port:       backend.Port,
+			PortName:   akogatewayapilib.FindPortName(httpbackend.Backend.Name, httpbackend.Backend.Namespace, httpbackend.Backend.Port, key),
+			TargetPort: akogatewayapilib.FindTargetPort(httpbackend.Backend.Name, httpbackend.Backend.Namespace, httpbackend.Backend.Port, key),
+			Port:       httpbackend.Backend.Port,
 			ServiceMetadata: lib.ServiceMetadataObj{
-				NamespaceServiceName: []string{backend.Namespace + "/" + backend.Name},
+				NamespaceServiceName: []string{httpbackend.Backend.Namespace + "/" + httpbackend.Backend.Name},
 			},
 			VrfContext: lib.GetVrf(),
 		}
@@ -168,8 +169,41 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 			// Replace the poolNode.
 			childVsNode.ReplaceEvhPoolInEVHNode(poolNode, key)
 		}
+		
+		for _, filter := range httpbackend.Filters{
+			var addRequestString string
+			for _, addRequestFilter := range filter.RequestFilter.Add{
+				addRequestString = addRequestString + addRequestFilter.Name + ":" + addRequestFilter.Value + ","
+			}
+			addRequestString = strings.TrimSuffix(addRequestString,",")
+			if len(addRequestString)>0{
+				name := "AddHeaderStringGroup"
+				description := "StringGroup to support ADDRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
+				o.AddOrUpdateStringGroupNode(name, description,poolName, addRequestString)
+			}
+			var setRequestString string 
+			for _, setRequestFilter := range filter.RequestFilter.Set{
+				setRequestString = setRequestString + setRequestFilter.Name + ":" + setRequestFilter.Value + ","
+			}
+			setRequestString = strings.TrimSuffix(setRequestString,",")
+			if len(setRequestString)>0{
+				name := "UpdateHeaderStringGroup"
+		        description := "StringGroup to support UpdateRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
+				o.AddOrUpdateStringGroupNode(name, description,poolName, addRequestString)
+			}
+			var removeRequestString string
+			for _, removeRequestKey := range filter.RequestFilter.Remove{
+				setRequestString = removeRequestString + removeRequestKey+ ","
+			}
+			removeRequestString = strings.TrimSuffix(removeRequestString,",")
+			if len(removeRequestString)>0{
+                name := "DelteHeaderStringGroup"
+		        description := "StringGroup to support DeleteRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
+				o.AddOrUpdateStringGroupNode(name, description,poolName, addRequestString)
+			}
+		}
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
-		ratio := uint32(backend.Weight)
+		ratio := uint32(httpbackend.Backend.Weight)
 		PG.Members = append(PG.Members, &models.PoolGroupMember{PoolRef: &pool_ref, Ratio: &ratio})
 	}
 	if len(PG.Members) > 0 {

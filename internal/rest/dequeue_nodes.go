@@ -293,6 +293,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 	var httppol_to_delete []avicache.NamespaceName
 	var l4pol_to_delete []avicache.NamespaceName
 	var sslkey_cert_delete []avicache.NamespaceName
+	var stringgroup_to_delete []avicache.NamespaceName
 	var vsvipErr error
 	var publishKey string
 
@@ -361,6 +362,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		_, rest_ops = rest.HTTPPolicyCU(aviVsNode.HttpPolicyRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.L4PolicyCU(aviVsNode.L4PolicyRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.DatascriptCU(aviVsNode.HTTPDSrefs, nil, namespace, rest_ops, key)
+		_, rest_ops = rest.StringGroupCU(aviVsNode.HTTPDSrefs, nil, namespace, rest_ops, key)
 
 		// The cache was not found - it's a POST call.
 		restOp := rest.AviVsBuild(aviVsNode, utils.RestPost, nil, key)
@@ -782,6 +784,8 @@ func (rest *RestOperations) PopulateOneCache(rest_op *utils.RestOp, aviObjKey av
 			rest.AviVrfCacheAdd(rest_op, aviObjKey, key)
 		} else if rest_op.Model == "VsVip" {
 			rest.AviVsVipCacheAdd(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "StringGroup" {
+			rest.AviStringGroupCacheAdd(rest_op, aviObjKey, key)
 		}
 
 	} else if (rest_op.Err == nil || aviErr.HttpStatusCode == 404) &&
@@ -805,6 +809,8 @@ func (rest *RestOperations) PopulateOneCache(rest_op *utils.RestOp, aviObjKey av
 			rest.AviVsVipCacheDel(rest_op, aviObjKey, key)
 		} else if rest_op.Model == "VSDataScriptSet" {
 			rest.AviDSCacheDel(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "StringGroup" {
+			rest.AviStringGroupCacheDel(rest_op, aviObjKey, key)
 		}
 	}
 }
@@ -1851,6 +1857,82 @@ func (rest *RestOperations) PkiProfileDelete(pkiProfileDelete []avicache.Namespa
 			restOp.ObjName = delPki.Name
 			rest_ops = append(rest_ops, restOp)
 
+		}
+	}
+	return rest_ops
+}
+
+func (rest *RestOperations) StringGroupCU(sg_nodes []*nodes.AviStringGroupNode, vs_cache_obj *avicache.AviVsCache, namespace string, rest_ops []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp) {
+	var cache_sg_nodes []avicache.NamespaceName
+
+	if vs_cache_obj != nil {
+		cache_sg_nodes = make([]avicache.NamespaceName, len(vs_cache_obj.StringGroupKeyCollection))
+		copy(cache_sg_nodes, vs_cache_obj.StringGroupKeyCollection)
+
+		// Default is POST
+
+		for _, sg := range sg_nodes {
+			// check in the sg cache to see if this  exists in AVI
+			sg_key := avicache.NamespaceName{Namespace: namespace, Name: *sg.Name}
+			found := utils.HasElem(cache_sg_nodes, sg_key)
+			if found {
+				cache_sg_nodes = avicache.RemoveNamespaceName(cache_sg_nodes, sg_key)
+				sg_cache, ok := rest.cache.StringGroupCache.AviCacheGet(sg_key)
+				if !ok {
+					// If the StringGroup Is not found - let's do a POST call.
+					restOp := rest.AviStringGroupBuild(sg, nil, key)
+					if restOp != nil {
+						rest_ops = append(rest_ops, restOp)
+					}
+				} else {
+					sgCacheObj := sg_cache.(*avicache.AviStringGroupCache)
+					if sgCacheObj.CloudConfigCksum != sg.GetCheckSum() {
+						utils.AviLog.Debugf("key: %s, msg: datascript checksum changed, updating - %s", key, sg.Name)
+						restOp := rest.AviStringGroupBuild(sg, sgCacheObj, key)
+						if restOp != nil {
+							rest_ops = append(rest_ops, restOp)
+						}
+					}
+				}
+			} else {
+				// If the DS Is not found - let's do a POST call.
+				for _, sg := range sg_nodes {
+					restOp := rest.AviStringGroupBuild(sg, nil, key)
+					if restOp != nil {
+						rest_ops = append(rest_ops, restOp)
+					}
+				}
+			}
+		}
+
+	} else {
+		// Everything is a POST call
+		for _, sg := range sg_nodes {
+			restOp := rest.AviStringGroupBuild(sg, nil, key)
+			if restOp != nil {
+				rest_ops = append(rest_ops, restOp)
+			}
+		}
+
+	}
+	utils.AviLog.Debugf("key: %s, msg: the StringGroup rest_op is %s", key, utils.Stringify(rest_ops))
+	utils.AviLog.Debugf("key: %s, msg: the StringGroup to be deleted are: %s", key, cache_sg_nodes)
+	return cache_sg_nodes, rest_ops
+}
+
+func (rest *RestOperations) StringGroupDelete(sg_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
+	utils.AviLog.Infof("key: %s, msg: about to delete the StringGroup %s", key, sg_to_delete)
+	for _, del_sg := range sg_to_delete {
+		// fetch trhe stringgroup uuid from cache
+		sg_key := avicache.NamespaceName{Namespace: namespace, Name: del_sg.Name}
+		sg_cache, ok := rest.cache.StringGroupCache.AviCacheGet(sg_key)
+		if ok {
+			sg_cache_obj, _ := sg_cache.(*avicache.AviDSCache)
+			restOp := rest.AviStringGroupDel(sg_cache_obj.Uuid, namespace, key)
+			restOp.ObjName = del_sg.Name
+			rest_ops = append(rest_ops, restOp)
+		} else {
+			utils.AviLog.Debugf("key: %s, msg: stringgroup not found in cache during delete %s", key, sg_to_delete)
 		}
 	}
 	return rest_ops

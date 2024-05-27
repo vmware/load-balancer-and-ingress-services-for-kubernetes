@@ -1242,6 +1242,19 @@ func DSChecksum(pgrefs []string, markers []*models.RoleFilterMatchLabel, populat
 	return checksum
 }
 
+func StringGroupChecksum(keyvalue []*models.KeyValue, description string, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
+	checksum := utils.Hash(description)
+	if populateCache {
+		if markers != nil {
+			checksum += ObjectLabelChecksum(markers)
+		}
+		return checksum
+	}
+	checksum += GetClusterLabelChecksum()
+	checksum += utils.Hash(utils.Stringify(keyvalue))
+	return checksum
+}
+
 func GetAnalyticsPolicyChecksum(analyticsPolicy *models.AnalyticsPolicy) uint32 {
 	return utils.Hash(utils.Stringify(analyticsPolicy)) + GetClusterLabelChecksum()
 }

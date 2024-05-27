@@ -158,6 +158,7 @@ const (
 	L4PS                                       = "L4 Policyset"
 	L4PSRule                                   = "L4 Policyset Rule"
 	SNIVS                                      = "SNI VirtualService"
+	StringGroup                                = "StringGroup"
 	VIP                                        = "VS VIP"
 	PG                                         = "Poolgroup"
 	PriorityLabel                              = "PriorityLabel"
