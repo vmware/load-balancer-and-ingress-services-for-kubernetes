@@ -166,7 +166,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		if vs_meta.NetworkProfile == utils.MIXED_NET_PROFILE {
 			if isTCPPortPresent {
 				license := lib.AKOControlConfig().GetLicenseType()
-				if license == lib.LicenseTypeEnterprise {
+				if license == lib.LicenseTypeEnterprise || license == lib.LicenseTypeEnterpriseCloudServices {
 					vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 				} else {
 					vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
