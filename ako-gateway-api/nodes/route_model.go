@@ -107,10 +107,15 @@ type Backend struct {
 	Weight    int32
 }
 
+type HTTPBackend struct {
+	Backend *Backend
+	Filters []*Filter
+}
+
 type Rule struct {
 	Matches  []*Match
 	Filters  []*Filter
-	Backends []*Backend
+	Backends []*HTTPBackend
 }
 
 type RouteConfig struct {
@@ -278,6 +283,7 @@ func (hr *httpRoute) ParseRouteRules() *RouteConfig {
 			routeConfigRule.Filters = append(routeConfigRule.Filters, filter)
 		}
 		for _, ruleBackend := range rule.BackendRefs {
+			httpBackend := &HTTPBackend{}
 			backend := &Backend{}
 			backend.Name = string(ruleBackend.Name)
 			if ruleBackend.Namespace != nil {

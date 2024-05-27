@@ -27,6 +27,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
+	"github.com/vmware/alb-sdk/go/models"
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -1799,3 +1800,71 @@ type HostNamePathSecrets struct {
 	secretName string
 	paths      []string
 }
+
+type AviStringGroupNode struct {
+    CloudConfigCksum uint32
+    *avimodels.StringGroup
+}
+func (v *AviStringGroupNode) GetCheckSum() uint32 {
+	// Calculate checksum and return
+	v.CalculateCheckSum()
+	return v.CloudConfigCksum
+}
+
+func (v *AviStringGroupNode) CalculateCheckSum() {
+	// A sum of fields for this VS.
+	checksum := lib.StringGroupChecksum(v.Kv, *v.Description, nil, false)
+	v.CloudConfigCksum = checksum
+}
+
+func (v *AviStringGroupNode) GetNodeType() string {
+	return lib.StringGroup
+}
+
+func (v *AviStringGroupNode) CopyNode() AviModelNode {
+	newNode := AviStringGroupNode{}
+	bytes, err := json.Marshal(v)
+	if err != nil {
+		utils.AviLog.Warnf("Unable to marshal AviStringGroupNode: %s", err)
+	}
+	err = json.Unmarshal(bytes, &newNode)
+	if err != nil {
+		utils.AviLog.Warnf("Unable to unmarshal AviStringGroupNode: %s", err)
+	}
+	return &newNode
+}
+
+func (o *AviObjectGraph) GetAviStringGroupNode() []*AviStringGroupNode {
+	var aviSG []*AviStringGroupNode
+	for _, model := range o.modelNodes {
+		sg, ok := model.(*AviStringGroupNode)
+		if ok {
+			aviSG = append(aviSG, sg)
+		}
+	}
+	return aviSG
+}
+func (o *AviObjectGraph) AddOrUpdateStringGroupNode(stringGroupName string, stringGroupDescription string, poolName string, requestHeaderString string) {
+	//Check if node already exists and update it
+	for _, model := range o.modelNodes {
+		stringGroup, ok := model.(*AviStringGroupNode)
+		if ok && *stringGroup.Name == stringGroupName{
+			stringGroup.Kv = append(stringGroup.Kv, &models.KeyValue{Key : &poolName, Value: &requestHeaderString})
+			return
+		}
+	}
+	// If node not found, add node	
+	tenant := lib.GetTenant()
+	key_value_sg_type := "SG_TYPE_KEYVAL"
+	stringGroupNode := &AviStringGroupNode{
+	StringGroup: &models.StringGroup{
+	TenantRef: &tenant ,
+	Type : &key_value_sg_type ,
+	Description: &stringGroupDescription,
+	Name : &stringGroupName },
+    }
+	stringGroupNode.Kv = append(stringGroupNode.Kv, &models.KeyValue{Key : &poolName, Value: &requestHeaderString})
+	o.AddModelNode(stringGroupNode)
+	}
+
+
