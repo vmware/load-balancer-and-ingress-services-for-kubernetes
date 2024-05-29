@@ -17,12 +17,10 @@ package integrationtest
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -1230,20 +1228,6 @@ func TestCreateDeleteL4RuleSSLCustomValues(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	// setting license to enterprise
-	SetupLicense := func(license string) {
-		AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
-			url := r.URL.EscapedPath()
-			if strings.Contains(url, "/api/systemconfiguration") {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`{"default_license_tier": "` + license + `"}`))
-				return
-			}
-			NormalControllerServer(w, r)
-		})
-		// Set the license
-		aviRestClientPool := cache.SharedAVIClients()
-		lib.AKOControlConfig().SetLicenseType(aviRestClientPool.AviClient[0])
-	}
 	SetupLicense(lib.LicenseTypeEnterprise)
 
 	L4RuleName := "test-l4rule"
@@ -1357,20 +1341,6 @@ func TestCreateDeleteL4RuleSSLDefaultValues(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	// setting license to enterprise
-	SetupLicense := func(license string) {
-		AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
-			url := r.URL.EscapedPath()
-			if strings.Contains(url, "/api/systemconfiguration") {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`{"default_license_tier": "` + license + `"}`))
-				return
-			}
-			NormalControllerServer(w, r)
-		})
-		// Set the license
-		aviRestClientPool := cache.SharedAVIClients()
-		lib.AKOControlConfig().SetLicenseType(aviRestClientPool.AviClient[0])
-	}
 	SetupLicense(lib.LicenseTypeEnterprise)
 
 	L4RuleName := "test-l4rule"
@@ -1479,21 +1449,7 @@ func TestCreateDeleteL4RuleSSLDefaultValues(t *testing.T) {
 func TestL4RuleSSLCustomValuesLicenseCloudServices(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	// setting license to enterprise
-	SetupLicense := func(license string) {
-		AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
-			url := r.URL.EscapedPath()
-			if strings.Contains(url, "/api/systemconfiguration") {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`{"default_license_tier": "` + license + `"}`))
-				return
-			}
-			NormalControllerServer(w, r)
-		})
-		// Set the license
-		aviRestClientPool := cache.SharedAVIClients()
-		lib.AKOControlConfig().SetLicenseType(aviRestClientPool.AviClient[0])
-	}
+	// setting license to enterprise with cloud services
 	SetupLicense(lib.LicenseTypeEnterpriseCloudServices)
 
 	L4RuleName := "test-l4rule"
@@ -1606,21 +1562,7 @@ func TestL4RuleSSLCustomValuesLicenseCloudServices(t *testing.T) {
 func TestL4RuleSSLDefaultValuesLicenseCloudServices(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	// setting license to enterprise
-	SetupLicense := func(license string) {
-		AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
-			url := r.URL.EscapedPath()
-			if strings.Contains(url, "/api/systemconfiguration") {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`{"default_license_tier": "` + license + `"}`))
-				return
-			}
-			NormalControllerServer(w, r)
-		})
-		// Set the license
-		aviRestClientPool := cache.SharedAVIClients()
-		lib.AKOControlConfig().SetLicenseType(aviRestClientPool.AviClient[0])
-	}
+	// setting license to enterprise with cloud services
 	SetupLicense(lib.LicenseTypeEnterpriseCloudServices)
 
 	L4RuleName := "test-l4rule"
