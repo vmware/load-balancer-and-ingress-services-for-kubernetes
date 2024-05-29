@@ -111,7 +111,7 @@ Here:
    Mention the time as 2s(for 2 seconds) or 4m(for 4 mins) or 24h(for 24 hours)<br>
    Example: if 24h is mentioned, the logs from the last 24 hours are fetched.<br>
    Default is taken to be 24h \n
-3. Script has to be run in machine which has Kubernetes cluster access.
+3. Script has to be run on a machine which has Kubernetes cluster access.
 The script is used to collect all relevant information for the AKO pod.
 
 **About the script:**
