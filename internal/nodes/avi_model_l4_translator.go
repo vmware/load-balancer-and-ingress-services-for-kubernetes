@@ -582,6 +582,10 @@ func getAutoFQDNForService(svcNamespace, svcName string) string {
 		subDomains = []string{defaultSubDomain}
 	}
 
+	if subDomains == nil {
+		// return empty string
+		return fqdn
+	}
 	// subDomains[0] would either have the defaultSubDomain value
 	// or would default to the first dns subdomain it gets from the dns profile
 	subdomain := subDomains[0]
