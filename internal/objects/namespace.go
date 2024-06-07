@@ -31,11 +31,14 @@ func SharedNamespaceTenantLister() *NamespaceLister {
 }
 
 type NamespaceLister struct {
+	NamespaceLock sync.RWMutex
 	//namespace --> tenant
 	NamespacedResourceToTenantStore *ObjectMapStore
 }
 
 func (n *NamespaceLister) UpdateNamespacedResourceToTenantStore(key, tenant string) {
+	n.NamespaceLock.Lock()
+	defer n.NamespaceLock.Unlock()
 	n.NamespacedResourceToTenantStore.AddOrUpdate(key, tenant)
 }
 
@@ -48,5 +51,7 @@ func (n *NamespaceLister) GetTenantInNamespace(key string) string {
 }
 
 func (n *NamespaceLister) RemoveNamespaceToTenantCache(key string) bool {
+	n.NamespaceLock.Lock()
+	defer n.NamespaceLock.Unlock()
 	return n.NamespacedResourceToTenantStore.Delete(key)
 }

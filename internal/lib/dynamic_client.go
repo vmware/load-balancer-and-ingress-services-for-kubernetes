@@ -176,7 +176,8 @@ func GetDynamicInformers() *DynamicInformers {
 	return dynamicInformerInstance
 }
 
-func GetNetworkInfoCRData(clientSet dynamic.Interface) (map[string]string, map[string]string, map[string]map[string]struct{}) {
+func GetNetworkInfoCRData() (map[string]string, map[string]string, map[string]map[string]struct{}) {
+	clientSet := GetDynamicClientSet()
 	lslrMap := make(map[string]string)
 	nsLRMap := make(map[string]string)
 	cidrs := make(map[string]map[string]struct{})
@@ -471,7 +472,8 @@ func WaitForInitSecretRecreateAndReboot() {
 	}
 }
 
-func GetVPCs(clientSet dynamic.Interface) (map[string]string, map[string]string, error) {
+func GetVPCs() (map[string]string, map[string]string, error) {
+	clientSet := GetDynamicClientSet()
 	vpcToSubnetMap := make(map[string]string)
 	nsToVPCMap := make(map[string]string)
 	vpcNetworkConfigCRs, err := clientSet.Resource(VPCNetworkConfigurationGVR).List(context.TODO(), metav1.ListOptions{})

@@ -2393,6 +2393,6 @@ func SetupLicense(license string) {
 		NormalControllerServer(w, r)
 	})
 	// Set the license
-	aviRestClientPool := cache.SharedAVIClients()
+	aviRestClientPool := cache.SharedAVIClients(lib.GetTenant())
 	lib.AKOControlConfig().SetLicenseType(aviRestClientPool.AviClient[0])
 }

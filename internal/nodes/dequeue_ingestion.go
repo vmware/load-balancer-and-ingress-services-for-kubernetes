@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -291,8 +292,9 @@ func DequeueIngestion(key string, fullsync bool) {
 	if objType == utils.Namespace && lib.IsWCP() && isNamespaceDeleted(name) {
 		cache := avicache.SharedAviObjCache()
 		vsKeys := cache.VsCacheMeta.AviCacheGetAllParentVSKeys()
+		suffix := fmt.Sprintf("NS-%s", name)
 		for _, vsKey := range vsKeys {
-			if strings.HasSuffix(vsKey.Name, name) {
+			if strings.HasSuffix(vsKey.Name, suffix) {
 				modelName := lib.GetModelName(vsKey.Namespace, vsKey.Name)
 				if found, _ := objects.SharedAviGraphLister().Get(modelName); found {
 					objects.SharedAviGraphLister().Save(modelName, nil)

@@ -1161,6 +1161,8 @@ func TestAdvL4MultiTenancyWithInfraSettting(t *testing.T) {
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].Name).To(gomega.Equal("abc--default-my-gateway"))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal("nonadmin"))
 	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8081)))
 	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
@@ -1215,6 +1217,8 @@ func TestAdvL4MultiTenancyWithTenantAddition(t *testing.T) {
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].Name).To(gomega.Equal("abc--default-my-gateway"))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8081)))
 	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
@@ -1236,6 +1240,19 @@ func TestAdvL4MultiTenancyWithTenantAddition(t *testing.T) {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
 	}, 30*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].Name).To(gomega.Equal("abc--default-my-gateway"))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal("nonadmin"))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8081)))
+	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Port).To(gomega.Equal(uint32(8081)))
+	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Protocol).To(gomega.Equal("TCP"))
+	g.Expect(nodes[0].ServiceMetadata.NamespaceServiceName[0]).To(gomega.Equal("default/svc"))
+	g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/my-gateway"))
+	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(3))
 
 	TeardownGatewayClass(t, gwClassName)
 	g.Eventually(func() int {

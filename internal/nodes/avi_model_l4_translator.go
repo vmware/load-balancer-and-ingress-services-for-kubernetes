@@ -817,13 +817,7 @@ func getNetworkProfile(isSCTP, isTCP, isUDP bool) string {
 	return utils.MIXED_NET_PROFILE
 }
 
-/*
-Delete Old Model when
-
-	a. A new infrasetting is added with a new tenant
-	b. An infrasetting is removed (Deleted or Annotation removed from Namespace)
-	c. Tenant value changes due to an update in the existing infrasetting or due to change of infrasetting mapping.
-*/
+// Delete Old Model when Tenant values changes in Namespace annotation
 func DeleteStaleTenantModelData(objName, namespace, key, tenant, objType string) {
 	oldTenant := objects.SharedNamespaceTenantLister().GetTenantInNamespace(namespace + "/" + objName)
 	if oldTenant == "" {
@@ -836,8 +830,10 @@ func DeleteStaleTenantModelData(objName, namespace, key, tenant, objType string)
 	oldModelName := lib.GetModelName(oldTenant, lib.Encode(lib.GetNamePrefix()+namespace+"-"+objName, objType))
 	found, _ := objects.SharedAviGraphLister().Get(oldModelName)
 	if !found {
+		utils.AviLog.Debugf("key: %s, msg: Model not found in the Graph Lister, model: %s", key, oldModelName)
 		return
 	}
 	utils.AviLog.Infof("key: %s, msg: Deleting old model data, model: %s", key, oldModelName)
 	objects.SharedAviGraphLister().Save(oldModelName, nil)
+	PublishKeyToRestLayer(oldModelName, key, utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer))
 }

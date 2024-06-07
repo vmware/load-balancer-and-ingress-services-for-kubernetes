@@ -54,14 +54,13 @@ func PopulateCache() error {
 	tenants := map[string]struct{}{
 		lib.GetTenant(): {},
 	}
-	if utils.IsVCFCluster() {
-		aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
-		if aviRestClientPool != nil && len(aviRestClientPool.AviClient) > 0 {
-			err := lib.GetAllTenants(aviRestClientPool.AviClient[0], tenants)
-			if err != nil {
-				return err
-			}
-		}
+	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
+	if aviRestClientPool == nil || len(aviRestClientPool.AviClient) == 0 {
+		return fmt.Errorf("avi Rest client initialization failed")
+	}
+	err := lib.GetAllTenants(aviRestClientPool.AviClient[0], tenants)
+	if err != nil {
+		return err
 	}
 
 	for tenant := range tenants {
@@ -74,10 +73,9 @@ func PopulateCache() error {
 				utils.AviLog.Warnf("failed to populate avi cache with error: %v", err.Error())
 				return err
 			}
-
 		}
 	}
-	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
+	aviRestClientPool = avicache.SharedAVIClients(lib.GetTenant())
 	if aviRestClientPool != nil && len(aviRestClientPool.AviClient) > 0 {
 		if err := avicache.SetControllerClusterUUID(aviRestClientPool); err != nil {
 			utils.AviLog.Warnf("Failed to set the controller cluster uuid with error: %v", err)
@@ -93,22 +91,24 @@ func (c *AviController) CleanupStaleVSes() {
 	if err != nil {
 		return
 	}
-	for tenant := range tenants {
-		aviObjCache := avicache.SharedAviObjCache()
+	aviObjCache := avicache.SharedAviObjCache()
 
-		delModels, err := DeleteConfigFromConfigmap(c.informers.ClientSet)
-		if err != nil {
-			c.DisableSync = true
-			utils.AviLog.Errorf("Error occurred while fetching values from configmap. Err: %s", utils.Stringify(err))
-			return
-		}
-		if delModels {
-			go SetDeleteSyncChannel()
-			parentKeys := aviObjCache.VsCacheMeta.AviCacheGetAllParentVSKeys()
-			DeleteAviObjects(parentKeys, aviObjCache)
-		} else {
-			status.NewStatusPublisher().ResetStatefulSetAnnotation(status.ObjectDeletionStatus)
-		}
+	delModels, err := DeleteConfigFromConfigmap(c.informers.ClientSet)
+	if err != nil {
+		c.DisableSync = true
+		utils.AviLog.Errorf("Error occurred while fetching values from configmap. Err: %s", utils.Stringify(err))
+		return
+	}
+	if delModels {
+		go SetDeleteSyncChannel()
+		parentKeys := aviObjCache.VsCacheMeta.AviCacheGetAllParentVSKeys()
+		DeleteAviObjects(parentKeys, aviObjCache)
+		return
+	} else {
+		status.NewStatusPublisher().ResetStatefulSetAnnotation(status.ObjectDeletionStatus)
+	}
+
+	for tenant := range tenants {
 
 		// Delete Stale objects by deleting model for dummy VS
 		if _, err := lib.IsClusterNameValid(); err != nil {
@@ -125,17 +125,16 @@ func (c *AviController) CleanupStaleVSes() {
 			Namespace: tenant,
 		}
 		aviObjCache.VsCacheMeta.AviCacheDelete(staleCacheKey)
+	}
+	vsKeysPending := aviObjCache.VsCacheMeta.AviGetAllKeys()
+	if delModels {
+		//Delete NPL annotations
+		DeleteNPLAnnotations()
+	}
 
-		vsKeysPending := aviObjCache.VsCacheMeta.AviGetAllKeys()
-		if delModels {
-			//Delete NPL annotations
-			DeleteNPLAnnotations()
-		}
-
-		if delModels && len(vsKeysPending) == 0 && lib.ConfigDeleteSyncChan != nil {
-			close(lib.ConfigDeleteSyncChan)
-			lib.ConfigDeleteSyncChan = nil
-		}
+	if delModels && len(vsKeysPending) == 0 && lib.ConfigDeleteSyncChan != nil {
+		close(lib.ConfigDeleteSyncChan)
+		lib.ConfigDeleteSyncChan = nil
 	}
 }
 
@@ -530,15 +529,15 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	statusQueueParams := utils.WorkerQueue{NumWorkers: numGraphWorkers, WorkqueueName: utils.StatusQueue}
 	graphQueue = utils.SharedWorkQueue(&ingestionQueueParams, &graphQueueParams, &slowRetryQParams, &fastRetryQParams, &statusQueueParams).GetQueueByName(utils.GraphLayer)
 
-	c.addIndexers()
-	c.Start(stopCh)
-
 	err := PopulateCache()
 	if err != nil {
 		c.DisableSync = true
 		utils.AviLog.Errorf("failed to populate cache, disabling sync")
 		lib.ShutdownApi()
 	}
+
+	c.addIndexers()
+	c.Start(stopCh)
 
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
 	interval, err := strconv.ParseInt(fullSyncInterval, 10, 64)

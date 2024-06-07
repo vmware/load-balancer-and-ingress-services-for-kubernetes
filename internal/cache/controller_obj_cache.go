@@ -527,7 +527,7 @@ func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient, cloud, te
 	// Get all the PG cache data and copy them.
 	pgCacheData := c.PgCache.ShallowCopy()
 	for i, pgCacheObj := range pgData {
-		k := NamespaceName{Namespace: tenant, Name: pgCacheObj.Name}
+		k := NamespaceName{Namespace: pgCacheObj.Tenant, Name: pgCacheObj.Name}
 		oldPGIntf, found := c.PgCache.AviCacheGet(k)
 		if found {
 			oldPGData, ok := oldPGIntf.(*AviPGCache)
@@ -557,7 +557,7 @@ func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient, cloud, te
 	}
 }
 
-func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiData *[]AviPkiProfileCache, tenant string, overrideUri ...NextPage) (*[]AviPkiProfileCache, int, error) {
+func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiData *[]AviPkiProfileCache, overrideUri ...NextPage) (*[]AviPkiProfileCache, int, error) {
 	var uri string
 	akoUser := lib.AKOUser
 
@@ -605,7 +605,7 @@ func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiDa
 		if len(next_uri) > 1 {
 			overrideUri := "/api/pkiprofile" + next_uri[1]
 			nextPage := NextPage{NextURI: overrideUri}
-			_, _, err := c.AviPopulateAllPkiPRofiles(client, pkiData, tenant, nextPage)
+			_, _, err := c.AviPopulateAllPkiPRofiles(client, pkiData, nextPage)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -692,11 +692,11 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 
 func (c *AviObjCache) PopulatePkiProfilesToCache(client *clients.AviClient, tenant string, overrideUri ...NextPage) {
 	var pkiProfData []AviPkiProfileCache
-	c.AviPopulateAllPkiPRofiles(client, &pkiProfData, tenant)
+	c.AviPopulateAllPkiPRofiles(client, &pkiProfData)
 
 	pkiCacheData := c.PKIProfileCache.ShallowCopy()
 	for i, pkiCacheObj := range pkiProfData {
-		k := NamespaceName{Namespace: tenant, Name: pkiCacheObj.Name}
+		k := NamespaceName{Namespace: pkiCacheObj.Tenant, Name: pkiCacheObj.Name}
 		oldPkiIntf, found := c.PKIProfileCache.AviCacheGet(k)
 		if found {
 			oldPkiData, ok := oldPkiIntf.(*AviPkiProfileCache)
@@ -730,7 +730,7 @@ func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient, cloud, ten
 
 	poolCacheData := c.PoolCache.ShallowCopy()
 	for i, poolCacheObj := range poolsData {
-		k := NamespaceName{Namespace: tenant, Name: poolCacheObj.Name}
+		k := NamespaceName{Namespace: poolCacheObj.Tenant, Name: poolCacheObj.Name}
 		oldPoolIntf, found := c.PoolCache.AviCacheGet(k)
 		if found {
 			oldPoolData, ok := oldPoolIntf.(*AviPoolCache)
@@ -758,7 +758,7 @@ func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient, cloud, ten
 	}
 }
 
-func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud string, vsVipData *[]AviVSVIPCache, tenant string, nextPage ...NextPage) (*[]AviVSVIPCache, error) {
+func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud string, vsVipData *[]AviVSVIPCache, nextPage ...NextPage) (*[]AviVSVIPCache, error) {
 	var uri string
 
 	if len(nextPage) == 1 {
@@ -847,7 +847,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 		if len(next_uri) > 1 {
 			overrideUri := "/api/vsvip" + next_uri[1]
 			nextPage := NextPage{NextURI: overrideUri}
-			_, err := c.AviPopulateAllVSVips(client, cloud, vsVipData, tenant, nextPage)
+			_, err := c.AviPopulateAllVSVips(client, cloud, vsVipData, nextPage)
 			if err != nil {
 				return nil, err
 			}
@@ -858,11 +858,11 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 
 func (c *AviObjCache) PopulateVsVipDataToCache(client *clients.AviClient, cloud, tenant string) {
 	var vsVipData []AviVSVIPCache
-	c.AviPopulateAllVSVips(client, cloud, &vsVipData, tenant)
+	c.AviPopulateAllVSVips(client, cloud, &vsVipData)
 
 	vsVipCacheData := c.VSVIPCache.ShallowCopy()
 	for i, vsVipCacheObj := range vsVipData {
-		k := NamespaceName{Namespace: tenant, Name: vsVipCacheObj.Name}
+		k := NamespaceName{Namespace: vsVipCacheObj.Tenant, Name: vsVipCacheObj.Name}
 		oldVsvipIntf, found := c.VSVIPCache.AviCacheGet(k)
 		if found {
 			oldVsvipData, ok := oldVsvipIntf.(*AviVSVIPCache)
@@ -967,7 +967,7 @@ func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient, cloud, te
 	c.AviPopulateAllDSs(client, cloud, &DsData)
 	dsCacheData := c.DSCache.ShallowCopy()
 	for i, DsCacheObj := range DsData {
-		k := NamespaceName{Namespace: tenant, Name: DsCacheObj.Name}
+		k := NamespaceName{Namespace: DsCacheObj.Tenant, Name: DsCacheObj.Name}
 		oldDSIntf, found := c.DSCache.AviCacheGet(k)
 		if found {
 			oldDSData, ok := oldDSIntf.(*AviDSCache)
@@ -1606,7 +1606,7 @@ func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient, cloud, te
 	c.AviPopulateAllSSLKeys(client, cloud, &SslKeyData)
 	sslCacheData := c.SSLKeyCache.ShallowCopy()
 	for i, SslKeyCacheObj := range SslKeyData {
-		k := NamespaceName{Namespace: tenant, Name: SslKeyCacheObj.Name}
+		k := NamespaceName{Namespace: SslKeyCacheObj.Tenant, Name: SslKeyCacheObj.Name}
 		oldSslkeyIntf, found := c.SSLKeyCache.AviCacheGet(k)
 		if found {
 			oldSslkeyData, ok := oldSslkeyIntf.(*AviSSLCache)
@@ -1782,7 +1782,7 @@ func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient, cl
 	}
 	httpCacheData := c.HTTPPolicyCache.ShallowCopy()
 	for i, HttpPolCacheObj := range HttPolData {
-		k := NamespaceName{Namespace: tenant, Name: HttpPolCacheObj.Name}
+		k := NamespaceName{Namespace: HttpPolCacheObj.Tenant, Name: HttpPolCacheObj.Name}
 		oldHttppolIntf, found := c.HTTPPolicyCache.AviCacheGet(k)
 		if found {
 			oldHttppolData, ok := oldHttppolIntf.(*AviHTTPPolicyCache)
@@ -1907,7 +1907,7 @@ func (c *AviObjCache) PopulateL4PolicySetToCache(client *clients.AviClient, clou
 	}
 	l4CacheData := c.L4PolicyCache.ShallowCopy()
 	for i, l4PolCacheObj := range l4PolData {
-		k := NamespaceName{Namespace: tenant, Name: l4PolCacheObj.Name}
+		k := NamespaceName{Namespace: l4PolCacheObj.Tenant, Name: l4PolCacheObj.Name}
 		utils.AviLog.Debugf("Adding key to l4 cache :%s", utils.Stringify(l4PolCacheObj))
 		c.L4PolicyCache.AviCacheAdd(k, &l4PolData[i])
 		delete(l4CacheData, k)
