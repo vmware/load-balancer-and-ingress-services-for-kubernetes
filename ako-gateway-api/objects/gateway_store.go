@@ -205,8 +205,12 @@ func (g *GWLister) GetGatewayToListeners(gwNsName string) []GatewayListenerStore
 	g.gwLock.RLock()
 	defer g.gwLock.RUnlock()
 
-	_, listenerList := g.gatewayToListenerStore.Get(gwNsName)
-	return listenerList.([]GatewayListenerStore)
+	found, listenerList := g.gatewayToListenerStore.Get(gwNsName)
+	if found {
+		return listenerList.([]GatewayListenerStore)
+	} else {
+		return nil
+	}
 
 }
 
