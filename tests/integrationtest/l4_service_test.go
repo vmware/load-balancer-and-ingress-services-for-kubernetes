@@ -1290,7 +1290,7 @@ func TestSharedVIPSvcWithTCPSCTProtocols(t *testing.T) {
 }
 func TestSharedVIPSvcWithUDPSCTProtocols(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-
+	os.Setenv("AUTO_L4_FQDN", "default")
 	modelName := "admin/cluster--red-ns-" + SHAREDVIPKEY
 
 	SetUpTestForSharedVIPSvcLB(t, corev1.ProtocolUDP, corev1.ProtocolSCTP)
@@ -1303,6 +1303,7 @@ func TestSharedVIPSvcWithUDPSCTProtocols(t *testing.T) {
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes).To(gomega.HaveLen(1))
 	VerfiyL4Node(nodes[0], g, "SCTP", "UDP")
+	os.Setenv("AUTO_L4_FQDN", "disable")
 	TearDownTestForSharedVIPSvcLB(t, g)
 }
 

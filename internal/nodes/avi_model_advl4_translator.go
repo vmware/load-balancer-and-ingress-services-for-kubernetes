@@ -586,6 +586,7 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 	var l4Rule *akov1alpha2.L4Rule
 
 	var portPoolSet []AviHostPathPortPoolPG
+	subDomains := GetDefaultSubDomain()
 	for i, serviceNSName := range serviceNSNames {
 		svcNSName := strings.Split(serviceNSName, "/")
 		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(svcNSName[0]).Get(svcNSName[1])
@@ -613,7 +614,7 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 			targetPort := listener.TargetPort
 
 			var svcFQDN string
-			if lib.GetL4FqdnFormat() != lib.AutoFQDNDisabled && svcFQDN == "" {
+			if subDomains != nil && lib.GetL4FqdnFormat() != lib.AutoFQDNDisabled {
 				svcFQDN = getAutoFQDNForService(svcNSName[0], svcNSName[1])
 			}
 
