@@ -2352,3 +2352,18 @@ func TeardownL4Rule(t *testing.T, name, namespace string) {
 		t.Fatalf("error in deleting L4Rule: %v", err)
 	}
 }
+
+func SetupLicense(license string) {
+	AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		url := r.URL.EscapedPath()
+		if strings.Contains(url, "/api/systemconfiguration") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"default_license_tier": "` + license + `"}`))
+			return
+		}
+		NormalControllerServer(w, r)
+	})
+	// Set the license
+	aviRestClientPool := cache.SharedAVIClients()
+	lib.AKOControlConfig().SetLicenseType(aviRestClientPool.AviClient[0])
+}

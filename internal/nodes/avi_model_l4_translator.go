@@ -794,7 +794,7 @@ func getNetworkProfile(isSCTP, isTCP, isUDP bool) string {
 	}
 	if isTCP && !isUDP && !isSCTP {
 		license := lib.AKOControlConfig().GetLicenseType()
-		if license == lib.LicenseTypeEnterprise {
+		if license == lib.LicenseTypeEnterprise || license == lib.LicenseTypeEnterpriseCloudServices {
 			return utils.DEFAULT_TCP_NW_PROFILE
 		}
 		return utils.TCP_NW_FAST_PATH

@@ -267,7 +267,8 @@ const (
 	SAML_AUTHN_REQ_ACS_TYPE_INDEX  = "SAML_AUTHN_REQ_ACS_TYPE_INDEX"
 
 	// License types
-	LicenseTypeEnterprise = "ENTERPRISE"
+	LicenseTypeEnterprise              = "ENTERPRISE"
+	LicenseTypeEnterpriseCloudServices = "ENTERPRISE_WITH_CLOUD_SERVICES"
 )
 
 // Cache Indexer constants.
