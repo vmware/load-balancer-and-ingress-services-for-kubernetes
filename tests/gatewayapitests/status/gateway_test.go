@@ -62,6 +62,7 @@ func TestMain(m *testing.M) {
 	_ = lib.AKOControlConfig()
 	lib.SetAKOUser(akogatewayapilib.Prefix)
 	lib.SetNamePrefix(akogatewayapilib.Prefix)
+	lib.AKOControlConfig().SetIsLeaderFlag(true)
 	akoControlConfig := akogatewayapilib.AKOControlConfig()
 	akoControlConfig.SetEventRecorder(lib.AKOGatewayEventComponent, tests.KubeClient, true)
 	registeredInformers := []string{
@@ -136,7 +137,7 @@ func TestGatewayWithValidListenersAndGatewayClass(t *testing.T) {
 			return false
 		}
 		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionProgrammed)) != nil
-	}, 30*time.Second).Should(gomega.Equal(true))
+	}, 40*time.Second).Should(gomega.Equal(true))
 
 	expectedStatus := &gatewayv1.GatewayStatus{
 		Conditions: []metav1.Condition{

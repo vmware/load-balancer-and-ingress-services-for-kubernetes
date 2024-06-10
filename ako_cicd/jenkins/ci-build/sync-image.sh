@@ -9,6 +9,7 @@ if [ "${#registries[@]}" == "0" ]; then
     exit 1
 fi
 
+branch_version=$($WORKSPACE/hack/jenkins/get_branch_version.sh)
 version_tag=$($WORKSPACE/hack/jenkins/get_build_version.sh $JOB_NAME $build_num)
 
 
@@ -37,42 +38,25 @@ fi
 
 ###########
 
-source_image=$PVT_DOCKER_REGISTRY/$PVT_DOCKER_REPOSITORY/$DOCKER_AKO_IMAGE_NAME:$version_tag
+AKO_IMAGES=($DOCKER_AKO_IMAGE_NAME $DOCKER_AKO_OPERATOR_IMAGE_NAME)
+version_numbers=(${branch_version//./ })
+minor_version=${version_numbers[1]}
 
-sudo docker pull $source_image
+if [ "$minor_version" -ge "11" ]; then
+    AKO_IMAGES+=($DOCKER_AKO_GATEWAY_API_IMAGE_NAME)
+fi
 
-for registry in "${registries[@]}"
+echo ${AKO_IMAGES[@]}
+
+for image in "${AKO_IMAGES[@]}"
 do
-    target_image="$registry/$PVT_DOCKER_REPOSITORY/$DOCKER_AKO_IMAGE_NAME:$version_tag"
-    echo "Tagging and pushing to registry: $registry"
-    sudo docker tag $source_image $target_image
-    sudo docker push $target_image
-done
-
-##########
-
-source_image=$PVT_DOCKER_REGISTRY/$PVT_DOCKER_REPOSITORY/$DOCKER_AKO_OPERATOR_IMAGE_NAME:$version_tag
-
-sudo docker pull $source_image
-
-for registry in "${registries[@]}"
-do
-    target_image="$registry/$PVT_DOCKER_REPOSITORY/$DOCKER_AKO_OPERATOR_IMAGE_NAME:$version_tag"
-    echo "Tagging and pushing to registry: $registry"
-    sudo docker tag $source_image $target_image
-    sudo docker push $target_image
-done
-
-###########
-
-source_image=$PVT_DOCKER_REGISTRY/$PVT_DOCKER_REPOSITORY/$DOCKER_AKO_GATEWAY_API_IMAGE_NAME:$version_tag
-
-sudo docker pull $source_image
-
-for registry in "${registries[@]}"
-do
-    target_image="$registry/$PVT_DOCKER_REPOSITORY/$DOCKER_AKO_GATEWAY_API_IMAGE_NAME:$version_tag"
-    echo "Tagging and pushing to registry: $registry"
-    sudo docker tag $source_image $target_image
-    sudo docker push $target_image
+    source_image=$PVT_DOCKER_REGISTRY/$PVT_DOCKER_REPOSITORY/$image:$version_tag
+    sudo docker pull $source_image
+    for registry in "${registries[@]}"
+    do
+        target_image="$registry/$PVT_DOCKER_REPOSITORY/$image:$version_tag"
+        echo "Tagging and pushing to registry: $registry"
+        sudo docker tag $source_image $target_image
+        sudo docker push $target_image
+    done
 done
