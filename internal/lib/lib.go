@@ -91,6 +91,7 @@ type ServiceMetadataObj struct {
 	Gateway               string      `json:"gateway"` // ns/name
 	InsecureEdgeTermAllow bool        `json:"insecureedgetermallow"`
 	IsMCIIngress          bool        `json:"is_mci_ingress"`
+	FQDNReusePolicy       string      `json:"fqdn_reuse_policy"`
 }
 
 type ServiceMetadataMappingObjType string
@@ -1747,6 +1748,10 @@ func ValidateSvcforClass(key string, svc *corev1.Service) bool {
 
 func isAviDefaultLBController() bool {
 	return AKOControlConfig().IsAviDefaultLBController()
+}
+
+func AKOFQDNReusePolicy() string {
+	return AKOControlConfig().GetAKOFQDNReusePolicy()
 }
 
 func ValidateIngressForClass(key string, ingress *networkingv1.Ingress) bool {

@@ -15,11 +15,13 @@
 package nodes
 
 import (
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
+	v1 "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -71,6 +73,9 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 		DeleteStaleDataForModelChange(routeIgrObj, namespace, objname, key, fullsync, sharedQueue)
 	}
 
+	ingSpec := routeIgrObj.GetSpec().(v1.IngressSpec)
+	FQDNCache := avicache.SharedAviObjCache().FQDNPolicyCache
+
 	if err != nil || !processObj {
 		utils.AviLog.Warnf("key: %s, msg: Error %v", key, err)
 		// Detect a delete condition here.
@@ -81,6 +86,7 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 			} else {
 				RouteIngrDeletePoolsByHostname(routeIgrObj, namespace, objname, key, fullsync, sharedQueue)
 			}
+			FQDNCache.FQDNCacheRouteIngDelete(objname)
 		}
 		return
 	}
@@ -91,6 +97,70 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 	var modelList []string
 
 	parsedIng = routeIgrObj.ParseHostPath()
+	/*
+		1. if FQDN Policy is set to Strict {
+			check if cache entry is present,
+			a. if not then
+				add a new entry and continue
+			b. if present
+				i. if namespace is not same,
+					then stop processing
+				ii. else we are in update case (ingr/route edited or AKO restarted)
+					FQDN policy might have changed during restart, so overwrite with current policy
+					ingress FQDN might have been edited, so remove ingress entry from all fqdn cache and
+					update it in this fqdn cache
+		} 2. else if FQDN policy set to InterNamespaceAllowed {
+			check if cache entry is present
+			a. if not then
+				add a new entry and continue
+			b. if present, we are in update case (ingr/route edited or AKO restarted)
+				same steps as ii. above
+
+		}
+	*/
+	if lib.AKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+		for _, rule := range ingSpec.Rules {
+			FQDNName := rule.Host
+			value, found := FQDNCache.AviCacheGet(FQDNName)
+			if !found {
+				FQDNCache.AddNewFQDNPolicyCache(FQDNName, namespace, objname)
+			} else {
+				FQDNPolicyCacheObj := value.(avicache.FQDNPolicyCache)
+				FQDNPolicyCachePtr := &FQDNPolicyCacheObj.FQDNReusePolicy
+				if namespace != FQDNPolicyCacheObj.Namespace {
+					utils.AviLog.Warnf("key: %s, msg: AKO FQDN Reuse Policy is set to Strict, FQDN: %s is limited to namespace: %s, not processing %s: %s", key, FQDNName, FQDNPolicyCacheObj.Namespace, objType, objname)
+					return
+				} else {
+					*FQDNPolicyCachePtr = lib.AKOFQDNReusePolicy()
+					if _, exists := FQDNPolicyCacheObj.IngressList[objname]; !exists {
+						FQDNCache.FQDNCacheRouteIngDelete(objname)
+						FQDNPolicyCacheObj.IngressList[objname] = struct{}{}
+					}
+					utils.AviLog.Debugf("key: %s, msg: Updated cache for FQDN: %s, cache is now: %s", key, FQDNName, utils.Stringify(FQDNPolicyCacheObj))
+					FQDNCache.AviCacheAdd(FQDNName, FQDNPolicyCacheObj)
+				}
+			}
+		}
+	} else {
+		for _, rule := range ingSpec.Rules {
+			FQDNName := rule.Host
+			value, found := FQDNCache.AviCacheGet(FQDNName)
+			if !found {
+				FQDNCache.AddNewFQDNPolicyCache(FQDNName, namespace, objname)
+			} else {
+				FQDNPolicyCacheObj := value.(avicache.FQDNPolicyCache)
+				FQDNPolicyCachePtr := &FQDNPolicyCacheObj.FQDNReusePolicy
+				*FQDNPolicyCachePtr = lib.AKOFQDNReusePolicy()
+
+				if _, exists := FQDNPolicyCacheObj.IngressList[objname]; !exists {
+					FQDNCache.FQDNCacheRouteIngDelete(objname)
+					FQDNPolicyCacheObj.IngressList[objname] = struct{}{}
+				}
+				utils.AviLog.Debugf("key: %s, msg: Updated cache for FQDN: %s, cache is now: %s", key, FQDNName, utils.Stringify(FQDNPolicyCacheObj))
+				FQDNCache.AviCacheAdd(FQDNName, FQDNPolicyCacheObj)
+			}
+		}
+	}
 
 	// Check if this ingress and had any previous mappings, if so - delete them first.
 	_, Storedhosts := routeIgrObj.GetSvcLister().IngressMappings(namespace).GetRouteIngToHost(objname)

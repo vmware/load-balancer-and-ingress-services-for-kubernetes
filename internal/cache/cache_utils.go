@@ -349,6 +349,16 @@ type AviVrfCache struct {
 	CloudConfigCksum uint32
 }
 
+type FQDNPolicyCache struct {
+	Name      string
+	Namespace string
+	//using a map of string to struct here to store ingresses associated with the FQDN
+	// because parsing through keys will be fast
+	// and empty struct value in the key-value pair takes no space
+	IngressList     map[string]struct{} //{"ingressname":emptystruct{}}
+	FQDNReusePolicy string
+}
+
 func (v *AviVsCache) GetVSCopy() (*AviVsCache, bool) {
 	v.VSCacheLock.RLock()
 	defer v.VSCacheLock.RUnlock()
@@ -526,4 +536,42 @@ func (c *AviCache) ShallowCopy() map[interface{}]interface{} {
 		newMap[key] = value
 	}
 	return newMap
+}
+
+func (c *AviCache) AviGetAllFQDNKeys() []string {
+	c.cache_lock.RLock()
+	defer c.cache_lock.RUnlock()
+	var keys []string
+	for key := range c.cache {
+		keys = append(keys, key.(string))
+	}
+	return keys
+}
+
+func (c *AviCache) FQDNCacheRouteIngDelete(objName string) {
+	parentKeys := c.AviGetAllFQDNKeys()
+	for i, _ := range parentKeys {
+		value, _ := c.AviCacheGet(parentKeys[i])
+		FQDNPolicyCacheObj := value.(FQDNPolicyCache)
+		if _, exists := FQDNPolicyCacheObj.IngressList[objName]; exists {
+			if len(FQDNPolicyCacheObj.IngressList) == 1 {
+				c.AviCacheDelete(parentKeys[i])
+			} else {
+				delete(FQDNPolicyCacheObj.IngressList, objName)
+			}
+		}
+	}
+}
+
+func (c *AviCache) AddNewFQDNPolicyCache(FQDNName string, namespace string, routeIngObjName string) {
+	FQDNPolicyCacheObj := FQDNPolicyCache{
+		Name:            FQDNName,
+		Namespace:       namespace,
+		FQDNReusePolicy: lib.AKOFQDNReusePolicy(),
+		IngressList: map[string]struct{}{
+			routeIngObjName: {},
+		},
+	}
+	utils.AviLog.Infof("key: %s, msg: Added FQDN Policy cache %s", FQDNName, utils.Stringify(FQDNPolicyCacheObj))
+	c.AviCacheAdd(FQDNName, FQDNPolicyCacheObj)
 }

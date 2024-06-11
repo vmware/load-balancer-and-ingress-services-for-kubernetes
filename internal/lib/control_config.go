@@ -161,6 +161,9 @@ type akoControlConfig struct {
 
 	//Prometheus enabled or not
 	isPrometheusEnabled bool
+
+	//FQDNReusePolicy is set to Strict/InterNamespaceAllowed according to whether AKO allows FQDN sharing across namespaces
+	FQDNReusePolicy string
 }
 
 var akoControlConfigInstance *akoControlConfig
@@ -182,6 +185,14 @@ func (c *akoControlConfig) SetIsLeaderFlag(flag bool) {
 
 func (c *akoControlConfig) SetDefaultLBController(flag bool) {
 	c.defaultLBController = flag
+}
+
+func (c *akoControlConfig) SetAKOFQDNReusePolicy(FQDNPolicy string) {
+	c.FQDNReusePolicy = FQDNPolicy
+}
+
+func (c *akoControlConfig) GetAKOFQDNReusePolicy() string {
+	return c.FQDNReusePolicy
 }
 
 func (c *akoControlConfig) IsLeader() bool {

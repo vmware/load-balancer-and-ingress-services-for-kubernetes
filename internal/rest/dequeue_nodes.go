@@ -1240,6 +1240,8 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 		utils.AviLog.Debugf("key: %s, msg: the cached pools are: %v", key, utils.Stringify(cache_pool_nodes))
 
 		for _, pool := range pool_nodes {
+			poolFQDNPolicy := &pool.ServiceMetadata.FQDNReusePolicy
+			*poolFQDNPolicy = lib.AKOFQDNReusePolicy()
 			// check in the pool cache to see if this pool exists in AVI
 			pool_key := avicache.NamespaceName{Namespace: namespace, Name: pool.Name}
 			found := utils.HasElem(cache_pool_nodes, pool_key)
@@ -1282,6 +1284,8 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 	} else {
 		// Everything is a POST call
 		for _, pool := range pool_nodes {
+			poolFQDNPolicy := &pool.ServiceMetadata.FQDNReusePolicy
+			*poolFQDNPolicy = lib.AKOFQDNReusePolicy()
 			_, rest_ops = rest.PkiProfileCU(pool.PkiProfile, nil, namespace, rest_ops, key)
 
 			utils.AviLog.Debugf("key: %s, msg: pool cache does not exist %s, operation: POST", key, pool.Name)
