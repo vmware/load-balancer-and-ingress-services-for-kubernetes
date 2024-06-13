@@ -340,15 +340,13 @@ func TestGatewayTLSToNoTLS(t *testing.T) {
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() bool {
-		found, _ := objects.SharedAviGraphLister().Get(modelName)
-		return found
-	}, 25*time.Second).Should(gomega.Equal(true))
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return nodes[0].PortProto[0].EnableSSL
+	}, 40*time.Second).Should(gomega.Equal(false))
 
-	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
-	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].PortProto[0].EnableSSL).To(gomega.Equal(false))
 	g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(0))
 
 	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
