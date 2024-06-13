@@ -31,12 +31,19 @@ import (
 )
 
 func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, parentNsName string, childVSes map[string]struct{}, fullsync bool) {
+	rules := routeModel.ParseRouteRules()
+	noHostsOnRoute := len(rules.Hosts) == 0
 	for _, rule := range routeModel.ParseRouteRules().Rules {
 		// TODO: add the scenarios where we will not create child VS here.
 		if rule.Matches == nil {
 			continue
 		}
-		o.BuildChildVS(key, routeModel, parentNsName, rule, childVSes, fullsync)
+		if !noHostsOnRoute {
+			o.BuildChildVS(key, routeModel, parentNsName, rule, childVSes, fullsync)
+		} else {
+			// TODO: This has to be written
+			//o.BuildParentPGPoolHTTPPS(key, routeModel, parentNsName, rule, childVSes, fullsync)
+		}
 	}
 }
 
@@ -75,7 +82,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 		Host:        hosts,
 	}
 	for _, host := range hosts {
-		if !utils.HasElem(parentNode[0].VSVIPRefs[0].FQDNs, host) {
+		if !strings.Contains(host, utils.WILDCARD) && !utils.HasElem(parentNode[0].VSVIPRefs[0].FQDNs, host) {
 			parentNode[0].VSVIPRefs[0].FQDNs = append(parentNode[0].VSVIPRefs[0].FQDNs, host)
 		}
 	}

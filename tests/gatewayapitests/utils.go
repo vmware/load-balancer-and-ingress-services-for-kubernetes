@@ -116,17 +116,24 @@ func UnsetListenerTLS(l *gatewayv1.Listener) {
 }
 
 func SetListenerHostname(l *gatewayv1.Listener, hostname string) {
-	l.Hostname = (*gatewayv1.Hostname)(&hostname)
+	if hostname == "" {
+		l.Hostname = nil
+	} else {
+		l.Hostname = (*gatewayv1.Hostname)(&hostname)
+	}
 }
 func UnsetListenerHostname(l *gatewayv1.Listener) {
 	var hname gatewayv1.Hostname
 	l.Hostname = &hname
 }
 
-func GetListenersV1(ports []int32, secrets ...string) []gatewayv1.Listener {
+func GetListenersV1(ports []int32, emptyHostName bool, secrets ...string) []gatewayv1.Listener {
 	listeners := make([]gatewayv1.Listener, 0, len(ports))
 	for _, port := range ports {
-		hostname := fmt.Sprintf("foo-%d.com", port)
+		hostname := ""
+		if !emptyHostName {
+			hostname = fmt.Sprintf("foo-%d.com", port)
+		}
 		listener := gatewayv1.Listener{
 			Name:     gatewayv1.SectionName(fmt.Sprintf("listener-%d", port)),
 			Port:     gatewayv1.PortNumber(port),

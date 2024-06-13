@@ -119,4 +119,8 @@ const (
 	renewDeadline = 10 * time.Second
 	retryPeriod   = 2 * time.Second
 	leaseLockName = "ako-lease-lock"
+
+	// Constants used in Gateway context
+	WILDCARD         = "*"
+	FQDN_LABEL_REGEX = "([a-z0-9-]{1,})"
 )

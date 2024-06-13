@@ -52,7 +52,7 @@ func TestHTTPRouteCRUD(t *testing.T) {
 	modelName, parentVSName := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := akogatewayapitests.GetListenersV1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -161,7 +161,7 @@ func TestHTTPRouteRuleCRUD(t *testing.T) {
 	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := akogatewayapitests.GetListenersV1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -229,7 +229,7 @@ func TestHTTPRouteFilterCRUD(t *testing.T) {
 	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := akogatewayapitests.GetListenersV1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -305,7 +305,7 @@ func TestHTTPRouteFilterWithRequestHeaderModifier(t *testing.T) {
 	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := akogatewayapitests.GetListenersV1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -385,7 +385,7 @@ func TestHTTPRouteFilterWithResponseHeaderModifier(t *testing.T) {
 	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := akogatewayapitests.GetListenersV1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -465,7 +465,7 @@ func TestHTTPRouteFilterWithRequestRedirect(t *testing.T) {
 	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := akogatewayapitests.GetListenersV1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -539,7 +539,7 @@ func TestHTTPRouteWithValidConfig(t *testing.T) {
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
-	listeners := akogatewayapitests.GetListenersV1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -611,7 +611,7 @@ func TestHTTPRouteBackendRefCRUD(t *testing.T) {
 	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := akogatewayapitests.GetListenersV1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -710,7 +710,7 @@ func TestHTTPRouteBackendServiceCDC(t *testing.T) {
 	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := akogatewayapitests.GetListenersV1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -797,7 +797,7 @@ func TestHTTPRouteBackendServiceUpdate(t *testing.T) {
 	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := akogatewayapitests.GetListenersV1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -896,7 +896,7 @@ func TestHTTPRouteMultiportBackendSvc(t *testing.T) {
 	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := akogatewayapitests.GetListenersV1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -955,7 +955,7 @@ func TestHTTPRouteInvalidHostname(t *testing.T) {
 	modelName, parentVSName := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := akogatewayapitests.GetListenersV1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)

@@ -161,8 +161,13 @@ func GatewayGetGw(namespace, name, key string) ([]string, bool) {
 			}
 		}
 		listeners = append(listeners, gwListener)
-		hostnames[string(listenerObj.Name)] = string(*listenerObj.Hostname)
-		gwHostnames = append(gwHostnames, string(*listenerObj.Hostname))
+		if listenerObj.Hostname != nil && string(*listenerObj.Hostname) != "" {
+			hostnames[string(listenerObj.Name)] = string(*listenerObj.Hostname)
+			gwHostnames = append(gwHostnames, string(*listenerObj.Hostname))
+		} else {
+			hostnames[string(listenerObj.Name)] = utils.WILDCARD
+			gwHostnames = append(gwHostnames, utils.WILDCARD)
+		}
 
 	}
 	//TODO: verify hostname overlap here or use the store updated from here
@@ -259,17 +264,23 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 
 					gwListenerNsName := gwNsName + "/" + listener.Name
 					listenerHostname := akogatewayapiobjects.GatewayApiLister().GetGatewayListenerToHostname(gwListenerNsName)
-					if strings.HasPrefix(listenerHostname, "*") {
-						listenerHostname = listenerHostname[1:]
-					}
+
+					listenerHostname = strings.TrimPrefix(listenerHostname, utils.WILDCARD)
+
 					hostnameMatched := false
 					for _, routeHostname := range hrObj.Spec.Hostnames {
-						if strings.HasSuffix(string(routeHostname), listenerHostname) && akogatewayapilib.VerifyHostnameSubdomainMatch(string(routeHostname)) {
-							hostnameIntersection = append(hostnameIntersection, string(routeHostname))
-							hostnameMatched = true
+						// When Gateway hostname is empty, then just check validity of hostname and append it.
+						// When hostname in HTTProute has wildcard
+						// When there is exact match
+						if strings.HasSuffix(string(routeHostname), listenerHostname) || listenerHostname == "" || strings.HasPrefix(string(routeHostname), "*") {
+							// Here i need to check if route hostname is empty
+							if akogatewayapilib.VerifyHostnameSubdomainMatch(string(routeHostname)) {
+								hostnameIntersection = append(hostnameIntersection, string(routeHostname))
+								hostnameMatched = true
+							}
 						}
 					}
-					if hostnameMatched && !utils.HasElem(listenerList, listener) {
+					if (hostnameMatched && !utils.HasElem(listenerList, listener)) || len(hrObj.Spec.Hostnames) == 0 {
 						gatewayListenerList = append(listenerList, listener)
 					}
 				}
