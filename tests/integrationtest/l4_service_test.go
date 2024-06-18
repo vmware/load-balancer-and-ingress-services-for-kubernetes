@@ -1203,6 +1203,37 @@ func TestSharedVIPSvcWithTCPUDPProtocols(t *testing.T) {
 	TearDownTestForSharedVIPSvcLB(t, g)
 }
 
+func TestSharedVIPSvcWithTCPUDPProtocolsWithNSXT(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	// simulate nsx-t cloud by setting up t1lr
+	os.Setenv("NSXT_T1_LR", "/infra/t1lr/sample")
+	modelName := "admin/cluster--red-ns-" + SHAREDVIPKEY
+
+	SetUpTestForSharedVIPSvcLB(t, corev1.ProtocolTCP, corev1.ProtocolUDP)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	VerfiyL4Node(nodes[0], g, "TCP", "UDP")
+
+	// Check t1lr set at vsvip, pool. vrf empty at vsvip, pool and vs
+	g.Expect(nodes[0].VSVIPRefs[0].T1Lr).Should(gomega.Equal("/infra/t1lr/sample"))
+	g.Expect(nodes[0].VSVIPRefs[0].VrfContext).Should(gomega.Equal(""))
+	g.Expect(nodes[0].PoolRefs[0].T1Lr).Should(gomega.Equal("/infra/t1lr/sample"))
+	g.Expect(nodes[0].PoolRefs[0].VrfContext).Should(gomega.Equal(""))
+	g.Expect(nodes[0].PoolRefs[1].T1Lr).Should(gomega.Equal("/infra/t1lr/sample"))
+	g.Expect(nodes[0].PoolRefs[1].VrfContext).Should(gomega.Equal(""))
+	g.Expect(nodes[0].VrfContext).Should(gomega.Equal(""))
+
+	//reset the field
+	os.Setenv("NSXT_T1_LR", "")
+	TearDownTestForSharedVIPSvcLB(t, g)
+}
+
 func TestSharedVipSvcWithInvalidLBClass(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--red-ns-" + SHAREDVIPKEY
