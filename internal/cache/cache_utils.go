@@ -550,7 +550,7 @@ func (c *AviCache) AviGetAllFQDNKeys() []string {
 
 func (c *AviCache) FQDNCacheRouteIngDelete(objName string) {
 	parentKeys := c.AviGetAllFQDNKeys()
-	for i, _ := range parentKeys {
+	for i := range parentKeys {
 		value, _ := c.AviCacheGet(parentKeys[i])
 		FQDNPolicyCacheObj := value.(FQDNPolicyCache)
 		if _, exists := FQDNPolicyCacheObj.IngressList[objName]; exists {
