@@ -86,6 +86,7 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 			} else {
 				RouteIngrDeletePoolsByHostname(routeIgrObj, namespace, objname, key, fullsync, sharedQueue)
 			}
+			// if ingress is being deleted, delete all FQDN cache entries for it
 			FQDNCache.FQDNCacheRouteIngDelete(objname)
 		}
 		return

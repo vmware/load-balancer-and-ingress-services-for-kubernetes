@@ -622,22 +622,24 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 			ServiceMetadataObj:   svc_mdata_obj,
 			LastModified:         *pool.LastModified,
 		}
-		value, found := c.FQDNPolicyCache.AviCacheGet(poolCacheObj.ServiceMetadataObj.HostNames[0])
-		if !found {
-			// need to replace this with util function
-			FQDNPolicyCacheObj := FQDNPolicyCache{
-				Name:      poolCacheObj.ServiceMetadataObj.HostNames[0],
-				Namespace: poolCacheObj.ServiceMetadataObj.Namespace,
-				IngressList: map[string]struct{}{
-					poolCacheObj.ServiceMetadataObj.IngressName: {},
-				},
-				FQDNReusePolicy: poolCacheObj.ServiceMetadataObj.FQDNReusePolicy,
-			}
-			c.FQDNPolicyCache.AviCacheAdd(poolCacheObj.ServiceMetadataObj.HostNames[0], FQDNPolicyCacheObj)
-		} else {
-			FQDNPolicyCacheObj := value.(FQDNPolicyCache)
-			if _, ok := FQDNPolicyCacheObj.IngressList[poolCacheObj.ServiceMetadataObj.IngressName]; !ok {
-				FQDNPolicyCacheObj.IngressList[poolCacheObj.ServiceMetadataObj.IngressName] = struct{}{}
+		if len(poolCacheObj.ServiceMetadataObj.HostNames) != 0 {
+			value, found := c.FQDNPolicyCache.AviCacheGet(poolCacheObj.ServiceMetadataObj.HostNames[0])
+			if !found {
+				// need to replace this with util function
+				FQDNPolicyCacheObj := FQDNPolicyCache{
+					Name:      poolCacheObj.ServiceMetadataObj.HostNames[0],
+					Namespace: poolCacheObj.ServiceMetadataObj.Namespace,
+					IngressList: map[string]struct{}{
+						poolCacheObj.ServiceMetadataObj.IngressName: {},
+					},
+					FQDNReusePolicy: poolCacheObj.ServiceMetadataObj.FQDNReusePolicy,
+				}
+				c.FQDNPolicyCache.AviCacheAdd(poolCacheObj.ServiceMetadataObj.HostNames[0], FQDNPolicyCacheObj)
+			} else {
+				FQDNPolicyCacheObj := value.(FQDNPolicyCache)
+				if _, ok := FQDNPolicyCacheObj.IngressList[poolCacheObj.ServiceMetadataObj.IngressName]; !ok {
+					FQDNPolicyCacheObj.IngressList[poolCacheObj.ServiceMetadataObj.IngressName] = struct{}{}
+				}
 			}
 		}
 		*poolData = append(*poolData, poolCacheObj)

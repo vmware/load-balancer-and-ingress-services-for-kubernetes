@@ -549,6 +549,11 @@ func (c *AviCache) AviGetAllFQDNKeys() []string {
 }
 
 func (c *AviCache) FQDNCacheRouteIngDelete(objName string) {
+	// this function deletes the given object from all cache entries
+	// check all FQDN cache entries for ingress association.
+	// if found
+	// 		if this ingress is the only object associated with this fqdn, delete the fqdn cache obj itself
+	//		else just delete this ingress entry from this fqdn's cache
 	parentKeys := c.AviGetAllFQDNKeys()
 	for i := range parentKeys {
 		value, _ := c.AviCacheGet(parentKeys[i])
