@@ -116,7 +116,7 @@ func GetSvcKeysForNodeCRUD() (svcl4Keys []string, svcl7Keys []string) {
 
 }
 
-func GetPodsFromService(namespace, serviceName string, targetPortName intstr.IntOrString) ([]utils.NamespaceName, int32) {
+func GetPodsFromService(namespace, serviceName string, targetPortName intstr.IntOrString, key string) ([]utils.NamespaceName, int32) {
 	var pods []utils.NamespaceName
 	var targetPort int32
 	svcKey := namespace + "/" + serviceName
@@ -149,6 +149,17 @@ func GetPodsFromService(namespace, serviceName string, targetPortName intstr.Int
 		targetPort = int32(targetPortName.IntValue())
 	}
 	for _, pod := range podList {
+		podNotReady := false
+		for _, condition := range pod.Status.Conditions {
+			if condition.Type == "Ready" && condition.Status == "False" {
+				utils.AviLog.Warnf("key : %s, msg: Pod %s is not ready", key, pod.Name)
+				podNotReady = true
+				break
+			}
+		}
+		if podNotReady {
+			continue
+		}
 		if !targetPortFound {
 			for _, pc := range pod.Spec.Containers {
 				for _, pp := range pc.Ports {
