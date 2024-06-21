@@ -230,6 +230,9 @@ func isErrorRetryable(statusCode int, errMsg string) bool {
 	if statusCode == 400 && strings.Contains(errMsg, lib.NoFreeIPError) {
 		return true
 	}
+	if statusCode == 400 && (strings.Contains(errMsg, lib.VrfContextNotFoundError) || strings.Contains(errMsg, lib.VrfContextObjectNotFoundError)) {
+		return true
+	}
 	if statusCode == 403 && strings.Contains(errMsg, lib.ConfigDisallowedDuringUpgradeError) {
 		return true
 	}
@@ -279,8 +282,6 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 			continue
 		}
 		lib.IncrementRestOpCouter(utils.Stringify(op.Method), op.ObjName)
-		SetTenant := session.SetTenant(op.Tenant)
-		SetTenant(c.AviSession)
 		if op.Version != "" {
 			SetVersion := session.SetVersion(op.Version)
 			SetVersion(c.AviSession)
@@ -359,8 +360,6 @@ func (f *follower) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp
 	<-time.After(500 * time.Millisecond)
 
 	for i, op := range rest_ops {
-		SetTenant := session.SetTenant(op.Tenant)
-		SetTenant(c.AviSession)
 		if op.Version != "" {
 			SetVersion := session.SetVersion(op.Version)
 			SetVersion(c.AviSession)
