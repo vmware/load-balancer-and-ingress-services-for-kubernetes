@@ -449,7 +449,7 @@ func TestAviInfraSettingPerNSNamingConvention(t *testing.T) {
 
 	SetUpTestForIngress(t, modelName)
 
-	settingModelName := "admin/cluster--Shared-L7-my-infrasetting-0"
+	settingModelName := "admin/cluster--Shared-L7-0"
 	integrationtest.SetupAviInfraSetting(t, settingName, "SMALL")
 	integrationtest.AnnotateAKONamespaceWithInfraSetting(t, ns, settingName)
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, "")
@@ -471,10 +471,10 @@ func TestAviInfraSettingPerNSNamingConvention(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	shardVsName := "cluster--Shared-L7-my-infrasetting-0"
-	sniVsName := "cluster--my-infrasetting-baz.com"
-	shardPoolName := "cluster--my-infrasetting-bar.com_foo-default-foo-with-class"
-	sniPoolName := "cluster--my-infrasetting-default-baz.com_foo-foo-with-class"
+	shardVsName := "cluster--Shared-L7-0"
+	sniVsName := "cluster--baz.com"
+	shardPoolName := "cluster--bar.com_foo-default-foo-with-class"
+	sniPoolName := "cluster--default-baz.com_foo-foo-with-class"
 
 	g.Eventually(func() bool {
 		if found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName); found {

@@ -108,6 +108,9 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 		if *cloud.Vtype != lib.CLOUD_NSXT || cloud.NsxtConfiguration == nil {
 			continue
 		}
+		if cloud.NsxtConfiguration.VpcMode != nil && *cloud.NsxtConfiguration.VpcMode != lib.GetVPCMode() {
+			continue
+		}
 		if cloud.NsxtConfiguration.ManagementNetworkConfig == nil ||
 			cloud.NsxtConfiguration.ManagementNetworkConfig.TransportZone == nil ||
 			*cloud.NsxtConfiguration.ManagementNetworkConfig.TransportZone != tz {

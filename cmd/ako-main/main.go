@@ -125,18 +125,7 @@ func InitializeAKC() {
 	if err != nil {
 		utils.AviLog.Fatalf("Error building AKO CRD v1beta1 clientset: %s", err.Error())
 	}
-	akoControlConfig.Setv1beta1CRDClientset(v1beta1crdClient)
 
-	// This is kept as MCI and Service Import uses v1alpha1
-	// In Next release, MCI and serviceImport should be taken out
-	crdClient, err = crd.NewForConfig(cfg)
-	if err != nil {
-		utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
-	}
-	akoControlConfig.SetCRDClientset(crdClient)
-	if err != nil {
-		utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
-	}
 	if lib.IsWCP() {
 		advl4Client, err = advl4.NewForConfig(cfg)
 		if err != nil {
@@ -153,6 +142,15 @@ func InitializeAKC() {
 			akoControlConfig.SetServicesAPIClientset(svcAPIClient)
 		}
 
+		// This is kept as MCI and Service Import uses v1alpha1
+		// In Next release, MCI and serviceImport should be taken out
+		crdClient, err = crd.NewForConfig(cfg)
+		if err != nil {
+			utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
+		}
+		akoControlConfig.SetCRDClientset(crdClient)
+
+		akoControlConfig.Setv1beta1CRDClientset(v1beta1crdClient)
 		v1alpha2crdClient, err := v1alpha2crd.NewForConfig(cfg)
 		if err != nil {
 			utils.AviLog.Fatalf("Error building AKO CRD v1alpha2 clientset: %s", err.Error())
@@ -275,7 +273,7 @@ func InitializeAKC() {
 		lib.ShutdownApi()
 	}
 
-	aviRestClientPool := avicache.SharedAVIClients()
+	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
 	if aviRestClientPool == nil {
 		utils.AviLog.Fatalf("Avi client not initialized")
 	}
@@ -283,6 +281,7 @@ func InitializeAKC() {
 	if akoControlConfig.GetAKOAKOPrometheusFlag() {
 		lib.RegisterPromMetrics()
 	}
+
 	if aviRestClientPool != nil && !avicache.IsAviClusterActive(aviRestClientPool.AviClient[0]) {
 		akoControlConfig.PodEventf(corev1.EventTypeWarning, lib.AKOShutdown, "Avi Controller Cluster state is not Active")
 		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO")
