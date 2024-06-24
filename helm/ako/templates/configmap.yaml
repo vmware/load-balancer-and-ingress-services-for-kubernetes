@@ -52,3 +52,4 @@ data:
   istioEnabled: {{ .Values.AKOSettings.istioEnabled | quote }}
   useDefaultSecretsOnly: {{ .Values.AKOSettings.useDefaultSecretsOnly | quote }}
   enablePrometheus: {{ default "false" .Values.featureGates.EnablePrometheus | quote }}
+  FQDNReusePolicy: {{ default "Strict" .Values.L7Settings.FQDNReusePolicy | quote}}

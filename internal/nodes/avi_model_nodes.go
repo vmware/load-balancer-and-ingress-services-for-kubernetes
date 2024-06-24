@@ -1627,6 +1627,8 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.ServiceMetadata.HostNames))
 	}
 
+	checksumStringSlice = append(checksumStringSlice, v.ServiceMetadata.FQDNReusePolicy)
+
 	chksumStr := fmt.Sprint(strings.Join(checksumStringSlice, delim))
 
 	checksum := utils.Hash(chksumStr)

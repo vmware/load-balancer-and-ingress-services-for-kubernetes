@@ -108,6 +108,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: shardVSSize
+          - name: FQDN_REUSE_POLICY
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: FQDNReusePolicy
           - name: PASSTHROUGH_SHARD_SIZE
             valueFrom:
               configMapKeyRef:

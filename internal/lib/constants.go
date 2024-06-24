@@ -225,6 +225,8 @@ const (
 	AKODeleteConfigDone      = "AKODeleteConfigDone"
 	AKODeleteConfigTimeout   = "AKODeleteConfigTimeout"
 	AKOGatewayEventComponent = "avi-kubernetes-operator-gateway-api"
+	FQDNReusePolicyStrict    = "Strict"
+	FQDNReusePolicyOpen      = "InterNamespaceAllowed"
 
 	DefaultIngressClassAnnotation    = "ingressclass.kubernetes.io/is-default-class"
 	ExternalDNSAnnotation            = "external-dns.alpha.kubernetes.io/hostname"
