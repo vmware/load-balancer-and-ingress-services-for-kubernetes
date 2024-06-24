@@ -68,6 +68,25 @@ func createPodWithNPLAnnotation(labels map[string]string) {
 	KubeClient.CoreV1().Pods(defaultNS).Create(context.TODO(), &testPod, metav1.CreateOptions{})
 }
 
+func createNotReadyPodWithNPLAnnotation(labels map[string]string) {
+	testPod := getTestPod(labels)
+	ann := make(map[string]string)
+	ann[lib.NPLPodAnnotation] = "[{\"podPort\":8080,\"nodeIP\":\"10.10.10.10\",\"nodePort\":40001}]"
+	testPod.Annotations = ann
+	testPod.Status.Conditions = append(testPod.Status.Conditions, corev1.PodCondition{Type: "Ready", Status: "False"})
+	KubeClient.CoreV1().Pods(defaultNS).Create(context.TODO(), &testPod, metav1.CreateOptions{})
+}
+
+func updateNotReadyPodWithNPLAnnotation(labels map[string]string) {
+	testPod := getTestPod(labels)
+	ann := make(map[string]string)
+	ann[lib.NPLPodAnnotation] = "[{\"podPort\":8080,\"nodeIP\":\"10.10.10.10\",\"nodePort\":40001}]"
+	testPod.Annotations = ann
+	testPod.ResourceVersion = "2"
+	testPod.Status.Conditions = append(testPod.Status.Conditions, corev1.PodCondition{Type: "Ready", Status: "False"})
+	KubeClient.CoreV1().Pods(defaultNS).Update(context.TODO(), &testPod, metav1.UpdateOptions{})
+}
+
 func createPodWithMultipleNPLAnnotations(labels map[string]string) {
 	testPod := getTestPod(labels)
 	ann := make(map[string]string)
@@ -1270,4 +1289,84 @@ func TestIngressAddPodWithMultiportSvc(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	verifyIngressDeletion(t, g, aviModel, 0)
+}
+
+// TestIngressPodReadiness creates a POD in not ready state with NPL annotation and corresponding Service and Ingress, then verifies the model.
+// It also updates the Pod to ready state and verifies the model.
+func TestIngressPodReadiness(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	SetUpTestForIngress(t, defaultL7Model)
+	selectors := make(map[string]string)
+	selectors["app"] = "npl"
+	integrationtest.CreateServiceWithSelectors(t, defaultNS, "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, selectors)
+	// creating pod in not ready state
+	createNotReadyPodWithNPLAnnotation(selectors)
+
+	integrationtest.PollForCompletion(t, defaultL7Model, 10)
+	found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
+	if found {
+		t.Fatalf("Model %v exists even after deletion", defaultL7Model)
+	}
+	ingrFake := (integrationtest.FakeIngress{
+		Name:        "foo-with-targets",
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		ServiceName: "avisvc",
+	}).Ingress()
+
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, defaultL7Model, 10)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
+		return found
+	}, 40*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(defaultL7Model)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+
+	// verifying the number of pool servers to be zero
+	g.Eventually(func() int {
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes[0].PoolRefs[0].Servers)
+	}, 40*time.Second).Should(gomega.Equal(0))
+
+	// updating the pod to ready state
+	updatePodWithNPLAnnotation(selectors)
+	g.Eventually(func() int {
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes[0].PoolRefs[0].Servers)
+	}, 40*time.Second).Should(gomega.Equal(1))
+	g.Expect(*nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(defaultHostIP))
+	g.Expect(nodes[0].PoolRefs[0].Servers[0].Port).To(gomega.Equal(int32(defaultNodePort)))
+
+	// updating the pod to not ready state again
+	updateNotReadyPodWithNPLAnnotation(selectors)
+	g.Eventually(func() int {
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes[0].PoolRefs[0].Servers)
+	}, 40*time.Second).Should(gomega.Equal(0))
+
+	// re-updating the pod to ready state
+	updatePodWithNPLAnnotation(selectors)
+	g.Eventually(func() int {
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes[0].PoolRefs[0].Servers)
+	}, 40*time.Second).Should(gomega.Equal(1))
+	g.Expect(*nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(defaultHostIP))
+	g.Expect(nodes[0].PoolRefs[0].Servers[0].Port).To(gomega.Equal(int32(defaultNodePort)))
+
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	verifyIngressDeletion(t, g, aviModel, 0)
+	TearDownTestForIngress(t, defaultL7Model)
 }
