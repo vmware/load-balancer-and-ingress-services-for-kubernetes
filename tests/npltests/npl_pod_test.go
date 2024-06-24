@@ -1314,7 +1314,7 @@ func TestIngressPodReadiness(t *testing.T) {
 	integrationtest.PollForCompletion(t, defaultL7Model, 10)
 	found, _ := objects.SharedAviGraphLister().Get(defaultL7Model)
 	if found {
-		t.Fatalf("Couldn't find Model for DELETE event %v", defaultL7Model)
+		t.Fatalf("Model %v exists even after deletion", defaultL7Model)
 	}
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "foo-with-targets",
@@ -1345,7 +1345,6 @@ func TestIngressPodReadiness(t *testing.T) {
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return len(nodes[0].PoolRefs[0].Servers)
 	}, 40*time.Second).Should(gomega.Equal(0))
-	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(0))
 
 	// updating the pod to ready state
 	updatePodWithNPLAnnotation(selectors)
@@ -1353,7 +1352,6 @@ func TestIngressPodReadiness(t *testing.T) {
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return len(nodes[0].PoolRefs[0].Servers)
 	}, 40*time.Second).Should(gomega.Equal(1))
-	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(1))
 	g.Expect(*nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(defaultHostIP))
 	g.Expect(nodes[0].PoolRefs[0].Servers[0].Port).To(gomega.Equal(int32(defaultNodePort)))
 
@@ -1363,7 +1361,6 @@ func TestIngressPodReadiness(t *testing.T) {
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return len(nodes[0].PoolRefs[0].Servers)
 	}, 40*time.Second).Should(gomega.Equal(0))
-	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(0))
 
 	// re-updating the pod to ready state
 	updatePodWithNPLAnnotation(selectors)
@@ -1371,7 +1368,6 @@ func TestIngressPodReadiness(t *testing.T) {
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return len(nodes[0].PoolRefs[0].Servers)
 	}, 40*time.Second).Should(gomega.Equal(1))
-	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(1))
 	g.Expect(*nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(defaultHostIP))
 	g.Expect(nodes[0].PoolRefs[0].Servers[0].Port).To(gomega.Equal(int32(defaultNodePort)))
 
