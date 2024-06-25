@@ -23,5 +23,5 @@ do
   target_image=$PVT_DOCKER_REGISTRY/$PVT_DOCKER_REPOSITORY/$image:$version_tag
   sudo docker tag $source_image $target_image
   sudo docker push $target_image
-fi
+done
 
