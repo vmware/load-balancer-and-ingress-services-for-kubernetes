@@ -49,23 +49,32 @@ docker manifest inspect $CI_REGISTRY_PATH/ako-operator:${build_version} --insecu
 cat ako_operator_manifest.json
 sudo /srp-tools/srp provenance add-output package.oci --set-key=ako-operator-image --action-key=ako-build --name=${CI_REGISTRY_IMAGE_AKO_OPERATOR}  --digest=${IMAGE_DIGEST} --manifest-path $WORKSPACE/ako_operator_manifest.json --working-dir $WORKSPACE/provenance
 
-CI_REGISTRY_IMAGE_AKO_GATEWAY_API=$CI_REGISTRY_PATH/ako-gateway-api
-IMAGE_DIGEST=`sudo docker images $CI_REGISTRY_IMAGE_AKO_GATEWAY_API  --digests | grep sha256 | xargs | cut -d " " -f3`
-echo $IMAGE_DIGEST
-docker manifest inspect $CI_REGISTRY_PATH/ako-gateway-api:${build_version} --insecure > ako_gateway_api_manifest.json
-cat ako_gateway_api_manifest.json
-sudo /srp-tools/srp provenance add-output package.oci --set-key=ako-gateway-api-image --action-key=ako-build --name=${CI_REGISTRY_IMAGE_AKO_GATEWAY_API}  --digest=${IMAGE_DIGEST} --manifest-path $WORKSPACE/ako_gateway_api_manifest.json --working-dir $WORKSPACE/provenance
+branch_version=$($WORKSPACE/hack/jenkins/get_branch_version.sh)
+version_numbers=(${branch_version//./ })
+minor_version=${version_numbers[1]}
 
+if [ "$minor_version" -ge "11" ]; then
+    CI_REGISTRY_IMAGE_AKO_GATEWAY_API=$CI_REGISTRY_PATH/ako-gateway-api
+    IMAGE_DIGEST=`sudo docker images $CI_REGISTRY_IMAGE_AKO_GATEWAY_API  --digests | grep sha256 | xargs | cut -d " " -f3`
+    echo $IMAGE_DIGEST
+    docker manifest inspect $CI_REGISTRY_PATH/ako-gateway-api:${build_version} --insecure > ako_gateway_api_manifest.json
+    cat ako_gateway_api_manifest.json
+    sudo /srp-tools/srp provenance add-output package.oci --set-key=ako-gateway-api-image --action-key=ako-build --name=${CI_REGISTRY_IMAGE_AKO_GATEWAY_API}  --digest=${IMAGE_DIGEST} --manifest-path $WORKSPACE/ako_gateway_api_manifest.json --working-dir $WORKSPACE/provenance
+fi
 # use the syft plugin to scan the container and add all inputs it discovers. This will include the golang application we added
 # to the container, which are duplicate of the inputs above, but in this case we KNOW they are incorporated.
 sudo /srp-tools/srp provenance add-input syft --output-key=ako-image --usage functionality --incorporated true --working-dir $WORKSPACE/provenance
 sudo /srp-tools/srp provenance add-input syft --output-key=ako-operator-image --usage functionality --incorporated true --working-dir $WORKSPACE/provenance
-sudo /srp-tools/srp provenance add-input syft --output-key=ako-gateway-api-image --usage functionality --incorporated true --working-dir $WORKSPACE/provenance
+if [ "$minor_version" -ge "11" ]; then
+    sudo /srp-tools/srp provenance add-input syft --output-key=ako-gateway-api-image --usage functionality --incorporated true --working-dir $WORKSPACE/provenance
+fi
 
 # adding source input
 sudo /srp-tools/srp provenance add-input source --source-key=mainsrc --output-key=ako-image --is-component-source --incorporated=true --working-dir $WORKSPACE/provenance
 sudo /srp-tools/srp provenance add-input source --source-key=mainsrc --output-key=ako-operator-image --is-component-source --incorporated=true --working-dir $WORKSPACE/provenance
-sudo /srp-tools/srp provenance add-input source --source-key=mainsrc --output-key=ako-gateway-api-image --is-component-source --incorporated=true --working-dir $WORKSPACE/provenance
+if [ "$minor_version" -ge "11" ]; then
+    sudo /srp-tools/srp provenance add-input source --source-key=mainsrc --output-key=ako-gateway-api-image --is-component-source --incorporated=true --working-dir $WORKSPACE/provenance
+fi
 
 # compile the provenance to a file and then dump it out to the console for reference
 sudo /srp-tools/srp provenance compile --saveto $WORKSPACE/provenance/srp_prov3_fragment.json --working-dir $WORKSPACE/provenance
