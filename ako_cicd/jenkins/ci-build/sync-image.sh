@@ -36,6 +36,7 @@ if [ "$rc" != "0" ]; then
 fi
 
 AKO_IMAGES=($DOCKER_AKO_IMAGE_NAME $DOCKER_AKO_OPERATOR_IMAGE_NAME)
+branch_version=$($WORKSPACE/hack/jenkins/get_branch_version.sh)
 version_numbers=(${branch_version//./ })
 minor_version=${version_numbers[1]}
 
