@@ -120,6 +120,10 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 			listeners = append(listeners, listener)
 		}
 	}
+	if len(listeners) == 0 {
+		utils.AviLog.Warnf("key: %s, msg: No matching listener available for the route : %s", key, routeTypeNsName)
+		return
+	}
 	//ListenerName/port/protocol/allowedRouteSpec
 	listenerProtocol := listeners[0].Protocol
 	PGName := akogatewayapilib.GetPoolGroupName(parentNs, parentName,
