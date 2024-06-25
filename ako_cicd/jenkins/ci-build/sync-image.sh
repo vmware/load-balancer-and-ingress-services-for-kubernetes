@@ -35,44 +35,25 @@ if [ "$rc" != "0" ]; then
     sshuttle -D -r $JUMPHOST_USER@$JUMPHOST_IP $JUMPHOST_PROXY/$JUMPHOST_PROXY_PORT -e "ssh -i  $SSH_PVT_KEY_FILE" -v
 fi
 
-###########
+AKO_IMAGES=($DOCKER_AKO_IMAGE_NAME $DOCKER_AKO_OPERATOR_IMAGE_NAME)
+version_numbers=(${branch_version//./ })
+minor_version=${version_numbers[1]}
 
-source_image=$PVT_DOCKER_REGISTRY/$PVT_DOCKER_REPOSITORY/$DOCKER_AKO_IMAGE_NAME:$version_tag
+if [ "$minor_version" -ge "11" ]; then
+    AKO_IMAGES+=($DOCKER_AKO_GATEWAY_API_IMAGE_NAME)
+fi
 
-sudo docker pull $source_image
+echo ${AKO_IMAGES[@]}
 
-for registry in "${registries[@]}"
+for image in "${AKO_IMAGES[@]}"
 do
-    target_image="$registry/$PVT_DOCKER_REPOSITORY/$DOCKER_AKO_IMAGE_NAME:$version_tag"
-    echo "Tagging and pushing to registry: $registry"
-    sudo docker tag $source_image $target_image
-    sudo docker push $target_image
-done
-
-##########
-
-source_image=$PVT_DOCKER_REGISTRY/$PVT_DOCKER_REPOSITORY/$DOCKER_AKO_OPERATOR_IMAGE_NAME:$version_tag
-
-sudo docker pull $source_image
-
-for registry in "${registries[@]}"
-do
-    target_image="$registry/$PVT_DOCKER_REPOSITORY/$DOCKER_AKO_OPERATOR_IMAGE_NAME:$version_tag"
-    echo "Tagging and pushing to registry: $registry"
-    sudo docker tag $source_image $target_image
-    sudo docker push $target_image
-done
-
-###########
-
-source_image=$PVT_DOCKER_REGISTRY/$PVT_DOCKER_REPOSITORY/$DOCKER_AKO_GATEWAY_API_IMAGE_NAME:$version_tag
-
-sudo docker pull $source_image
-
-for registry in "${registries[@]}"
-do
-    target_image="$registry/$PVT_DOCKER_REPOSITORY/$DOCKER_AKO_GATEWAY_API_IMAGE_NAME:$version_tag"
-    echo "Tagging and pushing to registry: $registry"
-    sudo docker tag $source_image $target_image
-    sudo docker push $target_image
+    source_image=$PVT_DOCKER_REGISTRY/$PVT_DOCKER_REPOSITORY/$image:$version_tag
+    sudo docker pull $source_image
+    for registry in "${registries[@]}"
+    do
+        target_image="$registry/$PVT_DOCKER_REPOSITORY/$image:$version_tag"
+        echo "Tagging and pushing to registry: $registry"
+        sudo docker tag $source_image $target_image
+        sudo docker push $target_image
+    done
 done
