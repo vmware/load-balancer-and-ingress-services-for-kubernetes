@@ -62,6 +62,11 @@ func GetPoolGroupName(parentNs, parentName, routeNs, routeName, matchName string
 	return lib.Encode(name, lib.PG)
 }
 
+func GetDataScriptName() string {
+	name := lib.GetNamePrefix() + BackendRefFilterDatascriptName
+	return lib.Encode(name, lib.EVHVS)
+}
+
 func CheckGatewayClassController(controllerName string) bool {
 	return controllerName == lib.AviIngressController
 }

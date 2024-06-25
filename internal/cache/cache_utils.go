@@ -349,6 +349,17 @@ type AviVrfCache struct {
 	CloudConfigCksum uint32
 }
 
+type AviStringGroupCache struct {
+	Name             string
+	Tenant           string
+	Uuid             string
+	LastModified     string
+	InvalidData      bool
+	CloudConfigCksum uint32
+	HasReference     bool
+	Description      string
+}
+
 func (v *AviVsCache) GetVSCopy() (*AviVsCache, bool) {
 	v.VSCacheLock.RLock()
 	defer v.VSCacheLock.RUnlock()
@@ -499,6 +510,12 @@ func (c *AviCache) AviCacheGetNameByUuid(uuid string) (interface{}, bool) {
 				utils.AviLog.Warnf("Got nil value in cache for pki profile key %v", reflect.ValueOf(key))
 			} else if value.(*AviPkiProfileCache).Uuid == uuid {
 				return value.(*AviPkiProfileCache).Name, true
+			}
+		case *AviStringGroupCache:
+			if value.(*AviStringGroupCache) == nil {
+				utils.AviLog.Warnf("Got nil value in cache for stringgroup key %v", reflect.ValueOf(key))
+			} else if value.(*AviStringGroupCache).Uuid == uuid {
+				return value.(*AviStringGroupCache).Name, true
 			}
 		}
 	}

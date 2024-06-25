@@ -43,6 +43,7 @@ import (
 type AviObjCache struct {
 	PgCache            *AviCache
 	DSCache            *AviCache
+	StringGroupCache   *AviCache
 	PoolCache          *AviCache
 	CloudKeyCache      *AviCache
 	HTTPPolicyCache    *AviCache
@@ -62,6 +63,7 @@ func NewAviObjCache() *AviObjCache {
 	c.VsCacheLocal = NewAviCache()
 	c.PgCache = NewAviCache()
 	c.DSCache = NewAviCache()
+	c.StringGroupCache = NewAviCache()
 	c.PoolCache = NewAviCache()
 	c.SSLKeyCache = NewAviCache()
 	c.CloudKeyCache = NewAviCache()
@@ -86,8 +88,8 @@ func SharedAviObjCache() *AviObjCache {
 
 func (c *AviObjCache) AviRefreshObjectCache(client []*clients.AviClient, cloud string, tenant string) {
 	var wg sync.WaitGroup
-	// We want to run 8 go routines which will simultanesouly fetch objects from the controller.
-	wg.Add(5)
+	// We want to run 9 go routines which will simultanesouly fetch objects from the controller.
+	wg.Add(6)
 	go func() {
 		defer wg.Done()
 		c.PopulateSSLKeyToCache(client[4], cloud, tenant)
@@ -112,6 +114,10 @@ func (c *AviObjCache) AviRefreshObjectCache(client []*clients.AviClient, cloud s
 	go func() {
 		defer wg.Done()
 		c.PopulateL4PolicySetToCache(client[6], cloud, tenant)
+	}()
+	go func() {
+		defer wg.Done()
+		c.PopulateStringGroupDataToCache(client[8], cloud)
 	}()
 
 	wg.Wait()
@@ -1923,6 +1929,92 @@ func (c *AviObjCache) PopulateL4PolicySetToCache(client *clients.AviClient, clou
 	}
 }
 
+func (c *AviObjCache) AviPopulateAllStringGroups(client *clients.AviClient, cloud string, StringGroupData *[]AviStringGroupCache, nextPage ...NextPage) (*[]AviStringGroupCache, int, error) {
+	var uri string
+	akoUser := lib.AKOUser
+
+	if len(nextPage) == 1 {
+		uri = nextPage[0].NextURI
+	} else {
+		uri = "/api/stringgroup/?" + "&include_name=true&created_by=" + akoUser
+	}
+
+	result, err := lib.AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err for stringgroup %v", uri, err)
+		return nil, 0, err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal stringgroup data, err: %v", err)
+		return nil, 0, err
+	}
+	for i := 0; i < len(elems); i++ {
+		sg := models.StringGroup{}
+		err = json.Unmarshal(elems[i], &sg)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal stringgroup data, err: %v", err)
+			continue
+		}
+		if sg.Name == nil || sg.UUID == nil {
+			utils.AviLog.Warnf("Incomplete stringgroup data unmarshalled, %s", utils.Stringify(sg))
+			continue
+		}
+
+		stringGroupCacheObj := AviStringGroupCache{
+			Name: *sg.Name,
+			Uuid: *sg.UUID,
+		}
+		checksum := lib.StringGroupChecksum(sg.Kv, *sg.Description, sg.Markers, true)
+
+		stringGroupCacheObj.CloudConfigCksum = checksum
+		*StringGroupData = append(*StringGroupData, stringGroupCacheObj)
+	}
+	if result.Next != "" {
+		// It has a next page, let's recursively call the same method.
+		next_uri := strings.Split(result.Next, "/api/stringgroup")
+		if len(next_uri) > 1 {
+			overrideUri := "/api/stringgroup" + next_uri[1]
+			nextPage := NextPage{NextURI: overrideUri}
+			_, _, err := c.AviPopulateAllStringGroups(client, cloud, StringGroupData, nextPage)
+			if err != nil {
+				return nil, 0, err
+			}
+		}
+	}
+	return StringGroupData, result.Count, nil
+}
+
+func (c *AviObjCache) PopulateStringGroupDataToCache(client *clients.AviClient, cloud string, overrideUri ...NextPage) {
+	var StringGroupData []AviStringGroupCache
+	c.AviPopulateAllStringGroups(client, cloud, &StringGroupData)
+	stringGroupCacheData := c.StringGroupCache.ShallowCopy()
+	for i, StringGroupCacheObj := range StringGroupData {
+		k := NamespaceName{Namespace: lib.GetTenant(), Name: StringGroupCacheObj.Name}
+		oldSGIntf, found := c.StringGroupCache.AviCacheGet(k)
+		if found {
+			oldSGData, ok := oldSGIntf.(*AviStringGroupCache)
+			if ok {
+				if oldSGData.InvalidData || oldSGData.LastModified != StringGroupData[i].LastModified {
+					StringGroupData[i].InvalidData = true
+					utils.AviLog.Warnf("Invalid cache data for stringgroup: %s", k)
+				}
+			} else {
+				utils.AviLog.Warnf("Wrong data type for stringgroup: %s in cache", k)
+			}
+		}
+		utils.AviLog.Debugf("Adding key to stringgroup cache :%s", k)
+		c.StringGroupCache.AviCacheAdd(k, &StringGroupData[i])
+		delete(stringGroupCacheData, k)
+	}
+	// The data that is left in stringGroupCacheData should be explicitly removed
+	for key := range stringGroupCacheData {
+		utils.AviLog.Debugf("Deleting key from stringgroup cache :%s", key)
+		c.StringGroupCache.AviCacheDelete(key)
+	}
+}
+
 func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud string) error {
 	if lib.GetDisableStaticRoute() {
 		utils.AviLog.Debugf("Static route sync disabled, skipping vrf cache population")
@@ -2355,8 +2447,8 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 							dsUuid := ExtractUuidWithoutHash(dsmap["vs_datascript_set_ref"].(string), "vsdatascriptset-.*.")
 
 							dsName, foundDs := c.DSCache.AviCacheGetNameByUuid(dsUuid)
-							if foundDs {
-								dsKey := NamespaceName{Namespace: tenant, Name: dsName.(string)}
+							if foundDs && !strings.Contains(dsName.(string), "ako-gw") {
+								dsKey := NamespaceName{Namespace: lib.GetTenant(), Name: dsName.(string)}
 								// Fetch the associated PGs with the DS.
 								dsObj, _ := c.DSCache.AviCacheGet(dsKey)
 								for _, pgName := range dsObj.(*AviDSCache).PoolGroups {
