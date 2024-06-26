@@ -157,8 +157,8 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 	for _, gatewayInNamespace := range gatewayNsList {
 		if gateway.Name != gatewayInNamespace.Name {
 			for _, gwListener := range gatewayInNamespace.Spec.Listeners {
-				if *listener.Hostname == *gwListener.Hostname || isRegexMatch(string(*listener.Hostname), string(*gwListener.Hostname), key) || isRegexMatch(string(*gwListener.Hostname), string(*listener.Hostname), key) {
-					utils.AviLog.Errorf("key: %s, msg: Hostname overlaps or is same as an existing gateway %s hostname %s", key, gatewayInNamespace.Name, *gwListener.Hostname)
+				if *listener.Hostname == *gwListener.Hostname {
+					utils.AviLog.Errorf("key: %s, msg: Hostname is same as an existing gateway %s hostname %s", key, gatewayInNamespace.Name, *gwListener.Hostname)
 					defaultCondition.
 						Message("Hostname overlaps or is same as an existing gateway hostname").
 						SetIn(&gatewayStatus.Listeners[index].Conditions)
