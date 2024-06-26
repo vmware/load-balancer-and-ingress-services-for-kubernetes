@@ -53,7 +53,7 @@ func (o *AviObjectGraph) BuildParentPGPoolHTTPPS(key string, routeModel RouteMod
 	parentNode := o.GetAviEvhVS()
 	parentNs, _, parentName := lib.ExtractTypeNameNamespace(parentNsName)
 
-	// TODO(Akshay): with empty hostname at httproute, there will be no hostname attached. So need to fetch non wildcard fqdns from gw listners
+	// TODO(Akshay): with empty hostname at httproute, there will be no hostname attached. So need to fetch non wildcard fqdns from gw listeners
 
 	//akogatewayapiobjects.GatewayApiLister().Get
 	for _, rule := range rules {
@@ -312,8 +312,8 @@ func (o *AviObjectGraph) BuildDefaultPGPoolForParentVS(key, parentNsName, matchN
 		poolName := akogatewayapilib.GetPoolName(parentNs, parentName,
 			routeModel.GetNamespace(), routeModel.GetName(),
 			matchName,
-			backend.Namespace, backend.Name, strconv.Itoa(int(backend.Port)))
-		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(backend.Namespace).Get(backend.Name)
+			backend.Backend.Namespace, backend.Backend.Name, strconv.Itoa(int(backend.Backend.Port)))
+		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(backend.Backend.Namespace).Get(backend.Backend.Name)
 		if err != nil {
 			utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service", key)
 			o.RemovePoolRefsFromPG(poolName, o.GetPoolGroupByName(PGName))
@@ -323,11 +323,11 @@ func (o *AviObjectGraph) BuildDefaultPGPoolForParentVS(key, parentNsName, matchN
 			Name:       poolName,
 			Tenant:     lib.GetTenant(),
 			Protocol:   listenerProtocol,
-			PortName:   akogatewayapilib.FindPortName(backend.Name, backend.Namespace, backend.Port, key),
-			TargetPort: akogatewayapilib.FindTargetPort(backend.Name, backend.Namespace, backend.Port, key),
-			Port:       backend.Port,
+			PortName:   akogatewayapilib.FindPortName(backend.Backend.Name, backend.Backend.Namespace, backend.Backend.Port, key),
+			TargetPort: akogatewayapilib.FindTargetPort(backend.Backend.Name, backend.Backend.Namespace, backend.Backend.Port, key),
+			Port:       backend.Backend.Port,
 			ServiceMetadata: lib.ServiceMetadataObj{
-				NamespaceServiceName: []string{backend.Namespace + "/" + backend.Name},
+				NamespaceServiceName: []string{backend.Backend.Namespace + "/" + backend.Backend.Name},
 			},
 			VrfContext: lib.GetVrf(),
 		}
@@ -349,7 +349,7 @@ func (o *AviObjectGraph) BuildDefaultPGPoolForParentVS(key, parentNsName, matchN
 			parentVsNode.ReplaceEvhPoolInEVHNode(poolNode, key)
 		}
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
-		ratio := uint32(backend.Weight)
+		ratio := uint32(backend.Backend.Weight)
 		PG.Members = append(PG.Members, &models.PoolGroupMember{PoolRef: &pool_ref, Ratio: &ratio})
 	}
 	if len(PG.Members) > 0 {
