@@ -30,6 +30,7 @@ import (
 	"github.com/vmware/alb-sdk/go/session"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	discovery "k8s.io/api/discovery/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -648,7 +649,23 @@ func (c *AviController) addIndexers() {
 			},
 		)
 	}
-
+	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
+		c.informers.EpSlicesInformer.Informer().AddIndexers(
+			cache.Indexers{
+				discovery.LabelServiceName: func(obj interface{}) ([]string, error) {
+					eps, ok := obj.(*discovery.EndpointSlice)
+					if !ok {
+						utils.AviLog.Debugf("error indexing epslice object by service name")
+						return []string{}, nil
+					}
+					if val, ok := eps.Labels[discovery.LabelServiceName]; ok && val != "" {
+						return []string{eps.Namespace + "/" + val}, nil
+					}
+					return []string{}, nil
+				},
+			},
+		)
+	}
 	c.informers.ServiceInformer.Informer().AddIndexers(
 		cache.Indexers{
 			lib.AviSettingServicesIndex: func(obj interface{}) ([]string, error) {

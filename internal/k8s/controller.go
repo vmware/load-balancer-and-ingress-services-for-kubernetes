@@ -27,6 +27,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
+	discovery "k8s.io/api/discovery/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -674,6 +675,89 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			},
 		}
 	}
+	// Add EPSInformer
+	epsEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			eps := obj.(*discovery.EndpointSlice)
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(eps))
+			svcName, ok := eps.Labels[discovery.LabelServiceName]
+			if !ok || svcName == "" {
+				utils.AviLog.Debugf("Endpointslice Add event: Endpointslice does not have backing svc")
+				return
+			}
+			key := utils.Endpointslices + "/" + namespace + "/" + svcName
+			if lib.IsNamespaceBlocked(namespace) {
+				utils.AviLog.Debugf("key: %s, msg: Endpoint Add event: Namespace: %s didn't qualify filter", key, namespace)
+				return
+			}
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+		},
+		DeleteFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			eps, ok := obj.(*discovery.EndpointSlice)
+			if !ok {
+				// endpoints were deleted but its final state is unrecorded.
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				eps, ok = tombstone.Obj.(*discovery.EndpointSlice)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not an Endpointslice: %#v", obj)
+					return
+				}
+			}
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(eps))
+			svcName, ok := eps.Labels[discovery.LabelServiceName]
+			if !ok || svcName == "" {
+				utils.AviLog.Debugf("Endpointslice Delete event: Endpointslice does not have backing svc")
+				return
+			}
+			key := utils.Endpointslices + "/" + namespace + "/" + svcName
+			if lib.IsNamespaceBlocked(namespace) {
+				utils.AviLog.Debugf("key: %s, msg: Endpointslice Delete event: Namespace: %s didn't qualify filter", key, namespace)
+				return
+			}
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+		},
+		UpdateFunc: func(old, cur interface{}) {
+			if c.DisableSync {
+				return
+			}
+			oeps := old.(*discovery.EndpointSlice)
+			ceps := cur.(*discovery.EndpointSlice)
+			if !addressEqual(ceps.Endpoints, oeps.Endpoints) || !reflect.DeepEqual(oeps.Ports, ceps.Ports) {
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ceps))
+				svcName, ok := ceps.Labels[discovery.LabelServiceName]
+				if !ok || svcName == "" {
+					utils.AviLog.Debugf("Endpointslice Delete event: Endpointslice does not have backing svc")
+					return
+				}
+				key := utils.Endpointslices + "/" + namespace + "/" + svcName
+				if lib.IsNamespaceBlocked(namespace) {
+					utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
+					return
+				}
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+			}
+		},
+	}
+	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
+		c.informers.EpSlicesInformer.Informer().AddEventHandler(epsEventHandler)
+	}
+
 	svcEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -1328,6 +1412,18 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	}
 }
 
+func addressEqual(old, cur []discovery.Endpoint) bool {
+	if len(old) != len(cur) {
+		return false
+	}
+	for i, _ := range old {
+		if old[i].Addresses[0] != cur[i].Addresses[0] {
+			return false
+		}
+	}
+	return true
+}
+
 func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
 	configMap, ok := obj.(*corev1.ConfigMap)
 	if ok && lib.GetNamespaceToSync() != "" {
@@ -1353,15 +1449,19 @@ func checkAviSecretUpdateAndShutdown(secret *corev1.Secret) bool {
 
 func (c *AviController) Start(stopCh <-chan struct{}) {
 	go c.informers.ServiceInformer.Informer().Run(stopCh)
-	go c.informers.EpInformer.Informer().Run(stopCh)
 	go c.informers.NSInformer.Informer().Run(stopCh)
 
 	informersList := []cache.InformerSynced{
-		c.informers.EpInformer.Informer().HasSynced,
 		c.informers.ServiceInformer.Informer().HasSynced,
 		c.informers.NSInformer.Informer().HasSynced,
 	}
-
+	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
+		go c.informers.EpSlicesInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.informers.EpSlicesInformer.Informer().HasSynced)
+	} else {
+		go c.informers.EpInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.informers.EpInformer.Informer().HasSynced)
+	}
 	if !lib.AviSecretInitialized {
 		go c.informers.SecretInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.informers.SecretInformer.Informer().HasSynced)

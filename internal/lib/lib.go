@@ -832,6 +832,14 @@ func GetGlobalBgpPeerLabels() []string {
 	return bgpPeerLabels
 }
 
+func GetEndpointSliceEnabled() bool {
+	flag, err := strconv.ParseBool(os.Getenv("ENDPOINTSLICES_ENABLED"))
+	if err != nil {
+		flag = true
+	}
+	return flag
+}
+
 func GetGlobalBlockedNSList() []string {
 	var blockedNs []string
 	blockedNSStr := os.Getenv(BLOCKED_NS_LIST)
@@ -1366,7 +1374,9 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 		utils.ConfigMapInformer,
 		utils.NSInformer,
 	}
-
+	if AKOControlConfig().GetEndpointSlicesEnabled() {
+		allInformers = append(allInformers, utils.EndpointSlicesInformer)
+	}
 	// AKO must watch over Pods in case of NodePortLocal, to get Antrea annotation values.
 	if GetServiceType() == NodePortLocal {
 		allInformers = append(allInformers, utils.PodInformer)

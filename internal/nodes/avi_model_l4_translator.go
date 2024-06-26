@@ -27,13 +27,14 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	discovery "k8s.io/api/discovery/v1"
 
 	"github.com/jinzhu/copier"
 	"github.com/vmware/alb-sdk/go/models"
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 	k8net "k8s.io/utils/net"
@@ -428,6 +429,14 @@ func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName st
 	return poolMeta
 }
 
+// an endpoint can be unique on four constraints
+type endpointKey struct {
+	address     string
+	port        int32
+	protocol    v1.Protocol
+	addressType discovery.AddressType
+}
+
 func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingress bool, key string) []AviPoolMetaServer {
 
 	// Find the servers that match the port.
@@ -459,27 +468,97 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 	} else {
 		v4Family = true
 	}
-	epObj, err := utils.GetInformers().EpInformer.Lister().Endpoints(ns).Get(serviceName)
-	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: error while retrieving endpoints: %s", key, err)
-		return nil
-	}
 	var pool_meta []AviPoolMetaServer
-	for _, ss := range epObj.Subsets {
-		port_match := false
-		for _, epp := range ss.Ports {
-			if poolNode.PortName == epp.Name || int32(poolNode.TargetPort.IntValue()) == epp.Port {
+	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
+		epSliceIntList, err := utils.GetInformers().EpSlicesInformer.Informer().GetIndexer().ByIndex(discovery.LabelServiceName, ns+"/"+serviceName)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: error while retrieving endpointsice: %s", key, err)
+			return nil
+		}
+		// create a map for deduplication of addresses
+		uniqueEndpoints := map[endpointKey]struct{}{}
+		for _, epSliceInt := range epSliceIntList {
+			epSlice, isEpSliceClass := epSliceInt.(*discovery.EndpointSlice)
+			if !isEpSliceClass {
+				// not an epslice. continue
+				utils.AviLog.Warnf("key: %s, msg: invalid endpointslice object", key)
+				continue
+			}
+			port_match := false
+			var epProtocol v1.Protocol
+			for _, epp := range epSlice.Ports {
+				if poolNode.PortName == *epp.Name || int32(poolNode.TargetPort.IntValue()) == *epp.Port {
+					port_match = true
+					poolNode.Port = *epp.Port
+					epProtocol = *epp.Protocol
+					break
+				}
+			}
+			if len(epSliceIntList) == 1 && len(epSlice.Ports) == 1 {
 				port_match = true
-				poolNode.Port = epp.Port
-				break
+				poolNode.Port = *epSlice.Ports[0].Port
+				epProtocol = *epSlice.Ports[0].Protocol
+			}
+			if !port_match {
+				continue
+			}
+			var atype string
+			utils.AviLog.Infof("key: %s, msg: found port match for port %v", key, poolNode.Port)
+			for _, addr := range epSlice.Endpoints {
+				// use only first address. Refer to: https://issue.k8s.io/106267
+				ip := addr.Addresses[0]
+				epKey := endpointKey{
+					address:     ip,
+					port:        poolNode.Port,
+					protocol:    epProtocol,
+					addressType: epSlice.AddressType,
+				}
+				if _, ok := uniqueEndpoints[epKey]; ok {
+					// found duplicate continue
+					utils.AviLog.Debugf("key: %s, msg: found duplicate endpoint %v", key, epKey)
+					continue
+				}
+				uniqueEndpoints[epKey] = struct{}{}
+				if v4enabled && v4Family && utils.IsV4(ip) {
+					v4ServerCount++
+					atype = "V4"
+				} else if v6enabled && v6Family && k8net.IsIPv6String(ip) {
+					v6ServerCount++
+					atype = "V6"
+				} else {
+					continue
+				}
+				a := avimodels.IPAddr{Type: &atype, Addr: &ip}
+				server := AviPoolMetaServer{Ip: a}
+				if addr.NodeName != nil {
+					server.ServerNode = *addr.NodeName
+				}
+				pool_meta = append(pool_meta, server)
 			}
 		}
-		if len(ss.Ports) == 1 && len(epObj.Subsets) == 1 {
-			// If it's just a single port then we make that as the server port.
-			port_match = true
-			poolNode.Port = ss.Ports[0].Port
+	} else {
+		epObj, err := utils.GetInformers().EpInformer.Lister().Endpoints(ns).Get(serviceName)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: error while retrieving endpoints: %s", key, err)
+			return nil
 		}
-		if port_match {
+		for _, ss := range epObj.Subsets {
+			port_match := false
+			for _, epp := range ss.Ports {
+				if poolNode.PortName == epp.Name || int32(poolNode.TargetPort.IntValue()) == epp.Port {
+					port_match = true
+					poolNode.Port = epp.Port
+					break
+				}
+			}
+			if len(ss.Ports) == 1 && len(epObj.Subsets) == 1 {
+				// If it's just a single port then we make that as the server port.
+				port_match = true
+				poolNode.Port = ss.Ports[0].Port
+			}
+			if !port_match {
+				continue
+			}
 			var atype string
 			utils.AviLog.Infof("key: %s, msg: found port match for port %v", key, poolNode.Port)
 			for _, addr := range ss.Addresses {
@@ -501,6 +580,7 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 				pool_meta = append(pool_meta, server)
 			}
 		}
+
 	}
 	if len(pool_meta) == 0 {
 		utils.AviLog.Warnf("key: %s, msg: no servers for port: %v", key, poolNode.Port)

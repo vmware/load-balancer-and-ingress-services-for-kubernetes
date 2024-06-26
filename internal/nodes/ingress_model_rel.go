@@ -64,6 +64,14 @@ var (
 		GetParentRoutes:    EPToRoute,
 		GetParentGateways:  EPToGateway,
 	}
+
+	EndpointSlices = GraphSchema{
+		Type:               utils.Endpointslices,
+		GetParentIngresses: EPToIng,
+		GetParentRoutes:    EPToRoute,
+		GetParentGateways:  EPToGateway,
+	}
+
 	Pod = GraphSchema{
 		Type:               "Pod",
 		GetParentIngresses: PodToIng,
@@ -134,6 +142,7 @@ var (
 		SharedVipService,
 		Pod,
 		Endpoint,
+		EndpointSlices,
 		Secret,
 		Route,
 		Node,
