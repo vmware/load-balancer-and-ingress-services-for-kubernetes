@@ -256,6 +256,7 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 		listeners := akogatewayapiobjects.GatewayApiLister().GetGatewayToListeners(gwNsName)
 		for _, listener := range listeners {
 			//check if namespace is allowed
+			// TODO: akshay: add selector condition here.
 			if (len(listener.AllowedRouteTypes) == 0 || utils.HasElem(listener.AllowedRouteTypes, httpGroupKind)) &&
 				(listener.AllowedRouteNs == akogatewayapilib.AllowedRoutesNamespaceFromAll || listener.AllowedRouteNs == hrObj.Namespace) {
 				//if provided, check if section name and port matches
