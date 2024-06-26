@@ -41,6 +41,10 @@ func InformersToRegister(kclient *kubernetes.Clientset) ([]string, error) {
 		allInformers = append(allInformers, utils.EndpointInformer)
 	}
 
+	if lib.GetServiceType() == lib.NodePortLocal {
+		allInformers = append(allInformers, utils.PodInformer)
+	}
+
 	return allInformers, nil
 }
 
