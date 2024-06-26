@@ -36,6 +36,10 @@ func InformersToRegister(kclient *kubernetes.Clientset) ([]string, error) {
 		utils.ConfigMapInformer,
 	}
 
+	if lib.GetServiceType() == lib.NodePortLocal {
+		allInformers = append(allInformers, utils.PodInformer)
+	}
+
 	return allInformers, nil
 }
 

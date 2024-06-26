@@ -44,6 +44,7 @@ func GatewayApiLister() *GWLister {
 			gatewayToHostnameStore:         objects.NewObjectMapStore(),
 			gatewayListenerToHostnameStore: objects.NewObjectMapStore(),
 			gatewayRouteToHostnameStore:    objects.NewObjectMapStore(),
+			podToServiceStore:              objects.NewObjectMapStore(),
 		}
 	})
 	return gwLister
@@ -102,6 +103,10 @@ type GWLister struct {
 	//FQDNs in parent VS
 	//gatewayns/gatewayname -> [hostname, ...]
 	gatewayRouteToHostnameStore *objects.ObjectMapStore
+
+	//Pods -> Service Mapping for NPL
+	//podNs/podName -> [svcNs/svcName, ...]
+	podToServiceStore *objects.ObjectMapStore
 }
 
 type GatewayRouteKind struct {
@@ -813,4 +818,30 @@ func (g *GWLister) GetGatewayRouteToHostname(gwNsName string) (bool, []string) {
 		return true, hostnames.([]string)
 	}
 	return false, []string{}
+}
+
+//Pods <-> Service
+
+func (g *GWLister) GetPodsToService(podNsName string) []string {
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
+
+	if found, services := g.podToServiceStore.Get(podNsName); found {
+		return services.([]string)
+	}
+	return []string{}
+}
+
+func (g *GWLister) UpdatePodsToService(podNsName string, services []string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	g.podToServiceStore.AddOrUpdate(podNsName, services)
+
+}
+func (g *GWLister) DeletePodsToService(podNsName string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	g.podToServiceStore.Delete(podNsName)
 }

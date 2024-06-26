@@ -293,7 +293,6 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 	v4ServerCount := 0
 	v6ServerCount := 0
 	var poolMeta []AviPoolMetaServer
-
 	for _, pod := range pods {
 		var annotations []lib.NPLAnnotation
 		found, obj := objects.SharedNPLLister().Get(ns + "/" + pod.Name)
