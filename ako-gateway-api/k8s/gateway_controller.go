@@ -388,7 +388,7 @@ func addressEqual(old, cur []discovery.Endpoint) bool {
 	if len(old) != len(cur) {
 		return false
 	}
-	for i, _ := range old {
+	for i := range old {
 		if old[i].Addresses[0] != cur[i].Addresses[0] {
 			return false
 		}

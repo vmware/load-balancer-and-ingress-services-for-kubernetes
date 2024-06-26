@@ -22,13 +22,14 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	discovery "k8s.io/api/discovery/v1"
+
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	discovery "k8s.io/api/discovery/v1"
 
 	"github.com/jinzhu/copier"
 	"github.com/vmware/alb-sdk/go/models"
