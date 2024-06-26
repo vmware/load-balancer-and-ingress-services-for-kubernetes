@@ -1023,7 +1023,7 @@ func TestHTTPRouteWithBackendRefFilters(t *testing.T) {
 	modelName, parentVSName := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := akogatewayapitests.GetListenersV1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
