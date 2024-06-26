@@ -273,9 +273,23 @@ func TestBlockAffinity(t *testing.T) {
 	// deleting the second BlockAffinity object for the node
 	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity2", v1.DeleteOptions{})
 	g.Eventually(func() int {
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
 		num_routes := len(nodes[0].StaticRoutes)
 		return num_routes
 	}, 10*time.Second).Should(gomega.Equal(1))
+
+	err = KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodeExample.Name, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("error in deleting Node: %v", err)
+	}
+	g.Eventually(func() int {
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+		num_routes := len(nodes[0].StaticRoutes)
+		return num_routes
+
+	}, 10*time.Second).Should(gomega.Equal(0))
 }
 
 func TestCiliumNodeAddUpdate(t *testing.T) {
@@ -1227,10 +1241,13 @@ func TestStaticRoutesWithMultipleBlockAffinityDeletion(t *testing.T) {
 	g.Expect(aviModel.(*avinodes.AviObjectGraph).IsVrf).To(gomega.Equal(true))
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
-	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[0], metav1.DeleteOptions{})
-	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[1], metav1.DeleteOptions{})
-	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[2], metav1.DeleteOptions{})
-	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[3], metav1.DeleteOptions{})
+
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity44", v1.DeleteOptions{})
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity4", v1.DeleteOptions{})
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity3", v1.DeleteOptions{})
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity2", v1.DeleteOptions{})
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity11", v1.DeleteOptions{})
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity1", v1.DeleteOptions{})
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
@@ -1240,6 +1257,11 @@ func TestStaticRoutesWithMultipleBlockAffinityDeletion(t *testing.T) {
 		return found
 	}, 10*time.Second).Should(gomega.Equal(true))
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[0], metav1.DeleteOptions{})
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[1], metav1.DeleteOptions{})
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[2], metav1.DeleteOptions{})
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[3], metav1.DeleteOptions{})
 
 	g.Eventually(func() int {
 		num_routes := len(nodes[0].NodeStaticRoutes)
@@ -1614,7 +1636,8 @@ func TestNodeWithoutBlockAffinityAddition(t *testing.T) {
 	g.Expect(*nodes[0].StaticRoutes[3].RouteID).To(gomega.Equal("cluster-4"))
 	g.Expect(*nodes[0].StaticRoutes[4].RouteID).To(gomega.Equal("cluster-5"))
 
-	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[0], metav1.DeleteOptions{})
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity11", v1.DeleteOptions{})
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity1", v1.DeleteOptions{})
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
@@ -1624,7 +1647,7 @@ func TestNodeWithoutBlockAffinityAddition(t *testing.T) {
 		return found
 	}, 10*time.Second).Should(gomega.Equal(true))
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
-
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[0], metav1.DeleteOptions{})
 	g.Eventually(func() int {
 		num_routes := len(nodes[0].NodeStaticRoutes)
 		return num_routes
@@ -1664,7 +1687,8 @@ func TestNodeWithoutBlockAffinityAddition(t *testing.T) {
 	g.Expect(*nodes[0].StaticRoutes[1].RouteID).To(gomega.Equal("cluster-2"))
 	g.Expect(*nodes[0].StaticRoutes[2].RouteID).To(gomega.Equal("cluster-3"))
 
-	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[2], metav1.DeleteOptions{})
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity3", v1.DeleteOptions{})
+
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
@@ -1675,6 +1699,7 @@ func TestNodeWithoutBlockAffinityAddition(t *testing.T) {
 	}, 10*time.Second).Should(gomega.Equal(true))
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
 
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[2], metav1.DeleteOptions{})
 	g.Eventually(func() int {
 		num_routes := len(nodes[0].NodeStaticRoutes)
 		return num_routes
@@ -1688,7 +1713,9 @@ func TestNodeWithoutBlockAffinityAddition(t *testing.T) {
 	g.Expect(*nodes[0].StaticRoutes[0].RouteID).To(gomega.Equal("cluster-1"))
 	g.Expect(*nodes[0].StaticRoutes[1].RouteID).To(gomega.Equal("cluster-2"))
 
-	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[3], metav1.DeleteOptions{})
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity44", v1.DeleteOptions{})
+	DynamicClient.Resource(lib.CalicoBlockaffinityGVR).Namespace("default").Delete(context.TODO(), "testblockaffinity4", v1.DeleteOptions{})
+
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
@@ -1698,6 +1725,8 @@ func TestNodeWithoutBlockAffinityAddition(t *testing.T) {
 		return found
 	}, 10*time.Second).Should(gomega.Equal(true))
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
+
+	KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodesNameList[3], metav1.DeleteOptions{})
 
 	g.Eventually(func() int {
 		num_routes := len(nodes[0].NodeStaticRoutes)
