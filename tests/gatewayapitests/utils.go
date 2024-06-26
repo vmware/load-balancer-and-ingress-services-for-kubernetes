@@ -33,7 +33,6 @@ import (
 	gatewayfake "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/fake"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
@@ -60,7 +59,7 @@ func NewAviFakeClientInstance(kubeclient *k8sfake.Clientset, skipCachePopulation
 		os.Setenv("CTRL_IPADDRESS", url)
 		os.Setenv("FULL_SYNC_INTERVAL", "600")
 		// resets avi client pool instance, allows to connect with the new `ts` server
-		cache.AviClientInstance = nil
+		//cache.AviClientInstanceMap = nil
 		k8s.PopulateControllerProperties(kubeclient)
 		if len(skipCachePopulation) == 0 || !skipCachePopulation[0] {
 			k8s.PopulateCache()
@@ -433,7 +432,7 @@ func GetHTTPRouteBackendV1(backendRefs []string) gatewayv1.HTTPBackendRef {
 
 }
 
-func GetHTTPRouteRuleV1(paths []string, matchHeaders []string, filterActionMap map[string][]string, backendRefs [][]string) gatewayv1.HTTPRouteRule {
+func GetHTTPRouteRuleV1(paths []string, matchHeaders []string, filterActionMap map[string][]string, backendRefs [][]string, backendRefFilters map[string][]string) gatewayv1.HTTPRouteRule {
 	matches := make([]gatewayv1.HTTPRouteMatch, 0, len(paths))
 	for _, path := range paths {
 		match := GetHTTPRouteMatchV1(path, "PathPrefix", matchHeaders)
@@ -447,8 +446,14 @@ func GetHTTPRouteRuleV1(paths []string, matchHeaders []string, filterActionMap m
 	}
 	backends := make([]gatewayv1.HTTPBackendRef, 0, len(backendRefs))
 	for _, backendRef := range backendRefs {
-		backend := GetHTTPRouteBackendV1(backendRef)
-		backends = append(backends, backend)
+		httpBackend := GetHTTPRouteBackendV1(backendRef)
+		backendFilters := make([]gatewayv1.HTTPRouteFilter, 0, len(filterActionMap))
+		for filterType, actions := range backendRefFilters {
+			filter := GetHTTPRouteFilterV1(filterType, actions)
+			backendFilters = append(backendFilters, filter)
+		}
+		httpBackend.Filters = backendFilters
+		backends = append(backends, httpBackend)
 	}
 	rule := gatewayv1.HTTPRouteRule{}
 	rule.Matches = matches

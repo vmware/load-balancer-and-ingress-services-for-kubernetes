@@ -1130,9 +1130,9 @@ func NewAviFakeClientInstance(kubeclient *k8sfake.Clientset, skipCachePopulation
 		os.Setenv("CTRL_IPADDRESS", url)
 		os.Setenv("FULL_SYNC_INTERVAL", "600")
 		// resets avi client pool instance, allows to connect with the new `ts` server
-		cache.AviClientInstance = nil
+		//cache.AviClientInstance = nil
 		k8s.PopulateControllerProperties(kubeclient)
-		if len(skipCachePopulation) == 0 || skipCachePopulation[0] == false {
+		if len(skipCachePopulation) == 0 || !skipCachePopulation[0] {
 			k8s.PopulateCache()
 		}
 	}
@@ -2014,6 +2014,34 @@ func AnnotateAKONamespaceWithInfraSetting(t *testing.T, ns, infraSettingName str
 	}
 }
 
+func AnnotateNamespaceWithTenant(t *testing.T, ns, tenant string) {
+	namespace, err := KubeClient.CoreV1().Namespaces().Get(context.TODO(), ns, metav1.GetOptions{})
+	if err != nil {
+		namespace := (FakeNamespace{
+			Name:   ns,
+			Labels: map[string]string{},
+		}).Namespace()
+		namespace.ResourceVersion = "1"
+		namespace.Annotations = map[string]string{
+			lib.TenantAnnotation: tenant,
+		}
+		_, err = KubeClient.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
+		if err != nil {
+			t.Fatalf("Error occurred while Adding namespace: %v", err)
+		}
+	} else {
+		namespace.ResourceVersion = "2"
+		if namespace.Annotations == nil {
+			namespace.Annotations = make(map[string]string)
+		}
+		namespace.Annotations[lib.TenantAnnotation] = tenant
+		_, err = KubeClient.CoreV1().Namespaces().Update(context.TODO(), namespace, metav1.UpdateOptions{})
+		if err != nil {
+			t.Fatalf("Error occurred while Updating namespace: %v", err)
+		}
+	}
+}
+
 func RemoveAnnotateAKONamespaceWithInfraSetting(t *testing.T, ns string) {
 	namespace := (FakeNamespace{
 		Name:   ns,
@@ -2057,9 +2085,6 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1beta1.AviInfraSe
 				BgpPeerLabels:  infraSetting.BGPPeerLabels,
 				EnablePublicIP: &infraSetting.EnablePublicIP,
 			},
-			NSXSettings: akov1beta1.AviInfraNSXSettings{
-				T1LR: &infraSetting.T1LR,
-			},
 		},
 	}
 
@@ -2071,6 +2096,10 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1beta1.AviInfraSe
 
 	if infraSetting.ShardSize != "" {
 		setting.Spec.L7Settings.ShardSize = infraSetting.ShardSize
+	}
+
+	if infraSetting.T1LR != "" {
+		setting.Spec.NSXSettings.T1LR = &infraSetting.T1LR
 	}
 
 	return setting
@@ -2364,6 +2393,6 @@ func SetupLicense(license string) {
 		NormalControllerServer(w, r)
 	})
 	// Set the license
-	aviRestClientPool := cache.SharedAVIClients()
+	aviRestClientPool := cache.SharedAVIClients(lib.GetTenant())
 	lib.AKOControlConfig().SetLicenseType(aviRestClientPool.AviClient[0])
 }

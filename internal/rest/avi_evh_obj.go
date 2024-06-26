@@ -53,12 +53,13 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 			publishKey = splitKeys[1]
 		}
 	}
+	nsPublishKey := avicache.NamespaceName{Namespace: namespace, Name: publishKey}
 	// Order would be this: 1. Pools 2. PGs  3. DS. 4. SSLKeyCert 5. VS
 	if vs_cache_obj != nil {
 		var rest_ops []*utils.RestOp
 		vsvip_to_delete, rest_ops, vsvipErr = rest.VSVipCU(aviVsNode.VSVIPRefs, vs_cache_obj, namespace, rest_ops, key)
 		if vsvipErr != nil {
-			if rest.CheckAndPublishForRetry(vsvipErr, publishKey, key, avimodel) {
+			if rest.CheckAndPublishForRetry(vsvipErr, nsPublishKey, key, avimodel) {
 				return
 			}
 		}
@@ -88,7 +89,7 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 		var rest_ops []*utils.RestOp
 		_, rest_ops, vsvipErr = rest.VSVipCU(aviVsNode.VSVIPRefs, nil, namespace, rest_ops, key)
 		if vsvipErr != nil {
-			if rest.CheckAndPublishForRetry(vsvipErr, publishKey, key, avimodel) {
+			if rest.CheckAndPublishForRetry(vsvipErr, nsPublishKey, key, avimodel) {
 				return
 			}
 		}
@@ -246,6 +247,7 @@ func setDedicatedEvhVSNodeProperties(vs *avimodels.VirtualService, vs_meta *node
 		}
 	}
 	vs.SslProfileRef = vs_meta.SslProfileRef
+
 	//set datascripts to VS from hostrule crd
 	for i, script := range vs_meta.VsDatascriptRefs {
 		j := int32(i)
@@ -296,7 +298,7 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		cksum := vs_meta.CloudConfigCksum
 		checksumstr := strconv.Itoa(int(cksum))
 		cr := lib.AKOUser
-		cloudRef := "/api/cloud?name=" + utils.CloudName
+		cloudRef := lib.GetCloudRef(lib.GetTenant())
 		svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 		svc_mdata := string(svc_mdata_json)
 
@@ -492,9 +494,9 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		app_prof = *vs_meta.ApplicationProfileRef
 	}
 
-	cloudRef := "/api/cloud?name=" + utils.CloudName
+	cloudRef := lib.GetCloudRef(lib.GetTenant())
 	network_prof := "/api/networkprofile/?name=" + "System-TCP-Proxy"
-	seGroupRef := "/api/serviceenginegroup?name=" + lib.GetSEGName()
+	seGroupRef := fmt.Sprintf("/api/serviceenginegroup?tenant=%s&name=%s", lib.GetTenant(), lib.GetSEGName())
 	svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 	svc_mdata := string(svc_mdata_json)
 	evhChild := &avimodels.VirtualService{
@@ -573,14 +575,21 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		pg_ref := "/api/poolgroup/?name=" + vs_meta.DefaultPoolGroup
 		evhChild.PoolGroupRef = &pg_ref
 	}
+	var datascriptCollection []*avimodels.VSDataScripts
+	j := int32(0)
+	for _, ds := range vs_meta.HTTPDSrefs {
+		dsRef := "/api/vsdatascriptset/?name=" + ds.Name
+		vsdatascript := &avimodels.VSDataScripts{Index: &j, VsDatascriptSetRef: &dsRef}
+		datascriptCollection = append(datascriptCollection, vsdatascript)
+		j = j + 1
+	}
 
 	//DS from hostrule
-	var datascriptCollection []*avimodels.VSDataScripts
-	for i, script := range vs_meta.VsDatascriptRefs {
-		j := int32(i)
+	for _, script := range vs_meta.VsDatascriptRefs {
 		datascript := script
 		datascripts := &avimodels.VSDataScripts{VsDatascriptSetRef: &datascript, Index: &j}
 		datascriptCollection = append(datascriptCollection, datascripts)
+		j = j + 1
 	}
 	evhChild.VsDatascripts = datascriptCollection
 

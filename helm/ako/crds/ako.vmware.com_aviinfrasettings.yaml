@@ -105,8 +105,6 @@ spec:
                 - shardSize
               nsxSettings:
                 properties:
-                  project:
-                    type: string
                   t1lr:
                     type: string
                 type: object
@@ -213,8 +211,6 @@ spec:
                 - shardSize
               nsxSettings:
                 properties:
-                  project:
-                    type: string
                   t1lr:
                     type: string
                 type: object

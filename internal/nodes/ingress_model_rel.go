@@ -30,6 +30,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -130,11 +131,7 @@ var (
 		GetParentIngresses: SSORuleToIng,
 		GetParentRoutes:    SSORuleToIng,
 	}
-	NamespaceNetworkInfos = GraphSchema{
-		Type:               utils.NamespaceNetworkInfo,
-		GetParentGateways:  t1LRNSToGateway,
-		GetParentIngresses: t1LRNSToIngress,
-	}
+
 	SupportedGraphTypes = GraphDescriptor{
 		Ingress,
 		IngressClass,
@@ -155,7 +152,6 @@ var (
 		ServiceImport,
 		SSORule,
 		L4Rule,
-		NamespaceNetworkInfos,
 	}
 )
 
@@ -1109,34 +1105,6 @@ func validateSvcApiGatewayForClass(key string, gateway *svcapiv1alpha1.Gateway) 
 	return nil
 }
 
-func t1LRNSToGateway(t1LR, namespace, key string) ([]string, bool) {
-	allGateways := make([]string, 0)
-	gateways, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).List(labels.Set(nil).AsSelector())
-	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: Failed to list Gateways in the namespace %s", key, namespace)
-		return allGateways, false
-	}
-	for _, gw := range gateways {
-		key := gw.GetNamespace() + "/" + gw.GetName()
-		allGateways = append(allGateways, key)
-	}
-	return allGateways, true
-}
-
-func t1LRNSToIngress(t1LR, namespace, key string) ([]string, bool) {
-	allIngresses := make([]string, 0)
-	ingresses, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).List(labels.Set(nil).AsSelector())
-	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: Failed to list Ingresses in the namespace %s", key, namespace)
-		return allIngresses, false
-	}
-	for _, ing := range ingresses {
-		key := ing.GetNamespace() + "/" + ing.GetName()
-		allIngresses = append(allIngresses, key)
-	}
-	return allIngresses, true
-}
-
 func infraSettingNSToIngress(infraSettingName, key string) ([]string, bool) {
 	allIngresses := make([]string, 0)
 	namespaces, err := utils.GetInformers().NSInformer.Informer().GetIndexer().ByIndex(lib.AviSettingNamespaceIndex, infraSettingName)
@@ -1145,8 +1113,8 @@ func infraSettingNSToIngress(infraSettingName, key string) ([]string, bool) {
 		return allIngresses, false
 	}
 	for _, ns := range namespaces {
-		namespace, _ := ns.(string)
-		ingresses, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).List(labels.Set(nil).AsSelector())
+		namespace, _ := ns.(*v1.Namespace)
+		ingresses, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace.GetName()).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: Failed to list Ingresses in the namespace %s", key, namespace)
 			return allIngresses, false
@@ -1167,8 +1135,8 @@ func infraSettingNSToGateway(infraSettingName, key string) ([]string, bool) {
 		return allGateways, false
 	}
 	for _, ns := range namespaces {
-		namespace, _ := ns.(string)
-		gateways, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).List(labels.Set(nil).AsSelector())
+		namespace, _ := ns.(*v1.Namespace)
+		gateways, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace.GetName()).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: Failed to list Gateways in the namespace %s", key, namespace)
 			return allGateways, false
@@ -1189,8 +1157,8 @@ func infraSettingNSToServices(infraSettingName, key string) ([]string, bool) {
 		return allServices, false
 	}
 	for _, ns := range namespaces {
-		namespace, _ := ns.(string)
-		services, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).List(labels.Set(nil).AsSelector())
+		namespace, _ := ns.(*v1.Namespace)
+		services, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace.GetName()).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: Failed to list Services in the namespace %s", key, namespace)
 			return allServices, false
@@ -1214,8 +1182,8 @@ func infraSettingNSToRoutes(infraSettingName, key string) ([]interface{}, bool) 
 		return allRoutes, false
 	}
 	for _, ns := range namespaces {
-		namespace, _ := ns.(string)
-		routes, err := utils.GetInformers().RouteInformer.Lister().Routes(namespace).List(labels.Set(nil).AsSelector())
+		namespace, _ := ns.(*v1.Namespace)
+		routes, err := utils.GetInformers().RouteInformer.Lister().Routes(namespace.GetName()).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: Failed to list Routes in the namespace %s", key, namespace)
 			return allRoutes, false

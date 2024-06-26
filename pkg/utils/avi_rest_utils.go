@@ -36,7 +36,7 @@ type AviRestClientPool struct {
 var AviClientInstance *AviRestClientPool
 
 func NewAviRestClientPool(num uint32, api_ep, username,
-	password, authToken, controllerVersion, ctrlCAData string) (*AviRestClientPool, string, error) {
+	password, authToken, controllerVersion, ctrlCAData, tenant, protocol string, userHeaders map[string]string) (*AviRestClientPool, string, error) {
 	var clientPool AviRestClientPool
 	var wg sync.WaitGroup
 	var globalErr error
@@ -47,10 +47,15 @@ func NewAviRestClientPool(num uint32, api_ep, username,
 		session.DisableControllerStatusCheckOnFailure(true),
 		session.SetTransport(transport),
 		session.SetTimeout(120 * time.Second),
+		session.SetTenant(tenant),
+		session.SetUserHeader(userHeaders),
 	}
 
-	if !isSecure {
+	if !isSecure || protocol == "http" {
 		options = append(options, session.SetInsecure)
+	}
+	if protocol == "http" {
+		options = append(options, session.SetScheme("http"))
 	}
 
 	if authToken == "" {

@@ -140,6 +140,7 @@ const (
 	SyncStatusKey                              = "syncstatus"
 	NoFreeIPError                              = "No available free IPs"
 	ConfigDisallowedDuringUpgradeError         = "Configuration is disallowed during upgrade"
+	VSDataScriptNotFoundError                  = "VSDataScriptSet object not found"
 	VSVIPNotFoundError                         = "VsVip object not found"
 	DataScript                                 = "Vsdatascript"
 	EVHVS                                      = "EVH VirtualService"
@@ -158,6 +159,8 @@ const (
 	L4PS                                       = "L4 Policyset"
 	L4PSRule                                   = "L4 Policyset Rule"
 	SNIVS                                      = "SNI VirtualService"
+	StringGroup                                = "StringGroup"
+	StringGroupNode                            = "StringGroupNode"
 	VIP                                        = "VS VIP"
 	PG                                         = "Poolgroup"
 	PriorityLabel                              = "PriorityLabel"
@@ -201,6 +204,9 @@ const (
 	VrfContextNotFoundError                    = "VrfContext not found"
 	HTTPMethodGet                              = "GET"
 	HTTPMethodPut                              = "PUT"
+	VrfContextObjectNotFoundError              = "VrfContext object not found"
+	NetworkNotFoundError                       = "Network object not found"
+	CtrlVersion_22_1_6                         = "22.1.6"
 
 	// AKO Event constants
 	AKOEventComponent        = "avi-kubernetes-operator"
@@ -256,6 +262,7 @@ const (
 	CalicoIPv4AddressAnnotation      = "projectcalico.org/IPv4Address"
 	CalicoIPv6AddressAnnotation      = "projectcalico.org/IPv6Address"
 	AntreaTransportAddressAnnotation = "node.antrea.io/transport-addresses"
+	TenantAnnotation                 = "ako.vmware.com/tenant-name"
 
 	// Specifies command used in namespace event handler
 	NsFilterAdd                    = "ADD"

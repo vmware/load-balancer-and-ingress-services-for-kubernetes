@@ -105,6 +105,7 @@ type AviVsEvhSniModel interface {
 
 	GetNetworkSecurityPolicyRef() *string
 	SetNetworkSecurityPolicyRef(*string)
+	GetTenant() string
 }
 
 type AviEvhVsNode struct {
@@ -346,6 +347,10 @@ func (v *AviEvhVsNode) GetNetworkSecurityPolicyRef() *string {
 
 func (v *AviEvhVsNode) SetNetworkSecurityPolicyRef(networkSecuirtyPolicyRef *string) {
 	v.NetworkSecurityPolicyRef = networkSecuirtyPolicyRef
+}
+
+func (v *AviEvhVsNode) GetTenant() string {
+	return v.Tenant
 }
 
 func (o *AviObjectGraph) GetAviEvhVS() []*AviEvhVsNode {
@@ -779,7 +784,7 @@ func (o *AviEvhVsNode) ReplaceHTTPRefInNodeForEvh(httpPGPath AviHostPathPortPool
 
 // Insecure ingress graph functions below
 
-func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, routeIgrObj RouteIngressModel, dedicated, secure bool) {
+func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, tenant, key string, routeIgrObj RouteIngressModel, dedicated, secure bool) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 
@@ -787,7 +792,7 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 	// Default case
 	avi_vs_meta := &AviEvhVsNode{
 		Name:               vsName,
-		Tenant:             lib.GetTenant(),
+		Tenant:             tenant,
 		ServiceEngineGroup: lib.GetSEGName(),
 		PortProto: []AviPortHostProtocol{
 			{Port: 80, Protocol: utils.HTTP},
@@ -826,12 +831,12 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, key string, ro
 
 	shardSize := lib.GetShardSizeFromAviInfraSetting(routeIgrObj.GetAviInfraSetting())
 	subDomains := GetDefaultSubDomain()
-	fqdns, fqdn := lib.GetFqdns(vsName, key, subDomains, shardSize)
+	fqdns, fqdn := lib.GetFqdns(vsName, key, tenant, subDomains, shardSize)
 	configuredSharedVSFqdn := fqdn
 
 	vsVipNode := &AviVSVIPNode{
 		Name:        lib.GetVsVipName(vsName),
-		Tenant:      lib.GetTenant(),
+		Tenant:      tenant,
 		FQDNs:       fqdns,
 		VrfContext:  vrfcontext,
 		VipNetworks: utils.GetVipNetworkList(),
@@ -861,9 +866,10 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 	pathSet := sets.NewString(childNode.Paths...)
 
 	var infraSettingName string
-	if infraSetting != nil {
+	if infraSetting != nil && !lib.IsInfraSettingNSScoped(infraSetting.Name, namespace) {
 		infraSettingName = infraSetting.Name
 	}
+
 	ingressNameSet := sets.NewString(childNode.IngressNames...)
 	ingressNameSet.Insert(ingName)
 	// Update the VSVIP with the host information.
@@ -880,7 +886,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 		}
 	}
 	if policyNode == nil {
-		policyNode = &AviHttpPolicySetNode{Name: httppolname, Tenant: lib.GetTenant()}
+		policyNode = &AviHttpPolicySetNode{Name: httppolname, Tenant: vsNode[0].Tenant}
 		childNode.HttpPolicyRefs = append(childNode.HttpPolicyRefs, policyNode)
 	}
 
@@ -907,7 +913,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 		// In that case, make sure we are creating only one PG per path
 		pgNode, pgfound := localPGList[pgName]
 		if !pgfound {
-			pgNode = &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
+			pgNode = &AviPoolGroupNode{Name: pgName, Tenant: vsNode[0].Tenant}
 			localPGList[pgName] = pgNode
 			httpPGPath.PoolGroup = pgNode.Name
 			httpPGPath.Host = allFqdns
@@ -918,7 +924,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 		poolNode := &AviPoolNode{
 			Name:       poolName,
 			PortName:   path.PortName,
-			Tenant:     lib.GetTenant(),
+			Tenant:     vsNode[0].Tenant,
 			VrfContext: lib.GetVrf(),
 			Port:       path.Port,
 			TargetPort: path.TargetPort,
@@ -1038,12 +1044,12 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 		hostsMap[host].PathSvc = getPathSvc(pathsvcmap.ingressHPSvc)
 
 		_, shardVsName := DeriveShardVSForEvh(host, key, routeIgrObj)
-		modelName := lib.GetModelName(lib.GetTenant(), shardVsName.Name)
+		modelName := lib.GetModelName(shardVsName.Tenant, shardVsName.Name)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {
 			utils.AviLog.Infof("key: %s, msg: model not found, generating new model with name: %s", key, modelName)
 			aviModel = NewAviObjectGraph()
-			aviModel.(*AviObjectGraph).ConstructAviL7SharedVsNodeForEvh(shardVsName.Name, key, routeIgrObj, shardVsName.Dedicated, false)
+			aviModel.(*AviObjectGraph).ConstructAviL7SharedVsNodeForEvh(shardVsName.Name, shardVsName.Tenant, key, routeIgrObj, shardVsName.Dedicated, false)
 		}
 		vsNode := aviModel.(*AviObjectGraph).GetAviEvhVS()
 		infraSetting := routeIgrObj.GetAviInfraSetting()
@@ -1076,7 +1082,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 	namespace := routeIgrObj.GetNamespace()
 	isDedicated := vsNode[0].Dedicated
 	var infraSettingName string
-	if infraSetting != nil {
+	if infraSetting != nil && !lib.IsInfraSettingNSScoped(infraSetting.Name, namespace) {
 		infraSettingName = infraSetting.Name
 	}
 
@@ -1095,7 +1101,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 			evhNode = &AviEvhVsNode{
 				Name:         evhNodeName,
 				VHParentName: vsNode[0].Name,
-				Tenant:       lib.GetTenant(),
+				Tenant:       vsNode[0].Tenant,
 				EVHParent:    false,
 				EvhHostName:  host,
 				ServiceMetadata: lib.ServiceMetadataObj{
@@ -1189,7 +1195,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 
 // BuildCACertNode : Build a new node to store CA cert, this would be referred by the corresponding keycert
 func (o *AviObjectGraph) BuildCACertNodeForEvh(tlsNode *AviEvhVsNode, cacert, infraSettingName, host, key string) string {
-	cacertNode := &AviTLSKeyCertNode{Name: lib.GetCACertNodeName(infraSettingName, host), Tenant: lib.GetTenant()}
+	cacertNode := &AviTLSKeyCertNode{Name: lib.GetCACertNodeName(infraSettingName, host), Tenant: tlsNode.Tenant}
 	cacertNode.Type = lib.CertTypeCA
 	cacertNode.Cert = []byte(cacert)
 	cacertNode.AviMarkers = lib.PopulateTLSKeyCertNode(host, infraSettingName)
@@ -1237,7 +1243,7 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 	if !foundTLSKeyCertNode {
 		certNode = &AviTLSKeyCertNode{
 			Name:   lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName),
-			Tenant: lib.GetTenant(),
+			Tenant: tlsNode.Tenant,
 			Type:   lib.CertTypeVS,
 		}
 		certNode.AviMarkers = lib.PopulateTLSKeyCertNode(host, infraSettingName)
@@ -1308,7 +1314,7 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 				if !foundTLSKeyCertNode {
 					altCertNode = &AviTLSKeyCertNode{
 						Name:       lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName+"-alt"),
-						Tenant:     lib.GetTenant(),
+						Tenant:     tlsNode.Tenant,
 						Type:       lib.CertTypeVS,
 						AviMarkers: certNode.AviMarkers,
 						Cert:       altCert,
@@ -1389,12 +1395,12 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		_, shardVsName := DeriveShardVSForEvh(host, key, routeIgrObj)
 		// For each host, create a EVH node with the secret giving us the key and cert.
 		// construct a EVH child VS node per tls setting which corresponds to one secret
-		model_name := lib.GetModelName(lib.GetTenant(), shardVsName.Name)
+		model_name := lib.GetModelName(shardVsName.Tenant, shardVsName.Name)
 		found, aviModel := objects.SharedAviGraphLister().Get(model_name)
 		if !found || aviModel == nil {
 			utils.AviLog.Infof("key: %s, msg: model not found, generating new model with name: %s", key, model_name)
 			aviModel = NewAviObjectGraph()
-			aviModel.(*AviObjectGraph).ConstructAviL7SharedVsNodeForEvh(shardVsName.Name, key, routeIgrObj, shardVsName.Dedicated, true)
+			aviModel.(*AviObjectGraph).ConstructAviL7SharedVsNodeForEvh(shardVsName.Name, shardVsName.Tenant, key, routeIgrObj, shardVsName.Dedicated, true)
 		}
 
 		vsNode := aviModel.(*AviObjectGraph).GetAviEvhVS()
@@ -1436,7 +1442,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 	}
 
 	var infraSettingName string
-	if infraSetting != nil {
+	if infraSetting != nil && !lib.IsInfraSettingNSScoped(infraSetting.Name, namespace) {
 		infraSettingName = infraSetting.Name
 	}
 	if !isDedicated {
@@ -1446,7 +1452,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			evhNode = &AviEvhVsNode{
 				Name:         childVSName,
 				VHParentName: vsNode[0].Name,
-				Tenant:       lib.GetTenant(),
+				Tenant:       vsNode[0].Tenant,
 				EVHParent:    false,
 				EvhHostName:  host,
 				ServiceMetadata: lib.ServiceMetadataObj{
@@ -1665,7 +1671,9 @@ func DeleteStaleDataForEvh(routeIgrObj RouteIngressModel, key string, modelList 
 	utils.AviLog.Debugf("key: %s, msg: About to delete stale data EVH Stored hosts: %v, hosts map: %v", key, utils.Stringify(Storedhosts), utils.Stringify(hostsMap))
 	var infraSettingName string
 	if aviInfraSetting := routeIgrObj.GetAviInfraSetting(); aviInfraSetting != nil {
-		infraSettingName = aviInfraSetting.Name
+		if !lib.IsInfraSettingNSScoped(aviInfraSetting.Name, routeIgrObj.GetNamespace()) {
+			infraSettingName = aviInfraSetting.Name
+		}
 	}
 
 	for host, hostData := range Storedhosts {
@@ -1674,7 +1682,7 @@ func DeleteStaleDataForEvh(routeIgrObj RouteIngressModel, key string, modelList 
 		if hostData.SecurePolicy == lib.PolicyPass {
 			_, shardVsName.Name = DerivePassthroughVS(host, key, routeIgrObj)
 		}
-		modelName := lib.GetModelName(lib.GetTenant(), shardVsName.Name)
+		modelName := lib.GetModelName(shardVsName.Tenant, shardVsName.Name)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {
 			utils.AviLog.Warnf("key: %s, msg: model not found during delete: %s", key, modelName)
@@ -1731,13 +1739,22 @@ func DeriveShardVSForEvh(hostname, key string, routeIgrObj RouteIngressModel) (l
 	var newVSNameMeta lib.VSNameMetadata
 	// get stored infrasetting from ingress/route
 	// figure out the current infrasetting via class/annotation
+	oldTenant := objects.SharedNamespaceTenantLister().GetTenantInNamespace(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName())
+	if oldTenant == "" {
+		oldTenant = lib.GetTenant()
+	}
+	newTenant := lib.GetTenantInNamespace(routeIgrObj.GetNamespace())
+
 	var oldSettingName string
 	var found bool
 	if found, oldSettingName = objects.InfraSettingL7Lister().GetIngRouteToInfraSetting(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName()); found {
 		if found, shardSize := objects.InfraSettingL7Lister().GetInfraSettingToShardSize(oldSettingName); found && shardSize != "" {
 			oldShardSize = lib.ShardSizeMap[shardSize]
 		}
-		oldInfraPrefix = oldSettingName
+
+		if !lib.IsInfraSettingNSScoped(oldSettingName, routeIgrObj.GetNamespace()) {
+			oldInfraPrefix = oldSettingName
+		}
 	} else {
 		utils.AviLog.Debugf("AviInfraSetting %s not found in cache", oldSettingName)
 	}
@@ -1747,11 +1764,14 @@ func DeriveShardVSForEvh(hostname, key string, routeIgrObj RouteIngressModel) (l
 		// get the old ones.
 		newShardSize = oldShardSize
 		newInfraPrefix = oldInfraPrefix
+		newTenant = oldTenant
 	} else if newSetting != nil {
 		if newSetting.Spec.L7Settings != (akov1beta1.AviInfraL7Settings{}) {
 			newShardSize = lib.ShardSizeMap[newSetting.Spec.L7Settings.ShardSize]
 		}
-		newInfraPrefix = newSetting.Name
+		if !lib.IsInfraSettingNSScoped(newSetting.Name, routeIgrObj.GetNamespace()) {
+			newInfraPrefix = newSetting.Name
+		}
 	}
 	shardVsPrefix := lib.GetNamePrefix() + lib.GetAKOIDPrefix() + lib.ShardEVHVSPrefix
 	oldVsName, newVsName := shardVsPrefix, shardVsPrefix
@@ -1782,8 +1802,10 @@ func DeriveShardVSForEvh(hostname, key string, routeIgrObj RouteIngressModel) (l
 		}
 	}
 	oldVSNameMeta.Name = oldVsName
+	oldVSNameMeta.Tenant = oldTenant
 	newVSNameMeta.Name = newVsName
-	utils.AviLog.Infof("key: %s, msg: ShardVSNames: %s %s", key, oldVsName, newVsName)
+	newVSNameMeta.Tenant = newTenant
+	utils.AviLog.Infof("key: %s, msg: ShardVSNames: %v %v", key, oldVSNameMeta, newVSNameMeta)
 	return oldVSNameMeta, newVSNameMeta
 }
 func GetDedicatedVSName(host, infrasettingName string) string {
@@ -1979,7 +2001,7 @@ func (o *AviObjectGraph) BuildPolicyRedirectForVSForEvh(vsNode *AviEvhVsNode, ho
 	}
 
 	redirectPolicy := &AviHttpPolicySetNode{
-		Tenant:        lib.GetTenant(),
+		Tenant:        vsNode.Tenant,
 		Name:          policyname,
 		RedirectPorts: []AviRedirectPort{myHppMap},
 	}
@@ -2002,7 +2024,7 @@ func (o *AviObjectGraph) BuildHTTPSecurityPolicyForVSForEvh(vsNode *AviEvhVsNode
 	}
 
 	securityPolicy := &AviHttpPolicySetNode{
-		Tenant:        lib.GetTenant(),
+		Tenant:        vsNode.Tenant,
 		Name:          policyname,
 		SecurityRules: []AviHTTPSecurity{securityRule},
 	}
@@ -2022,9 +2044,13 @@ func RouteIngrDeletePoolsByHostnameForEvh(routeIgrObj RouteIngressModel, namespa
 		return
 	}
 
-	var infraSettingName string
-	if aviInfraSetting := routeIgrObj.GetAviInfraSetting(); aviInfraSetting != nil {
-		infraSettingName = aviInfraSetting.Name
+	_, infraSettingName := objects.InfraSettingL7Lister().GetIngRouteToInfraSetting(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName())
+	tenant := objects.SharedNamespaceTenantLister().GetTenantInNamespace(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName())
+	if tenant == "" {
+		tenant = lib.GetTenant()
+	}
+	if lib.IsInfraSettingNSScoped(infraSettingName, namespace) {
+		infraSettingName = ""
 	}
 
 	utils.AviLog.Debugf("key: %s, msg: hosts to delete are :%s", key, utils.Stringify(hostMap))
@@ -2035,7 +2061,8 @@ func RouteIngrDeletePoolsByHostnameForEvh(routeIgrObj RouteIngressModel, namespa
 			shardVsName.Name, _ = DerivePassthroughVS(host, key, routeIgrObj)
 		}
 
-		modelName := lib.GetModelName(lib.GetTenant(), shardVsName.Name)
+		SharedHostNameLister().DeleteNamespace(host)
+		modelName := lib.GetModelName(tenant, shardVsName.Name)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {
 			utils.AviLog.Warnf("key: %s, msg: model not found during delete: %s", key, modelName)
@@ -2084,17 +2111,19 @@ func DeleteStaleDataForModelChangeForEvh(routeIgrObj RouteIngressModel, namespac
 	utils.AviLog.Debugf("key: %s, msg: hosts to delete %s", key, utils.Stringify(hostMap))
 	for host, hostData := range hostMap {
 
+		shardVsName, newShardVsName = DeriveShardVSForEvh(host, key, routeIgrObj)
 		if hostData.SecurePolicy == lib.PolicyPass {
 			shardVsName.Name, newShardVsName.Name = DerivePassthroughVS(host, key, routeIgrObj)
-		} else {
-			shardVsName, newShardVsName = DeriveShardVSForEvh(host, key, routeIgrObj)
 		}
 		if shardVsName == newShardVsName {
 			continue
 		}
 
 		_, infraSettingName := objects.InfraSettingL7Lister().GetIngRouteToInfraSetting(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName())
-		modelName := lib.GetModelName(lib.GetTenant(), shardVsName.Name)
+		if lib.IsInfraSettingNSScoped(infraSettingName, namespace) {
+			infraSettingName = ""
+		}
+		modelName := lib.GetModelName(shardVsName.Tenant, shardVsName.Name)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {
 			utils.AviLog.Warnf("key: %s, msg: model not found during delete: %s", key, modelName)
