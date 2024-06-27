@@ -391,3 +391,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Fixed
  - Fix: Static routes are not added due to error `Unique constraints route_id has duplicated value` when calico CNI allocates multiple block-affinities for a node and that may result in AKO crash.
+
+## AKO-1.10.5
+
+### Fixed
+ - Fix: AKO does not honour readiness probes for pods when Antrea CNI is used with service type NodePortLocal. This causes traffic to be black-holed as Avi ends up sending traffic to pods before the containers are ready.
