@@ -1931,12 +1931,12 @@ func (c *AviObjCache) PopulateL4PolicySetToCache(client *clients.AviClient, clou
 
 func (c *AviObjCache) AviPopulateAllStringGroups(client *clients.AviClient, cloud string, StringGroupData *[]AviStringGroupCache, nextPage ...NextPage) (*[]AviStringGroupCache, int, error) {
 	var uri string
-	akoUser := lib.AKOUser
 
 	if len(nextPage) == 1 {
 		uri = nextPage[0].NextURI
 	} else {
-		uri = "/api/stringgroup/?" + "&include_name=true&created_by=" + akoUser
+		//Fetching container specific StringGroups
+		uri = "/api/stringgroup?&include_name=true&label_key=created_by&label_value=" + lib.GetAKOUser()
 	}
 
 	result, err := lib.AviGetCollectionRaw(client, uri)

@@ -181,7 +181,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 				addRequestString = addRequestString + addRequestFilter.Name + ":" + addRequestFilter.Value + ","
 			}
 			addRequestString = strings.TrimSuffix(addRequestString, ",")
-			name := akogatewayapilib.Prefix + akogatewayapilib.AddHeaderStringGroup
+			name := lib.GetAKOUser() + "-" + akogatewayapilib.AddHeaderStringGroup
 			description := "StringGroup to support ADDRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
 			o.AddOrUpdateStringGroupNode(key, name, description, poolName, addRequestString)
 
@@ -190,7 +190,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 				setRequestString = setRequestString + setRequestFilter.Name + ":" + setRequestFilter.Value + ","
 			}
 			setRequestString = strings.TrimSuffix(setRequestString, ",")
-			name = akogatewayapilib.Prefix + akogatewayapilib.UpdateHeaderStringGroup
+			name = lib.GetAKOUser() + "-" + akogatewayapilib.UpdateHeaderStringGroup
 			description = "StringGroup to support UpdateRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
 			o.AddOrUpdateStringGroupNode(key, name, description, poolName, setRequestString)
 
@@ -199,7 +199,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 				removeRequestString = removeRequestString + removeRequestKey + ","
 			}
 			removeRequestString = strings.TrimSuffix(removeRequestString, ",")
-			name = akogatewayapilib.Prefix + akogatewayapilib.DeleteHeaderStringGroup
+			name = lib.GetAKOUser() + "-" + akogatewayapilib.DeleteHeaderStringGroup
 			description = "StringGroup to support DeleteRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
 			o.AddOrUpdateStringGroupNode(key, name, description, poolName, removeRequestString)
 		}
@@ -449,7 +449,9 @@ func (o *AviObjectGraph) ConstructBackendFilterDataScript(key string) *nodes.Avi
 			Evt:    "VS_DATASCRIPT_EVT_HTTP_LB_DONE",
 		},
 	}
-	dsScriptNode.StringGroups = append(dsScriptNode.StringGroups, akogatewayapilib.Prefix+akogatewayapilib.AddHeaderStringGroup, akogatewayapilib.Prefix+akogatewayapilib.UpdateHeaderStringGroup, akogatewayapilib.Prefix+akogatewayapilib.DeleteHeaderStringGroup)
+
+	dsScriptNode.Script = strings.Replace(dsScriptNode.Script, "NAMEPREFIX", lib.GetAKOUser(), 3)
+	dsScriptNode.StringGroups = append(dsScriptNode.StringGroups, lib.GetAKOUser()+"-"+akogatewayapilib.AddHeaderStringGroup, lib.GetAKOUser()+"-"+akogatewayapilib.UpdateHeaderStringGroup, lib.GetAKOUser()+"-"+akogatewayapilib.DeleteHeaderStringGroup)
 	o.AddModelNode(dsScriptNode)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	dataScriptNamespaceName := lib.GetTenant() + "/" + datascriptName
@@ -462,11 +464,11 @@ func (o *AviObjectGraph) ConstructBackendFilterDataScript(key string) *nodes.Avi
 }
 
 func (o *AviObjectGraph) UpdateStringGroupsOnRouteDeletion(key string, poolName string) {
-	addStringGroupName := akogatewayapilib.Prefix + akogatewayapilib.AddHeaderStringGroup
+	addStringGroupName := lib.GetAKOUser() + "-" + akogatewayapilib.AddHeaderStringGroup
 	addStringGroupDescription := "StringGroup to support ADDRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
-	setStringGroupName := akogatewayapilib.Prefix + akogatewayapilib.UpdateHeaderStringGroup
+	setStringGroupName := lib.GetAKOUser() + "-" + akogatewayapilib.UpdateHeaderStringGroup
 	setStringGroupDescription := "StringGroup to support UpdateRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
-	removeStringGroupName := akogatewayapilib.Prefix + akogatewayapilib.DeleteHeaderStringGroup
+	removeStringGroupName := lib.GetAKOUser() + "-" + akogatewayapilib.DeleteHeaderStringGroup
 	removeStringGroupDescription := "StringGroup to support DeleteRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
 
 	o.AddOrUpdateStringGroupNode(key, addStringGroupName, addStringGroupDescription, poolName, "")
@@ -475,14 +477,14 @@ func (o *AviObjectGraph) UpdateStringGroupsOnRouteDeletion(key string, poolName 
 }
 
 func (o *AviObjectGraph) RemovePoolNameFromStringGroups(currentEvhNodeName string, modelEvhNodes []*nodes.AviEvhVsNode, key string) {
-	if len(modelEvhNodes[0].EvhNodes) > 0 {
+	if len(modelEvhNodes) > 0 && len(modelEvhNodes[0].EvhNodes) > 0 {
 		for _, modelEvhNode := range modelEvhNodes[0].EvhNodes {
 			if currentEvhNodeName == modelEvhNode.Name {
-				utils.AviLog.Infof("key: %s, msg: removed datascriptrefs in model: %s", key, currentEvhNodeName)
-
-				poolname := modelEvhNode.PoolRefs[0].Name
-
-				o.UpdateStringGroupsOnRouteDeletion(key, poolname)
+				utils.AviLog.Infof("key: %s, msg: Updating stringgroups for model: %s", key, currentEvhNodeName)
+				if len(modelEvhNode.PoolRefs) > 0 {
+					poolname := modelEvhNode.PoolRefs[0].Name
+					o.UpdateStringGroupsOnRouteDeletion(key, poolname)
+				}
 				return
 			}
 		}
