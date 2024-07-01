@@ -2,33 +2,25 @@
 
 set -xe
 
-version_tag=$($WORKSPACE/hack/jenkins/get_build_version.sh $JOB_NAME $BUILD_NUMBER)
-
 sudo docker images
 
-source_image=$DOCKER_AKO_IMAGE_NAME:latest
+version_tag=$($WORKSPACE/hack/jenkins/get_build_version.sh $JOB_NAME $BUILD_NUMBER)
+branch_version=$($WORKSPACE/hack/jenkins/get_branch_version.sh)
+version_numbers=(${branch_version//./ })
+minor_version=${version_numbers[1]}
 
-target_image=$PVT_DOCKER_REGISTRY/$PVT_DOCKER_REPOSITORY/$DOCKER_AKO_IMAGE_NAME:$version_tag
+AKO_IMAGES=($DOCKER_AKO_IMAGE_NAME $DOCKER_AKO_OPERATOR_IMAGE_NAME)
 
-sudo docker tag $source_image $target_image
+if [ "$minor_version" -ge "11" ]; then
+    AKO_IMAGES+=($DOCKER_AKO_GATEWAY_API_IMAGE_NAME)
+fi
 
-sudo docker push $target_image
+echo ${AKO_IMAGES[@]}
 
-
-source_image=$DOCKER_AKO_OPERATOR_IMAGE_NAME:latest
-
-target_image=$PVT_DOCKER_REGISTRY/$PVT_DOCKER_REPOSITORY/$DOCKER_AKO_OPERATOR_IMAGE_NAME:$version_tag
-
-sudo docker tag $source_image $target_image
-
-sudo docker push $target_image
-
-
-source_image=$DOCKER_AKO_GATEWAY_API_IMAGE_NAME:latest
-
-target_image=$PVT_DOCKER_REGISTRY/$PVT_DOCKER_REPOSITORY/$DOCKER_AKO_GATEWAY_API_IMAGE_NAME:$version_tag
-
-sudo docker tag $source_image $target_image
-
-sudo docker push $target_image
-
+for image in "${AKO_IMAGES[@]}"
+do
+  source_image=$image:latest
+  target_image=$PVT_DOCKER_REGISTRY/$PVT_DOCKER_REPOSITORY/$image:$version_tag
+  sudo docker tag $source_image $target_image
+  sudo docker push $target_image
+done
