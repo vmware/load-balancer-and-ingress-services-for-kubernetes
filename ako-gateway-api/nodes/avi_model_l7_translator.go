@@ -181,7 +181,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 				addRequestString = addRequestString + addRequestFilter.Name + ":" + addRequestFilter.Value + ","
 			}
 			addRequestString = strings.TrimSuffix(addRequestString, ",")
-			name := akogatewayapilib.Prefix + akogatewayapilib.AddHeaderStringGroup
+			name := akogatewayapilib.Prefix + lib.GetClusterName() + "-" + akogatewayapilib.AddHeaderStringGroup
 			description := "StringGroup to support ADDRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
 			o.AddOrUpdateStringGroupNode(key, name, description, poolName, addRequestString)
 
@@ -190,7 +190,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 				setRequestString = setRequestString + setRequestFilter.Name + ":" + setRequestFilter.Value + ","
 			}
 			setRequestString = strings.TrimSuffix(setRequestString, ",")
-			name = akogatewayapilib.Prefix + akogatewayapilib.UpdateHeaderStringGroup
+			name = akogatewayapilib.Prefix + lib.GetClusterName() + "-" + akogatewayapilib.UpdateHeaderStringGroup
 			description = "StringGroup to support UpdateRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
 			o.AddOrUpdateStringGroupNode(key, name, description, poolName, setRequestString)
 
@@ -199,7 +199,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 				removeRequestString = removeRequestString + removeRequestKey + ","
 			}
 			removeRequestString = strings.TrimSuffix(removeRequestString, ",")
-			name = akogatewayapilib.Prefix + akogatewayapilib.DeleteHeaderStringGroup
+			name = akogatewayapilib.Prefix + lib.GetClusterName() + "-" + akogatewayapilib.DeleteHeaderStringGroup
 			description = "StringGroup to support DeleteRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
 			o.AddOrUpdateStringGroupNode(key, name, description, poolName, removeRequestString)
 		}
@@ -449,7 +449,8 @@ func (o *AviObjectGraph) ConstructBackendFilterDataScript(key string) *nodes.Avi
 			Evt:    "VS_DATASCRIPT_EVT_HTTP_LB_DONE",
 		},
 	}
-	dsScriptNode.StringGroups = append(dsScriptNode.StringGroups, akogatewayapilib.Prefix+akogatewayapilib.AddHeaderStringGroup, akogatewayapilib.Prefix+akogatewayapilib.UpdateHeaderStringGroup, akogatewayapilib.Prefix+akogatewayapilib.DeleteHeaderStringGroup)
+	dsScriptNode.Script = strings.Replace(dsScriptNode.Script, "CLUSTER", lib.GetClusterName(), 3)
+	dsScriptNode.StringGroups = append(dsScriptNode.StringGroups, akogatewayapilib.Prefix+lib.GetClusterName()+"-"+akogatewayapilib.AddHeaderStringGroup, akogatewayapilib.Prefix+lib.GetClusterName()+"-"+akogatewayapilib.UpdateHeaderStringGroup, akogatewayapilib.Prefix+lib.GetClusterName()+"-"+akogatewayapilib.DeleteHeaderStringGroup)
 	o.AddModelNode(dsScriptNode)
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	dataScriptNamespaceName := lib.GetTenant() + "/" + datascriptName
@@ -462,11 +463,11 @@ func (o *AviObjectGraph) ConstructBackendFilterDataScript(key string) *nodes.Avi
 }
 
 func (o *AviObjectGraph) UpdateStringGroupsOnRouteDeletion(key string, poolName string) {
-	addStringGroupName := akogatewayapilib.Prefix + akogatewayapilib.AddHeaderStringGroup
+	addStringGroupName := akogatewayapilib.Prefix + lib.GetClusterName() + "-" + akogatewayapilib.AddHeaderStringGroup
 	addStringGroupDescription := "StringGroup to support ADDRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
-	setStringGroupName := akogatewayapilib.Prefix + akogatewayapilib.UpdateHeaderStringGroup
+	setStringGroupName := akogatewayapilib.Prefix + lib.GetClusterName() + "-" + akogatewayapilib.UpdateHeaderStringGroup
 	setStringGroupDescription := "StringGroup to support UpdateRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
-	removeStringGroupName := akogatewayapilib.Prefix + akogatewayapilib.DeleteHeaderStringGroup
+	removeStringGroupName := akogatewayapilib.Prefix + lib.GetClusterName() + "-" + akogatewayapilib.DeleteHeaderStringGroup
 	removeStringGroupDescription := "StringGroup to support DeleteRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
 
 	o.AddOrUpdateStringGroupNode(key, addStringGroupName, addStringGroupDescription, poolName, "")
