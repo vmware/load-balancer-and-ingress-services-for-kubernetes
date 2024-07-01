@@ -50,11 +50,11 @@ echo ${AKO_IMAGES[@]}
 
 for image in "${AKO_IMAGES[@]}"
 do
-    source_image=$PVT_DOCKER_REGISTRY/$PVT_DOCKER_REPOSITORY/$image:$version_tag
+    source_image=$PVT_DOCKER_REGISTRY/$PVT_DOCKER_REPOSITORY/$branch/$image:$version_tag
     sudo docker pull $source_image
     for registry in "${registries[@]}"
     do
-        target_image="$registry/$PVT_DOCKER_REPOSITORY/$image:$version_tag"
+        target_image="$registry/$PVT_DOCKER_REPOSITORY/$branch/$image:$version_tag"
         echo "Tagging and pushing to registry: $registry"
         sudo docker tag $source_image $target_image
         sudo docker push $target_image
