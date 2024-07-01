@@ -79,11 +79,6 @@ func (c *GatewayController) Start(stopCh <-chan struct{}) {
 		informersList = append(informersList, c.informers.SecretInformer.Informer().HasSynced)
 	}
 
-	if lib.GetServiceType() == lib.NodePortLocal {
-		go c.informers.PodInformer.Informer().Run(stopCh)
-		informersList = append(informersList, c.informers.PodInformer.Informer().HasSynced)
-	}
-
 	go akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Informer().Run(stopCh)
 	informersList = append(informersList, akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Informer().HasSynced)
 	go akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Informer().Run(stopCh)

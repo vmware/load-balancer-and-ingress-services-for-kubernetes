@@ -148,6 +148,11 @@ func Initialize() {
 		utils.AviLog.Errorf("Handle configmap error during reboot, shutting down AKO. Error is: %v", err)
 		return
 	}
+	if lib.GetServiceType() == lib.NodePortLocal {
+		akoControlConfig.PodEventf(corev1.EventTypeWarning, lib.AKOShutdown, "AKO Gateway API is not supported with NodePortLocal")
+		utils.AviLog.Errorf("AKO Gateway API is not supported with NodePortLocal, shutting down AKO Gateway API container")
+		select {}
+	}
 
 	waitGroupMap := make(map[string]*sync.WaitGroup)
 	wgIngestion := &sync.WaitGroup{}
