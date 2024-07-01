@@ -296,6 +296,46 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 	v6ServerCount := 0
 	var poolMeta []AviPoolMetaServer
 
+	// create a mapping from pod name to its endpoint condition
+	conditionMap := map[string]*bool{}
+	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
+		epSliceIntList, err := utils.GetInformers().EpSlicesInformer.Informer().GetIndexer().ByIndex(discovery.LabelServiceName, ns+"/"+serviceName)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: error while retrieving endpointsice: %s", key, err)
+			return nil
+		}
+		for _, epSliceInt := range epSliceIntList {
+			epSlice, isEpSliceClass := epSliceInt.(*discovery.EndpointSlice)
+			if !isEpSliceClass {
+				// not an epslice. continue
+				utils.AviLog.Warnf("key: %s, msg: invalid endpointslice object", key)
+				continue
+			}
+			// select epslice containing target port
+			var found = false
+			for _, port := range epSlice.Ports {
+				if poolNode.TargetPort.IntVal == *port.Port {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+			// we will go through the pods and build a map for condition
+			for _, pod := range pods {
+				for _, ep := range epSlice.Endpoints {
+					if ep.TargetRef.Name == pod.Name {
+						condition := enableServer(ep.Conditions)
+						conditionMap[pod.Name] = condition
+						utils.AviLog.Debugf("key: %s, msg: found pod %s with condition %t", key, pod.Name, *condition)
+						break
+					}
+				}
+			}
+		}
+	}
+
 	for _, pod := range pods {
 		var annotations []lib.NPLAnnotation
 		found, obj := objects.SharedNPLLister().Get(ns + "/" + pod.Name)
@@ -316,12 +356,20 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 			}
 			if (poolNode.TargetPort.Type == intstr.Int && a.PodPort == poolNode.TargetPort.IntValue()) ||
 				a.PodPort == int(targetPort) {
+				enabled, ok := conditionMap[pod.Name]
+				if !ok {
+					// not disabling just because the pod was not found in condition map. i.e. ignoring false negatives
+					utils.AviLog.Debugf("key: %s, msg: pod %s not found in condition map. enabling by default", key, pod.Name)
+					enabled = new(bool)
+					*enabled = true
+				}
 				server := AviPoolMetaServer{
 					Port: int32(a.NodePort),
 					Ip: models.IPAddr{
 						Addr: &a.NodeIP,
 						Type: &atype,
-					}}
+					},
+					Enabled: enabled}
 				poolMeta = append(poolMeta, server)
 			}
 		}
@@ -417,7 +465,6 @@ func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName st
 			} else {
 				continue
 			}
-
 			server := AviPoolMetaServer{Ip: serverIP}
 			poolMeta = append(poolMeta, server)
 		}
@@ -537,8 +584,10 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 				} else {
 					continue
 				}
+				// check condition
+				enabled := enableServer(addr.Conditions)
 				a := avimodels.IPAddr{Type: &atype, Addr: &ip}
-				server := AviPoolMetaServer{Ip: a}
+				server := AviPoolMetaServer{Ip: a, Enabled: enabled}
 				if addr.NodeName != nil {
 					server.ServerNode = *addr.NodeName
 				}
@@ -603,6 +652,23 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 		utils.AviLog.Infof("key: %s, msg: servers for port: %v , are: %v", key, poolNode.Port, utils.Stringify(pool_meta))
 	}
 	return pool_meta
+}
+
+func enableServer(condition discovery.EndpointConditions) *bool {
+	var ready, terminating bool
+	enabled := new(bool)
+	*enabled = true
+	if condition.Ready != nil {
+		ready = *condition.Ready
+	}
+	if condition.Terminating != nil {
+		terminating = *condition.Terminating
+	}
+	// giving benefit of doubt and not marking the server disabled if terminating state is not set
+	if !ready || terminating {
+		*enabled = false
+	}
+	return enabled
 }
 
 func PopulateServersForMultiClusterIngress(poolNode *AviPoolNode, ns, cluster, serviceNamespace, serviceName string, key string) []AviPoolMetaServer {

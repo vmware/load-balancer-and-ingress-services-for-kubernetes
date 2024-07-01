@@ -739,7 +739,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			oeps := old.(*discovery.EndpointSlice)
 			ceps := cur.(*discovery.EndpointSlice)
-			if !addressEqual(ceps.Endpoints, oeps.Endpoints) || !reflect.DeepEqual(oeps.Ports, ceps.Ports) {
+			if oeps.ResourceVersion != ceps.ResourceVersion {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ceps))
 				svcName, ok := ceps.Labels[discovery.LabelServiceName]
 				if !ok || svcName == "" {
@@ -1413,18 +1413,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		podEventHandler := AddPodEventHandler(numWorkers, c)
 		c.informers.PodInformer.Informer().AddEventHandler(podEventHandler)
 	}
-}
-
-func addressEqual(old, cur []discovery.Endpoint) bool {
-	if len(old) != len(cur) {
-		return false
-	}
-	for i := range old {
-		if old[i].Addresses[0] != cur[i].Addresses[0] {
-			return false
-		}
-	}
-	return true
 }
 
 func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
