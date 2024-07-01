@@ -558,9 +558,17 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 		vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
 	}
 
+	t1lr := lib.GetT1LRPath()
+	if t1lr != "" {
+		vsVipNode.VrfContext = ""
+		vsVipNode.T1Lr = t1lr
+		avi_vs_meta.VrfContext = ""
+	}
+
 	// configures VS and VsVip nodes using infraSetting object (via CRD).
 	if serviceObject != nil {
 		if infraSetting, err := getL4InfraSetting(key, namespace, serviceObject, nil); err == nil {
+			// This sets vsvipNode.t1lr from aviinfrasetting
 			buildWithInfraSetting(key, namespace, avi_vs_meta, vsVipNode, infraSetting)
 		}
 
@@ -594,6 +602,8 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 
 	var portPoolSet []AviHostPathPortPoolPG
 	subDomains := GetDefaultSubDomain()
+	t1lr := lib.GetT1LRPath()
+
 	for i, serviceNSName := range serviceNSNames {
 		svcNSName := strings.Split(serviceNSName, "/")
 		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(svcNSName[0]).Get(svcNSName[1])
@@ -606,6 +616,10 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 			infraSetting, err = getL4InfraSetting(key, namespace, svcObj, nil)
 			if err != nil {
 				utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Service %s", key, err.Error())
+			}
+			// set t1lr from aviinfrasetting
+			if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
+				t1lr = *infraSetting.Spec.NSXSettings.T1LR
 			}
 
 			l4Rule, err = getL4Rule(key, svcObj)
@@ -681,7 +695,10 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 			if lib.IsIstioEnabled() {
 				poolNode.UpdatePoolNodeForIstio()
 			}
-
+			if t1lr != "" {
+				poolNode.T1Lr = t1lr
+				poolNode.VrfContext = ""
+			}
 			vsNode.PoolRefs = append(vsNode.PoolRefs, poolNode)
 			utils.AviLog.Infof("key: %s, msg: evaluated L4 pool values :%v", key, utils.Stringify(poolNode))
 		}
