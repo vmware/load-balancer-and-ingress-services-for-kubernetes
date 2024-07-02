@@ -1260,11 +1260,24 @@ func TestHTTPRouteWithMultipleListenerGateway(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 
+	// childe node 1
 	childNode := nodes[0].EvhNodes[0]
 	g.Expect(childNode.VHParentName).To(gomega.Equal(parentVSName))
 	g.Expect(childNode.VHMatches).To(gomega.HaveLen(1))
 	g.Expect(*childNode.VHMatches[0].Host).To(gomega.Equal("foo.com"))
+	// path foo
 	g.Expect(childNode.VHMatches[0].Rules[0].Matches.Path.MatchStr).To(gomega.ContainElement("/foo"))
+	g.Expect(*childNode.VHMatches[0].Rules[0].Matches.Path.MatchCriteria).To(gomega.Equal("BEGINS_WITH"))
+	g.Expect(len(childNode.VHMatches[0].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(2))
+	g.Expect(childNode.VHMatches[0].Rules[0].Matches.VsPort.Ports).Should(gomega.ConsistOf([]int64{8080, 8082}))
+
+	// child node 2
+	childNode = nodes[0].EvhNodes[1]
+	g.Expect(childNode.VHParentName).To(gomega.Equal(parentVSName))
+	g.Expect(childNode.VHMatches).To(gomega.HaveLen(1))
+	g.Expect(*childNode.VHMatches[0].Host).To(gomega.Equal("foo.com"))
+	// Path bar
+	g.Expect(childNode.VHMatches[0].Rules[0].Matches.Path.MatchStr).To(gomega.ContainElement("/bar"))
 	g.Expect(*childNode.VHMatches[0].Rules[0].Matches.Path.MatchCriteria).To(gomega.Equal("BEGINS_WITH"))
 	g.Expect(len(childNode.VHMatches[0].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(2))
 	g.Expect(childNode.VHMatches[0].Rules[0].Matches.VsPort.Ports).Should(gomega.ConsistOf([]int64{8080, 8082}))
