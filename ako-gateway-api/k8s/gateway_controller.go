@@ -21,7 +21,6 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	discovery "k8s.io/api/discovery/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -169,89 +168,6 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 	}
 	c.informers.EpInformer.Informer().AddEventHandler(epEventHandler)
 
-	// Add EPSInformer
-	epsEventHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			eps := obj.(*discovery.EndpointSlice)
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(eps))
-			svcName, ok := eps.Labels["kubernetes.io/service-name"]
-			if !ok || svcName == "" {
-				utils.AviLog.Debugf("Endpointslice Add event: Endpointslice does not have backing svc")
-				return
-			}
-			key := utils.Endpointslices + "/" + namespace + "/" + svcName
-			if lib.IsNamespaceBlocked(namespace) {
-				utils.AviLog.Debugf("key: %s, msg: Endpoint Add event: Namespace: %s didn't qualify filter", key, namespace)
-				return
-			}
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: ADD", key)
-		},
-		DeleteFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			eps, ok := obj.(*discovery.EndpointSlice)
-			if !ok {
-				// endpoints were deleted but its final state is unrecorded.
-				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-				if !ok {
-					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
-					return
-				}
-				eps, ok = tombstone.Obj.(*discovery.EndpointSlice)
-				if !ok {
-					utils.AviLog.Errorf("Tombstone contained object that is not an Endpointslice: %#v", obj)
-					return
-				}
-			}
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(eps))
-			svcName, ok := eps.Labels["kubernetes.io/service-name"]
-			if !ok || svcName == "" {
-				utils.AviLog.Debugf("Endpointslice Delete event: Endpointslice does not have backing svc")
-				return
-			}
-			key := utils.Endpointslices + "/" + namespace + "/" + svcName
-			if lib.IsNamespaceBlocked(namespace) {
-				utils.AviLog.Debugf("key: %s, msg: Endpointslice Delete event: Namespace: %s didn't qualify filter", key, namespace)
-				return
-			}
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-		},
-		UpdateFunc: func(old, cur interface{}) {
-			if c.DisableSync {
-				return
-			}
-			oeps := old.(*discovery.EndpointSlice)
-			ceps := cur.(*discovery.EndpointSlice)
-			if !addressEqual(ceps.Endpoints, oeps.Endpoints) || !reflect.DeepEqual(oeps.Ports, ceps.Ports) {
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ceps))
-				svcName, ok := ceps.Labels["kubernetes.io/service-name"]
-				if !ok || svcName == "" {
-					utils.AviLog.Debugf("Endpointslice Delete event: Endpointslice does not have backing svc")
-					return
-				}
-				key := utils.Endpointslices + "/" + namespace + "/" + svcName
-				if lib.IsNamespaceBlocked(namespace) {
-					utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
-					return
-				}
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-			}
-		},
-	}
-	if lib.GetEndpointSliceEnabled() {
-		c.informers.EpSlicesInformer.Informer().AddEventHandler(epsEventHandler)
-	}
-
 	svcEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -382,18 +298,6 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 	if c.informers.SecretInformer != nil {
 		c.informers.SecretInformer.Informer().AddEventHandler(secretEventHandler)
 	}
-}
-
-func addressEqual(old, cur []discovery.Endpoint) bool {
-	if len(old) != len(cur) {
-		return false
-	}
-	for i := range old {
-		if old[i].Addresses[0] != cur[i].Addresses[0] {
-			return false
-		}
-	}
-	return true
 }
 
 func checkAviSecretUpdateAndShutdown(secret *corev1.Secret) bool {
