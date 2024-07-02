@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
 	corev1 "k8s.io/api/core/v1"
+	discovery "k8s.io/api/discovery/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -47,6 +48,7 @@ var v1beta1crdClient *v1beta1crdfake.Clientset
 var dynamicClient *dynamicfake.FakeDynamicClient
 var keyChan chan string
 var ctrl *k8s.AviController
+var endpointSliceEnabled bool
 
 func syncFuncForTest(key interface{}, wg *sync.WaitGroup) error {
 	keyStr, ok := key.(string)
@@ -109,6 +111,8 @@ func TestMain(m *testing.M) {
 	kubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
 
 	akoControlConfig := lib.AKOControlConfig()
+	endpointSliceEnabled = lib.GetEndpointSliceEnabled()
+	akoControlConfig.SetEndpointSlicesEnabled(endpointSliceEnabled)
 	crdClient = crdfake.NewSimpleClientset()
 	v1beta1crdClient = v1beta1crdfake.NewSimpleClientset()
 	akoControlConfig.SetCRDClientset(crdClient)
@@ -119,7 +123,6 @@ func TestMain(m *testing.M) {
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
-		utils.EndpointInformer,
 		utils.IngressInformer,
 		utils.IngressClassInformer,
 		utils.SecretInformer,
@@ -128,6 +131,12 @@ func TestMain(m *testing.M) {
 		utils.ConfigMapInformer,
 		utils.MultiClusterIngressInformer,
 		utils.ServiceImportInformer,
+	}
+
+	if akoControlConfig.GetEndpointSlicesEnabled() {
+		registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
+	} else {
+		registeredInformers = append(registeredInformers, utils.EndpointInformer)
 	}
 	args := make(map[string]interface{})
 	args[utils.INFORMERS_AKO_CLIENT] = crdClient
@@ -173,6 +182,9 @@ func TestSvc(t *testing.T) {
 }
 
 func TestEndpoint(t *testing.T) {
+	if endpointSliceEnabled {
+		t.Skip("endpoint slice is enabled. skipping testing endpoint")
+	}
 	epExample := &corev1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "red-ns",
@@ -185,6 +197,26 @@ func TestEndpoint(t *testing.T) {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
 	waitAndverify(t, "Endpoints/red-ns/testep")
+}
+
+func TestEndpointSlice(t *testing.T) {
+	// set os.Setenv("ENDPOINTSLICES_ENABLED", "true") in TestMain to run this locally without make
+	if !endpointSliceEnabled {
+		t.Skip("endpoint slice is disabled")
+	}
+	epExample := &discovery.EndpointSlice{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "red-ns",
+			Name:      "eps",
+			Labels:    map[string]string{discovery.LabelServiceName: "testep"},
+		},
+		Endpoints: []discovery.Endpoint{},
+	}
+	_, err := kubeClient.DiscoveryV1().EndpointSlices("red-ns").Create(context.TODO(), epExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in creating Endpoint: %v", err)
+	}
+	waitAndverify(t, "Endpointslices/red-ns/testep")
 }
 
 func TestIngressClass(t *testing.T) {

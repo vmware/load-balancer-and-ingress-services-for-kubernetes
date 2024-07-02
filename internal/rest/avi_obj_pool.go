@@ -150,7 +150,8 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 			port = pool_meta.Servers[i].Port
 		}
 		uuid := fmt.Sprintf("%s:%d", *sip.Addr, port)
-		s := avimodels.Server{IP: &sip, Port: &port, ExternalUUID: &uuid}
+
+		s := avimodels.Server{IP: &sip, Port: &port, ExternalUUID: &uuid, Enabled: server.Enabled}
 		if server.ServerNode != "" {
 			sn := server.ServerNode
 			s.ServerNode = &sn
