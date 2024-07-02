@@ -759,6 +759,8 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	}
 	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
 		c.informers.EpSlicesInformer.Informer().AddEventHandler(epsEventHandler)
+	} else {
+		c.informers.EpInformer.Informer().AddEventHandler(epEventHandler)
 	}
 
 	svcEventHandler := cache.ResourceEventHandlerFuncs{
@@ -918,9 +920,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		},
 	}
 
-	if lib.GetServiceType() != lib.NodePortLocal {
-		c.informers.EpInformer.Informer().AddEventHandler(epEventHandler)
-	}
 	c.informers.ServiceInformer.Informer().AddEventHandler(svcEventHandler)
 
 	if lib.GetCNIPlugin() == lib.CALICO_CNI {

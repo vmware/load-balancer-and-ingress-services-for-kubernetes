@@ -843,7 +843,7 @@ func GetGlobalBgpPeerLabels() []string {
 func GetEndpointSliceEnabled() bool {
 	flag, err := strconv.ParseBool(os.Getenv("ENDPOINTSLICES_ENABLED"))
 	if err != nil {
-		flag = true
+		flag = false
 	}
 	return flag
 }
