@@ -43,7 +43,7 @@ func TestHTTPRouteWithValidConfig(t *testing.T) {
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
-	listeners := akogatewayapitests.GetListenersV1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -110,7 +110,7 @@ func TestHTTPRouteWithAtleastOneParentReferenceValid(t *testing.T) {
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
 	// creates a gateway with listeners 8080 and 8082
-	listeners := akogatewayapitests.GetListenersV1([]int32{8080, 8082})
+	listeners := akogatewayapitests.GetListenersV1([]int32{8080, 8082}, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -187,7 +187,7 @@ func TestHTTPRouteTransitionFromInvalidToValid(t *testing.T) {
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
 	// creates a gateway with listeners 8080
-	listeners := akogatewayapitests.GetListenersV1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -283,7 +283,7 @@ func TestHTTPRouteTransitionFromValidToInvalid(t *testing.T) {
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
 	// creates a gateway with listeners 8080
-	listeners := akogatewayapitests.GetListenersV1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -386,7 +386,7 @@ func TestHTTPRouteWithNoParentReference(t *testing.T) {
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
 	// creates a gateway with listeners 8080
-	listeners := akogatewayapitests.GetListenersV1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -430,7 +430,7 @@ func TestHTTPRouteWithAllParentReferenceInvalid(t *testing.T) {
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
 	// creates a gateway with listeners 8082 and 8083
-	listeners := akogatewayapitests.GetListenersV1([]int32{8082, 8083})
+	listeners := akogatewayapitests.GetListenersV1([]int32{8082, 8083}, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -531,7 +531,7 @@ func TestHTTPRouteWithNonExistingListenerReference(t *testing.T) {
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
 	// creates a gateway with listeners 8082 and 8083
-	listeners := akogatewayapitests.GetListenersV1([]int32{8082})
+	listeners := akogatewayapitests.GetListenersV1([]int32{8082}, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -604,7 +604,7 @@ func TestHTTPRouteWithNoHostnames(t *testing.T) {
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
-	listeners := akogatewayapitests.GetListenersV1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -675,7 +675,7 @@ func TestHTTPRouteUnprocessedGateway(t *testing.T) {
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
-	listeners := akogatewayapitests.GetListenersV1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
 
 	g := gomega.NewGomegaWithT(t)
 
@@ -732,7 +732,7 @@ func TestHTTPRouteWithInvalidGatewayListener(t *testing.T) {
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
-	listeners := akogatewayapitests.GetListenersV1(ports)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
 	listeners[0].Hostname = nil
 
 	g := gomega.NewGomegaWithT(t)
