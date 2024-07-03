@@ -21,6 +21,7 @@ import (
 
 	"github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
@@ -51,29 +52,40 @@ func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, pare
 func (o *AviObjectGraph) BuildParentPGPoolHTTPPS(key string, routeModel RouteModel, parentNsName string, rules []*Rule, childVSes map[string]struct{}, fullsync bool) {
 
 	parentNode := o.GetAviEvhVS()
+	routeTypeNsName := lib.HTTPRoute + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName()
 	parentNs, _, parentName := lib.ExtractTypeNameNamespace(parentNsName)
+	// For each GW + httproute, one HTTPPSPGPool
+	var locaHTTTPPSPGPool objects.HTTPPSPGPool
 
+	gwHTTPRouteKey := parentNsName + "/" + routeTypeNsName
+	found, prevObj := objects.GatewayApiLister().GetGatewayRouteToHTTPSPGPool(gwHTTPRouteKey)
+	if found {
+		locaHTTTPPSPGPool = prevObj
+	} else {
+		locaHTTTPPSPGPool.HTTPPS = make([]string, 0)
+		locaHTTTPPSPGPool.Pool = make([]string, 0)
+		locaHTTTPPSPGPool.PoolGroup = make([]string, 0)
+	}
 	// TODO(Akshay): with empty hostname at httproute, there will be no hostname attached. So need to fetch non wildcard fqdns from gw listeners
 
-	//akogatewayapiobjects.GatewayApiLister().Get
 	for _, rule := range rules {
 		// Each rule has to be converted to one httpPS
 		httpsName := akogatewayapilib.GetChildName(parentNs, parentName, routeModel.GetNamespace(), routeModel.GetName(), utils.Stringify(rule.Matches)+utils.Stringify(rule.Filters))
 		if len(rule.Filters) != 0 {
 			// build HTTPPS redirect/header modifier rules first
-			o.BuildHTTPPolicySet(key, parentNode[0], routeModel, rule, 0, httpsName)
+			o.BuildHTTPPolicySet(key, parentNode[0], routeModel, rule, 0, httpsName, &locaHTTTPPSPGPool)
 		}
 		if len(rule.Matches) != 0 {
 			// build HTTPPS, PG and pools
-			o.BuildParentHTTPS(key, parentNsName, parentNode[0], routeModel, rule, 0, httpsName)
+			o.BuildParentHTTPS(key, parentNsName, parentNode[0], routeModel, rule, 0, httpsName, &locaHTTTPPSPGPool)
 		}
-
 		if len(rule.Matches) == 0 && len(rule.Backends) != 0 {
 			// Default PG. Empty match name
-			o.BuildDefaultPGPoolForParentVS(key, parentNsName, "", parentNode[0], routeModel, rule)
+			o.BuildDefaultPGPoolForParentVS(key, parentNsName, "", parentNode[0], routeModel, rule, &locaHTTTPPSPGPool)
 		}
 
 	}
+	objects.GatewayApiLister().UpdateGatewayRouteToHTTPSPGPool(gwHTTPRouteKey, locaHTTTPPSPGPool)
 }
 func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentNsName string, rule *Rule, childVSes map[string]struct{}, fullsync bool) {
 
@@ -121,7 +133,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 
 	if len(childNode.VHMatches) == 0 {
 		utils.AviLog.Warnf("key: %s, msg: No valid domain name added for child virtual service", key)
-		o.ProcessRouteDeletion(key, routeModel, fullsync)
+		o.ProcessRouteDeletion(key, parentNsName, routeModel, fullsync)
 		return
 	}
 
@@ -129,7 +141,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	o.BuildPGPool(key, parentNsName, childNode, routeModel, rule)
 
 	// create the httppolicyset if the filter is present
-	o.BuildHTTPPolicySet(key, childNode, routeModel, rule, 0, childVSName)
+	o.BuildHTTPPolicySet(key, childNode, routeModel, rule, 0, childVSName, &objects.HTTPPSPGPool{})
 
 	foundEvhModel := nodes.FindAndReplaceEvhInModel(childNode, parentNode, key)
 	if !foundEvhModel {
@@ -210,61 +222,8 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 			childVsNode.ReplaceEvhPoolInEVHNode(poolNode, key)
 		}
 
-		for _, filter := range httpbackend.Filters {
-
-			var addRequestString string
-			for _, addRequestFilter := range filter.RequestFilter.Add {
-				addRequestString = addRequestString + addRequestFilter.Name + ":" + addRequestFilter.Value + ","
-			}
-			addRequestString = strings.TrimSuffix(addRequestString, ",")
-			name := lib.GetAKOUser() + "-" + akogatewayapilib.AddHeaderStringGroup
-			description := "StringGroup to support ADDRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
-			o.AddOrUpdateStringGroupNode(key, name, description, poolName, addRequestString)
-
-			var setRequestString string
-			for _, setRequestFilter := range filter.RequestFilter.Set {
-				setRequestString = setRequestString + setRequestFilter.Name + ":" + setRequestFilter.Value + ","
-			}
-			setRequestString = strings.TrimSuffix(setRequestString, ",")
-			name = lib.GetAKOUser() + "-" + akogatewayapilib.UpdateHeaderStringGroup
-			description = "StringGroup to support UpdateRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
-			o.AddOrUpdateStringGroupNode(key, name, description, poolName, setRequestString)
-
-			var removeRequestString string
-			for _, removeRequestKey := range filter.RequestFilter.Remove {
-				removeRequestString = removeRequestString + removeRequestKey + ","
-			}
-			removeRequestString = strings.TrimSuffix(removeRequestString, ",")
-			name = lib.GetAKOUser() + "-" + akogatewayapilib.DeleteHeaderStringGroup
-			description = "StringGroup to support DeleteRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
-			o.AddOrUpdateStringGroupNode(key, name, description, poolName, removeRequestString)
-		}
-		if len(httpbackend.Filters) == 0 {
-			o.UpdateStringGroupsOnRouteDeletion(key, poolName)
-
-			//Remove datascript reference from vs if it already exists
-			dsScriptNode := o.ConstructBackendFilterDataScript(key)
-			var updatedHTTPDSrefs []*nodes.AviHTTPDataScriptNode
-			for _, httpDsRef := range childVsNode.HTTPDSrefs {
-				if httpDsRef != dsScriptNode {
-					updatedHTTPDSrefs = append(updatedHTTPDSrefs, httpDsRef)
-				}
-			}
-			childVsNode.HTTPDSrefs = updatedHTTPDSrefs
-		}
-
-		if httpbackend.Filters != nil && len(httpbackend.Filters) > 0 {
-			dataScriptRefExists := false
-			dsScriptNode := o.ConstructBackendFilterDataScript(key)
-			for _, httpDsRef := range childVsNode.HTTPDSrefs {
-				if httpDsRef == dsScriptNode {
-					dataScriptRefExists = true
-				}
-			}
-			if !dataScriptRefExists {
-				childVsNode.HTTPDSrefs = append(childVsNode.HTTPDSrefs, dsScriptNode)
-			}
-		}
+		// TODO: Check Backend filter code. This is creating an issue in checksum calculation of object which is result in failure in deletion
+		o.BuildBackendFiltersModel(key, poolName, httpbackend, childVsNode)
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		ratio := uint32(httpbackend.Backend.Weight)
 		PG.Members = append(PG.Members, &models.PoolGroupMember{PoolRef: &pool_ref, Ratio: &ratio})
@@ -275,7 +234,65 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 	}
 }
 
-func (o *AviObjectGraph) BuildDefaultPGPoolForParentVS(key, parentNsName, matchName string, parentVsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) bool {
+func (o *AviObjectGraph) BuildBackendFiltersModel(key, poolName string, httpbackend *HTTPBackend, vsNode *nodes.AviEvhVsNode) {
+	for _, filter := range httpbackend.Filters {
+
+		var addRequestString string
+		for _, addRequestFilter := range filter.RequestFilter.Add {
+			addRequestString = addRequestString + addRequestFilter.Name + ":" + addRequestFilter.Value + ","
+		}
+		addRequestString = strings.TrimSuffix(addRequestString, ",")
+		name := lib.GetAKOUser() + "-" + akogatewayapilib.AddHeaderStringGroup
+		description := "StringGroup to support ADDRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
+		o.AddOrUpdateStringGroupNode(key, name, description, poolName, addRequestString)
+
+		var setRequestString string
+		for _, setRequestFilter := range filter.RequestFilter.Set {
+			setRequestString = setRequestString + setRequestFilter.Name + ":" + setRequestFilter.Value + ","
+		}
+		setRequestString = strings.TrimSuffix(setRequestString, ",")
+		name = lib.GetAKOUser() + "-" + akogatewayapilib.UpdateHeaderStringGroup
+		description = "StringGroup to support UpdateRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
+		o.AddOrUpdateStringGroupNode(key, name, description, poolName, setRequestString)
+
+		var removeRequestString string
+		for _, removeRequestKey := range filter.RequestFilter.Remove {
+			removeRequestString = removeRequestString + removeRequestKey + ","
+		}
+		removeRequestString = strings.TrimSuffix(removeRequestString, ",")
+		name = lib.GetAKOUser() + "-" + akogatewayapilib.DeleteHeaderStringGroup
+		description = "StringGroup to support DeleteRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
+		o.AddOrUpdateStringGroupNode(key, name, description, poolName, removeRequestString)
+	}
+	if len(httpbackend.Filters) == 0 {
+		o.UpdateStringGroupsOnRouteDeletion(key, poolName)
+
+		//Remove datascript reference from vs if it already exists
+		dsScriptNode := o.ConstructBackendFilterDataScript(key)
+		var updatedHTTPDSrefs []*nodes.AviHTTPDataScriptNode
+		for _, httpDsRef := range vsNode.HTTPDSrefs {
+			if httpDsRef != dsScriptNode {
+				updatedHTTPDSrefs = append(updatedHTTPDSrefs, httpDsRef)
+			}
+		}
+		vsNode.HTTPDSrefs = updatedHTTPDSrefs
+	}
+
+	if httpbackend.Filters != nil && len(httpbackend.Filters) > 0 {
+		dataScriptRefExists := false
+		dsScriptNode := o.ConstructBackendFilterDataScript(key)
+		for _, httpDsRef := range vsNode.HTTPDSrefs {
+			if httpDsRef == dsScriptNode {
+				dataScriptRefExists = true
+			}
+		}
+		if !dataScriptRefExists {
+			vsNode.HTTPDSrefs = append(vsNode.HTTPDSrefs, dsScriptNode)
+		}
+	}
+}
+
+func (o *AviObjectGraph) BuildDefaultPGPoolForParentVS(key, parentNsName, matchName string, parentVsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule, httppsPGPool *objects.HTTPPSPGPool) bool {
 	// create the PG from backends
 	pgAttachedToVS := false
 	httpRouteNamespace := routeModel.GetNamespace()
@@ -347,13 +364,22 @@ func (o *AviObjectGraph) BuildDefaultPGPoolForParentVS(key, parentNsName, matchN
 		if parentVsNode.CheckPoolNChecksum(poolNode.Name, poolNode.GetCheckSum()) {
 			// Replace the poolNode.
 			parentVsNode.ReplaceEvhPoolInEVHNode(poolNode, key)
+			// Add pool to list of Pools attached to Parent VS
+			httppsPGPool.Pool = append(httppsPGPool.Pool, poolNode.Name)
+			uniquePools := sets.NewString(httppsPGPool.Pool...)
+			httppsPGPool.Pool = uniquePools.List()
 		}
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
+		o.BuildBackendFiltersModel(key, poolName, backend, parentVsNode)
 		ratio := uint32(backend.Backend.Weight)
 		PG.Members = append(PG.Members, &models.PoolGroupMember{PoolRef: &pool_ref, Ratio: &ratio})
 	}
 	if len(PG.Members) > 0 {
 		parentVsNode.ReplaceEvhPGInEVHNode(PG, key)
+		// Add PG to list of PG attached to Parent VS
+		httppsPGPool.PoolGroup = append(httppsPGPool.PoolGroup, PG.Name)
+		uniquePGs := sets.NewString(httppsPGPool.PoolGroup...)
+		httppsPGPool.PoolGroup = uniquePGs.List()
 		if matchName == "" {
 			parentVsNode.DefaultPoolGroup = PG.Name
 		}
@@ -432,8 +458,7 @@ func (o *AviObjectGraph) BuildVHMatch(key string, parentNsName string, routeType
 	utils.AviLog.Infof("key: %s, msg: Attached match criteria to vs %s", key, vsNode.Name)
 }
 
-func (o *AviObjectGraph) BuildParentHTTPS(key, parentNsName string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule, index int, httpPSName string) {
-
+func (o *AviObjectGraph) BuildParentHTTPS(key, parentNsName string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule, index int, httpPSName string, httppsPGPool *objects.HTTPPSPGPool) {
 	var policy *nodes.AviHttpPolicySetNode
 	var req_rule *models.HTTPRequestRule
 	rule_index := 0
@@ -451,6 +476,9 @@ func (o *AviObjectGraph) BuildParentHTTPS(key, parentNsName string, vsNode *node
 	if policy == nil {
 		policy = &nodes.AviHttpPolicySetNode{Name: httpPSName, Tenant: lib.GetTenant()}
 		vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs, policy)
+		httppsPGPool.HTTPPS = append(httppsPGPool.HTTPPS, httpPSName)
+		uniqueHTTPS := sets.NewString(httppsPGPool.HTTPPS...)
+		httppsPGPool.HTTPPS = uniqueHTTPS.List()
 		index = len(vsNode.HttpPolicyRefs) - 1
 	}
 	for i, requestRule := range policy.RequestRules {
@@ -504,7 +532,7 @@ func (o *AviObjectGraph) BuildParentHTTPS(key, parentNsName string, vsNode *node
 			match_target.Hdrs = append(match_target.Hdrs, hdrMatch)
 		}
 
-		pgAttachedToVS := o.BuildDefaultPGPoolForParentVS(key, parentNsName, utils.Stringify(match), vsNode, routeModel, rule)
+		pgAttachedToVS := o.BuildDefaultPGPoolForParentVS(key, parentNsName, utils.Stringify(match), vsNode, routeModel, rule, httppsPGPool)
 		// switching action to PG
 		sw_action := models.HttpswitchingAction{}
 		if pgAttachedToVS {
@@ -512,15 +540,14 @@ func (o *AviObjectGraph) BuildParentHTTPS(key, parentNsName string, vsNode *node
 			pg_ref := fmt.Sprintf("/api/poolgroup/?name=%s", pgName)
 			sw_action.PoolGroupRef = proto.String(pg_ref)
 		}
-		// assign
-		//vsNode.
+
 		vsNode.HttpPolicyRefs[index].RequestRules[rule_index].Index = proto.Int32(int32(rule_index + 1))
 		vsNode.HttpPolicyRefs[index].RequestRules[rule_index].Match = &match_target
 		vsNode.HttpPolicyRefs[index].RequestRules[rule_index].SwitchingAction = &sw_action
 	}
 
 }
-func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule, index int, httpPSName string) {
+func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule, index int, httpPSName string, httppsPGPool *objects.HTTPPSPGPool) {
 
 	if len(rule.Filters) == 0 {
 		vsNode.HttpPolicyRefs = nil
@@ -538,6 +565,9 @@ func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNo
 	if policy == nil {
 		policy = &nodes.AviHttpPolicySetNode{Name: httpPSName, Tenant: lib.GetTenant()}
 		vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs, policy)
+		httppsPGPool.HTTPPS = append(httppsPGPool.HTTPPS, httpPSName)
+		uniqueHTTPS := sets.NewString(httppsPGPool.HTTPPS...)
+		httppsPGPool.HTTPPS = uniqueHTTPS.List()
 		index = len(vsNode.HttpPolicyRefs) - 1
 	}
 	o.BuildHTTPPolicySetHTTPRequestRedirectRules(key, httpPSName, vsNode, routeModel, rule.Filters, index)
@@ -646,7 +676,6 @@ func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestRedirectRules(key, httpPSn
 				statusCode = fmt.Sprintf("HTTP_REDIRECT_STATUS_CODE_%d", filter.RedirectFilter.StatusCode)
 			}
 			redirectAction.StatusCode = &statusCode
-			//requestRule := &models.HTTPRequestRule{Name: &vsNode.Name, Enable: proto.Bool(true), Index: proto.Int32(int32(index + 1)), RedirectAction: redirectAction}
 			requestRule := &models.HTTPRequestRule{Name: &httpPSname, Enable: proto.Bool(true), RedirectAction: redirectAction, Index: proto.Int32(int32(index + 1))}
 			vsNode.HttpPolicyRefs[index].RequestRules = append(vsNode.HttpPolicyRefs[index].RequestRules, requestRule)
 			utils.AviLog.Debugf("key: %s, msg: Attached HTTP request redirect policies %s to vs %s", key, utils.Stringify(vsNode.HttpPolicyRefs[index].RequestRules), vsNode.Name)
