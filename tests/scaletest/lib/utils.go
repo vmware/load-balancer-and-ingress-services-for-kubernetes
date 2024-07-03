@@ -22,6 +22,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
@@ -76,7 +77,8 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 	var p AviRestClientPool
 	for i := uint32(0); i < num; i++ {
 		aviClient, err := clients.NewAviClient(api_ep, username,
-			session.SetPassword(password), session.SetControllerStatusCheckLimits(25, 15), session.SetInsecure)
+			session.SetPassword(password), session.SetControllerStatusCheckLimits(25, 15), session.SetInsecure,
+			session.SetTimeout(200*time.Second))
 		if err != nil {
 			return &p, err
 		}

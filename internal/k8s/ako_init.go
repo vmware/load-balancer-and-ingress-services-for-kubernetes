@@ -373,6 +373,7 @@ func (c *AviController) ValidAviSecret() bool {
 		options := []func(*session.AviSession) error{
 			session.SetNoControllerStatusCheck,
 			session.SetTransport(transport),
+			session.SetTimeout(200 * time.Second),
 		}
 		if !isSecure {
 			options = append(options, session.SetInsecure)

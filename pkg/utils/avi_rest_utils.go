@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
@@ -45,6 +46,7 @@ func NewAviRestClientPool(num uint32, api_ep, username,
 	options := []func(*session.AviSession) error{
 		session.SetNoControllerStatusCheck,
 		session.SetTransport(transport),
+		session.SetTimeout(200 * time.Second),
 	}
 
 	if !isSecure {
@@ -115,6 +117,9 @@ func (p *AviRestClientPool) AviRestOperate(c *clients.AviClient, rest_ops []*Res
 		SetTenant(c.AviSession)
 		SetVersion := session.SetVersion(op.Version)
 		SetVersion(c.AviSession)
+		// set session timeout
+		SetSessionTimeout := session.SetTimeout(200 * time.Second)
+		SetSessionTimeout(c.AviSession)
 		switch op.Method {
 		case RestPost:
 			op.Err = c.AviSession.Post(op.Path, op.Obj, &op.Response)
