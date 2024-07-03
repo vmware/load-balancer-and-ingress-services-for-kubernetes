@@ -257,17 +257,7 @@ func TestUpdatePoolCacheSync(t *testing.T) {
 	poolCacheBeforeObj, _ := poolCacheBefore.(*cache.AviPoolCache)
 	oldPoolCksum := poolCacheBeforeObj.CloudConfigCksum
 
-	epExample := &corev1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "avisvc"},
-		Subsets: []corev1.EndpointSubset{{
-			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}, {IP: "1.2.3.5"}},
-			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
-		}},
-	}
-	epExample.ResourceVersion = "2"
-	if _, err = KubeClient.CoreV1().Endpoints("default").Update(context.TODO(), epExample, metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in creating Endpoint: %v", err)
-	}
+	integrationtest.ScaleCreateEPorEPS(t, "default", "avisvc")
 
 	g.Eventually(func() []avinodes.AviPoolMetaServer {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)

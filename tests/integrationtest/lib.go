@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -49,6 +50,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
+	discovery "k8s.io/api/discovery/v1"
 	networking "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -76,6 +78,7 @@ const (
 	EXTDNSANNOTATION    = "custom-fqdn.com"
 	EXTDNSSVC           = "custom-fqdn-svc"
 	INVALID_LB_CLASS    = "not-ako-lb"
+	letterBytes         = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
 
 var KubeClient *k8sfake.Clientset
@@ -952,6 +955,126 @@ func DelSVC(t *testing.T, ns string, Name string) {
 	}
 }
 
+// CreateEPorEPS creates endpoint or endpoint slices based on env
+func CreateEPorEPS(t *testing.T, ns string, Name string, multiPort bool, multiAddress bool, addressPrefix string, multiProtocol ...corev1.Protocol) {
+	if !lib.AKOControlConfig().GetEndpointSlicesEnabled() {
+		CreateEP(t, ns, Name, multiPort, multiAddress, addressPrefix, multiProtocol...)
+		return
+	}
+	addressType := discovery.AddressTypeIPv4
+
+	if addressPrefix == "" {
+		addressPrefix = "1.1.1"
+	}
+	if strings.Contains(addressPrefix, "::") {
+		addressType = discovery.AddressTypeIPv6
+	}
+	//var endpoints discovery.EndpointSlice
+	numPorts, numAddresses := 1, 1
+	if multiPort {
+		numPorts = 3
+	}
+	if len(multiProtocol) != 0 {
+		numPorts = len(multiProtocol)
+	}
+	if multiAddress {
+		numAddresses = 3
+	}
+	svcName := Name
+
+	// // create separate endpoint slice if multiProtocol
+
+	// // mPort := 8080 + i
+	startIndex := 0
+	for i := 0; i < numPorts; i++ {
+		var endpoints []discovery.Endpoint
+		for j := 0; j < numAddresses; j++ {
+			if strings.Contains(addressPrefix, "::") {
+				endpoints = append(endpoints, discovery.Endpoint{
+					Addresses: []string{fmt.Sprintf("%s%d", addressPrefix, j+startIndex+1)},
+				})
+			} else {
+				endpoints = append(endpoints, discovery.Endpoint{Addresses: []string{fmt.Sprintf("%s.%d", addressPrefix, j+1)}})
+			}
+			startIndex++
+		}
+		numAddresses--
+		protocol := corev1.ProtocolTCP
+		if len(multiProtocol) != 0 {
+			protocol = multiProtocol[i]
+		}
+		mPort := int32(8080 + i)
+		ports := []discovery.EndpointPort{{
+			Protocol: &protocol,
+			Port:     &mPort,
+		}}
+		tempName := Name + randStringBytesRmndr(5)
+		epExample := &discovery.EndpointSlice{
+			AddressType: addressType,
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: ns,
+				Name:      tempName,
+				Labels:    map[string]string{discovery.LabelServiceName: svcName},
+			},
+			Endpoints: endpoints,
+			Ports:     ports,
+		}
+		_, err := KubeClient.DiscoveryV1().EndpointSlices(ns).Create(context.TODO(), epExample, metav1.CreateOptions{})
+		if err != nil {
+			t.Fatalf("error in creating Endpoint: %v", err)
+		}
+
+	}
+
+	// var endpoints []discovery.Endpoint
+	// for j := 0; j < numAddresses; j++ {
+	// 	if strings.Contains(addressPrefix, "::") {
+	// 		endpoints = append(endpoints, discovery.Endpoint{
+	// 			Addresses: []string{fmt.Sprintf("%s%d", addressPrefix, j+1)},
+	// 		})
+	// 	} else {
+	// 		endpoints = append(endpoints, discovery.Endpoint{Addresses: []string{fmt.Sprintf("%s.%d", addressPrefix, j+1)}})
+	// 	}
+	// }
+	// ports := []discovery.EndpointPort{}
+	// // list ports
+	// for i := 0; i < numPorts; i++ {
+	// 	protocol := corev1.ProtocolTCP
+	// 	if len(multiProtocol) != 0 {
+	// 		protocol = multiProtocol[i]
+	// 	}
+	// 	port := int32(8080 + i)
+	// 	ports = append(ports, discovery.EndpointPort{
+	// 		Protocol: &protocol,
+	// 		Port:     &port,
+	// 	})
+	// }
+
+	// Name = Name + "-" + randStringBytesRmndr(5)
+	// epExample := &discovery.EndpointSlice{
+	// 	AddressType: addressType,
+	// 	ObjectMeta: metav1.ObjectMeta{
+	// 		Namespace: ns,
+	// 		Name:      Name,
+	// 		Labels:    map[string]string{discovery.LabelServiceName: svcName},
+	// 	},
+	// 	Endpoints: endpoints,
+	// 	Ports:     ports,
+	// }
+	// _, err := KubeClient.DiscoveryV1().EndpointSlices(ns).Create(context.TODO(), epExample, metav1.CreateOptions{})
+	// if err != nil {
+	// 	t.Fatalf("error in creating Endpoint: %v", err)
+	// }
+	time.Sleep(2 * time.Second)
+}
+func randStringBytesRmndr(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Int63()%int64(len(letterBytes))]
+	}
+	return string(b)
+}
+
 /*
 CreateEP creates a sample Endpoint object
 if multiPort: False and multiAddress: False
@@ -1034,6 +1157,36 @@ func CreateEP(t *testing.T, ns string, Name string, multiPort bool, multiAddress
 	time.Sleep(2 * time.Second)
 }
 
+func ScaleCreateEPorEPS(t *testing.T, ns string, Name string) {
+	if !lib.AKOControlConfig().GetEndpointSlicesEnabled() {
+		ScaleCreateEP(t, ns, Name)
+		return
+	}
+	portName := "foo"
+	port := int32(8080)
+	protocol := corev1.ProtocolTCP
+	epSlice, err := KubeClient.DiscoveryV1().EndpointSlices(ns).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: discovery.LabelServiceName + "=" + Name,
+	})
+	if len(epSlice.Items) == 0 || err != nil {
+		t.Fatalf("endpoint slice not found. error : %v", err)
+	}
+	epSlice.Items[0].Endpoints = []discovery.Endpoint{
+		{
+			Addresses: []string{"1.2.3.4"},
+		},
+		{
+			Addresses: []string{"1.2.3.5"},
+		},
+	}
+	epSlice.Items[0].Ports = []discovery.EndpointPort{{Name: &portName, Port: &port, Protocol: &protocol}}
+	epSlice.Items[0].ResourceVersion = "2"
+
+	_, err = KubeClient.DiscoveryV1().EndpointSlices(ns).Update(context.TODO(), &epSlice.Items[0], metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in creating Endpoint: %v", err)
+	}
+}
 func ScaleCreateEP(t *testing.T, ns string, Name string) {
 	epExample := &corev1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1049,6 +1202,25 @@ func ScaleCreateEP(t *testing.T, ns string, Name string) {
 	_, err := KubeClient.CoreV1().Endpoints(ns).Update(context.TODO(), epExample, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in creating Endpoint: %v", err)
+	}
+}
+
+func DelEPorEPS(t *testing.T, ns string, Name string) {
+	if !lib.AKOControlConfig().GetEndpointSlicesEnabled() {
+		DelEP(t, ns, Name)
+		return
+	}
+	epSlice, err := KubeClient.DiscoveryV1().EndpointSlices(ns).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: discovery.LabelServiceName + "=" + Name,
+	})
+	if err != nil {
+		t.Fatalf("error in listing EndpointSlices: %v", err)
+	}
+	for _, es := range epSlice.Items {
+		err := KubeClient.DiscoveryV1().EndpointSlices(es.Namespace).Delete(context.TODO(), es.Name, metav1.DeleteOptions{})
+		if err != nil {
+			t.Fatalf("error in deleting EndpointSlices: %v", err)
+		}
 	}
 }
 

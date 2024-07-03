@@ -543,7 +543,7 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 			port_match := false
 			var epProtocol v1.Protocol
 			for _, epp := range epSlice.Ports {
-				if poolNode.PortName == *epp.Name || int32(poolNode.TargetPort.IntValue()) == *epp.Port {
+				if (epp.Name != nil && poolNode.PortName == *epp.Name) || (epp.Port != nil && int32(poolNode.TargetPort.IntValue()) == *epp.Port) {
 					port_match = true
 					poolNode.Port = *epp.Port
 					epProtocol = *epp.Protocol
