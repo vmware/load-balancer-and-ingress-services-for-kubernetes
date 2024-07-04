@@ -457,7 +457,12 @@ func PodToGateway(namespace, name, key string) ([]string, bool) {
 		for _, svcNsName := range servicesList {
 			found, gwNsNameList := akogatewayapiobjects.GatewayApiLister().GetServiceToGateway(svcNsName)
 			if found {
-				gatewayList = append(gatewayList, gwNsNameList...)
+				for _, gwNsName := range gwNsNameList {
+					if !utils.HasElem(gatewayList, gwNsName) {
+						gatewayList = append(gatewayList, gwNsName)
+					}
+				}
+
 			}
 		}
 		return gatewayList, true
@@ -507,10 +512,13 @@ func PodToHTTPRoute(namespace, name, key string) ([]string, bool) {
 		objects.SharedNPLLister().Delete(podNsName)
 		routeList := []string{}
 		for _, serviceNsName := range servicesList {
-			serviceNs, _, serviceName := lib.ExtractTypeNameNamespace(serviceNsName)
-			routes, ok := ServiceToRoutes(serviceNs, serviceName, key)
-			if ok {
-				routeList = append(routeList, routes...)
+			found, routeNsNameList := akogatewayapiobjects.GatewayApiLister().GetServiceToRoute(serviceNsName)
+			if found {
+				for _, routeNsName := range routeNsNameList {
+					if !utils.HasElem(routeList, routeNsName) {
+						routeList = append(routeList, routeNsName)
+					}
+				}
 			}
 		}
 		return routeList, true
@@ -526,10 +534,13 @@ func PodToHTTPRoute(namespace, name, key string) ([]string, bool) {
 	}
 	routeList := []string{}
 	for _, serviceNsName := range servicesList {
-		serviceNs, _, serviceName := lib.ExtractTypeNameNamespace(serviceNsName)
-		routes, ok := ServiceToRoutes(serviceNs, serviceName, key)
-		if ok {
-			routeList = append(routeList, routes...)
+		found, routeNsNameList := akogatewayapiobjects.GatewayApiLister().GetServiceToRoute(serviceNsName)
+		if found {
+			for _, routeNsName := range routeNsNameList {
+				if !utils.HasElem(routeList, routeNsName) {
+					routeList = append(routeList, routeNsName)
+				}
+			}
 		}
 	}
 	return routeList, true
