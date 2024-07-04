@@ -1,5 +1,5 @@
 GOCMD=go
-GOBUILD=$(GOCMD) build
+GOBUILD=$(GOCMD) build -buildvcs=false
 GOCLEAN=$(GOCMD) clean
 GOGET=$(GOCMD) get
 GOTEST=$(GOCMD) test
@@ -32,6 +32,7 @@ ifdef GOLANG_SRC_REPO
 else
 	BUILD_GO_IMG=golang:latest
 endif
+BUILD_GO_IMG=golang:bullseye
 
 .PHONY: glob-vars
 glob-vars:
