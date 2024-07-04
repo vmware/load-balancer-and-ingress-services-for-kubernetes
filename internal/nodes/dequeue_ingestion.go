@@ -214,7 +214,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		} else if objType == utils.L4LBService {
 			// L4 type of services need special handling. We create a dedicated VS in Avi for these.
 			handleL4Service(key, fullsync)
-		} else if objType == utils.Endpoints {
+		} else if objType == utils.Endpoints || objType == utils.Endpointslices {
 			svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
 			if err != nil {
 				utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service for endpoint", key)

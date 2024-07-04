@@ -994,7 +994,7 @@ func CreateEPorEPS(t *testing.T, ns string, Name string, multiPort bool, multiAd
 					Addresses: []string{fmt.Sprintf("%s%d", addressPrefix, j+startIndex+1)},
 				})
 			} else {
-				endpoints = append(endpoints, discovery.Endpoint{Addresses: []string{fmt.Sprintf("%s.%d", addressPrefix, j+1)}})
+				endpoints = append(endpoints, discovery.Endpoint{Addresses: []string{fmt.Sprintf("%s.%d", addressPrefix, j+startIndex+1)}})
 			}
 			startIndex++
 		}
@@ -1004,11 +1004,13 @@ func CreateEPorEPS(t *testing.T, ns string, Name string, multiPort bool, multiAd
 			protocol = multiProtocol[i]
 		}
 		mPort := int32(8080 + i)
+		portName := fmt.Sprintf("foo%d", i)
 		ports := []discovery.EndpointPort{{
 			Protocol: &protocol,
 			Port:     &mPort,
+			Name:     &portName,
 		}}
-		tempName := Name + randStringBytesRmndr(5)
+		tempName := Name + "-" + randStringBytesRmndr(5)
 		epExample := &discovery.EndpointSlice{
 			AddressType: addressType,
 			ObjectMeta: metav1.ObjectMeta{

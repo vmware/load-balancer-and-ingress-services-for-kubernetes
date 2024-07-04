@@ -101,6 +101,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("MCI_ENABLED", "true")
 	os.Setenv("POD_NAME", "ako-0")
+	// os.Setenv("ENDPOINTSLICES_ENABLED", "true")
 
 	data := map[string][]byte{
 		"username": []byte("admin"),

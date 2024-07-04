@@ -26,6 +26,7 @@ import (
 
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -428,7 +429,6 @@ func TestMultiIngressToSameNodePortSvcInNodePort(t *testing.T) {
 // TestMultiVSIngressInNodePort tests multiple ingresses creation
 // nodeIP should be set in backend server, and pool's port is set to nodePort.
 func TestMultiVSIngressInNodePort(t *testing.T) {
-	t.Skip("skipping failed test in master")
 	g := gomega.NewGomegaWithT(t)
 
 	integrationtest.SetNodePortMode()
@@ -475,15 +475,22 @@ func TestMultiVSIngressInNodePort(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find model: %v", err)
 	}
+	randomNamespace := "randomNamespacethatyeildsdiff"
+	integrationtest.AddDefaultNamespace(randomNamespace)
+	_, err = KubeClient.CoreV1().Namespaces().Create(context.TODO(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: randomNamespace}}, metav1.CreateOptions{})
+	if err != nil && !k8serrors.IsAlreadyExists(err) {
+		t.Fatalf("error creating namespace: %s", randomNamespace)
+	}
 	randoming := (integrationtest.FakeIngress{
-		Name:        "randomNamespacethatyeildsdiff",
-		Namespace:   "randomNamespacethatyeildsdiff",
+		Name:        randomNamespace,
+		Namespace:   randomNamespace,
 		DnsNames:    []string{"foo.com"},
 		Ips:         []string{"8.8.8.8"},
 		HostNames:   []string{"v1"},
 		ServiceName: "avisvc",
 	}).Ingress()
-	_, err = KubeClient.NetworkingV1().Ingresses("randomNamespacethatyeildsdiff").Create(context.TODO(), randoming, metav1.CreateOptions{})
+	_, err = KubeClient.NetworkingV1().Ingresses(randomNamespace).Create(context.TODO(), randoming, metav1.CreateOptions{})
+
 	integrationtest.PollForCompletion(t, modelName, 10)
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
@@ -510,7 +517,7 @@ func TestMultiVSIngressInNodePort(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-	err = KubeClient.NetworkingV1().Ingresses("randomNamespacethatyeildsdiff").Delete(context.TODO(), "randomNamespacethatyeildsdiff", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses(randomNamespace).Delete(context.TODO(), randomNamespace, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
