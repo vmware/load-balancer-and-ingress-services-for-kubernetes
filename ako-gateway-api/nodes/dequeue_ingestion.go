@@ -239,11 +239,11 @@ func (o *AviObjectGraph) ProcessRouteDeletion(key, parentNsName string, routeMod
 			utils.AviLog.Warnf("key: %s, msg: no child vs mapped to this route %s", key, routeModel.GetName())
 			return
 		}
-		// remove HTTPS from Parent VS
-		for _, httpsname := range localHTTPPSPGPools.HTTPPS {
-			for httppsIndex, httpps := range parentNode[0].HttpPolicyRefs {
-				if httpps.Name == httpsname {
-					parentNode[0].HttpPolicyRefs = append(parentNode[0].HttpPolicyRefs[:httppsIndex], parentNode[0].HttpPolicyRefs[httppsIndex+1:]...)
+		// remove HTTPPS from Parent VS
+		for _, httpPSname := range localHTTPPSPGPools.HTTPPS {
+			for httpPSIndex, httpPS := range parentNode[0].HttpPolicyRefs {
+				if httpPS.Name == httpPSname {
+					parentNode[0].HttpPolicyRefs = append(parentNode[0].HttpPolicyRefs[:httpPSIndex], parentNode[0].HttpPolicyRefs[httpPSIndex+1:]...)
 					break
 				}
 			}

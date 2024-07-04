@@ -32,7 +32,7 @@ import (
 )
 
 func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, parentNsName string, childVSes map[string]struct{}, fullsync bool) {
-	rules := routeModel.ParseRouteRules()
+	rules := routeModel.ParseRouteConfig()
 	noHostsOnRoute := len(rules.Hosts) == 0
 	httpRouteRules := rules.Rules
 	if noHostsOnRoute {
@@ -70,14 +70,14 @@ func (o *AviObjectGraph) BuildParentPGPoolHTTPPS(key string, routeModel RouteMod
 
 	for _, rule := range rules {
 		// Each rule has to be converted to one httpPS
-		httpsName := akogatewayapilib.GetChildName(parentNs, parentName, routeModel.GetNamespace(), routeModel.GetName(), utils.Stringify(rule.Matches)+utils.Stringify(rule.Filters))
+		httpPSName := akogatewayapilib.GetChildName(parentNs, parentName, routeModel.GetNamespace(), routeModel.GetName(), utils.Stringify(rule.Matches)+utils.Stringify(rule.Filters))
 		if len(rule.Filters) != 0 {
 			// build HTTPPS redirect/header modifier rules first
-			o.BuildHTTPPolicySet(key, parentNode[0], routeModel, rule, 0, httpsName, &locaHTTTPPSPGPool)
+			o.BuildHTTPPolicySet(key, parentNode[0], routeModel, rule, 0, httpPSName, &locaHTTTPPSPGPool)
 		}
 		if len(rule.Matches) != 0 {
 			// build HTTPPS, PG and pools
-			o.BuildParentHTTPS(key, parentNsName, parentNode[0], routeModel, rule, 0, httpsName, &locaHTTTPPSPGPool)
+			o.BuildParentHTTPS(key, parentNsName, parentNode[0], routeModel, rule, 0, httpPSName, &locaHTTTPPSPGPool)
 		}
 		if len(rule.Matches) == 0 && len(rule.Backends) != 0 {
 			// Default PG. Empty match name
@@ -152,7 +152,6 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	utils.AviLog.Infof("key: %s, msg: processing of child vs %s attached to parent vs %s completed", key, childNode.Name, childNode.VHParentName)
 }
 
-// keeping separate function for Parent VS and child for default PG
 func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
 	//reset pool, poolgroupreferences
 	childVsNode.PoolGroupRefs = nil

@@ -80,10 +80,7 @@ func GetDataScriptName() string {
 }
 
 func GetHTTPRuleName(parentNs, parentName, routeNs, routeName, matchName string) string {
-	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName
-	if matchName != "" {
-		name = fmt.Sprintf("%s-%s", name, utils.Stringify(utils.Hash(matchName)))
-	}
+	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-" + utils.Stringify(utils.Hash(matchName))
 	return lib.Encode(name, lib.HPPMAP)
 }
 func CheckGatewayClassController(controllerName string) bool {

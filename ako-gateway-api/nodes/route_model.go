@@ -30,7 +30,7 @@ type RouteModel interface {
 	GetNamespace() string
 	GetType() string
 	GetSpec() interface{}
-	ParseRouteRules() *RouteConfig
+	ParseRouteConfig() *RouteConfig
 	Exists() bool
 	GetParents() sets.Set[string]
 }
@@ -162,7 +162,7 @@ func (hr *httpRoute) GetSpec() interface{} {
 	return hr.spec
 }
 
-func (hr *httpRoute) ParseRouteRules() *RouteConfig {
+func (hr *httpRoute) ParseRouteConfig() *RouteConfig {
 	if hr.routeConfig != nil {
 		return hr.routeConfig
 	}

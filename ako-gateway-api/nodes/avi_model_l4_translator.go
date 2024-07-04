@@ -19,12 +19,10 @@ import (
 )
 
 func (o *AviObjectGraph) ProcessL4Routes(key string, routeModel RouteModel, parentNsName string) {
-	for _, rule := range routeModel.ParseRouteRules().Rules {
+	for _, rule := range routeModel.ParseRouteConfig().Rules {
 		parentNode := o.GetAviEvhVS()
-
 		// create L4 policyset per rule
 		o.BuildL4PolicySet(key, parentNode[0], routeModel, rule)
-
 		// Logic to override the app profile per port also must be taken care here.
 	}
 }

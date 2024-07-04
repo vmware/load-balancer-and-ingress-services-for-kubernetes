@@ -175,9 +175,9 @@ func TestHTTPRouteWithBackendRefFilters(t *testing.T) {
 	waitAndverify(t, gwClassKey)
 }
 func TestHTTPRouteGatewayWithEmptyHostnameInGateway(t *testing.T) {
-	gatewayClassName := "gateway-class-04"
-	gatewayName := "gateway-04"
-	httpRouteName := "httproute-04"
+	gatewayClassName := "gateway-class-07"
+	gatewayName := "gateway-07"
+	httpRouteName := "httproute-07"
 	gwKey := "Gateway/" + DEFAULT_NAMESPACE + "/" + gatewayName
 	gwClassKey := "GatewayClass/" + gatewayClassName
 	namespace := "default"

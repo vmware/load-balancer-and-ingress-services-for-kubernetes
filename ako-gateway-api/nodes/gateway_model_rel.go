@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
@@ -170,8 +171,9 @@ func GatewayGetGw(namespace, name, key string) ([]string, bool) {
 		}
 
 	}
+	uniqueHostnames := sets.NewString(gwHostnames...)
 	//TODO: verify hostname overlap here or use the store updated from here
-	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToHostnames(gwNsName, gwHostnames)
+	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToHostnames(gwNsName, uniqueHostnames.List())
 
 	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToListener(gwNsName, listeners)
 	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToSecret(gwNsName, secrets)
@@ -273,8 +275,7 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 						// When Gateway hostname is empty, then just check validity of hostname and append it.
 						// When hostname in HTTProute has wildcard
 						// When there is exact match
-						if strings.HasSuffix(string(routeHostname), listenerHostname) || listenerHostname == "" || strings.HasPrefix(string(routeHostname), "*") {
-							// Here i need to check if route hostname is empty
+						if strings.HasSuffix(string(routeHostname), listenerHostname) || listenerHostname == "" || strings.HasPrefix(string(routeHostname), utils.WILDCARD) {
 							if akogatewayapilib.VerifyHostnameSubdomainMatch(string(routeHostname)) {
 								hostnameIntersection = append(hostnameIntersection, string(routeHostname))
 								hostnameMatched = true
