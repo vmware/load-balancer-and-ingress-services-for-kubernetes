@@ -17,6 +17,7 @@ package lib
 import (
 	"errors"
 	"strings"
+	"time"
 
 	apimodels "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -266,6 +267,7 @@ func NewAviRestClientWithToken(api_ep, username, authToken, cadata string) *clie
 		session.SetNoControllerStatusCheck,
 		session.SetTransport(transport),
 		session.SetAuthToken(authToken),
+		session.SetTimeout(200 * time.Second),
 	}
 	if !isSecure {
 		options = append(options, session.SetInsecure)

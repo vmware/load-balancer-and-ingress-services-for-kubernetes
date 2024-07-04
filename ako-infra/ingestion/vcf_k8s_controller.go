@@ -372,6 +372,7 @@ func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, se
 		session.SetAuthToken(string(authToken)),
 		session.SetNoControllerStatusCheck,
 		session.SetTransport(transport),
+		session.SetTimeout(200 * time.Second),
 	}
 	if !isSecure {
 		options = append(options, session.SetInsecure)
