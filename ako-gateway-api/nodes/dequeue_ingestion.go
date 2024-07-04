@@ -264,7 +264,7 @@ func (o *AviObjectGraph) ProcessRouteDeletion(key, parentNsName string, routeMod
 				if pool.Name == poolName {
 					parentNode[0].PoolRefs = append(parentNode[0].PoolRefs[:poolIndex], parentNode[0].PoolRefs[poolIndex+1:]...)
 					// TODO: Test deletion part once string group related issue is fixed. with that in picture, deletion is failing.
-					o.UpdateStringGroupsOnRouteDeletion(key, poolName)
+					// o.UpdateStringGroupsOnRouteDeletion(key, poolName)
 					break
 				}
 			}

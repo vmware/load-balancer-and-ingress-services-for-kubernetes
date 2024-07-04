@@ -157,7 +157,10 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 	for _, gatewayInNamespace := range gatewayNsList {
 		if gateway.Name != gatewayInNamespace.Name {
 			for _, gwListener := range gatewayInNamespace.Spec.Listeners {
-				if *listener.Hostname == *gwListener.Hostname {
+				if gwListener.Hostname == nil {
+					continue
+				}
+				if listener.Hostname != nil && *listener.Hostname == *gwListener.Hostname {
 					utils.AviLog.Errorf("key: %s, msg: Hostname is same as an existing gateway %s hostname %s", key, gatewayInNamespace.Name, *gwListener.Hostname)
 					defaultCondition.
 						Message("Hostname overlaps or is same as an existing gateway hostname").
@@ -168,7 +171,7 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 		}
 	}
 	// do not check subdomain for empty or * hostname
-	if listener.Hostname != nil && *listener.Hostname != utils.WILDCARD {
+	if listener.Hostname != nil && *listener.Hostname != utils.WILDCARD && *listener.Hostname != "" {
 		if !akogatewayapilib.VerifyHostnameSubdomainMatch(string(*listener.Hostname)) {
 			defaultCondition.
 				Message(fmt.Sprintf("Didn't find match for hostname :%s in available sub-domains", string(*listener.Hostname))).
