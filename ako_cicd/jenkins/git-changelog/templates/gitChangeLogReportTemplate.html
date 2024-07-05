@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+        <title>GIT ChangeLog Report - {{ branch }}-{{ build_type }}#{{ build_number }}</title>
+
+        <!-- Bootstrap CSS CDN -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+        <!-- Our Custom CSS -->
+		<style type="text/css">
+		@import "https://fonts.googleapis.com/css?family=Poppins:300,400,500,600,700";
+
+
+		body {
+			font-family: 'Poppins', sans-serif;
+			background: #fafafa;
+		}
+
+		p {
+			font-family: 'Poppins', sans-serif;
+			font-size: 1.1em;
+			font-weight: 300;
+			line-height: 1.7em;
+			color: #999;
+		}
+
+		a, a:hover, a:focus {
+			color: inherit;
+			text-decoration: none;
+			transition: all 0.3s;
+		}
+
+		.navbar {
+			padding: 15px 10px;
+			background: #fff;
+			border: none;
+			border-radius: 0;
+			margin-bottom: 40px;
+			box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+		}
+
+		.navbar-btn {
+			box-shadow: none;
+			outline: none !important;
+			border: none;
+		}
+
+		.line {
+			width: 100%;
+			height: 1px;
+			border-bottom: 1px dashed #ddd;
+			margin: 40px 0;
+		}
+
+		/* ---------------------------------------------------
+			SIDEBAR STYLE
+		----------------------------------------------------- */
+		#sidebar {
+			width: 200px;
+			position: fixed;
+			top: 0;
+			left: 0;
+			height: 100vh;
+			z-index: 999;
+			background: #7386D5;
+			color: #fff;
+			transition: all 0.3s;
+		}
+
+		#sidebar.active {
+			margin-left: -250px;
+		}
+
+		#sidebar .sidebar-header {
+			padding: 20px;
+			background: #6d7fcc;
+		}
+
+		#sidebar ul.components {
+			padding: 20px 0;
+			border-bottom: 1px solid #47748b;
+		}
+
+		#sidebar ul p {
+			color: #fff;
+			padding: 10px;
+		}
+
+		#sidebar ul li a {
+			padding: 10px;
+			font-size: 1.1em;
+			display: block;
+		}
+		#sidebar ul li a:hover {
+			color: #7386D5;
+			background: #fff;
+		}
+
+		#sidebar ul li.active > a, a[aria-expanded="true"] {
+			color: #fff;
+			background: #6d7fcc;
+		}
+
+
+		a[data-toggle="collapse"] {
+			position: relative;
+		}
+
+		a[aria-expanded="false"]::before, a[aria-expanded="true"]::before {
+			content: '\e259';
+			display: block;
+			position: absolute;
+			right: 20px;
+			font-family: 'Glyphicons Halflings';
+			font-size: 0.6em;
+		}
+		a[aria-expanded="true"]::before {
+			content: '\e260';
+		}
+
+
+		ul ul a {
+			font-size: 0.9em !important;
+			padding-left: 30px !important;
+			background: #6d7fcc;
+		}
+
+		a.download {
+			background: #fff;
+			color: #7386D5;
+		}
+		a.article, a.article:hover {
+			background: #6d7fcc !important;
+			color: #fff !important;
+		}
+
+
+		/* ---------------------------------------------------
+			CONTENT STYLE
+		----------------------------------------------------- */
+		#content {
+			width: calc(100% - 200px);
+			padding: 20px;
+			min-height: 100vh;
+			transition: all 0.3s;
+			position: absolute;
+			top: 0;
+			right: 0;
+		}
+		#content.active {
+			width: 100%;
+		}
+
+
+		/* ---------------------------------------------------
+			MEDIAQUERIES
+		----------------------------------------------------- */
+		@media (max-width: 768px) {
+			#sidebar {
+				margin-left: -250px;
+			}
+			#sidebar.active {
+				margin-left: 0;
+			}
+			#content {
+				width: 100%;
+			}
+			#content.active {
+				width: calc(100% - 250px);
+			}
+			#sidebarCollapse span {
+				display: none;
+			}
+		}
+
+		.table-fit {
+			width: 1px;
+		}
+		.tg  {border-collapse:collapse;border-spacing:0;}
+		.tg td{font-family:Arial, sans-serif;font-size:14px;padding:10px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;}
+		.tg th{font-family:Arial, sans-serif;font-size:14px;font-weight:normal;padding:10px 5px;border-style:solid;border-width:1px;overflow:hidden;word-break:normal;}
+		.tg .tg-yw4l{vertical-align:top}		
+		</style>
+        <!-- Scrollbar Custom CSS -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/malihu-custom-scrollbar-plugin/3.1.5/jquery.mCustomScrollbar.min.css">
+
+    </head>
+    <body>
+        <div class="wrapper">
+            <!-- Sidebar Holder -->
+            <nav id="sidebar">
+                <div class="sidebar-header">
+                    <h3>Git Change Log</h3>
+                </div>
+
+                <ul class="list-unstyled components">
+                    <p>Menu</p>
+                    <li class="active">
+                        <a href="#build-info">Build Info</a>
+                    </li>
+                    <li>
+                        <a href="#commitsSubmenu" data-toggle="collapse" aria-expanded="false">Commits Details</a>
+                        <ul class="collapse list-unstyled" id="commitsSubmenu">
+						{% if table_details is defined and table_details %}
+							{% for table_detail in table_details %}
+								<li><a href="#{{ table_detail.id }}">{{ table_detail.heading }}</a></li>
+							{% endfor %}
+						{% endif %}
+                        </ul>
+                    </li>
+					<li>
+                        <a href="#trendsSubmenu" data-toggle="collapse" aria-expanded="false">Commits Trends</a>
+                        <ul class="collapse list-unstyled" id="trendsSubmenu">
+						{% if chart_details is defined and chart_details %}
+							{% for chart_detail in chart_details %}
+								<li><a href="#{{ chart_detail.id }}">{{ chart_detail.heading }}</a></li>
+							{% endfor %}
+						{% endif %}
+						</ul>
+					</li>
+                    <li>
+                        <a href="#contact-us">Contact</a>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- Page Content Holder -->
+            <div id="content">
+                <nav class="navbar navbar-default">
+                    <div class="container-fluid">
+                        <div class="navbar-header">
+                            <button type="button" id="sidebarCollapse" class="btn btn-info navbar-btn">
+                                <i class="glyphicon glyphicon-align-left"></i>
+                                <span>Toggle Sidebar</span>
+                            </button>
+                        </div>
+                    </div>
+                </nav>
+
+                <h2 id="build-info">Build Information</h2>
+				<p>
+				Branch          : {{ branch }}<br/>
+				Build Type      : {{ build_type }}<br/>
+				Build Number    : {{ build_number }}<br />
+				</p>
+				
+                <div class="line"></div>
+				<h2>Commits Details</h2>
+				{% if table_details is defined and table_details %}
+					{% for table_detail in table_details %}
+						<h3 id="{{ table_detail.id }}">{{ table_detail.heading }}</h3>
+						<p>{{ table_detail.description }}</p>
+						{% if table_detail.header_row is defined and table_detail.data_rows is defined and table_detail.data_rows %}
+							<table class="table table-bordered table-striped tg">
+								<thead>
+									<tr>
+											{% if table_detail.detail_data_rows_present %}
+												<th class="tg-yw4l" scope="col"></th>
+											{% endif %}
+											<th class="tg-yw4l" scope="col"><b>#</b></th>
+										{% for header_col in table_detail.header_row %}
+											<th class="tg-yw4l" scope="col"><b>{{ header_col }}</b></th>
+										{% endfor %}
+									</tr>
+								</thead>
+								<tbody>
+									{% for data_row in table_detail.data_rows %}
+										{% if table_detail.detail_data_rows_present %}
+											<tr data-toggle="collapse" data-target="#{{ table_detail.id }}-{{ loop.index }}" class="accordion-toggle">
+													<td><button class="btn btn-default btn-xs"><span class="glyphicon glyphicon-eye-open"></span></button></td>
+										{% else %}
+											<tr>
+										{% endif %}
+												<td class="tg-yw4l" scope="row">{{ loop.index }}</td>
+											{% for col in data_row.row %}
+												<td class="tg-yw4l">{{ col }}</td>
+											{% endfor %}
+											</tr>
+										{% if table_detail.detail_data_rows_present %}	
+											<tr>
+												<td colspan="12" class="hiddenRow"><div class="accordian-body collapse" id="{{ table_detail.id }}-{{ loop.index }}">
+													<table class="table table-bordered table-striped tg table-fit">
+														<tbody>
+														{% for detail_row in data_row.detail_rows %}
+															<tr>
+															{% for col in detail_row %}
+																<td class="tg-yw4l">{{ col }}</td>
+															{% endfor %}
+															</tr>
+														{% endfor %}
+														</tbody>
+													</table>
+												</td>
+											</tr>
+										{% endif %}
+									{% endfor %}
+								</tbody>
+							</table>
+						{% else %}
+							<p style="font-size:10px"><b>Empty</b></p>
+						{% endif %}
+						<div class="line"></div>
+					{% endfor %}
+				{% endif %}	
+				<div class="line"></div>
+				<h2 id="trends">Commits Trends</h2>
+				{% if chart_details is defined and chart_details %}
+					{% for chart_detail in chart_details %}
+						<h3 id="{{ chart_detail.id }}">{{ chart_detail.heading }}</h3>
+							<embed type="image/svg+xml" src={{ chart_detail.chart|safe }} />
+					{% endfor %}
+				{% else %}
+					<p style="font-size:10px"><b>No Trends</b></p>
+				{% endif %}				
+				<h2 id="contact-us">Contact</h2>
+				<p>
+				Report bugs to <a href="mailto:devops-india@avinetworks.com" style="color:navy">DevOps-India</a><br/>
+				Also, copy <a href="mailto:vijay@avinetworks.com " style="color:navy">Vijay Shankar</a> and <a href="mailto:karthik@avinetworks.com" style="color:navy">Karthik Vasudevan</a>
+				</p>
+            </div>
+        </div>
+
+
+
+
+
+        <!-- jQuery CDN -->
+        <script src="https://code.jquery.com/jquery-1.12.0.min.js"></script>
+        <!-- Bootstrap Js CDN -->
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+        <!-- jQuery Custom Scroller CDN -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/malihu-custom-scrollbar-plugin/3.1.5/jquery.mCustomScrollbar.concat.min.js"></script>
+
+        <script type="text/javascript">
+            $(document).ready(function () {
+                $("#sidebar").mCustomScrollbar({
+                    theme: "minimal"
+                });
+
+                $('#sidebarCollapse').on('click', function () {
+                    $('#sidebar, #content').toggleClass('active');
+                    $('.collapse.in').toggleClass('in');
+                    $('a[aria-expanded=true]').attr('aria-expanded', 'false');
+                });
+            });
+        </script>
+    </body>
+</html>
