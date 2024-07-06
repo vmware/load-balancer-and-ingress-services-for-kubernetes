@@ -85,6 +85,13 @@ func (rest *RestOperations) DequeueNodes(key string) {
 				return
 			}
 		}
+		if strings.Contains(name, "StringGroup") {
+			stringgroupKey := avicache.NamespaceName{Namespace: namespace, Name: name}
+			string_group_cache_obj := rest.getStringGroupCacheObj(stringgroupKey, key)
+			utils.AviLog.Infof("key: %s, msg: nil model found, this is a stringgroup deletion case", key)
+			rest.DeleteStringGroupOper(stringgroupKey, string_group_cache_obj, namespace, key)
+			return
+		}
 		if lib.StaticRouteSyncChan != nil {
 			close(lib.StaticRouteSyncChan)
 			lib.StaticRouteSyncChan = nil
@@ -289,6 +296,11 @@ func (rest *RestOperations) CheckAndPublishForRetry(err error, publishKey avicac
 					rest.PublishKeyToSlowRetryLayer(publishKey, key)
 					return true
 				}
+				if strings.Contains(key, "StringGroup") && strings.Contains(*aviError.Message, lib.StringGroupCannotDeleteObjectError) {
+					utils.AviLog.Warnf("key: %s, msg: Cannot delete, object is referred by a virtualService or Datascript", key)
+					rest.PublishKeyToSlowRetryLayer(publishKey, key)
+					return true
+				}
 			}
 		}
 	}
@@ -490,6 +502,20 @@ func (rest *RestOperations) PassthroughChildCU(passChildNode *nodes.AviVsNode, v
 	return restOps
 }
 
+func (rest *RestOperations) getStringGroupCacheObj(stringGroupKey avicache.NamespaceName, key string) *avicache.AviStringGroupCache {
+	string_group_cache, found := rest.cache.StringGroupCache.AviCacheGet(stringGroupKey)
+	if found {
+		string_group_cache_obj, ok := string_group_cache.(*avicache.AviStringGroupCache)
+		if !ok {
+			utils.AviLog.Warnf("key: %s, msg: invalid string group object found, cannot cast. Not doing anything", key)
+			return nil
+		}
+		return string_group_cache_obj
+	}
+	utils.AviLog.Infof("key: %s, msg: string group cache object NOT found for stringgroupkey: %s", key, stringGroupKey)
+	return nil
+}
+
 func (rest *RestOperations) getVsCacheObj(vsKey avicache.NamespaceName, key string) *avicache.AviVsCache {
 	vs_cache, found := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
 	if found {
@@ -588,6 +614,36 @@ func (rest *RestOperations) deleteSniVs(vsKey avicache.NamespaceName, vs_cache_o
 		success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, false)
 		return success
 	}
+	return true
+}
+
+func (rest *RestOperations) DeleteStringGroupOper(stringGroupKey avicache.NamespaceName, string_group_cache_obj *avicache.AviStringGroupCache, namespace string, key string) bool {
+	var rest_ops []*utils.RestOp
+	if string_group_cache_obj != nil {
+		rest_ops = rest.StringGroupDelete(stringGroupKey, namespace, rest_ops, key)
+		success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, stringGroupKey, nil, key, false)
+		if success {
+			vsKeysPending := rest.cache.VsCacheMeta.AviGetAllKeys()
+			utils.AviLog.Infof("key: %s, msg: Number of VS deletion pending: %d", key, len(vsKeysPending))
+			if len(vsKeysPending) == 0 {
+				// All VSes got deleted, done with deleteConfig operation. Now notify the user
+				if lib.ConfigDeleteSyncChan != nil {
+					utils.AviLog.Debugf("key: %s, msg: sending signal for vs deletion notification", key)
+					close(lib.ConfigDeleteSyncChan)
+					lib.ConfigDeleteSyncChan = nil
+				}
+			}
+		}
+		return success
+	}
+
+	// All VSes got deleted, done with deleteConfig operation. Now notify the user
+	if lib.ConfigDeleteSyncChan != nil {
+		utils.AviLog.Debugf("key: %s, msg: sending signal for vs deletion notification", key)
+		close(lib.ConfigDeleteSyncChan)
+		lib.ConfigDeleteSyncChan = nil
+	}
+
 	return true
 }
 
@@ -1915,20 +1971,18 @@ func (rest *RestOperations) stringGroupCU(key, stringGroupName string, avimodel 
 	}
 }
 
-func (rest *RestOperations) StringGroupDelete(sg_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
+func (rest *RestOperations) StringGroupDelete(sg_to_delete avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
 	utils.AviLog.Infof("key: %s, msg: about to delete the StringGroup %s", key, sg_to_delete)
-	for _, del_sg := range sg_to_delete {
-		// fetch trhe stringgroup uuid from cache
-		sg_key := avicache.NamespaceName{Namespace: namespace, Name: del_sg.Name}
-		sg_cache, ok := rest.cache.StringGroupCache.AviCacheGet(sg_key)
-		if ok {
-			sg_cache_obj, _ := sg_cache.(*avicache.AviDSCache)
-			restOp := rest.AviStringGroupDel(sg_cache_obj.Uuid, namespace, key)
-			restOp.ObjName = del_sg.Name
-			rest_ops = append(rest_ops, restOp)
-		} else {
-			utils.AviLog.Debugf("key: %s, msg: stringgroup not found in cache during delete %s", key, sg_to_delete)
-		}
+	// fetch the stringgroup uuid from cache
+	sg_key := avicache.NamespaceName{Namespace: namespace, Name: sg_to_delete.Name}
+	sg_cache, ok := rest.cache.StringGroupCache.AviCacheGet(sg_key)
+	if ok {
+		sg_cache_obj, _ := sg_cache.(*avicache.AviStringGroupCache)
+		restOp := rest.AviStringGroupDel(sg_cache_obj.Uuid, namespace, key)
+		restOp.ObjName = sg_to_delete.Name
+		rest_ops = append(rest_ops, restOp)
+	} else {
+		utils.AviLog.Debugf("key: %s, msg: stringgroup not found in cache during delete %s", key, sg_to_delete)
 	}
 	return rest_ops
 }

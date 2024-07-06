@@ -380,7 +380,7 @@ func (v *AviVsCache) GetVSCopy() (*AviVsCache, bool) {
 /*
  * AviCache provides a one to one cache
  * AviCache for storing objects such as:
- * VirtualServices, PoolGroups, Pools, etc.
+ * VirtualServices, PoolGroups, Pools, StringGroups etc.
  */
 
 type AviCache struct {

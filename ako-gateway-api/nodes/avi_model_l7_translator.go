@@ -481,8 +481,8 @@ func (o *AviObjectGraph) RemovePoolNameFromStringGroups(currentEvhNodeName strin
 		for _, modelEvhNode := range modelEvhNodes[0].EvhNodes {
 			if currentEvhNodeName == modelEvhNode.Name {
 				utils.AviLog.Infof("key: %s, msg: Updating stringgroups for model: %s", key, currentEvhNodeName)
-				if len(modelEvhNode.PoolRefs) > 0 {
-					poolname := modelEvhNode.PoolRefs[0].Name
+				for _, poolRef := range modelEvhNode.PoolRefs {
+					poolname := poolRef.Name
 					o.UpdateStringGroupsOnRouteDeletion(key, poolname)
 				}
 				return
