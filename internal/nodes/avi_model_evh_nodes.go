@@ -1219,27 +1219,23 @@ func (o *AviObjectGraph) BuildTlsCertNodeForEvh(svcLister *objects.SvcLister, tl
 	var certNode *AviTLSKeyCertNode
 
 	//for default cert, use existing node if it exists
-	foundTLSKeyCertNode := false
 	if tlsData.SecretName == lib.GetDefaultSecretForRoutes() {
 		for _, ssl := range tlsNode.SSLKeyCertRefs {
 			if ssl.Name == lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName) {
 				certNode = ssl
-				foundTLSKeyCertNode = true
 				break
 			}
 		}
-		if foundTLSKeyCertNode {
-			keyCertRefsSet := sets.NewString(certNode.AviMarkers.Host...)
-			keyCertRefsSet.Insert(host)
-			certNode.AviMarkers.Host = keyCertRefsSet.List()
-		}
 	}
-	if !foundTLSKeyCertNode {
+	if certNode == nil {
 		certNode = &AviTLSKeyCertNode{
 			Name:   lib.GetTLSKeyCertNodeName(infraSettingName, host, tlsData.SecretName),
 			Tenant: lib.GetTenant(),
 			Type:   lib.CertTypeVS,
 		}
+	}
+	// Put Host in Avi Marker only when default cert is not used
+	if tlsData.SecretName != lib.GetDefaultSecretForRoutes() {
 		certNode.AviMarkers = lib.PopulateTLSKeyCertNode(host, infraSettingName)
 	}
 
