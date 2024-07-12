@@ -182,6 +182,41 @@ func SetupDomain() {
 	mcache.CloudKeyCache.AviCacheAdd("Default-Cloud", cloudObj)
 }
 
+func SetUpIngressForCacheSyncCheckMultiPaths(t *testing.T, tlsIngress, withSecret bool, fqdns []string, paths []string, modelNames ...string) {
+	SetupDomain()
+	SetUpTestForIngress(t, modelNames...)
+	ingressObject := integrationtest.FakeIngress{
+		Name:        "app-root-test",
+		Namespace:   "default",
+		DnsNames:    fqdns,
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		Paths:       paths,
+		ServiceName: "avisvc",
+	}
+	if withSecret {
+		integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
+	}
+	if tlsIngress {
+		ingressObject.TlsSecretDNS = map[string][]string{
+			"my-secret": {"foo.com"},
+		}
+	}
+	ingrFake := ingressObject.Ingress()
+	if _, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelNames[0], 5)
+}
+
+func TearDownIngressForCacheSyncCheckPath(t *testing.T, modelName string) {
+	if err := KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "app-root-test", metav1.DeleteOptions{}); err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
+	TearDownTestForIngress(t, modelName)
+}
+
 func TearDownIngressForCacheSyncCheck(t *testing.T, modelName string) {
 	if err := KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)

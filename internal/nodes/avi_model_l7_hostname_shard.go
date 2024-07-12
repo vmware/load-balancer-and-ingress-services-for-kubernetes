@@ -492,6 +492,12 @@ func (o *AviObjectGraph) manipulateVsNode(vsNode *AviVsNode, ingName, namespace,
 	for path, services := range pathSvc {
 		pgName := lib.GetSniPGName(ingName, namespace, hostname, path, infraSettingName, vsNode.Dedicated)
 		pgNode := vsNode.GetPGForVSByName(pgName)
+		if pgNode == nil {
+			pgNode = vsNode.GetPGForVSByName(lib.GetEncodedSniPGPoolNameforRegex(pgName))
+			if pgNode != nil {
+				pgName = lib.GetEncodedSniPGPoolNameforRegex(pgName)
+			}
+		}
 		for _, svc := range services {
 			var sniPool string
 			if isIngr {
@@ -503,6 +509,9 @@ func (o *AviObjectGraph) manipulateVsNode(vsNode *AviVsNode, ingName, namespace,
 			if lib.GetNoPGForSNI() && isIngr {
 				sniPool = sniPool + "--" + lib.PoolNameSuffixForHttpPolToPool
 			}
+			if lib.IsNameEncoded(pgName) {
+				sniPool = lib.GetEncodedSniPGPoolNameforRegex(sniPool)
+			}
 			o.RemovePoolNodeRefsFromSni(sniPool, vsNode)
 			o.RemovePoolRefsFromPG(sniPool, pgNode)
 		}
@@ -512,14 +521,14 @@ func (o *AviObjectGraph) manipulateVsNode(vsNode *AviVsNode, ingName, namespace,
 				o.RemovePGNodeRefs(pgName, vsNode)
 				hppmapname := lib.GetSniHppMapName(ingName, namespace, hostname, path, infraSettingName, vsNode.Dedicated)
 				httppolname := lib.GetSniHttpPolName(namespace, hostname, infraSettingName)
-				o.RemoveHTTPRefsFromSni(httppolname, hppmapname, vsNode)
+				o.RemoveHTTPRefsStringGroupsFromSni(httppolname, hppmapname, vsNode)
 			}
 		}
 		// Keeping this block separate for deprecation later.
 		if lib.GetNoPGForSNI() && isIngr {
 			hppmapname := lib.GetSniHppMapName(ingName, namespace, hostname, path, infraSettingName, vsNode.Dedicated)
 			httppolname := lib.GetSniHttpPolName(namespace, hostname, infraSettingName)
-			o.RemoveHTTPRefsFromSni(httppolname, hppmapname, vsNode)
+			o.RemoveHTTPRefsStringGroupsFromSni(httppolname, hppmapname, vsNode)
 		}
 	}
 }
@@ -724,6 +733,9 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 			}
 		}
 		RemoveRedirectHTTPPolicyInModel(vsNode[0], sniHostToRemove, key)
+		if !isDedicated {
+			RemoveRedirectHTTPPolicyInSniNode(sniNode)
+		}
 		if tlssetting.redirect {
 			if gsFqdn != "" {
 				sniHosts = append(sniHosts, gsFqdn)

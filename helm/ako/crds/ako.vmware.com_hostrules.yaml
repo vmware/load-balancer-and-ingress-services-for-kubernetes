@@ -296,6 +296,10 @@ spec:
                     items:
                       type: string
                     type: array
+                  useRegex:
+                    type: boolean
+                  applicationRootPath:
+                    type: string
                 required:
                 - fqdn
                 type: object

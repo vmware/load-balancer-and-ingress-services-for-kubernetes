@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"strings"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -216,6 +217,18 @@ func (l *leader) ValidateHostRuleObj(key string, hostrule *akov1beta1.HostRule) 
 			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 			return err
 		}
+	}
+
+	if strings.Contains(fqdn, lib.ShardVSSubstring) && hostrule.Spec.VirtualHost.UseRegex {
+		err = fmt.Errorf("hostrule useRegex with fqdn %s cannot be applied to shared virtualservices", fqdn)
+		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+		return err
+	}
+
+	if strings.Contains(fqdn, lib.ShardVSSubstring) && hostrule.Spec.VirtualHost.ApplicationRootPath != "" {
+		err = fmt.Errorf("hostrule applicationRootPath with fqdn %s cannot be applied to shared virtualservices", fqdn)
+		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
+		return err
 	}
 
 	// No need to update status of hostrule object as accepted since it was accepted before.
