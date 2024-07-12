@@ -41,7 +41,7 @@ const (
 // BackendRefFIlter data script is used to support Filters within backendRef in a HTTPRoute in Gateways
 const (
 	BackendRefFilterDatascript = `pool_name = avi.pool.name()
-  	add_header_strgrp = "ako-gw-AddHeaderStringGroup"
+  	add_header_strgrp = "NAMEPREFIX-AddHeaderStringGroup"
 	val, match_found = avi.stringgroup.contains(add_header_strgrp, pool_name)
 	if match_found then
    		for header_string in string.gmatch(val, '([^,]+)') do
@@ -51,7 +51,7 @@ const (
       		avi.http.add_header(headerkey, headerval)
    		end
 	end
-	update_header_strgrp = "ako-gw-UpdateHeaderStringGroup"
+	update_header_strgrp = "NAMEPREFIX-UpdateHeaderStringGroup"
 	val, match_found = avi.stringgroup.contains(update_header_strgrp, pool_name)
 	if match_found then
    		for header_string in string.gmatch(val, '([^,]+)') do
@@ -61,7 +61,7 @@ const (
       		avi.http.replace_header(headerkey, headerval)
    		end
 	end
-	delete_header_strgrp = "ako-gw-DeleteHeaderStringGroup"
+	delete_header_strgrp = "NAMEPREFIX-DeleteHeaderStringGroup"
 	val, match_found = avi.stringgroup.contains(delete_header_strgrp, pool_name)
 	if match_found then
    		for header_key in string.gmatch(val, '([^,]+)') do

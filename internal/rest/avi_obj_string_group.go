@@ -27,6 +27,17 @@ import (
 	avimodels "github.com/vmware/alb-sdk/go/models"
 )
 
+func GetStringGroupMarkers() []*avimodels.RoleFilterMatchLabel {
+	stringGroupMarkers := lib.GetMarkers()
+	labelKey := "created_by"
+	rfml := &avimodels.RoleFilterMatchLabel{
+		Key:    &labelKey,
+		Values: []string{lib.GetAKOUser()},
+	}
+	stringGroupMarkers = append(stringGroupMarkers, rfml)
+	return stringGroupMarkers
+}
+
 func (rest *RestOperations) AviStringGroupBuild(sg_meta *nodes.AviStringGroupNode, cache_obj *avicache.AviStringGroupCache, key string) *utils.RestOp {
 
 	if lib.CheckObjectNameLength(*sg_meta.Name, lib.StringGroup) {
@@ -42,7 +53,7 @@ func (rest *RestOperations) AviStringGroupBuild(sg_meta *nodes.AviStringGroupNod
 		Description: sg_meta.Description,
 	}
 
-	stringgroup.Markers = lib.GetMarkers()
+	stringgroup.Markers = GetStringGroupMarkers()
 
 	var path string
 	var rest_op utils.RestOp
