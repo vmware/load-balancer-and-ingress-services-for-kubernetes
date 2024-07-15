@@ -10,6 +10,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	utils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/ingresstests"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
@@ -53,6 +54,9 @@ func TestMultiTenancyWithNSAviInfraSettingEVH(t *testing.T) {
 	// check for names of all Avi objects
 	g := gomega.NewGomegaWithT(t)
 	os.Setenv("ENABLE_EVH", "true")
+
+	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
+	ingestionQueue.SyncFunc = syncFromIngestionLayerWrapper
 
 	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
 	secretName := "my-secret"
@@ -208,6 +212,7 @@ func TestMultiTenancyWithIngressClassAviInfraSettingEVH(t *testing.T) {
 	}
 	integrationtest.DeleteSecret(secretName, ns)
 	integrationtest.TeardownAviInfraSetting(t, settingName)
+	integrationtest.RemoveAnnotateAKONamespaceWithInfraSetting(t, ns)
 	tearDownTestForIngress(t)
 	integrationtest.TeardownIngressClass(t, ingClassName)
 	waitAndVerify(t, ingClassName)

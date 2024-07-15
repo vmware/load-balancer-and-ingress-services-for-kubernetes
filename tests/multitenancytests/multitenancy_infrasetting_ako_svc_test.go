@@ -113,6 +113,7 @@ func TestMultiTenancyWithSvcAnnotatedAviInfraSetting(t *testing.T) {
 	}, 45*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.TeardownAviInfraSetting(t, settingName)
+	integrationtest.RemoveAnnotateAKONamespaceWithInfraSetting(t, ns)
 	tearDownTestForSvcLB(t, g, "nonadmin")
 }
 
@@ -176,6 +177,7 @@ func TestMultiTenancyWithInfraSettingAddition(t *testing.T) {
 	}, 45*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.TeardownAviInfraSetting(t, settingName)
+	integrationtest.RemoveAnnotateAKONamespaceWithInfraSetting(t, ns)
 	tearDownTestForSvcLB(t, g, "nonadmin")
 }
 
