@@ -1027,46 +1027,6 @@ func CreateEPorEPS(t *testing.T, ns string, Name string, multiPort bool, multiAd
 		}
 
 	}
-
-	// var endpoints []discovery.Endpoint
-	// for j := 0; j < numAddresses; j++ {
-	// 	if strings.Contains(addressPrefix, "::") {
-	// 		endpoints = append(endpoints, discovery.Endpoint{
-	// 			Addresses: []string{fmt.Sprintf("%s%d", addressPrefix, j+1)},
-	// 		})
-	// 	} else {
-	// 		endpoints = append(endpoints, discovery.Endpoint{Addresses: []string{fmt.Sprintf("%s.%d", addressPrefix, j+1)}})
-	// 	}
-	// }
-	// ports := []discovery.EndpointPort{}
-	// // list ports
-	// for i := 0; i < numPorts; i++ {
-	// 	protocol := corev1.ProtocolTCP
-	// 	if len(multiProtocol) != 0 {
-	// 		protocol = multiProtocol[i]
-	// 	}
-	// 	port := int32(8080 + i)
-	// 	ports = append(ports, discovery.EndpointPort{
-	// 		Protocol: &protocol,
-	// 		Port:     &port,
-	// 	})
-	// }
-
-	// Name = Name + "-" + randStringBytesRmndr(5)
-	// epExample := &discovery.EndpointSlice{
-	// 	AddressType: addressType,
-	// 	ObjectMeta: metav1.ObjectMeta{
-	// 		Namespace: ns,
-	// 		Name:      Name,
-	// 		Labels:    map[string]string{discovery.LabelServiceName: svcName},
-	// 	},
-	// 	Endpoints: endpoints,
-	// 	Ports:     ports,
-	// }
-	// _, err := KubeClient.DiscoveryV1().EndpointSlices(ns).Create(context.TODO(), epExample, metav1.CreateOptions{})
-	// if err != nil {
-	// 	t.Fatalf("error in creating Endpoint: %v", err)
-	// }
 	time.Sleep(2 * time.Second)
 }
 func randStringBytesRmndr(n int) string {
