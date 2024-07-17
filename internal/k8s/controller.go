@@ -181,6 +181,13 @@ func isNamespaceUpdated(oldNS, newNS *corev1.Namespace) bool {
 	return oldLabelHash != newLabelHash || oldTenant != newTenant
 }
 
+func AddKeyFromNSToIngstionQueue(numWorkers uint32, c *AviController, namespace string, key, msg string) {
+	bkt := utils.Bkt(namespace, numWorkers)
+	c.workqueue[bkt].AddRateLimited(key)
+	lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+	utils.AviLog.Debugf("key: %s, msg : %s for namespace: %s", key, msg, namespace)
+}
+
 func AddIngressFromNSToIngestionQueue(numWorkers uint32, c *AviController, namespace string, msg string) {
 	ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).List(labels.Set(nil).AsSelector())
 	if err != nil {
@@ -404,6 +411,74 @@ func AddNamespaceAnnotationEventHandler(numWorkers uint32, c *AviController) cac
 				oldTenant := nsOld.Annotations[lib.TenantAnnotation]
 				newTenant := nsCur.Annotations[lib.TenantAnnotation]
 				if oldTenant != newTenant {
+					if lib.AKOControlConfig().CRDInformers().L7RuleInformer != nil {
+						l7RuleObjs, err := lib.AKOControlConfig().CRDInformers().L7RuleInformer.Lister().L7Rules(nsCur.GetName()).List(labels.Set(nil).AsSelector())
+						if err != nil {
+							utils.AviLog.Errorf("Unable to retrieve the l7rules : %s", err)
+						} else {
+							for _, l7RuleObj := range l7RuleObjs {
+								key := lib.L7Rule + "/" + utils.ObjKey(l7RuleObj)
+								if err := c.GetValidator().ValidateL7RuleObj(key, l7RuleObj); err != nil {
+									utils.AviLog.Warnf("key: %s, Error retrieved during validation of l7rule: %v", key, err)
+								}
+							}
+						}
+					}
+					if lib.AKOControlConfig().CRDInformers().HostRuleInformer != nil {
+						hostRuleObjs, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(nsCur.GetName()).List(labels.Set(nil).AsSelector())
+						if err != nil {
+							utils.AviLog.Errorf("Unable to retrieve the hostrules : %s", err)
+						} else {
+							for _, hostRuleObj := range hostRuleObjs {
+								key := lib.HostRule + "/" + utils.ObjKey(hostRuleObj)
+								if err := c.GetValidator().ValidateHostRuleObj(key, hostRuleObj); err != nil {
+									utils.AviLog.Warnf("key: %s, Error retrieved during validation of HostRule: %v", key, err)
+									AddKeyFromNSToIngstionQueue(numWorkers, c, nsCur.GetName(), key, lib.NsFilterAdd)
+								}
+							}
+						}
+					}
+					if lib.AKOControlConfig().CRDInformers().HTTPRuleInformer != nil {
+						httpRuleObjs, err := lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Lister().HTTPRules(nsCur.GetName()).List(labels.Set(nil).AsSelector())
+						if err != nil {
+							utils.AviLog.Errorf("Unable to retrieve the httprules : %s", err)
+						} else {
+							for _, httpRuleObj := range httpRuleObjs {
+								key := lib.HTTPRule + "/" + utils.ObjKey(httpRuleObj)
+								if err := c.GetValidator().ValidateHTTPRuleObj(key, httpRuleObj); err != nil {
+									utils.AviLog.Warnf("key: %s, Error retrieved during validation of HTTPRule: %v", key, err)
+								}
+							}
+						}
+					}
+					if lib.AKOControlConfig().CRDInformers().SSORuleInformer != nil {
+						ssoRuleObjs, err := lib.AKOControlConfig().CRDInformers().SSORuleInformer.Lister().SSORules(nsCur.GetName()).List(labels.Set(nil).AsSelector())
+						if err != nil {
+							utils.AviLog.Errorf("Unable to retrieve the ssorules : %s", err)
+						} else {
+							for _, ssoRuleObj := range ssoRuleObjs {
+								key := lib.SSORule + "/" + utils.ObjKey(ssoRuleObj)
+								if err := c.GetValidator().ValidateSSORuleObj(key, ssoRuleObj); err != nil {
+									utils.AviLog.Warnf("key: %s, Error retrieved during validation of SSORule: %v", key, err)
+									AddKeyFromNSToIngstionQueue(numWorkers, c, nsCur.GetName(), key, lib.NsFilterAdd)
+								}
+							}
+						}
+					}
+					if lib.AKOControlConfig().CRDInformers().L4RuleInformer != nil {
+						l4RuleObjs, err := lib.AKOControlConfig().CRDInformers().L4RuleInformer.Lister().L4Rules(nsCur.GetName()).List(labels.Set(nil).AsSelector())
+						if err != nil {
+							utils.AviLog.Errorf("Unable to retrieve the l4rules : %s", err)
+						} else {
+							for _, l4RuleObj := range l4RuleObjs {
+								key := lib.L4Rule + "/" + utils.ObjKey(l4RuleObj)
+								if err := c.GetValidator().ValidateL4RuleObj(key, l4RuleObj); err != nil {
+									utils.AviLog.Warnf("key: %s, Error retrieved during validation of L4Rule: %v", key, err)
+									AddKeyFromNSToIngstionQueue(numWorkers, c, nsCur.GetName(), key, lib.NsFilterAdd)
+								}
+							}
+						}
+					}
 					if utils.GetInformers().IngressInformer != nil {
 						utils.AviLog.Debugf("Adding ingresses for namespaces: %s", nsCur.GetName())
 						AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)

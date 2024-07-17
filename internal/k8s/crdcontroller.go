@@ -953,13 +953,13 @@ func (c *AviController) SetupServiceImportEventHandlers(numWorkers uint32) {
 	c.informers.ServiceImportInformer.Informer().AddEventHandler(serviceImportEventHandler)
 }
 
-func checkRefsOnController(key string, refMap map[string]string) error {
+func checkRefsOnController(key string, refMap map[string]string, tenant string) error {
 	for k, value := range refMap {
 		if k == "" {
 			continue
 		}
 
-		if err := checkRefOnController(key, value, k); err != nil {
+		if err := checkRefOnController(key, value, k, tenant); err != nil {
 			return err
 		}
 	}
@@ -992,10 +992,10 @@ var refModelMap = map[string]string{
 }
 
 // checkRefOnController checks whether a provided ref on the controller
-func checkRefOnController(key, refKey, refValue string) error {
+func checkRefOnController(key, refKey, refValue, tenant string) error {
 	// assign the last avi client for ref checks
 	aviClientLen := lib.GetshardSize()
-	clients := avicache.SharedAVIClients(lib.GetTenant())
+	clients := avicache.SharedAVIClients(tenant)
 	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type,labels,created_by", refModelMap[refKey], refValue)
 
 	// For public clouds, check using network UUID in AWS, normal network API for GCP, skip altogether for Azure.

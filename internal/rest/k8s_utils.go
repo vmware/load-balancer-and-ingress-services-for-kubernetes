@@ -65,6 +65,7 @@ func (l *leader) SyncObjectStatuses() {
 					Vip:             IPAddrs,
 					ServiceMetadata: vsSvcMetadataObj,
 					Key:             lib.SyncStatusKey,
+					Tenant:          vsCacheObj.Tenant,
 				})
 			for _, poolKey := range vsCacheObj.PoolKeyCollection {
 				poolCache, ok := l.restOp.cache.PoolCache.AviCacheGet(poolKey)
@@ -85,6 +86,7 @@ func (l *leader) SyncObjectStatuses() {
 							Key:                lib.SyncStatusKey,
 							VSName:             vsCacheObj.Name,
 							VirtualServiceUUID: vsCacheObj.Uuid,
+							Tenant:             vsCacheObj.Tenant,
 						})
 				}
 			}
@@ -114,6 +116,7 @@ func (l *leader) SyncObjectStatuses() {
 								ServiceMetadata:    poolCacheObj.ServiceMetadataObj,
 								Key:                lib.SyncStatusKey,
 								VirtualServiceUUID: vsCacheObj.Uuid,
+								Tenant:             vsCacheObj.Tenant,
 							})
 					}
 				}
@@ -139,6 +142,7 @@ func (l *leader) SyncObjectStatuses() {
 							ServiceMetadata:    poolCacheObj.ServiceMetadataObj,
 							Key:                lib.SyncStatusKey,
 							VirtualServiceUUID: vsCacheObj.Uuid,
+							Tenant:             vsCacheObj.Tenant,
 						})
 				} else if len(poolCacheObj.ServiceMetadataObj.NamespaceServiceName) > 0 {
 					allServiceLBUpdateOptions = append(allServiceLBUpdateOptions,
@@ -147,6 +151,7 @@ func (l *leader) SyncObjectStatuses() {
 							ServiceMetadata:    poolCacheObj.ServiceMetadataObj,
 							Key:                lib.SyncStatusKey,
 							VirtualServiceUUID: vsCacheObj.Uuid,
+							Tenant:             vsCacheObj.Tenant,
 						})
 				}
 			}
@@ -160,6 +165,7 @@ func (l *leader) SyncObjectStatuses() {
 					ServiceMetadata:    vsSvcMetadataObj,
 					Key:                lib.SyncStatusKey,
 					VirtualServiceUUID: vsCacheObj.Uuid,
+					Tenant:             vsCacheObj.Tenant,
 				})
 		}
 	}
