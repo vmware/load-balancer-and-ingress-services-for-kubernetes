@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -502,6 +503,7 @@ func AddNamespaceAnnotationEventHandler(numWorkers uint32, c *AviController) cac
 	return nsEventHandler
 }
 
+// TODO: Add same logic of restricting fqdn as that of ingress
 func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEventHandler {
 	routeEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
@@ -1252,9 +1254,34 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				return
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			isAdded := true
+			if lib.AKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+				routeNamespaceName := objects.RouteNamspaceName{
+					RouteNSRouteName: key,
+					CreationTime:     ingress.CreationTimestamp,
+				}
+				ingHosts := sets.NewString()
+				for _, rule := range ingress.Spec.Rules {
+					ingHosts.Insert(rule.Host)
+				}
+				// TODO: handle case of Ingress with multiple hostnames. Current behaviour if one of fqdn is false, not added.
+				isAdded := false
+				for _, host := range ingHosts.List() {
+					isAdded, _, _ = objects.SharedUniqueNamespaceLister().UpdateHostnameToRoute(host, routeNamespaceName)
+					if !isAdded {
+						break
+					}
+				}
+			}
+			if isAdded {
+				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			} else {
+				utils.AviLog.Warnf("key: %s, msg: Ingress is not added due to conflict in hostname", key)
+				// TODO: set status here.
+			}
+
 		},
 		DeleteFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -1286,10 +1313,39 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				return
 			}
 			objects.SharedResourceVerInstanceLister().Delete(key)
+			// Add validation here
 			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
+
+			var addedKeys []string
+			if lib.AKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+				routeNamespaceName := objects.RouteNamspaceName{
+					RouteNSRouteName: key,
+					CreationTime:     ingress.CreationTimestamp,
+				}
+				ingHosts := sets.NewString()
+				for _, rule := range ingress.Spec.Rules {
+					ingHosts.Insert(rule.Host)
+				}
+				for _, host := range ingHosts.List() {
+					// deletion of route, may result in adding ingresses from other namespace of same fqdn
+					addedRoutes, _ := objects.SharedUniqueNamespaceLister().DeleteHostnameToRoute(host, routeNamespaceName)
+					if len(addedRoutes) != 0 {
+						addedKeys = append(addedKeys, addedRoutes...)
+					}
+				}
+			}
+
 			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			// This will enqueue key irrespective of model present or not. Can be optimized.
+			c.workqueue[bkt].AddRateLimited(key)
+			// Now add the keys
+			for _, key := range addedKeys {
+				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			}
+
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			if c.DisableSync {
@@ -1305,9 +1361,88 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					return
 				}
 				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+
+				if lib.AKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+					oldIngHostNames := sets.NewString()
+					newIngHostNames := sets.NewString()
+					for _, rule := range oldobj.Spec.Rules {
+						oldIngHostNames.Insert(rule.Host)
+					}
+					for _, rule := range ingress.Spec.Rules {
+						newIngHostNames.Insert(rule.Host)
+					}
+					hostsToAdd := newIngHostNames.Difference(oldIngHostNames)
+					hostsToDelete := oldIngHostNames.Difference(newIngHostNames)
+					if hostsToAdd.Len() == 0 && hostsToDelete.Len() == 0 {
+						// that means there is no change in hosts
+						c.workqueue[bkt].AddRateLimited(key)
+						lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+						utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+					} else {
+						// TODO: Following logic can be turned into function
+						routeNamespaceName := objects.RouteNamspaceName{
+							RouteNSRouteName: key,
+							CreationTime:     ingress.CreationTimestamp,
+						}
+						if hostsToAdd.Len() != 0 {
+							// new FQDNs are there
+							// so now we need to update it against given ingress
+							var addedKeys []string
+							var deletedKeys []string
+
+							for _, host := range hostsToAdd.List() {
+								flag, addedRoutes, deletedRoutes := objects.SharedUniqueNamespaceLister().UpdateHostnameToRoute(host, routeNamespaceName)
+								if flag {
+									// If true, this means route has to be added
+									addedKeys = append(addedKeys, key)
+								}
+								if len(addedRoutes) != 0 {
+									addedKeys = append(addedKeys, addedRoutes...)
+								}
+								if len(deletedRoutes) != 0 {
+									deletedKeys = append(deletedKeys, deletedRoutes...)
+								}
+							}
+							uniqueAddKeys := sets.NewString(addedKeys...)
+							for _, key := range uniqueAddKeys.List() {
+								c.workqueue[bkt].AddRateLimited(key)
+								lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+								utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+							}
+							// This logic was added as part of timestamp based approach.
+							// With approach being, keep fqdn to namespace whoever claims first, this might not run
+							uniqueDeleteKeys := sets.NewString(deletedKeys...)
+							for _, key := range uniqueDeleteKeys.List() {
+								c.workqueue[bkt].AddRateLimited(key)
+								lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+								utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+							}
+
+						}
+						// TODO: Check whether this is unnecessary
+						if hostsToDelete.Len() != 0 {
+							var addedKeys []string
+							for _, host := range hostsToDelete.List() {
+								addedRoutes, _ := objects.SharedUniqueNamespaceLister().DeleteHostnameToRoute(host, routeNamespaceName)
+								if len(addedRoutes) != 0 {
+									addedKeys = append(addedKeys, addedRoutes...)
+								}
+							}
+							// Now add the keys
+							uniqueAddKeys := sets.NewString(addedKeys...)
+							for _, key := range uniqueAddKeys.List() {
+								c.workqueue[bkt].AddRateLimited(key)
+								lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+								utils.AviLog.Debugf("key: %s, msg: ADD", key)
+							}
+						}
+					}
+
+				} else {
+					c.workqueue[bkt].AddRateLimited(key)
+					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				}
 			}
 		},
 	}

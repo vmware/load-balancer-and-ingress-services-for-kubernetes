@@ -164,6 +164,9 @@ type akoControlConfig struct {
 
 	//endpointSlices Enabled
 	isEndpointSlicesEnabled bool
+
+    //FQDNReusePolicy is set to Strict/InterNamespaceAllowed according to whether AKO allows FQDN sharing across namespaces
+	FQDNReusePolicy string
 }
 
 var akoControlConfigInstance *akoControlConfig
@@ -355,6 +358,17 @@ func (c *akoControlConfig) ControllerVRFContext() string {
 
 func (c *akoControlConfig) SetControllerVRFContext(v string) {
 	c.controllerVRFContext = v
+}
+
+func (c *akoControlConfig) SetAKOFQDNReusePolicy(FQDNPolicy string) {
+	if FQDNPolicy == "" {
+		FQDNPolicy = FQDNReusePolicyOpen
+	}
+	c.FQDNReusePolicy = strings.ToLower(FQDNPolicy)
+}
+
+func (c *akoControlConfig) GetAKOFQDNReusePolicy() string {
+	return c.FQDNReusePolicy
 }
 
 func initControllerVersion() string {

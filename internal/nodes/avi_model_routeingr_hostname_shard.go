@@ -121,6 +121,7 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 		return
 	}
 
+	// TODO: These functions will return true or false. Depeding upon that we should update hostcache to have proper sync
 	// Process insecure routes first.
 	ProcessInsecureHosts(routeIgrObj, key, parsedIng, &modelList, Storedhosts, hostsMap)
 
@@ -183,6 +184,12 @@ func ProcessInsecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng I
 		}
 		hostsMap[host].InsecurePolicy = lib.PolicyAllow
 		hostsMap[host].PathSvc = getPathSvc(pathsvcmap.ingressHPSvc)
+		// TODO: Can we avoid above processing?
+		flag := PopulateIngHostMap(routeIgrObj.GetNamespace(), host, routeIgrObj.GetName(), "", pathsvcmap)
+		if !flag {
+			utils.AviLog.Warnf("key: %s, msg: Ingress: %s is not accepted as hostname %s is already claimed.", key, routeIgrObj.GetName(), host)
+			continue
+		}
 
 		modelName := lib.GetModelName(shardVsName.Tenant, shardVsName.Name)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)

@@ -1115,8 +1115,15 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 
 	hostSlice := []string{host}
 	// Populate the hostmap with empty secret for insecure ingress
-	PopulateIngHostMap(namespace, host, ingName, "", pathsvcmap)
+	flag := PopulateIngHostMap(namespace, host, ingName, "", pathsvcmap)
+	if !flag {
+		utils.AviLog.Warnf("key: %s, msg: Ingress: %s is not accepted as hostname %s is already claimed.", key, ingName, host)
+		return
+	}
 	_, ingressHostMap := SharedHostNameLister().Get(host)
+	hostToIngressMap := make(map[string][]string)
+	// host --> list of namespace/ingress-name
+	hostToIngressMap[host] = ingressHostMap.GetIngressesForHostName()
 
 	if lib.VIPPerNamespace() {
 		SharedHostNameLister().SaveNamespace(host, routeIgrObj.GetNamespace())
@@ -1132,9 +1139,10 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 				EVHParent:    false,
 				EvhHostName:  host,
 				ServiceMetadata: lib.ServiceMetadataObj{
-					NamespaceIngressName: ingressHostMap.GetIngressesForHostName(),
-					Namespace:            namespace,
-					HostNames:            hostSlice,
+					NamespaceIngressName:       ingressHostMap.GetIngressesForHostName(),
+					Namespace:                  namespace,
+					HostNames:                  hostSlice,
+					HostToNamespaceIngressName: hostToIngressMap,
 				},
 			}
 		} else {
@@ -1142,6 +1150,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 			evhNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName()
 			evhNode.ServiceMetadata.Namespace = namespace
 			evhNode.ServiceMetadata.HostNames = hostSlice
+			evhNode.ServiceMetadata.HostToNamespaceIngressName = hostToIngressMap
 		}
 		evhNode.ServiceEngineGroup = lib.GetSEGName()
 		evhNode.VrfContext = lib.GetVrf()
@@ -1151,6 +1160,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 		vsNode[0].ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName()
 		vsNode[0].ServiceMetadata.Namespace = namespace
 		vsNode[0].ServiceMetadata.HostNames = hostSlice
+		vsNode[0].ServiceMetadata.HostToNamespaceIngressName = hostToIngressMap
 		vsNode[0].AviMarkers = lib.PopulateVSNodeMarkers(namespace, host, infraSettingName)
 	}
 
@@ -1408,7 +1418,11 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		var hosts []string
 		hostPathSvcMap[host] = paths.ingressHPSvc
 
-		PopulateIngHostMap(namespace, host, ingName, tlssetting.SecretName, paths)
+		flag := PopulateIngHostMap(namespace, host, ingName, tlssetting.SecretName, paths)
+		if !flag {
+			utils.AviLog.Warnf("key: %s, msg: Ingress: %s is not accepted as hostname %s is already claimed.", key, ingName, host)
+			continue
+		}
 		_, ingressHostMap := SharedHostNameLister().Get(host)
 
 		if lib.VIPPerNamespace() {
@@ -1463,7 +1477,8 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 	if lib.IsSecretAviCertRef(evhSecretName) {
 		certsBuilt = true
 	}
-
+	hostToIngressMap := make(map[string][]string)
+	hostToIngressMap[host] = ingressHostMap.GetIngressesForHostName()
 	var infraSettingName string
 	if infraSetting != nil && !lib.IsInfraSettingNSScoped(infraSetting.Name, namespace) {
 		infraSettingName = infraSetting.Name
@@ -1479,9 +1494,10 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 				EVHParent:    false,
 				EvhHostName:  host,
 				ServiceMetadata: lib.ServiceMetadataObj{
-					NamespaceIngressName: ingressHostMap.GetIngressesForHostName(),
-					Namespace:            namespace,
-					HostNames:            hosts,
+					NamespaceIngressName:       ingressHostMap.GetIngressesForHostName(),
+					Namespace:                  namespace,
+					HostNames:                  hosts,
+					HostToNamespaceIngressName: hostToIngressMap,
 				},
 			}
 		} else {
@@ -1489,6 +1505,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			evhNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName()
 			evhNode.ServiceMetadata.Namespace = namespace
 			evhNode.ServiceMetadata.HostNames = hosts
+			evhNode.ServiceMetadata.HostToNamespaceIngressName = hostToIngressMap
 		}
 		evhNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
 		evhNode.ServiceEngineGroup = lib.GetSEGName()
@@ -1498,6 +1515,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 		vsNode[0].ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName()
 		vsNode[0].ServiceMetadata.Namespace = namespace
 		vsNode[0].ServiceMetadata.HostNames = hosts
+		vsNode[0].ServiceMetadata.HostToNamespaceIngressName = hostToIngressMap
 		vsNode[0].AddSSLPort(key)
 		vsNode[0].Secure = true
 		vsNode[0].ApplicationProfile = utils.DEFAULT_L7_SECURE_APP_PROFILE

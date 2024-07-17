@@ -207,6 +207,8 @@ const (
 	VrfContextObjectNotFoundError              = "VrfContext object not found"
 	NetworkNotFoundError                       = "Network object not found"
 	CtrlVersion_22_1_6                         = "22.1.6"
+	FQDNReusePolicyStrict                      = "strict"
+	FQDNReusePolicyOpen                        = "interNamespaceallowed"
 
 	// AKO Event constants
 	AKOEventComponent        = "avi-kubernetes-operator"

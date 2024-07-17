@@ -80,19 +80,20 @@ type CRDMetadata struct {
 }
 
 type ServiceMetadataObj struct {
-	NamespaceIngressName  []string    `json:"namespace_ingress_name"`
-	IngressName           string      `json:"ingress_name"`
-	Namespace             string      `json:"namespace"`
-	HostNames             []string    `json:"hostnames"`
-	NamespaceServiceName  []string    `json:"namespace_svc_name"` // []string{ns/name}
-	CRDStatus             CRDMetadata `json:"crd_status"`
-	PoolRatio             uint32      `json:"pool_ratio"`
-	PassthroughParentRef  string      `json:"passthrough_parent_ref"`
-	PassthroughChildRef   string      `json:"passthrough_child_ref"`
-	Gateway               string      `json:"gateway"`   // ns/name
-	HTTPRoute             string      `json:"httproute"` // ns/name
-	InsecureEdgeTermAllow bool        `json:"insecureedgetermallow"`
-	IsMCIIngress          bool        `json:"is_mci_ingress"`
+	NamespaceIngressName       []string            `json:"namespace_ingress_name"`
+	IngressName                string              `json:"ingress_name"`
+	Namespace                  string              `json:"namespace"`
+	HostNames                  []string            `json:"hostnames"`
+	NamespaceServiceName       []string            `json:"namespace_svc_name"` // []string{ns/name}
+	CRDStatus                  CRDMetadata         `json:"crd_status"`
+	PoolRatio                  uint32              `json:"pool_ratio"`
+	PassthroughParentRef       string              `json:"passthrough_parent_ref"`
+	PassthroughChildRef        string              `json:"passthrough_child_ref"`
+	Gateway                    string              `json:"gateway"` // ns/name
+	InsecureEdgeTermAllow      bool                `json:"insecureedgetermallow"`
+	IsMCIIngress               bool                `json:"is_mci_ingress"`
+	FQDNReusePolicy            string              `json:"fqdn_reuse_policy"`
+	HostToNamespaceIngressName map[string][]string `json:"host_namespace_ingress_name"`
 }
 
 type ServiceMetadataMappingObjType string
@@ -1793,6 +1794,10 @@ func ValidateSvcforClass(key string, svc *corev1.Service) bool {
 	}
 	utils.AviLog.Warnf("key: %s, msg: Could not find service for LBClass Validation")
 	return false
+}
+
+func AKOFQDNReusePolicy() string {
+	return AKOControlConfig().GetAKOFQDNReusePolicy()
 }
 
 func isAviDefaultLBController() bool {

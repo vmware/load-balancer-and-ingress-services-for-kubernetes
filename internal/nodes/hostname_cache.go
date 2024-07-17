@@ -172,11 +172,22 @@ func (h *HostNamePathStore) DeleteHostPathStore(host string) {
 	h.hostNamePathStore.Delete(host)
 }
 
-func PopulateIngHostMap(namespace, hostName, ingName, secretName string, pathsvcMap HostMetadata) {
+// added multiple layer of validation. Useful in multihost ingress
+func PopulateIngHostMap(namespace, hostName, ingName, secretName string, pathsvcMap HostMetadata) bool {
 	hostMap := HostNamePathSecrets{paths: getPaths(pathsvcMap.ingressHPSvc), secretName: secretName}
 	found, ingressHostMap := SharedHostNameLister().Get(hostName)
 	if found {
 		// Replace the ingress map for this host.
+		ingresses := ingressHostMap.GetIngressesForHostName()
+		if len(ingresses) > 0 {
+			nsIngressname := strings.Split(ingresses[0], "/")
+			if len(nsIngressname) > 0 {
+				if nsIngressname[0] != namespace {
+					utils.AviLog.Debugf("Active Namespace is : %s and ingres namespace is: %s. Returning", nsIngressname[0], namespace)
+					return false
+				}
+			}
+		}
 		ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
 	} else {
 		// Create the map
@@ -184,4 +195,5 @@ func PopulateIngHostMap(namespace, hostName, ingName, secretName string, pathsvc
 		ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
 	}
 	SharedHostNameLister().Save(hostName, ingressHostMap)
+	return true
 }

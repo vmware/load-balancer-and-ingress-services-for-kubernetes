@@ -36,6 +36,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	servicesapi "sigs.k8s.io/service-apis/apis/v1alpha1"
@@ -1100,36 +1101,93 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 		}
 		//Ingress Section
 		if utils.GetInformers().IngressInformer != nil {
+			ingObjList := make([]*networkingv1.Ingress, 0)
+			// create list of ingresses.
 			for namespace := range acceptedNamespaces {
 				ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).List(labels.Set(nil).AsSelector())
 				if err != nil {
 					utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
-				} else {
-					for _, ingObj := range ingObjs {
-						key := utils.Ingress + "/" + utils.ObjKey(ingObj)
-						meta, err := meta.Accessor(ingObj)
-						if err == nil {
-							resVer := meta.GetResourceVersion()
-							objects.SharedResourceVerInstanceLister().Save(key, resVer)
+					continue
+				}
+				ingObjList = append(ingObjList, ingObjs...)
+			}
+			// sort the list as per the timestamp. Sorting logic can be kept irrespective of strict or non-strict policy
+			sort.Slice(ingObjList, func(i, j int) bool { return lib.IngressLessthan(ingObjList[i], ingObjList[j]) })
+
+			// TODO: Check this: There will be complication in handling ingress with multiple hosts as it can happen one hostname is accepted
+			// other is rejected.
+			for _, ingObj := range ingObjList {
+				key := ingObj.Namespace + "/" + ingObj.Name
+				isValid := true
+
+				// TODO: try to covert if loop to function
+				if lib.AKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+					routeNamespaceName := objects.RouteNamspaceName{
+						RouteNSRouteName: utils.Ingress + "/" + key,
+						CreationTime:     ingObj.CreationTimestamp,
+					}
+					// get the hostnames in the ingress
+					hosts := sets.NewString()
+					for _, rule := range ingObj.Spec.Rules {
+						hosts.Insert(rule.Host)
+					}
+					isValid = false
+					for _, host := range hosts.List() {
+						isValid, _, _ = objects.SharedUniqueNamespaceLister().UpdateHostnameToRoute(host, routeNamespaceName)
+						// TODO: multihost needs to be handled in Graph layer
+						if isValid {
+							utils.AviLog.Debugf("Ingress %s is added to active list. Enqueuing it", key)
+							break
 						}
-						utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
-						lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-						nodes.DequeueIngestion(key, true)
 					}
 				}
+				if isValid {
+					key := utils.Ingress + "/" + key
+					meta, err := meta.Accessor(ingObj)
+					if err == nil {
+						resVer := meta.GetResourceVersion()
+						objects.SharedResourceVerInstanceLister().Save(key, resVer)
+					}
+					utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
+					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+					nodes.DequeueIngestion(key, true)
+				}
 			}
+			// TODO: free ingObjList
 		}
 		//Route Section
 		if utils.GetInformers().RouteInformer != nil {
-			routeObjs, err := utils.GetInformers().RouteInformer.Lister().List(labels.Set(nil).AsSelector())
-			if err != nil {
-				utils.AviLog.Errorf("Unable to retrieve the routes during full sync: %s", err)
-			} else {
-				for _, routeObj := range routeObjs {
-					if _, ok := acceptedNamespaces[routeObj.Namespace]; !ok {
-						continue
+			routeObjList := make([]*routev1.Route, 0)
+			for namespace := range acceptedNamespaces {
+				routeObjs, err := utils.GetInformers().RouteInformer.Lister().Routes(namespace).List(labels.Set(nil).AsSelector())
+				if err != nil {
+					utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
+					continue
+				}
+				routeObjList = append(routeObjList, routeObjs...)
+			}
+
+			// sort on timestamp
+			sort.Slice(routeObjList, func(i, j int) bool { return lib.RouteLessthan(routeObjList[i], routeObjList[j]) })
+
+			for _, routeObj := range routeObjList {
+				key := utils.OshiftRoute + "/" + utils.ObjKey(routeObj)
+				isValid := true
+
+				// TODO: try to covert if loop to function
+				if lib.AKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+					routeNamespaceName := objects.RouteNamspaceName{
+						RouteNSRouteName: utils.OshiftRoute + "/" + key,
+						CreationTime:     routeObj.CreationTimestamp,
 					}
-					key := utils.OshiftRoute + "/" + utils.ObjKey(routeObj)
+
+					isValid, _, _ = objects.SharedUniqueNamespaceLister().UpdateHostnameToRoute(routeObj.Spec.Host, routeNamespaceName)
+					if isValid {
+						utils.AviLog.Debugf("Route %s is added to active list. Enqueuing it", key)
+					}
+				}
+				if isValid {
+					// Enqueue it only in case of valid
 					meta, err := meta.Accessor(routeObj)
 					if err == nil {
 						resVer := meta.GetResourceVersion()
@@ -1140,6 +1198,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 					nodes.DequeueIngestion(key, true)
 				}
 			}
+			// TODO: Free routelist
 		}
 		if lib.UseServicesAPI() {
 			gatewayObjs, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())

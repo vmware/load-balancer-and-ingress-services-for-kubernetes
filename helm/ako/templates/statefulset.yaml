@@ -288,6 +288,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: enableEndpointSlice
+          - name: FQDN_REUSE_POLICY
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: FQDNReusePolicy
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:

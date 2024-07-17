@@ -51,11 +51,18 @@ func (o *AviObjectGraph) BuildDedicatedL7VSGraphHostNameShard(vsName, hostname s
 	pathFQDNs = append(pathFQDNs, hostname)
 
 	// Populate the hostmap with empty secret for insecure ingress
-	PopulateIngHostMap(namespace, hostname, ingName, "", pathsvcMap)
+	flag := PopulateIngHostMap(namespace, hostname, ingName, "", pathsvcMap)
+	if !flag {
+		utils.AviLog.Warnf("key: %s, msg:Ingress: %s is not accepted as hostname %s is already claimed.", key, ingName, hostname)
+		return
+	}
 	_, ingressHostMap := SharedHostNameLister().Get(hostname)
 	vsNode[0].ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName()
+	hostToIngressMap := make(map[string][]string)
+	hostToIngressMap[hostname] = ingressHostMap.GetIngressesForHostName()
 	vsNode[0].ServiceMetadata.Namespace = namespace
 	vsNode[0].ServiceMetadata.HostNames = pathFQDNs
+	vsNode[0].ServiceMetadata.HostToNamespaceIngressName = hostToIngressMap
 	vsNode[0].AviMarkers = lib.PopulateVSNodeMarkers(namespace, hostname, infraSettingName)
 
 	// Update the VSVIP with the host information.
@@ -313,6 +320,13 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 			// Processsing insecure ingress
 			if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, hostname) {
 				vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, hostname)
+				// combine maps of each hostname.
+				if vsNode[0].ServiceMetadata.HostToNamespaceIngressName == nil {
+					vsNode[0].ServiceMetadata.HostToNamespaceIngressName = make(map[string][]string)
+				}
+				_, ingressHostMap := SharedHostNameLister().Get(hostname)
+				// debug statement might be useful to check if hosts are getting appended as it is shared VS.
+				vsNode[0].ServiceMetadata.HostToNamespaceIngressName[hostname] = ingressHostMap.GetIngressesForHostName()
 			}
 			// Check poolname length, if >255, don't add it.
 			if lib.CheckObjectNameLength(poolName, lib.Pool) {
@@ -603,7 +617,11 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 	for sniHost, paths := range tlssetting.Hosts {
 		var sniHosts []string
 		hostPathSvcMap[sniHost] = paths.ingressHPSvc
-		PopulateIngHostMap(namespace, sniHost, ingName, tlssetting.SecretName, paths)
+		flag := PopulateIngHostMap(namespace, sniHost, ingName, tlssetting.SecretName, paths)
+		if !flag {
+			utils.AviLog.Warnf("key: %s, msg: Ingress: %s is not accepted as hostname %s is already claimed.", key, ingName, sniHost)
+			continue
+		}
 		_, ingressHostMap := SharedHostNameLister().Get(sniHost)
 		sniHosts = append(sniHosts, sniHost)
 		_, shardVsName := DeriveShardVS(sniHost, key, routeIgrObj)
@@ -659,6 +677,8 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 		infraSettingName = infraSetting.Name
 	}
 
+	hostToIngressMap := make(map[string][]string)
+	hostToIngressMap[sniHost] = ingressHostMap.GetIngressesForHostName()
 	isDedicated := vsNode[0].Dedicated
 	if !isDedicated {
 		sniNodeName := lib.GetSniNodeName(infraSettingName, sniHost)
@@ -673,6 +693,8 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 					NamespaceIngressName: ingressHostMap.GetIngressesForHostName(),
 					Namespace:            namespace,
 					HostNames:            sniHosts,
+
+					HostToNamespaceIngressName: hostToIngressMap,
 				},
 			}
 		} else {
@@ -680,6 +702,7 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 			sniNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName()
 			sniNode.ServiceMetadata.Namespace = namespace
 			sniNode.ServiceMetadata.HostNames = sniHosts
+			sniNode.ServiceMetadata.HostToNamespaceIngressName = hostToIngressMap
 		}
 
 		sniNode.ServiceEngineGroup = lib.GetSEGName()
@@ -690,6 +713,7 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 		vsNode[0].ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName()
 		vsNode[0].ServiceMetadata.Namespace = namespace
 		vsNode[0].ServiceMetadata.HostNames = sniHosts
+		vsNode[0].ServiceMetadata.HostToNamespaceIngressName = hostToIngressMap
 		vsNode[0].AddSSLPort(key)
 		vsNode[0].Secure = true
 		vsNode[0].ApplicationProfile = utils.DEFAULT_L7_SECURE_APP_PROFILE
