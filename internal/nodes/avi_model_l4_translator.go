@@ -312,7 +312,7 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 				continue
 			}
 			// select epslice containing target port
-			var found = false
+			found := false
 			for _, port := range epSlice.Ports {
 				if poolNode.TargetPort.IntVal == *port.Port {
 					found = true
@@ -360,8 +360,7 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 				if !ok {
 					// not disabling just because the pod was not found in condition map. i.e. ignoring false negatives
 					utils.AviLog.Debugf("key: %s, msg: pod %s not found in condition map. enabling by default", key, pod.Name)
-					enabled = new(bool)
-					*enabled = true
+					enabled = proto.Bool(true)
 				}
 				server := AviPoolMetaServer{
 					Port: int32(a.NodePort),
