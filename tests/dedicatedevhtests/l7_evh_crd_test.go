@@ -87,8 +87,6 @@ func TestMain(m *testing.M) {
 	os.Setenv("AUTO_L4_FQDN", "default")
 	os.Setenv("POD_NAME", "ako-0")
 
-	os.Setenv("ENDPOINTSLICES_ENABLED", "true")
-
 	akoControlConfig := lib.AKOControlConfig()
 	endpointSliceEnabled = lib.GetEndpointSliceEnabled()
 	akoControlConfig.SetEndpointSlicesEnabled(endpointSliceEnabled)

@@ -64,7 +64,6 @@ func TestMain(m *testing.M) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("AUTO_L4_FQDN", "default")
 	os.Setenv("POD_NAME", "ako-0")
-	os.Setenv("ENDPOINTSLICES_ENABLED", "true")
 
 	akoControlConfig := lib.AKOControlConfig()
 	endpointSliceEnabled = lib.GetEndpointSliceEnabled()
@@ -584,7 +583,7 @@ func TestMultiVSIngress(t *testing.T) {
 func TestMultiPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var err error
-	lib.AKOControlConfig().SetEndpointSlicesEnabled(true)
+
 	modelName := "admin/cluster--Shared-L7-0"
 	SetUpTestForIngress(t, modelName)
 

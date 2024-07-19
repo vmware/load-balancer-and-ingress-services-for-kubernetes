@@ -218,7 +218,6 @@ func TestMain(m *testing.M) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("POD_NAME", "ako-0")
 	os.Setenv("DEFAULT_LB_CONTROLLER", "true")
-	// os.Setenv("ENDPOINTSLICES_ENABLED", "true")
 
 	akoControlConfig := lib.AKOControlConfig()
 	endpointSliceEnabled = lib.GetEndpointSliceEnabled()
