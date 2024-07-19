@@ -624,3 +624,25 @@ func String(s *string) string {
 	}
 	return ""
 }
+
+func CheckSubdomainOverlapping(hostName1, hostName2 string) bool {
+	host1SubdomainList := strings.Split(hostName1, ".")
+	host2SubdomainList := strings.Split(hostName2, ".")
+
+	shortestListLen := len(host1SubdomainList)
+	if len(host2SubdomainList) < shortestListLen {
+		shortestListLen = len(host2SubdomainList)
+	}
+	index1 := len(host1SubdomainList) - 1
+	index2 := len(host2SubdomainList) - 1
+	for ; shortestListLen > 0; shortestListLen-- {
+		if host1SubdomainList[index1] != WILDCARD && host2SubdomainList[index2] != WILDCARD {
+			if host1SubdomainList[index1] != host2SubdomainList[index2] {
+				return false
+			}
+		}
+		index1 = index1 - 1
+		index2 = index2 - 1
+	}
+	return true
+}

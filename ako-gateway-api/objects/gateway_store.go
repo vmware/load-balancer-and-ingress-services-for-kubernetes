@@ -829,13 +829,13 @@ func (g *GWLister) GetGatewayRouteToHostname(gwNsName string) (bool, []string) {
 }
 
 // == All GW+route to HTTPS, PG , pool mapping
-func (g *GWLister) UpdateGatewayRouteToHTTPSPGPool(gwRouteNsName string, httppsPGPool HTTPPSPGPool) {
+func (g *GWLister) UpdateGatewayRouteToHTTPPSPGPool(gwRouteNsName string, httpPSPGPool HTTPPSPGPool) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 	var localHTTPPSPGPool HTTPPSPGPool
-	localHTTPPSPGPool.HTTPPS = append(localHTTPPSPGPool.HTTPPS, httppsPGPool.HTTPPS...)
-	localHTTPPSPGPool.PoolGroup = append(localHTTPPSPGPool.PoolGroup, httppsPGPool.PoolGroup...)
-	localHTTPPSPGPool.Pool = append(localHTTPPSPGPool.Pool, httppsPGPool.Pool...)
+	localHTTPPSPGPool.HTTPPS = append(localHTTPPSPGPool.HTTPPS, httpPSPGPool.HTTPPS...)
+	localHTTPPSPGPool.PoolGroup = append(localHTTPPSPGPool.PoolGroup, httpPSPGPool.PoolGroup...)
+	localHTTPPSPGPool.Pool = append(localHTTPPSPGPool.Pool, httpPSPGPool.Pool...)
 	g.gatewayRouteToHTTPSPGPoolStore.AddOrUpdate(gwRouteNsName, localHTTPPSPGPool)
 
 }

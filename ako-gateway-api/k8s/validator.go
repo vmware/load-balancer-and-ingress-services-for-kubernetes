@@ -371,7 +371,7 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 	for _, listenerObj := range listenersForRoute {
 		// check from store
 		hostInListener := listenerObj.Hostname
-		isListnerFqdnWildcard := false
+		isListenerFqdnWildcard := false
 		matched := false
 		// TODO:
 		// Use case to handle for validations of hostname:
@@ -382,7 +382,7 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		} else {
 			// mark listener fqdn if it has *
 			if strings.HasPrefix(string(*hostInListener), utils.WILDCARD) {
-				isListnerFqdnWildcard = true
+				isListenerFqdnWildcard = true
 			}
 			for _, host := range httpRoute.Spec.Hostnames {
 				// casese to consider:
@@ -394,18 +394,18 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 				if strings.HasPrefix(string(host), utils.WILDCARD) {
 					isHttpRouteHostFqdnWildcard = true
 				}
-				if isHttpRouteHostFqdnWildcard && isListnerFqdnWildcard {
+				if isHttpRouteHostFqdnWildcard && isListenerFqdnWildcard {
 					// both are true. Match nonwildcard part
 					nonWildCardHttpRouteHostname := strings.Split(string(host), utils.WILDCARD)
 					nonWildCardGWHostname := strings.Split(string(*hostInListener), utils.WILDCARD)
 					// Use case: 1. GW: *.avi.internal HttpRoute: *.bar.avi.internal
 					// USe case: 2. GW: *.bar.avi.internal HttpRoute: *.avi.internal
-					if strings.Contains(nonWildCardHttpRouteHostname[1], nonWildCardGWHostname[1]) || strings.Contains(nonWildCardGWHostname[1], nonWildCardHttpRouteHostname[1]) {
+					if utils.CheckSubdomainOverlapping(nonWildCardGWHostname[1], nonWildCardHttpRouteHostname[1]) {
 						matched = true
 						break
 					}
 
-				} else if !isHttpRouteHostFqdnWildcard && !isListnerFqdnWildcard {
+				} else if !isHttpRouteHostFqdnWildcard && !isListenerFqdnWildcard {
 					// both are complete fqdn
 					if string(host) == string(*hostInListener) {
 						matched = true
@@ -415,7 +415,7 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 					if isHttpRouteHostFqdnWildcard {
 						// httpRoute hostFqdn is wildcard
 						matched = matched || isRegexMatch(string(host), string(*hostInListener), key)
-					} else if isListnerFqdnWildcard {
+					} else if isListenerFqdnWildcard {
 						// listener fqdn is wildcard
 						matched = matched || isRegexMatch(string(*hostInListener), string(host), key)
 					}

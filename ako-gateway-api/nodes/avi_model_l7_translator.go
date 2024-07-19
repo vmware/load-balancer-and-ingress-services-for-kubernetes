@@ -32,9 +32,9 @@ import (
 )
 
 func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, parentNsName string, childVSes map[string]struct{}, fullsync bool) {
-	rules := routeModel.ParseRouteConfig()
-	noHostsOnRoute := len(rules.Hosts) == 0
-	httpRouteRules := rules.Rules
+	httpRouteConfig := routeModel.ParseRouteConfig()
+	noHostsOnRoute := len(httpRouteConfig.Hosts) == 0
+	httpRouteRules := httpRouteConfig.Rules
 	if noHostsOnRoute {
 		// Add rules on parent VS
 		o.BuildParentPGPoolHTTPPS(key, routeModel, parentNsName, httpRouteRules, childVSes, fullsync)
@@ -77,7 +77,7 @@ func (o *AviObjectGraph) BuildParentPGPoolHTTPPS(key string, routeModel RouteMod
 		}
 		if len(rule.Matches) != 0 {
 			// build HTTPPS, PG and pools
-			o.BuildParentHTTPS(key, parentNsName, parentNode[0], routeModel, rule, 0, httpPSName, &locaHTTTPPSPGPool)
+			o.BuildParentHTTPPS(key, parentNsName, parentNode[0], routeModel, rule, 0, httpPSName, &locaHTTTPPSPGPool)
 		}
 		if len(rule.Matches) == 0 && len(rule.Backends) != 0 {
 			// Default PG. Empty match name
@@ -85,7 +85,7 @@ func (o *AviObjectGraph) BuildParentPGPoolHTTPPS(key string, routeModel RouteMod
 		}
 
 	}
-	objects.GatewayApiLister().UpdateGatewayRouteToHTTPSPGPool(gwHTTPRouteKey, locaHTTTPPSPGPool)
+	objects.GatewayApiLister().UpdateGatewayRouteToHTTPPSPGPool(gwHTTPRouteKey, locaHTTTPPSPGPool)
 }
 func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentNsName string, rule *Rule, childVSes map[string]struct{}, fullsync bool) {
 
@@ -291,7 +291,7 @@ func (o *AviObjectGraph) BuildBackendFiltersModel(key, poolName string, httpback
 	}
 }
 
-func (o *AviObjectGraph) BuildDefaultPGPoolForParentVS(key, parentNsName, matchName string, parentVsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule, httppsPGPool *objects.HTTPPSPGPool) bool {
+func (o *AviObjectGraph) BuildDefaultPGPoolForParentVS(key, parentNsName, matchName string, parentVsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule, httpPSPGPool *objects.HTTPPSPGPool) bool {
 	// create the PG from backends
 	pgAttachedToVS := false
 	httpRouteNamespace := routeModel.GetNamespace()
@@ -364,9 +364,9 @@ func (o *AviObjectGraph) BuildDefaultPGPoolForParentVS(key, parentNsName, matchN
 			// Replace the poolNode.
 			parentVsNode.ReplaceEvhPoolInEVHNode(poolNode, key)
 			// Add pool to list of Pools attached to Parent VS
-			httppsPGPool.Pool = append(httppsPGPool.Pool, poolNode.Name)
-			uniquePools := sets.NewString(httppsPGPool.Pool...)
-			httppsPGPool.Pool = uniquePools.List()
+			httpPSPGPool.Pool = append(httpPSPGPool.Pool, poolNode.Name)
+			uniquePools := sets.NewString(httpPSPGPool.Pool...)
+			httpPSPGPool.Pool = uniquePools.List()
 		}
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		o.BuildBackendFiltersModel(key, poolName, backend, parentVsNode)
@@ -376,9 +376,9 @@ func (o *AviObjectGraph) BuildDefaultPGPoolForParentVS(key, parentNsName, matchN
 	if len(PG.Members) > 0 {
 		parentVsNode.ReplaceEvhPGInEVHNode(PG, key)
 		// Add PG to list of PG attached to Parent VS
-		httppsPGPool.PoolGroup = append(httppsPGPool.PoolGroup, PG.Name)
-		uniquePGs := sets.NewString(httppsPGPool.PoolGroup...)
-		httppsPGPool.PoolGroup = uniquePGs.List()
+		httpPSPGPool.PoolGroup = append(httpPSPGPool.PoolGroup, PG.Name)
+		uniquePGs := sets.NewString(httpPSPGPool.PoolGroup...)
+		httpPSPGPool.PoolGroup = uniquePGs.List()
 		if matchName == "" {
 			parentVsNode.DefaultPoolGroup = PG.Name
 		}
@@ -457,7 +457,7 @@ func (o *AviObjectGraph) BuildVHMatch(key string, parentNsName string, routeType
 	utils.AviLog.Infof("key: %s, msg: Attached match criteria to vs %s", key, vsNode.Name)
 }
 
-func (o *AviObjectGraph) BuildParentHTTPS(key, parentNsName string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule, index int, httpPSName string, httppsPGPool *objects.HTTPPSPGPool) {
+func (o *AviObjectGraph) BuildParentHTTPPS(key, parentNsName string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule, index int, httpPSName string, httpPSPGPool *objects.HTTPPSPGPool) {
 	var policy *nodes.AviHttpPolicySetNode
 	var req_rule *models.HTTPRequestRule
 	rule_index := 0
@@ -475,9 +475,9 @@ func (o *AviObjectGraph) BuildParentHTTPS(key, parentNsName string, vsNode *node
 	if policy == nil {
 		policy = &nodes.AviHttpPolicySetNode{Name: httpPSName, Tenant: lib.GetTenant()}
 		vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs, policy)
-		httppsPGPool.HTTPPS = append(httppsPGPool.HTTPPS, httpPSName)
-		uniqueHTTPS := sets.NewString(httppsPGPool.HTTPPS...)
-		httppsPGPool.HTTPPS = uniqueHTTPS.List()
+		httpPSPGPool.HTTPPS = append(httpPSPGPool.HTTPPS, httpPSName)
+		uniqueHTTPS := sets.NewString(httpPSPGPool.HTTPPS...)
+		httpPSPGPool.HTTPPS = uniqueHTTPS.List()
 		index = len(vsNode.HttpPolicyRefs) - 1
 	}
 	for i, requestRule := range policy.RequestRules {
@@ -495,7 +495,16 @@ func (o *AviObjectGraph) BuildParentHTTPS(key, parentNsName string, vsNode *node
 	}
 	parentNs, _, parentName := lib.ExtractTypeNameNamespace(parentNsName)
 
-	//port match is not required as its empty hostname at httproute. So it will map to all listener ports of Parent
+	// Code to retrieve ports associated with given httproute name
+	routeTypeNsName := fmt.Sprintf("%s/%s", httpRouteNamespace, httpRouteName)
+	allListeners := objects.GatewayApiLister().GetRouteToGatewayListener(routeTypeNsName)
+	listeners := []akogatewayapiobjects.GatewayListenerStore{}
+	for _, listener := range allListeners {
+		if listener.Gateway == parentNsName {
+			listeners = append(listeners, listener)
+		}
+	}
+
 	for _, match := range rule.Matches {
 		//rulename should be combination of parent, httproute and matches
 		pgName := akogatewayapilib.GetHTTPRuleName(parentNs, parentName,
@@ -531,7 +540,14 @@ func (o *AviObjectGraph) BuildParentHTTPS(key, parentNsName string, vsNode *node
 			match_target.Hdrs = append(match_target.Hdrs, hdrMatch)
 		}
 
-		pgAttachedToVS := o.BuildDefaultPGPoolForParentVS(key, parentNsName, utils.Stringify(match), vsNode, routeModel, rule, httppsPGPool)
+		// attaching ports
+		match_target.VsPort = &models.PortMatch{
+			MatchCriteria: proto.String("IS_IN"),
+		}
+		for _, listener := range listeners {
+			match_target.VsPort.Ports = append(match_target.VsPort.Ports, int64(listener.Port))
+		}
+		pgAttachedToVS := o.BuildDefaultPGPoolForParentVS(key, parentNsName, utils.Stringify(match), vsNode, routeModel, rule, httpPSPGPool)
 		// switching action to PG
 		sw_action := models.HttpswitchingAction{}
 		if pgAttachedToVS {
@@ -546,7 +562,7 @@ func (o *AviObjectGraph) BuildParentHTTPS(key, parentNsName string, vsNode *node
 	}
 
 }
-func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule, index int, httpPSName string, httppsPGPool *objects.HTTPPSPGPool) {
+func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule, index int, httpPSName string, httpPSPGPool *objects.HTTPPSPGPool) {
 
 	if len(rule.Filters) == 0 {
 		vsNode.HttpPolicyRefs = nil
@@ -564,9 +580,9 @@ func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNo
 	if policy == nil {
 		policy = &nodes.AviHttpPolicySetNode{Name: httpPSName, Tenant: lib.GetTenant()}
 		vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs, policy)
-		httppsPGPool.HTTPPS = append(httppsPGPool.HTTPPS, httpPSName)
-		uniqueHTTPS := sets.NewString(httppsPGPool.HTTPPS...)
-		httppsPGPool.HTTPPS = uniqueHTTPS.List()
+		httpPSPGPool.HTTPPS = append(httpPSPGPool.HTTPPS, httpPSName)
+		uniqueHTTPS := sets.NewString(httpPSPGPool.HTTPPS...)
+		httpPSPGPool.HTTPPS = uniqueHTTPS.List()
 		index = len(vsNode.HttpPolicyRefs) - 1
 	}
 	o.BuildHTTPPolicySetHTTPRequestRedirectRules(key, httpPSName, vsNode, routeModel, rule.Filters, index)

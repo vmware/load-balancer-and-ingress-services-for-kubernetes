@@ -15,8 +15,6 @@
 package nodes
 
 import (
-	"strings"
-
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 
@@ -268,14 +266,12 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 					gwListenerNsName := gwNsName + "/" + listener.Name
 					listenerHostname := akogatewayapiobjects.GatewayApiLister().GetGatewayListenerToHostname(gwListenerNsName)
 
-					listenerHostname = strings.TrimPrefix(listenerHostname, utils.WILDCARD)
-
 					hostnameMatched := false
 					for _, routeHostname := range hrObj.Spec.Hostnames {
 						// When Gateway hostname is empty, then just check validity of hostname and append it.
 						// When hostname in HTTProute has wildcard
 						// When there is exact match
-						if strings.HasSuffix(string(routeHostname), listenerHostname) || listenerHostname == "" || strings.HasPrefix(string(routeHostname), utils.WILDCARD) {
+						if listenerHostname == "" || utils.CheckSubdomainOverlapping(string(routeHostname), listenerHostname) {
 							if akogatewayapilib.VerifyHostnameSubdomainMatch(string(routeHostname)) {
 								hostnameIntersection = append(hostnameIntersection, string(routeHostname))
 								hostnameMatched = true
