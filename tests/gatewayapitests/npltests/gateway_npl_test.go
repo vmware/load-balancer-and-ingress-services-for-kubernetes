@@ -124,13 +124,13 @@ const (
 	defaultPodPort  = 80
 	defaultHostIP   = "10.10.10.10"
 	defaultPodIP    = "192.168.32.10"
-	defaultNodePort = 40001
+	defaultNodePort = 60001
 )
 
 func createPodWithNPLAnnotation(labels map[string]string) {
 	testPod := getTestPod(labels)
 	ann := make(map[string]string)
-	ann[lib.NPLPodAnnotation] = "[{\"podPort\":8080,\"nodeIP\":\"10.10.10.10\",\"nodePort\":40001}]"
+	ann[lib.NPLPodAnnotation] = "[{\"podPort\":8080,\"nodeIP\":\"10.10.10.10\",\"nodePort\":60001}]"
 	testPod.Annotations = ann
 	tests.KubeClient.CoreV1().Pods(DEFAULT_NAMESPACE).Create(context.TODO(), &testPod, metav1.CreateOptions{})
 }
@@ -138,7 +138,7 @@ func createPodWithNPLAnnotation(labels map[string]string) {
 func updatePodWithNPLAnnotation(labels map[string]string) {
 	testPod := getTestPod(labels)
 	ann := make(map[string]string)
-	ann[lib.NPLPodAnnotation] = "[{\"podPort\":8080,\"nodeIP\":\"10.10.10.10\",\"nodePort\":40001}]"
+	ann[lib.NPLPodAnnotation] = "[{\"podPort\":8080,\"nodeIP\":\"10.10.10.10\",\"nodePort\":60001}]"
 	testPod.Annotations = ann
 	testPod.ResourceVersion = "2"
 	tests.KubeClient.CoreV1().Pods(DEFAULT_NAMESPACE).Update(context.TODO(), &testPod, metav1.UpdateOptions{})

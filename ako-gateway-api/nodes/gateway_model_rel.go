@@ -451,7 +451,7 @@ func PodToGateway(namespace, name, key string) ([]string, bool) {
 			utils.AviLog.Infof("key: %s, got error while getting pod: %v", key, err)
 			return []string{}, false
 		}
-		utils.AviLog.Infof("key: %s, msg: Pod not found, deleting mappings", key)
+		utils.AviLog.Debugf("key: %s, msg: Pod not found, mappings will be deleted ", key)
 		servicesList := akogatewayapiobjects.GatewayApiLister().GetPodsToService(podNsName)
 		gatewayList := []string{}
 		for _, svcNsName := range servicesList {

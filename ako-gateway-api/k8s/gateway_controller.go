@@ -435,7 +435,6 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 				}
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
-				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 			},
 			DeleteFunc: func(obj interface{}) {
@@ -451,7 +450,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 					}
 					pod, ok = tombstone.Obj.(*corev1.Pod)
 					if !ok {
-						utils.AviLog.Errorf("Tombstone contained object that is not an Pod: %#v", obj)
+						utils.AviLog.Errorf("Tombstone contained object that is not a Pod: %#v", obj)
 						return
 					}
 				}
@@ -468,7 +467,6 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 				bkt := utils.Bkt(namespace, numWorkers)
 				objects.SharedResourceVerInstanceLister().Delete(key)
 				c.workqueue[bkt].AddRateLimited(key)
-				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 			},
 			UpdateFunc: func(old, cur interface{}) {
@@ -501,7 +499,6 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 				}
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
-				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 			},
 		}
