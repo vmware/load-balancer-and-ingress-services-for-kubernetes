@@ -348,7 +348,7 @@ int_test:
 
 .PHONE: eps_enabled
 eps_enabled:
-	make -j 1 k8stest integrationtest ingresstests evhtests integrationtest dedicatedevhtests oshiftroutetests ENDPOINTSLICES_ENABLED="true" 
+	make -j 1 k8stest integrationtest ingresstests evhtests integrationtest dedicatedevhtests oshiftroutetests npltests dedicatedvstests ENDPOINTSLICES_ENABLED="true"  
 
 .PHONY: scale_test
 scale_test:
