@@ -620,26 +620,21 @@ func GetEvhPGName(ingName, namespace, host, path, infrasetting string, dedicated
 
 func IsSecretK8sSecretRef(secret string) bool {
 	re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, DummySecretK8s))
-	if re.MatchString(secret) {
-		return true
-	}
-	return false
+	return re.MatchString(secret)
 }
 
 func IsSecretAviCertRef(secret string) bool {
 	re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, DummySecret))
-	if re.MatchString(secret) {
-		return true
-	}
-	return false
+	return re.MatchString(secret)
 }
 
 func GetTLSKeyCertNodeName(infrasetting, sniHostName, secretName string) string {
 	if IsSecretK8sSecretRef(secretName) {
-		secretName = strings.Split(secretName, "/")[2]
-		if secretName == GetDefaultSecretForRoutes() {
-			return Encode(secretName, TLSKeyCert)
-		}
+		secretNameSlice := strings.Split(secretName, "/")
+		secretName = secretNameSlice[len(secretNameSlice)-1]
+	}
+	if secretName == GetDefaultSecretForRoutes() || secretName == GetDefaultSecretForRoutes()+"-alt" {
+		return Encode(NamePrefix+secretName, TLSKeyCert)
 	}
 	namePrefix := NamePrefix
 	if infrasetting != "" {
