@@ -314,7 +314,8 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 			// select epslice containing target port
 			found := false
 			for _, port := range epSlice.Ports {
-				if poolNode.TargetPort.IntVal == *port.Port {
+				if (port.Port != nil && poolNode.TargetPort.IntVal == *port.Port) ||
+					(port.Name != nil && poolNode.PortName == *port.Name) {
 					found = true
 					break
 				}
@@ -542,7 +543,7 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 			port_match := false
 			var epProtocol v1.Protocol
 			for _, epp := range epSlice.Ports {
-				if (epp.Name != nil && poolNode.PortName == *epp.Name) || (epp.Port != nil && int32(poolNode.TargetPort.IntValue()) == *epp.Port) {
+				if (epp.Name != nil && poolNode.PortName == *epp.Name) || (epp.Port != nil && poolNode.TargetPort.IntVal == *epp.Port) {
 					port_match = true
 					poolNode.Port = *epp.Port
 					epProtocol = *epp.Protocol

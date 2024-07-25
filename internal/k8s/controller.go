@@ -698,6 +698,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -731,6 +732,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 		},
 		UpdateFunc: func(old, cur interface{}) {
@@ -753,13 +755,14 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				}
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 			}
 		},
 	}
 	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
 		c.informers.EpSlicesInformer.Informer().AddEventHandler(epsEventHandler)
-	} else {
+	} else if lib.GetServiceType() != lib.NodePortLocal {
 		c.informers.EpInformer.Informer().AddEventHandler(epEventHandler)
 	}
 
@@ -1448,7 +1451,7 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
 		go c.informers.EpSlicesInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.informers.EpSlicesInformer.Informer().HasSynced)
-	} else {
+	} else if lib.GetServiceType() != lib.NodePortLocal {
 		go c.informers.EpInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.informers.EpInformer.Informer().HasSynced)
 	}

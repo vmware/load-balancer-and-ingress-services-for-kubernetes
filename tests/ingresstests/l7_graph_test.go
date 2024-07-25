@@ -328,20 +328,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	// epExample := &corev1.Endpoints{
-	// 	ObjectMeta: metav1.ObjectMeta{
-	// 		Namespace: "default",
-	// 		Name:      "avisvc",
-	// 	},
-	// 	Subsets: []corev1.EndpointSubset{{
-	// 		Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
-	// 		Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
-	// 	}},
-	// }
-	// _, err = KubeClient.CoreV1().Endpoints("default").Create(context.TODO(), epExample, metav1.CreateOptions{})
-	// if err != nil {
-	// 	t.Fatalf("error in creating Endpoint: %v", err)
-	// }
+
 	integrationtest.CreateEPorEPS(t, "default", "avisvc", false, false, "1.1.1")
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:        "foo-with-targets1",
@@ -396,10 +383,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	}
 	//====== VERIFICATION OF SERVICE DELETE
 	// Now we have cleared the layer 2 queue for both the models. Let's delete the service.
-	// err = KubeClient.CoreV1().Endpoints("default").Delete(context.TODO(), "avisvc", metav1.DeleteOptions{})
-	// if err != nil {
-	// 	t.Fatalf("Couldn't DELETE the Endpoint %v", err)
-	// }
+
 	integrationtest.DelEPorEPS(t, "default", "avisvc")
 	err = KubeClient.CoreV1().Services("default").Delete(context.TODO(), "avisvc", metav1.DeleteOptions{})
 	if err != nil {
@@ -420,10 +404,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find model on service delete: %v", err)
 	}
-	// _, err = KubeClient.CoreV1().Endpoints("default").Create(context.TODO(), epExample, metav1.CreateOptions{})
-	// if err != nil {
-	// 	t.Fatalf("error in creating Endpoint: %v", err)
-	// }
+
 	integrationtest.CreateEPorEPS(t, "default", "avisvc", false, false, "1.1.1")
 
 	//====== VERIFICATION OF ONE INGRESS DELETE
@@ -468,10 +449,6 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 		t.Fatalf("Could not find model on service ADD: %v", err)
 	}
 	//====== VERIFICATION OF ONE ENDPOINT DELETE
-	// err = KubeClient.CoreV1().Endpoints("default").Delete(context.TODO(), "avisvc", metav1.DeleteOptions{})
-	// if err != nil {
-	// 	t.Fatalf("Couldn't DELETE the Endpoint %v", err)
-	// }
 
 	integrationtest.DelEPorEPS(t, "default", "avisvc")
 	integrationtest.PollForCompletion(t, modelName, 5)
