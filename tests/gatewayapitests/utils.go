@@ -130,18 +130,19 @@ func UnsetListenerHostname(l *gatewayv1.Listener) {
 func GetListenersV1(ports []int32, emptyHostName, samehost bool, secrets ...string) []gatewayv1.Listener {
 	listeners := make([]gatewayv1.Listener, 0, len(ports))
 	for _, port := range ports {
-		hostname := ""
-		if !emptyHostName && !samehost {
-			hostname = fmt.Sprintf("foo-%d.com", port)
-		} else if samehost {
-			hostname = "foo.com"
-		}
 		listener := gatewayv1.Listener{
 			Name:     gatewayv1.SectionName(fmt.Sprintf("listener-%d", port)),
 			Port:     gatewayv1.PortNumber(port),
 			Protocol: gatewayv1.ProtocolType("HTTPS"),
-			Hostname: (*gatewayv1.Hostname)(&hostname),
 		}
+		if !samehost && !emptyHostName {
+			hostname := fmt.Sprintf("foo-%d.com", port)
+			listener.Hostname = (*gatewayv1.Hostname)(&hostname)
+		} else if samehost {
+			hostname := "foo.com"
+			listener.Hostname = (*gatewayv1.Hostname)(&hostname)
+		}
+
 		if len(secrets) > 0 {
 			certRefs := make([]gatewayv1.SecretObjectReference, 0, len(secrets))
 			for _, secret := range secrets {
