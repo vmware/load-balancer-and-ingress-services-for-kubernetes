@@ -163,7 +163,7 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 				if listener.Hostname != nil && *listener.Hostname == *gwListener.Hostname {
 					utils.AviLog.Errorf("key: %s, msg: Hostname is same as an existing gateway %s hostname %s", key, gatewayInNamespace.Name, *gwListener.Hostname)
 					defaultCondition.
-						Message("Hostname overlaps or is same as an existing gateway hostname").
+						Message("Hostname is same as an existing gateway hostname").
 						SetIn(&gatewayStatus.Listeners[index].Conditions)
 					return false
 				}
@@ -396,11 +396,9 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 				}
 				if isHttpRouteHostFqdnWildcard && isListenerFqdnWildcard {
 					// both are true. Match nonwildcard part
-					nonWildCardHttpRouteHostname := strings.Split(string(host), utils.WILDCARD)
-					nonWildCardGWHostname := strings.Split(string(*hostInListener), utils.WILDCARD)
 					// Use case: 1. GW: *.avi.internal HttpRoute: *.bar.avi.internal
 					// USe case: 2. GW: *.bar.avi.internal HttpRoute: *.avi.internal
-					if utils.CheckSubdomainOverlapping(nonWildCardGWHostname[1], nonWildCardHttpRouteHostname[1]) {
+					if utils.CheckSubdomainOverlapping(string(host), string(*hostInListener)) {
 						matched = true
 						break
 					}
