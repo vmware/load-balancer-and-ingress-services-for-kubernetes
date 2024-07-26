@@ -171,6 +171,7 @@ func TestCreateDeleteL4RuleInvalidLBClass(t *testing.T) {
 	}, 30*time.Second).Should(gomega.Equal(false))
 
 	SetupL4Rule(t, L4RuleName, NAMESPACE, ports)
+	PollForCompletion(t, SINGLEPORTMODEL, 15)
 	g.Eventually(func() string {
 		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
 		return l4Rule.Status.Status
