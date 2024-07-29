@@ -23,18 +23,18 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func SetUpTestForIngress(t *testing.T, modelNames ...string) {
+func SetUpTestForIngress(t *testing.T, svcName string, modelNames ...string) {
 	for _, model := range modelNames {
 		objects.SharedAviGraphLister().Delete(model)
 	}
-	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, "default", "avisvc", false, false, "1.1.1")
+	integrationtest.CreateSVC(t, "default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPorEPS(t, "default", svcName, false, false, "1.1.1")
 }
 
-func TearDownTestForIngress(t *testing.T, modelNames ...string) {
+func TearDownTestForIngress(t *testing.T, svcName string, modelNames ...string) {
 	for _, model := range modelNames {
 		objects.SharedAviGraphLister().Delete(model)
 	}
-	integrationtest.DelSVC(t, "default", "avisvc")
-	integrationtest.DelEPorEPS(t, "default", "avisvc")
+	integrationtest.DelSVC(t, "default", svcName)
+	integrationtest.DelEPorEPS(t, "default", svcName)
 }

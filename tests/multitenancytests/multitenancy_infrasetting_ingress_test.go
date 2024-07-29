@@ -163,7 +163,7 @@ func TestMultiTenancyWithNSAviInfraSettingForIngress(t *testing.T) {
 	// check for names of all Avi objects
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting-9"
 	secretName := "my-secret"
 	modelName := "nonadmin/cluster--Shared-L7-1"
 
@@ -210,7 +210,7 @@ func TestMultiTenancyWithNSAviInfraSettingForIngress(t *testing.T) {
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes[0].Tenant).Should(gomega.Equal("nonadmin"))
 	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal(shardPoolName))
-	g.Expect(settingNodes[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-my-infrasetting-seGroup"))
+	g.Expect(settingNodes[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-" + settingName + "-seGroup"))
 	g.Expect(settingNodes[0].PoolGroupRefs[0].Name).Should(gomega.Equal(shardVsName))
 	g.Expect(settingNodes[0].HTTPDSrefs[0].Name).Should(gomega.Equal(shardVsName))
 	g.Expect(settingNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(1))
@@ -240,14 +240,14 @@ func TestMultiTenancyWithIngressClassAviInfraSetting(t *testing.T) {
 	// delete the ingress, graph layer nodes should get deleted
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting-10"
 	secretName := "my-secret"
 	modelName := "nonadmin/cluster--Shared-L7-1"
-	nsSettingName := "ns-my-infrasetting"
+	nsSettingName := "ns-" + settingName
 
 	ingresstests.SetUpTestForIngress(t, modelName)
 
-	settingModelName := "nonadmin/cluster--Shared-L7-my-infrasetting-0"
+	settingModelName := "nonadmin/cluster--Shared-L7-" + settingName + "-0"
 	integrationtest.SetupAviInfraSetting(t, settingName, "SMALL")
 	integrationtest.SetupAviInfraSetting(t, nsSettingName, "DEDICATED")
 
@@ -272,10 +272,10 @@ func TestMultiTenancyWithIngressClassAviInfraSetting(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	shardVsName := "cluster--Shared-L7-my-infrasetting-0"
-	sniVsName := "cluster--my-infrasetting-baz.com"
-	shardPoolName := "cluster--my-infrasetting-bar.com_foo-default-foo-with-class"
-	sniPoolName := "cluster--my-infrasetting-default-baz.com_foo-foo-with-class"
+	shardVsName := "cluster--Shared-L7-" + settingName + "-0"
+	sniVsName := "cluster--" + settingName + "-baz.com"
+	shardPoolName := "cluster--" + settingName + "-bar.com_foo-default-foo-with-class"
+	sniPoolName := "cluster--" + settingName + "-default-baz.com_foo-foo-with-class"
 
 	g.Eventually(func() bool {
 		if found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName); found {
@@ -289,7 +289,7 @@ func TestMultiTenancyWithIngressClassAviInfraSetting(t *testing.T) {
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal(shardPoolName))
-	g.Expect(settingNodes[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-my-infrasetting-seGroup"))
+	g.Expect(settingNodes[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-" + settingName + "-seGroup"))
 	g.Expect(settingNodes[0].PoolGroupRefs[0].Name).Should(gomega.Equal(shardVsName))
 	g.Expect(settingNodes[0].HTTPDSrefs[0].Name).Should(gomega.Equal(shardVsName))
 	g.Expect(settingNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(1))
@@ -318,7 +318,7 @@ func TestMultiTenancyWithInfraSettingAdditionForIngress(t *testing.T) {
 	// new model creation should happen, old model should get deleted
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting-11"
 	secretName := "my-secret"
 	modelName := "admin/cluster--Shared-L7-1"
 
@@ -398,7 +398,7 @@ func TestMultiTenancyWithInfraSettingAdditionForIngress(t *testing.T) {
 	settingNodes = aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes[0].Tenant).Should(gomega.Equal("nonadmin"))
 	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal(shardPoolName))
-	g.Expect(settingNodes[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-my-infrasetting-seGroup"))
+	g.Expect(settingNodes[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-" + settingName + "-seGroup"))
 	g.Expect(settingNodes[0].PoolGroupRefs[0].Name).Should(gomega.Equal(shardVsName))
 	g.Expect(settingNodes[0].HTTPDSrefs[0].Name).Should(gomega.Equal(shardVsName))
 	g.Expect(settingNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(1))
@@ -429,7 +429,7 @@ func TestMultiTenancyWithTenantDeannotationInNSForIngress(t *testing.T) {
 	// new model in default tenant should get created
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting-12"
 	secretName := "my-secret"
 	modelName := "nonadmin/cluster--Shared-L7-1"
 
@@ -475,7 +475,7 @@ func TestMultiTenancyWithTenantDeannotationInNSForIngress(t *testing.T) {
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal(shardPoolName))
-	g.Expect(settingNodes[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-my-infrasetting-seGroup"))
+	g.Expect(settingNodes[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-" + settingName + "-seGroup"))
 	g.Expect(settingNodes[0].PoolGroupRefs[0].Name).Should(gomega.Equal(shardVsName))
 	g.Expect(settingNodes[0].HTTPDSrefs[0].Name).Should(gomega.Equal(shardVsName))
 	g.Expect(settingNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(1))

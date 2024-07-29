@@ -234,7 +234,7 @@ func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
+	hrname := "samplehr-foo-1"
 	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
@@ -245,7 +245,7 @@ func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
-	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/"+hrname, true)
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
@@ -355,7 +355,7 @@ func TestCreateDeleteSharedVSHostRuleForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
+	hrname := "samplehr-foo-2"
 	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	fqdn := "cluster--Shared-L7-EVH-0.admin.com"
@@ -391,7 +391,7 @@ func TestCreateDeleteSharedVSHostRuleForEvh(t *testing.T) {
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: strings.Split(modelName, "/")[1]}
-	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/"+hrname, true)
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].Enabled).To(gomega.Equal(true))
@@ -453,7 +453,7 @@ func TestCreateHostRuleBeforeIngressForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
+	hrname := "samplehr-foo-3"
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
 	g.Eventually(func() string {
@@ -491,12 +491,12 @@ func TestGoodToBadHostRuleForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
+	hrname := "samplehr-foo-4"
 	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
-	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/"+hrname, true)
 
 	// update hostrule with bad ref
 	hrUpdate := integrationtest.FakeHostRule{
@@ -540,7 +540,7 @@ func TestInsecureHostAndHostruleForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
+	hrname := "samplehr-foo-5"
 	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
 	integrationtest.SetupHostRule(t, hrname, "foo.com", false)
 
@@ -550,7 +550,7 @@ func TestInsecureHostAndHostruleForEvh(t *testing.T) {
 		return len(nodes[0].EvhNodes)
 	}, 10*time.Second).Should(gomega.Equal(1))
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
-	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/"+hrname, true)
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
@@ -972,7 +972,7 @@ func TestHostRuleWithEmptyConfig(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
+	hrname := "samplehr-foo-6"
 	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	hostrule := integrationtest.FakeHostRule{
@@ -998,7 +998,7 @@ func TestHostRuleWithEmptyConfig(t *testing.T) {
 		return found
 	}, 25*time.Second).Should(gomega.Equal(true))
 
-	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/"+hrname, true)
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].EvhNodes[0].Enabled).To(gomega.Equal(true))
@@ -1035,7 +1035,7 @@ func TestSharedVSHostRuleNoListenerForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
+	hrname := "samplehr-foo-7"
 	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 
 	fqdn := "cluster--Shared-L7-EVH-0.admin.com"
@@ -1068,7 +1068,7 @@ func TestSharedVSHostRuleNoListenerForEvh(t *testing.T) {
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: strings.Split(modelName, "/")[1]}
-	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/"+hrname, true)
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].Enabled).To(gomega.Equal(true))
@@ -1883,7 +1883,7 @@ func TestGoodToBadSSORuleForEvh(t *testing.T) {
 func TestCreateUpdateDeleteL7RuleInHostRule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
+	hrname := "samplehr-foo-8"
 	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 	g.Eventually(func() string {
@@ -1891,7 +1891,7 @@ func TestCreateUpdateDeleteL7RuleInHostRule(t *testing.T) {
 		return hostrule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
-	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/"+hrname, true)
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
@@ -1988,7 +1988,7 @@ func TestCreateUpdateDeleteL7RuleInHostRule(t *testing.T) {
 func TestDeleteL7RulePresentInHostRule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
+	hrname := "samplehr-foo-9"
 	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 	g.Eventually(func() string {
@@ -1996,7 +1996,7 @@ func TestDeleteL7RulePresentInHostRule(t *testing.T) {
 		return hostrule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
-	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/"+hrname, true)
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
@@ -2080,7 +2080,7 @@ func TestDeleteL7RulePresentInHostRule(t *testing.T) {
 func TestChangeL7RuleInHostRule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
+	hrname := "samplehr-foo-10"
 	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 	g.Eventually(func() string {
@@ -2088,7 +2088,7 @@ func TestChangeL7RuleInHostRule(t *testing.T) {
 		return hostrule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
-	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/"+hrname, true)
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
@@ -2205,7 +2205,7 @@ func TestChangeL7RuleInHostRule(t *testing.T) {
 func TestValidToInvalidL7rule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
+	hrname := "samplehr-foo-11"
 	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 	g.Eventually(func() string {
@@ -2213,7 +2213,7 @@ func TestValidToInvalidL7rule(t *testing.T) {
 		return hostrule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
-	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/"+hrname, true)
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
@@ -2325,7 +2325,7 @@ func TestValidToInvalidL7rule(t *testing.T) {
 func TestDeleteHostRuleWithActiveL7Rule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
+	hrname := "samplehr-foo-12"
 	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 	g.Eventually(func() string {
@@ -2333,7 +2333,7 @@ func TestDeleteHostRuleWithActiveL7Rule(t *testing.T) {
 		return hostrule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
-	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/"+hrname, true)
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
