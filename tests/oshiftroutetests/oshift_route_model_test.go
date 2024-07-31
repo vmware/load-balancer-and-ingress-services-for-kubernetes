@@ -44,6 +44,7 @@ var KubeClient *k8sfake.Clientset
 var CRDClient *crdfake.Clientset
 var V1beta1CRDClient *v1beta1crdfake.Clientset
 var ctrl *k8s.AviController
+var endpointSliceEnabled bool
 
 func TestMain(m *testing.M) {
 	os.Setenv("INGRESS_API", "extensionv1")
@@ -57,6 +58,9 @@ func TestMain(m *testing.M) {
 	os.Setenv("POD_NAME", "ako-0")
 
 	akoControlConfig := lib.AKOControlConfig()
+	endpointSliceEnabled = lib.GetEndpointSliceEnabled()
+	akoControlConfig.SetEndpointSlicesEnabled(endpointSliceEnabled)
+
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
 	V1beta1CRDClient = v1beta1crdfake.NewSimpleClientset()
@@ -76,12 +80,16 @@ func TestMain(m *testing.M) {
 	informersArg[utils.INFORMERS_OPENSHIFT_CLIENT] = OshiftClient
 	registeredInformers := []string{
 		utils.ServiceInformer,
-		utils.EndpointInformer,
 		utils.RouteInformer,
 		utils.SecretInformer,
 		utils.NSInformer,
 		utils.NodeInformer,
 		utils.ConfigMapInformer,
+	}
+	if akoControlConfig.GetEndpointSlicesEnabled() {
+		registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
+	} else {
+		registeredInformers = append(registeredInformers, utils.EndpointInformer)
 	}
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers, informersArg)
 	informers := k8s.K8sinformers{Cs: KubeClient}
@@ -221,7 +229,7 @@ func TestRouteServiceDel(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
 	integrationtest.CreateSVC(t, "default", "newsvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, "default", "newsvc", false, false, "3.3.3")
+	integrationtest.CreateEPorEPS(t, "default", "newsvc", false, false, "3.3.3")
 	routeExample := FakeRoute{Path: "/foo", ServiceName: "newsvc"}.Route()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
@@ -231,7 +239,7 @@ func TestRouteServiceDel(t *testing.T) {
 	aviModel := ValidateModelCommon(t, g)
 
 	integrationtest.DelSVC(t, "default", "newsvc")
-	integrationtest.DelEP(t, "default", "newsvc")
+	integrationtest.DelEPorEPS(t, "default", "newsvc")
 
 	g.Eventually(func() int {
 		_, aviModel = objects.SharedAviGraphLister().Get(defaultModelName)
@@ -275,7 +283,7 @@ func TestRouteServiceAdd(t *testing.T) {
 	}
 
 	integrationtest.CreateSVC(t, "default", "newsvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, "default", "newsvc", false, false, "3.3.3")
+	integrationtest.CreateEPorEPS(t, "default", "newsvc", false, false, "3.3.3")
 
 	aviModel := ValidateModelCommon(t, g)
 	g.Eventually(func() int {
@@ -299,7 +307,7 @@ func TestRouteServiceAdd(t *testing.T) {
 	TearDownTestForRoute(t, defaultModelName)
 
 	integrationtest.DelSVC(t, "default", "newsvc")
-	integrationtest.DelEP(t, "default", "newsvc")
+	integrationtest.DelEPorEPS(t, "default", "newsvc")
 }
 
 func TestRouteScaleEndpoint(t *testing.T) {
@@ -314,7 +322,7 @@ func TestRouteScaleEndpoint(t *testing.T) {
 	aviModel := ValidateModelCommon(t, g)
 	pool := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs[0]
 
-	integrationtest.ScaleCreateEP(t, "default", "avisvc")
+	integrationtest.ScaleCreateEPorEPS(t, "default", "avisvc")
 	g.Eventually(func() int {
 		vslist := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		if len(vslist) == 0 {
@@ -443,7 +451,7 @@ func TestAlternateBackendNoPath(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
+	integrationtest.CreateEPorEPS(t, "default", "absvc2", false, false, "3.3.3")
 	time.Sleep(2 * time.Second)
 	routeExample := FakeRoute{}.ABRoute()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
@@ -480,14 +488,14 @@ func TestAlternateBackendNoPath(t *testing.T) {
 	TearDownTestForRoute(t, defaultModelName)
 
 	integrationtest.DelSVC(t, "default", "absvc2")
-	integrationtest.DelEP(t, "default", "absvc2")
+	integrationtest.DelEPorEPS(t, "default", "absvc2")
 }
 
 func TestAlternateBackendDefaultPath(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
+	integrationtest.CreateEPorEPS(t, "default", "absvc2", false, false, "3.3.3")
 	routeExample := FakeRoute{Path: "/foo"}.ABRoute()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
@@ -523,14 +531,14 @@ func TestAlternateBackendDefaultPath(t *testing.T) {
 	TearDownTestForRoute(t, defaultModelName)
 
 	integrationtest.DelSVC(t, "default", "absvc2")
-	integrationtest.DelEP(t, "default", "absvc2")
+	integrationtest.DelEPorEPS(t, "default", "absvc2")
 }
 
 func TestRemoveAlternateBackend(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
+	integrationtest.CreateEPorEPS(t, "default", "absvc2", false, false, "3.3.3")
 	routeExample := FakeRoute{Path: "/foo"}.ABRoute()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
@@ -569,14 +577,14 @@ func TestRemoveAlternateBackend(t *testing.T) {
 	TearDownTestForRoute(t, defaultModelName)
 
 	integrationtest.DelSVC(t, "default", "absvc2")
-	integrationtest.DelEP(t, "default", "absvc2")
+	integrationtest.DelEPorEPS(t, "default", "absvc2")
 }
 
 func TestAlternateBackendUpdatePath(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
+	integrationtest.CreateEPorEPS(t, "default", "absvc2", false, false, "3.3.3")
 	routeExample := FakeRoute{Path: "/foo"}.ABRoute()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
@@ -622,14 +630,14 @@ func TestAlternateBackendUpdatePath(t *testing.T) {
 	TearDownTestForRoute(t, defaultModelName)
 
 	integrationtest.DelSVC(t, "default", "absvc2")
-	integrationtest.DelEP(t, "default", "absvc2")
+	integrationtest.DelEPorEPS(t, "default", "absvc2")
 }
 
 func TestAlternateBackendUpdateWeight(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
+	integrationtest.CreateEPorEPS(t, "default", "absvc2", false, false, "3.3.3")
 	time.Sleep(2 * time.Second)
 	routeExample := FakeRoute{Path: "/foo"}.ABRoute()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
@@ -672,5 +680,5 @@ func TestAlternateBackendUpdateWeight(t *testing.T) {
 	TearDownTestForRoute(t, defaultModelName)
 
 	integrationtest.DelSVC(t, "default", "absvc2")
-	integrationtest.DelEP(t, "default", "absvc2")
+	integrationtest.DelEPorEPS(t, "default", "absvc2")
 }

@@ -206,7 +206,7 @@ func TestRouteScaleEndpointInNodePort(t *testing.T) {
 	aviModel := ValidateModelCommon(t, g)
 	pool := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs[0]
 
-	integrationtest.ScaleCreateEP(t, "default", "avisvc")
+	integrationtest.ScaleCreateEPorEPS(t, "default", "avisvc")
 	g.Eventually(func() int {
 		pool = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs[0]
 		return len(pool.Servers)

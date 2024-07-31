@@ -181,6 +181,8 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 			informers.PodInformer = kubeInformerFactory.Core().V1().Pods()
 		case EndpointInformer:
 			informers.EpInformer = kubeInformerFactory.Core().V1().Endpoints()
+		case EndpointSlicesInformer:
+			informers.EpSlicesInformer = kubeInformerFactory.Discovery().V1().EndpointSlices()
 		case SecretInformer:
 			if akoNSBoundInformer {
 				informers.SecretInformer = akoNSInformerFactory.Core().V1().Secrets()
