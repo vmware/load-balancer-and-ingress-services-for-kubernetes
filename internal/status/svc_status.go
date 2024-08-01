@@ -124,7 +124,7 @@ func updateSvcAnnotations(svc *corev1.Service, updateOption UpdateOptions, oldSv
 		updateOption.ServiceMetadata.HostNames[0]: updateOption.VirtualServiceUUID,
 	}
 
-	if !isAnnotationsUpdateRequired(svc.Annotations, vsAnnotations) {
+	if !isAnnotationsUpdateRequired(svc.Annotations, vsAnnotations, updateOption.Tenant, false) {
 		utils.AviLog.Debugf("No annotations update required for service %s/%s", svc.Namespace, svc.Name)
 		return nil
 	}
@@ -140,6 +140,7 @@ func updateSvcAnnotations(svc *corev1.Service, updateOption UpdateOptions, oldSv
 	}
 	annotations[lib.VSAnnotation] = string(vsAnnotationsStr)
 	annotations[lib.ControllerAnnotation] = avicache.GetControllerClusterUUID()
+	annotations[lib.TenantAnnotation] = updateOption.Tenant
 
 	patchPayload := map[string]interface{}{
 		"metadata": map[string]map[string]string{
@@ -190,6 +191,7 @@ func deleteSvcAnnotation(svc *corev1.Service) error {
 			"annotations": {
 				lib.VSAnnotation:         nil,
 				lib.ControllerAnnotation: nil,
+				lib.TenantAnnotation:     nil,
 			},
 		},
 	}

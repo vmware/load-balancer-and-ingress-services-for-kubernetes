@@ -203,8 +203,9 @@ func (l *leader) ValidateHostRuleObj(key string, hostrule *akov1beta1.HostRule) 
 	if hostrule.Spec.VirtualHost.NetworkSecurityPolicy != "" {
 		refData[hostrule.Spec.VirtualHost.NetworkSecurityPolicy] = "NetworkSecurityPolicy"
 	}
+	tenant := lib.GetTenantInNamespace(hostrule.Namespace)
 
-	if err := checkRefsOnController(key, refData); err != nil {
+	if err := checkRefsOnController(key, refData, tenant); err != nil {
 		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 		return err
 	}
@@ -281,8 +282,9 @@ func (l *leader) ValidateHTTPRuleObj(key string, httprule *akov1beta1.HTTPRule) 
 			refData[hm] = "HealthMonitor"
 		}
 	}
+	tenant := lib.GetTenantInNamespace(httprule.Namespace)
 
-	if err := checkRefsOnController(key, refData); err != nil {
+	if err := checkRefsOnController(key, refData, tenant); err != nil {
 		status.UpdateHTTPRuleStatus(key, httprule, status.UpdateCRDStatusOptions{
 			Status: lib.StatusRejected,
 			Error:  err.Error(),
@@ -376,7 +378,7 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1beta1.Av
 			return err
 		}
 	}
-	if err := checkRefsOnController(key, refData); err != nil {
+	if err := checkRefsOnController(key, refData, lib.GetTenant()); err != nil {
 		status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
 			Status: lib.StatusRejected,
 			Error:  err.Error(),
@@ -561,8 +563,9 @@ func (l *leader) ValidateSSORuleObj(key string, ssoRule *akov1alpha2.SSORule) er
 			refData[*samlConfigObj.SigningSslKeyAndCertificateRef] = "SslKeyCert"
 		}
 	}
+	tenant := lib.GetTenantInNamespace(ssoRule.Namespace)
 
-	if err := checkRefsOnController(key, refData); err != nil {
+	if err := checkRefsOnController(key, refData, tenant); err != nil {
 		status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 		return err
 	}
@@ -715,8 +718,8 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 			return err
 		}
 	}
-
-	if err := checkRefsOnController(key, refData); err != nil {
+	tenant := lib.GetTenantInNamespace(l4Rule.Namespace)
+	if err := checkRefsOnController(key, refData, tenant); err != nil {
 		status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
 			Status: lib.StatusRejected,
 			Error:  err.Error(),
@@ -753,7 +756,9 @@ func (l *leader) ValidateL7RuleObj(key string, l7Rule *akov1alpha2.L7Rule) error
 	if l7RuleSpec.TrafficCloneProfileRef != nil {
 		refData[*l7RuleSpec.TrafficCloneProfileRef] = "TrafficCloneProfile"
 	}
-	if err := checkRefsOnController(key, refData); err != nil {
+	tenant := lib.GetTenantInNamespace(l7Rule.Namespace)
+
+	if err := checkRefsOnController(key, refData, tenant); err != nil {
 		status.UpdateL7RuleStatus(key, l7Rule, status.UpdateCRDStatusOptions{
 			Status: lib.StatusRejected,
 			Error:  err.Error(),

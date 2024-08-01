@@ -336,6 +336,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 							Key:                key,
 							VirtualServiceUUID: vs_cache_obj.Uuid,
 							VSName:             vs_cache_obj.Name,
+							Tenant:             vs_cache_obj.Tenant,
 						}
 						statusOption := status.StatusOptions{
 							ObjType: utils.L4LBService,
@@ -353,6 +354,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 								Key:                key,
 								VirtualServiceUUID: vs_cache_obj.Uuid,
 								VSName:             vs_cache_obj.Name,
+								Tenant:             vs_cache_obj.Tenant,
 							}
 							statusOption := status.StatusOptions{
 								ObjType: utils.Ingress,
@@ -419,6 +421,7 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 					ServiceMetadata: pool_cache_obj.ServiceMetadataObj,
 					Key:             key,
 					VSName:          vsName,
+					Tenant:          pool_cache_obj.Tenant,
 				}
 				statusOption := status.StatusOptions{
 					ObjType: utils.L4LBService,
@@ -433,6 +436,7 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 					ServiceMetadata: pool_cache_obj.ServiceMetadataObj,
 					Key:             key,
 					VSName:          vsName,
+					Tenant:          pool_cache_obj.Tenant,
 				}
 				statusOption := status.StatusOptions{
 					ObjType: utils.Ingress,

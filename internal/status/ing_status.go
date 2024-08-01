@@ -44,6 +44,7 @@ type UpdateOptions struct {
 	VirtualServiceUUID string
 	VSName             string
 	Message            string
+	Tenant             string
 }
 
 // VSUuidAnnotation is maps a hostname to the UUID of the virtual service where it is placed.
@@ -175,7 +176,7 @@ func updateObject(mIngress *networkingv1.Ingress, updateOption UpdateOptions, re
 	}
 
 	// update the annotations for this object
-	err = updateIngAnnotations(updatedIng, hostnames, updateOption.VirtualServiceUUID, key, hostListIng, mIngress)
+	err = updateIngAnnotations(updatedIng, hostnames, updateOption.VirtualServiceUUID, key, updateOption.Tenant, hostListIng, mIngress)
 	if err != nil {
 		return fmt.Errorf("key: %s, error in updating the Ingress annotations: %v", key, err)
 	}
@@ -183,7 +184,7 @@ func updateObject(mIngress *networkingv1.Ingress, updateOption UpdateOptions, re
 }
 
 func updateIngAnnotations(ingObj *networkingv1.Ingress, hostnamesToBeUpdated []string,
-	vsUUID, key string, ingSpecHostnames []string, oldIng *networkingv1.Ingress, retryNum ...int) error {
+	vsUUID, key, tenant string, ingSpecHostnames []string, oldIng *networkingv1.Ingress, retryNum ...int) error {
 
 	if ingObj == nil {
 		ingObj = oldIng
@@ -217,27 +218,26 @@ func updateIngAnnotations(ingObj *networkingv1.Ingress, hostnamesToBeUpdated []s
 			delete(vsAnnotations, k)
 		}
 	}
-
 	// compare the vs annotations for this ingress object
-	req := isAnnotationsUpdateRequired(ingObj.Annotations, vsAnnotations)
+	req := isAnnotationsUpdateRequired(ingObj.Annotations, vsAnnotations, tenant, false)
 	if !req {
 		utils.AviLog.Debugf("annotations update not required for this ingress: %s/%s", ingObj.Namespace, ingObj.Name)
 		return nil
 	}
-	if err = patchIngressAnnotations(ingObj, vsAnnotations); err != nil && k8serrors.IsNotFound(err) {
+	if err = patchIngressAnnotations(ingObj, vsAnnotations, tenant); err != nil && k8serrors.IsNotFound(err) {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the ingress annotations: %v", key, err)
 		// fetch updated ingress and feed for update status
 		mIngresses := getIngresses([]string{ingObj.Namespace + "/" + ingObj.Name}, false)
 		if len(mIngresses) > 0 {
 			return updateIngAnnotations(mIngresses[ingObj.Namespace+"/"+ingObj.Name], hostnamesToBeUpdated,
-				vsUUID, key, ingSpecHostnames, oldIng, retry+1)
+				vsUUID, key, tenant, ingSpecHostnames, oldIng, retry+1)
 		}
 	}
 
 	return nil
 }
 
-func isAnnotationsUpdateRequired(ingAnnotations map[string]string, newVSAnnotations map[string]string) bool {
+func isAnnotationsUpdateRequired(ingAnnotations map[string]string, newVSAnnotations map[string]string, newTenant string, isDelete bool) bool {
 	oldVSAnnotationsStr, ok := ingAnnotations[lib.VSAnnotation]
 	if !ok {
 		if len(newVSAnnotations) > 0 {
@@ -251,7 +251,6 @@ func isAnnotationsUpdateRequired(ingAnnotations map[string]string, newVSAnnotati
 		utils.AviLog.Errorf("error in unmarshalling old vs annotations %s: %v", oldVSAnnotationsStr, err)
 		return true
 	}
-
 	if len(oldVSAnnotations) != len(newVSAnnotations) {
 		return true
 	}
@@ -261,16 +260,22 @@ func isAnnotationsUpdateRequired(ingAnnotations map[string]string, newVSAnnotati
 			return true
 		}
 	}
+	if !isDelete {
+		oldTenant, ok := ingAnnotations[lib.TenantAnnotation]
+		if !ok {
+			return true
+		}
+		if oldTenant != newTenant {
+			return true
+		}
+	}
 	return false
 }
 
-func getAnnotationsPayload(vsAnnotations map[string]string, existingAnnotations map[string]string) ([]byte, error) {
-	var vsAnnotationVal, ctrlAnnotationVal *string
+func getAnnotationsPayload(vsAnnotations map[string]string, tenant string) ([]byte, error) {
+	var vsAnnotationVal, ctrlAnnotationVal, tenantVal *string
 	ctrlAnnotationValStr := avicache.GetControllerClusterUUID()
-	if len(vsAnnotations) == 0 {
-		vsAnnotationVal = nil
-		ctrlAnnotationVal = nil
-	} else {
+	if len(vsAnnotations) > 0 {
 		vsAnnotationsBytes, err := json.Marshal(vsAnnotations)
 		if err != nil {
 			return nil, fmt.Errorf("error in marshalling vs annotations: %v", err)
@@ -278,6 +283,7 @@ func getAnnotationsPayload(vsAnnotations map[string]string, existingAnnotations 
 		vsAnnotationsStrStr := string(vsAnnotationsBytes)
 		vsAnnotationVal = &vsAnnotationsStrStr
 		ctrlAnnotationVal = &ctrlAnnotationValStr
+		tenantVal = &tenant
 	}
 
 	patchPayload := map[string]interface{}{
@@ -285,6 +291,7 @@ func getAnnotationsPayload(vsAnnotations map[string]string, existingAnnotations 
 			"annotations": {
 				lib.VSAnnotation:         vsAnnotationVal,
 				lib.ControllerAnnotation: ctrlAnnotationVal,
+				lib.TenantAnnotation:     tenantVal,
 			},
 		},
 	}
@@ -295,9 +302,8 @@ func getAnnotationsPayload(vsAnnotations map[string]string, existingAnnotations 
 	return patchPayloadBytes, nil
 }
 
-func patchIngressAnnotations(ingObj *networkingv1.Ingress, vsAnnotations map[string]string) error {
-	annotations := ingObj.GetAnnotations()
-	patchPayloadBytes, err := getAnnotationsPayload(vsAnnotations, annotations)
+func patchIngressAnnotations(ingObj *networkingv1.Ingress, vsAnnotations map[string]string, tenant string) error {
+	patchPayloadBytes, err := getAnnotationsPayload(vsAnnotations, tenant)
 	if err != nil {
 		return fmt.Errorf("error in generating payload for vs annotations %v: %v", vsAnnotations, err)
 	}
@@ -412,7 +418,7 @@ func deleteObject(option UpdateOptions, key string, isVSDelete bool, retryNum ..
 			key, oldIngressStatus.Ingress, mIngress.Status.LoadBalancer.Ingress)
 	}
 
-	if err = deleteIngressAnnotation(updatedIng, option.ServiceMetadata, isVSDelete, key, mIngress, hostListIng); err != nil {
+	if err = deleteIngressAnnotation(updatedIng, option.ServiceMetadata, isVSDelete, key, option.Tenant, mIngress, hostListIng); err != nil {
 		utils.AviLog.Errorf("key: %s, msg: error in deleting ingress annotation: %v", key, err)
 	}
 
@@ -420,7 +426,7 @@ func deleteObject(option UpdateOptions, key string, isVSDelete bool, retryNum ..
 }
 
 func deleteIngressAnnotation(ingObj *networkingv1.Ingress, svcMeta lib.ServiceMetadataObj, isVSDelete bool,
-	key string, oldIng *networkingv1.Ingress, ingHostList []string, retryNum ...int) error {
+	key, tenant string, oldIng *networkingv1.Ingress, ingHostList []string, retryNum ...int) error {
 	if ingObj == nil {
 		ingObj = oldIng
 	}
@@ -459,10 +465,9 @@ func deleteIngressAnnotation(ingObj *networkingv1.Ingress, svcMeta lib.ServiceMe
 			}
 		}
 	}
-
-	if isAnnotationsUpdateRequired(ingObj.Annotations, existingAnnotations) {
-		if err := patchIngressAnnotations(ingObj, existingAnnotations); err != nil {
-			return deleteIngressAnnotation(ingObj, svcMeta, isVSDelete, key, oldIng, ingHostList, retry+1)
+	if isAnnotationsUpdateRequired(ingObj.Annotations, existingAnnotations, tenant, isVSDelete) {
+		if err := patchIngressAnnotations(ingObj, existingAnnotations, tenant); err != nil {
+			return deleteIngressAnnotation(ingObj, svcMeta, isVSDelete, key, tenant, oldIng, ingHostList, retry+1)
 		}
 	}
 	utils.AviLog.Debugf("key: %s, msg: Annotations unchanged for ingress %s/%s", key, ingObj.Namespace, ingObj.Name)

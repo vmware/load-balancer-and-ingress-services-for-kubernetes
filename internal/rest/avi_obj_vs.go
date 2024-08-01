@@ -511,6 +511,7 @@ func (rest *RestOperations) StatusUpdateForPool(restMethod utils.RestMethod, vs_
 							Key:                key,
 							VirtualServiceUUID: vs_cache_obj.Uuid,
 							VSName:             vs_cache_obj.Name,
+							Tenant:             vs_cache_obj.Tenant,
 						}
 						statusOption := status.StatusOptions{
 							ObjType: utils.L4LBService,
@@ -527,6 +528,7 @@ func (rest *RestOperations) StatusUpdateForPool(restMethod utils.RestMethod, vs_
 							Key:                key,
 							VirtualServiceUUID: vs_cache_obj.Uuid,
 							VSName:             vs_cache_obj.Name,
+							Tenant:             vs_cache_obj.Tenant,
 						}
 						statusOption := status.StatusOptions{
 							ObjType: utils.Ingress,
@@ -563,6 +565,7 @@ func (rest *RestOperations) StatusUpdateForVS(restMethod utils.RestMethod, vsCac
 			ServiceMetadata: serviceMetadataObj,
 			Key:             key,
 			VSName:          vsCacheObj.Name,
+			Tenant:          vsCacheObj.Tenant,
 		}
 		statusOption := status.StatusOptions{
 			ObjType: lib.Gateway,
@@ -582,6 +585,7 @@ func (rest *RestOperations) StatusUpdateForVS(restMethod utils.RestMethod, vsCac
 			Key:                key,
 			VirtualServiceUUID: vsCacheObj.Uuid,
 			VSName:             vsCacheObj.Name,
+			Tenant:             vsCacheObj.Tenant,
 		}
 		statusOption := status.StatusOptions{
 			ObjType: utils.L4LBService,
@@ -790,6 +794,7 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 					ServiceMetadata: vs_cache_obj.ServiceMetadataObj,
 					Key:             key,
 					VSName:          vs_cache_obj.Name,
+					Tenant:          vs_cache_obj.Tenant,
 				}
 				statusOption := status.StatusOptions{
 					ObjType: lib.Gateway,
@@ -810,6 +815,7 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 					Key:                key,
 					VirtualServiceUUID: vs_cache_obj.Uuid,
 					VSName:             vs_cache_obj.Name,
+					Tenant:             vs_cache_obj.Tenant,
 				}
 				statusOption := status.StatusOptions{
 					ObjType: utils.L4LBService,

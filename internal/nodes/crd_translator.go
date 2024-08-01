@@ -55,6 +55,11 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 		} else if hostrule.Status.Status == lib.StatusRejected {
 			// do not apply a rejected hostrule, this way the VS would retain
 			return
+		} else {
+			if lib.GetTenantInNamespace(hostrule.Namespace) != vsNode.GetTenant() {
+				utils.AviLog.Warnf("key: %s, msg: Tenant annotation in hostrule namespace %s does not matches with the tenant of host %s ", key, hostrule.Namespace, host)
+				return
+			}
 		}
 	}
 
@@ -262,6 +267,11 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 			continue
 		} else if httpRuleObj.Status.Status == lib.StatusRejected {
 			continue
+		} else {
+			if lib.GetTenantInNamespace(httpRuleObj.Namespace) != vsNode.GetTenant() {
+				utils.AviLog.Warnf("key: %s, msg: Tenant annotation in httpRule namespace %s does not matches with the tenant of host %s ", key, httpRuleObj.Namespace, host)
+				continue
+			}
 		}
 		for _, path := range httpRuleObj.Spec.Paths {
 			httpruleNameObjMap[httprule+path.Target] = path
@@ -415,6 +425,11 @@ func BuildL7SSORule(host, key string, vsNode AviVsEvhSniModel) {
 		} else if ssoRule.Status.Status == lib.StatusRejected {
 			// do not apply a rejected SSORule, this way the VS would retain
 			return
+		} else {
+			if lib.GetTenantInNamespace(ssoRule.Namespace) != vsNode.GetTenant() {
+				utils.AviLog.Warnf("key: %s, msg: Tenant annotation in SSORule namespace %s does not matches with the tenant of host %s ", key, ssoRule.Namespace, host)
+				return
+			}
 		}
 	}
 	var crdStatus lib.CRDMetadata
@@ -498,6 +513,11 @@ func BuildL7Rule(host, key, l7RuleName, namespace string, vsNode AviVsEvhSniMode
 	} else if l7Rule.Status.Status == lib.StatusRejected {
 		// do not apply a rejected L7Rule, this way the VS would retain
 		return
+	} else {
+		if lib.GetTenantInNamespace(l7Rule.Namespace) != vsNode.GetTenant() {
+			utils.AviLog.Warnf("key: %s, msg: Tenant annotation in l7Rule namespace %s does not matches with the tenant of host %s ", key, l7Rule.Namespace, host)
+			return
+		}
 	}
 	generatedFields := vsNode.GetGeneratedFields()
 	if !deleteL7RuleCase {

@@ -250,7 +250,7 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 	}
 
 	if !isSSLEnabled {
-		l4policyNode := &AviL4PolicyNode{Name: vsNode.Name, Tenant: lib.GetTenant(), PortPool: portPoolSet}
+		l4policyNode := &AviL4PolicyNode{Name: vsNode.Name, Tenant: vsNode.Tenant, PortPool: portPoolSet}
 		sort.Strings(protocolSet.List())
 		protocols := strings.Join(protocolSet.List(), ",")
 		l4policyNode.AviMarkers = lib.PopulateL4PolicysetMarkers(svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, protocols)
