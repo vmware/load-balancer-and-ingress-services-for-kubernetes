@@ -84,7 +84,7 @@ func TestWrongClassMappingInIngress(t *testing.T) {
 	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
 	ingestionQueue.SyncFunc = syncFromIngestionLayerWrapper
 
-	ingClassName, ingressName, ns := "avi-lb", "foo-with-class", "default"
+	ingClassName, ingressName, ns := "avi-lb", "foo-with-class-1", "default"
 	modelName := "admin/cluster--Shared-L7-1"
 	svcName := "avisvc-62"
 
@@ -180,7 +180,7 @@ func TestDefaultIngressClassChange(t *testing.T) {
 	// ingress status IP comes back
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns := "avi-lb", "foo-with-class2", "default"
+	ingClassName, ingressName, ns := "avi-lb", "foo-with-class-2", "default"
 	modelName := "admin/cluster--Shared-L7-1"
 	svcName := "avisvc-63"
 
@@ -241,7 +241,7 @@ func TestIngressWithNonAVILBIngressClass(t *testing.T) {
 	// update ingress with non-avi-lb ingressClass, observe VS delete
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns := "non-avi-lb", "foo-with-class", "default"
+	ingClassName, ingressName, ns := "non-avi-lb", "foo-with-class-3", "default"
 	modelName := "admin/cluster--Shared-L7-1"
 	svcName := "avisvc-64"
 
@@ -368,7 +368,7 @@ func TestAviInfraSettingNamingConvention(t *testing.T) {
 	// check for names of all Avi objects
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting-2"
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-4", "default", "my-infrasetting-2"
 	secretName := "my-secret-5"
 	modelName := "admin/cluster--Shared-L7-1"
 	svcName := "avisvc-65"
@@ -402,8 +402,8 @@ func TestAviInfraSettingNamingConvention(t *testing.T) {
 
 	shardVsName := "cluster--Shared-L7-" + settingName + "-0"
 	sniVsName := "cluster--" + settingName + "-baz.com"
-	shardPoolName := "cluster--" + settingName + "-bar.com_foo-default-foo-with-class"
-	sniPoolName := "cluster--" + settingName + "-default-baz.com_foo-foo-with-class"
+	shardPoolName := "cluster--" + settingName + "-bar.com_foo-default-" + ingressName
+	sniPoolName := "cluster--" + settingName + "-default-baz.com_foo-" + ingressName
 
 	g.Eventually(func() bool {
 		if found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName); found {
@@ -447,7 +447,7 @@ func TestAviInfraSettingPerNSNamingConvention(t *testing.T) {
 	// check for names of all Avi objects
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting-3"
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-5", "default", "my-infrasetting-3"
 	secretName := "my-secret-6"
 	modelName := "admin/cluster--Shared-L7-1"
 	svcName := "avisvc-66"
@@ -478,8 +478,8 @@ func TestAviInfraSettingPerNSNamingConvention(t *testing.T) {
 
 	shardVsName := "cluster--Shared-L7-0"
 	sniVsName := "cluster--baz.com"
-	shardPoolName := "cluster--bar.com_foo-default-foo-with-class"
-	sniPoolName := "cluster--default-baz.com_foo-foo-with-class"
+	shardPoolName := "cluster--bar.com_foo-default-" + ingressName
+	sniPoolName := "cluster--default-baz.com_foo-" + ingressName
 
 	g.Eventually(func() bool {
 		if found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName); found {
@@ -523,7 +523,7 @@ func TestAddRemoveInfraSettingInIngressClass(t *testing.T) {
 	// remove infrasetting ref, model changes again
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting-4"
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-6", "default", "my-infrasetting-4"
 	modelName := "admin/cluster--Shared-L7-1"
 	svcName := "avisvc-67"
 	secretName := "my-secret-7"
@@ -584,7 +584,7 @@ func TestAddRemoveInfraSettingInIngressClass(t *testing.T) {
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes[0].PoolRefs).Should(gomega.HaveLen(1))
-	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--" + settingName + "-bar.com_foo-default-foo-with-class"))
+	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--" + settingName + "-bar.com_foo-default-" + ingressName))
 	g.Eventually(func() int {
 		_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 		settingNodes = aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -623,7 +623,7 @@ func TestUpdateInfraSettingInIngressClass(t *testing.T) {
 	// update infrasetting ref in ingressclass, model changes
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName1, settingName2 := "avi-lb", "foo-with-class", "default", "my-infrasetting-5", "my-infrasetting-6"
+	ingClassName, ingressName, ns, settingName1, settingName2 := "avi-lb", "foo-with-class-7", "default", "my-infrasetting-5", "my-infrasetting-6"
 	modelName := "admin/cluster--Shared-L7-1"
 	svcName := "avisvc-68"
 	secretName := "my-secret-8"
@@ -657,7 +657,7 @@ func TestUpdateInfraSettingInIngressClass(t *testing.T) {
 			}
 		}
 		return ""
-	}, 40*time.Second).Should(gomega.Equal("cluster--" + settingName1 + "-bar.com_foo-default-foo-with-class"))
+	}, 40*time.Second).Should(gomega.Equal("cluster--" + settingName1 + "-bar.com_foo-default-" + ingressName))
 
 	ingClassUpdate := (integrationtest.FakeIngressClass{
 		Name:            ingClassName,
@@ -682,7 +682,7 @@ func TestUpdateInfraSettingInIngressClass(t *testing.T) {
 	}, 40*time.Second).Should(gomega.Equal(1))
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName2)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--" + settingName2 + "-bar.com_foo-default-foo-with-class"))
+	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--" + settingName2 + "-bar.com_foo-default-" + ingressName))
 
 	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
@@ -704,7 +704,7 @@ func TestAddIngressClassWithInfraSetting(t *testing.T) {
 	// add ingressclass in ingress, delete ingress
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting-7"
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-8", "default", "my-infrasetting-7"
 	modelName := "admin/cluster--Shared-L7-1"
 	svcName := "avisvc-69"
 	secretName := "my-secret-9"
@@ -759,7 +759,7 @@ func TestAddIngressClassWithInfraSetting(t *testing.T) {
 	}, 40*time.Second).Should(gomega.Equal(1))
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--" + settingName + "-bar.com_foo-default-foo-with-class"))
+	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--" + settingName + "-bar.com_foo-default-" + ingressName))
 
 	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
 	if err != nil {
@@ -785,7 +785,7 @@ func TestUpdateIngressClassWithInfraSetting(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	ingClassName1, ingClassName2 := "avi-lb1", "avi-lb2"
-	ingressName, ns := "foo-with-class", "default"
+	ingressName, ns := "foo-with-class-9", "default"
 	settingName1, settingName2 := "my-infrasetting-8", "my-infrasetting-9"
 	modelName := "admin/cluster--Shared-L7-1"
 	svcName := "avisvc-70"
@@ -825,7 +825,7 @@ func TestUpdateIngressClassWithInfraSetting(t *testing.T) {
 	settingNodes1 := aviSettingModel1.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes1[0].PoolRefs).Should(gomega.HaveLen(1))
 	g.Expect(settingNodes1[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-" + settingName1 + "-seGroup"))
-	g.Expect(settingNodes1[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--" + settingName1 + "-bar.com_foo-default-foo-with-class"))
+	g.Expect(settingNodes1[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--" + settingName1 + "-bar.com_foo-default-" + ingressName))
 
 	ingressUpdate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -850,7 +850,7 @@ func TestUpdateIngressClassWithInfraSetting(t *testing.T) {
 	_, aviSettingModel2 := objects.SharedAviGraphLister().Get(settingModelName2)
 	settingNodes2 := aviSettingModel2.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes2[0].PoolRefs).Should(gomega.HaveLen(1))
-	g.Expect(settingNodes2[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--" + settingName2 + "-bar.com_foo-default-foo-with-class"))
+	g.Expect(settingNodes2[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--" + settingName2 + "-bar.com_foo-default-" + ingressName))
 	g.Expect(settingNodes2[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-" + settingName2 + "-seGroup"))
 	_, aviSettingModel1 = objects.SharedAviGraphLister().Get(settingModelName1)
 	settingNodes1 = aviSettingModel1.(*avinodes.AviObjectGraph).GetAviVS()
@@ -877,7 +877,7 @@ func TestUpdateWithInfraSetting(t *testing.T) {
 
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting-10"
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-10", "default", "my-infrasetting-10"
 	modelName := "admin/cluster--Shared-L7-1"
 	svcName := "avisvc-71"
 	secretName := "my-secret-11"
@@ -1001,7 +1001,7 @@ func TestPublicIPStatusWithInfraSetting(t *testing.T) {
 
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-public-infrasetting"
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-11", "default", "my-public-infrasetting"
 	modelName := "admin/cluster--Shared-L7-1"
 	svcName := "avisvc-72"
 	secretName := "my-secret-12"
@@ -1075,7 +1075,7 @@ func TestMultiVipStatusWithInfraSetting(t *testing.T) {
 
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-multivip-infrasetting"
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-12", "default", "my-multivip-infrasetting"
 	modelName := "admin/cluster--Shared-L7-1"
 	svcName := "avisvc-73"
 	secretName := "my-secret-13"
@@ -1151,7 +1151,7 @@ func TestMultiFipStatusWithInfraSetting(t *testing.T) {
 
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-multivip-public-infrasetting"
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-13", "default", "my-multivip-public-infrasetting"
 	modelName := "admin/cluster--Shared-L7-1"
 	svcName := "avisvc-74"
 	secretName := "my-secret-14"
@@ -1227,7 +1227,7 @@ func TestUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	ingClassName1, ingClassName2 := "avi-lb1", "avi-lb2"
-	ingressName, ns := "foo-with-class", "default"
+	ingressName, ns := "foo-with-class-14", "default"
 	settingName := "my-infrasetting-11"
 	modelName := "admin/cluster--Shared-L7-1"
 	svcName := "avisvc-75"
@@ -1275,7 +1275,7 @@ func TestUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 	}, 40*time.Second).Should(gomega.Equal(1))
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--" + settingName + "-bar.com_foo-default-foo-with-class"))
+	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--" + settingName + "-bar.com_foo-default-" + ingressName))
 
 	ingressUpdate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -1300,7 +1300,7 @@ func TestUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].PoolRefs).Should(gomega.HaveLen(1))
-	g.Expect(nodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--bar.com_foo-default-foo-with-class"))
+	g.Expect(nodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--bar.com_foo-default-" + ingressName))
 	g.Expect(nodes[0].ServiceEngineGroup).Should(gomega.Equal("Default-Group"))
 	_, aviSettingModel = objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes = aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -1323,7 +1323,7 @@ func TestUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 func TestBGPConfigurationWithInfraSetting(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting-12"
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-15", "default", "my-infrasetting-12"
 	secretName := "my-secret-16"
 	modelName := "admin/cluster--Shared-L7-1"
 	svcName := "avisvc-76"
@@ -1354,7 +1354,7 @@ func TestBGPConfigurationWithInfraSetting(t *testing.T) {
 	}
 
 	sniVsName := "cluster--" + settingName + "-baz.com"
-	shardPoolName := "cluster--" + settingName + "-bar.com_foo-default-foo-with-class"
+	shardPoolName := "cluster--" + settingName + "-bar.com_foo-default-" + ingressName
 
 	g.Eventually(func() string {
 		if found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName); found {
@@ -1412,7 +1412,7 @@ func TestBGPConfigurationWithInfraSetting(t *testing.T) {
 func TestBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting-13"
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-16", "default", "my-infrasetting-13"
 	secretName := "my-secret-17"
 	modelName := "admin/cluster--Shared-L7-1"
 	svcName := "avisvc-77"
@@ -1487,7 +1487,7 @@ func TestBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
 func TestCRDWithAviInfraSetting(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting-14"
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-17", "default", "my-infrasetting-14"
 	secretName := "my-secret-18"
 	modelName := "admin/cluster--Shared-L7-1"
 	svcName := "avisvc-78"
@@ -1496,7 +1496,7 @@ func TestCRDWithAviInfraSetting(t *testing.T) {
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-" + settingName + "-1"}
 	sniKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--" + settingName + "-baz.com"}
-	poolKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--" + settingName + "-default-baz.com_foo-foo-with-class"}
+	poolKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--" + settingName + "-default-baz.com_foo-" + ingressName}
 
 	SetUpTestForIngress(t, svcName, modelName, settingModelName)
 
@@ -1579,7 +1579,7 @@ func TestCRDWithAviInfraSetting(t *testing.T) {
 
 func TestFQDNsCountForAviInfraSettingWithDedicatedShardSize(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting-15"
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-18", "default", "my-infrasetting-15"
 	secretName := "my-secret-19"
 	svcName := "avisvc-79"
 
@@ -1645,7 +1645,7 @@ func TestFQDNsCountForAviInfraSettingWithDedicatedShardSize(t *testing.T) {
 
 func TestFQDNsCountForAviInfraSettingWithLargeShardSize(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting-16"
+	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-19", "default", "my-infrasetting-16"
 	secretName := "my-secret-20"
 	svcName := "avisvc-80"
 
@@ -1722,7 +1722,7 @@ func TestAddIngressClassWithInfraSettingMultipleIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	ingClassName, ns, settingName := "avi-lb", "default", "my-infrasetting-17"
-	ingressName1, ingressName2 := "foo-with-class", "bar-with-class"
+	ingressName1, ingressName2 := "foo-with-class-20", "bar-with-class-20"
 	modelName := "admin/cluster--Shared-L7-1"
 	svcName := "avisvc-81"
 
@@ -1762,7 +1762,7 @@ func TestAddIngressClassWithInfraSettingMultipleIngress(t *testing.T) {
 	}, 40*time.Second).Should(gomega.Equal(1))
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--" + settingName + "-foo.com_foo-default-foo-with-class"))
+	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--" + settingName + "-foo.com_foo-default-" + ingressName1))
 
 	ingressCreate2 := (integrationtest.FakeIngress{
 		Name:        ingressName2,
@@ -1791,7 +1791,7 @@ func TestAddIngressClassWithInfraSettingMultipleIngress(t *testing.T) {
 	}, 40*time.Second).Should(gomega.Equal(2))
 	_, aviSettingModel = objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes = aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(settingNodes[0].PoolRefs[1].Name).Should(gomega.Equal("cluster--" + settingName + "-bar.com_foo-default-bar-with-class"))
+	g.Expect(settingNodes[0].PoolRefs[1].Name).Should(gomega.Equal("cluster--" + settingName + "-bar.com_foo-default-" + ingressName2))
 
 	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName1, metav1.DeleteOptions{})
 	if err != nil {
@@ -1813,7 +1813,7 @@ func TestAddIngressClassWithInfraSettingMultipleIngress(t *testing.T) {
 	}, 40*time.Second).Should(gomega.Equal(1))
 	_, aviSettingModel = objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes = aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--" + settingName + "-bar.com_foo-default-bar-with-class"))
+	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal("cluster--" + settingName + "-bar.com_foo-default-" + ingressName2))
 
 	err = KubeClient.NetworkingV1().Ingresses(ns).Delete(context.TODO(), ingressName2, metav1.DeleteOptions{})
 	if err != nil {
@@ -1830,7 +1830,7 @@ func TestAddIngressClassWithInfraSettingMultipleIngress(t *testing.T) {
 func TestAddIngressClassWithInfraSettingMultipleIngressDedicated(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	ingClassName, ns, settingName := "avi-lb", "default", "my-infrasetting-18"
-	ingressName1, ingressName2 := "foo-with-class", "bar-with-class"
+	ingressName1, ingressName2 := "foo-with-class-21", "bar-with-class-21"
 	svcName := "avisvc-82"
 
 	modelName1 := "admin/cluster--" + settingName + "-foo.com-L7-dedicated"

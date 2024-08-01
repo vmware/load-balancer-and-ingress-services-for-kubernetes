@@ -1255,8 +1255,14 @@ func TestFullSyncCacheNoOp(t *testing.T) {
 	integrationtest.PollForCompletion(t, modelName, 5)
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
 
-	//store old chksum
 	mcache := cache.SharedAviObjCache()
+
+	//store old chksum
+	g.Eventually(func() bool {
+		_, ok := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
+		return ok
+	}, 30*time.Second).Should(gomega.Equal(true))
+
 	oldSniCache, _ := mcache.VsCacheMeta.AviCacheGet(sniVSKey)
 	oldSniCacheObj, _ := oldSniCache.(*cache.AviVsCache)
 	oldChksum := oldSniCacheObj.CloudConfigCksum
