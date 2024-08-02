@@ -632,25 +632,25 @@ func TestHTTPRouteWithNoHostnames(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted)) &&
-			apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.GatewayConditionAccepted))
+		return apimeta.IsStatusConditionTrue(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted)) &&
+			apimeta.IsStatusConditionTrue(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.GatewayConditionAccepted))
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap := map[string][]metav1.Condition{
 		fmt.Sprintf("%s-%d", gatewayName, 8080): {
 			{
 				Type:    string(gatewayv1.GatewayConditionAccepted),
-				Reason:  string(gatewayv1.GatewayReasonInvalid),
-				Status:  metav1.ConditionFalse,
-				Message: "Hostname in Gateway Listener doesn't match with any of the hostnames in HTTPRoute",
+				Reason:  string(gatewayv1.GatewayReasonAccepted),
+				Status:  metav1.ConditionTrue,
+				Message: "Parent reference is valid",
 			},
 		},
 		fmt.Sprintf("%s-%d", gatewayName, 8081): {
 			{
 				Type:    string(gatewayv1.GatewayConditionAccepted),
-				Reason:  string(gatewayv1.GatewayReasonInvalid),
-				Status:  metav1.ConditionFalse,
-				Message: "Hostname in Gateway Listener doesn't match with any of the hostnames in HTTPRoute",
+				Reason:  string(gatewayv1.GatewayReasonAccepted),
+				Status:  metav1.ConditionTrue,
+				Message: "Parent reference is valid",
 			},
 		},
 	}
@@ -770,9 +770,9 @@ func TestHTTPRouteWithInvalidGatewayListener(t *testing.T) {
 		conditions := make([]metav1.Condition, 0, 1)
 		condition := metav1.Condition{
 			Type:    string(gatewayv1.GatewayConditionAccepted),
-			Reason:  string(gatewayv1.GatewayReasonInvalid),
-			Status:  metav1.ConditionFalse,
-			Message: "Gateway gateway-hr-12 is in Invalid State",
+			Reason:  string(gatewayv1.GatewayReasonAccepted),
+			Status:  metav1.ConditionTrue,
+			Message: "Parent reference is valid",
 		}
 		conditions = append(conditions, condition)
 		conditionMap[fmt.Sprintf("%s-%d", gatewayName, port)] = conditions

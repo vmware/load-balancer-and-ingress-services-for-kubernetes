@@ -523,7 +523,7 @@ func TestMultipleGatewayOverlappingHostname(t *testing.T) {
 		t.Fatalf("Couldn't create, err: %+v", err)
 	}
 	t.Logf("Created %+v", gw.Name)
-	waitAndverify(t, "")
+	waitAndverify(t, gwKey2)
 
 	//delete
 	akogatewayapitests.TeardownGateway(t, gwName1, DEFAULT_NAMESPACE)

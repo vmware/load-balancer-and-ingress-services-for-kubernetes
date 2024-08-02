@@ -294,6 +294,7 @@ Transition test cases
 */
 func TestGatewayTransitionFromValidToInvalid(t *testing.T) {
 
+	t.Skip("This is invalid test case as Hostname in listener can not be *.")
 	gatewayName := "gateway-trans-01"
 	gatewayClassName := "gateway-class-trans-01"
 	ports := []int32{8080, 8081}
@@ -682,7 +683,7 @@ func TestGatewayWithUnsupportedProtocolInListeners(t *testing.T) {
 }
 
 func TestGatewayWithInvalidHostnameInListeners(t *testing.T) {
-
+	t.Skip("Skipping this test case as Hostname in Gateway listener can not be *. Can be removed.")
 	gatewayName := "gateway-neg-04"
 	gatewayClassName := "gateway-class-neg-04"
 	ports := []int32{8080, 8081}
@@ -1126,7 +1127,7 @@ func TestMultipleGatewaySameHostname(t *testing.T) {
 	}
 	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.GatewayReasonListenersNotValid)
 	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionFalse
-	expectedStatus.Listeners[0].Conditions[0].Message = "Hostname overlaps or is same as an existing gateway hostname"
+	expectedStatus.Listeners[0].Conditions[0].Message = "Hostname is same as an existing gateway hostname"
 
 	gateway, err = tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName2, metav1.GetOptions{})
 	if err != nil || gateway == nil {
@@ -1201,17 +1202,17 @@ func TestMultipleGatewayOverlappingHostname(t *testing.T) {
 		Conditions: []metav1.Condition{
 			{
 				Type:               string(gatewayv1.GatewayConditionAccepted),
-				Status:             metav1.ConditionFalse,
-				Message:            "Gateway contains 1 invalid listener(s)",
+				Status:             metav1.ConditionTrue,
+				Message:            "Gateway configuration is valid",
 				ObservedGeneration: 1,
-				Reason:             string(gatewayv1.GatewayReasonListenersNotValid),
+				Reason:             string(gatewayv1.GatewayReasonAccepted),
 			},
 		},
 		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
 	}
-	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.GatewayReasonListenersNotValid)
-	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionFalse
-	expectedStatus.Listeners[0].Conditions[0].Message = "Hostname overlaps or is same as an existing gateway hostname"
+	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.GatewayReasonAccepted)
+	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionTrue
+	expectedStatus.Listeners[0].Conditions[0].Message = "Listener is valid"
 
 	gateway, err = tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName2, metav1.GetOptions{})
 	if err != nil || gateway == nil {

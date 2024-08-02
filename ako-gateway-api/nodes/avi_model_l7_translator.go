@@ -585,8 +585,8 @@ func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNo
 		httpPSPGPool.HTTPPS = uniqueHTTPS.List()
 		index = len(vsNode.HttpPolicyRefs) - 1
 	}
-	o.BuildHTTPPolicySetHTTPRequestRedirectRules(key, httpPSName, vsNode, routeModel, rule.Filters, index)
-	if len(vsNode.HttpPolicyRefs[index].RequestRules) == 1 {
+	isRedirectPresent := o.BuildHTTPPolicySetHTTPRequestRedirectRules(key, httpPSName, vsNode, routeModel, rule.Filters, index)
+	if isRedirectPresent {
 		// When the RedirectAction is specified the Request and Response Modify Header Action
 		// won't have any effect, hence returning.
 		utils.AviLog.Infof("key: %s, msg: Attached HTTP redirect policy to vs %s", key, vsNode.Name)
@@ -599,6 +599,7 @@ func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNo
 
 func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestRules(key, httpPSName string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, filters []*Filter, index int) {
 	requestRule := &models.HTTPRequestRule{Name: &httpPSName, Enable: proto.Bool(true), Index: proto.Int32(int32(index + 1))}
+	vsNode.HttpPolicyRefs[index].RequestRules = []*models.HTTPRequestRule{}
 	for _, filter := range filters {
 		if filter.RequestFilter != nil {
 			var j uint32 = 0
@@ -671,8 +672,9 @@ func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRuleHdrAction(key string, action 
 	return hdrAction
 }
 
-func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestRedirectRules(key, httpPSname string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, filters []*Filter, index int) {
+func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestRedirectRules(key, httpPSname string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, filters []*Filter, index int) bool {
 	redirectAction := &models.HTTPRedirectAction{}
+	isRedirectPresent := false
 	for _, filter := range filters {
 		// considering only the first RedirectFilter
 		if filter.RedirectFilter != nil {
@@ -693,10 +695,12 @@ func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestRedirectRules(key, httpPSn
 			redirectAction.StatusCode = &statusCode
 			requestRule := &models.HTTPRequestRule{Name: &httpPSname, Enable: proto.Bool(true), RedirectAction: redirectAction, Index: proto.Int32(int32(index + 1))}
 			vsNode.HttpPolicyRefs[index].RequestRules = append(vsNode.HttpPolicyRefs[index].RequestRules, requestRule)
+			isRedirectPresent = true
 			utils.AviLog.Debugf("key: %s, msg: Attached HTTP request redirect policies %s to vs %s", key, utils.Stringify(vsNode.HttpPolicyRefs[index].RequestRules), vsNode.Name)
 			break
 		}
 	}
+	return isRedirectPresent
 }
 
 func (o *AviObjectGraph) ConstructBackendFilterDataScript(key string) *nodes.AviHTTPDataScriptNode {
