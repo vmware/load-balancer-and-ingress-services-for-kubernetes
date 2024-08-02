@@ -305,7 +305,7 @@ func BuildRegexAppRootForHostRule(hostrule *akov1beta1.HostRule, vsNode AviVsEvh
 					hppMap.MatchCase = "INSENSITIVE"
 					hppMap.MatchCriteria = "REGEX_MATCH"
 
-					tenant := lib.GetTenant()
+					tenant := vsNode.GetTenant()
 					regexStringGroup := &models.StringGroup{
 						TenantRef:    &tenant,
 						Type:         proto.String("SG_TYPE_KEYVAL"),
