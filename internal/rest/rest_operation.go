@@ -288,16 +288,16 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 		}
 		switch op.Method {
 		case utils.RestPost:
-			op.Err = c.AviSession.Post(op.Path, op.Obj, &op.Response)
+			op.Err = c.AviSession.Post(utils.GetUriEncoded(op.Path), op.Obj, &op.Response)
 		case utils.RestPut:
-			op.Err = c.AviSession.Put(op.Path, op.Obj, &op.Response)
+			op.Err = c.AviSession.Put(utils.GetUriEncoded(op.Path), op.Obj, &op.Response)
 		case utils.RestGet:
-			op.Err = c.AviSession.Get(op.Path, &op.Response)
+			op.Err = c.AviSession.Get(utils.GetUriEncoded(op.Path), &op.Response)
 		case utils.RestPatch:
-			op.Err = c.AviSession.Patch(op.Path, op.Obj, op.PatchOp,
+			op.Err = c.AviSession.Patch(utils.GetUriEncoded(op.Path), op.Obj, op.PatchOp,
 				&op.Response)
 		case utils.RestDelete:
-			op.Err = c.AviSession.Delete(op.Path)
+			op.Err = c.AviSession.Delete(utils.GetUriEncoded(op.Path))
 		default:
 			utils.AviLog.Errorf("Unknown RestOp %v", op.Method)
 			op.Err = fmt.Errorf("Unknown RestOp %v", op.Method)
@@ -376,7 +376,7 @@ func (f *follower) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp
 		}
 
 		utils.AviLog.Debugf("key: %s, msg: Got a REST operation: %s, %s", key, op.ObjName, op.Path)
-		op.Err = c.AviSession.Get(op.Path, &op.Response)
+		op.Err = c.AviSession.Get(utils.GetUriEncoded(op.Path), &op.Response)
 		if op.Err != nil {
 			utils.AviLog.Warnf("key: %s, msg: RestOp method %v path %v tenant %v Obj %s returned err %s with response %s",
 				key, op.Method, op.Path, op.Tenant, utils.Stringify(op.Obj), utils.Stringify(op.Err), utils.Stringify(op.Response))
