@@ -62,15 +62,15 @@ rules:
     resources: ["gatewayclasses", "gatewayclasses/status","gateways","gateways/status","httproutes","httproutes/status"]
     verbs: ["get","watch","list","patch","update"]
 {{- end }}
+{{- if eq .Values.featureGates.EnableEndpointSlice true }}
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
+    verbs: ["get","watch","list"]
+{{- end }} 
 {{- if .Values.rbac.pspEnable }}
-  - apiGroups:
-    - policy
-    - extensions
-    resources:
-    - podsecuritypolicies
-    verbs:
-    - use
-    resourceNames:
-    - {{ template "ako.name" . }}
+  - apiGroups: ["policy", "extensions"]
+    resources: ["podsecuritypolicies"]
+    verbs: ["use"]
+    resourceNames: ["{{ template "ako.name" . }}"]
 {{- end }}
 {{- end }}

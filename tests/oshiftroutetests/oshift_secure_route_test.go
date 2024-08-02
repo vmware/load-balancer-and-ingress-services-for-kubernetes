@@ -223,7 +223,7 @@ func TestSecureRouteMultiNamespace(t *testing.T) {
 	defer integrationtest.DeleteNamespace("test")
 
 	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, "test", "avisvc", false, false, "1.1.1")
+	integrationtest.CreateEPorEPS(t, "test", "avisvc", false, false, "1.1.1")
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
 	_, err = OshiftClient.RouteV1().Routes("test").Create(context.TODO(), route2, metav1.CreateOptions{})
 	if err != nil {
@@ -241,7 +241,7 @@ func TestSecureRouteMultiNamespace(t *testing.T) {
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 	integrationtest.DelSVC(t, "test", "avisvc")
-	integrationtest.DelEP(t, "test", "avisvc")
+	integrationtest.DelEPorEPS(t, "test", "avisvc")
 }
 
 func TestMultiSecureRouteSameNamespace(t *testing.T) {
@@ -291,7 +291,7 @@ func TestSecureRouteAlternateBackend(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
+	integrationtest.CreateEPorEPS(t, "default", "absvc2", false, false, "3.3.3")
 	routeExample := FakeRoute{Path: "/foo"}.SecureABRoute()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
@@ -335,14 +335,14 @@ func TestSecureRouteAlternateBackend(t *testing.T) {
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 	integrationtest.DelSVC(t, "default", "absvc2")
-	integrationtest.DelEP(t, "default", "absvc2")
+	integrationtest.DelEPorEPS(t, "default", "absvc2")
 }
 
 func TestSecureRouteAlternateBackendUpdateRatio(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
+	integrationtest.CreateEPorEPS(t, "default", "absvc2", false, false, "3.3.3")
 	routeExample := FakeRoute{Path: "/foo"}.SecureABRoute()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
@@ -390,14 +390,14 @@ func TestSecureRouteAlternateBackendUpdateRatio(t *testing.T) {
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 	integrationtest.DelSVC(t, "default", "absvc2")
-	integrationtest.DelEP(t, "default", "absvc2")
+	integrationtest.DelEPorEPS(t, "default", "absvc2")
 }
 
 func TestSecureRouteAlternateBackendUpdatePath(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
+	integrationtest.CreateEPorEPS(t, "default", "absvc2", false, false, "3.3.3")
 	routeExample := FakeRoute{Path: "/foo"}.SecureABRoute()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
@@ -445,14 +445,14 @@ func TestSecureRouteAlternateBackendUpdatePath(t *testing.T) {
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 	integrationtest.DelSVC(t, "default", "absvc2")
-	integrationtest.DelEP(t, "default", "absvc2")
+	integrationtest.DelEPorEPS(t, "default", "absvc2")
 }
 
 func TestSecureRouteRemoveAlternateBackend(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
+	integrationtest.CreateEPorEPS(t, "default", "absvc2", false, false, "3.3.3")
 	routeExample := FakeRoute{Path: "/foo"}.SecureABRoute()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
@@ -498,7 +498,7 @@ func TestSecureRouteRemoveAlternateBackend(t *testing.T) {
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 	integrationtest.DelSVC(t, "default", "absvc2")
-	integrationtest.DelEP(t, "default", "absvc2")
+	integrationtest.DelEPorEPS(t, "default", "absvc2")
 }
 
 func TestSecureRouteInsecureRedirect(t *testing.T) {
@@ -730,7 +730,7 @@ func TestSecureRouteInsecureRedirectMultiNamespace(t *testing.T) {
 	defer integrationtest.DeleteNamespace("test")
 
 	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, "test", "avisvc", false, false, "1.1.1")
+	integrationtest.CreateEPorEPS(t, "test", "avisvc", false, false, "1.1.1")
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
 	route2.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyRedirect
 	_, err = OshiftClient.RouteV1().Routes("test").Create(context.TODO(), route2, metav1.CreateOptions{})
@@ -749,7 +749,7 @@ func TestSecureRouteInsecureRedirectMultiNamespace(t *testing.T) {
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 	integrationtest.DelSVC(t, "test", "avisvc")
-	integrationtest.DelEP(t, "test", "avisvc")
+	integrationtest.DelEPorEPS(t, "test", "avisvc")
 }
 
 func TestSecureRouteInsecureAllowMultiNamespace(t *testing.T) {
@@ -767,7 +767,7 @@ func TestSecureRouteInsecureAllowMultiNamespace(t *testing.T) {
 	defer integrationtest.DeleteNamespace("test")
 
 	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, "test", "avisvc", false, false, "1.1.1")
+	integrationtest.CreateEPorEPS(t, "test", "avisvc", false, false, "1.1.1")
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
 	route2.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyAllow
 	_, err = OshiftClient.RouteV1().Routes("test").Create(context.TODO(), route2, metav1.CreateOptions{})
@@ -812,7 +812,7 @@ func TestSecureRouteInsecureAllowMultiNamespace(t *testing.T) {
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 	integrationtest.DelSVC(t, "test", "avisvc")
-	integrationtest.DelEP(t, "test", "avisvc")
+	integrationtest.DelEPorEPS(t, "test", "avisvc")
 }
 
 func TestReencryptRoute(t *testing.T) {
@@ -880,7 +880,7 @@ func TestRencryptRouteAlternateBackend(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
+	integrationtest.CreateEPorEPS(t, "default", "absvc2", false, false, "3.3.3")
 	routeExample := FakeRoute{Path: "/foo"}.SecureABRoute()
 	routeExample.Spec.TLS.Termination = routev1.TLSTerminationReencrypt
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
@@ -927,7 +927,7 @@ func TestRencryptRouteAlternateBackend(t *testing.T) {
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 	integrationtest.DelSVC(t, "default", "absvc2")
-	integrationtest.DelEP(t, "default", "absvc2")
+	integrationtest.DelEPorEPS(t, "default", "absvc2")
 }
 
 func TestSecureOshiftNamingConvention(t *testing.T) {

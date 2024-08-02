@@ -749,6 +749,7 @@ func updateGatewayStatusWithVsError(key string, rest_op *utils.RestOp) {
 						Key:             key,
 						VSName:          rest_op.ObjName,
 						Message:         rest_op.Err.Error(),
+						Tenant:          rest_op.Tenant,
 					}
 					statusOption := status.StatusOptions{
 						ObjType: lib.Gateway,

@@ -178,14 +178,14 @@ func SetUpTestForRoute(t *testing.T, modelName string, models ...string) {
 	}
 
 	integrationtest.CreateSVC(t, defaultNamespace, "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, defaultNamespace, "avisvc", false, false, "1.1.1")
+	integrationtest.CreateEPorEPS(t, defaultNamespace, "avisvc", false, false, "1.1.1")
 	integrationtest.PollForCompletion(t, modelName, 5)
 }
 
 func TearDownTestForRoute(t *testing.T, modelName string) {
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.DelSVC(t, "default", "avisvc")
-	integrationtest.DelEP(t, "default", "avisvc")
+	integrationtest.DelEPorEPS(t, "default", "avisvc")
 }
 
 // TO DO (Aakash) : Rename function to DeleteRouteAndVerify

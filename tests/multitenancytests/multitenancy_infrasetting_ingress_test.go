@@ -122,7 +122,7 @@ func TestMain(m *testing.M) {
 
 	akoApiServer = integrationtest.InitializeFakeAKOAPIServer()
 
-	integrationtest.NewAviFakeClientInstance(KubeClient)
+	integrationtest.NewAviFakeClientInstance(KubeClient, true)
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()
@@ -144,9 +144,9 @@ func TestMain(m *testing.M) {
 	waitGroupMap["leaderElection"] = wgLeaderElection
 
 	integrationtest.AddConfigMap(KubeClient)
-	integrationtest.PollForSyncStart(ctrl, 10)
 	keyChan = make(chan string)
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
+	integrationtest.PollForSyncStart(ctrl, 10)
 	integrationtest.KubeClient = KubeClient
 	integrationtest.AddDefaultIngressClass()
 	ctrl.SetSEGroupCloudNameFromNSAnnotations()
@@ -162,9 +162,6 @@ func TestMultiTenancyWithNSAviInfraSettingForIngress(t *testing.T) {
 	// create secure and insecure host ingress, connect with infrasetting
 	// check for names of all Avi objects
 	g := gomega.NewGomegaWithT(t)
-
-	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
-	ingestionQueue.SyncFunc = syncFromIngestionLayerWrapper
 
 	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
 	secretName := "my-secret"

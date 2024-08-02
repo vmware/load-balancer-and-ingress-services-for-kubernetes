@@ -1763,6 +1763,7 @@ type AviPoolMetaServer struct {
 	Ip         avimodels.IPAddr
 	ServerNode string
 	Port       int32
+	Enabled    *bool
 }
 
 type IngressHostPathSvc struct {

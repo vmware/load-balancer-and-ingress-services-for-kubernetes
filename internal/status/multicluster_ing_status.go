@@ -43,7 +43,7 @@ func (l *leader) DeleteMultiClusterIngressStatusAndAnnotation(key string, option
 	UpdateMultiClusterIngressStatus(key, mciObj, &mciObj.Status)
 
 	vsAnnotations := make(map[string]string)
-	if err := UpdateMultiClusterIngressAnnotations(mciObj, vsAnnotations, key); err != nil {
+	if err := UpdateMultiClusterIngressAnnotations(mciObj, vsAnnotations, key, option.Tenant); err != nil {
 		utils.AviLog.Warnf("key: %s, msg: could not delete the Multi-cluster ingress object's annotation: err %s, %s/%s", key, err, mciObj.Namespace, mciObj.Name)
 	}
 }
@@ -69,7 +69,7 @@ func (l *leader) UpdateMultiClusterIngressStatusAndAnnotation(key string, option
 	vsAnnotations := make(map[string]string)
 	vsAnnotations[mciObj.Spec.Hostname] = option.VirtualServiceUUID
 
-	if err := UpdateMultiClusterIngressAnnotations(mciObj, vsAnnotations, key); err != nil {
+	if err := UpdateMultiClusterIngressAnnotations(mciObj, vsAnnotations, key, option.Tenant); err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Could not update the Multi-cluster ingress object's annotation: err %s, %s/%s", key, err, mciObj.Namespace, mciObj.Name)
 	}
 }
@@ -107,16 +107,16 @@ func UpdateMultiClusterIngressStatus(key string, mci *akov1alpha1.MultiClusterIn
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the multicluster ingress %s/%s status %+v", key, mci.Namespace, mci.Name, utils.Stringify(status))
 }
 
-func UpdateMultiClusterIngressAnnotations(mci *akov1alpha1.MultiClusterIngress, vsAnnotations map[string]string, key string) error {
+func UpdateMultiClusterIngressAnnotations(mci *akov1alpha1.MultiClusterIngress, vsAnnotations map[string]string, key, tenant string) error {
 
 	// compare the vs annotations for this object
-	required := isAnnotationsUpdateRequired(mci.GetAnnotations(), vsAnnotations)
+	required := isAnnotationsUpdateRequired(mci.GetAnnotations(), vsAnnotations, tenant, false)
 	if !required {
 		utils.AviLog.Debugf("annotations update not required for this multi-cluster ingress: %s/%s", mci.Namespace, mci.Name)
 		return nil
 	}
 
-	patchPayloadBytes, err := getAnnotationsPayload(vsAnnotations, nil)
+	patchPayloadBytes, err := getAnnotationsPayload(vsAnnotations, tenant)
 	if err != nil {
 		return fmt.Errorf("error in generating payload for vs annotations %v: %v", vsAnnotations, err)
 	}

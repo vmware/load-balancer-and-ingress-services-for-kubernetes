@@ -150,7 +150,8 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 			port = pool_meta.Servers[i].Port
 		}
 		uuid := fmt.Sprintf("%s:%d", *sip.Addr, port)
-		s := avimodels.Server{IP: &sip, Port: &port, ExternalUUID: &uuid}
+
+		s := avimodels.Server{IP: &sip, Port: &port, ExternalUUID: &uuid, Enabled: server.Enabled}
 		if server.ServerNode != "" {
 			sn := server.ServerNode
 			s.ServerNode = &sn
@@ -335,6 +336,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 							Key:                key,
 							VirtualServiceUUID: vs_cache_obj.Uuid,
 							VSName:             vs_cache_obj.Name,
+							Tenant:             vs_cache_obj.Tenant,
 						}
 						statusOption := status.StatusOptions{
 							ObjType: utils.L4LBService,
@@ -352,6 +354,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 								Key:                key,
 								VirtualServiceUUID: vs_cache_obj.Uuid,
 								VSName:             vs_cache_obj.Name,
+								Tenant:             vs_cache_obj.Tenant,
 							}
 							statusOption := status.StatusOptions{
 								ObjType: utils.Ingress,
@@ -418,6 +421,7 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 					ServiceMetadata: pool_cache_obj.ServiceMetadataObj,
 					Key:             key,
 					VSName:          vsName,
+					Tenant:          pool_cache_obj.Tenant,
 				}
 				statusOption := status.StatusOptions{
 					ObjType: utils.L4LBService,
@@ -432,6 +436,7 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 					ServiceMetadata: pool_cache_obj.ServiceMetadataObj,
 					Key:             key,
 					VSName:          vsName,
+					Tenant:          pool_cache_obj.Tenant,
 				}
 				statusOption := status.StatusOptions{
 					ObjType: utils.Ingress,
