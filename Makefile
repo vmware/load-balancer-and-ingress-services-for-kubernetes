@@ -334,26 +334,40 @@ helmtests:
 	-v $(PWD)/tests/helmtests:/apps/tests \
 	avi-buildops-docker-registry-02.eng.vmware.com:5000/avi-buildops/helmunittest/helm-unittest:3.11.1-0.3.0 .
 
-.PHONY: gatewayapitests
-gatewayapitests:
+.PHONY: gatewayapi_ingestiontests
+gatewayapi_ingestiontests:
 	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/... -failfast -timeout 0 -coverprofile cover-20.out -coverpkg=./... 2>&1 | awk '{print "[gatewayapitests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/ingestion -failfast -timeout 0 -coverprofile cover-20.out -coverpkg=./... 2>&1 | awk '{print "[gatewayapi_ingestiontests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+
+.PHONY: gatewayapi_graphlayertests
+gatewayapi_graphlayertests:
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/graphlayer -failfast -timeout 0 -coverprofile cover-21.out -coverpkg=./... 2>&1 | awk '{print "[gatewayapi_graphlayertests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+
+.PHONY: gatewayapi_statustests
+gatewayapi_statustests:
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/status -failfast -timeout 0 -coverprofile cover-22.out -coverpkg=./... 2>&1 | awk '{print "[gatewayapi_statustests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: multitenancytests
 multitenancytests:
 	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -mod=vendor $(PACKAGE_PATH_AKO)/tests/multitenancytests/... -failfast -timeout 0 -coverprofile cover-21.out -coverpkg=./... 2>&1 | awk '{print "[multitenancytests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multitenancytests -failfast -timeout 0 -coverprofile cover-23.out -coverpkg=./... 2>&1 | awk '{print "[multitenancytests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: int_test
 int_test:
 	make -j 8 k8stest integrationtest ingresstests evhtests vippernstests dedicatedevhtests \
 	dedicatedvippernstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests \
 	servicesapitests npltests misc dedicatedvstests hatests calicotests ciliumtests helmtests infratests \
-	multitenancytests gatewayapitests
+	multitenancytests gatewayapi_ingestiontests gatewayapi_graphlayertests gatewayapi_statustests
 
 .PHONE: eps_enabled
 eps_enabled:
