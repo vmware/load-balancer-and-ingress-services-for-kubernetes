@@ -348,7 +348,7 @@ multitenancytests:
 	sudo sync && sudo sh -c 'echo 1 >  /proc/sys/vm/drop_caches' && sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -mod=vendor $(PACKAGE_PATH_AKO)/tests/multitenancytests/... -failfast -timeout 0 -coverprofile cover-21.out -coverpkg=./...
+	$(GOTEST) -mod=vendor $(PACKAGE_PATH_AKO)/tests/multitenancytests -failfast -timeout 0 -coverprofile cover-21.out -coverpkg=./...
 
 .PHONY: int_test
 int_test:
