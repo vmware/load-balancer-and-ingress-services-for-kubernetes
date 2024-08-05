@@ -173,7 +173,7 @@ ako-gateway-api-docker: glob-vars
 # tests
 .PHONY: k8stest
 k8stest:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 1 >  /proc/sys/vm/drop_caches' && sudo docker run \
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
@@ -189,7 +189,7 @@ integrationtest:
 
 .PHONY: ingresstests
 ingresstests:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 1 >  /proc/sys/vm/drop_caches' && sudo docker run \
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
@@ -226,7 +226,7 @@ servicesapitests:
 
 .PHONY: advl4tests
 advl4tests:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 1 >  /proc/sys/vm/drop_caches' && sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/advl4tests -failfast -coverprofile cover-8.out -coverpkg=./...
@@ -270,7 +270,7 @@ vippernstests:
 
 .PHONY: dedicatedevhtests
 dedicatedevhtests:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 1 >  /proc/sys/vm/drop_caches' && sudo docker run \
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
@@ -345,7 +345,7 @@ gatewayapitests:
 
 .PHONY: multitenancytests
 multitenancytests:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 1 >  /proc/sys/vm/drop_caches' && sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -mod=vendor $(PACKAGE_PATH_AKO)/tests/multitenancytests/... -failfast -timeout 0 -coverprofile cover-21.out -coverpkg=./...
