@@ -16,6 +16,7 @@ package graphlayer
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -2633,6 +2634,94 @@ func TestHttpRouteWithPortUpdateInGateway(t *testing.T) {
 	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
 	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName2)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestHTTPRouteFilterCRUDWithNSXT(t *testing.T) {
+
+	// simulate nsx-t cloud by setting up t1lr
+	os.Setenv("NSXT_T1_LR", "/infra/t1lr/sample")
+	gatewayName := "gateway-hr-26"
+	gatewayClassName := "gateway-class-hr-26"
+	httpRouteName := "http-route-hr-26"
+	ports := []int32{8080}
+	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
+	rule := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add"}},
+		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
+	rules := []gatewayv1.HTTPRouteRule{rule}
+	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		childVS := nodes[0].EvhNodes[0]
+		if len(childVS.HttpPolicyRefs) != 1 {
+			return -1
+		}
+		return len(childVS.HttpPolicyRefs[0].RequestRules)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	childVS := nodes[0].EvhNodes[0]
+
+	// Check t1lr set at vsvip, pool. vrf empty at vsvip, pool and vs
+	g.Expect(nodes[0].VSVIPRefs[0].T1Lr).Should(gomega.Equal("/infra/t1lr/sample"))
+	g.Expect(nodes[0].VSVIPRefs[0].VrfContext).Should(gomega.Equal(""))
+	// TODO: with latest changes in master, Pool is not getting populated in all UTs.
+	//g.Expect(childVS.PoolRefs[0].T1Lr).Should(gomega.Equal("/infra/t1lr/sample"))
+	//g.Expect(childVS.PoolRefs[0].VrfContext).Should(gomega.Equal(""))
+	g.Expect(nodes[0].VrfContext).Should(gomega.Equal(""))
+
+	g.Expect(*childVS.HttpPolicyRefs[0].RequestRules[0].Name).To(gomega.Equal(childVS.Name))
+	g.Expect(childVS.HttpPolicyRefs[0].RequestRules[0].HdrAction).To(gomega.HaveLen(1))
+	g.Expect(*childVS.HttpPolicyRefs[0].RequestRules[0].HdrAction[0].Action).To(gomega.Equal("HTTP_ADD_HDR"))
+
+	// update httproute
+	rule = akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"replace"}},
+		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
+	rules = []gatewayv1.HTTPRouteRule{rule}
+	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	g.Eventually(func() string {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		childVS := nodes[0].EvhNodes[0]
+		if childVS.HttpPolicyRefs[0].RequestRules[0].HdrAction[0].Action == nil {
+			return ""
+		}
+		return *childVS.HttpPolicyRefs[0].RequestRules[0].HdrAction[0].Action
+	}, 25*time.Second).Should(gomega.Equal("HTTP_REPLACE_HDR"))
+
+	//reset the field
+	os.Setenv("NSXT_T1_LR", "")
+	// delete httproute
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
