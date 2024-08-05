@@ -442,7 +442,7 @@ func (t *T1LRNetworking) deleteNetworkInCloud(objKey string, networksToDelete ma
 	wg.Wait()
 }
 
-func (t *T1LRNetworking) getClusterSpecificNSXTSegmentsinCloud(client *clients.AviClient, lsLRMap map[string]string, next ...string) error {
+func (t *T1LRNetworking) GetClusterSpecificNSXTSegmentsinCloud(client *clients.AviClient, lsLRMap map[string]string, next ...string) error {
 	uri := fmt.Sprintf("/api/nsxtsegmentruntime/?cloud_ref.name=%s", utils.CloudName)
 	if len(next) > 0 {
 		uri = next[0]
@@ -472,7 +472,7 @@ func (t *T1LRNetworking) getClusterSpecificNSXTSegmentsinCloud(client *clients.A
 		next_uri := strings.Split(result.Next, "/api/nsxtsegmentruntime")
 		if len(next_uri) > 1 {
 			nextPage := "/api/nsxtsegmentruntime" + next_uri[1]
-			err = t.getClusterSpecificNSXTSegmentsinCloud(client, lsLRMap, nextPage)
+			err = t.GetClusterSpecificNSXTSegmentsinCloud(client, lsLRMap, nextPage)
 			if err != nil {
 				return err
 			}
@@ -486,7 +486,7 @@ func (t *T1LRNetworking) removeStaleLRLSEntries(client *clients.AviClient, cloud
 	cloudTier1Lrs := cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs
 	dataNetworkTier1Lrs := make([]*models.Tier1LogicalRouterInfo, 0)
 	cloudLRLSMap := make(map[string]string)
-	err := t.getClusterSpecificNSXTSegmentsinCloud(client, cloudLRLSMap)
+	err := t.GetClusterSpecificNSXTSegmentsinCloud(client, cloudLRLSMap)
 	if err != nil {
 		utils.AviLog.Warnf("Failed to get LR to LS Map from cloud, err: %s", err)
 		copy(dataNetworkTier1Lrs, cloudTier1Lrs)

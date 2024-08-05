@@ -217,7 +217,7 @@ func TestAKOInfraAviInfraSettingCreationVPC(t *testing.T) {
 	var testData []*unstructured.Unstructured
 	testData = append(testData, &unstructured.Unstructured{})
 	testData[0].SetUnstructuredContent(map[string]interface{}{
-		"apiVersion": "nsx.vmware.com/v1alpha1",
+		"apiVersion": "crd.nsx.vmware.com/v1alpha1",
 		"kind":       "vpcnetworkconfigurations",
 		"metadata": map[string]interface{}{
 			"name": "testvpcnetworkconfig",
@@ -472,7 +472,7 @@ func TestAKOInfraMultiAviInfraSettingCreationVPC(t *testing.T) {
 	var testData []*unstructured.Unstructured
 	testData = append(testData, &unstructured.Unstructured{})
 	testData[0].SetUnstructuredContent(map[string]interface{}{
-		"apiVersion": "nsx.vmware.com/v1alpha1",
+		"apiVersion": "crd.nsx.vmware.com/v1alpha1",
 		"kind":       "vpcnetworkconfigurations",
 		"metadata": map[string]interface{}{
 			"name": "testvpcnetworkconfig",
@@ -488,7 +488,7 @@ func TestAKOInfraMultiAviInfraSettingCreationVPC(t *testing.T) {
 	})
 	testData = append(testData, &unstructured.Unstructured{})
 	testData[1].SetUnstructuredContent(map[string]interface{}{
-		"apiVersion": "nsx.vmware.com/v1alpha1",
+		"apiVersion": "crd.nsx.vmware.com/v1alpha1",
 		"kind":       "vpcnetworkconfigurations",
 		"metadata": map[string]interface{}{
 			"name": "testvpcnetworkconfig-red",
