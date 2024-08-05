@@ -82,7 +82,7 @@ var (
 	}
 
 	VPCNetworkConfigurationGVR = schema.GroupVersionResource{
-		Group:    "nsx.vmware.com",
+		Group:    "crd.nsx.vmware.com",
 		Version:  "v1alpha1",
 		Resource: "vpcnetworkconfigurations",
 	}
@@ -154,13 +154,11 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 		utils.AviLog.Infof("Skipped initializing dynamic informers for cniPlugin %s", GetCNIPlugin())
 	}
 
-	if utils.IsVCFCluster() {
+	if utils.IsVCFCluster() && akoInfra {
 		informers.VCFNetworkInfoInformer = f.ForResource(NetworkInfoGVR)
-		if akoInfra {
-			informers.VCFClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
-			informers.AvailabilityZoneInformer = f.ForResource(AvailabilityZoneVR)
-			informers.VPCNetworkConfigurationInformer = f.ForResource(VPCNetworkConfigurationGVR)
-		}
+		informers.VCFClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
+		informers.AvailabilityZoneInformer = f.ForResource(AvailabilityZoneVR)
+		informers.VPCNetworkConfigurationInformer = f.ForResource(VPCNetworkConfigurationGVR)
 	}
 
 	dynamicInformerInstance = informers
