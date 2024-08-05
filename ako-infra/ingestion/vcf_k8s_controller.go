@@ -272,6 +272,7 @@ func (c *VCFK8sController) ValidBootStrapData() bool {
 	configmap, err := cs.CoreV1().ConfigMaps(utils.VMWARE_SYSTEM_AKO).Get(context.TODO(), "avi-k8s-config", metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Failed to get ConfigMap, got err: %v", err)
+		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "ConfigMapNotFound", err.Error())
 		return false
 	}
 
@@ -287,6 +288,7 @@ func (c *VCFK8sController) ValidBootStrapData() bool {
 	utils.AviLog.Infof("Got data from ConfigMap %v", utils.Stringify(configmap.Data))
 	if clusterID == "" || controllerIP == "" || secretName == "" || secretNamespace == "" || transportzone == "" {
 		utils.AviLog.Infof("ConfigMap data insufficient")
+		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "ConfigMapDataInsufficient", "ConfigMap data insufficient")
 		return false
 	}
 
@@ -300,6 +302,7 @@ func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, se
 	ncpSecret, err := cs.CoreV1().Secrets(secretNamespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Failed to get Secret, got err: %v", err)
+		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "AviSecretNotFound", err.Error())
 		return false
 	}
 
@@ -321,7 +324,9 @@ func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, se
 	aviClient, err := clients.NewAviClient(controllerIP, username, options...)
 	if err != nil {
 		utils.AviLog.Errorf("Failed to connect to AVI controller using secret provided by NCP, the secret would be deleted, err: %v", err)
-		c.deleteNCPSecret(secretName, secretNamespace)
+		c.deleteAviSecret(lib.AviInitSecret, secretNamespace)
+		c.deleteAviSecret(secretName, secretNamespace)
+		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "InvalidSecret", err.Error())
 		return false
 	}
 
@@ -356,11 +361,11 @@ func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, se
 	return true
 }
 
-func (c *VCFK8sController) deleteNCPSecret(name, ns string) {
+func (c *VCFK8sController) deleteAviSecret(name, ns string) {
 	cs := c.informers.ClientSet
 	err := cs.CoreV1().Secrets(ns).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
-		utils.AviLog.Warnf("Failed to delete NCP secret, got error: %v", err)
+		utils.AviLog.Warnf("Failed to delete secret: %s, namespace: %s, err: %v", name, ns, err.Error())
 	}
 }
 
