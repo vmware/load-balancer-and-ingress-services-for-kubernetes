@@ -201,7 +201,14 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 			ServiceMetadata: lib.ServiceMetadataObj{
 				NamespaceServiceName: []string{httpbackend.Backend.Namespace + "/" + httpbackend.Backend.Name},
 			},
-			VrfContext: lib.GetVrf(),
+		}
+		t1LR := lib.GetT1LRPath()
+		if t1LR == "" {
+			poolNode.VrfContext = lib.GetVrf()
+		} else {
+			poolNode.T1Lr = t1LR
+			poolNode.VrfContext = ""
+			utils.AviLog.Infof("key: %s, msg: setting t1LR: %s for pool node.", key, t1LR)
 		}
 		poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
 		serviceType := lib.GetServiceType()

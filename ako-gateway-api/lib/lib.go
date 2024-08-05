@@ -16,6 +16,8 @@ package lib
 
 import (
 	"fmt"
+
+	"os"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -125,6 +127,9 @@ func FindPortName(serviceName, ns string, servicePort int32, key string) string 
 	}
 	utils.AviLog.Warnf("key: %s, msg: Port name not found in service obj: %v", key, svcObj)
 	return ""
+}
+func GetT1LRPath() string {
+	return os.Getenv("NSXT_T1_LR")
 }
 
 func FindTargetPort(serviceName, ns string, svcPort int32, key string) intstr.IntOrString {
