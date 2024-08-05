@@ -72,20 +72,7 @@ func TestHTTPRouteCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	epExample := &corev1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "default",
-			Name:      "avisvc",
-		},
-		Subsets: []corev1.EndpointSubset{{
-			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
-			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
-		}},
-	}
-	_, err = akogatewayapitests.KubeClient.CoreV1().Endpoints("default").Create(context.TODO(), epExample, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in creating Endpoint: %v", err)
-	}
+	integrationtest.CreateEPorEPS(t, "default", "avisvc", false, false, "1.1.1")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
 	rule := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
@@ -622,7 +609,7 @@ func TestHTTPRouteBackendRefCRUD(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
+	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
 	rule := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
@@ -694,7 +681,7 @@ func TestHTTPRouteBackendRefCRUD(t *testing.T) {
 	g.Expect(childNode.DefaultPoolGroup).NotTo(gomega.Equal(""))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
-	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName)
+	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName)
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
@@ -721,7 +708,7 @@ func TestHTTPRouteBackendServiceCDC(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
+	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
 	rule := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
@@ -749,7 +736,7 @@ func TestHTTPRouteBackendServiceCDC(t *testing.T) {
 	g.Expect(childNode.DefaultPoolGroup).NotTo(gomega.Equal(""))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
-	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName)
+	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName)
 
 	g.Eventually(func() int {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -761,7 +748,7 @@ func TestHTTPRouteBackendServiceCDC(t *testing.T) {
 	}, 30*time.Second).Should(gomega.Equal(0))
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
+	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
 
 	g.Eventually(func() int {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -780,7 +767,7 @@ func TestHTTPRouteBackendServiceCDC(t *testing.T) {
 	g.Expect(childNode.DefaultPoolGroup).NotTo(gomega.Equal(""))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
-	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName)
+	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName)
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
@@ -808,7 +795,7 @@ func TestHTTPRouteBackendServiceUpdate(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName1, "TCP", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
+	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
 	rule := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
@@ -836,7 +823,7 @@ func TestHTTPRouteBackendServiceUpdate(t *testing.T) {
 	g.Expect(childNode.DefaultPoolGroup).NotTo(gomega.Equal(""))
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName2, "TCP", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
+	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
 
 	rule = akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add"}},
@@ -877,10 +864,10 @@ func TestHTTPRouteBackendServiceUpdate(t *testing.T) {
 	g.Expect(childNode.DefaultPoolGroup).NotTo(gomega.Equal(""))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
-	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName2)
+	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName2)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
-	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName1)
-	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
+	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
@@ -907,7 +894,7 @@ func TestHTTPRouteMultiportBackendSvc(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, true)
-	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName, true, true, "1.2.3")
+	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, true, true, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
 	rule := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
@@ -939,7 +926,7 @@ func TestHTTPRouteMultiportBackendSvc(t *testing.T) {
 	//g.Expect(childNode.PoolRefs).To(gomega.HaveLen(1))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
-	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName)
+	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName)
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
@@ -966,7 +953,7 @@ func TestHTTPRouteInvalidHostname(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
+	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
 	rule := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
@@ -1009,7 +996,7 @@ func TestHTTPRouteInvalidHostname(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(0))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
-	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName)
+	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName)
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 }
@@ -1034,7 +1021,7 @@ func TestHTTPRouteWithBackendRefFilters(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
+	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
 	rule := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{}, nil,
@@ -1152,7 +1139,7 @@ func TestHTTPRouteWithBackendRefFilters(t *testing.T) {
 	g.Expect(datascriptNode).NotTo(gomega.BeNil())
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
-	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName)
+	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName)
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 }
