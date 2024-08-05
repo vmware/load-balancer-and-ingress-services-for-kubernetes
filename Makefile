@@ -177,94 +177,121 @@ k8stest:
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/k8stest -failfast -timeout 0 -coverprofile cover-1.out -coverpkg=./... 2>&1 | awk '{print "[k8stest]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/k8stest -failfast -timeout 0 \
+	-coverprofile cover-1.out -coverpkg=./... 2>&1 | \
+	awk '{print "[k8stest]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+
 .PHONY: integrationtest
 integrationtest:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/integrationtest -failfast -timeout 0 -coverprofile cover-2.out -coverpkg=./... 2>&1 | awk '{print "[integrationtest]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/integrationtest -failfast -timeout 0 \
+	-coverprofile cover-2.out -coverpkg=./... 2>&1 | \
+	awk '{print "[integrationtest]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: ingresstests
 ingresstests:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/ingresstests -failfast -timeout 0 -coverprofile cover-3.out -coverpkg=./... 2>&1 | awk '{print "[ingresstests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/ingresstests -failfast -timeout 0 \
+	-coverprofile cover-3.out -coverpkg=./... 2>&1 | \
+	awk '{print "[ingresstests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: oshiftroutetests
 oshiftroutetests:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/oshiftroutetests -failfast -timeout 0 -coverprofile cover-4.out -coverpkg=./... 2>&1 | awk '{print "[oshiftroutetests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/oshiftroutetests -failfast -timeout 0 \
+	-coverprofile cover-4.out -coverpkg=./... 2>&1 | \
+	awk '{print "[oshiftroutetests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: bootuptests
 bootuptests:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/bootuptests -failfast -timeout 0 -coverprofile cover-5.out -coverpkg=./... 2>&1 | awk '{print "[bootuptests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/bootuptests -failfast -timeout 0 \
+	-coverprofile cover-5.out -coverpkg=./... 2>&1 | \
+	awk '{print "[bootuptests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: multicloudtests
 multicloudtests:
 	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multicloudtests -failfast -timeout 0 -coverprofile cover-6.out -coverpkg=./... 2>&1 | awk '{print "[multicloudtests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multicloudtests -failfast -timeout 0 \
+	-coverprofile cover-6.out -coverpkg=./... 2>&1 | \
+	awk '{print "[multicloudtests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+
 .PHONY: servicesapitests
 servicesapitests:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/servicesapitests -failfast -timeout 0 -coverprofile cover-7.out -coverpkg=./... 2>&1 | awk '{print "[servicesapitests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/servicesapitests -failfast -timeout 0 \
+	-coverprofile cover-7.out -coverpkg=./... 2>&1 | \
+	awk '{print "[servicesapitests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: advl4tests
 advl4tests:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/advl4tests -failfast -timeout 0 -coverprofile cover-8.out -coverpkg=./... 2>&1 | awk '{print "[advl4tests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/advl4tests -failfast -timeout 0 \
+	-coverprofile cover-8.out -coverpkg=./... 2>&1 | \
+	awk '{print "[advl4tests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: namespacesynctests 
 namespacesynctests:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/namespacesynctests -failfast -timeout 0 -coverprofile cover-9.out -coverpkg=./... 2>&1 | awk '{print "[namespacesynctests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/namespacesynctests -failfast -timeout 0 \
+	-coverprofile cover-9.out -coverpkg=./... 2>&1 | \
+	awk '{print "[namespacesynctests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: misc 
 temp:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/temp -failfast 2>&1 | awk '{print "[temp]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/temp -failfast 2>&1 | \
+	awk '{print "[temp]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: npltests 
 npltests:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/npltests -failfast -timeout 0 -coverprofile cover-10.out -coverpkg=./... 2>&1 | awk '{print "[npltests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/npltests -failfast -timeout 0 \
+	-coverprofile cover-10.out -coverpkg=./... 2>&1 | \
+	awk '{print "[npltests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: evhtests 
 evhtests:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/evhtests -failfast -timeout 0 -coverprofile cover-11.out -coverpkg=./... 2>&1 | awk '{print "[evhtests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/evhtests -failfast -timeout 0 \
+	-coverprofile cover-11.out -coverpkg=./... 2>&1 | \
+	awk '{print "[evhtests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: vippernstests
 vippernstests:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/evhtests -failfast -timeout 0 -isVipPerNS=true -coverprofile cover-12.out -coverpkg=./... 2>&1 | awk '{print "[vippernstests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/evhtests -failfast -timeout 0 -isVipPerNS=true \
+	-coverprofile cover-12.out -coverpkg=./... 2>&1 | \
+	awk '{print "[vippernstests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: dedicatedevhtests
 dedicatedevhtests:
@@ -272,14 +299,18 @@ dedicatedevhtests:
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/dedicatedevhtests -failfast -timeout 0 -coverprofile cover-13.out -coverpkg=./... 2>&1 | awk '{print "[dedicatedevhtests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/dedicatedevhtests -failfast -timeout 0 \
+	-coverprofile cover-13.out -coverpkg=./... 2>&1 | \
+	awk '{print "[dedicatedevhtests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: dedicatedvippernstests
 dedicatedvippernstests:
 	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/dedicatedevhtests -failfast -timeout 0 -isVipPerNS=true -coverprofile cover-14.out -coverpkg=./... 2>&1 | awk '{print "[dedicatedvippernstests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/dedicatedevhtests -failfast -timeout 0 -isVipPerNS=true \
+	-coverprofile cover-14.out -coverpkg=./... 2>&1 | \
+	awk '{print "[dedicatedvippernstests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: dedicatedvstests
 dedicatedvstests:
@@ -287,14 +318,17 @@ dedicatedvstests:
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/dedicatedvstests -failfast -timeout 0 -coverprofile cover-15.out -coverpkg=./... 2>&1 | awk '{print "[dedicatedvstests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/dedicatedvstests -failfast -timeout 0 \
+	-coverprofile cover-15.out -coverpkg=./... 2>&1 | \
+	awk '{print "[dedicatedvstests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: infratests
 infratests:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/infratests -failfast -timeout 0 2>&1 | awk '{print "[infratests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/infratests -failfast -timeout 0 2>&1 | \
+	awk '{print "[infratests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 
 # .PHONY: multiclusteringresstests
@@ -307,28 +341,34 @@ infratests:
 
 .PHONY: hatests
 hatests:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/hatests -failfast -timeout 0 -coverprofile cover-17.out -coverpkg=./... 2>&1 | awk '{print "[hatests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/hatests -failfast -timeout 0 \
+	-coverprofile cover-17.out -coverpkg=./... 2>&1 | \
+	awk '{print "[hatests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: calicotests
 calicotests:
 	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/cnitests -failfast -timeout 0 -cniPlugin=calico -coverprofile cover-18.out -coverpkg=./... 2>&1 | awk '{print "[calicotests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/cnitests -failfast -timeout 0 -cniPlugin=calico \
+	-coverprofile cover-18.out -coverpkg=./... 2>&1 | \
+	awk '{print "[calicotests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: ciliumtests
 ciliumtests:
 	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/cnitests -failfast -timeout 0 -cniPlugin=cilium -coverprofile cover-19.out -coverpkg=./... 2>&1 | awk '{print "[ciliumtests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/cnitests -failfast -timeout 0 -cniPlugin=cilium \
+	-coverprofile cover-19.out -coverpkg=./... 2>&1 | \
+	awk '{print "[ciliumtests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: helmtests
 helmtests:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
 	-u root:root \
 	-v $(PWD)/helm/ako:/apps \
 	-v $(PWD)/tests/helmtests:/apps/tests \
@@ -336,37 +376,47 @@ helmtests:
 
 .PHONY: gatewayapi_ingestiontests
 gatewayapi_ingestiontests:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/ingestion -failfast -timeout 0 -coverprofile cover-20.out -coverpkg=./... 2>&1 | awk '{print "[gatewayapi_ingestiontests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/ingestion -failfast -timeout 0 \
+	-coverprofile cover-20.out -coverpkg=./... 2>&1 | \
+	awk '{print "[gatewayapi_ingestiontests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: gatewayapi_graphlayertests
 gatewayapi_graphlayertests:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/graphlayer -failfast -timeout 0 -coverprofile cover-21.out -coverpkg=./... 2>&1 | awk '{print "[gatewayapi_graphlayertests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/graphlayer -failfast -timeout 0 \
+	-coverprofile cover-21.out -coverpkg=./... 2>&1 | \
+	awk '{print "[gatewayapi_graphlayertests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: gatewayapi_statustests
 gatewayapi_statustests:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/status -failfast -timeout 0 -coverprofile cover-22.out -coverpkg=./... 2>&1 | awk '{print "[gatewayapi_statustests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/status -failfast -timeout 0 \
+	-coverprofile cover-22.out -coverpkg=./... 2>&1 | \
+	awk '{print "[gatewayapi_statustests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: multitenancytests
 multitenancytests:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multitenancytests -failfast -timeout 0 -coverprofile cover-23.out -coverpkg=./... 2>&1 | awk '{print "[multitenancytests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multitenancytests -failfast -timeout 0 \
+	-coverprofile cover-23.out -coverpkg=./... 2>&1 | \
+	awk '{print "[multitenancytests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
 
 .PHONY: int_test
 int_test:
-	make -j 8 k8stest integrationtest ingresstests evhtests vippernstests dedicatedevhtests \
-	dedicatedvippernstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests \
-	servicesapitests npltests misc dedicatedvstests hatests calicotests ciliumtests helmtests infratests \
+	make -j 8 bootuptests ciliumtests k8stest multicloudtests \
+	calicotests dedicatedevhtests dedicatedvippernstests dedicatedvstests \
+	integrationtest ingresstests evhtests vippernstests \
+	oshiftroutetests advl4tests namespacesynctests servicesapitests \
+	npltests hatests helmtests infratests \
 	multitenancytests gatewayapi_ingestiontests gatewayapi_graphlayertests gatewayapi_statustests
 
 .PHONE: eps_enabled
@@ -375,12 +425,14 @@ eps_enabled:
 
 .PHONY: scale_test
 scale_test:
-	sudo docker run \
+	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	--mount type=bind,source=$(TestbedFilePath),target=$(TestbedFilePath) \
 	--mount type=bind,source=$(KubeConfigFileName),target=$(KubeConfigFileName) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/scaletest -failfast -test.timeout=$(Timeout) -kubeConfigFileName=$(KubeConfigFileName) -testbedFileName=$(TestbedFilePath) -numGoRoutines=$(NumGoRoutines) -numOfLBSvc=$(NumOfLBSvc) -numOfIng=$(NumOfIng)
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/scaletest -failfast -test.timeout=$(Timeout) \
+	-kubeConfigFileName=$(KubeConfigFileName) -testbedFileName=$(TestbedFilePath) -numGoRoutines=$(NumGoRoutines) \
+	-numOfLBSvc=$(NumOfLBSvc) -numOfIng=$(NumOfIng)
 
 # linting and formatting
 GO_FILES := $(shell find . -type d -path ./vendor -prune -o -type f -name '*.go' -print)

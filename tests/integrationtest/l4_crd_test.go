@@ -1221,10 +1221,8 @@ func TestSharedVIPSvcWithL4Rule(t *testing.T) {
 			return false
 		}
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		if len(nodes) == 0 {
-			return false
-		}
-		return g.Expect(nodes[0].AviVsNodeCommonFields).NotTo(gomega.BeZero()) &&
+		return len(nodes) > 0 &&
+			g.Expect(nodes[0].AviVsNodeCommonFields).NotTo(gomega.BeZero()) &&
 			g.Expect(nodes[0].AviVsNodeGeneratedFields).NotTo(gomega.BeZero()) &&
 			g.Expect(nodes[0].PoolRefs[0].AviPoolCommonFields).NotTo(gomega.BeZero()) &&
 			g.Expect(nodes[0].PoolRefs[0].AviPoolGeneratedFields).NotTo(gomega.BeZero())
