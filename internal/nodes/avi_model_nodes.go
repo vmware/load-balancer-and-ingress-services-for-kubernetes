@@ -266,8 +266,8 @@ func (o *AviObjectGraph) RemoveHTTPRefsStringGroupsFromSni(httpPol, hppMap strin
 			for j, hppmap := range sniNode.HttpPolicyRefs[i].HppMap {
 				if hppmap.Name == hppMap {
 					if len(sniNode.HttpPolicyRefs[i].HppMap[j].StringGroupRefs) > 0 {
-						sgref := strings.Split(sniNode.HttpPolicyRefs[i].HppMap[j].StringGroupRefs[0], "=")[1]
-						stringGroupToRemove = append(stringGroupToRemove, sgref)
+						sgName := strings.Split(sniNode.HttpPolicyRefs[i].HppMap[j].StringGroupRefs[0], "=")[1]
+						stringGroupToRemove = append(stringGroupToRemove, sgName)
 					}
 					sniNode.HttpPolicyRefs[i].HppMap = append(sniNode.HttpPolicyRefs[i].HppMap[:j], sniNode.HttpPolicyRefs[i].HppMap[j+1:]...)
 					break
@@ -281,8 +281,8 @@ func (o *AviObjectGraph) RemoveHTTPRefsStringGroupsFromSni(httpPol, hppMap strin
 		}
 	}
 	for index, sgNode := range sniNode.StringGroupRefs {
-		for _, sgRef := range stringGroupToRemove {
-			if *sgNode.Name == sgRef {
+		for _, sgName := range stringGroupToRemove {
+			if *sgNode.Name == sgName {
 				sniNode.StringGroupRefs = append(sniNode.StringGroupRefs[:index], sniNode.StringGroupRefs[index+1:]...)
 				break
 			}

@@ -1878,8 +1878,8 @@ func (o *AviObjectGraph) RemoveHTTPRefsStringGroupsFromEvh(httpPol, hppmapName s
 			for j, hppmap := range evhNode.HttpPolicyRefs[i].HppMap {
 				if hppmap.Name == hppmapName {
 					if len(evhNode.HttpPolicyRefs[i].HppMap[j].StringGroupRefs) > 0 {
-						sgref := strings.Split(evhNode.HttpPolicyRefs[i].HppMap[j].StringGroupRefs[0], "=")[1]
-						stringGroupToRemove = append(stringGroupToRemove, sgref)
+						sgName := strings.Split(evhNode.HttpPolicyRefs[i].HppMap[j].StringGroupRefs[0], "=")[1]
+						stringGroupToRemove = append(stringGroupToRemove, sgName)
 					}
 					evhNode.HttpPolicyRefs[i].HppMap = append(evhNode.HttpPolicyRefs[i].HppMap[:j], evhNode.HttpPolicyRefs[i].HppMap[j+1:]...)
 					break
@@ -1894,8 +1894,8 @@ func (o *AviObjectGraph) RemoveHTTPRefsStringGroupsFromEvh(httpPol, hppmapName s
 	}
 	utils.AviLog.Debugf("After removing the http policy nodes are: %s", utils.Stringify(evhNode.HttpPolicyRefs))
 	for index, sgNode := range evhNode.StringGroupRefs {
-		for _, sgRef := range stringGroupToRemove {
-			if *sgNode.Name == sgRef {
+		for _, sgName := range stringGroupToRemove {
+			if *sgNode.Name == sgName {
 				evhNode.StringGroupRefs = append(evhNode.StringGroupRefs[:index], evhNode.StringGroupRefs[index+1:]...)
 				break
 			}
