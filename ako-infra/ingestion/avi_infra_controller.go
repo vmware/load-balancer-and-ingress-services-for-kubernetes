@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/alb-sdk/go/models"
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -108,7 +109,7 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 		if *cloud.Vtype != lib.CLOUD_NSXT || cloud.NsxtConfiguration == nil {
 			continue
 		}
-		if cloud.NsxtConfiguration.VpcMode != nil && *cloud.NsxtConfiguration.VpcMode != lib.GetVPCMode() {
+		if lib.GetVPCMode() && (cloud.NsxtConfiguration.VpcMode == nil || !*cloud.NsxtConfiguration.VpcMode) {
 			continue
 		}
 		if cloud.NsxtConfiguration.ManagementNetworkConfig == nil ||
@@ -152,7 +153,7 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 		}
 		return nil, *cloud.Name, *defaultSEG.UUID
 	}
-	return errors.New("cloud not found"), "", ""
+	return errors.New("cloud not found matching transport zone " + tz), "", ""
 }
 
 func isPlacementScopeConfigured(configuredSEGroup *avimodels.ServiceEngineGroup) bool {
@@ -169,7 +170,8 @@ func isPlacementScopeConfigured(configuredSEGroup *avimodels.ServiceEngineGroup)
 func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
 	err, cloudName, segTemplateUuid := a.DeriveCloudNameAndSEGroupTmpl(tz)
 	if err != nil {
-		return false
+		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "CloudDerivationFailure", err.Error())
+		utils.AviLog.Fatalf("Failed to derive cloud, err: %s", err)
 	}
 	utils.AviLog.Infof("Obtained matching cloud to be used: %s", cloudName)
 	utils.SetCloudName(cloudName)
