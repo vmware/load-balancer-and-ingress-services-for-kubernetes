@@ -153,7 +153,7 @@ func TearDownTestForIngress(t *testing.T, modelNames ...string) {
 	integrationtest.DelEPorEPS(t, "default", "avisvc")
 }
 
-func SetUpIngressForCacheSyncCheck(t *testing.T, tlsIngress, withSecret bool, modelNames ...string) {
+func SetUpIngressForCacheSyncCheck(t *testing.T, tlsIngress, withSecret bool, secretName string, modelNames ...string) {
 	SetupDomain()
 	SetUpTestForIngress(t, modelNames...)
 	ingressObject := integrationtest.FakeIngress{
@@ -166,11 +166,11 @@ func SetUpIngressForCacheSyncCheck(t *testing.T, tlsIngress, withSecret bool, mo
 		ServiceName: "avisvc",
 	}
 	if withSecret {
-		integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
+		integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
 	}
 	if tlsIngress {
 		ingressObject.TlsSecretDNS = map[string][]string{
-			"my-secret": {"foo.com"},
+			secretName: {"foo.com"},
 		}
 	}
 	ingrFake := ingressObject.Ingress()
@@ -188,18 +188,21 @@ func SetupDomain() {
 	mcache.CloudKeyCache.AviCacheAdd("Default-Cloud", cloudObj)
 }
 
-func TearDownIngressForCacheSyncCheck(t *testing.T, modelName string) {
+func TearDownIngressForCacheSyncCheck(t *testing.T, secretName, modelName string) {
 	if err := KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
+	if secretName != "" {
+		KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), secretName, metav1.DeleteOptions{})
+	}
 	TearDownTestForIngress(t, modelName)
 }
 
 func TestFQDNCountInL7Model(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--foo.com-L7-dedicated"
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	secretName := "my-secret-7"
+	SetUpIngressForCacheSyncCheck(t, true, true, secretName, modelName)
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if aviModel == nil {
@@ -218,14 +221,14 @@ func TestFQDNCountInL7Model(t *testing.T) {
 		g.Expect(fqdn).ShouldNot(gomega.ContainSubstring("L7-dedicated"))
 	}
 
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, modelName)
 }
 
 func TestPortsForInsecureDedicatedShard(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--foo.com-L7-dedicated"
 
-	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
+	SetUpIngressForCacheSyncCheck(t, false, false, "", modelName)
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes, ok := aviModel.(*avinodes.AviObjectGraph)
@@ -239,14 +242,15 @@ func TestPortsForInsecureDedicatedShard(t *testing.T) {
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(1))
 	g.Expect(int(nodes[0].PortProto[0].Port)).To(gomega.Equal(80))
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, "", modelName)
 }
 
 func TestPortsForSecureDedicatedShard(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--foo.com-L7-dedicated"
+	secretName := "my-secret-8"
 
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	SetUpIngressForCacheSyncCheck(t, true, true, secretName, modelName)
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes, ok := aviModel.(*avinodes.AviObjectGraph)
@@ -269,5 +273,5 @@ func TestPortsForSecureDedicatedShard(t *testing.T) {
 	sort.Ints(ports)
 	g.Expect(ports[0]).To(gomega.Equal(80))
 	g.Expect(ports[1]).To(gomega.Equal(443))
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, modelName)
 }

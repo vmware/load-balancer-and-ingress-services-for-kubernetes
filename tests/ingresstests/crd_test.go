@@ -36,7 +36,7 @@ func TestCreateDeleteHostRule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-83"
+	svcName := "avisvc-1"
 	hrname := "samplehr-foo-1"
 	secretName := "my-secret-36"
 	ingName := "foo-with-targets-1"
@@ -117,7 +117,7 @@ func TestCreateDeleteSharedVSHostRule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-84"
+	svcName := "avisvc-2"
 	hrname := "samplehr-foo-2"
 	secretName := "my-secret-37"
 	ingName := "foo-with-targets-2"
@@ -211,7 +211,7 @@ func TestCreateHostRuleBeforeIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-85"
+	svcName := "avisvc-3"
 	hrname := "samplehr-foo-3"
 	secretName := "my-secret-38"
 	ingName := "foo-with-targets-3"
@@ -252,7 +252,7 @@ func TestInsecureToSecureHostRule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-86"
+	svcName := "avisvc-4"
 	hrname := "samplehr-foo-4"
 	ingName := "foo-with-targets-4"
 	SetUpIngressForCacheSyncCheck(t, false, false, ingName, "", svcName, modelName)
@@ -292,7 +292,7 @@ func TestGSLBHostRewriteRule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-87"
+	svcName := "avisvc-5"
 	hrname := "samplehr-foo-5"
 	ingName := "foo-with-targets-5"
 	SetUpIngressForCacheSyncCheck(t, false, false, ingName, "", svcName, modelName)
@@ -342,7 +342,7 @@ func TestMultiIngressToSecureHostRule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-46"
+	svcName := "avisvc-6"
 	hrname := "samplehr-foo-6"
 	secretName := "my-secret-39"
 	ingName := "foo-with-targets-6"
@@ -401,7 +401,7 @@ func TestMultiIngressSwitchHostRuleFqdn(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-47"
+	svcName := "avisvc-7"
 	hrname := "samplehr-foo-7"
 	ingName := "foo-with-targets-7"
 
@@ -482,7 +482,7 @@ func TestGoodToBadHostRule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-88"
+	svcName := "avisvc-8"
 	hrname := "samplehr-foo-8"
 	ingName := "foo-with-targets-8"
 	SetUpIngressForCacheSyncCheck(t, false, false, ingName, "", svcName, modelName)
@@ -532,7 +532,7 @@ func TestInsecureHostAndHostrule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-89"
+	svcName := "avisvc-9"
 	hrname := "samplehr-foo-9"
 	ingName := "foo-with-targets-9"
 	SetUpIngressForCacheSyncCheck(t, false, false, ingName, "", svcName, modelName)
@@ -561,7 +561,7 @@ func TestValidToInvalidHostSwitch(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-90"
+	svcName := "avisvc-9"
 	hrname := "samplehr-foo-10"
 	ingName := "foo-with-targets-10"
 	SetUpIngressForCacheSyncCheck(t, false, false, ingName, "", svcName, modelName)
@@ -638,7 +638,7 @@ func TestHostruleAnalyticsPolicyUpdate(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-91"
+	svcName := "avisvc-10"
 	hrname := "ap-hr-foo"
 	secretName := "my-secret-40"
 	ingName := "foo-with-targets-11"
@@ -734,7 +734,7 @@ func TestHostruleFQDNAliases(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-92"
+	svcName := "avisvc-11"
 	hrname := "fqdn-aliases-hr-foo"
 	secretName := "my-secret-41"
 	ingName := "foo-with-targets-12"
@@ -858,7 +858,7 @@ func TestValidationsOfHostruleFQDNAliases(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-93"
+	svcName := "avisvc-12"
 	hrname := "fqdn-aliases-hr-foo"
 	secretName := "my-secret-42"
 	ingName := "foo-with-targets-13"
@@ -978,7 +978,7 @@ func TestHostruleFQDNAliasesForMultiPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-48"
+	svcName := "avisvc-13"
 	hrname := "fqdn-aliases-hr-multipath-foo"
 	secretName := "my-secret-1"
 	ingName := "foo-with-targets-34"
@@ -1066,7 +1066,7 @@ func TestApplyHostruleToParentVS(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-94"
+	svcName := "avisvc-14"
 	hrname := "hr-cluster--Shared-L7-0"
 	secretName := "my-secret-43"
 	ingName := "foo-with-targets-14"
@@ -1132,7 +1132,7 @@ func TestHostRuleWithEmptyConfig(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-95"
+	svcName := "avisvc-15"
 	hrname := "samplehr-foo-12"
 	secretName := "my-secret-44"
 	ingName := "foo-with-targets-15"
@@ -1192,7 +1192,7 @@ func TestSharedVSHostRuleNoListenerForSNI(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-96"
+	svcName := "avisvc-16"
 	hrname := "samplehr-foo-13"
 	secretName := "my-secret-45"
 	ingName := "foo-with-targets-16"
@@ -1256,7 +1256,7 @@ func TestHTTPRuleCreateDelete(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-49"
+	svcName := "avisvc-17"
 	rrname := "samplerr-foo-1"
 	secretName := "my-secret-2"
 	ingName := "foo-with-targets-32"
@@ -1322,7 +1322,7 @@ func TestHTTPRuleCreateDeleteWithPkiRef(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-50"
+	svcName := "avisvc-18"
 	rrname := "samplerr-foo-2"
 	secretName := "my-secret-3"
 	ingName := "foo-with-targets-35"
@@ -1399,7 +1399,7 @@ func TestHTTPRuleHostSwitch(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-51"
+	svcName := "avisvc-19"
 	hrnameFoo := "samplehr-foo-14"
 	hrnameVoo := "samplehr-voo"
 	rrnameFoo := "samplerr-foo-14"
@@ -1483,7 +1483,7 @@ func TestHTTPRuleWithInvalidPath(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-52"
+	svcName := "avisvc-20"
 	rrname := "samplerr-foo-3"
 	secretName := "my-secret-4"
 	ingName := "foo-with-targets-36"

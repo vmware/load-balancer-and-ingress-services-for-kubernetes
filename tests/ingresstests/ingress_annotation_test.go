@@ -103,7 +103,7 @@ func VerifyPasthrough(t *testing.T, g *gomega.WithT, vs *avinodes.AviVsNode, svc
 
 func TestPassthroughIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	svcName := "avisvc-53"
+	svcName := "avisvc-21"
 	SetUpTestForIngress(t, svcName, DefaultPassthroughModel)
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        passthroughIngressName,
@@ -143,7 +143,7 @@ func TestPassthroughIngress(t *testing.T) {
 
 func TestPassthroughIngressUpdateHostname(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	svcName := "avisvc-54"
+	svcName := "avisvc-22"
 	SetUpTestForIngress(t, svcName, DefaultPassthroughModel)
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        passthroughIngressName,
@@ -214,7 +214,7 @@ func TestPassthroughIngressUpdateHostname(t *testing.T) {
 
 func TestPassthroughIngressRemoveAnnotation(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	svcName := "avisvc-55"
+	svcName := "avisvc-23"
 	SetUpTestForIngress(t, svcName, DefaultPassthroughModel)
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        passthroughIngressName,
@@ -256,7 +256,7 @@ func TestPassthroughIngressRemoveAnnotation(t *testing.T) {
 
 func TestPassthroughIngressAddAnnotation(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	svcName := "avisvc-56"
+	svcName := "avisvc-24"
 	SetUpTestForIngress(t, svcName, DefaultPassthroughModel)
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        passthroughIngressName,
@@ -297,7 +297,7 @@ func TestPassthroughIngressAddAnnotation(t *testing.T) {
 
 func TestPassthroughMultipleIngresses(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	svcName := "avisvc-57"
+	svcName := "avisvc-25"
 	SetUpTestForIngress(t, svcName, DefaultPassthroughModel)
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:        passthroughIngressName,
@@ -391,7 +391,7 @@ func TestAddIngressDefaultCert(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-58"
+	svcName := "avisvc-26"
 	ingName := "foo-with-targets-37"
 	SetUpTestForIngress(t, svcName, modelName)
 	integrationtest.AddSecret(lib.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
@@ -456,7 +456,7 @@ func TestAddIngressDefaultCertRemoveAnnotation(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-59"
+	svcName := "avisvc-27"
 	ingName := "foo-with-targets-38"
 	SetUpTestForIngress(t, svcName, modelName)
 	integrationtest.AddSecret(lib.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
@@ -532,7 +532,7 @@ func TestAddIngressDefaultCertAddAnnotation(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-60"
+	svcName := "avisvc-28"
 	ingName := "foo-with-targets-39"
 	SetUpTestForIngress(t, svcName, modelName)
 	integrationtest.AddSecret(lib.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
@@ -603,7 +603,7 @@ func TestIngressAnnotationAddDefaultCert(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-61"
+	svcName := "avisvc-29"
 	ingName := "foo-with-targets-40"
 	SetUpTestForIngress(t, svcName, modelName)
 

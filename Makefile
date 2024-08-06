@@ -183,7 +183,7 @@ k8stest:
 
 .PHONY: integrationtest
 integrationtest:
-	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
+	sudo docker run \
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
@@ -193,7 +193,7 @@ integrationtest:
 
 .PHONY: ingresstests
 ingresstests:
-	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
+	sudo docker run \
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
@@ -203,7 +203,7 @@ ingresstests:
 
 .PHONY: oshiftroutetests
 oshiftroutetests:
-	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
+	sudo docker run \
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
@@ -213,7 +213,7 @@ oshiftroutetests:
 
 .PHONY: bootuptests
 bootuptests:
-	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
+	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/bootuptests -failfast -timeout 0 \
@@ -231,7 +231,7 @@ multicloudtests:
 
 .PHONY: servicesapitests
 servicesapitests:
-	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
+	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/servicesapitests -failfast -timeout 0 \
@@ -240,7 +240,7 @@ servicesapitests:
 
 .PHONY: advl4tests
 advl4tests:
-	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
+	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/advl4tests -failfast -timeout 0 \
@@ -249,7 +249,7 @@ advl4tests:
 
 .PHONY: namespacesynctests 
 namespacesynctests:
-	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
+	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/namespacesynctests -failfast -timeout 0 \
@@ -258,7 +258,7 @@ namespacesynctests:
 
 .PHONY: misc 
 temp:
-	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
+	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/temp -failfast 2>&1 | \
@@ -266,7 +266,7 @@ temp:
 
 .PHONY: npltests 
 npltests:
-	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
+	sudo docker run \
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
@@ -276,7 +276,7 @@ npltests:
 
 .PHONY: evhtests 
 evhtests:
-	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
+	sudo docker run \
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
@@ -286,7 +286,7 @@ evhtests:
 
 .PHONY: vippernstests
 vippernstests:
-	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
+	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/evhtests -failfast -timeout 0 -isVipPerNS=true \
@@ -324,7 +324,7 @@ dedicatedvstests:
 
 .PHONY: infratests
 infratests:
-	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
+	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/infratests -failfast -timeout 0 2>&1 | \
@@ -341,7 +341,7 @@ infratests:
 
 .PHONY: hatests
 hatests:
-	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
+	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/hatests -failfast -timeout 0 \
@@ -368,7 +368,7 @@ ciliumtests:
 
 .PHONY: helmtests
 helmtests:
-	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
+	sudo docker run \
 	-u root:root \
 	-v $(PWD)/helm/ako:/apps \
 	-v $(PWD)/tests/helmtests:/apps/tests \
@@ -376,7 +376,7 @@ helmtests:
 
 .PHONY: gatewayapi_ingestiontests
 gatewayapi_ingestiontests:
-	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
+	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/ingestion -failfast -timeout 0 \
@@ -385,7 +385,7 @@ gatewayapi_ingestiontests:
 
 .PHONY: gatewayapi_graphlayertests
 gatewayapi_graphlayertests:
-	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
+	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/graphlayer -failfast -timeout 0 \
@@ -394,7 +394,7 @@ gatewayapi_graphlayertests:
 
 .PHONY: gatewayapi_statustests
 gatewayapi_statustests:
-	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
+	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/status -failfast -timeout 0 \
@@ -403,7 +403,7 @@ gatewayapi_statustests:
 
 .PHONY: multitenancytests
 multitenancytests:
-	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
+	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multitenancytests -failfast -timeout 0 \
@@ -425,7 +425,7 @@ eps_enabled:
 
 .PHONY: scale_test
 scale_test:
-	sudo sync && sudo sh -c 'echo 2 > /proc/sys/vm/drop_caches' && sudo docker run \
+	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	--mount type=bind,source=$(TestbedFilePath),target=$(TestbedFilePath) \
 	--mount type=bind,source=$(KubeConfigFileName),target=$(KubeConfigFileName) \

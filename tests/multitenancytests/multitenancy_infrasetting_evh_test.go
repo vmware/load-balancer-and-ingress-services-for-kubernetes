@@ -18,9 +18,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func tearDownTestForIngress(t *testing.T) {
-	integrationtest.DelSVC(t, "default", "avisvc")
-	integrationtest.DelEP(t, "default", "avisvc")
+func tearDownTestForIngress(t *testing.T, svcName string) {
+	integrationtest.DelSVC(t, "default", svcName)
+	integrationtest.DelEP(t, "default", svcName)
 }
 
 func verifyEvhNodeDeletionFromVsNode(g *gomega.WithT, modelName string, parentVSKey, evhVsKey cache.NamespaceName) {
@@ -58,12 +58,13 @@ func TestMultiTenancyWithNSAviInfraSettingEVH(t *testing.T) {
 	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
 	ingestionQueue.SyncFunc = syncFromIngestionLayerWrapper
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting-5"
-	secretName := "my-secret"
+	ingClassName, ingressName, ns, settingName := "avi-lb-1", "foo-with-class-1", "default", "my-infrasetting-5"
+	secretName := "my-secret-1"
+	svcName := "avisvc-1"
 	modelName := "admin/cluster--Shared-L7-EVH-1"
 	settingModelName := "nonadmin/cluster--Shared-L7-EVH-0"
 
-	ingresstests.SetUpTestForIngress(t, modelName)
+	ingresstests.SetUpTestForIngress(t, svcName, modelName)
 
 	vsKey := cache.NamespaceName{Namespace: "nonadmin", Name: "cluster--Shared-L7-EVH-0"}
 	evhKey := cache.NamespaceName{Namespace: "nonadmin", Name: lib.Encode("cluster--baz.com", lib.EVHVS)}
@@ -79,7 +80,7 @@ func TestMultiTenancyWithNSAviInfraSettingEVH(t *testing.T) {
 		Namespace:   ns,
 		ClassName:   ingClassName,
 		DnsNames:    []string{"baz.com", "bar.com"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
 			secretName: {"baz.com"},
 		},
@@ -91,10 +92,10 @@ func TestMultiTenancyWithNSAviInfraSettingEVH(t *testing.T) {
 
 	secureVsName := "cluster--baz.com"
 	insecureVsName := "cluster--bar.com"
-	insecurePoolName := "cluster--default-bar.com_foo-foo-with-class-avisvc"
-	securePoolName := "cluster--default-baz.com_foo-foo-with-class-avisvc"
-	insecurePGName := "cluster--default-bar.com_foo-foo-with-class"
-	securePGName := "cluster--default-baz.com_foo-foo-with-class"
+	insecurePoolName := "cluster--default-bar.com_foo-" + ingressName + "-" + svcName
+	securePoolName := "cluster--default-baz.com_foo-" + ingressName + "-" + svcName
+	insecurePGName := "cluster--default-bar.com_foo-" + ingressName
+	securePGName := "cluster--default-baz.com_foo-" + ingressName
 
 	g.Eventually(func() int {
 		if found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName); found {
@@ -131,7 +132,7 @@ func TestMultiTenancyWithNSAviInfraSettingEVH(t *testing.T) {
 	integrationtest.DeleteSecret(secretName, ns)
 	integrationtest.RemoveAnnotateAKONamespaceWithInfraSetting(t, ns)
 	integrationtest.TeardownAviInfraSetting(t, settingName)
-	tearDownTestForIngress(t)
+	tearDownTestForIngress(t, svcName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
 	waitAndVerify(t, ingClassName)
 	verifyEvhNodeDeletionFromVsNode(g, settingModelName, vsKey, evhKey)
@@ -142,11 +143,12 @@ func TestMultiTenancyWithIngressClassAviInfraSettingEVH(t *testing.T) {
 	// check for names of all Avi objects
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting-6"
-	secretName := "my-secret"
+	ingClassName, ingressName, ns, settingName := "avi-lb-2", "foo-with-class-2", "default", "my-infrasetting-6"
+	secretName := "my-secret-2"
+	svcName := "avisvc-2"
 	modelName := "admin/cluster--Shared-L7-EVH-1"
 
-	ingresstests.SetUpTestForIngress(t, modelName)
+	ingresstests.SetUpTestForIngress(t, svcName, modelName)
 
 	settingModelName := "nonadmin/cluster--Shared-L7-EVH-" + settingName + "-0"
 	vsKey := cache.NamespaceName{Namespace: "nonadmin", Name: "cluster--Shared-L7-EVH-" + settingName + "-0"}
@@ -162,7 +164,7 @@ func TestMultiTenancyWithIngressClassAviInfraSettingEVH(t *testing.T) {
 		Namespace:   ns,
 		ClassName:   ingClassName,
 		DnsNames:    []string{"baz.com", "bar.com"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
 			secretName: {"baz.com"},
 		},
@@ -174,10 +176,10 @@ func TestMultiTenancyWithIngressClassAviInfraSettingEVH(t *testing.T) {
 
 	secureVsName := "cluster--" + settingName + "-baz.com"
 	insecureVsName := "cluster--" + settingName + "-bar.com"
-	insecurePoolName := "cluster--" + settingName + "-default-bar.com_foo-foo-with-class-avisvc"
-	securePoolName := "cluster--" + settingName + "-default-baz.com_foo-foo-with-class-avisvc"
-	insecurePGName := "cluster--" + settingName + "-default-bar.com_foo-foo-with-class"
-	securePGName := "cluster--" + settingName + "-default-baz.com_foo-foo-with-class"
+	insecurePoolName := "cluster--" + settingName + "-default-bar.com_foo-" + ingressName + "-" + svcName
+	securePoolName := "cluster--" + settingName + "-default-baz.com_foo-" + ingressName + "-" + svcName
+	insecurePGName := "cluster--" + settingName + "-default-bar.com_foo-" + ingressName
+	securePGName := "cluster--" + settingName + "-default-baz.com_foo-" + ingressName
 
 	g.Eventually(func() int {
 		if found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName); found {
@@ -213,7 +215,7 @@ func TestMultiTenancyWithIngressClassAviInfraSettingEVH(t *testing.T) {
 	integrationtest.DeleteSecret(secretName, ns)
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	integrationtest.RemoveAnnotateAKONamespaceWithInfraSetting(t, ns)
-	tearDownTestForIngress(t)
+	tearDownTestForIngress(t, svcName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
 	waitAndVerify(t, ingClassName)
 	verifyEvhNodeDeletionFromVsNode(g, settingModelName, vsKey, evhKey)
@@ -224,12 +226,13 @@ func TestMultiTenancyWithInfraSettingAdditionEVH(t *testing.T) {
 	// new model creation should happen, old model should get deleted
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting-7"
-	secretName := "my-secret"
+	ingClassName, ingressName, ns, settingName := "avi-lb-3", "foo-with-class-3", "default", "my-infrasetting-7"
+	secretName := "my-secret-3"
+	svcName := "avisvc-3"
 	modelName := "admin/cluster--Shared-L7-EVH-1"
 	settingModelName := "nonadmin/cluster--Shared-L7-EVH-0"
 
-	ingresstests.SetUpTestForIngress(t, modelName, settingModelName)
+	ingresstests.SetUpTestForIngress(t, svcName, modelName, settingModelName)
 
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, "")
 	waitAndVerify(t, ingClassName)
@@ -240,7 +243,7 @@ func TestMultiTenancyWithInfraSettingAdditionEVH(t *testing.T) {
 		Namespace:   ns,
 		ClassName:   ingClassName,
 		DnsNames:    []string{"baz.com", "bar.com"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
 			secretName: {"baz.com"},
 		},
@@ -252,10 +255,10 @@ func TestMultiTenancyWithInfraSettingAdditionEVH(t *testing.T) {
 
 	secureVsName := "cluster--baz.com"
 	insecureVsName := "cluster--bar.com"
-	insecurePoolName := "cluster--default-bar.com_foo-foo-with-class-avisvc"
-	securePoolName := "cluster--default-baz.com_foo-foo-with-class-avisvc"
-	insecurePGName := "cluster--default-bar.com_foo-foo-with-class"
-	securePGName := "cluster--default-baz.com_foo-foo-with-class"
+	insecurePoolName := "cluster--default-bar.com_foo-" + ingressName + "-" + svcName
+	securePoolName := "cluster--default-baz.com_foo-" + ingressName + "-" + svcName
+	insecurePGName := "cluster--default-bar.com_foo-" + ingressName
+	securePGName := "cluster--default-baz.com_foo-" + ingressName
 
 	g.Eventually(func() int {
 		if found, aviSettingModel := objects.SharedAviGraphLister().Get(modelName); found {
@@ -330,7 +333,7 @@ func TestMultiTenancyWithInfraSettingAdditionEVH(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.DeleteSecret(secretName, ns)
-	tearDownTestForIngress(t)
+	tearDownTestForIngress(t, svcName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
 	waitAndVerify(t, ingClassName)
 	verifyPoolDeletionFromVsNode(g, modelName)
@@ -345,12 +348,13 @@ func TestMultiTenancyWithTenantDeannotationInNSEVH(t *testing.T) {
 	// new model in default tenant should get created
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting-8"
-	secretName := "my-secret"
+	ingClassName, ingressName, ns, settingName := "avi-lb-4", "foo-with-class-4", "default", "my-infrasetting-8"
+	secretName := "my-secret-4"
+	svcName := "avisvc-4"
 	modelName := "admin/cluster--Shared-L7-EVH-1"
 	settingModelName := "nonadmin/cluster--Shared-L7-EVH-0"
 
-	ingresstests.SetUpTestForIngress(t, modelName)
+	ingresstests.SetUpTestForIngress(t, svcName, modelName)
 
 	vsKey := cache.NamespaceName{Namespace: "nonadmin", Name: "cluster--Shared-L7-EVH-0"}
 	evhKey := cache.NamespaceName{Namespace: "nonadmin", Name: lib.Encode("cluster--baz.com", lib.EVHVS)}
@@ -366,7 +370,7 @@ func TestMultiTenancyWithTenantDeannotationInNSEVH(t *testing.T) {
 		Namespace:   ns,
 		ClassName:   ingClassName,
 		DnsNames:    []string{"baz.com", "bar.com"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
 			secretName: {"baz.com"},
 		},
@@ -378,10 +382,10 @@ func TestMultiTenancyWithTenantDeannotationInNSEVH(t *testing.T) {
 
 	secureVsName := "cluster--baz.com"
 	insecureVsName := "cluster--bar.com"
-	insecurePoolName := "cluster--default-bar.com_foo-foo-with-class-avisvc"
-	securePoolName := "cluster--default-baz.com_foo-foo-with-class-avisvc"
-	insecurePGName := "cluster--default-bar.com_foo-foo-with-class"
-	securePGName := "cluster--default-baz.com_foo-foo-with-class"
+	insecurePoolName := "cluster--default-bar.com_foo-" + ingressName + "-" + svcName
+	securePoolName := "cluster--default-baz.com_foo-" + ingressName + "-" + svcName
+	insecurePGName := "cluster--default-bar.com_foo-" + ingressName
+	securePGName := "cluster--default-baz.com_foo-" + ingressName
 
 	g.Eventually(func() int {
 		if found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName); found {
@@ -423,10 +427,10 @@ func TestMultiTenancyWithTenantDeannotationInNSEVH(t *testing.T) {
 
 	secureVsName = "cluster--baz.com"
 	insecureVsName = "cluster--bar.com"
-	insecurePoolName = "cluster--default-bar.com_foo-foo-with-class-avisvc"
-	securePoolName = "cluster--default-baz.com_foo-foo-with-class-avisvc"
-	insecurePGName = "cluster--default-bar.com_foo-foo-with-class"
-	securePGName = "cluster--default-baz.com_foo-foo-with-class"
+	insecurePoolName = "cluster--default-bar.com_foo-" + ingressName + "-" + svcName
+	securePoolName = "cluster--default-baz.com_foo-" + ingressName + "-" + svcName
+	insecurePGName = "cluster--default-bar.com_foo-" + ingressName
+	securePGName = "cluster--default-baz.com_foo-" + ingressName
 
 	g.Eventually(func() int {
 		if found, aviSettingModel := objects.SharedAviGraphLister().Get(modelName); found {
@@ -460,7 +464,7 @@ func TestMultiTenancyWithTenantDeannotationInNSEVH(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.DeleteSecret(secretName, ns)
-	tearDownTestForIngress(t)
+	tearDownTestForIngress(t, svcName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
 	waitAndVerify(t, ingClassName)
 	integrationtest.TeardownAviInfraSetting(t, settingName)

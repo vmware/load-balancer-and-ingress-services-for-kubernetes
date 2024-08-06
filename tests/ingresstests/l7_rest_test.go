@@ -93,7 +93,7 @@ func TestCreateIngressCacheSync(t *testing.T) {
 	CleanupCache("cluster--Shared-L7-0")
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-98"
+	svcName := "avisvc-102"
 	ingName := "foo-with-targets-19"
 	SetUpIngressForCacheSyncCheck(t, false, false, ingName, "", svcName, modelName)
 
@@ -143,7 +143,7 @@ func TestIngressStatusCheck(t *testing.T) {
 	integrationtest.ClearAllCache(mcache)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-99"
+	svcName := "avisvc-103"
 	ingName := "foo-with-targets-20"
 	SetUpIngressForCacheSyncCheck(t, false, false, ingName, "", svcName, modelName)
 
@@ -171,7 +171,7 @@ func TestCreateIngressWithFaultCacheSync(t *testing.T) {
 	var found bool
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-100"
+	svcName := "avisvc-104"
 	ingName := "foo-with-targets-21"
 
 	injectFault := true
@@ -262,7 +262,7 @@ func TestUpdatePoolCacheSync(t *testing.T) {
 	var err error
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-38"
+	svcName := "avisvc-105"
 	ingName := "foo-with-targets-22"
 	SetUpIngressForCacheSyncCheck(t, false, false, ingName, "", svcName, modelName)
 
@@ -333,7 +333,7 @@ func TestDeletePoolCacheSync(t *testing.T) {
 
 	modelName := "admin/cluster--Shared-L7-0"
 	modelName1 := "admin/cluster--Shared-L7-1"
-	svcName := "avisvc-39"
+	svcName := "avisvc-106"
 	ingName := "foo-with-targets-23"
 	SetUpIngressForCacheSyncCheck(t, false, false, ingName, "", svcName, modelName)
 
@@ -382,7 +382,7 @@ func TestCreateSNICacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-101"
+	svcName := "avisvc-107"
 	secretName := "my-secret-46"
 	ingName := "foo-with-targets-24"
 	SetUpIngressForCacheSyncCheck(t, true, true, ingName, secretName, svcName, modelName)
@@ -417,7 +417,7 @@ func TestUpdateSNICacheSync(t *testing.T) {
 	var err error
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-40"
+	svcName := "avisvc-108"
 	secretName := "my-secret-47"
 	ingName := "foo-with-targets-25"
 	SetUpIngressForCacheSyncCheck(t, true, true, ingName, secretName, svcName, modelName)
@@ -481,7 +481,7 @@ func TestMultiHostMultiSecretSNICacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-41"
+	svcName := "avisvc-109"
 	secretName := "my-secret-48"
 	secretName2 := "my-secret-54"
 	ingName := "foo-with-targets-26"
@@ -568,7 +568,7 @@ func TestMultiHostMultiSecretSNICacheSync(t *testing.T) {
 func TestMultiHostMultiSecretUpdateSNICacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-42"
+	svcName := "avisvc-110"
 	secretName := "my-secret-52"
 	secretName2 := "my-secret-53"
 	ingName := "foo-with-targets-58"
@@ -707,7 +707,7 @@ func TestDeleteSNICacheSync(t *testing.T) {
 	var err error
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-43"
+	svcName := "avisvc-111"
 	secretName := "my-secret-49"
 	ingName := "foo-with-targets-27"
 	SetUpIngressForCacheSyncCheck(t, true, true, ingName, secretName, svcName, modelName)
@@ -751,7 +751,7 @@ func TestCUDSecretCacheSync(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-102"
+	svcName := "avisvc-112"
 	secretName := "my-secret-55"
 	ingName := "foo-with-targets-28"
 	SetUpIngressForCacheSyncCheck(t, true, false, ingName, secretName, svcName, modelName)
@@ -822,7 +822,7 @@ func TestCUDSecretCacheSync(t *testing.T) {
 func TestDeleteSecretSecureIngressStatusCheck(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-103"
+	svcName := "avisvc-113"
 	secretName := "my-secret-50"
 	ingName := "foo-with-targets-29"
 	SetUpIngressForCacheSyncCheck(t, true, true, ingName, secretName, svcName, modelName)
@@ -847,7 +847,7 @@ func TestMultiHostIngressStatusCheck(t *testing.T) {
 	t.Skip("skipping because for pending fix PR")
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-44"
+	svcName := "avisvc-114"
 	secretName := "my-secret-56"
 	secretName2 := "my-secret-57"
 	ingName := "foo-with-targets-59"
@@ -932,7 +932,7 @@ func TestMultiHostUpdateIngressStatusCheck(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	var err error
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-45"
+	svcName := "avisvc-115"
 	secretName := "my-secret-58"
 	ingressId := "thmhuisc"
 	ingressName := fmt.Sprintf("ing-%s", ingressId)
@@ -1030,7 +1030,7 @@ func TestProfilesAttachedToVS(t *testing.T) {
 	})
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-104"
+	svcName := "avisvc-116"
 	secretName := "my-secret-51"
 	ingName := "foo-with-targets-30"
 	SetUpIngressForCacheSyncCheck(t, true, true, ingName, secretName, svcName, modelName)

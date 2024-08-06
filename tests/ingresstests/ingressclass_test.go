@@ -84,9 +84,9 @@ func TestWrongClassMappingInIngress(t *testing.T) {
 	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
 	ingestionQueue.SyncFunc = syncFromIngestionLayerWrapper
 
-	ingClassName, ingressName, ns := "avi-lb", "foo-with-class-1", "default"
+	ingClassName, ingressName, ns := "avi-lb-1", "foo-with-class-1", "default"
 	modelName := "admin/cluster--Shared-L7-1"
-	svcName := "avisvc-62"
+	svcName := "avisvc-30"
 
 	SetUpTestForIngress(t, svcName, modelName)
 	integrationtest.RemoveDefaultIngressClass()
@@ -180,9 +180,9 @@ func TestDefaultIngressClassChange(t *testing.T) {
 	// ingress status IP comes back
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns := "avi-lb", "foo-with-class-2", "default"
+	ingClassName, ingressName, ns := "avi-lb-2", "foo-with-class-2", "default"
 	modelName := "admin/cluster--Shared-L7-1"
-	svcName := "avisvc-63"
+	svcName := "avisvc-31"
 
 	SetUpTestForIngress(t, svcName, modelName)
 
@@ -241,9 +241,9 @@ func TestIngressWithNonAVILBIngressClass(t *testing.T) {
 	// update ingress with non-avi-lb ingressClass, observe VS delete
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns := "non-avi-lb", "foo-with-class-3", "default"
+	ingClassName, ingressName, ns := "non-avi-lb-3", "foo-with-class-3", "default"
 	modelName := "admin/cluster--Shared-L7-1"
-	svcName := "avisvc-64"
+	svcName := "avisvc-32"
 
 	SetUpTestForIngress(t, svcName, modelName)
 	integrationtest.AddIngressClassWithName(ingClassName)
@@ -368,10 +368,10 @@ func TestAviInfraSettingNamingConvention(t *testing.T) {
 	// check for names of all Avi objects
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-4", "default", "my-infrasetting-2"
+	ingClassName, ingressName, ns, settingName := "avi-lb-4", "foo-with-class-4", "default", "my-infrasetting-2"
 	secretName := "my-secret-5"
 	modelName := "admin/cluster--Shared-L7-1"
-	svcName := "avisvc-65"
+	svcName := "avisvc-33"
 	nsSettingName := "ns-" + settingName
 
 	SetUpTestForIngress(t, svcName, modelName)
@@ -447,10 +447,10 @@ func TestAviInfraSettingPerNSNamingConvention(t *testing.T) {
 	// check for names of all Avi objects
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-5", "default", "my-infrasetting-3"
+	ingClassName, ingressName, ns, settingName := "avi-lb-5", "foo-with-class-5", "default", "my-infrasetting-3"
 	secretName := "my-secret-6"
 	modelName := "admin/cluster--Shared-L7-1"
-	svcName := "avisvc-66"
+	svcName := "avisvc-34"
 
 	SetUpTestForIngress(t, svcName, modelName)
 
@@ -523,9 +523,9 @@ func TestAddRemoveInfraSettingInIngressClass(t *testing.T) {
 	// remove infrasetting ref, model changes again
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-6", "default", "my-infrasetting-4"
+	ingClassName, ingressName, ns, settingName := "avi-lb-6", "foo-with-class-6", "default", "my-infrasetting-4"
 	modelName := "admin/cluster--Shared-L7-1"
-	svcName := "avisvc-67"
+	svcName := "avisvc-35"
 	secretName := "my-secret-7"
 
 	SetUpTestForIngress(t, svcName, modelName)
@@ -623,9 +623,9 @@ func TestUpdateInfraSettingInIngressClass(t *testing.T) {
 	// update infrasetting ref in ingressclass, model changes
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName1, settingName2 := "avi-lb", "foo-with-class-7", "default", "my-infrasetting-5", "my-infrasetting-6"
+	ingClassName, ingressName, ns, settingName1, settingName2 := "avi-lb-7", "foo-with-class-7", "default", "my-infrasetting-5", "my-infrasetting-6"
 	modelName := "admin/cluster--Shared-L7-1"
-	svcName := "avisvc-68"
+	svcName := "avisvc-36"
 	secretName := "my-secret-8"
 
 	SetUpTestForIngress(t, svcName, modelName)
@@ -704,9 +704,9 @@ func TestAddIngressClassWithInfraSetting(t *testing.T) {
 	// add ingressclass in ingress, delete ingress
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-8", "default", "my-infrasetting-7"
+	ingClassName, ingressName, ns, settingName := "avi-lb-8", "foo-with-class-8", "default", "my-infrasetting-7"
 	modelName := "admin/cluster--Shared-L7-1"
-	svcName := "avisvc-69"
+	svcName := "avisvc-37"
 	secretName := "my-secret-9"
 
 	SetUpTestForIngress(t, svcName, modelName)
@@ -784,11 +784,11 @@ func TestUpdateIngressClassWithInfraSetting(t *testing.T) {
 
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName1, ingClassName2 := "avi-lb1", "avi-lb2"
+	ingClassName1, ingClassName2 := "avi-lb1-1", "avi-lb2-2"
 	ingressName, ns := "foo-with-class-9", "default"
 	settingName1, settingName2 := "my-infrasetting-8", "my-infrasetting-9"
 	modelName := "admin/cluster--Shared-L7-1"
-	svcName := "avisvc-70"
+	svcName := "avisvc-38"
 	secretName := "my-secret-10"
 
 	SetUpTestForIngress(t, svcName, modelName)
@@ -877,9 +877,9 @@ func TestUpdateWithInfraSetting(t *testing.T) {
 
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-10", "default", "my-infrasetting-10"
+	ingClassName, ingressName, ns, settingName := "avi-lb-9", "foo-with-class-10", "default", "my-infrasetting-10"
 	modelName := "admin/cluster--Shared-L7-1"
-	svcName := "avisvc-71"
+	svcName := "avisvc-39"
 	secretName := "my-secret-11"
 
 	SetUpTestForIngress(t, svcName, modelName)
@@ -1001,9 +1001,9 @@ func TestPublicIPStatusWithInfraSetting(t *testing.T) {
 
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-11", "default", "my-public-infrasetting"
+	ingClassName, ingressName, ns, settingName := "avi-lb-10", "foo-with-class-11", "default", "my-public-infrasetting"
 	modelName := "admin/cluster--Shared-L7-1"
-	svcName := "avisvc-72"
+	svcName := "avisvc-40"
 	secretName := "my-secret-12"
 
 	SetUpTestForIngress(t, svcName, modelName)
@@ -1075,9 +1075,9 @@ func TestMultiVipStatusWithInfraSetting(t *testing.T) {
 
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-12", "default", "my-multivip-infrasetting"
+	ingClassName, ingressName, ns, settingName := "avi-lb-11", "foo-with-class-12", "default", "my-multivip-infrasetting"
 	modelName := "admin/cluster--Shared-L7-1"
-	svcName := "avisvc-73"
+	svcName := "avisvc-41"
 	secretName := "my-secret-13"
 
 	SetUpTestForIngress(t, svcName, modelName)
@@ -1151,9 +1151,9 @@ func TestMultiFipStatusWithInfraSetting(t *testing.T) {
 
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-13", "default", "my-multivip-public-infrasetting"
+	ingClassName, ingressName, ns, settingName := "avi-lb-12", "foo-with-class-13", "default", "my-multivip-public-infrasetting"
 	modelName := "admin/cluster--Shared-L7-1"
-	svcName := "avisvc-74"
+	svcName := "avisvc-42"
 	secretName := "my-secret-14"
 
 	SetUpTestForIngress(t, svcName, modelName)
@@ -1226,11 +1226,11 @@ func TestUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 	// update ingressclass (without infrasetting) in ingress
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName1, ingClassName2 := "avi-lb1", "avi-lb2"
+	ingClassName1, ingClassName2 := "avi-lb1-2", "avi-lb2-2"
 	ingressName, ns := "foo-with-class-14", "default"
 	settingName := "my-infrasetting-11"
 	modelName := "admin/cluster--Shared-L7-1"
-	svcName := "avisvc-75"
+	svcName := "avisvc-43"
 	settingModelName := "admin/cluster--Shared-L7-" + settingName + "-1"
 	secretName := "my-secret-15"
 
@@ -1323,10 +1323,10 @@ func TestUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 func TestBGPConfigurationWithInfraSetting(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-15", "default", "my-infrasetting-12"
+	ingClassName, ingressName, ns, settingName := "avi-lb-13", "foo-with-class-15", "default", "my-infrasetting-12"
 	secretName := "my-secret-16"
 	modelName := "admin/cluster--Shared-L7-1"
-	svcName := "avisvc-76"
+	svcName := "avisvc-44"
 	settingModelName := "admin/cluster--Shared-L7-" + settingName + "-1"
 
 	SetUpTestForIngress(t, svcName, modelName, settingModelName)
@@ -1412,10 +1412,10 @@ func TestBGPConfigurationWithInfraSetting(t *testing.T) {
 func TestBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-16", "default", "my-infrasetting-13"
+	ingClassName, ingressName, ns, settingName := "avi-lb-14", "foo-with-class-16", "default", "my-infrasetting-13"
 	secretName := "my-secret-17"
 	modelName := "admin/cluster--Shared-L7-1"
-	svcName := "avisvc-77"
+	svcName := "avisvc-45"
 	settingModelName := "admin/cluster--Shared-L7-" + settingName + "-1"
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-" + settingName + "-1"}
@@ -1487,10 +1487,10 @@ func TestBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
 func TestCRDWithAviInfraSetting(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-17", "default", "my-infrasetting-14"
+	ingClassName, ingressName, ns, settingName := "avi-lb-15", "foo-with-class-17", "default", "my-infrasetting-14"
 	secretName := "my-secret-18"
 	modelName := "admin/cluster--Shared-L7-1"
-	svcName := "avisvc-78"
+	svcName := "avisvc-46"
 	settingModelName := "admin/cluster--Shared-L7-" + settingName + "-1"
 	hrname, rrname := "samplehr-baz", "samplerr-baz"
 	mcache := cache.SharedAviObjCache()
@@ -1579,9 +1579,9 @@ func TestCRDWithAviInfraSetting(t *testing.T) {
 
 func TestFQDNsCountForAviInfraSettingWithDedicatedShardSize(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-18", "default", "my-infrasetting-15"
+	ingClassName, ingressName, ns, settingName := "avi-lb-16", "foo-with-class-18", "default", "my-infrasetting-15"
 	secretName := "my-secret-19"
-	svcName := "avisvc-79"
+	svcName := "avisvc-47"
 
 	modelName := "admin/cluster--" + settingName + "-foo.com-L7-dedicated"
 
@@ -1645,9 +1645,9 @@ func TestFQDNsCountForAviInfraSettingWithDedicatedShardSize(t *testing.T) {
 
 func TestFQDNsCountForAviInfraSettingWithLargeShardSize(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class-19", "default", "my-infrasetting-16"
+	ingClassName, ingressName, ns, settingName := "avi-lb-17", "foo-with-class-19", "default", "my-infrasetting-16"
 	secretName := "my-secret-20"
-	svcName := "avisvc-80"
+	svcName := "avisvc-48"
 
 	modelName := "admin/cluster--Shared-L7-" + settingName + "-0"
 
@@ -1721,10 +1721,10 @@ func TestAddIngressClassWithInfraSettingMultipleIngress(t *testing.T) {
 	// add ingressclass in ingress, delete ingress
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ns, settingName := "avi-lb", "default", "my-infrasetting-17"
+	ingClassName, ns, settingName := "avi-lb-18", "default", "my-infrasetting-17"
 	ingressName1, ingressName2 := "foo-with-class-20", "bar-with-class-20"
 	modelName := "admin/cluster--Shared-L7-1"
-	svcName := "avisvc-81"
+	svcName := "avisvc-49"
 
 	SetUpTestForIngress(t, svcName, modelName)
 
@@ -1829,9 +1829,9 @@ func TestAddIngressClassWithInfraSettingMultipleIngress(t *testing.T) {
 
 func TestAddIngressClassWithInfraSettingMultipleIngressDedicated(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	ingClassName, ns, settingName := "avi-lb", "default", "my-infrasetting-18"
+	ingClassName, ns, settingName := "avi-lb-19", "default", "my-infrasetting-18"
 	ingressName1, ingressName2 := "foo-with-class-21", "bar-with-class-21"
-	svcName := "avisvc-82"
+	svcName := "avisvc-50"
 
 	modelName1 := "admin/cluster--" + settingName + "-foo.com-L7-dedicated"
 	modelName2 := "admin/cluster--" + settingName + "-bar.com-L7-dedicated"

@@ -223,7 +223,7 @@ func TestIngressClass(t *testing.T) {
 	apiGroup := "ako.vmware.com"
 	ingrClassExample := &networkingv1.IngressClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "avi-lb",
+			Name: "avi-lb-1",
 			Annotations: map[string]string{
 				"ingressclass.kubernetes.io/is-default-class": "true",
 			},
@@ -241,7 +241,7 @@ func TestIngressClass(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding IngressClass: %v", err)
 	}
-	waitAndverify(t, "IngressClass/avi-lb")
+	waitAndverify(t, "IngressClass/avi-lb-1")
 }
 
 func TestIngress(t *testing.T) {

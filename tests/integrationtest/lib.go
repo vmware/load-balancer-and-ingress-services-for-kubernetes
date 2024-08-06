@@ -2109,12 +2109,16 @@ func SetupIngressClass(t *testing.T, ingclassName, controller, infraSetting stri
 	}
 
 	ingClassCreate := ingclass.IngressClass()
-	if _, err := KubeClient.NetworkingV1().IngressClasses().Get(context.TODO(), ingclassName, metav1.GetOptions{}); err != nil {
+	if oldIngClass, err := KubeClient.NetworkingV1().IngressClasses().Get(context.TODO(), ingclassName, metav1.GetOptions{}); err != nil {
 		if _, err := KubeClient.NetworkingV1().IngressClasses().Create(context.TODO(), ingClassCreate, metav1.CreateOptions{}); err != nil {
 			t.Fatalf("error in adding IngressClass: %v", err)
 		}
 	} else {
 		ingClassCreate.ResourceVersion = "2"
+		oldResVersion, err := strconv.Atoi(oldIngClass.ResourceVersion)
+		if err == nil {
+			ingClassCreate.ResourceVersion = strconv.Itoa(oldResVersion + 1)
+		}
 		if _, err := KubeClient.NetworkingV1().IngressClasses().Update(context.TODO(), ingClassCreate, metav1.UpdateOptions{}); err != nil {
 			t.Fatalf("error in adding IngressClass: %v", err)
 		}

@@ -52,7 +52,7 @@ func TestL7ModelInNodePort(t *testing.T) {
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-106"
+	svcName := "avisvc-90"
 	ingName := "foo-with-targets-51"
 	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
 
@@ -107,7 +107,7 @@ func TestMultiIngressToSameClusterIPSvcInNodePort(t *testing.T) {
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-107"
+	svcName := "avisvc-91"
 	ingName := "foo-with-targets-52"
 	ingName2 := "foo-with-targets-53"
 	objects.SharedAviGraphLister().Delete(modelName)
@@ -287,7 +287,7 @@ func TestMultiIngressToSameNodePortSvcInNodePort(t *testing.T) {
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-108"
+	svcName := "avisvc-92"
 	ingName := "foo-with-targets-54"
 	ingName2 := "foo-with-targets-55"
 	objects.SharedAviGraphLister().Delete(modelName)
@@ -447,7 +447,7 @@ func TestMultiVSIngressInNodePort(t *testing.T) {
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-109"
+	svcName := "avisvc-93"
 	ingName := "foo-with-targets-56"
 	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
 
@@ -546,7 +546,7 @@ func TestMultipleNodeCreationAndDeletionInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP1", nodeIP1)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-110"
+	svcName := "avisvc-94"
 	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -654,7 +654,7 @@ func TestMultiPathIngressInNodePort(t *testing.T) {
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-111"
+	svcName := "avisvc-95"
 	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -729,7 +729,7 @@ func TestMultiPortServiceIngressInNodePort(t *testing.T) {
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-112"
+	svcName := "avisvc-96"
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.CreateSVC(t, "default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeNodePort, true)
 	ingrFake := (integrationtest.FakeIngress{
@@ -799,7 +799,7 @@ func TestDeleteServiceInNodePort(t *testing.T) {
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-113"
+	svcName := "avisvc-97"
 	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -917,7 +917,7 @@ func TestUpdateNodeInNodePort(t *testing.T) {
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-114"
+	svcName := "avisvc-98"
 	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -1020,7 +1020,7 @@ func TestDeleteNodeInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-115"
+	svcName := "avisvc-99"
 	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -1141,7 +1141,7 @@ func TestFullSyncCacheNoOpInNodePort(t *testing.T) {
 
 	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-116"
+	svcName := "avisvc-100"
 	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
 	//create multipath ingress with tls secret
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -1209,7 +1209,7 @@ func TestL7ModelMultiSNIInNodePort(t *testing.T) {
 
 	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-117"
+	svcName := "avisvc-101"
 	ingName := "foo-with-targets-57"
 	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
 

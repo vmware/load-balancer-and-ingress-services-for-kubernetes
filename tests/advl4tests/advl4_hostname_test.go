@@ -303,7 +303,7 @@ func TestAdvL4BestCase(t *testing.T) {
 	// remove gwclasss, IP removed
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName, gatewayName, ns := "avi-lb", "my-gateway-1", "default"
+	gwClassName, gatewayName, ns := "avi-lb-1", "my-gateway-1", "default"
 	modelName := "admin/abc--default-" + gatewayName
 	svcName := "svc-1"
 
@@ -356,7 +356,7 @@ func TestAdvL4WithInvalidLoadBalancerClass(t *testing.T) {
 	// Ako should skip LBClass validation and VS should come up
 
 	g := gomega.NewGomegaWithT(t)
-	gwClassName, gatewayName, ns := "avi-lb", "my-gateway-2", "default"
+	gwClassName, gatewayName, ns := "avi-lb-2", "my-gateway-2", "default"
 	modelName := "admin/abc--default-" + gatewayName
 	svcName := "svc-2"
 
@@ -407,7 +407,7 @@ func TestAdvL4NamingConvention(t *testing.T) {
 	// checks naming convention of all generated nodes
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName, gatewayName, ns := "avi-lb", "my-gateway-3", "default"
+	gwClassName, gatewayName, ns := "avi-lb-3", "my-gateway-3", "default"
 	modelName := "admin/abc--default-" + gatewayName
 	svcName := "svc-3"
 
@@ -441,7 +441,7 @@ func TestAdvL4WithStaticIP(t *testing.T) {
 	// check graph VsNode IPAddress val in vsvip ref
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName, gatewayName, ns := "avi-lb", "my-gateway-4", "default"
+	gwClassName, gatewayName, ns := "avi-lb-4", "my-gateway-4", "default"
 	modelName := "admin/abc--default-" + gatewayName
 	svcName := "svc-4"
 	staticIP := "80.80.80.80"
@@ -493,7 +493,7 @@ func TestAdvL4WrongControllerGWClass(t *testing.T) {
 	// update to bad gatewayclass (wrong controller), VS deleted
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName, gatewayName, ns := "avi-lb", "my-gateway-5", "default"
+	gwClassName, gatewayName, ns := "avi-lb-5", "my-gateway-5", "default"
 	modelName := "admin/abc--default-" + gatewayName
 	svcName := "svc-5"
 
@@ -540,7 +540,7 @@ func TestAdvL4WrongClassMappingInGateway(t *testing.T) {
 	// fix class in gw, VS created
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName, gatewayName, ns := "avi-lb", "my-gateway-6", "default"
+	gwClassName, gatewayName, ns := "avi-lb-6", "my-gateway-6", "default"
 	modelName := "admin/abc--default-" + gatewayName
 	svcName := "svc-6"
 
@@ -613,7 +613,7 @@ func TestAdvL4ProtocolChangeInService(t *testing.T) {
 	// service protocol changes Pool deleted
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName, gatewayName, ns := "avi-lb", "my-gateway-7", "default"
+	gwClassName, gatewayName, ns := "avi-lb-7", "my-gateway-7", "default"
 	modelName := "admin/abc--default-" + gatewayName
 	svcName := "svc-7"
 
@@ -669,7 +669,7 @@ func TestAdvL4PortChangeInService(t *testing.T) {
 	// service port changes Pools deleted
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName, gatewayName, ns := "avi-lb", "my-gateway-8", "default"
+	gwClassName, gatewayName, ns := "avi-lb-8", "my-gateway-8", "default"
 	modelName := "admin/abc--default-" + gatewayName
 	svcName := "svc-8"
 
@@ -724,7 +724,7 @@ func TestAdvL4LabelUpdatesInService(t *testing.T) {
 	// correct labels, label mismatch, correct labels, delete labels
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName, gatewayName, ns := "avi-lb", "my-gateway-9", "default"
+	gwClassName, gatewayName, ns := "avi-lb-9", "my-gateway-9", "default"
 	modelName := "admin/abc--default-" + gatewayName
 	svcName := "svc-9"
 
@@ -779,7 +779,7 @@ func TestAdvL4LabelUpdatesInGateway(t *testing.T) {
 	// correct labels, label mismatch, correct labels, delete labels
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName, gatewayName, ns := "avi-lb", "my-gateway-10", "default"
+	gwClassName, gatewayName, ns := "avi-lb-10", "my-gateway-10", "default"
 	modelName := "admin/abc--default-" + gatewayName
 	svcName := "svc-10"
 
@@ -836,7 +836,7 @@ func TestAdvL4GatewayListenerPortUpdate(t *testing.T) {
 	// change svc port to 8080, VS creates, with 8080 exposed port
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName, gatewayName, ns := "avi-lb", "my-gateway-11", "default"
+	gwClassName, gatewayName, ns := "avi-lb-11", "my-gateway-11", "default"
 	modelName := "admin/abc--default-" + gatewayName
 	svcName := "svc-11"
 
@@ -927,7 +927,7 @@ func TestAdvL4GatewayListenerProtocolUpdate(t *testing.T) {
 	// change svc protocol to UDP, VS creates, with UDP protocol
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName, gatewayName, ns := "avi-lb", "my-gateway-12", "default"
+	gwClassName, gatewayName, ns := "avi-lb-12", "my-gateway-12", "default"
 	modelName := "admin/abc--default-" + gatewayName
 	svcName := "svc-12"
 
@@ -1017,7 +1017,7 @@ func TestAdvL4MultiGatewayServiceUpdate(t *testing.T) {
 	// change gateway from gw1 to gw2, gw1 VS deletes, gw2 VS is created
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName, gateway1Name, gateway2Name, ns := "avi-lb", "my-gateway-13", "my-gateway-14", "default"
+	gwClassName, gateway1Name, gateway2Name, ns := "avi-lb-13", "my-gateway-13", "my-gateway-14", "default"
 	modelName1 := "admin/abc--default-" + gateway1Name
 	modelName2 := "admin/abc--default-" + gateway2Name
 	svcName := "svc-13"
@@ -1091,7 +1091,7 @@ func TestAdvL4EndpointDeleteCreate(t *testing.T) {
 	// scale deployment to
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName, gatewayName, ns := "avi-lb", "my-gateway-15", "default"
+	gwClassName, gatewayName, ns := "avi-lb-14", "my-gateway-15", "default"
 	modelName := "admin/abc--default-" + gatewayName
 	svcName := "svc-15"
 
@@ -1145,7 +1145,7 @@ func TestAdvL4MultiTenancyWithInfraSettting(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	infraSettingName := "my-infrasetting"
-	gwClassName, gatewayName, ns := "avi-lb", "my-gateway-16", "default"
+	gwClassName, gatewayName, ns := "avi-lb-15", "my-gateway-16", "default"
 	modelName := "nonadmin/abc--default-" + gatewayName
 	svcName := "svc-16"
 
@@ -1206,7 +1206,7 @@ func TestAdvL4MultiTenancyWithTenantAddition(t *testing.T) {
 	// delete the gw object, graph layer object deletion
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName, gatewayName, ns := "avi-lb", "my-gateway-17", "default"
+	gwClassName, gatewayName, ns := "avi-lb-16", "my-gateway-17", "default"
 	modelName := "admin/abc--default-" + gatewayName
 	svcName := "svc-17"
 
@@ -1288,7 +1288,7 @@ func TestAdvL4MultiTenancyWithTenantDeannotationInNS(t *testing.T) {
 	// new model in default tenant should get created
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName, gatewayName, ns := "avi-lb", "my-gateway-18", "default"
+	gwClassName, gatewayName, ns := "avi-lb-17", "my-gateway-18", "default"
 	modelName := "nonadmin/abc--default-" + gatewayName
 	svcName := "svc-18"
 

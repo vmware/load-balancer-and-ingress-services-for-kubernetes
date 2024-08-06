@@ -173,7 +173,7 @@ func TestL7Model(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-1"
+	svcName := "avisvc-51"
 	ingName := "foo-with-targets-41"
 	SetUpTestForIngress(t, svcName, modelName)
 
@@ -222,7 +222,7 @@ func TestShardNamingConvention(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-2"
+	svcName := "avisvc-52"
 	secretName := "my-secret-21"
 	ingName := "foo-with-targets-42"
 	SetUpTestForIngress(t, svcName, modelName)
@@ -284,7 +284,7 @@ func TestNoBackendL7Model(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-105"
+	svcName := "avisvc-53"
 	ingName := "foo-with-targets-43"
 	SetUpTestForIngress(t, svcName, modelName)
 
@@ -323,7 +323,7 @@ func TestNoBackendL7Model(t *testing.T) {
 func TestMultiIngressToSameSvc(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-3"
+	svcName := "avisvc-54"
 	ingName := "foo-with-targets-44"
 	ingName2 := "foo-with-targets-45"
 	objects.SharedAviGraphLister().Delete(modelName)
@@ -489,7 +489,7 @@ func TestMultiVSIngress(t *testing.T) {
 
 	integrationtest.AddDefaultNamespace("randomNamespacethatyeildsdiff")
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-4"
+	svcName := "avisvc-55"
 	ingName := "foo-with-targets-46"
 	SetUpTestForIngress(t, svcName, modelName)
 
@@ -574,7 +574,7 @@ func TestMultiPathIngress(t *testing.T) {
 	var err error
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-5"
+	svcName := "avisvc-56"
 	SetUpTestForIngress(t, svcName, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -637,7 +637,7 @@ func TestMultiPortServiceIngress(t *testing.T) {
 	var err error
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-6"
+	svcName := "avisvc-57"
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.CreateSVC(t, "default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, true)
 	integrationtest.CreateEPorEPS(t, "default", svcName, true, true, "1.1.1")
@@ -701,7 +701,7 @@ func TestMultiIngressSameHost(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-7"
+	svcName := "avisvc-58"
 	SetUpTestForIngress(t, svcName, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -785,7 +785,7 @@ func TestDeleteBackendService(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-8"
+	svcName := "avisvc-59"
 	SetUpTestForIngress(t, svcName, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -897,8 +897,8 @@ func TestDeleteBackendService(t *testing.T) {
 func TestUpdateBackendService(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-9"
-	svcName2 := "avisvc-35"
+	svcName := "avisvc-61"
+	svcName2 := "avisvc-62"
 	SetUpTestForIngress(t, svcName, modelName)
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:        "ingress-backend-svc",
@@ -967,8 +967,8 @@ func TestL2ChecksumsUpdate(t *testing.T) {
 	secretName := "my-secret-22"
 	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-10"
-	svcName2 := "avisvc-36"
+	svcName := "avisvc-63"
+	svcName2 := "avisvc-64"
 	SetUpTestForIngress(t, svcName, modelName)
 	//create ingress with tls secret
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -1085,7 +1085,7 @@ func TestSniHttpPolicy(t *testing.T) {
 	secretName := "my-secret-23"
 	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-12"
+	svcName := "avisvc-65"
 	SetUpTestForIngress(t, svcName, modelName)
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:      "ingress-shp",
@@ -1233,7 +1233,7 @@ func TestFullSyncCacheNoOp(t *testing.T) {
 	secretName := "my-secret-24"
 	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-13"
+	svcName := "avisvc-66"
 	SetUpTestForIngress(t, svcName, modelName)
 	//create multipath ingress with tls secret
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -1298,7 +1298,7 @@ func TestFullSyncCacheNoOp(t *testing.T) {
 func TestMultiHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-14"
+	svcName := "avisvc-67"
 	SetUpTestForIngress(t, svcName, integrationtest.AllModels...)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1386,7 +1386,7 @@ func TestMultiHostIngress(t *testing.T) {
 func TestMultiHostSameHostNameIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-15"
+	svcName := "avisvc-68"
 	SetUpTestForIngress(t, svcName, integrationtest.AllModels...)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1448,7 +1448,7 @@ func TestMultiHostSameHostNameIngress(t *testing.T) {
 func TestEditPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-16"
+	svcName := "avisvc-69"
 	SetUpTestForIngress(t, svcName, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1536,7 +1536,7 @@ func TestEditPathIngress(t *testing.T) {
 func TestEditMultiPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-17"
+	svcName := "avisvc-70"
 	SetUpTestForIngress(t, svcName, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1666,7 +1666,7 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	model_name := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-18"
+	svcName := "avisvc-71"
 	SetUpTestForIngress(t, svcName, model_name)
 
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -1762,7 +1762,7 @@ func TestEditMultiIngressSameHost(t *testing.T) {
 func TestEditMultiHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-19"
+	svcName := "avisvc-72"
 	SetUpTestForIngress(t, svcName, integrationtest.AllModels...)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1863,7 +1863,7 @@ func TestEditMultiHostIngress(t *testing.T) {
 func TestNoHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-2"
-	svcName := "avisvc-20"
+	svcName := "avisvc-73"
 	SetUpTestForIngress(t, svcName, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1911,7 +1911,7 @@ func TestNoHostIngress(t *testing.T) {
 func TestEditNoHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-2"
-	svcName := "avisvc-21"
+	svcName := "avisvc-74"
 	SetUpTestForIngress(t, svcName, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1972,7 +1972,7 @@ func TestEditNoHostIngress(t *testing.T) {
 func TestEditNoHostToHostIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-2"
-	svcName := "avisvc-22"
+	svcName := "avisvc-75"
 	SetUpTestForIngress(t, svcName, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -2061,7 +2061,7 @@ func TestEditNoHostToHostIngress(t *testing.T) {
 func TestEditNoHostMultiPathIngress(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-3"
-	svcName := "avisvc-23"
+	svcName := "avisvc-76"
 	SetUpTestForIngress(t, svcName, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -2138,7 +2138,7 @@ func TestScaleEndpoints(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-24"
+	svcName := "avisvc-77"
 	SetUpTestForIngress(t, svcName, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -2253,7 +2253,7 @@ func TestL7ModelSNI(t *testing.T) {
 	secretName := "my-secret-25"
 	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-25"
+	svcName := "avisvc-78"
 	ingName := "foo-with-targets-47"
 	SetUpTestForIngress(t, svcName, modelName)
 
@@ -2312,7 +2312,7 @@ func TestL7ModelSNI(t *testing.T) {
 func TestL7ModelNoSecretToSecret(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-26"
+	svcName := "avisvc-79"
 	secretName := "my-secret-26"
 	SetUpTestForIngress(t, svcName, modelName)
 
@@ -2377,7 +2377,7 @@ func TestL7ModelNoSecretToSecret(t *testing.T) {
 func TestL7ModelOneSecretToMultiIng(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-27"
+	svcName := "avisvc-80"
 	secretName := "my-secret-27"
 	SetUpTestForIngress(t, svcName, modelName)
 
@@ -2475,7 +2475,7 @@ func TestL7ModelMultiSNI(t *testing.T) {
 	secretName := "my-secret-32"
 	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-28"
+	svcName := "avisvc-81"
 	ingName := "foo-with-targets-48"
 	SetUpTestForIngress(t, svcName, modelName)
 
@@ -2531,7 +2531,7 @@ func TestL7ModelMultiSNIMultiCreateEditSecret(t *testing.T) {
 	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
 	integrationtest.AddSecret(secretName2, "default", "tlsCert", "tlsKey")
 	// Clean up any earlier models.
-	svcName := "avisvc-29"
+	svcName := "avisvc-82"
 	ingName := "foo-with-targets-49"
 	modelName := "admin/cluster--Shared-L7-1"
 	objects.SharedAviGraphLister().Delete(modelName)
@@ -2639,7 +2639,7 @@ func TestL7WrongSubDomainMultiSNI(t *testing.T) {
 	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
 	integrationtest.AddSecret(secretName2, "default", "tlsCert", "tlsKey")
 	modelName := "admin/cluster--Shared-L7-1"
-	svcName := "avisvc-30"
+	svcName := "avisvc-83"
 	ingName := "foo-with-targets-50"
 	SetUpTestForIngress(t, svcName, modelName)
 
@@ -2737,7 +2737,7 @@ func TestClusterRuntimeUpSinceChange(t *testing.T) {
 func TestFQDNCountInL7Model(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-97"
+	svcName := "avisvc-84"
 	secretName := "my-secret-46"
 	ingName := "foo-with-targets-18"
 	SetUpIngressForCacheSyncCheck(t, true, true, ingName, secretName, svcName, modelName)
@@ -2768,7 +2768,7 @@ func TestFQDNCountInL7Model(t *testing.T) {
 func TestPortsForInsecureAndSecureSNI(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-31"
+	svcName := "avisvc-85"
 	secretName := "my-secret-33"
 	SetUpTestForIngress(t, svcName, modelName)
 
@@ -2844,7 +2844,7 @@ func TestPortsForInsecureAndSecureSNI(t *testing.T) {
 func TestV6BackendService(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-32"
+	svcName := "avisvc-86"
 	objects.SharedAviGraphLister().Delete(modelName)
 
 	v6Svc := integrationtest.ConstructService("default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, make(map[string]string), "")
@@ -2892,7 +2892,7 @@ func TestV6BackendService(t *testing.T) {
 func TestDualStackBackendService(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
-	svcName := "avisvc-33"
+	svcName := "avisvc-87"
 	objects.SharedAviGraphLister().Delete(modelName)
 
 	dsSvc := integrationtest.ConstructService("default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, make(map[string]string), "")
@@ -2941,8 +2941,8 @@ func TestDualStackMultipleBackendService(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--Shared-L7-0"
 	objects.SharedAviGraphLister().Delete(modelName)
-	svcName := "avisvc-34"
-	svcName2 := "avisvc-37"
+	svcName := "avisvc-88"
+	svcName2 := "avisvc-89"
 
 	v4Svc := integrationtest.ConstructService("default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, make(map[string]string), "")
 	ipFamilyPolicy := corev1.IPFamilyPolicy("SingleStack")
