@@ -205,6 +205,7 @@ const (
 	HTTPMethodGet                              = "GET"
 	HTTPMethodPut                              = "PUT"
 	VrfContextObjectNotFoundError              = "VrfContext object not found"
+	StringGroupCannotDeleteObjectError         = "Cannot delete, object is referred by"
 	NetworkNotFoundError                       = "Network object not found"
 	CtrlVersion_22_1_6                         = "22.1.6"
 

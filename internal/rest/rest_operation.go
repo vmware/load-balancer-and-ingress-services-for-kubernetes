@@ -233,7 +233,7 @@ func isErrorRetryable(statusCode int, errMsg string) bool {
 	if statusCode == 400 && (strings.Contains(errMsg, lib.VrfContextNotFoundError) || strings.Contains(errMsg, lib.VrfContextObjectNotFoundError)) {
 		return true
 	}
-	if statusCode == 403 && strings.Contains(errMsg, lib.ConfigDisallowedDuringUpgradeError) {
+	if statusCode == 403 && (strings.Contains(errMsg, lib.ConfigDisallowedDuringUpgradeError) || strings.Contains(errMsg, lib.StringGroupCannotDeleteObjectError)) {
 		return true
 	}
 	return false

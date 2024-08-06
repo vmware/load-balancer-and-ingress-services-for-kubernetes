@@ -20,6 +20,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -476,6 +477,17 @@ func (c *GatewayController) cleanupStaleVSes() {
 		close(lib.ConfigDeleteSyncChan)
 		lib.ConfigDeleteSyncChan = nil
 	}
+	stringGroupKeysPending := aviObjCache.StringGroupCache.AviGetAllKeys()
+	if delModels && len(stringGroupKeysPending) > 0 {
+		go SetDeleteSyncChannelforStringGroup()
+		c.DeleteStringGroups()
+		stringGroupKeysPending = aviObjCache.StringGroupCache.AviGetAllKeys()
+		if len(stringGroupKeysPending) == 0 && lib.ConfigDeleteSyncChan != nil {
+			close(lib.ConfigDeleteSyncChan)
+			lib.ConfigDeleteSyncChan = nil
+		}
+
+	}
 }
 
 // HandleConfigMap : initialise the controller, start informer for configmap and wait for the ako configmap to be created.
@@ -553,6 +565,23 @@ func (c *GatewayController) HandleConfigMap(k8sinfo k8s.K8sinformers, ctrlCh cha
 				if delModels {
 					c.DeleteModels()
 					SetDeleteSyncChannel()
+					aviObjCache := avicache.SharedAviObjCache()
+					vsKeysPending := aviObjCache.VsCacheMeta.AviGetAllKeys()
+					if len(vsKeysPending) == 0 && lib.ConfigDeleteSyncChan != nil {
+						close(lib.ConfigDeleteSyncChan)
+						lib.ConfigDeleteSyncChan = nil
+					}
+					stringGroupKeysPending := aviObjCache.StringGroupCache.AviGetAllKeys()
+					if len(stringGroupKeysPending) > 0 {
+						c.DeleteStringGroups()
+						SetDeleteSyncChannelforStringGroup()
+						stringGroupKeysPending = aviObjCache.StringGroupCache.AviGetAllKeys()
+						if len(stringGroupKeysPending) == 0 && lib.ConfigDeleteSyncChan != nil {
+							close(lib.ConfigDeleteSyncChan)
+							lib.ConfigDeleteSyncChan = nil
+						}
+
+					}
 
 				} else {
 					status.NewStatusPublisher().ResetStatefulSetAnnotation(status.GatewayObjectDeletionStatus)
@@ -616,6 +645,24 @@ func (c *GatewayController) DeleteModels() {
 	}
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	for modelName := range allModelsMap {
+		if !strings.Contains(modelName, "StringGroup") {
+			objects.SharedAviGraphLister().Save(modelName, nil)
+			bkt := utils.Bkt(modelName, sharedQueue.NumWorkers)
+			utils.AviLog.Infof("Deleting objects for model: %s", modelName)
+			//graph queue prometheus
+			sharedQueue.Workqueue[bkt].AddRateLimited(modelName)
+		}
+	}
+}
+
+func (c *GatewayController) DeleteStringGroups() {
+	utils.AviLog.Infof("Deletion of all StringGroup objects triggered")
+	publisher := status.NewStatusPublisher()
+	publisher.AddStatefulSetAnnotation(status.GatewayObjectDeletionStatus, lib.ObjectDeletionStartStatus)
+	allModels := objects.SharedAviGraphLister().GetAll()
+	allModelsMap := allModels.(map[string]interface{})
+	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+	for modelName := range allModelsMap {
 		objects.SharedAviGraphLister().Save(modelName, nil)
 		bkt := utils.Bkt(modelName, sharedQueue.NumWorkers)
 		utils.AviLog.Infof("Deleting objects for model: %s", modelName)
@@ -625,6 +672,24 @@ func (c *GatewayController) DeleteModels() {
 }
 
 func SetDeleteSyncChannel() {
+	// Wait for maximum 30 minutes for the sync to get completed
+	if lib.ConfigDeleteSyncChan == nil {
+		lib.SetConfigDeleteSyncChan()
+	}
+
+	select {
+	case <-lib.ConfigDeleteSyncChan:
+		utils.AviLog.Infof("Processing done for deleteConfig for VS and its related objects")
+
+	case <-time.After(lib.AviObjDeletionTime * time.Minute):
+		status.NewStatusPublisher().AddStatefulSetAnnotation(status.GatewayObjectDeletionStatus, lib.ObjectDeletionTimeoutStatus)
+		utils.AviLog.Warnf("Timed out while waiting for rest layer to respond for delete config")
+		akogatewayapilib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigTimeout, "Timed out while waiting for rest layer to respond for delete config")
+	}
+
+}
+
+func SetDeleteSyncChannelforStringGroup() {
 	// Wait for maximum 30 minutes for the sync to get completed
 	if lib.ConfigDeleteSyncChan == nil {
 		lib.SetConfigDeleteSyncChan()
