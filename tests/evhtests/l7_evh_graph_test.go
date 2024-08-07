@@ -479,6 +479,7 @@ func TestMultiPortServiceIngressForEvh(t *testing.T) {
 		g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 
+		g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].EvhNodes[0].PoolRefs)).To(gomega.Equal(2))
 		for _, pool := range nodes[0].EvhNodes[0].PoolRefs {
 			if pool.Name == lib.Encode("cluster--default-foo.com_foo-ingress-multipath-avisvc", lib.Pool) {
