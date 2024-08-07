@@ -51,6 +51,9 @@ func TestNodeAddInNodePortMode(t *testing.T) {
 func TestSinglePortL4SvcNodePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
+	svcName := SINGLEPORTSVC + "-18"
+	svcModel := SINGLEPORTMODEL + "-18"
+
 	SetNodePortMode()
 	defer SetClusterIPMode()
 	nodeIP := "10.1.1.2"
@@ -58,15 +61,15 @@ func TestSinglePortL4SvcNodePort(t *testing.T) {
 	CreateNode(t, "testNode1", nodeIP)
 	defer DeleteNode(t, "testNode1")
 
-	SetUpTestForSvcLB(t)
+	SetUpTestForSvcLB(t, svcName, svcModel)
 	g.Eventually(func() bool {
-		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		found, _ := objects.SharedAviGraphLister().Get(svcModel)
 		return found
 	}, 10*time.Second).Should(gomega.Equal(true))
-	_, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	_, aviModel := objects.SharedAviGraphLister().Get(svcModel)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, svcName)))
 	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
 	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 
@@ -77,7 +80,7 @@ func TestSinglePortL4SvcNodePort(t *testing.T) {
 	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
 	// If we transition the service from Loadbalancer to ClusterIP - it should get deleted.
 	svcExample := (FakeService{
-		Name:         SINGLEPORTSVC,
+		Name:         svcName,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeClusterIP,
 		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
@@ -88,14 +91,14 @@ func TestSinglePortL4SvcNodePort(t *testing.T) {
 		t.Fatalf("error in adding Service: %v", err)
 	}
 	mcache := cache.SharedAviObjCache()
-	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)}
+	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, svcName)}
 	g.Eventually(func() bool {
 		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		return found
 	}, 15*time.Second).Should(gomega.Equal(false))
 	// If we transition the service from clusterIP to Loadbalancer - vs should get ceated
 	svcExample = (FakeService{
-		Name:         SINGLEPORTSVC,
+		Name:         svcName,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeLoadBalancer,
 		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080), NodePort: 31031}},
@@ -110,11 +113,14 @@ func TestSinglePortL4SvcNodePort(t *testing.T) {
 		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		return found
 	}, 15*time.Second).Should(gomega.Equal(true))
-	TearDownTestForSvcLB(t, g)
+	TearDownTestForSvcLB(t, g, svcName, svcModel)
 }
 
 func TestSinglePortL4SvcSkipNodePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
+
+	svcName := SINGLEPORTSVC + "-19"
+	svcModel := SINGLEPORTMODEL + "-19"
 
 	SetNodePortMode()
 	defer SetClusterIPMode()
@@ -122,15 +128,15 @@ func TestSinglePortL4SvcSkipNodePort(t *testing.T) {
 	nodePort := int32(31030)
 	CreateNode(t, "testNode1", nodeIP)
 	defer DeleteNode(t, "testNode1")
-	SetUpTestForSvcLB(t)
+	SetUpTestForSvcLB(t, svcName, svcModel)
 	g.Eventually(func() bool {
-		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		found, _ := objects.SharedAviGraphLister().Get(svcModel)
 		return found
 	}, 10*time.Second).Should(gomega.Equal(true))
-	_, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	_, aviModel := objects.SharedAviGraphLister().Get(svcModel)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SINGLEPORTSVC)))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, svcName)))
 	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
 	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 
@@ -144,7 +150,7 @@ func TestSinglePortL4SvcSkipNodePort(t *testing.T) {
 	skipNodePort["skipnodeport.ako.vmware.com/enabled"] = "true"
 
 	svcExample := (FakeService{
-		Name:         SINGLEPORTSVC,
+		Name:         svcName,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeLoadBalancer,
 		ServicePorts: []Serviceport{{PortName: "foo0", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080), NodePort: 31031}},
@@ -157,14 +163,14 @@ func TestSinglePortL4SvcSkipNodePort(t *testing.T) {
 	}
 	address := "1.1.1.1"
 	g.Eventually(func() *string {
-		_, model := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		_, model := objects.SharedAviGraphLister().Get(svcModel)
 		nodes := model.(*avinodes.AviObjectGraph).GetAviVS()
 		return nodes[0].PoolRefs[0].Servers[0].Ip.Addr
 	}, 25*time.Second).Should(gomega.Equal(&address))
 	// Reset the annotation
 	skipNodePort = nil
 	svcExample = (FakeService{
-		Name:         SINGLEPORTSVC,
+		Name:         svcName,
 		Namespace:    NAMESPACE,
 		Type:         corev1.ServiceTypeLoadBalancer,
 		ServicePorts: []Serviceport{{PortName: "foo0", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080), NodePort: 31031}},
@@ -176,17 +182,20 @@ func TestSinglePortL4SvcSkipNodePort(t *testing.T) {
 		t.Fatalf("error in adding Service: %v", err)
 	}
 	g.Eventually(func() *string {
-		_, model := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		_, model := objects.SharedAviGraphLister().Get(svcModel)
 		nodes := model.(*avinodes.AviObjectGraph).GetAviVS()
 		return nodes[0].PoolRefs[0].Servers[0].Ip.Addr
 	}, 25*time.Second).Should(gomega.Equal(&nodeIP))
 
-	TearDownTestForSvcLB(t, g)
+	TearDownTestForSvcLB(t, g, svcName, svcModel)
 }
 
 // TestSinglePortL4SvcNodePort tests L4 service with single port
 func TestSinglePortL4SvcNodePortWithNodeSelector(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
+
+	svcName := SINGLEPORTSVC + "-20"
+	svcModel := SINGLEPORTMODEL + "-20"
 
 	SetNodePortMode()
 	defer SetClusterIPMode()
@@ -198,19 +207,19 @@ func TestSinglePortL4SvcNodePortWithNodeSelector(t *testing.T) {
 	CreateNode(t, "testNode1", nodeIP1)
 	defer DeleteNode(t, "testNode1")
 
-	SetUpTestForSvcLB(t)
+	SetUpTestForSvcLB(t, svcName, svcModel)
 	g.Eventually(func() bool {
-		found, _ := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+		found, _ := objects.SharedAviGraphLister().Get(svcModel)
 		return found
 	}, 10*time.Second).Should(gomega.Equal(true))
-	_, aviModel := objects.SharedAviGraphLister().Get(SINGLEPORTMODEL)
+	_, aviModel := objects.SharedAviGraphLister().Get(svcModel)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes).To(gomega.HaveLen(1))
 	// Check for the pools
 	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(0))
 
-	TearDownTestForSvcLB(t, g)
+	TearDownTestForSvcLB(t, g, svcName, svcModel)
 	os.Setenv("NODE_KEY", "")
 	//Commenting out this code: As nodes are now filtered out during ako boot.
 	//We need to take care this testing in FT as it requirs AKO reboot to re-populate all nodes.
@@ -237,9 +246,12 @@ func TestSinglePortL4SvcNodePortWithNodeSelector(t *testing.T) {
 // TestMultiPortL4SvcNodePort tests L4 service with multiple port
 func TestMultiPortL4SvcNodePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := fmt.Sprintf("%s/cluster--%s-%s", AVINAMESPACE, NAMESPACE, MULTIPORTSVC)
 
-	SetUpTestForSvcLBMultiport(t)
+	svcName := MULTIPORTSVC + "-21"
+	svcModel := MULTIPORTMODEL + "-21"
+	modelName := fmt.Sprintf("%s/cluster--%s-%s", AVINAMESPACE, NAMESPACE, svcName)
+
+	SetUpTestForSvcLBMultiport(t, svcName, svcModel)
 	SetNodePortMode()
 	defer SetClusterIPMode()
 	nodeIP := "10.1.1.2"
@@ -254,7 +266,7 @@ func TestMultiPortL4SvcNodePort(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, MULTIPORTSVC)))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, svcName)))
 	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
 	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
 
@@ -270,5 +282,5 @@ func TestMultiPortL4SvcNodePort(t *testing.T) {
 	g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.TCP_NW_FAST_PATH))
 	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
 
-	TearDownTestForSvcLBMultiport(t, g)
+	TearDownTestForSvcLBMultiport(t, g, svcName, svcModel)
 }

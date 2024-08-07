@@ -32,14 +32,14 @@ var ctrl *k8s.AviController
 var akoApiServer *api.FakeApiServer
 var keyChan chan string
 
-func waitAndVerify(t *testing.T, key string) {
+func waitAndVerify(t *testing.T, key string, opt ...string) {
 	select {
 	case data := <-keyChan:
 		if data != key {
 			t.Fatalf("error in match expected: %v, got: %v", key, data)
 		}
-	case <-time.After(40 * time.Second):
-		t.Fatalf("timed out waiting for %v", key)
+	case <-time.After(20 * time.Second):
+		t.Fatalf("timed out waiting for %v, %v", key, opt)
 	}
 }
 
@@ -163,13 +163,13 @@ func TestMultiTenancyWithNSAviInfraSettingForIngress(t *testing.T) {
 	// check for names of all Avi objects
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
-	secretName := "my-secret"
+	ingClassName, ingressName, ns, settingName := "avi-lb-5", "foo-with-class-5", "default", "my-infrasetting-9"
+	secretName := "my-secret-5"
+	svcName := "avisvc-5"
 	modelName := "nonadmin/cluster--Shared-L7-1"
-
-	ingresstests.SetUpTestForIngress(t, modelName)
-
 	settingModelName := "nonadmin/cluster--Shared-L7-0"
+
+	ingresstests.SetUpTestForIngress(t, svcName, modelName)
 	integrationtest.SetupAviInfraSetting(t, settingName, "SMALL")
 	integrationtest.AnnotateAKONamespaceWithInfraSetting(t, ns, settingName)
 	integrationtest.AnnotateNamespaceWithTenant(t, ns, "nonadmin")
@@ -182,7 +182,7 @@ func TestMultiTenancyWithNSAviInfraSettingForIngress(t *testing.T) {
 		Namespace:   ns,
 		ClassName:   ingClassName,
 		DnsNames:    []string{"baz.com", "bar.com"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
 			secretName: {"baz.com"},
 		},
@@ -194,8 +194,8 @@ func TestMultiTenancyWithNSAviInfraSettingForIngress(t *testing.T) {
 
 	shardVsName := "cluster--Shared-L7-0"
 	sniVsName := "cluster--baz.com"
-	shardPoolName := "cluster--bar.com_foo-default-foo-with-class"
-	sniPoolName := "cluster--default-baz.com_foo-foo-with-class"
+	shardPoolName := "cluster--bar.com_foo-default-" + ingressName
+	sniPoolName := "cluster--default-baz.com_foo-" + ingressName
 
 	g.Eventually(func() bool {
 		if found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName); found {
@@ -210,7 +210,7 @@ func TestMultiTenancyWithNSAviInfraSettingForIngress(t *testing.T) {
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes[0].Tenant).Should(gomega.Equal("nonadmin"))
 	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal(shardPoolName))
-	g.Expect(settingNodes[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-my-infrasetting-seGroup"))
+	g.Expect(settingNodes[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-" + settingName + "-seGroup"))
 	g.Expect(settingNodes[0].PoolGroupRefs[0].Name).Should(gomega.Equal(shardVsName))
 	g.Expect(settingNodes[0].HTTPDSrefs[0].Name).Should(gomega.Equal(shardVsName))
 	g.Expect(settingNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(1))
@@ -240,14 +240,14 @@ func TestMultiTenancyWithIngressClassAviInfraSetting(t *testing.T) {
 	// delete the ingress, graph layer nodes should get deleted
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
-	secretName := "my-secret"
+	ingClassName, ingressName, ns, settingName := "avi-lb-6", "foo-with-class-6", "default", "my-infrasetting-10"
+	secretName := "my-secret-6"
+	svcName := "avisvc-6"
 	modelName := "nonadmin/cluster--Shared-L7-1"
-	nsSettingName := "ns-my-infrasetting"
+	nsSettingName := "ns-" + settingName
+	settingModelName := "nonadmin/cluster--Shared-L7-" + settingName + "-0"
 
-	ingresstests.SetUpTestForIngress(t, modelName)
-
-	settingModelName := "nonadmin/cluster--Shared-L7-my-infrasetting-0"
+	ingresstests.SetUpTestForIngress(t, svcName, modelName)
 	integrationtest.SetupAviInfraSetting(t, settingName, "SMALL")
 	integrationtest.SetupAviInfraSetting(t, nsSettingName, "DEDICATED")
 
@@ -262,7 +262,7 @@ func TestMultiTenancyWithIngressClassAviInfraSetting(t *testing.T) {
 		Namespace:   ns,
 		ClassName:   ingClassName,
 		DnsNames:    []string{"baz.com", "bar.com"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
 			secretName: {"baz.com"},
 		},
@@ -272,10 +272,10 @@ func TestMultiTenancyWithIngressClassAviInfraSetting(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 
-	shardVsName := "cluster--Shared-L7-my-infrasetting-0"
-	sniVsName := "cluster--my-infrasetting-baz.com"
-	shardPoolName := "cluster--my-infrasetting-bar.com_foo-default-foo-with-class"
-	sniPoolName := "cluster--my-infrasetting-default-baz.com_foo-foo-with-class"
+	shardVsName := "cluster--Shared-L7-" + settingName + "-0"
+	sniVsName := "cluster--" + settingName + "-baz.com"
+	shardPoolName := "cluster--" + settingName + "-bar.com_foo-default-" + ingressName
+	sniPoolName := "cluster--" + settingName + "-default-baz.com_foo-" + ingressName
 
 	g.Eventually(func() bool {
 		if found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName); found {
@@ -289,7 +289,7 @@ func TestMultiTenancyWithIngressClassAviInfraSetting(t *testing.T) {
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal(shardPoolName))
-	g.Expect(settingNodes[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-my-infrasetting-seGroup"))
+	g.Expect(settingNodes[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-" + settingName + "-seGroup"))
 	g.Expect(settingNodes[0].PoolGroupRefs[0].Name).Should(gomega.Equal(shardVsName))
 	g.Expect(settingNodes[0].HTTPDSrefs[0].Name).Should(gomega.Equal(shardVsName))
 	g.Expect(settingNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(1))
@@ -318,12 +318,12 @@ func TestMultiTenancyWithInfraSettingAdditionForIngress(t *testing.T) {
 	// new model creation should happen, old model should get deleted
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
-	secretName := "my-secret"
+	ingClassName, ingressName, ns, settingName := "avi-lb-7", "foo-with-class-7", "default", "my-infrasetting-11"
+	secretName := "my-secret-7"
+	svcName := "avisvc-7"
 	modelName := "admin/cluster--Shared-L7-1"
 
-	ingresstests.SetUpTestForIngress(t, modelName)
-
+	ingresstests.SetUpTestForIngress(t, svcName, modelName)
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, "")
 	waitAndVerify(t, ingClassName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
@@ -333,7 +333,7 @@ func TestMultiTenancyWithInfraSettingAdditionForIngress(t *testing.T) {
 		Namespace:   ns,
 		ClassName:   ingClassName,
 		DnsNames:    []string{"baz.com", "bar.com"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
 			secretName: {"baz.com"},
 		},
@@ -345,8 +345,8 @@ func TestMultiTenancyWithInfraSettingAdditionForIngress(t *testing.T) {
 
 	shardVsName := "cluster--Shared-L7-1"
 	sniVsName := "cluster--baz.com"
-	shardPoolName := "cluster--bar.com_foo-default-foo-with-class"
-	sniPoolName := "cluster--default-baz.com_foo-foo-with-class"
+	shardPoolName := "cluster--bar.com_foo-default-" + ingressName
+	sniPoolName := "cluster--default-baz.com_foo-" + ingressName
 
 	g.Eventually(func() bool {
 		if found, aviSettingModel := objects.SharedAviGraphLister().Get(modelName); found {
@@ -398,7 +398,7 @@ func TestMultiTenancyWithInfraSettingAdditionForIngress(t *testing.T) {
 	settingNodes = aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes[0].Tenant).Should(gomega.Equal("nonadmin"))
 	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal(shardPoolName))
-	g.Expect(settingNodes[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-my-infrasetting-seGroup"))
+	g.Expect(settingNodes[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-" + settingName + "-seGroup"))
 	g.Expect(settingNodes[0].PoolGroupRefs[0].Name).Should(gomega.Equal(shardVsName))
 	g.Expect(settingNodes[0].HTTPDSrefs[0].Name).Should(gomega.Equal(shardVsName))
 	g.Expect(settingNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(1))
@@ -429,12 +429,12 @@ func TestMultiTenancyWithTenantDeannotationInNSForIngress(t *testing.T) {
 	// new model in default tenant should get created
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
-	secretName := "my-secret"
+	ingClassName, ingressName, ns, settingName := "avi-lb-8", "foo-with-class-8", "default", "my-infrasetting-12"
+	secretName := "my-secret-8"
+	svcName := "avisvc-8"
 	modelName := "nonadmin/cluster--Shared-L7-1"
 
-	ingresstests.SetUpTestForIngress(t, modelName)
-
+	ingresstests.SetUpTestForIngress(t, svcName, modelName)
 	settingModelName := "nonadmin/cluster--Shared-L7-0"
 	integrationtest.SetupAviInfraSetting(t, settingName, "SMALL")
 	integrationtest.AnnotateAKONamespaceWithInfraSetting(t, ns, settingName)
@@ -448,7 +448,7 @@ func TestMultiTenancyWithTenantDeannotationInNSForIngress(t *testing.T) {
 		Namespace:   ns,
 		ClassName:   ingClassName,
 		DnsNames:    []string{"baz.com", "bar.com"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
 			secretName: {"baz.com"},
 		},
@@ -460,8 +460,8 @@ func TestMultiTenancyWithTenantDeannotationInNSForIngress(t *testing.T) {
 
 	shardVsName := "cluster--Shared-L7-0"
 	sniVsName := "cluster--baz.com"
-	shardPoolName := "cluster--bar.com_foo-default-foo-with-class"
-	sniPoolName := "cluster--default-baz.com_foo-foo-with-class"
+	shardPoolName := "cluster--bar.com_foo-default-" + ingressName
+	sniPoolName := "cluster--default-baz.com_foo-" + ingressName
 
 	g.Eventually(func() bool {
 		if found, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName); found {
@@ -475,7 +475,7 @@ func TestMultiTenancyWithTenantDeannotationInNSForIngress(t *testing.T) {
 	_, aviSettingModel := objects.SharedAviGraphLister().Get(settingModelName)
 	settingNodes := aviSettingModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(settingNodes[0].PoolRefs[0].Name).Should(gomega.Equal(shardPoolName))
-	g.Expect(settingNodes[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-my-infrasetting-seGroup"))
+	g.Expect(settingNodes[0].ServiceEngineGroup).Should(gomega.Equal("thisisaviref-" + settingName + "-seGroup"))
 	g.Expect(settingNodes[0].PoolGroupRefs[0].Name).Should(gomega.Equal(shardVsName))
 	g.Expect(settingNodes[0].HTTPDSrefs[0].Name).Should(gomega.Equal(shardVsName))
 	g.Expect(settingNodes[0].HttpPolicyRefs).Should(gomega.HaveLen(1))

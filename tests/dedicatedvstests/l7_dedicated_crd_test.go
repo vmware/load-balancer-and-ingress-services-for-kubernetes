@@ -35,7 +35,8 @@ func TestHostruleFQDNAliasesForDedicatedVS(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--foo.com-L7-dedicated"
 	hrname := "fqdn-aliases-hr-foo"
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	secretName := "my-secret-1"
+	SetUpIngressForCacheSyncCheck(t, true, true, secretName, modelName)
 	integrationtest.SetupHostRule(t, hrname, "foo.com", false)
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -155,7 +156,7 @@ func TestHostruleFQDNAliasesForDedicatedVS(t *testing.T) {
 	validateNode(nodes[0], aliases)
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, modelName)
 }
 
 func TestApplyHostruleToDedicatedVS(t *testing.T) {
@@ -163,8 +164,9 @@ func TestApplyHostruleToDedicatedVS(t *testing.T) {
 
 	modelName := "admin/cluster--foo.com-L7-dedicated"
 	hrname := "hr-cluster--foo.com-L7-dedicated"
+	secretName := "my-secret-2"
 
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	SetUpIngressForCacheSyncCheck(t, true, true, secretName, modelName)
 
 	hostrule := integrationtest.FakeHostRule{
 		Name:                  hrname,
@@ -249,7 +251,7 @@ func TestApplyHostruleToDedicatedVS(t *testing.T) {
 	g.Expect(portWithoutHostRule[0]).To(gomega.Equal(80))
 	g.Expect(portWithoutHostRule[1]).To(gomega.Equal(443))
 
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, modelName)
 
 }
 
@@ -258,8 +260,9 @@ func TestHostruleSSLKeyCertToDedicatedVS(t *testing.T) {
 
 	modelName := "admin/cluster--foo.com-L7-dedicated"
 	hrname := "hr-cluster--foo.com-L7-dedicated"
+	secretName := "my-secret-3"
 
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	SetUpIngressForCacheSyncCheck(t, true, true, secretName, modelName)
 
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
@@ -283,7 +286,7 @@ func TestHostruleSSLKeyCertToDedicatedVS(t *testing.T) {
 	g.Expect(nodes[0].Enabled).To(gomega.BeNil())
 	g.Expect(nodes[0].SslKeyAndCertificateRefs).To(gomega.HaveLen(0))
 
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, modelName)
 }
 
 func TestHostruleNoListenerDedicatedVS(t *testing.T) {
@@ -291,8 +294,9 @@ func TestHostruleNoListenerDedicatedVS(t *testing.T) {
 
 	modelName := "admin/cluster--foo.com-L7-dedicated"
 	hrname := "hr-cluster--foo.com-L7-dedicated"
+	secretName := "my-secret-4"
 
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	SetUpIngressForCacheSyncCheck(t, true, true, secretName, modelName)
 
 	hostrule := integrationtest.FakeHostRule{
 		Name:               hrname,
@@ -341,7 +345,7 @@ func TestHostruleNoListenerDedicatedVS(t *testing.T) {
 	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
 	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/hr-cluster--foo.com-L7-dedicated", false)
 
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, modelName)
 
 }
 
@@ -351,7 +355,7 @@ func TestApplySSLHostruleToInsecureDedicatedVS(t *testing.T) {
 	modelName := "admin/cluster--foo.com-L7-dedicated"
 	hrname := "hr-cluster--foo.com-L7-dedicated"
 
-	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
+	SetUpIngressForCacheSyncCheck(t, false, false, "", modelName)
 
 	hostrule := integrationtest.FakeHostRule{
 		Name:               hrname,
@@ -402,7 +406,7 @@ func TestApplySSLHostruleToInsecureDedicatedVS(t *testing.T) {
 	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
 	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/hr-cluster--foo.com-L7-dedicated", false)
 
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, "", modelName)
 
 }
 
@@ -410,10 +414,10 @@ func TestApplySSLHostruleToInsecureDedicatedVS(t *testing.T) {
 
 func TestFQDNsCountForAviInfraSettingWithDedicatedShardSize(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/cluster--my-infrasetting-foo.com-L7-dedicated"
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
-	secretName := "my-secret"
+	ingClassName, ingressName, ns, settingName := "avi-lb-1", "foo-with-class-1", "default", "my-infrasetting-1"
+	secretName := "my-secret-5"
+	modelName := "admin/cluster--" + settingName + "-foo.com-L7-dedicated"
 
 	SetUpTestForIngress(t, modelName)
 	integrationtest.RemoveDefaultIngressClass()
@@ -464,7 +468,7 @@ func TestFQDNsCountForAviInfraSettingWithDedicatedShardSize(t *testing.T) {
 	integrationtest.DeleteSecret(secretName, ns)
 
 	mcache := cache.SharedAviObjCache()
-	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--my-infrasetting-foo.com-L7-dedicated"}
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--" + settingName + "-foo.com-L7-dedicated"}
 	// verify removal of VS.
 	g.Eventually(func() bool {
 		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
@@ -475,10 +479,10 @@ func TestFQDNsCountForAviInfraSettingWithDedicatedShardSize(t *testing.T) {
 
 func TestFQDNsCountForAviInfraSettingWithLargeShardSize(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/cluster--Shared-L7-my-infrasetting-0"
 
-	ingClassName, ingressName, ns, settingName := "avi-lb", "foo-with-class", "default", "my-infrasetting"
-	secretName := "my-secret"
+	ingClassName, ingressName, ns, settingName := "avi-lb-2", "foo-with-class-2", "default", "my-infrasetting-2"
+	secretName := "my-secret-6"
+	modelName := "admin/cluster--Shared-L7-" + settingName + "-0"
 
 	SetUpTestForIngress(t, modelName)
 	integrationtest.RemoveDefaultIngressClass()
@@ -532,7 +536,7 @@ func TestFQDNsCountForAviInfraSettingWithLargeShardSize(t *testing.T) {
 	integrationtest.DeleteSecret(secretName, ns)
 
 	mcache := cache.SharedAviObjCache()
-	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-my-infrasetting-0"}
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-" + settingName + "-0"}
 	// Shard VS remains, Pools are moved/removed
 	g.Eventually(func() bool {
 		sniCache1, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
