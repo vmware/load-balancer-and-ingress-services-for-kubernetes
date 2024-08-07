@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
@@ -269,8 +270,8 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 							hostnameMatched = true
 						}
 					}
-					if hostnameMatched && !utils.HasElem(listenerList, listener) {
-						gatewayListenerList = append(listenerList, listener)
+					if hostnameMatched && !utils.HasElem(gatewayListenerList, listener) {
+						gatewayListenerList = append(gatewayListenerList, listener)
 					}
 				}
 			}
@@ -286,7 +287,9 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 				}
 			}
 		}
-		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteToHostname(gwNsName, hostnameIntersection)
+		uniqueHosts := sets.NewString(hostnameIntersection...)
+
+		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteToHostname(gwNsName, uniqueHosts.List())
 		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteMappings(gwNsName, listenerList, routeTypeNsName)
 		if !utils.HasElem(gwNsNameList, gwNsName) {
 			gwNsNameList = append(gwNsNameList, gwNsName)
