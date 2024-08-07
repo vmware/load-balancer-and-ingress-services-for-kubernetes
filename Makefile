@@ -353,7 +353,7 @@ multitenancytests:
 .PHONY: int_test
 int_test:
 	#make -j 1 k8stest integrationtest ingresstests evhtests vippernstests dedicatedevhtests dedicatedvippernstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc dedicatedvstests hatests calicotests ciliumtests helmtests infratests multitenancytests gatewayapitests
-	make -j 1 multitenancytests
+	make -j 1 multitenancytests 2>&1
 
 .PHONE: eps_enabled
 eps_enabled:
