@@ -77,6 +77,8 @@ type HostRuleVirtualHost struct {
 	ICAPProfile           []string                 `json:"icapProfile,omitempty"`
 	NetworkSecurityPolicy string                   `json:"networkSecurityPolicy,omitempty"`
 	L7Rule                string                   `json:"l7Rule,omitempty"`
+	UseRegex              bool                     `json:"useRegex,omitempty"`
+	ApplicationRootPath   string                   `json:"applicationRootPath,omitempty"`
 }
 
 // HostRuleTCPSettings allows for customizing TCP settings

@@ -309,6 +309,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 	var httppol_to_delete []avicache.NamespaceName
 	var l4pol_to_delete []avicache.NamespaceName
 	var sslkey_cert_delete []avicache.NamespaceName
+	var string_groups_to_delete []avicache.NamespaceName
 	var vsvipErr error
 	var publishKey string
 
@@ -343,6 +344,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		}
 		pools_to_delete, rest_ops = rest.PoolCU(aviVsNode.PoolRefs, vs_cache_obj, namespace, rest_ops, key)
 		pgs_to_delete, rest_ops = rest.PoolGroupCU(aviVsNode.PoolGroupRefs, vs_cache_obj, namespace, rest_ops, key)
+		string_groups_to_delete, rest_ops = rest.StringGroupVsCU(aviVsNode.StringGroupRefs, vs_cache_obj, namespace, rest_ops, key)
 		httppol_to_delete, rest_ops = rest.HTTPPolicyCU(aviVsNode.HttpPolicyRefs, vs_cache_obj, namespace, rest_ops, key)
 		ds_to_delete, rest_ops = rest.DatascriptCU(aviVsNode.HTTPDSrefs, vs_cache_obj, namespace, rest_ops, key)
 		l4pol_to_delete, rest_ops = rest.L4PolicyCU(aviVsNode.L4PolicyRefs, vs_cache_obj, namespace, rest_ops, key)
@@ -375,6 +377,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		}
 		_, rest_ops = rest.PoolCU(aviVsNode.PoolRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.PoolGroupCU(aviVsNode.PoolGroupRefs, nil, namespace, rest_ops, key)
+		_, rest_ops = rest.StringGroupVsCU(aviVsNode.StringGroupRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.HTTPPolicyCU(aviVsNode.HttpPolicyRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.L4PolicyCU(aviVsNode.L4PolicyRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.DatascriptCU(aviVsNode.HTTPDSrefs, nil, namespace, rest_ops, key)
@@ -406,6 +409,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		rest_ops = rest.SSLKeyCertDelete(sslkey_cert_delete, namespace, rest_ops, key)
 	}
 	rest_ops = rest.HTTPPolicyDelete(httppol_to_delete, namespace, rest_ops, key)
+	rest_ops = rest.StringGroupDelete(string_groups_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.L4PolicyDelete(l4pol_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.DSDelete(ds_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.PoolGroupDelete(pgs_to_delete, namespace, rest_ops, key)
@@ -543,6 +547,7 @@ func (rest *RestOperations) DeleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 		rest_ops = rest.DSDelete(vs_cache_obj.DSKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.SSLKeyCertDelete(vs_cache_obj.SSLKeyCertCollection, namespace, rest_ops, key)
 		rest_ops = rest.HTTPPolicyDelete(vs_cache_obj.HTTPKeyCollection, namespace, rest_ops, key)
+		rest_ops = rest.StringGroupDelete(vs_cache_obj.StringGroupKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.L4PolicyDelete(vs_cache_obj.L4PolicyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(vs_cache_obj.PGKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolDelete(vs_cache_obj.PoolKeyCollection, namespace, rest_ops, key)
@@ -585,6 +590,7 @@ func (rest *RestOperations) deleteSniVs(vsKey avicache.NamespaceName, vs_cache_o
 		rest_ops = rest.HTTPPolicyDelete(vs_cache_obj.HTTPKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(vs_cache_obj.PGKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolDelete(vs_cache_obj.PoolKeyCollection, namespace, rest_ops, key)
+		rest_ops = rest.StringGroupDelete(vs_cache_obj.StringGroupKeyCollection, namespace, rest_ops, key)
 		success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, false)
 		return success
 	}
@@ -966,6 +972,18 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 					rest_op.ObjName = VsVip
 				}
 				rest.AviVsVipCacheDel(rest_op, aviObjKey, key)
+			case "StringGroup":
+				var StringGroup string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					StringGroup = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.StringGroup).Name
+				case avimodels.StringGroup:
+					StringGroup = *rest_op.Obj.(avimodels.StringGroup).Name
+				}
+				if StringGroup != "" {
+					rest_op.ObjName = StringGroup
+				}
+				rest.AviStringGroupCacheDel(rest_op, aviObjKey, key)
 			case "HTTPPolicySet":
 				var HTTPPolicySet string
 				switch rest_op.Obj.(type) {
@@ -1054,6 +1072,15 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 					pgObjName = *rest_op.Obj.(avimodels.PoolGroup).Name
 				}
 				aviObjCache.AviPopulateOnePGCache(c, utils.CloudName, pgObjName)
+			case "StringGroup":
+				var stringGroupObjName string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					stringGroupObjName = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.StringGroup).Name
+				case avimodels.StringGroup:
+					stringGroupObjName = *rest_op.Obj.(avimodels.StringGroup).Name
+				}
+				aviObjCache.AviPopulateOneStringGroupCache(c, utils.CloudName, stringGroupObjName)
 			case "VsVip":
 				var VsVip string
 				switch rest_op.Obj.(type) {
@@ -1360,6 +1387,7 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 	var sni_pgs_to_delete []avicache.NamespaceName
 	var http_policies_to_delete []avicache.NamespaceName
 	var sslkey_cert_delete []avicache.NamespaceName
+	var string_groups_to_delete []avicache.NamespaceName
 	if vs_cache_obj != nil {
 		sni_key := avicache.NamespaceName{Namespace: namespace, Name: sni_node.Name}
 		// Search the VS cache and obtain the UUID of this VS. Then see if this UUID is part of the SNIChildCollection or not.
@@ -1377,6 +1405,7 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 				sslkey_cert_delete, rest_ops = rest.SSLKeyCertCU(sni_node.SSLKeyCertRefs, sslkey_cert_delete, namespace, rest_ops, key)
 				sni_pools_to_delete, rest_ops = rest.PoolCU(sni_node.PoolRefs, sni_cache_obj, namespace, rest_ops, key)
 				sni_pgs_to_delete, rest_ops = rest.PoolGroupCU(sni_node.PoolGroupRefs, sni_cache_obj, namespace, rest_ops, key)
+				string_groups_to_delete, rest_ops = rest.StringGroupVsCU(sni_node.StringGroupRefs, sni_cache_obj, namespace, rest_ops, key)
 				http_policies_to_delete, rest_ops = rest.HTTPPolicyCU(sni_node.HttpPolicyRefs, sni_cache_obj, namespace, rest_ops, key)
 				// The checksums are different, so it should be a PUT call.
 				if sni_cache_obj.CloudConfigCksum != strconv.Itoa(int(sni_node.GetCheckSum())) {
@@ -1394,6 +1423,7 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 			_, rest_ops = rest.SSLKeyCertCU(sni_node.SSLKeyCertRefs, nil, namespace, rest_ops, key)
 			_, rest_ops = rest.PoolCU(sni_node.PoolRefs, nil, namespace, rest_ops, key)
 			_, rest_ops = rest.PoolGroupCU(sni_node.PoolGroupRefs, nil, namespace, rest_ops, key)
+			_, rest_ops = rest.StringGroupVsCU(sni_node.StringGroupRefs, nil, namespace, rest_ops, key)
 			_, rest_ops = rest.HTTPPolicyCU(sni_node.HttpPolicyRefs, nil, namespace, rest_ops, key)
 
 			// Not found - it should be a POST call.
@@ -1404,6 +1434,7 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 		}
 		rest_ops = rest.SSLKeyCertDelete(sslkey_cert_delete, namespace, rest_ops, key)
 		rest_ops = rest.HTTPPolicyDelete(http_policies_to_delete, namespace, rest_ops, key)
+		rest_ops = rest.StringGroupDelete(string_groups_to_delete, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(sni_pgs_to_delete, namespace, rest_ops, key)
 		rest_ops = rest.PoolDelete(sni_pools_to_delete, namespace, rest_ops, key)
 		utils.AviLog.Debugf("key: %s, msg: the SNI VSes to be deleted are: %s", key, cache_sni_nodes)
@@ -1413,6 +1444,7 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 		_, rest_ops = rest.SSLKeyCertCU(sni_node.SSLKeyCertRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.PoolCU(sni_node.PoolRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.PoolGroupCU(sni_node.PoolGroupRefs, nil, namespace, rest_ops, key)
+		_, rest_ops = rest.StringGroupVsCU(sni_node.StringGroupRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.HTTPPolicyCU(sni_node.HttpPolicyRefs, nil, namespace, rest_ops, key)
 
 		// Not found - it should be a POST call.
@@ -1638,7 +1670,7 @@ func (rest *RestOperations) HTTPPolicyCU(http_nodes []*nodes.AviHttpPolicySetNod
 		}
 
 	}
-	utils.AviLog.Debugf("The HTTP Policies rest_op is %s", utils.Stringify(rest_ops))
+	utils.AviLog.Debugf("key: %s, The HTTP Policies rest_op is %s", key, utils.Stringify(rest_ops))
 	utils.AviLog.Debugf("key: %s, msg: the http policies to be deleted are: %s", key, cache_http_nodes)
 	return cache_http_nodes, rest_ops
 }
@@ -1916,6 +1948,55 @@ func (rest *RestOperations) stringGroupCU(key, stringGroupName string, avimodel 
 	}
 }
 
+func (rest *RestOperations) StringGroupVsCU(stringGroupNodes []*nodes.AviStringGroupNode, vs_cache_obj *avicache.AviVsCache, namespace string, rest_ops []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp) {
+	var cache_string_group_nodes []avicache.NamespaceName
+	// Default is POST
+	if vs_cache_obj != nil {
+		cache_string_group_nodes = make([]avicache.NamespaceName, len(vs_cache_obj.StringGroupKeyCollection))
+		copy(cache_string_group_nodes, vs_cache_obj.StringGroupKeyCollection)
+		for _, stringGroup := range stringGroupNodes {
+			stringGroupKey := avicache.NamespaceName{Namespace: namespace, Name: *stringGroup.Name}
+			found := utils.HasElem(cache_string_group_nodes, stringGroupKey)
+			if found {
+				stringGroupCache, ok := rest.cache.StringGroupCache.AviCacheGet(stringGroupKey)
+				if ok {
+					cache_string_group_nodes = avicache.RemoveNamespaceName(cache_string_group_nodes, stringGroupKey)
+					stringGroupCacheObj, _ := stringGroupCache.(*avicache.AviStringGroupCache)
+					// Cache found. Let's compare the checksums
+					if stringGroupCacheObj.CloudConfigCksum == stringGroup.GetCheckSum() {
+						utils.AviLog.Debugf("The checksums are same for string group cache obj %s, not doing anything", stringGroupCacheObj.Name)
+					} else {
+						// The checksums are different, so it should be a PUT call.
+						restOp := rest.AviStringGroupBuild(stringGroup, stringGroupCacheObj, key)
+						if restOp != nil {
+							rest_ops = append(rest_ops, restOp)
+						}
+					}
+				}
+			} else {
+				// Not found - it should be a POST call.
+				restOp := rest.AviStringGroupBuild(stringGroup, nil, key)
+				if restOp != nil {
+					rest_ops = append(rest_ops, restOp)
+				}
+			}
+
+		}
+	} else {
+		// Everything is a POST call
+		for _, stringGroup := range stringGroupNodes {
+			restOp := rest.AviStringGroupBuild(stringGroup, nil, key)
+			if restOp != nil {
+				rest_ops = append(rest_ops, restOp)
+			}
+		}
+
+	}
+	utils.AviLog.Debugf("key: %s, The StringGroup rest_op is %s", key, utils.Stringify(rest_ops))
+	utils.AviLog.Debugf("key: %s, msg: the string groups to be deleted are: %s", key, cache_string_group_nodes)
+	return cache_string_group_nodes, rest_ops
+}
+
 func (rest *RestOperations) StringGroupDelete(sg_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
 	utils.AviLog.Infof("key: %s, msg: about to delete the StringGroup %s", key, sg_to_delete)
 	for _, del_sg := range sg_to_delete {
@@ -1923,7 +2004,7 @@ func (rest *RestOperations) StringGroupDelete(sg_to_delete []avicache.NamespaceN
 		sg_key := avicache.NamespaceName{Namespace: namespace, Name: del_sg.Name}
 		sg_cache, ok := rest.cache.StringGroupCache.AviCacheGet(sg_key)
 		if ok {
-			sg_cache_obj, _ := sg_cache.(*avicache.AviDSCache)
+			sg_cache_obj, _ := sg_cache.(*avicache.AviStringGroupCache)
 			restOp := rest.AviStringGroupDel(sg_cache_obj.Uuid, namespace, key)
 			restOp.ObjName = del_sg.Name
 			rest_ops = append(rest_ops, restOp)

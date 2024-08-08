@@ -29,6 +29,7 @@ import (
 	avimodels "github.com/vmware/alb-sdk/go/models"
 
 	"github.com/davecgh/go-spew/spew"
+	"google.golang.org/protobuf/proto"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -120,9 +121,22 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 		}
 		match_target := avimodels.MatchTarget{}
 
-		if len(hppmap.Path) > 0 {
+		if hppmap.StringGroupRefs != nil && len(hppmap.StringGroupRefs) > 0 {
 			match_crit := hppmap.MatchCriteria
-			// always match case sensitive
+			var match_case string
+			if hppmap.MatchCase != "" {
+				match_case = hppmap.MatchCase
+			} else {
+				match_case = "SENSITIVE"
+			}
+			path_match := avimodels.PathMatch{
+				MatchCriteria:   &match_crit,
+				MatchCase:       &match_case,
+				StringGroupRefs: hppmap.StringGroupRefs,
+			}
+			match_target.Path = &path_match
+		} else if hppmap.Path != nil && len(hppmap.Path) > 0 {
+			match_crit := hppmap.MatchCriteria
 			match_case := "SENSITIVE"
 			path_match := avimodels.PathMatch{
 				MatchCriteria: &match_crit,
@@ -184,12 +198,34 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 			port_match_crit := "IS_IN"
 			match_target.VsPort = &avimodels.PortMatch{MatchCriteria: &port_match_crit, Ports: []int64{int64(hppmap.VsPort)}}
 		}
+		if hppmap.Path != "" && hppmap.MatchCriteria != "" {
+			match_case := "SENSITIVE"
+			path_match := avimodels.PathMatch{
+				MatchCriteria: &hppmap.MatchCriteria,
+				MatchCase:     &match_case,
+				MatchStr:      []string{hppmap.Path},
+			}
+			match_target.Path = &path_match
+		}
 		redirect_action := avimodels.HTTPRedirectAction{}
 		protocol := "HTTPS"
+		if hppmap.Protocol != "" {
+			protocol = hppmap.Protocol
+		}
 		redirect_action.StatusCode = &hppmap.StatusCode
 		redirect_action.Protocol = &protocol
 		port := uint32(hppmap.RedirectPort)
 		redirect_action.Port = &port
+		if hppmap.RedirectPath != "" {
+			uriParamToken := &avimodels.URIParamToken{
+				StrValue: &hppmap.RedirectPath,
+				Type:     proto.String("URI_TOKEN_TYPE_STRING"),
+			}
+			redirect_action.Path = &avimodels.URIParam{
+				Tokens: []*avimodels.URIParamToken{uriParamToken},
+				Type:   proto.String("URI_PARAM_TYPE_TOKENIZED"),
+			}
+		}
 		var j int32
 		j = idx
 		rule := avimodels.HTTPRequestRule{Enable: &enable, Index: &j,
@@ -343,6 +379,7 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 		}
 		var pgMembers []string
 		var poolMembers []string
+		var stringGroupRefs []string
 		if resp["http_request_policy"] != nil {
 			if rules, rulesOk := resp["http_request_policy"].(map[string]interface{}); rulesOk {
 				if rulesArr, rulesArrOk := rules["rules"].([]interface{}); rulesArrOk {
@@ -365,6 +402,24 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 								}
 							}
 						}
+						if rulemap["match"] != nil {
+							matchMap, _ := rulemap["match"].(map[string]interface{})
+							if matchMap["path"] != nil {
+								pathMap, _ := matchMap["path"].(map[string]interface{})
+								if pathMap["string_group_refs"] != nil {
+									sgRefs, _ := pathMap["string_group_refs"].([]interface{})
+									for _, sg := range sgRefs {
+										sgUuid := avicache.ExtractUuid(sg.(string), "stringgroup-.*.#")
+										// Search the string group name using this Uuid in the string group cache.
+										sgName, found := rest.cache.StringGroupCache.AviCacheGetNameByUuid(sgUuid)
+										if found {
+											stringGroupRefs = append(stringGroupRefs, sgName.(string))
+										}
+									}
+
+								}
+							}
+						}
 					}
 				}
 			}
@@ -375,6 +430,7 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 			LastModified:     lastModifiedStr,
 			PoolGroups:       pgMembers,
 			Pools:            poolMembers,
+			StringGroupRefs:  stringGroupRefs,
 		}
 		if lastModifiedStr == "" {
 			http_cache_obj.InvalidData = true

@@ -106,6 +106,11 @@ type AviVsEvhSniModel interface {
 	GetNetworkSecurityPolicyRef() *string
 	SetNetworkSecurityPolicyRef(*string)
 	GetTenant() string
+
+	GetStringGroupRefs() []*AviStringGroupNode
+	SetStringGroupRefs([]*AviStringGroupNode)
+
+	GetPaths() []string
 }
 
 type AviEvhVsNode struct {
@@ -148,6 +153,7 @@ type AviEvhVsNode struct {
 	VHMatches           []*avimodels.VHMatch
 	Secure              bool
 	Caller              string
+	StringGroupRefs     []*AviStringGroupNode
 
 	AviVsNodeCommonFields
 
@@ -353,6 +359,18 @@ func (v *AviEvhVsNode) GetTenant() string {
 	return v.Tenant
 }
 
+func (v *AviEvhVsNode) GetStringGroupRefs() []*AviStringGroupNode {
+	return v.StringGroupRefs
+}
+
+func (v *AviEvhVsNode) SetStringGroupRefs(stringGroupRefs []*AviStringGroupNode) {
+	v.StringGroupRefs = stringGroupRefs
+}
+
+func (v *AviEvhVsNode) GetPaths() []string {
+	return v.Paths
+}
+
 func (o *AviObjectGraph) GetAviEvhVS() []*AviEvhVsNode {
 	var aviVs []*AviEvhVsNode
 	for _, model := range o.modelNodes {
@@ -554,6 +572,10 @@ func (o *AviEvhVsNode) AddFQDNAliasesToHTTPPolicy(hosts []string, key string) {
 			copy(policy.HppMap[j].Host, hosts)
 		}
 		for j := range policy.RedirectPorts {
+			// do not add host to the redirect rule for app-root which has RedirectPath populated
+			if policy.RedirectPorts[j].RedirectPath != "" {
+				continue
+			}
 			policy.RedirectPorts[j].Hosts = make([]string, len(hosts))
 			copy(policy.RedirectPorts[j].Hosts, hosts)
 		}
@@ -893,7 +915,12 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 	var allFqdns []string
 	allFqdns = append(allFqdns, hosts...)
 	for _, path := range paths {
-		httpPGPath := AviHostPathPortPoolPG{Host: allFqdns}
+		var httpPGPath AviHostPathPortPoolPG
+		if path.Port != 0 {
+			httpPGPath = AviHostPathPortPoolPG{Host: allFqdns, SvcPort: int(path.Port)}
+		} else if path.TargetPort.IntVal != 0 {
+			httpPGPath = AviHostPathPortPoolPG{Host: allFqdns, SvcPort: int(path.TargetPort.IntVal)}
+		}
 
 		if path.PathType == networkingv1.PathTypeExact {
 			httpPGPath.MatchCriteria = "EQUALS"
@@ -1661,6 +1688,8 @@ func RemoveRedirectHTTPPolicyInModelForEvh(vsNode *AviEvhVsNode, hostnames []str
 					vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs[:i], vsNode.HttpPolicyRefs[i+1:]...)
 					utils.AviLog.Infof("key: %s, msg: removed security policy %s in model", key, policy.Name)
 				}
+			} else if policy.HppMap != nil && policy.RedirectPorts != nil && len(policy.RedirectPorts) > 0 {
+				policy.RedirectPorts = nil
 			}
 		}
 	}
@@ -1842,12 +1871,16 @@ func RemoveFqdnFromEVHVIP(vsNode *AviEvhVsNode, hostsToRemove []string, key stri
 		}
 	}
 }
-func (o *AviObjectGraph) RemoveHTTPRefsFromEvh(httpPol, hppmapName string, evhNode *AviEvhVsNode) {
-
+func (o *AviObjectGraph) RemoveHTTPRefsStringGroupsFromEvh(httpPol, hppmapName string, evhNode *AviEvhVsNode) {
+	var stringGroupToRemove []string
 	for i, pol := range evhNode.HttpPolicyRefs {
 		if pol.Name == httpPol {
 			for j, hppmap := range evhNode.HttpPolicyRefs[i].HppMap {
 				if hppmap.Name == hppmapName {
+					if len(evhNode.HttpPolicyRefs[i].HppMap[j].StringGroupRefs) > 0 {
+						sgName := strings.Split(evhNode.HttpPolicyRefs[i].HppMap[j].StringGroupRefs[0], "=")[1]
+						stringGroupToRemove = append(stringGroupToRemove, sgName)
+					}
 					evhNode.HttpPolicyRefs[i].HppMap = append(evhNode.HttpPolicyRefs[i].HppMap[:j], evhNode.HttpPolicyRefs[i].HppMap[j+1:]...)
 					break
 				}
@@ -1860,6 +1893,14 @@ func (o *AviObjectGraph) RemoveHTTPRefsFromEvh(httpPol, hppmapName string, evhNo
 		}
 	}
 	utils.AviLog.Debugf("After removing the http policy nodes are: %s", utils.Stringify(evhNode.HttpPolicyRefs))
+	for index, sgNode := range evhNode.StringGroupRefs {
+		for _, sgName := range stringGroupToRemove {
+			if *sgNode.Name == sgName {
+				evhNode.StringGroupRefs = append(evhNode.StringGroupRefs[:index], evhNode.StringGroupRefs[index+1:]...)
+				break
+			}
+		}
+	}
 
 }
 
@@ -1890,7 +1931,7 @@ func (o *AviObjectGraph) manipulateEVHVsNode(vsNode *AviEvhVsNode, ingName, name
 					o.RemovePGNodeRefsForEvh(pgName, vsNode)
 					httppolname := lib.GetSniHttpPolName(namespace, hostname, infraSettingName)
 					hppmapname := lib.GetEvhPGName(ingName, namespace, hostname, path, infraSettingName, vsNode.Dedicated)
-					o.RemoveHTTPRefsFromEvh(httppolname, hppmapname, vsNode)
+					o.RemoveHTTPRefsStringGroupsFromEvh(httppolname, hppmapname, vsNode)
 				}
 			}
 		}

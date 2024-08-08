@@ -67,26 +67,27 @@ type AviClusterRuntimeCache struct {
 }
 
 type AviVsCache struct {
-	Name                 string
-	Tenant               string
-	Uuid                 string
-	CloudConfigCksum     string
-	PGKeyCollection      []NamespaceName
-	VSVipKeyCollection   []NamespaceName
-	PoolKeyCollection    []NamespaceName
-	DSKeyCollection      []NamespaceName
-	HTTPKeyCollection    []NamespaceName
-	SSLKeyCertCollection []NamespaceName
-	L4PolicyCollection   []NamespaceName
-	SNIChildCollection   []string
-	ParentVSRef          NamespaceName
-	PassthroughParentRef NamespaceName
-	PassthroughChildRef  NamespaceName
-	ServiceMetadataObj   lib.ServiceMetadataObj
-	LastModified         string
-	EnableRhi            bool
-	InvalidData          bool
-	VSCacheLock          sync.RWMutex
+	Name                     string
+	Tenant                   string
+	Uuid                     string
+	CloudConfigCksum         string
+	PGKeyCollection          []NamespaceName
+	VSVipKeyCollection       []NamespaceName
+	PoolKeyCollection        []NamespaceName
+	DSKeyCollection          []NamespaceName
+	HTTPKeyCollection        []NamespaceName
+	SSLKeyCertCollection     []NamespaceName
+	L4PolicyCollection       []NamespaceName
+	SNIChildCollection       []string
+	ParentVSRef              NamespaceName
+	PassthroughParentRef     NamespaceName
+	PassthroughChildRef      NamespaceName
+	ServiceMetadataObj       lib.ServiceMetadataObj
+	LastModified             string
+	EnableRhi                bool
+	InvalidData              bool
+	VSCacheLock              sync.RWMutex
+	StringGroupKeyCollection []NamespaceName
 }
 
 func (c *AviCache) AviCacheAddVS(k NamespaceName) *AviVsCache {
@@ -215,6 +216,22 @@ func (v *AviVsCache) RemoveFromHTTPKeyCollection(k NamespaceName) {
 	v.HTTPKeyCollection = RemoveNamespaceName(v.HTTPKeyCollection, k)
 }
 
+func (v *AviVsCache) AddToStringGroupKeyCollection(k NamespaceName) {
+	if v.StringGroupKeyCollection == nil {
+		v.StringGroupKeyCollection = []NamespaceName{k}
+	}
+	if !utils.HasElem(v.StringGroupKeyCollection, k) {
+		v.StringGroupKeyCollection = append(v.StringGroupKeyCollection, k)
+	}
+}
+
+func (v *AviVsCache) RemoveFromStringGroupKeyCollection(k NamespaceName) {
+	if v.StringGroupKeyCollection == nil {
+		return
+	}
+	v.StringGroupKeyCollection = RemoveNamespaceName(v.StringGroupKeyCollection, k)
+}
+
 func (v *AviVsCache) AddToSSLKeyCertCollection(k NamespaceName) {
 	if v.SSLKeyCertCollection == nil {
 		v.SSLKeyCertCollection = []NamespaceName{k}
@@ -331,6 +348,7 @@ type AviHTTPPolicyCache struct {
 	LastModified     string
 	InvalidData      bool
 	HasReference     bool
+	StringGroupRefs  []string
 }
 
 type AviL4PolicyCache struct {
@@ -358,6 +376,7 @@ type AviStringGroupCache struct {
 	CloudConfigCksum uint32
 	HasReference     bool
 	Description      string
+	LongestMatch     bool
 }
 
 func (v *AviVsCache) GetVSCopy() (*AviVsCache, bool) {

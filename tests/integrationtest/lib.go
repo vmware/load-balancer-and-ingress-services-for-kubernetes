@@ -1614,6 +1614,8 @@ type FakeHostRule struct {
 	GslbFqdn              string
 	NetworkSecurityPolicy string
 	L7Rule                string
+	UseRegex              bool
+	ApplicationRootPath   string
 }
 
 func (hr FakeHostRule) HostRule() *akov1beta1.HostRule {
@@ -1650,6 +1652,8 @@ func (hr FakeHostRule) HostRule() *akov1beta1.HostRule {
 				},
 				NetworkSecurityPolicy: hr.NetworkSecurityPolicy,
 				L7Rule:                hr.L7Rule,
+				UseRegex:              hr.UseRegex,
+				ApplicationRootPath:   hr.ApplicationRootPath,
 			},
 		},
 	}

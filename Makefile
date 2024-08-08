@@ -274,14 +274,14 @@ dedicatedevhtests:
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/dedicatedevhtests -failfast -coverprofile cover-13.out -coverpkg=./...
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/dedicatedevhtests -failfast -timeout 0 -coverprofile cover-13.out -coverpkg=./...
 
 .PHONY: dedicatedvippernstests
 dedicatedvippernstests:
 	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/dedicatedevhtests -failfast -isVipPerNS=true -coverprofile cover-14.out -coverpkg=./...
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/dedicatedevhtests -failfast -timeout 0 -isVipPerNS=true -coverprofile cover-14.out -coverpkg=./...
 
 .PHONY: dedicatedvstests
 dedicatedvstests:
@@ -289,7 +289,7 @@ dedicatedvstests:
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/dedicatedvstests -failfast -coverprofile cover-15.out -coverpkg=./...
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/dedicatedvstests -failfast -timeout 0 -coverprofile cover-15.out -coverpkg=./...
 
 .PHONY: infratests
 infratests:

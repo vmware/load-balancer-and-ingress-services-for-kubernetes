@@ -30,6 +30,7 @@ import (
 	"github.com/vmware/alb-sdk/go/models"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 var (
@@ -51,6 +52,7 @@ type FakeRoute struct {
 	Path        string
 	ServiceName string
 	Backend2    string
+	TargetPort  int
 }
 
 func (rt FakeRoute) Route() *routev1.Route {
@@ -85,6 +87,12 @@ func (rt FakeRoute) Route() *routev1.Route {
 	}
 	if rt.Path != "" {
 		routeExample.Spec.Path = rt.Path
+	}
+	if rt.TargetPort != 0 {
+		port := &routev1.RoutePort{
+			TargetPort: intstr.FromInt(rt.TargetPort),
+		}
+		routeExample.Spec.Port = port
 	}
 	return routeExample
 }
@@ -180,6 +188,7 @@ func TearDownTestForRoute(t *testing.T, modelName string) {
 	integrationtest.DelEPorEPS(t, "default", "avisvc")
 }
 
+// TO DO (Aakash) : Rename function to DeleteRouteAndVerify
 func VerifyRouteDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, poolCount int, nsname ...string) {
 	namespace, name := defaultNamespace, defaultRouteName
 	if len(nsname) > 0 {
@@ -224,6 +233,7 @@ func ValidateModelCommon(t *testing.T, g *gomega.GomegaWithT) interface{} {
 	return aviModel
 }
 
+// TO DO (Aakash) : Rename function to DeleteSecureRouteAndVerify
 func VerifySecureRouteDeletion(t *testing.T, g *gomega.WithT, modelName string, poolCount, snicount int, nsname ...string) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	VerifyRouteDeletion(t, g, aviModel, poolCount, nsname...)

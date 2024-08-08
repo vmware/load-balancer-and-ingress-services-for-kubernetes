@@ -180,6 +180,9 @@ func (v *AviVsNode) CalculateForGraphChecksum() uint32 {
 	for _, l4pol := range v.L4PolicyRefs {
 		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(l4pol.GetCheckSum()))
 	}
+	for _, stringGroup := range v.StringGroupRefs {
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(stringGroup.GetCheckSum()))
+	}
 
 	return utils.Hash(strings.Join(checksumStringSlice, ":"))
 }
@@ -209,6 +212,9 @@ func (v *AviEvhVsNode) CalculateForGraphChecksum() uint32 {
 	}
 	for _, vsvip := range v.VSVIPRefs {
 		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(vsvip.GetCheckSum()))
+	}
+	for _, stringGroup := range v.StringGroupRefs {
+		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(stringGroup.GetCheckSum()))
 	}
 
 	return utils.Hash(strings.Join(checksumStringSlice, ":"))
@@ -253,12 +259,16 @@ func (o *AviObjectGraph) RemovePGNodeRefs(pgName string, vsNode *AviVsNode) {
 
 }
 
-func (o *AviObjectGraph) RemoveHTTPRefsFromSni(httpPol, hppMap string, sniNode *AviVsNode) {
-
+func (o *AviObjectGraph) RemoveHTTPRefsStringGroupsFromSni(httpPol, hppMap string, sniNode *AviVsNode) {
+	var stringGroupToRemove []string
 	for i, pol := range sniNode.HttpPolicyRefs {
 		if pol.Name == httpPol {
 			for j, hppmap := range sniNode.HttpPolicyRefs[i].HppMap {
 				if hppmap.Name == hppMap {
+					if len(sniNode.HttpPolicyRefs[i].HppMap[j].StringGroupRefs) > 0 {
+						sgName := strings.Split(sniNode.HttpPolicyRefs[i].HppMap[j].StringGroupRefs[0], "=")[1]
+						stringGroupToRemove = append(stringGroupToRemove, sgName)
+					}
 					sniNode.HttpPolicyRefs[i].HppMap = append(sniNode.HttpPolicyRefs[i].HppMap[:j], sniNode.HttpPolicyRefs[i].HppMap[j+1:]...)
 					break
 				}
@@ -266,6 +276,14 @@ func (o *AviObjectGraph) RemoveHTTPRefsFromSni(httpPol, hppMap string, sniNode *
 			if len(pol.HppMap) == 0 {
 				utils.AviLog.Debugf("Removing http pol ref: %s", httpPol)
 				sniNode.HttpPolicyRefs = append(sniNode.HttpPolicyRefs[:i], sniNode.HttpPolicyRefs[i+1:]...)
+				break
+			}
+		}
+	}
+	for index, sgNode := range sniNode.StringGroupRefs {
+		for _, sgName := range stringGroupToRemove {
+			if *sgNode.Name == sgName {
+				sniNode.StringGroupRefs = append(sniNode.StringGroupRefs[:index], sniNode.StringGroupRefs[index+1:]...)
 				break
 			}
 		}
@@ -413,6 +431,7 @@ type AviVsNode struct {
 	Dedicated             bool
 	IsL4VS                bool
 	Secure                bool
+	StringGroupRefs       []*AviStringGroupNode
 
 	AviVsNodeCommonFields
 
@@ -634,6 +653,18 @@ func (v *AviVsNode) GetTenant() string {
 	return v.Tenant
 }
 
+func (v *AviVsNode) GetStringGroupRefs() []*AviStringGroupNode {
+	return v.StringGroupRefs
+}
+
+func (v *AviVsNode) SetStringGroupRefs(stringGroupRefs []*AviStringGroupNode) {
+	v.StringGroupRefs = stringGroupRefs
+}
+
+func (v *AviVsNode) GetPaths() []string {
+	return v.Paths
+}
+
 func (o *AviObjectGraph) GetAviVS() []*AviVsNode {
 	var aviVs []*AviVsNode
 	for _, model := range o.modelNodes {
@@ -721,7 +752,7 @@ func (o *AviVsNode) GetPGForVSByName(pgName string) *AviPoolGroupNode {
 
 func (o *AviVsNode) ReplaceSniPoolInSNINode(newPoolNode *AviPoolNode, key string, isPoolNameLenExceedAviLimit bool) {
 	for i, pool := range o.PoolRefs {
-		if pool.Name == newPoolNode.Name {
+		if pool.Name == newPoolNode.Name || pool.Name == lib.GetEncodedSniPGPoolNameforRegex(newPoolNode.Name) {
 			o.PoolRefs = append(o.PoolRefs[:i], o.PoolRefs[i+1:]...)
 			if !isPoolNameLenExceedAviLimit {
 				// Do not append if length exceeds
@@ -739,7 +770,7 @@ func (o *AviVsNode) ReplaceSniPoolInSNINode(newPoolNode *AviPoolNode, key string
 
 func (o *AviVsNode) ReplaceSniPGInSNINode(newPGNode *AviPoolGroupNode, key string, isPGNameLenExceedAviLimit bool) {
 	for i, pg := range o.PoolGroupRefs {
-		if pg.Name == newPGNode.Name {
+		if pg.Name == newPGNode.Name || pg.Name == lib.GetEncodedSniPGPoolNameforRegex(newPGNode.Name) {
 			o.PoolGroupRefs = append(o.PoolGroupRefs[:i], o.PoolGroupRefs[i+1:]...)
 			if !isPGNameLenExceedAviLimit {
 				// add only when length is not exceed
@@ -836,6 +867,10 @@ func (o *AviVsNode) AddFQDNAliasesToHTTPPolicy(hosts []string, key string) {
 	// Update the hosts in the redirect policy of parent VS
 	for _, policy := range o.HttpPolicyRefs {
 		for j := range policy.RedirectPorts {
+			// do not add host to the redirect rule for app-root which has RedirectPath populated
+			if policy.RedirectPorts[j].RedirectPath != "" {
+				continue
+			}
 			uniqueHosts := sets.NewString(policy.RedirectPorts[j].Hosts...)
 			uniqueHosts.Insert(hosts...)
 			policy.RedirectPorts[j].Hosts = make([]string, uniqueHosts.Len())
@@ -1189,16 +1224,19 @@ func (v *AviHttpPolicySetNode) CopyNode() AviModelNode {
 }
 
 type AviHostPathPortPoolPG struct {
-	Name          string
-	Checksum      uint32
-	Host          []string
-	Path          []string
-	Port          uint32
-	Pool          string
-	PoolGroup     string
-	MatchCriteria string
-	Protocol      string
-	IngName       string
+	Name            string
+	Checksum        uint32
+	Host            []string
+	Path            []string
+	Port            uint32
+	Pool            string
+	PoolGroup       string
+	MatchCriteria   string
+	Protocol        string
+	IngName         string
+	MatchCase       string
+	StringGroupRefs []string
+	SvcPort         int
 }
 
 func (v *AviHostPathPortPoolPG) GetCheckSum() uint32 {
@@ -1209,18 +1247,24 @@ func (v *AviHostPathPortPoolPG) GetCheckSum() uint32 {
 
 func (v *AviHostPathPortPoolPG) CalculateCheckSum() {
 	var checksum uint32
-	sort.Strings(v.Path)
+	if v.Path != nil {
+		sort.Strings(v.Path)
+	}
 	v.Host = nil // Host in http policy is no longer required. TODO: complete removal of its reference from everywhere.
 	checksum = checksum + utils.Hash(utils.Stringify(v))
 	v.Checksum = checksum
 }
 
 type AviRedirectPort struct {
-	Name         string
-	Hosts        []string
-	RedirectPort int32
-	StatusCode   string
-	VsPort       int32
+	Name          string
+	Hosts         []string
+	RedirectPort  int32
+	StatusCode    string
+	VsPort        int32
+	Protocol      string
+	Path          string
+	RedirectPath  string
+	MatchCriteria string
 }
 type AviHTTPSecurity struct {
 	Name          string
@@ -1825,7 +1869,7 @@ func (v *AviStringGroupNode) GetCheckSum() uint32 {
 
 func (v *AviStringGroupNode) CalculateCheckSum() {
 	// A sum of fields for this StringGroup.
-	checksum := lib.StringGroupChecksum(v.Kv, *v.Description, nil, false)
+	checksum := lib.StringGroupChecksum(v.Kv, nil, v.LongestMatch, false)
 	v.CloudConfigCksum = checksum
 }
 
