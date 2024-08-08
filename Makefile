@@ -1,3 +1,4 @@
+SHELL=/bin/bash -o pipefail
 GOCMD=go
 GOBUILD=$(GOCMD) build -buildvcs=false
 GOCLEAN=$(GOCMD) clean
@@ -348,12 +349,11 @@ multitenancytests:
 	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -cpu 4 -mod=vendor $(PACKAGE_PATH_AKO)/tests/multitenancytests -failfast -timeout 0 -coverprofile cover-21.out -coverpkg=./... | buffer -u 500
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multitenancytests -failfast -timeout 0 -coverprofile cover-21.out -coverpkg=./... | buffer -u 500
 
 .PHONY: int_test
 int_test:
 	#make -j 1 k8stest integrationtest ingresstests evhtests vippernstests dedicatedevhtests dedicatedvippernstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc dedicatedvstests hatests calicotests ciliumtests helmtests infratests multitenancytests gatewayapitests
-	sudo sync && sudo sh -c 'echo 2 >  /proc/sys/vm/drop_caches'
 	make -j 1 multitenancytests 
 
 .PHONE: eps_enabled
