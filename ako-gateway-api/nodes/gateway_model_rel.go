@@ -19,6 +19,9 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
+
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
@@ -113,7 +116,10 @@ func GatewayGetGw(namespace, name, key string) ([]string, bool) {
 	var gwHostnames []string
 	//var hostnames map[string]string
 
-	for _, listenerObj := range gwObj.Spec.Listeners {
+	for i, listenerObj := range gwObj.Spec.Listeners {
+		if gwObj.Status.Listeners[i].Conditions[0].Type != string(gatewayv1.ListenerConditionAccepted) && gwObj.Status.Listeners[i].Conditions[0].Status != "True" {
+			continue
+		}
 		gwListener := objects.GatewayListenerStore{}
 		gwListener.Name = string(listenerObj.Name)
 		gwListener.Gateway = gwNsName
@@ -238,7 +244,10 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 	var gatewayList []string
 	var hostnameIntersection []string
 	var gwNsNameList []string
-	for _, parentRef := range hrObj.Spec.ParentRefs {
+	for index, parentRef := range hrObj.Spec.ParentRefs {
+		if hrObj.Status.Parents[index].Conditions[0].Type == string(gatewayv1.RouteConditionAccepted) && hrObj.Status.Parents[index].Conditions[0].Status == metav1.ConditionFalse {
+			continue
+		}
 		ns := namespace
 		if parentRef.Namespace != nil {
 			ns = string(*parentRef.Namespace)

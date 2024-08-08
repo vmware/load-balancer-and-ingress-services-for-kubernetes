@@ -154,13 +154,12 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 	conditionStatus := metav1.ConditionTrue
 
 	if option.Options.Message != "" {
-		conditionType = string(gatewayv1.GatewayConditionAccepted)
+		conditionType = string(gatewayv1.GatewayConditionProgrammed)
 		conditionStatus = metav1.ConditionFalse
 		reason = string(gatewayv1.GatewayReasonInvalid)
 		message = option.Options.Message
 	} else {
 		conditionType = string(gatewayv1.GatewayConditionProgrammed)
-		conditionStatus = metav1.ConditionTrue
 		reason = string(gatewayv1.GatewayReasonProgrammed)
 		message = "Virtual service configured/updated"
 	}
@@ -172,15 +171,25 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 		Message(message).
 		SetIn(&status.Conditions)
 
-	for i := range status.Listeners {
+	for i, listener := range status.Listeners {
 		listenerCondition := NewCondition()
-		listenerCondition.
-			Type(conditionType).
-			Status(conditionStatus).
-			Reason(reason).
-			ObservedGeneration(gw.ObjectMeta.Generation).
-			Message(message).
-			SetIn(&status.Listeners[i].Conditions)
+		if listener.Conditions[0].Type == string(gatewayv1.ListenerConditionAccepted) && listener.Conditions[0].Status == metav1.ConditionTrue && listener.Conditions[1].Type == string(gatewayv1.ListenerConditionResolvedRefs) && listener.Conditions[1].Status == metav1.ConditionTrue {
+			listenerCondition.
+				Type(string(gatewayv1.ListenerConditionProgrammed)).
+				Status(conditionStatus).
+				Reason(string(gatewayv1.ListenerReasonProgrammed)).
+				ObservedGeneration(gw.ObjectMeta.Generation).
+				Message(message).
+				SetIn(&status.Listeners[i].Conditions)
+		} else {
+			listenerCondition.
+				Type(string(gatewayv1.ListenerConditionProgrammed)).
+				Status(metav1.ConditionFalse).
+				Reason(string(gatewayv1.ListenerReasonInvalid)).
+				ObservedGeneration(gw.ObjectMeta.Generation).
+				Message("Virtual service not configured/updated for this listener").
+				SetIn(&status.Listeners[i].Conditions)
+		}
 	}
 	o.Patch(key, gw, &Status{GatewayStatus: status})
 
