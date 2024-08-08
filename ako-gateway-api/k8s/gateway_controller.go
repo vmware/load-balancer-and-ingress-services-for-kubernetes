@@ -124,10 +124,6 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 				return
 			}
 			key := utils.Endpointslices + "/" + namespace + "/" + svcName
-			if lib.IsNamespaceBlocked(namespace) {
-				utils.AviLog.Debugf("key: %s, msg: Endpoint Add event: Namespace: %s didn't qualify filter", key, namespace)
-				return
-			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
@@ -157,10 +153,6 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 				return
 			}
 			key := utils.Endpointslices + "/" + namespace + "/" + svcName
-			if lib.IsNamespaceBlocked(namespace) {
-				utils.AviLog.Debugf("key: %s, msg: Endpointslice Delete event: Namespace: %s didn't qualify filter", key, namespace)
-				return
-			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
@@ -169,20 +161,20 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 			if c.DisableSync {
 				return
 			}
-			oeps := old.(*discovery.EndpointSlice)
-			ceps := cur.(*discovery.EndpointSlice)
-			if oeps.ResourceVersion != ceps.ResourceVersion {
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ceps))
-				svcName, ok := ceps.Labels[discovery.LabelServiceName]
+			oldEndpointSlice := old.(*discovery.EndpointSlice)
+			currentEndpointSlice := cur.(*discovery.EndpointSlice)
+			if oldEndpointSlice.ResourceVersion != currentEndpointSlice.ResourceVersion {
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(currentEndpointSlice))
+				svcName, ok := currentEndpointSlice.Labels[discovery.LabelServiceName]
 				if !ok || svcName == "" {
-					utils.AviLog.Debugf("Endpointslice Delete event: Endpointslice does not have backing svc")
-					return
+					svcNameOld, ok := oldEndpointSlice.Labels[discovery.LabelServiceName]
+					if !ok || svcNameOld == "" {
+						utils.AviLog.Debugf("Endpointslice Update event: Endpointslice does not have backing svc")
+						return
+					}
+					svcName = svcNameOld
 				}
 				key := utils.Endpointslices + "/" + namespace + "/" + svcName
-				if lib.IsNamespaceBlocked(namespace) {
-					utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
-					return
-				}
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)

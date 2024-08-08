@@ -189,7 +189,7 @@ func (c *GatewayController) addIndexers() {
 				discovery.LabelServiceName: func(obj interface{}) ([]string, error) {
 					eps, ok := obj.(*discovery.EndpointSlice)
 					if !ok {
-						utils.AviLog.Debugf("error indexing epslice object by service name")
+						utils.AviLog.Debugf("Error indexing epslice object by service name")
 						return []string{}, nil
 					}
 					if val, ok := eps.Labels[discovery.LabelServiceName]; ok && val != "" {
