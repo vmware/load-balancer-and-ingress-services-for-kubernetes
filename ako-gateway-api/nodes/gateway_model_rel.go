@@ -72,6 +72,11 @@ var (
 		GetGateways: EndpointToGateways,
 		GetRoutes:   EndpointToRoutes,
 	}
+	EndpointSlices = GraphSchema{
+		Type:        utils.Endpointslices,
+		GetGateways: EndpointToGateways,
+		GetRoutes:   EndpointToRoutes,
+	}
 	HTTPRoute = GraphSchema{
 		Type:        lib.HTTPRoute,
 		GetGateways: HTTPRouteToGateway,
@@ -83,6 +88,7 @@ var (
 		Secret,
 		Service,
 		Endpoint,
+		EndpointSlices,
 		HTTPRoute,
 	}
 )

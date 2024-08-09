@@ -869,7 +869,7 @@ func TestHTTPRouteWithBackendRefFilters(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
+	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
 
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 	g.Eventually(func() bool {
@@ -944,6 +944,7 @@ func TestHTTPRouteWithBackendRefFilters(t *testing.T) {
 		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
 	}
 	akogatewayapitests.ValidateHTTPRouteStatus(t, &httpRoute.Status, &gatewayv1.HTTPRouteStatus{RouteStatus: *expectedRouteStatus})
+	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName)
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
 	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)

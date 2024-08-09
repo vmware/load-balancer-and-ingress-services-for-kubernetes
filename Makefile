@@ -339,6 +339,7 @@ helmtests:
 .PHONY: gatewayapitests
 gatewayapitests:
 	sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/... -failfast -timeout 0 -coverprofile cover-20.out -coverpkg=./...
@@ -356,7 +357,7 @@ int_test:
 
 .PHONE: eps_enabled
 eps_enabled:
-	make -j 1 k8stest integrationtest ingresstests evhtests dedicatedevhtests oshiftroutetests npltests dedicatedvstests ENDPOINTSLICES_ENABLED="true"  
+	make -j 1 k8stest integrationtest ingresstests evhtests dedicatedevhtests oshiftroutetests npltests dedicatedvstests gatewayapitests ENDPOINTSLICES_ENABLED="true"  
 
 .PHONY: scale_test
 scale_test:
