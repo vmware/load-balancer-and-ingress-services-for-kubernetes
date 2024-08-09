@@ -44,6 +44,7 @@ func GatewayApiLister() *GWLister {
 			gatewayToHostnameStore:         objects.NewObjectMapStore(),
 			gatewayListenerToHostnameStore: objects.NewObjectMapStore(),
 			gatewayRouteToHostnameStore:    objects.NewObjectMapStore(),
+			gatewayRouteToHTTPSPGPoolStore: objects.NewObjectMapStore(),
 		}
 	})
 	return gwLister
@@ -102,6 +103,10 @@ type GWLister struct {
 	//FQDNs in parent VS
 	//gatewayns/gatewayname -> [hostname, ...]
 	gatewayRouteToHostnameStore *objects.ObjectMapStore
+
+	// HTTPPS, PG, Pool in parent VS
+	// gatewayns/gatewayname + routenamespace/routename --> [HTTPPS, PG, Pool]
+	gatewayRouteToHTTPSPGPoolStore *objects.ObjectMapStore
 }
 
 type GatewayRouteKind struct {
@@ -116,6 +121,14 @@ type GatewayListenerStore struct {
 	Gateway           string
 	AllowedRouteNs    string
 	AllowedRouteTypes []GatewayRouteKind
+}
+
+// This struct is used to store HTTPPS, PG, Pool associated with Parent VS (HTTPRoute that is mapped to parent VS)
+
+type HTTPPSPGPool struct {
+	HTTPPS    []string
+	PoolGroup []string
+	Pool      []string
 }
 
 func (g *GWLister) IsGatewayClassControllerAKO(gwClass string) (bool, bool) {
@@ -813,4 +826,33 @@ func (g *GWLister) GetGatewayRouteToHostname(gwNsName string) (bool, []string) {
 		return true, hostnames.([]string)
 	}
 	return false, []string{}
+}
+
+// == All GW+route to HTTPS, PG , pool mapping
+func (g *GWLister) UpdateGatewayRouteToHTTPPSPGPool(gwRouteNsName string, httpPSPGPool HTTPPSPGPool) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	var localHTTPPSPGPool HTTPPSPGPool
+	localHTTPPSPGPool.HTTPPS = append(localHTTPPSPGPool.HTTPPS, httpPSPGPool.HTTPPS...)
+	localHTTPPSPGPool.PoolGroup = append(localHTTPPSPGPool.PoolGroup, httpPSPGPool.PoolGroup...)
+	localHTTPPSPGPool.Pool = append(localHTTPPSPGPool.Pool, httpPSPGPool.Pool...)
+	g.gatewayRouteToHTTPSPGPoolStore.AddOrUpdate(gwRouteNsName, localHTTPPSPGPool)
+
+}
+
+func (g *GWLister) GetGatewayRouteToHTTPSPGPool(gwRouteNsName string) (bool, HTTPPSPGPool) {
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
+
+	found, hostnames := g.gatewayRouteToHTTPSPGPoolStore.Get(gwRouteNsName)
+	if found {
+		return true, hostnames.(HTTPPSPGPool)
+	}
+	return false, HTTPPSPGPool{}
+}
+
+func (g *GWLister) DeleteGatewayRouteToHTTPSPGPool(gwRouteNsName string) {
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
+	g.gatewayRouteToHTTPSPGPoolStore.Delete(gwRouteNsName)
 }

@@ -15,6 +15,7 @@
 package lib
 
 import (
+	"fmt"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -48,17 +49,28 @@ func GetGatewayParentName(namespace, gwName string) string {
 
 // child vs name format - ako-gw-clustername--encoded value of ako-gw-clustername--parentNs-parentName-routeNs-routeName-encodedMatch
 func GetChildName(parentNs, parentName, routeNs, routeName, matchName string) string {
-	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-" + utils.Stringify(utils.Hash(matchName))
+	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName
+	if matchName != "" {
+		name = fmt.Sprintf("%s-%s", name, utils.Stringify(utils.Hash(matchName)))
+	}
 	return lib.Encode(name, lib.EVHVS)
 }
 
 func GetPoolName(parentNs, parentName, routeNs, routeName, matchName, backendNs, backendName, backendPort string) string {
-	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-" + utils.Stringify(utils.Hash(matchName)) + "-" + backendNs + "-" + backendName + "-" + backendPort
+	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-"
+	if matchName != "" {
+		name = fmt.Sprintf("%s%s-", name, utils.Stringify(utils.Hash(matchName)))
+	}
+	name = fmt.Sprintf("%s%s-%s-%s", name, backendNs, backendName, backendPort)
 	return lib.Encode(name, lib.Pool)
 }
 
 func GetPoolGroupName(parentNs, parentName, routeNs, routeName, matchName string) string {
-	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-" + utils.Stringify(utils.Hash(matchName))
+	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName
+	if matchName != "" {
+		// TODO: Test it out
+		name = fmt.Sprintf("%s-%s", name, utils.Stringify(utils.Hash(matchName)))
+	}
 	return lib.Encode(name, lib.PG)
 }
 
@@ -67,6 +79,10 @@ func GetDataScriptName() string {
 	return lib.Encode(name, lib.EVHVS)
 }
 
+func GetHTTPRuleName(parentNs, parentName, routeNs, routeName, matchName string) string {
+	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-" + utils.Stringify(utils.Hash(matchName))
+	return lib.Encode(name, lib.HPPMAP)
+}
 func CheckGatewayClassController(controllerName string) bool {
 	return controllerName == lib.AviIngressController
 }

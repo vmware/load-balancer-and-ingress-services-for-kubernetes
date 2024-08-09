@@ -15,9 +15,8 @@
 package nodes
 
 import (
-	"strings"
-
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
@@ -161,12 +160,18 @@ func GatewayGetGw(namespace, name, key string) ([]string, bool) {
 			}
 		}
 		listeners = append(listeners, gwListener)
-		hostnames[string(listenerObj.Name)] = string(*listenerObj.Hostname)
-		gwHostnames = append(gwHostnames, string(*listenerObj.Hostname))
+		if listenerObj.Hostname != nil && string(*listenerObj.Hostname) != "" {
+			hostnames[string(listenerObj.Name)] = string(*listenerObj.Hostname)
+			gwHostnames = append(gwHostnames, string(*listenerObj.Hostname))
+		} else {
+			hostnames[string(listenerObj.Name)] = utils.WILDCARD
+			gwHostnames = append(gwHostnames, utils.WILDCARD)
+		}
 
 	}
+	uniqueHostnames := sets.NewString(gwHostnames...)
 	//TODO: verify hostname overlap here or use the store updated from here
-	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToHostnames(gwNsName, gwHostnames)
+	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToHostnames(gwNsName, uniqueHostnames.List())
 
 	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToListener(gwNsName, listeners)
 	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToSecret(gwNsName, secrets)
@@ -251,6 +256,7 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 		listeners := akogatewayapiobjects.GatewayApiLister().GetGatewayToListeners(gwNsName)
 		for _, listener := range listeners {
 			//check if namespace is allowed
+			// TODO: akshay: add selector condition here.
 			if (len(listener.AllowedRouteTypes) == 0 || utils.HasElem(listener.AllowedRouteTypes, httpGroupKind)) &&
 				(listener.AllowedRouteNs == akogatewayapilib.AllowedRoutesNamespaceFromAll || listener.AllowedRouteNs == hrObj.Namespace) {
 				//if provided, check if section name and port matches
@@ -259,17 +265,20 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 
 					gwListenerNsName := gwNsName + "/" + listener.Name
 					listenerHostname := akogatewayapiobjects.GatewayApiLister().GetGatewayListenerToHostname(gwListenerNsName)
-					if strings.HasPrefix(listenerHostname, "*") {
-						listenerHostname = listenerHostname[1:]
-					}
+
 					hostnameMatched := false
 					for _, routeHostname := range hrObj.Spec.Hostnames {
-						if strings.HasSuffix(string(routeHostname), listenerHostname) && akogatewayapilib.VerifyHostnameSubdomainMatch(string(routeHostname)) {
-							hostnameIntersection = append(hostnameIntersection, string(routeHostname))
-							hostnameMatched = true
+						// When Gateway hostname is empty, then just check validity of hostname and append it.
+						// When hostname in HTTProute has wildcard
+						// When there is exact match
+						if listenerHostname == "" || utils.CheckSubdomainOverlapping(string(routeHostname), listenerHostname) {
+							if akogatewayapilib.VerifyHostnameSubdomainMatch(string(routeHostname)) {
+								hostnameIntersection = append(hostnameIntersection, string(routeHostname))
+								hostnameMatched = true
+							}
 						}
 					}
-					if hostnameMatched && !utils.HasElem(listenerList, listener) {
+					if (hostnameMatched && !utils.HasElem(listenerList, listener)) || len(hrObj.Spec.Hostnames) == 0 {
 						gatewayListenerList = append(listenerList, listener)
 					}
 				}

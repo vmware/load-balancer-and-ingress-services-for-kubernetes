@@ -283,7 +283,7 @@ func TestGatewayInvalidAddress(t *testing.T) {
 	waitAndverify(t, gwKey)
 }
 
-func TestGatewayInvalidListenerHostname(t *testing.T) {
+func TestGatewayWildcardHostname(t *testing.T) {
 	gwName := "gw-example-03"
 	gwClassName := "gw-class-example-03"
 	gwKey := "Gateway/" + DEFAULT_NAMESPACE + "/" + gwName
@@ -309,9 +309,18 @@ func TestGatewayInvalidListenerHostname(t *testing.T) {
 		t.Fatalf("Couldn't create, err: %+v", err)
 	}
 	t.Logf("Created %+v", gw.Name)
-	waitAndverify(t, "")
+	waitAndverify(t, gwKey)
 
-	//update
+	//update with empty
+	akogatewayapitests.SetListenerHostname(&gateway.Spec.Listeners[0], "")
+	gw, err = akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Update(context.TODO(), &gateway, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't update, err: %+v", err)
+	}
+	t.Logf("Updated %+v", gw.Name)
+	waitAndverify(t, gwKey)
+
+	//update with wildcard fqdn
 	akogatewayapitests.SetListenerHostname(&gateway.Spec.Listeners[0], "*.example.com")
 	gw, err = akogatewayapitests.GatewayClient.GatewayV1().Gateways("default").Update(context.TODO(), &gateway, metav1.UpdateOptions{})
 	if err != nil {
@@ -379,7 +388,7 @@ func TestGatewayInvalidListenerTLS(t *testing.T) {
 		waitAndverify(t, "Secret/"+DEFAULT_NAMESPACE+"/"+secret)
 	}
 
-	listeners := akogatewayapitests.GetListenersV1(ports, secrets...)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, secrets...)
 	tlsModePassthrough := gatewayv1.TLSModePassthrough
 	listeners[0].TLS.Mode = &tlsModePassthrough
 	//create
@@ -514,7 +523,7 @@ func TestMultipleGatewayOverlappingHostname(t *testing.T) {
 		t.Fatalf("Couldn't create, err: %+v", err)
 	}
 	t.Logf("Created %+v", gw.Name)
-	waitAndverify(t, "")
+	waitAndverify(t, gwKey2)
 
 	//delete
 	akogatewayapitests.TeardownGateway(t, gwName1, DEFAULT_NAMESPACE)

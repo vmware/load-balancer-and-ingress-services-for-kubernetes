@@ -34,7 +34,7 @@ import (
 
 func isRegexMatch(stringWithWildCard string, stringToBeMatched string, key string) bool {
 	// replace the wildcard character with a regex
-	replacedHostname := strings.Replace(stringWithWildCard, "*", "([a-zA-Z0-9-]{1,})", 1)
+	replacedHostname := strings.Replace(stringWithWildCard, utils.WILDCARD, utils.FQDN_LABEL_REGEX, 1)
 	// create the expression for pattern matching
 	pattern := fmt.Sprintf("^%s$", replacedHostname)
 	expr, err := regexp.Compile(pattern)
@@ -148,15 +148,6 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 		Status(metav1.ConditionFalse).
 		ObservedGeneration(gateway.ObjectMeta.Generation)
 
-	// hostname is not nil or wildcard
-	if listener.Hostname == nil || *listener.Hostname == "*" {
-		utils.AviLog.Errorf("key: %s, msg: hostname is either wildcard or empty in listener %s", key, listener.Name)
-		defaultCondition.
-			Message("Hostname not found or Hostname has invalid configuration").
-			SetIn(&gatewayStatus.Listeners[index].Conditions)
-		return false
-	}
-
 	// hostname should not overlap with hostname of an existing gateway
 	gatewayNsList, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(gateway.Namespace).List(labels.Set(nil).AsSelector())
 	if err != nil {
@@ -166,21 +157,27 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 	for _, gatewayInNamespace := range gatewayNsList {
 		if gateway.Name != gatewayInNamespace.Name {
 			for _, gwListener := range gatewayInNamespace.Spec.Listeners {
-				if *listener.Hostname == *gwListener.Hostname || isRegexMatch(string(*listener.Hostname), string(*gwListener.Hostname), key) || isRegexMatch(string(*gwListener.Hostname), string(*listener.Hostname), key) {
-					utils.AviLog.Errorf("key: %s, msg: Hostname overlaps or is same as an existing gateway %s hostname %s", key, gatewayInNamespace.Name, *gwListener.Hostname)
+				if gwListener.Hostname == nil {
+					continue
+				}
+				if listener.Hostname != nil && *listener.Hostname == *gwListener.Hostname {
+					utils.AviLog.Errorf("key: %s, msg: Hostname is same as an existing gateway %s hostname %s", key, gatewayInNamespace.Name, *gwListener.Hostname)
 					defaultCondition.
-						Message("Hostname overlaps or is same as an existing gateway hostname").
+						Message("Hostname is same as an existing gateway hostname").
 						SetIn(&gatewayStatus.Listeners[index].Conditions)
 					return false
 				}
 			}
 		}
 	}
-	if !akogatewayapilib.VerifyHostnameSubdomainMatch(string(*listener.Hostname)) {
-		defaultCondition.
-			Message(fmt.Sprintf("Didn't find match for hostname :%s in available sub-domains", string(*listener.Hostname))).
-			SetIn(&gatewayStatus.Listeners[index].Conditions)
-		return false
+	// do not check subdomain for empty or * hostname
+	if listener.Hostname != nil && *listener.Hostname != utils.WILDCARD && *listener.Hostname != "" {
+		if !akogatewayapilib.VerifyHostnameSubdomainMatch(string(*listener.Hostname)) {
+			defaultCondition.
+				Message(fmt.Sprintf("Didn't find match for hostname :%s in available sub-domains", string(*listener.Hostname))).
+				SetIn(&gatewayStatus.Listeners[index].Conditions)
+			return false
+		}
 	}
 
 	// protocol validation
@@ -262,15 +259,6 @@ func IsHTTPRouteValid(key string, obj *gatewayv1.HTTPRoute) bool {
 	if len(httpRoute.Spec.ParentRefs) == 0 {
 		utils.AviLog.Errorf("key: %s, msg: Parent Reference is empty for the HTTPRoute %s", key, httpRoute.Name)
 		return false
-	}
-
-	for _, hostname := range httpRoute.Spec.Hostnames {
-		if strings.Contains(string(hostname), "*") {
-			utils.AviLog.Errorf("key: %s, msg: Wildcard in hostname is not supported for the HTTPRoute %s", key, httpRoute.Name)
-			akogatewayapilib.AKOControlConfig().EventRecorder().Eventf(httpRoute, corev1.EventTypeWarning,
-				lib.Detached, "Wildcard in hostname is not supported for the HTTPRoute %s", httpRoute.Name)
-			return false
-		}
 	}
 
 	httpRouteStatus := obj.Status.DeepCopy()
@@ -378,27 +366,65 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		listenersForRoute = append(listenersForRoute, gateway.Spec.Listeners...)
 	}
 
+	// TODO: Validation for hostname (those being fqdns) need to validate as per the K8 gateway req.
 	var listenersMatchedToRoute []gatewayv1.Listener
 	for _, listenerObj := range listenersForRoute {
 		// check from store
 		hostInListener := listenerObj.Hostname
+		isListenerFqdnWildcard := false
+		matched := false
+		// TODO:
+		// Use case to handle for validations of hostname:
+		// USe case 1: Shouldn't contain mor than 1 *
+		// USe case 2: * should be at the beginning only
+		if hostInListener == nil || *hostInListener == "" || *hostInListener == utils.WILDCARD {
+			matched = true
+		} else {
+			// mark listener fqdn if it has *
+			if strings.HasPrefix(string(*hostInListener), utils.WILDCARD) {
+				isListenerFqdnWildcard = true
+			}
+			for _, host := range httpRoute.Spec.Hostnames {
+				// casese to consider:
+				// Case 1: hostname of gateway is wildcard(empty) and hostname from httproute is not wild card
+				// Case 2: hostname of gateway is not wild card and hostname from httproute is wildcard
+				// case 3: hostname of gateway is wildcard(empty) and hostname from httproute is wildcard
+				// case 4: hostname of gateway is not wildcard and hostname from httproute is not wildcard
+				isHttpRouteHostFqdnWildcard := false
+				if strings.HasPrefix(string(host), utils.WILDCARD) {
+					isHttpRouteHostFqdnWildcard = true
+				}
+				if isHttpRouteHostFqdnWildcard && isListenerFqdnWildcard {
+					// both are true. Match nonwildcard part
+					// Use case: 1. GW: *.avi.internal HttpRoute: *.bar.avi.internal
+					// USe case: 2. GW: *.bar.avi.internal HttpRoute: *.avi.internal
+					if utils.CheckSubdomainOverlapping(string(host), string(*hostInListener)) {
+						matched = true
+						break
+					}
 
-		if hostInListener == nil {
-			utils.AviLog.Errorf("key: %s, msg: no hostname found in parent", key)
-			continue
-		}
-		// replace the wildcard character with a regex
-		replacedHostname := strings.Replace(string(*hostInListener), "*", "([a-zA-Z0-9-]{1,})", 1)
-		// create the expression for pattern matching
-		pattern := fmt.Sprintf("^%s$", replacedHostname)
-		expr, err := regexp.Compile(pattern)
-		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: unable to match the hostname with listener hostname. err: %s", key, err)
-			continue
-		}
-		var matched bool
-		for _, host := range httpRoute.Spec.Hostnames {
-			matched = matched || expr.MatchString(string(host))
+				} else if !isHttpRouteHostFqdnWildcard && !isListenerFqdnWildcard {
+					// both are complete fqdn
+					if string(host) == string(*hostInListener) {
+						matched = true
+						break
+					}
+				} else {
+					if isHttpRouteHostFqdnWildcard {
+						// httpRoute hostFqdn is wildcard
+						matched = matched || isRegexMatch(string(host), string(*hostInListener), key)
+					} else if isListenerFqdnWildcard {
+						// listener fqdn is wildcard
+						matched = matched || isRegexMatch(string(*hostInListener), string(host), key)
+					}
+
+				}
+
+			}
+			// if there are no hostnames specified, all parent listneres should be matched.
+			if len(httpRoute.Spec.Hostnames) == 0 {
+				matched = true
+			}
 		}
 		if !matched {
 			utils.AviLog.Warnf("key: %s, msg: Gateway object %s don't have any listeners that matches the hostnames in HTTPRoute %s", key, gateway.Name, httpRoute.Name)
