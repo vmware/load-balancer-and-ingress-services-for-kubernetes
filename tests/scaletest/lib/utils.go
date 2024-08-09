@@ -16,6 +16,7 @@ package lib
 
 import (
 	"encoding/json"
+	"net/url"
 	"os"
 	"reflect"
 	"strconv"
@@ -51,6 +52,13 @@ type errorString struct {
 
 func (e *errorString) Error() string {
 	return e.s
+}
+
+func GetUriEncoded(uri string) string {
+	if uriSplit := strings.SplitN(uri, "?", 2); len(uriSplit) == 2 {
+		return uriSplit[0] + "?" + url.QueryEscape(uriSplit[1])
+	}
+	return uri
 }
 
 func SharedAVIClients(numClients uint32) ([]*clients.AviClient, error) {
@@ -96,7 +104,7 @@ func FetchVirtualServices(t *testing.T, AviClient *clients.AviClient, Nextpage .
 	}
 
 	uri := "/api/virtualservice?page=" + strconv.Itoa(page_num)
-	result, err := AviClient.AviSession.GetCollectionRaw(uri)
+	result, err := AviClient.AviSession.GetCollectionRaw(GetUriEncoded(uri))
 	if err != nil {
 		t.Errorf("Get uri %v returned err for VS %v", uri, err)
 	}
@@ -129,7 +137,7 @@ func FetchPoolGroup(t *testing.T, AviClient *clients.AviClient, Nextpage ...int)
 	}
 
 	uri := "/api/poolgroup?page=" + strconv.Itoa(page_num)
-	result, err := AviClient.AviSession.GetCollectionRaw(uri)
+	result, err := AviClient.AviSession.GetCollectionRaw(GetUriEncoded(uri))
 	if err != nil {
 		t.Errorf("Get uri %v returned err for pg %v", uri, err)
 	}
@@ -162,7 +170,7 @@ func FetchPools(t *testing.T, AviClient *clients.AviClient, Nextpage ...int) []m
 	}
 	uri := "/api/pool?page=" + strconv.Itoa(page_num)
 
-	result, err := AviClient.AviSession.GetCollectionRaw(uri)
+	result, err := AviClient.AviSession.GetCollectionRaw(GetUriEncoded(uri))
 	if err != nil {
 		t.Errorf("Get uri %v returned err for pool %v", uri, err)
 	}
@@ -194,7 +202,7 @@ func FetchDNSARecordsFQDN(t *testing.T, AviClient *clients.AviClient, Nextpage .
 		page_num = 1
 	}
 	uri := "/api/virtualservice?page=" + strconv.Itoa(page_num)
-	result, err := AviClient.AviSession.GetCollectionRaw(uri)
+	result, err := AviClient.AviSession.GetCollectionRaw(GetUriEncoded(uri))
 	if err != nil {
 		t.Errorf("Get uri %v returned err for VS %v", uri, err)
 	}
@@ -223,7 +231,7 @@ func FetchVirtualServiceOperStatus(t *testing.T, AviClient *clients.AviClient) [
 	OperStatus := []VirtualServiceInventoryRuntime{}
 	uri := "/api/virtualservice-inventory?page=1"
 	page_num := 1
-	result, err := AviClient.AviSession.GetCollectionRaw(uri)
+	result, err := AviClient.AviSession.GetCollectionRaw(GetUriEncoded(uri))
 	if err != nil {
 		t.Errorf("Get uri %v returned err for VS %v", uri, err)
 	}
@@ -248,7 +256,7 @@ func FetchVirtualServiceOperStatus(t *testing.T, AviClient *clients.AviClient) [
 	for result.Next != "" {
 		page_num = page_num + 1
 		uri := "/api/virtualservice-inventory?page=" + strconv.Itoa(page_num)
-		result, err = AviClient.AviSession.GetCollectionRaw(uri)
+		result, err = AviClient.AviSession.GetCollectionRaw(GetUriEncoded(uri))
 		if err != nil {
 			t.Errorf("Get uri %v returned err for VS %v", uri, err)
 		}
@@ -480,7 +488,7 @@ func CheckForUnwantedAPICallsToController(t *testing.T, AviClient *clients.AviCl
 		"&end=" + end +
 		"&page=" + strconv.Itoa(page_num)
 
-	result, err := AviClient.AviSession.GetCollectionRaw(uri)
+	result, err := AviClient.AviSession.GetCollectionRaw(GetUriEncoded(uri))
 	if err != nil {
 		t.Errorf("Get uri %v returned err for Event log %v", uri, err)
 	}

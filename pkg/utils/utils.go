@@ -646,3 +646,9 @@ func CheckSubdomainOverlapping(hostName1, hostName2 string) bool {
 	}
 	return true
 }
+func GetUriEncoded(uri string) string {
+	if uriSplit := strings.SplitN(uri, "?", 2); len(uriSplit) == 2 {
+		return uriSplit[0] + "?" + url.QueryEscape(uriSplit[1])
+	}
+	return uri
+}

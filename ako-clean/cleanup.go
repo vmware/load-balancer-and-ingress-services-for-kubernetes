@@ -204,7 +204,7 @@ func waitTillDeletion(uri string, client *clients.AviClient, retry int) error {
 		return fmt.Errorf("resource not deleted under expected time")
 	}
 	var response interface{}
-	err := client.AviSession.Get(uri, &response)
+	err := client.AviSession.Get(utils.GetUriEncoded(uri), &response)
 	if err != nil {
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 404 {
 			return nil
