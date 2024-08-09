@@ -67,11 +67,13 @@ func (c *GatewayController) InitGatewayAPIInformers(cs gatewayclientset.Interfac
 
 func (c *GatewayController) Start(stopCh <-chan struct{}) {
 	go c.informers.ServiceInformer.Informer().Run(stopCh)
-	go c.informers.EpInformer.Informer().Run(stopCh)
 
 	informersList := []cache.InformerSynced{
-		c.informers.EpInformer.Informer().HasSynced,
 		c.informers.ServiceInformer.Informer().HasSynced,
+	}
+	if lib.GetServiceType() != lib.NodePortLocal {
+		go c.informers.EpInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.informers.EpInformer.Informer().HasSynced)
 	}
 
 	if !lib.AviSecretInitialized {
@@ -103,71 +105,72 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 	c.workqueue = mcpQueue.Workqueue
 	numWorkers := mcpQueue.NumWorkers
 
-	epEventHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			ep := obj.(*corev1.Endpoints)
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
-			key := utils.Endpoints + "/" + utils.ObjKey(ep)
-			if lib.IsNamespaceBlocked(namespace) {
-				utils.AviLog.Debugf("key: %s, msg: Endpoint Add event: Namespace: %s didn't qualify filter", key, namespace)
-				return
-			}
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: ADD", key)
-		},
-		DeleteFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			ep, ok := obj.(*corev1.Endpoints)
-			if !ok {
-				// endpoints were deleted but its final state is unrecorded.
-				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-				if !ok {
-					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+	if lib.GetServiceType() != lib.NodePortLocal {
+		epEventHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if c.DisableSync {
 					return
 				}
-				ep, ok = tombstone.Obj.(*corev1.Endpoints)
-				if !ok {
-					utils.AviLog.Errorf("Tombstone contained object that is not an Endpoints: %#v", obj)
+				ep := obj.(*corev1.Endpoints)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
+				key := utils.Endpoints + "/" + utils.ObjKey(ep)
+				if lib.IsNamespaceBlocked(namespace) {
+					utils.AviLog.Debugf("key: %s, msg: Endpoint Add event: Namespace: %s didn't qualify filter", key, namespace)
 					return
 				}
-			}
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
-			key := utils.Endpoints + "/" + utils.ObjKey(ep)
-			if lib.IsNamespaceBlocked(namespace) {
-				utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
-				return
-			}
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-		},
-		UpdateFunc: func(old, cur interface{}) {
-			if c.DisableSync {
-				return
-			}
-			oep := old.(*corev1.Endpoints)
-			cep := cur.(*corev1.Endpoints)
-			if !reflect.DeepEqual(cep.Subsets, oep.Subsets) {
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(cep))
-				key := utils.Endpoints + "/" + utils.ObjKey(cep)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			},
+			DeleteFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				ep, ok := obj.(*corev1.Endpoints)
+				if !ok {
+					// endpoints were deleted but its final state is unrecorded.
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					ep, ok = tombstone.Obj.(*corev1.Endpoints)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not an Endpoints: %#v", obj)
+						return
+					}
+				}
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
+				key := utils.Endpoints + "/" + utils.ObjKey(ep)
 				if lib.IsNamespaceBlocked(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
 					return
 				}
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-			}
-		},
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			},
+			UpdateFunc: func(old, cur interface{}) {
+				if c.DisableSync {
+					return
+				}
+				oep := old.(*corev1.Endpoints)
+				cep := cur.(*corev1.Endpoints)
+				if !reflect.DeepEqual(cep.Subsets, oep.Subsets) {
+					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(cep))
+					key := utils.Endpoints + "/" + utils.ObjKey(cep)
+					if lib.IsNamespaceBlocked(namespace) {
+						utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
+						return
+					}
+					bkt := utils.Bkt(namespace, numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				}
+			},
+		}
+		c.informers.EpInformer.Informer().AddEventHandler(epEventHandler)
 	}
-	c.informers.EpInformer.Informer().AddEventHandler(epEventHandler)
-
 	svcEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -297,6 +300,100 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 	}
 	if c.informers.SecretInformer != nil {
 		c.informers.SecretInformer.Informer().AddEventHandler(secretEventHandler)
+	}
+
+	if lib.GetServiceType() == lib.NodePortLocal {
+		podEventHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				pod := obj.(*corev1.Pod)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(pod))
+				key := utils.Pod + "/" + utils.ObjKey(pod)
+				if lib.IsNamespaceBlocked(namespace) {
+					utils.AviLog.Debugf("key : %s, msg: Pod Add event: Namespace: %s didn't qualify filter", key, namespace)
+					return
+				}
+				ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
+				if ok && resVer.(string) == pod.ResourceVersion {
+					utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
+					return
+				}
+				if _, ok := pod.GetAnnotations()[lib.NPLPodAnnotation]; !ok {
+					utils.AviLog.Warnf("key : %s, msg: 'nodeportlocal.antrea.io' annotation not found, ignoring the pod", key)
+					return
+				}
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			},
+			DeleteFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				pod, ok := obj.(*corev1.Pod)
+				if !ok {
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					pod, ok = tombstone.Obj.(*corev1.Pod)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not a Pod: %#v", obj)
+						return
+					}
+				}
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(pod))
+				key := utils.Pod + "/" + utils.ObjKey(pod)
+				if lib.IsNamespaceBlocked(namespace) {
+					utils.AviLog.Debugf("key: %s, msg: Pod Delete event: Namespace: %s didn't qualify filter", key, namespace)
+					return
+				}
+				if _, ok := pod.GetAnnotations()[lib.NPLPodAnnotation]; !ok {
+					utils.AviLog.Warnf("key : %s, msg: 'nodeportlocal.antrea.io' annotation not found, ignoring the pod", key)
+					return
+				}
+				bkt := utils.Bkt(namespace, numWorkers)
+				objects.SharedResourceVerInstanceLister().Delete(key)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			},
+			UpdateFunc: func(old, cur interface{}) {
+				if c.DisableSync {
+					return
+				}
+				oldPod := old.(*corev1.Pod)
+				newPod := cur.(*corev1.Pod)
+				key := utils.Pod + "/" + utils.ObjKey(oldPod)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newPod))
+				if lib.IsNamespaceBlocked(namespace) {
+					utils.AviLog.Debugf("key: %s, msg: Pod Update event: Namespace: %s didn't qualify filter", key, namespace)
+					return
+				}
+				if _, ok := newPod.GetAnnotations()[lib.NPLPodAnnotation]; !ok {
+					utils.AviLog.Warnf("key : %s, msg: 'nodeportlocal.antrea.io' annotation not found, ignoring the pod", key)
+					return
+				}
+				for _, container := range newPod.Status.ContainerStatuses {
+					if !container.Ready {
+						if container.State.Terminated != nil {
+							utils.AviLog.Warnf("key : %s, msg: Container %s is in terminated state, ignoring pod update", key, container.Name)
+							return
+						}
+						if container.State.Waiting != nil && container.State.Waiting.Reason == "CrashLoopBackOff" {
+							utils.AviLog.Warnf("key : %s, msg: Container %s is in CrashLoopBackOff state, ignoring pod update", key, container.Name)
+							return
+						}
+					}
+				}
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+			},
+		}
+		c.informers.PodInformer.Informer().AddEventHandler(podEventHandler)
 	}
 }
 

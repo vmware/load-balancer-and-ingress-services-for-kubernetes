@@ -1413,6 +1413,8 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 	// AKO must watch over Pods in case of NodePortLocal, to get Antrea annotation values.
 	if GetServiceType() == NodePortLocal {
 		allInformers = append(allInformers, utils.PodInformer)
+	} else {
+		allInformers = append(allInformers, utils.EndpointInformer)
 	}
 
 	// Watch over Ingresses for AKO deployment in WCP with NSX.
