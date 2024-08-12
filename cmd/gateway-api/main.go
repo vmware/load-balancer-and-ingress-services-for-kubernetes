@@ -91,6 +91,7 @@ func Initialize() {
 	lib.SetNamePrefix(akogatewaylib.Prefix)
 	//TODO handle leader logic, must not be used with HA
 	lib.AKOControlConfig().SetIsLeaderFlag(true)
+	lib.AKOControlConfig().SetEndpointSlicesEnabled(lib.GetEndpointSliceEnabled())
 
 	gwApiClient, err := gatewayclientset.NewForConfig(cfg)
 	if err != nil {
