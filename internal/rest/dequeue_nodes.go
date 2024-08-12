@@ -1812,7 +1812,13 @@ func (rest *RestOperations) KeyCertCU(sslkey_nodes []*nodes.AviTLSKeyCertNode, c
 func (rest *RestOperations) SSLKeyCertDelete(ssl_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
 	utils.AviLog.Debugf("key: %s, msg: about to delete ssl keycert %s", key, utils.Stringify(ssl_to_delete))
 	var noCARefRestOps []*utils.RestOp
+	defaultRouteCertName := lib.GetTLSKeyCertNodeName("", "", lib.GetDefaultSecretForRoutes())
+	defaultRouteAltCertName := lib.GetTLSKeyCertNodeName("", "", lib.GetDefaultSecretForRoutes()+"-alt")
 	for _, del_ssl := range ssl_to_delete {
+		// Skip SSL cert deletion if it maps to the Default Router Cert
+		if del_ssl.Name == defaultRouteCertName || del_ssl.Name == defaultRouteAltCertName {
+			continue
+		}
 		ssl_key := avicache.NamespaceName{Namespace: namespace, Name: del_ssl.Name}
 		ssl_cache, ok := rest.cache.SSLKeyCache.AviCacheGet(ssl_key)
 		if ok {
