@@ -35,13 +35,10 @@ func InformersToRegister(kclient *kubernetes.Clientset) ([]string, error) {
 		utils.SecretInformer,
 		utils.ConfigMapInformer,
 	}
+
 	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
 		allInformers = append(allInformers, utils.EndpointSlicesInformer)
-	} else if lib.GetServiceType() != lib.NodePortLocal {
-		allInformers = append(allInformers, utils.EndpointInformer)
-	}
-
-	if lib.GetServiceType() == lib.NodePortLocal {
+	} else if lib.GetServiceType() == lib.NodePortLocal {
 		allInformers = append(allInformers, utils.PodInformer)
 	} else {
 		allInformers = append(allInformers, utils.EndpointInformer)

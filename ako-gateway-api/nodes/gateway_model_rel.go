@@ -470,7 +470,7 @@ func PodToGateway(namespace, name, key string) ([]string, bool) {
 	ann := pod.GetAnnotations()
 	var annotations []lib.NPLAnnotation
 	if err := json.Unmarshal([]byte(ann[lib.NPLPodAnnotation]), &annotations); err != nil {
-		utils.AviLog.Infof("key: %s, got error while unmarshaling NPL annotations: %v", key, err)
+		utils.AviLog.Warnf("key: %s, got error while unmarshaling NPL annotations: %v", key, err)
 	}
 	objects.SharedNPLLister().Save(podNsName, annotations)
 

@@ -1407,11 +1407,7 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 	}
 	if AKOControlConfig().GetEndpointSlicesEnabled() {
 		allInformers = append(allInformers, utils.EndpointSlicesInformer)
-	} else if GetServiceType() != NodePortLocal {
-		allInformers = append(allInformers, utils.EndpointInformer)
-	}
-	// AKO must watch over Pods in case of NodePortLocal, to get Antrea annotation values.
-	if GetServiceType() == NodePortLocal {
+	} else if GetServiceType() == NodePortLocal {
 		allInformers = append(allInformers, utils.PodInformer)
 	} else {
 		allInformers = append(allInformers, utils.EndpointInformer)

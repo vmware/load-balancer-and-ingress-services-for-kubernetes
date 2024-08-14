@@ -75,7 +75,6 @@ func TestMain(m *testing.M) {
 		utils.NSInformer,
 		utils.PodInformer,
 	}
-	utils.AviLog.SetLevel("DEBUG")
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: tests.KubeClient}, registeredInformers, make(map[string]interface{}))
 	data := map[string][]byte{
 		"username": []byte("admin"),
