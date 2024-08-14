@@ -12,6 +12,9 @@ type ControllerProperties struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
+	// Enable to use event manager as source of eventsDisable to use log manager as source of events. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	AlertManagerUseEvms *bool `json:"alert_manager_use_evms,omitempty"`
+
 	// Allow non-admin tenants to update admin VrfContext and Network objects. Field introduced in 18.2.7, 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AllowAdminNetworkUpdates *bool `json:"allow_admin_network_updates,omitempty"`
 

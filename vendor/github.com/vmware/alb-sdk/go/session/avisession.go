@@ -859,7 +859,12 @@ func (avisess *AviSession) restRequest(verb string, uri string, payload interfac
 				return nil, err
 			}
 			retryReq = true
-		} else if resp.StatusCode == 419 || (resp.StatusCode >= 500 && resp.StatusCode < 599) {
+		} else if resp.StatusCode == 419 {
+			avisess.collectCookiesFromResp(resp)
+			resp.Body.Close()
+			retryReq = true
+			glog.Infof("Retrying url: %s; retry: %d due to Status Code %d", url, retry, resp.StatusCode)
+		} else if resp.StatusCode >= 500 && resp.StatusCode < 599 {
 			resp.Body.Close()
 			retryReq = true
 			glog.Infof("Retrying url: %s; retry: %d due to Status Code %d", url, retry, resp.StatusCode)
@@ -1075,6 +1080,10 @@ func (avisess *AviSession) restMultipartDownloadRequest(verb string, uri string,
 
 	if errorResult := avisess.checkRetryForSleep(retry, verb, url, lastErr); errorResult != nil {
 		return errorResult
+	}
+
+	if avisess.lazyAuthentication && avisess.sessionid == "" && !(uri == "" || uri == "login") {
+		avisess.initiateSession()
 	}
 
 	req, errorResult := avisess.newAviRequest(verb, url, nil, tenant)
