@@ -1326,13 +1326,13 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 		} else if strings.Contains(url, "/api/network") && strings.Contains(r.URL.RawQuery, "thisisaviref") {
 			w.WriteHeader(http.StatusOK)
 			data, _ := os.ReadFile(fmt.Sprintf("%s/crd_network_mock.json", mockFilePath))
-			query_components := strings.Split(r.URL.RawQuery, "&")
+			query_components := strings.Split(r.URL.RawQuery, "%26")
 			infraname := ""
 			if len(query_components) == 2 {
-				name_split := strings.Split(query_components[0], "=")
+				name_split := strings.Split(query_components[0], "%3D")
 				infraname = name_split[1]
 			} else if len(query_components) == 3 {
-				name_split := strings.Split(query_components[1], "=")
+				name_split := strings.Split(query_components[1], "%3D")
 				infraname = name_split[1]
 			}
 			json.Unmarshal(data, &resp)
@@ -1424,7 +1424,7 @@ func FeedMockCollectionData(w http.ResponseWriter, r *http.Request, mockFilePath
 			}
 			data, _ = os.ReadFile(filePath)
 			if strings.Contains(r.URL.RawQuery, "gateway") {
-				gwname := strings.Split(strings.Split(r.URL.RawQuery, "&")[0], "=")[1]
+				gwname := strings.Split(strings.Split(r.URL.RawQuery, "%26")[0], "%3D")[1]
 				data = []byte(strings.ReplaceAll(string(data), "01", strings.Split(gwname, "-")[7]))
 			}
 		} else if len(splitURL) == 3 {
