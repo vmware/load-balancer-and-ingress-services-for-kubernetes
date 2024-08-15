@@ -206,8 +206,10 @@ func (g *GWLister) GetGatewayToListeners(gwNsName string) []GatewayListenerStore
 	defer g.gwLock.RUnlock()
 
 	_, listenerList := g.gatewayToListenerStore.Get(gwNsName)
-	return listenerList.([]GatewayListenerStore)
-
+	if listenerList != nil {
+		return listenerList.([]GatewayListenerStore)
+	}
+	return nil
 }
 
 //=====All route <-> gateway mappings go here.
