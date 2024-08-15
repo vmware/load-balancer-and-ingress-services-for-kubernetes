@@ -171,7 +171,7 @@ func getTestPod(labels map[string]string) corev1.Pod {
 
 func setupAndVerifyGatewayForNPL(t *testing.T, g *gomega.WithT, gatewayClassName, gatewayName, httpRouteName, modelName string, ports []int32) {
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false)
+	listeners := tests.GetListenersV1(ports, false, false)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g.Eventually(func() bool {
