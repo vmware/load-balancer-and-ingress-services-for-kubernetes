@@ -284,8 +284,8 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 							}
 						}
 					}
-					if (hostnameMatched && !utils.HasElem(listenerList, listener)) || len(hrObj.Spec.Hostnames) == 0 {
-						gatewayListenerList = append(listenerList, listener)
+					if (hostnameMatched && !utils.HasElem(gatewayListenerList, listener)) || len(hrObj.Spec.Hostnames) == 0 {
+						gatewayListenerList = append(gatewayListenerList, listener)
 					}
 				}
 			}
