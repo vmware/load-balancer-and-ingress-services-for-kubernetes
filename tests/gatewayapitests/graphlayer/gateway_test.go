@@ -162,6 +162,9 @@ func TestGateway(t *testing.T) {
 	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].VSVIPRefs).To(gomega.HaveLen(1))
+	// default backend response
+	g.Expect(nodes[0].HttpPolicyRefs[0].RequestRules[0].Match.Path.MatchStr[0]).To(gomega.Equal("/"))
+	g.Expect(*nodes[0].HttpPolicyRefs[0].RequestRules[0].SwitchingAction.StatusCode).To(gomega.Equal("HTTP_LOCAL_RESPONSE_STATUS_CODE_404"))
 
 	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	tests.TeardownGatewayClass(t, gatewayClassName)
