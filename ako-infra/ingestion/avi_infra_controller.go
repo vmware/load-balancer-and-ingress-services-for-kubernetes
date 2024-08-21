@@ -116,9 +116,10 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 			cloud.NsxtConfiguration.ManagementNetworkConfig.TransportZone == nil {
 			continue
 		}
+		// In case of VPC mode, no need to match tranport zone as there would be only 1 cloud presnt in the avi controller
 		if cloud.NsxtConfiguration.DataNetworkConfig == nil ||
 			cloud.NsxtConfiguration.DataNetworkConfig.TransportZone == nil ||
-			*cloud.NsxtConfiguration.DataNetworkConfig.TransportZone != tz {
+			(!lib.GetVPCMode() && *cloud.NsxtConfiguration.DataNetworkConfig.TransportZone != tz) {
 			continue
 		}
 		utils.AviLog.Infof("Found NSX-T cloud: %s match Transport Zone: %s", *cloud.Name, tz)
@@ -174,7 +175,7 @@ func isPlacementScopeConfigured(configuredSEGroup *avimodels.ServiceEngineGroup)
 func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
 	err, cloudName, segTemplateUuid := a.DeriveCloudNameAndSEGroupTmpl(tz)
 	if err != nil {
-		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "CloudDerivationFailure", err.Error())
+		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "CloudMatchingTZNotFound", err.Error())
 		utils.AviLog.Fatalf("Failed to derive cloud, err: %s", err)
 	}
 	utils.AviLog.Infof("Obtained matching cloud to be used: %s", cloudName)

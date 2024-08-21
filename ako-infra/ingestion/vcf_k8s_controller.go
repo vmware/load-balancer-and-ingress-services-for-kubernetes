@@ -286,8 +286,14 @@ func (c *VCFK8sController) ValidBootStrapData() bool {
 	// in fact have the transportZone information.
 	transportzone := configmap.Data["cloudName"]
 	utils.AviLog.Infof("Got data from ConfigMap %v", utils.Stringify(configmap.Data))
-	if clusterID == "" || controllerIP == "" || secretName == "" || secretNamespace == "" || transportzone == "" {
+	if clusterID == "" || controllerIP == "" || secretName == "" || secretNamespace == "" {
 		utils.AviLog.Infof("ConfigMap data insufficient")
+		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "ConfigMapDataInsufficient", "ConfigMap data insufficient")
+		return false
+	}
+	// In case of VCF cluster in VPC mode, transport zone is not defined in the config map
+	if transportzone == "" && !lib.GetVPCMode() {
+		utils.AviLog.Infof("ConfigMap data insufficient, transport zone not present")
 		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "ConfigMapDataInsufficient", "ConfigMap data insufficient")
 		return false
 	}
