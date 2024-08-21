@@ -84,11 +84,13 @@ func InitializeAKOInfra() {
 	utils.AviLog.Infof("Successfully created kube client for ako-infra")
 
 	lib.AKOControlConfig().SetEventRecorder(lib.AKOEventComponent, kubeClient, false)
-	pod, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).Get(context.TODO(), os.Getenv("POD_NAME"), metav1.GetOptions{})
+	pods, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).List(context.TODO(), metav1.ListOptions{Limit: 1})
 	if err != nil {
 		utils.AviLog.Warnf("Error getting AKO pod details, %s.", err.Error())
 	}
-	lib.AKOControlConfig().SaveAKOPodObjectMeta(pod)
+	for _, pod := range pods.Items {
+		lib.AKOControlConfig().SaveAKOPodObjectMeta(&pod)
+	}
 
 	registeredInformers, err := lib.InformersToRegister(kubeClient, nil)
 	if err != nil {
