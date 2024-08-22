@@ -643,6 +643,9 @@ func GetUriEncoded(uri string) string {
 	}
 
 	for key := range queryValues {
+		if key == "fields" {
+			continue
+		}
 		for i := range queryValues[key] {
 			queryValues[key][i] = url.QueryEscape(queryValues[key][i])
 		}
