@@ -150,6 +150,7 @@ spec:
   - `logFile`: Log file name where the AKO controller will add it's logs.
   - `featureGates`: FeatureGates is to enable or disable experimental features.
     * `gatewayAPI`: GatewayAPI enables/disables processing of Kubernetes Gateway API CRDs.
+    * `enableEndpointSlice`: Enables/Disables processing of EndpointSlices instead of Endpoints.
   - `gatewayAPI`: GatewayAPI defines settings for AKO Gateway API container. These settings will only be used if **gatewayAPI** feature gate is enabled.
     * `image`: Image defines image related settings for AKO Gateway API container.
   - `akoGatewayLogFile`: AKOGatewayLogFile is the name of the file where ako-gateway-api container will dump its logs. This setting will only be used if **gatewayAPI** feature gate is enabled.
