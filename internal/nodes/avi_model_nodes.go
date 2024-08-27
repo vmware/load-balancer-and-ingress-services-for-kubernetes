@@ -1827,7 +1827,7 @@ func NewSecureHostNameMapProp() SecureHostNameMapProp {
 	return hostNameMap
 }
 
-func (h *SecureHostNameMapProp) GetPathsForHostName(hostname string) []string {
+func (h *SecureHostNameMapProp) GetPathsForHostName() []string {
 	var paths []string
 	for _, v := range h.HostNameMap {
 		paths = append(paths, v.paths...)
@@ -1835,7 +1835,7 @@ func (h *SecureHostNameMapProp) GetPathsForHostName(hostname string) []string {
 	return paths
 }
 
-func (h *SecureHostNameMapProp) GetIngressesForHostName(hostname string) []string {
+func (h *SecureHostNameMapProp) GetIngressesForHostName() []string {
 	var ingresses []string
 	for k := range h.HostNameMap {
 		ingresses = append(ingresses, k)
@@ -1843,7 +1843,7 @@ func (h *SecureHostNameMapProp) GetIngressesForHostName(hostname string) []strin
 	return ingresses
 }
 
-func (h *SecureHostNameMapProp) GetSecretsForHostName(hostname string) []string {
+func (h *SecureHostNameMapProp) GetSecretsForHostName() []string {
 	var secrets []string
 	for _, v := range h.HostNameMap {
 		secrets = append(secrets, v.secretName)
