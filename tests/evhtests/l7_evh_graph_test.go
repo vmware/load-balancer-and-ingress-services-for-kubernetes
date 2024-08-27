@@ -65,7 +65,8 @@ func TestL7ModelForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	ingressName, svcName := "foo-with-targets-57", "avisvc-57"
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 	SetUpTestForIngress(t, svcName, modelName)
 
 	integrationtest.PollForCompletion(t, modelName, 5)
@@ -119,7 +120,9 @@ func TestShardObjectsForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, vsName := GetModelName("foo.com", "default")
-	secretName, ingressName, svcName := "my-secret-58", "foo-with-targets-58", "avisvc-58"
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 	SetUpTestForIngress(t, svcName, modelName)
 	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
 
@@ -199,7 +202,8 @@ func TestNoBackendL7ModelForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	ingressName, svcName := "foo-with-targets-59", "avisvc-59"
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 	SetUpTestForIngress(t, svcName, modelName)
 	objects.SharedAviGraphLister().Delete(modelName)
 
@@ -240,8 +244,9 @@ func TestMultiIngressToSameSvcForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName, _ := GetModelName("foo.com", "default")
 	objects.SharedAviGraphLister().Delete(modelName)
-	svcName := "avisvc-60"
-	ingressName1, ingressName2 := "foo-with-targets-60", "foo-with-targets-61"
+	svcName := objNameMap.GenerateName("avisvc")
+	ingressName1 := objNameMap.GenerateName("foo-with-targets")
+	ingressName2 := objNameMap.GenerateName("foo-with-targets")
 	svcExample := (integrationtest.FakeService{
 		Name:         svcName,
 		Namespace:    "default",
@@ -392,7 +397,8 @@ func TestMultiPathIngressForEvh(t *testing.T) {
 	var err error
 
 	modelName, _ := GetModelName("foo.com", "default")
-	ingressName, svcName := "ingress-multipath-62", "avisvc-62"
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 	SetUpTestForIngress(t, svcName, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -462,7 +468,8 @@ func TestMultiPortServiceIngressForEvh(t *testing.T) {
 
 	modelName, _ := GetModelName("foo.com", "default")
 	objects.SharedAviGraphLister().Delete(modelName)
-	ingressName, svcName := "ingress-multipath-63", "avisvc-63"
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 	integrationtest.CreateSVC(t, "default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, true)
 	integrationtest.CreateEPorEPS(t, "default", svcName, true, true, "1.1.1")
 	ingrFake := (integrationtest.FakeIngress{
@@ -542,8 +549,9 @@ func TestMultiIngressSameHostForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	svcName := "avisvc-64"
-	ingressName1, ingressName2 := "ingress-multipath-64", "ingress-multipath-65"
+	svcName := objNameMap.GenerateName("avisvc")
+	ingressName1 := objNameMap.GenerateName("foo-with-targets")
+	ingressName2 := objNameMap.GenerateName("foo-with-targets")
 	SetUpTestForIngress(t, svcName, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -637,8 +645,9 @@ func TestDeleteBackendServiceForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	svcName := "avisvc-66"
-	ingressName1, ingressName2 := "ingress-multipath-66", "ingress-multipath-67"
+	svcName := objNameMap.GenerateName("avisvc")
+	ingressName1 := objNameMap.GenerateName("foo-with-targets")
+	ingressName2 := objNameMap.GenerateName("foo-with-targets")
 	SetUpTestForIngress(t, svcName, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -731,8 +740,9 @@ func TestUpdateBackendServiceForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName, _ := GetModelName("foo.com", "default")
 
-	ingressName := "ingress-multipath-68"
-	svcName1, svcName2 := "avisvc-68", "avisvc-69"
+	ingressName := objNameMap.GenerateName("ingress-multipath")
+	svcName1 := objNameMap.GenerateName("avisvc")
+	svcName2 := objNameMap.GenerateName("avisvc")
 
 	SetUpTestForIngress(t, svcName1, modelName)
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -803,7 +813,9 @@ func TestL2ChecksumsUpdateForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	secretName1, ingressName, svcName1 := "my-secret-70", "foo-with-targets-70", "avisvc-70"
+	secretName1 := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName1 := objNameMap.GenerateName("avisvc")
 	SetUpTestForIngress(t, svcName1, modelName)
 	integrationtest.AddSecret(secretName1, "default", "tlsCert", "tlsKey")
 	//create ingress with tls secret
@@ -917,7 +929,8 @@ func TestL2ChecksumsUpdateForEvh(t *testing.T) {
 func TestMultiHostSameHostNameIngressForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName, _ := GetModelName("foo.com", "default")
-	ingressName, svcName := "foo-with-targets-72", "avisvc-72"
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 	SetUpTestForIngress(t, svcName, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -966,7 +979,8 @@ func TestMultiHostSameHostNameIngressForEvh(t *testing.T) {
 func TestEditPathIngressForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName, _ := GetModelName("foo.com", "default")
-	ingressName, svcName := "foo-with-targets-73", "avisvc-73"
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 	SetUpTestForIngress(t, svcName, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1056,7 +1070,8 @@ func TestEditPathIngressForEvh(t *testing.T) {
 func TestEditMultiPathIngressForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName, _ := GetModelName("foo.com", "default")
-	ingressName, svcName := "foo-with-targets-74", "avisvc-74"
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 	SetUpTestForIngress(t, svcName, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -1184,8 +1199,9 @@ func TestEditMultiIngressSameHostForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	svcName := "avisvc-75"
-	ingressName1, ingressName2 := "foo-with-targets-75", "foo-with-targets-76"
+	svcName := objNameMap.GenerateName("avisvc")
+	ingressName1 := objNameMap.GenerateName("foo-with-targets")
+	ingressName2 := objNameMap.GenerateName("foo-with-targets")
 	SetUpTestForIngress(t, svcName, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -1285,7 +1301,8 @@ func TestEditMultiIngressSameHostForEvh(t *testing.T) {
 
 func TestNoHostIngressForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	ingressName, svcName := "foo-with-targets-77", "avisvc-77"
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 	modelName, _ := GetModelName(ingressName+".default.com", "default")
 
 	SetUpTestForIngress(t, svcName, modelName)
@@ -1337,7 +1354,8 @@ func TestNoHostIngressForEvh(t *testing.T) {
 
 func TestEditNoHostToHostIngressForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	ingressName, svcName := "foo-with-targets-78", "avisvc-78"
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 	modelName, _ := GetModelName(ingressName+".default.com", "default")
 	SetUpTestForIngress(t, svcName, modelName)
 
@@ -1452,8 +1470,9 @@ func TestScaleEndpointsForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	svcName := "avisvc-79"
-	ingressName1, ingressName2 := "foo-with-targets-79", "foo-with-targets-80"
+	svcName := objNameMap.GenerateName("avisvc")
+	ingressName1 := objNameMap.GenerateName("foo-with-targets")
+	ingressName2 := objNameMap.GenerateName("foo-with-targets")
 	SetUpTestForIngress(t, svcName, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
@@ -1554,7 +1573,9 @@ func TestScaleEndpointsForEvh(t *testing.T) {
 func TestL7ModelNoSecretToSecretForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName, _ := GetModelName("foo.com", "default")
-	secretName, ingressName, svcName := "my-secret-80", "foo-with-targets-80", "avisvc-80"
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 	SetUpTestForIngress(t, svcName, modelName)
 
 	integrationtest.PollForCompletion(t, modelName, 5)
@@ -1614,8 +1635,10 @@ func TestL7ModelNoSecretToSecretForEvh(t *testing.T) {
 func TestL7ModelOneSecretToMultiIngForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName, _ := GetModelName("foo.com", "default")
-	secretName, svcName := "my-secret-81", "avisvc-81"
-	ingressName1, ingressName2 := "foo-with-targets-81", "foo-with-targets-82"
+	secretName := objNameMap.GenerateName("my-secret")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingressName1 := objNameMap.GenerateName("foo-with-targets")
+	ingressName2 := objNameMap.GenerateName("foo-with-targets")
 	SetUpTestForIngress(t, svcName, modelName)
 
 	integrationtest.PollForCompletion(t, modelName, 5)
@@ -1712,7 +1735,9 @@ func TestL7ModelOneSecretToMultiIngForEvh(t *testing.T) {
 
 func TestL7ModelMultiSNIForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	secretName, ingressName, svcName := "my-secret-83", "foo-with-targets-83", "avisvc-83"
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
 	modelName, _ := GetModelName("foo.com", "default")
 	SetUpTestForIngress(t, svcName, modelName)
@@ -1767,7 +1792,9 @@ func TestL7ModelMultiSNIMultiCreateEditSecretForEvh(t *testing.T) {
 	// This test covers creating multiple SNI nodes via multiple secrets.
 
 	g := gomega.NewGomegaWithT(t)
-	secretName, ingressName, svcName := "my-secret-84", "foo-with-targets-84", "avisvc-84"
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
 	integrationtest.AddSecret("my-secret2", "default", "tlsCert", "tlsKey")
 	// Clean up any earlier models.
@@ -1877,7 +1904,9 @@ func TestL7ModelMultiSNIMultiCreateEditSecretForEvh(t *testing.T) {
 
 func TestL7WrongSubDomainMultiSNIForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	secretName, ingressName, svcName := "my-secret-85", "foo-with-targets-85", "avisvc-85"
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
 	integrationtest.AddSecret("my-secret2", "default", "tlsCert", "tlsKey")
 	modelName, _ := GetModelName("foo.com", "default")
@@ -1951,8 +1980,19 @@ func TestL7WrongSubDomainMultiSNIForEvh(t *testing.T) {
 func TestFQDNCountInL7Model(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName, _ := GetModelName("foo.com", "default")
-	secretName, ingressName, svcName := "my-secret-86", "foo-with-targets-86", "avisvc-86"
-	SetUpIngressForCacheSyncCheck(t, true, true, secretName, ingressName, svcName, modelName)
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if aviModel == nil {
@@ -1980,7 +2020,9 @@ func TestFQDNCountInL7Model(t *testing.T) {
 func TestPortsForInsecureAndSecureEVH(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName, _ := GetModelName("foo.com", "default")
-	secretName, ingressName, svcName := "my-secret-87", "foo-with-targets-87", "avisvc-87"
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 	SetUpTestForIngress(t, svcName, modelName)
 
 	// Insecure

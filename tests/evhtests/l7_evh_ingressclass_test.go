@@ -94,19 +94,24 @@ func TestEVHWrongClassMappingInIngress(t *testing.T) {
 	// fix class in ingress, VS created
 	g := gomega.NewGomegaWithT(t)
 
-	// SyncFunc is replaced with a wrapper to make sure that ingressClass
-	// is processed first and then ingress.
-	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
-	ingestionQueue.SyncFunc = syncFromIngestionLayerWrapper
-
-	ingClassName, ingressName, ns := "avi-lb-1", "foo-with-class-1", "default"
-	svcName := "avisvc-42"
+	ingClassName := objNameMap.GenerateName("avi-lb")
+	ingressName := objNameMap.GenerateName("foo-with-class")
+	ns := "default"
+	svcName := objNameMap.GenerateName("avisvc")
 	modelName, _ := GetModelName("bar.com", "default")
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-1"}
 	evhKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--bar.com", lib.EVHVS)}
 
+	// SyncFunc is replaced with a wrapper to make sure that ingressClass
+	// is processed first and then ingress.
+	time.Sleep(time.Second * 5)
+	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
+	ingestionQueue.SyncFunc = syncFromIngestionLayerWrapper
+	defer func() { ingestionQueue.SyncFunc = k8s.SyncFromIngestionLayer }()
+
 	SetUpTestForIngress(t, svcName, modelName)
 	integrationtest.RemoveDefaultIngressClass()
+	defer integrationtest.AddDefaultIngressClass()
 	waitAndVerify(t, integrationtest.DefaultIngressClass)
 
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, "")
@@ -194,14 +199,24 @@ func TestEVHDefaultIngressClassChange(t *testing.T) {
 	// ingress status IP comes back
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns := "avi-lb-2", "foo-with-class-2", "default"
-	svcName := "avisvc-43"
+	ingClassName := objNameMap.GenerateName("avi-lb")
+	ingressName := objNameMap.GenerateName("foo-with-class")
+	ns := "default"
+	svcName := objNameMap.GenerateName("avisvc")
 	modelName, vsName := GetModelName("bar.com", "default")
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: vsName}
 	evhKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--bar.com", lib.EVHVS)}
 
 	mcache := cache.SharedAviObjCache()
 	mcache.VsCacheMeta.AviCacheDelete(vsKey)
+
+	integrationtest.RemoveDefaultIngressClass()
+	defer integrationtest.AddDefaultIngressClass()
+
+	time.Sleep(time.Second * 5)
+	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
+	ingestionQueue.SyncFunc = syncFromIngestionLayerWrapper
+	defer func() { ingestionQueue.SyncFunc = k8s.SyncFromIngestionLayer }()
 
 	SetUpTestForIngress(t, svcName, modelName)
 
@@ -264,10 +279,19 @@ func TestEVHAviInfraSettingNamingConvention(t *testing.T) {
 	// check for names of all Avi objects
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb-3", "foo-with-class-3", "default", "my-infrasetting-3"
-	secretName := "my-secret-44"
-	svcName := "avisvc-44"
+	ingClassName := objNameMap.GenerateName("avi-lb")
+	ingressName := objNameMap.GenerateName("foo-with-class")
+	ns := "default"
+	settingName := objNameMap.GenerateName("my-infrasetting")
+
+	secretName := objNameMap.GenerateName("my-secret")
+	svcName := objNameMap.GenerateName("avisvc")
 	modelName := "admin/cluster--Shared-L7-EVH-1"
+
+	time.Sleep(time.Second * 5)
+	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
+	ingestionQueue.SyncFunc = syncFromIngestionLayerWrapper
+	defer func() { ingestionQueue.SyncFunc = k8s.SyncFromIngestionLayer }()
 
 	SetUpTestForIngress(t, svcName, modelName)
 
@@ -350,11 +374,18 @@ func TestEVHAviInfraSettingPerNSNamingConvention(t *testing.T) {
 	// check for names of all Avi objects
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb-4", "foo-with-class-4", "default", "my-infrasetting-4"
-	secretName := "my-secret-45"
-	svcName := "avisvc-45"
+	ingClassName := objNameMap.GenerateName("avi-lb")
+	ingressName := objNameMap.GenerateName("foo-with-class")
+	ns := "default"
+	settingName := objNameMap.GenerateName("my-infrasetting")
+	secretName := objNameMap.GenerateName("my-secret")
+	svcName := objNameMap.GenerateName("avisvc")
 	modelName := "admin/cluster--Shared-L7-EVH-1"
 
+	time.Sleep(time.Second * 5)
+	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
+	ingestionQueue.SyncFunc = syncFromIngestionLayerWrapper
+	defer func() { ingestionQueue.SyncFunc = k8s.SyncFromIngestionLayer }()
 	SetUpTestForIngress(t, svcName, modelName)
 
 	settingModelName := "admin/cluster--Shared-L7-EVH-0"
@@ -439,12 +470,20 @@ func TestEVHAddRemoveInfraSettingInIngressClass(t *testing.T) {
 	// remove infrasetting ref, model changes again
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb-5", "foo-with-class-5", "default", "my-infrasetting-5"
+	ingClassName := objNameMap.GenerateName("avi-lb")
+	ingressName := objNameMap.GenerateName("foo-with-class")
+	ns := "default"
+	settingName := objNameMap.GenerateName("my-infrasetting")
 	modelName := "admin/cluster--Shared-L7-EVH-1"
-	secretName := "my-secret-46"
-	svcName := "avisvc-46"
+	secretName := objNameMap.GenerateName("my-secret")
+	svcName := objNameMap.GenerateName("avisvc")
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-" + settingName + "-0"}
 	evhKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--"+settingName+"-baz.com", lib.EVHVS)}
+
+	time.Sleep(time.Second * 5)
+	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
+	ingestionQueue.SyncFunc = syncFromIngestionLayerWrapper
+	defer func() { ingestionQueue.SyncFunc = k8s.SyncFromIngestionLayer }()
 
 	SetUpTestForIngress(t, svcName, modelName)
 
@@ -534,8 +573,13 @@ func TestEVHUpdateInfraSettingInIngressClass(t *testing.T) {
 
 	ingClassName, ingressName, ns, settingName1, settingName2 := "avi-lb-6", "foo-with-class-6", "default", "my-infrasetting-6-1", "my-infrasetting-6-2"
 	modelName := "admin/cluster--Shared-L7-EVH-1"
-	secretName := "my-secret-47"
-	svcName := "avisvc-47"
+	secretName := objNameMap.GenerateName("my-secret")
+	svcName := objNameMap.GenerateName("avisvc")
+
+	time.Sleep(time.Second * 5)
+	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
+	ingestionQueue.SyncFunc = syncFromIngestionLayerWrapper
+	defer func() { ingestionQueue.SyncFunc = k8s.SyncFromIngestionLayer }()
 
 	SetUpTestForIngress(t, svcName, modelName)
 
@@ -618,12 +662,20 @@ func TestEVHAddIngressClassWithInfraSetting(t *testing.T) {
 	// add ingressclass in ingress, delete ingress
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb-7", "foo-with-class-7", "default", "my-infrasetting-7"
+	ingClassName := objNameMap.GenerateName("avi-lb")
+	ingressName := objNameMap.GenerateName("foo-with-class")
+	ns := "default"
+	settingName := objNameMap.GenerateName("my-infrasetting")
 	modelName := "admin/cluster--Shared-L7-EVH-1"
-	secretName := "my-secret-48"
-	svcName := "avisvc-48"
+	secretName := objNameMap.GenerateName("my-secret")
+	svcName := objNameMap.GenerateName("avisvc")
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-" + settingName + "-0"}
 	evhKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--"+settingName+"-bar.com", lib.EVHVS)}
+
+	time.Sleep(time.Second * 5)
+	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
+	ingestionQueue.SyncFunc = syncFromIngestionLayerWrapper
+	defer func() { ingestionQueue.SyncFunc = k8s.SyncFromIngestionLayer }()
 
 	SetUpTestForIngress(t, svcName, modelName)
 
@@ -717,8 +769,13 @@ func TestEVHUpdateIngressClassWithInfraSetting(t *testing.T) {
 	ingressName, ns := "foo-with-class-8", "default"
 
 	modelName := "admin/cluster--Shared-L7-EVH-1"
-	secretName := "my-secret-49"
-	svcName := "avisvc-49"
+	secretName := objNameMap.GenerateName("my-secret")
+	svcName := objNameMap.GenerateName("avisvc")
+
+	time.Sleep(time.Second * 5)
+	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
+	ingestionQueue.SyncFunc = syncFromIngestionLayerWrapper
+	defer func() { ingestionQueue.SyncFunc = k8s.SyncFromIngestionLayer }()
 
 	SetUpTestForIngress(t, svcName, modelName)
 
@@ -816,10 +873,18 @@ func TestEVHUpdateWithInfraSetting(t *testing.T) {
 
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb-9", "foo-with-class-9", "default", "my-infrasetting-9"
+	ingClassName := objNameMap.GenerateName("avi-lb")
+	ingressName := objNameMap.GenerateName("foo-with-class")
+	ns := "default"
+	settingName := objNameMap.GenerateName("my-infrasetting")
 	modelName := "admin/cluster--Shared-L7-EVH-1"
-	secretName := "my-secret-50"
-	svcName := "avisvc-50"
+	secretName := objNameMap.GenerateName("my-secret")
+	svcName := objNameMap.GenerateName("avisvc")
+
+	time.Sleep(time.Second * 5)
+	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
+	ingestionQueue.SyncFunc = syncFromIngestionLayerWrapper
+	defer func() { ingestionQueue.SyncFunc = k8s.SyncFromIngestionLayer }()
 
 	SetUpTestForIngress(t, svcName, modelName)
 
@@ -941,10 +1006,15 @@ func TestEVHUpdateIngressClassWithoutInfraSetting(t *testing.T) {
 	settingName := "my-infrasetting-10"
 	modelName := "admin/cluster--Shared-L7-EVH-1"
 	settingModelName := "admin/cluster--Shared-L7-EVH-" + settingName + "-1"
-	secretName := "my-secret-51"
-	svcName := "avisvc-51"
+	secretName := objNameMap.GenerateName("my-secret")
+	svcName := objNameMap.GenerateName("avisvc")
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-" + settingName + "-1"}
 	evhKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--"+settingName+"-bar.com", lib.EVHVS)}
+
+	time.Sleep(time.Second * 5)
+	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
+	ingestionQueue.SyncFunc = syncFromIngestionLayerWrapper
+	defer func() { ingestionQueue.SyncFunc = k8s.SyncFromIngestionLayer }()
 
 	SetUpTestForIngress(t, svcName, modelName, settingModelName)
 
@@ -1040,11 +1110,19 @@ func TestEVHBGPConfigurationWithInfraSetting(t *testing.T) {
 	}
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb-11", "foo-with-class-11", "default", "my-infrasetting-11"
-	secretName := "my-secret-52"
-	svcName := "avisvc-52"
+	ingClassName := objNameMap.GenerateName("avi-lb")
+	ingressName := objNameMap.GenerateName("foo-with-class")
+	ns := "default"
+	settingName := objNameMap.GenerateName("my-infrasetting")
+	secretName := objNameMap.GenerateName("my-secret")
+	svcName := objNameMap.GenerateName("avisvc")
 	modelName := "admin/cluster--Shared-L7-EVH-1"
 	settingModelName := "admin/cluster--Shared-L7-EVH-" + settingName + "-1"
+
+	time.Sleep(time.Second * 5)
+	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
+	ingestionQueue.SyncFunc = syncFromIngestionLayerWrapper
+	defer func() { ingestionQueue.SyncFunc = k8s.SyncFromIngestionLayer }()
 
 	SetUpTestForIngress(t, svcName, modelName, settingModelName)
 
@@ -1125,13 +1203,21 @@ func TestEVHBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
 	}
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb-12", "foo-with-class-12", "default", "my-infrasetting-12"
-	secretName := "my-secret-53"
-	svcName := "avisvc-53"
+	ingClassName := objNameMap.GenerateName("avi-lb")
+	ingressName := objNameMap.GenerateName("foo-with-class")
+	ns := "default"
+	settingName := objNameMap.GenerateName("my-infrasetting")
+	secretName := objNameMap.GenerateName("my-secret")
+	svcName := objNameMap.GenerateName("avisvc")
 	modelName := "admin/cluster--Shared-L7-EVH-1"
 	settingModelName := "admin/cluster--Shared-L7-EVH-" + settingName + "-1"
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-" + settingName + "-1"}
+
+	time.Sleep(time.Second * 5)
+	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
+	ingestionQueue.SyncFunc = syncFromIngestionLayerWrapper
+	defer func() { ingestionQueue.SyncFunc = k8s.SyncFromIngestionLayer }()
 
 	SetUpTestForIngress(t, svcName, modelName, settingModelName)
 
@@ -1198,30 +1284,32 @@ func TestEVHBGPConfigurationUpdateLabelWithInfraSetting(t *testing.T) {
 
 func TestEVHCRDWithAviInfraSetting(t *testing.T) {
 
-	defer func() {
-		integrationtest.AddDefaultIngressClass()
-		waitAndVerify(t, integrationtest.DefaultIngressClass)
-
-		// Reverting the syncFunc of ingestion Queue.
-		ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
-		ingestionQueue.SyncFunc = k8s.SyncFromIngestionLayer
-	}()
-
 	if lib.VIPPerNamespace() {
 		t.Skip()
 	}
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb-13", "foo-with-class-13", "default", "my-infrasetting-13"
-	secretName := "my-secret-54"
-	svcName := "avisvc-54"
+	ingClassName := objNameMap.GenerateName("avi-lb")
+	ingressName := objNameMap.GenerateName("foo-with-class")
+	ns := "default"
+	settingName := objNameMap.GenerateName("my-infrasetting")
+	secretName := objNameMap.GenerateName("my-secret")
+	svcName := objNameMap.GenerateName("avisvc")
 	modelName := "admin/cluster--Shared-L7-EVH-1"
 	settingModelName := "admin/cluster--Shared-L7-EVH-" + settingName + "-1"
-	hrname, rrname := "samplehr-baz", "samplerr-baz"
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	rrName := objNameMap.GenerateName("samplerr-foo")
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--Shared-L7-EVH-" + settingName + "-1"}
 	evhKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--"+settingName+"-baz.com", lib.EVHVS)}
 	poolKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--"+settingName+"-default-baz.com_foo-"+ingressName+"-"+svcName, lib.Pool)}
+
+	integrationtest.RemoveDefaultIngressClass()
+
+	time.Sleep(time.Second * 5)
+	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
+	ingestionQueue.SyncFunc = syncFromIngestionLayerWrapper
+	defer func() { ingestionQueue.SyncFunc = k8s.SyncFromIngestionLayer }()
 
 	SetUpTestForIngress(t, svcName, modelName, settingModelName)
 
@@ -1231,8 +1319,8 @@ func TestEVHCRDWithAviInfraSetting(t *testing.T) {
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 
 	httpRulePath := "/"
-	integrationtest.SetupHostRule(t, hrname, "baz.com", true)
-	integrationtest.SetupHTTPRule(t, rrname, "baz.com", httpRulePath)
+	integrationtest.SetupHostRule(t, hrName, "baz.com", true)
+	integrationtest.SetupHTTPRule(t, rrName, "baz.com", httpRulePath)
 
 	ingressCreate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -1250,17 +1338,17 @@ func TestEVHCRDWithAviInfraSetting(t *testing.T) {
 	}
 
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 30*time.Second).Should(gomega.Equal("Accepted"))
 	g.Eventually(func() string {
-		httprule, _ := v1beta1CRDClient.AkoV1beta1().HTTPRules("default").Get(context.TODO(), rrname, metav1.GetOptions{})
+		httprule, _ := v1beta1CRDClient.AkoV1beta1().HTTPRules("default").Get(context.TODO(), rrName, metav1.GetOptions{})
 		return httprule.Status.Status
 	}, 30*time.Second).Should(gomega.Equal("Accepted"))
 
 	// check for values set in graph layer.
-	integrationtest.VerifyMetadataHostRule(t, g, evhKey, "default/"+hrname, true)
-	integrationtest.VerifyMetadataHTTPRule(t, g, poolKey, "default/"+rrname+"/"+httpRulePath, true)
+	integrationtest.VerifyMetadataHostRule(t, g, evhKey, "default/"+hrName, true)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolKey, "default/"+rrName+"/"+httpRulePath, true)
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(settingModelName)
 		return found
@@ -1275,8 +1363,8 @@ func TestEVHCRDWithAviInfraSetting(t *testing.T) {
 	g.Expect(*nodes[0].EvhNodes[0].PoolRefs[0].LbAlgorithmHash).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS"))
 	g.Expect(*nodes[0].EvhNodes[0].PoolRefs[0].SslProfileRef).To(gomega.ContainSubstring("thisisaviref-sslprofile"))
 
-	integrationtest.TeardownHostRule(t, g, evhKey, hrname)
-	integrationtest.TeardownHTTPRule(t, rrname)
+	integrationtest.TeardownHostRule(t, g, evhKey, hrName)
+	integrationtest.TeardownHTTPRule(t, rrName)
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
 	waitAndVerify(t, ingClassName)
@@ -1294,6 +1382,8 @@ func TestEVHCRDWithAviInfraSetting(t *testing.T) {
 		return false
 	}, 50*time.Second).Should(gomega.Equal(true))
 	TearDownTestForIngress(t, svcName, modelName, settingModelName)
+	integrationtest.AddDefaultIngressClass()
+	waitAndVerify(t, integrationtest.DefaultIngressClass)
 }
 
 func TestFQDNsCountForAviInfraSettingWithDedicatedShardSize(t *testing.T) {
@@ -1301,10 +1391,13 @@ func TestFQDNsCountForAviInfraSettingWithDedicatedShardSize(t *testing.T) {
 		t.Skip()
 	}
 	g := gomega.NewGomegaWithT(t)
-	ingClassName, ingressName, ns, settingName := "avi-lb-14", "foo-with-class-14", "default", "my-infrasetting-14"
+	ingClassName := objNameMap.GenerateName("avi-lb")
+	ingressName := objNameMap.GenerateName("foo-with-class")
+	ns := "default"
+	settingName := objNameMap.GenerateName("my-infrasetting")
 	modelName := "admin/" + lib.Encode("cluster--"+settingName+"-foo.com-L7-dedicated", lib.EVHVS) + "-EVH"
-	secretName := "my-secret-55"
-	svcName := "avisvc-55"
+	secretName := objNameMap.GenerateName("my-secret")
+	svcName := objNameMap.GenerateName("avisvc")
 
 	SetUpTestForIngress(t, svcName, modelName)
 	integrationtest.RemoveDefaultIngressClass()
@@ -1370,10 +1463,13 @@ func TestFQDNsCountForAviInfraSettingWithLargeShardSize(t *testing.T) {
 	}
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb-15", "foo-with-class-15", "default", "my-infrasetting-15"
+	ingClassName := objNameMap.GenerateName("avi-lb")
+	ingressName := objNameMap.GenerateName("foo-with-class")
+	ns := "default"
+	settingName := objNameMap.GenerateName("my-infrasetting")
 	modelName := "admin/cluster--Shared-L7-EVH-" + settingName + "-0"
-	secretName := "my-secret-56"
-	svcName := "avisvc-56"
+	secretName := objNameMap.GenerateName("my-secret")
+	svcName := objNameMap.GenerateName("avisvc")
 
 	SetUpTestForIngress(t, svcName, modelName)
 	integrationtest.RemoveDefaultIngressClass()
