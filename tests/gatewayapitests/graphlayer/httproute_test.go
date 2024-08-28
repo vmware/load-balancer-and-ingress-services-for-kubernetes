@@ -1155,7 +1155,7 @@ func TestHTTPRouteGatewayWithEmptyHostnameInGatewayHTTPRoute(t *testing.T) {
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners := akogatewayapitests.GetListenersV1(ports, true)
 	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -1188,6 +1188,7 @@ func TestHTTPRouteGatewayWithEmptyHostnameInGatewayHTTPRoute(t *testing.T) {
 	g.Eventually(func() int {
 		return len(nodes[0].HttpPolicyRefs)
 	}, 20*time.Second).Should(gomega.Equal(1))
+	g.Expect(len(nodes[0].HttpPolicyRefs[0].RequestRules[0].Match.VsPort.Ports)).To(gomega.Equal(1))
 	g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 
 	// delete httproute
