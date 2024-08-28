@@ -12,7 +12,7 @@ AKO operator takes care of deploying, managing and removing AKO from OpenShift c
 
 <i>**Step 3**</i>: Find `AKO Operator` provided by VMware.
 
-<i>**Step 4**</i>: Click `install` and select the 1.11.1 version. The operator will be installed in `avi-system` namespace. The namespace will be created if it doesn't exist.
+<i>**Step 4**</i>: Click `install` and select the 1.12.2 version. The operator will be installed in `avi-system` namespace. The namespace will be created if it doesn't exist.
 
 <i>**Step 5**</i>: Verify installation by checking the pods in `avi-system` namespace.
 
@@ -98,5 +98,5 @@ If this happens edit akoconfig using `kubectl edit akoconfig -n avi-system ako-c
 ### Versioning
 | **Operator version** | **Supported AKO Version** |
 | --------- | ----------- |
-| 1.10.1 | 1.10.1 |
 | 1.11.1 | 1.11.1 |
+| 1.12.2 | 1.12.2 |

@@ -73,7 +73,10 @@ var cmJson = `
 		"ipFamily": "V4",
 		"istioEnabled": "false",
 		"blockedNamespaceList": "[]",
-		"useDefaultSecretsOnly": "false"
+		"useDefaultSecretsOnly": "false",
+		"defaultLBController": "true",
+		"vrfName": "",
+		"enablePrometheus": "false"
 	}
 }
 `
