@@ -27,6 +27,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -790,28 +791,36 @@ func GetVipNetworkList() []akov1beta1.AviInfraSettingVipNetwork {
 	return VipNetworkList
 }
 
+var vipInfraLock sync.Map
+
 func SetVipInfraNetworkList(infraName string, vipNetworks []akov1beta1.AviInfraSettingVipNetwork) {
-	if VipInfraNetworkList == nil {
-		VipInfraNetworkList = make(map[string][]akov1beta1.AviInfraSettingVipNetwork)
-	}
-	VipInfraNetworkList[infraName] = vipNetworks
+	vipInfraLock.Store(infraName, vipNetworks)
 }
 
 func GetVipInfraNetworkList(infraName string) []akov1beta1.AviInfraSettingVipNetwork {
-	return VipInfraNetworkList[infraName]
+	val, present := vipInfraLock.Load(infraName)
+	if present {
+		return val.([]akov1beta1.AviInfraSettingVipNetwork)
+	}
+	utils.AviLog.Warnf("Key: %s not found in VIP InfraNetwork", infraName)
+	return []akov1beta1.AviInfraSettingVipNetwork{}
 }
 
 var NodeInfraNetworkList map[string]map[string]NodeNetworkMap
+var nodeInfraLock sync.Map
 
 func SetNodeInfraNetworkList(name string, nodeNetworks map[string]NodeNetworkMap) {
-	if NodeInfraNetworkList == nil {
-		NodeInfraNetworkList = make(map[string]map[string]NodeNetworkMap)
-	}
-	NodeInfraNetworkList[name] = nodeNetworks
+	//NodeInfraNetworkList[name] = nodeNetworks
+	nodeInfraLock.Store(name, nodeNetworks)
 }
 
 func GetNodeInfraNetworkList(name string) map[string]NodeNetworkMap {
-	return NodeInfraNetworkList[name]
+	val, present := nodeInfraLock.Load(name)
+	if present {
+		return val.(map[string]NodeNetworkMap)
+	}
+	utils.AviLog.Warnf("Key: %s not found in Node InfraNetwork", name)
+	return map[string]NodeNetworkMap{}
 }
 
 func GetVipNetworkListEnv() ([]akov1beta1.AviInfraSettingVipNetwork, error) {
