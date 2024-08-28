@@ -65,8 +65,9 @@ func IsGatewayClassValid(key string, gatewayClass *gatewayv1.GatewayClass) bool 
 	return true
 }
 
-func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
+func IsValidGateway(key string, gateway *gatewayv1.Gateway) (bool, bool, *gatewayv1.Gateway) {
 	spec := gateway.Spec
+	allowedRoutesAll := false
 
 	defaultCondition := akogatewayapistatus.NewCondition().
 		Type(string(gatewayv1.GatewayConditionAccepted)).
@@ -91,7 +92,8 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 		programmedCondition.
 			SetIn(&gatewayStatus.Conditions)
 		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
-		return false
+		gateway.Status = *gatewayStatus.DeepCopy()
+		return false, allowedRoutesAll, gateway
 	}
 
 	// has 1 or none addresses
@@ -104,7 +106,8 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 			Reason(string(gatewayv1.GatewayReasonAddressNotUsable)).
 			SetIn(&gatewayStatus.Conditions)
 		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
-		return false
+		gateway.Status = *gatewayStatus.DeepCopy()
+		return false, allowedRoutesAll, gateway
 	}
 
 	if len(spec.Addresses) == 1 && *spec.Addresses[0].Type != "IPAddress" {
@@ -117,7 +120,8 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 			Reason(string(gatewayv1.GatewayReasonAddressNotUsable)).
 			SetIn(&gatewayStatus.Conditions)
 		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
-		return false
+		gateway.Status = *gatewayStatus.DeepCopy()
+		return false, allowedRoutesAll, gateway
 	}
 
 	gatewayStatus.Listeners = make([]gatewayv1.ListenerStatus, len(gateway.Spec.Listeners))
@@ -125,6 +129,13 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 	var validListenerCount int
 	for index := range spec.Listeners {
 		if isValidListener(key, gateway, gatewayStatus, index) {
+			if !allowedRoutesAll {
+				if spec.Listeners[index].AllowedRoutes != nil && spec.Listeners[index].AllowedRoutes.Namespaces != nil && spec.Listeners[index].AllowedRoutes.Namespaces.From != nil {
+					if string(*spec.Listeners[index].AllowedRoutes.Namespaces.From) == akogatewayapilib.AllowedRoutesNamespaceFromAll {
+						allowedRoutesAll = true
+					}
+				}
+			}
 			validListenerCount++
 		}
 	}
@@ -139,7 +150,8 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 		programmedCondition.
 			SetIn(&gatewayStatus.Conditions)
 		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
-		return false
+		gateway.Status = *gatewayStatus.DeepCopy()
+		return false, allowedRoutesAll, gateway
 	} else if validListenerCount < len(spec.Listeners) {
 		defaultCondition.
 			Reason(string(gatewayv1.GatewayReasonListenersNotValid)).
@@ -148,7 +160,8 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 			SetIn(&gatewayStatus.Conditions)
 		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
 		utils.AviLog.Infof("key: %s, msg: Gateway %s contains atleast one valid listener", key, gateway.Name)
-		return true
+		gateway.Status = *gatewayStatus.DeepCopy()
+		return true, allowedRoutesAll, gateway
 	}
 
 	defaultCondition.
@@ -158,7 +171,8 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 		SetIn(&gatewayStatus.Conditions)
 	akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
 	utils.AviLog.Infof("key: %s, msg: Gateway %s is valid", key, gateway.Name)
-	return true
+	gateway.Status = *gatewayStatus.DeepCopy()
+	return true, allowedRoutesAll, gateway
 }
 
 func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gatewayv1.GatewayStatus, index int) bool {
@@ -305,7 +319,7 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 	return true
 }
 
-func IsHTTPRouteValid(key string, obj *gatewayv1.HTTPRoute) bool {
+func IsHTTPRouteValid(key string, obj *gatewayv1.HTTPRoute, gateway *gatewayv1.Gateway) bool {
 
 	httpRoute := obj.DeepCopy()
 	if len(httpRoute.Spec.ParentRefs) == 0 {
@@ -318,7 +332,7 @@ func IsHTTPRouteValid(key string, obj *gatewayv1.HTTPRoute) bool {
 	var invalidParentRefCount int
 	parentRefIndexInHttpRouteStatus := 0
 	for parentRefIndexFromSpec := range httpRoute.Spec.ParentRefs {
-		err := validateParentReference(key, httpRoute, httpRouteStatus, parentRefIndexFromSpec, &parentRefIndexInHttpRouteStatus)
+		err := validateParentReference(key, httpRoute, httpRouteStatus, parentRefIndexFromSpec, &parentRefIndexInHttpRouteStatus, gateway)
 		if err != nil {
 			invalidParentRefCount++
 			parentRefName := httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].Name
@@ -338,7 +352,7 @@ func IsHTTPRouteValid(key string, obj *gatewayv1.HTTPRoute) bool {
 	return true
 }
 
-func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRouteStatus *gatewayv1.HTTPRouteStatus, parentRefIndexFromSpec int, parentRefIndexInHttpRouteStatus *int) error {
+func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRouteStatus *gatewayv1.HTTPRouteStatus, parentRefIndexFromSpec int, parentRefIndexInHttpRouteStatus *int, gatewayParent *gatewayv1.Gateway) error {
 
 	name := string(httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].Name)
 	namespace := httpRoute.Namespace
@@ -346,12 +360,18 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		namespace = string(*httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].Namespace)
 	}
 	gwNsName := namespace + "/" + name
-	obj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).Get(name)
-	if err != nil {
-		utils.AviLog.Errorf("key: %s, msg: unable to get the gateway object. err: %s", key, err)
-		return err
+	var gateway *gatewayv1.Gateway
+	if gatewayParent != nil && namespace == gatewayParent.Namespace && name == gatewayParent.Name {
+		gateway = gatewayParent.DeepCopy()
+	} else {
+		obj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).Get(name)
+		if err != nil {
+			utils.AviLog.Errorf("key: %s, msg: unable to get the gateway object. err: %s", key, err)
+			return err
+		}
+		gateway = obj.DeepCopy()
 	}
-	gateway := obj.DeepCopy()
+	utils.AviLog.Debugf(utils.Stringify(gateway))
 
 	gwClass := string(gateway.Spec.GatewayClassName)
 	_, isAKOCtrl := akogatewayapiobjects.GatewayApiLister().IsGatewayClassControllerAKO(gwClass)

@@ -1461,13 +1461,11 @@ func TestTransitionsHttpRouteWithPartiallyValidGatewayToValidGateway(t *testing.
 
 	gateway, _ := akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 	g.Expect(gateway.Status.Listeners[1].Conditions[0].Status).To(gomega.Equal(metav1.ConditionTrue))
-
 	g.Eventually(func() int {
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 		return len(nodes[0].EvhNodes[0].VHMatches)
 	}, 50*time.Second).Should(gomega.Equal(2))
-	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
@@ -1606,7 +1604,7 @@ func TestTransitionsHttpRouteWithInvalidGatewayToPartiallyValidGateway(t *testin
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
-	}, 25*time.Second).Should(gomega.Equal(true))
+	}, 25*time.Second).Should(gomega.Equal(false))
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName1, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
@@ -1625,7 +1623,18 @@ func TestTransitionsHttpRouteWithInvalidGatewayToPartiallyValidGateway(t *testin
 
 	hostnames := []gatewayv1.Hostname{"foo-8080.com", "foo-8081.com"}
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
-
+	listeners[1].Protocol = "HTTPS"
+	akogatewayapitests.UpdateGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+	g.Eventually(func() bool {
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+	gateway, _ := akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+	g.Expect(gateway.Status.Listeners[1].Conditions[0].Status).To(gomega.Equal(metav1.ConditionTrue))
 	g.Eventually(func() int {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found {
@@ -1646,11 +1655,11 @@ func TestTransitionsHttpRouteWithInvalidGatewayToPartiallyValidGateway(t *testin
 	g.Expect(childNode1.PoolRefs[0].Port).To(gomega.Equal(int32(8080)))
 	g.Expect(len(childNode1.PoolRefs[0].Servers)).To(gomega.Equal(1))
 	g.Expect(len(childNode1.VHMatches)).To(gomega.Equal(1))
-	g.Expect(*childNode1.VHMatches[0].Host).To(gomega.Equal("foo-8080.com"))
+	g.Expect(*childNode1.VHMatches[0].Host).To(gomega.Equal("foo-8081.com"))
 	g.Expect(len(childNode1.VHMatches[0].Rules)).To(gomega.Equal(1))
 	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/foo"))
 	g.Expect(len(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(1))
-	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
+	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8081)))
 
 	childNode2 := nodes[0].EvhNodes[1]
 	g.Expect(childNode2.PoolGroupRefs).To(gomega.HaveLen(1))
@@ -1660,32 +1669,11 @@ func TestTransitionsHttpRouteWithInvalidGatewayToPartiallyValidGateway(t *testin
 	g.Expect(childNode2.PoolRefs[0].Port).To(gomega.Equal(int32(8080)))
 	g.Expect(len(childNode2.PoolRefs[0].Servers)).To(gomega.Equal(1))
 	g.Expect(len(childNode2.VHMatches)).To(gomega.Equal(1))
-	g.Expect(*childNode2.VHMatches[0].Host).To(gomega.Equal("foo-8080.com"))
+	g.Expect(*childNode2.VHMatches[0].Host).To(gomega.Equal("foo-8081.com"))
 	g.Expect(len(childNode2.VHMatches[0].Rules)).To(gomega.Equal(1))
 	g.Expect(childNode2.VHMatches[0].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/bar"))
 	g.Expect(len(childNode2.VHMatches[0].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(1))
-	g.Expect(childNode2.VHMatches[0].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
-
-	listeners[1].Protocol = "HTTPS"
-	akogatewayapitests.UpdateGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
-
-	g.Eventually(func() bool {
-		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
-		if err != nil || gateway == nil {
-			t.Logf("Couldn't get the gateway, err: %+v", err)
-			return false
-		}
-		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
-	}, 30*time.Second).Should(gomega.Equal(true))
-
-	gateway, _ := akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
-	g.Expect(gateway.Status.Listeners[1].Conditions[0].Status).To(gomega.Equal(metav1.ConditionTrue))
-
-	g.Eventually(func() int {
-		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes[0].VHMatches)
-	}, 50*time.Second).Should(gomega.Equal(2))
-	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(childNode2.VHMatches[0].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8081)))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName1)
