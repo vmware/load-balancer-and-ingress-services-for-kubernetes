@@ -284,8 +284,8 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 							}
 						}
 					}
-					if (hostnameMatched && !utils.HasElem(listenerList, listener)) || len(hrObj.Spec.Hostnames) == 0 {
-						gatewayListenerList = append(listenerList, listener)
+					if (hostnameMatched && !utils.HasElem(gatewayListenerList, listener)) || len(hrObj.Spec.Hostnames) == 0 {
+						gatewayListenerList = append(gatewayListenerList, listener)
 					}
 				}
 			}
@@ -301,7 +301,9 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 				}
 			}
 		}
-		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteToHostname(gwNsName, hostnameIntersection)
+		uniqueHosts := sets.NewString(hostnameIntersection...)
+
+		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteToHostname(gwNsName, uniqueHosts.List())
 		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteMappings(gwNsName, listenerList, routeTypeNsName)
 		if !utils.HasElem(gwNsNameList, gwNsName) {
 			gwNsNameList = append(gwNsNameList, gwNsName)
