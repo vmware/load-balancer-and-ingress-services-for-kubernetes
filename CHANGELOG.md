@@ -457,6 +457,7 @@ All notable changes to this project will be documented in this file. The format 
 - AKO now has a `L7Rule` CRD to change default parameters of L7 VirtualService in addition to `HostRule` CRD.
 - Support for Network Security policy in `HostRule` CRD.
 - AKO can use pre-existing avi-secret, present in AKO helm installation namespace to connect to the Avi Controller. Customer should not specify credentials as part of values.yaml during installation.
+
 ### Changed
 - L4 CRD can be applied to LoadBalancer type service present in different namespace.
 - AKO shows all IPV4 and IPV6 addresses associated with VirtualService as part of Ingress, LoadBalancer status.
@@ -469,3 +470,20 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Known Issue
 - L4 Rule CRD, with `enableSSL: true` in listener propterties, will not be applied to L4 Virtual Service if Avi Controller license is of type `Enterprise with Cloud Service`.
+
+## AKO-1.12.2
+
+### Added
+ - AKO now claims support for Kubernetes 1.30, OCP 4.15
+
+### Changed
+ - AKO now creates single SSLKeyCertificate per tenant for default secret present in the cluster.
+
+### Fixed
+ - Fix: AKO Gateway does not create virtual service if Gateway have multiple listeners with same host name.
+ - Fix: AKO Gateway container crashes when it boots up in NPL mode.
+ - Fix: AKO does not honour readiness probe for pods when AKO boots up in NPL mode.
+ - Fix: AKO Shared VIP functionality doesn't work in NSX-T setup.
+ - Fix: AKO crashes in NSX-T shared L4 vip environment with no subdomain configured.
+ - Fix: L4Rule, with SSL enabled, is not applied to L4 VS if license type is Enterprise with Cloud Services.
+ - Fix: Cloud name with spaces in causes AKO to fail to start after upgrading Avi to 30.x. 
