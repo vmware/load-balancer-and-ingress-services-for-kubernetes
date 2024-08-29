@@ -247,9 +247,10 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 	}
 	var listenerList []objects.GatewayListenerStore
 	var gatewayList []string
-	var hostnameIntersection []string
 	var gwNsNameList []string
+	parentNameToHostnameMap := make(map[string][]string)
 	for _, parentRef := range hrObj.Spec.ParentRefs {
+		hostnameIntersection, _ := parentNameToHostnameMap[string(parentRef.Name)]
 		ns := namespace
 		if parentRef.Namespace != nil {
 			ns = string(*parentRef.Namespace)
@@ -308,6 +309,7 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 		if !utils.HasElem(gwNsNameList, gwNsName) {
 			gwNsNameList = append(gwNsNameList, gwNsName)
 		}
+		parentNameToHostnameMap[string(parentRef.Name)] = hostnameIntersection
 	}
 
 	utils.AviLog.Debugf("key: %s, msg: Gateways retrieved %s", key, gwNsNameList)
