@@ -89,8 +89,8 @@ AKO version 1.12.2 support for Kubernetes, Openshift, Avi Controller is as below
 
 | **Orchestrator/ Controller** | **Versions Supported** |
 | --------- | ----------- |
-| `Kubernetes` | 1.25 - 1.29 |
-| `Openshift` | 4.12 - 4.14 |
+| `Kubernetes` | 1.25 - 1.30 |
+| `Openshift` | 4.12 - 4.15 |
 | `Avi Controller` | 22.1.3 - 30.2.1 |
 
 
