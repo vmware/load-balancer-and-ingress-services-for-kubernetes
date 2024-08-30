@@ -127,19 +127,22 @@ func UnsetListenerHostname(l *gatewayv1.Listener) {
 	l.Hostname = &hname
 }
 
-func GetListenersV1(ports []int32, emptyHostName bool, secrets ...string) []gatewayv1.Listener {
+func GetListenersV1(ports []int32, emptyHostName, samehost bool, secrets ...string) []gatewayv1.Listener {
 	listeners := make([]gatewayv1.Listener, 0, len(ports))
 	for _, port := range ports {
-		hostname := ""
-		if !emptyHostName {
-			hostname = fmt.Sprintf("foo-%d.com", port)
-		}
 		listener := gatewayv1.Listener{
 			Name:     gatewayv1.SectionName(fmt.Sprintf("listener-%d", port)),
 			Port:     gatewayv1.PortNumber(port),
 			Protocol: gatewayv1.ProtocolType("HTTPS"),
-			Hostname: (*gatewayv1.Hostname)(&hostname),
 		}
+		if !samehost && !emptyHostName {
+			hostname := fmt.Sprintf("foo-%d.com", port)
+			listener.Hostname = (*gatewayv1.Hostname)(&hostname)
+		} else if samehost {
+			hostname := "foo.com"
+			listener.Hostname = (*gatewayv1.Hostname)(&hostname)
+		}
+
 		if len(secrets) > 0 {
 			certRefs := make([]gatewayv1.SecretObjectReference, 0, len(secrets))
 			for _, secret := range secrets {
@@ -336,6 +339,21 @@ func GetParentReferencesV1(gatewayNames []string, namespace string, ports []int3
 			}
 			parentRefs = append(parentRefs, parentRef)
 		}
+	}
+	return parentRefs
+}
+
+// created new function to avoid confusion
+func GetParentReferencesV1WithGatewayNameOnly(gatewayNames []string, namespace string) []gatewayv1.ParentReference {
+	parentRefs := make([]gatewayv1.ParentReference, 0)
+	for _, gwName := range gatewayNames {
+
+		parentRef := gatewayv1.ParentReference{
+			Name:      gatewayv1.ObjectName(gwName),
+			Namespace: (*gatewayv1.Namespace)(&namespace),
+		}
+		parentRefs = append(parentRefs, parentRef)
+
 	}
 	return parentRefs
 }

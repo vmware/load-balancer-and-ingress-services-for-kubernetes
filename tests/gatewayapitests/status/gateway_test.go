@@ -134,7 +134,7 @@ func TestGatewayWithValidListenersAndGatewayClass(t *testing.T) {
 	ports := []int32{8080, 8081}
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false)
+	listeners := tests.GetListenersV1(ports, false, false)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -187,7 +187,7 @@ func TestGatewayWithTLSListeners(t *testing.T) {
 		integrationtest.AddSecret(secret, DEFAULT_NAMESPACE, "cert", "key")
 	}
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false, secrets...)
+	listeners := tests.GetListenersV1(ports, false, false, secrets...)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -233,7 +233,7 @@ func TestGatewayListenerUpdate(t *testing.T) {
 	ports := []int32{8080, 8081, 8082}
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false)
+	listeners := tests.GetListenersV1(ports, false, false)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -268,7 +268,7 @@ func TestGatewayListenerUpdate(t *testing.T) {
 
 	// Update the Gateway with new listeners
 	ports = []int32{8080, 8082}
-	listeners = tests.GetListenersV1(ports, false)
+	listeners = tests.GetListenersV1(ports, false, false)
 	tests.UpdateGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g.Eventually(func() bool {
@@ -307,7 +307,7 @@ func TestGatewayTransitionFromValidToInvalid(t *testing.T) {
 	ports := []int32{8080, 8081}
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false)
+	listeners := tests.GetListenersV1(ports, false, false)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -409,7 +409,7 @@ func TestGatewayTransitionFromInvalidToValid(t *testing.T) {
 	tests.ValidateGatewayStatus(t, &gateway.Status, expectedStatus)
 
 	// Update the gateway with a valid configuration
-	listeners := tests.GetListenersV1(ports, false)
+	listeners := tests.GetListenersV1(ports, false, false)
 	tests.UpdateGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g.Eventually(func() bool {
@@ -443,7 +443,7 @@ func TestGatewayTransitionFromNonAKOControllerToAKOController(t *testing.T) {
 	ports := []int32{8080, 8081}
 
 	tests.SetupGatewayClass(t, gatewayClassNameWithNonAkoController, "foo.company.com/foo-gateway-controller")
-	listeners := tests.GetListenersV1(ports, false)
+	listeners := tests.GetListenersV1(ports, false, false)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassNameWithNonAkoController, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -499,7 +499,7 @@ func TestGatewayTransitionFromAKOControllerToNonAKOController(t *testing.T) {
 	ports := []int32{8080, 8081}
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false)
+	listeners := tests.GetListenersV1(ports, false, false)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -604,7 +604,7 @@ func TestGatewayWithMoreThanOneAddress(t *testing.T) {
 	ports := []int32{8080, 8081}
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false)
+	listeners := tests.GetListenersV1(ports, false, false)
 	fakeGateway := tests.Gateway{}
 	addresses := []gatewayv1.GatewayAddress{{Value: "10.10.10.1"}, {Value: "10.10.10.2"}}
 	fakeGateway.Gateway = fakeGateway.GatewayV1(gatewayName, DEFAULT_NAMESPACE, gatewayClassName, addresses, listeners)
@@ -649,7 +649,7 @@ func TestGatewayWithUnsupportedProtocolInListeners(t *testing.T) {
 	ports := []int32{8080, 8081}
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false)
+	listeners := tests.GetListenersV1(ports, false, false)
 	listeners[0].Protocol = "GRPC"
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
@@ -696,7 +696,7 @@ func TestGatewayWithInvalidHostnameInListeners(t *testing.T) {
 	ports := []int32{8080, 8081}
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false)
+	listeners := tests.GetListenersV1(ports, false, false)
 	invalidHostname := "*"
 	listeners[0].Hostname = (*gatewayv1.Hostname)(&invalidHostname)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
@@ -747,7 +747,7 @@ func TestGatewayWithInvalidTLSConfigInListeners(t *testing.T) {
 		integrationtest.AddSecret(secret, DEFAULT_NAMESPACE, "cert", "key")
 	}
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false, secrets...)
+	listeners := tests.GetListenersV1(ports, false, false, secrets...)
 	invalidTLSMode := "invalid-mode"
 	listeners[0].TLS.Mode = (*gatewayv1.TLSModeType)(&invalidTLSMode)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
@@ -799,7 +799,7 @@ func TestGatewayWithInvalidAllowedRoute(t *testing.T) {
 
 	// Checking for Invalid RouteKind -> Kind
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false)
+	listeners := tests.GetListenersV1(ports, false, false)
 	allowedRoutes := gatewayv1.AllowedRoutes{
 		Kinds: []gatewayv1.RouteGroupKind{{
 			Kind: "Services",
@@ -897,7 +897,7 @@ func TestGatewayWithValidAllowedRoute(t *testing.T) {
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	// Checking for Valid RouteKind -> Kind and Group as nil
-	listeners := tests.GetListenersV1(ports, false)
+	listeners := tests.GetListenersV1(ports, false, false)
 	allowedRoutes := gatewayv1.AllowedRoutes{
 		Kinds: []gatewayv1.RouteGroupKind{{
 			Kind: "HTTPRoute",
@@ -1070,7 +1070,7 @@ func TestMultipleGatewaySameHostname(t *testing.T) {
 	gatewayClassName := "gateway-class-neg-08"
 	ports := []int32{8080}
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false)
+	listeners := tests.GetListenersV1(ports, false, false)
 	hostname := "products.example.com"
 	listeners[0].Hostname = (*gatewayv1.Hostname)(&hostname)
 	tests.SetupGateway(t, gatewayName1, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
@@ -1153,7 +1153,7 @@ func TestMultipleGatewayOverlappingHostname(t *testing.T) {
 	gatewayClassName := "gateway-class-neg-10"
 	ports := []int32{8080}
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false)
+	listeners := tests.GetListenersV1(ports, false, false)
 	hostname := "products.example.com"
 	listeners[0].Hostname = (*gatewayv1.Hostname)(&hostname)
 	tests.SetupGateway(t, gatewayName1, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)

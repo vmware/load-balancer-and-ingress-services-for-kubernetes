@@ -646,3 +646,22 @@ func CheckSubdomainOverlapping(hostName1, hostName2 string) bool {
 	}
 	return true
 }
+func GetUriEncoded(uri string) string {
+	newUri, err := url.Parse(uri)
+	if err != nil {
+		AviLog.Errorf("Error while parsing uri: %+v", err)
+	}
+	queryValues := newUri.Query()
+	if len(queryValues) == 0 {
+		return uri
+	}
+
+	for key := range queryValues {
+		for i := range queryValues[key] {
+			queryValues[key][i] = url.QueryEscape(queryValues[key][i])
+		}
+	}
+
+	newUri.RawQuery = queryValues.Encode()
+	return newUri.String()
+}

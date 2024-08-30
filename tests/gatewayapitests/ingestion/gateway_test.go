@@ -395,7 +395,7 @@ func TestGatewayInvalidListenerTLS(t *testing.T) {
 		waitAndverify(t, "Secret/"+DEFAULT_NAMESPACE+"/"+secret)
 	}
 
-	listeners := akogatewayapitests.GetListenersV1(ports, false, secrets...)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false, secrets...)
 	tlsModePassthrough := gatewayv1.TLSModePassthrough
 	listeners[0].TLS.Mode = &tlsModePassthrough
 	//create

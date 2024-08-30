@@ -135,7 +135,7 @@ func TestGateway(t *testing.T) {
 	ports := []int32{8080}
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false)
+	listeners := tests.GetListenersV1(ports, false, false)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -182,7 +182,7 @@ func TestGatewayWithTLS(t *testing.T) {
 	}
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false, secrets...)
+	listeners := tests.GetListenersV1(ports, false, false, secrets...)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -229,7 +229,7 @@ func TestGatewayNoTLSToTLS(t *testing.T) {
 	ports := []int32{8080}
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false)
+	listeners := tests.GetListenersV1(ports, false, false)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -308,7 +308,7 @@ func TestGatewayTLSToNoTLS(t *testing.T) {
 	}
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false, secrets...)
+	listeners := tests.GetListenersV1(ports, false, false, secrets...)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -376,7 +376,7 @@ func TestGatewayDelete(t *testing.T) {
 	ports := []int32{8080}
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false)
+	listeners := tests.GetListenersV1(ports, false, false)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -418,7 +418,7 @@ func TestSecretCreateDelete(t *testing.T) {
 	secrets := []string{"secret-06"}
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false, secrets...)
+	listeners := tests.GetListenersV1(ports, false, false, secrets...)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
