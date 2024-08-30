@@ -624,21 +624,8 @@ func String(s *string) string {
 }
 
 func GetUriEncoded(uri string) string {
-	newUri, err := url.Parse(uri)
-	if err != nil {
-		AviLog.Errorf("Error while parsing uri: %+v", err)
+	if uriSplit := strings.SplitN(uri, "?", 2); len(uriSplit) == 2 {
+		return uriSplit[0] + "?" + url.QueryEscape(uriSplit[1])
 	}
-	queryValues := newUri.Query()
-	if len(queryValues) == 0 {
-		return uri
-	}
-
-	for key := range queryValues {
-		for i := range queryValues[key] {
-			queryValues[key][i] = url.QueryEscape(queryValues[key][i])
-		}
-	}
-
-	newUri.RawQuery = queryValues.Encode()
-	return newUri.String()
+	return uri
 }
