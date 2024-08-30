@@ -278,9 +278,11 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 						// When Gateway hostname is empty, then just check validity of hostname and append it.
 						// When hostname in HTTProute has wildcard
 						// When there is exact match
+						utils.AviLog.Debugf("key: %s, msg: Iterating RouteHostname %s", key, routeHostname)
 						if listenerHostname == "" || utils.CheckSubdomainOverlapping(string(routeHostname), listenerHostname) {
 							if akogatewayapilib.VerifyHostnameSubdomainMatch(string(routeHostname)) {
 								hostnameIntersection = append(hostnameIntersection, string(routeHostname))
+								utils.AviLog.Debugf("key: %s, msg: Hostname matched and hostname intersection is true %s and routehostname %s", key, listenerHostname, routeHostname)
 								hostnameMatched = true
 							}
 						}

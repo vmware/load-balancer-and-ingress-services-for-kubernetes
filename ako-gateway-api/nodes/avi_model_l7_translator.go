@@ -97,7 +97,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 		utils.AviLog.Warnf("key: %s, msg: No hosts mapped to the route %s/%s/%s", key, routeModel.GetType(), routeModel.GetNamespace(), routeModel.GetName())
 		return
 	}
-
+	utils.AviLog.Warnf("key: %s, msg: Hostnames mapped to the route %s", key, hosts)
 	childVSName := akogatewayapilib.GetChildName(parentNs, parentName, routeModel.GetNamespace(), routeModel.GetName(), utils.Stringify(rule.Matches))
 	childVSes[childVSName] = struct{}{}
 
@@ -396,13 +396,15 @@ func (o *AviObjectGraph) BuildVHMatch(key string, parentNsName string, routeType
 			listeners = append(listeners, listener)
 		}
 	}
+	utils.AviLog.Infof("key: %s, msg: Inside buildVhMatches ", key)
+	utils.AviLog.Warnf("key: %s, msg: Inside VHMatch Hostnames mapped to the route %s", key, hosts)
 
 	for _, host := range hosts {
 		hostname := host
 		vhMatch := &models.VHMatch{
 			Host: &hostname,
 		}
-
+		utils.AviLog.Infof("key: %s, msg: Inside forloop for host %s", key, hostname)
 		for i, match := range rule.Matches {
 			ruleName := fmt.Sprintf("rule-%d", i)
 			rule := &models.VHMatchRule{
@@ -446,10 +448,32 @@ func (o *AviObjectGraph) BuildVHMatch(key string, parentNsName string, routeType
 			}
 			//TODO correctly add protocol
 			//rule.Matches.Protocol.Protocols = &listeners[0].Protocol
-
+		}
+		if len(rule.Backends) > 0 && len(rule.Matches) == 0 {
+			ruleName := fmt.Sprintf("rule-%d", 0)
+			rule := &models.VHMatchRule{
+				Name:    &ruleName,
+				Matches: &models.MatchTarget{},
+			}
+			//create VH Match with path /
+			// path match
+			rule.Matches.Path = &models.PathMatch{
+				MatchCase:     proto.String("SENSITIVE"),
+				MatchStr:      []string{"/"},
+				MatchCriteria: proto.String("BEGINS_WITH"),
+			}
+			//port match from listener
+			matchCriteria := "IS_IN"
+			rule.Matches.VsPort = &models.PortMatch{
+				MatchCriteria: &matchCriteria,
+			}
+			for _, listener := range listeners {
+				rule.Matches.VsPort.Ports = append(rule.Matches.VsPort.Ports, int64(listener.Port))
+			}
 			vhMatch.Rules = append(vhMatch.Rules, rule)
 		}
 		vhMatches = append(vhMatches, vhMatch)
+
 	}
 	vsNode.VHMatches = vhMatches
 	utils.AviLog.Debugf("key: %s, msg: Attached match criteria %s to vs %s", key, utils.Stringify(vsNode.VHMatches), vsNode.Name)
