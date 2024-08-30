@@ -37,7 +37,7 @@ func AviGetCollectionRaw(client *clients.AviClient, uri string, retryNum ...int)
 		}
 	}
 
-	result, err := client.AviSession.GetCollectionRaw(utils.GetUriEncoded(uri))
+	result, err := client.AviSession.GetCollectionRaw(uri)
 	IncrementRestOpCouter(HTTPMethodGet, uri)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to fetch collection data from uri %s %v", uri, err)
@@ -87,7 +87,7 @@ func AviGet(client *clients.AviClient, uri string, response interface{}, retryNu
 		}
 	}
 
-	err := client.AviSession.Get(utils.GetUriEncoded(uri), &response)
+	err := client.AviSession.Get(uri, &response)
 	IncrementRestOpCouter(HTTPMethodGet, uri)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to fetch data from uri %s %v", uri, err)
@@ -127,7 +127,7 @@ func AviGetRaw(client *clients.AviClient, uri string, retryNum ...int) ([]byte, 
 		}
 	}
 
-	rawData, err := client.AviSession.GetRaw(utils.GetUriEncoded(uri))
+	rawData, err := client.AviSession.GetRaw(uri)
 	IncrementRestOpCouter(HTTPMethodGet, uri)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to fetch data from uri %s %v", uri, err)
@@ -156,7 +156,7 @@ func AviPut(client *clients.AviClient, uri string, payload interface{}, response
 		}
 	}
 
-	err := client.AviSession.Put(utils.GetUriEncoded(uri), payload, &response)
+	err := client.AviSession.Put(uri, payload, &response)
 	IncrementRestOpCouter(HTTPMethodPut, uri)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to execute Put on uri %s %v", uri, err)
@@ -193,7 +193,7 @@ func AviPost(client *clients.AviClient, uri string, payload interface{}, respons
 		}
 	}
 
-	err := client.AviSession.Post(utils.GetUriEncoded(uri), payload, &response)
+	err := client.AviSession.Post(uri, payload, &response)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to execute Post on uri %s %v", uri, err)
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
@@ -229,7 +229,7 @@ func AviDelete(client *clients.AviClient, uri string, retryNum ...int) error {
 		}
 	}
 
-	err := client.AviSession.Delete(utils.GetUriEncoded(uri))
+	err := client.AviSession.Delete(uri)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to execute Delete on uri %s %v", uri, err)
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
