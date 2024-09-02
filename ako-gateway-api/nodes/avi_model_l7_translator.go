@@ -442,6 +442,7 @@ func (o *AviObjectGraph) BuildVHMatch(key string, parentNsName string, routeType
 			rule.Matches.VsPort = &models.PortMatch{
 				MatchCriteria: &matchCriteria,
 			}
+			rule.Matches.VsPort.Ports = []int64{}
 			for _, listener := range listeners {
 				rule.Matches.VsPort.Ports = append(rule.Matches.VsPort.Ports, int64(listener.Port))
 			}

@@ -640,7 +640,6 @@ func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
 }
 
 func validateReferreedHTTPRoute(key string, gateway *gatewayv1.Gateway, allowedRoutesAll bool) ([]*gatewayv1.HTTPRoute, error) {
-	utils.AviLog.Infof("key: %s, msg: validateReferreedHTTPRoute", key)
 	namespace := gateway.Namespace
 	if allowedRoutesAll {
 		namespace = metav1.NamespaceAll
@@ -651,7 +650,6 @@ func validateReferreedHTTPRoute(key string, gateway *gatewayv1.Gateway, allowedR
 		return nil, err
 	}
 	for _, httpRoute := range hrObj {
-		utils.AviLog.Infof("key: %s, msg: %s", key, httpRoute.Name)
 		for _, pr := range httpRoute.Spec.ParentRefs {
 			if pr.Name == gatewayv1.ObjectName(gateway.Name) {
 				if IsHTTPRouteValid(key, httpRoute, gateway) {

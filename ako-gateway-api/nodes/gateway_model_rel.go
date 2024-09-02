@@ -184,7 +184,6 @@ func GatewayGetGw(namespace, name, key string) ([]string, bool) {
 	uniqueHostnames := sets.NewString(gwHostnames...)
 	//TODO: verify hostname overlap here or use the store updated from here
 	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToHostnames(gwNsName, uniqueHostnames.List())
-
 	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToListener(gwNsName, listeners)
 	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToSecret(gwNsName, secrets)
 	for listener, hostname := range hostnames {
@@ -311,11 +310,12 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 			}
 		}
 		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteToHostname(gwNsName, hostnameIntersection)
-		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteMappings(gwNsName, listenerList, routeTypeNsName)
+		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteMappings(gwNsName, routeTypeNsName)
 		if !utils.HasElem(gwNsNameList, gwNsName) {
 			gwNsNameList = append(gwNsNameList, gwNsName)
 		}
 	}
+	akogatewayapiobjects.GatewayApiLister().UpdateRouteToGatewayListenerMappings(listenerList, routeTypeNsName)
 
 	utils.AviLog.Debugf("key: %s, msg: Gateways retrieved %s", key, gwNsNameList)
 	return gwNsNameList, true
