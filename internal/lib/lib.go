@@ -791,36 +791,35 @@ func GetVipNetworkList() []akov1beta1.AviInfraSettingVipNetwork {
 	return VipNetworkList
 }
 
-var vipInfraLock sync.Map
+var vipInfraSyncMap sync.Map
 
 func SetVipInfraNetworkList(infraName string, vipNetworks []akov1beta1.AviInfraSettingVipNetwork) {
-	vipInfraLock.Store(infraName, vipNetworks)
+	vipInfraSyncMap.Store(infraName, vipNetworks)
 }
 
 func GetVipInfraNetworkList(infraName string) []akov1beta1.AviInfraSettingVipNetwork {
-	val, present := vipInfraLock.Load(infraName)
+	val, present := vipInfraSyncMap.Load(infraName)
 	if present {
 		return val.([]akov1beta1.AviInfraSettingVipNetwork)
 	}
-	utils.AviLog.Warnf("Key: %s not found in VIP InfraNetwork", infraName)
-	return []akov1beta1.AviInfraSettingVipNetwork{}
+	utils.AviLog.Warnf("Key: Error in fetching VIP network associated with AviInfrasetting %s. Using VIP network from configmap", infraName)
+	return utils.GetVipNetworkList()
 }
 
 var NodeInfraNetworkList map[string]map[string]NodeNetworkMap
-var nodeInfraLock sync.Map
+var nodeInfraSyncMap sync.Map
 
 func SetNodeInfraNetworkList(name string, nodeNetworks map[string]NodeNetworkMap) {
-	//NodeInfraNetworkList[name] = nodeNetworks
-	nodeInfraLock.Store(name, nodeNetworks)
+	nodeInfraSyncMap.Store(name, nodeNetworks)
 }
 
 func GetNodeInfraNetworkList(name string) map[string]NodeNetworkMap {
-	val, present := nodeInfraLock.Load(name)
+	val, present := nodeInfraSyncMap.Load(name)
 	if present {
 		return val.(map[string]NodeNetworkMap)
 	}
-	utils.AviLog.Warnf("Key: %s not found in Node InfraNetwork", name)
-	return map[string]NodeNetworkMap{}
+	utils.AviLog.Warnf("Key: Error in fetching node network list associated with AviInfrasetting %s. Using node network list from configmap", name)
+	return GetNodeNetworkMap()
 }
 
 func GetVipNetworkListEnv() ([]akov1beta1.AviInfraSettingVipNetwork, error) {
