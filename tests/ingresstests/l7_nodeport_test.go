@@ -31,14 +31,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func SetUpTestForIngressInNodePortMode(t *testing.T, model_Name string) {
+func SetUpTestForIngressInNodePortMode(t *testing.T, svcName, model_Name string) {
 	objects.SharedAviGraphLister().Delete(model_Name)
-	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeNodePort, false)
+	integrationtest.CreateSVC(t, "default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeNodePort, false)
 }
 
-func TearDownTestForIngressInNodePortMode(t *testing.T, model_Name string) {
+func TearDownTestForIngressInNodePortMode(t *testing.T, svcName, model_Name string) {
 	objects.SharedAviGraphLister().Delete(model_Name)
-	integrationtest.DelSVC(t, "default", "avisvc")
+	integrationtest.DelSVC(t, "default", svcName)
 }
 
 // TestL7ModelInNodePort checks if models are not updated for svc if its not referred in ingress.
@@ -51,8 +51,10 @@ func TestL7ModelInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	modelName := "admin/cluster--Shared-L7-0"
-	SetUpTestForIngressInNodePortMode(t, modelName)
+	modelName := MODEL_NAME_PREFIX + "0"
+	svcName := objNameMap.GenerateName("avisvc")
+	ingName := objNameMap.GenerateName("foo-with-targets")
+	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
 
 	integrationtest.PollForCompletion(t, modelName, 5)
 	found, _ := objects.SharedAviGraphLister().Get(modelName)
@@ -61,12 +63,12 @@ func TestL7ModelInNodePort(t *testing.T) {
 		t.Fatalf("Couldn't find Model for DELETE event %v", modelName)
 	}
 	ingrFake := (integrationtest.FakeIngress{
-		Name:        "foo-with-targets",
+		Name:        ingName,
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
 		Ips:         []string{"8.8.8.8"},
 		HostNames:   []string{"v1"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 	}).Ingress()
 
 	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
@@ -85,13 +87,13 @@ func TestL7ModelInNodePort(t *testing.T) {
 	g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 	g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngressInNodePortMode(t, modelName)
+	TearDownTestForIngressInNodePortMode(t, svcName, modelName)
 }
 
 // TestMultiIngressToSameSvcInNodePort tests if clusterIP is ignored in nodeport mode.
@@ -104,10 +106,13 @@ func TestMultiIngressToSameClusterIPSvcInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	modelName := "admin/cluster--Shared-L7-0"
+	modelName := MODEL_NAME_PREFIX + "0"
+	svcName := objNameMap.GenerateName("avisvc")
+	ingName := objNameMap.GenerateName("foo-with-targets")
+	ingName2 := objNameMap.GenerateName("foo-with-targets")
 	objects.SharedAviGraphLister().Delete(modelName)
 	svcExample := (integrationtest.FakeService{
-		Name:         "avisvc",
+		Name:         svcName,
 		Namespace:    "default",
 		Type:         corev1.ServiceTypeClusterIP,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
@@ -120,7 +125,7 @@ func TestMultiIngressToSameClusterIPSvcInNodePort(t *testing.T) {
 	epExample := &corev1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
-			Name:      "avisvc",
+			Name:      svcName,
 		},
 		Subsets: []corev1.EndpointSubset{{
 			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
@@ -132,12 +137,12 @@ func TestMultiIngressToSameClusterIPSvcInNodePort(t *testing.T) {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
 	ingrFake1 := (integrationtest.FakeIngress{
-		Name:        "foo-with-targets1",
+		Name:        ingName,
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
 		Ips:         []string{"8.8.8.8"},
 		HostNames:   []string{"v1"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 	}).Ingress()
 
 	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
@@ -145,12 +150,12 @@ func TestMultiIngressToSameClusterIPSvcInNodePort(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	ingrFake2 := (integrationtest.FakeIngress{
-		Name:        "foo-with-targets2",
+		Name:        ingName2,
 		Namespace:   "default",
 		DnsNames:    []string{"bar.com"},
 		Ips:         []string{"8.8.8.8"},
 		HostNames:   []string{"v1"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 	}).Ingress()
 
 	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
@@ -169,7 +174,7 @@ func TestMultiIngressToSameClusterIPSvcInNodePort(t *testing.T) {
 		g.Expect(len(dsNodes)).To(gomega.Equal(1))
 		g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
 		for _, pool := range nodes[0].PoolRefs {
-			if pool.Name == "cluster--foo.com_foo-default-foo-with-targets1" {
+			if pool.Name == "cluster--foo.com_foo-default-"+ingName {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
 				// since the service is cluster IP the backend servers are not added
 				g.Expect(len(pool.Servers)).To(gomega.Equal(0))
@@ -186,11 +191,11 @@ func TestMultiIngressToSameClusterIPSvcInNodePort(t *testing.T) {
 	}
 	//====== VERIFICATION OF SERVICE DELETE
 	// Now we have cleared the layer 2 queue for both the models. Let's delete the service.
-	err = KubeClient.CoreV1().Endpoints("default").Delete(context.TODO(), "avisvc", metav1.DeleteOptions{})
+	err = KubeClient.CoreV1().Endpoints("default").Delete(context.TODO(), svcName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Endpoint %v", err)
 	}
-	err = KubeClient.CoreV1().Services("default").Delete(context.TODO(), "avisvc", metav1.DeleteOptions{})
+	err = KubeClient.CoreV1().Services("default").Delete(context.TODO(), svcName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Service %v", err)
 	}
@@ -215,7 +220,7 @@ func TestMultiIngressToSameClusterIPSvcInNodePort(t *testing.T) {
 	}
 	//====== VERIFICATION OF ONE INGRESS DELETE
 	// Now let's delete one ingress and expect the update for that.
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets1", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -255,16 +260,16 @@ func TestMultiIngressToSameClusterIPSvcInNodePort(t *testing.T) {
 		t.Fatalf("Could not find model on service ADD: %v", err)
 	}
 
-	err = KubeClient.CoreV1().Endpoints("default").Delete(context.TODO(), "avisvc", metav1.DeleteOptions{})
+	err = KubeClient.CoreV1().Endpoints("default").Delete(context.TODO(), svcName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Endpoint %v", err)
 	}
 
-	err = KubeClient.CoreV1().Services("default").Delete(context.TODO(), "avisvc", metav1.DeleteOptions{})
+	err = KubeClient.CoreV1().Services("default").Delete(context.TODO(), svcName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Service %v", err)
 	}
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets2", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingName2, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -281,10 +286,13 @@ func TestMultiIngressToSameNodePortSvcInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	modelName := "admin/cluster--Shared-L7-0"
+	modelName := MODEL_NAME_PREFIX + "0"
+	svcName := objNameMap.GenerateName("avisvc")
+	ingName := objNameMap.GenerateName("foo-with-targets")
+	ingName2 := objNameMap.GenerateName("foo-with-targets")
 	objects.SharedAviGraphLister().Delete(modelName)
 	svcExample := (integrationtest.FakeService{
-		Name:         "avisvc",
+		Name:         svcName,
 		Namespace:    "default",
 		Type:         corev1.ServiceTypeNodePort,
 		ServicePorts: []integrationtest.Serviceport{{PortName: "foo", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080), NodePort: nodePort}},
@@ -296,12 +304,12 @@ func TestMultiIngressToSameNodePortSvcInNodePort(t *testing.T) {
 	}
 	// Endpoint is not created in NodePort Mode.
 	ingrFake1 := (integrationtest.FakeIngress{
-		Name:        "foo-with-targets1",
+		Name:        ingName,
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
 		Ips:         []string{"8.8.8.8"},
 		HostNames:   []string{"v1"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 	}).Ingress()
 
 	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
@@ -309,12 +317,12 @@ func TestMultiIngressToSameNodePortSvcInNodePort(t *testing.T) {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
 	ingrFake2 := (integrationtest.FakeIngress{
-		Name:        "foo-with-targets2",
+		Name:        ingName2,
 		Namespace:   "default",
 		DnsNames:    []string{"bar.com"},
 		Ips:         []string{"8.8.8.8"},
 		HostNames:   []string{"v1"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 	}).Ingress()
 
 	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
@@ -335,7 +343,7 @@ func TestMultiIngressToSameNodePortSvcInNodePort(t *testing.T) {
 		for _, pool := range nodes[0].PoolRefs {
 			// validate if the pool port is nodeport
 			g.Expect(pool.Port).To(gomega.Equal(nodePort))
-			if pool.Name == "cluster--foo.com_foo-default-foo-with-targets1" {
+			if pool.Name == "cluster--foo.com_foo-default-"+ingName {
 				g.Expect(pool.PriorityLabel).To(gomega.Equal("foo.com/foo"))
 				// since the service is NodePort type the backend servers  added and its nodeIP
 				g.Expect(len(pool.Servers)).To(gomega.Equal(1))
@@ -354,7 +362,7 @@ func TestMultiIngressToSameNodePortSvcInNodePort(t *testing.T) {
 	}
 	//====== VERIFICATION OF SERVICE DELETE
 	// Now we have cleared the layer 2 queue for both the models. Let's delete the service.
-	err = KubeClient.CoreV1().Services("default").Delete(context.TODO(), "avisvc", metav1.DeleteOptions{})
+	err = KubeClient.CoreV1().Services("default").Delete(context.TODO(), svcName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Service %v", err)
 	}
@@ -376,7 +384,7 @@ func TestMultiIngressToSameNodePortSvcInNodePort(t *testing.T) {
 
 	//====== VERIFICATION OF ONE INGRESS DELETE
 	// Now let's delete one ingress and expect the update for that.
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets1", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -416,11 +424,11 @@ func TestMultiIngressToSameNodePortSvcInNodePort(t *testing.T) {
 		t.Fatalf("Could not find model on service ADD: %v", err)
 	}
 
-	err = KubeClient.CoreV1().Services("default").Delete(context.TODO(), "avisvc", metav1.DeleteOptions{})
+	err = KubeClient.CoreV1().Services("default").Delete(context.TODO(), svcName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Service %v", err)
 	}
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets2", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingName2, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -438,16 +446,18 @@ func TestMultiVSIngressInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	modelName := "admin/cluster--Shared-L7-0"
-	SetUpTestForIngressInNodePortMode(t, modelName)
+	modelName := MODEL_NAME_PREFIX + "0"
+	svcName := objNameMap.GenerateName("avisvc")
+	ingName := objNameMap.GenerateName("foo-with-targets")
+	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
-		Name:        "foo-with-targets",
+		Name:        ingName,
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
 		Ips:         []string{"8.8.8.8"},
 		HostNames:   []string{"v1"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 	}).Ingress()
 
 	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
@@ -487,7 +497,7 @@ func TestMultiVSIngressInNodePort(t *testing.T) {
 		DnsNames:    []string{"foo.com"},
 		Ips:         []string{"8.8.8.8"},
 		HostNames:   []string{"v1"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 	}).Ingress()
 	_, err = KubeClient.NetworkingV1().Ingresses(randomNamespace).Create(context.TODO(), randoming, metav1.CreateOptions{})
 
@@ -513,7 +523,7 @@ func TestMultiVSIngressInNodePort(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
@@ -523,7 +533,7 @@ func TestMultiVSIngressInNodePort(t *testing.T) {
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngressInNodePortMode(t, modelName)
+	TearDownTestForIngressInNodePortMode(t, svcName, modelName)
 }
 
 // TestMultipleNodeCreationAndDeletionInNodePort tests addition of node and its effect of pool server and deletion of node.
@@ -535,15 +545,16 @@ func TestMultipleNodeCreationAndDeletionInNodePort(t *testing.T) {
 	nodeIP1 := "10.1.1.2"
 	integrationtest.CreateNode(t, "testNodeNP1", nodeIP1)
 
-	modelName := "admin/cluster--Shared-L7-0"
-	SetUpTestForIngressInNodePortMode(t, modelName)
+	modelName := MODEL_NAME_PREFIX + "0"
+	svcName := objNameMap.GenerateName("avisvc")
+	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:        "ingress-multi1",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
 		Paths:       []string{"/foo"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 	}).Ingress()
 
 	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
@@ -627,7 +638,7 @@ func TestMultipleNodeCreationAndDeletionInNodePort(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
-	TearDownTestForIngressInNodePortMode(t, modelName)
+	TearDownTestForIngressInNodePortMode(t, svcName, modelName)
 
 }
 
@@ -642,15 +653,16 @@ func TestMultiPathIngressInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	modelName := "admin/cluster--Shared-L7-0"
-	SetUpTestForIngressInNodePortMode(t, modelName)
+	modelName := MODEL_NAME_PREFIX + "0"
+	svcName := objNameMap.GenerateName("avisvc")
+	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "ingress-multipath",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
 		Paths:       []string{"/foo", "/bar"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 	}).IngressMultiPath()
 
 	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
@@ -702,7 +714,7 @@ func TestMultiPathIngressInNodePort(t *testing.T) {
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngressInNodePortMode(t, modelName)
+	TearDownTestForIngressInNodePortMode(t, svcName, modelName)
 }
 
 func TestMultiPortServiceIngressInNodePort(t *testing.T) {
@@ -716,15 +728,16 @@ func TestMultiPortServiceIngressInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	modelName := "admin/cluster--Shared-L7-0"
+	modelName := MODEL_NAME_PREFIX + "0"
+	svcName := objNameMap.GenerateName("avisvc")
 	objects.SharedAviGraphLister().Delete(modelName)
-	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeNodePort, true)
+	integrationtest.CreateSVC(t, "default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeNodePort, true)
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "ingress-multipath",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
 		Paths:       []string{"/foo"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 	}).IngressMultiPort()
 
 	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
@@ -773,7 +786,7 @@ func TestMultiPortServiceIngressInNodePort(t *testing.T) {
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngressInNodePortMode(t, modelName)
+	TearDownTestForIngressInNodePortMode(t, svcName, modelName)
 }
 
 func TestDeleteServiceInNodePort(t *testing.T) {
@@ -785,15 +798,16 @@ func TestDeleteServiceInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	modelName := "admin/cluster--Shared-L7-0"
-	SetUpTestForIngressInNodePortMode(t, modelName)
+	modelName := MODEL_NAME_PREFIX + "0"
+	svcName := objNameMap.GenerateName("avisvc")
+	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:        "ingress-multi1",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
 		Paths:       []string{"/foo"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 	}).Ingress()
 
 	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
@@ -806,7 +820,7 @@ func TestDeleteServiceInNodePort(t *testing.T) {
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
 		Paths:       []string{"/bar"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 	}).Ingress()
 
 	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
@@ -848,7 +862,7 @@ func TestDeleteServiceInNodePort(t *testing.T) {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
 	// Delete the service
-	integrationtest.DelSVC(t, "default", "avisvc")
+	integrationtest.DelSVC(t, "default", svcName)
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -902,15 +916,16 @@ func TestUpdateNodeInNodePort(t *testing.T) {
 	integrationtest.CreateNode(t, nodeName, nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
 
-	modelName := "admin/cluster--Shared-L7-0"
-	SetUpTestForIngressInNodePortMode(t, modelName)
+	modelName := MODEL_NAME_PREFIX + "0"
+	svcName := objNameMap.GenerateName("avisvc")
+	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:        "ingress-multi1",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
 		Paths:       []string{"/foo"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 	}).Ingress()
 
 	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
@@ -992,7 +1007,7 @@ func TestUpdateNodeInNodePort(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletion(t, g, aviModel, 1)
-	TearDownTestForIngressInNodePortMode(t, modelName)
+	TearDownTestForIngressInNodePortMode(t, svcName, modelName)
 
 }
 
@@ -1004,15 +1019,16 @@ func TestDeleteNodeInNodePort(t *testing.T) {
 	nodeIP := "10.1.1.2"
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 
-	modelName := "admin/cluster--Shared-L7-0"
-	SetUpTestForIngressInNodePortMode(t, modelName)
+	modelName := MODEL_NAME_PREFIX + "0"
+	svcName := objNameMap.GenerateName("avisvc")
+	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:        "ingress-multi1",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
 		Paths:       []string{"/foo"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 	}).Ingress()
 
 	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
@@ -1025,7 +1041,7 @@ func TestDeleteNodeInNodePort(t *testing.T) {
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
 		Paths:       []string{"/bar"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 	}).Ingress()
 
 	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
@@ -1109,7 +1125,7 @@ func TestDeleteNodeInNodePort(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
-	TearDownTestForIngressInNodePortMode(t, modelName)
+	TearDownTestForIngressInNodePortMode(t, svcName, modelName)
 
 }
 
@@ -1121,10 +1137,12 @@ func TestFullSyncCacheNoOpInNodePort(t *testing.T) {
 	nodeIP := "10.1.1.2"
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
+	secretName := objNameMap.GenerateName("my-secret")
 
-	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
-	modelName := "admin/cluster--Shared-L7-0"
-	SetUpTestForIngressInNodePortMode(t, modelName)
+	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
+	modelName := MODEL_NAME_PREFIX + "0"
+	svcName := objNameMap.GenerateName("avisvc")
+	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
 	//create multipath ingress with tls secret
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:      "ingress-fsno",
@@ -1134,9 +1152,9 @@ func TestFullSyncCacheNoOpInNodePort(t *testing.T) {
 		Paths:     []string{"/foo", "/bar"},
 		HostNames: []string{"v1"},
 		TlsSecretDNS: map[string][]string{
-			"my-secret": {"foo.com"},
+			secretName: {"foo.com"},
 		},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 	}).IngressMultiPath()
 	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
 	if err != nil {
@@ -1173,10 +1191,10 @@ func TestFullSyncCacheNoOpInNodePort(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
+	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), secretName, metav1.DeleteOptions{})
 	VerifySNIIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngressInNodePortMode(t, modelName)
+	TearDownTestForIngressInNodePortMode(t, svcName, modelName)
 }
 
 func TestL7ModelMultiSNIInNodePort(t *testing.T) {
@@ -1187,20 +1205,23 @@ func TestL7ModelMultiSNIInNodePort(t *testing.T) {
 	nodeIP := "10.1.1.2"
 	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
 	defer integrationtest.DeleteNode(t, "testNodeNP")
+	secretName := objNameMap.GenerateName("my-secret")
 
-	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
-	modelName := "admin/cluster--Shared-L7-0"
-	SetUpTestForIngressInNodePortMode(t, modelName)
+	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
+	modelName := MODEL_NAME_PREFIX + "0"
+	svcName := objNameMap.GenerateName("avisvc")
+	ingName := objNameMap.GenerateName("foo-with-targets")
+	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
 
 	ingrFake := (integrationtest.FakeIngress{
-		Name:        "foo-with-targets",
+		Name:        ingName,
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com", "bar.com"},
 		Ips:         []string{"8.8.8.8"},
 		HostNames:   []string{"v1"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
-			"my-secret": {"foo.com", "bar.com"},
+			secretName: {"foo.com", "bar.com"},
 		},
 	}).Ingress()
 	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
@@ -1226,12 +1247,12 @@ func TestL7ModelMultiSNIInNodePort(t *testing.T) {
 		t.Fatalf("Could not find Model: %v", err)
 	}
 
-	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{})
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
+	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), secretName, metav1.DeleteOptions{})
 	VerifySNIIngressDeletion(t, g, aviModel, 0)
 
-	TearDownTestForIngressInNodePortMode(t, modelName)
+	TearDownTestForIngressInNodePortMode(t, svcName, modelName)
 }
