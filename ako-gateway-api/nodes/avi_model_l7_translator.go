@@ -31,12 +31,12 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
-func (o *AviObjectGraph) AddDefaultHTTPPS(key string) {
+func (o *AviObjectGraph) AddDefaultHTTPPolicySet(key string) {
 	parentVS := o.GetAviEvhVS()[0]
-	defaultPSName := "default-backend"
+
 	// find default backend, if found make sure it is at last index
 	for i, policyRef := range parentVS.HttpPolicyRefs {
-		if policyRef.Name == defaultPSName {
+		if policyRef.Name == akogatewayapilib.DefaultPSName {
 			if i != len(parentVS.HttpPolicyRefs)-1 {
 				utils.AviLog.Debugf("key: %s msg: Found default-backend httpref at non last position", key)
 				temp := parentVS.HttpPolicyRefs[i]
@@ -49,7 +49,7 @@ func (o *AviObjectGraph) AddDefaultHTTPPS(key string) {
 	// if not found add it to last index
 
 	utils.AviLog.Debugf("key: %s msg: default-backend httpref not found. Adding", key)
-	defaultPolicyRef := &nodes.AviHttpPolicySetNode{Name: defaultPSName, Tenant: lib.GetTenant()}
+	defaultPolicyRef := &nodes.AviHttpPolicySetNode{Name: akogatewayapilib.DefaultPSName, Tenant: lib.GetTenant()}
 	defaultPolicyRef.RequestRules = []*models.HTTPRequestRule{
 		{
 			Name:   proto.String("default-backend-rule"),
