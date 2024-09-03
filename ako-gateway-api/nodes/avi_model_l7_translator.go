@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -121,11 +122,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 		Namespace:   parentNs,
 		Host:        hosts,
 	}
-	for _, host := range hosts {
-		if !strings.Contains(host, utils.WILDCARD) && !utils.HasElem(parentNode[0].VSVIPRefs[0].FQDNs, host) {
-			parentNode[0].VSVIPRefs[0].FQDNs = append(parentNode[0].VSVIPRefs[0].FQDNs, host)
-		}
-	}
+	updateHostname(key, parentNsName, parentNode[0])
 
 	routeTypeNsName := lib.HTTPRoute + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName()
 	// create vhmatch from the match
@@ -150,6 +147,28 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 		akogatewayapiobjects.GatewayApiLister().UpdateRouteChildVSMappings(routeModel.GetType()+"/"+routeModel.GetNamespace()+"/"+routeModel.GetName(), childVSName)
 	}
 	utils.AviLog.Infof("key: %s, msg: processing of child vs %s attached to parent vs %s completed", key, childNode.Name, childNode.VHParentName)
+}
+
+func updateHostname(key, parentNsName string, parentNode *nodes.AviEvhVsNode) {
+	ok, routeNsNames := akogatewayapiobjects.GatewayApiLister().GetGatewayToRoute(parentNsName)
+	if !ok {
+		utils.AviLog.Warnf("key: %s, msg: Unable to fetch routes from gateway", key)
+	}
+	uniqueHostnamesSet := sets.NewString()
+	for _, routeNsName := range routeNsNames {
+		ok, hostnames := akogatewayapiobjects.GatewayApiLister().GetRouteToHostname(routeNsName)
+		if !ok {
+			utils.AviLog.Warnf("key: %s, msg: Unable to fetch hostname from route: %s", key, routeNsName)
+		} else {
+			uniqueHostnamesSet.Insert(hostnames...)
+		}
+	}
+
+	uniqueHostnames := slices.DeleteFunc(uniqueHostnamesSet.List(), func(s string) bool {
+		return strings.Contains(s, utils.WILDCARD)
+	})
+	utils.AviLog.Debugf("hostnames found: %v", uniqueHostnames)
+	parentNode.VSVIPRefs[0].FQDNs = uniqueHostnames
 }
 
 func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {

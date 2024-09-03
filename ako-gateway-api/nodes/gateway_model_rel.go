@@ -304,6 +304,7 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 		}
 		uniqueHosts := sets.NewString(hostnameIntersection...)
 
+		akogatewayapiobjects.GatewayApiLister().UpdateRouteToHostname(routeTypeNsName, uniqueHosts.List())
 		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteToHostname(gwNsName, uniqueHosts.List())
 		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteMappings(gwNsName, listenerList, routeTypeNsName)
 		if !utils.HasElem(gwNsNameList, gwNsName) {
