@@ -45,6 +45,7 @@ func GatewayApiLister() *GWLister {
 			gatewayListenerToHostnameStore: objects.NewObjectMapStore(),
 			gatewayRouteToHostnameStore:    objects.NewObjectMapStore(),
 			gatewayRouteToHTTPSPGPoolStore: objects.NewObjectMapStore(),
+			podToServiceStore:              objects.NewObjectMapStore(),
 		}
 	})
 	return gwLister
@@ -107,6 +108,10 @@ type GWLister struct {
 	// HTTPPS, PG, Pool in parent VS
 	// gatewayns/gatewayname + routenamespace/routename --> [HTTPPS, PG, Pool]
 	gatewayRouteToHTTPSPGPoolStore *objects.ObjectMapStore
+
+	//Pods -> Service Mapping for NPL
+	//podNs/podName -> [svcNs/svcName, ...]
+	podToServiceStore *objects.ObjectMapStore
 }
 
 type GatewayRouteKind struct {
@@ -855,4 +860,30 @@ func (g *GWLister) DeleteGatewayRouteToHTTPSPGPool(gwRouteNsName string) {
 	g.gwLock.RLock()
 	defer g.gwLock.RUnlock()
 	g.gatewayRouteToHTTPSPGPoolStore.Delete(gwRouteNsName)
+}
+
+//Pods <-> Service
+
+func (g *GWLister) GetPodsToService(podNsName string) []string {
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
+
+	if found, services := g.podToServiceStore.Get(podNsName); found {
+		return services.([]string)
+	}
+	return []string{}
+}
+
+func (g *GWLister) UpdatePodsToService(podNsName string, services []string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	g.podToServiceStore.AddOrUpdate(podNsName, services)
+
+}
+func (g *GWLister) DeletePodsToService(podNsName string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	g.podToServiceStore.Delete(podNsName)
 }
