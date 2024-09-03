@@ -654,8 +654,8 @@ func validateReferreedHTTPRoute(key string, gateway *gatewayv1.Gateway, allowedR
 			if pr.Name == gatewayv1.ObjectName(gateway.Name) {
 				if IsHTTPRouteValid(key, httpRoute, gateway) {
 					httpRoutes = append(httpRoutes, httpRoute)
-					break
 				}
+				break
 			}
 		}
 	}

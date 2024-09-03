@@ -222,6 +222,7 @@ const (
 	Synced                   = "Synced"
 	Attached                 = "Attached"
 	Detached                 = "Detached"
+	PatchFailed              = "PatchFailed"
 	InvalidConfiguration     = "InvalidConfiguration"
 	AKODeleteConfigSet       = "AKODeleteConfigSet"
 	AKODeleteConfigUnset     = "AKODeleteConfigUnset"
