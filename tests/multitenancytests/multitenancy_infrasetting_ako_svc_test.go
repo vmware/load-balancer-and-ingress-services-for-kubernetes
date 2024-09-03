@@ -19,13 +19,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func tearDownTestForSvcLB(t *testing.T, g *gomega.GomegaWithT, tenant string) {
-	modelName := tenant + "/" + "cluster--red-ns-testsvc"
+func tearDownTestForSvcLB(t *testing.T, g *gomega.GomegaWithT, tenant, svcName string) {
+	modelName := tenant + "/" + "cluster--red-ns-" + svcName
 	objects.SharedAviGraphLister().Delete(modelName)
-	integrationtest.DelSVC(t, "red-ns", "testsvc")
-	integrationtest.DelEP(t, "red-ns", "testsvc")
+	integrationtest.DelSVC(t, "red-ns", svcName)
+	integrationtest.DelEP(t, "red-ns", svcName)
 	mcache := cache.SharedAviObjCache()
-	vsKey := cache.NamespaceName{Namespace: tenant, Name: "cluster--red-ns-testsvc"}
+	vsKey := cache.NamespaceName{Namespace: tenant, Name: "cluster--red-ns-" + svcName}
 	g.Eventually(func() bool {
 		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		return found
@@ -36,14 +36,16 @@ func TestMultiTenancyWithNSAviInfraSetting(t *testing.T) {
 	// create svc, infrasetting, annotate infrasetting to NS
 	// graph layer objects should come up in the right tenant
 	g := gomega.NewGomegaWithT(t)
-	objects.SharedAviGraphLister().Delete("admin/cluster--red-ns-testsvc")
+	svcName := objNameMap.GenerateName("testsvc")
+	objects.SharedAviGraphLister().Delete("admin/cluster--red-ns-" + svcName)
 
-	ns, svcName, settingName := "red-ns", "testsvc", "my-infrasetting"
+	ns := "red-ns"
+	settingName := objNameMap.GenerateName("my-infrasetting")
 	integrationtest.SetupAviInfraSetting(t, settingName, "DEDICATED")
 	integrationtest.AnnotateAKONamespaceWithInfraSetting(t, ns, settingName)
 	integrationtest.AnnotateNamespaceWithTenant(t, ns, "nonadmin")
 
-	modelName := "nonadmin/cluster--red-ns-testsvc"
+	modelName := "nonadmin/cluster--red-ns-" + svcName
 	svcExample := (integrationtest.FakeService{
 		Name:         svcName,
 		Namespace:    ns,
@@ -60,9 +62,9 @@ func TestMultiTenancyWithNSAviInfraSetting(t *testing.T) {
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
 			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
-				return nodes[0].ServiceEngineGroup == "thisisaviref-my-infrasetting-seGroup" &&
+				return nodes[0].ServiceEngineGroup == "thisisaviref-"+settingName+"-seGroup" &&
 					len(nodes[0].VSVIPRefs[0].VipNetworks) > 0 &&
-					nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName == "thisisaviref-my-infrasetting-networkName" &&
+					nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName == "thisisaviref-"+settingName+"-networkName" &&
 					*nodes[0].EnableRhi
 			}
 		}
@@ -71,7 +73,7 @@ func TestMultiTenancyWithNSAviInfraSetting(t *testing.T) {
 
 	integrationtest.RemoveAnnotateAKONamespaceWithInfraSetting(t, ns)
 	integrationtest.TeardownAviInfraSetting(t, settingName)
-	tearDownTestForSvcLB(t, g, "nonadmin")
+	tearDownTestForSvcLB(t, g, "nonadmin", svcName)
 }
 
 func TestMultiTenancyWithSvcAnnotatedAviInfraSetting(t *testing.T) {
@@ -79,13 +81,15 @@ func TestMultiTenancyWithSvcAnnotatedAviInfraSetting(t *testing.T) {
 	// graph layer objects should come up in the right tenant
 	// delete the ingress, graph layer nodes should get deleted
 	g := gomega.NewGomegaWithT(t)
-	objects.SharedAviGraphLister().Delete("admin/cluster--red-ns-testsvc")
+	svcName := objNameMap.GenerateName("testsvc")
+	objects.SharedAviGraphLister().Delete("admin/cluster--red-ns-" + svcName)
 
-	ns, svcName, settingName := "red-ns", "testsvc", "my-infrasetting"
+	ns := "red-ns"
+	settingName := objNameMap.GenerateName("my-infrasetting")
 	integrationtest.SetupAviInfraSetting(t, settingName, "DEDICATED")
 	integrationtest.AnnotateNamespaceWithTenant(t, ns, "nonadmin")
 
-	modelName := "nonadmin/cluster--red-ns-testsvc"
+	modelName := "nonadmin/cluster--red-ns-" + svcName
 	svcExample := (integrationtest.FakeService{
 		Name:         svcName,
 		Namespace:    ns,
@@ -103,9 +107,9 @@ func TestMultiTenancyWithSvcAnnotatedAviInfraSetting(t *testing.T) {
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
 			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
-				return nodes[0].ServiceEngineGroup == "thisisaviref-my-infrasetting-seGroup" &&
+				return nodes[0].ServiceEngineGroup == "thisisaviref-"+settingName+"-seGroup" &&
 					len(nodes[0].VSVIPRefs[0].VipNetworks) > 0 &&
-					nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName == "thisisaviref-my-infrasetting-networkName" &&
+					nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName == "thisisaviref-"+settingName+"-networkName" &&
 					*nodes[0].EnableRhi
 			}
 		}
@@ -114,18 +118,20 @@ func TestMultiTenancyWithSvcAnnotatedAviInfraSetting(t *testing.T) {
 
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	integrationtest.RemoveAnnotateAKONamespaceWithInfraSetting(t, ns)
-	tearDownTestForSvcLB(t, g, "nonadmin")
+	tearDownTestForSvcLB(t, g, "nonadmin", svcName)
 }
 
 func TestMultiTenancyWithInfraSettingAddition(t *testing.T) {
 	// create infrasettings, update infrasetting with a tenant
 	// new model creation should happen, old model should get deleted
 	g := gomega.NewGomegaWithT(t)
-	objects.SharedAviGraphLister().Delete("admin/cluster--red-ns-testsvc")
+	svcName := objNameMap.GenerateName("testsvc")
+	settingName := objNameMap.GenerateName("my-infrasetting")
+	objects.SharedAviGraphLister().Delete("admin/cluster--red-ns-" + svcName)
 
-	ns, svcName, settingName := "red-ns", "testsvc", "my-infrasetting"
+	ns := "red-ns"
 
-	modelName := "admin/cluster--red-ns-testsvc"
+	modelName := "admin/cluster--red-ns-" + svcName
 	svcExample := (integrationtest.FakeService{
 		Name:         svcName,
 		Namespace:    ns,
@@ -163,13 +169,13 @@ func TestMultiTenancyWithInfraSettingAddition(t *testing.T) {
 		return false
 	}, 45*time.Second).Should(gomega.Equal(true))
 
-	newModelName := "nonadmin/cluster--red-ns-testsvc"
+	newModelName := "nonadmin/cluster--red-ns-" + svcName
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(newModelName); found && aviModel != nil {
 			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
-				return nodes[0].ServiceEngineGroup == "thisisaviref-my-infrasetting-seGroup" &&
+				return nodes[0].ServiceEngineGroup == "thisisaviref-"+settingName+"-seGroup" &&
 					len(nodes[0].VSVIPRefs[0].VipNetworks) > 0 &&
-					nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName == "thisisaviref-my-infrasetting-networkName" &&
+					nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName == "thisisaviref-"+settingName+"-networkName" &&
 					*nodes[0].EnableRhi
 			}
 		}
@@ -178,7 +184,7 @@ func TestMultiTenancyWithInfraSettingAddition(t *testing.T) {
 
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	integrationtest.RemoveAnnotateAKONamespaceWithInfraSetting(t, ns)
-	tearDownTestForSvcLB(t, g, "nonadmin")
+	tearDownTestForSvcLB(t, g, "nonadmin", svcName)
 }
 
 func TestMultiTenancyWithTenantDeannotationInNS(t *testing.T) {
@@ -187,14 +193,16 @@ func TestMultiTenancyWithTenantDeannotationInNS(t *testing.T) {
 	// delete the Infrasetting annotation from the namespace, old model should be deleted
 	// new model in default tenant should get created
 	g := gomega.NewGomegaWithT(t)
-	objects.SharedAviGraphLister().Delete("admin/cluster--red-ns-testsvc")
+	svcName := objNameMap.GenerateName("testsvc")
+	objects.SharedAviGraphLister().Delete("admin/cluster--red-ns-" + svcName)
 
-	ns, svcName, settingName := "red-ns", "testsvc", "my-infrasetting"
+	ns := "red-ns"
+	settingName := objNameMap.GenerateName("my-infrasetting")
 	integrationtest.SetupAviInfraSetting(t, settingName, "DEDICATED")
 	integrationtest.AnnotateAKONamespaceWithInfraSetting(t, ns, settingName)
 	integrationtest.AnnotateNamespaceWithTenant(t, ns, "nonadmin")
 
-	modelName := "nonadmin/cluster--red-ns-testsvc"
+	modelName := "nonadmin/cluster--red-ns-" + svcName
 	svcExample := (integrationtest.FakeService{
 		Name:         svcName,
 		Namespace:    ns,
@@ -211,9 +219,9 @@ func TestMultiTenancyWithTenantDeannotationInNS(t *testing.T) {
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
 			if nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS(); len(nodes) > 0 {
-				return nodes[0].ServiceEngineGroup == "thisisaviref-my-infrasetting-seGroup" &&
+				return nodes[0].ServiceEngineGroup == "thisisaviref-"+settingName+"-seGroup" &&
 					len(nodes[0].VSVIPRefs[0].VipNetworks) > 0 &&
-					nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName == "thisisaviref-my-infrasetting-networkName" &&
+					nodes[0].VSVIPRefs[0].VipNetworks[0].NetworkName == "thisisaviref-"+settingName+"-networkName" &&
 					*nodes[0].EnableRhi
 			}
 		}
@@ -228,7 +236,7 @@ func TestMultiTenancyWithTenantDeannotationInNS(t *testing.T) {
 		return false
 	}, 45*time.Second).Should(gomega.Equal(true))
 
-	modelName = "admin/cluster--red-ns-testsvc"
+	modelName = "admin/cluster--red-ns-" + svcName
 	netList := utils.GetVipNetworkList()
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -243,5 +251,5 @@ func TestMultiTenancyWithTenantDeannotationInNS(t *testing.T) {
 	}, 45*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.TeardownAviInfraSetting(t, settingName)
-	tearDownTestForSvcLB(t, g, "admin")
+	tearDownTestForSvcLB(t, g, "admin", svcName)
 }

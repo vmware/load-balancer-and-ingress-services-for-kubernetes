@@ -2534,3 +2534,26 @@ func SetupLicense(license string) {
 	aviRestClientPool := cache.SharedAVIClients(lib.GetTenant())
 	lib.AKOControlConfig().SetLicenseType(aviRestClientPool.AviClient[0])
 }
+
+type ObjectNameMap struct {
+	nameMap map[string]int
+}
+
+func (o *ObjectNameMap) InitMap() {
+	o.nameMap = make(map[string]int)
+}
+func (o *ObjectNameMap) GenerateName(s string) string {
+	if val, ok := o.nameMap[s]; ok {
+		o.nameMap[s] = val + 1
+	} else {
+		o.nameMap[s] = 1
+	}
+	return s + "-" + strconv.Itoa(o.nameMap[s])
+}
+
+func (o *ObjectNameMap) GetName(s string) string {
+	if _, ok := o.nameMap[s]; !ok {
+		o.nameMap[s] = 1
+	}
+	return s + "-" + strconv.Itoa(o.nameMap[s])
+}
