@@ -164,7 +164,7 @@ func TestGatewayWithValidListenersAndGatewayClass(t *testing.T) {
 				Reason:             string(gatewayv1.GatewayReasonProgrammed),
 			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, true),
 	}
 
 	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
@@ -210,7 +210,7 @@ func TestGatewayWithTLSListeners(t *testing.T) {
 				Reason:             string(gatewayv1.GatewayReasonAccepted),
 			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, false),
 	}
 
 	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
@@ -256,7 +256,7 @@ func TestGatewayListenerUpdate(t *testing.T) {
 				Reason:             string(gatewayv1.GatewayReasonAccepted),
 			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0, 0}),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0, 0}, true, false),
 	}
 
 	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
@@ -280,7 +280,7 @@ func TestGatewayListenerUpdate(t *testing.T) {
 		return len(gateway.Status.Listeners) == len(ports)
 	}, 30*time.Second).Should(gomega.Equal(true))
 
-	expectedStatus.Listeners = tests.GetListenerStatusV1(ports, []int32{0, 0})
+	expectedStatus.Listeners = tests.GetListenerStatusV1(ports, []int32{0, 0}, true, false)
 	gateway, err = tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 	if err != nil || gateway == nil {
 		t.Fatalf("Couldn't get the gateway, err: %+v", err)
@@ -299,7 +299,7 @@ Transition test cases
 * - Non AKO gateway controller to AKO gateway controller
 * - AKO gateway controller to non AKO gateway controller
 */
-func TestGatewayTransitionFromValidToInvalid(t *testing.T) {
+func TestGatewayTransitionFromValidToPartiallyValid(t *testing.T) {
 
 	t.Skip("This is invalid test case as Hostname in listener can not be *.")
 	gatewayName := "gateway-trans-01"
@@ -330,7 +330,7 @@ func TestGatewayTransitionFromValidToInvalid(t *testing.T) {
 				Reason:             string(gatewayv1.GatewayReasonAccepted),
 			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, false),
 	}
 
 	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
@@ -354,12 +354,26 @@ func TestGatewayTransitionFromValidToInvalid(t *testing.T) {
 		return len(gateway.Status.Listeners) == len(ports)
 	}, 30*time.Second).Should(gomega.Equal(true))
 
-	expectedStatus.Conditions[0].Status = metav1.ConditionFalse
-	expectedStatus.Conditions[0].Reason = string(gatewayv1.GatewayReasonListenersNotValid)
-	expectedStatus.Conditions[0].Message = "Gateway contains 1 invalid listener(s)"
-	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.GatewayReasonListenersNotValid)
+	expectedStatus = &gatewayv1.GatewayStatus{
+		Conditions: []metav1.Condition{
+			{
+				Type:               string(gatewayv1.GatewayConditionAccepted),
+				Status:             metav1.ConditionTrue,
+				Message:            "Gateway contains atleast one valid listener",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.GatewayReasonListenersNotValid),
+			},
+		},
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, false),
+	}
+	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonInvalid)
 	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionFalse
 	expectedStatus.Listeners[0].Conditions[0].Message = "Hostname not found or Hostname has invalid configuration"
+
+	expectedStatus.Listeners[0].Conditions[1].Type = string(gatewayv1.ListenerConditionProgrammed)
+	expectedStatus.Listeners[0].Conditions[1].Status = metav1.ConditionFalse
+	expectedStatus.Listeners[0].Conditions[1].Reason = string(gatewayv1.ListenerReasonInvalid)
+	expectedStatus.Listeners[0].Conditions[1].Message = "Virtual service not configured/updated for this listener"
 
 	gateway, err = tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 	if err != nil || gateway == nil {
@@ -370,7 +384,7 @@ func TestGatewayTransitionFromValidToInvalid(t *testing.T) {
 	tests.TeardownGatewayClass(t, gatewayClassName)
 }
 
-func TestGatewayTransitionFromInvalidToValid(t *testing.T) {
+func TestGatewayTransitionFromPartiallyValidToValid(t *testing.T) {
 
 	gatewayName := "gateway-trans-02"
 	gatewayClassName := "gateway-class-trans-02"
@@ -424,7 +438,7 @@ func TestGatewayTransitionFromInvalidToValid(t *testing.T) {
 	expectedStatus.Conditions[0].Status = metav1.ConditionTrue
 	expectedStatus.Conditions[0].Reason = string(gatewayv1.GatewayReasonAccepted)
 	expectedStatus.Conditions[0].Message = "Gateway configuration is valid"
-	expectedStatus.Listeners = tests.GetListenerStatusV1(ports, []int32{0, 0})
+	expectedStatus.Listeners = tests.GetListenerStatusV1(ports, []int32{0, 0}, true, false)
 
 	gateway, err = tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 	if err != nil || gateway == nil {
@@ -479,7 +493,7 @@ func TestGatewayTransitionFromNonAKOControllerToAKOController(t *testing.T) {
 				Reason:             string(gatewayv1.GatewayReasonAccepted),
 			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, false),
 	}
 
 	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
@@ -522,7 +536,7 @@ func TestGatewayTransitionFromAKOControllerToNonAKOController(t *testing.T) {
 				Reason:             string(gatewayv1.GatewayReasonAccepted),
 			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, false),
 	}
 
 	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
@@ -584,6 +598,13 @@ func TestGatewayWithNoListeners(t *testing.T) {
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.GatewayReasonInvalid),
 			},
+			{
+				Type:               string(gatewayv1.GatewayConditionProgrammed),
+				Status:             metav1.ConditionFalse,
+				Message:            "Gateway not programmed",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.GatewayReasonInvalid),
+			},
 		},
 	}
 
@@ -629,6 +650,13 @@ func TestGatewayWithMoreThanOneAddress(t *testing.T) {
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.GatewayReasonInvalid),
 			},
+			{
+				Type:               string(gatewayv1.GatewayConditionProgrammed),
+				Status:             metav1.ConditionFalse,
+				Message:            "Gateway not programmed",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.GatewayReasonAddressNotUsable),
+			},
 		},
 	}
 
@@ -667,13 +695,13 @@ func TestGatewayWithUnsupportedProtocolInListeners(t *testing.T) {
 		Conditions: []metav1.Condition{
 			{
 				Type:               string(gatewayv1.GatewayConditionAccepted),
-				Status:             metav1.ConditionFalse,
-				Message:            "Gateway contains 1 invalid listener(s)",
+				Status:             metav1.ConditionTrue,
+				Message:            "Gateway contains atleast one valid listener",
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.GatewayReasonListenersNotValid),
 			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, false),
 	}
 	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonUnsupportedProtocol)
 	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionFalse
@@ -715,17 +743,22 @@ func TestGatewayWithInvalidHostnameInListeners(t *testing.T) {
 		Conditions: []metav1.Condition{
 			{
 				Type:               string(gatewayv1.GatewayConditionAccepted),
-				Status:             metav1.ConditionFalse,
-				Message:            "Gateway contains 1 invalid listener(s)",
+				Status:             metav1.ConditionTrue,
+				Message:            "Gateway contains atleast one valid listener",
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.GatewayReasonListenersNotValid),
 			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, false),
 	}
-	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.GatewayReasonListenersNotValid)
+	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonInvalid)
 	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionFalse
 	expectedStatus.Listeners[0].Conditions[0].Message = "Hostname not found or Hostname has invalid configuration"
+
+	expectedStatus.Listeners[0].Conditions[1].Reason = string(gatewayv1.ListenerReasonInvalid)
+	expectedStatus.Listeners[0].Conditions[1].Status = metav1.ConditionFalse
+	expectedStatus.Listeners[0].Conditions[1].Type = string(gatewayv1.GatewayConditionProgrammed)
+	expectedStatus.Listeners[0].Conditions[1].Message = "Virtual service not configured/updated for this listener"
 
 	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 	if err != nil || gateway == nil {
@@ -766,17 +799,25 @@ func TestGatewayWithInvalidTLSConfigInListeners(t *testing.T) {
 		Conditions: []metav1.Condition{
 			{
 				Type:               string(gatewayv1.GatewayConditionAccepted),
-				Status:             metav1.ConditionFalse,
-				Message:            "Gateway contains 1 invalid listener(s)",
+				Status:             metav1.ConditionTrue,
+				Message:            "Gateway contains atleast one valid listener",
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.GatewayReasonListenersNotValid),
 			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, true),
 	}
-	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonInvalidCertificateRef)
+	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonInvalid)
 	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionFalse
-	expectedStatus.Listeners[0].Conditions[0].Message = "TLS mode or reference not valid"
+	expectedStatus.Listeners[0].Conditions[0].Message = "Listener is Invalid"
+
+	expectedStatus.Listeners[0].Conditions[1].Reason = string(gatewayv1.ListenerReasonInvalidCertificateRef)
+	expectedStatus.Listeners[0].Conditions[1].Status = metav1.ConditionFalse
+	expectedStatus.Listeners[0].Conditions[1].Message = "TLS mode or reference not valid"
+
+	expectedStatus.Listeners[0].Conditions[2].Reason = string(gatewayv1.ListenerReasonInvalid)
+	expectedStatus.Listeners[0].Conditions[2].Status = metav1.ConditionFalse
+	expectedStatus.Listeners[0].Conditions[2].Message = "Virtual service not configured/updated for this listener"
 
 	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 	if err != nil || gateway == nil {
@@ -824,17 +865,33 @@ func TestGatewayWithInvalidAllowedRoute(t *testing.T) {
 			{
 				Type:               string(gatewayv1.GatewayConditionAccepted),
 				Status:             metav1.ConditionFalse,
-				Message:            "Gateway contains 1 invalid listener(s)",
+				Message:            "Gateway does not contain any valid listener",
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.GatewayReasonListenersNotValid),
 			},
+			{
+				Type:               string(gatewayv1.GatewayConditionProgrammed),
+				Status:             metav1.ConditionFalse,
+				Message:            "Gateway not programmed",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.GatewayReasonInvalid),
+			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, true),
 	}
-	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonInvalidRouteKinds)
+	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonInvalid)
 	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionFalse
-	expectedStatus.Listeners[0].Conditions[0].Message = "AllowedRoute kind is invalid. Only HTTPRoute is supported currently"
-	expectedStatus.Listeners[0].Conditions[0].Type = string(gatewayv1.ListenerConditionResolvedRefs)
+	expectedStatus.Listeners[0].Conditions[0].Message = "Listener is Invalid"
+	//expectedStatus.Listeners[0].Conditions[0].Type = string(gatewayv1.ListenerConditionAccepted)
+
+	expectedStatus.Listeners[0].Conditions[1].Reason = string(gatewayv1.ListenerReasonInvalidRouteKinds)
+	expectedStatus.Listeners[0].Conditions[1].Status = metav1.ConditionFalse
+	expectedStatus.Listeners[0].Conditions[1].Message = "AllowedRoute kind is invalid. Only HTTPRoute is supported currently"
+	//expectedStatus.Listeners[0].Conditions[1].Type = string(gatewayv1.ListenerConditionResolvedRefs)
+
+	expectedStatus.Listeners[0].Conditions[2].Message = "Virtual service not configured/updated for this listener"
+	expectedStatus.Listeners[0].Conditions[2].Status = metav1.ConditionFalse
+	expectedStatus.Listeners[0].Conditions[2].Reason = string(gatewayv1.ListenerReasonInvalid)
 
 	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 	if err != nil || gateway == nil {
@@ -866,17 +923,34 @@ func TestGatewayWithInvalidAllowedRoute(t *testing.T) {
 			{
 				Type:               string(gatewayv1.GatewayConditionAccepted),
 				Status:             metav1.ConditionFalse,
-				Message:            "Gateway contains 1 invalid listener(s)",
+				Message:            "Gateway does not contain any valid listener",
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.GatewayReasonListenersNotValid),
 			},
+			{
+				Type:               string(gatewayv1.GatewayConditionProgrammed),
+				Status:             metav1.ConditionFalse,
+				Message:            "Gateway not programmed",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.GatewayReasonInvalid),
+			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, true),
 	}
-	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonInvalidRouteKinds)
+
+	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonInvalid)
 	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionFalse
-	expectedStatus.Listeners[0].Conditions[0].Message = "AllowedRoute Group is invalid."
-	expectedStatus.Listeners[0].Conditions[0].Type = string(gatewayv1.ListenerConditionResolvedRefs)
+	expectedStatus.Listeners[0].Conditions[0].Message = "Listener is Invalid"
+	expectedStatus.Listeners[0].Conditions[0].Type = string(gatewayv1.ListenerConditionAccepted)
+
+	expectedStatus.Listeners[0].Conditions[1].Reason = string(gatewayv1.ListenerReasonInvalidRouteKinds)
+	expectedStatus.Listeners[0].Conditions[1].Status = metav1.ConditionFalse
+	expectedStatus.Listeners[0].Conditions[1].Message = "AllowedRoute Group is invalid."
+	expectedStatus.Listeners[0].Conditions[1].Type = string(gatewayv1.ListenerConditionResolvedRefs)
+
+	expectedStatus.Listeners[0].Conditions[2].Message = "Virtual service not configured/updated for this listener"
+	expectedStatus.Listeners[0].Conditions[2].Reason = string(gatewayv1.ListenerReasonInvalid)
+	expectedStatus.Listeners[0].Conditions[2].Status = metav1.ConditionFalse
 
 	gateway, err = tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 	if err != nil || gateway == nil {
@@ -927,11 +1001,15 @@ func TestGatewayWithValidAllowedRoute(t *testing.T) {
 				Reason:             string(gatewayv1.GatewayReasonAccepted),
 			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, false),
 	}
 	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerConditionAccepted)
 	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionTrue
 	expectedStatus.Listeners[0].Conditions[0].Message = "Listener is valid"
+
+	expectedStatus.Listeners[0].Conditions[1].Reason = string(gatewayv1.ListenerConditionResolvedRefs)
+	expectedStatus.Listeners[0].Conditions[1].Status = metav1.ConditionTrue
+	expectedStatus.Listeners[0].Conditions[1].Message = "All the references are valid"
 
 	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 	if err != nil || gateway == nil {
@@ -971,7 +1049,7 @@ func TestGatewayWithValidAllowedRoute(t *testing.T) {
 				Reason:             string(gatewayv1.GatewayReasonAccepted),
 			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, false),
 	}
 	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonAccepted)
 	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionTrue
@@ -1010,7 +1088,7 @@ func TestGatewayWithValidAllowedRoute(t *testing.T) {
 				Reason:             string(gatewayv1.GatewayReasonAccepted),
 			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, false),
 	}
 	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonAccepted)
 	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionTrue
@@ -1048,8 +1126,15 @@ func TestGatewayWithValidAllowedRoute(t *testing.T) {
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.GatewayReasonAccepted),
 			},
+			{
+				Type:               string(gatewayv1.GatewayConditionProgrammed),
+				Status:             metav1.ConditionTrue,
+				Message:            "Gateway configuration is valid",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.GatewayReasonProgrammed),
+			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, true),
 	}
 	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonAccepted)
 	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionTrue
@@ -1095,11 +1180,15 @@ func TestMultipleGatewaySameHostname(t *testing.T) {
 				Reason:             string(gatewayv1.GatewayReasonAccepted),
 			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, false),
 	}
-	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.GatewayReasonAccepted)
+	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonAccepted)
 	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionTrue
 	expectedStatus.Listeners[0].Conditions[0].Message = "Listener is valid"
+
+	expectedStatus.Listeners[0].Conditions[1].Reason = string(gatewayv1.ListenerReasonResolvedRefs)
+	expectedStatus.Listeners[0].Conditions[1].Status = metav1.ConditionTrue
+	expectedStatus.Listeners[0].Conditions[1].Message = "All the references are valid"
 
 	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName1, metav1.GetOptions{})
 	if err != nil || gateway == nil {
@@ -1125,15 +1214,27 @@ func TestMultipleGatewaySameHostname(t *testing.T) {
 			{
 				Type:               string(gatewayv1.GatewayConditionAccepted),
 				Status:             metav1.ConditionFalse,
-				Message:            "Gateway contains 1 invalid listener(s)",
+				Message:            "Gateway does not contain any valid listener",
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.GatewayReasonListenersNotValid),
 			},
+			{
+				Type:               string(gatewayv1.GatewayConditionProgrammed),
+				Status:             metav1.ConditionFalse,
+				Message:            "Gateway not programmed",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.GatewayReasonInvalid),
+			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, false, true),
 	}
-	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.GatewayReasonListenersNotValid)
+	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonInvalid)
 	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionFalse
+	expectedStatus.Listeners[0].Conditions[0].Message = "Hostname overlaps or is same as an existing gateway hostname"
+
+	expectedStatus.Listeners[0].Conditions[1].Reason = string(gatewayv1.ListenerReasonInvalid)
+	expectedStatus.Listeners[0].Conditions[1].Status = metav1.ConditionFalse
+	expectedStatus.Listeners[0].Conditions[1].Message = "Virtual service not configured/updated for this listener"
 	expectedStatus.Listeners[0].Conditions[0].Message = "Hostname is same as an existing gateway hostname"
 
 	gateway, err = tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName2, metav1.GetOptions{})
@@ -1178,7 +1279,7 @@ func TestMultipleGatewayOverlappingHostname(t *testing.T) {
 				Reason:             string(gatewayv1.GatewayReasonAccepted),
 			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, true),
 	}
 	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.GatewayReasonAccepted)
 	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionTrue
@@ -1214,8 +1315,15 @@ func TestMultipleGatewayOverlappingHostname(t *testing.T) {
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.GatewayReasonAccepted),
 			},
+			{
+				Type:               string(gatewayv1.GatewayConditionProgrammed),
+				Status:             metav1.ConditionFalse,
+				Message:            "Gateway not programmed",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.GatewayReasonInvalid),
+			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, false, true),
 	}
 	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.GatewayReasonAccepted)
 	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionTrue

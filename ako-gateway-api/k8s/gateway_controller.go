@@ -22,6 +22,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	discovery "k8s.io/api/discovery/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -409,13 +411,20 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 				utils.AviLog.Debugf("key: %s, msg: same resource version returning", key)
 				return
 			}
-			if !IsValidGateway(key, gw) {
+			valid, allowedRoutesAll, gwWithStatus := IsValidGateway(key, gw)
+			if !valid {
 				return
 			}
+			listRoutes, _ := validateReferreedHTTPRoute(key, gwWithStatus, allowedRoutesAll)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			for _, route := range listRoutes {
+				key := lib.HTTPRoute + "/" + utils.ObjKey(route)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -450,13 +459,20 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			gw := obj.(*gatewayv1.Gateway)
 			if IsGatewayUpdated(oldGw, gw) {
 				key := lib.Gateway + "/" + utils.ObjKey(gw)
-				if !IsValidGateway(key, gw) {
+				valid, allowedRoutesAll, gwWithStatus := IsValidGateway(key, gw)
+				if !valid {
 					return
 				}
+				listRoutes, _ := validateReferreedHTTPRoute(key, gwWithStatus, allowedRoutesAll)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				for _, route := range listRoutes {
+					key := lib.HTTPRoute + "/" + utils.ObjKey(route)
+					c.workqueue[bkt].AddRateLimited(key)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				}
 			}
 		},
 	}
@@ -543,7 +559,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 				utils.AviLog.Debugf("key: %s, msg: same resource version returning", key)
 				return
 			}
-			if !IsHTTPRouteValid(key, httpRoute) {
+			if !IsHTTPRouteValid(key, httpRoute, nil) {
 				return
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httpRoute))
@@ -584,7 +600,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			newHTTPRoute := obj.(*gatewayv1.HTTPRoute)
 			if IsHTTPRouteUpdated(oldHTTPRoute, newHTTPRoute) {
 				key := lib.HTTPRoute + "/" + utils.ObjKey(newHTTPRoute)
-				if !IsHTTPRouteValid(key, newHTTPRoute) {
+				if !IsHTTPRouteValid(key, newHTTPRoute, nil) {
 					return
 				}
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newHTTPRoute))
@@ -621,4 +637,27 @@ func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
 		return configMap, true
 	}
 	return nil, false
+}
+
+func validateReferreedHTTPRoute(key string, gateway *gatewayv1.Gateway, allowedRoutesAll bool) ([]*gatewayv1.HTTPRoute, error) {
+	namespace := gateway.Namespace
+	if allowedRoutesAll {
+		namespace = metav1.NamespaceAll
+	}
+	hrObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).List(labels.Set(nil).AsSelector())
+	httpRoutes := make([]*gatewayv1.HTTPRoute, 0)
+	if err != nil {
+		return nil, err
+	}
+	for _, httpRoute := range hrObj {
+		for _, pr := range httpRoute.Spec.ParentRefs {
+			if pr.Name == gatewayv1.ObjectName(gateway.Name) {
+				if IsHTTPRouteValid(key, httpRoute, gateway) {
+					httpRoutes = append(httpRoutes, httpRoute)
+					break
+				}
+			}
+		}
+	}
+	return httpRoutes, nil
 }

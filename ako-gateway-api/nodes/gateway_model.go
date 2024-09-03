@@ -77,8 +77,10 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 
 func BuildPortProtocols(gateway *gatewayv1.Gateway, key string) []nodes.AviPortHostProtocol {
 	var portProtocols []nodes.AviPortHostProtocol
-	for _, listener := range gateway.Spec.Listeners {
-
+	for i, listener := range gateway.Spec.Listeners {
+		if gateway.Status.Listeners[i].Conditions[0].Type == string(gatewayv1.ListenerConditionAccepted) && gateway.Status.Listeners[i].Conditions[0].Status == "False" {
+			continue
+		}
 		pp := nodes.AviPortHostProtocol{Port: int32(listener.Port), Protocol: string(listener.Protocol)}
 		//TLS config on listener is present
 		if listener.TLS != nil && len(listener.TLS.CertificateRefs) > 0 {
@@ -96,7 +98,10 @@ func BuildTLSNodesForGateway(gateway *gatewayv1.Gateway, key string) []*nodes.Av
 	var tlsNodes []*nodes.AviTLSKeyCertNode
 	var ns, name string
 	cs := utils.GetInformers().ClientSet
-	for _, listener := range gateway.Spec.Listeners {
+	for i, listener := range gateway.Spec.Listeners {
+		if gateway.Status.Listeners[i].Conditions[0].Type == string(gatewayv1.ListenerConditionAccepted) && gateway.Status.Listeners[i].Conditions[0].Status == "False" {
+			continue
+		}
 		if listener.TLS != nil {
 			for _, certRef := range listener.TLS.CertificateRefs {
 				//kind is validated at ingestion
@@ -161,7 +166,10 @@ func DeleteTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gatewa
 	var tlsNodes []*nodes.AviTLSKeyCertNode
 	_, _, secretName := lib.ExtractTypeNameNamespace(key)
 	evhVsCertRefs := object.GetAviEvhVS()[0].SSLKeyCertRefs
-	for _, listener := range gateway.Spec.Listeners {
+	for i, listener := range gateway.Spec.Listeners {
+		if gateway.Status.Listeners[i].Conditions[0].Type == string(gatewayv1.ListenerConditionAccepted) && gateway.Status.Listeners[i].Conditions[0].Status == "False" {
+			continue
+		}
 		if listener.TLS != nil {
 			for _, certRef := range listener.TLS.CertificateRefs {
 				name := string(certRef.Name)
@@ -188,7 +196,10 @@ func AddTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gateway, 
 	var tlsNodes []*nodes.AviTLSKeyCertNode
 	_, _, secretName := lib.ExtractTypeNameNamespace(key)
 	evhVsCertRefs := object.GetAviEvhVS()[0].SSLKeyCertRefs
-	for _, listener := range gateway.Spec.Listeners {
+	for i, listener := range gateway.Spec.Listeners {
+		if gateway.Status.Listeners[i].Conditions[0].Type == string(gatewayv1.ListenerConditionAccepted) && gateway.Status.Listeners[i].Conditions[0].Status == "False" {
+			continue
+		}
 		if listener.TLS != nil {
 			for _, certRef := range listener.TLS.CertificateRefs {
 				name := string(certRef.Name)

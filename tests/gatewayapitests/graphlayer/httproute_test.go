@@ -1205,3 +1205,662 @@ func TestHTTPRouteGatewayWithEmptyHostnameInGatewayHTTPRoute(t *testing.T) {
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 }
+
+func TestHttpRouteWithValidAndInvalidGatewayListeners(t *testing.T) {
+	gatewayName := "gateway-hr-08"
+	gatewayClassName := "gateway-class-hr-08"
+	httpRouteName := "http-route-hr-08"
+	svcName1 := "avisvc-hr-08-a"
+	svcName2 := "avisvc-hr-08-b"
+	ports := []int32{8080, 8081}
+	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners[1].Protocol = "TCP"
+	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName1, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName2, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
+
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
+	rule1 := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
+		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
+	rule2 := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/bar"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
+		[][]string{{svcName2, DEFAULT_NAMESPACE, "8081", "1"}}, nil)
+	rules := []gatewayv1.HTTPRouteRule{rule1, rule2}
+
+	hostnames := []gatewayv1.Hostname{"foo-8080.com", "foo-8081.com"}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 50*time.Second).Should(gomega.Equal(2))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+
+	childNode1 := nodes[0].EvhNodes[0]
+	g.Expect(childNode1.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode1.PoolGroupRefs[0].Members).To(gomega.HaveLen(1))
+	g.Expect(childNode1.DefaultPoolGroup).NotTo(gomega.Equal(""))
+	g.Expect(childNode1.PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode1.PoolRefs[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(len(childNode1.PoolRefs[0].Servers)).To(gomega.Equal(1))
+	g.Expect(len(childNode1.VHMatches)).To(gomega.Equal(1))
+	g.Expect(*childNode1.VHMatches[0].Host).To(gomega.Equal("foo-8080.com"))
+	g.Expect(len(childNode1.VHMatches[0].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/foo"))
+	g.Expect(len(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(1))
+	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
+
+	childNode2 := nodes[0].EvhNodes[1]
+	g.Expect(childNode2.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode2.PoolGroupRefs[0].Members).To(gomega.HaveLen(1))
+	g.Expect(childNode2.DefaultPoolGroup).NotTo(gomega.Equal(""))
+	g.Expect(childNode2.PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode2.PoolRefs[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(len(childNode2.PoolRefs[0].Servers)).To(gomega.Equal(1))
+	g.Expect(len(childNode2.VHMatches)).To(gomega.Equal(1))
+	g.Expect(*childNode2.VHMatches[0].Host).To(gomega.Equal("foo-8080.com"))
+	g.Expect(len(childNode2.VHMatches[0].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode2.VHMatches[0].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/bar"))
+	g.Expect(len(childNode2.VHMatches[0].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(1))
+	g.Expect(childNode2.VHMatches[0].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
+
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
+	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName2)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestMultipleHttpRoutesWithValidAndInvalidGatewayListeners(t *testing.T) {
+	gatewayName := "gateway-hr-09"
+	gatewayClassName := "gateway-class-hr-09"
+	httpRouteName1 := "http-route-hr-09-a"
+	httpRouteName2 := "http-route-hr-09-b"
+	svcName := "avisvc-hr-09"
+	ports := []int32{8080, 8081}
+	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners[1].Protocol = "TCP"
+	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
+
+	parentRefs1 := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, []int32{ports[0]})
+	rule1 := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
+		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
+	rules1 := []gatewayv1.HTTPRouteRule{rule1}
+	hostnames1 := []gatewayv1.Hostname{"foo-8080.com"}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName1, DEFAULT_NAMESPACE, parentRefs1, hostnames1, rules1)
+
+	parentRefs2 := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, []int32{ports[1]})
+	rule2 := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/bar"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
+		[][]string{{svcName, DEFAULT_NAMESPACE, "8081", "1"}}, nil)
+	rules2 := []gatewayv1.HTTPRouteRule{rule2}
+	hostnames2 := []gatewayv1.Hostname{"foo-8081.com"}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName2, DEFAULT_NAMESPACE, parentRefs2, hostnames2, rules2)
+
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 30*time.Second).Should(gomega.Equal(1))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+
+	childNode1 := nodes[0].EvhNodes[0]
+	g.Expect(childNode1.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode1.PoolGroupRefs[0].Members).To(gomega.HaveLen(1))
+	g.Expect(childNode1.DefaultPoolGroup).NotTo(gomega.Equal(""))
+	g.Expect(childNode1.PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode1.PoolRefs[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(len(childNode1.PoolRefs[0].Servers)).To(gomega.Equal(1))
+	g.Expect(len(childNode1.VHMatches)).To(gomega.Equal(1))
+	g.Expect(*childNode1.VHMatches[0].Host).To(gomega.Equal("foo-8080.com"))
+	g.Expect(len(childNode1.VHMatches[0].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/foo"))
+	g.Expect(len(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(1))
+	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
+
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
+	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName1, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName2, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+func TestTransitionsHttpRouteWithPartiallyValidGatewayToValidGateway(t *testing.T) {
+	//1: One HTTPRoute with partially valid gateway
+	gatewayName := "gateway-hr-10"
+	gatewayClassName := "gateway-class-hr-10"
+	httpRouteName := "http-route-hr-10"
+	svcName1 := "avisvc-hr-10-a"
+	svcName2 := "avisvc-hr-10-b"
+	ports := []int32{8080, 8081}
+	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners[1].Protocol = "TCP"
+	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName1, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName2, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
+
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
+	rule1 := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
+		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
+	rule2 := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/bar"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
+		[][]string{{svcName2, DEFAULT_NAMESPACE, "8081", "1"}}, nil)
+	rules := []gatewayv1.HTTPRouteRule{rule1, rule2}
+
+	hostnames := []gatewayv1.Hostname{"foo-8080.com", "foo-8081.com"}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 50*time.Second).Should(gomega.Equal(2))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+
+	childNode1 := nodes[0].EvhNodes[0]
+	g.Expect(childNode1.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode1.PoolGroupRefs[0].Members).To(gomega.HaveLen(1))
+	g.Expect(childNode1.DefaultPoolGroup).NotTo(gomega.Equal(""))
+	g.Expect(childNode1.PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode1.PoolRefs[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(len(childNode1.PoolRefs[0].Servers)).To(gomega.Equal(1))
+	g.Expect(len(childNode1.VHMatches)).To(gomega.Equal(1))
+	g.Expect(*childNode1.VHMatches[0].Host).To(gomega.Equal("foo-8080.com"))
+	g.Expect(len(childNode1.VHMatches[0].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/foo"))
+	g.Expect(len(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(1))
+	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
+
+	childNode2 := nodes[0].EvhNodes[1]
+	g.Expect(childNode2.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode2.PoolGroupRefs[0].Members).To(gomega.HaveLen(1))
+	g.Expect(childNode2.DefaultPoolGroup).NotTo(gomega.Equal(""))
+	g.Expect(childNode2.PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode2.PoolRefs[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(len(childNode2.PoolRefs[0].Servers)).To(gomega.Equal(1))
+	g.Expect(len(childNode2.VHMatches)).To(gomega.Equal(1))
+	g.Expect(*childNode2.VHMatches[0].Host).To(gomega.Equal("foo-8080.com"))
+	g.Expect(len(childNode2.VHMatches[0].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode2.VHMatches[0].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/bar"))
+	g.Expect(len(childNode2.VHMatches[0].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(1))
+	g.Expect(childNode2.VHMatches[0].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
+
+	listeners[1].Protocol = "HTTPS"
+	akogatewayapitests.UpdateGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g.Eventually(func() bool {
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	gateway, _ := akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+	g.Expect(gateway.Status.Listeners[1].Conditions[0].Status).To(gomega.Equal(metav1.ConditionTrue))
+	g.Eventually(func() int {
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes[0].VHMatches)
+	}, 50*time.Second).Should(gomega.Equal(2))
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
+	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName2)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestTransitionsHttpRouteWithPartiallyValidGatewayToInvalidGateway(t *testing.T) {
+	/*gatewayName := "gateway-hr-11"
+	gatewayClassName := "gateway-class-hr-11"
+	httpRouteName := "http-route-hr-11"
+	svcName1 := "avisvc-hr-11-a"
+	svcName2 := "avisvc-hr-11-b"
+	ports := []int32{8080, 8081}
+	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners[1].Protocol = "TCP"
+	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName1, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName2, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
+
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
+	rule1 := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
+		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
+	rule2 := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/bar"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
+		[][]string{{svcName2, DEFAULT_NAMESPACE, "8081", "1"}}, nil)
+	rules := []gatewayv1.HTTPRouteRule{rule1, rule2}
+
+	hostnames := []gatewayv1.Hostname{"foo-8080.com", "foo-8081.com"}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 50*time.Second).Should(gomega.Equal(2))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+
+	childNode1 := nodes[0].EvhNodes[0]
+	g.Expect(childNode1.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode1.PoolGroupRefs[0].Members).To(gomega.HaveLen(1))
+	g.Expect(childNode1.DefaultPoolGroup).NotTo(gomega.Equal(""))
+	g.Expect(childNode1.PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode1.PoolRefs[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(len(childNode1.PoolRefs[0].Servers)).To(gomega.Equal(1))
+	g.Expect(len(childNode1.VHMatches)).To(gomega.Equal(1))
+	g.Expect(*childNode1.VHMatches[0].Host).To(gomega.Equal("foo-8080.com"))
+	g.Expect(len(childNode1.VHMatches[0].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/foo"))
+	g.Expect(len(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(1))
+	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
+
+	childNode2 := nodes[0].EvhNodes[1]
+	g.Expect(childNode2.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode2.PoolGroupRefs[0].Members).To(gomega.HaveLen(1))
+	g.Expect(childNode2.DefaultPoolGroup).NotTo(gomega.Equal(""))
+	g.Expect(childNode2.PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode2.PoolRefs[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(len(childNode2.PoolRefs[0].Servers)).To(gomega.Equal(1))
+	g.Expect(len(childNode2.VHMatches)).To(gomega.Equal(1))
+	g.Expect(*childNode2.VHMatches[0].Host).To(gomega.Equal("foo-8080.com"))
+	g.Expect(len(childNode2.VHMatches[0].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode2.VHMatches[0].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/bar"))
+	g.Expect(len(childNode2.VHMatches[0].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(1))
+	g.Expect(childNode2.VHMatches[0].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
+
+	listeners[0].Protocol = "TCP"
+	akogatewayapitests.UpdateGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g.Eventually(func() bool {
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	gateway, _ := akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+	g.Expect(gateway.Status.Listeners[1].Conditions[0].Status).To(gomega.Equal(metav1.ConditionTrue))
+
+	g.Eventually(func() int {
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes[0].VHMatches)
+	}, 50*time.Second).Should(gomega.Equal(2))
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
+	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName2)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)*/
+
+}
+
+func TestTransitionsHttpRouteWithInvalidGatewayToPartiallyValidGateway(t *testing.T) {
+	gatewayName := "gateway-hr-12"
+	gatewayClassName := "gateway-class-hr-12"
+	httpRouteName := "http-route-hr-12"
+	svcName1 := "avisvc-hr-12-a"
+	svcName2 := "avisvc-hr-12-b"
+	ports := []int32{8080, 8081}
+	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners[1].Protocol = "TCP"
+	listeners[0].Protocol = "TCP"
+	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(false))
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName1, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName2, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
+
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
+	rule1 := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
+		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
+	rule2 := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/bar"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
+		[][]string{{svcName2, DEFAULT_NAMESPACE, "8081", "1"}}, nil)
+	rules := []gatewayv1.HTTPRouteRule{rule1, rule2}
+
+	hostnames := []gatewayv1.Hostname{"foo-8080.com", "foo-8081.com"}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+	listeners[1].Protocol = "HTTPS"
+	akogatewayapitests.UpdateGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+	g.Eventually(func() bool {
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+	gateway, _ := akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+	g.Expect(gateway.Status.Listeners[1].Conditions[0].Status).To(gomega.Equal(metav1.ConditionTrue))
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 50*time.Second).Should(gomega.Equal(2))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+
+	childNode1 := nodes[0].EvhNodes[0]
+	g.Expect(childNode1.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode1.PoolGroupRefs[0].Members).To(gomega.HaveLen(1))
+	g.Expect(childNode1.DefaultPoolGroup).NotTo(gomega.Equal(""))
+	g.Expect(childNode1.PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode1.PoolRefs[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(len(childNode1.PoolRefs[0].Servers)).To(gomega.Equal(1))
+	g.Expect(len(childNode1.VHMatches)).To(gomega.Equal(1))
+	g.Expect(*childNode1.VHMatches[0].Host).To(gomega.Equal("foo-8081.com"))
+	g.Expect(len(childNode1.VHMatches[0].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/foo"))
+	g.Expect(len(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(1))
+	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8081)))
+
+	childNode2 := nodes[0].EvhNodes[1]
+	g.Expect(childNode2.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode2.PoolGroupRefs[0].Members).To(gomega.HaveLen(1))
+	g.Expect(childNode2.DefaultPoolGroup).NotTo(gomega.Equal(""))
+	g.Expect(childNode2.PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode2.PoolRefs[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(len(childNode2.PoolRefs[0].Servers)).To(gomega.Equal(1))
+	g.Expect(len(childNode2.VHMatches)).To(gomega.Equal(1))
+	g.Expect(*childNode2.VHMatches[0].Host).To(gomega.Equal("foo-8081.com"))
+	g.Expect(len(childNode2.VHMatches[0].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode2.VHMatches[0].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/bar"))
+	g.Expect(len(childNode2.VHMatches[0].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(1))
+	g.Expect(childNode2.VHMatches[0].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8081)))
+
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
+	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName2)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+
+}
+
+func TestTransitionsHttpRouteWithValidGatewayToPartiallyValidGateway(t *testing.T) {
+	/*gatewayName := "gateway-hr-13"
+	gatewayClassName := "gateway-class-hr-13"
+	httpRouteName := "http-route-hr-13"
+	svcName1 := "avisvc-hr-13-a"
+	svcName2 := "avisvc-hr-13-b"
+	ports := []int32{8080, 8081}
+	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName1, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName2, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
+
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
+	rule1 := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
+		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
+	rule2 := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/bar"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
+		[][]string{{svcName2, DEFAULT_NAMESPACE, "8081", "1"}}, nil)
+	rules := []gatewayv1.HTTPRouteRule{rule1, rule2}
+
+	hostnames := []gatewayv1.Hostname{"foo-8080.com", "foo-8081.com"}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 50*time.Second).Should(gomega.Equal(2))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+
+	childNode1 := nodes[0].EvhNodes[0]
+	g.Expect(childNode1.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode1.PoolGroupRefs[0].Members).To(gomega.HaveLen(1))
+	g.Expect(childNode1.DefaultPoolGroup).NotTo(gomega.Equal(""))
+	g.Expect(childNode1.PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode1.PoolRefs[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(len(childNode1.PoolRefs[0].Servers)).To(gomega.Equal(1))
+	g.Expect(len(childNode1.VHMatches)).To(gomega.Equal(2))
+	g.Expect(*childNode1.VHMatches[0].Host).To(gomega.Equal("foo-8080.com"))
+	g.Expect(len(childNode1.VHMatches[0].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/foo"))
+	g.Expect(len(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(2))
+	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
+	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports[1]).To(gomega.Equal(int64(8081)))
+	g.Expect(*childNode1.VHMatches[1].Host).To(gomega.Equal("foo-8081.com"))
+	g.Expect(len(childNode1.VHMatches[1].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode1.VHMatches[1].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/foo"))
+	g.Expect(len(childNode1.VHMatches[1].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(2))
+	g.Expect(childNode1.VHMatches[1].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
+	g.Expect(childNode1.VHMatches[1].Rules[0].Matches.VsPort.Ports[1]).To(gomega.Equal(int64(8081)))
+
+	childNode2 := nodes[0].EvhNodes[1]
+	g.Expect(childNode2.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode2.PoolGroupRefs[0].Members).To(gomega.HaveLen(1))
+	g.Expect(childNode2.DefaultPoolGroup).NotTo(gomega.Equal(""))
+	g.Expect(childNode2.PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode2.PoolRefs[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(len(childNode2.PoolRefs[0].Servers)).To(gomega.Equal(1))
+	g.Expect(len(childNode2.VHMatches)).To(gomega.Equal(2))
+	g.Expect(*childNode2.VHMatches[0].Host).To(gomega.Equal("foo-8080.com"))
+	g.Expect(len(childNode2.VHMatches[0].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode2.VHMatches[0].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/bar"))
+	g.Expect(len(childNode2.VHMatches[0].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(2))
+	g.Expect(childNode2.VHMatches[0].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
+	g.Expect(childNode2.VHMatches[0].Rules[0].Matches.VsPort.Ports[1]).To(gomega.Equal(int64(8081)))
+	g.Expect(*childNode2.VHMatches[1].Host).To(gomega.Equal("foo-8081.com"))
+	g.Expect(len(childNode2.VHMatches[1].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode2.VHMatches[1].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/bar"))
+	g.Expect(len(childNode2.VHMatches[1].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(2))
+	g.Expect(childNode2.VHMatches[1].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
+	g.Expect(childNode2.VHMatches[1].Rules[0].Matches.VsPort.Ports[1]).To(gomega.Equal(int64(8081)))
+
+	listeners[1].Protocol = "TCP"
+	akogatewayapitests.UpdateGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g.Eventually(func() bool {
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	gateway, _ := akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+	g.Expect(gateway.Status.Listeners[1].Conditions[0].Status).To(gomega.Equal(metav1.ConditionFalse))
+
+	g.Eventually(func() int {
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes[0].VHMatches)
+	}, 50*time.Second).Should(gomega.Equal(1))
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+
+	childNode1 = nodes[0].EvhNodes[0]
+	g.Expect(childNode1.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode1.PoolGroupRefs[0].Members).To(gomega.HaveLen(1))
+	g.Expect(childNode1.DefaultPoolGroup).NotTo(gomega.Equal(""))
+	g.Expect(childNode1.PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode1.PoolRefs[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(len(childNode1.PoolRefs[0].Servers)).To(gomega.Equal(1))
+	g.Expect(len(childNode1.VHMatches)).To(gomega.Equal(2))
+	g.Expect(*childNode1.VHMatches[0].Host).To(gomega.Equal("foo-8080.com"))
+	g.Expect(len(childNode1.VHMatches[0].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/foo"))
+	g.Expect(len(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(2))
+	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
+	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports[1]).To(gomega.Equal(int64(8081)))
+	g.Expect(*childNode1.VHMatches[1].Host).To(gomega.Equal("foo-8081.com"))
+	g.Expect(len(childNode1.VHMatches[1].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode1.VHMatches[1].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/foo"))
+	g.Expect(len(childNode1.VHMatches[1].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(2))
+	g.Expect(childNode1.VHMatches[1].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
+	g.Expect(childNode1.VHMatches[1].Rules[0].Matches.VsPort.Ports[1]).To(gomega.Equal(int64(8081)))
+
+	childNode2 = nodes[0].EvhNodes[1]
+	g.Expect(childNode2.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode2.PoolGroupRefs[0].Members).To(gomega.HaveLen(1))
+	g.Expect(childNode2.DefaultPoolGroup).NotTo(gomega.Equal(""))
+	g.Expect(childNode2.PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode2.PoolRefs[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(len(childNode2.PoolRefs[0].Servers)).To(gomega.Equal(1))
+	g.Expect(len(childNode2.VHMatches)).To(gomega.Equal(2))
+	g.Expect(*childNode2.VHMatches[0].Host).To(gomega.Equal("foo-8080.com"))
+	g.Expect(len(childNode2.VHMatches[0].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode2.VHMatches[0].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/bar"))
+	g.Expect(len(childNode2.VHMatches[0].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(2))
+	g.Expect(childNode2.VHMatches[0].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
+	g.Expect(childNode2.VHMatches[0].Rules[0].Matches.VsPort.Ports[1]).To(gomega.Equal(int64(8081)))
+	g.Expect(*childNode2.VHMatches[1].Host).To(gomega.Equal("foo-8081.com"))
+	g.Expect(len(childNode2.VHMatches[1].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode2.VHMatches[1].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/bar"))
+	g.Expect(len(childNode2.VHMatches[1].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(2))
+	g.Expect(childNode2.VHMatches[1].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
+	g.Expect(childNode2.VHMatches[1].Rules[0].Matches.VsPort.Ports[1]).To(gomega.Equal(int64(8081)))
+
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
+	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName2)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+	*/
+}
+
+func TestTransitionsMultipleHttpRoutesWithPartiallyValidGatewayToValidGateway(t *testing.T) {
+
+}
+func TestTransitionsMultipleHttpRoutesWithPartiallyValidGatewayToInvalidGateway(t *testing.T) {
+
+}
+func TestTransitionsMultipleHttpRouteWithInvalidGatewayToPartiallyValidGateway(t *testing.T) {
+
+}
+
+func TestTransitionsMultipleHttpRouteWithValidGatewayToPartiallyValidGateway(t *testing.T) {
+
+}
