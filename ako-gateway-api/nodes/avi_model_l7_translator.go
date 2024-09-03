@@ -153,6 +153,7 @@ func updateHostname(key, parentNsName string, parentNode *nodes.AviEvhVsNode) {
 	ok, routeNsNames := akogatewayapiobjects.GatewayApiLister().GetGatewayToRoute(parentNsName)
 	if !ok {
 		utils.AviLog.Warnf("key: %s, msg: Unable to fetch routes from gateway", key)
+		return
 	}
 	uniqueHostnamesSet := sets.NewString()
 	for _, routeNsName := range routeNsNames {
@@ -167,7 +168,8 @@ func updateHostname(key, parentNsName string, parentNode *nodes.AviEvhVsNode) {
 	uniqueHostnames := slices.DeleteFunc(uniqueHostnamesSet.List(), func(s string) bool {
 		return strings.Contains(s, utils.WILDCARD)
 	})
-	utils.AviLog.Debugf("hostnames found: %v", uniqueHostnames)
+
+	utils.AviLog.Debugf("key: %s, unique hostnames %v found for gatewayNs: %s", uniqueHostnames, parentNsName)
 	parentNode.VSVIPRefs[0].FQDNs = uniqueHostnames
 }
 
@@ -224,7 +226,12 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 		}
 		poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
 		serviceType := lib.GetServiceType()
-		if serviceType == lib.NodePort {
+		if serviceType == lib.NodePortLocal {
+			servers := nodes.PopulateServersForNPL(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key)
+			if servers != nil {
+				poolNode.Servers = servers
+			}
+		} else if serviceType == lib.NodePort {
 			servers := nodes.PopulateServersForNodePort(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key)
 			if servers != nil {
 				poolNode.Servers = servers
