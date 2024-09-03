@@ -266,7 +266,20 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 			// 	//check reference grant
 			// }
 		}
+
 		var gatewayListenerList []akogatewayapiobjects.GatewayListenerStore
+
+		// Check gateway present or not
+		_, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(ns).Get(string(parentRef.Name))
+		if err != nil {
+			// does not exist or any other error. do not use it
+			if errors.IsNotFound(err) {
+				utils.AviLog.Errorf("key: %s, msg: Gateway %s/%s does not exist.", key, ns, parentRef.Name)
+				continue
+			}
+			utils.AviLog.Errorf("key: %s, msg: Error in fetching gateway details %s/%s. Error: %v", key, ns, parentRef.Name, err.Error())
+			continue
+		}
 		gwNsName := ns + "/" + string(parentRef.Name)
 		listeners := akogatewayapiobjects.GatewayApiLister().GetGatewayToListeners(gwNsName)
 		for _, listener := range listeners {
