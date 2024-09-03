@@ -335,9 +335,16 @@ gatewayapitests:
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/... -failfast -timeout 0 -coverprofile cover-20.out -coverpkg=./...
 
+.PHONY: namingtests
+namingtests:
+	sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/namingtests -failfast -coverprofile cover-21.out -coverpkg=./...
+
 .PHONY: int_test
 int_test:
-	make -j 1 k8stest integrationtest ingresstests evhtests vippernstests dedicatedevhtests dedicatedvippernstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc dedicatedvstests hatests calicotests ciliumtests helmtests gatewayapitests
+	make -j 1 k8stest integrationtest ingresstests evhtests vippernstests dedicatedevhtests dedicatedvippernstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc dedicatedvstests hatests calicotests ciliumtests helmtests gatewayapitests namingtests
 
 .PHONY: scale_test
 scale_test:
