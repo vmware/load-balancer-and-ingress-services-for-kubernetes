@@ -262,8 +262,18 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 	var gatewayList []string
 	var gwNsNameList []string
 	parentNameToHostnameMap := make(map[string][]string)
-	for index, parentRef := range hrObj.Spec.ParentRefs {
-		if hrObj.Status.Parents[index].Conditions[0].Type == string(gatewayv1.RouteConditionAccepted) && hrObj.Status.Parents[index].Conditions[0].Status == metav1.ConditionFalse {
+	statusIndex := 0
+	for _, parentRef := range hrObj.Spec.ParentRefs {
+		if statusIndex >= len(hrObj.Status.Parents) {
+			break
+		}
+		if hrObj.Status.RouteStatus.Parents[statusIndex].ParentRef.Name != parentRef.Name {
+			continue
+		}
+		for statusIndex < len(hrObj.Status.Parents) && (parentRef.SectionName != nil && *hrObj.Status.RouteStatus.Parents[statusIndex].ParentRef.SectionName != *parentRef.SectionName){
+			statusIndex +=1
+		}
+		if hrObj.Status.Parents[statusIndex].Conditions[0].Type == string(gatewayv1.RouteConditionAccepted) && hrObj.Status.Parents[statusIndex].Conditions[0].Status == metav1.ConditionFalse {
 			continue
 		}
 		hostnameIntersection, _ := parentNameToHostnameMap[string(parentRef.Name)]
@@ -339,6 +349,7 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 			gwNsNameList = append(gwNsNameList, gwNsName)
 		}
 		parentNameToHostnameMap[string(parentRef.Name)] = hostnameIntersection
+		statusIndex += 1
 	}
 	akogatewayapiobjects.GatewayApiLister().UpdateRouteToGatewayListenerMappings(listenerList, routeTypeNsName)
 
