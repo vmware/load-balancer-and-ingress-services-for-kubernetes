@@ -216,16 +216,22 @@ func saveAviModel(modelName string, aviGraph *nodes.AviObjectGraph, key string) 
 func (o *AviObjectGraph) ProcessRouteDeletion(key, parentNsName string, routeModel RouteModel, fullsync bool) {
 
 	parentNode := o.GetAviEvhVS()
+	routeTypeNsName := routeModel.GetType() + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName()
 
-	found, childVSNames := akogatewayapiobjects.GatewayApiLister().GetRouteToChildVS(routeModel.GetType() + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName())
+	found, childVSNamesTemp := akogatewayapiobjects.GatewayApiLister().GetRouteToChildVS(routeTypeNsName)
+	childVSNames := make([]string, len(childVSNamesTemp))
+
+	copy(childVSNames, childVSNamesTemp)
 	if found {
 		utils.AviLog.Infof("key: %s, msg: child VSes retrieved for deletion %v", key, childVSNames)
 
 		for _, childVSName := range childVSNames {
 			o.RemovePoolNameFromStringGroups(childVSName, parentNode, key)
-			nodes.RemoveEvhInModel(childVSName, parentNode, key)
+			removed := nodes.RemoveEvhInModel(childVSName, parentNode, key)
+			if removed {
+				akogatewayapiobjects.GatewayApiLister().DeleteRouteChildVSMappings(routeTypeNsName, childVSName)
+			}
 		}
-		akogatewayapiobjects.GatewayApiLister().DeleteRouteToChildVS(routeModel.GetType() + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName())
 
 		modelName := lib.GetTenant() + "/" + parentNode[0].Name
 		ok := saveAviModel(modelName, o.AviObjectGraph, key)
@@ -291,8 +297,10 @@ func (o *AviObjectGraph) DeleteStaleChildVSes(key string, routeModel RouteModel,
 	for _, childVSName := range storedChildVSes {
 		if _, ok := childVSes[childVSName]; !ok {
 			utils.AviLog.Infof("key: %s, msg: child VS retrieved for deletion %v", key, childVSName)
-			nodes.RemoveEvhInModel(childVSName, parentNode, key)
-			akogatewayapiobjects.GatewayApiLister().DeleteRouteChildVSMappings(routeModel.GetType()+"/"+routeModel.GetNamespace()+"/"+routeModel.GetName(), childVSName)
+			removed := nodes.RemoveEvhInModel(childVSName, parentNode, key)
+			if removed {
+				akogatewayapiobjects.GatewayApiLister().DeleteRouteChildVSMappings(routeModel.GetType()+"/"+routeModel.GetNamespace()+"/"+routeModel.GetName(), childVSName)
+			}
 		}
 	}
 }

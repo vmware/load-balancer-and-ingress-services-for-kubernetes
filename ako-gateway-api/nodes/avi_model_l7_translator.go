@@ -244,7 +244,12 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 		}
 		poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
 		serviceType := lib.GetServiceType()
-		if serviceType == lib.NodePort {
+		if serviceType == lib.NodePortLocal {
+			servers := nodes.PopulateServersForNPL(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key)
+			if servers != nil {
+				poolNode.Servers = servers
+			}
+		} else if serviceType == lib.NodePort {
 			servers := nodes.PopulateServersForNodePort(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key)
 			if servers != nil {
 				poolNode.Servers = servers

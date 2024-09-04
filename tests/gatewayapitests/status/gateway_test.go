@@ -129,7 +129,7 @@ func TestMain(m *testing.M) {
  */
 func TestGatewayWithValidListenersAndGatewayClass(t *testing.T) {
 
-	gatewayName := "gateway-hr-01"
+	gatewayName := "gateway-01"
 	gatewayClassName := "gateway-class-01"
 	ports := []int32{8080, 8081}
 

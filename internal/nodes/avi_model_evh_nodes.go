@@ -1632,16 +1632,17 @@ func FindAndReplaceEvhInModel(currentEvhNode *AviEvhVsNode, modelEvhNodes []*Avi
 	return false
 }
 
-func RemoveEvhInModel(currentEvhNodeName string, modelEvhNodes []*AviEvhVsNode, key string) {
+func RemoveEvhInModel(currentEvhNodeName string, modelEvhNodes []*AviEvhVsNode, key string) bool {
 	if len(modelEvhNodes[0].EvhNodes) > 0 {
 		for i, modelEvhNode := range modelEvhNodes[0].EvhNodes {
 			if currentEvhNodeName == modelEvhNode.Name {
 				modelEvhNodes[0].EvhNodes = append(modelEvhNodes[0].EvhNodes[:i], modelEvhNodes[0].EvhNodes[i+1:]...)
 				utils.AviLog.Infof("key: %s, msg: deleted evh node in model: %s", key, currentEvhNodeName)
-				return
+				return true
 			}
 		}
 	}
+	return false
 }
 
 // As either HttpSecurityPolicy or HttpRedirect policy exists, using same function for both.
