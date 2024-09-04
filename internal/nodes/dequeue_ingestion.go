@@ -446,7 +446,7 @@ func handlePod(key, namespace, podName string, fullsync bool) {
 	ann := pod.GetAnnotations()
 	var annotations []lib.NPLAnnotation
 	if err := json.Unmarshal([]byte(ann[lib.NPLPodAnnotation]), &annotations); err != nil {
-		utils.AviLog.Infof("key: %s, got error while unmarshaling NPL annotations: %v", key, err)
+		utils.AviLog.Warnf("key: %s, got error while unmarshaling NPL annotations: %v", key, err)
 	}
 	objects.SharedNPLLister().Save(podKey, annotations)
 	if utils.IsServiceNSValid(namespace) {
