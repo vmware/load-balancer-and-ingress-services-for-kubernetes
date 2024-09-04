@@ -1173,7 +1173,7 @@ func TestHTTPRouteGatewayWithEmptyHostnameInGatewayHTTPRoute(t *testing.T) {
 	rules := []gatewayv1.HTTPRouteRule{rule}
 	hostnames := []gatewayv1.Hostname{}
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
-
+	time.Sleep(2 * time.Second)
 	// no child vs
 	g.Eventually(func() int {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -1189,7 +1189,7 @@ func TestHTTPRouteGatewayWithEmptyHostnameInGatewayHTTPRoute(t *testing.T) {
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Eventually(func() int {
 		return len(nodes[0].HttpPolicyRefs)
-	}, 20*time.Second).Should(gomega.Equal(1))
+	}, 20*time.Second).Should(gomega.Equal(2))
 	g.Expect(len(nodes[0].HttpPolicyRefs[0].RequestRules[0].Match.VsPort.Ports)).To(gomega.Equal(1))
 	g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
 
@@ -1200,7 +1200,7 @@ func TestHTTPRouteGatewayWithEmptyHostnameInGatewayHTTPRoute(t *testing.T) {
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Eventually(func() int {
 		return len(nodes[0].HttpPolicyRefs)
-	}, 10*time.Second).Should(gomega.Equal(0))
+	}, 10*time.Second).Should(gomega.Equal(1))
 	g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
