@@ -270,8 +270,8 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 		if hrObj.Status.RouteStatus.Parents[statusIndex].ParentRef.Name != parentRef.Name {
 			continue
 		}
-		for statusIndex < len(hrObj.Status.Parents) && (parentRef.SectionName != nil && *hrObj.Status.RouteStatus.Parents[statusIndex].ParentRef.SectionName != *parentRef.SectionName){
-			statusIndex +=1
+		for statusIndex < len(hrObj.Status.Parents) && (parentRef.SectionName != nil && *hrObj.Status.RouteStatus.Parents[statusIndex].ParentRef.SectionName != *parentRef.SectionName) {
+			statusIndex += 1
 		}
 		if hrObj.Status.Parents[statusIndex].Conditions[0].Type == string(gatewayv1.RouteConditionAccepted) && hrObj.Status.Parents[statusIndex].Conditions[0].Status == metav1.ConditionFalse {
 			continue
