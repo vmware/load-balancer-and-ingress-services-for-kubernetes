@@ -45,7 +45,7 @@ func TestHTTPRouteWithValidConfig(t *testing.T) {
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
-	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -112,7 +112,7 @@ func TestHTTPRouteWithAtleastOneParentReferenceValid(t *testing.T) {
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
 	// creates a gateway with listeners 8080 and 8082
-	listeners := akogatewayapitests.GetListenersV1([]int32{8080, 8082}, false)
+	listeners := akogatewayapitests.GetListenersV1([]int32{8080, 8082}, false, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -189,7 +189,7 @@ func TestHTTPRouteTransitionFromInvalidToValid(t *testing.T) {
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
 	// creates a gateway with listeners 8080
-	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -285,7 +285,7 @@ func TestHTTPRouteTransitionFromValidToInvalid(t *testing.T) {
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
 	// creates a gateway with listeners 8080
-	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -388,7 +388,7 @@ func TestHTTPRouteWithNoParentReference(t *testing.T) {
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
 	// creates a gateway with listeners 8080
-	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -432,7 +432,7 @@ func TestHTTPRouteWithAllParentReferenceInvalid(t *testing.T) {
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
 	// creates a gateway with listeners 8082 and 8083
-	listeners := akogatewayapitests.GetListenersV1([]int32{8082, 8083}, false)
+	listeners := akogatewayapitests.GetListenersV1([]int32{8082, 8083}, false, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -533,7 +533,7 @@ func TestHTTPRouteWithNonExistingListenerReference(t *testing.T) {
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
 	// creates a gateway with listeners 8082 and 8083
-	listeners := akogatewayapitests.GetListenersV1([]int32{8082}, false)
+	listeners := akogatewayapitests.GetListenersV1([]int32{8082}, false, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -606,7 +606,7 @@ func TestHTTPRouteWithNoHostnames(t *testing.T) {
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
-	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -677,7 +677,7 @@ func TestHTTPRouteUnprocessedGateway(t *testing.T) {
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
-	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 
 	g := gomega.NewGomegaWithT(t)
 
@@ -734,7 +734,7 @@ func TestHTTPRouteWithInvalidGatewayListener(t *testing.T) {
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
-	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 	listeners[0].Hostname = nil
 
 	g := gomega.NewGomegaWithT(t)
@@ -799,7 +799,7 @@ func TestHTTPRouteWithOneExistingAndOneNonExistingGateway(t *testing.T) {
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
-	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 
 	g := gomega.NewGomegaWithT(t)
 	akogatewayapitests.SetupGateway(t, gatewayName2, namespace, gatewayClassName, nil, listeners)
@@ -864,7 +864,7 @@ func TestHTTPRouteWithBackendRefFilters(t *testing.T) {
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
-	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 
 	g := gomega.NewGomegaWithT(t)
 
@@ -960,7 +960,7 @@ func TestMultipleHttpRoutesWithValidAndInvalidGatewayListeners(t *testing.T) {
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
-	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 	listeners[1].Protocol = "TCP"
 
 	g := gomega.NewGomegaWithT(t)
@@ -1064,7 +1064,7 @@ func TestHttpRouteWithValidAndInvalidGatewayListeners(t *testing.T) {
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
-	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 	listeners[1].Protocol = "TCP"
 
 	g := gomega.NewGomegaWithT(t)

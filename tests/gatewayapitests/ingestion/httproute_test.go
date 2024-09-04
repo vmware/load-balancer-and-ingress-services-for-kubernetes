@@ -38,7 +38,7 @@ func TestHTTPRouteCUD(t *testing.T) {
 	t.Logf("Created GatewayClass %s", gatewayClassName)
 	waitAndverify(t, "GatewayClass/gateway-class-01")
 
-	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 	t.Logf("Created Gateway %s", gatewayName)
 	waitAndverify(t, "Gateway/default/gateway-01")
@@ -75,7 +75,7 @@ func TestHTTPRouteHostnameInvalid(t *testing.T) {
 	t.Logf("Created GatewayClass %s", gatewayClassName)
 	waitAndverify(t, gwClassKey)
 
-	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 	t.Logf("Created Gateway %s", gatewayName)
 	waitAndverify(t, gwKey)
@@ -120,7 +120,7 @@ func TestHTTPRouteGatewayNotPresent(t *testing.T) {
 	waitAndverify(t, "")
 
 	// update
-	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 	t.Logf("Created Gateway %s", gatewayName)
 	waitAndverify(t, gwKey)
@@ -153,7 +153,7 @@ func TestHTTPRouteWithBackendRefFilters(t *testing.T) {
 	t.Logf("Created GatewayClass %s", gatewayClassName)
 	waitAndverify(t, gwClassKey)
 
-	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 	t.Logf("Created Gateway %s", gatewayName)
 	waitAndverify(t, gwKey)
@@ -191,7 +191,7 @@ func TestHTTPRouteGatewayWithEmptyHostnameInGateway(t *testing.T) {
 	waitAndverify(t, gwClassKey)
 
 	// Gateway with empty hostname
-	listeners := akogatewayapitests.GetListenersV1(ports, true)
+	listeners := akogatewayapitests.GetListenersV1(ports, true, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 	t.Logf("Created Gateway %s without hostname", gatewayName)
 	waitAndverify(t, gwKey)
@@ -228,7 +228,7 @@ func TestHTTPRouteGatewayWithEmptyHostnameInHTTPRoute(t *testing.T) {
 	waitAndverify(t, gwClassKey)
 
 	// Gateway
-	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 	t.Logf("Created Gateway %s", gatewayName)
 	waitAndverify(t, gwKey)
@@ -266,7 +266,7 @@ func TestHTTPRouteGatewayWithEmptyHostname(t *testing.T) {
 	waitAndverify(t, gwClassKey)
 
 	// Gateway without hostname
-	listeners := akogatewayapitests.GetListenersV1(ports, true)
+	listeners := akogatewayapitests.GetListenersV1(ports, true, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 	t.Logf("Created Gateway %s", gatewayName)
 	waitAndverify(t, gwKey)

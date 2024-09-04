@@ -205,7 +205,12 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 		}
 		poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
 		serviceType := lib.GetServiceType()
-		if serviceType == lib.NodePort {
+		if serviceType == lib.NodePortLocal {
+			servers := nodes.PopulateServersForNPL(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key)
+			if servers != nil {
+				poolNode.Servers = servers
+			}
+		} else if serviceType == lib.NodePort {
 			servers := nodes.PopulateServersForNodePort(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key)
 			if servers != nil {
 				poolNode.Servers = servers
@@ -369,7 +374,6 @@ func (o *AviObjectGraph) BuildDefaultPGPoolForParentVS(key, parentNsName, matchN
 			httpPSPGPool.Pool = uniquePools.List()
 		}
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
-		o.BuildBackendFiltersModel(key, poolName, backend, parentVsNode)
 		ratio := uint32(backend.Backend.Weight)
 		PG.Members = append(PG.Members, &models.PoolGroupMember{PoolRef: &pool_ref, Ratio: &ratio})
 	}
@@ -497,7 +501,7 @@ func (o *AviObjectGraph) BuildParentHTTPPS(key, parentNsName string, vsNode *nod
 	parentNs, _, parentName := lib.ExtractTypeNameNamespace(parentNsName)
 
 	// Code to retrieve ports associated with given httproute name
-	routeTypeNsName := fmt.Sprintf("%s/%s", httpRouteNamespace, httpRouteName)
+	routeTypeNsName := fmt.Sprintf("%s/%s/%s", lib.HTTPRoute, httpRouteNamespace, httpRouteName)
 	allListeners := objects.GatewayApiLister().GetRouteToGatewayListener(routeTypeNsName)
 	listeners := []akogatewayapiobjects.GatewayListenerStore{}
 	for _, listener := range allListeners {
