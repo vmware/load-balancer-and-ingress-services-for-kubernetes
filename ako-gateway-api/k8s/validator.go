@@ -91,9 +91,8 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) (bool, bool, *gatewa
 			SetIn(&gatewayStatus.Conditions)
 		programmedCondition.
 			SetIn(&gatewayStatus.Conditions)
-		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
-		gateway.Status = *gatewayStatus.DeepCopy()
-		return false, allowedRoutesAll, gateway
+		updatedGateway, _ := akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
+		return false, allowedRoutesAll, updatedGateway.(*gatewayv1.Gateway)
 	}
 
 	// has 1 or none addresses
@@ -105,9 +104,8 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) (bool, bool, *gatewa
 		programmedCondition.
 			Reason(string(gatewayv1.GatewayReasonAddressNotUsable)).
 			SetIn(&gatewayStatus.Conditions)
-		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
-		gateway.Status = *gatewayStatus.DeepCopy()
-		return false, allowedRoutesAll, gateway
+		updatedGateway, _ := akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
+		return false, allowedRoutesAll, updatedGateway.(*gatewayv1.Gateway)
 	}
 
 	if len(spec.Addresses) == 1 && *spec.Addresses[0].Type != "IPAddress" {
@@ -119,9 +117,8 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) (bool, bool, *gatewa
 		programmedCondition.
 			Reason(string(gatewayv1.GatewayReasonAddressNotUsable)).
 			SetIn(&gatewayStatus.Conditions)
-		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
-		gateway.Status = *gatewayStatus.DeepCopy()
-		return false, allowedRoutesAll, gateway
+		updatedGateway, _ := akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
+		return false, allowedRoutesAll, updatedGateway.(*gatewayv1.Gateway)
 	}
 
 	gatewayStatus.Listeners = make([]gatewayv1.ListenerStatus, len(gateway.Spec.Listeners))
@@ -158,10 +155,14 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) (bool, bool, *gatewa
 			Status(metav1.ConditionTrue).
 			Message("Gateway contains atleast one valid listener").
 			SetIn(&gatewayStatus.Conditions)
-		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
-		utils.AviLog.Infof("key: %s, msg: Gateway %s contains atleast one valid listener", key, gateway.Name)
-		gateway.Status = *gatewayStatus.DeepCopy()
-		return true, allowedRoutesAll, gateway
+		updatedGateway, err := akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
+		if err == nil {
+			utils.AviLog.Infof("key: %s, msg: Gateway %s contains atleast one valid listener", key, gateway.Name)
+			return true, allowedRoutesAll, updatedGateway.(*gatewayv1.Gateway)
+		} else {
+			utils.AviLog.Errorf("key: %s, msg: Gateway status patch was not successful :%s ", key, err.Error())
+			return false, allowedRoutesAll, updatedGateway.(*gatewayv1.Gateway)
+		}
 	}
 
 	defaultCondition.
@@ -169,10 +170,14 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) (bool, bool, *gatewa
 		Status(metav1.ConditionTrue).
 		Message("Gateway configuration is valid").
 		SetIn(&gatewayStatus.Conditions)
-	akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
-	utils.AviLog.Infof("key: %s, msg: Gateway %s is valid", key, gateway.Name)
-	gateway.Status = *gatewayStatus.DeepCopy()
-	return true, allowedRoutesAll, gateway
+	updatedGateway, err := akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
+	if err == nil {
+		utils.AviLog.Infof("key: %s, msg: Gateway %s is valid", key, gateway.Name)
+		return true, allowedRoutesAll, updatedGateway.(*gatewayv1.Gateway)
+	} else {
+		utils.AviLog.Errorf("key: %s, msg: Gateway status patch was not successful :%s ", key, err.Error())
+		return false, allowedRoutesAll, updatedGateway.(*gatewayv1.Gateway)
+	}
 }
 
 func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gatewayv1.GatewayStatus, index int) bool {
