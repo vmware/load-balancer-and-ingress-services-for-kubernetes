@@ -1343,7 +1343,6 @@ func TestHTTPRouteWithMultipleGateways(t *testing.T) {
 	rules := []gatewayv1.HTTPRouteRule{rule1, rule2}
 	hostnames := []gatewayv1.Hostname{"foo-8080.com", "foo-8081.com"}
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
-
 	g.Eventually(func() int {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName1)
 		if !found {

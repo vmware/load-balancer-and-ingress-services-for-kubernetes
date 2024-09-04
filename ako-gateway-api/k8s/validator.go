@@ -438,7 +438,8 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 			Message(err.Error()).
 			SetIn(&httpRouteStatus.Parents[*parentRefIndexInHttpRouteStatus].Conditions)
 		*parentRefIndexInHttpRouteStatus = *parentRefIndexInHttpRouteStatus + 1
-		found, hosts := akogatewayapiobjects.GatewayApiLister().GetGatewayRouteToHostname(gwNsName)
+		gwRouteNsName := fmt.Sprintf("%s/%s/%s/%s", gwNsName, lib.HTTPRoute, httpRoute.Namespace, httpRoute.Name)
+		found, hosts := akogatewayapiobjects.GatewayApiLister().GetGatewayRouteToHostname(gwRouteNsName)
 		if found {
 			utils.AviLog.Warnf("key: %s, msg: Hostname in Gateway Listener doesn't match with any of the hostnames in HTTPRoute", key)
 			utils.AviLog.Debugf("key: %s, msg: %d hosts mapped to the route %s/%s/%s", key, len(hosts), "HTTPRoute", httpRoute.Namespace, httpRoute.Name)
