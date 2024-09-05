@@ -41,23 +41,16 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 		pg_ref := "/api/poolgroup/?name=" + pgname
 		poolgroupref = append(poolgroupref, pg_ref)
 	}
-	var stringgrouprefs []string
-	for _, stringGroup := range ds_meta.StringGroups {
-		// Replace the PoolGroup Ref in the DS.
-		sg_ref := "/api/stringgroup/?name=" + stringGroup
-		stringgrouprefs = append(stringgrouprefs, sg_ref)
-	}
 	datascript := avimodels.VSDataScript{Evt: &ds_meta.Evt, Script: &ds_meta.Script}
 	datascriptlist = append(datascriptlist, &datascript)
 	tenant_ref := "/api/tenant/?name=" + ds_meta.Tenant
 	cr := lib.AKOUser
 	vsdatascriptset := avimodels.VSDataScriptSet{
-		CreatedBy:       &cr,
-		Datascript:      datascriptlist,
-		Name:            &ds_meta.Name,
-		TenantRef:       &tenant_ref,
-		PoolGroupRefs:   poolgroupref,
-		StringGroupRefs: stringgrouprefs,
+		CreatedBy:     &cr,
+		Datascript:    datascriptlist,
+		Name:          &ds_meta.Name,
+		TenantRef:     &tenant_ref,
+		PoolGroupRefs: poolgroupref,
 	}
 
 	vsdatascriptset.Markers = lib.GetMarkers()

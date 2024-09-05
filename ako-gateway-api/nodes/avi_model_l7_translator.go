@@ -265,8 +265,6 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 			childVsNode.ReplaceEvhPoolInEVHNode(poolNode, key)
 		}
 
-		// TODO: Check Backend filter code. This is creating an issue in checksum calculation of object which is result in failure in deletion
-		o.BuildBackendFiltersModel(key, poolName, httpbackend, childVsNode)
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		ratio := uint32(httpbackend.Backend.Weight)
 		PG.Members = append(PG.Members, &models.PoolGroupMember{PoolRef: &pool_ref, Ratio: &ratio})
@@ -274,64 +272,6 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 	if len(PG.Members) > 0 {
 		childVsNode.PoolGroupRefs = []*nodes.AviPoolGroupNode{PG}
 		childVsNode.DefaultPoolGroup = PG.Name
-	}
-}
-
-func (o *AviObjectGraph) BuildBackendFiltersModel(key, poolName string, httpbackend *HTTPBackend, vsNode *nodes.AviEvhVsNode) {
-	for _, filter := range httpbackend.Filters {
-
-		var addRequestString string
-		for _, addRequestFilter := range filter.RequestFilter.Add {
-			addRequestString = addRequestString + addRequestFilter.Name + ":" + addRequestFilter.Value + ","
-		}
-		addRequestString = strings.TrimSuffix(addRequestString, ",")
-		name := lib.GetAKOUser() + "-" + akogatewayapilib.AddHeaderStringGroup
-		description := "StringGroup to support ADDRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
-		o.AddOrUpdateStringGroupNode(key, name, description, poolName, addRequestString)
-
-		var setRequestString string
-		for _, setRequestFilter := range filter.RequestFilter.Set {
-			setRequestString = setRequestString + setRequestFilter.Name + ":" + setRequestFilter.Value + ","
-		}
-		setRequestString = strings.TrimSuffix(setRequestString, ",")
-		name = lib.GetAKOUser() + "-" + akogatewayapilib.UpdateHeaderStringGroup
-		description = "StringGroup to support UpdateRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
-		o.AddOrUpdateStringGroupNode(key, name, description, poolName, setRequestString)
-
-		var removeRequestString string
-		for _, removeRequestKey := range filter.RequestFilter.Remove {
-			removeRequestString = removeRequestString + removeRequestKey + ","
-		}
-		removeRequestString = strings.TrimSuffix(removeRequestString, ",")
-		name = lib.GetAKOUser() + "-" + akogatewayapilib.DeleteHeaderStringGroup
-		description = "StringGroup to support DeleteRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
-		o.AddOrUpdateStringGroupNode(key, name, description, poolName, removeRequestString)
-	}
-	if len(httpbackend.Filters) == 0 {
-		o.UpdateStringGroupsOnRouteDeletion(key, poolName)
-
-		//Remove datascript reference from vs if it already exists
-		dsScriptNode := o.ConstructBackendFilterDataScript(key)
-		var updatedHTTPDSrefs []*nodes.AviHTTPDataScriptNode
-		for _, httpDsRef := range vsNode.HTTPDSrefs {
-			if httpDsRef != dsScriptNode {
-				updatedHTTPDSrefs = append(updatedHTTPDSrefs, httpDsRef)
-			}
-		}
-		vsNode.HTTPDSrefs = updatedHTTPDSrefs
-	}
-
-	if httpbackend.Filters != nil && len(httpbackend.Filters) > 0 {
-		dataScriptRefExists := false
-		dsScriptNode := o.ConstructBackendFilterDataScript(key)
-		for _, httpDsRef := range vsNode.HTTPDSrefs {
-			if httpDsRef == dsScriptNode {
-				dataScriptRefExists = true
-			}
-		}
-		if !dataScriptRefExists {
-			vsNode.HTTPDSrefs = append(vsNode.HTTPDSrefs, dsScriptNode)
-		}
 	}
 }
 
@@ -744,62 +684,4 @@ func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestRedirectRules(key, httpPSn
 		}
 	}
 	return isRedirectPresent
-}
-
-func (o *AviObjectGraph) ConstructBackendFilterDataScript(key string) *nodes.AviHTTPDataScriptNode {
-	datascripts := o.GetAviHTTPDSNode()
-	datascriptName := akogatewayapilib.GetDataScriptName()
-	for _, datascript := range datascripts {
-		if datascript.Name == datascriptName {
-			return datascript
-		}
-	}
-	dsScriptNode := &nodes.AviHTTPDataScriptNode{
-		Name:   datascriptName,
-		Tenant: lib.GetTenant(),
-		DataScript: &nodes.DataScript{
-			Script: akogatewayapilib.BackendRefFilterDatascript,
-			Evt:    "VS_DATASCRIPT_EVT_HTTP_LB_DONE",
-		},
-	}
-
-	dsScriptNode.Script = strings.Replace(dsScriptNode.Script, "NAMEPREFIX", lib.GetAKOUser(), 3)
-	dsScriptNode.StringGroups = append(dsScriptNode.StringGroups, lib.GetAKOUser()+"-"+akogatewayapilib.AddHeaderStringGroup, lib.GetAKOUser()+"-"+akogatewayapilib.UpdateHeaderStringGroup, lib.GetAKOUser()+"-"+akogatewayapilib.DeleteHeaderStringGroup)
-	o.AddModelNode(dsScriptNode)
-	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	dataScriptNamespaceName := lib.GetTenant() + "/" + datascriptName
-	ok := saveAviModel(dataScriptNamespaceName, o.AviObjectGraph, key)
-	if ok {
-		nodes.PublishKeyToRestLayer(dataScriptNamespaceName, key, sharedQueue)
-	}
-
-	return dsScriptNode
-}
-
-func (o *AviObjectGraph) UpdateStringGroupsOnRouteDeletion(key string, poolName string) {
-	addStringGroupName := lib.GetAKOUser() + "-" + akogatewayapilib.AddHeaderStringGroup
-	addStringGroupDescription := "StringGroup to support ADDRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
-	setStringGroupName := lib.GetAKOUser() + "-" + akogatewayapilib.UpdateHeaderStringGroup
-	setStringGroupDescription := "StringGroup to support UpdateRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
-	removeStringGroupName := lib.GetAKOUser() + "-" + akogatewayapilib.DeleteHeaderStringGroup
-	removeStringGroupDescription := "StringGroup to support DeleteRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
-
-	o.AddOrUpdateStringGroupNode(key, addStringGroupName, addStringGroupDescription, poolName, "")
-	o.AddOrUpdateStringGroupNode(key, setStringGroupName, setStringGroupDescription, poolName, "")
-	o.AddOrUpdateStringGroupNode(key, removeStringGroupName, removeStringGroupDescription, poolName, "")
-}
-
-func (o *AviObjectGraph) RemovePoolNameFromStringGroups(currentEvhNodeName string, modelEvhNodes []*nodes.AviEvhVsNode, key string) {
-	if len(modelEvhNodes) > 0 && len(modelEvhNodes[0].EvhNodes) > 0 {
-		for _, modelEvhNode := range modelEvhNodes[0].EvhNodes {
-			if currentEvhNodeName == modelEvhNode.Name {
-				utils.AviLog.Infof("key: %s, msg: Updating stringgroups for model: %s", key, currentEvhNodeName)
-				if len(modelEvhNode.PoolRefs) > 0 {
-					poolname := modelEvhNode.PoolRefs[0].Name
-					o.UpdateStringGroupsOnRouteDeletion(key, poolname)
-				}
-				return
-			}
-		}
-	}
 }
