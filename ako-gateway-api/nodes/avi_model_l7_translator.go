@@ -152,8 +152,9 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 
 func updateHostname(key, parentNsName string, parentNode *nodes.AviEvhVsNode) {
 	ok, routeNsNames := akogatewayapiobjects.GatewayApiLister().GetGatewayToRoute(parentNsName)
-	if !ok {
-		utils.AviLog.Warnf("key: %s, msg: Unable to fetch routes from gateway", key)
+	if !ok || len(routeNsNames) == 0 {
+		utils.AviLog.Warnf("key: %s, msg: No routes from gateway, removing all FQDNs", key)
+		parentNode.VSVIPRefs[0].FQDNs = []string{}
 		return
 	}
 	uniqueHostnamesSet := sets.NewString()
