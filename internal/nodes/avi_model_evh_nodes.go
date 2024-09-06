@@ -1132,14 +1132,14 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 				EVHParent:    false,
 				EvhHostName:  host,
 				ServiceMetadata: lib.ServiceMetadataObj{
-					NamespaceIngressName: ingressHostMap.GetIngressesForHostName(host),
+					NamespaceIngressName: ingressHostMap.GetIngressesForHostName(),
 					Namespace:            namespace,
 					HostNames:            hostSlice,
 				},
 			}
 		} else {
 			// The evh node exists, just update the svc metadata
-			evhNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(host)
+			evhNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName()
 			evhNode.ServiceMetadata.Namespace = namespace
 			evhNode.ServiceMetadata.HostNames = hostSlice
 		}
@@ -1148,7 +1148,7 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 		evhNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
 		evhNode.AviMarkers = lib.PopulateVSNodeMarkers(namespace, host, infraSettingName)
 	} else {
-		vsNode[0].ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(host)
+		vsNode[0].ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName()
 		vsNode[0].ServiceMetadata.Namespace = namespace
 		vsNode[0].ServiceMetadata.HostNames = hostSlice
 		vsNode[0].AviMarkers = lib.PopulateVSNodeMarkers(namespace, host, infraSettingName)
@@ -1479,14 +1479,14 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 				EVHParent:    false,
 				EvhHostName:  host,
 				ServiceMetadata: lib.ServiceMetadataObj{
-					NamespaceIngressName: ingressHostMap.GetIngressesForHostName(host),
+					NamespaceIngressName: ingressHostMap.GetIngressesForHostName(),
 					Namespace:            namespace,
 					HostNames:            hosts,
 				},
 			}
 		} else {
 			// The evh node exists, just update the svc metadata
-			evhNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(host)
+			evhNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName()
 			evhNode.ServiceMetadata.Namespace = namespace
 			evhNode.ServiceMetadata.HostNames = hosts
 		}
@@ -1495,7 +1495,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 		evhNode.VrfContext = lib.GetVrf()
 		evhNode.AviMarkers = lib.PopulateVSNodeMarkers(namespace, host, infraSettingName)
 	} else {
-		vsNode[0].ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(host)
+		vsNode[0].ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName()
 		vsNode[0].ServiceMetadata.Namespace = namespace
 		vsNode[0].ServiceMetadata.HostNames = hosts
 		vsNode[0].AddSSLPort(key)
@@ -1599,7 +1599,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			SharedHostNameLister().Save(host, ingressHostMap)
 		}
 		// Since the cert couldn't be built, check if this EVH is affected by only in ingress if so remove the EVH node from the model
-		if len(ingressHostMap.GetIngressesForHostName(host)) == 0 {
+		if len(ingressHostMap.GetIngressesForHostName()) == 0 {
 			hostsToRemove = append(hostsToRemove, evhNode.VHDomainNames...)
 			if vsNode[0].Dedicated {
 				DeleteDedicatedEvhVSNode(vsNode[0], key, hostsToRemove)
@@ -2100,6 +2100,11 @@ func RouteIngrDeletePoolsByHostnameForEvh(routeIgrObj RouteIngressModel, namespa
 		}
 
 		SharedHostNameLister().DeleteNamespace(host)
+		if found, ingressHostMap := SharedHostNameLister().Get(host); found {
+			mapkey := namespace + "/" + objname
+			delete(ingressHostMap.HostNameMap, mapkey)
+
+		}
 		modelName := lib.GetModelName(tenant, shardVsName.Name)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {
