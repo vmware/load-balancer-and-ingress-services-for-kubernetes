@@ -15,7 +15,6 @@
 package nodes
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -185,16 +184,6 @@ func (v *AviVsNode) CalculateForGraphChecksum() uint32 {
 		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(stringGroup.GetCheckSum()))
 	}
 
-	if lib.AKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
-		// TODO: This is not working
-		// Why do we need to change checksum of VS? As we are appending hostname--> list of ingresses mapping
-		// so we need to have updated list at vs metadata so that during AKO bootup we will have updated list
-		b := new(bytes.Buffer)
-		for key, val := range v.ServiceMetadata.HostToNamespaceIngressName {
-			fmt.Fprintf(b, "%s=%s", key, val)
-		}
-		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(utils.Hash(b.String())))
-	}
 	return utils.Hash(strings.Join(checksumStringSlice, ":"))
 }
 
@@ -227,7 +216,6 @@ func (v *AviEvhVsNode) CalculateForGraphChecksum() uint32 {
 	for _, stringGroup := range v.StringGroupRefs {
 		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(stringGroup.GetCheckSum()))
 	}
-
 	return utils.Hash(strings.Join(checksumStringSlice, ":"))
 }
 

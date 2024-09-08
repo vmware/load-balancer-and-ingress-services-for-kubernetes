@@ -563,12 +563,3 @@ func (c *AviCache) ShallowCopy() map[interface{}]interface{} {
 	}
 	return newMap
 }
-func (c *AviCache) AviGetAllFQDNKeys() []string {
-	c.cache_lock.RLock()
-	defer c.cache_lock.RUnlock()
-	var keys []string
-	for key := range c.cache {
-		keys = append(keys, key.(string))
-	}
-	return keys
-}

@@ -18,6 +18,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 
@@ -173,21 +174,10 @@ func (h *HostNamePathStore) DeleteHostPathStore(host string) {
 }
 
 // added multiple layer of validation. Useful in multihost ingress
-func PopulateIngHostMap(namespace, hostName, ingName, secretName string, pathsvcMap HostMetadata) bool {
+func PopulateIngHostMap(namespace, hostName, ingName, secretName string, pathsvcMap HostMetadata) {
 	hostMap := HostNamePathSecrets{paths: getPaths(pathsvcMap.ingressHPSvc), secretName: secretName}
 	found, ingressHostMap := SharedHostNameLister().Get(hostName)
 	if found {
-		// Replace the ingress map for this host.
-		ingresses := ingressHostMap.GetIngressesForHostName()
-		if len(ingresses) > 0 {
-			nsIngressname := strings.Split(ingresses[0], "/")
-			if len(nsIngressname) > 0 {
-				if nsIngressname[0] != namespace {
-					utils.AviLog.Debugf("Active Namespace is : %s and ingres namespace is: %s. Returning", nsIngressname[0], namespace)
-					return false
-				}
-			}
-		}
 		ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
 	} else {
 		// Create the map
@@ -195,5 +185,24 @@ func PopulateIngHostMap(namespace, hostName, ingName, secretName string, pathsvc
 		ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
 	}
 	SharedHostNameLister().Save(hostName, ingressHostMap)
+}
+
+func EnqueueIng(key, namespace, hostName, ingName string) bool {
+	if lib.AKOFQDNReusePolicy() != lib.FQDNReusePolicyStrict {
+		return true
+	}
+	found, ingressHostMap := SharedHostNameLister().Get(hostName)
+	if found {
+		ingresses := ingressHostMap.GetIngressesForHostName()
+		if len(ingresses) > 0 {
+			nsIngressname := strings.Split(ingresses[0], "/")
+			if len(nsIngressname) > 0 {
+				if nsIngressname[0] != namespace {
+					utils.AviLog.Debugf("key: %s, msg: Host %s already claimed. Not processing ingress.", key, hostName)
+					return false
+				}
+			}
+		}
+	}
 	return true
 }

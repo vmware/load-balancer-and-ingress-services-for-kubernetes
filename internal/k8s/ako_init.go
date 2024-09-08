@@ -36,7 +36,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	servicesapi "sigs.k8s.io/service-apis/apis/v1alpha1"
@@ -1114,32 +1113,13 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			// sort the list as per the timestamp. Sorting logic can be kept irrespective of strict or non-strict policy
 			sort.Slice(ingObjList, func(i, j int) bool { return lib.IngressLessthan(ingObjList[i], ingObjList[j]) })
 
-			// TODO: Check this: There will be complication in handling ingress with multiple hosts as it can happen one hostname is accepted
-			// other is rejected.
 			for _, ingObj := range ingObjList {
 				key := ingObj.Namespace + "/" + ingObj.Name
 				isValid := true
 
-				// TODO: try to covert if loop to function
 				if lib.AKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
-					routeNamespaceName := objects.RouteNamspaceName{
-						RouteNSRouteName: utils.Ingress + "/" + key,
-						CreationTime:     ingObj.CreationTimestamp,
-					}
 					// get the hostnames in the ingress
-					hosts := sets.NewString()
-					for _, rule := range ingObj.Spec.Rules {
-						hosts.Insert(rule.Host)
-					}
-					isValid = false
-					for _, host := range hosts.List() {
-						isValid, _, _ = objects.SharedUniqueNamespaceLister().UpdateHostnameToRoute(host, routeNamespaceName)
-						// TODO: multihost needs to be handled in Graph layer
-						if isValid {
-							utils.AviLog.Debugf("Ingress %s is added to active list. Enqueuing it", key)
-							break
-						}
-					}
+					isValid = isIngAcceptedWithFQDNRestriction(key, ingObj)
 				}
 				if isValid {
 					key := utils.Ingress + "/" + key
@@ -1174,14 +1154,8 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 				key := utils.OshiftRoute + "/" + utils.ObjKey(routeObj)
 				isValid := true
 
-				// TODO: try to covert if loop to function
 				if lib.AKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
-					routeNamespaceName := objects.RouteNamspaceName{
-						RouteNSRouteName: utils.OshiftRoute + "/" + key,
-						CreationTime:     routeObj.CreationTimestamp,
-					}
-
-					isValid, _, _ = objects.SharedUniqueNamespaceLister().UpdateHostnameToRoute(routeObj.Spec.Host, routeNamespaceName)
+					isValid = isRouteAcceptedWithFQDNRestriction(key, routeObj)
 					if isValid {
 						utils.AviLog.Debugf("Route %s is added to active list. Enqueuing it", key)
 					}

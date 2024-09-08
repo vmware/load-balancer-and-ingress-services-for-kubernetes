@@ -22,6 +22,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -165,7 +166,7 @@ type akoControlConfig struct {
 	//endpointSlices Enabled
 	isEndpointSlicesEnabled bool
 
-    //FQDNReusePolicy is set to Strict/InterNamespaceAllowed according to whether AKO allows FQDN sharing across namespaces
+	//FQDNReusePolicy is set to Strict/InterNamespaceAllowed according to whether AKO allows FQDN sharing across namespaces
 	FQDNReusePolicy string
 }
 
@@ -361,12 +362,17 @@ func (c *akoControlConfig) SetControllerVRFContext(v string) {
 }
 
 func (c *akoControlConfig) SetAKOFQDNReusePolicy(FQDNPolicy string) {
-	if FQDNPolicy == "" {
+	// Empty or SNI deployment--> Allow across namespace
+	if FQDNPolicy == "" || !IsEvhEnabled() {
 		FQDNPolicy = FQDNReusePolicyOpen
 	}
 	c.FQDNReusePolicy = strings.ToLower(FQDNPolicy)
+	utils.AviLog.Infof("AKO FQDN reuse policy is: %s", c.FQDNReusePolicy)
 }
 
+// This utility returns FQDN Reuse policy of AKO.
+// Strict --> FQDN restrict to one namespace
+// InternamespaceAllowed --> FQDN can be spanned across multiple namespaces
 func (c *akoControlConfig) GetAKOFQDNReusePolicy() string {
 	return c.FQDNReusePolicy
 }
@@ -450,7 +456,15 @@ func (c *akoControlConfig) PodEventf(eventType, reason, message string, formatAr
 		}
 	}
 }
+func (c *akoControlConfig) IngressEventf(ingMeta metav1.ObjectMeta, eventType, reason, message string, formatArgs ...string) {
 
+	if len(formatArgs) > 0 {
+		c.EventRecorder().Eventf(&networkingv1.Ingress{ObjectMeta: ingMeta}, eventType, reason, message, formatArgs)
+	} else {
+		c.EventRecorder().Event(&networkingv1.Ingress{ObjectMeta: ingMeta}, eventType, reason, message)
+	}
+
+}
 func GetResponseFromURI(client *clients.AviClient, uri string) (models.SystemConfiguration, error) {
 	response := models.SystemConfiguration{}
 	err := AviGet(client, uri, &response)

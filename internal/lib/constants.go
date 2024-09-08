@@ -120,6 +120,7 @@ const (
 	TLSRoute                                   = "TLSRoute"
 	UDPRoute                                   = "UDPRoute"
 	DuplicateBackends                          = "MultipleBackendsWithSameServiceError"
+	HostAlreadyClaimed                         = "Host already Claimed"
 	DummyVSForStaleData                        = "DummyVSForStaleData"
 	ControllerReqWaitTime                      = 300
 	PassthroughInsecure                        = "-insecure"
@@ -230,6 +231,12 @@ const (
 	AKODeleteConfigDone      = "AKODeleteConfigDone"
 	AKODeleteConfigTimeout   = "AKODeleteConfigTimeout"
 	AKOGatewayEventComponent = "avi-kubernetes-operator-gateway-api"
+	IngressAddEvent          = "IngressAddEvent"
+	IngressDeleteEvent       = "IngressDeleteEvent"
+	IngressUpdateEvent       = "IngressUpdateEvent"
+	RouteAddEvent            = "RouteAddEvent"
+	RouteUpdateEvent         = "RouteUpdateEvent"
+	RouteDeleteEvent         = "RouteDeleteEvent"
 
 	DefaultIngressClassAnnotation    = "ingressclass.kubernetes.io/is-default-class"
 	ExternalDNSAnnotation            = "external-dns.alpha.kubernetes.io/hostname"
