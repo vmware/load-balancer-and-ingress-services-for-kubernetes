@@ -1122,9 +1122,11 @@ func checkForL4SSLAppProfile(key, refValue string) (bool, error) {
 	}
 	if appProfType, ok := item["type"].(string); ok {
 		if appProfType == lib.AllowedL4SSLApplicationProfile {
+			utils.AviLog.Infof("key: %s, msg: Ref found for %s/%s", key, refModelMap[refKey], refValue)
 			return true, nil
 		}
 		if appProfType == lib.AllowedL4ApplicationProfile {
+			utils.AviLog.Infof("key: %s, msg: Ref found for %s/%s", key, refModelMap[refKey], refValue)
 			return false, nil
 		}
 	}
