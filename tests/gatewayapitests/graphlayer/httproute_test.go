@@ -1173,7 +1173,7 @@ func TestHTTPRouteGatewayWithEmptyHostnameInGatewayHTTPRoute(t *testing.T) {
 	rules := []gatewayv1.HTTPRouteRule{rule}
 	hostnames := []gatewayv1.Hostname{}
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
-	time.Sleep(2 * time.Second)
+
 	// no child vs
 	g.Eventually(func() int {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
