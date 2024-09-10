@@ -94,6 +94,7 @@ func DequeueIngestion(key string, fullsync bool) {
 			}
 			model.DeleteStaleChildVSes(key, routeModel, childVSes, fullsync)
 		}
+		model.AddDefaultHTTPPolicySet(key)
 
 		// Only add this node to the list of models if the checksum has changed.
 		modelChanged := saveAviModel(modelName, model.AviObjectGraph, key)

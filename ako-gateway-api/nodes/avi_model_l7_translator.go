@@ -31,6 +31,45 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
+func (o *AviObjectGraph) AddDefaultHTTPPolicySet(key string) {
+	parentVS := o.GetAviEvhVS()[0]
+
+	// find default backend, if found make sure it is at last index
+	for i, policyRef := range parentVS.HttpPolicyRefs {
+		if policyRef.Name == akogatewayapilib.DefaultPSName {
+			if i != len(parentVS.HttpPolicyRefs)-1 {
+				utils.AviLog.Debugf("key: %s msg: Found default-backend httpref at non last position", key)
+				temp := parentVS.HttpPolicyRefs[i]
+				parentVS.HttpPolicyRefs = append(parentVS.HttpPolicyRefs[:i], parentVS.HttpPolicyRefs[i+1:]...)
+				parentVS.HttpPolicyRefs = append(parentVS.HttpPolicyRefs, temp)
+			}
+			return
+		}
+	}
+	// if not found add it to last index
+
+	utils.AviLog.Debugf("key: %s msg: default-backend httpref not found. Adding", key)
+	defaultPolicyRef := &nodes.AviHttpPolicySetNode{Name: akogatewayapilib.DefaultPSName, Tenant: lib.GetTenant()}
+	defaultPolicyRef.RequestRules = []*models.HTTPRequestRule{
+		{
+			Name:   proto.String("default-backend-rule"),
+			Enable: proto.Bool(true),
+			Index:  proto.Int32(0),
+			Match: &models.MatchTarget{
+				Path: &models.PathMatch{
+					MatchCriteria: proto.String("BEGINS_WITH"),
+					MatchStr:      []string{"/"},
+				},
+			},
+			SwitchingAction: &models.HttpswitchingAction{
+				Action:     proto.String("HTTP_SWITCHING_SELECT_LOCAL"),
+				StatusCode: proto.String("HTTP_LOCAL_RESPONSE_STATUS_CODE_404"),
+			},
+		},
+	}
+	parentVS.HttpPolicyRefs = append(parentVS.HttpPolicyRefs, defaultPolicyRef)
+}
+
 func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, parentNsName string, childVSes map[string]struct{}, fullsync bool) {
 	httpRouteConfig := routeModel.ParseRouteConfig()
 	noHostsOnRoute := len(httpRouteConfig.Hosts) == 0
