@@ -1669,7 +1669,66 @@ func TestTransitionsHttpRouteWithPartiallyValidGatewayToValidGateway(t *testing.
 			return 0
 		}
 		return len(nodes[0].EvhNodes[0].VHMatches)
-	}, 50*time.Second).Should(gomega.Equal(2))
+	}, 30*time.Second).Should(gomega.Equal(2))
+
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return 0
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		if len(nodes[0].EvhNodes) != 2 {
+			return 0
+		}
+		return len(nodes[0].EvhNodes[1].VHMatches)
+	}, 30*time.Second).Should(gomega.Equal(2))
+	time.Sleep(20 * time.Second)
+
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+
+	childNode1 = nodes[0].EvhNodes[0]
+	g.Expect(childNode1.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode1.PoolGroupRefs[0].Members).To(gomega.HaveLen(1))
+	g.Expect(childNode1.DefaultPoolGroup).NotTo(gomega.Equal(""))
+	g.Expect(childNode1.PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode1.PoolRefs[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(len(childNode1.PoolRefs[0].Servers)).To(gomega.Equal(1))
+	g.Expect(len(childNode1.VHMatches)).To(gomega.Equal(2))
+	g.Expect(*childNode1.VHMatches[0].Host).To(gomega.Equal("foo-8080.com"))
+	g.Expect(len(childNode1.VHMatches[0].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/foo"))
+	g.Expect(len(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(2))
+	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
+	g.Expect(childNode1.VHMatches[0].Rules[0].Matches.VsPort.Ports[1]).To(gomega.Equal(int64(8081)))
+	g.Expect(*childNode1.VHMatches[1].Host).To(gomega.Equal("foo-8081.com"))
+	g.Expect(len(childNode1.VHMatches[1].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode1.VHMatches[1].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/foo"))
+	g.Expect(len(childNode1.VHMatches[1].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(2))
+	g.Expect(childNode1.VHMatches[1].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
+	g.Expect(childNode1.VHMatches[1].Rules[0].Matches.VsPort.Ports[1]).To(gomega.Equal(int64(8081)))
+
+	childNode2 = nodes[0].EvhNodes[1]
+	g.Expect(childNode2.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode2.PoolGroupRefs[0].Members).To(gomega.HaveLen(1))
+	g.Expect(childNode2.DefaultPoolGroup).NotTo(gomega.Equal(""))
+	g.Expect(childNode2.PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode2.PoolRefs[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(len(childNode2.PoolRefs[0].Servers)).To(gomega.Equal(1))
+	g.Expect(len(childNode2.VHMatches)).To(gomega.Equal(2))
+	g.Expect(*childNode2.VHMatches[0].Host).To(gomega.Equal("foo-8080.com"))
+	g.Expect(len(childNode2.VHMatches[0].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode2.VHMatches[0].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/bar"))
+	g.Expect(len(childNode2.VHMatches[0].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(2))
+	g.Expect(childNode2.VHMatches[0].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
+	g.Expect(childNode2.VHMatches[0].Rules[0].Matches.VsPort.Ports[1]).To(gomega.Equal(int64(8081)))
+	g.Expect(*childNode2.VHMatches[1].Host).To(gomega.Equal("foo-8081.com"))
+	g.Expect(len(childNode2.VHMatches[1].Rules)).To(gomega.Equal(1))
+	g.Expect(childNode2.VHMatches[1].Rules[0].Matches.Path.MatchStr[0]).To(gomega.Equal("/bar"))
+	g.Expect(len(childNode2.VHMatches[1].Rules[0].Matches.VsPort.Ports)).To(gomega.Equal(2))
+	g.Expect(childNode2.VHMatches[1].Rules[0].Matches.VsPort.Ports[0]).To(gomega.Equal(int64(8080)))
+	g.Expect(childNode2.VHMatches[1].Rules[0].Matches.VsPort.Ports[1]).To(gomega.Equal(int64(8081)))
+
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
