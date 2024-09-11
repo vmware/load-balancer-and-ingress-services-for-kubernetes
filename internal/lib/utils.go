@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -545,4 +546,27 @@ func IsInfraSettingNSScoped(infraSetting, namespace string) bool {
 		}
 	}
 	return false
+}
+
+type LockSet struct {
+	locks sync.Map
+}
+
+var lockSet LockSet
+
+func (s *LockSet) Lock(lockName string) {
+	lock, _ := s.locks.LoadOrStore(lockName, &sync.Mutex{})
+	lock.(*sync.Mutex).Lock()
+}
+
+func (s *LockSet) Unlock(lockName string) {
+	if lock, ok := s.locks.Load(lockName); !ok {
+		panic("unlocked an unlock mutex")
+	} else {
+		lock.(*sync.Mutex).Unlock()
+	}
+}
+
+func GetLockSet() *LockSet {
+	return &lockSet
 }

@@ -433,6 +433,11 @@ func RouteIngrDeletePoolsByHostname(routeIgrObj RouteIngressModel, namespace, ob
 		}
 
 		SharedHostNameLister().DeleteNamespace(host)
+		if found, ingressHostMap := SharedHostNameLister().Get(host); found {
+			mapkey := namespace + "/" + objname
+			delete(ingressHostMap.HostNameMap, mapkey)
+
+		}
 		modelName := lib.GetModelName(tenant, shardVsName.Name)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {

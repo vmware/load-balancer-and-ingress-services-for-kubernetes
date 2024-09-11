@@ -23,6 +23,7 @@ const (
 	AddHeaderStringGroup           = "AddHeaderStringGroup"
 	UpdateHeaderStringGroup        = "UpdateHeaderStringGroup"
 	DeleteHeaderStringGroup        = "DeleteHeaderStringGroup"
+	DefaultPSName                  = "default-backend"
 )
 
 const (
