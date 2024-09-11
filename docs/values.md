@@ -346,4 +346,4 @@ If you are using a private container registry and you'd like to override the def
 
 ### featureGates.EnableEndpointSlice
 
-Enable this flag to use EndpointSlice instead of Endpoints in AKO. This also supports graceful shutdown of servers. Enabled by default from AKO 1.13.1.
+Enable this flag to use EndpointSlices instead of Endpoints in AKO. This also supports graceful shutdown of servers. Enabled by default from AKO 1.13.1.
