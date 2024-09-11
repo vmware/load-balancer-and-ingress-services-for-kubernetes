@@ -358,7 +358,7 @@ func GetParentReferencesV1(gatewayNames []string, namespace string, ports []int3
 	return parentRefs
 }
 
-func GetParentReferencesOnListener(listeners []gatewayv1.Listener, gwName, namespace string) []gatewayv1.ParentReference {
+func GetParentReferencesFromListeners(listeners []gatewayv1.Listener, gwName, namespace string) []gatewayv1.ParentReference {
 	parentRefs := make([]gatewayv1.ParentReference, 0)
 	for i := range listeners {
 		sectionName := gatewayv1.SectionName(fmt.Sprintf("listener-%d", i))
