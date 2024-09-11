@@ -1739,7 +1739,8 @@ func TestTransitionsHttpRouteWithPartiallyValidGatewayToValidGateway(t *testing.
 }
 
 func TestTransitionsHttpRouteWithPartiallyValidGatewayToInvalidGateway(t *testing.T) {
-	/*gatewayName := "gateway-hr-11"
+	t.Skip("Skipping since current implementation is not supporting partially Valid to Invalid gateway transition")
+	gatewayName := "gateway-hr-11"
 	gatewayClassName := "gateway-class-hr-11"
 	httpRouteName := "http-route-hr-11"
 	svcName1 := "avisvc-hr-11-a"
@@ -1748,7 +1749,7 @@ func TestTransitionsHttpRouteWithPartiallyValidGatewayToInvalidGateway(t *testin
 	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 	listeners[1].Protocol = "TCP"
 	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
@@ -1844,7 +1845,7 @@ func TestTransitionsHttpRouteWithPartiallyValidGatewayToInvalidGateway(t *testin
 	integrationtest.DelEP(t, DEFAULT_NAMESPACE, svcName2)
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
-	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)*/
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 
 }
 
@@ -1951,7 +1952,8 @@ func TestTransitionsHttpRouteWithInvalidGatewayToPartiallyValidGateway(t *testin
 }
 
 func TestTransitionsHttpRouteWithValidGatewayToPartiallyValidGateway(t *testing.T) {
-	/*gatewayName := "gateway-hr-13"
+	t.Skip("Skipping since current implementation is not supporting  Valid to partially valid gateway transition")
+	gatewayName := "gateway-hr-13"
 	gatewayClassName := "gateway-class-hr-13"
 	httpRouteName := "http-route-hr-13"
 	svcName1 := "avisvc-hr-13-a"
@@ -1960,7 +1962,7 @@ func TestTransitionsHttpRouteWithValidGatewayToPartiallyValidGateway(t *testing.
 	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := akogatewayapitests.GetListenersV1(ports, false)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -2112,7 +2114,6 @@ func TestTransitionsHttpRouteWithValidGatewayToPartiallyValidGateway(t *testing.
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
-	*/
 }
 
 func TestTransitionsMultipleHttpRoutesWithPartiallyValidGatewayToValidGateway(t *testing.T) {
@@ -2283,9 +2284,6 @@ func TestTransitionsMultipleHttpRoutesWithPartiallyValidGatewayToValidGateway(t 
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 }
-func TestTransitionsMultipleHttpRoutesWithPartiallyValidGatewayToInvalidGateway(t *testing.T) {
-
-}
 func TestTransitionsMultipleHttpRouteWithInvalidGatewayToPartiallyValidGateway(t *testing.T) {
 	// 1: Two HTTPRoute with  invalid gateway
 	gatewayName := "gateway-hr-16"
@@ -2384,8 +2382,4 @@ func TestTransitionsMultipleHttpRouteWithInvalidGatewayToPartiallyValidGateway(t
 	akogatewayapitests.TeardownHTTPRoute(t, httpRoute2Name, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
-}
-
-func TestTransitionsMultipleHttpRouteWithValidGatewayToPartiallyValidGateway(t *testing.T) {
-
 }

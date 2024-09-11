@@ -94,10 +94,10 @@ func Record(key string, obj runtime.Object, status *Status) (runtime.Object, err
 		return obj, errors.New("Unsupported object received at the status layer")
 	}
 	o := New(objectType)
-	updatedGateway, err := o.Patch(key, obj, status)
+	updatedObject, err := o.Patch(key, obj, status)
 	if err != nil {
 		akogatewayapilib.AKOControlConfig().EventRecorder().Eventf(obj, corev1.EventTypeWarning,
 			lib.PatchFailed, "Patch of status failed after multiple retries")
 	}
-	return updatedGateway, err
+	return updatedObject, err
 }

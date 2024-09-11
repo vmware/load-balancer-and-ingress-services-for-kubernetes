@@ -17,6 +17,7 @@ package k8s
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"sync"
 	"time"
 
@@ -505,7 +506,10 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			if !valid {
 				return
 			}
-			listRoutes, _ := validateReferreedHTTPRoute(key, gwWithStatus, allowedRoutesAll)
+			listRoutes, err := validateReferredHTTPRoute(key, gwWithStatus, allowedRoutesAll)
+			if err != nil {
+				utils.AviLog.Errorf("Validation of Referred HTTPRoutes Failed due to error : %s", err.Error())
+			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
@@ -553,7 +557,10 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 				if !valid {
 					return
 				}
-				listRoutes, _ := validateReferreedHTTPRoute(key, gwWithStatus, allowedRoutesAll)
+				listRoutes, err := validateReferredHTTPRoute(key, gwWithStatus, allowedRoutesAll)
+				if err != nil {
+					utils.AviLog.Errorf("Validation of Referred HTTPRoutes Failed due to error : %s", err.Error())
+				}
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
@@ -729,19 +736,19 @@ func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
 	return nil, false
 }
 
-func validateReferreedHTTPRoute(key string, gateway *gatewayv1.Gateway, allowedRoutesAll bool) ([]*gatewayv1.HTTPRoute, error) {
+func validateReferredHTTPRoute(key string, gateway *gatewayv1.Gateway, allowedRoutesAll bool) ([]*gatewayv1.HTTPRoute, error) {
 	namespace := gateway.Namespace
 	if allowedRoutesAll {
 		namespace = metav1.NamespaceAll
 	}
-	hrObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).List(labels.Set(nil).AsSelector())
+	hrObjs, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).List(labels.Set(nil).AsSelector())
 	httpRoutes := make([]*gatewayv1.HTTPRoute, 0)
 	if err != nil {
 		return nil, err
 	}
-	for _, httpRoute := range hrObj {
-		for _, pr := range httpRoute.Spec.ParentRefs {
-			if pr.Name == gatewayv1.ObjectName(gateway.Name) {
+	for _, httpRoute := range hrObjs {
+		for _, parentRef := range httpRoute.Spec.ParentRefs {
+			if parentRef.Name == gatewayv1.ObjectName(gateway.Name) {
 				if IsHTTPRouteValid(key, httpRoute, gateway) {
 					httpRoutes = append(httpRoutes, httpRoute)
 				}
@@ -749,5 +756,11 @@ func validateReferreedHTTPRoute(key string, gateway *gatewayv1.Gateway, allowedR
 			}
 		}
 	}
+	sort.Slice(httpRoutes, func(i, j int) bool {
+		if httpRoutes[i].GetCreationTimestamp().Unix() == httpRoutes[j].GetCreationTimestamp().Unix() {
+			return httpRoutes[i].Namespace+"/"+httpRoutes[i].Name < httpRoutes[j].Namespace+"/"+httpRoutes[j].Name
+		}
+		return httpRoutes[i].GetCreationTimestamp().Unix() < httpRoutes[j].GetCreationTimestamp().Unix()
+	})
 	return httpRoutes, nil
 }

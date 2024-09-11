@@ -68,6 +68,9 @@ func IsGatewayClassValid(key string, gatewayClass *gatewayv1.GatewayClass) bool 
 func IsValidGateway(key string, gateway *gatewayv1.Gateway) (bool, bool, *gatewayv1.Gateway) {
 	spec := gateway.Spec
 	allowedRoutesAll := false
+	gwNsName := gateway.Namespace + "/" + gateway.Name
+	lib.GetLockSet().Lock(gwNsName)
+	defer lib.GetLockSet().Unlock(gwNsName)
 
 	defaultCondition := akogatewayapistatus.NewCondition().
 		Type(string(gatewayv1.GatewayConditionAccepted)).
@@ -376,7 +379,8 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		}
 		gateway = obj.DeepCopy()
 	}
-	utils.AviLog.Debugf(utils.Stringify(gateway))
+	lib.GetLockSet().Lock(gwNsName)
+	defer lib.GetLockSet().Unlock(gwNsName)
 
 	gwClass := string(gateway.Spec.GatewayClassName)
 	_, isAKOCtrl := akogatewayapiobjects.GatewayApiLister().IsGatewayClassControllerAKO(gwClass)
