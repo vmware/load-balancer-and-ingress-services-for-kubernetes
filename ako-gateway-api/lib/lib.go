@@ -81,11 +81,6 @@ func GetPoolGroupName(parentNs, parentName, routeNs, routeName, matchName string
 	return lib.Encode(name, lib.PG)
 }
 
-func GetDataScriptName() string {
-	name := lib.GetNamePrefix() + BackendRefFilterDatascriptName
-	return lib.Encode(name, lib.EVHVS)
-}
-
 func GetHTTPRuleName(parentNs, parentName, routeNs, routeName, matchName string) string {
 	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-" + utils.Stringify(utils.Hash(matchName))
 	return lib.Encode(name, lib.HPPMAP)

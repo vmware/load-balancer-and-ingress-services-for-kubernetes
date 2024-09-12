@@ -300,38 +300,6 @@ func (hr *httpRoute) ParseRouteConfig() *RouteConfig {
 				backend.Weight = *ruleBackend.Weight
 			}
 			httpBackend.Backend = backend
-			filters := []*Filter{}
-			for _, backendFilter := range ruleBackend.Filters {
-				filter := &Filter{}
-				// request header filter
-				if backendFilter.RequestHeaderModifier != nil {
-					filter.RequestFilter = &HeaderFilter{}
-					filter.RequestFilter.Add = make([]*Header, 0, len(backendFilter.RequestHeaderModifier.Add))
-					for _, addFilter := range backendFilter.RequestHeaderModifier.Add {
-						addHeader := &Header{
-							Name:  string(addFilter.Name),
-							Value: addFilter.Value,
-						}
-						filter.RequestFilter.Add = append(filter.RequestFilter.Add, addHeader)
-					}
-					filter.RequestFilter.Set = make([]*Header, 0, len(backendFilter.RequestHeaderModifier.Set))
-					for _, setFilter := range backendFilter.RequestHeaderModifier.Set {
-						setHeader := &Header{
-							Name:  string(setFilter.Name),
-							Value: setFilter.Value,
-						}
-						filter.RequestFilter.Set = append(filter.RequestFilter.Set, setHeader)
-					}
-					filter.RequestFilter.Remove = make([]string, len(backendFilter.RequestHeaderModifier.Remove))
-					copy(filter.RequestFilter.Remove, backendFilter.RequestHeaderModifier.Remove)
-
-					sort.Sort((Headers)(filter.RequestFilter.Add))
-					sort.Sort((Headers)(filter.RequestFilter.Set))
-					sort.Strings(filter.RequestFilter.Remove)
-				}
-				filters = append(filters, filter)
-			}
-			httpBackend.Filters = filters
 			routeConfigRule.Backends = append(routeConfigRule.Backends, httpBackend)
 		}
 		routeConfig.Rules = append(routeConfig.Rules, routeConfigRule)

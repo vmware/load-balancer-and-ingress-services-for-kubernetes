@@ -334,6 +334,9 @@ func IsHTTPRouteValid(key string, obj *gatewayv1.HTTPRoute, gateway *gatewayv1.G
 		utils.AviLog.Errorf("key: %s, msg: Parent Reference is empty for the HTTPRoute %s", key, httpRoute.Name)
 		return false
 	}
+	httpRouteNsName := httpRoute.Namespace + "/" + httpRoute.Name
+	lib.GetLockSet().Lock(httpRouteNsName)
+	defer lib.GetLockSet().Unlock(httpRouteNsName)
 
 	httpRouteStatus := obj.Status.DeepCopy()
 	httpRouteStatus.Parents = make([]gatewayv1.RouteParentStatus, 0, len(httpRoute.Spec.ParentRefs))
@@ -368,6 +371,8 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		namespace = string(*httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].Namespace)
 	}
 	gwNsName := namespace + "/" + name
+	lib.GetLockSet().Lock(gwNsName)
+	defer lib.GetLockSet().Unlock(gwNsName)
 	var gateway *gatewayv1.Gateway
 	if gatewayParent != nil && namespace == gatewayParent.Namespace && name == gatewayParent.Name {
 		gateway = gatewayParent.DeepCopy()
@@ -379,8 +384,6 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		}
 		gateway = obj.DeepCopy()
 	}
-	lib.GetLockSet().Lock(gwNsName)
-	defer lib.GetLockSet().Unlock(gwNsName)
 
 	gwClass := string(gateway.Spec.GatewayClassName)
 	_, isAKOCtrl := akogatewayapiobjects.GatewayApiLister().IsGatewayClassControllerAKO(gwClass)
@@ -533,7 +536,8 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 			Message(err.Error()).
 			SetIn(&httpRouteStatus.Parents[*parentRefIndexInHttpRouteStatus].Conditions)
 		*parentRefIndexInHttpRouteStatus = *parentRefIndexInHttpRouteStatus + 1
-		found, hosts := akogatewayapiobjects.GatewayApiLister().GetGatewayRouteToHostname(gwNsName)
+		gwRouteNsName := fmt.Sprintf("%s/%s/%s/%s", gwNsName, lib.HTTPRoute, httpRoute.Namespace, httpRoute.Name)
+		found, hosts := akogatewayapiobjects.GatewayApiLister().GetGatewayRouteToHostname(gwRouteNsName)
 		if found {
 			utils.AviLog.Warnf("key: %s, msg: Hostname in Gateway Listener doesn't match with any of the hostnames in HTTPRoute", key)
 			utils.AviLog.Debugf("key: %s, msg: %d hosts mapped to the route %s/%s/%s", key, len(hosts), "HTTPRoute", httpRoute.Namespace, httpRoute.Name)

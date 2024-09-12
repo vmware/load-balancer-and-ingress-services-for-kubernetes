@@ -15,6 +15,7 @@
 package objects
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -688,6 +689,9 @@ func (g *GWLister) DeleteRouteFromStore(routeTypeNsName string) {
 			} else {
 				g.gatewayToRoute.AddOrUpdate(gwNsName, routeNsNameListObj)
 			}
+			// remove hostname mapping
+			gwRouteNsName := fmt.Sprintf("%s/%s", gwNsName, routeTypeNsName)
+			g.gatewayRouteToHostnameStore.Delete(gwRouteNsName)
 		}
 	}
 	g.routeToGateway.Delete(routeTypeNsName)
@@ -806,19 +810,19 @@ func (g *GWLister) UpdateGatewayListenerToHostname(gwListenerNsName, hostname st
 	g.gatewayListenerToHostnameStore.AddOrUpdate(gwListenerNsName, hostname)
 }
 
-func (g *GWLister) UpdateGatewayRouteToHostname(gwNsName string, hostnames []string) {
+func (g *GWLister) UpdateGatewayRouteToHostname(gwRouteNsName string, hostnames []string) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 
-	g.gatewayRouteToHostnameStore.AddOrUpdate(gwNsName, hostnames)
+	g.gatewayRouteToHostnameStore.AddOrUpdate(gwRouteNsName, hostnames)
 
 }
 
-func (g *GWLister) GetGatewayRouteToHostname(gwNsName string) (bool, []string) {
+func (g *GWLister) GetGatewayRouteToHostname(gwRouteNsName string) (bool, []string) {
 	g.gwLock.RLock()
 	defer g.gwLock.RUnlock()
 
-	found, hostnames := g.gatewayRouteToHostnameStore.Get(gwNsName)
+	found, hostnames := g.gatewayRouteToHostnameStore.Get(gwRouteNsName)
 	if found {
 		return true, hostnames.([]string)
 	}

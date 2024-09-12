@@ -226,18 +226,10 @@ func (o *AviObjectGraph) ProcessRouteDeletion(key, parentNsName string, routeMod
 		utils.AviLog.Infof("key: %s, msg: child VSes retrieved for deletion %v", key, childVSNames)
 
 		for _, childVSName := range childVSNames {
-			o.RemovePoolNameFromStringGroups(childVSName, parentNode, key)
 			removed := nodes.RemoveEvhInModel(childVSName, parentNode, key)
 			if removed {
 				akogatewayapiobjects.GatewayApiLister().DeleteRouteChildVSMappings(routeTypeNsName, childVSName)
 			}
-		}
-
-		modelName := lib.GetTenant() + "/" + parentNode[0].Name
-		ok := saveAviModel(modelName, o.AviObjectGraph, key)
-		if ok && len(o.AviObjectGraph.GetOrderedNodes()) != 0 && !fullsync {
-			sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-			nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
 		}
 	} else {
 		// check parent association
@@ -277,13 +269,13 @@ func (o *AviObjectGraph) ProcessRouteDeletion(key, parentNsName string, routeMod
 			}
 		}
 		akogatewayapiobjects.GatewayApiLister().DeleteGatewayRouteToHTTPSPGPool(parentNsName + "/" + routeModel.GetType() + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName())
-		modelName := lib.GetTenant() + "/" + parentNode[0].Name
-
-		ok := saveAviModel(modelName, o.AviObjectGraph, key)
-		if ok && len(o.AviObjectGraph.GetOrderedNodes()) != 0 && !fullsync {
-			sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-			nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
-		}
+	}
+	updateHostname(key, parentNsName, parentNode[0])
+	modelName := lib.GetTenant() + "/" + parentNode[0].Name
+	ok := saveAviModel(modelName, o.AviObjectGraph, key)
+	if ok && len(o.AviObjectGraph.GetOrderedNodes()) != 0 && !fullsync {
+		sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+		nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
 	}
 
 }

@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -342,8 +343,8 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 			}
 		}
 		uniqueHosts := sets.NewString(hostnameIntersection...)
-
-		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteToHostname(gwNsName, uniqueHosts.List())
+		gwRouteNsName := fmt.Sprintf("%s/%s", gwNsName, routeTypeNsName)
+		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteToHostname(gwRouteNsName, uniqueHosts.List())
 		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteMappings(gwNsName, routeTypeNsName)
 		if !utils.HasElem(gwNsNameList, gwNsName) {
 			gwNsNameList = append(gwNsNameList, gwNsName)
