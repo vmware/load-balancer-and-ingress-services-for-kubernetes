@@ -218,10 +218,8 @@ func (o *AviObjectGraph) ProcessRouteDeletion(key, parentNsName string, routeMod
 	parentNode := o.GetAviEvhVS()
 	routeTypeNsName := routeModel.GetType() + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName()
 
-	found, childVSNamesTemp := akogatewayapiobjects.GatewayApiLister().GetRouteToChildVS(routeTypeNsName)
-	childVSNames := make([]string, len(childVSNamesTemp))
+	found, childVSNames := akogatewayapiobjects.GatewayApiLister().GetRouteToChildVS(routeTypeNsName)
 
-	copy(childVSNames, childVSNamesTemp)
 	if found {
 		utils.AviLog.Infof("key: %s, msg: child VSes retrieved for deletion %v", key, childVSNames)
 
