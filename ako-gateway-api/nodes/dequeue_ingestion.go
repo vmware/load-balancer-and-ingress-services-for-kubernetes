@@ -231,13 +231,6 @@ func (o *AviObjectGraph) ProcessRouteDeletion(key, parentNsName string, routeMod
 				akogatewayapiobjects.GatewayApiLister().DeleteRouteChildVSMappings(routeTypeNsName, childVSName)
 			}
 		}
-
-		modelName := lib.GetTenant() + "/" + parentNode[0].Name
-		ok := saveAviModel(modelName, o.AviObjectGraph, key)
-		if ok && len(o.AviObjectGraph.GetOrderedNodes()) != 0 && !fullsync {
-			sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-			nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
-		}
 	} else {
 		// check parent association
 		found, localHTTPPSPGPools := akogatewayapiobjects.GatewayApiLister().GetGatewayRouteToHTTPSPGPool(parentNsName + "/" + routeModel.GetType() + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName())
@@ -276,13 +269,13 @@ func (o *AviObjectGraph) ProcessRouteDeletion(key, parentNsName string, routeMod
 			}
 		}
 		akogatewayapiobjects.GatewayApiLister().DeleteGatewayRouteToHTTPSPGPool(parentNsName + "/" + routeModel.GetType() + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName())
-		modelName := lib.GetTenant() + "/" + parentNode[0].Name
-
-		ok := saveAviModel(modelName, o.AviObjectGraph, key)
-		if ok && len(o.AviObjectGraph.GetOrderedNodes()) != 0 && !fullsync {
-			sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-			nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
-		}
+	}
+	updateHostname(key, parentNsName, parentNode[0])
+	modelName := lib.GetTenant() + "/" + parentNode[0].Name
+	ok := saveAviModel(modelName, o.AviObjectGraph, key)
+	if ok && len(o.AviObjectGraph.GetOrderedNodes()) != 0 && !fullsync {
+		sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+		nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
 	}
 
 }

@@ -162,6 +162,21 @@ func GetListenersV1(ports []int32, emptyHostName, samehost bool, secrets ...stri
 	return listeners
 }
 
+func GetListenersOnHostname(hostnames []string) []gatewayv1.Listener {
+	listeners := make([]gatewayv1.Listener, 0, len(hostnames))
+	for i, hostname := range hostnames {
+		hn := hostname
+		listener := gatewayv1.Listener{
+			Name:     gatewayv1.SectionName(fmt.Sprintf("listener-%d", i)),
+			Port:     gatewayv1.PortNumber(8080),
+			Hostname: (*gatewayv1.Hostname)(&hn),
+			Protocol: gatewayv1.ProtocolType("HTTP"),
+		}
+		listeners = append(listeners, listener)
+	}
+	return listeners
+}
+
 func GetListenerStatusV1(ports []int32, attachedRoutes []int32) []gatewayv1.ListenerStatus {
 	listeners := make([]gatewayv1.ListenerStatus, 0, len(ports))
 	for i, port := range ports {
@@ -339,6 +354,21 @@ func GetParentReferencesV1(gatewayNames []string, namespace string, ports []int3
 			}
 			parentRefs = append(parentRefs, parentRef)
 		}
+	}
+	return parentRefs
+}
+
+func GetParentReferencesFromListeners(listeners []gatewayv1.Listener, gwName, namespace string) []gatewayv1.ParentReference {
+	parentRefs := make([]gatewayv1.ParentReference, 0)
+	for i := range listeners {
+		sectionName := gatewayv1.SectionName(fmt.Sprintf("listener-%d", i))
+		parentRef := gatewayv1.ParentReference{
+			Name:        gatewayv1.ObjectName(gwName),
+			Namespace:   (*gatewayv1.Namespace)(&namespace),
+			SectionName: &sectionName,
+		}
+		parentRefs = append(parentRefs, parentRef)
+
 	}
 	return parentRefs
 }
