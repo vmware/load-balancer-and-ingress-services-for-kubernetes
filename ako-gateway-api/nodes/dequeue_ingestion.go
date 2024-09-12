@@ -226,7 +226,6 @@ func (o *AviObjectGraph) ProcessRouteDeletion(key, parentNsName string, routeMod
 		utils.AviLog.Infof("key: %s, msg: child VSes retrieved for deletion %v", key, childVSNames)
 
 		for _, childVSName := range childVSNames {
-			o.RemovePoolNameFromStringGroups(childVSName, parentNode, key)
 			removed := nodes.RemoveEvhInModel(childVSName, parentNode, key)
 			if removed {
 				akogatewayapiobjects.GatewayApiLister().DeleteRouteChildVSMappings(routeTypeNsName, childVSName)
