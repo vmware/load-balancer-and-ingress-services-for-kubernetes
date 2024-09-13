@@ -2471,7 +2471,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 			vs_parent_ref, foundParent := vs["vh_parent_vs_ref"]
 			var parentVSKey NamespaceName
 			if foundParent {
-				vs_uuid := ExtractUuidWithoutHash(vs_parent_ref.(string), "virtualservice-.*.")
+				vs_uuid := ExtractUuid(vs_parent_ref.(string), "virtualservice-.*.#")
 				utils.AviLog.Debugf("extracted the vs uuid from parent ref during cache population: %s", vs_uuid)
 				// Now let's get the VS key from this uuid
 				vsKey, gotVS := c.VsCacheMeta.AviCacheGetKeyByUuid(vs_uuid)
@@ -2495,7 +2495,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 				// Populate the VSVIP cache
 				if vs["vsvip_ref"] != nil {
 					// find the vsvip name from the vsvip cache
-					vsVipUuid := ExtractUuidWithoutHash(vs["vsvip_ref"].(string), "vsvip-.*.")
+					vsVipUuid := ExtractUuid(vs["vsvip_ref"].(string), "vsvip-.*.#")
 					vsVipName, foundVip := c.VSVIPCache.AviCacheGetNameByUuid(vsVipUuid)
 
 					if foundVip {
@@ -2507,7 +2507,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 				if vs["ssl_key_and_certificate_refs"] != nil {
 					for _, ssl := range vs["ssl_key_and_certificate_refs"].([]interface{}) {
 						// find the sslkey name from the ssl key cache
-						sslUuid := ExtractUuidWithoutHash(ssl.(string), "sslkeyandcertificate-.*.")
+						sslUuid := ExtractUuid(ssl.(string), "sslkeyandcertificate-.*.#")
 						sslName, foundssl := c.SSLKeyCache.AviCacheGetNameByUuid(sslUuid)
 						if foundssl {
 							sslKey := NamespaceName{Namespace: tenant, Name: sslName.(string)}
@@ -2531,7 +2531,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 						// find the sslkey name from the ssl key cache
 						dsmap, ok := ds_intf.(map[string]interface{})
 						if ok {
-							dsUuid := ExtractUuidWithoutHash(dsmap["vs_datascript_set_ref"].(string), "vsdatascriptset-.*.")
+							dsUuid := ExtractUuid(dsmap["vs_datascript_set_ref"].(string), "vsdatascriptset-.*.#")
 
 							dsName, foundDs := c.DSCache.AviCacheGetNameByUuid(dsUuid)
 							if foundDs && !strings.Contains(dsName.(string), "ako-gw") {
@@ -2556,7 +2556,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 						// find the sslkey name from the ssl key cache
 						pgmap, ok := pg_intf.(map[string]interface{})
 						if ok {
-							pgUuid := ExtractUuidWithoutHash(pgmap["service_pool_group_ref"].(string), "poolgroup-.*.")
+							pgUuid := ExtractUuid(pgmap["service_pool_group_ref"].(string), "poolgroup-.*.#")
 
 							pgName, foundpg := c.PgCache.AviCacheGetNameByUuid(pgUuid)
 							if foundpg {
@@ -2591,7 +2591,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 						// find the sslkey name from the ssl key cache
 						httpmap, ok := http_intf.(map[string]interface{})
 						if ok {
-							httpUuid := ExtractUuidWithoutHash(httpmap["http_policy_set_ref"].(string), "httppolicyset-.*.")
+							httpUuid := ExtractUuid(httpmap["http_policy_set_ref"].(string), "httppolicyset-.*.#")
 
 							httpName, foundhttp := c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
 							if foundhttp {

@@ -560,24 +560,44 @@ func (rest *RestOperations) StatusUpdateForVS(restMethod utils.RestMethod, vsCac
 	serviceMetadataObj := vsCacheObj.ServiceMetadataObj
 	switch serviceMetadataObj.ServiceMetadataMapping("VS") {
 	case lib.GatewayVS:
-		updateOptions := status.UpdateOptions{
-			Vip:             IPAddrs,
-			ServiceMetadata: serviceMetadataObj,
-			Key:             key,
-			VSName:          vsCacheObj.Name,
-			Tenant:          vsCacheObj.Tenant,
+		if vsCacheObj.ParentVSRef.Name != "" {
+			updateOptions := status.UpdateOptions{
+				ServiceMetadata: serviceMetadataObj,
+				Key:             key,
+				VSName:          vsCacheObj.Name,
+				Tenant:          vsCacheObj.Tenant,
+			}
+			statusOption := status.StatusOptions{
+				ObjType: lib.HTTPRoute,
+				Op:      lib.UpdateStatus,
+				Key:     key,
+				Options: &updateOptions,
+			}
+			if lib.UseServicesAPI() {
+				statusOption.ObjType = lib.SERVICES_API
+			}
+			utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", key, utils.Stringify(statusOption))
+			status.PublishToStatusQueue(key, statusOption)
+		} else {
+			updateOptions := status.UpdateOptions{
+				Vip:             IPAddrs,
+				ServiceMetadata: serviceMetadataObj,
+				Key:             key,
+				VSName:          vsCacheObj.Name,
+				Tenant:          vsCacheObj.Tenant,
+			}
+			statusOption := status.StatusOptions{
+				ObjType: lib.Gateway,
+				Op:      lib.UpdateStatus,
+				Key:     key,
+				Options: &updateOptions,
+			}
+			if lib.UseServicesAPI() {
+				statusOption.ObjType = lib.SERVICES_API
+			}
+			utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.Gateway, utils.Stringify(statusOption))
+			status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
 		}
-		statusOption := status.StatusOptions{
-			ObjType: lib.Gateway,
-			Op:      lib.UpdateStatus,
-			Key:     key,
-			Options: &updateOptions,
-		}
-		if lib.UseServicesAPI() {
-			statusOption.ObjType = lib.SERVICES_API
-		}
-		utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.Gateway, utils.Stringify(statusOption))
-		status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
 	case lib.ServiceTypeLBVS:
 		updateOptions := status.UpdateOptions{
 			Vip:                IPAddrs,
@@ -790,24 +810,44 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 
 			switch vs_cache_obj.ServiceMetadataObj.ServiceMetadataMapping("VS") {
 			case lib.GatewayVS:
-				updateOptions := status.UpdateOptions{
-					ServiceMetadata: vs_cache_obj.ServiceMetadataObj,
-					Key:             key,
-					VSName:          vs_cache_obj.Name,
-					Tenant:          vs_cache_obj.Tenant,
-				}
-				statusOption := status.StatusOptions{
-					ObjType: lib.Gateway,
-					Op:      lib.DeleteStatus,
-					Key:     key,
-					Options: &updateOptions,
-				}
-				utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.Gateway, utils.Stringify(statusOption))
-				status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
-				// The pools would have service metadata for backend services, corresponding to which
-				// statuses need to be deleted.
-				for _, poolKey := range vs_cache_obj.PoolKeyCollection {
-					rest.DeletePoolIngressStatus(poolKey, true, vs_cache_obj.Name, key)
+				if vs_cache_obj.ParentVSRef.Name != "" {
+					updateOptions := status.UpdateOptions{
+						ServiceMetadata: vs_cache_obj.ServiceMetadataObj,
+						Key:             key,
+						VSName:          vs_cache_obj.Name,
+						Tenant:          vs_cache_obj.Tenant,
+					}
+					statusOption := status.StatusOptions{
+						ObjType: lib.HTTPRoute,
+						Op:      lib.DeleteStatus,
+						Key:     key,
+						Options: &updateOptions,
+					}
+					if lib.UseServicesAPI() {
+						statusOption.ObjType = lib.SERVICES_API
+					}
+					utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", key, utils.Stringify(statusOption))
+					status.PublishToStatusQueue(key, statusOption)
+				} else {
+					updateOptions := status.UpdateOptions{
+						ServiceMetadata: vs_cache_obj.ServiceMetadataObj,
+						Key:             key,
+						VSName:          vs_cache_obj.Name,
+						Tenant:          vs_cache_obj.Tenant,
+					}
+					statusOption := status.StatusOptions{
+						ObjType: lib.Gateway,
+						Op:      lib.DeleteStatus,
+						Key:     key,
+						Options: &updateOptions,
+					}
+					utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.Gateway, utils.Stringify(statusOption))
+					status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
+					// The pools would have service metadata for backend services, corresponding to which
+					// statuses need to be deleted.
+					for _, poolKey := range vs_cache_obj.PoolKeyCollection {
+						rest.DeletePoolIngressStatus(poolKey, true, vs_cache_obj.Name, key)
+					}
 				}
 			case lib.ServiceTypeLBVS:
 				updateOptions := status.UpdateOptions{
