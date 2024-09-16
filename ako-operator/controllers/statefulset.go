@@ -20,6 +20,7 @@ package controllers
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
@@ -44,20 +45,6 @@ func createOrUpdateStatefulSet(ctx context.Context, ako akov1alpha1.AKOConfig, l
 		if oldSf.GetName() != "" {
 			log.V(0).Info("statefulset present", "name", oldSf.GetName())
 		}
-	}
-
-	if oldSf.GetName() != "" && rebootRequired {
-		log.V(0).Info("rebooting AKO as configmap has been changed")
-		err := r.Client.Delete(ctx, &oldSf)
-		if err != nil {
-			// won't set rebootrequired to true here, as we will keep on rebooting AKO till the error
-			// is resolved
-			log.Error(err, "error while rebooting ako statefulset", "name", oldSf.GetName(),
-				"namespace", oldSf.GetNamespace())
-			return err
-		}
-		rebootRequired = false
-		oldSf = appsv1.StatefulSet{}
 	}
 
 	sf, err := BuildStatefulSet(ako, aviSecret)
@@ -86,6 +73,17 @@ func createOrUpdateStatefulSet(ctx context.Context, ako akov1alpha1.AKOConfig, l
 				"name", sf.GetName())
 			return err
 		}
+	} else if oldSf.GetName() != "" && rebootRequired {
+		log.V(0).Info("updating AKO sts as configmap has been changed")
+		err := r.Client.Update(ctx, &sf)
+		if err != nil {
+			// won't set rebootrequired to false here, as we will keep on updating AKO till the error
+			// is resolved
+			log.Error(err, "error while updating ako statefulset", "name", oldSf.GetName(),
+				"namespace", oldSf.GetNamespace())
+			return err
+		}
+		rebootRequired = false
 	} else {
 		err := r.Create(ctx, &sf)
 		if err != nil {
@@ -208,6 +206,8 @@ func BuildStatefulSet(ako akov1alpha1.AKOConfig, aviSecret corev1.Secret) (appsv
 		apiServerPort = 8080
 	}
 
+	ports := []corev1.ContainerPort{}
+
 	resources, err := buildResources(ako)
 	if err != nil {
 		return sf, err
@@ -230,6 +230,23 @@ func BuildStatefulSet(ako akov1alpha1.AKOConfig, aviSecret corev1.Secret) (appsv
 			"sidecar.istio.io/userVolumeMount": `[{"name": "istio-certs", "mountPath": "/etc/istio-output-certs"}]`,
 		}
 	}
+	if ako.Spec.FeatureGates.EnablePrometheus {
+		ports = append(ports, corev1.ContainerPort{
+			Name:          "prometheus-port",
+			ContainerPort: int32(apiServerPort),
+		})
+		if ako.Spec.IstioEnabled {
+			template.Annotations[PrometheusScrapeAnnotation] = "true"
+			template.Annotations[PrometheusPortAnnotation] = strconv.Itoa(apiServerPort)
+			template.Annotations[PrometheusPathAnnotation] = "/metrics"
+		} else {
+			template.Annotations = map[string]string{
+				PrometheusScrapeAnnotation: "true",
+				PrometheusPortAnnotation:   strconv.Itoa(apiServerPort),
+				PrometheusPathAnnotation:   "/metrics",
+			}
+		}
+	}
 	template.Spec = corev1.PodSpec{
 		ServiceAccountName: ServiceAccountName,
 		Volumes:            volumes,
@@ -246,13 +263,7 @@ func BuildStatefulSet(ako akov1alpha1.AKOConfig, aviSecret corev1.Secret) (appsv
 						},
 					},
 				},
-				Ports: []corev1.ContainerPort{
-					{
-						Name:          "http",
-						ContainerPort: 80,
-						Protocol:      "TCP",
-					},
-				},
+				Ports:     ports,
 				Resources: resources,
 				LivenessProbe: &corev1.Probe{
 					InitialDelaySeconds: 5,
