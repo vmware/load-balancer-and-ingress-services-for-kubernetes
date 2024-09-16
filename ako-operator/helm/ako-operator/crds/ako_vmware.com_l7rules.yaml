@@ -1,0 +1,114 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  name: l7rules.ako.vmware.com
+spec:
+  conversion:
+    strategy: None
+  group: ako.vmware.com
+  names:
+    kind: L7Rule
+    listKind: L7RuleList
+    plural: l7rules
+    shortNames:
+    - l7rule
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: Status of the L7Rule object.
+      jsonPath: .status.status
+      name: Status
+      type: string
+    - description: Creation timestamp of the L7Rule object.
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha2
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              allowInvalidClientCert:
+                default: false
+                description: Process request even if invalid client certificate is
+                  presented. Datascript APIs need to be used for processing of such
+                  requests.
+                type: boolean
+              botPolicyRef:
+                description: Bot detection policy for the Virtual Service.
+                type: string
+              closeClientConnOnConfigUpdate:
+                default: false
+                description: close client connection on vs config update
+                type: boolean
+              hostNameXlate:
+                description: Translate the host name sent to the servers to this value.  Translate
+                  the host name sent from servers back to the value used by the client.
+                type: string
+              ignPoolNetReach:
+                default: false
+                description: Ignore Pool servers network reachability constraints
+                  for Virtual Service placement.
+                type: boolean
+              minPoolsUp:
+                description: Minimum number of UP pools to mark VS up.
+                maximum: 65535
+                minimum: 0
+                type: integer
+              performanceLimits:
+                description: Optional settings that determine performance limits like
+                  max connections or bandwdith etc.
+                properties:
+                  maxConcurrentConnections:
+                    description: The maximum number of concurrent client conections
+                      allowed to the Virtual Service.
+                    maximum: 65535
+                    minimum: 0
+                    type: integer
+                  maxThroughput:
+                    description: The maximum throughput per second for all clients
+                      allowed through the client side of the Virtual Service per SE.
+                    maximum: 65535
+                    minimum: 0
+                    type: integer
+                type: object
+              removeListeningPortOnVsDown:
+                default: false
+                description: Remove listening port if VirtualService is down
+                type: boolean
+              securityPolicyRef:
+                description: Security policy applied on the traffic of the Virtual
+                  Service. This policy is used to perform security actions such as
+                  Distributed Denial of Service (DDoS) attack mitigation, etc.
+                type: string
+              sslSessCacheAvgSize:
+                default: 1024
+                description: Expected number of SSL session cache entries (may be
+                  exceeded).
+                maximum: 16383
+                minimum: 1024
+                type: integer
+              trafficCloneProfileRef:
+                description: Server network or list of servers for cloning traffic.
+                type: string
+            type: object
+          status:
+            properties:
+              error:
+                type: string
+              status:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: null
+  storedVersions: null
