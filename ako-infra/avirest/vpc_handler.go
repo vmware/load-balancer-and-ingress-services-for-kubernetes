@@ -6,9 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vmware/alb-sdk/go/models"
-	"google.golang.org/protobuf/proto"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -48,76 +45,12 @@ func (v *VPCHandler) AddNetworkInfoEventHandler(stopCh <-chan struct{}) {
 }
 
 func (v *VPCHandler) SyncLSLRNetwork() {
-	vpcToSubnetMap, nsToVPCMap, err := lib.GetVPCs()
+	nsToVPCMap, err := lib.GetVPCs()
 	if err != nil {
 		utils.AviLog.Errorf("Failed to list VPCs, error: %s", err)
 		return
 	}
 	utils.AviLog.Infof("Got NS to VPC Map: %v", nsToVPCMap)
-	client := InfraAviClientInstance()
-	found, cloudModel := getAviCloudFromCache(client, utils.CloudName, true)
-	if !found {
-		utils.AviLog.Warnf("Failed to get Cloud data from cache")
-		return
-	}
-
-	if cloudModel.NsxtConfiguration == nil || cloudModel.NsxtConfiguration.DataNetworkConfig == nil {
-		utils.AviLog.Warnf("NSX-T config not set in cloud, LS-LR mapping won't be updated")
-		return
-	}
-
-	if len(cloudModel.NsxtConfiguration.DataNetworkConfig.VlanSegments) != 0 {
-		utils.AviLog.Infof("NSX-T cloud is using Vlan Segments, LS-LR mapping won't be updated")
-		return
-	}
-
-	if cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual == nil {
-		utils.AviLog.Warnf("Tier1SegmentConfig is nil in NSX-T cloud, LS-LR mapping won't be updated")
-		return
-	}
-
-	if len(vpcToSubnetMap) > 0 {
-		cloudVPCToSubnetMap := make(map[string]string)
-		for _, t1lr := range cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs {
-			cloudVPCToSubnetMap[*t1lr.Tier1LrID] = *t1lr.SegmentID
-		}
-		updateCloud := false
-		//TODO: Remove Stale VPCs in Cloud
-		for vpc, subnet := range vpcToSubnetMap {
-			if val, ok := cloudVPCToSubnetMap[vpc]; !ok || val != subnet {
-				updateCloud = true
-				cloudVPCToSubnetMap[vpc] = subnet
-			}
-		}
-		if !updateCloud {
-			v.createInfraSettingAndAnnotateNS(nsToVPCMap)
-			return
-		}
-		cloudLSLRList := make([]*models.Tier1LogicalRouterInfo, len(cloudVPCToSubnetMap))
-		addLRInfo := func(vpc, subnet string, index int) {
-			cloudLSLRList[index] = &models.Tier1LogicalRouterInfo{
-				SegmentID: &subnet,
-				Tier1LrID: &vpc,
-			}
-		}
-		index := 0
-		for vpc, subnet := range cloudVPCToSubnetMap {
-			addLRInfo(vpc, subnet, index)
-			index++
-		}
-		cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs = cloudLSLRList
-		cloudModel.NsxtConfiguration.VpcMode = proto.Bool(true)
-		path := "/api/cloud/" + *cloudModel.UUID
-		restOp := utils.RestOp{
-			ObjName: utils.CloudName,
-			Path:    path,
-			Method:  utils.RestPut,
-			Obj:     &cloudModel,
-			Tenant:  lib.GetTenant(),
-			Model:   "cloud",
-		}
-		executeRestOp("fullsync", client, &restOp)
-	}
 	v.createInfraSettingAndAnnotateNS(nsToVPCMap)
 }
 
