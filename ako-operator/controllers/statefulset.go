@@ -234,6 +234,7 @@ func BuildStatefulSet(ako akov1alpha1.AKOConfig, aviSecret corev1.Secret) (appsv
 		ports = append(ports, corev1.ContainerPort{
 			Name:          "prometheus-port",
 			ContainerPort: int32(apiServerPort),
+			Protocol:      corev1.ProtocolTCP,
 		})
 		if ako.Spec.IstioEnabled {
 			template.Annotations[PrometheusScrapeAnnotation] = "true"
