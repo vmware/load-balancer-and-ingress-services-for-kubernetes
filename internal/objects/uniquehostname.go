@@ -23,22 +23,22 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
-var uniqueHostListerInstace *UniqueHostNamespaceLister
+var uniqueHostListerInstance *UniqueHostNamespaceLister
 var uniqueHostListerOnce sync.Once
 
 func SharedUniqueNamespaceLister() *UniqueHostNamespaceLister {
 	uniqueHostListerOnce.Do(func() {
-		uniqueHostListerInstace = &UniqueHostNamespaceLister{
+		uniqueHostListerInstance = &UniqueHostNamespaceLister{
 			HostnameToRoutesStore: NewObjectMapStore(),
 			RouteToHostnamesStore: NewObjectMapStore(),
 		}
 	})
-	return uniqueHostListerInstace
+	return uniqueHostListerInstance
 }
 
 type UniqueHostNamespaceLister struct {
 	HostnameLock sync.RWMutex
-	// hostname --> Active and InActive Routes
+	// hostname --> Active Routes
 	HostnameToRoutesStore *ObjectMapStore
 	// Route (namespace/name) --> Hostnames (not being used)
 	RouteToHostnamesStore *ObjectMapStore
@@ -93,9 +93,9 @@ func (n *UniqueHostNamespaceLister) UpdateHostnameToRoute(hostName string, route
 		return true, nil, nil
 	}
 
-	// Key: not found in active and inactive list, now compare namespace present in activeRoutes
+	// Key: not found in active , now compare namespace present in activeRoutes
 	sameNamespace := false
-	currentRouteNamespace, _ := ExtractTypeNameNamespace(route.RouteNSRouteName)
+	currentRouteNamespace, _ := ExtractNameNamespace(route.RouteNSRouteName)
 	// TODO: Debug statements can be reduced
 	utils.AviLog.Debugf("Namespace of current route is: %s", currentRouteNamespace)
 
@@ -104,7 +104,7 @@ func (n *UniqueHostNamespaceLister) UpdateHostnameToRoute(hostName string, route
 	// Need to check in case of delete of hostname, are we deleting all these list and entry from internal datastore.
 	for nsName, creationTime := range existingRoutes.activeRoutes {
 		utils.AviLog.Debugf("NamespaceName from active route list is: %v and creation timestamp: %v", nsName, creationTime)
-		existingActiveRoutesNamespace, _ := ExtractTypeNameNamespace(nsName)
+		existingActiveRoutesNamespace, _ := ExtractNameNamespace(nsName)
 		utils.AviLog.Debugf("Extracted out namespace is: %s", existingActiveRoutesNamespace)
 		if currentRouteNamespace == existingActiveRoutesNamespace {
 			// add it to active list
@@ -113,7 +113,6 @@ func (n *UniqueHostNamespaceLister) UpdateHostnameToRoute(hostName string, route
 		}
 	}
 	// With new logic, we need to check length of active route list. if it is empty then, we need to take another namespace
-	// from inactive list and fetch all routes of it with given fqdn and ingest it.
 
 	if sameNamespace {
 		utils.AviLog.Debugf("Namespace is same. Attaching Route %v to active route list", route.RouteNSRouteName)
@@ -126,15 +125,15 @@ func (n *UniqueHostNamespaceLister) UpdateHostnameToRoute(hostName string, route
 	return false, nil, nil
 }
 
-func ExtractTypeNameNamespace(nsName string) (string, string) {
+func ExtractNameNamespace(nsName string) (string, string) {
 	if nsName != "" {
 		// changed from Split to SplitN
-		spliStrings := strings.SplitN(nsName, "/", 3)
-		if len(spliStrings) == 3 {
-			return spliStrings[1], spliStrings[2]
+		splitStrings := strings.SplitN(nsName, "/", 3)
+		if len(splitStrings) == 3 {
+			return splitStrings[1], splitStrings[2]
 		}
-		if len(spliStrings) == 2 {
-			return spliStrings[0], spliStrings[1]
+		if len(splitStrings) == 2 {
+			return splitStrings[0], splitStrings[1]
 		}
 	}
 	return "", ""
@@ -154,7 +153,7 @@ func (n *UniqueHostNamespaceLister) DeleteHostnameToRoute(hostName string, route
 	// Check route is present in active list
 	if _, flag := existingRoutes.activeRoutes[route.RouteNSRouteName]; flag {
 		// present
-		utils.AviLog.Debugf("RouteNS to be delete: %v and Active routes are: %v", route.RouteNSRouteName, existingRoutes.activeRoutes)
+		utils.AviLog.Debugf("RouteNS to be deleted: %v and Active routes are: %v", route.RouteNSRouteName, existingRoutes.activeRoutes)
 		delete(existingRoutes.activeRoutes, route.RouteNSRouteName)
 
 		utils.AviLog.Debugf("After deleting Active routes are %v", utils.Stringify(existingRoutes.activeRoutes))

@@ -292,7 +292,7 @@ spec:
             valueFrom:
               configMapKeyRef:
                 name: avi-k8s-config
-                key: FQDNReusePolicy
+                key: fqdnReusePolicy
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:

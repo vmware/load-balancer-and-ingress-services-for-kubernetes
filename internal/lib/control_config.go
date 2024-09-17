@@ -166,8 +166,8 @@ type akoControlConfig struct {
 	//endpointSlices Enabled
 	isEndpointSlicesEnabled bool
 
-	//FQDNReusePolicy is set to Strict/InterNamespaceAllowed according to whether AKO allows FQDN sharing across namespaces
-	FQDNReusePolicy string
+	//fqdnReusePolicy is set to Strict/InterNamespaceAllowed according to whether AKO allows FQDN sharing across namespaces
+	fqdnReusePolicy string
 }
 
 var akoControlConfigInstance *akoControlConfig
@@ -366,15 +366,15 @@ func (c *akoControlConfig) SetAKOFQDNReusePolicy(FQDNPolicy string) {
 	if FQDNPolicy == "" || !IsEvhEnabled() {
 		FQDNPolicy = FQDNReusePolicyOpen
 	}
-	c.FQDNReusePolicy = strings.ToLower(FQDNPolicy)
-	utils.AviLog.Infof("AKO FQDN reuse policy is: %s", c.FQDNReusePolicy)
+	c.fqdnReusePolicy = strings.ToLower(FQDNPolicy)
+	utils.AviLog.Infof("AKO FQDN reuse policy is: %s", c.fqdnReusePolicy)
 }
 
 // This utility returns FQDN Reuse policy of AKO.
 // Strict --> FQDN restrict to one namespace
 // InternamespaceAllowed --> FQDN can be spanned across multiple namespaces
 func (c *akoControlConfig) GetAKOFQDNReusePolicy() string {
-	return c.FQDNReusePolicy
+	return c.fqdnReusePolicy
 }
 
 func initControllerVersion() string {

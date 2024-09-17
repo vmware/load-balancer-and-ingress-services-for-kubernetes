@@ -2103,7 +2103,7 @@ func TestMultiIngressSameHostDifferentNamespaceForEvh(t *testing.T) {
 
 	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
 	if err != nil {
-		t.Fatalf("error in adding Ingress: %v", err)
+		t.Fatalf("Error in adding Ingress: %v", err)
 	}
 
 	// red namespace
@@ -2117,7 +2117,7 @@ func TestMultiIngressSameHostDifferentNamespaceForEvh(t *testing.T) {
 
 	_, err = KubeClient.NetworkingV1().Ingresses("red").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
 	if err != nil {
-		t.Fatalf("error in adding Ingress: %v", err)
+		t.Fatalf("Error in adding Ingress: %v", err)
 	}
 
 	integrationtest.PollForCompletion(t, modelName, 5)
