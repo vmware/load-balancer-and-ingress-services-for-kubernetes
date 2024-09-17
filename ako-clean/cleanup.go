@@ -380,7 +380,7 @@ func cleanupVIPNetwork() error {
 
 func sanitzeAviCloud() error {
 	aviClient := avicache.SharedAVIClients(lib.GetAdminTenant()).AviClient[0]
-	err := avirest.AviCloudCachePopulate(aviClient, utils.CloudName, true)
+	err := avirest.AviCloudCachePopulate(aviClient, utils.CloudName)
 	if err != nil {
 		return err
 	}

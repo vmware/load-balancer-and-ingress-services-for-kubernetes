@@ -470,17 +470,16 @@ func WaitForInitSecretRecreateAndReboot() {
 	}
 }
 
-func GetVPCs() (map[string]string, map[string]string, error) {
+func GetVPCs() (map[string]string, error) {
 	clientSet := GetDynamicClientSet()
-	vpcToSubnetMap := make(map[string]string)
 	nsToVPCMap := make(map[string]string)
 	vpcNetworkConfigCRs, err := clientSet.Resource(VPCNetworkConfigurationGVR).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		return vpcToSubnetMap, nsToVPCMap, err
+		return nsToVPCMap, err
 	}
 	namespaces, err := utils.GetInformers().NSInformer.Lister().List(labels.Set(nil).AsSelector())
 	if err != nil {
-		return vpcToSubnetMap, nsToVPCMap, err
+		return nsToVPCMap, err
 	}
 	vpcNetworkConfigToNamespaceMap := make(map[string][]string)
 	for _, ns := range namespaces {
@@ -514,11 +513,10 @@ func GetVPCs() (map[string]string, map[string]string, error) {
 				continue
 			}
 			vpcPath := strings.Split(aviSubnetPath, "/subnets/")[0]
-			vpcToSubnetMap[vpcPath] = aviSubnetPath
 			for _, ns := range vpcNetworkConfigToNamespaceMap[obj.GetName()] {
 				nsToVPCMap[ns] = vpcPath
 			}
 		}
 	}
-	return vpcToSubnetMap, nsToVPCMap, nil
+	return nsToVPCMap, nil
 }
