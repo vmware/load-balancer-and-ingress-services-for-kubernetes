@@ -32,9 +32,9 @@ func ScheduleQuickSync() {
 	}
 }
 
-func getAviCloudFromCache(client *clients.AviClient, cloudName string, skipIPAM bool) (bool, models.Cloud) {
+func getAviCloudFromCache(client *clients.AviClient, cloudName string) (bool, models.Cloud) {
 	if CloudCache == nil {
-		if AviCloudCachePopulate(client, cloudName, skipIPAM) != nil {
+		if AviCloudCachePopulate(client, cloudName) != nil {
 			return false, models.Cloud{}
 		}
 	}
@@ -60,7 +60,7 @@ func getAviIPAMFromCache(client *clients.AviClient, ipamName string) (bool, mode
 }
 
 // AviCloudCachePopulate queries avi rest api to get cloud data and stores in CloudCache
-func AviCloudCachePopulate(client *clients.AviClient, cloudName string, skipIPAM bool) error {
+func AviCloudCachePopulate(client *clients.AviClient, cloudName string) error {
 	uri := "/api/cloud/?include_name&name=" + cloudName
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
@@ -87,10 +87,10 @@ func AviCloudCachePopulate(client *clients.AviClient, cloudName string, skipIPAM
 		return err
 	}
 
-	if !skipIPAM {
-		AviIPAMCachePopulate(client, strings.Split(*CloudCache.IPAMProviderRef, "#")[1])
+	if CloudCache.IPAMProviderRef == nil {
+		utils.AviLog.Fatalf("IPAM Proivder not configured in the cloud %s", cloudName)
 	}
-	return nil
+	return AviIPAMCachePopulate(client, strings.Split(*CloudCache.IPAMProviderRef, "#")[1])
 }
 
 // AviNetCachePopulate queries avi rest api to get network data for vcf and stores in NetCaches
@@ -233,9 +233,9 @@ func checkAndRetry(key string, err error) bool {
 func refreshCache(cacheModel string, client *clients.AviClient) {
 	switch cacheModel {
 	case "cloud":
-		AviCloudCachePopulate(client, utils.CloudName, true)
+		AviCloudCachePopulate(client, utils.CloudName)
 	case "ipamdnsproviderprofile":
-		AviCloudCachePopulate(client, utils.CloudName, false)
+		AviCloudCachePopulate(client, utils.CloudName)
 	case "network":
 		AviNetCachePopulate(client, utils.CloudName)
 	}
