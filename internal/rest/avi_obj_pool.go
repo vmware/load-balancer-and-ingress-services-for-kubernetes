@@ -284,7 +284,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 
 		var pkiKey avicache.NamespaceName
 		if pkiprof, ok := resp["pki_profile_ref"]; ok && pkiprof != "" {
-			pkiUuid := avicache.ExtractUuid(pkiprof.(string), "pkiprofile-.*.#")
+			pkiUuid := avicache.ExtractUUID(pkiprof.(string), "pkiprofile-.*.#")
 			pkiName, foundPki := rest.cache.PKIProfileCache.AviCacheGetNameByUuid(pkiUuid)
 			if foundPki {
 				pkiKey = avicache.NamespaceName{Namespace: lib.GetTenant(), Name: pkiName.(string)}

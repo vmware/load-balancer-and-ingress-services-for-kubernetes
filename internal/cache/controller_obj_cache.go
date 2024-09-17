@@ -490,7 +490,7 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient, cloud string,
 		for _, member := range pg.Members {
 			// Parse each pool and populate inside pools.
 			// Find out the uuid of the pool and then corresponding name
-			poolUuid := ExtractUuid(*member.PoolRef, "pool-.*.#")
+			poolUuid := ExtractUUID(*member.PoolRef, "pool-.*.#")
 			// Search the poolName using this Uuid in the poolcache.
 			poolName, found := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
 			if found {
@@ -658,7 +658,7 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 
 		var pkiKey NamespaceName
 		if pool.PkiProfileRef != nil {
-			pkiUuid := ExtractUuid(*pool.PkiProfileRef, "pkiprofile-.*.#")
+			pkiUuid := ExtractUUID(*pool.PkiProfileRef, "pkiprofile-.*.#")
 			pkiName, foundPki := c.PKIProfileCache.AviCacheGetNameByUuid(pkiUuid)
 			if foundPki {
 				pkiKey = NamespaceName{Namespace: tenant, Name: pkiName.(string)}
@@ -929,7 +929,7 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient, cloud string,
 		for _, pg := range ds.PoolGroupRefs {
 			// Parse each pool and populate inside pools.
 			// Find out the uuid of the pool and then corresponding name
-			pgUuid := ExtractUuid(pg, "poolgroup-.*.#")
+			pgUuid := ExtractUUID(pg, "poolgroup-.*.#")
 			// Search the poolName using this Uuid in the poolcache.
 			pgName, found := c.PgCache.AviCacheGetNameByUuid(pgUuid)
 			if found {
@@ -1037,7 +1037,7 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient, cloud str
 		if len(sslkey.CaCerts) != 0 {
 			if sslkey.CaCerts[0].CaRef != nil {
 				hasCA = true
-				cacertUUID = ExtractUuidWithoutHash(*sslkey.CaCerts[0].CaRef, "sslkeyandcertificate-.*.")
+				cacertUUID = ExtractUUIDWithoutHash(*sslkey.CaCerts[0].CaRef, "sslkeyandcertificate-.*.")
 				cacertIntf, found := c.SSLKeyCache.AviCacheGetNameByUuid(cacertUUID)
 				if found {
 					cacert = cacertIntf.(string)
@@ -1111,7 +1111,7 @@ func (c *AviObjCache) AviPopulateOneSSLCache(client *clients.AviClient,
 		if len(sslkey.CaCerts) != 0 {
 			if sslkey.CaCerts[0].CaRef != nil {
 				hasCA = true
-				cacertUUID := ExtractUuidWithoutHash(*sslkey.CaCerts[0].CaRef, "sslkeyandcertificate-.*.")
+				cacertUUID := ExtractUUIDWithoutHash(*sslkey.CaCerts[0].CaRef, "sslkeyandcertificate-.*.")
 				cacertIntf, found := c.SSLKeyCache.AviCacheGetNameByUuid(cacertUUID)
 				if found {
 					cacert = cacertIntf.(string)
@@ -1226,7 +1226,7 @@ func (c *AviObjCache) AviPopulateOnePoolCache(client *clients.AviClient,
 		tenant := getTenantFromTenantRef(*pool.TenantRef)
 		var pkiKey NamespaceName
 		if pool.PkiProfileRef != nil {
-			pkiUuid := ExtractUuid(*pool.PkiProfileRef, "pkiprofile-.*.#")
+			pkiUuid := ExtractUUID(*pool.PkiProfileRef, "pkiprofile-.*.#")
 			pkiName, foundPki := c.PKIProfileCache.AviCacheGetNameByUuid(pkiUuid)
 			if foundPki {
 				pkiKey = NamespaceName{Namespace: tenant, Name: pkiName.(string)}
@@ -1286,7 +1286,7 @@ func (c *AviObjCache) AviPopulateOneVsDSCache(client *clients.AviClient,
 		for _, pg := range ds.PoolGroupRefs {
 			// Parse each pool and populate inside pools.
 			// Find out the uuid of the pool and then corresponding name
-			pgUuid := ExtractUuid(pg, "poolgroup-.*.#")
+			pgUuid := ExtractUUID(pg, "poolgroup-.*.#")
 			// Search the poolName using this Uuid in the poolcache.
 			pgName, found := c.PgCache.AviCacheGetNameByUuid(pgUuid)
 			if found {
@@ -1350,7 +1350,7 @@ func (c *AviObjCache) AviPopulateOnePGCache(client *clients.AviClient,
 		for _, member := range pg.Members {
 			// Parse each pool and populate inside pools.
 			// Find out the uuid of the pool and then corresponding name
-			poolUuid := ExtractUuid(*member.PoolRef, "pool-.*.#")
+			poolUuid := ExtractUUID(*member.PoolRef, "pool-.*.#")
 			// Search the poolName using this Uuid in the poolcache.
 			poolName, found := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
 			if found {
@@ -1501,13 +1501,13 @@ func (c *AviObjCache) AviPopulateOneVsHttpPolCache(client *clients.AviClient,
 				if rule.SwitchingAction != nil {
 					val := reflect.ValueOf(rule.SwitchingAction)
 					if !val.Elem().FieldByName("PoolGroupRef").IsNil() {
-						pgUuid := ExtractUuid(*rule.SwitchingAction.PoolGroupRef, "poolgroup-.*.#")
+						pgUuid := ExtractUUID(*rule.SwitchingAction.PoolGroupRef, "poolgroup-.*.#")
 						pgName, found := c.PgCache.AviCacheGetNameByUuid(pgUuid)
 						if found {
 							poolGroups = append(poolGroups, pgName.(string))
 						}
 					} else if !val.Elem().FieldByName("PoolRef").IsNil() {
-						poolUuid := ExtractUuid(*rule.SwitchingAction.PoolRef, "pool-.*.#")
+						poolUuid := ExtractUUID(*rule.SwitchingAction.PoolRef, "pool-.*.#")
 						poolName, found := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
 						if found {
 							pools = append(pools, poolName.(string))
@@ -1516,7 +1516,7 @@ func (c *AviObjCache) AviPopulateOneVsHttpPolCache(client *clients.AviClient,
 				}
 				if rule.Match != nil && rule.Match.Path != nil {
 					for _, sg := range rule.Match.Path.StringGroupRefs {
-						sgUuid := ExtractUuid(sg, "stringgroup-.*.#")
+						sgUuid := ExtractUUID(sg, "stringgroup-.*.#")
 						// Search the string group name using this Uuid in the string group cache.
 						sgName, found := c.StringGroupCache.AviCacheGetNameByUuid(sgUuid)
 						if found {
@@ -1586,7 +1586,7 @@ func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
 			for _, rule := range l4pol.L4ConnectionPolicy.Rules {
 				protocols = append(protocols, *rule.Match.Protocol.Protocol)
 				if rule.Action != nil {
-					poolUuid := ExtractUuid(*rule.Action.SelectPool.PoolRef, "pool-.*.#")
+					poolUuid := ExtractUUID(*rule.Action.SelectPool.PoolRef, "pool-.*.#")
 					poolName, found := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
 					if found {
 						pools = append(pools, poolName.(string))
@@ -1690,13 +1690,13 @@ func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient, cl
 				if rule.SwitchingAction != nil {
 					val := reflect.ValueOf(rule.SwitchingAction)
 					if !val.Elem().FieldByName("PoolGroupRef").IsNil() {
-						pgUuid := ExtractUuid(*rule.SwitchingAction.PoolGroupRef, "poolgroup-.*.#")
+						pgUuid := ExtractUUID(*rule.SwitchingAction.PoolGroupRef, "poolgroup-.*.#")
 						pgName, found := c.PgCache.AviCacheGetNameByUuid(pgUuid)
 						if found {
 							poolGroups = append(poolGroups, pgName.(string))
 						}
 					} else if !val.Elem().FieldByName("PoolRef").IsNil() {
-						poolUuid := ExtractUuid(*rule.SwitchingAction.PoolRef, "pool-.*.#")
+						poolUuid := ExtractUUID(*rule.SwitchingAction.PoolRef, "pool-.*.#")
 						poolName, found := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
 						if found {
 							pools = append(pools, poolName.(string))
@@ -1705,7 +1705,7 @@ func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient, cl
 				}
 				if rule.Match != nil && rule.Match.Path != nil {
 					for _, sg := range rule.Match.Path.StringGroupRefs {
-						sgUuid := ExtractUuid(sg, "stringgroup-.*.#")
+						sgUuid := ExtractUUID(sg, "stringgroup-.*.#")
 						// Search the string group name using this Uuid in the string group cache.
 						sgName, found := c.StringGroupCache.AviCacheGetNameByUuid(sgUuid)
 						if found {
@@ -1770,13 +1770,13 @@ func (c *AviObjCache) AviPopulateHttpPolicySetbyUUID(client *clients.AviClient, 
 			if rule.SwitchingAction != nil {
 				val := reflect.ValueOf(rule.SwitchingAction)
 				if !val.Elem().FieldByName("PoolGroupRef").IsNil() {
-					pgUuid := ExtractUuid(*rule.SwitchingAction.PoolGroupRef, "poolgroup-.*.#")
+					pgUuid := ExtractUUID(*rule.SwitchingAction.PoolGroupRef, "poolgroup-.*.#")
 					pgName, found := c.PgCache.AviCacheGetNameByUuid(pgUuid)
 					if found {
 						poolGroups = append(poolGroups, pgName.(string))
 					}
 				} else if !val.Elem().FieldByName("PoolRef").IsNil() {
-					poolUuid := ExtractUuid(*rule.SwitchingAction.PoolRef, "pool-.*.#")
+					poolUuid := ExtractUUID(*rule.SwitchingAction.PoolRef, "pool-.*.#")
 					poolName, found := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
 					if found {
 						pools = append(pools, poolName.(string))
@@ -1883,7 +1883,7 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 						protocol = utils.UDP
 					}
 					protocols = append(protocols, protocol)
-					poolUuid := ExtractUuid(*rule.Action.SelectPool.PoolRef, "pool-.*.#")
+					poolUuid := ExtractUUID(*rule.Action.SelectPool.PoolRef, "pool-.*.#")
 					poolName, found := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
 					if found {
 						pools = append(pools, poolName.(string))
@@ -2199,7 +2199,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 			vs_parent_ref, foundParent := vs["vh_parent_vs_ref"]
 			var parentVSKey NamespaceName
 			if foundParent {
-				vs_uuid := ExtractUuid(vs_parent_ref.(string), "virtualservice-.*.#")
+				vs_uuid := ExtractUUID(vs_parent_ref.(string), "virtualservice-.*.#")
 				utils.AviLog.Debugf("extracted the vs uuid from parent ref during cache population: %s", vs_uuid)
 				// Now let's get the VS key from this uuid
 				vsKey, gotVS := c.VsCacheLocal.AviCacheGetKeyByUuid(vs_uuid)
@@ -2226,7 +2226,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 				// Populate the VSVIP cache
 				if vs["vsvip_ref"] != nil {
 					// find the vsvip name from the vsvip cache
-					vsVipUuid := ExtractUuid(vs["vsvip_ref"].(string), "vsvip-.*.#")
+					vsVipUuid := ExtractUUID(vs["vsvip_ref"].(string), "vsvip-.*.#")
 					objKey, objFound := c.VSVIPCache.AviCacheGetKeyByUuid(vsVipUuid)
 					if objFound {
 						vsVip, foundVip := c.VSVIPCache.AviCacheGet(objKey)
@@ -2243,7 +2243,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 				if vs["ssl_key_and_certificate_refs"] != nil {
 					for _, ssl := range vs["ssl_key_and_certificate_refs"].([]interface{}) {
 						// find the sslkey name from the ssl key cache
-						sslUuid := ExtractUuid(ssl.(string), "sslkeyandcertificate-.*.#")
+						sslUuid := ExtractUUID(ssl.(string), "sslkeyandcertificate-.*.#")
 						sslName, foundssl := c.SSLKeyCache.AviCacheGetNameByUuid(sslUuid)
 						if foundssl {
 							sslKey := NamespaceName{Namespace: tenant, Name: sslName.(string)}
@@ -2267,7 +2267,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 						// find the sslkey name from the ssl key cache
 						dsmap, ok := ds_intf.(map[string]interface{})
 						if ok {
-							dsUuid := ExtractUuid(dsmap["vs_datascript_set_ref"].(string), "vsdatascriptset-.*.#")
+							dsUuid := ExtractUUID(dsmap["vs_datascript_set_ref"].(string), "vsdatascriptset-.*.#")
 
 							dsName, foundDs := c.DSCache.AviCacheGetNameByUuid(dsUuid)
 							if foundDs {
@@ -2293,7 +2293,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 						// find the sslkey name from the ssl key cache
 						pgmap, ok := pg_intf.(map[string]interface{})
 						if ok {
-							pgUuid := ExtractUuid(pgmap["service_pool_group_ref"].(string), "poolgroup-.*.#")
+							pgUuid := ExtractUUID(pgmap["service_pool_group_ref"].(string), "poolgroup-.*.#")
 
 							pgName, foundpg := c.PgCache.AviCacheGetNameByUuid(pgUuid)
 							if foundpg {
@@ -2310,7 +2310,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 					for _, l4_intf := range vs["l4_policies"].([]interface{}) {
 						l4map, ok := l4_intf.(map[string]interface{})
 						if ok {
-							l4PolUuid := ExtractUuid(l4map["l4_policy_set_ref"].(string), "l4policyset-.*.#")
+							l4PolUuid := ExtractUUID(l4map["l4_policy_set_ref"].(string), "l4policyset-.*.#")
 							l4Name, foundl4pol := c.L4PolicyCache.AviCacheGetNameByUuid(l4PolUuid)
 							if foundl4pol {
 								sharedVsOrL4 = true
@@ -2329,7 +2329,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 					for _, http_intf := range vs["http_policies"].([]interface{}) {
 						httpmap, ok := http_intf.(map[string]interface{})
 						if ok {
-							httpUuid := ExtractUuid(httpmap["http_policy_set_ref"].(string), "httppolicyset-.*.#")
+							httpUuid := ExtractUUID(httpmap["http_policy_set_ref"].(string), "httppolicyset-.*.#")
 							httpName, foundhttp := c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
 							// If the httppol is not found in the cache, do an explicit get
 							if !foundhttp && !sharedVsOrL4 {
@@ -2364,7 +2364,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 					poolRef, ok := vs["pool_ref"].(string)
 					if ok {
 						poolNameFromRef := strings.Split(poolRef, "#")[1]
-						poolUuid := ExtractUuid(poolRef, "pool-.*.#")
+						poolUuid := ExtractUUID(poolRef, "pool-.*.#")
 						poolNameFromCache, foundPool := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
 						if foundPool && poolNameFromCache.(string) == poolNameFromRef {
 							poolKey := NamespaceName{Namespace: tenant, Name: poolNameFromCache.(string)}
@@ -2471,10 +2471,10 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 			vs_parent_ref, foundParent := vs["vh_parent_vs_ref"]
 			var parentVSKey NamespaceName
 			if foundParent {
-				vs_uuid := ExtractUuid(vs_parent_ref.(string), "virtualservice-.*.#")
-				utils.AviLog.Debugf("extracted the vs uuid from parent ref during cache population: %s", vs_uuid)
+				vsUUID := ExtractUUID(vs_parent_ref.(string), "virtualservice-.*.#")
+				utils.AviLog.Debugf("Extracted the vs uuid from parent ref during cache population: %s", vsUUID)
 				// Now let's get the VS key from this uuid
-				vsKey, gotVS := c.VsCacheMeta.AviCacheGetKeyByUuid(vs_uuid)
+				vsKey, gotVS := c.VsCacheMeta.AviCacheGetKeyByUuid(vsUUID)
 				if gotVS {
 					parentVSKey = vsKey.(NamespaceName)
 				}
@@ -2495,7 +2495,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 				// Populate the VSVIP cache
 				if vs["vsvip_ref"] != nil {
 					// find the vsvip name from the vsvip cache
-					vsVipUuid := ExtractUuid(vs["vsvip_ref"].(string), "vsvip-.*.#")
+					vsVipUuid := ExtractUUID(vs["vsvip_ref"].(string), "vsvip-.*.#")
 					vsVipName, foundVip := c.VSVIPCache.AviCacheGetNameByUuid(vsVipUuid)
 
 					if foundVip {
@@ -2507,7 +2507,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 				if vs["ssl_key_and_certificate_refs"] != nil {
 					for _, ssl := range vs["ssl_key_and_certificate_refs"].([]interface{}) {
 						// find the sslkey name from the ssl key cache
-						sslUuid := ExtractUuid(ssl.(string), "sslkeyandcertificate-.*.#")
+						sslUuid := ExtractUUID(ssl.(string), "sslkeyandcertificate-.*.#")
 						sslName, foundssl := c.SSLKeyCache.AviCacheGetNameByUuid(sslUuid)
 						if foundssl {
 							sslKey := NamespaceName{Namespace: tenant, Name: sslName.(string)}
@@ -2531,7 +2531,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 						// find the sslkey name from the ssl key cache
 						dsmap, ok := ds_intf.(map[string]interface{})
 						if ok {
-							dsUuid := ExtractUuid(dsmap["vs_datascript_set_ref"].(string), "vsdatascriptset-.*.#")
+							dsUuid := ExtractUUID(dsmap["vs_datascript_set_ref"].(string), "vsdatascriptset-.*.#")
 
 							dsName, foundDs := c.DSCache.AviCacheGetNameByUuid(dsUuid)
 							if foundDs && !strings.Contains(dsName.(string), "ako-gw") {
@@ -2556,7 +2556,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 						// find the sslkey name from the ssl key cache
 						pgmap, ok := pg_intf.(map[string]interface{})
 						if ok {
-							pgUuid := ExtractUuid(pgmap["service_pool_group_ref"].(string), "poolgroup-.*.#")
+							pgUuid := ExtractUUID(pgmap["service_pool_group_ref"].(string), "poolgroup-.*.#")
 
 							pgName, foundpg := c.PgCache.AviCacheGetNameByUuid(pgUuid)
 							if foundpg {
@@ -2572,7 +2572,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 					for _, l4_intf := range vs["l4_policies"].([]interface{}) {
 						l4map, ok := l4_intf.(map[string]interface{})
 						if ok {
-							l4PolUuid := ExtractUuid(l4map["l4_policy_set_ref"].(string), "l4policyset-.*.#")
+							l4PolUuid := ExtractUUID(l4map["l4_policy_set_ref"].(string), "l4policyset-.*.#")
 							l4Name, foundl4pol := c.L4PolicyCache.AviCacheGetNameByUuid(l4PolUuid)
 							if foundl4pol {
 								l4key := NamespaceName{Namespace: tenant, Name: l4Name.(string)}
@@ -2591,7 +2591,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 						// find the sslkey name from the ssl key cache
 						httpmap, ok := http_intf.(map[string]interface{})
 						if ok {
-							httpUuid := ExtractUuid(httpmap["http_policy_set_ref"].(string), "httppolicyset-.*.#")
+							httpUuid := ExtractUUID(httpmap["http_policy_set_ref"].(string), "httppolicyset-.*.#")
 
 							httpName, foundhttp := c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
 							if foundhttp {
@@ -2616,7 +2616,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 				if vs["pool_group_ref"] != nil {
 					pgRef, ok := vs["pool_group_ref"].(string)
 					if ok {
-						pgUuid := ExtractUuid(pgRef, "poolgroup-.*.#")
+						pgUuid := ExtractUUID(pgRef, "poolgroup-.*.#")
 						pgName, foundpg := c.PgCache.AviCacheGetNameByUuid(pgUuid)
 						if foundpg {
 							pgKey := NamespaceName{Namespace: tenant, Name: pgName.(string)}
@@ -4177,17 +4177,17 @@ func ExtractPattern(word string, pattern string) (string, error) {
 	return "", nil
 }
 
-func ExtractUuid(word, pattern string) string {
+func ExtractUUID(word, pattern string) string {
 	r, _ := regexp.Compile(pattern)
 	result := r.FindAllString(word, -1)
 	if len(result) == 1 {
 		return result[0][:len(result[0])-1]
 	}
 	utils.AviLog.Debugf("Uid extraction not successful from: %s, will retry without hash pattern", word)
-	return ExtractUuidWithoutHash(word, pattern[:len(pattern)-1])
+	return ExtractUUIDWithoutHash(word, pattern[:len(pattern)-1])
 }
 
-func ExtractUuidWithoutHash(word, pattern string) string {
+func ExtractUUIDWithoutHash(word, pattern string) string {
 	r, _ := regexp.Compile(pattern)
 	result := r.FindAllString(word, -1)
 	if len(result) == 1 {
