@@ -79,6 +79,8 @@ const (
 	EXTDNSSVC           = "custom-fqdn-svc"
 	INVALID_LB_CLASS    = "not-ako-lb"
 	letterBytes         = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	DefaultRouteCert    = "router-certs-default"
+	DEFAULT_NAMESPACE   = "default"
 )
 
 var KubeClient *k8sfake.Clientset

@@ -1042,7 +1042,7 @@ func TestAddPathSecureRouteNoKeyCert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
-	integrationtest.AddSecret("router-certs-default", utils.GetAKONamespace(), "tlsCert", "tlsKey")
+	integrationtest.AddSecret(integrationtest.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
 
 	aviModel := ValidateSniModel(t, g, defaultModelName)
 
@@ -1054,7 +1054,7 @@ func TestAddPathSecureRouteNoKeyCert(t *testing.T) {
 	}, 20*time.Second).Should(gomega.Equal(defaultHostname))
 	VerifySniNodeNoCA(g, sniVS)
 
-	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), "router-certs-default", metav1.DeleteOptions{})
+	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), integrationtest.DefaultRouteCert, metav1.DeleteOptions{})
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 }
@@ -1067,7 +1067,7 @@ func TestUpdatePathSecureRouteNoKeyCert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
-	integrationtest.AddSecret("router-certs-default", utils.GetAKONamespace(), "tlsCert", "tlsKey")
+	integrationtest.AddSecret(integrationtest.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
 
 	routeExample = FakeRoute{Path: "/bar"}.SecureRoute()
 	routeExample.ObjectMeta.ResourceVersion = "2"
@@ -1086,7 +1086,7 @@ func TestUpdatePathSecureRouteNoKeyCert(t *testing.T) {
 	}, 20*time.Second).Should(gomega.Equal(defaultHostname))
 	VerifySniNodeNoCA(g, sniVS)
 
-	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), "router-certs-default", metav1.DeleteOptions{})
+	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), integrationtest.DefaultRouteCert, metav1.DeleteOptions{})
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 }
@@ -1094,7 +1094,7 @@ func TestUpdatePathSecureRouteNoKeyCert(t *testing.T) {
 func TestUpdateSecureRouteToNoKeyCert(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
-	integrationtest.AddSecret("router-certs-default", utils.GetAKONamespace(), "tlsCert", "tlsKey")
+	integrationtest.AddSecret(integrationtest.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
@@ -1123,7 +1123,7 @@ func TestUpdateSecureRouteToNoKeyCert(t *testing.T) {
 	}, 20*time.Second).Should(gomega.Equal(defaultHostname))
 	VerifySniNodeNoCA(g, sniVS)
 
-	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), "router-certs-default", metav1.DeleteOptions{})
+	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), integrationtest.DefaultRouteCert, metav1.DeleteOptions{})
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 }
@@ -1131,7 +1131,7 @@ func TestUpdateSecureRouteToNoKeyCert(t *testing.T) {
 func TestUpdateSecureRouteNoKeyCertToKeyCert(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
-	integrationtest.AddSecret("router-certs-default", utils.GetAKONamespace(), "tlsCert", "tlsKey")
+	integrationtest.AddSecret(integrationtest.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
 	routeExample := FakeRoute{Path: "/foo"}.SecureRouteNoCertKey()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
@@ -1160,7 +1160,7 @@ func TestUpdateSecureRouteNoKeyCertToKeyCert(t *testing.T) {
 	}, 20*time.Second).Should(gomega.Equal(defaultHostname))
 	VerifySniNodeNoCA(g, sniVS)
 
-	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), "router-certs-default", metav1.DeleteOptions{})
+	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), integrationtest.DefaultRouteCert, metav1.DeleteOptions{})
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 }
