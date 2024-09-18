@@ -15,6 +15,7 @@
 package k8s
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -213,7 +214,17 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 					SetIn(&gatewayStatus.Listeners[index].Conditions)
 				return false
 			}
-
+			name := string(certRef.Name)
+			cs := utils.GetInformers().ClientSet
+			secretObj, err := cs.CoreV1().Secrets(gateway.ObjectMeta.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
+			if err != nil || secretObj == nil {
+				utils.AviLog.Errorf("key: %s, msg: Secret specified in CertificateRef does not exist %+v/%+v", key, gateway.Name, listener.Name)
+				defaultCondition.
+					Reason(string(gatewayv1.ListenerReasonInvalidCertificateRef)).
+					Message("Secret does not exist").
+					SetIn(&gatewayStatus.Listeners[index].Conditions)
+				return false
+			}
 		}
 	}
 
