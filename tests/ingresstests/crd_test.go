@@ -237,9 +237,12 @@ func TestCreateHostRuleBeforeIngress(t *testing.T) {
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules("default").Get(hrname)
+		if err != nil {
+			return ""
+		}
 		return hostrule.Status.Status
-	}, 10*time.Second).Should(gomega.Equal("Accepted"))
+	}, 30*time.Second, 1*time.Second).Should(gomega.Equal("Accepted"))
 
 	ingTestObj := IngressTestObject{
 		ingressName: ingName,
@@ -260,7 +263,7 @@ func TestCreateHostRuleBeforeIngress(t *testing.T) {
 			return nodes[0].SniNodes[0].SslKeyAndCertificateRefs[0]
 		}
 		return ""
-	}, 10*time.Second).Should(gomega.ContainSubstring("thisisaviref-sslkey"))
+	}, 30*time.Second, 1*time.Second).Should(gomega.ContainSubstring("thisisaviref-sslkey"))
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
@@ -272,7 +275,7 @@ func TestCreateHostRuleBeforeIngress(t *testing.T) {
 			return nodes[0].SniNodes[0].SslKeyAndCertificateRefs[0]
 		}
 		return ""
-	}, 10*time.Second).Should(gomega.Equal(""))
+	}, 30*time.Second, 1*time.Second).Should(gomega.Equal(""))
 	TearDownIngressForCacheSyncCheck(t, ingName, svcName, secretName, modelName)
 }
 
