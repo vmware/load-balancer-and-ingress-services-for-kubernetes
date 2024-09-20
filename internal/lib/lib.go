@@ -89,7 +89,8 @@ type ServiceMetadataObj struct {
 	PoolRatio             uint32      `json:"pool_ratio"`
 	PassthroughParentRef  string      `json:"passthrough_parent_ref"`
 	PassthroughChildRef   string      `json:"passthrough_child_ref"`
-	Gateway               string      `json:"gateway"` // ns/name
+	Gateway               string      `json:"gateway"`   // ns/name
+	HTTPRoute             string      `json:"httproute"` // ns/name
 	InsecureEdgeTermAllow bool        `json:"insecureedgetermallow"`
 	IsMCIIngress          bool        `json:"is_mci_ingress"`
 }

@@ -167,7 +167,7 @@ func (rest *RestOperations) AviPGCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 			if poolsOk {
 				for _, poolIntf := range pools {
 					poolmap, _ := poolIntf.(map[string]interface{})
-					poolUuid := avicache.ExtractUuid(poolmap["pool_ref"].(string), "pool-.*.#")
+					poolUuid := avicache.ExtractUUID(poolmap["pool_ref"].(string), "pool-.*.#")
 					// Search the poolName using this Uuid in the poolcache.
 					poolName, found := rest.cache.PoolCache.AviCacheGetNameByUuid(poolUuid)
 					if found {

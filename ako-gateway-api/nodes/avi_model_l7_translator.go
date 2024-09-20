@@ -153,7 +153,8 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	childNode.EVHParent = false
 
 	childNode.ServiceMetadata = lib.ServiceMetadataObj{
-		Gateway: parentNsName,
+		Gateway:   parentNsName,
+		HTTPRoute: routeModel.GetNamespace() + "/" + routeModel.GetName(),
 	}
 	childNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
 	childNode.ServiceEngineGroup = lib.GetSEGName()
