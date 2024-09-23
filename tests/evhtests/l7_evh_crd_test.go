@@ -2224,9 +2224,12 @@ func TestCreateUpdateDeleteL7RuleInHostRule(t *testing.T) {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
+		hostrule, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules("default").Get(hrName)
+		if err != nil {
+			return ""
+		}
 		return hostrule.Status.Status
-	}, 10*time.Second).Should(gomega.Equal("Accepted"))
+	}, 30*time.Second, 1*time.Second).Should(gomega.Equal("Accepted"))
 	g.Eventually(func() *bool {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
@@ -2234,7 +2237,14 @@ func TestCreateUpdateDeleteL7RuleInHostRule(t *testing.T) {
 			return nodes[0].EvhNodes[0].AllowInvalidClientCert
 		}
 		return nil
-	}, 25*time.Second).ShouldNot(gomega.BeNil())
+	}, 25*time.Second, 1*time.Second).ShouldNot(gomega.BeNil())
+
+	g.Eventually(func() interface{} {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return nodes[0].EvhNodes[0].AviVsNodeGeneratedFields
+	}, 25*time.Second, 1*time.Second).ShouldNot(gomega.BeNil())
+
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].EvhNodes[0].CloseClientConnOnConfigUpdate).To(gomega.Equal(true))

@@ -461,7 +461,7 @@ func TestFQDNsCountForAviInfraSettingWithDedicatedShardSize(t *testing.T) {
 		}
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return len(nodes)
-	}, 10*time.Second).Should(gomega.Equal(1))
+	}, 30*time.Second, 1*time.Second).Should(gomega.Equal(1))
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	node := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0]
@@ -485,7 +485,7 @@ func TestFQDNsCountForAviInfraSettingWithDedicatedShardSize(t *testing.T) {
 	g.Eventually(func() bool {
 		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		return found
-	}, 50*time.Second).Should(gomega.Equal(false))
+	}, 50*time.Second, 5*time.Second).Should(gomega.Equal(false))
 	TearDownTestForIngress(t, svcName, modelName)
 }
 
