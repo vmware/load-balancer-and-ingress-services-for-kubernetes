@@ -17,6 +17,7 @@ package status
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"strings"
 
@@ -89,31 +90,31 @@ func (o *httproute) Patch(key string, obj runtime.Object, status *status.Status,
 		retry = retryNum[0]
 		if retry >= 5 {
 			utils.AviLog.Errorf("key: %s, msg: Patch retried 5 times, aborting", key)
-			return
+			return obj, errors.New("Patch retried 5 times, aborting")
 		}
 	}
 
 	httpRoute := obj.(*gatewayv1.HTTPRoute)
 	if o.isStatusEqual(&httpRoute.Status, status.HTTPRouteStatus) {
-		return
+		return obj, nil
 	}
 
 	patchPayload, _ := json.Marshal(map[string]interface{}{
 		"status": status.HTTPRouteStatus,
 	})
-	_, err := akogatewayapilib.AKOControlConfig().GatewayAPIClientset().GatewayV1().HTTPRoutes(httpRoute.Namespace).Patch(context.TODO(), httpRoute.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+	updatedObject, err := akogatewayapilib.AKOControlConfig().GatewayAPIClientset().GatewayV1().HTTPRoutes(httpRoute.Namespace).Patch(context.TODO(), httpRoute.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: there was an error in updating the HTTPRoute status. err: %+v, retry: %d", key, err, retry)
 		updatedObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(httpRoute.Namespace).Get(httpRoute.Name)
 		if err != nil {
 			utils.AviLog.Warnf("HTTPRoute not found %v", err)
-			return
+			return updatedObj, err
 		}
-		o.Patch(key, updatedObj, status, retry+1)
-		return
+		return o.Patch(key, updatedObj, status, retry+1)
 	}
 
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the HTTPRoute %s/%s status %+v", key, httpRoute.Namespace, httpRoute.Name, utils.Stringify(status))
+	return updatedObject, nil
 }
 
 func (o *httproute) isStatusEqual(old, new *gatewayv1.HTTPRouteStatus) bool {

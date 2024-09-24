@@ -17,6 +17,7 @@ package status
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"reflect"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -78,31 +79,30 @@ func (o *gatewayClass) Patch(key string, obj runtime.Object, status *status.Stat
 		retry = retryNum[0]
 		if retry >= 5 {
 			utils.AviLog.Errorf("key: %s, msg: Patch retried 5 times, aborting", key)
-			return
+			return obj, errors.New("Patch retried 5 times, aborting")
 		}
 	}
 
 	gatewayClass := obj.(*gatewayv1.GatewayClass)
 	if o.isStatusEqual(&gatewayClass.Status, status.GatewayClassStatus) {
-		return
+		return obj, nil
 	}
 
 	patchPayload, _ := json.Marshal(map[string]interface{}{
 		"status": status.GatewayClassStatus,
 	})
-	_, err := akogatewayapilib.AKOControlConfig().GatewayAPIClientset().GatewayV1().GatewayClasses().Patch(context.TODO(), gatewayClass.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+	updatedObject, err := akogatewayapilib.AKOControlConfig().GatewayAPIClientset().GatewayV1().GatewayClasses().Patch(context.TODO(), gatewayClass.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: there was an error in updating the GatewayClass status. err: %+v, retry: %d", key, err, retry)
 		updatedObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Lister().Get(gatewayClass.Name)
 		if err != nil {
 			utils.AviLog.Warnf("GatewayClass not found %v", err)
-			return
+			return updatedObj, err
 		}
-		o.Patch(key, updatedObj, status, retry+1)
-		return
+		return o.Patch(key, updatedObj, status, retry+1)
 	}
-
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the GatewayClass %s status %+v %v", key, gatewayClass.Name, utils.Stringify(status), err)
+	return updatedObject, nil
 }
 
 func (o *gatewayClass) isStatusEqual(old, new *gatewayv1.GatewayClassStatus) bool {
