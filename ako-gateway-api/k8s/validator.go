@@ -15,6 +15,7 @@
 package k8s
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -74,6 +75,12 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 		Reason(string(gatewayv1.GatewayReasonInvalid)).
 		Status(metav1.ConditionFalse).
 		ObservedGeneration(gateway.ObjectMeta.Generation)
+	programmedCondition := akogatewayapistatus.NewCondition().
+		Type(string(gatewayv1.GatewayConditionProgrammed)).
+		Reason(string(gatewayv1.GatewayReasonInvalid)).
+		Status(metav1.ConditionFalse).
+		ObservedGeneration(gateway.ObjectMeta.Generation).
+		Message("Gateway not programmed")
 
 	gatewayStatus := gateway.Status.DeepCopy()
 
@@ -82,6 +89,8 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 		utils.AviLog.Errorf("key: %s, msg: no listeners found in gateway %+v", key, gateway.Name)
 		defaultCondition.
 			Message("No listeners found").
+			SetIn(&gatewayStatus.Conditions)
+		programmedCondition.
 			SetIn(&gatewayStatus.Conditions)
 		akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
 		return false
@@ -93,6 +102,9 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 		defaultCondition.
 			Message("More than one address is not supported").
 			SetIn(&gatewayStatus.Conditions)
+		programmedCondition.
+			Reason(string(gatewayv1.GatewayReasonAddressNotUsable)).
+			SetIn(&gatewayStatus.Conditions)
 		akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
 		return false
 	}
@@ -100,7 +112,11 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 	if len(spec.Addresses) == 1 && *spec.Addresses[0].Type != "IPAddress" {
 		utils.AviLog.Errorf("key: %s, msg: gateway address is not of type IPAddress %+v", key, gateway.Name)
 		defaultCondition.
+			Reason(string(gatewayv1.GatewayReasonUnsupportedAddress)).
 			Message("Only IPAddress as AddressType is supported").
+			SetIn(&gatewayStatus.Conditions)
+		programmedCondition.
+			Reason(string(gatewayv1.GatewayReasonAddressNotUsable)).
 			SetIn(&gatewayStatus.Conditions)
 		akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
 		return false
@@ -108,21 +124,31 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 
 	gatewayStatus.Listeners = make([]gatewayv1.ListenerStatus, len(gateway.Spec.Listeners))
 
-	var invalidListenerCount int
+	var validListenerCount int
 	for index := range spec.Listeners {
-		if !isValidListener(key, gateway, gatewayStatus, index) {
-			invalidListenerCount++
+		if isValidListener(key, gateway, gatewayStatus, index) {
+			validListenerCount++
 		}
 	}
 
-	if invalidListenerCount > 0 {
-		utils.AviLog.Errorf("key: %s, msg: Gateway %s contains %d invalid listeners", key, gateway.Name, invalidListenerCount)
+	if validListenerCount == 0 {
+		utils.AviLog.Errorf("key: %s, msg: Gateway %s does not contain any valid listener", key, gateway.Name)
 		defaultCondition.
 			Type(string(gatewayv1.GatewayConditionAccepted)).
 			Reason(string(gatewayv1.GatewayReasonListenersNotValid)).
-			Message(fmt.Sprintf("Gateway contains %d invalid listener(s)", invalidListenerCount)).
+			Message("Gateway does not contain any valid listener").
+			SetIn(&gatewayStatus.Conditions)
+		programmedCondition.
 			SetIn(&gatewayStatus.Conditions)
 		akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
+		return false
+	} else if validListenerCount < len(spec.Listeners) {
+		defaultCondition.
+			Reason(string(gatewayv1.GatewayReasonListenersNotValid)).
+			Message("Gateway contains atleast one valid listener").
+			SetIn(&gatewayStatus.Conditions)
+		akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
+		utils.AviLog.Infof("key: %s, msg: Gateway %s contains atleast one valid listener", key, gateway.Name)
 		return false
 	}
 
@@ -144,8 +170,16 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 	gatewayStatus.Listeners[index].AttachedRoutes = akogatewayapilib.ZeroAttachedRoutes
 
 	defaultCondition := akogatewayapistatus.NewCondition().
-		Type(string(gatewayv1.GatewayConditionAccepted)).
-		Reason(string(gatewayv1.GatewayReasonListenersNotValid)).
+		Type(string(gatewayv1.ListenerConditionAccepted)).
+		Reason(string(gatewayv1.ListenerReasonInvalid)).
+		Message("Listener is Invalid").
+		Status(metav1.ConditionFalse).
+		ObservedGeneration(gateway.ObjectMeta.Generation)
+
+	programmedCondition := akogatewayapistatus.NewCondition().
+		Type(string(gatewayv1.ListenerConditionProgrammed)).
+		Reason(string(gatewayv1.ListenerReasonInvalid)).
+		Message("Virtual service not configured/updated for this listener").
 		Status(metav1.ConditionFalse).
 		ObservedGeneration(gateway.ObjectMeta.Generation)
 
@@ -166,6 +200,7 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 					defaultCondition.
 						Message("Hostname is same as an existing gateway hostname").
 						SetIn(&gatewayStatus.Listeners[index].Conditions)
+					programmedCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
 					return false
 				}
 			}
@@ -177,6 +212,7 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 			defaultCondition.
 				Message(fmt.Sprintf("Didn't find match for hostname :%s in available sub-domains", string(*listener.Hostname))).
 				SetIn(&gatewayStatus.Listeners[index].Conditions)
+			programmedCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
 			return false
 		}
 	}
@@ -189,18 +225,24 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 			Reason(string(gatewayv1.ListenerReasonUnsupportedProtocol)).
 			Message("Unsupported protocol").
 			SetIn(&gatewayStatus.Listeners[index].Conditions)
+		programmedCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
 		gatewayStatus.Listeners[index].SupportedKinds = akogatewayapilib.SupportedKinds[gatewayv1.HTTPSProtocolType]
 		return false
 	}
 
+	resolvedRefCondition := akogatewayapistatus.NewCondition().
+		Type(string(gatewayv1.ListenerConditionResolvedRefs)).
+		Status(metav1.ConditionFalse).
+		ObservedGeneration(gateway.ObjectMeta.Generation)
 	// has valid TLS config
 	if listener.TLS != nil {
 		if (listener.TLS.Mode != nil && *listener.TLS.Mode != gatewayv1.TLSModeTerminate) || len(listener.TLS.CertificateRefs) == 0 {
 			utils.AviLog.Errorf("key: %s, msg: tls mode/ref not valid %+v/%+v", key, gateway.Name, listener.Name)
-			defaultCondition.
-				Reason(string(gatewayv1.ListenerReasonInvalidCertificateRef)).
+			defaultCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
+			resolvedRefCondition.Reason(string(gatewayv1.ListenerReasonInvalidCertificateRef)).
 				Message("TLS mode or reference not valid").
 				SetIn(&gatewayStatus.Listeners[index].Conditions)
+			programmedCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
 			return false
 		}
 		for _, certRef := range listener.TLS.CertificateRefs {
@@ -208,13 +250,26 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 			if (certRef.Group != nil && string(*certRef.Group) != "") ||
 				certRef.Kind != nil && string(*certRef.Kind) != utils.Secret {
 				utils.AviLog.Errorf("key: %s, msg: CertificateRef is not valid %+v/%+v, must be Secret", key, gateway.Name, listener.Name)
-				defaultCondition.
-					Reason(string(gatewayv1.ListenerReasonInvalidCertificateRef)).
+				defaultCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
+				resolvedRefCondition.Reason(string(gatewayv1.ListenerReasonInvalidCertificateRef)).
 					Message("TLS mode or reference not valid").
 					SetIn(&gatewayStatus.Listeners[index].Conditions)
+				programmedCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
 				return false
 			}
-
+			name := string(certRef.Name)
+			cs := utils.GetInformers().ClientSet
+			_, err := cs.CoreV1().Secrets(gateway.ObjectMeta.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
+			if err != nil {
+				utils.AviLog.Errorf("key: %s, msg: Secret specified in CertificateRef does not exist %+v/%+v", key, gateway.Name, listener.Name)
+				defaultCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
+				resolvedRefCondition.
+					Reason(string(gatewayv1.ListenerReasonInvalidCertificateRef)).
+					Message("Secret does not exist").
+					SetIn(&gatewayStatus.Listeners[index].Conditions)
+				programmedCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
+				return false
+			}
 		}
 	}
 
@@ -224,20 +279,22 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 			for _, kindInAllowedRoute := range listener.AllowedRoutes.Kinds {
 				if kindInAllowedRoute.Kind != "" && string(kindInAllowedRoute.Kind) != utils.HTTPRoute {
 					utils.AviLog.Errorf("key: %s, msg: AllowedRoute kind is invalid %+v/%+v. Supported AllowedRoute kind is HTTPRoute.", key, gateway.Name, listener.Name)
-					defaultCondition.
-						Type(string(gatewayv1.ListenerConditionResolvedRefs)).
+					defaultCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
+					resolvedRefCondition.
 						Reason(string(gatewayv1.ListenerReasonInvalidRouteKinds)).
 						Message("AllowedRoute kind is invalid. Only HTTPRoute is supported currently").
 						SetIn(&gatewayStatus.Listeners[index].Conditions)
+					programmedCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
 					return false
 				}
 				if kindInAllowedRoute.Group != nil && *kindInAllowedRoute.Group != "" && string(*kindInAllowedRoute.Group) != gatewayv1.GroupName {
 					utils.AviLog.Errorf("key: %s, msg: AllowedRoute Group is invalid %+v/%+v.", key, gateway.Name, listener.Name)
-					defaultCondition.
-						Type(string(gatewayv1.ListenerConditionResolvedRefs)).
+					defaultCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
+					resolvedRefCondition.
 						Reason(string(gatewayv1.ListenerReasonInvalidRouteKinds)).
 						Message("AllowedRoute Group is invalid.").
 						SetIn(&gatewayStatus.Listeners[index].Conditions)
+					programmedCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
 					return false
 				}
 			}
@@ -246,10 +303,18 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 
 	// Valid listener
 	defaultCondition.
-		Reason(string(gatewayv1.GatewayReasonAccepted)).
+		Reason(string(gatewayv1.ListenerReasonAccepted)).
 		Status(metav1.ConditionTrue).
 		Message("Listener is valid").
 		SetIn(&gatewayStatus.Listeners[index].Conditions)
+
+	// Setting the resolvedRef condition
+	resolvedRefCondition.
+		Status(metav1.ConditionTrue).
+		Reason(string(gatewayv1.ListenerReasonResolvedRefs)).
+		Message("All the references are valid").
+		SetIn(&gatewayStatus.Listeners[index].Conditions)
+
 	utils.AviLog.Infof("key: %s, msg: Listener %s/%s is valid", key, gateway.Name, listener.Name)
 	return true
 }
@@ -318,8 +383,7 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 	}
 
 	defaultCondition := akogatewayapistatus.NewCondition().
-		Type(string(gatewayv1.GatewayConditionAccepted)).
-		Reason(string(gatewayv1.GatewayReasonInvalid)).
+		Type(string(gatewayv1.RouteConditionAccepted)).
 		Status(metav1.ConditionFalse).
 		ObservedGeneration(httpRoute.ObjectMeta.Generation)
 
@@ -329,6 +393,7 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		utils.AviLog.Errorf("key: %s, msg: AKO is yet to process Gateway %s for parent reference %s.", key, gateway.Name, name)
 		err := fmt.Errorf("AKO is yet to process Gateway %s for parent reference %s", gateway.Name, name)
 		defaultCondition.
+			Reason(string(gatewayv1.RouteReasonPending)).
 			Message(err.Error()).
 			SetIn(&httpRouteStatus.Parents[*parentRefIndexInHttpRouteStatus].Conditions)
 		*parentRefIndexInHttpRouteStatus = *parentRefIndexInHttpRouteStatus + 1
@@ -342,6 +407,7 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		utils.AviLog.Errorf("key: %s, msg: Gateway %s for parent reference %s is in Invalid State", key, gateway.Name, name)
 		err := fmt.Errorf("Gateway %s is in Invalid State", gateway.Name)
 		defaultCondition.
+			Reason(string(gatewayv1.RouteReasonPending)).
 			Message(err.Error()).
 			SetIn(&httpRouteStatus.Parents[*parentRefIndexInHttpRouteStatus].Conditions)
 		*parentRefIndexInHttpRouteStatus = *parentRefIndexInHttpRouteStatus + 1
@@ -358,6 +424,7 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 			utils.AviLog.Errorf("key: %s, msg: unable to find the listener from the Section Name %s in Parent Reference %s", key, name, listenerName)
 			err := fmt.Errorf("Invalid listener name provided")
 			defaultCondition.
+				Reason(string(gatewayv1.RouteReasonNoMatchingParent)).
 				Message(err.Error()).
 				SetIn(&httpRouteStatus.Parents[*parentRefIndexInHttpRouteStatus].Conditions)
 			*parentRefIndexInHttpRouteStatus = *parentRefIndexInHttpRouteStatus + 1
@@ -437,6 +504,7 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 	if len(listenersMatchedToRoute) == 0 {
 		err := fmt.Errorf("Hostname in Gateway Listener doesn't match with any of the hostnames in HTTPRoute")
 		defaultCondition.
+			Reason(string(gatewayv1.RouteReasonNoMatchingListenerHostname)).
 			Message(err.Error()).
 			SetIn(&httpRouteStatus.Parents[*parentRefIndexInHttpRouteStatus].Conditions)
 		*parentRefIndexInHttpRouteStatus = *parentRefIndexInHttpRouteStatus + 1
@@ -449,6 +517,9 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		}
 		return err
 	}
+
+	//TODO: Add a condition to check whether this route is allowed by the parent gateways allowedroute field and set gatewayv1.RouteReasonNotAllowedByListeners reason while implemenating gateway->listener->allowedRoutes->Selector
+
 	gatewayStatus := gwStatus.DeepCopy()
 	for _, listenerObj := range listenersMatchedToRoute {
 		listenerName := listenerObj.Name
@@ -459,6 +530,7 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 			utils.AviLog.Errorf("key: %s, msg: Gateway status is missing for the listener with name %s", key, listenerName)
 			err := fmt.Errorf("Couldn't find the listener %s in the Gateway status", listenerName)
 			defaultCondition.
+				Reason(string(gatewayv1.RouteReasonNoMatchingParent)).
 				Message(err.Error()).
 				SetIn(&httpRouteStatus.Parents[*parentRefIndexInHttpRouteStatus].Conditions)
 			*parentRefIndexInHttpRouteStatus = *parentRefIndexInHttpRouteStatus + 1
@@ -470,7 +542,7 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 	akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
 
 	defaultCondition.
-		Reason(string(gatewayv1.GatewayReasonAccepted)).
+		Reason(string(gatewayv1.RouteReasonAccepted)).
 		Status(metav1.ConditionTrue).
 		Message("Parent reference is valid").
 		SetIn(&httpRouteStatus.Parents[*parentRefIndexInHttpRouteStatus].Conditions)

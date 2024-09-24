@@ -177,7 +177,7 @@ func GetListenersOnHostname(hostnames []string) []gatewayv1.Listener {
 	return listeners
 }
 
-func GetListenerStatusV1(ports []int32, attachedRoutes []int32) []gatewayv1.ListenerStatus {
+func GetListenerStatusV1(ports []int32, attachedRoutes []int32, getResolvedRefCondition bool, getProgrammedCondition bool) []gatewayv1.ListenerStatus {
 	listeners := make([]gatewayv1.ListenerStatus, 0, len(ports))
 	for i, port := range ports {
 		listener := gatewayv1.ListenerStatus{
@@ -186,13 +186,33 @@ func GetListenerStatusV1(ports []int32, attachedRoutes []int32) []gatewayv1.List
 			AttachedRoutes: attachedRoutes[i],
 			Conditions: []metav1.Condition{
 				{
-					Type:               string(gatewayv1.GatewayConditionAccepted),
+					Type:               string(gatewayv1.ListenerConditionAccepted),
 					Status:             metav1.ConditionTrue,
 					Message:            "Listener is valid",
 					ObservedGeneration: 1,
-					Reason:             string(gatewayv1.GatewayReasonAccepted),
+					Reason:             string(gatewayv1.ListenerReasonAccepted),
 				},
 			},
+		}
+		if getResolvedRefCondition {
+			resolvedRefCondition := &metav1.Condition{
+				Type:               string(gatewayv1.ListenerConditionResolvedRefs),
+				Status:             metav1.ConditionTrue,
+				Message:            "All the references are valid",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.ListenerReasonResolvedRefs),
+			}
+			listener.Conditions = append(listener.Conditions, *resolvedRefCondition)
+		}
+		if getProgrammedCondition {
+			programmedCondition := &metav1.Condition{
+				Type:               string(gatewayv1.ListenerConditionProgrammed),
+				Status:             metav1.ConditionTrue,
+				Message:            "Virtual service configured/updated",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.ListenerReasonProgrammed),
+			}
+			listener.Conditions = append(listener.Conditions, *programmedCondition)
 		}
 		listeners = append(listeners, listener)
 	}
@@ -603,9 +623,9 @@ func ValidateGatewayStatus(t *testing.T, actualStatus, expectedStatus *gatewayv1
 		g.Expect(actualStatus.Addresses[0]).Should(gomega.Equal(expectedStatus.Addresses[0]))
 	}
 
+	g.Expect(actualStatus.Listeners).To(gomega.HaveLen(len(expectedStatus.Listeners)))
 	ValidateConditions(t, actualStatus.Conditions, expectedStatus.Conditions)
 
-	g.Expect(actualStatus.Listeners).To(gomega.HaveLen(len(expectedStatus.Listeners)))
 	for _, actualListenerStatus := range actualStatus.Listeners {
 		for _, expectedListenerStatus := range expectedStatus.Listeners {
 			if actualListenerStatus.Name == expectedListenerStatus.Name {

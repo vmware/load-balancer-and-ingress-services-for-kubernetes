@@ -159,13 +159,12 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 	conditionStatus := metav1.ConditionTrue
 
 	if option.Options.Message != "" {
-		conditionType = string(gatewayv1.GatewayConditionAccepted)
+		conditionType = string(gatewayv1.GatewayConditionProgrammed)
 		conditionStatus = metav1.ConditionFalse
 		reason = string(gatewayv1.GatewayReasonInvalid)
 		message = option.Options.Message
 	} else {
 		conditionType = string(gatewayv1.GatewayConditionProgrammed)
-		conditionStatus = metav1.ConditionTrue
 		reason = string(gatewayv1.GatewayReasonProgrammed)
 		message = "Virtual service configured/updated"
 	}
@@ -180,9 +179,9 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 	for i := range gatewaystatus.Listeners {
 		listenerCondition := NewCondition()
 		listenerCondition.
-			Type(conditionType).
+			Type(string(gatewayv1.ListenerConditionProgrammed)).
 			Status(conditionStatus).
-			Reason(reason).
+			Reason(string(gatewayv1.ListenerReasonProgrammed)).
 			ObservedGeneration(gw.ObjectMeta.Generation).
 			Message(message).
 			SetIn(&gatewaystatus.Listeners[i].Conditions)
