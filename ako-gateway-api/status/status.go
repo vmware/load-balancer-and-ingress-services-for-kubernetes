@@ -15,9 +15,13 @@
 package status
 
 import (
+	"errors"
+
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
+	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
@@ -97,7 +101,7 @@ func Record(key string, obj runtime.Object, objStatus *status.Status) {
 		key = serviceMetadata.HTTPRoute
 	default:
 		utils.AviLog.Warnf("key %s, msg: Unsupported object received at the status layer, %T", key, obj)
-		return
+		return obj, errors.New("Unsupported object received at the status layer")
 	}
 	updateOption.Status = objStatus
 	updateOption.ServiceMetadata = serviceMetadata

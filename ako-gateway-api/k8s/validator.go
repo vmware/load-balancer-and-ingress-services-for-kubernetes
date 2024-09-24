@@ -124,6 +124,7 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 		programmedCondition.
 			SetIn(&gatewayStatus.Conditions)
 		akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
+		gateway.Status = *gatewayStatus.DeepCopy()
 		return false
 	} else if validListenerCount < len(spec.Listeners) {
 		defaultCondition.
@@ -140,9 +141,14 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 		Status(metav1.ConditionTrue).
 		Message("Gateway configuration is valid").
 		SetIn(&gatewayStatus.Conditions)
-	akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
+	_, err := akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
 	utils.AviLog.Infof("key: %s, msg: Gateway %s is valid", key, gateway.Name)
-	return true
+	if err == nil {
+		return true
+	} else {
+		utils.AviLog.Errorf("key: %s, msg: Gateway status patch was not successful :%s ", key, err.Error())
+		return false
+	}
 }
 
 func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gatewayv1.GatewayStatus, index int) bool {

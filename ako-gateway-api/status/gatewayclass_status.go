@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"errors"
 	"reflect"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -91,7 +92,7 @@ func (o *gatewayClass) Patch(key string, obj runtime.Object, status *status.Stat
 	patchPayload, _ := json.Marshal(map[string]interface{}{
 		"status": status.GatewayClassStatus,
 	})
-	_, err := akogatewayapilib.AKOControlConfig().GatewayAPIClientset().GatewayV1().GatewayClasses().Patch(context.TODO(), gatewayClass.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+	updatedObject, err := akogatewayapilib.AKOControlConfig().GatewayAPIClientset().GatewayV1().GatewayClasses().Patch(context.TODO(), gatewayClass.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: there was an error in updating the GatewayClass status. err: %+v, retry: %d", key, err, retry)
 		updatedObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Lister().Get(gatewayClass.Name)
