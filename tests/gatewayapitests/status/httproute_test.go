@@ -70,8 +70,8 @@ func TestHTTPRouteWithValidConfig(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil &&
-			apimeta.FindStatusCondition(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted)) != nil &&
+			apimeta.FindStatusCondition(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.RouteConditionAccepted)) != nil
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap := make(map[string][]metav1.Condition)
@@ -79,8 +79,8 @@ func TestHTTPRouteWithValidConfig(t *testing.T) {
 	for _, port := range ports {
 		conditions := make([]metav1.Condition, 0, 1)
 		condition := metav1.Condition{
-			Type:    string(gatewayv1.GatewayConditionAccepted),
-			Reason:  string(gatewayv1.GatewayReasonAccepted),
+			Type:    string(gatewayv1.RouteConditionAccepted),
+			Reason:  string(gatewayv1.RouteReasonAccepted),
 			Status:  metav1.ConditionTrue,
 			Message: "Parent reference is valid",
 		}
@@ -138,23 +138,23 @@ func TestHTTPRouteWithAtleastOneParentReferenceValid(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.IsStatusConditionTrue(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted)) &&
-			apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.GatewayConditionAccepted))
+		return apimeta.IsStatusConditionTrue(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted)) &&
+			apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.RouteConditionAccepted))
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap := make(map[string][]metav1.Condition)
 	conditionMap[fmt.Sprintf("%s-%d", gatewayName, 8080)] = []metav1.Condition{
 		{
-			Type:    string(gatewayv1.GatewayConditionAccepted),
-			Reason:  string(gatewayv1.GatewayReasonAccepted),
+			Type:    string(gatewayv1.RouteConditionAccepted),
+			Reason:  string(gatewayv1.RouteReasonAccepted),
 			Status:  metav1.ConditionTrue,
 			Message: "Parent reference is valid",
 		},
 	}
 	conditionMap[fmt.Sprintf("%s-%d", gatewayName, 8081)] = []metav1.Condition{
 		{
-			Type:    string(gatewayv1.GatewayConditionAccepted),
-			Reason:  string(gatewayv1.GatewayReasonInvalid),
+			Type:    string(gatewayv1.RouteConditionAccepted),
+			Reason:  string(gatewayv1.RouteReasonNoMatchingParent),
 			Status:  metav1.ConditionFalse,
 			Message: "Invalid listener name provided",
 		},
@@ -215,14 +215,14 @@ func TestHTTPRouteTransitionFromInvalidToValid(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted))
+		return apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted))
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap := make(map[string][]metav1.Condition)
 	conditionMap[fmt.Sprintf("%s-%d", gatewayName, 8081)] = []metav1.Condition{
 		{
-			Type:    string(gatewayv1.GatewayConditionAccepted),
-			Reason:  string(gatewayv1.GatewayReasonInvalid),
+			Type:    string(gatewayv1.RouteConditionAccepted),
+			Reason:  string(gatewayv1.RouteReasonNoMatchingParent),
 			Status:  metav1.ConditionFalse,
 			Message: "Invalid listener name provided",
 		},
@@ -250,13 +250,13 @@ func TestHTTPRouteTransitionFromInvalidToValid(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.IsStatusConditionTrue(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted))
+		return apimeta.IsStatusConditionTrue(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted))
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap[fmt.Sprintf("%s-%d", gatewayName, 8080)] = []metav1.Condition{
 		{
-			Type:    string(gatewayv1.GatewayConditionAccepted),
-			Reason:  string(gatewayv1.GatewayReasonAccepted),
+			Type:    string(gatewayv1.RouteConditionAccepted),
+			Reason:  string(gatewayv1.RouteReasonAccepted),
 			Status:  metav1.ConditionTrue,
 			Message: "Parent reference is valid",
 		},
@@ -311,14 +311,14 @@ func TestHTTPRouteTransitionFromValidToInvalid(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.IsStatusConditionTrue(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted))
+		return apimeta.IsStatusConditionTrue(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted))
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap := make(map[string][]metav1.Condition)
-	conditionMap[fmt.Sprintf("%s-%d", gatewayName, 8081)] = []metav1.Condition{
+	conditionMap[fmt.Sprintf("%s-%d", gatewayName, 8080)] = []metav1.Condition{
 		{
-			Type:    string(gatewayv1.GatewayConditionAccepted),
-			Reason:  string(gatewayv1.GatewayReasonAccepted),
+			Type:    string(gatewayv1.RouteConditionAccepted),
+			Reason:  string(gatewayv1.RouteReasonAccepted),
 			Status:  metav1.ConditionTrue,
 			Message: "Parent reference is valid",
 		},
@@ -345,13 +345,13 @@ func TestHTTPRouteTransitionFromValidToInvalid(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted))
+		return apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted))
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap[fmt.Sprintf("%s-%d", gatewayName, 8081)] = []metav1.Condition{
 		{
-			Type:    string(gatewayv1.GatewayConditionAccepted),
-			Reason:  string(gatewayv1.GatewayReasonInvalid),
+			Type:    string(gatewayv1.RouteConditionAccepted),
+			Reason:  string(gatewayv1.RouteReasonNoMatchingParent),
 			Status:  metav1.ConditionFalse,
 			Message: "Invalid listener name provided",
 		},
@@ -458,23 +458,23 @@ func TestHTTPRouteWithAllParentReferenceInvalid(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted)) &&
-			apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.GatewayConditionAccepted))
+		return apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted)) &&
+			apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.RouteConditionAccepted))
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap := map[string][]metav1.Condition{
 		fmt.Sprintf("%s-%d", gatewayName, 8080): {
 			{
-				Type:    string(gatewayv1.GatewayConditionAccepted),
-				Reason:  string(gatewayv1.GatewayReasonInvalid),
+				Type:    string(gatewayv1.RouteConditionAccepted),
+				Reason:  string(gatewayv1.RouteReasonNoMatchingParent),
 				Status:  metav1.ConditionFalse,
 				Message: "Invalid listener name provided",
 			},
 		},
 		fmt.Sprintf("%s-%d", gatewayName, 8081): {
 			{
-				Type:    string(gatewayv1.GatewayConditionAccepted),
-				Reason:  string(gatewayv1.GatewayReasonInvalid),
+				Type:    string(gatewayv1.RouteConditionAccepted),
+				Reason:  string(gatewayv1.RouteReasonNoMatchingParent),
 				Status:  metav1.ConditionFalse,
 				Message: "Invalid listener name provided",
 			},
@@ -559,23 +559,23 @@ func TestHTTPRouteWithNonExistingListenerReference(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted)) &&
-			apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.GatewayConditionAccepted))
+		return apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted)) &&
+			apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.RouteConditionAccepted))
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap := map[string][]metav1.Condition{
 		fmt.Sprintf("%s-%d", gatewayName, 8080): {
 			{
-				Type:    string(gatewayv1.GatewayConditionAccepted),
-				Reason:  string(gatewayv1.GatewayReasonInvalid),
+				Type:    string(gatewayv1.RouteConditionAccepted),
+				Reason:  string(gatewayv1.RouteReasonNoMatchingParent),
 				Status:  metav1.ConditionFalse,
 				Message: "Invalid listener name provided",
 			},
 		},
 		fmt.Sprintf("%s-%d", gatewayName, 8081): {
 			{
-				Type:    string(gatewayv1.GatewayConditionAccepted),
-				Reason:  string(gatewayv1.GatewayReasonInvalid),
+				Type:    string(gatewayv1.RouteConditionAccepted),
+				Reason:  string(gatewayv1.RouteReasonNoMatchingParent),
 				Status:  metav1.ConditionFalse,
 				Message: "Invalid listener name provided",
 			},
@@ -694,7 +694,7 @@ func TestHTTPRouteUnprocessedGateway(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted)) != nil
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap := make(map[string][]metav1.Condition)
@@ -702,8 +702,8 @@ func TestHTTPRouteUnprocessedGateway(t *testing.T) {
 	for _, port := range ports {
 		conditions := make([]metav1.Condition, 0, 1)
 		condition := metav1.Condition{
-			Type:    string(gatewayv1.GatewayConditionAccepted),
-			Reason:  string(gatewayv1.GatewayReasonInvalid),
+			Type:    string(gatewayv1.RouteConditionAccepted),
+			Reason:  string(gatewayv1.RouteReasonPending),
 			Status:  metav1.ConditionFalse,
 			Message: "AKO is yet to process Gateway gateway-hr-11 for parent reference gateway-hr-11",
 		}
@@ -759,7 +759,7 @@ func TestHTTPRouteWithInvalidGatewayListener(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted)) != nil
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap := make(map[string][]metav1.Condition)
@@ -823,7 +823,7 @@ func TestHTTPRouteWithOneExistingAndOneNonExistingGateway(t *testing.T) {
 		if len(httpRoute.Status.Parents) != 1 {
 			return false
 		}
-		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted)) != nil
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap := make(map[string][]metav1.Condition)
@@ -831,8 +831,8 @@ func TestHTTPRouteWithOneExistingAndOneNonExistingGateway(t *testing.T) {
 	for _, port := range ports {
 		conditions := make([]metav1.Condition, 0, 1)
 		condition := metav1.Condition{
-			Type:    string(gatewayv1.GatewayConditionAccepted),
-			Reason:  string(gatewayv1.GatewayReasonAccepted),
+			Type:    string(gatewayv1.RouteConditionAccepted),
+			Reason:  string(gatewayv1.RouteReasonAccepted),
 			Status:  metav1.ConditionTrue,
 			Message: "Parent reference is valid",
 		}
