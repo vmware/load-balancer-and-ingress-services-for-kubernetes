@@ -40,12 +40,15 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
-var KubeClient *k8sfake.Clientset
-var CRDClient *crdfake.Clientset
-var V1beta1Client *v1beta1crdfake.Clientset
-var endpointSliceEnabled bool
-var ctrl *k8s.AviController
-var akoApiServer *api.FakeApiServer
+var (
+	KubeClient           *k8sfake.Clientset
+	CRDClient            *crdfake.Clientset
+	V1beta1Client        *v1beta1crdfake.Clientset
+	endpointSliceEnabled bool
+	ctrl                 *k8s.AviController
+	akoApiServer         *api.FakeApiServer
+	objNameMap           integrationtest.ObjectNameMap
+)
 
 func TestMain(m *testing.M) {
 	os.Setenv("INGRESS_API", "extensionv1")
@@ -134,7 +137,40 @@ func TestMain(m *testing.M) {
 	integrationtest.AddDefaultNamespace()
 
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
+	objNameMap.InitMap()
 	os.Exit(m.Run())
+}
+
+type IngressTestObject struct {
+	ingressName string
+	namespace   string
+	dnsNames    []string
+	ipAddrs     []string
+	hostnames   []string
+	paths       []string
+	isTLS       bool
+	withSecret  bool
+	secretName  string
+	serviceName string
+	modelNames  []string
+}
+
+func (ing *IngressTestObject) FillParams() {
+	if ing.namespace == "" {
+		ing.namespace = "default"
+	}
+	if len(ing.dnsNames) == 0 {
+		ing.dnsNames = append(ing.dnsNames, "foo.com")
+	}
+	if len(ing.ipAddrs) == 0 {
+		ing.ipAddrs = append(ing.ipAddrs, "8.8.8.8")
+	}
+	if len(ing.hostnames) == 0 {
+		ing.hostnames = append(ing.hostnames, "v1")
+	}
+	if len(ing.paths) == 0 {
+		ing.paths = append(ing.paths, "/foo")
+	}
 }
 
 func SetUpTestForIngress(t *testing.T, svcName string, modelNames ...string) {
@@ -153,31 +189,31 @@ func TearDownTestForIngress(t *testing.T, svcName string, modelNames ...string) 
 	integrationtest.DelEPorEPS(t, "default", svcName)
 }
 
-func SetUpIngressForCacheSyncCheck(t *testing.T, tlsIngress, withSecret bool, secretName, ingressName, svcName string, modelNames ...string) {
+func SetUpIngressForCacheSyncCheck(t *testing.T, ingTestObj IngressTestObject) {
 	SetupDomain()
-	SetUpTestForIngress(t, svcName, modelNames...)
+	SetUpTestForIngress(t, ingTestObj.serviceName, ingTestObj.modelNames...)
 	ingressObject := integrationtest.FakeIngress{
-		Name:        ingressName,
-		Namespace:   "default",
-		DnsNames:    []string{"foo.com"},
-		Ips:         []string{"8.8.8.8"},
-		HostNames:   []string{"v1"},
-		Paths:       []string{"/foo"},
-		ServiceName: svcName,
+		Name:        ingTestObj.ingressName,
+		Namespace:   ingTestObj.namespace,
+		DnsNames:    ingTestObj.dnsNames,
+		Ips:         ingTestObj.ipAddrs,
+		HostNames:   ingTestObj.hostnames,
+		Paths:       ingTestObj.paths,
+		ServiceName: ingTestObj.serviceName,
 	}
-	if withSecret {
-		integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
+	if ingTestObj.withSecret {
+		integrationtest.AddSecret(ingTestObj.secretName, ingTestObj.namespace, "tlsCert", "tlsKey")
 	}
-	if tlsIngress {
+	if ingTestObj.isTLS {
 		ingressObject.TlsSecretDNS = map[string][]string{
-			secretName: {"foo.com"},
+			ingTestObj.secretName: {"foo.com"},
 		}
 	}
 	ingrFake := ingressObject.Ingress()
-	if _, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
+	if _, err := KubeClient.NetworkingV1().Ingresses(ingTestObj.namespace).Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	integrationtest.PollForCompletion(t, modelNames[0], 5)
+	integrationtest.PollForCompletion(t, ingTestObj.modelNames[0], 5)
 }
 
 func SetupDomain() {
@@ -186,41 +222,6 @@ func SetupDomain() {
 	subdomains := []string{"avi.internal", ".com"}
 	cloudObj.NSIpamDNS = subdomains
 	mcache.CloudKeyCache.AviCacheAdd("Default-Cloud", cloudObj)
-}
-
-func SetUpIngressForCacheSyncCheckMultiPaths(t *testing.T, tlsIngress, withSecret bool, secretName, ingressName, svcName string, fqdns []string, paths []string, modelNames ...string) {
-	SetupDomain()
-	SetUpTestForIngress(t, svcName, modelNames...)
-	ingressObject := integrationtest.FakeIngress{
-		Name:        ingressName,
-		Namespace:   "default",
-		DnsNames:    fqdns,
-		Ips:         []string{"8.8.8.8"},
-		HostNames:   []string{"v1"},
-		Paths:       paths,
-		ServiceName: svcName,
-	}
-	if withSecret {
-		integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
-	}
-	if tlsIngress {
-		ingressObject.TlsSecretDNS = map[string][]string{
-			secretName: {"foo.com"},
-		}
-	}
-	ingrFake := ingressObject.Ingress()
-	if _, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error in adding Ingress: %v", err)
-	}
-	integrationtest.PollForCompletion(t, modelNames[0], 5)
-}
-
-func TearDownIngressForCacheSyncCheckPath(t *testing.T, secretName, ingressName, modelName string) {
-	if err := KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingressName, metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
-	}
-	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), secretName, metav1.DeleteOptions{})
-	TearDownTestForIngress(t, modelName)
 }
 
 func TearDownIngressForCacheSyncCheck(t *testing.T, secretName, ingressName, modelName string) {
@@ -236,10 +237,19 @@ func TearDownIngressForCacheSyncCheck(t *testing.T, secretName, ingressName, mod
 func TestFQDNCountInL7Model(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--foo.com-L7-dedicated"
-	secretName := "my-secret-7"
-	ingressName := "foo-with-targets-7"
-	svcName := "avisvc-7"
-	SetUpIngressForCacheSyncCheck(t, true, true, secretName, ingressName, svcName, modelName)
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if aviModel == nil {
@@ -265,10 +275,18 @@ func TestPortsForInsecureDedicatedShard(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--foo.com-L7-dedicated"
 
-	ingressName := "foo-with-targets-11"
-	svcName := "avisvc-11"
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 
-	SetUpIngressForCacheSyncCheck(t, false, false, "", ingressName, svcName, modelName)
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       false,
+		withSecret:  false,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes, ok := aviModel.(*avinodes.AviObjectGraph)
@@ -288,11 +306,20 @@ func TestPortsForInsecureDedicatedShard(t *testing.T) {
 func TestPortsForSecureDedicatedShard(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--foo.com-L7-dedicated"
-	secretName := "my-secret-8"
-	ingressName := "foo-with-targets-8"
-	svcName := "avisvc-8"
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 
-	SetUpIngressForCacheSyncCheck(t, true, true, secretName, ingressName, svcName, modelName)
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes, ok := aviModel.(*avinodes.AviObjectGraph)
