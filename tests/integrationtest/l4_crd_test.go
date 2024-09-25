@@ -1212,7 +1212,7 @@ func TestSharedVIPSvcWithL4Rule(t *testing.T) {
 
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		if !found {
+		if !found || aviModel == nil {
 			return false
 		}
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
