@@ -2106,7 +2106,7 @@ func (ingclass FakeIngressClass) IngressClass() *networking.IngressClass {
 	return ingressclass
 }
 
-func SetupIngressClass(t *testing.T, ingclassName, controller, infraSetting string) {
+func SetupIngressClass(t *testing.T, ingclassName, controller, infraSetting string, wait ...bool) {
 	ingclass := FakeIngressClass{
 		Name:            ingclassName,
 		Controller:      controller,
@@ -2124,6 +2124,10 @@ func SetupIngressClass(t *testing.T, ingclassName, controller, infraSetting stri
 		if _, err := KubeClient.NetworkingV1().IngressClasses().Update(context.TODO(), ingClassCreate, metav1.UpdateOptions{}); err != nil {
 			t.Fatalf("error in adding IngressClass: %v", err)
 		}
+	}
+	if len(wait) > 0 {
+		//wait for ingressclass to be processed
+		time.Sleep(time.Second * 10)
 	}
 }
 

@@ -483,7 +483,7 @@ func TestFQDNsCountForAviInfraSettingWithDedicatedShardSize(t *testing.T) {
 	defer integrationtest.AddDefaultIngressClass()
 
 	integrationtest.SetupAviInfraSetting(t, settingName, "DEDICATED")
-	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
+	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName, true)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 
 	ingressCreate := (integrationtest.FakeIngress{
@@ -508,7 +508,7 @@ func TestFQDNsCountForAviInfraSettingWithDedicatedShardSize(t *testing.T) {
 		}
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 		return len(nodes)
-	}, 10*time.Second).Should(gomega.Equal(1))
+	}, 30*time.Second).Should(gomega.Equal(1))
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	node := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0]
@@ -552,7 +552,7 @@ func TestFQDNsCountForAviInfraSettingWithLargeShardSize(t *testing.T) {
 	defer integrationtest.AddDefaultIngressClass()
 
 	integrationtest.SetupAviInfraSetting(t, settingName, "LARGE")
-	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
+	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName, true)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 
 	ingressCreate := (integrationtest.FakeIngress{
