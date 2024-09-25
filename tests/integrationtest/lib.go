@@ -2126,8 +2126,11 @@ func SetupIngressClass(t *testing.T, ingclassName, controller, infraSetting stri
 		}
 	}
 	if len(wait) > 0 {
-		//wait for ingressclass to be processed
-		time.Sleep(time.Second * 10)
+		g := gomega.NewGomegaWithT(t)
+		g.Eventually(func() error {
+			_, err := utils.GetInformers().IngressClassInformer.Lister().Get(ingclassName)
+			return err
+		}, 30*time.Second, 5*time.Second).Should(gomega.BeNil())
 	}
 }
 
