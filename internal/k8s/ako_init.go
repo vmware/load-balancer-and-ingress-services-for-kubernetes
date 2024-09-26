@@ -1117,7 +1117,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 				key := ingObj.Namespace + "/" + ingObj.Name
 				isValid := true
 
-				if lib.AKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+				if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
 					// get the hostnames in the ingress
 					isValid = isIngAcceptedWithFQDNRestriction(key, ingObj)
 				}
@@ -1131,6 +1131,8 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 					utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
 					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 					nodes.DequeueIngestion(key, true)
+				} else {
+					utils.AviLog.Warnf("key: %s, msg: Ingress is not accepted due to FQDN restriction policy", key)
 				}
 			}
 			// TODO: free ingObjList
@@ -1154,7 +1156,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 				key := utils.OshiftRoute + "/" + utils.ObjKey(routeObj)
 				isValid := true
 
-				if lib.AKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+				if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
 					isValid = isRouteAcceptedWithFQDNRestriction(key, routeObj)
 					if isValid {
 						utils.AviLog.Debugf("Route %s is added to active list. Enqueuing it", key)
@@ -1170,6 +1172,8 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 					utils.AviLog.Debugf("Dequeue for route key: %v", key)
 					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 					nodes.DequeueIngestion(key, true)
+				} else {
+					utils.AviLog.Warnf("key: %s, msg: Route is not accepted due to FQDN restriction policy", key)
 				}
 			}
 			// TODO: Free routelist

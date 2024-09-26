@@ -1797,10 +1797,6 @@ func ValidateSvcforClass(key string, svc *corev1.Service) bool {
 	return false
 }
 
-func AKOFQDNReusePolicy() string {
-	return AKOControlConfig().GetAKOFQDNReusePolicy()
-}
-
 func isAviDefaultLBController() bool {
 	return AKOControlConfig().IsAviDefaultLBController()
 }

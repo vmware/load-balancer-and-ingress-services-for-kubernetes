@@ -673,7 +673,7 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 		}
 	}
 
-	if lib.AKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+	if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
 		// Why do we need to change checksum of VS? As we are appending hostname--> list of ingresses mapping
 		// so we need to have updated list at vs metadata so that during AKO bootup we will have updated list
 		b := new(bytes.Buffer)
@@ -1054,9 +1054,9 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 
 }
 
-func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parsedIng IngressConfig, modelList *[]string, Storedhosts map[string]*objects.RouteIngrhost, hostsMap map[string]*objects.RouteIngrhost) bool {
+func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parsedIng IngressConfig, modelList *[]string, Storedhosts map[string]*objects.RouteIngrhost, hostsMap map[string]*objects.RouteIngrhost) {
 	utils.AviLog.Debugf("key: %s, msg: Storedhosts before  processing insecurehosts: %s", key, utils.Stringify(Storedhosts))
-	flagIngToProcess := true
+	//flagIngToProcess := true
 	for host, pathsvcmap := range parsedIng.IngressHostMap {
 		// Remove this entry from storedHosts. First check if the host exists in the stored map or not.
 		flag := EnqueueIng(key, routeIgrObj.GetNamespace(), host, routeIgrObj.GetName())
@@ -1098,27 +1098,27 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 
 		// Create one evh child per host and associate http policies for each path.
 		modelGraph := aviModel.(*AviObjectGraph)
-		flagIngToProcess = modelGraph.BuildModelGraphForInsecureEVH(routeIgrObj, host, infraSetting, key, pathsvcmap)
+		modelGraph.BuildModelGraphForInsecureEVH(routeIgrObj, host, infraSetting, key, pathsvcmap)
 
-		if flagIngToProcess {
-			if len(vsNode) > 0 && found {
-				// if vsNode already exists, check for updates via AviInfraSetting
-				if infraSetting != nil {
-					buildWithInfraSettingForEvh(key, routeIgrObj.GetNamespace(), vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
-				}
-			}
-			changedModel := saveAviModel(modelName, modelGraph, key)
-			if !utils.HasElem(modelList, modelName) && changedModel {
-				*modelList = append(*modelList, modelName)
+		//if flagIngToProcess {
+		if len(vsNode) > 0 && found {
+			// if vsNode already exists, check for updates via AviInfraSetting
+			if infraSetting != nil {
+				buildWithInfraSettingForEvh(key, routeIgrObj.GetNamespace(), vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 			}
 		}
+		changedModel := saveAviModel(modelName, modelGraph, key)
+		if !utils.HasElem(modelList, modelName) && changedModel {
+			*modelList = append(*modelList, modelName)
+		}
+		//}
 	}
 
 	utils.AviLog.Debugf("key: %s, msg: Storedhosts after processing insecurehosts: %s", key, utils.Stringify(Storedhosts))
-	return flagIngToProcess
+	//return flagIngToProcess
 }
 
-func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressModel, host string, infraSetting *akov1beta1.AviInfraSetting, key string, pathsvcmap HostMetadata) bool {
+func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressModel, host string, infraSetting *akov1beta1.AviInfraSetting, key string, pathsvcmap HostMetadata) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	var evhNode *AviEvhVsNode
@@ -1240,7 +1240,6 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 	evhNode.AddFQDNAliasesToHTTPPolicy(evhNode.VHDomainNames, key)
 	evhNode.AviMarkers.Host = evhNode.VHDomainNames
 	objects.SharedCRDLister().UpdateFQDNToAliasesMappings(host, evhNode.VHDomainNames)
-	return true
 }
 
 // secure ingress graph functions
@@ -1964,6 +1963,7 @@ func (o *AviObjectGraph) manipulateEVHVsNode(vsNode *AviEvhVsNode, ingName, name
 					httppolname := lib.GetSniHttpPolName(namespace, hostname, infraSettingName)
 					hppmapname := lib.GetEvhPGName(ingName, namespace, hostname, path, infraSettingName, vsNode.Dedicated)
 					o.RemoveHTTPRefsStringGroupsFromEvh(httppolname, hppmapname, vsNode)
+					// This logic is to replace ingressname from servicemetadata hostToIngress map.
 					utils.AviLog.Debugf("HostIngmap before update is :%v", utils.Stringify(vsNode.ServiceMetadata.HostToNamespaceIngressName))
 					hostToNamespaceIngMap := vsNode.ServiceMetadata.HostToNamespaceIngressName[hostname]
 					if len(hostToNamespaceIngMap) != 0 {

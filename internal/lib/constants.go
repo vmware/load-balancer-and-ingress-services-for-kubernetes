@@ -209,7 +209,7 @@ const (
 	NetworkNotFoundError                       = "Network object not found"
 	CtrlVersion_22_1_6                         = "22.1.6"
 	FQDNReusePolicyStrict                      = "strict"
-	FQDNReusePolicyOpen                        = "interNamespaceallowed"
+	FQDNReusePolicyOpen                        = "internamespaceallowed"
 
 	// AKO Event constants
 	AKOEventComponent        = "avi-kubernetes-operator"
@@ -236,7 +236,6 @@ const (
 	IngressUpdateEvent       = "IngressUpdateEvent"
 	RouteAddEvent            = "RouteAddEvent"
 	RouteUpdateEvent         = "RouteUpdateEvent"
-	RouteDeleteEvent         = "RouteDeleteEvent"
 
 	DefaultIngressClassAnnotation    = "ingressclass.kubernetes.io/is-default-class"
 	ExternalDNSAnnotation            = "external-dns.alpha.kubernetes.io/hostname"

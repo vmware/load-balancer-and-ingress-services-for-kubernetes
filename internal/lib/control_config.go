@@ -366,7 +366,12 @@ func (c *akoControlConfig) SetAKOFQDNReusePolicy(FQDNPolicy string) {
 	if FQDNPolicy == "" || !IsEvhEnabled() {
 		FQDNPolicy = FQDNReusePolicyOpen
 	}
-	c.fqdnReusePolicy = strings.ToLower(FQDNPolicy)
+
+	if FQDNPolicy != FQDNReusePolicyOpen && FQDNPolicy != FQDNReusePolicyStrict {
+		// if not one of it, set it to open
+		FQDNPolicy = FQDNReusePolicyOpen
+	}
+	c.fqdnReusePolicy = FQDNPolicy
 	utils.AviLog.Infof("AKO FQDN reuse policy is: %s", c.fqdnReusePolicy)
 }
 

@@ -56,7 +56,6 @@ type AviObjCache struct {
 	VsCacheMeta        *AviCache
 	VsCacheLocal       *AviCache
 	ClusterStatusCache *AviCache
-	FQDNPolicyCache    *AviCache
 }
 
 func NewAviObjCache() *AviObjCache {
@@ -75,7 +74,6 @@ func NewAviObjCache() *AviObjCache {
 	c.VrfCache = NewAviCache()
 	c.PKIProfileCache = NewAviCache()
 	c.ClusterStatusCache = NewAviCache()
-	c.FQDNPolicyCache = NewAviCache()
 	return &c
 }
 
@@ -2189,7 +2187,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 				if err := json.Unmarshal([]byte(svc_mdata_intf.(string)),
 					&svc_mdata_obj); err != nil {
 					utils.AviLog.Warnf("Error parsing service metadata during vs cache :%v", err)
-				} else if lib.AKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+				} else if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
 					// call this only when FQDN policy is strict
 					hostToIngMapping := svc_mdata_obj.HostToNamespaceIngressName
 					utils.AviLog.Debugf("HosttoIng mapping is %v", utils.Stringify(hostToIngMapping))

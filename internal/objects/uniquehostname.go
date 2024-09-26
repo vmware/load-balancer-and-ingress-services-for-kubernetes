@@ -95,7 +95,7 @@ func (n *UniqueHostNamespaceLister) UpdateHostnameToRoute(hostName string, route
 
 	// Key: not found in active , now compare namespace present in activeRoutes
 	sameNamespace := false
-	currentRouteNamespace, _ := ExtractNameNamespace(route.RouteNSRouteName)
+	currentRouteNamespace, _ := ExtractNamespaceName(route.RouteNSRouteName)
 	// TODO: Debug statements can be reduced
 	utils.AviLog.Debugf("Namespace of current route is: %s", currentRouteNamespace)
 
@@ -104,7 +104,7 @@ func (n *UniqueHostNamespaceLister) UpdateHostnameToRoute(hostName string, route
 	// Need to check in case of delete of hostname, are we deleting all these list and entry from internal datastore.
 	for nsName, creationTime := range existingRoutes.activeRoutes {
 		utils.AviLog.Debugf("NamespaceName from active route list is: %v and creation timestamp: %v", nsName, creationTime)
-		existingActiveRoutesNamespace, _ := ExtractNameNamespace(nsName)
+		existingActiveRoutesNamespace, _ := ExtractNamespaceName(nsName)
 		utils.AviLog.Debugf("Extracted out namespace is: %s", existingActiveRoutesNamespace)
 		if currentRouteNamespace == existingActiveRoutesNamespace {
 			// add it to active list
@@ -125,7 +125,7 @@ func (n *UniqueHostNamespaceLister) UpdateHostnameToRoute(hostName string, route
 	return false, nil, nil
 }
 
-func ExtractNameNamespace(nsName string) (string, string) {
+func ExtractNamespaceName(nsName string) (string, string) {
 	if nsName != "" {
 		// changed from Split to SplitN
 		splitStrings := strings.SplitN(nsName, "/", 3)

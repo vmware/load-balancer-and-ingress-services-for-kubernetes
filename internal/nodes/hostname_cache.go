@@ -188,7 +188,7 @@ func PopulateIngHostMap(namespace, hostName, ingName, secretName string, pathsvc
 }
 
 func EnqueueIng(key, namespace, hostName, ingName string) bool {
-	if lib.AKOFQDNReusePolicy() != lib.FQDNReusePolicyStrict {
+	if lib.AKOControlConfig().GetAKOFQDNReusePolicy() != lib.FQDNReusePolicyStrict {
 		return true
 	}
 	found, ingressHostMap := SharedHostNameLister().Get(hostName)
