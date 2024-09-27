@@ -2130,10 +2130,9 @@ func SetupIngressClass(t *testing.T, ingclassName, controller, infraSetting stri
 
 	g := gomega.NewGomegaWithT(t)
 	g.Eventually(func() error {
-		ingClass, err := utils.GetInformers().IngressClassInformer.Lister().Get(ingclassName)
-		utils.AviLog.Infof("got ingclass %v", ingClass)
+		_, err := utils.GetInformers().IngressClassInformer.Lister().Get(ingclassName)
 		return err
-	}, 30*time.Second, 5*time.Second).Should(gomega.BeNil())
+	}, 30*time.Second, 2*time.Second).Should(gomega.BeNil())
 
 }
 
