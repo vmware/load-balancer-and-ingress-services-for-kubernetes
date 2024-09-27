@@ -304,9 +304,7 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 			resVer := meta.GetResourceVersion()
 			objects.SharedResourceVerInstanceLister().Save(key, resVer)
 		}
-		if IsHTTPRouteValid(key, httpRouteObj) {
-			filteredHTTPRoutes = append(filteredHTTPRoutes, httpRouteObj)
-		}
+		filteredHTTPRoutes = append(filteredHTTPRoutes, httpRouteObj)
 	}
 	sort.Slice(filteredHTTPRoutes, func(i, j int) bool {
 		if filteredHTTPRoutes[i].GetCreationTimestamp().Unix() == filteredHTTPRoutes[j].GetCreationTimestamp().Unix() {

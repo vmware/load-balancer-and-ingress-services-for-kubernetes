@@ -83,6 +83,13 @@ func DequeueIngestion(key string, fullsync bool) {
 				continue
 			}
 
+			httpRoute, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).Get(name)
+			if err == nil {
+				utils.AviLog.Debugf("key: %s, msg: Successfully retrieved the HTTPRoute object %s", key, name)
+				if !IsHTTPRouteValid(key, httpRoute) {
+					return
+				}
+			}
 			childVSes := make(map[string]struct{}, 0)
 
 			switch objType {
