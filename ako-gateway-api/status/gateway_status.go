@@ -219,37 +219,37 @@ func (o *gateway) BulkUpdate(key string, options []status.StatusOptions) {
 	}
 }
 
-func (o *gateway) Patch(key string, obj runtime.Object, status *status.Status, retryNum ...int) {
+func (o *gateway) Patch(key string, obj runtime.Object, status *status.Status, retryNum ...int) error {
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
 		if retry >= 5 {
 			utils.AviLog.Errorf("key: %s, msg: Patch retried 5 times, aborting", key)
-			return obj, errors.New("Patch retried 5 times, aborting")
+			return errors.New("Patch retried 5 times, aborting")
 		}
 	}
 
 	gw := obj.(*gatewayv1.Gateway)
 	if o.isStatusEqual(&gw.Status, status.GatewayStatus) {
-		return obj, nil
+		return nil
 	}
 
 	patchPayload, _ := json.Marshal(map[string]interface{}{
 		"status": status.GatewayStatus,
 	})
-	updatedGateway, err := akogatewayapilib.AKOControlConfig().GatewayAPIClientset().GatewayV1().Gateways(gw.Namespace).Patch(context.TODO(), gw.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+	_, err := akogatewayapilib.AKOControlConfig().GatewayAPIClientset().GatewayV1().Gateways(gw.Namespace).Patch(context.TODO(), gw.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: there was an error in updating the gateway status. err: %+v, retry: %d", key, err, retry)
 		updatedGW, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(gw.Namespace).Get(gw.Name)
 		if err != nil {
 			utils.AviLog.Warnf("gateway not found %v", err)
-			return updatedGW, err
+			return err
 		}
 		return o.Patch(key, updatedGW, status, retry+1)
 	}
 
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the gateway %s/%s status %+v", key, gw.Namespace, gw.Name, utils.Stringify(status))
-	return updatedGateway, nil
+	return nil
 }
 
 func (o *gateway) isStatusEqual(old, new *gatewayv1.GatewayStatus) bool {

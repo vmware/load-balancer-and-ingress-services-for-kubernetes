@@ -15,9 +15,6 @@
 package status
 
 import (
-	"errors"
-
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
@@ -30,7 +27,7 @@ import (
 type StatusUpdater interface {
 	Update(key string, option status.StatusOptions)
 	BulkUpdate(key string, options []status.StatusOptions)
-	Patch(key string, obj runtime.Object, status *status.Status, retryNum ...int)
+	Patch(key string, obj runtime.Object, status *status.Status, retryNum ...int) error
 	Delete(key string, option status.StatusOptions)
 }
 
@@ -77,7 +74,6 @@ func BulkUpdate(key string, objectType string, options []status.StatusOptions) e
 	utils.AviLog.Debugf("key: %s, msg: Bulk update successful for object %s", key, objectType)
 	return nil
 }
-
 func Record(key string, obj runtime.Object, objStatus *status.Status) {
 	var objectType string
 	var statusOption status.StatusOptions
@@ -101,7 +97,7 @@ func Record(key string, obj runtime.Object, objStatus *status.Status) {
 		key = serviceMetadata.HTTPRoute
 	default:
 		utils.AviLog.Warnf("key %s, msg: Unsupported object received at the status layer, %T", key, obj)
-		return obj, errors.New("Unsupported object received at the status layer")
+		return
 	}
 	updateOption.Status = objStatus
 	updateOption.ServiceMetadata = serviceMetadata
