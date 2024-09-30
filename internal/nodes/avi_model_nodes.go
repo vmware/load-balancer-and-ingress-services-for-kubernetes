@@ -1620,6 +1620,7 @@ type AviPoolCommonFields struct {
 	PkiProfileRef                    *string
 	SslProfileRef                    *string
 	SslKeyAndCertificateRef          *string
+	EnableHttp2                      *bool
 }
 
 func (v *AviPoolNode) GetCheckSum() uint32 {
@@ -1682,6 +1683,9 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.ServiceMetadata.HostNames))
 	}
 
+	if v.EnableHttp2 != nil {
+		checksumStringSlice = append(checksumStringSlice, utils.Stringify(*v.EnableHttp2))
+	}
 	chksumStr := fmt.Sprint(strings.Join(checksumStringSlice, delim))
 
 	checksum := utils.Hash(chksumStr)
