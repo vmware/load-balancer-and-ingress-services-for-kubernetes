@@ -1805,7 +1805,9 @@ func (rest *RestOperations) SSLKeyCertDelete(ssl_to_delete []avicache.NamespaceN
 	for _, del_ssl := range ssl_to_delete {
 		// Skip SSL cert deletion if it maps to the Default Router Cert
 		if del_ssl.Name == defaultRouteCertName || del_ssl.Name == defaultRouteAltCertName {
-			continue
+			if !strings.HasSuffix(key, lib.DummyVSForStaleData) {
+				continue
+			}
 		}
 		ssl_key := avicache.NamespaceName{Namespace: namespace, Name: del_ssl.Name}
 		ssl_cache, ok := rest.cache.SSLKeyCache.AviCacheGet(ssl_key)
