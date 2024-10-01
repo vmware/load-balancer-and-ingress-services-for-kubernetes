@@ -67,12 +67,22 @@ func (v *VPCHandler) createInfraSettingAndAnnotateNS(nsToVPCMap map[string]strin
 		staleInfraSettingCRSet[infraSettingCR.Name] = struct{}{}
 	}
 
+	processedInfraSettingCRSet := make(map[string]struct{})
 	wg := sync.WaitGroup{}
 	for ns, vpc := range nsToVPCMap {
 		arr := strings.Split(vpc, "/vpcs/")
 		infraSettingName := arr[len(arr)-1]
-		delete(staleInfraSettingCRSet, infraSettingName)
 		project := strings.Split(arr[0], "/projects/")[1]
+		// multiple namespaces can use the same vpc, and there will always be only 1 infrasetting per vpc
+		// so no need to attempt Infrasetting creation
+		// just annotate the namespace with the infrasetting and tenant info
+		if _, ok := processedInfraSettingCRSet[infraSettingName]; ok {
+			lib.AnnotateNamespaceWithInfraSetting(ns, infraSettingName)
+			lib.AnnotateNamespaceWithTenant(ns, project)
+			continue
+		}
+		processedInfraSettingCRSet[infraSettingName] = struct{}{}
+		delete(staleInfraSettingCRSet, infraSettingName)
 		wg.Add(1)
 		go func(vpc, ns string) {
 			defer wg.Done()

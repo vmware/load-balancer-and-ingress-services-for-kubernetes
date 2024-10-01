@@ -133,6 +133,14 @@ func InitializeAKC() {
 		}
 		akoControlConfig.SetAdvL4Clientset(advl4Client)
 		akoControlConfig.SetCRDClientsetAndEnableInfraSettingParam(v1beta1crdClient)
+		if utils.IsVCFCluster() {
+			akoControlConfig.Setv1beta1CRDClientset(v1beta1crdClient)
+			v1alpha2crdClient, err := v1alpha2crd.NewForConfig(cfg)
+			if err != nil {
+				utils.AviLog.Fatalf("Error building AKO CRD v1alpha2 clientset: %s", err.Error())
+			}
+			akoControlConfig.Setv1alpha2CRDClientsetAndEnableL7Rule(v1alpha2crdClient)
+		}
 	} else {
 		if lib.UseServicesAPI() {
 			svcAPIClient, err = svcapi.NewForConfig(cfg)
@@ -229,7 +237,7 @@ func InitializeAKC() {
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
 	lib.NewDynamicInformers(dynamicClient, false)
 	if lib.IsWCP() {
-		k8s.NewInfraSettingCRDInformer()
+		k8s.NewWCPCRDInformers()
 		k8s.NewAdvL4Informers(advl4Client)
 	} else {
 		k8s.NewCRDInformers()

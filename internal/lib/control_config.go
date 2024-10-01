@@ -273,6 +273,11 @@ func (c *akoControlConfig) Setv1alpha2CRDClientset(cs v1alpha2akocrd.Interface) 
 	c.Setv1alpha2CRDEnabledParams(cs)
 }
 
+func (c *akoControlConfig) Setv1alpha2CRDClientsetAndEnableL7Rule(cs v1alpha2akocrd.Interface) {
+	c.v1alpha2crdClientset = cs
+	c.l7RuleEnabled = true
+}
+
 func (c *akoControlConfig) V1alpha2CRDClientset() v1alpha2akocrd.Interface {
 	return c.v1alpha2crdClientset
 }
