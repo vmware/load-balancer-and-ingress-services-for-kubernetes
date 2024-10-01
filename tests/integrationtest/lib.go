@@ -1886,6 +1886,7 @@ type FakeHTTPRulePath struct {
 	HealthMonitors []string
 	LbAlgorithm    string
 	Hash           string
+	EnableHTTP2    bool
 }
 
 func (rr FakeHTTPRule) HTTPRule() *akov1beta1.HTTPRule {
@@ -1902,6 +1903,7 @@ func (rr FakeHTTPRule) HTTPRule() *akov1beta1.HTTPRule {
 				Algorithm: p.LbAlgorithm,
 				Hash:      p.Hash,
 			},
+			EnableHttp2: &p.EnableHTTP2,
 		}
 		if p.DestinationCA != "" {
 			rrForPath.TLS.DestinationCA = p.DestinationCA
