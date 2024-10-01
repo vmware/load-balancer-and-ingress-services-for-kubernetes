@@ -67,6 +67,30 @@ func NewCRDInformers() {
 	})
 }
 
+func NewWCPCRDInformers() {
+	if utils.GetAdvancedL4() {
+		NewInfraSettingCRDInformer()
+		return
+	}
+	v1alpha2akoInformerFactory := v1alpha2akoinformers.NewSharedInformerFactoryWithOptions(
+		lib.AKOControlConfig().V1alpha2CRDClientset(), time.Second*30)
+	l7RuleInformer := v1alpha2akoInformerFactory.Ako().V1alpha2().L7Rules()
+
+	//v1beta1 informer initialization
+	v1beta1akoInformerFactory := v1beta1akoinformers.NewSharedInformerFactoryWithOptions(
+		lib.AKOControlConfig().V1beta1CRDClientset(), time.Second*30)
+	aviInfraSettingInformer := v1beta1akoInformerFactory.Ako().V1beta1().AviInfraSettings()
+	hostRuleInformer := v1beta1akoInformerFactory.Ako().V1beta1().HostRules()
+	httpRuleInformer := v1beta1akoInformerFactory.Ako().V1beta1().HTTPRules()
+
+	lib.AKOControlConfig().SetCRDInformers(&lib.AKOCrdInformers{
+		HostRuleInformer:        hostRuleInformer,
+		HTTPRuleInformer:        httpRuleInformer,
+		L7RuleInformer:          l7RuleInformer,
+		AviInfraSettingInformer: aviInfraSettingInformer,
+	})
+}
+
 func NewInfraSettingCRDInformer() {
 	akoInformerFactory := v1beta1akoinformers.NewSharedInformerFactoryWithOptions(lib.AKOControlConfig().V1beta1CRDClientset(), time.Second*30)
 	aviSettingsInformer := akoInformerFactory.Ako().V1beta1().AviInfraSettings()

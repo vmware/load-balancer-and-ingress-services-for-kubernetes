@@ -59,6 +59,9 @@ var ctrlonce sync.Once
 // +kubebuilder:rbac:groups=topology.tanzu.vmware.com,resources=availabilityzones,verbs=get;list;watch
 // +kubebuilder:rbac:groups=crd.nsx.vmware.com,resources=vpcnetworkconfigurations,verbs=get;list;watch
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=aviinfrasettings;aviinfrasettings/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=ako.vmware.com,resources=hostrules;hostrules/status,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=ako.vmware.com,resources=httprules;httprules/status,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=ako.vmware.com,resources=l7rules;l7rules/status,verbs=get;list;watch;update;patch
 
 type AviController struct {
 	worker_id uint32
@@ -1640,26 +1643,12 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 		informersList = append(informersList, c.dynamicInformers.CiliumNodeInformer.Informer().HasSynced)
 	}
 
-	if utils.IsVCFCluster() {
-		if c.informers.IngressClassInformer != nil {
-			go c.informers.IngressClassInformer.Informer().Run(stopCh)
-			informersList = append(informersList, c.informers.IngressClassInformer.Informer().HasSynced)
-		}
-
-		if c.informers.IngressInformer != nil {
-			go c.informers.IngressInformer.Informer().Run(stopCh)
-			informersList = append(informersList, c.informers.IngressInformer.Informer().HasSynced)
-		}
-	}
-
 	// Disable all informers if we are in advancedL4 mode. We expect to only provide L4 load balancing capability for this feature.
 	if lib.IsWCP() {
 		go lib.AKOControlConfig().AdvL4Informers().GatewayClassInformer.Informer().Run(stopCh)
 		informersList = append(informersList, lib.AKOControlConfig().AdvL4Informers().GatewayClassInformer.Informer().HasSynced)
 		go lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Informer().Run(stopCh)
 		informersList = append(informersList, lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Informer().HasSynced)
-		go lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().Run(stopCh)
-		informersList = append(informersList, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().HasSynced)
 	} else {
 		if lib.UseServicesAPI() {
 			go lib.AKOControlConfig().SvcAPIInformers().GatewayClassInformer.Informer().Run(stopCh)
@@ -1667,65 +1656,64 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 			go lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Informer().Run(stopCh)
 			informersList = append(informersList, lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Informer().HasSynced)
 		}
-
-		if c.informers.IngressClassInformer != nil {
-			go c.informers.IngressClassInformer.Informer().Run(stopCh)
-			informersList = append(informersList, c.informers.IngressClassInformer.Informer().HasSynced)
-		}
-
-		if c.informers.IngressInformer != nil {
-			go c.informers.IngressInformer.Informer().Run(stopCh)
-			informersList = append(informersList, c.informers.IngressInformer.Informer().HasSynced)
-		}
-
-		if c.informers.RouteInformer != nil {
-			go c.informers.RouteInformer.Informer().Run(stopCh)
-			informersList = append(informersList, c.informers.RouteInformer.Informer().HasSynced)
-		}
-
 		go c.informers.NodeInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.informers.NodeInformer.Informer().HasSynced)
+	}
 
-		if lib.AKOControlConfig().AviInfraSettingEnabled() {
-			go lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().HasSynced)
+	if c.informers.IngressClassInformer != nil {
+		go c.informers.IngressClassInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.informers.IngressClassInformer.Informer().HasSynced)
+	}
 
-		}
+	if c.informers.IngressInformer != nil {
+		go c.informers.IngressInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.informers.IngressInformer.Informer().HasSynced)
+	}
 
-		// separate wait steps to try getting hostrules synced first,
-		// since httprule has a key relation to hostrules.
+	if c.informers.RouteInformer != nil {
+		go c.informers.RouteInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.informers.RouteInformer.Informer().HasSynced)
+	}
 
-		if lib.AKOControlConfig().L7RuleEnabled() {
-			go lib.AKOControlConfig().CRDInformers().L7RuleInformer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().L7RuleInformer.Informer().HasSynced)
-		}
+	if lib.AKOControlConfig().AviInfraSettingEnabled() {
+		go lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().Run(stopCh)
+		informersList = append(informersList, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().HasSynced)
 
-		if lib.AKOControlConfig().HostRuleEnabled() {
-			go lib.AKOControlConfig().CRDInformers().HostRuleInformer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().HostRuleInformer.Informer().HasSynced)
-		}
+	}
 
-		if lib.AKOControlConfig().HttpRuleEnabled() {
-			go lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Informer().HasSynced)
-		}
+	// separate wait steps to try getting hostrules synced first,
+	// since httprule has a key relation to hostrules.
 
-		if lib.AKOControlConfig().SsoRuleEnabled() {
-			go lib.AKOControlConfig().CRDInformers().SSORuleInformer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().SSORuleInformer.Informer().HasSynced)
-		}
+	if lib.AKOControlConfig().L7RuleEnabled() {
+		go lib.AKOControlConfig().CRDInformers().L7RuleInformer.Informer().Run(stopCh)
+		informersList = append(informersList, lib.AKOControlConfig().CRDInformers().L7RuleInformer.Informer().HasSynced)
+	}
 
-		if lib.AKOControlConfig().L4RuleEnabled() {
-			go lib.AKOControlConfig().CRDInformers().L4RuleInformer.Informer().Run(stopCh)
-			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().L4RuleInformer.Informer().HasSynced)
-		}
+	if lib.AKOControlConfig().HostRuleEnabled() {
+		go lib.AKOControlConfig().CRDInformers().HostRuleInformer.Informer().Run(stopCh)
+		informersList = append(informersList, lib.AKOControlConfig().CRDInformers().HostRuleInformer.Informer().HasSynced)
+	}
 
-		if utils.IsMultiClusterIngressEnabled() {
-			go c.informers.MultiClusterIngressInformer.Informer().Run(stopCh)
-			informersList = append(informersList, c.informers.MultiClusterIngressInformer.Informer().HasSynced)
-			go c.informers.ServiceImportInformer.Informer().Run(stopCh)
-			informersList = append(informersList, c.informers.ServiceImportInformer.Informer().HasSynced)
-		}
+	if lib.AKOControlConfig().HttpRuleEnabled() {
+		go lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Informer().Run(stopCh)
+		informersList = append(informersList, lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Informer().HasSynced)
+	}
+
+	if lib.AKOControlConfig().SsoRuleEnabled() {
+		go lib.AKOControlConfig().CRDInformers().SSORuleInformer.Informer().Run(stopCh)
+		informersList = append(informersList, lib.AKOControlConfig().CRDInformers().SSORuleInformer.Informer().HasSynced)
+	}
+
+	if lib.AKOControlConfig().L4RuleEnabled() {
+		go lib.AKOControlConfig().CRDInformers().L4RuleInformer.Informer().Run(stopCh)
+		informersList = append(informersList, lib.AKOControlConfig().CRDInformers().L4RuleInformer.Informer().HasSynced)
+	}
+
+	if utils.IsMultiClusterIngressEnabled() {
+		go c.informers.MultiClusterIngressInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.informers.MultiClusterIngressInformer.Informer().HasSynced)
+		go c.informers.ServiceImportInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.informers.ServiceImportInformer.Informer().HasSynced)
 	}
 
 	if !cache.WaitForCacheSync(stopCh, informersList...) {
@@ -1737,10 +1725,7 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 
 func isServiceLBType(svcObj *corev1.Service) bool {
 	// If we don't find a service or it is not of type loadbalancer - return false.
-	if svcObj.Spec.Type == "LoadBalancer" {
-		return true
-	}
-	return false
+	return svcObj.Spec.Type == "LoadBalancer"
 }
 
 // Run will set up the event handlers for types we are interested in, as well
