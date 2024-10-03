@@ -30,6 +30,7 @@ import (
 	gatewayexternalversions "sigs.k8s.io/gateway-api/pkg/client/informers/externalversions"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -530,6 +531,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
+			akogatewayapiobjects.GatewayApiLister().DeleteGatewayToGatewayStatusMapping(utils.ObjKey(gw))
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 		},
 		UpdateFunc: func(old, obj interface{}) {

@@ -72,7 +72,7 @@ func (o *gatewayClass) BulkUpdate(key string, options []status.StatusOptions) {
 	// TODO: Add this code when we publish the status from the rest layer
 }
 
-func (o *gatewayClass) Patch(key string, obj runtime.Object, status *Status, retryNum ...int) {
+func (o *gatewayClass) Patch(key string, obj runtime.Object, status *status.Status, retryNum ...int) {
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]

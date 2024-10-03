@@ -103,8 +103,8 @@ func (o *gateway) Delete(key string, option status.StatusOptions) {
 	}
 
 	// assuming 1 IP per gateway
-	status := gw.Status.DeepCopy()
-	status.Addresses = []gatewayv1.GatewayStatusAddress{}
+	gatewayStatus := gw.Status.DeepCopy()
+	gatewayStatus.Addresses = []gatewayv1.GatewayStatusAddress{}
 
 	condition := NewCondition()
 	condition.
@@ -113,9 +113,9 @@ func (o *gateway) Delete(key string, option status.StatusOptions) {
 		Reason(string(gatewayv1.GatewayReasonPending)).
 		ObservedGeneration(gw.ObjectMeta.Generation).
 		Message("Virtual service has been deleted").
-		SetIn(&status.Conditions)
+		SetIn(&gatewayStatus.Conditions)
 
-	for i := range status.Listeners {
+	for i := range gatewayStatus.Listeners {
 		listenerCondition := NewCondition()
 		listenerCondition.
 			Type(string(gatewayv1.GatewayConditionProgrammed)).
@@ -123,10 +123,10 @@ func (o *gateway) Delete(key string, option status.StatusOptions) {
 			Reason(string(gatewayv1.GatewayReasonPending)).
 			ObservedGeneration(gw.ObjectMeta.Generation).
 			Message("Virtual service has been deleted").
-			SetIn(&status.Listeners[i].Conditions)
+			SetIn(&gatewayStatus.Listeners[i].Conditions)
 	}
 
-	o.Patch(key, gw, &Status{GatewayStatus: status})
+	o.Patch(key, gw, &status.Status{GatewayStatus: gatewayStatus})
 	utils.AviLog.Infof("key: %s, msg: Successfully reset the address status of gateway: %s", key, gw.Name)
 
 	// TODO: Add annotation delete code here
@@ -138,7 +138,12 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 		return
 	}
 
-	status := gw.Status.DeepCopy()
+	if option.Options != nil && option.Options.Status != nil && option.Options.Status.GatewayStatus != nil {
+		o.Patch(key, gw, option.Options.Status)
+		return
+	}
+
+	gatewaystatus := gw.Status.DeepCopy()
 	addressType := gatewayv1.IPAddressType
 	ipAddrs := []gatewayv1.GatewayStatusAddress{}
 	for _, vip := range option.Options.Vip {
@@ -147,7 +152,7 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 			Value: vip,
 		})
 	}
-	status.Addresses = ipAddrs
+	gatewaystatus.Addresses = ipAddrs
 
 	condition := NewCondition()
 	var conditionType, reason, message string
@@ -170,9 +175,9 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 		Reason(reason).
 		ObservedGeneration(gw.ObjectMeta.Generation).
 		Message(message).
-		SetIn(&status.Conditions)
+		SetIn(&gatewaystatus.Conditions)
 
-	for i := range status.Listeners {
+	for i := range gatewaystatus.Listeners {
 		listenerCondition := NewCondition()
 		listenerCondition.
 			Type(conditionType).
@@ -180,9 +185,9 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 			Reason(reason).
 			ObservedGeneration(gw.ObjectMeta.Generation).
 			Message(message).
-			SetIn(&status.Listeners[i].Conditions)
+			SetIn(&gatewaystatus.Listeners[i].Conditions)
 	}
-	o.Patch(key, gw, &Status{GatewayStatus: status})
+	o.Patch(key, gw, &status.Status{GatewayStatus: gatewaystatus})
 
 	// TODO: Annotation update code here
 }
@@ -193,27 +198,28 @@ func (o *gateway) BulkUpdate(key string, options []status.StatusOptions) {
 	for _, option := range options {
 		nsName := option.Options.ServiceMetadata.Gateway
 		if gw, ok := gwMap[nsName]; ok {
-			status := &gatewayv1.GatewayStatus{}
+			gatewaystatus := &gatewayv1.GatewayStatus{}
 			addressType := gatewayv1.IPAddressType
-			status.Addresses = append(status.Addresses, gatewayv1.GatewayStatusAddress{
+			gatewaystatus.Addresses = append(gatewaystatus.Addresses, gatewayv1.GatewayStatusAddress{
 				Type:  &addressType,
 				Value: option.Options.Vip[0],
 			})
-			apimeta.SetStatusCondition(&status.Conditions, metav1.Condition{
+			apimeta.SetStatusCondition(&gatewaystatus.Conditions, metav1.Condition{
 				Type:               string(gatewayv1.GatewayConditionProgrammed),
 				Status:             metav1.ConditionTrue,
 				Reason:             string(gatewayv1.GatewayReasonProgrammed),
 				Message:            "Virtual service configured/updated",
 				ObservedGeneration: gw.ObjectMeta.Generation + 1,
 			})
-			o.Patch(key, gw, &Status{GatewayStatus: status})
+
+			o.Patch(key, gw, &status.Status{GatewayStatus: gatewaystatus})
 
 			// TODO: Annotation update code here
 		}
 	}
 }
 
-func (o *gateway) Patch(key string, obj runtime.Object, status *Status, retryNum ...int) {
+func (o *gateway) Patch(key string, obj runtime.Object, status *status.Status, retryNum ...int) {
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]

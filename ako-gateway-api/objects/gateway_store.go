@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"sync"
 
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
@@ -47,6 +49,7 @@ func GatewayApiLister() *GWLister {
 			gatewayRouteToHostnameStore:    objects.NewObjectMapStore(),
 			gatewayRouteToHTTPSPGPoolStore: objects.NewObjectMapStore(),
 			podToServiceStore:              objects.NewObjectMapStore(),
+			gatewayToStatus:                objects.NewObjectMapStore(),
 		}
 	})
 	return gwLister
@@ -113,6 +116,9 @@ type GWLister struct {
 	//Pods -> Service Mapping for NPL
 	//podNs/podName -> [svcNs/svcName, ...]
 	podToServiceStore *objects.ObjectMapStore
+
+	// namespace/gateway -> gateway Status
+	gatewayToStatus *objects.ObjectMapStore
 }
 
 type GatewayRouteKind struct {
@@ -229,6 +235,28 @@ func (g *GWLister) GetGatewayToListeners(gwNsName string) []GatewayListenerStore
 		return listenerList.([]GatewayListenerStore)
 	}
 	return nil
+}
+
+func (g *GWLister) UpdateGatewayToGatewayStatusMapping(gwName string, gwStatus *gatewayv1.GatewayStatus) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	g.gatewayToStatus.AddOrUpdate(gwName, gwStatus)
+}
+
+func (g *GWLister) DeleteGatewayToGatewayStatusMapping(gwName string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	g.gatewayToStatus.Delete(gwName)
+}
+
+func (g *GWLister) GetGatewayToGatewayStatusMapping(gwName string) *gatewayv1.GatewayStatus {
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
+	found, gatewayList := g.gatewayToStatus.Get(gwName)
+	if !found {
+		return nil
+	}
+	return gatewayList.(*gatewayv1.GatewayStatus)
 }
 
 //=====All route <-> gateway mappings go here.
