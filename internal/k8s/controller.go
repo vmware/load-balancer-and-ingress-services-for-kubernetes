@@ -201,7 +201,7 @@ func AddIngressFromNSToIngestionQueue(numWorkers uint32, c *AviController, names
 		bkt := utils.Bkt(namespace, numWorkers)
 		toBeAdded := true
 		if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
-			toBeAdded = isIngAcceptedWithFQDNRestriction(key, ingObj)
+			toBeAdded, _ = isIngAcceptedWithFQDNRestriction(key, ingObj)
 		}
 		if toBeAdded {
 			c.workqueue[bkt].AddRateLimited(key)
@@ -1309,9 +1309,11 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if !lib.ValidateIngressForClass(key, ingress) {
 				return
 			}
-			if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict && !isIngAcceptedWithFQDNRestriction(key, ingress) {
-				utils.AviLog.Warnf("key: %s, msg: Ingress is not added due to conflict in hostname", key)
-				return
+			if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+				if toBeAdded, _ := isIngAcceptedWithFQDNRestriction(key, ingress); !toBeAdded {
+					utils.AviLog.Warnf("key: %s, msg: Ingress is not added due to conflict in hostname", key)
+					return
+				}
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
@@ -1378,13 +1380,14 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				bkt := utils.Bkt(namespace, numWorkers)
 
 				if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
-					oldIngAccepted := isIngAcceptedWithFQDNRestriction(key, oldobj)
-					newIngAccepted := isIngAcceptedWithFQDNRestriction(key, ingress)
+					oldIngAccepted, oldHosts := isIngAcceptedWithFQDNRestriction(key, oldobj)
+					newIngAccepted, newHosts := isIngAcceptedWithFQDNRestriction(key, ingress)
 					if !oldIngAccepted && !newIngAccepted {
 						utils.AviLog.Warnf("key: %s, msg: Ingress is not added due to conflict in hostname", key)
 						return
 					}
-					if oldIngAccepted {
+
+					if oldIngAccepted && !oldHosts.Equal(newHosts) {
 						deleteHostnameToRoute(key, oldobj)
 					}
 				}
@@ -1759,18 +1762,18 @@ func (c *AviController) Run(stopCh <-chan struct{}) error {
 func (c *AviController) GetValidator() Validator {
 	return NewValidator()
 }
-func isIngAcceptedWithFQDNRestriction(key string, ingress *networkingv1.Ingress) bool {
+func isIngAcceptedWithFQDNRestriction(key string, ingress *networkingv1.Ingress) (bool, sets.Set[string]) {
 	routeNamespaceName := objects.RouteNamspaceName{
 		RouteNSRouteName: key,
 		CreationTime:     ingress.CreationTimestamp,
 	}
-	ingHosts := sets.NewString()
+	ingHosts := sets.New[string]()
 	for _, rule := range ingress.Spec.Rules {
 		ingHosts.Insert(rule.Host)
 	}
 	// Current behaviour if one of fqdn is false, not added.
 	isAdded := false
-	for _, host := range ingHosts.List() {
+	for _, host := range sets.List(ingHosts) {
 		isAdded, _, _ = objects.SharedUniqueNamespaceLister().UpdateHostnameToRoute(host, routeNamespaceName)
 		if !isAdded {
 			utils.AviLog.Warnf("key:%s, msg: ingress is not accepted as host %s is already claimed", key, host)
@@ -1781,8 +1784,12 @@ func isIngAcceptedWithFQDNRestriction(key string, ingress *networkingv1.Ingress)
 	}
 	if !isAdded {
 		utils.AviLog.Warnf("key: %s, msg: Ingress is not added due to hostname conflict", key)
+		// Few hosts might have got added, so we need to remove those from the list.
+		for _, host := range sets.List(ingHosts) {
+			objects.SharedUniqueNamespaceLister().DeleteHostnameToRoute(host, routeNamespaceName)
+		}
 	}
-	return isAdded
+	return isAdded, ingHosts
 }
 
 func isRouteAcceptedWithFQDNRestriction(key string, route *routev1.Route) bool {

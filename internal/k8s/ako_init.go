@@ -530,15 +530,14 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	statusQueueParams := utils.WorkerQueue{NumWorkers: numGraphWorkers, WorkqueueName: utils.StatusQueue}
 	graphQueue = utils.SharedWorkQueue(&ingestionQueueParams, &graphQueueParams, &slowRetryQParams, &fastRetryQParams, &statusQueueParams).GetQueueByName(utils.GraphLayer)
 
+	c.addIndexers()
+	c.Start(stopCh)
 	err := PopulateCache()
 	if err != nil {
 		c.DisableSync = true
 		utils.AviLog.Errorf("failed to populate cache, disabling sync")
 		lib.ShutdownApi()
 	}
-
-	c.addIndexers()
-	c.Start(stopCh)
 
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
 	interval, err := strconv.ParseInt(fullSyncInterval, 10, 64)
@@ -1114,15 +1113,14 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			sort.Slice(ingObjList, func(i, j int) bool { return lib.IngressLessthan(ingObjList[i], ingObjList[j]) })
 
 			for _, ingObj := range ingObjList {
-				key := ingObj.Namespace + "/" + ingObj.Name
+				key := utils.Ingress + "/" + ingObj.Namespace + "/" + ingObj.Name
 				isValid := true
 
 				if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
 					// get the hostnames in the ingress
-					isValid = isIngAcceptedWithFQDNRestriction(key, ingObj)
+					isValid, _ = isIngAcceptedWithFQDNRestriction(key, ingObj)
 				}
 				if isValid {
-					key := utils.Ingress + "/" + key
 					meta, err := meta.Accessor(ingObj)
 					if err == nil {
 						resVer := meta.GetResourceVersion()

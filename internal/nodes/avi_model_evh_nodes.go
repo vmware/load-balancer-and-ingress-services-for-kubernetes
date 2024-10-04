@@ -1771,7 +1771,7 @@ func DeleteStaleDataForEvh(routeIgrObj RouteIngressModel, key string, modelList 
 		// Delete the pool corresponding to this host
 		isPassthroughVS := false
 		if hostData.SecurePolicy == lib.PolicyEdgeTerm {
-			aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, removeFqdn, removeRedir, removeRouteIngData, true)
+			aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, removeFqdn, removeRedir, removeRouteIngData, true, false)
 		} else if hostData.SecurePolicy == lib.PolicyPass {
 			isPassthroughVS = true
 			aviModel.(*AviObjectGraph).DeleteObjectsForPassthroughHost(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, infraSettingName, key, true, true, true)
@@ -1780,7 +1780,7 @@ func DeleteStaleDataForEvh(routeIgrObj RouteIngressModel, key string, modelList 
 			if isPassthroughVS {
 				aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, false)
 			} else {
-				aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, removeFqdn, removeRedir, removeRouteIngData, false)
+				aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, removeFqdn, removeRedir, removeRouteIngData, false, false)
 			}
 		}
 		changedModel := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
@@ -1947,7 +1947,7 @@ func (o *AviObjectGraph) RemovePGNodeRefsForEvh(pgName string, vsNode *AviEvhVsN
 	utils.AviLog.Debugf("After removing the pg nodes are: %s", utils.Stringify(vsNode.PoolGroupRefs))
 
 }
-func (o *AviObjectGraph) manipulateEVHVsNode(vsNode *AviEvhVsNode, ingName, namespace, hostname string, pathSvc map[string][]string, infraSettingName, key string) {
+func (o *AviObjectGraph) manipulateEVHVsNode(vsNode *AviEvhVsNode, ingName, namespace, hostname string, pathSvc map[string][]string, infraSettingName, key string, deleteHostMapEntry bool) {
 	for path, services := range pathSvc {
 		pgName := lib.GetEvhPGName(ingName, namespace, hostname, path, infraSettingName, vsNode.Dedicated)
 		pgNode := vsNode.GetPGForVSByName(pgName)
@@ -1963,30 +1963,32 @@ func (o *AviObjectGraph) manipulateEVHVsNode(vsNode *AviEvhVsNode, ingName, name
 					httppolname := lib.GetSniHttpPolName(namespace, hostname, infraSettingName)
 					hppmapname := lib.GetEvhPGName(ingName, namespace, hostname, path, infraSettingName, vsNode.Dedicated)
 					o.RemoveHTTPRefsStringGroupsFromEvh(httppolname, hppmapname, vsNode)
-					// This logic is to replace ingressname from servicemetadata hostToIngress map.
-					utils.AviLog.Debugf("HostIngmap before update is :%v", utils.Stringify(vsNode.ServiceMetadata.HostToNamespaceIngressName))
-					hostToNamespaceIngMap := vsNode.ServiceMetadata.HostToNamespaceIngressName[hostname]
-					if len(hostToNamespaceIngMap) != 0 {
-						ingNameToReplace := fmt.Sprintf("%s/%s", namespace, ingName)
-						index := 0
-						for i, ingNSName := range hostToNamespaceIngMap {
-							if ingNSName == ingNameToReplace {
-								index = i
-								break
+					if deleteHostMapEntry {
+						// This logic is to replace ingressname from servicemetadata hostToIngress map.
+						utils.AviLog.Debugf("HostIngmap before update is :%v", utils.Stringify(vsNode.ServiceMetadata.HostToNamespaceIngressName))
+						hostToNamespaceIngMap := vsNode.ServiceMetadata.HostToNamespaceIngressName[hostname]
+						if len(hostToNamespaceIngMap) != 0 {
+							ingNameToReplace := fmt.Sprintf("%s/%s", namespace, ingName)
+							index := 0
+							for i, ingNSName := range hostToNamespaceIngMap {
+								if ingNSName == ingNameToReplace {
+									index = i
+									break
+								}
 							}
+							hostToNamespaceIngMap = append(hostToNamespaceIngMap[:index], hostToNamespaceIngMap[index+1:]...)
+							vsNode.ServiceMetadata.HostToNamespaceIngressName[hostname] = hostToNamespaceIngMap
+							utils.AviLog.Debugf("HostIngmap after update is :%v", utils.Stringify(vsNode.ServiceMetadata.HostToNamespaceIngressName))
 						}
-						hostToNamespaceIngMap = append(hostToNamespaceIngMap[:index], hostToNamespaceIngMap[index+1:]...)
-						vsNode.ServiceMetadata.HostToNamespaceIngressName[hostname] = hostToNamespaceIngMap
-						utils.AviLog.Debugf("HostIngmap after update is :%v", utils.Stringify(vsNode.ServiceMetadata.HostToNamespaceIngressName))
 					}
 				}
 			}
 		}
 	}
 }
-func (o *AviObjectGraph) ManipulateEvhNode(currentEvhNodeName, ingName, namespace, hostname string, pathSvc map[string][]string, vsNode []*AviEvhVsNode, infraSettingName, key string) bool {
+func (o *AviObjectGraph) ManipulateEvhNode(currentEvhNodeName, ingName, namespace, hostname string, pathSvc map[string][]string, vsNode []*AviEvhVsNode, infraSettingName, key string, deleteHostMapEntry bool) bool {
 	if vsNode[0].Dedicated {
-		o.manipulateEVHVsNode(vsNode[0], ingName, namespace, hostname, pathSvc, infraSettingName, key)
+		o.manipulateEVHVsNode(vsNode[0], ingName, namespace, hostname, pathSvc, infraSettingName, key, deleteHostMapEntry)
 		if len(vsNode[0].PoolGroupRefs) == 0 {
 			// Remove the evhhost mapping
 			SharedHostNameLister().Delete(hostname)
@@ -1998,7 +2000,7 @@ func (o *AviObjectGraph) ManipulateEvhNode(currentEvhNodeName, ingName, namespac
 			if currentEvhNodeName != modelEvhNode.Name {
 				continue
 			}
-			o.manipulateEVHVsNode(modelEvhNode, ingName, namespace, hostname, pathSvc, infraSettingName, key)
+			o.manipulateEVHVsNode(modelEvhNode, ingName, namespace, hostname, pathSvc, infraSettingName, key, deleteHostMapEntry)
 			// After going through the paths, if the EVH node does not have any PGs - then delete it.
 			if len(modelEvhNode.PoolGroupRefs) == 0 {
 				RemoveEvhInModel(currentEvhNodeName, vsNode, key)
@@ -2026,7 +2028,7 @@ func (o *AviObjectGraph) GetAviPoolNodesByIngressForEvh(tenant string, ingName s
 	return aviPool
 }
 
-func (o *AviObjectGraph) DeletePoolForHostnameForEvh(vsName, hostname string, routeIgrObj RouteIngressModel, pathSvc map[string][]string, key, infraSettingName string, removeFqdn, removeRedir, removeRouteIngData, secure bool) bool {
+func (o *AviObjectGraph) DeletePoolForHostnameForEvh(vsName, hostname string, routeIgrObj RouteIngressModel, pathSvc map[string][]string, key, infraSettingName string, removeFqdn, removeRedir, removeRouteIngData, secure, deleteHostMapEntry bool) bool {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 
@@ -2045,7 +2047,7 @@ func (o *AviObjectGraph) DeletePoolForHostnameForEvh(vsName, hostname string, ro
 	evhNodeName := lib.GetEvhNodeName(hostname, infraSettingName)
 	utils.AviLog.Infof("key: %s, msg: EVH node to delete: %s", key, evhNodeName)
 	if removeRouteIngData {
-		keepEvh = o.ManipulateEvhNode(evhNodeName, ingName, namespace, hostname, pathSvc, vsNode, infraSettingName, key)
+		keepEvh = o.ManipulateEvhNode(evhNodeName, ingName, namespace, hostname, pathSvc, vsNode, infraSettingName, key, deleteHostMapEntry)
 	}
 	if !keepEvh {
 		// Delete the cert ref for the host
@@ -2164,12 +2166,12 @@ func RouteIngrDeletePoolsByHostnameForEvh(routeIgrObj RouteIngressModel, namespa
 
 		// Delete the pool corresponding to this host
 		if hostData.SecurePolicy == lib.PolicyEdgeTerm {
-			deleteVS = aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, true, true)
+			deleteVS = aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, true, true, true)
 		} else if hostData.SecurePolicy == lib.PolicyPass {
 			aviModel.(*AviObjectGraph).DeleteObjectsForPassthroughHost(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, infraSettingName, key, true, true, true)
 		}
 		if hostData.InsecurePolicy == lib.PolicyAllow {
-			deleteVS = aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, true, false)
+			deleteVS = aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, true, false, true)
 		}
 		if !deleteVS {
 			ok := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
@@ -2226,7 +2228,7 @@ func DeleteStaleDataForModelChangeForEvh(routeIgrObj RouteIngressModel, namespac
 		// Delete the pool corresponding to this host
 		isPassthroughVS := false
 		if hostData.SecurePolicy == lib.PolicyEdgeTerm {
-			aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, true, true)
+			aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, true, true, false)
 		} else if hostData.SecurePolicy == lib.PolicyPass {
 			isPassthroughVS = true
 			aviModel.(*AviObjectGraph).DeleteObjectsForPassthroughHost(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, infraSettingName, key, true, true, true)
@@ -2235,7 +2237,7 @@ func DeleteStaleDataForModelChangeForEvh(routeIgrObj RouteIngressModel, namespac
 			if isPassthroughVS {
 				aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, false)
 			} else {
-				aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, true, false)
+				aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, true, false, false)
 			}
 		}
 

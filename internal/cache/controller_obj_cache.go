@@ -2438,7 +2438,7 @@ func PopulateHostToIngMapping(hostsToIng map[string][]string) {
 			namespace, _, name := lib.ExtractTypeNameNamespace(ing)
 			// Fetch ingress using clientset. From informer couldn't fetch it.
 			if !isRoute {
-				ingObj, err := utils.GetInformers().ClientSet.NetworkingV1().Ingresses(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+				ingObj, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).Get(name)
 				if err != nil {
 					utils.AviLog.Errorf("Unable to retrieve the ingress %s/%s during populating host to ingress map in populate cache: %s", namespace, name, err)
 					continue
@@ -2448,7 +2448,7 @@ func PopulateHostToIngMapping(hostsToIng map[string][]string) {
 					CreationTime:     ingObj.CreationTimestamp,
 				}
 			} else {
-				routeObj, err := utils.GetInformers().OshiftClient.RouteV1().Routes(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+				routeObj, err := utils.GetInformers().RouteInformer.Lister().Routes(namespace).Get(name)
 				if err != nil {
 					utils.AviLog.Errorf("Unable to retrieve the ingress %s/%s during populating host to ingress map in populate cache: %s", namespace, name, err)
 					continue
@@ -2509,6 +2509,14 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 				if err := json.Unmarshal([]byte(svc_mdata_intf.(string)),
 					&svc_mdata_obj); err != nil {
 					utils.AviLog.Warnf("Error parsing service metadata during vs cache :%v", err)
+				} else if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+					// call this only when FQDN policy is strict
+					hostToIngMapping := svc_mdata_obj.HostToNamespaceIngressName
+					utils.AviLog.Debugf("HosttoIng mapping is %v", utils.Stringify(hostToIngMapping))
+					if hostToIngMapping != nil {
+						// Now populate the map
+						PopulateHostToIngMapping(hostToIngMapping)
+					}
 				}
 			}
 			var sni_child_collection []string

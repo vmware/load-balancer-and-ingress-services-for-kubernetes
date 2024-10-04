@@ -2115,11 +2115,13 @@ func TestMultiIngressSameHostDifferentNamespaceForEvh(t *testing.T) {
 		ServiceName: "avisvc",
 	}).Ingress()
 
-	_, err = KubeClient.NetworkingV1().Ingresses("red").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
+	ing_red, err := KubeClient.NetworkingV1().Ingresses("red").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Error in adding Ingress: %v", err)
 	}
-
+	// status should be empty.
+	// TODO: Events can be checked for ingress.
+	g.Expect(ing_red.Status.LoadBalancer).To(gomega.BeNil())
 	integrationtest.PollForCompletion(t, modelName, 5)
 	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
