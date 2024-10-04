@@ -695,7 +695,7 @@ func TestGatewayWithUnsupportedProtocolInListeners(t *testing.T) {
 		Conditions: []metav1.Condition{
 			{
 				Type:               string(gatewayv1.GatewayConditionAccepted),
-				Status:             metav1.ConditionFalse,
+				Status:             metav1.ConditionTrue,
 				Message:            "Gateway contains atleast one valid listener",
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.GatewayReasonListenersNotValid),
@@ -706,6 +706,10 @@ func TestGatewayWithUnsupportedProtocolInListeners(t *testing.T) {
 	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonUnsupportedProtocol)
 	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionFalse
 	expectedStatus.Listeners[0].Conditions[0].Message = "Unsupported protocol"
+
+	expectedStatus.Listeners[1].Conditions[0].Reason = string(gatewayv1.ListenerReasonAccepted)
+	expectedStatus.Listeners[1].Conditions[0].Status = metav1.ConditionTrue
+	expectedStatus.Listeners[1].Conditions[0].Message = "Listener is valid"
 
 	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 	if err != nil || gateway == nil {
@@ -799,7 +803,7 @@ func TestGatewayWithInvalidTLSConfigInListeners(t *testing.T) {
 		Conditions: []metav1.Condition{
 			{
 				Type:               string(gatewayv1.GatewayConditionAccepted),
-				Status:             metav1.ConditionFalse,
+				Status:             metav1.ConditionTrue,
 				Message:            "Gateway contains atleast one valid listener",
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.GatewayReasonListenersNotValid),

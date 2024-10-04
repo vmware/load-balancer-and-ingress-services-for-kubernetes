@@ -50,6 +50,7 @@ func GatewayApiLister() *GWLister {
 			gatewayRouteToHTTPSPGPoolStore: objects.NewObjectMapStore(),
 			podToServiceStore:              objects.NewObjectMapStore(),
 			gatewayToStatus:                objects.NewObjectMapStore(),
+			routeToStatus:                  objects.NewObjectMapStore(),
 		}
 	})
 	return gwLister
@@ -119,6 +120,9 @@ type GWLister struct {
 
 	// namespace/gateway -> gateway Status
 	gatewayToStatus *objects.ObjectMapStore
+
+	// routeType/routeNs/routeName -> route Status
+	routeToStatus *objects.ObjectMapStore
 }
 
 type GatewayRouteKind struct {
@@ -257,6 +261,28 @@ func (g *GWLister) GetGatewayToGatewayStatusMapping(gwName string) *gatewayv1.Ga
 		return nil
 	}
 	return gatewayList.(*gatewayv1.GatewayStatus)
+}
+
+func (g *GWLister) UpdateRouteToRouteStatusMapping(routeTypeNamespaceName string, routeStatus *gatewayv1.RouteStatus) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	g.routeToStatus.AddOrUpdate(routeTypeNamespaceName, routeStatus)
+}
+
+func (g *GWLister) DeleteRouteToRouteStatusMapping(routeTypeNamespaceName string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	g.routeToStatus.Delete(routeTypeNamespaceName)
+}
+
+func (g *GWLister) GetRouteToRouteStatusMapping(routeTypeNamespaceName string) *gatewayv1.RouteStatus {
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
+	found, routeList := g.routeToStatus.Get(routeTypeNamespaceName)
+	if !found {
+		return nil
+	}
+	return routeList.(*gatewayv1.RouteStatus)
 }
 
 //=====All route <-> gateway mappings go here.
