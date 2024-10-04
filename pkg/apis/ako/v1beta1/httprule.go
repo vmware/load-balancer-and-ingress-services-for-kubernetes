@@ -44,6 +44,7 @@ type HTTPRulePaths struct {
 	TLS                    HTTPRuleTLS      `json:"tls,omitempty"`
 	HealthMonitors         []string         `json:"healthMonitors,omitempty"`
 	ApplicationPersistence string           `json:"applicationPersistence,omitempty"`
+	EnableHttp2            *bool            `json:"enableHTTP2,omitempty"`
 }
 
 // HTTPRuleLBPolicy holds a path/pool's load balancer policies

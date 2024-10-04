@@ -143,6 +143,10 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		pool.ApplicationPersistenceProfileRef = pool_meta.ApplicationPersistenceProfileRef
 	}
 
+	if pool_meta.EnableHttp2 != nil {
+		pool.EnableHttp2 = pool_meta.EnableHttp2
+	}
+
 	for i, server := range pool_meta.Servers {
 		port := pool_meta.Port
 		sip := server.Ip

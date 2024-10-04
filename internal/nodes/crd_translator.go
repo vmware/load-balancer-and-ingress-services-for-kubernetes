@@ -486,6 +486,10 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 				pool.HealthMonitorRefs = pathHMs
 				pool.ApplicationPersistenceProfileRef = persistenceProfile
 
+				if httpRulePath.EnableHttp2 != nil {
+					pool.EnableHttp2 = httpRulePath.EnableHttp2
+				}
+
 				// from this path, generate refs to this pool node
 				if httpRulePath.LoadBalancerPolicy.Algorithm != "" {
 					pool.LbAlgorithm = proto.String(httpRulePath.LoadBalancerPolicy.Algorithm)
