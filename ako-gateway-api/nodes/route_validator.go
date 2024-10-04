@@ -149,6 +149,17 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 			*parentRefIndexInHttpRouteStatus = *parentRefIndexInHttpRouteStatus + 1
 			return err
 		}
+		if IsListenerInvalid(gwStatus, i) {
+			// listener is present in gateway but is in invalid state
+			utils.AviLog.Errorf("key: %s, msg: Matching gateway listener %s in Parent Reference is in invalid state", key, listenerName)
+			err := fmt.Errorf("Matching gateway listener is in Invalid state")
+			defaultCondition.
+				Reason(string(gatewayv1.RouteReasonPending)).
+				Message(err.Error()).
+				SetIn(&httpRouteStatus.Parents[*parentRefIndexInHttpRouteStatus].Conditions)
+			*parentRefIndexInHttpRouteStatus = *parentRefIndexInHttpRouteStatus + 1
+			return err
+		}
 		listenersForRoute = append(listenersForRoute, gateway.Spec.Listeners[i])
 	} else {
 		listenersForRoute = append(listenersForRoute, gateway.Spec.Listeners...)
