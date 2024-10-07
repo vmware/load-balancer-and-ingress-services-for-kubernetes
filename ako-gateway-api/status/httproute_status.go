@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"reflect"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -65,14 +66,24 @@ func (o *httproute) Delete(key string, option status.StatusOptions) {
 }
 
 func (o *httproute) Update(key string, option status.StatusOptions) {
-	// TODO: Add this code when we publish the status from the rest layer
+	nsName := strings.Split(option.Options.ServiceMetadata.HTTPRoute, "/")
+	if len(nsName) != 2 {
+		utils.AviLog.Warnf("key: %s, msg: invalid HttpRoute name and namespace", key)
+		return
+	}
+	namespace := nsName[0]
+	name := nsName[1]
+	httpRoute := o.Get(key, name, namespace)
+	if httpRoute != nil {
+		o.Patch(key, httpRoute, option.Options.Status)
+	}
 }
 
 func (o *httproute) BulkUpdate(key string, options []status.StatusOptions) {
 	// TODO: Add this code when we publish the status from the rest layer
 }
 
-func (o *httproute) Patch(key string, obj runtime.Object, status *Status, retryNum ...int) {
+func (o *httproute) Patch(key string, obj runtime.Object, status *status.Status, retryNum ...int) {
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]

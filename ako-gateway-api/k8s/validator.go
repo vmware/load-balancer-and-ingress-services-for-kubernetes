@@ -29,6 +29,7 @@ import (
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	akogatewayapistatus "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -60,7 +61,7 @@ func IsGatewayClassValid(key string, gatewayClass *gatewayv1.GatewayClass) bool 
 		ObservedGeneration(gatewayClass.ObjectMeta.Generation).
 		Message("GatewayClass is valid").
 		SetIn(&gatewayClassStatus.Conditions)
-	akogatewayapistatus.Record(key, gatewayClass, &akogatewayapistatus.Status{GatewayClassStatus: gatewayClassStatus})
+	akogatewayapistatus.Record(key, gatewayClass, &status.Status{GatewayClassStatus: gatewayClassStatus})
 	utils.AviLog.Infof("key: %s, msg: GatewayClass object %s is valid", key, gatewayClass.Name)
 	return true
 }
@@ -82,7 +83,7 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 		defaultCondition.
 			Message("No listeners found").
 			SetIn(&gatewayStatus.Conditions)
-		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
+		akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
 		return false
 	}
 
@@ -92,7 +93,7 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 		defaultCondition.
 			Message("More than one address is not supported").
 			SetIn(&gatewayStatus.Conditions)
-		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
+		akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
 		return false
 	}
 
@@ -101,7 +102,7 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 		defaultCondition.
 			Message("Only IPAddress as AddressType is supported").
 			SetIn(&gatewayStatus.Conditions)
-		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
+		akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
 		return false
 	}
 
@@ -121,7 +122,7 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 			Reason(string(gatewayv1.GatewayReasonListenersNotValid)).
 			Message(fmt.Sprintf("Gateway contains %d invalid listener(s)", invalidListenerCount)).
 			SetIn(&gatewayStatus.Conditions)
-		akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
+		akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
 		return false
 	}
 
@@ -130,7 +131,7 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 		Status(metav1.ConditionTrue).
 		Message("Gateway configuration is valid").
 		SetIn(&gatewayStatus.Conditions)
-	akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
+	akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
 	utils.AviLog.Infof("key: %s, msg: Gateway %s is valid", key, gateway.Name)
 	return true
 }
@@ -273,7 +274,7 @@ func IsHTTPRouteValid(key string, obj *gatewayv1.HTTPRoute) bool {
 			utils.AviLog.Warnf("key: %s, msg: Parent Reference %s of HTTPRoute object %s is not valid, err: %v", key, parentRefName, httpRoute.Name, err)
 		}
 	}
-	akogatewayapistatus.Record(key, httpRoute, &akogatewayapistatus.Status{HTTPRouteStatus: httpRouteStatus})
+	akogatewayapistatus.Record(key, httpRoute, &status.Status{HTTPRouteStatus: httpRouteStatus})
 
 	// No valid attachment, we can't proceed with this HTTPRoute object.
 	if invalidParentRefCount == len(httpRoute.Spec.ParentRefs) {
@@ -322,7 +323,8 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		Status(metav1.ConditionFalse).
 		ObservedGeneration(httpRoute.ObjectMeta.Generation)
 
-	if len(gateway.Status.Conditions) == 0 {
+	gwStatus := akogatewayapiobjects.GatewayApiLister().GetGatewayToGatewayStatusMapping(gwNsName)
+	if len(gwStatus.Conditions) == 0 {
 		// Gateway processing by AKO has not started.
 		utils.AviLog.Errorf("key: %s, msg: AKO is yet to process Gateway %s for parent reference %s.", key, gateway.Name, name)
 		err := fmt.Errorf("AKO is yet to process Gateway %s for parent reference %s", gateway.Name, name)
@@ -334,7 +336,7 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 	}
 
 	// Attach only when gateway configuration is valid
-	currentGatewayStatusCondition := gateway.Status.Conditions[0]
+	currentGatewayStatusCondition := gwStatus.Conditions[0]
 	if currentGatewayStatusCondition.Status != metav1.ConditionTrue {
 		// Gateway is not in an expected state.
 		utils.AviLog.Errorf("key: %s, msg: Gateway %s for parent reference %s is in Invalid State", key, gateway.Name, name)
@@ -447,7 +449,7 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		}
 		return err
 	}
-	gatewayStatus := gateway.Status.DeepCopy()
+	gatewayStatus := gwStatus.DeepCopy()
 	for _, listenerObj := range listenersMatchedToRoute {
 		listenerName := listenerObj.Name
 		// Increment the attached routes of the listener in the Gateway object
@@ -465,7 +467,7 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 
 		gatewayStatus.Listeners[i].AttachedRoutes += 1
 	}
-	akogatewayapistatus.Record(key, gateway, &akogatewayapistatus.Status{GatewayStatus: gatewayStatus})
+	akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
 
 	defaultCondition.
 		Reason(string(gatewayv1.GatewayReasonAccepted)).
