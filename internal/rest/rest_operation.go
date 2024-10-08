@@ -317,6 +317,24 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 				continue
 			} else if op.Model == "VrfContext" && aviErr.HttpStatusCode == 412 {
 				utils.AviLog.Debugf("key: %s, msg: Error in rest operation for VrfContext Put request.", key)
+			} else if op.Model == "VrfContext" && aviErr.HttpStatusCode == 400 && strings.Contains(*aviErr.Message, lib.VrfContextNoPermission) {
+				// retry operation  by switching to admin tenant
+				err = nil
+				SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
+				SetTenant := session.SetTenant(lib.GetTenant())
+				utils.AviLog.Warnf("key:%s, msg: Switching to Admin tenant from %s for %s method", key, lib.GetTenant(), op.Method)
+				SetAdminTenant(c.AviSession)
+				op.Err = c.AviSession.Put(utils.GetUriEncoded(op.Path), op.Obj, &op.Response)
+				if op.Err == nil {
+					utils.AviLog.Infof("Switching back to %s tenant", lib.GetTenant())
+					SetTenant(c.AviSession)
+					continue
+				}
+				utils.AviLog.Warnf("key: %s, msg: RestOp method %v path %v tenant %v Obj %s returned err %s with response %s",
+					key, op.Method, op.Path, lib.GetAdminTenant(), utils.Stringify(op.Obj), utils.Stringify(op.Err), utils.Stringify(op.Response))
+				err = &utils.WebSyncError{Err: op.Err, Operation: string(op.Method)}
+				SetTenant(c.AviSession)
+
 			} else if !isErrorRetryable(aviErr.HttpStatusCode, *aviErr.Message) {
 				if op.Method != utils.RestPost {
 					continue

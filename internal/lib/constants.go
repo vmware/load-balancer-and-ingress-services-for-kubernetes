@@ -202,6 +202,7 @@ const (
 	FullSyncInterval                           = 300
 	Namespace                                  = "Namespace"
 	VrfContextNotFoundError                    = "VrfContext not found"
+	VrfContextNoPermission                     = "Cannot modify VrfContext"
 	HTTPMethodGet                              = "GET"
 	HTTPMethodPut                              = "PUT"
 	VrfContextObjectNotFoundError              = "VrfContext object not found"
