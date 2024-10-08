@@ -635,7 +635,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 				utils.AviLog.Debugf("key: %s, msg: same resource version returning", key)
 				return
 			}
-			if !IsHTTPRouteValid(key, httpRoute) {
+			if !IsHTTPRouteConfigValid(key, httpRoute) {
 				return
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httpRoute))
@@ -676,7 +676,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			newHTTPRoute := obj.(*gatewayv1.HTTPRoute)
 			if IsHTTPRouteUpdated(oldHTTPRoute, newHTTPRoute) {
 				key := lib.HTTPRoute + "/" + utils.ObjKey(newHTTPRoute)
-				if !IsHTTPRouteValid(key, newHTTPRoute) {
+				if !IsHTTPRouteConfigValid(key, newHTTPRoute) {
 					return
 				}
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newHTTPRoute))

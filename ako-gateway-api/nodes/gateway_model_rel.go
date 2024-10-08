@@ -343,7 +343,7 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 	hrObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).Get(name)
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			utils.AviLog.Errorf("key: %s, msg: got error while getting gateway: %v", key, err)
+			utils.AviLog.Errorf("key: %s, msg: got error while getting httproute: %v", key, err)
 			return []string{}, false
 		}
 		// httproute must be deleted so remove mappings

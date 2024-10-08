@@ -27,7 +27,7 @@ import (
 type StatusUpdater interface {
 	Update(key string, option status.StatusOptions)
 	BulkUpdate(key string, options []status.StatusOptions)
-	Patch(key string, obj runtime.Object, status *status.Status, retryNum ...int)
+	Patch(key string, obj runtime.Object, status *status.Status, retryNum ...int) error
 	Delete(key string, option status.StatusOptions)
 }
 
@@ -74,7 +74,6 @@ func BulkUpdate(key string, objectType string, options []status.StatusOptions) e
 	utils.AviLog.Debugf("key: %s, msg: Bulk update successful for object %s", key, objectType)
 	return nil
 }
-
 func Record(key string, obj runtime.Object, objStatus *status.Status) {
 	var objectType string
 	var statusOption status.StatusOptions

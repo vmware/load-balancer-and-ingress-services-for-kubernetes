@@ -17,6 +17,7 @@ package status
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"strings"
 
@@ -159,13 +160,12 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 	conditionStatus := metav1.ConditionTrue
 
 	if option.Options.Message != "" {
-		conditionType = string(gatewayv1.GatewayConditionAccepted)
+		conditionType = string(gatewayv1.GatewayConditionProgrammed)
 		conditionStatus = metav1.ConditionFalse
 		reason = string(gatewayv1.GatewayReasonInvalid)
 		message = option.Options.Message
 	} else {
 		conditionType = string(gatewayv1.GatewayConditionProgrammed)
-		conditionStatus = metav1.ConditionTrue
 		reason = string(gatewayv1.GatewayReasonProgrammed)
 		message = "Virtual service configured/updated"
 	}
@@ -180,9 +180,9 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 	for i := range gatewaystatus.Listeners {
 		listenerCondition := NewCondition()
 		listenerCondition.
-			Type(conditionType).
+			Type(string(gatewayv1.ListenerConditionProgrammed)).
 			Status(conditionStatus).
-			Reason(reason).
+			Reason(string(gatewayv1.ListenerReasonProgrammed)).
 			ObservedGeneration(gw.ObjectMeta.Generation).
 			Message(message).
 			SetIn(&gatewaystatus.Listeners[i].Conditions)
@@ -219,19 +219,19 @@ func (o *gateway) BulkUpdate(key string, options []status.StatusOptions) {
 	}
 }
 
-func (o *gateway) Patch(key string, obj runtime.Object, status *status.Status, retryNum ...int) {
+func (o *gateway) Patch(key string, obj runtime.Object, status *status.Status, retryNum ...int) error {
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
 		if retry >= 5 {
 			utils.AviLog.Errorf("key: %s, msg: Patch retried 5 times, aborting", key)
-			return
+			return errors.New("Patch retried 5 times, aborting")
 		}
 	}
 
 	gw := obj.(*gatewayv1.Gateway)
 	if o.isStatusEqual(&gw.Status, status.GatewayStatus) {
-		return
+		return nil
 	}
 
 	patchPayload, _ := json.Marshal(map[string]interface{}{
@@ -243,13 +243,13 @@ func (o *gateway) Patch(key string, obj runtime.Object, status *status.Status, r
 		updatedGW, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(gw.Namespace).Get(gw.Name)
 		if err != nil {
 			utils.AviLog.Warnf("gateway not found %v", err)
-			return
+			return err
 		}
-		o.Patch(key, updatedGW, status, retry+1)
-		return
+		return o.Patch(key, updatedGW, status, retry+1)
 	}
 
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the gateway %s/%s status %+v", key, gw.Namespace, gw.Name, utils.Stringify(status))
+	return nil
 }
 
 func (o *gateway) isStatusEqual(old, new *gatewayv1.GatewayStatus) bool {
