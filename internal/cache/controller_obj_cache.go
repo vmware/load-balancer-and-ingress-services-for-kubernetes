@@ -27,6 +27,7 @@ import (
 	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 
 	pq "github.com/jupp0r/go-priority-queue"
@@ -2186,8 +2187,17 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 				if err := json.Unmarshal([]byte(svc_mdata_intf.(string)),
 					&svc_mdata_obj); err != nil {
 					utils.AviLog.Warnf("Error parsing service metadata during vs cache :%v", err)
+				} else if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+					// call this only when FQDN policy is strict
+					hostToIngMapping := svc_mdata_obj.HostToNamespaceIngressName
+					utils.AviLog.Debugf("HosttoIng mapping is %v", utils.Stringify(hostToIngMapping))
+					if hostToIngMapping != nil {
+						// Now populate the map
+						PopulateHostToIngMapping(hostToIngMapping)
+					}
 				}
 			}
+
 			var sni_child_collection []string
 			vh_child, found := vs["vh_child_vs_uuid"]
 			if found {
@@ -2397,7 +2407,6 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 				}
 				c.VsCacheLocal.AviCacheAdd(k, &vsMetaObj)
 				utils.AviLog.Debugf("Added VS cache key :%s", utils.Stringify(&vsMetaObj))
-
 			}
 		}
 		if resp["next"] != nil {
@@ -2413,6 +2422,48 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 		}
 	}
 	return nil
+}
+
+// Upfront populate mapping so that during FullSyncK8s, it will be used to assign ingresses/routes to appropriate hosts list.
+func PopulateHostToIngMapping(hostsToIng map[string][]string) {
+	isRoute := false
+	if utils.GetInformers().RouteInformer != nil {
+		isRoute = true
+	}
+	var routeNamespaceName objects.RouteNamspaceName
+	for host, ings := range hostsToIng {
+		// append each ingress in active list
+		utils.AviLog.Debugf("Populating Ingress mapping for host : %s", host)
+		for _, ing := range ings {
+			namespace, _, name := lib.ExtractTypeNameNamespace(ing)
+			// Fetch ingress using clientset. From informer couldn't fetch it.
+			if !isRoute {
+				ingObj, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).Get(name)
+				if err != nil {
+					utils.AviLog.Errorf("Unable to retrieve the ingress %s/%s during populating host to ingress map in populate cache: %s", namespace, name, err)
+					continue
+				}
+				routeNamespaceName = objects.RouteNamspaceName{
+					RouteNSRouteName: utils.Ingress + "/" + ing,
+					CreationTime:     ingObj.CreationTimestamp,
+				}
+			} else {
+				routeObj, err := utils.GetInformers().RouteInformer.Lister().Routes(namespace).Get(name)
+				if err != nil {
+					utils.AviLog.Errorf("Unable to retrieve the ingress %s/%s during populating host to ingress map in populate cache: %s", namespace, name, err)
+					continue
+				}
+				routeNamespaceName = objects.RouteNamspaceName{
+					RouteNSRouteName: utils.OshiftRoute + "/" + ing,
+					CreationTime:     routeObj.CreationTimestamp,
+				}
+			}
+
+			// Add it to the structure
+			objects.SharedUniqueNamespaceLister().UpdateHostnameToRoute(host, routeNamespaceName)
+
+		}
+	}
 }
 
 func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud string, vsName, tenant string) error {
@@ -2458,6 +2509,14 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 				if err := json.Unmarshal([]byte(svc_mdata_intf.(string)),
 					&svc_mdata_obj); err != nil {
 					utils.AviLog.Warnf("Error parsing service metadata during vs cache :%v", err)
+				} else if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+					// call this only when FQDN policy is strict
+					hostToIngMapping := svc_mdata_obj.HostToNamespaceIngressName
+					utils.AviLog.Debugf("HosttoIng mapping is %v", utils.Stringify(hostToIngMapping))
+					if hostToIngMapping != nil {
+						// Now populate the map
+						PopulateHostToIngMapping(hostToIngMapping)
+					}
 				}
 			}
 			var sni_child_collection []string

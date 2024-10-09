@@ -530,15 +530,14 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	statusQueueParams := utils.WorkerQueue{NumWorkers: numGraphWorkers, WorkqueueName: utils.StatusQueue}
 	graphQueue = utils.SharedWorkQueue(&ingestionQueueParams, &graphQueueParams, &slowRetryQParams, &fastRetryQParams, &statusQueueParams).GetQueueByName(utils.GraphLayer)
 
+	c.addIndexers()
+	c.Start(stopCh)
 	err := PopulateCache()
 	if err != nil {
 		c.DisableSync = true
 		utils.AviLog.Errorf("failed to populate cache, disabling sync")
 		lib.ShutdownApi()
 	}
-
-	c.addIndexers()
-	c.Start(stopCh)
 
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
 	interval, err := strconv.ParseInt(fullSyncInterval, 10, 64)
@@ -1100,36 +1099,69 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 		}
 		//Ingress Section
 		if utils.GetInformers().IngressInformer != nil {
+			ingObjList := make([]*networkingv1.Ingress, 0)
+			// create list of ingresses.
 			for namespace := range acceptedNamespaces {
 				ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).List(labels.Set(nil).AsSelector())
 				if err != nil {
 					utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
-				} else {
-					for _, ingObj := range ingObjs {
-						key := utils.Ingress + "/" + utils.ObjKey(ingObj)
-						meta, err := meta.Accessor(ingObj)
-						if err == nil {
-							resVer := meta.GetResourceVersion()
-							objects.SharedResourceVerInstanceLister().Save(key, resVer)
-						}
-						utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
-						lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-						nodes.DequeueIngestion(key, true)
+					continue
+				}
+				ingObjList = append(ingObjList, ingObjs...)
+			}
+			// sort the list as per the timestamp. Sorting logic can be kept irrespective of strict or non-strict policy
+			sort.Slice(ingObjList, func(i, j int) bool { return lib.IngressLessthan(ingObjList[i], ingObjList[j]) })
+
+			for _, ingObj := range ingObjList {
+				key := utils.Ingress + "/" + ingObj.Namespace + "/" + ingObj.Name
+				isValid := true
+
+				if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+					// get the hostnames in the ingress
+					isValid, _ = isIngAcceptedWithFQDNRestriction(key, ingObj)
+				}
+				if isValid {
+					meta, err := meta.Accessor(ingObj)
+					if err == nil {
+						resVer := meta.GetResourceVersion()
+						objects.SharedResourceVerInstanceLister().Save(key, resVer)
 					}
+					utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
+					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+					nodes.DequeueIngestion(key, true)
+				} else {
+					utils.AviLog.Warnf("key: %s, msg: Ingress is not accepted due to FQDN restriction policy", key)
 				}
 			}
+			// TODO: free ingObjList
 		}
 		//Route Section
 		if utils.GetInformers().RouteInformer != nil {
-			routeObjs, err := utils.GetInformers().RouteInformer.Lister().List(labels.Set(nil).AsSelector())
-			if err != nil {
-				utils.AviLog.Errorf("Unable to retrieve the routes during full sync: %s", err)
-			} else {
-				for _, routeObj := range routeObjs {
-					if _, ok := acceptedNamespaces[routeObj.Namespace]; !ok {
-						continue
+			routeObjList := make([]*routev1.Route, 0)
+			for namespace := range acceptedNamespaces {
+				routeObjs, err := utils.GetInformers().RouteInformer.Lister().Routes(namespace).List(labels.Set(nil).AsSelector())
+				if err != nil {
+					utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
+					continue
+				}
+				routeObjList = append(routeObjList, routeObjs...)
+			}
+
+			// sort on timestamp
+			sort.Slice(routeObjList, func(i, j int) bool { return lib.RouteLessthan(routeObjList[i], routeObjList[j]) })
+
+			for _, routeObj := range routeObjList {
+				key := utils.OshiftRoute + "/" + utils.ObjKey(routeObj)
+				isValid := true
+
+				if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+					isValid = isRouteAcceptedWithFQDNRestriction(key, routeObj)
+					if isValid {
+						utils.AviLog.Debugf("Route %s is added to active list. Enqueuing it", key)
 					}
-					key := utils.OshiftRoute + "/" + utils.ObjKey(routeObj)
+				}
+				if isValid {
+					// Enqueue it only in case of valid
 					meta, err := meta.Accessor(routeObj)
 					if err == nil {
 						resVer := meta.GetResourceVersion()
@@ -1138,8 +1170,11 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 					utils.AviLog.Debugf("Dequeue for route key: %v", key)
 					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 					nodes.DequeueIngestion(key, true)
+				} else {
+					utils.AviLog.Warnf("key: %s, msg: Route is not accepted due to FQDN restriction policy", key)
 				}
 			}
+			// TODO: Free routelist
 		}
 		if lib.UseServicesAPI() {
 			gatewayObjs, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())

@@ -92,6 +92,7 @@ L7Settings:
   shardVSSize: "LARGE" # Use this to control the layer 7 VS numbers. This applies to both secure/insecure VSes but does not apply for passthrough. ENUMs: LARGE, MEDIUM, SMALL, DEDICATED
   passthroughShardSize: "SMALL" # Control the passthrough virtualservice numbers using this ENUM. ENUMs: LARGE, MEDIUM, SMALL
   enableMCI: "false" # Enabling this flag would tell AKO to start processing multi-cluster ingress objects.
+  fqdnReusePolicy: "InterNamespaceAllowed" # Use this to control whether AKO allows cross-namespace usage of FQDNs. enum Strict|InterNamespaceAllowed
 
 ### This section outlines all the knobs  used to control Layer 4 loadbalancing settings in AKO.
 L4Settings:

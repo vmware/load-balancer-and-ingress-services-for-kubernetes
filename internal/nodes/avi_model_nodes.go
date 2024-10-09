@@ -216,7 +216,6 @@ func (v *AviEvhVsNode) CalculateForGraphChecksum() uint32 {
 	for _, stringGroup := range v.StringGroupRefs {
 		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(stringGroup.GetCheckSum()))
 	}
-
 	return utils.Hash(strings.Join(checksumStringSlice, ":"))
 }
 

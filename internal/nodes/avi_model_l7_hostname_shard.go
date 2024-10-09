@@ -53,6 +53,7 @@ func (o *AviObjectGraph) BuildDedicatedL7VSGraphHostNameShard(vsName, hostname s
 	// Populate the hostmap with empty secret for insecure ingress
 	PopulateIngHostMap(namespace, hostname, ingName, "", pathsvcMap)
 	_, ingressHostMap := SharedHostNameLister().Get(hostname)
+
 	vsNode[0].ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName()
 	vsNode[0].ServiceMetadata.Namespace = namespace
 	vsNode[0].ServiceMetadata.HostNames = pathFQDNs
@@ -313,6 +314,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 			// Processsing insecure ingress
 			if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, hostname) {
 				vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, hostname)
+				// combine maps of each hostname.
 			}
 			// Check poolname length, if >255, don't add it.
 			if lib.CheckObjectNameLength(poolName, lib.Pool) {
@@ -604,6 +606,7 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		var sniHosts []string
 		hostPathSvcMap[sniHost] = paths.ingressHPSvc
 		PopulateIngHostMap(namespace, sniHost, ingName, tlssetting.SecretName, paths)
+
 		_, ingressHostMap := SharedHostNameLister().Get(sniHost)
 		sniHosts = append(sniHosts, sniHost)
 		_, shardVsName := DeriveShardVS(sniHost, key, routeIgrObj)

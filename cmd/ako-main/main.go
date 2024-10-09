@@ -111,6 +111,7 @@ func InitializeAKC() {
 	akoControlConfig.SetAKOBlockedNSList(lib.GetGlobalBlockedNSList())
 	akoControlConfig.SetControllerVRFContext(lib.GetControllerVRFContext())
 	akoControlConfig.SetAKOPrometheusFlag(lib.IsPrometheusEnabled())
+	akoControlConfig.SetAKOFQDNReusePolicy(strings.ToLower(os.Getenv("FQDN_REUSE_POLICY")))
 
 	var crdClient *crd.Clientset
 	var advl4Client *advl4.Clientset
