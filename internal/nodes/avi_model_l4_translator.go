@@ -345,32 +345,48 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 		}
 		annotations = obj.([]lib.NPLAnnotation)
 		for _, a := range annotations {
-			var atype string
+
 			if v4enabled && v4Family && utils.IsV4(a.NodeIP) {
 				v4ServerCount++
-				atype = "V4"
-			} else if v6enabled && v6Family && k8net.IsIPv6String(a.NodeIP) {
-				v6ServerCount++
-				atype = "V6"
-			} else {
-				continue
-			}
-			if (poolNode.TargetPort.Type == intstr.Int && a.PodPort == poolNode.TargetPort.IntValue()) ||
-				a.PodPort == int(targetPort) {
-				enabled, ok := conditionMap[pod.Name]
-				if !ok {
-					// not disabling just because the pod was not found in condition map. i.e. ignoring false negatives
-					utils.AviLog.Debugf("key: %s, msg: pod %s not found in condition map. enabling by default", key, pod.Name)
-					enabled = proto.Bool(true)
+				atype := "V4"
+				if (poolNode.TargetPort.Type == intstr.Int && a.PodPort == poolNode.TargetPort.IntValue()) ||
+					a.PodPort == int(targetPort) {
+					enabled, ok := conditionMap[pod.Name]
+					if !ok {
+						// not disabling just because the pod was not found in condition map. i.e. ignoring false negatives
+						utils.AviLog.Debugf("key: %s, msg: pod %s not found in condition map. enabling by default", key, pod.Name)
+						enabled = proto.Bool(true)
+					}
+					server := AviPoolMetaServer{
+						Port: int32(a.NodePort),
+						Ip: models.IPAddr{
+							Addr: &a.NodeIP,
+							Type: &atype,
+						},
+						Enabled: enabled}
+					poolMeta = append(poolMeta, server)
 				}
-				server := AviPoolMetaServer{
-					Port: int32(a.NodePort),
-					Ip: models.IPAddr{
-						Addr: &a.NodeIP,
-						Type: &atype,
-					},
-					Enabled: enabled}
-				poolMeta = append(poolMeta, server)
+			}
+			if v6enabled && v6Family && k8net.IsIPv6String(a.NodeIP) {
+				v6ServerCount++
+				atype := "V6"
+				if (poolNode.TargetPort.Type == intstr.Int && a.PodPort == poolNode.TargetPort.IntValue()) ||
+					a.PodPort == int(targetPort) {
+					enabled, ok := conditionMap[pod.Name]
+					if !ok {
+						// not disabling just because the pod was not found in condition map. i.e. ignoring false negatives
+						utils.AviLog.Debugf("key: %s, msg: pod %s not found in condition map. enabling by default", key, pod.Name)
+						enabled = proto.Bool(true)
+					}
+					server := AviPoolMetaServer{
+						Port: int32(a.NodePort),
+						Ip: models.IPAddr{
+							Addr: &a.NodeIP,
+							Type: &atype,
+						},
+						Enabled: enabled}
+					poolMeta = append(poolMeta, server)
+				}
 			}
 		}
 	}
@@ -452,21 +468,20 @@ func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName st
 
 			}
 			nodeIP, nodeIP6 := lib.GetIPFromNode(node)
-			var atype string
-			var serverIP avimodels.IPAddr
 			if v4enabled && v4Family && nodeIP != "" {
 				v4ServerCount++
-				atype = "V4"
-				serverIP = avimodels.IPAddr{Type: &atype, Addr: &nodeIP}
-			} else if v6enabled && v6Family && nodeIP6 != "" {
-				v6ServerCount++
-				atype = "V6"
-				serverIP = avimodels.IPAddr{Type: &atype, Addr: &nodeIP6}
-			} else {
-				continue
+				atype := "V4"
+				serverIP := avimodels.IPAddr{Type: &atype, Addr: &nodeIP}
+				server := AviPoolMetaServer{Ip: serverIP}
+				poolMeta = append(poolMeta, server)
 			}
-			server := AviPoolMetaServer{Ip: serverIP}
-			poolMeta = append(poolMeta, server)
+			if v6enabled && v6Family && nodeIP6 != "" {
+				v6ServerCount++
+				atype := "V6"
+				serverIP := avimodels.IPAddr{Type: &atype, Addr: &nodeIP6}
+				server := AviPoolMetaServer{Ip: serverIP}
+				poolMeta = append(poolMeta, server)
+			}
 		}
 	}
 
