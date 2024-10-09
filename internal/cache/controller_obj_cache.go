@@ -1786,6 +1786,7 @@ func (c *AviObjCache) AviPopulateHttpPolicySetbyUUID(client *clients.AviClient, 
 
 		}
 	}
+	tenant := getTenantFromTenantRef(*httppol.TenantRef)
 	httpPolCacheObj := AviHTTPPolicyCache{
 		Name:         *httppol.Name,
 		Uuid:         *httppol.UUID,
@@ -1793,7 +1794,7 @@ func (c *AviObjCache) AviPopulateHttpPolicySetbyUUID(client *clients.AviClient, 
 		Pools:        pools,
 		LastModified: *httppol.LastModified,
 	}
-	key := NamespaceName{Namespace: lib.GetTenant(), Name: httpPolCacheObj.Name}
+	key := NamespaceName{Namespace: tenant, Name: httpPolCacheObj.Name}
 	c.HTTPPolicyCache.AviCacheAdd(key, httpPolCacheObj)
 	utils.AviLog.Debugf("added policy with key %s and policyset %v", key, httpPolCacheObj)
 	return nil
@@ -2535,7 +2536,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 
 							dsName, foundDs := c.DSCache.AviCacheGetNameByUuid(dsUuid)
 							if foundDs && !strings.Contains(dsName.(string), "ako-gw") {
-								dsKey := NamespaceName{Namespace: lib.GetTenant(), Name: dsName.(string)}
+								dsKey := NamespaceName{Namespace: tenant, Name: dsName.(string)}
 								// Fetch the associated PGs with the DS.
 								dsObj, _ := c.DSCache.AviCacheGet(dsKey)
 								for _, pgName := range dsObj.(*AviDSCache).PoolGroups {
@@ -3309,9 +3310,6 @@ func validateAndConfigureSeGroup(client *clients.AviClient, returnErr *error) bo
 	}
 	seGroupSet.Insert(lib.GetSEGName())
 
-	SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-	SetTenant := session.SetTenant(lib.GetTenant())
-
 	// This assumes that a single cluster won't use more than 100 distinct SEGroups.
 	uri := "/api/serviceenginegroup/?include_name&page_size=100&cloud_ref.name=" + utils.CloudName + "&name.in=" + strings.Join(seGroupSet.List(), ",")
 	var result session.AviCollectionResult
@@ -3320,8 +3318,8 @@ func validateAndConfigureSeGroup(client *clients.AviClient, returnErr *error) bo
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
 			//SE in provider context no read access
 			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
-			SetAdminTenant(client.AviSession)
-			defer SetTenant(client.AviSession)
+			//fallback to Admin Tenant
+			client = SharedAVIClients(lib.GetAdminTenant()).AviClient[0]
 			result, err = lib.AviGetCollectionRaw(client, uri)
 			if err != nil {
 				*returnErr = fmt.Errorf("Get uri %v returned err %v", uri, err)
@@ -3364,8 +3362,6 @@ func ConfigureSeGroupLabels(client *clients.AviClient, seGroup *models.ServiceEn
 
 	labels := seGroup.Labels
 	segName := *seGroup.Name
-	SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-	SetTenant := session.SetTenant(lib.GetTenant())
 	if len(labels) == 0 {
 		uri := "/api/serviceenginegroup/" + *seGroup.UUID
 		seGroup.Labels = lib.GetLabels()
@@ -3375,8 +3371,7 @@ func ConfigureSeGroupLabels(client *clients.AviClient, seGroup *models.ServiceEn
 			if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 400 {
 				//SE in provider context
 				utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
-				SetAdminTenant(client.AviSession)
-				defer SetTenant(client.AviSession)
+				client = SharedAVIClients(lib.GetAdminTenant()).AviClient[0]
 				err := lib.AviPut(client, uri, seGroup, response)
 				if err != nil {
 					return fmt.Errorf("Setting labels on Service Engine Group :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
@@ -3416,8 +3411,6 @@ func DeConfigureSeGroupLabels() {
 		index = aviClientLen - 1
 	}
 	client := clients.AviClient[index]
-	SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-	SetTenant := session.SetTenant(lib.GetTenant())
 	seGroup, err := GetAviSeGroup(client, segName)
 	if err != nil {
 		utils.AviLog.Errorf("Failed to get SE group. Error: %v", err)
@@ -3439,8 +3432,7 @@ func DeConfigureSeGroupLabels() {
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 400 {
 			//SE in provider context
 			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
-			SetAdminTenant(client.AviSession)
-			defer SetTenant(client.AviSession)
+			client = SharedAVIClients(lib.GetAdminTenant()).AviClient[0]
 			err = lib.AviPut(client, uri, seGroup, response)
 			if err != nil {
 				utils.AviLog.Warnf("Deconfiguring SE Group labels failed on %v with error %v", segName, err.Error())
@@ -3456,8 +3448,6 @@ func DeConfigureSeGroupLabels() {
 }
 
 func GetAviSeGroup(client *clients.AviClient, segName string) (*models.ServiceEngineGroup, error) {
-	SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-	SetTenant := session.SetTenant(lib.GetTenant())
 	uri := "/api/serviceenginegroup/?include_name&name=" + segName + "&cloud_ref.name=" + utils.CloudName
 	var result session.AviCollectionResult
 	result, err := lib.AviGetCollectionRaw(client, uri)
@@ -3465,8 +3455,7 @@ func GetAviSeGroup(client *clients.AviClient, segName string) (*models.ServiceEn
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
 			//SE in provider context no read access
 			utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
-			SetAdminTenant(client.AviSession)
-			defer SetTenant(client.AviSession)
+			client = SharedAVIClients(lib.GetAdminTenant()).AviClient[0]
 			result, err = lib.AviGetCollectionRaw(client, uri)
 			if err != nil {
 				return nil, fmt.Errorf("Get uri %v returned err %v", uri, err)
@@ -3502,10 +3491,6 @@ func GetAviSeGroup(client *clients.AviClient, segName string) (*models.ServiceEn
 
 func checkTenant(client *clients.AviClient, returnError *error) bool {
 	uri := "/api/tenant/?name=" + lib.GetTenant()
-	SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-	SetTenant := session.SetTenant(lib.GetTenant())
-	SetAdminTenant(client.AviSession)
-	defer SetTenant(client.AviSession)
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		*returnError = fmt.Errorf("get uri %v returned err %v", uri, err)
@@ -3530,10 +3515,7 @@ func checkVRF(client *clients.AviClient, returnError *error) bool {
 		if err != nil {
 			if aviError, ok := err.(session.AviError); ok && (aviError.HttpStatusCode == 403 || aviError.HttpStatusCode == 404) {
 				utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
-				SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
-				SetTenant := session.SetTenant(lib.GetTenant())
-				SetAdminTenant(client.AviSession)
-				defer SetTenant(client.AviSession)
+				client := SharedAVIClients(lib.GetAdminTenant()).AviClient[0]
 				result, err = lib.AviGetCollectionRaw(client, uri)
 				if err != nil {
 					*returnError = fmt.Errorf("get uri %v returned err %v", uri, err)
