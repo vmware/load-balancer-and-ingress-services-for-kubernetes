@@ -50,9 +50,9 @@ func IsGatewayClassValid(key string, gatewayClass *gatewayv1.GatewayClass) bool 
 	return true
 }
 
-func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
+func IsValidGateway(key string, gateway *gatewayv1.Gateway) (bool, bool) {
 	spec := gateway.Spec
-
+	allowedRoutesAll := false
 	defaultCondition := akogatewayapistatus.NewCondition().
 		Type(string(gatewayv1.GatewayConditionAccepted)).
 		Reason(string(gatewayv1.GatewayReasonInvalid)).
@@ -76,7 +76,7 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 		programmedCondition.
 			SetIn(&gatewayStatus.Conditions)
 		akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
-		return false
+		return false, allowedRoutesAll
 	}
 
 	// has 1 or none addresses
@@ -89,7 +89,7 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 			Reason(string(gatewayv1.GatewayReasonAddressNotUsable)).
 			SetIn(&gatewayStatus.Conditions)
 		akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
-		return false
+		return false, allowedRoutesAll
 	}
 
 	if len(spec.Addresses) == 1 && *spec.Addresses[0].Type != "IPAddress" {
@@ -102,7 +102,7 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 			Reason(string(gatewayv1.GatewayReasonAddressNotUsable)).
 			SetIn(&gatewayStatus.Conditions)
 		akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
-		return false
+		return false, allowedRoutesAll
 	}
 
 	gatewayStatus.Listeners = make([]gatewayv1.ListenerStatus, len(gateway.Spec.Listeners))
@@ -110,6 +110,13 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 	var validListenerCount int
 	for index := range spec.Listeners {
 		if isValidListener(key, gateway, gatewayStatus, index) {
+			if !allowedRoutesAll {
+				if spec.Listeners[index].AllowedRoutes != nil && spec.Listeners[index].AllowedRoutes.Namespaces != nil && spec.Listeners[index].AllowedRoutes.Namespaces.From != nil {
+					if string(*spec.Listeners[index].AllowedRoutes.Namespaces.From) == akogatewayapilib.AllowedRoutesNamespaceFromAll {
+						allowedRoutesAll = true
+					}
+				}
+			}
 			validListenerCount++
 		}
 	}
@@ -124,15 +131,16 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 		programmedCondition.
 			SetIn(&gatewayStatus.Conditions)
 		akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
-		return false
+		return false, allowedRoutesAll
 	} else if validListenerCount < len(spec.Listeners) {
 		defaultCondition.
 			Reason(string(gatewayv1.GatewayReasonListenersNotValid)).
+			Status(metav1.ConditionTrue).
 			Message("Gateway contains atleast one valid listener").
 			SetIn(&gatewayStatus.Conditions)
 		akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
 		utils.AviLog.Infof("key: %s, msg: Gateway %s contains atleast one valid listener", key, gateway.Name)
-		return false
+		return true, allowedRoutesAll
 	}
 
 	defaultCondition.
@@ -142,7 +150,7 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) bool {
 		SetIn(&gatewayStatus.Conditions)
 	akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
 	utils.AviLog.Infof("key: %s, msg: Gateway %s is valid", key, gateway.Name)
-	return true
+	return true, allowedRoutesAll
 }
 
 func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gatewayv1.GatewayStatus, index int) bool {
@@ -241,9 +249,8 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 				return false
 			}
 			name := string(certRef.Name)
-			cs := utils.GetInformers().ClientSet
-			secretObj, err := cs.CoreV1().Secrets(gateway.ObjectMeta.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
-			if err != nil || secretObj == nil {
+			_, err := utils.GetInformers().ClientSet.CoreV1().Secrets(gateway.ObjectMeta.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
+			if err != nil {
 				utils.AviLog.Errorf("key: %s, msg: Secret specified in CertificateRef does not exist %+v/%+v", key, gateway.Name, listener.Name)
 				defaultCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
 				resolvedRefCondition.
