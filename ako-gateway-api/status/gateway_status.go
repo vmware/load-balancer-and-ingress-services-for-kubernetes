@@ -29,6 +29,7 @@ import (
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
@@ -144,7 +145,7 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 		return
 	}
 
-	gatewaystatus := gw.Status.DeepCopy()
+	gatewaystatus := akogatewayapiobjects.GatewayApiLister().GetGatewayToGatewayStatusMapping(gw.Namespace + "/" + gw.Name)
 	addressType := gatewayv1.IPAddressType
 	ipAddrs := []gatewayv1.GatewayStatusAddress{}
 	for _, vip := range option.Options.Vip {
@@ -177,15 +178,25 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 		Message(message).
 		SetIn(&gatewaystatus.Conditions)
 
-	for i := range gatewaystatus.Listeners {
+	for i, listener := range gatewaystatus.Listeners {
 		listenerCondition := NewCondition()
-		listenerCondition.
-			Type(string(gatewayv1.ListenerConditionProgrammed)).
-			Status(conditionStatus).
-			Reason(string(gatewayv1.ListenerReasonProgrammed)).
-			ObservedGeneration(gw.ObjectMeta.Generation).
-			Message(message).
-			SetIn(&gatewaystatus.Listeners[i].Conditions)
+		if listener.Conditions[0].Type == string(gatewayv1.ListenerConditionAccepted) && listener.Conditions[0].Status == metav1.ConditionTrue && listener.Conditions[1].Type == string(gatewayv1.ListenerConditionResolvedRefs) && listener.Conditions[1].Status == metav1.ConditionTrue {
+			listenerCondition.
+				Type(string(gatewayv1.ListenerConditionProgrammed)).
+				Status(conditionStatus).
+				Reason(string(gatewayv1.ListenerReasonProgrammed)).
+				ObservedGeneration(gw.ObjectMeta.Generation).
+				Message(message).
+				SetIn(&gatewaystatus.Listeners[i].Conditions)
+		} else {
+			listenerCondition.
+				Type(string(gatewayv1.ListenerConditionProgrammed)).
+				Status(metav1.ConditionFalse).
+				Reason(string(gatewayv1.ListenerReasonInvalid)).
+				ObservedGeneration(gw.ObjectMeta.Generation).
+				Message("Virtual service not configured/updated for this listener").
+				SetIn(&gatewaystatus.Listeners[i].Conditions)
+		}
 	}
 	o.Patch(key, gw, &status.Status{GatewayStatus: gatewaystatus})
 
