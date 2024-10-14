@@ -327,13 +327,13 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 		uniqueHosts := sets.NewString(hostnameIntersection...)
 		gwRouteNsName := fmt.Sprintf("%s/%s", gwNsName, routeTypeNsName)
 		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteToHostname(gwRouteNsName, uniqueHosts.List())
-		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteMappings(gwNsName, listenerList, routeTypeNsName)
+		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteMappings(gwNsName, routeTypeNsName)
 		if !utils.HasElem(gwNsNameList, gwNsName) {
 			gwNsNameList = append(gwNsNameList, gwNsName)
 		}
 		parentNameToHostnameMap[string(parentRef.Name)] = hostnameIntersection
 	}
-
+	akogatewayapiobjects.GatewayApiLister().UpdateRouteToGatewayListenerMappings(listenerList, routeTypeNsName)
 	utils.AviLog.Debugf("key: %s, msg: Gateways retrieved %s", key, gwNsNameList)
 	return gwNsNameList, true
 }
