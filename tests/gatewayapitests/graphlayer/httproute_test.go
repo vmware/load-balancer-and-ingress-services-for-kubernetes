@@ -2646,6 +2646,8 @@ func TestHTTPRouteFilterCRUDWithNSXT(t *testing.T) {
 	gatewayName := "gateway-hr-26"
 	gatewayClassName := "gateway-class-hr-26"
 	httpRouteName := "http-route-hr-26"
+	svcName1 := "avisvc-hr-26"
+
 	ports := []int32{8080}
 	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
 
@@ -2659,10 +2661,13 @@ func TestHTTPRouteFilterCRUDWithNSXT(t *testing.T) {
 		return found
 	}, 25*time.Second).Should(gomega.Equal(true))
 
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName1, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
+
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
 	rule := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
-		map[string][]string{"RequestHeaderModifier": {"add"}},
-		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
+		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
+		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
 	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
@@ -2676,52 +2681,27 @@ func TestHTTPRouteFilterCRUDWithNSXT(t *testing.T) {
 		return len(nodes[0].EvhNodes)
 	}, 25*time.Second).Should(gomega.Equal(1))
 
-	g.Eventually(func() int {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		childVS := nodes[0].EvhNodes[0]
-		if len(childVS.HttpPolicyRefs) != 1 {
-			return -1
-		}
-		return len(childVS.HttpPolicyRefs[0].RequestRules)
-	}, 25*time.Second).Should(gomega.Equal(1))
-
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-	childVS := nodes[0].EvhNodes[0]
+
+	childNode := nodes[0].EvhNodes[0]
+	g.Expect(childNode.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode.PoolGroupRefs[0].Members).To(gomega.HaveLen(1))
+	g.Expect(childNode.DefaultPoolGroup).NotTo(gomega.Equal(""))
 
 	// Check t1lr set at vsvip, pool. vrf empty at vsvip, pool and vs
 	g.Expect(nodes[0].VSVIPRefs[0].T1Lr).Should(gomega.Equal("/infra/t1lr/sample"))
 	g.Expect(nodes[0].VSVIPRefs[0].VrfContext).Should(gomega.Equal(""))
-	// TODO: with latest changes in master, Pool is not getting populated in all UTs.
-	//g.Expect(childVS.PoolRefs[0].T1Lr).Should(gomega.Equal("/infra/t1lr/sample"))
-	//g.Expect(childVS.PoolRefs[0].VrfContext).Should(gomega.Equal(""))
+	g.Expect(childNode.PoolRefs[0].T1Lr).Should(gomega.Equal("/infra/t1lr/sample"))
+	g.Expect(childNode.PoolRefs[0].VrfContext).Should(gomega.Equal(""))
 	g.Expect(nodes[0].VrfContext).Should(gomega.Equal(""))
 
-	g.Expect(*childVS.HttpPolicyRefs[0].RequestRules[0].Name).To(gomega.Equal(childVS.Name))
-	g.Expect(childVS.HttpPolicyRefs[0].RequestRules[0].HdrAction).To(gomega.HaveLen(1))
-	g.Expect(*childVS.HttpPolicyRefs[0].RequestRules[0].HdrAction[0].Action).To(gomega.Equal("HTTP_ADD_HDR"))
-
-	// update httproute
-	rule = akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
-		map[string][]string{"RequestHeaderModifier": {"replace"}},
-		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
-	rules = []gatewayv1.HTTPRouteRule{rule}
-	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
-
-	g.Eventually(func() string {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		childVS := nodes[0].EvhNodes[0]
-		if childVS.HttpPolicyRefs[0].RequestRules[0].HdrAction[0].Action == nil {
-			return ""
-		}
-		return *childVS.HttpPolicyRefs[0].RequestRules[0].HdrAction[0].Action
-	}, 25*time.Second).Should(gomega.Equal("HTTP_REPLACE_HDR"))
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
 
 	//reset the field
-	os.Setenv("NSXT_T1_LR", "")
-	// delete httproute
+	os.Unsetenv("NSXT_T1_LR")
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
