@@ -522,8 +522,11 @@ func TestHTTPRouteWithValidConfig(t *testing.T) {
 	gatewayName := "gateway-hr-07"
 	httpRouteName := "httproute-07"
 	namespace := "default"
+	svcName := "avisvc-hr-07"
 	ports := []int32{8080, 8081}
 
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPorEPS(t, "default", svcName, false, false, "1.1.1")
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 
 	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
@@ -541,7 +544,10 @@ func TestHTTPRouteWithValidConfig(t *testing.T) {
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
 	hostnames := []gatewayv1.Hostname{"foo-8080.com", "foo-8081.com"}
-	rules := akogatewayapitests.GetHTTPRouteRulesV1Login()
+	rule := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
+		[][]string{{svcName, namespace, "8080", "1"}}, nil)
+	rules := []gatewayv1.HTTPRouteRule{rule}
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
 	g.Eventually(func() bool {
 		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
@@ -583,6 +589,8 @@ func TestHTTPRouteWithValidConfig(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].EvhNodes[0].PoolRefs).To(gomega.HaveLen(1))
 
+	integrationtest.DelSVC(t, namespace, svcName)
+	integrationtest.DelEPorEPS(t, namespace, svcName)
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
 	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
