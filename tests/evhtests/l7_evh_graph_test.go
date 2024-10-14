@@ -2121,7 +2121,7 @@ func TestMultiIngressSameHostDifferentNamespaceForEvh(t *testing.T) {
 	}
 	// status should be empty.
 	// TODO: Events can be checked for ingress.
-	g.Expect(ing_red.Status.LoadBalancer).To(gomega.BeNil())
+	g.Expect(len(ing_red.Status.LoadBalancer.Ingress)).To(gomega.Equal(0))
 	integrationtest.PollForCompletion(t, modelName, 5)
 	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
