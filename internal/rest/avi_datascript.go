@@ -147,7 +147,7 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 		if resp["pool_group_refs"] != nil {
 			pgs, _ := resp["pool_group_refs"].([]interface{})
 			for _, pg := range pgs {
-				pgUuid := avicache.ExtractUuid(pg.(string), "poolgroup-.*.#")
+				pgUuid := avicache.ExtractUUID(pg.(string), "poolgroup-.*.#")
 				pgName, found := rest.cache.PgCache.AviCacheGetNameByUuid(pgUuid)
 				if found {
 					poolgroups = append(poolgroups, pgName.(string))

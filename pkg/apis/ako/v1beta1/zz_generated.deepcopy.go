@@ -401,6 +401,11 @@ func (in *HTTPRulePaths) DeepCopyInto(out *HTTPRulePaths) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.EnableHttp2 != nil {
+		in, out := &in.EnableHttp2, &out.EnableHttp2
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

@@ -308,7 +308,7 @@ func BuildRegexAppRootForHostRule(hostrule *akov1beta1.HostRule, vsNode AviVsEvh
 					tenant := vsNode.GetTenant()
 					regexStringGroup := &models.StringGroup{
 						TenantRef:    &tenant,
-						Type:         proto.String("SG_TYPE_KEYVAL"),
+						Type:         proto.String("SG_TYPE_STRING"),
 						LongestMatch: proto.Bool(true),
 						Name:         &regexStringGroupName,
 						Kv:           []*models.KeyValue{kv},
@@ -485,6 +485,10 @@ func BuildPoolHTTPRule(host, poolPath, ingName, namespace, infraSettingName, key
 				pool.PkiProfile = destinationCertNode
 				pool.HealthMonitorRefs = pathHMs
 				pool.ApplicationPersistenceProfileRef = persistenceProfile
+
+				if httpRulePath.EnableHttp2 != nil {
+					pool.EnableHttp2 = httpRulePath.EnableHttp2
+				}
 
 				// from this path, generate refs to this pool node
 				if httpRulePath.LoadBalancerPolicy.Algorithm != "" {

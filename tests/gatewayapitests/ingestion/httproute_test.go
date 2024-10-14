@@ -83,7 +83,7 @@ func TestHTTPRouteHostnameInvalid(t *testing.T) {
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
 	hostnames := []gatewayv1.Hostname{"*.example.com"}
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
-	waitAndverify(t, "")
+	waitAndverify(t, key)
 
 	// update
 	hostnames = []gatewayv1.Hostname{"foo-8080.com"}
@@ -117,7 +117,7 @@ func TestHTTPRouteGatewayNotPresent(t *testing.T) {
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
 	hostnames := []gatewayv1.Hostname{"foo-8080.com", "foo-8081.com"}
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
-	waitAndverify(t, "")
+	waitAndverify(t, key)
 
 	// update
 	listeners := akogatewayapitests.GetListenersV1(ports, false, false)

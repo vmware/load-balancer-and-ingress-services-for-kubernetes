@@ -388,14 +388,14 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 						if rulemap["switching_action"] != nil {
 							switchAction := rulemap["switching_action"].(map[string]interface{})
 							if switchAction["pool_group_ref"] != nil {
-								pgUuid := avicache.ExtractUuid(switchAction["pool_group_ref"].(string), "poolgroup-.*.#")
+								pgUuid := avicache.ExtractUUID(switchAction["pool_group_ref"].(string), "poolgroup-.*.#")
 								// Search the poolName using this Uuid in the poolcache.
 								pgName, found := rest.cache.PgCache.AviCacheGetNameByUuid(pgUuid)
 								if found {
 									pgMembers = append(pgMembers, pgName.(string))
 								}
 							} else if switchAction["pool_ref"] != nil {
-								poolUuid := avicache.ExtractUuid(switchAction["pool_ref"].(string), "pool-.*.#")
+								poolUuid := avicache.ExtractUUID(switchAction["pool_ref"].(string), "pool-.*.#")
 								poolName, found := rest.cache.PoolCache.AviCacheGetNameByUuid(poolUuid)
 								if found {
 									poolMembers = append(poolMembers, poolName.(string))
@@ -409,7 +409,7 @@ func (rest *RestOperations) AviHTTPPolicyCacheAdd(rest_op *utils.RestOp, vsKey a
 								if pathMap["string_group_refs"] != nil {
 									sgRefs, _ := pathMap["string_group_refs"].([]interface{})
 									for _, sg := range sgRefs {
-										sgUuid := avicache.ExtractUuid(sg.(string), "stringgroup-.*.#")
+										sgUuid := avicache.ExtractUUID(sg.(string), "stringgroup-.*.#")
 										// Search the string group name using this Uuid in the string group cache.
 										sgName, found := rest.cache.StringGroupCache.AviCacheGetNameByUuid(sgUuid)
 										if found {

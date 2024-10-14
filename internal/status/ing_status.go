@@ -33,8 +33,14 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	types "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
+type Status struct {
+	*gatewayv1.GatewayClassStatus
+	*gatewayv1.GatewayStatus
+	*gatewayv1.HTTPRouteStatus
+}
 type UpdateOptions struct {
 	// IngSvc format: namespace/name, not supposed to be provided by the caller
 	IngSvc             string
@@ -45,6 +51,7 @@ type UpdateOptions struct {
 	VSName             string
 	Message            string
 	Tenant             string
+	Status             *Status
 }
 
 // VSUuidAnnotation is maps a hostname to the UUID of the virtual service where it is placed.

@@ -121,6 +121,7 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 		return
 	}
 
+	// TODO: These functions will return true or false. Depeding upon that we should update hostcache to have proper sync
 	// Process insecure routes first.
 	ProcessInsecureHosts(routeIgrObj, key, parsedIng, &modelList, Storedhosts, hostsMap)
 

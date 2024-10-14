@@ -70,8 +70,8 @@ func TestHTTPRouteWithValidConfig(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil &&
-			apimeta.FindStatusCondition(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted)) != nil &&
+			apimeta.FindStatusCondition(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.RouteConditionAccepted)) != nil
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap := make(map[string][]metav1.Condition)
@@ -79,8 +79,8 @@ func TestHTTPRouteWithValidConfig(t *testing.T) {
 	for _, port := range ports {
 		conditions := make([]metav1.Condition, 0, 1)
 		condition := metav1.Condition{
-			Type:    string(gatewayv1.GatewayConditionAccepted),
-			Reason:  string(gatewayv1.GatewayReasonAccepted),
+			Type:    string(gatewayv1.RouteConditionAccepted),
+			Reason:  string(gatewayv1.RouteReasonAccepted),
 			Status:  metav1.ConditionTrue,
 			Message: "Parent reference is valid",
 		}
@@ -138,23 +138,23 @@ func TestHTTPRouteWithAtleastOneParentReferenceValid(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.IsStatusConditionTrue(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted)) &&
-			apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.GatewayConditionAccepted))
+		return apimeta.IsStatusConditionTrue(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted)) &&
+			apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.RouteConditionAccepted))
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap := make(map[string][]metav1.Condition)
 	conditionMap[fmt.Sprintf("%s-%d", gatewayName, 8080)] = []metav1.Condition{
 		{
-			Type:    string(gatewayv1.GatewayConditionAccepted),
-			Reason:  string(gatewayv1.GatewayReasonAccepted),
+			Type:    string(gatewayv1.RouteConditionAccepted),
+			Reason:  string(gatewayv1.RouteReasonAccepted),
 			Status:  metav1.ConditionTrue,
 			Message: "Parent reference is valid",
 		},
 	}
 	conditionMap[fmt.Sprintf("%s-%d", gatewayName, 8081)] = []metav1.Condition{
 		{
-			Type:    string(gatewayv1.GatewayConditionAccepted),
-			Reason:  string(gatewayv1.GatewayReasonInvalid),
+			Type:    string(gatewayv1.RouteConditionAccepted),
+			Reason:  string(gatewayv1.RouteReasonNoMatchingParent),
 			Status:  metav1.ConditionFalse,
 			Message: "Invalid listener name provided",
 		},
@@ -215,14 +215,14 @@ func TestHTTPRouteTransitionFromInvalidToValid(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted))
+		return apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted))
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap := make(map[string][]metav1.Condition)
 	conditionMap[fmt.Sprintf("%s-%d", gatewayName, 8081)] = []metav1.Condition{
 		{
-			Type:    string(gatewayv1.GatewayConditionAccepted),
-			Reason:  string(gatewayv1.GatewayReasonInvalid),
+			Type:    string(gatewayv1.RouteConditionAccepted),
+			Reason:  string(gatewayv1.RouteReasonNoMatchingParent),
 			Status:  metav1.ConditionFalse,
 			Message: "Invalid listener name provided",
 		},
@@ -250,13 +250,13 @@ func TestHTTPRouteTransitionFromInvalidToValid(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.IsStatusConditionTrue(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted))
+		return apimeta.IsStatusConditionTrue(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted))
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap[fmt.Sprintf("%s-%d", gatewayName, 8080)] = []metav1.Condition{
 		{
-			Type:    string(gatewayv1.GatewayConditionAccepted),
-			Reason:  string(gatewayv1.GatewayReasonAccepted),
+			Type:    string(gatewayv1.RouteConditionAccepted),
+			Reason:  string(gatewayv1.RouteReasonAccepted),
 			Status:  metav1.ConditionTrue,
 			Message: "Parent reference is valid",
 		},
@@ -311,14 +311,14 @@ func TestHTTPRouteTransitionFromValidToInvalid(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.IsStatusConditionTrue(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted))
+		return apimeta.IsStatusConditionTrue(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted))
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap := make(map[string][]metav1.Condition)
-	conditionMap[fmt.Sprintf("%s-%d", gatewayName, 8081)] = []metav1.Condition{
+	conditionMap[fmt.Sprintf("%s-%d", gatewayName, 8080)] = []metav1.Condition{
 		{
-			Type:    string(gatewayv1.GatewayConditionAccepted),
-			Reason:  string(gatewayv1.GatewayReasonAccepted),
+			Type:    string(gatewayv1.RouteConditionAccepted),
+			Reason:  string(gatewayv1.RouteReasonAccepted),
 			Status:  metav1.ConditionTrue,
 			Message: "Parent reference is valid",
 		},
@@ -345,13 +345,13 @@ func TestHTTPRouteTransitionFromValidToInvalid(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted))
+		return apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted))
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap[fmt.Sprintf("%s-%d", gatewayName, 8081)] = []metav1.Condition{
 		{
-			Type:    string(gatewayv1.GatewayConditionAccepted),
-			Reason:  string(gatewayv1.GatewayReasonInvalid),
+			Type:    string(gatewayv1.RouteConditionAccepted),
+			Reason:  string(gatewayv1.RouteReasonNoMatchingParent),
 			Status:  metav1.ConditionFalse,
 			Message: "Invalid listener name provided",
 		},
@@ -403,8 +403,6 @@ func TestHTTPRouteWithNoParentReference(t *testing.T) {
 	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
 
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, nil, hostnames, nil)
-
-	time.Sleep(10 * time.Second)
 
 	g.Eventually(func() bool {
 		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
@@ -458,23 +456,23 @@ func TestHTTPRouteWithAllParentReferenceInvalid(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted)) &&
-			apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.GatewayConditionAccepted))
+		return apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted)) &&
+			apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.RouteConditionAccepted))
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap := map[string][]metav1.Condition{
 		fmt.Sprintf("%s-%d", gatewayName, 8080): {
 			{
-				Type:    string(gatewayv1.GatewayConditionAccepted),
-				Reason:  string(gatewayv1.GatewayReasonInvalid),
+				Type:    string(gatewayv1.RouteConditionAccepted),
+				Reason:  string(gatewayv1.RouteReasonNoMatchingParent),
 				Status:  metav1.ConditionFalse,
 				Message: "Invalid listener name provided",
 			},
 		},
 		fmt.Sprintf("%s-%d", gatewayName, 8081): {
 			{
-				Type:    string(gatewayv1.GatewayConditionAccepted),
-				Reason:  string(gatewayv1.GatewayReasonInvalid),
+				Type:    string(gatewayv1.RouteConditionAccepted),
+				Reason:  string(gatewayv1.RouteReasonNoMatchingParent),
 				Status:  metav1.ConditionFalse,
 				Message: "Invalid listener name provided",
 			},
@@ -505,8 +503,6 @@ func TestHTTPRouteWithNonExistingGatewayReference(t *testing.T) {
 	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
 
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
-
-	time.Sleep(10 * time.Second)
 
 	g := gomega.NewGomegaWithT(t)
 	g.Eventually(func() bool {
@@ -559,23 +555,23 @@ func TestHTTPRouteWithNonExistingListenerReference(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted)) &&
-			apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.GatewayConditionAccepted))
+		return apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted)) &&
+			apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.RouteConditionAccepted))
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap := map[string][]metav1.Condition{
 		fmt.Sprintf("%s-%d", gatewayName, 8080): {
 			{
-				Type:    string(gatewayv1.GatewayConditionAccepted),
-				Reason:  string(gatewayv1.GatewayReasonInvalid),
+				Type:    string(gatewayv1.RouteConditionAccepted),
+				Reason:  string(gatewayv1.RouteReasonNoMatchingParent),
 				Status:  metav1.ConditionFalse,
 				Message: "Invalid listener name provided",
 			},
 		},
 		fmt.Sprintf("%s-%d", gatewayName, 8081): {
 			{
-				Type:    string(gatewayv1.GatewayConditionAccepted),
-				Reason:  string(gatewayv1.GatewayReasonInvalid),
+				Type:    string(gatewayv1.RouteConditionAccepted),
+				Reason:  string(gatewayv1.RouteReasonNoMatchingParent),
 				Status:  metav1.ConditionFalse,
 				Message: "Invalid listener name provided",
 			},
@@ -694,7 +690,7 @@ func TestHTTPRouteUnprocessedGateway(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted)) != nil
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap := make(map[string][]metav1.Condition)
@@ -702,8 +698,8 @@ func TestHTTPRouteUnprocessedGateway(t *testing.T) {
 	for _, port := range ports {
 		conditions := make([]metav1.Condition, 0, 1)
 		condition := metav1.Condition{
-			Type:    string(gatewayv1.GatewayConditionAccepted),
-			Reason:  string(gatewayv1.GatewayReasonInvalid),
+			Type:    string(gatewayv1.RouteConditionAccepted),
+			Reason:  string(gatewayv1.RouteReasonPending),
 			Status:  metav1.ConditionFalse,
 			Message: "AKO is yet to process Gateway gateway-hr-11 for parent reference gateway-hr-11",
 		}
@@ -759,7 +755,7 @@ func TestHTTPRouteWithInvalidGatewayListener(t *testing.T) {
 		if len(httpRoute.Status.Parents) != len(ports) {
 			return false
 		}
-		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted)) != nil
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap := make(map[string][]metav1.Condition)
@@ -823,7 +819,7 @@ func TestHTTPRouteWithOneExistingAndOneNonExistingGateway(t *testing.T) {
 		if len(httpRoute.Status.Parents) != 1 {
 			return false
 		}
-		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted)) != nil
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	conditionMap := make(map[string][]metav1.Condition)
@@ -831,8 +827,8 @@ func TestHTTPRouteWithOneExistingAndOneNonExistingGateway(t *testing.T) {
 	for _, port := range ports {
 		conditions := make([]metav1.Condition, 0, 1)
 		condition := metav1.Condition{
-			Type:    string(gatewayv1.GatewayConditionAccepted),
-			Reason:  string(gatewayv1.GatewayReasonAccepted),
+			Type:    string(gatewayv1.RouteConditionAccepted),
+			Reason:  string(gatewayv1.RouteReasonAccepted),
 			Status:  metav1.ConditionTrue,
 			Message: "Parent reference is valid",
 		}
@@ -849,5 +845,177 @@ func TestHTTPRouteWithOneExistingAndOneNonExistingGateway(t *testing.T) {
 
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
 	akogatewayapitests.TeardownGateway(t, gatewayName2, namespace)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestMultipleHttpRoutesWithValidAndInvalidGatewayListeners(t *testing.T) {
+	gatewayClassName := "gateway-class-hr-14"
+	gatewayName := "gateway-hr-14"
+	httpRouteName1 := "httproute-14a"
+	httpRouteName2 := "httproute-14b"
+	namespace := "default"
+	ports := []int32{8080, 8081}
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
+	listeners[1].Protocol = "TCP"
+
+	g := gomega.NewGomegaWithT(t)
+	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
+	g.Eventually(func() bool {
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(namespace).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, []int32{ports[0]})
+	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName1, namespace, parentRefs, hostnames, nil)
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName1, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			t.Logf("Couldn't get the HTTPRoute, err: %+v", err)
+			return false
+		}
+		if len(httpRoute.Status.Parents) != 1 {
+			return false
+		}
+		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName1, metav1.GetOptions{})
+	if err != nil || httpRoute == nil {
+		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
+	}
+
+	conditionMap := make(map[string][]metav1.Condition)
+
+	conditions := make([]metav1.Condition, 0)
+	condition := metav1.Condition{
+		Type:    string(gatewayv1.RouteConditionAccepted),
+		Reason:  string(gatewayv1.RouteReasonAccepted),
+		Status:  metav1.ConditionTrue,
+		Message: "Parent reference is valid",
+	}
+	conditions = append(conditions, condition)
+	conditionMap[fmt.Sprintf("%s-%d", gatewayName, ports[0])] = conditions
+
+	expectedRouteStatus := akogatewayapitests.GetRouteStatusV1([]string{gatewayName}, namespace, []int32{ports[0]}, conditionMap)
+	akogatewayapitests.ValidateHTTPRouteStatus(t, &httpRoute.Status, &gatewayv1.HTTPRouteStatus{RouteStatus: *expectedRouteStatus})
+
+	parentRefs = akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, []int32{ports[1]})
+	hostnames = []gatewayv1.Hostname{"foo-8081.com"}
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName2, namespace, parentRefs, hostnames, nil)
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName2, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			t.Logf("Couldn't get the HTTPRoute, err: %+v", err)
+			return false
+		}
+		if len(httpRoute.Status.Parents) != 1 {
+			return false
+		}
+		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	httpRoute, err = akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName2, metav1.GetOptions{})
+	if err != nil || httpRoute == nil {
+		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
+	}
+
+	conditionMap = make(map[string][]metav1.Condition)
+	conditions = make([]metav1.Condition, 0, 1)
+	condition = metav1.Condition{
+		Type:    string(gatewayv1.RouteConditionAccepted),
+		Reason:  string(gatewayv1.RouteReasonAccepted),
+		Status:  metav1.ConditionTrue,
+		Message: "Parent reference is valid",
+	}
+
+	conditions = append(conditions, condition)
+	conditionMap[fmt.Sprintf("%s-%d", gatewayName, ports[1])] = conditions
+
+	conditionMap["gateway-hr-14-8081"][0].Message = "Matching gateway listener is in Invalid state"
+	conditionMap["gateway-hr-14-8081"][0].Status = metav1.ConditionFalse
+	conditionMap["gateway-hr-14-8081"][0].Reason = string(gatewayv1.RouteReasonPending)
+
+	expectedRouteStatus = akogatewayapitests.GetRouteStatusV1([]string{gatewayName}, namespace, []int32{ports[1]}, conditionMap)
+	akogatewayapitests.ValidateHTTPRouteStatus(t, &httpRoute.Status, &gatewayv1.HTTPRouteStatus{RouteStatus: *expectedRouteStatus})
+
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName2, namespace)
+	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestHttpRouteWithValidAndInvalidGatewayListeners(t *testing.T) {
+	gatewayClassName := "gateway-class-hr-15"
+	gatewayName := "gateway-hr-15"
+	httpRouteName := "httproute-15"
+	namespace := "default"
+	ports := []int32{8080, 8081}
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
+	listeners[1].Protocol = "TCP"
+
+	g := gomega.NewGomegaWithT(t)
+	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
+	g.Eventually(func() bool {
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(namespace).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
+	hostnames := []gatewayv1.Hostname{"foo-8080.com", "foo-8081.com"}
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			t.Logf("Couldn't get the HTTPRoute, err: %+v", err)
+			return false
+		}
+		if len(httpRoute.Status.Parents) != 2 {
+			return false
+		}
+		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	conditionMap := make(map[string][]metav1.Condition)
+
+	for _, port := range ports {
+		conditions := []metav1.Condition{{
+			Type:    string(gatewayv1.RouteConditionAccepted),
+			Reason:  string(gatewayv1.RouteReasonAccepted),
+			Status:  metav1.ConditionTrue,
+			Message: "Parent reference is valid",
+		}}
+		conditionMap[fmt.Sprintf("%s-%d", gatewayName, port)] = conditions
+	}
+	conditionMap["gateway-hr-15-8081"][0].Message = "Matching gateway listener is in Invalid state"
+	conditionMap["gateway-hr-15-8081"][0].Status = metav1.ConditionFalse
+	conditionMap["gateway-hr-15-8081"][0].Reason = string(gatewayv1.RouteReasonPending)
+
+	expectedRouteStatus := akogatewayapitests.GetRouteStatusV1([]string{gatewayName}, namespace, ports, conditionMap)
+
+	httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+	if err != nil || httpRoute == nil {
+		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
+	}
+	akogatewayapitests.ValidateHTTPRouteStatus(t, &httpRoute.Status, &gatewayv1.HTTPRouteStatus{RouteStatus: *expectedRouteStatus})
+
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
+	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 }

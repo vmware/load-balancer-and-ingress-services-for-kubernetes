@@ -22,7 +22,9 @@ import (
 	"strings"
 	"sync"
 
+	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/vmware/alb-sdk/go/clients"
@@ -185,7 +187,29 @@ func GetPodsFromService(namespace, serviceName string, targetPortName intstr.Int
 	objects.SharedSvcToPodLister().Save(svcKey, PodsWithTargetPort{Pods: pods, TargetPort: targetPort})
 	return pods, targetPort
 }
+func IngressLessthan(ing1, ing2 *networkingv1.Ingress) bool {
+	if ing1.CreationTimestamp.Before(&ing2.CreationTimestamp) {
+		return true
+	}
 
+	if ing2.CreationTimestamp.Before(&ing1.CreationTimestamp) {
+		return false
+	}
+
+	return ing1.UID < ing2.UID
+}
+
+func RouteLessthan(route1, route2 *routev1.Route) bool {
+	if route1.CreationTimestamp.Before(&route2.CreationTimestamp) {
+		return true
+	}
+
+	if route2.CreationTimestamp.Before(&route1.CreationTimestamp) {
+		return false
+	}
+
+	return route1.UID < route2.UID
+}
 func GetServicesForPod(pod *corev1.Pod) ([]string, []string) {
 	var svcList, lbList []string
 	services, err := utils.GetInformers().ServiceInformer.Lister().List(labels.Everything())

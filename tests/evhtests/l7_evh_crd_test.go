@@ -1463,6 +1463,73 @@ func TestHTTPRuleWithInvalidPath(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
+func TestHTTPRuleCreateDeleteWithEnableHTTP2ForEvh(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName, _ := GetModelName("foo.com", "default")
+	rrName := objNameMap.GenerateName("samplerr-foo")
+
+	SetupDomain()
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	SetUpTestForIngress(t, svcName, modelName)
+	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
+	integrationtest.PollForCompletion(t, modelName, 5)
+	ingressObject := integrationtest.FakeIngress{
+		Name:        ingressName,
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		Paths:       []string{"/foo", "/bar"},
+		ServiceName: svcName,
+		TlsSecretDNS: map[string][]string{
+			secretName: {"foo.com"},
+		},
+	}
+
+	ingrFake := ingressObject.Ingress(true)
+	if _, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	poolFooKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com_foo-"+ingressName+"-"+svcName, lib.Pool)}
+	poolBarKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com_bar-"+ingressName+"-"+svcName, lib.Pool)}
+	httpRulePath := "/"
+	httprule := integrationtest.FakeHTTPRule{
+		Name:      rrName,
+		Namespace: "default",
+		Fqdn:      "foo.com",
+		PathProperties: []integrationtest.FakeHTTPRulePath{{
+			Path:        httpRulePath,
+			EnableHTTP2: true,
+		}},
+	}
+
+	rrCreate := httprule.HTTPRule()
+	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HTTPRules("default").Create(context.TODO(), rrCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding HTTPRule: %v", err)
+	}
+
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolFooKey, "default/"+rrName+"/"+httpRulePath, true)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolBarKey, "default/"+rrName+"/"+httpRulePath, true)
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(*nodes[0].EvhNodes[0].PoolRefs[0].EnableHttp2).To(gomega.Equal(true))
+
+	// delete httprule disables HTTP2
+	integrationtest.TeardownHTTPRule(t, rrName)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolFooKey, "default/"+rrName+"/"+httpRulePath, false)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolBarKey, "default/"+rrName+"/"+httpRulePath, false)
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].EnableHttp2).To(gomega.BeNil())
+
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
+}
+
 func TestCreateUpdateDeleteSSORuleForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 

@@ -274,7 +274,7 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 			resVer := meta.GetResourceVersion()
 			objects.SharedResourceVerInstanceLister().Save(key, resVer)
 		}
-		if IsValidGateway(key, gatewayObj) {
+		if valid, _ := IsValidGateway(key, gatewayObj); valid {
 			filteredGateways = append(filteredGateways, gatewayObj)
 		}
 	}
@@ -304,7 +304,7 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 			resVer := meta.GetResourceVersion()
 			objects.SharedResourceVerInstanceLister().Save(key, resVer)
 		}
-		if IsHTTPRouteValid(key, httpRouteObj) {
+		if IsHTTPRouteConfigValid(key, httpRouteObj) {
 			filteredHTTPRoutes = append(filteredHTTPRoutes, httpRouteObj)
 		}
 	}

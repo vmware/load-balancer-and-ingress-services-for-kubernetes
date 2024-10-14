@@ -427,19 +427,17 @@ func TestSecretCreateDelete(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
-	}, 30*time.Second).Should(gomega.Equal(true))
+	}, 30*time.Second).Should(gomega.Equal(false))
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-	g.Expect(nodes).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(0))
+	g.Expect(aviModel).To(gomega.BeNil())
 
 	integrationtest.AddSecret(secrets[0], DEFAULT_NAMESPACE, "cert", "key")
 
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if found {
-			nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 			g.Expect(nodes).To(gomega.HaveLen(1))
 			g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(1))
 			return true
@@ -453,7 +451,7 @@ func TestSecretCreateDelete(t *testing.T) {
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if found {
-			nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 			g.Expect(nodes).To(gomega.HaveLen(1))
 			g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(0))
 			return true
