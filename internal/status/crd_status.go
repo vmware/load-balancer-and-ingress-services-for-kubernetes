@@ -17,7 +17,9 @@ package status
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
@@ -25,6 +27,7 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
+	backoff "github.com/cenkalti/backoff/v4"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -51,7 +54,7 @@ func UpdateHostRuleStatus(key string, hr *akov1beta1.HostRule, updateStatus Upda
 		"status": akov1beta1.HostRuleStatus(updateStatus),
 	})
 
-	_, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules(hr.Namespace).Patch(context.TODO(), hr.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+	hrFromK8sClient, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules(hr.Namespace).Patch(context.TODO(), hr.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: there was an error in updating the hostrule status: %+v", key, err)
 		updatedHr, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(hr.Namespace).Get(hr.Name)
@@ -63,6 +66,25 @@ func UpdateHostRuleStatus(key string, hr *akov1beta1.HostRule, updateStatus Upda
 			return
 		}
 		UpdateHostRuleStatus(key, updatedHr, updateStatus, retry+1)
+	}
+	// wait for crdinformer to be updated
+	constantBackoff := backoff.WithMaxRetries(backoff.NewConstantBackOff(500*time.Millisecond), 5)
+
+	operation := func() error {
+		hrFromInformer, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(hr.Namespace).Get(hr.Name)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: Unable to get the hostrule %s/%s from informer", key, hr.Namespace, hr.Name)
+			return fmt.Errorf("hostrule not found. err: [%s]", err.Error())
+		}
+		if hrFromInformer.Status.Status != hrFromK8sClient.Status.Status {
+			return fmt.Errorf("hostrule not updated in cache")
+		}
+		return nil
+	}
+
+	err = backoff.Retry(operation, constantBackoff)
+	if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: Hostrule %s/%s lister cache not updated with patch. error: [%s]", key, hr.Namespace, hr.Name, err.Error())
 	}
 
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the hostrule %s/%s status %+v", key, hr.Namespace, hr.Name, utils.Stringify(updateStatus))
