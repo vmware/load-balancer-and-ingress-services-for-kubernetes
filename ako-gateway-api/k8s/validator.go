@@ -174,6 +174,19 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 		Status(metav1.ConditionFalse).
 		ObservedGeneration(gateway.ObjectMeta.Generation)
 
+	// protocol validation
+	if listener.Protocol != gatewayv1.HTTPProtocolType &&
+		listener.Protocol != gatewayv1.HTTPSProtocolType {
+		utils.AviLog.Errorf("key: %s, msg: protocol is not supported for listener %s", key, listener.Name)
+		defaultCondition.
+			Reason(string(gatewayv1.ListenerReasonUnsupportedProtocol)).
+			Message("Unsupported protocol").
+			SetIn(&gatewayStatus.Listeners[index].Conditions)
+		programmedCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
+		gatewayStatus.Listeners[index].SupportedKinds = akogatewayapilib.SupportedKinds[gatewayv1.HTTPSProtocolType]
+		return false
+	}
+
 	// hostname should not overlap with hostname of an existing gateway
 	gatewayNsList, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(gateway.Namespace).List(labels.Set(nil).AsSelector())
 	if err != nil {
@@ -206,19 +219,6 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 			programmedCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
 			return false
 		}
-	}
-
-	// protocol validation
-	if listener.Protocol != gatewayv1.HTTPProtocolType &&
-		listener.Protocol != gatewayv1.HTTPSProtocolType {
-		utils.AviLog.Errorf("key: %s, msg: protocol is not supported for listener %s", key, listener.Name)
-		defaultCondition.
-			Reason(string(gatewayv1.ListenerReasonUnsupportedProtocol)).
-			Message("Unsupported protocol").
-			SetIn(&gatewayStatus.Listeners[index].Conditions)
-		programmedCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
-		gatewayStatus.Listeners[index].SupportedKinds = akogatewayapilib.SupportedKinds[gatewayv1.HTTPSProtocolType]
-		return false
 	}
 
 	resolvedRefCondition := akogatewayapistatus.NewCondition().
