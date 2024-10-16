@@ -317,7 +317,7 @@ func (g *GWLister) GetGatewayToRoute(gwNsName string) (bool, []string) {
 	return false, []string{}
 }
 
-func (g *GWLister) UpdateGatewayRouteMappings(gwNsName string, gwListeners []GatewayListenerStore, routeTypeNsName string) {
+func (g *GWLister) UpdateGatewayRouteMappings(gwNsName string, routeTypeNsName string) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 
@@ -332,18 +332,6 @@ func (g *GWLister) UpdateGatewayRouteMappings(gwNsName string, gwListeners []Gat
 		g.routeToGateway.AddOrUpdate(routeTypeNsName, []string{gwNsName})
 	}
 
-	if found, gwListenerList := g.routeToGatewayListener.Get(routeTypeNsName); found {
-		gwListenerListObj := gwListenerList.([]GatewayListenerStore)
-		for _, gwListener := range gwListeners {
-			if !utils.HasElem(gwListenerList, gwListener) {
-				gwListenerListObj = append(gwListenerListObj, gwListener)
-			}
-		}
-		g.routeToGatewayListener.AddOrUpdate(routeTypeNsName, gwListenerListObj)
-	} else {
-		g.routeToGatewayListener.AddOrUpdate(routeTypeNsName, gwListeners)
-	}
-
 	// update gateway to route mapping
 	if found, routeTypeNsNameList := g.gatewayToRoute.Get(gwNsName); found {
 		routeTypeNsNameListObj := routeTypeNsNameList.([]string)
@@ -354,6 +342,12 @@ func (g *GWLister) UpdateGatewayRouteMappings(gwNsName string, gwListeners []Gat
 	} else {
 		g.gatewayToRoute.AddOrUpdate(gwNsName, []string{routeTypeNsName})
 	}
+}
+
+func (g *GWLister) UpdateRouteToGatewayListenerMappings(gwListeners []GatewayListenerStore, routeTypeNsName string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	g.routeToGatewayListener.AddOrUpdate(routeTypeNsName, gwListeners)
 }
 
 //=====All gateway <-> service mappings go here.
