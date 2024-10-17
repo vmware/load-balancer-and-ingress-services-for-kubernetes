@@ -967,23 +967,8 @@ func FetchSEGroupWithMarkerSet(client *clients.AviClient, overrideUri ...NextPag
 	var result session.AviCollectionResult
 	result, err := AviGetCollectionRaw(client, uri)
 	if err != nil {
-		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
-			//SE in provider context no read access
-			utils.AviLog.Debugf("Switching to admin context from  %s", GetTenant())
-			SetAdminTenant := session.SetTenant(GetAdminTenant())
-			SetTenant := session.SetTenant(GetTenant())
-			SetAdminTenant(client.AviSession)
-			defer SetTenant(client.AviSession)
-			result, err = AviGetCollectionRaw(client, uri)
-			if err != nil {
-				utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-				return err, ""
-
-			}
-		} else {
-			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-			return err, ""
-		}
+		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+		return err, ""
 	}
 
 	elems := make([]json.RawMessage, result.Count)
