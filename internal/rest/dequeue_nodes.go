@@ -282,6 +282,11 @@ func (rest *RestOperations) CheckAndPublishForRetry(err error, publishKey avicac
 					rest.PublishKeyToSlowRetryLayer(publishKey, key)
 					return true
 				}
+				if strings.Contains(*aviError.Message, fmt.Sprintf(lib.TenantDoesNotExist, publishKey.Namespace)) {
+					utils.AviLog.Warnf("key: %s, msg: Tenant not found, adding to slow retry queue", key)
+					rest.PublishKeyToSlowRetryLayer(publishKey, key)
+					return true
+				}
 			}
 		}
 	}

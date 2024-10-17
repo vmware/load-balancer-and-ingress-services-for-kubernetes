@@ -208,6 +208,7 @@ const (
 	HTTPMethodPut                              = "PUT"
 	VrfContextObjectNotFoundError              = "VrfContext object not found"
 	NetworkNotFoundError                       = "Network object not found"
+	TenantDoesNotExist                         = "Tenant '%s' does not exist!"
 	FQDNReusePolicyStrict                      = "strict"
 	FQDNReusePolicyOpen                        = "internamespaceallowed"
 
