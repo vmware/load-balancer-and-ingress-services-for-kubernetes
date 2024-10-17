@@ -152,7 +152,6 @@ func (t *T1LRNetworking) createInfraSettingAndAnnotateNS(nsLRMap map[string]stri
 	}
 
 	processedInfraSettingCRSet := make(map[string]struct{})
-	wg := sync.WaitGroup{}
 	for ns, lr := range nsLRMap {
 		infraSettingName := getInfraSettingNameFromT1LR(lr)
 		netName := lib.GetVCFNetworkName()
@@ -160,6 +159,7 @@ func (t *T1LRNetworking) createInfraSettingAndAnnotateNS(nsLRMap map[string]stri
 			netName = lib.GetVCFNetworkNameWithNS(ns)
 			infraSettingName = infraSettingName + "-" + ns
 		}
+		infraSettingName = strings.ReplaceAll(infraSettingName, "_", "-")
 		// multiple namespaces can have the same lr, and there will always be only 1 infrasetting per lr
 		// so no need to attempt Infrasetting creation
 		// just annotate the namespace with the infrasetting name
@@ -167,32 +167,24 @@ func (t *T1LRNetworking) createInfraSettingAndAnnotateNS(nsLRMap map[string]stri
 			lib.AnnotateNamespaceWithInfraSetting(ns, infraSettingName)
 			continue
 		}
+
 		processedInfraSettingCRSet[infraSettingName] = struct{}{}
 		delete(staleInfraSettingCRSet, infraSettingName)
 
-		wg.Add(1)
-		go func(lr, ns string) {
-			defer wg.Done()
-			_, err := lib.CreateOrUpdateAviInfraSetting(infraSettingName, netName, lr)
-			if err != nil {
-				utils.AviLog.Errorf("failed to create aviInfraSetting, name: %s, error: %s", infraSettingName, err.Error())
-				return
-			}
-			lib.AnnotateNamespaceWithInfraSetting(ns, infraSettingName)
-		}(lr, ns)
+		_, err := lib.CreateOrUpdateAviInfraSetting(infraSettingName, netName, lr)
+		if err != nil {
+			utils.AviLog.Errorf("failed to create aviInfraSetting, name: %s, error: %s", infraSettingName, err.Error())
+			continue
+		}
+		lib.AnnotateNamespaceWithInfraSetting(ns, infraSettingName)
 	}
 
 	for infraSettingName := range staleInfraSettingCRSet {
-		wg.Add(1)
-		go func(name string) {
-			err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Delete(context.TODO(), name, metav1.DeleteOptions{})
-			if err != nil {
-				utils.AviLog.Errorf("failed to delete aviInfraSetting, name: %s, error: %s", name, err.Error())
-			}
-			wg.Done()
-		}(infraSettingName)
+		err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Delete(context.TODO(), infraSettingName, metav1.DeleteOptions{})
+		if err != nil {
+			utils.AviLog.Errorf("failed to delete aviInfraSetting, name: %s, error: %s", infraSettingName, err.Error())
+		}
 	}
-	wg.Wait()
 	lib.RemoveInfraSettingAnnotationFromNamespaces(staleInfraSettingCRSet)
 }
 
