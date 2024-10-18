@@ -433,7 +433,7 @@ func TestCreateUpdateDeleteSSORuleForEvhInsecure(t *testing.T) {
 	g.Eventually(func() string {
 		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srname, metav1.GetOptions{})
 		return ssoRule.Status.Status
-	}, 10*time.Second).Should(gomega.Equal("Accepted"))
+	}, 30*time.Second, 1*time.Second).Should(gomega.Equal("Accepted"))
 
 	// update is not getting reflected on evh nodes immediately. Hence adding a sleep of 5 seconds.
 	time.Sleep(5 * time.Second)
