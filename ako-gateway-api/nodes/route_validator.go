@@ -71,6 +71,36 @@ func IsHTTPRouteValid(key string, obj *gatewayv1.HTTPRoute) bool {
 	return true
 }
 
+func validateBackendReference(key string, backend Backend, httpRoute *gatewayv1.HTTPRoute) (bool, akogatewayapistatus.Condition) {
+	routeConditionResolvedRef := akogatewayapistatus.NewCondition().
+		Type(string(gatewayv1.RouteConditionResolvedRefs)).
+		Status(metav1.ConditionFalse).
+		ObservedGeneration(httpRoute.ObjectMeta.Generation)
+	if backend.Kind != "" && backend.Kind != "Service" {
+		utils.AviLog.Errorf("key: %s, msg: BackendRef %s has invalid kind %s.", key, backend.Name, backend.Kind)
+		err := fmt.Errorf("BackendRef %s has invalid kind %s.", backend.Name, backend.Kind)
+		routeConditionResolvedRef.
+			Reason(string(gatewayv1.RouteReasonInvalidKind)).
+			Message(err.Error())
+		return false, routeConditionResolvedRef
+	}
+	//TODO: other backendRef related conditions should go here
+
+	// Valid route case
+	routeConditionResolvedRef.
+		Status(metav1.ConditionTrue).
+		Reason(string(gatewayv1.RouteReasonResolvedRefs))
+	return true, routeConditionResolvedRef
+}
+
+func setResolvedRefConditionInHTTPRouteStatus(key string, httpRoute *gatewayv1.HTTPRoute, routeConditionResolvedRef akogatewayapistatus.Condition, routeTypeNsName string) {
+	httpRouteStatus := akogatewayapiobjects.GatewayApiLister().GetRouteToRouteStatusMapping(routeTypeNsName)
+	for parentRefIndex := range httpRouteStatus.Parents {
+		routeConditionResolvedRef.SetIn(&httpRouteStatus.Parents[parentRefIndex].Conditions)
+	}
+	akogatewayapistatus.Record(key, httpRoute, &status.Status{HTTPRouteStatus: httpRouteStatus})
+}
+
 func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRouteStatus *gatewayv1.HTTPRouteStatus, parentRefIndexFromSpec int, parentRefIndexInHttpRouteStatus *int) error {
 
 	name := string(httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].Name)

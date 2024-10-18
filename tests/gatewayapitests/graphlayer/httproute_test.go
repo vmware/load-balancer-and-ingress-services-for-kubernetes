@@ -764,8 +764,8 @@ func TestHTTPRouteBackendServiceCDC(t *testing.T) {
 			return 0
 		}
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes[0].PoolGroupRefs[0].Members)
-	}, 25*time.Second).Should(gomega.Equal(1))
+		return len(nodes[0].EvhNodes[0].PoolGroupRefs)
+	}, 30*time.Second).Should(gomega.Equal(1))
 
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()

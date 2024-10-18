@@ -105,6 +105,7 @@ type Backend struct {
 	Namespace string
 	Port      int32
 	Weight    int32
+	Kind      string
 }
 
 type HTTPBackend struct {
@@ -294,6 +295,9 @@ func (hr *httpRoute) ParseRouteConfig() *RouteConfig {
 			if ruleBackend.BackendRef.Port != nil {
 				//Default 0
 				backend.Port = int32(*ruleBackend.Port)
+			}
+			if ruleBackend.BackendRef.Kind != nil {
+				backend.Kind = string(*ruleBackend.Kind)
 			}
 			backend.Weight = 1
 			if ruleBackend.Weight != nil {

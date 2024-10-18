@@ -95,7 +95,7 @@ func Record(key string, obj runtime.Object, objStatus *status.Status) {
 		objectType = lib.HTTPRoute
 		serviceMetadata.HTTPRoute = gwObject.Namespace + "/" + gwObject.Name
 		key = serviceMetadata.HTTPRoute
-		akogatewayapiobjects.GatewayApiLister().UpdateRouteToRouteStatusMapping(objectType+"/"+serviceMetadata.HTTPRoute, &objStatus.RouteStatus)
+		akogatewayapiobjects.GatewayApiLister().UpdateRouteToRouteStatusMapping(objectType+"/"+serviceMetadata.HTTPRoute, objStatus.HTTPRouteStatus)
 	default:
 		utils.AviLog.Warnf("key %s, msg: Unsupported object received at the status layer, %T", key, obj)
 		return

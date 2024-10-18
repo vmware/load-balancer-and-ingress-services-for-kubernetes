@@ -27,6 +27,7 @@ import (
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
+	akogatewayapistatus "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -244,7 +245,27 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 		Name:   PGName,
 		Tenant: lib.GetTenant(),
 	}
+	var resolvedRefCondition akogatewayapistatus.Condition
+	hasInvalidBackend := false
+	_, namespace, name := lib.ExtractTypeNameNamespace(routeTypeNsName)
+	httpRoute, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).Get(name)
+	if err != nil {
+		utils.AviLog.Debugf("key: %s, msg: Unable to extract the HTTPRoute object %s for BackendRef validation", key, name)
+		return
+	}
+
 	for _, httpbackend := range rule.Backends {
+		isValidBackend, resolvedRefConditionforBackend := validateBackendReference(key, *httpbackend.Backend, httpRoute)
+		if !isValidBackend {
+			hasInvalidBackend = true
+			resolvedRefCondition = resolvedRefConditionforBackend
+			continue
+		} else {
+			if !hasInvalidBackend {
+				resolvedRefCondition = resolvedRefConditionforBackend
+			}
+		}
+
 		poolName := akogatewayapilib.GetPoolName(parentNs, parentName,
 			routeModel.GetNamespace(), routeModel.GetName(),
 			utils.Stringify(rule.Matches),
@@ -293,6 +314,9 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		ratio := uint32(httpbackend.Backend.Weight)
 		PG.Members = append(PG.Members, &models.PoolGroupMember{PoolRef: &pool_ref, Ratio: &ratio})
+	}
+	if len(rule.Backends) > 0 {
+		setResolvedRefConditionInHTTPRouteStatus(key, httpRoute, resolvedRefCondition, routeTypeNsName)
 	}
 	if len(PG.Members) > 0 {
 		childVsNode.PoolGroupRefs = []*nodes.AviPoolGroupNode{PG}
