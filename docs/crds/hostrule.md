@@ -240,7 +240,7 @@ Where dedicated VSes are created corresponding to a single application, Shared V
 
         fqdn: foo.com     # dedicated VS
         fqdnType: Exact
-        tcpSetting:
+        tcpSettings:
           listeners:
           - port: 6443
             enableSSL: true
@@ -248,13 +248,13 @@ Where dedicated VSes are created corresponding to a single application, Shared V
 
         fqdn: Shared-VS-L7-1.admin.avi.com    # AKO configured Shared VS fqdn
         fqdnType: Exact
-        tcpSetting:
+        tcpSettings:
           loadBalancerIP: 10.10.10.1
 
 
         fqdn: Shared-VS-L7-1      # bound for clusterName--Shared-VS-L7-1
         fqdnType: Contains
-        tcpSetting:
+        tcpSettings:
           loadBalancerIP: 10.10.10.1
 
 ##### Custom Ports
