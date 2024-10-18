@@ -71,6 +71,45 @@ func IsHTTPRouteValid(key string, obj *gatewayv1.HTTPRoute) bool {
 	return true
 }
 
+func validateBackendReference(key string, backend Backend, httpRoute *httpRoute) (bool, akogatewayapistatus.Condition) {
+	routeConditionResolvedRef := akogatewayapistatus.NewCondition().
+		Type(string(gatewayv1.RouteConditionResolvedRefs)).
+		Status(metav1.ConditionFalse)
+	if backend.Kind != "" && backend.Kind != "Service" {
+		utils.AviLog.Errorf("key: %s, msg: BackendRef %s has invalid kind %s.", key, backend.Name, backend.Kind)
+		err := fmt.Errorf("BackendRef %s has invalid kind %s.", backend.Name, backend.Kind)
+		routeConditionResolvedRef.
+			Reason(string(gatewayv1.RouteReasonInvalidKind)).
+			Message(err.Error())
+		return false, routeConditionResolvedRef
+	}
+	//TODO: other backendRef related conditions should go here
+
+	// Valid route case
+	routeConditionResolvedRef.
+		Status(metav1.ConditionTrue).
+		Reason(string(gatewayv1.RouteReasonResolvedRefs))
+	return true, routeConditionResolvedRef
+}
+
+func setResolvedRefConditionInHTTPRouteStatus(key string, routeConditionResolvedRef akogatewayapistatus.Condition, routeTypeNamespaceName string) {
+	if routeConditionResolvedRef == nil {
+		return
+	}
+	httpRouteStatus := akogatewayapiobjects.GatewayApiLister().GetRouteToRouteStatusMapping(routeTypeNamespaceName)
+	routeConditionResolvedRef.ObservedGeneration(httpRouteStatus.Parents[0].Conditions[0].ObservedGeneration)
+	for parentRefIndex := range httpRouteStatus.Parents {
+		routeConditionResolvedRef.SetIn(&httpRouteStatus.Parents[parentRefIndex].Conditions)
+	}
+	_, namespace, name := lib.ExtractTypeNameNamespace(routeTypeNamespaceName)
+	httpRoute, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).Get(name)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Unable to extract the HTTPRoute object %s for BackendRef validation", key, name)
+		return
+	}
+	akogatewayapistatus.Record(key, httpRoute, &status.Status{HTTPRouteStatus: httpRouteStatus})
+}
+
 func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRouteStatus *gatewayv1.HTTPRouteStatus, parentRefIndexFromSpec int, parentRefIndexInHttpRouteStatus *int) error {
 
 	name := string(httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].Name)
