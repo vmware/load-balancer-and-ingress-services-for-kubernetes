@@ -22,6 +22,7 @@ import (
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	akogatewayapistatus "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 )
 
@@ -30,7 +31,7 @@ type RouteModel interface {
 	GetNamespace() string
 	GetType() string
 	GetSpec() interface{}
-	ParseRouteConfig() *RouteConfig
+	ParseRouteConfig(key string) *RouteConfig
 	Exists() bool
 	GetParents() sets.Set[string]
 }
@@ -105,6 +106,7 @@ type Backend struct {
 	Namespace string
 	Port      int32
 	Weight    int32
+	Kind      string
 }
 
 type HTTPBackend struct {
@@ -162,7 +164,7 @@ func (hr *httpRoute) GetSpec() interface{} {
 	return hr.spec
 }
 
-func (hr *httpRoute) ParseRouteConfig() *RouteConfig {
+func (hr *httpRoute) ParseRouteConfig(key string) *RouteConfig {
 	if hr.routeConfig != nil {
 		return hr.routeConfig
 	}
@@ -172,7 +174,7 @@ func (hr *httpRoute) ParseRouteConfig() *RouteConfig {
 	for i := range hr.spec.Hostnames {
 		routeConfig.Hosts[i] = string(hr.spec.Hostnames[i])
 	}
-
+	var resolvedRefCondition akogatewayapistatus.Condition
 	routeConfig.Rules = make([]*Rule, 0, len(hr.spec.Rules))
 	for _, rule := range hr.spec.Rules {
 		routeConfigRule := &Rule{}
@@ -282,6 +284,7 @@ func (hr *httpRoute) ParseRouteConfig() *RouteConfig {
 			}
 			routeConfigRule.Filters = append(routeConfigRule.Filters, filter)
 		}
+		hasInvalidBackend := false
 		for _, ruleBackend := range rule.BackendRefs {
 			httpBackend := &HTTPBackend{}
 			backend := &Backend{}
@@ -295,16 +298,29 @@ func (hr *httpRoute) ParseRouteConfig() *RouteConfig {
 				//Default 0
 				backend.Port = int32(*ruleBackend.Port)
 			}
+			if ruleBackend.BackendRef.Kind != nil {
+				backend.Kind = string(*ruleBackend.Kind)
+			}
 			backend.Weight = 1
 			if ruleBackend.Weight != nil {
 				backend.Weight = *ruleBackend.Weight
 			}
 			httpBackend.Backend = backend
-			routeConfigRule.Backends = append(routeConfigRule.Backends, httpBackend)
+			isValidBackend, resolvedRefConditionforBackend := validateBackendReference(key, *backend, hr)
+			if isValidBackend {
+				routeConfigRule.Backends = append(routeConfigRule.Backends, httpBackend)
+				if !hasInvalidBackend {
+					resolvedRefCondition = resolvedRefConditionforBackend
+				}
+			} else {
+				hasInvalidBackend = true
+				resolvedRefCondition = resolvedRefConditionforBackend
+			}
 		}
 		routeConfig.Rules = append(routeConfig.Rules, routeConfigRule)
 	}
 	hr.routeConfig = routeConfig
+	setResolvedRefConditionInHTTPRouteStatus(key, resolvedRefCondition, lib.HTTPRoute+"/"+hr.GetNamespace()+"/"+hr.GetName())
 	return hr.routeConfig
 }
 
