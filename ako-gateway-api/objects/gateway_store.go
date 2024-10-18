@@ -263,7 +263,7 @@ func (g *GWLister) GetGatewayToGatewayStatusMapping(gwName string) *gatewayv1.Ga
 	return gatewayList.(*gatewayv1.GatewayStatus)
 }
 
-func (g *GWLister) UpdateRouteToRouteStatusMapping(routeTypeNamespaceName string, routeStatus *gatewayv1.RouteStatus) {
+func (g *GWLister) UpdateRouteToRouteStatusMapping(routeTypeNamespaceName string, routeStatus *gatewayv1.HTTPRouteStatus) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 	g.routeToStatus.AddOrUpdate(routeTypeNamespaceName, routeStatus)
@@ -275,14 +275,14 @@ func (g *GWLister) DeleteRouteToRouteStatusMapping(routeTypeNamespaceName string
 	g.routeToStatus.Delete(routeTypeNamespaceName)
 }
 
-func (g *GWLister) GetRouteToRouteStatusMapping(routeTypeNamespaceName string) *gatewayv1.RouteStatus {
+func (g *GWLister) GetRouteToRouteStatusMapping(routeTypeNamespaceName string) *gatewayv1.HTTPRouteStatus {
 	g.gwLock.RLock()
 	defer g.gwLock.RUnlock()
 	found, routeList := g.routeToStatus.Get(routeTypeNamespaceName)
 	if !found {
 		return nil
 	}
-	return routeList.(*gatewayv1.RouteStatus)
+	return routeList.(*gatewayv1.HTTPRouteStatus)
 }
 
 //=====All route <-> gateway mappings go here.
