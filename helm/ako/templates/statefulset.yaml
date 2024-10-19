@@ -395,6 +395,13 @@ spec:
                 name: avi-k8s-config
                 key: nodeValue
           {{ end }}
+          {{ if .Values.NetworkSettings.nsxtT1LR }}
+          - name: NSXT_T1_LR
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: nsxtT1LR
+          {{ end }}
           {{ if .Values.persistentVolumeClaim }}
           - name: USE_PVC
             value: "true"

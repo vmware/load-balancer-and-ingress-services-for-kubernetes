@@ -62,7 +62,11 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 		},
 		Caller: utils.GATEWAY_API, // Always Populate this field to recognise caller at rest layer
 	}
-
+	t1LR := lib.GetT1LRPath()
+	if t1LR != "" {
+		utils.AviLog.Infof("key: %s, msg: T1LR is %s.", key, t1LR)
+		parentVsNode.VrfContext = ""
+	}
 	parentVsNode.PortProto = BuildPortProtocols(gateway, key)
 
 	tlsNodes := BuildTLSNodesForGateway(gateway, key)
@@ -161,7 +165,12 @@ func BuildVsVipNodeForGateway(gateway *gatewayv1.Gateway, vsName string) *nodes.
 		VrfContext:  lib.GetVrf(),
 		VipNetworks: utils.GetVipNetworkList(),
 	}
-
+	t1LR := lib.GetT1LRPath()
+	if t1LR != "" {
+		utils.AviLog.Infof("key: %s, msg: T1LR for vsvip node is: %s.", vsName, t1LR)
+		vsvipNode.VrfContext = ""
+		vsvipNode.T1Lr = t1LR
+	}
 	//Type is validated at ingestion
 	if len(gateway.Spec.Addresses) == 1 {
 		ipAddr := gateway.Spec.Addresses[0].Value
