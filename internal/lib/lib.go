@@ -2054,6 +2054,7 @@ func VIPPerNamespace() bool {
 	if vipPerNS == "true" {
 		return true
 	}
+	// VIPPerNamespace will only be applicable for T1 based deployments and not VPC based deployments
 	return utils.IsVCFCluster()
 }
 

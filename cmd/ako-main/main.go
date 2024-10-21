@@ -135,6 +135,14 @@ func InitializeAKC() {
 		}
 		akoControlConfig.SetAdvL4Clientset(advl4Client)
 		akoControlConfig.SetCRDClientsetAndEnableInfraSettingParam(v1beta1crdClient)
+		if utils.IsVCFCluster() {
+			akoControlConfig.Setv1beta1CRDClientset(v1beta1crdClient)
+			v1alpha2crdClient, err := v1alpha2crd.NewForConfig(cfg)
+			if err != nil {
+				utils.AviLog.Fatalf("Error building AKO CRD v1alpha2 clientset: %s", err.Error())
+			}
+			akoControlConfig.Setv1alpha2CRDClientsetAndEnableL7Rule(v1alpha2crdClient)
+		}
 	} else {
 		if lib.UseServicesAPI() {
 			svcAPIClient, err = svcapi.NewForConfig(cfg)
@@ -172,11 +180,24 @@ func InitializeAKC() {
 	}
 
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, false)
-	pod, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).Get(context.TODO(), os.Getenv("POD_NAME"), metav1.GetOptions{})
-	if err != nil {
-		utils.AviLog.Warnf("Error getting AKO pod details, %s.", err.Error())
+
+	// POD_NAME is not set in case of a WCP cluster
+	if os.Getenv("POD_NAME") == "" {
+		pods, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).List(context.TODO(), metav1.ListOptions{Limit: 1})
+		if err != nil {
+			utils.AviLog.Warnf("Error getting AKO pod details, %s.", err.Error())
+		} else {
+			for _, pod := range pods.Items {
+				akoControlConfig.SaveAKOPodObjectMeta(&pod)
+			}
+		}
+	} else {
+		pod, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).Get(context.TODO(), os.Getenv("POD_NAME"), metav1.GetOptions{})
+		if err != nil {
+			utils.AviLog.Warnf("Error getting AKO pod details, %s.", err.Error())
+		}
+		akoControlConfig.SaveAKOPodObjectMeta(pod)
 	}
-	akoControlConfig.SaveAKOPodObjectMeta(pod)
 
 	// Check for kubernetes apiserver version compatibility with AKO version.
 	if serverVersionInfo, err := kubeClient.Discovery().ServerVersion(); err != nil {
@@ -218,7 +239,7 @@ func InitializeAKC() {
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
 	lib.NewDynamicInformers(dynamicClient, false)
 	if lib.IsWCP() {
-		k8s.NewInfraSettingCRDInformer()
+		k8s.NewWCPCRDInformers()
 		k8s.NewAdvL4Informers(advl4Client)
 	} else {
 		k8s.NewCRDInformers()
