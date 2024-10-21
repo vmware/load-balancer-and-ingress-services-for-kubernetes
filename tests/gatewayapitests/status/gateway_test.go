@@ -1344,3 +1344,56 @@ func TestMultipleGatewayOverlappingHostname(t *testing.T) {
 	tests.TeardownGateway(t, gatewayName1, DEFAULT_NAMESPACE)
 	tests.TeardownGatewayClass(t, gatewayClassName)
 }
+
+func TestGatewayWithUnsupportedProtocolAndHostnameInListeners(t *testing.T) {
+
+	gatewayName := "gateway-neg-11"
+	gatewayClassName := "gateway-class-neg-11"
+	ports := []int32{8080, 8081}
+
+	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := tests.GetListenersV1(ports, false, false)
+	listeners[0].Protocol = "GRPC"
+	hostName := "invalid"
+	listeners[0].Hostname = (*gatewayv1.Hostname)(&hostName)
+	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	expectedStatus := &gatewayv1.GatewayStatus{
+		Conditions: []metav1.Condition{
+			{
+				Type:               string(gatewayv1.GatewayConditionAccepted),
+				Status:             metav1.ConditionTrue,
+				Message:            "Gateway contains atleast one valid listener",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.GatewayReasonListenersNotValid),
+			},
+		},
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, false),
+	}
+	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonUnsupportedProtocol)
+	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionFalse
+	expectedStatus.Listeners[0].Conditions[0].Message = "Unsupported protocol"
+
+	expectedStatus.Listeners[1].Conditions[0].Reason = string(gatewayv1.ListenerReasonAccepted)
+	expectedStatus.Listeners[1].Conditions[0].Status = metav1.ConditionTrue
+	expectedStatus.Listeners[1].Conditions[0].Message = "Listener is valid"
+
+	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+	if err != nil || gateway == nil {
+		t.Fatalf("Couldn't get the gateway, err: %+v", err)
+	}
+
+	tests.ValidateGatewayStatus(t, &gateway.Status, expectedStatus)
+	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	tests.TeardownGatewayClass(t, gatewayClassName)
+}
