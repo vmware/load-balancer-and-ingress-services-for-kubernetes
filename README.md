@@ -19,7 +19,7 @@ Take a look at the following documentation for instructions on installing [AKO -
 
 ## Contributing
 
-We welcome new contributors to our repository. Following are the pre-requisties that should help
+We welcome new contributorss to our repository. Following are the pre-requisties that should help
 you get started:
 
 * Before contributing, please get familiar with our
