@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
@@ -1163,4 +1164,66 @@ func TestUpdateSecureRouteNoKeyCertToKeyCert(t *testing.T) {
 	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), integrationtest.DefaultRouteCert, metav1.DeleteOptions{})
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
+}
+
+func TestSecureRouteMultiNamespaceWithStrictRestrictFqdn(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	lib.AKOControlConfig().SetAKOFQDNReusePolicy("strict")
+	integrationtest.DeleteNamespace("test")
+	SetUpTestForRoute(t, defaultModelName)
+	route1 := FakeRoute{Path: "/foo"}.SecureRoute()
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), route1, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+	defer integrationtest.DeleteNamespace("test")
+
+	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPorEPS(t, "test", "avisvc", false, false, "1.1.1")
+	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
+	_, err = OshiftClient.RouteV1().Routes("test").Create(context.TODO(), route2, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateSniModel(t, g, defaultModelName)
+
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
+	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+	g.Eventually(func() string {
+		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		return sniVS.VHDomainNames[0]
+	}, 40*time.Second).Should(gomega.Equal(defaultHostname))
+
+	g.Expect(sniVS.CACertRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
+
+	g.Eventually(func() int {
+		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		return len(sniVS.PoolRefs)
+	}, 40*time.Second).Should(gomega.Equal(1))
+	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(sniVS.HttpPolicyRefs[0].HppMap).To(gomega.HaveLen(1))
+	g.Expect(sniVS.PoolGroupRefs).To(gomega.HaveLen(1))
+
+	for _, pool := range sniVS.PoolRefs {
+		if pool.Name != "cluster--default-foo.com_foo-foo-avisvc" {
+			t.Fatalf("Unexpected poolName found: %s", pool.Name)
+		}
+	}
+	for _, httpps := range sniVS.HttpPolicyRefs {
+		if httpps.Name != "cluster--default-foo.com" {
+			t.Fatalf("Unexpected http policyset found: %s", httpps.Name)
+		}
+	}
+
+	err = OshiftClient.RouteV1().Routes("test").Delete(context.TODO(), defaultRouteName, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the route %v", err)
+	}
+	lib.AKOControlConfig().SetAKOFQDNReusePolicy("internamespaceallowed")
+	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
+	TearDownTestForRoute(t, defaultModelName)
+	integrationtest.DelSVC(t, "test", "avisvc")
+	integrationtest.DelEPorEPS(t, "test", "avisvc")
 }
