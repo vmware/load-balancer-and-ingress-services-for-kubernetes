@@ -571,7 +571,7 @@ func TestHTTPRouteWithValidConfig(t *testing.T) {
 			return false
 		}
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].VSVIPRefs[0].FQDNs) > 0
+		return len(nodes[0].VSVIPRefs[0].FQDNs) > 0 && len(nodes[0].EvhNodes[0].PoolGroupRefs) > 0
 
 	}, 25*time.Second).Should(gomega.Equal(true))
 
@@ -766,7 +766,7 @@ func TestHTTPRouteBackendServiceCDC(t *testing.T) {
 		}
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 		return len(nodes[0].EvhNodes[0].PoolGroupRefs[0].Members)
-	}, 25*time.Second).Should(gomega.Equal(1))
+	}, 30*time.Second).Should(gomega.Equal(1))
 
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()

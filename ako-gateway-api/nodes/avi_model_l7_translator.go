@@ -72,7 +72,7 @@ func (o *AviObjectGraph) AddDefaultHTTPPolicySet(key string) {
 }
 
 func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, parentNsName string, childVSes map[string]struct{}, fullsync bool) {
-	httpRouteConfig := routeModel.ParseRouteConfig()
+	httpRouteConfig := routeModel.ParseRouteConfig(key)
 	noHostsOnRoute := len(httpRouteConfig.Hosts) == 0
 	httpRouteRules := httpRouteConfig.Rules
 	if noHostsOnRoute {
@@ -244,6 +244,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 		Name:   PGName,
 		Tenant: lib.GetTenant(),
 	}
+
 	for _, httpbackend := range rule.Backends {
 		poolName := akogatewayapilib.GetPoolName(parentNs, parentName,
 			routeModel.GetNamespace(), routeModel.GetName(),
@@ -253,6 +254,10 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 		if err != nil {
 			utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service", key)
 			o.RemovePoolRefsFromPG(poolName, o.GetPoolGroupByName(PGName))
+			continue
+		}
+		if !httpbackend.IsValid {
+			utils.AviLog.Debugf("key: %s, msg: HTTPBackend %s is Invaid", key, httpbackend.Backend.Name)
 			continue
 		}
 		poolNode := &nodes.AviPoolNode{
