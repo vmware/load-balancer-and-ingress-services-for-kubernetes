@@ -82,9 +82,47 @@ func (a *AviControllerInfra) VerifyAviControllerLicense() error {
 	return nil
 }
 
+func (a *AviControllerInfra) checkVirtualService() (error, string) {
+	createdBy := "ako-" + lib.GetClusterID()
+	uri := "/api/virtualservice/?include_name&created_by=" + createdBy
+	result, err := lib.AviGetCollectionRaw(a.AviRestClient, uri)
+	if err != nil {
+		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+		return err, ""
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+		return err, ""
+	}
+	expName := lib.GetClusterID() + "--kube-system-kube-apiserver-lb-svc"
+	for i := 0; i < len(elems); i++ {
+		vs := models.VirtualService{}
+		err = json.Unmarshal(elems[i], &vs)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal vs data, err: %v", err)
+			continue
+		}
+		if vs.CloudRef != nil && strings.Contains(*vs.CloudRef, "#") {
+			cloudName := strings.Split(*vs.CloudRef, "#")[1]
+			if *vs.Name == expName {
+				utils.AviLog.Infof("Found vs %s associated with cloud %s", expName, cloudName)
+				return nil, cloudName
+			}
+		}
+	}
+	return nil, ""
+}
+
 func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, string, string) {
 	// This method queries the Avi controller for all available cloud and then returns the cloud that matches the supplied transport zone
 	uri := "/api/cloud/"
+	_, cloudName := a.checkVirtualService()
+	if cloudName != "" {
+		uri = "/api/cloud/?include_name&name=" + cloudName
+	}
+
 	result, err := lib.AviGetCollectionRaw(a.AviRestClient, uri)
 	if err != nil {
 		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
@@ -97,8 +135,9 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
 		return err, "", ""
 	}
+	matchCloud := new(models.Cloud)
 	for i := 0; i < len(elems); i++ {
-		cloud := models.Cloud{}
+		cloud := new(models.Cloud)
 		err = json.Unmarshal(elems[i], &cloud)
 		if err != nil {
 			utils.AviLog.Warnf("Failed to unmarshal cloud data, err: %v", err)
@@ -117,42 +156,45 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 			continue
 		}
 		utils.AviLog.Infof("Found NSX-T cloud: %s match Transport Zone: %s", *cloud.Name, tz)
-		if cloud.SeGroupTemplateRef != nil && *cloud.SeGroupTemplateRef != "" {
-			tokenized := strings.Split(*cloud.SeGroupTemplateRef, "/api/serviceenginegroup/")
-			if len(tokenized) == 2 {
-				return nil, *cloud.Name, tokenized[1]
-			}
-		}
-
-		// fetch Default-SEGroup uuid
-		uri = "/api/serviceenginegroup/?include_name&cloud_ref.name=" + *cloud.Name + "&name=Default-Group"
-		result, err := lib.AviGetCollectionRaw(a.AviRestClient, uri)
-		if err != nil {
-			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-			return err, *cloud.Name, ""
-		}
-
-		elems := make([]json.RawMessage, result.Count)
-		err = json.Unmarshal(result.Results, &elems)
-		if err != nil {
-			utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
-			return err, *cloud.Name, ""
-		}
-
-		if len(elems) == 0 {
-			utils.AviLog.Errorf("No ServiceEngine Group with name Default-Group found.")
-			return errors.New("No ServiceEngine Group with name Default-Group found."), *cloud.Name, ""
-		}
-
-		defaultSEG := models.ServiceEngineGroup{}
-		err = json.Unmarshal(elems[0], &defaultSEG)
-		if err != nil {
-			utils.AviLog.Warnf("Failed to unmarshal cloud data, err: %v", err)
-			return err, *cloud.Name, ""
-		}
-		return nil, *cloud.Name, *defaultSEG.UUID
+		matchCloud = cloud
+		break
 	}
-	return errors.New("cloud not found"), "", ""
+	if matchCloud == nil {
+		return errors.New("cloud not found matching transport zone " + tz), "", ""
+	}
+	if matchCloud.SeGroupTemplateRef != nil && *matchCloud.SeGroupTemplateRef != "" {
+		tokenized := strings.Split(*matchCloud.SeGroupTemplateRef, "/api/serviceenginegroup/")
+		if len(tokenized) == 2 {
+			return nil, *matchCloud.Name, tokenized[1]
+		}
+	}
+
+	// fetch Default-SEGroup uuid
+	uri = "/api/serviceenginegroup/?include_name&cloud_ref.name=" + *matchCloud.Name + "&name=Default-Group"
+	results, err := lib.AviGetCollectionRaw(a.AviRestClient, uri)
+	if err != nil {
+		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+		return err, *matchCloud.Name, ""
+	}
+
+	elem := make([]json.RawMessage, results.Count)
+	err = json.Unmarshal(results.Results, &elem)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+		return err, *matchCloud.Name, ""
+	}
+	if len(elem) == 0 {
+		utils.AviLog.Errorf("No ServiceEngine Group with name Default-Group found.")
+		return errors.New("No ServiceEngine Group with name Default-Group found."), *matchCloud.Name, ""
+	}
+
+	defaultSEG := models.ServiceEngineGroup{}
+	err = json.Unmarshal(elems[0], &defaultSEG)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal cloud data, err: %v", err)
+		return err, *matchCloud.Name, ""
+	}
+	return nil, *matchCloud.Name, *defaultSEG.UUID
 }
 
 func isPlacementScopeConfigured(configuredSEGroup *avimodels.ServiceEngineGroup) bool {
