@@ -5,6 +5,7 @@ go 1.21
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/apparentlymart/go-cidr v1.1.0
+	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/fatih/structs v1.1.0
 	github.com/fsnotify/fsnotify v1.7.0
