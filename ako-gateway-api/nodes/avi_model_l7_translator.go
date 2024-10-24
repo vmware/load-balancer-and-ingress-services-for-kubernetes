@@ -48,7 +48,6 @@ func (o *AviObjectGraph) AddDefaultHTTPPolicySet(key string) {
 		}
 	}
 	// if not found add it to last index
-
 	utils.AviLog.Debugf("key: %s msg: default-backend httpref not found. Adding", key)
 	defaultPolicyRef := &nodes.AviHttpPolicySetNode{Name: akogatewayapilib.DefaultPSName, Tenant: lib.GetTenant()}
 	defaultPolicyRef.RequestRules = []*models.HTTPRequestRule{

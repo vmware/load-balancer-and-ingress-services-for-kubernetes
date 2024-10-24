@@ -295,6 +295,7 @@ func Stringify(serialize interface{}) string {
 func ExtractNamespaceObjectName(key string) (string, string) {
 	segments := strings.Split(key, "/")
 	if len(segments) == 2 {
+		segments[1] = strings.Split(segments[1], "-")[0]
 		return segments[0], segments[1]
 	}
 	return "", ""

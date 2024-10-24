@@ -33,6 +33,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
+	"github.com/google/uuid"
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/nodes"
 	akogatewayapistatus "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/status"
@@ -244,7 +245,8 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 
 	var filteredGatewayClasses []*gatewayv1.GatewayClass
 	for _, gwClassObj := range gwClassObjs {
-		key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
+		UUID := uuid.New()
+		key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj) + "-" + UUID.String()
 		meta, err := meta.Accessor(gwClassObj)
 		if err == nil {
 			resVer := meta.GetResourceVersion()
