@@ -606,15 +606,22 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 				}
 				if oldRoute.Spec.Host == newRoute.Spec.Host {
 					// same hosts
-					isAccepted := isRouteAcceptedWithFQDNRestriction(key, newRoute)
+					isAccepted := true
+					if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+						isAccepted = isRouteAcceptedWithFQDNRestriction(key, newRoute)
+					}
 					if isAccepted {
 						c.workqueue[bkt].AddRateLimited(key)
 						lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 						utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 					}
 				} else {
-					isOldAccepted := isRouteAcceptedWithFQDNRestriction(key, oldRoute)
-					isNewAccepted := isRouteAcceptedWithFQDNRestriction(key, newRoute)
+					isOldAccepted := true
+					isNewAccepted := true
+					if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+						isOldAccepted = isRouteAcceptedWithFQDNRestriction(key, oldRoute)
+						isNewAccepted = isRouteAcceptedWithFQDNRestriction(key, newRoute)
+					}
 					if !isOldAccepted && !isNewAccepted {
 						// set status
 						// update the status - already host claimed
