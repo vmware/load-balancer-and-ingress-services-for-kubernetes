@@ -47,9 +47,42 @@ type AviLogger struct {
 	atom zap.AtomicLevel
 }
 
+// type AviLoggerInterface interface {
+// 	logr.LogSink
+// 	WithContext(context.Context) LoggerInterface
+// }
+
+// func NewAviLogger(sugar *zap.SugaredLogger, logger *zap.Logger, atom zap.AtomicLevel) AviLoggerInterface {
+// 	return AviLogger{sugar, logger, atom}
+// }
+
+// type LoggerInterface interface {
+// 	Infof(string, ...interface{})
+// 	Info(...interface{})
+// 	Warnf(string, ...interface{})
+// 	Warn(...interface{})
+// 	Errorf(string, ...interface{})
+// 	Error(...interface{})
+// 	Debugf(string, ...interface{})
+// 	Debug(...interface{})
+// 	Fatal(...interface{})
+// 	Fatalf(string, ...interface{})
+// 	Named(string) *zap.SugaredLogger
+// 	With(...interface{}) *zap.SugaredLogger
+// 	SetLevel(string)
+// 	Enabled(int) bool
+// 	V(int) logr.LogSink
+// 	WithValues(...interface{}) logr.LogSink
+// 	WithName(string) logr.LogSink
+// }
+
 // Init implements logr.LogSink.
 func (AviLogger) Init(info logr.RuntimeInfo) {
 	// Not used
+}
+
+func (aviLogger AviLogger) WithContext(traceID int) *zap.SugaredLogger {
+	return aviLogger.sugar.With("trace-id", traceID)
 }
 
 func (aviLogger *AviLogger) Infof(template string, args ...interface{}) {
