@@ -173,8 +173,8 @@ func TestMultiTenancyWithNSAviInfraSettingForIngress(t *testing.T) {
 	settingName := objNameMap.GenerateName("my-infrasetting")
 	secretName := objNameMap.GenerateName("my-secret")
 	modelName := "nonadmin/cluster--Shared-L7-1"
-
-	ingresstests.SetUpTestForIngress(t, modelName)
+	svcName := objNameMap.GenerateName("avisvc")
+	ingresstests.SetUpTestForIngress(t, svcName, modelName)
 
 	settingModelName := "nonadmin/cluster--Shared-L7-0"
 	integrationtest.SetupAviInfraSetting(t, settingName, "SMALL")
@@ -189,7 +189,7 @@ func TestMultiTenancyWithNSAviInfraSettingForIngress(t *testing.T) {
 		Namespace:   ns,
 		ClassName:   ingClassName,
 		DnsNames:    []string{"baz.com", "bar.com"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
 			secretName: {"baz.com"},
 		},
@@ -254,8 +254,8 @@ func TestMultiTenancyWithIngressClassAviInfraSetting(t *testing.T) {
 	secretName := objNameMap.GenerateName("my-secret")
 	modelName := "nonadmin/cluster--Shared-L7-1"
 	nsSettingName := "ns-my-infrasetting"
-
-	ingresstests.SetUpTestForIngress(t, modelName)
+	svcName := objNameMap.GenerateName("avisvc")
+	ingresstests.SetUpTestForIngress(t, svcName, modelName)
 
 	settingModelName := "nonadmin/cluster--Shared-L7-" + settingName + "-0"
 	integrationtest.SetupAviInfraSetting(t, settingName, "SMALL")
@@ -272,7 +272,7 @@ func TestMultiTenancyWithIngressClassAviInfraSetting(t *testing.T) {
 		Namespace:   ns,
 		ClassName:   ingClassName,
 		DnsNames:    []string{"baz.com", "bar.com"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
 			secretName: {"baz.com"},
 		},
@@ -334,8 +334,8 @@ func TestMultiTenancyWithInfraSettingAdditionForIngress(t *testing.T) {
 	settingName := objNameMap.GenerateName("my-infrasetting")
 	secretName := objNameMap.GenerateName("my-secret")
 	modelName := "admin/cluster--Shared-L7-1"
-
-	ingresstests.SetUpTestForIngress(t, modelName)
+	svcName := objNameMap.GenerateName("avisvc")
+	ingresstests.SetUpTestForIngress(t, svcName, modelName)
 
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, "")
 	waitAndVerify(t, ingClassName)
@@ -346,7 +346,7 @@ func TestMultiTenancyWithInfraSettingAdditionForIngress(t *testing.T) {
 		Namespace:   ns,
 		ClassName:   ingClassName,
 		DnsNames:    []string{"baz.com", "bar.com"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
 			secretName: {"baz.com"},
 		},
@@ -448,8 +448,8 @@ func TestMultiTenancyWithTenantDeannotationInNSForIngress(t *testing.T) {
 	settingName := objNameMap.GenerateName("my-infrasetting")
 	secretName := objNameMap.GenerateName("my-secret")
 	modelName := "nonadmin/cluster--Shared-L7-1"
-
-	ingresstests.SetUpTestForIngress(t, modelName)
+	svcName := objNameMap.GenerateName("avisvc")
+	ingresstests.SetUpTestForIngress(t, svcName, modelName)
 
 	settingModelName := "nonadmin/cluster--Shared-L7-0"
 	integrationtest.SetupAviInfraSetting(t, settingName, "SMALL")
@@ -464,7 +464,7 @@ func TestMultiTenancyWithTenantDeannotationInNSForIngress(t *testing.T) {
 		Namespace:   ns,
 		ClassName:   ingClassName,
 		DnsNames:    []string{"baz.com", "bar.com"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
 			secretName: {"baz.com"},
 		},

@@ -18,9 +18,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func tearDownTestForIngress(t *testing.T) {
-	integrationtest.DelSVC(t, "default", "avisvc")
-	integrationtest.DelEP(t, "default", "avisvc")
+func tearDownTestForIngress(t *testing.T, svcname string) {
+	integrationtest.DelSVC(t, "default", svcname)
+	integrationtest.DelEPorEPS(t, "default", svcname)
 }
 
 func verifyEvhNodeDeletionFromVsNode(g *gomega.WithT, modelName string, parentVSKey, evhVsKey cache.NamespaceName) {
@@ -65,8 +65,8 @@ func TestMultiTenancyWithNSAviInfraSettingEVH(t *testing.T) {
 	secretName := objNameMap.GenerateName("my-secret")
 	modelName := "admin/cluster--Shared-L7-EVH-1"
 	settingModelName := "nonadmin/cluster--Shared-L7-EVH-0"
-
-	ingresstests.SetUpTestForIngress(t, modelName)
+	svcName := objNameMap.GenerateName("avisvc")
+	ingresstests.SetUpTestForIngress(t, svcName, modelName)
 
 	vsKey := cache.NamespaceName{Namespace: "nonadmin", Name: "cluster--Shared-L7-EVH-0"}
 	evhKey := cache.NamespaceName{Namespace: "nonadmin", Name: lib.Encode("cluster--baz.com", lib.EVHVS)}
@@ -82,7 +82,7 @@ func TestMultiTenancyWithNSAviInfraSettingEVH(t *testing.T) {
 		Namespace:   ns,
 		ClassName:   ingClassName,
 		DnsNames:    []string{"baz.com", "bar.com"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
 			secretName: {"baz.com"},
 		},
@@ -94,8 +94,8 @@ func TestMultiTenancyWithNSAviInfraSettingEVH(t *testing.T) {
 
 	secureVsName := "cluster--baz.com"
 	insecureVsName := "cluster--bar.com"
-	insecurePoolName := "cluster--default-bar.com_foo-" + ingressName + "-avisvc"
-	securePoolName := "cluster--default-baz.com_foo-" + ingressName + "-avisvc"
+	insecurePoolName := "cluster--default-bar.com_foo-" + ingressName + "-" + svcName
+	securePoolName := "cluster--default-baz.com_foo-" + ingressName + "-" + svcName
 	insecurePGName := "cluster--default-bar.com_foo-" + ingressName
 	securePGName := "cluster--default-baz.com_foo-" + ingressName
 
@@ -134,7 +134,7 @@ func TestMultiTenancyWithNSAviInfraSettingEVH(t *testing.T) {
 	integrationtest.DeleteSecret(secretName, ns)
 	integrationtest.RemoveAnnotateAKONamespaceWithInfraSetting(t, ns)
 	integrationtest.TeardownAviInfraSetting(t, settingName)
-	tearDownTestForIngress(t)
+	tearDownTestForIngress(t, svcName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
 	waitAndVerify(t, ingClassName)
 	verifyEvhNodeDeletionFromVsNode(g, settingModelName, vsKey, evhKey)
@@ -151,8 +151,8 @@ func TestMultiTenancyWithIngressClassAviInfraSettingEVH(t *testing.T) {
 	settingName := objNameMap.GenerateName("my-infrasetting")
 	secretName := objNameMap.GenerateName("my-secret")
 	modelName := "admin/cluster--Shared-L7-EVH-1"
-
-	ingresstests.SetUpTestForIngress(t, modelName)
+	svcName := objNameMap.GenerateName("avisvc")
+	ingresstests.SetUpTestForIngress(t, svcName, modelName)
 
 	settingModelName := "nonadmin/cluster--Shared-L7-EVH-" + settingName + "-0"
 	vsKey := cache.NamespaceName{Namespace: "nonadmin", Name: "cluster--Shared-L7-EVH-" + settingName + "-0"}
@@ -168,7 +168,7 @@ func TestMultiTenancyWithIngressClassAviInfraSettingEVH(t *testing.T) {
 		Namespace:   ns,
 		ClassName:   ingClassName,
 		DnsNames:    []string{"baz.com", "bar.com"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
 			secretName: {"baz.com"},
 		},
@@ -180,8 +180,8 @@ func TestMultiTenancyWithIngressClassAviInfraSettingEVH(t *testing.T) {
 
 	secureVsName := "cluster--" + settingName + "-baz.com"
 	insecureVsName := "cluster--" + settingName + "-bar.com"
-	insecurePoolName := "cluster--" + settingName + "-default-bar.com_foo-" + ingressName + "-avisvc"
-	securePoolName := "cluster--" + settingName + "-default-baz.com_foo-" + ingressName + "-avisvc"
+	insecurePoolName := "cluster--" + settingName + "-default-bar.com_foo-" + ingressName + "-" + svcName
+	securePoolName := "cluster--" + settingName + "-default-baz.com_foo-" + ingressName + "-" + svcName
 	insecurePGName := "cluster--" + settingName + "-default-bar.com_foo-" + ingressName
 	securePGName := "cluster--" + settingName + "-default-baz.com_foo-" + ingressName
 
@@ -219,7 +219,7 @@ func TestMultiTenancyWithIngressClassAviInfraSettingEVH(t *testing.T) {
 	integrationtest.DeleteSecret(secretName, ns)
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	integrationtest.RemoveAnnotateAKONamespaceWithInfraSetting(t, ns)
-	tearDownTestForIngress(t)
+	tearDownTestForIngress(t, svcName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
 	waitAndVerify(t, ingClassName)
 	verifyEvhNodeDeletionFromVsNode(g, settingModelName, vsKey, evhKey)
@@ -237,8 +237,8 @@ func TestMultiTenancyWithInfraSettingAdditionEVH(t *testing.T) {
 	secretName := objNameMap.GenerateName("my-secret")
 	modelName := "admin/cluster--Shared-L7-EVH-1"
 	settingModelName := "nonadmin/cluster--Shared-L7-EVH-0"
-
-	ingresstests.SetUpTestForIngress(t, modelName, settingModelName)
+	svcName := objNameMap.GenerateName("avisvc")
+	ingresstests.SetUpTestForIngress(t, svcName, modelName, settingModelName)
 
 	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, "")
 	waitAndVerify(t, ingClassName)
@@ -249,7 +249,7 @@ func TestMultiTenancyWithInfraSettingAdditionEVH(t *testing.T) {
 		Namespace:   ns,
 		ClassName:   ingClassName,
 		DnsNames:    []string{"baz.com", "bar.com"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
 			secretName: {"baz.com"},
 		},
@@ -261,8 +261,8 @@ func TestMultiTenancyWithInfraSettingAdditionEVH(t *testing.T) {
 
 	secureVsName := "cluster--baz.com"
 	insecureVsName := "cluster--bar.com"
-	insecurePoolName := "cluster--default-bar.com_foo-" + ingressName + "-avisvc"
-	securePoolName := "cluster--default-baz.com_foo-" + ingressName + "-avisvc"
+	insecurePoolName := "cluster--default-bar.com_foo-" + ingressName + "-" + svcName
+	securePoolName := "cluster--default-baz.com_foo-" + ingressName + "-" + svcName
 	insecurePGName := "cluster--default-bar.com_foo-" + ingressName
 	securePGName := "cluster--default-baz.com_foo-" + ingressName
 
@@ -339,7 +339,7 @@ func TestMultiTenancyWithInfraSettingAdditionEVH(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.DeleteSecret(secretName, ns)
-	tearDownTestForIngress(t)
+	tearDownTestForIngress(t, svcName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
 	waitAndVerify(t, ingClassName)
 	verifyPoolDeletionFromVsNode(g, modelName)
@@ -361,8 +361,8 @@ func TestMultiTenancyWithTenantDeannotationInNSEVH(t *testing.T) {
 	secretName := objNameMap.GenerateName("my-secret")
 	modelName := "admin/cluster--Shared-L7-EVH-1"
 	settingModelName := "nonadmin/cluster--Shared-L7-EVH-0"
-
-	ingresstests.SetUpTestForIngress(t, modelName)
+	svcName := objNameMap.GenerateName("avisvc")
+	ingresstests.SetUpTestForIngress(t, svcName, modelName)
 
 	vsKey := cache.NamespaceName{Namespace: "nonadmin", Name: "cluster--Shared-L7-EVH-0"}
 	evhKey := cache.NamespaceName{Namespace: "nonadmin", Name: lib.Encode("cluster--baz.com", lib.EVHVS)}
@@ -378,7 +378,7 @@ func TestMultiTenancyWithTenantDeannotationInNSEVH(t *testing.T) {
 		Namespace:   ns,
 		ClassName:   ingClassName,
 		DnsNames:    []string{"baz.com", "bar.com"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
 			secretName: {"baz.com"},
 		},
@@ -390,8 +390,8 @@ func TestMultiTenancyWithTenantDeannotationInNSEVH(t *testing.T) {
 
 	secureVsName := "cluster--baz.com"
 	insecureVsName := "cluster--bar.com"
-	insecurePoolName := "cluster--default-bar.com_foo-" + ingressName + "-avisvc"
-	securePoolName := "cluster--default-baz.com_foo-" + ingressName + "-avisvc"
+	insecurePoolName := "cluster--default-bar.com_foo-" + ingressName + "-" + svcName
+	securePoolName := "cluster--default-baz.com_foo-" + ingressName + "-" + svcName
 	insecurePGName := "cluster--default-bar.com_foo-" + ingressName
 	securePGName := "cluster--default-baz.com_foo-" + ingressName
 
@@ -435,8 +435,8 @@ func TestMultiTenancyWithTenantDeannotationInNSEVH(t *testing.T) {
 
 	secureVsName = "cluster--baz.com"
 	insecureVsName = "cluster--bar.com"
-	insecurePoolName = "cluster--default-bar.com_foo-" + ingressName + "-avisvc"
-	securePoolName = "cluster--default-baz.com_foo-" + ingressName + "-avisvc"
+	insecurePoolName = "cluster--default-bar.com_foo-" + ingressName + "-" + svcName
+	securePoolName = "cluster--default-baz.com_foo-" + ingressName + "-" + svcName
 	insecurePGName = "cluster--default-bar.com_foo-" + ingressName
 	securePGName = "cluster--default-baz.com_foo-" + ingressName
 
@@ -472,7 +472,7 @@ func TestMultiTenancyWithTenantDeannotationInNSEVH(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.DeleteSecret(secretName, ns)
-	tearDownTestForIngress(t)
+	tearDownTestForIngress(t, svcName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
 	waitAndVerify(t, ingClassName)
 	integrationtest.TeardownAviInfraSetting(t, settingName)
