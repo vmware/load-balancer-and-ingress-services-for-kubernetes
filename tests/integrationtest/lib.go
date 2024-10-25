@@ -2127,6 +2127,13 @@ func SetupIngressClass(t *testing.T, ingclassName, controller, infraSetting stri
 			t.Fatalf("error in adding IngressClass: %v", err)
 		}
 	}
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() error {
+		_, err := utils.GetInformers().IngressClassInformer.Lister().Get(ingclassName)
+		return err
+	}, 30*time.Second, 2*time.Second).Should(gomega.BeNil())
+
 }
 
 func AnnotateAKONamespaceWithInfraSetting(t *testing.T, ns, infraSettingName string) {
