@@ -1,3 +1,4 @@
+SHELL=/bin/bash -o pipefail -e
 GOCMD=go
 GOBUILD=$(GOCMD) build -buildvcs=false
 GOCLEAN=$(GOCMD) clean
