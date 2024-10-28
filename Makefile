@@ -402,9 +402,20 @@ int_test:
 	namespacesynctests servicesapitests npltests misc \
 	dedicatedvstests hatests calicotests ciliumtests \
 	helmtests infratests urltests multitenancytests gatewayapitests > int_test.log 2>&1 \
-	&& echo "int_test succeeded" && cat int_test.log | buffer -u 500) \
-	|| (echo "int_test failed" && cat int_test.log | buffer -u 500 && exit 1)
+	&& echo "int_test succeeded" && buffer -i int_test.log -u 1000 -z 1k) \
+	|| (echo "int_test failed" && buffer -i int_test.log -u 1000 -z 1k && exit 1)
 
+.PHONY: dev_int_test
+dev_int_test:
+	@> int_test.log
+	(make -j 16 --output-sync=target k8stest integrationtest ingresstests \
+	evhtests vippernstests dedicatedevhtests dedicatedvippernstests \
+	oshiftroutetests bootuptests multicloudtests advl4tests \
+	namespacesynctests servicesapitests npltests misc \
+	dedicatedvstests hatests calicotests ciliumtests \
+	helmtests infratests urltests multitenancytests gatewayapitests > int_test.log 2>&1 \
+	&& echo "int_test succeeded" && buffer -i int_test.log -u 1000 -z 1k) \
+	|| (echo "int_test failed" && buffer -i int_test.log -u 1000 -z 1k && exit 1) 
 
 # .PHONY: a
 # a:
