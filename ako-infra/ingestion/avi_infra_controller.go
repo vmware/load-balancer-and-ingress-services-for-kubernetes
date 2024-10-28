@@ -90,43 +90,74 @@ func (a *AviControllerInfra) VerifyAviControllerLicense() error {
 	return fmt.Errorf("Avi Controller license is not in accepted list %s. License tier is: %s", acceptedLicensesInAvi, *response.DefaultLicenseTier)
 }
 
+func (a *AviControllerInfra) checkNSAnnotations() (error, string) {
+	cloudName := ""
+	nsName := utils.GetAKONamespace()
+	nsObj, err := a.cs.CoreV1().Namespaces().Get(context.TODO(), nsName, metav1.GetOptions{})
+	if err != nil {
+		utils.AviLog.Errorf("Failed to GET the %s namespace details due to the following error :%v", nsName, err.Error())
+		return err, cloudName
+	}
+	if nsObj.Annotations != nil {
+		cloudName = nsObj.Annotations["ako.vmware.com/wcp-cloud-name"]
+		if cloudName != "" {
+			utils.AviLog.Infof("Found cloud %s in ns annotation", cloudName)
+		}
+	}
+	return nil, cloudName
+}
+
 func (a *AviControllerInfra) checkVirtualService() (error, string) {
-	createdBy := "ako-" + lib.GetClusterID()
-	uri := "/api/virtualservice/?include_name&created_by=" + createdBy
-	result, err := lib.AviGetCollectionRaw(a.AviRestClient, uri)
+	cloudName := ""
+	tenants := make(map[string]struct{})
+	err := lib.GetAllTenants(a.AviRestClient, tenants)
 	if err != nil {
-		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-		return err, ""
+		utils.AviLog.Errorf("Error during GET tenants %v", err)
+		return err, cloudName
 	}
-	elems := make([]json.RawMessage, result.Count)
-	err = json.Unmarshal(result.Results, &elems)
-	if err != nil {
-		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
-		return err, ""
-	}
-	expName := lib.GetClusterID() + "--kube-system-kube-apiserver-lb-svc"
-	for i := 0; i < len(elems); i++ {
-		vs := models.VirtualService{}
-		err = json.Unmarshal(elems[i], &vs)
+	createdBy := lib.AKOPrefix + lib.GetClusterName()
+	vsName := lib.GetClusterName() + "--kube-system-kube-apiserver-lb-svc"
+	SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
+	defer SetAdminTenant(a.AviRestClient.AviSession)
+	for tenantName := range tenants {
+		SetTenant := session.SetTenant(tenantName)
+		SetTenant(a.AviRestClient.AviSession)
+		uri := "/api/virtualservice/?include_name&created_by=" + createdBy + "&name=" + vsName
+		result, err := lib.AviGetCollectionRaw(a.AviRestClient, uri)
 		if err != nil {
-			utils.AviLog.Warnf("Failed to unmarshal vs data, err: %v", err)
+			utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
 			continue
 		}
-		if vs.CloudRef != nil && strings.Contains(*vs.CloudRef, "#") {
-			cloudName := strings.Split(*vs.CloudRef, "#")[1]
-			if *vs.Name == expName {
-				utils.AviLog.Infof("Found vs %s associated with cloud %s", expName, cloudName)
+		elems := make([]json.RawMessage, result.Count)
+		err = json.Unmarshal(result.Results, &elems)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+			continue
+		}
+		for i := 0; i < len(elems); i++ {
+			vs := models.VirtualService{}
+			err = json.Unmarshal(elems[i], &vs)
+			if err != nil {
+				utils.AviLog.Warnf("Failed to unmarshal vs data, err: %v", err)
+				continue
+			}
+			if vs.CloudRef != nil && strings.Contains(*vs.CloudRef, "#") {
+				cloudName = strings.Split(*vs.CloudRef, "#")[1]
+				utils.AviLog.Infof("Found cloud %s associated with vs %s", cloudName, vsName)
 				return nil, cloudName
 			}
 		}
 	}
-	return nil, ""
+	return nil, cloudName
 }
 
 func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, string, string) {
-	// This method queries the Avi controller for all available cloud and then returns the cloud that matches the supplied transport zone
 	uri := "/api/cloud/"
-	_, cloudName := a.checkVirtualService()
+
+	_, cloudName := a.checkNSAnnotations()
+	if cloudName == "" {
+		_, cloudName = a.checkVirtualService()
+	}
 	if cloudName != "" {
 		uri = "/api/cloud/?include_name&name=" + cloudName
 	}
@@ -134,14 +165,13 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 	result, err := lib.AviGetCollectionRaw(a.AviRestClient, uri)
 	if err != nil {
 		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-		return err, "", ""
+		return err, cloudName, ""
 	}
-
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
 		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
-		return err, "", ""
+		return err, cloudName, ""
 	}
 	matchCloud := new(models.Cloud)
 	for i := 0; i < len(elems); i++ {
@@ -203,7 +233,7 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 	defaultSEG := models.ServiceEngineGroup{}
 	err = json.Unmarshal(elems[0], &defaultSEG)
 	if err != nil {
-		utils.AviLog.Warnf("Failed to unmarshal cloud data, err: %v", err)
+		utils.AviLog.Errorf("Failed to unmarshal cloud data, err: %v", err)
 		return err, *matchCloud.Name, ""
 	}
 	return nil, *matchCloud.Name, *defaultSEG.UUID
@@ -316,6 +346,10 @@ func fetchSEGroup(client *clients.AviClient, overrideUri ...lib.NextPage) (error
 
 func fetchVcenterServer(client *clients.AviClient) (string, error) {
 	uri := "/api/vcenterserver"
+	if utils.CloudName != "" {
+		utils.AviLog.Infof("Get vcenterserver for cloud %s", utils.CloudName)
+		uri = "/api/vcenterserver?include_name=true&cloud_ref.name=" + utils.CloudName
+	}
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		return "", err
