@@ -1,4 +1,5 @@
 GOCMD=go
+SHELL=/bin/bash -o pipefail -e
 GOBUILD=$(GOCMD) build -buildvcs=false
 GOCLEAN=$(GOCMD) clean
 GOGET=$(GOCMD) get
@@ -178,8 +179,8 @@ k8stest:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/k8stest -failfast -timeout 0 \
-	-coverprofile cover-1.out -coverpkg=./... 2>&1 | \
-	awk '{print "[k8stest]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	-coverprofile cover-1.out -coverpkg=./...
+	
 
 .PHONY: integrationtest
 integrationtest:
@@ -187,7 +188,7 @@ integrationtest:
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/integrationtest -failfast -coverprofile cover-2.out -coverpkg=./... | buffer -u 500
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/integrationtest -failfast -coverprofile cover-2.out -coverpkg=./... 
 
 .PHONY: ingresstests
 ingresstests:
@@ -195,7 +196,7 @@ ingresstests:
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/ingresstests -failfast -timeout 0 -coverprofile cover-3.out -coverpkg=./... | buffer -u 500
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/ingresstests -failfast -timeout 0 -coverprofile cover-3.out -coverpkg=./... 
 
 .PHONY: oshiftroutetests
 oshiftroutetests:
@@ -204,8 +205,8 @@ oshiftroutetests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/oshiftroutetests -failfast -timeout 0 \
-	-coverprofile cover-4.out -coverpkg=./... 2>&1 | \
-	awk '{print "[oshiftroutetests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	-coverprofile cover-4.out -coverpkg=./... 
+	
 
 .PHONY: bootuptests
 bootuptests:
@@ -213,8 +214,7 @@ bootuptests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/bootuptests -failfast -timeout 0 \
-	-coverprofile cover-5.out -coverpkg=./... 2>&1 | \
-	awk '{print "[bootuptests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	-coverprofile cover-5.out -coverpkg=./...
 
 .PHONY: multicloudtests
 multicloudtests:
@@ -222,8 +222,7 @@ multicloudtests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multicloudtests -failfast -timeout 0 \
-	-coverprofile cover-6.out -coverpkg=./... 2>&1 | \
-	awk '{print "[multicloudtests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	-coverprofile cover-6.out -coverpkg=./... 
 
 .PHONY: servicesapitests
 servicesapitests:
@@ -231,8 +230,7 @@ servicesapitests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/servicesapitests -failfast -timeout 0 \
-	-coverprofile cover-7.out -coverpkg=./... 2>&1 | \
-	awk '{print "[servicesapitests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	-coverprofile cover-7.out -coverpkg=./... 
 
 .PHONY: advl4tests
 advl4tests:
@@ -240,8 +238,7 @@ advl4tests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/advl4tests -failfast -timeout 0 \
-	-coverprofile cover-8.out -coverpkg=./... 2>&1 | \
-	awk '{print "[advl4tests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	-coverprofile cover-8.out -coverpkg=./... 
 
 .PHONY: namespacesynctests 
 namespacesynctests:
@@ -249,16 +246,14 @@ namespacesynctests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/namespacesynctests -failfast -timeout 0 \
-	-coverprofile cover-9.out -coverpkg=./... 2>&1 | \
-	awk '{print "[namespacesynctests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	-coverprofile cover-9.out -coverpkg=./... 
 
 .PHONY: misc 
 temp:
 	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/temp -failfast 2>&1 | \
-	awk '{print "[temp]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/temp -failfast 
 
 .PHONY: npltests 
 npltests:
@@ -267,8 +262,7 @@ npltests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/npltests -failfast -timeout 0 \
-	-coverprofile cover-10.out -coverpkg=./... 2>&1 | \
-	awk '{print "[npltests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	-coverprofile cover-10.out -coverpkg=./... 
 
 .PHONY: evhtests 
 evhtests:
@@ -277,8 +271,7 @@ evhtests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/evhtests -failfast -timeout 0 \
-	-coverprofile cover-11.out -coverpkg=./... 2>&1 | \
-	awk '{print "[evhtests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	-coverprofile cover-11.out -coverpkg=./... 
 
 .PHONY: vippernstests
 vippernstests:
@@ -286,8 +279,7 @@ vippernstests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/evhtests -failfast -timeout 0 -isVipPerNS=true \
-	-coverprofile cover-12.out -coverpkg=./... 2>&1 | \
-	awk '{print "[vippernstests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	-coverprofile cover-12.out -coverpkg=./... 
 
 .PHONY: dedicatedevhtests
 dedicatedevhtests:
@@ -296,8 +288,7 @@ dedicatedevhtests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/dedicatedevhtests -failfast -timeout 0 \
-	-coverprofile cover-13.out -coverpkg=./... 2>&1 | \
-	awk '{print "[dedicatedevhtests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	-coverprofile cover-13.out -coverpkg=./... 
 
 .PHONY: dedicatedvippernstests
 dedicatedvippernstests:
@@ -305,8 +296,7 @@ dedicatedvippernstests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/dedicatedevhtests -failfast -timeout 0 -isVipPerNS=true \
-	-coverprofile cover-14.out -coverpkg=./... 2>&1 | \
-	awk '{print "[dedicatedvippernstests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	-coverprofile cover-14.out -coverpkg=./... 
 
 .PHONY: dedicatedvstests
 dedicatedvstests:
@@ -315,17 +305,14 @@ dedicatedvstests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/dedicatedvstests -failfast -timeout 0 \
-	-coverprofile cover-15.out -coverpkg=./... 2>&1 | \
-	awk '{print "[dedicatedvstests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	-coverprofile cover-15.out -coverpkg=./... 
 
 .PHONY: infratests
 infratests:
 	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/infratests -failfast -timeout 0 2>&1 | \
-	awk '{print "[infratests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
-
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/infratests -failfast -timeout 0 
 
 # .PHONY: multiclusteringresstests
 # multiclusteringresstests:
@@ -341,8 +328,7 @@ hatests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/hatests -failfast -timeout 0 \
-	-coverprofile cover-17.out -coverpkg=./... 2>&1 | \
-	awk '{print "[hatests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	-coverprofile cover-17.out -coverpkg=./... 
 
 .PHONY: calicotests
 calicotests:
@@ -350,8 +336,7 @@ calicotests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/cnitests -failfast -timeout 0 -cniPlugin=calico \
-	-coverprofile cover-18.out -coverpkg=./... 2>&1 | \
-	awk '{print "[calicotests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	-coverprofile cover-18.out -coverpkg=./... 
 
 .PHONY: ciliumtests
 ciliumtests:
@@ -359,8 +344,7 @@ ciliumtests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/cnitests -failfast -timeout 0 -cniPlugin=cilium \
-	-coverprofile cover-19.out -coverpkg=./... 2>&1 | \
-	awk '{print "[ciliumtests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	-coverprofile cover-19.out -coverpkg=./... 
 
 .PHONY: helmtests
 helmtests:
@@ -377,8 +361,7 @@ gatewayapi_ingestiontests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/ingestion -failfast -timeout 0 \
-	-coverprofile cover-20.out -coverpkg=./... 2>&1 | \
-	awk '{print "[gatewayapi_ingestiontests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	-coverprofile cover-20.out -coverpkg=./... 
 
 .PHONY: gatewayapi_graphlayertests
 gatewayapi_graphlayertests:
@@ -386,8 +369,7 @@ gatewayapi_graphlayertests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/graphlayer -failfast -timeout 0 \
-	-coverprofile cover-21.out -coverpkg=./... 2>&1 | \
-	awk '{print "[gatewayapi_graphlayertests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	-coverprofile cover-21.out -coverpkg=./... 
 
 .PHONY: gatewayapi_statustests
 gatewayapi_statustests:
@@ -395,26 +377,82 @@ gatewayapi_statustests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/status -failfast -timeout 0 \
-	-coverprofile cover-22.out -coverpkg=./... 2>&1 | \
-	awk '{print "[gatewayapi_statustests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	-coverprofile cover-22.out -coverpkg=./... 
 
 .PHONY: multitenancytests
 multitenancytests:
 	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multitenancytests -failfast -timeout 0 -coverprofile cover-21.out -coverpkg=./... | buffer -u 500
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multitenancytests -failfast -timeout 0 -coverprofile cover-21.out -coverpkg=./... 
 
 .PHONY: urltests
 urltests:
 	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/urltests -failfast -coverprofile cover-22.out -coverpkg=./... | sed "s/^/[urltests]/"
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/urltests -failfast -coverprofile cover-22.out -coverpkg=./... 
 
 .PHONY: int_test
 int_test:
-	make -j 1 k8stest integrationtest ingresstests evhtests vippernstests dedicatedevhtests dedicatedvippernstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc dedicatedvstests hatests calicotests ciliumtests helmtests infratests urltests multitenancytests gatewayapitests
+	@> int_test.log
+	(make -j 8 --output-sync=target k8stest integrationtest ingresstests \
+	evhtests vippernstests dedicatedevhtests dedicatedvippernstests \
+	oshiftroutetests bootuptests multicloudtests advl4tests \
+	namespacesynctests servicesapitests npltests misc \
+	dedicatedvstests hatests calicotests ciliumtests \
+	helmtests infratests urltests multitenancytests gatewayapitests > int_test.log 2>&1 \
+	&& echo "int_test succeeded" && cat int_test.log | buffer -u 500) \
+	|| (echo "int_test failed" && cat int_test.log | buffer -u 500 && exit 1)
+
+
+# .PHONY: a
+# a:
+# 	@echo "a start"
+# 	exit 1
+# 	@sleep 3
+# 	@echo "a end" 
+	
+
+# .PHONY: b
+# b:
+# 	@echo "b start"
+# 	@sleep 6
+# 	@echo "b end"
+
+# .PHONY: c
+# c:
+# 	@echo "c start"
+# 	@sleep 2
+# 	@echo "c end"
+
+# .PHONY: d
+# d:
+# 	@echo "d start"
+# 	@sleep 3	
+# 	@echo "d end" 
+
+# .PHONY: e
+# e:
+# 	@echo "e start"
+# 	@sleep 3	
+# 	@echo "e end" 
+
+# .PHONY: f
+# f:
+# 	@echo "f start"
+# 	@sleep 3	
+# 	@echo "f end"
+
+# .PHONY: test_parallel
+# test_parallel:	
+# 	(make -j 2 --output-sync=target a \
+# 	b c d e f> abc.log 2>&1 && echo "parallel_test succeeded" && cat abc.log | buffer -u 500) || (echo "parallel_test failed" && cat abc.log | buffer -u 500 && exit 1)
+	
+	
+
+# .PHONY: parallel_test
+# parallel_test: clear_logs test_parallel 
 
 .PHONY: eps_enabled
 eps_enabled:
