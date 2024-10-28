@@ -80,19 +80,21 @@ type CRDMetadata struct {
 }
 
 type ServiceMetadataObj struct {
-	NamespaceIngressName  []string    `json:"namespace_ingress_name"`
-	IngressName           string      `json:"ingress_name"`
-	Namespace             string      `json:"namespace"`
-	HostNames             []string    `json:"hostnames"`
-	NamespaceServiceName  []string    `json:"namespace_svc_name"` // []string{ns/name}
-	CRDStatus             CRDMetadata `json:"crd_status"`
-	PoolRatio             uint32      `json:"pool_ratio"`
-	PassthroughParentRef  string      `json:"passthrough_parent_ref"`
-	PassthroughChildRef   string      `json:"passthrough_child_ref"`
-	Gateway               string      `json:"gateway"`   // ns/name
-	HTTPRoute             string      `json:"httproute"` // ns/name
-	InsecureEdgeTermAllow bool        `json:"insecureedgetermallow"`
-	IsMCIIngress          bool        `json:"is_mci_ingress"`
+	NamespaceIngressName       []string            `json:"namespace_ingress_name"`
+	IngressName                string              `json:"ingress_name"`
+	Namespace                  string              `json:"namespace"`
+	HostNames                  []string            `json:"hostnames"`
+	NamespaceServiceName       []string            `json:"namespace_svc_name"` // []string{ns/name}
+	CRDStatus                  CRDMetadata         `json:"crd_status"`
+	PoolRatio                  uint32              `json:"pool_ratio"`
+	PassthroughParentRef       string              `json:"passthrough_parent_ref"`
+	PassthroughChildRef        string              `json:"passthrough_child_ref"`
+	Gateway                    string              `json:"gateway"`   // ns/name
+	HTTPRoute                  string              `json:"httproute"` // ns/name
+	InsecureEdgeTermAllow      bool                `json:"insecureedgetermallow"`
+	IsMCIIngress               bool                `json:"is_mci_ingress"`
+	FQDNReusePolicy            string              `json:"fqdn_reuse_policy"`
+	HostToNamespaceIngressName map[string][]string `json:"host_namespace_ingress_name"`
 }
 
 type ServiceMetadataMappingObjType string
@@ -992,23 +994,8 @@ func FetchSEGroupWithMarkerSet(client *clients.AviClient, overrideUri ...NextPag
 	var result session.AviCollectionResult
 	result, err := AviGetCollectionRaw(client, uri)
 	if err != nil {
-		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
-			//SE in provider context no read access
-			utils.AviLog.Debugf("Switching to admin context from  %s", GetTenant())
-			SetAdminTenant := session.SetTenant(GetAdminTenant())
-			SetTenant := session.SetTenant(GetTenant())
-			SetAdminTenant(client.AviSession)
-			defer SetTenant(client.AviSession)
-			result, err = AviGetCollectionRaw(client, uri)
-			if err != nil {
-				utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-				return err, ""
-
-			}
-		} else {
-			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-			return err, ""
-		}
+		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+		return err, ""
 	}
 
 	elems := make([]json.RawMessage, result.Count)

@@ -36,6 +36,15 @@ func DequeueIngestion(key string, fullsync bool) {
 	if !valid {
 		return
 	}
+	if objType == lib.HTTPRoute {
+		httpRoute, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).Get(name)
+		if err == nil {
+			utils.AviLog.Debugf("key: %s, msg: Successfully retrieved the HTTPRoute object %s", key, name)
+			if !IsHTTPRouteValid(key, httpRoute) {
+				return
+			}
+		}
+	}
 
 	gatewayNsNameList, found := schema.GetGateways(namespace, name, key)
 	if !found {

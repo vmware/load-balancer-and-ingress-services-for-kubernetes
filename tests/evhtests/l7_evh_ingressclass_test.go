@@ -114,7 +114,7 @@ func TestEVHWrongClassMappingInIngress(t *testing.T) {
 	defer integrationtest.AddDefaultIngressClass()
 	waitAndVerify(t, integrationtest.DefaultIngressClass)
 
-	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, "", true)
+	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, "")
 	waitAndVerify(t, ingClassName)
 	ingressCreate := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -1404,7 +1404,7 @@ func TestFQDNsCountForAviInfraSettingWithDedicatedShardSize(t *testing.T) {
 	defer integrationtest.AddDefaultIngressClass()
 
 	integrationtest.SetupAviInfraSetting(t, settingName, "DEDICATED")
-	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName, true)
+	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 
 	ingressCreate := (integrationtest.FakeIngress{
@@ -1476,7 +1476,7 @@ func TestFQDNsCountForAviInfraSettingWithLargeShardSize(t *testing.T) {
 	defer integrationtest.AddDefaultIngressClass()
 
 	integrationtest.SetupAviInfraSetting(t, settingName, "LARGE")
-	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName, true)
+	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 
 	ingressCreate := (integrationtest.FakeIngress{

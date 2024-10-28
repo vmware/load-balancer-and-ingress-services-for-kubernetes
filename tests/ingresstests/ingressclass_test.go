@@ -1716,7 +1716,7 @@ func TestFQDNsCountForAviInfraSettingWithDedicatedShardSize(t *testing.T) {
 	defer integrationtest.AddDefaultIngressClass()
 
 	integrationtest.SetupAviInfraSetting(t, settingName, "DEDICATED")
-	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName, true)
+	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 
 	ingressCreate := (integrationtest.FakeIngress{
@@ -1785,7 +1785,7 @@ func TestFQDNsCountForAviInfraSettingWithLargeShardSize(t *testing.T) {
 	defer integrationtest.AddDefaultIngressClass()
 
 	integrationtest.SetupAviInfraSetting(t, settingName, "LARGE")
-	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName, true)
+	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
 	integrationtest.AddSecret(secretName, ns, "tlsCert", "tlsKey")
 
 	ingressCreate := (integrationtest.FakeIngress{
@@ -1865,7 +1865,7 @@ func TestAddIngressClassWithInfraSettingMultipleIngress(t *testing.T) {
 
 	integrationtest.RemoveDefaultIngressClass()
 	defer integrationtest.AddDefaultIngressClass()
-	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName, true)
+	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
 	time.Sleep(5 * time.Second)
 	ingressCreate1 := (integrationtest.FakeIngress{
 		Name:        ingressName1,
@@ -1976,7 +1976,7 @@ func TestAddIngressClassWithInfraSettingMultipleIngressDedicated(t *testing.T) {
 	defer integrationtest.AddDefaultIngressClass()
 
 	integrationtest.SetupAviInfraSetting(t, settingName, "DEDICATED")
-	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName, true)
+	integrationtest.SetupIngressClass(t, ingClassName, lib.AviIngressController, settingName)
 	time.Sleep(5 * time.Second)
 
 	ingressCreate1 := (integrationtest.FakeIngress{

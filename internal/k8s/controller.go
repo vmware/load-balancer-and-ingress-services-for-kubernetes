@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -198,9 +199,15 @@ func AddIngressFromNSToIngestionQueue(numWorkers uint32, c *AviController, names
 	for _, ingObj := range ingObjs {
 		key := utils.Ingress + "/" + utils.ObjKey(ingObj)
 		bkt := utils.Bkt(namespace, numWorkers)
-		c.workqueue[bkt].AddRateLimited(key)
-		lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
+		toBeAdded := true
+		if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+			toBeAdded, _ = isIngAcceptedWithFQDNRestriction(key, ingObj)
+		}
+		if toBeAdded {
+			c.workqueue[bkt].AddRateLimited(key)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+			utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
+		}
 	}
 }
 
@@ -213,9 +220,15 @@ func AddRoutesFromNSToIngestionQueue(numWorkers uint32, c *AviController, namesp
 	for _, routeObj := range routeObjs {
 		key := utils.OshiftRoute + "/" + utils.ObjKey(routeObj)
 		bkt := utils.Bkt(namespace, numWorkers)
-		c.workqueue[bkt].AddRateLimited(key)
-		lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
+		toBeAdded := true
+		if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+			toBeAdded = isRouteAcceptedWithFQDNRestriction(key, routeObj)
+		}
+		if toBeAdded {
+			c.workqueue[bkt].AddRateLimited(key)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+			utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
+		}
 	}
 }
 
@@ -520,6 +533,13 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 				utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
 				return
 			}
+
+			if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict && !isRouteAcceptedWithFQDNRestriction(key, route) {
+				// update the status - already host claimed
+				status.UpdateRouteStatusWithErrMsg(key, route.Name, namespace, lib.HostAlreadyClaimed)
+				return
+			}
+
 			bkt := utils.Bkt(namespace, numWorkers)
 			if !lib.HasValidBackends(route.Spec, route.Name, namespace, key) {
 				status.UpdateRouteStatusWithErrMsg(key, route.Name, namespace, lib.DuplicateBackends)
@@ -527,6 +547,7 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 			c.workqueue[bkt].AddRateLimited(key)
 			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+
 		},
 		DeleteFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -551,6 +572,14 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 				utils.AviLog.Debugf("key: %s, msg: Route delete event: Namespace: %s didn't qualify filter. Not deleting route", key, namespace)
 				return
 			}
+
+			if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+				routeNamespaceName := objects.RouteNamspaceName{
+					RouteNSRouteName: key,
+					CreationTime:     route.CreationTimestamp,
+				}
+				objects.SharedUniqueNamespaceLister().DeleteHostnameToRoute(route.Spec.Host, routeNamespaceName)
+			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
@@ -570,13 +599,49 @@ func AddRouteEventHandler(numWorkers uint32, c *AviController) cache.ResourceEve
 					utils.AviLog.Debugf("key: %s, msg: Route update event: Namespace: %s didn't qualify filter. Not updating route", key, namespace)
 					return
 				}
+
 				bkt := utils.Bkt(namespace, numWorkers)
 				if !lib.HasValidBackends(newRoute.Spec, newRoute.Name, namespace, key) {
 					status.UpdateRouteStatusWithErrMsg(key, newRoute.Name, namespace, lib.DuplicateBackends)
 				}
-				c.workqueue[bkt].AddRateLimited(key)
-				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				if oldRoute.Spec.Host == newRoute.Spec.Host {
+					// same hosts
+					isAccepted := true
+					if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+						isAccepted = isRouteAcceptedWithFQDNRestriction(key, newRoute)
+					}
+					if isAccepted {
+						c.workqueue[bkt].AddRateLimited(key)
+						lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+						utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+					}
+				} else {
+					isOldAccepted := true
+					isNewAccepted := true
+					if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+						isOldAccepted = isRouteAcceptedWithFQDNRestriction(key, oldRoute)
+						isNewAccepted = isRouteAcceptedWithFQDNRestriction(key, newRoute)
+					}
+					if !isOldAccepted && !isNewAccepted {
+						// set status
+						// update the status - already host claimed
+						status.UpdateRouteStatusWithErrMsg(key, newRoute.Name, namespace, lib.HostAlreadyClaimed)
+						return
+					}
+					if isOldAccepted {
+						routeNamespaceName := objects.RouteNamspaceName{
+							RouteNSRouteName: key,
+							CreationTime:     oldRoute.CreationTimestamp,
+						}
+						// TODO: Recently host field in route has become optional. There is alternate field needs to be used.
+						// So storing route hostname functionality will undergo changes.
+						objects.SharedUniqueNamespaceLister().DeleteHostnameToRoute(oldRoute.Spec.Host, routeNamespaceName)
+					}
+					c.workqueue[bkt].AddRateLimited(key)
+					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+
+				}
 			}
 		},
 	}
@@ -1251,10 +1316,17 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			if !lib.ValidateIngressForClass(key, ingress) {
 				return
 			}
+			if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+				if toBeAdded, _ := isIngAcceptedWithFQDNRestriction(key, ingress); !toBeAdded {
+					utils.AviLog.Warnf("key: %s, msg: Ingress is not added due to conflict in hostname", key)
+					return
+				}
+			}
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+
 		},
 		DeleteFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -1286,10 +1358,18 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 				return
 			}
 			objects.SharedResourceVerInstanceLister().Delete(key)
+			// Add validation here
 			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
+
+			if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+				deleteHostnameToRoute(key, ingress)
+			}
+
 			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			// This will enqueue key irrespective of model present or not. Can be optimized.
+			c.workqueue[bkt].AddRateLimited(key)
+
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			if c.DisableSync {
@@ -1305,9 +1385,24 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					return
 				}
 				bkt := utils.Bkt(namespace, numWorkers)
+
+				if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
+					oldIngAccepted, oldHosts := isIngAcceptedWithFQDNRestriction(key, oldobj)
+					newIngAccepted, newHosts := isIngAcceptedWithFQDNRestriction(key, ingress)
+					if !oldIngAccepted && !newIngAccepted {
+						utils.AviLog.Warnf("key: %s, msg: Ingress is not added due to conflict in hostname", key)
+						return
+					}
+
+					if oldIngAccepted && !oldHosts.Equal(newHosts) {
+						deleteHostnameToRoute(key, oldobj)
+					}
+				}
+
 				c.workqueue[bkt].AddRateLimited(key)
 				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+
 			}
 		},
 	}
@@ -1673,4 +1768,60 @@ func (c *AviController) Run(stopCh <-chan struct{}) error {
 
 func (c *AviController) GetValidator() Validator {
 	return NewValidator()
+}
+func isIngAcceptedWithFQDNRestriction(key string, ingress *networkingv1.Ingress) (bool, sets.Set[string]) {
+	routeNamespaceName := objects.RouteNamspaceName{
+		RouteNSRouteName: key,
+		CreationTime:     ingress.CreationTimestamp,
+	}
+	ingHosts := sets.New[string]()
+	for _, rule := range ingress.Spec.Rules {
+		ingHosts.Insert(rule.Host)
+	}
+	// Current behaviour if one of fqdn is false, not added.
+	isAdded := false
+	for _, host := range sets.List(ingHosts) {
+		isAdded, _, _ = objects.SharedUniqueNamespaceLister().UpdateHostnameToRoute(host, routeNamespaceName)
+		if !isAdded {
+			utils.AviLog.Warnf("key:%s, msg: ingress is not accepted as host %s is already claimed", key, host)
+			err_msg := fmt.Sprintf("Host %s already claimed", host)
+			lib.AKOControlConfig().IngressEventf(ingress.ObjectMeta, corev1.EventTypeWarning, lib.IngressUpdateEvent, err_msg)
+			break
+		}
+	}
+	if !isAdded {
+		utils.AviLog.Warnf("key: %s, msg: Ingress is not added due to hostname conflict", key)
+		// Few hosts might have got added, so we need to remove those from the list.
+		for _, host := range sets.List(ingHosts) {
+			objects.SharedUniqueNamespaceLister().DeleteHostnameToRoute(host, routeNamespaceName)
+		}
+	}
+	return isAdded, ingHosts
+}
+
+func isRouteAcceptedWithFQDNRestriction(key string, route *routev1.Route) bool {
+	routeNamespaceName := objects.RouteNamspaceName{
+		RouteNSRouteName: key,
+		CreationTime:     route.CreationTimestamp,
+	}
+	isAdded := false
+	isAdded, _, _ = objects.SharedUniqueNamespaceLister().UpdateHostnameToRoute(route.Spec.Host, routeNamespaceName)
+	if !isAdded {
+		utils.AviLog.Warnf("key: %s, msg: Route is not added due to hostname conflict", key)
+	}
+	return isAdded
+}
+
+func deleteHostnameToRoute(key string, ingress *networkingv1.Ingress) {
+	routeNamespaceName := objects.RouteNamspaceName{
+		RouteNSRouteName: key,
+		CreationTime:     ingress.CreationTimestamp,
+	}
+	ingHosts := sets.NewString()
+	for _, rule := range ingress.Spec.Rules {
+		ingHosts.Insert(rule.Host)
+	}
+	for _, host := range ingHosts.List() {
+		objects.SharedUniqueNamespaceLister().DeleteHostnameToRoute(host, routeNamespaceName)
+	}
 }

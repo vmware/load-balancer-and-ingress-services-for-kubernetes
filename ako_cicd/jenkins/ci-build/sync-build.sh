@@ -3,6 +3,7 @@
 set -xe
 
 cd $WORKSPACE/hack/jenkins
+sudo rm -rf /tmp/dummy || true 
 version_tag=`/bin/bash get_build_version.sh  "dummy" $build_num`
 build_tag=ci-build-${version_tag};
 build_src=/mnt/builds/ako_OS/${branch};

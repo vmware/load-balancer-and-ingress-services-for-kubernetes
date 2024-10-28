@@ -1886,6 +1886,7 @@ type FakeHTTPRulePath struct {
 	HealthMonitors []string
 	LbAlgorithm    string
 	Hash           string
+	EnableHTTP2    bool
 }
 
 func (rr FakeHTTPRule) HTTPRule() *akov1beta1.HTTPRule {
@@ -1902,6 +1903,7 @@ func (rr FakeHTTPRule) HTTPRule() *akov1beta1.HTTPRule {
 				Algorithm: p.LbAlgorithm,
 				Hash:      p.Hash,
 			},
+			EnableHttp2: &p.EnableHTTP2,
 		}
 		if p.DestinationCA != "" {
 			rrForPath.TLS.DestinationCA = p.DestinationCA
@@ -2106,7 +2108,7 @@ func (ingclass FakeIngressClass) IngressClass() *networking.IngressClass {
 	return ingressclass
 }
 
-func SetupIngressClass(t *testing.T, ingclassName, controller, infraSetting string, wait ...bool) {
+func SetupIngressClass(t *testing.T, ingclassName, controller, infraSetting string) {
 	ingclass := FakeIngressClass{
 		Name:            ingclassName,
 		Controller:      controller,
@@ -2125,13 +2127,13 @@ func SetupIngressClass(t *testing.T, ingclassName, controller, infraSetting stri
 			t.Fatalf("error in adding IngressClass: %v", err)
 		}
 	}
-	if len(wait) > 0 {
-		g := gomega.NewGomegaWithT(t)
-		g.Eventually(func() error {
-			_, err := utils.GetInformers().IngressClassInformer.Lister().Get(ingclassName)
-			return err
-		}, 30*time.Second, 5*time.Second).Should(gomega.BeNil())
-	}
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() error {
+		_, err := utils.GetInformers().IngressClassInformer.Lister().Get(ingclassName)
+		return err
+	}, 30*time.Second, 2*time.Second).Should(gomega.BeNil())
+
 }
 
 func AnnotateAKONamespaceWithInfraSetting(t *testing.T, ns, infraSettingName string) {

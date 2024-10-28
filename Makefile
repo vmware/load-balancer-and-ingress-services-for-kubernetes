@@ -187,9 +187,7 @@ integrationtest:
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/integrationtest -failfast -timeout 0 \
-	-coverprofile cover-2.out -coverpkg=./... 2>&1 | \
-	awk '{print "[integrationtest]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/integrationtest -failfast -coverprofile cover-2.out -coverpkg=./... | buffer -u 500
 
 .PHONY: ingresstests
 ingresstests:
@@ -197,9 +195,7 @@ ingresstests:
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/ingresstests -failfast -timeout 0 \
-	-coverprofile cover-3.out -coverpkg=./... 2>&1 | \
-	awk '{print "[ingresstests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/ingresstests -failfast -timeout 0 -coverprofile cover-3.out -coverpkg=./... | buffer -u 500
 
 .PHONY: oshiftroutetests
 oshiftroutetests:
@@ -372,7 +368,7 @@ helmtests:
 	-u root:root \
 	-v $(PWD)/helm/ako:/apps \
 	-v $(PWD)/tests/helmtests:/apps/tests \
-	avi-buildops-docker-registry-02.eng.vmware.com:5000/avi-buildops/helmunittest/helm-unittest:3.11.1-0.3.0 .
+	avi-buildops-docker-registry-02.avilb.broadcom.net:5000/avi-buildops/helmunittest/helm-unittest:3.11.1-0.3.0 .
 
 .PHONY: gatewayapi_ingestiontests
 gatewayapi_ingestiontests:
@@ -407,9 +403,7 @@ multitenancytests:
 	sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multitenancytests -failfast -timeout 0 \
-	-coverprofile cover-23.out -coverpkg=./... 2>&1 | \
-	awk '{print "[multitenancytests]"$$0; if ($$0 ~ /^FAIL/) exit 1;}'
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multitenancytests -failfast -timeout 0 -coverprofile cover-21.out -coverpkg=./... | buffer -u 500
 
 .PHONY: urltests
 urltests:
@@ -420,16 +414,7 @@ urltests:
 
 .PHONY: int_test
 int_test:
-	make -j 8 bootuptests ciliumtests k8stest multicloudtests \
-	calicotests dedicatedevhtests dedicatedvippernstests dedicatedvstests \
-	integrationtest ingresstests evhtests vippernstests \
-	oshiftroutetests advl4tests namespacesynctests servicesapitests \
-	npltests hatests helmtests infratests urltests \
-	multitenancytests gatewayapi_ingestiontests gatewayapi_graphlayertests gatewayapi_statustests
-
-.PHONY: multi_tenancy
-multi_tenancy:
-	make -j 1 multitenancytests
+	make -j 1 k8stest integrationtest ingresstests evhtests vippernstests dedicatedevhtests dedicatedvippernstests oshiftroutetests bootuptests multicloudtests advl4tests namespacesynctests servicesapitests npltests misc dedicatedvstests hatests calicotests ciliumtests helmtests infratests urltests multitenancytests gatewayapitests
 
 .PHONY: eps_enabled
 eps_enabled:

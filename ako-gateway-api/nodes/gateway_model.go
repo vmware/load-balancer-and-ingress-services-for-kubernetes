@@ -23,6 +23,7 @@ import (
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -61,7 +62,11 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 		},
 		Caller: utils.GATEWAY_API, // Always Populate this field to recognise caller at rest layer
 	}
-
+	t1LR := lib.GetT1LRPath()
+	if t1LR != "" {
+		utils.AviLog.Infof("key: %s, msg: T1LR is %s.", key, t1LR)
+		parentVsNode.VrfContext = ""
+	}
 	parentVsNode.PortProto = BuildPortProtocols(gateway, key)
 
 	tlsNodes := BuildTLSNodesForGateway(gateway, key)
@@ -75,10 +80,20 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 	return parentVsNode
 }
 
+func IsListenerInvalid(gwStatus *gatewayv1.GatewayStatus, listenerIndex int) bool {
+	if len(gwStatus.Listeners) > int(listenerIndex) && gwStatus.Listeners[listenerIndex].Conditions[0].Type == string(gatewayv1.ListenerConditionAccepted) && gwStatus.Listeners[listenerIndex].Conditions[0].Status == "False" {
+		return true
+	}
+	return false
+}
+
 func BuildPortProtocols(gateway *gatewayv1.Gateway, key string) []nodes.AviPortHostProtocol {
 	var portProtocols []nodes.AviPortHostProtocol
-	for _, listener := range gateway.Spec.Listeners {
-
+	gwStatus := akogatewayapiobjects.GatewayApiLister().GetGatewayToGatewayStatusMapping(gateway.Namespace + "/" + gateway.Name)
+	for i, listener := range gateway.Spec.Listeners {
+		if IsListenerInvalid(gwStatus, i) {
+			continue
+		}
 		pp := nodes.AviPortHostProtocol{Port: int32(listener.Port), Protocol: string(listener.Protocol)}
 		//TLS config on listener is present
 		if listener.TLS != nil && len(listener.TLS.CertificateRefs) > 0 {
@@ -96,7 +111,11 @@ func BuildTLSNodesForGateway(gateway *gatewayv1.Gateway, key string) []*nodes.Av
 	var tlsNodes []*nodes.AviTLSKeyCertNode
 	var ns, name string
 	cs := utils.GetInformers().ClientSet
-	for _, listener := range gateway.Spec.Listeners {
+	gwStatus := akogatewayapiobjects.GatewayApiLister().GetGatewayToGatewayStatusMapping(gateway.Namespace + "/" + gateway.Name)
+	for i, listener := range gateway.Spec.Listeners {
+		if IsListenerInvalid(gwStatus, i) {
+			continue
+		}
 		if listener.TLS != nil {
 			for _, certRef := range listener.TLS.CertificateRefs {
 				//kind is validated at ingestion
@@ -146,7 +165,12 @@ func BuildVsVipNodeForGateway(gateway *gatewayv1.Gateway, vsName string) *nodes.
 		VrfContext:  lib.GetVrf(),
 		VipNetworks: utils.GetVipNetworkList(),
 	}
-
+	t1LR := lib.GetT1LRPath()
+	if t1LR != "" {
+		utils.AviLog.Infof("key: %s, msg: T1LR for vsvip node is: %s.", vsName, t1LR)
+		vsvipNode.VrfContext = ""
+		vsvipNode.T1Lr = t1LR
+	}
 	//Type is validated at ingestion
 	if len(gateway.Spec.Addresses) == 1 {
 		ipAddr := gateway.Spec.Addresses[0].Value
@@ -161,7 +185,11 @@ func DeleteTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gatewa
 	var tlsNodes []*nodes.AviTLSKeyCertNode
 	_, _, secretName := lib.ExtractTypeNameNamespace(key)
 	evhVsCertRefs := object.GetAviEvhVS()[0].SSLKeyCertRefs
-	for _, listener := range gateway.Spec.Listeners {
+	gwStatus := akogatewayapiobjects.GatewayApiLister().GetGatewayToGatewayStatusMapping(gateway.Namespace + "/" + gateway.Name)
+	for i, listener := range gateway.Spec.Listeners {
+		if IsListenerInvalid(gwStatus, i) {
+			continue
+		}
 		if listener.TLS != nil {
 			for _, certRef := range listener.TLS.CertificateRefs {
 				name := string(certRef.Name)
@@ -188,7 +216,11 @@ func AddTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gateway, 
 	var tlsNodes []*nodes.AviTLSKeyCertNode
 	_, _, secretName := lib.ExtractTypeNameNamespace(key)
 	evhVsCertRefs := object.GetAviEvhVS()[0].SSLKeyCertRefs
-	for _, listener := range gateway.Spec.Listeners {
+	gwStatus := akogatewayapiobjects.GatewayApiLister().GetGatewayToGatewayStatusMapping(gateway.Namespace + "/" + gateway.Name)
+	for i, listener := range gateway.Spec.Listeners {
+		if IsListenerInvalid(gwStatus, i) {
+			continue
+		}
 		if listener.TLS != nil {
 			for _, certRef := range listener.TLS.CertificateRefs {
 				name := string(certRef.Name)
