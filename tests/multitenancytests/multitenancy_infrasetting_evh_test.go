@@ -19,9 +19,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func tearDownTestForIngress(t *testing.T, svcName string) {
-	integrationtest.DelSVC(t, "default", svcName)
-	integrationtest.DelEP(t, "default", svcName)
+func tearDownTestForIngress(t *testing.T, svcname string) {
+	integrationtest.DelSVC(t, "default", svcname)
+	integrationtest.DelEPorEPS(t, "default", svcname)
 }
 
 func verifyEvhNodeDeletionFromVsNode(g *gomega.WithT, modelName string, parentVSKey, evhVsKey cache.NamespaceName) {
@@ -68,9 +68,7 @@ func TestMultiTenancyWithNSAviInfraSettingEVH(t *testing.T) {
 	secretName := objNameMap.GenerateName("my-secret")
 	modelName := "admin/cluster--Shared-L7-EVH-1"
 	settingModelName := "nonadmin/cluster--Shared-L7-EVH-0"
-
 	svcName := objNameMap.GenerateName("avisvc")
-
 	ingresstests.SetUpTestForIngress(t, svcName, modelName)
 
 	vsKey := cache.NamespaceName{Namespace: "nonadmin", Name: "cluster--Shared-L7-EVH-0"}
