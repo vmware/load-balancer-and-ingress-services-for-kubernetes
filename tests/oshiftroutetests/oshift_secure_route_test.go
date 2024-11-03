@@ -16,6 +16,7 @@ package oshiftroutetests
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -1226,4 +1227,28 @@ func TestSecureRouteMultiNamespaceWithStrictRestrictFqdn(t *testing.T) {
 	TearDownTestForRoute(t, defaultModelName)
 	integrationtest.DelSVC(t, "test", "avisvc")
 	integrationtest.DelEPorEPS(t, "test", "avisvc")
+}
+
+func TestSecureRouteWithSubdomainNoHost(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetUpTestForRoute(t, defaultModelName)
+	routeExample := FakeRoute{Path: "/foo"}.SecureRouteWithSubdomainNoHost()
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	aviModel := ValidateSniModel(t, g, defaultModelName)
+
+	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
+	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+	fqdnFromSubdomain := defaultSubdomain + "." + os.Getenv("DEFAULT_ROUTE_DOMAIN")
+	g.Eventually(func() string {
+		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
+		return sniVS.VHDomainNames[0]
+	}, 20*time.Second).Should(gomega.Equal(fqdnFromSubdomain))
+	VerifySniNode(g, sniVS)
+
+	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
+	TearDownTestForRoute(t, defaultModelName)
 }

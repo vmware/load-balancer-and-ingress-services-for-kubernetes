@@ -238,8 +238,13 @@ func UpdateRouteStatusWithErrMsg(key, routeName, namespace, msg string, retryNum
 		Type:               routev1.RouteAdmitted,
 	}
 
+	routeHost := mRoute.Spec.Host
+	if routeHost == "" && mRoute.Spec.Subdomain != "" && lib.GetDefaultRouteDomain() != "" {
+		routeHost = mRoute.Spec.Subdomain + "." + lib.GetDefaultRouteDomain()
+	}
+
 	rtIngress := routev1.RouteIngress{
-		Host:       mRoute.Spec.Host,
+		Host:       routeHost,
 		RouterName: lib.AKOUser,
 		Conditions: []routev1.RouteIngressCondition{
 			condition,
@@ -360,8 +365,12 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateOptions, retryN
 	}
 
 	// remove the host from status which is not in spec
+	routeHost := mRoute.Spec.Host
+	if routeHost == "" && mRoute.Spec.Subdomain != "" && lib.GetDefaultRouteDomain() != "" {
+		routeHost = mRoute.Spec.Subdomain + "." + lib.GetDefaultRouteDomain()
+	}
 	for i := len(mRoute.Status.Ingress) - 1; i >= 0; i-- {
-		if mRoute.Status.Ingress[i].RouterName == lib.AKOUser && mRoute.Spec.Host != mRoute.Status.Ingress[i].Host {
+		if mRoute.Status.Ingress[i].RouterName == lib.AKOUser && routeHost != mRoute.Status.Ingress[i].Host {
 			mRoute.Status.Ingress = append(mRoute.Status.Ingress[:i], mRoute.Status.Ingress[i+1:]...)
 		}
 	}
@@ -398,7 +407,7 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateOptions, retryN
 		utils.AviLog.Debugf("key: %s, msg: No changes detected in route status. old: %+v new: %+v",
 			key, oldRouteStatus.Ingress, mRoute.Status.Ingress)
 	}
-	err = updateRouteAnnotations(updatedRoute, updateOption, mRoute, key, mRoute.Spec.Host)
+	err = updateRouteAnnotations(updatedRoute, updateOption, mRoute, key, routeHost)
 
 	return err
 }
@@ -580,13 +589,17 @@ func deleteRouteObject(option UpdateOptions, key string, isVSDelete bool, retryN
 
 	utils.AviLog.Infof("key: %s, deleting hostnames %v from Route status %s/%s", key, option.ServiceMetadata.HostNames, option.ServiceMetadata.Namespace, option.ServiceMetadata.IngressName)
 	svcMdataHostname := option.ServiceMetadata.HostNames[0]
+	routeHost := mRoute.Spec.Host
+	if routeHost == "" && mRoute.Spec.Subdomain != "" && lib.GetDefaultRouteDomain() != "" {
+		routeHost = mRoute.Spec.Subdomain + "." + lib.GetDefaultRouteDomain()
+	}
 	for i := len(mRoute.Status.Ingress) - 1; i >= 0; i-- {
 		if mRoute.Status.Ingress[i].Host != svcMdataHostname {
 			continue
 		}
 		// Check if this host is still present in the spec, if so - don't delete it
 		// NS migration case: if false -> ns invalid event happened so remove status
-		if mRoute.Status.Ingress[i].RouterName == lib.AKOUser && (mRoute.Spec.Host != svcMdataHostname || isVSDelete || !utils.CheckIfNamespaceAccepted(option.ServiceMetadata.Namespace)) {
+		if mRoute.Status.Ingress[i].RouterName == lib.AKOUser && (routeHost != svcMdataHostname || isVSDelete || !utils.CheckIfNamespaceAccepted(option.ServiceMetadata.Namespace)) {
 			mRoute.Status.Ingress = append(mRoute.Status.Ingress[:i], mRoute.Status.Ingress[i+1:]...)
 		} else {
 			utils.AviLog.Debugf("key: %s, msg: skipping status update since host is present in the route: %v", key, svcMdataHostname)
@@ -620,7 +633,7 @@ func deleteRouteObject(option UpdateOptions, key string, isVSDelete bool, retryN
 		}
 	}
 
-	return deleteRouteAnnotation(updatedRoute, option.ServiceMetadata, isVSDelete, mRoute.Spec.Host, key, option.Tenant, mRoute)
+	return deleteRouteAnnotation(updatedRoute, option.ServiceMetadata, isVSDelete, routeHost, key, option.Tenant, mRoute)
 }
 
 func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta lib.ServiceMetadataObj, isVSDelete bool,

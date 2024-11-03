@@ -446,9 +446,15 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 	ingressConfig := IngressConfig{}
 	hostMap := make(IngressHostMap)
 	hostName := routeSpec.Host
+
+	if hostName == "" && routeSpec.Subdomain != "" && lib.GetDefaultRouteDomain() != "" {
+		hostName = routeSpec.Subdomain + "." + lib.GetDefaultRouteDomain()
+	}
+
 	if !v.IsValidHostName(hostName) {
 		return ingressConfig
 	}
+
 	defaultWeight := uint32(100)
 	var hostPathMapSvcList HostMetadata
 

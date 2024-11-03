@@ -56,6 +56,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("POD_NAME", "ako-0")
+	os.Setenv("DEFAULT_ROUTE_DOMAIN", "com")
 
 	akoControlConfig := lib.AKOControlConfig()
 	endpointSliceEnabled = lib.GetEndpointSliceEnabled()
@@ -681,4 +682,38 @@ func TestAlternateBackendUpdateWeight(t *testing.T) {
 
 	integrationtest.DelSVC(t, "default", "absvc2")
 	integrationtest.DelEPorEPS(t, "default", "absvc2")
+}
+
+func TestRouteWithSubdomainNoHost(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	defaultNamespace = "default"
+	SetUpTestForRoute(t, defaultModelName)
+	path := "/foo"
+
+	routeExample := FakeRoute{Path: path}.RouteWithSubdomainAndNoHost()
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	fqdnFromSubdomain := defaultSubdomain + "." + os.Getenv("DEFAULT_ROUTE_DOMAIN")
+	aviModel := ValidateModelCommon(t, g)
+	pool := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs[0]
+
+	g.Eventually(func() int {
+		pool = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs[0]
+		return len(pool.Servers)
+	}, 10*time.Second).Should(gomega.Equal(1))
+
+	g.Expect(pool.Name).To(gomega.Equal("cluster--foo.com_foo-default-foo-avisvc"))
+	g.Expect(pool.PriorityLabel).To(gomega.Equal(fqdnFromSubdomain + path))
+
+	poolgroups := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolGroupRefs
+	pgmember := poolgroups[0].Members[0]
+	g.Expect(*pgmember.PoolRef).To(gomega.Equal("/api/pool?name=cluster--foo.com_foo-default-foo-avisvc"))
+	g.Expect(*pgmember.PriorityLabel).To(gomega.Equal(fqdnFromSubdomain + path))
+
+	VerifyRouteDeletion(t, g, aviModel, 0)
+	TearDownTestForRoute(t, defaultModelName)
 }

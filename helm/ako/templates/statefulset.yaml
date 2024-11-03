@@ -293,6 +293,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: fqdnReusePolicy
+          - name: DEFAULT_ROUTE_DOMAIN
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: defaultRouteDomain
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:

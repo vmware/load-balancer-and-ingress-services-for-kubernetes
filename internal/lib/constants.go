@@ -211,6 +211,7 @@ const (
 	CtrlVersion_22_1_6                         = "22.1.6"
 	FQDNReusePolicyStrict                      = "strict"
 	FQDNReusePolicyOpen                        = "internamespaceallowed"
+	DEFAULT_ROUTE_DOMAIN                       = "DEFAULT_ROUTE_DOMAIN"
 
 	// AKO Event constants
 	AKOEventComponent        = "avi-kubernetes-operator"

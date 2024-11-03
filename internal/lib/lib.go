@@ -963,6 +963,14 @@ func GetDomain() string {
 	return ""
 }
 
+func GetDefaultRouteDomain() string {
+	subDomain := os.Getenv(DEFAULT_ROUTE_DOMAIN)
+	if subDomain != "" {
+		return subDomain
+	}
+	return ""
+}
+
 // This utility returns a true/false depending on whether
 // the user requires advanced L4 functionality
 func GetAdvancedL4() bool {

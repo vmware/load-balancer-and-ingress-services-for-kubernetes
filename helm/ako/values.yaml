@@ -93,6 +93,7 @@ L7Settings:
   passthroughShardSize: "SMALL" # Control the passthrough virtualservice numbers using this ENUM. ENUMs: LARGE, MEDIUM, SMALL
   enableMCI: "false" # Enabling this flag would tell AKO to start processing multi-cluster ingress objects.
   fqdnReusePolicy: "InterNamespaceAllowed" # Use this to control whether AKO allows cross-namespace usage of FQDNs. enum Strict|InterNamespaceAllowed
+  defaultRouteDomain: "" # If spec.subdomain field is specified instead of spec.host field for an OpenShift route, then defaultRouteDomain is appended to the subdomain to form the FQDN.
 
 ### This section outlines all the knobs  used to control Layer 4 loadbalancing settings in AKO.
 L4Settings:
