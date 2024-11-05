@@ -92,7 +92,7 @@ func (t *T1LRNetworking) SyncLSLRNetwork() {
 	utils.AviLog.Infof("Got data LS LR Map: %v, from NetworkInfo CR", lslrmap)
 
 	client := InfraAviClientInstance()
-	found, cloudModel := getAviCloudFromCache(client, utils.CloudName, false)
+	found, cloudModel := getAviCloudFromCache(client, utils.CloudName)
 	if !found {
 		utils.AviLog.Warnf("Failed to get Cloud data from cache")
 		return
@@ -294,7 +294,7 @@ func (t *T1LRNetworking) addNetworkInCloud(objKey string, cidrToNS map[string]ma
 }
 
 func (t *T1LRNetworking) addNetworkInIPAM(key string, networksToDelete map[string]string, client *clients.AviClient) {
-	found, cloudModel := getAviCloudFromCache(client, utils.CloudName, false)
+	found, cloudModel := getAviCloudFromCache(client, utils.CloudName)
 	if !found {
 		utils.AviLog.Warnf("Failed to get Cloud data from cache")
 		return

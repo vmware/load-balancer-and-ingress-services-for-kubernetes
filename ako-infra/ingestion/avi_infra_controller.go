@@ -44,6 +44,11 @@ type AviControllerInfra struct {
 	cs            kubernetes.Interface
 }
 
+var acceptedLicensesInAvi = []string{
+	AVI_ENTERPRISE,
+	AviEnterpriseWithCloudServices,
+}
+
 func NewAviControllerInfra(cs kubernetes.Interface) *AviControllerInfra {
 	PopulateControllerProperties(cs)
 	aviClient := avirest.InfraAviClientInstance()
@@ -75,13 +80,14 @@ func (a *AviControllerInfra) VerifyAviControllerLicense() error {
 		return err
 	}
 
-	if *response.DefaultLicenseTier != AVI_ENTERPRISE && *response.DefaultLicenseTier != AviEnterpriseWithCloudServices {
-		errStr := fmt.Sprintf("Avi Controller license is not ENTERPRISE. License tier is: %s", *response.DefaultLicenseTier)
-		return errors.New(errStr)
-	} else {
-		utils.AviLog.Infof("Avi Controller is running with %s license, proceeding with bootup", *response.DefaultLicenseTier)
+	for _, license := range acceptedLicensesInAvi {
+		if *response.DefaultLicenseTier == license {
+			utils.AviLog.Infof("Avi Controller is running with %s license, proceeding with bootup", *response.DefaultLicenseTier)
+			return nil
+		}
 	}
-	return nil
+
+	return fmt.Errorf("Avi Controller license is not in accepted list %s. License tier is: %s", acceptedLicensesInAvi, *response.DefaultLicenseTier)
 }
 
 func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, string, string) {
