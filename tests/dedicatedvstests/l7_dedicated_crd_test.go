@@ -36,10 +36,19 @@ func TestHostruleFQDNAliasesForDedicatedVS(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--foo.com-L7-dedicated"
 	hrname := "fqdn-aliases-hr-foo"
-	secretName := "my-secret-1"
-	ingressName := "foo-with-targets-1"
-	svcName := "avisvc-1"
-	SetUpIngressForCacheSyncCheck(t, true, true, secretName, ingressName, svcName, modelName)
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 	integrationtest.SetupHostRule(t, hrname, "foo.com", false)
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -167,11 +176,20 @@ func TestApplyHostruleToDedicatedVS(t *testing.T) {
 
 	modelName := "admin/cluster--foo.com-L7-dedicated"
 	hrname := "hr-cluster--foo.com-L7-dedicated"
-	secretName := "my-secret-2"
-	ingressName := "foo-with-targets-2"
-	svcName := "avisvc-2"
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 
-	SetUpIngressForCacheSyncCheck(t, true, true, secretName, ingressName, svcName, modelName)
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	hostrule := integrationtest.FakeHostRule{
 		Name:                  hrname,
@@ -265,11 +283,20 @@ func TestHostruleSSLKeyCertToDedicatedVS(t *testing.T) {
 
 	modelName := "admin/cluster--foo.com-L7-dedicated"
 	hrname := "hr-cluster--foo.com-L7-dedicated"
-	secretName := "my-secret-3"
-	ingressName := "foo-with-targets-3"
-	svcName := "avisvc-3"
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 
-	SetUpIngressForCacheSyncCheck(t, true, true, secretName, ingressName, svcName, modelName)
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
 
@@ -301,11 +328,20 @@ func TestHostruleNoListenerDedicatedVS(t *testing.T) {
 
 	modelName := "admin/cluster--foo.com-L7-dedicated"
 	hrname := "hr-cluster--foo.com-L7-dedicated"
-	secretName := "my-secret-4"
-	ingressName := "foo-with-targets-4"
-	svcName := "avisvc-4"
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 
-	SetUpIngressForCacheSyncCheck(t, true, true, secretName, ingressName, svcName, modelName)
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	hostrule := integrationtest.FakeHostRule{
 		Name:               hrname,
@@ -363,10 +399,18 @@ func TestApplySSLHostruleToInsecureDedicatedVS(t *testing.T) {
 
 	modelName := "admin/cluster--foo.com-L7-dedicated"
 	hrname := "hr-cluster--foo.com-L7-dedicated"
-	ingressName := "foo-with-targets-10"
-	svcName := "avisvc-10"
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 
-	SetUpIngressForCacheSyncCheck(t, false, false, "", ingressName, svcName, modelName)
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       false,
+		withSecret:  false,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	hostrule := integrationtest.FakeHostRule{
 		Name:               hrname,
@@ -426,9 +470,12 @@ func TestApplySSLHostruleToInsecureDedicatedVS(t *testing.T) {
 func TestFQDNsCountForAviInfraSettingWithDedicatedShardSize(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb-1", "foo-with-class-1", "default", "my-infrasetting-1"
-	secretName := "my-secret-5"
-	svcName := "avisvc-5"
+	ingClassName := objNameMap.GenerateName("avi-lb")
+	ingressName := objNameMap.GenerateName("foo-with-class")
+	ns := "default"
+	settingName := objNameMap.GenerateName("my-infrasetting")
+	secretName := objNameMap.GenerateName("my-secret")
+	svcName := objNameMap.GenerateName("avisvc")
 	modelName := "admin/cluster--" + settingName + "-foo.com-L7-dedicated"
 
 	SetUpTestForIngress(t, svcName, modelName)
@@ -492,9 +539,12 @@ func TestFQDNsCountForAviInfraSettingWithDedicatedShardSize(t *testing.T) {
 func TestFQDNsCountForAviInfraSettingWithLargeShardSize(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	ingClassName, ingressName, ns, settingName := "avi-lb-2", "foo-with-class-2", "default", "my-infrasetting-2"
-	secretName := "my-secret-6"
-	svcName := "avisvc-6"
+	ingClassName := objNameMap.GenerateName("avi-lb")
+	ingressName := objNameMap.GenerateName("foo-with-class")
+	ns := "default"
+	settingName := objNameMap.GenerateName("my-infrasetting")
+	secretName := objNameMap.GenerateName("my-secret")
+	svcName := objNameMap.GenerateName("avisvc")
 	modelName := "admin/cluster--Shared-L7-" + settingName + "-0"
 
 	SetUpTestForIngress(t, svcName, modelName)
@@ -569,9 +619,20 @@ func TestHostRuleUseRegex(t *testing.T) {
 	hrname := "hr-cluster--foo.com-L7-dedicated"
 	fqdn := "foo.com"
 	namespace := "default"
-	secretName, ingressName, svcName := "my-secret-14", "foo-with-targets-14", "avisvc-14"
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
 
-	SetUpIngressForCacheSyncCheck(t, true, true, secretName, ingressName, svcName, modelName)
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	hostrule := integrationtest.FakeHostRule{
 		Name:      hrname,
@@ -636,9 +697,21 @@ func TestHostRuleAppRoot(t *testing.T) {
 	fqdn := "foo.com"
 	namespace := "default"
 	appRootPath := "/foo"
-	secretName, ingressName, svcName := "my-secret-12", "app-root-test-12", "avisvc-12"
-
-	SetUpIngressForCacheSyncCheckMultiPaths(t, true, true, secretName, ingressName, svcName, []string{fqdn}, []string{"/"}, modelName)
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("app-root-test")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+		dnsNames:    []string{fqdn},
+		paths:       []string{"/"},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	hostrule := integrationtest.FakeHostRule{
 		Name:                hrname,
@@ -689,7 +762,7 @@ func TestHostRuleAppRoot(t *testing.T) {
 	g.Expect(node.HttpPolicyRefs[1].RedirectPorts[0].Hosts).Should(gomega.ContainElements(fqdn))
 	g.Expect(node.HttpPolicyRefs[1].HppMap).To(gomega.BeNil())
 
-	TearDownIngressForCacheSyncCheckPath(t, secretName, ingressName, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, modelName)
 }
 
 func TestHostRuleRegexAppRoot(t *testing.T) {
@@ -700,9 +773,21 @@ func TestHostRuleRegexAppRoot(t *testing.T) {
 	fqdn := "foo.com"
 	namespace := "default"
 	appRootPath := "/foo"
-	secretName, ingressName, svcName := "my-secret-13", "app-root-test-13", "avisvc-13"
-
-	SetUpIngressForCacheSyncCheckMultiPaths(t, true, true, secretName, ingressName, svcName, []string{fqdn, fqdn}, []string{"/something(/|$)(.*)", "/"}, modelName)
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("app-root-test")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+		dnsNames:    []string{fqdn, fqdn},
+		paths:       []string{"/something(/|$)(.*)", "/"},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	hostrule := integrationtest.FakeHostRule{
 		Name:                hrname,
@@ -763,7 +848,7 @@ func TestHostRuleRegexAppRoot(t *testing.T) {
 	g.Expect(node.HttpPolicyRefs[1].RedirectPorts[0].Hosts).Should(gomega.ContainElements(fqdn))
 	g.Expect(node.HttpPolicyRefs[1].HppMap).To(gomega.BeNil())
 
-	TearDownIngressForCacheSyncCheckPath(t, secretName, ingressName, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, modelName)
 }
 
 func TestHTTPRuleCreateDeleteEnableHTTP2(t *testing.T) {
