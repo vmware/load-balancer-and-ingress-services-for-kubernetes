@@ -327,7 +327,13 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 							}
 						}
 					}
-					if (hostnameMatched && !utils.HasElem(gatewayListenerList, listener)) || len(hrObj.Spec.Hostnames) == 0 {
+					// If no hostname in HTTPRoute and listener hostname is not empty, include listener hostname
+					// into list of mapped hostname between httproute and gateway (empty hostname at route and gateway)
+					if len(hrObj.Spec.Hostnames) == 0 && (listenerHostname != "" && listenerHostname != "*") {
+						hostnameIntersection = append(hostnameIntersection, string(listenerHostname))
+					}
+
+					if (hostnameMatched && !utils.HasElem(gatewayListenerList, listener)) || (len(hrObj.Spec.Hostnames) == 0 && (listenerHostname != "" && listenerHostname != "*")) {
 						gatewayListenerList = append(gatewayListenerList, listener)
 					}
 				}
