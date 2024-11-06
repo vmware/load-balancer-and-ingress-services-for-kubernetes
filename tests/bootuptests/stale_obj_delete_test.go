@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
@@ -22,6 +23,7 @@ import (
 
 var KubeClient *k8sfake.Clientset
 var CRDClient *crdfake.Clientset
+var ctrl *k8s.AviController
 var restChan chan bool
 var uuidMap map[string]bool
 
@@ -79,7 +81,7 @@ func TestMain(m *testing.M) {
 
 	integrationtest.NewAviFakeClientInstance(KubeClient, true)
 	defer integrationtest.AviFakeClientInstance.Close()
-
+	ctrl = k8s.SharedAviController()
 	os.Exit(m.Run())
 }
 
@@ -161,4 +163,16 @@ func TestNetworkIssueCacheValidationDuringBootup(t *testing.T) {
 		t.Fatalf("Cache validation failed.")
 	}
 	integrationtest.ResetMiddleware()
+}
+
+func TestConfigmapDeletion(t *testing.T) {
+	integrationtest.AddConfigMap(KubeClient)
+	time.Sleep(10 * time.Second)
+	integrationtest.DeleteConfigMap(KubeClient, t)
+	ctrl.CleanupStaleVSes()
+	// Simulated error condition while fetching configmap by deleting it.
+	// if Disablesync is false or DeleteConfig is true, fail the test case.
+	if !ctrl.DisableSync || lib.GetDeleteConfigMap() {
+		t.Fatalf("Validation for cofigmapDelete Failed.")
+	}
 }

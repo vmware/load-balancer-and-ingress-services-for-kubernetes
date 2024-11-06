@@ -91,7 +91,7 @@ func InitializeAKOInfra() {
 
 	transportZone := c.HandleVCF(stopCh, ctrlCh)
 	lib.VCFInitialized = true
-	lib.SetAKOUser(lib.AKOPrefix)
+	lib.SetAKOUser()
 
 	// Checking/Setting up Avi pre-reqs
 	a := ingestion.NewAviControllerInfra(kubeClient)

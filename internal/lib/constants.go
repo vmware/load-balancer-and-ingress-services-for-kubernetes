@@ -73,7 +73,7 @@ const (
 	ShardVSSubstring                           = "Shared-"
 	ShardVSPrefix                              = "Shared-L7"
 	ShardEVHVSPrefix                           = "Shared-L7-EVH-"
-	AKOSuffix                                  = "ako-"
+	AKOPrefix                                  = "ako-"
 	DedicatedSuffix                            = "-L7-dedicated"
 	EVHSuffix                                  = "-EVH"
 	PassthroughPrefix                          = "Shared-Passthrough-"

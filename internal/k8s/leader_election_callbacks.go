@@ -33,7 +33,7 @@ func (c *AviController) OnStartedLeading() {
 	lib.AKOControlConfig().PodEventf(v1.EventTypeNormal, "LeaderElection", "AKO became a leader")
 	c.publishAllParentVSKeysToRestLayer()
 
-	once.Do(c.cleanupStaleVSes)
+	once.Do(c.CleanupStaleVSes)
 
 	// once the l3 cache is populated, we can call the updatestatus functions from here
 	restlayer := rest.NewRestOperations(avicache.SharedAviObjCache(), avicache.SharedAVIClients())
@@ -46,7 +46,7 @@ func (c *AviController) OnNewLeader() {
 	lib.AKOControlConfig().PodEventf(v1.EventTypeNormal, "LeaderElection", "AKO became a follower")
 	c.publishAllParentVSKeysToRestLayer()
 
-	c.cleanupStaleVSes()
+	c.CleanupStaleVSes()
 }
 
 func (c *AviController) OnStoppedLeading() {

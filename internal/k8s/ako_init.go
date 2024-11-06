@@ -69,12 +69,16 @@ func PopulateCache() error {
 	return nil
 }
 
-func (c *AviController) cleanupStaleVSes() {
+func (c *AviController) CleanupStaleVSes() {
 
 	aviRestClientPool := avicache.SharedAVIClients()
 	aviObjCache := avicache.SharedAviObjCache()
-
-	delModels := deleteConfigFromConfigmap(c.informers.ClientSet)
+	delModels, err := DeleteConfigFromConfigmap(c.informers.ClientSet)
+	if err != nil {
+		c.DisableSync = true
+		utils.AviLog.Errorf("Error occurred while fetching values from configmap. Err: %s", utils.Stringify(err))
+		return
+	}
 	if delModels {
 		go SetDeleteSyncChannel()
 		parentKeys := aviObjCache.VsCacheMeta.AviCacheGetAllParentVSKeys()
@@ -162,14 +166,14 @@ func delConfigFromData(data map[string]string) bool {
 	return delConf
 }
 
-func deleteConfigFromConfigmap(cs kubernetes.Interface) bool {
+func DeleteConfigFromConfigmap(cs kubernetes.Interface) (bool, error) {
 	cmNS := utils.GetAKONamespace()
 	cm, err := cs.CoreV1().ConfigMaps(cmNS).Get(context.TODO(), lib.AviConfigMap, metav1.GetOptions{})
 	if err == nil {
-		return delConfigFromData(cm.Data)
+		return delConfigFromData(cm.Data), err
 	}
 	utils.AviLog.Warnf("error while reading configmap, sync would be disabled: %v", err)
-	return true
+	return true, err
 }
 
 func (c *AviController) SetSEGroupCloudNameFromNSAnnotations() bool {
@@ -257,7 +261,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	if !validateUserInput {
 		return errors.New("sync is disabled because of configmap unavailability during bootup")
 	}
-	c.DisableSync = deleteConfigFromConfigmap(cs)
+	c.DisableSync, _ = DeleteConfigFromConfigmap(cs)
 	lib.SetDisableSync(c.DisableSync)
 
 	configMapEventHandler := cache.ResourceEventHandlerFuncs{

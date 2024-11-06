@@ -96,6 +96,14 @@ func AddConfigMap(client *k8sfake.Clientset) {
 	client.CoreV1().ConfigMaps(utils.GetAKONamespace()).Create(context.TODO(), aviCM, metav1.CreateOptions{})
 }
 
+func DeleteConfigMap(kubeClient *k8sfake.Clientset, t *testing.T) {
+	err := kubeClient.CoreV1().ConfigMaps(utils.GetAKONamespace()).Delete(context.TODO(), "avi-k8s-config", metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("error in deleting configmap: %v", err)
+	}
+	time.Sleep(10 * time.Second)
+}
+
 func AddDefaultIngressClass() {
 	aviIngressClass := &networking.IngressClass{
 		ObjectMeta: metav1.ObjectMeta{
