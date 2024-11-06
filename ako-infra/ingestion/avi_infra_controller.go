@@ -24,7 +24,6 @@ import (
 	"strings"
 
 	"github.com/vmware/alb-sdk/go/models"
-	avimodels "github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -90,54 +89,43 @@ func (a *AviControllerInfra) checkNSAnnotations() (error, string) {
 		utils.AviLog.Errorf("Failed to GET the %s namespace details due to the following error :%v", nsName, err.Error())
 		return err, cloudName
 	}
-	if nsObj.Annotations != nil {
-		cloudName = nsObj.Annotations["ako.vmware.com/wcp-cloud-name"]
-		if cloudName != "" {
-			utils.AviLog.Infof("Found cloud %s in ns annotation", cloudName)
-		}
+	cloudName = nsObj.Annotations[lib.WCPCloud]
+	if cloudName != "" {
+		utils.AviLog.Infof("Found cloud %s in ns annotation", cloudName)
 	}
 	return nil, cloudName
 }
 
 func (a *AviControllerInfra) checkVirtualService() (error, string) {
 	cloudName := ""
-	tenants := make(map[string]struct{})
-	err := lib.GetAllTenants(a.AviRestClient, tenants)
-	if err != nil {
-		utils.AviLog.Errorf("Error during GET tenants %v", err)
-		return err, cloudName
-	}
-	createdBy := lib.AKOPrefix + lib.GetClusterName()
 	vsName := lib.GetClusterName() + "--kube-system-kube-apiserver-lb-svc"
 	SetAdminTenant := session.SetTenant(lib.GetAdminTenant())
 	defer SetAdminTenant(a.AviRestClient.AviSession)
-	for tenantName := range tenants {
-		SetTenant := session.SetTenant(tenantName)
-		SetTenant(a.AviRestClient.AviSession)
-		uri := "/api/virtualservice/?include_name&created_by=" + createdBy + "&name=" + vsName
-		result, err := lib.AviGetCollectionRaw(a.AviRestClient, uri)
+	SetTenant := session.SetTenant("*")
+	SetTenant(a.AviRestClient.AviSession)
+	uri := "/api/virtualservice/?include_name&created_by=" + lib.GetAKOUser() + "&name=" + vsName
+	result, err := lib.AviGetCollectionRaw(a.AviRestClient, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
+		return err, cloudName
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+		return err, cloudName
+	}
+	for i := 0; i < len(elems); i++ {
+		vs := models.VirtualService{}
+		err = json.Unmarshal(elems[i], &vs)
 		if err != nil {
-			utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
+			utils.AviLog.Warnf("Failed to unmarshal vs data, err: %v", err)
 			continue
 		}
-		elems := make([]json.RawMessage, result.Count)
-		err = json.Unmarshal(result.Results, &elems)
-		if err != nil {
-			utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
-			continue
-		}
-		for i := 0; i < len(elems); i++ {
-			vs := models.VirtualService{}
-			err = json.Unmarshal(elems[i], &vs)
-			if err != nil {
-				utils.AviLog.Warnf("Failed to unmarshal vs data, err: %v", err)
-				continue
-			}
-			if vs.CloudRef != nil && strings.Contains(*vs.CloudRef, "#") {
-				cloudName = strings.Split(*vs.CloudRef, "#")[1]
-				utils.AviLog.Infof("Found cloud %s associated with vs %s", cloudName, vsName)
-				return nil, cloudName
-			}
+		if vs.CloudRef != nil && strings.Contains(*vs.CloudRef, "#") {
+			cloudName = strings.Split(*vs.CloudRef, "#")[1]
+			utils.AviLog.Infof("Found cloud %s associated with vs %s", cloudName, vsName)
+			return nil, cloudName
 		}
 	}
 	return nil, cloudName
@@ -146,9 +134,15 @@ func (a *AviControllerInfra) checkVirtualService() (error, string) {
 func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, string, string) {
 	uri := "/api/cloud/"
 
-	_, cloudName := a.checkNSAnnotations()
+	err, cloudName := a.checkNSAnnotations()
+	if err != nil {
+		utils.AviLog.Errorf("Failed to find cloud from NSAnnotation check :%v", err.Error())
+	}
 	if cloudName == "" {
-		_, cloudName = a.checkVirtualService()
+		err, cloudName = a.checkVirtualService()
+		if err != nil {
+			utils.AviLog.Errorf("Failed to find cloud from VS check :%v", err.Error())
+		}
 	}
 	if cloudName != "" {
 		uri = "/api/cloud/?include_name&name=" + cloudName
@@ -165,9 +159,8 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
 		return err, cloudName, ""
 	}
-	matchCloud := new(models.Cloud)
 	for i := 0; i < len(elems); i++ {
-		cloud := new(models.Cloud)
+		cloud := models.Cloud{}
 		err = json.Unmarshal(elems[i], &cloud)
 		if err != nil {
 			utils.AviLog.Warnf("Failed to unmarshal cloud data, err: %v", err)
@@ -186,48 +179,47 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 			continue
 		}
 		utils.AviLog.Infof("Found NSX-T cloud: %s match Transport Zone: %s", *cloud.Name, tz)
-		matchCloud = cloud
-		break
+		return a.checkSEGroup(cloud)
 	}
-	if matchCloud == nil {
-		return errors.New("cloud not found matching transport zone " + tz), "", ""
-	}
-	if matchCloud.SeGroupTemplateRef != nil && *matchCloud.SeGroupTemplateRef != "" {
-		tokenized := strings.Split(*matchCloud.SeGroupTemplateRef, "/api/serviceenginegroup/")
+	return errors.New("cloud not found matching transport zone " + tz), "", ""
+}
+
+func (a *AviControllerInfra) checkSEGroup(cloud models.Cloud) (error, string, string) {
+	if cloud.SeGroupTemplateRef != nil && *cloud.SeGroupTemplateRef != "" {
+		tokenized := strings.Split(*cloud.SeGroupTemplateRef, "/api/serviceenginegroup/")
 		if len(tokenized) == 2 {
-			return nil, *matchCloud.Name, tokenized[1]
+			return nil, *cloud.Name, tokenized[1]
 		}
 	}
-
 	// fetch Default-SEGroup uuid
-	uri = "/api/serviceenginegroup/?include_name&cloud_ref.name=" + *matchCloud.Name + "&name=Default-Group"
+	uri := "/api/serviceenginegroup/?include_name&cloud_ref.name=" + *cloud.Name + "&name=Default-Group"
 	results, err := lib.AviGetCollectionRaw(a.AviRestClient, uri)
 	if err != nil {
 		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-		return err, *matchCloud.Name, ""
+		return err, *cloud.Name, ""
 	}
 
-	elem := make([]json.RawMessage, results.Count)
-	err = json.Unmarshal(results.Results, &elem)
+	elems := make([]json.RawMessage, results.Count)
+	err = json.Unmarshal(results.Results, &elems)
 	if err != nil {
 		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
-		return err, *matchCloud.Name, ""
+		return err, *cloud.Name, ""
 	}
-	if len(elem) == 0 {
+	if len(elems) == 0 {
 		utils.AviLog.Errorf("No ServiceEngine Group with name Default-Group found.")
-		return errors.New("No ServiceEngine Group with name Default-Group found."), *matchCloud.Name, ""
+		return errors.New("No ServiceEngine Group with name Default-Group found."), *cloud.Name, ""
 	}
 
 	defaultSEG := models.ServiceEngineGroup{}
 	err = json.Unmarshal(elems[0], &defaultSEG)
 	if err != nil {
 		utils.AviLog.Errorf("Failed to unmarshal cloud data, err: %v", err)
-		return err, *matchCloud.Name, ""
+		return err, *cloud.Name, ""
 	}
-	return nil, *matchCloud.Name, *defaultSEG.UUID
+	return nil, *cloud.Name, *defaultSEG.UUID
 }
 
-func isPlacementScopeConfigured(configuredSEGroup *avimodels.ServiceEngineGroup) bool {
+func isPlacementScopeConfigured(configuredSEGroup *models.ServiceEngineGroup) bool {
 	configured := false
 	for _, vc := range configuredSEGroup.Vcenters {
 		if vc.NsxtClusters == nil {
@@ -332,11 +324,8 @@ func fetchSEGroup(client *clients.AviClient, overrideUri ...lib.NextPage) (error
 }
 
 func fetchVcenterServer(client *clients.AviClient) (string, error) {
-	uri := "/api/vcenterserver"
-	if utils.CloudName != "" {
-		utils.AviLog.Infof("Get vcenterserver for cloud %s", utils.CloudName)
-		uri = "/api/vcenterserver?include_name=true&cloud_ref.name=" + utils.CloudName
-	}
+	utils.AviLog.Infof("Get vcenterserver for cloud %s", utils.CloudName)
+	uri := "/api/vcenterserver?include_name=true&cloud_ref.name=" + utils.CloudName
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		return "", err
@@ -349,7 +338,7 @@ func fetchVcenterServer(client *clients.AviClient) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	vc := avimodels.VCenterServer{}
+	vc := models.VCenterServer{}
 	err = json.Unmarshal(elems[0], &vc)
 	if err != nil {
 		return "", err
@@ -398,10 +387,10 @@ func updateSEGroup() {
 	}
 	vcRef := fmt.Sprintf("/api/vcenterserver/?name=%s", vcenterServerName)
 	if len(seGroup.Vcenters) == 0 {
-		seGroup.Vcenters = []*avimodels.PlacementScopeConfig{
+		seGroup.Vcenters = []*models.PlacementScopeConfig{
 			{
 				VcenterRef: &vcRef,
-				NsxtClusters: &avimodels.NsxtClusters{
+				NsxtClusters: &models.NsxtClusters{
 					ClusterIds: clusterIDs,
 					Include:    &include,
 				},
@@ -409,7 +398,7 @@ func updateSEGroup() {
 		}
 	} else {
 		seGroup.Vcenters[0].VcenterRef = &vcRef
-		seGroup.Vcenters[0].NsxtClusters = &avimodels.NsxtClusters{
+		seGroup.Vcenters[0].NsxtClusters = &models.NsxtClusters{
 			ClusterIds: clusterIDs,
 			Include:    &include,
 		}
@@ -429,7 +418,7 @@ func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGr
 	var err error
 	// Change the name of the SE group, and add markers
 	*seGroup.Name = lib.GetClusterID()
-	markers := []*avimodels.RoleFilterMatchLabel{{
+	markers := []*models.RoleFilterMatchLabel{{
 		Key:    proto.String(lib.ClusterNameLabelKey),
 		Values: []string{lib.GetClusterID()},
 	}}
@@ -443,9 +432,9 @@ func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGr
 		}
 		vcRef := fmt.Sprintf("/api/vcenterserver/?name=%s", vcenterServerName)
 		seGroup.Vcenters = append(seGroup.Vcenters,
-			&avimodels.PlacementScopeConfig{
+			&models.PlacementScopeConfig{
 				VcenterRef: &vcRef,
-				NsxtClusters: &avimodels.NsxtClusters{
+				NsxtClusters: &models.NsxtClusters{
 					ClusterIds: []string{lib.GetClusterName()},
 					Include:    &include,
 				},
