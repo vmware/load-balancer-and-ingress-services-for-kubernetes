@@ -1208,7 +1208,7 @@ func (rest *RestOperations) VSVipDelete(vsvip_to_delete []avicache.NamespaceName
 		if ok {
 			vsvip_cache_obj, _ := vsvip_cache.(*avicache.AviVSVIPCache)
 			var restOp *utils.RestOp
-			if lib.IsShardVS(del_vsvip.Name) && !lib.IsWCP() {
+			if lib.IsShardVS(del_vsvip.Name) && !utils.IsWCP() {
 				vsvip_avi, err := rest.AviVsVipGet(key, vsvip_cache_obj.Uuid, del_vsvip.Name, vsvip_cache_obj.Tenant)
 				if err != nil {
 					utils.AviLog.Errorf("key: %s, msg: failed to get VS VIP %s", key, del_vsvip.Name)

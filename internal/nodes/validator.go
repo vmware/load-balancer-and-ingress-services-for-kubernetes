@@ -38,7 +38,7 @@ type Validator struct {
 
 func NewNodesValidator() *Validator {
 	validator := &Validator{}
-	if !lib.IsWCP() {
+	if !utils.IsWCP() {
 		validator.subDomains = GetDefaultSubDomain()
 	}
 	return validator
