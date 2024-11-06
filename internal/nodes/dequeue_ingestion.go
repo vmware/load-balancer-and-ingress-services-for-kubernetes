@@ -161,7 +161,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 
 	// Push Services from InfraSetting updates. Valid for annotation based approach.
-	if objType == lib.AviInfraSetting && !lib.UseServicesAPI() && !lib.IsWCP() {
+	if objType == lib.AviInfraSetting && !lib.UseServicesAPI() && !utils.IsWCP() {
 		svcNames, svcFound := schema.GetParentServices(name, namespace, key)
 		if svcFound && utils.CheckIfNamespaceAccepted(namespace) {
 			for _, svcNSNameKey := range svcNames {
@@ -202,7 +202,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		}
 	}
 
-	if !ingressFound && !lib.IsWCP() && !mciFound {
+	if !ingressFound && !utils.IsWCP() && !mciFound {
 		// If ingress is not found, let's do the other checks.
 		if objType == lib.SharedVipServiceKey {
 			sharedVipKeys, keysFound := schema.GetParentServices(name, namespace, key)
@@ -247,9 +247,9 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 
 	// handle the services APIs
-	if (lib.IsWCP() && objType == utils.L4LBService) ||
+	if (utils.IsWCP() && objType == utils.L4LBService) ||
 		(lib.UseServicesAPI() && (objType == utils.Service || objType == utils.L4LBService)) ||
-		((lib.IsWCP() || lib.UseServicesAPI()) && (objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints || objType == lib.AviInfraSetting)) {
+		((utils.IsWCP() || lib.UseServicesAPI()) && (objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints || objType == lib.AviInfraSetting)) {
 		if !valid && objType == utils.L4LBService {
 			// Required for advl4 schemas.
 			schema, _ = ConfigDescriptor().GetByType(utils.Service)
@@ -289,7 +289,7 @@ func DequeueIngestion(key string, fullsync bool) {
 			}
 		}
 	}
-	if objType == utils.Namespace && lib.IsWCP() && isNamespaceDeleted(name) {
+	if objType == utils.Namespace && utils.IsWCP() && isNamespaceDeleted(name) {
 		cache := avicache.SharedAviObjCache()
 		vsKeys := cache.VsCacheMeta.AviCacheGetAllParentVSKeys()
 		suffix := fmt.Sprintf("NS-%s", name)
@@ -484,7 +484,7 @@ func handleLBSvcUpdateForPod(key string, lbSvcs []string, fullsync bool) {
 func isGatewayDelete(gatewayKey, key string) bool {
 	// parse the gateway name and namespace
 	namespace, _, gwName := lib.ExtractTypeNameNamespace(gatewayKey)
-	if lib.IsWCP() {
+	if utils.IsWCP() {
 		gateway, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
 		if err != nil && errors.IsNotFound(err) {
 			return true

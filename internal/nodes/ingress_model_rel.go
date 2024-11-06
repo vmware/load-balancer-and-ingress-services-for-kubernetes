@@ -270,7 +270,7 @@ func EPToGateway(epName string, namespace string, key string) ([]string, bool) {
 func GatewayChanges(gwName string, namespace string, key string) ([]string, bool) {
 	var allGateways []string
 	allGateways = append(allGateways, namespace+"/"+gwName)
-	if lib.IsWCP() {
+	if utils.IsWCP() {
 		gateway, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
 		if err != nil && k8serrors.IsNotFound(err) {
 			// Remove all the Gateway to Services mapping.
@@ -993,7 +993,7 @@ func ParseL4ServiceForGateway(svc *corev1.Service, key string) (string, []string
 	}
 
 	var gwNameLabel, gwNamespaceLabel string
-	if lib.IsWCP() {
+	if utils.IsWCP() {
 		gwNameLabel = lib.GatewayNameLabelKey
 		gwNamespaceLabel = lib.GatewayNamespaceLabelKey
 	} else if lib.UseServicesAPI() {
