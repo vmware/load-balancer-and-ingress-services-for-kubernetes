@@ -237,7 +237,7 @@ func GetNamePrefix() string {
 }
 
 func Encode(s, objType string) string {
-	if !IsEvhEnabled() || IsWCP() {
+	if !IsEvhEnabled() || utils.IsWCP() {
 		CheckObjectNameLength(s, objType)
 		return s
 	}
@@ -386,7 +386,7 @@ func GetAKOUser() string {
 }
 
 func GetshardSize() uint32 {
-	if IsWCP() {
+	if utils.IsWCP() {
 		// shard to 8 go routines in the REST layer
 		return ShardSizeMap["LARGE"]
 	}
@@ -408,7 +408,7 @@ func GetShardSizeFromAviInfraSetting(infraSetting *akov1beta1.AviInfraSetting) u
 }
 
 func GetL4FqdnFormat() string {
-	if IsWCP() {
+	if utils.IsWCP() {
 		// disable for advancedL4
 		return AutoFQDNDisabled
 	}
@@ -827,7 +827,7 @@ func GetNodeInfraNetworkList(name string) map[string]NodeNetworkMap {
 
 func GetVipNetworkListEnv() ([]akov1beta1.AviInfraSettingVipNetwork, error) {
 	var vipNetworkList []akov1beta1.AviInfraSettingVipNetwork
-	if IsWCP() {
+	if utils.IsWCP() {
 		// do not return error in case of WCP deployments.
 		return vipNetworkList, nil
 	}
@@ -974,22 +974,6 @@ func GetHostnameforSubdomain(subdomain string) string {
 	}
 }
 
-// This utility returns a true/false depending on whether
-// the user requires advanced L4 functionality
-func GetAdvancedL4() bool {
-	advanceL4 := os.Getenv(ADVANCED_L4)
-	return advanceL4 == "true"
-}
-
-// Wrapper function for AKO running in either VDS
-// or VCF (WCP with NSX).
-func IsWCP() bool {
-	if GetAdvancedL4() || utils.IsVCFCluster() {
-		return true
-	}
-	return false
-}
-
 type NextPage struct {
 	NextURI    string
 	Collection interface{}
@@ -1088,7 +1072,7 @@ func IsValidCni(returnErr *error) bool {
 
 func GetDisableStaticRoute() bool {
 	// We don't need the static routes for NSX-T cloud
-	if IsWCP() || (GetCloudType() == CLOUD_NSXT && GetCNIPlugin() == NCP_CNI) {
+	if utils.IsWCP() || (GetCloudType() == CLOUD_NSXT && GetCNIPlugin() == NCP_CNI) {
 		return true
 	}
 	if ok, _ := strconv.ParseBool(os.Getenv(DISABLE_STATIC_ROUTE_SYNC)); ok {
@@ -1101,7 +1085,7 @@ func GetDisableStaticRoute() bool {
 }
 
 func GetClusterName() string {
-	if IsWCP() {
+	if utils.IsWCP() {
 		return GetClusterIDSplit()
 	}
 	return os.Getenv(CLUSTER_NAME)
@@ -1423,7 +1407,7 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 	// Nodes, Ingresses, IngressClasses, Routes, MultiClusterIngress and ServiceImports.
 	// Routes should be watched over in Openshift environments only.
 	// MultiClusterIngress and ServiceImport should be watched over only when MCI is enabled.
-	if !IsWCP() {
+	if !utils.IsWCP() {
 		allInformers = append(allInformers, utils.NodeInformer)
 
 		informerTimeout := int64(120)
@@ -1757,7 +1741,7 @@ func GetDefaultSecretForRoutes() string {
 func ValidateSvcforClass(key string, svc *corev1.Service) bool {
 	if svc != nil {
 		// only check gateway labels for AdvancedL4 case, and skip validation if found
-		if IsWCP() {
+		if utils.IsWCP() {
 			_, found_name := svc.ObjectMeta.Labels[GatewayNameLabelKey]
 			_, found_namespace := svc.ObjectMeta.Labels[GatewayNamespaceLabelKey]
 			if found_name || found_namespace {

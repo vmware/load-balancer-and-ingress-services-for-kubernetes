@@ -276,5 +276,8 @@ func GetHTTPTransportWithCert(rootPEMCerts string) (*http.Transport, bool) {
 		}
 		isSecure = true
 	}
+	if IsWCP() {
+		transport.TLSClientConfig.MinVersion = tls.VersionTLS13
+	}
 	return transport, isSecure
 }

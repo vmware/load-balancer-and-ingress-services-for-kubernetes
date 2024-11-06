@@ -128,7 +128,7 @@ func InitializeAKC() {
 		utils.AviLog.Fatalf("Error building AKO CRD v1beta1 clientset: %s", err.Error())
 	}
 
-	if lib.IsWCP() {
+	if utils.IsWCP() {
 		advl4Client, err = advl4.NewForConfig(cfg)
 		if err != nil {
 			utils.AviLog.Fatalf("Error building service-api v1alpha1pre1 clientset: %s", err.Error())
@@ -224,13 +224,13 @@ func InitializeAKC() {
 
 	// Namespace bound Secret informers should be initialized for AKO in VDS,
 	// For AKO in VCF, we will need to watch on Secrets across all namespaces.
-	if !utils.IsVCFCluster() && lib.GetAdvancedL4() {
+	if !utils.IsVCFCluster() && utils.GetAdvancedL4() {
 		informersArg[utils.INFORMERS_ADVANCED_L4] = true
 	}
 
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
 	lib.NewDynamicInformers(dynamicClient, false)
-	if lib.IsWCP() {
+	if utils.IsWCP() {
 		k8s.NewInfraSettingCRDInformer()
 		k8s.NewAdvL4Informers(advl4Client)
 	} else {
@@ -304,7 +304,7 @@ func InitializeAKC() {
 
 	akoControlConfig.SetLicenseType(aviRestClientPool.AviClient[0])
 
-	if lib.GetAdvancedL4() {
+	if utils.GetAdvancedL4() {
 		err, seGroupToUse := lib.FetchSEGroupWithMarkerSet(aviRestClientPool.AviClient[0])
 		if err != nil {
 			utils.AviLog.Warnf("Setting SEGroup with markerset failed: %s", err)
