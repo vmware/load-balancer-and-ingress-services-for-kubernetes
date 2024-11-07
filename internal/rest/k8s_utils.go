@@ -165,7 +165,7 @@ func (l *leader) SyncObjectStatuses() {
 	}
 
 	publisher := status.NewStatusPublisher()
-	if lib.IsWCP() {
+	if utils.IsWCP() {
 		publisher.UpdateGatewayStatusAddress(allGatewayUpdateOptions, true)
 		publisher.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
 		publisher.UpdateRouteIngressStatus(allIngressUpdateOptions, true)

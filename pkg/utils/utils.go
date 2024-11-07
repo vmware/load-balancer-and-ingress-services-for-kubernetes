@@ -451,13 +451,22 @@ func GetAdvancedL4() bool {
 	return false
 }
 
+// Wrapper function for AKO running in either VDS
+// or VCF (WCP with NSX).
+func IsWCP() bool {
+	if GetAdvancedL4() || IsVCFCluster() {
+		return true
+	}
+	return false
+}
+
 // GetAKONamespace returns the namespace of AKO pod.
-// In AdvancedL4 Mode this is vmware-system-ako
+// In WCP Mode this is vmware-system-ako
 // In all other cases this is the namespace in which the
 // statefulset runs.
 func GetAKONamespace() string {
 	akoNS := os.Getenv(POD_NAMESPACE)
-	if GetAdvancedL4() {
+	if IsWCP() {
 		akoNS = VMWARE_SYSTEM_AKO
 	}
 	return akoNS
