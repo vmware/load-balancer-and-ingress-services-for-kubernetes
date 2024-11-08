@@ -35,11 +35,12 @@ import (
 func (o *AviObjectGraph) AddDefaultHTTPPolicySet(key string) {
 	parentVS := o.GetAviEvhVS()[0]
 
+	policyRefName := lib.GetClusterName() + "-" + utils.CloudName + "-" + akogatewayapilib.DefaultPSName
 	// find default backend, if found make sure it is at last index
 	for i, policyRef := range parentVS.HttpPolicyRefs {
-		if policyRef.Name == akogatewayapilib.DefaultPSName {
+		if policyRef.Name == policyRefName {
 			if i != len(parentVS.HttpPolicyRefs)-1 {
-				utils.AviLog.Debugf("key: %s msg: Found default-backend httpref at non last position", key)
+				utils.AviLog.Debugf("key: %s msg: Found %s httpref at non last position", key, policyRefName)
 				temp := parentVS.HttpPolicyRefs[i]
 				parentVS.HttpPolicyRefs = append(parentVS.HttpPolicyRefs[:i], parentVS.HttpPolicyRefs[i+1:]...)
 				parentVS.HttpPolicyRefs = append(parentVS.HttpPolicyRefs, temp)
@@ -49,8 +50,8 @@ func (o *AviObjectGraph) AddDefaultHTTPPolicySet(key string) {
 	}
 	// if not found add it to last index
 
-	utils.AviLog.Debugf("key: %s msg: default-backend httpref not found. Adding", key)
-	defaultPolicyRef := &nodes.AviHttpPolicySetNode{Name: akogatewayapilib.DefaultPSName, Tenant: lib.GetTenant()}
+	utils.AviLog.Debugf("key: %s msg: %s httpref not found. Adding", key, policyRefName)
+	defaultPolicyRef := &nodes.AviHttpPolicySetNode{Name: policyRefName, Tenant: lib.GetTenant()}
 	defaultPolicyRef.RequestRules = []*models.HTTPRequestRule{
 		{
 			Name:   proto.String("default-backend-rule"),
