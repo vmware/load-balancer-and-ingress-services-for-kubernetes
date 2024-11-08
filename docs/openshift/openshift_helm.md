@@ -17,9 +17,9 @@ oc new-project avi-system
 Search for available charts
 
 ```
-helm show chart oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.13.1
+helm show chart oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 1.13.1
 
-Pulled: projects.registry.vmware.com/ako/helm-charts/ako:1.13.1
+Pulled: projects.packages.broadcom.com/ako/helm-charts/ako:1.13.1
 Digest: sha256:xyxyxxyxyx
 apiVersion: v2
 appVersion: 1.13.1
@@ -34,7 +34,7 @@ version: 1.13.1
 Edit the [values.yaml](../install/helm.md#parameters) file and update the details according to your environment.
 
 ```
-helm show values oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.13.1 > values.yaml
+helm show values oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 1.13.1 > values.yaml
 
 ```
 
@@ -43,7 +43,7 @@ helm show values oci://projects.registry.vmware.com/ako/helm-charts/ako --versio
 Install AKO.
 
 ```
-helm install --generate-name oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.13.1 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --namespace=avi-system
+helm install --generate-name oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 1.13.1 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --namespace=avi-system
 ```
 
 
