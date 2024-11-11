@@ -1742,6 +1742,10 @@ func GetDefaultSecretForRoutes() string {
 	return DefaultRouteCert
 }
 
+func GetDefaultHTTPPSName() string {
+	return GetClusterName() + "--" + DefaultPSName
+}
+
 func ValidateSvcforClass(key string, svc *corev1.Service) bool {
 	if svc != nil {
 		// only check gateway labels for AdvancedL4 case, and skip validation if found
