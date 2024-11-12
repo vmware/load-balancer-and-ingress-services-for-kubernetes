@@ -293,9 +293,6 @@ type AviSession struct {
 
 	// internal: variable to store generated csp access token
 	CSP_ACCESS_TOKEN string
-
-	// Defines the protocol to be used by the session
-	scheme string
 }
 
 const DEFAULT_AVI_VERSION = "18.2.6"
@@ -317,9 +314,15 @@ func NewAviSession(host string, username string, options ...func(*AviSession) er
 	avisess.sessionid = ""
 	avisess.csrfToken = ""
 
+	avisess.prefix = "https://" + avisess.host + "/"
+
+	ip := GetIPVersion(avisess.host)
+	if ip != nil && ip.To4() == nil {
+		avisess.prefix = fmt.Sprintf("https://[%s]/", avisess.host)
+	}
+
 	avisess.tenant = ""
 	avisess.insecure = false
-	avisess.scheme = "https"
 	// The default behaviour was for 10 iterations, if client does not init session with specific retry
 	// count option the controller status will be checked 10 times.
 	avisess.ctrlStatusCheckRetryCount = 10
@@ -328,13 +331,6 @@ func NewAviSession(host string, username string, options ...func(*AviSession) er
 		if err != nil {
 			return avisess, err
 		}
-	}
-
-	avisess.prefix = fmt.Sprintf("%s://%s/", avisess.scheme, avisess.host)
-
-	ip := GetIPVersion(avisess.host)
-	if ip != nil && ip.To4() == nil {
-		avisess.prefix = fmt.Sprintf("%s://[%s]/", avisess.scheme, avisess.host)
 	}
 
 	if avisess.tenant == "" {
@@ -403,7 +399,7 @@ func requestForAccessToken(retries int, url string, payload *strings.Reader) (*h
 }
 
 func (avisess *AviSession) getCSPAccessToken() error {
-	url := avisess.scheme + "://" + avisess.CSP_HOST + "/csp/gateway/am/api/auth/api-tokens/authorize"
+	url := "https://" + avisess.CSP_HOST + "/csp/gateway/am/api/auth/api-tokens/authorize"
 	payload := strings.NewReader("api_token=" + avisess.CSP_TOKEN)
 	var (
 		retries  int = 0
@@ -666,17 +662,6 @@ func (avisess *AviSession) setCSPHost(csphost string) error {
 	return nil
 }
 
-func SetScheme(scheme string) func(*AviSession) error {
-	return func(sess *AviSession) error {
-		return sess.setScheme(scheme)
-	}
-}
-
-func (avisess *AviSession) setScheme(scheme string) error {
-	avisess.scheme = scheme
-	return nil
-}
-
 func (avisess *AviSession) isTokenAuth() bool {
 	return avisess.authToken != "" || avisess.refreshAuthToken != nil || avisess.refreshAuthTokenV2 != nil
 }
@@ -744,10 +729,6 @@ func (avisess *AviSession) newAviRequest(verb string, url string, payload io.Rea
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	if avisess.prefix != "" {
-		req.Header.Set("Referer", avisess.prefix)
-	}
-
 	if avisess.user_headers != nil {
 		for k, v := range avisess.user_headers {
 			req.Header.Set(k, v)
@@ -763,7 +744,9 @@ func (avisess *AviSession) newAviRequest(verb string, url string, payload io.Rea
 		req.Header["X-CSRFToken"] = []string{avisess.csrfToken}
 		req.AddCookie(&http.Cookie{Name: "csrftoken", Value: avisess.csrfToken})
 	}
-
+	if avisess.prefix != "" {
+		req.Header.Set("Referer", avisess.prefix)
+	}
 	if tenant != "" {
 		req.Header.Set("X-Avi-Tenant", tenant)
 	}
@@ -905,9 +888,9 @@ func (avisess *AviSession) restRequest(verb string, uri string, payload interfac
 			glog.Error("CheckControllerStatus is disabled for this session, not going to retry.")
 			if err != nil {
 				glog.Errorf("Failed to invoke API. Error: %s", err.Error())
-				return nil, err
 			}
-			return nil, errors.New("Rest request error, returning to caller")
+			return nil, fmt.Errorf("Rest request error, returning to caller: %s", err.Error())
+
 		}
 	}
 	return resp, nil
@@ -1092,10 +1075,6 @@ func (avisess *AviSession) restMultipartDownloadRequest(verb string, uri string,
 
 	if errorResult := avisess.checkRetryForSleep(retry, verb, url, lastErr); errorResult != nil {
 		return errorResult
-	}
-
-	if avisess.lazyAuthentication && avisess.sessionid == "" && !(uri == "" || uri == "login") {
-		avisess.initiateSession()
 	}
 
 	req, errorResult := avisess.newAviRequest(verb, url, nil, tenant)

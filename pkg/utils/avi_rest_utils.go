@@ -54,9 +54,9 @@ func NewAviRestClientPool(num uint32, api_ep, username,
 	if !isSecure || protocol == "http" {
 		options = append(options, session.SetInsecure)
 	}
-	if protocol == "http" {
-		options = append(options, session.SetScheme("http"))
-	}
+	// if protocol == "http" {
+	// 	options = append(options, session.SetScheme("http"))
+	// }
 
 	if authToken == "" {
 		options = append(options, session.SetPassword(password))
