@@ -3633,8 +3633,8 @@ func checkAndSetCloudType(client *clients.AviClient, returnErr *error) bool {
 		// TODO: Fetch it from SE Group defined.
 		lib.SetCloudMgmtNetwork(*cloud.VcenterConfiguration.ManagementNetwork)
 	}
-	// IPAM is mandatory for vcenter and noaccess cloud
-	if !lib.IsPublicCloud() && cloud.IPAMProviderRef == nil {
+	// IPAM is mandatory for vcenter, nsxt and noaccess cloud but not for public clouds and nsxt cloud in VPC mode
+	if !lib.IsPublicCloud() && !lib.GetVPCMode() && cloud.IPAMProviderRef == nil {
 		*returnErr = fmt.Errorf("Cloud does not have a ipam_provider_ref configured")
 		return false
 	}
