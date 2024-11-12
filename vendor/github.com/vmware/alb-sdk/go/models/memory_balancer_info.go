@@ -38,9 +38,6 @@ type MemoryBalancerInfo struct {
 	// Current usage trend of the process. Enum options - UPWARD, DOWNWARD, NEUTRAL. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	ProcessTrend *string `json:"process_trend,omitempty"`
 
-	// Size of the task queue usage. Field introduced in 30.2.1, 31.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	TaskQueueLength *uint64 `json:"task_queue_length,omitempty"`
-
 	// Percent usage of the process limit. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	ThresholdPercent *float64 `json:"threshold_percent,omitempty"`
 }

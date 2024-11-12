@@ -15,7 +15,14 @@
 package lib
 
 import (
+	"context"
+	"strings"
+
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
+
+	"github.com/google/uuid"
+
+	"github.com/vmware/alb-sdk/go/logger"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 )
@@ -23,4 +30,21 @@ import (
 var SupportedKinds = map[gatewayv1.ProtocolType][]gatewayv1.RouteGroupKind{
 	gatewayv1.HTTPProtocolType:  {{Kind: lib.HTTPRoute}},
 	gatewayv1.HTTPSProtocolType: {{Kind: lib.HTTPRoute}},
+}
+
+type traceID string
+type KeyContext struct {
+	KeyStr string
+	Ctx    context.Context
+}
+
+func getNewTraceId() string {
+	traceID := uuid.New().String()
+	traceID = strings.Replace(traceID, "-", "", -1) // default value
+	return traceID
+}
+
+func NewKeyContextWithTraceID(key string, ctx context.Context) KeyContext {
+	return KeyContext{KeyStr: key,
+		Ctx: logger.SetTraceID(ctx, getNewTraceId())}
 }

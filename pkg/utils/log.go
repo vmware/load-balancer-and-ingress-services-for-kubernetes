@@ -15,12 +15,14 @@
 package utils
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/vmware/alb-sdk/go/logger"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
@@ -81,7 +83,8 @@ func (AviLogger) Init(info logr.RuntimeInfo) {
 	// Not used
 }
 
-func (aviLogger AviLogger) WithContext(traceID int) *zap.SugaredLogger {
+func (aviLogger AviLogger) WithContext(ctx context.Context) *zap.SugaredLogger {
+	traceID := logger.GetTraceID(ctx)
 	return aviLogger.sugar.With("trace-id", traceID)
 }
 

@@ -42,7 +42,7 @@ type AlertConfig struct {
 	// Required: true
 	Name *string `json:"name"`
 
-	// UUID of the resource for which alert was raised. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// Instance of the resource for which alert was raised. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ObjUUID *string `json:"obj_uuid,omitempty"`
 
 	// The object type to which the Alert Config is associated with. Valid object types are - Virtual Service, Pool, Service Engine. Enum options - VIRTUALSERVICE, POOL, HEALTHMONITOR, NETWORKPROFILE, APPLICATIONPROFILE, HTTPPOLICYSET, DNSPOLICY, SECURITYPOLICY, IPADDRGROUP, STRINGGROUP, SSLPROFILE, SSLKEYANDCERTIFICATE, NETWORKSECURITYPOLICY, APPLICATIONPERSISTENCEPROFILE, ANALYTICSPROFILE, VSDATASCRIPTSET, TENANT, PKIPROFILE, AUTHPROFILE, CLOUD.... Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.

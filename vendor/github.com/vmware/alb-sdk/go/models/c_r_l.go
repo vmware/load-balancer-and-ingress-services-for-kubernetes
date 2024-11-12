@@ -8,9 +8,6 @@ package models
 // swagger:model CRL
 type CRL struct {
 
-	// Certificate Revocation list from a given issuer in PEM format. This can either be configured directly or via the server_url. . Field deprecated in 30.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Body *string `json:"body,omitempty"`
-
 	// Common name of the issuer in the Certificate Revocation list. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CommonName *string `json:"common_name,omitempty"`
 

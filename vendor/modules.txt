@@ -183,9 +183,10 @@ github.com/spf13/pflag
 # github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
 ## explicit; go 1.13
 github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1
-# github.com/vmware/alb-sdk v0.0.0-20240619053936-3103500da639
+# github.com/vmware/alb-sdk v0.0.0-20240619053936-3103500da639 => ../alb-sdk
 ## explicit; go 1.16
 github.com/vmware/alb-sdk/go/clients
+github.com/vmware/alb-sdk/go/logger
 github.com/vmware/alb-sdk/go/models
 github.com/vmware/alb-sdk/go/session
 # go.uber.org/multierr v1.11.0
@@ -912,6 +913,7 @@ sigs.k8s.io/structured-merge-diff/v4/value
 ## explicit; go 1.12
 sigs.k8s.io/yaml
 sigs.k8s.io/yaml/goyaml.v2
+# github.com/vmware/alb-sdk => ../alb-sdk
 # github.com/davecgh/go-spew => github.com/davecgh/go-spew v1.1.1
 # github.com/golang/glog => github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 # github.com/google/gofuzz => github.com/google/gofuzz v1.2.0

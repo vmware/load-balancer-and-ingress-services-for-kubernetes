@@ -378,9 +378,6 @@ type ServiceEngineGroup struct {
 	// Max bytes that can be allocated in a single mempool. Field introduced in 18.1.5. Unit is MB. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxMemoryPerMempool *uint32 `json:"max_memory_per_mempool,omitempty"`
 
-	// Maximum number of HTTP session that will be created. Each session uses about 1kB in the key-value storage in shared memory. Setting this value too high can lead to exhaustion of shared memory and affect services. Allowed values are 1-2000000. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	MaxNumHTTPSessionsToStore *uint32 `json:"max_num_http_sessions_to_store,omitempty"`
-
 	// Configures the maximum number of se_dp processes that handles traffic. If not configured, defaults to the number of CPUs on the SE. If decreased, it will only take effect after SE reboot. Allowed values are 1-128. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 0), Basic edition(Allowed values- 0), Enterprise with Cloud Services edition.
 	MaxNumSeDps *uint32 `json:"max_num_se_dps,omitempty"`
 

@@ -33,7 +33,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
-	"github.com/google/uuid"
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/nodes"
 	akogatewayapistatus "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/status"
@@ -230,7 +229,6 @@ func (c *GatewayController) addIndexers() {
 }
 
 func (c *GatewayController) FullSyncK8s(sync bool) error {
-
 	if c.DisableSync {
 		utils.AviLog.Infof("Sync disabled, skipping full sync")
 		return nil
@@ -245,8 +243,7 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 
 	var filteredGatewayClasses []*gatewayv1.GatewayClass
 	for _, gwClassObj := range gwClassObjs {
-		UUID := uuid.New()
-		key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj) + "-" + UUID.String()
+		key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
 		meta, err := meta.Accessor(gwClassObj)
 		if err == nil {
 			resVer := meta.GetResourceVersion()
@@ -258,6 +255,7 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 	}
 	for _, filteredGatewayClass := range filteredGatewayClasses {
 		key := lib.GatewayClass + "/" + utils.ObjKey(filteredGatewayClass)
+
 		akogatewayapinodes.DequeueIngestion(key, true)
 	}
 
@@ -288,6 +286,7 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 	})
 	for _, filteredGateway := range filteredGateways {
 		key := lib.Gateway + "/" + utils.ObjKey(filteredGateway)
+
 		akogatewayapinodes.DequeueIngestion(key, true)
 	}
 
@@ -318,6 +317,7 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 	})
 	for _, filteredHTTPRoute := range filteredHTTPRoutes {
 		key := lib.HTTPRoute + "/" + utils.ObjKey(filteredHTTPRoute)
+
 		akogatewayapinodes.DequeueIngestion(key, true)
 	}
 
@@ -347,6 +347,7 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 		for _, podObj := range podObjs {
 			podLabel := utils.ObjKey(podObj)
 			key := utils.Pod + "/" + podLabel
+
 			if _, ok := podObj.GetAnnotations()[lib.NPLPodAnnotation]; !ok {
 				utils.AviLog.Warnf("key : %s, msg: 'nodeportlocal.antrea.io' annotation not found, ignoring the pod", key)
 				continue
@@ -456,6 +457,7 @@ func SyncFromIngestionLayer(key interface{}, wg *sync.WaitGroup) error {
 	akogatewayapinodes.DequeueIngestion(keyStr, false)
 	return nil
 }
+
 func SyncFromFastRetryLayer(key interface{}, wg *sync.WaitGroup) error {
 	keyStr, ok := key.(string)
 	if !ok {

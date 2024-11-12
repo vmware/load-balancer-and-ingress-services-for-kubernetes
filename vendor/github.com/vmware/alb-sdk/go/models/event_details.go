@@ -614,9 +614,6 @@ type EventDetails struct {
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TencentInfo *TencentSetup `json:"tencent_info,omitempty"`
 
-	// Uber event details, for testing only. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	UberEventDetails *LogMgrUberEventDetails `json:"uber_event_details,omitempty"`
-
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UnbindVsSeDetails *RmUnbindVsSeEventDetails `json:"unbind_vs_se_details,omitempty"`
 

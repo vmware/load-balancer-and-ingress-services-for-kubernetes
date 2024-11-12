@@ -37,6 +37,8 @@ require (
 	sigs.k8s.io/service-apis v0.1.0
 )
 
+replace github.com/vmware/alb-sdk => ../alb-sdk
+
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
