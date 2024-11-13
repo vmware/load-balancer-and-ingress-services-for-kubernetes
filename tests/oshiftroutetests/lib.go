@@ -42,6 +42,7 @@ var (
 	defaultKey       = "app"
 	defaultValue     = "migrate"
 	OshiftClient     *oshiftfake.Clientset
+	defaultSubdomain = "foo"
 )
 
 // Candidate to move to lib
@@ -53,6 +54,7 @@ type FakeRoute struct {
 	ServiceName string
 	Backend2    string
 	TargetPort  int
+	Subdomain   string
 }
 
 func (rt FakeRoute) Route() *routev1.Route {
@@ -97,6 +99,48 @@ func (rt FakeRoute) Route() *routev1.Route {
 	return routeExample
 }
 
+func (rt FakeRoute) RouteWithSubdomainAndNoHost() *routev1.Route {
+	if rt.Name == "" {
+		rt.Name = defaultRouteName
+	}
+	if rt.Namespace == "" {
+		rt.Namespace = defaultNamespace
+	}
+	if rt.Subdomain == "" {
+		rt.Subdomain = defaultSubdomain
+	}
+	if rt.ServiceName == "" {
+		rt.ServiceName = defaultService
+	}
+	weight := int32(100)
+	routeExample := &routev1.Route{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:       rt.Namespace,
+			Name:            rt.Name,
+			ResourceVersion: "1",
+		},
+		Spec: routev1.RouteSpec{
+			Subdomain: rt.Subdomain,
+			To: routev1.RouteTargetReference{
+				Kind:   "Service",
+				Name:   rt.ServiceName,
+				Weight: &weight,
+			},
+		},
+	}
+	if rt.Path != "" {
+		routeExample.Spec.Path = rt.Path
+	}
+	if rt.TargetPort != 0 {
+		port := &routev1.RoutePort{
+			TargetPort: intstr.FromInt(rt.TargetPort),
+		}
+		routeExample.Spec.Port = port
+	}
+	return routeExample
+}
+
 func (rt FakeRoute) ABRoute(ratio ...int) *routev1.Route {
 	routeExample := rt.Route()
 	if rt.Backend2 == "" {
@@ -117,6 +161,17 @@ func (rt FakeRoute) ABRoute(ratio ...int) *routev1.Route {
 
 func (rt FakeRoute) SecureRoute() *routev1.Route {
 	routeExample := rt.Route()
+	routeExample.Spec.TLS = &routev1.TLSConfig{
+		Certificate:   "cert",
+		CACertificate: "cacert",
+		Key:           "key",
+		Termination:   routev1.TLSTerminationEdge,
+	}
+	return routeExample
+}
+
+func (rt FakeRoute) SecureRouteWithSubdomainNoHost() *routev1.Route {
+	routeExample := rt.RouteWithSubdomainAndNoHost()
 	routeExample.Spec.TLS = &routev1.TLSConfig{
 		Certificate:   "cert",
 		CACertificate: "cacert",

@@ -19,7 +19,11 @@ data:
   vipPerNamespace: {{ .Values.AKOSettings.vipPerNamespace | quote }}
   tenantName: {{ .Values.ControllerSettings.tenantName | quote }}
   vrfName: {{ .Values.ControllerSettings.vrfName | quote }}
+  {{ if .Values.NetworkSettings.defaultDomain }}
+  defaultDomain: {{ .Values.NetworkSettings.defaultDomain | quote }}
+  {{ else }}
   defaultDomain: {{ .Values.L4Settings.defaultDomain | quote }}
+  {{ end }}
   disableStaticRouteSync: {{ .Values.AKOSettings.disableStaticRouteSync | quote }}
   defaultIngController: {{ .Values.L7Settings.defaultIngController | quote }}
   defaultLBController: {{ .Values.L4Settings.defaultLBController | quote }}
