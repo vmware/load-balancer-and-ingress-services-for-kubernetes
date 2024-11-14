@@ -70,7 +70,12 @@ func DequeueIngestion(key string, fullsync bool) {
 		modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(parentNs, parentName))
 
 		modelFound, modelIntf := objects.SharedAviGraphLister().Get(modelName)
-		if !modelFound || modelIntf == nil {
+		// Seq: GW first and the secret created.
+		modelNil := !modelFound || modelIntf == nil
+		if objType == utils.Secret && modelNil {
+			handleGateway(parentNs, parentName, fullsync, key)
+			_, modelIntf = objects.SharedAviGraphLister().Get(modelName)
+		} else if modelNil {
 			utils.AviLog.Warnf("key: %s, msg: no model found: %s", key, modelName)
 			continue
 		}
@@ -160,6 +165,9 @@ func handleGateway(namespace, name string, fullsync bool, key string) {
 		}
 		utils.AviLog.Debugf("key: %s, msg: gateway not found: %s/%s", key, namespace, name)
 		if modelFound {
+			// As gateway is not present, we need to remove mapping.
+			gwNsName := namespace + "/" + name
+			akogatewayapiobjects.GatewayApiLister().DeleteGatewayFromStore(gwNsName)
 			objects.SharedAviGraphLister().Save(modelName, nil)
 			if !fullsync {
 				sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
