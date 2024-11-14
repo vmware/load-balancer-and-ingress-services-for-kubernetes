@@ -33,10 +33,8 @@ func ScheduleQuickSync() {
 }
 
 func getAviCloudFromCache(client *clients.AviClient, cloudName string) (bool, models.Cloud) {
-	if CloudCache == nil {
-		if AviCloudCachePopulate(client, cloudName) != nil {
-			return false, models.Cloud{}
-		}
+	if AviCloudCachePopulate(client, cloudName) != nil {
+		return false, models.Cloud{}
 	}
 	return true, *CloudCache
 }
