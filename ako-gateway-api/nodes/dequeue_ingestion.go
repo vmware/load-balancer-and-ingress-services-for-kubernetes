@@ -56,13 +56,14 @@ func DequeueIngestion(key string, fullsync bool) {
 	if objType == lib.Gateway {
 		handleGateway(namespace, name, fullsync, key)
 	}
-
-	routeTypeNsNameList, found := schema.GetRoutes(namespace, name, key)
-	if !found {
-		utils.AviLog.Errorf("key: %s, msg: got error while getting object", key, objType)
-		return
+	var routeTypeNsNameList []string
+	if !(objType == lib.Gateway && fullsync) {
+		routeTypeNsNameList, found = schema.GetRoutes(namespace, name, key)
+		if !found {
+			utils.AviLog.Errorf("key: %s, msg: got error while getting object", key, objType)
+			return
+		}
 	}
-
 	utils.AviLog.Debugf("key: %s, msg: processing gateways %v and routes %v", key, gatewayNsNameList, routeTypeNsNameList)
 	for _, gatewayNsName := range gatewayNsNameList {
 
