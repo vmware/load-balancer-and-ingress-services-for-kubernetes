@@ -176,7 +176,52 @@ func GetListenersOnHostname(hostnames []string) []gatewayv1.Listener {
 	}
 	return listeners
 }
+func GetNegativeConditions(ports []int32) *gatewayv1.GatewayStatus {
+	expectedStatus := &gatewayv1.GatewayStatus{
+		Conditions: []metav1.Condition{
+			{
+				Type:               string(gatewayv1.GatewayConditionAccepted),
+				Status:             metav1.ConditionFalse,
+				Message:            "Gateway does not contain any valid listener",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.GatewayReasonListenersNotValid),
+			},
+		},
+		Listeners: GetListenerStatusV1(ports, []int32{0, 0}, true, false),
+	}
+	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonInvalid)
+	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionFalse
+	expectedStatus.Listeners[0].Conditions[0].Message = "Listener is Invalid"
 
+	expectedStatus.Listeners[0].Conditions[1].Reason = string(gatewayv1.ListenerReasonInvalidCertificateRef)
+	expectedStatus.Listeners[0].Conditions[1].Status = metav1.ConditionFalse
+	expectedStatus.Listeners[0].Conditions[1].Message = "Secret does not exist"
+
+	return expectedStatus
+}
+
+func GetPositiveConditions(ports []int32) *gatewayv1.GatewayStatus {
+	expectedStatus := &gatewayv1.GatewayStatus{
+		Conditions: []metav1.Condition{
+			{
+				Type:               string(gatewayv1.GatewayConditionAccepted),
+				Status:             metav1.ConditionTrue,
+				Message:            "Gateway configuration is valid",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.GatewayConditionAccepted),
+			},
+		},
+		Listeners: GetListenerStatusV1(ports, []int32{0, 0}, true, false),
+	}
+	expectedStatus.Listeners[0].Conditions[0].Reason = string(gatewayv1.ListenerReasonAccepted)
+	expectedStatus.Listeners[0].Conditions[0].Status = metav1.ConditionTrue
+	expectedStatus.Listeners[0].Conditions[0].Message = "Listener is valid"
+
+	expectedStatus.Listeners[0].Conditions[1].Reason = string(gatewayv1.ListenerReasonResolvedRefs)
+	expectedStatus.Listeners[0].Conditions[1].Status = metav1.ConditionTrue
+	expectedStatus.Listeners[0].Conditions[1].Message = "Reference is valid"
+	return expectedStatus
+}
 func GetListenerStatusV1(ports []int32, attachedRoutes []int32, getResolvedRefCondition bool, getProgrammedCondition bool) []gatewayv1.ListenerStatus {
 	listeners := make([]gatewayv1.ListenerStatus, 0, len(ports))
 	for i, port := range ports {

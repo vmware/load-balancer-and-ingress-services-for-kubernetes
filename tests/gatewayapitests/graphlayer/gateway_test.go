@@ -428,10 +428,8 @@ func TestSecretCreateDelete(t *testing.T) {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
 	}, 30*time.Second).Should(gomega.Equal(false))
-
-	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	g.Expect(aviModel).To(gomega.BeNil())
-
+	// add delay
+	time.Sleep(1 * time.Second)
 	integrationtest.AddSecret(secrets[0], DEFAULT_NAMESPACE, "cert", "key")
 
 	g.Eventually(func() bool {
