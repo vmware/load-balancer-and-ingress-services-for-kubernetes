@@ -44,7 +44,7 @@ metadata:
             },
             "replicaCount": 1,
             "imagePullPolicy": "IfNotPresent",
-            "imageRepository": "projects.registry.vmware.com/ako/ako@sha256:403e629eeb194a56cc5f71c29363df5c94ebb6afe0cb823120ce23dc701fe1de",
+            "imageRepository": "projects.packages.broadcom.com/ako/ako@sha256:403e629eeb194a56cc5f71c29363df5c94ebb6afe0cb823120ce23dc701fe1de",
             "imagePullSecrets": [],
             "l4Settings": {
               "autoFQDN": "default",
@@ -99,7 +99,7 @@ metadata:
             },
             "gatewayAPI": {
               "image": {
-                "repository": "projects.registry.vmware.com/ako/ako-gateway-api@sha256:089e4ccd0642954cc031eba541b0e3c84b5d88c1c96ae5f788edeed30ecfd26d",
+                "repository": "projects.packages.broadcom.com/ako/ako-gateway-api@sha256:089e4ccd0642954cc031eba541b0e3c84b5d88c1c96ae5f788edeed30ecfd26d",
                 "pullPolicy": "IfNotPresent"
               }
             },
@@ -112,7 +112,7 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.16.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     operatorframework.io/suggested-namespace: avi-system
-    containerImage: projects.registry.vmware.com/ako/ako-operator@sha256:ed71b04ad93ef35920329662e9fecedec9079243dfa0561b62e05d618f6dce6f
+    containerImage: projects.packages.broadcom.com/ako/ako-operator@sha256:ed71b04ad93ef35920329662e9fecedec9079243dfa0561b62e05d618f6dce6f
   name: ako-operator.v1.11.1
   namespace: placeholder
 spec:
@@ -573,7 +573,7 @@ spec:
               containers:
               - command:
                 - /ako-operator
-                image: projects.registry.vmware.com/ako/ako-operator@sha256:ed71b04ad93ef35920329662e9fecedec9079243dfa0561b62e05d618f6dce6f
+                image: projects.packages.broadcom.com/ako/ako-operator@sha256:ed71b04ad93ef35920329662e9fecedec9079243dfa0561b62e05d618f6dce6f
                 name: ako-operator
                 resources:
                   limits:
@@ -626,11 +626,11 @@ spec:
     supported: false
   relatedImages:
   - name: ako-operator
-    image: projects.registry.vmware.com/ako/ako-operator@sha256:ed71b04ad93ef35920329662e9fecedec9079243dfa0561b62e05d618f6dce6f
+    image: projects.packages.broadcom.com/ako/ako-operator@sha256:ed71b04ad93ef35920329662e9fecedec9079243dfa0561b62e05d618f6dce6f
   - name: ako
-    image: projects.registry.vmware.com/ako/ako@sha256:403e629eeb194a56cc5f71c29363df5c94ebb6afe0cb823120ce23dc701fe1de
+    image: projects.packages.broadcom.com/ako/ako@sha256:403e629eeb194a56cc5f71c29363df5c94ebb6afe0cb823120ce23dc701fe1de
   - name: ako-gateway-api
-    image: projects.registry.vmware.com/ako/ako-gateway-api@sha256:089e4ccd0642954cc031eba541b0e3c84b5d88c1c96ae5f788edeed30ecfd26d
+    image: projects.packages.broadcom.com/ako/ako-gateway-api@sha256:089e4ccd0642954cc031eba541b0e3c84b5d88c1c96ae5f788edeed30ecfd26d
   keywords:
   - AKO
   - AKO Operator

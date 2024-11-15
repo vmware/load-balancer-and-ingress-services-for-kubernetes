@@ -6,12 +6,12 @@ replicaCount: 1
 
 # AKO Operator image settings
 operatorImage:
-  repository: projects.registry.vmware.com/ako/ako-operator
+  repository: projects.packages.broadcom.com/ako/ako-operator
   pullPolicy: IfNotPresent
 
 # AKO Controller image settings
 akoImage:
-  repository: projects.registry.vmware.com/ako/ako:1.11.1
+  repository: projects.packages.broadcom.com/ako/ako:1.13.1
   pullPolicy: IfNotPresent
 
 ### FeatureGates is to enable or disable experimental features.
@@ -20,7 +20,7 @@ featureGates:
 
 GatewayAPI:
   image:
-    repository: 10.79.172.11:5000/avi-buildops/ako/ako-gateway-api
+    repository: projects.packages.broadcom.com/ako/ako-gateway-api
     pullPolicy: IfNotPresent
 
 AKOPullSecrets: [] # Setting this will add pull secrets to the statefulset for AKO. Required if using secure private container image registry for AKO image.
