@@ -80,7 +80,7 @@ func InitializeAKC() {
 	utils.AviLog.Infof("AKO is running with version: %s", version)
 
 	// set the logger for k8s as AviLogger.
-	klog.SetLogger(logr.New(&utils.AviLog))
+	klog.SetLogger(logr.New(utils.AviLog))
 
 	// Check if we are running inside kubernetes. Hence try authenticating with service token
 	cfg, err := rest.InClusterConfig()

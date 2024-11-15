@@ -29,7 +29,9 @@ import (
 )
 
 func DequeueIngestion(key string, fullsync bool) {
-	utils.AviLog.Infof("key: %s, msg: starting graph Sync", key)
+	keyCtx := akogatewayapilib.NewKeyContextWithTraceID(key, context.Background())
+	ctx := keyCtx.Ctx
+	utils.AviLog.WithContext(ctx).Infof("key: %s, msg: starting graph Sync", key)
 	objType, namespace, name := lib.ExtractTypeNameNamespace(key)
 
 	schema, valid := ConfigDescriptor().GetByType(objType)

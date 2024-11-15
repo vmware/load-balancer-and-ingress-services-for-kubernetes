@@ -15,6 +15,7 @@
 package k8s
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sort"
@@ -48,6 +49,11 @@ type GatewayController struct {
 	informers   *utils.Informers
 	workqueue   []workqueue.RateLimitingInterface
 	DisableSync bool
+}
+
+type keyData struct {
+	key string
+	ctx context.Context
 }
 
 func SharedGatewayController() *GatewayController {
@@ -126,7 +132,9 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 					utils.AviLog.Debugf("Endpointslice Add event: Endpointslice does not have backing svc")
 					return
 				}
+
 				key := utils.Endpointslices + "/" + namespace + "/" + svcName
+
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
@@ -155,7 +163,9 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 					utils.AviLog.Debugf("Endpointslice Delete event: Endpointslice does not have backing svc")
 					return
 				}
+
 				key := utils.Endpointslices + "/" + namespace + "/" + svcName
+
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
@@ -177,7 +187,9 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 						}
 						svcName = svcNameOld
 					}
+
 					key := utils.Endpointslices + "/" + namespace + "/" + svcName
+
 					bkt := utils.Bkt(namespace, numWorkers)
 					c.workqueue[bkt].AddRateLimited(key)
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
@@ -208,6 +220,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 					return
 				}
 				bkt := utils.Bkt(namespace, numWorkers)
+
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 			},
@@ -230,6 +243,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 				}
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(pod))
 				key := utils.Pod + "/" + utils.ObjKey(pod)
+
 				if lib.IsNamespaceBlocked(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: Pod Delete event: Namespace: %s didn't qualify filter", key, namespace)
 					return
@@ -250,6 +264,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 				oldPod := old.(*corev1.Pod)
 				newPod := cur.(*corev1.Pod)
 				key := utils.Pod + "/" + utils.ObjKey(oldPod)
+
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newPod))
 				if lib.IsNamespaceBlocked(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: Pod Update event: Namespace: %s didn't qualify filter", key, namespace)
@@ -286,6 +301,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 				ep := obj.(*corev1.Endpoints)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
 				key := utils.Endpoints + "/" + utils.ObjKey(ep)
+
 				if lib.IsNamespaceBlocked(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: Endpoint Add event: Namespace: %s didn't qualify filter", key, namespace)
 					return
@@ -314,6 +330,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 				}
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
 				key := utils.Endpoints + "/" + utils.ObjKey(ep)
+
 				if lib.IsNamespaceBlocked(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
 					return
@@ -331,6 +348,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 				if !reflect.DeepEqual(cep.Subsets, oep.Subsets) {
 					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(cep))
 					key := utils.Endpoints + "/" + utils.ObjKey(cep)
+
 					if lib.IsNamespaceBlocked(namespace) {
 						utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
 						return
@@ -351,6 +369,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 			}
 			svc := obj.(*corev1.Service)
 			key := utils.Service + "/" + utils.ObjKey(svc)
+
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == svc.ResourceVersion {
 				utils.AviLog.Debugf("key: %s, msg: same resource version returning", key)
@@ -381,6 +400,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
 			key := utils.Service + "/" + utils.ObjKey(svc)
+
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			objects.SharedResourceVerInstanceLister().Delete(key)
@@ -396,6 +416,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 				// Only add the key if the resource versions have changed.
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
 				key := utils.Service + "/" + utils.ObjKey(svc)
+
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
@@ -412,6 +433,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 			secret := obj.(*corev1.Secret)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
 			key := utils.Secret + "/" + utils.ObjKey(secret)
+
 			if lib.IsNamespaceBlocked(namespace) {
 				utils.AviLog.Debugf("key: %s, msg: secret add event. namespace: %s didn't qualify filter", key, namespace)
 				return
@@ -440,6 +462,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 			if checkAviSecretUpdateAndShutdown(secret) {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
 				key := utils.Secret + "/" + utils.ObjKey(secret)
+
 				if lib.IsNamespaceBlocked(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: secret delete event. namespace: %s didn't qualify filter", key, namespace)
 					return
@@ -460,6 +483,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 					// Only add the key if the resource versions have changed.
 					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
 					key := utils.Secret + "/" + utils.ObjKey(secret)
+
 					if lib.IsNamespaceBlocked(namespace) {
 						utils.AviLog.Debugf("key: %s, msg: secret update event. namespace: %s didn't qualify filter", key, namespace)
 						return
@@ -497,7 +521,9 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 				return
 			}
 			gw := obj.(*gatewayv1.Gateway)
+
 			key := lib.Gateway + "/" + utils.ObjKey(gw)
+
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == gw.ResourceVersion {
 				utils.AviLog.Debugf("key: %s, msg: same resource version returning", key)
@@ -517,6 +543,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 			for _, route := range listRoutes {
 				key := lib.HTTPRoute + "/" + utils.ObjKey(route)
+
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 			}
@@ -539,7 +566,9 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 					return
 				}
 			}
+
 			key := lib.Gateway + "/" + utils.ObjKey(gw)
+
 			objects.SharedResourceVerInstanceLister().Delete(key)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -554,7 +583,9 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			oldGw := old.(*gatewayv1.Gateway)
 			gw := obj.(*gatewayv1.Gateway)
 			if IsGatewayUpdated(oldGw, gw) {
+
 				key := lib.Gateway + "/" + utils.ObjKey(gw)
+
 				valid, allowedRoutesAll := IsValidGateway(key, gw)
 				if !valid {
 					return
@@ -569,6 +600,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 				for _, route := range listRoutes {
 					key := lib.HTTPRoute + "/" + utils.ObjKey(route)
+
 					c.workqueue[bkt].AddRateLimited(key)
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 				}
@@ -583,7 +615,9 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 				return
 			}
 			gwClass := obj.(*gatewayv1.GatewayClass)
+
 			key := lib.GatewayClass + "/" + utils.ObjKey(gwClass)
+
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == gwClass.ResourceVersion {
 				utils.AviLog.Debugf("key: %s, msg: same resource version returning", key)
@@ -619,7 +653,9 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			if !akogatewayapilib.CheckGatewayClassController(controllerName) {
 				return
 			}
+
 			key := lib.GatewayClass + "/" + utils.ObjKey(gwClass)
+
 			objects.SharedResourceVerInstanceLister().Delete(key)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwClass))
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -634,6 +670,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			gwClass := obj.(*gatewayv1.GatewayClass)
 			if !reflect.DeepEqual(oldGwClass.Spec, gwClass.Spec) || gwClass.GetDeletionTimestamp() != nil {
 				key := lib.GatewayClass + "/" + utils.ObjKey(gwClass)
+
 				if !IsGatewayClassValid(key, gwClass) {
 					return
 				}
@@ -652,7 +689,9 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 				return
 			}
 			httpRoute := obj.(*gatewayv1.HTTPRoute)
+
 			key := lib.HTTPRoute + "/" + utils.ObjKey(httpRoute)
+
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == httpRoute.ResourceVersion {
 				utils.AviLog.Debugf("key: %s, msg: same resource version returning", key)
@@ -684,7 +723,9 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 					return
 				}
 			}
+
 			key := lib.HTTPRoute + "/" + utils.ObjKey(httpRoute)
+
 			objects.SharedResourceVerInstanceLister().Delete(key)
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httpRoute))
 			bkt := utils.Bkt(namespace, numWorkers)
@@ -699,7 +740,9 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			oldHTTPRoute := old.(*gatewayv1.HTTPRoute)
 			newHTTPRoute := obj.(*gatewayv1.HTTPRoute)
 			if IsHTTPRouteUpdated(oldHTTPRoute, newHTTPRoute) {
+
 				key := lib.HTTPRoute + "/" + utils.ObjKey(newHTTPRoute)
+
 				if !IsHTTPRouteConfigValid(key, newHTTPRoute) {
 					return
 				}
