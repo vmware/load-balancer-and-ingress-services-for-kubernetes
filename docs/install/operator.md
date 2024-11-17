@@ -53,7 +53,7 @@ The following table lists the configurable fields in the `AKOConfig` object and 
 | **Parameter** | **Description** | **Default** |
 | --- | --- | --- |
 | `replicaCount` | Specify the number of replicas for AKO StatefulSet | 1 |
-| `imageRepository` | Specify docker-registry that has the ako image | projects.registry.vmware.com/ako/ako:1.12.2 |
+| `imageRepository` | Specify docker-registry that has the ako image | projects.packages.broadcom.com/ako/ako:1.12.2 |
 | `imagePullPolicy` | Specify when and how to pull the ako image | IfNotPresent |
 | `imagePullSecrets` | ImagePullSecrets will add pull secrets to the statefulset for AKO. Required if using secure private container image registry for images. | `Empty List` |
 | `AKOSettings.clusterName` | Unique identifier for the running AKO instance. AKO identifies objects it created on Avi Controller using this param. | **required** |
@@ -96,7 +96,7 @@ The following table lists the configurable fields in the `AKOConfig` object and 
 | `NetworkSettings.nsxtT1LR` | Specify the T1 router for data backend network, applicable only for NSX-T based deployments| `Empty string` |
 | `FeatureGates.gatewayAPI` | FeatureGates is to enable or disable experimental features. GatewayAPI feature gate enables/disables processing of Kubernetes Gateway API CRDs. | false |
 | `FeatureGates.enablePrometheus` | FeatureGates is to enable or disable experimental features. EnablePrometheus enables/disables prometheus scraping for AKO container | false |
-| `GatewayAPI.Image.repository` | Specify docker-registry that has the ako-gateway-api image | projects.registry.vmware.com/ako/ako-gateway-api:1.12.2 |
+| `GatewayAPI.Image.repository` | Specify docker-registry that has the ako-gateway-api image | projects.packages.broadcom.com/ako/ako-gateway-api:1.12.2 |
 | `GatewayAPI.Image.pullPolicy` | Specify when and how to pull the ako-gateway-api image | IfNotPresent |
 | `logFile` | LogFile is the name of the file where ako container will dump its logs | avi.log |
 | `akoGatewayLogFile` | AKOGatewayLogFile is the name of the file where ako-gateway-api container will dump its logs | avi-gw.log |
