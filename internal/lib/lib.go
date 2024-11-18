@@ -1412,7 +1412,7 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 		utils.ConfigMapInformer,
 		utils.NSInformer,
 	}
-	if AKOControlConfig().GetEndpointSlicesEnabled() {
+	if AKOControlConfig().GetEndpointSlicesEnabled() && GetServiceType() != NodePortLocal {
 		allInformers = append(allInformers, utils.EndpointSlicesInformer)
 	} else if GetServiceType() == NodePortLocal {
 		allInformers = append(allInformers, utils.PodInformer)
