@@ -963,6 +963,17 @@ func GetDomain() string {
 	return ""
 }
 
+func GetHostnameforSubdomain(subdomain string) string {
+	if subdomain == "" || GetDomain() == "" {
+		return ""
+	}
+	if strings.HasPrefix(GetDomain(), ".") {
+		return subdomain + GetDomain()
+	} else {
+		return subdomain + "." + GetDomain()
+	}
+}
+
 // This utility returns a true/false depending on whether
 // the user requires advanced L4 functionality
 func GetAdvancedL4() bool {
