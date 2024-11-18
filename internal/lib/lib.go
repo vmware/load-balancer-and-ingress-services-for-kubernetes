@@ -1412,12 +1412,13 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 		utils.ConfigMapInformer,
 		utils.NSInformer,
 	}
-	if AKOControlConfig().GetEndpointSlicesEnabled() && GetServiceType() != NodePortLocal {
+	if AKOControlConfig().GetEndpointSlicesEnabled() {
 		allInformers = append(allInformers, utils.EndpointSlicesInformer)
-	} else if GetServiceType() == NodePortLocal {
-		allInformers = append(allInformers, utils.PodInformer)
-	} else {
+	} else if GetServiceType() != NodePortLocal {
 		allInformers = append(allInformers, utils.EndpointInformer)
+	}
+	if GetServiceType() == NodePortLocal {
+		allInformers = append(allInformers, utils.PodInformer)
 	}
 
 	// Watch over Ingresses for AKO deployment in WCP with NSX.

@@ -223,6 +223,9 @@ func TestMain(m *testing.M) {
 		utils.ConfigMapInformer,
 		utils.PodInformer,
 	}
+	if akoControlConfig.GetEndpointSlicesEnabled() {
+		registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
+	}
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
 	k8s.NewCRDInformers()
