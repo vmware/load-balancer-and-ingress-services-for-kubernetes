@@ -91,7 +91,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("AUTO_L4_FQDN", "default")
 	os.Setenv("POD_NAME", "ako-0")
-
+	
 	akoControlConfig := lib.AKOControlConfig()
 	endpointSliceEnabled = lib.GetEndpointSliceEnabled()
 	akoControlConfig.SetEndpointSlicesEnabled(endpointSliceEnabled)
@@ -224,9 +224,9 @@ func SetUpTestForIngress(t *testing.T, svcName string, modelNames ...string) {
 }
 
 func TearDownTestForIngress(t *testing.T, svcName string, modelNames ...string) {
-	// for _, model := range modelNames {
-	// 	objects.SharedAviGraphLister().Delete(model)
-	// }
+	for _, model := range modelNames {
+		objects.SharedAviGraphLister().Delete(model)
+	}
 	integrationtest.DelSVC(t, "default", svcName)
 	integrationtest.DelEPorEPS(t, "default", svcName)
 }

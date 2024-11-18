@@ -180,7 +180,7 @@ k8stest:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/k8stest -failfast -timeout 0 \
-	-coverprofile cover-1.out -coverpkg=./... > k8s_test.log 2>&1 && echo "k8stest passed") || (echo "k8stest failed" && cat k8s_test.log && exit 1 )
+	-coverprofile cover-1.out -coverpkg=./... > k8s_test.log 2>&1 && echo "k8stest passed") || (echo "k8stest failed" && buffer -i k8s_test.log -u 1000 -z 1k && exit 1 )
 	
 
 .PHONY: integrationtest
@@ -190,7 +190,7 @@ integrationtest:
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/integrationtest -failfast -coverprofile cover-2.out -coverpkg=./...  > integrationtest.log 2>&1 && echo "integrationtest passed") || (echo "integrationtest failed" && cat integrationtest.log && exit 1)
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/integrationtest -failfast -coverprofile cover-2.out -coverpkg=./...  > integrationtest.log 2>&1 && echo "integrationtest passed") || (echo "integrationtest failed" && buffer -i integrationtest.log -u 1000 -z 1k && exit 1)
 
 .PHONY: ingresstests
 ingresstests:
@@ -199,7 +199,7 @@ ingresstests:
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/ingresstests -failfast -timeout 0 -coverprofile cover-3.out -coverpkg=./... > ingresstests.log 2>&1 && echo "ingresstests passed") || (echo "ingresstests failed" && cat ingresstests.log && exit 1)
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/ingresstests -failfast -timeout 0 -coverprofile cover-3.out -coverpkg=./... > ingresstests.log 2>&1 && echo "ingresstests passed") || (echo "ingresstests failed" && buffer -i ingresstests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: oshiftroutetests
 oshiftroutetests:
@@ -209,61 +209,67 @@ oshiftroutetests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/oshiftroutetests -failfast -timeout 0 \
-	-coverprofile cover-4.out -coverpkg=./... > oshiftroutetests.log 2>&1 && echo "oshiftroutetests passed") || (echo "oshiftroutetests failed" && cat oshiftroutetests.log && exit 1)
+	-coverprofile cover-4.out -coverpkg=./... > oshiftroutetests.log 2>&1 && echo "oshiftroutetests passed") || (echo "oshiftroutetests failed" && buffer -i oshiftroutetests.log -u 1000 -z 1k && exit 1)
 	
 
 .PHONY: bootuptests
 bootuptests:
 	@> bootuptests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/bootuptests -failfast -timeout 0 \
-	-coverprofile cover-5.out -coverpkg=./... > bootuptests.log 2>&1 && echo "bootuptests passed") || (echo "bootuptests failed" && cat bootuptests.log && exit 1)
+	-coverprofile cover-5.out -coverpkg=./... > bootuptests.log 2>&1 && echo "bootuptests passed") || (echo "bootuptests failed" && buffer -i bootuptests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: multicloudtests
 multicloudtests:
 	@> multicloudtests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multicloudtests -failfast -timeout 0 \
-	-coverprofile cover-6.out -coverpkg=./... > multicloudtests.log 2>&1 && echo "multicloudtests passed") || (echo "multicloudtests failed" && cat multicloudtests.log && exit 1)
+	-coverprofile cover-6.out -coverpkg=./... > multicloudtests.log 2>&1 && echo "multicloudtests passed") || (echo "multicloudtests failed" && buffer -i multicloudtests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: servicesapitests
 servicesapitests:
 	@> servicesapitests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/servicesapitests -failfast -timeout 0 \
-	-coverprofile cover-7.out -coverpkg=./... > servicesapitests.log 2>&1 && echo "servicesapitests passed") || (echo "servicesapitests failed" && cat servicesapitests.log && exit 1)
+	-coverprofile cover-7.out -coverpkg=./... > servicesapitests.log 2>&1 && echo "servicesapitests passed") || (echo "servicesapitests failed" && buffer -i servicesapitests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: advl4tests
 advl4tests:
 	@> advl4tests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/advl4tests -failfast -timeout 0 \
-	-coverprofile cover-8.out -coverpkg=./... > advl4tests.log 2>&1 && echo "advl4tests passed") || (echo "advl4tests failed" && cat advl4tests.log && exit 1)
+	-coverprofile cover-8.out -coverpkg=./... > advl4tests.log 2>&1 && echo "advl4tests passed") || (echo "advl4tests failed" && buffer -i advl4tests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: namespacesynctests 
 namespacesynctests:
 	@> namespacesynctests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/namespacesynctests -failfast -timeout 0 \
-	-coverprofile cover-9.out -coverpkg=./... > namespacesynctests.log 2>&1 && echo "namespacesynctests passed") || (echo "namespacesynctests failed" && cat namespacesynctests.log && exit 1)
+	-coverprofile cover-9.out -coverpkg=./... > namespacesynctests.log 2>&1 && echo "namespacesynctests passed") || (echo "namespacesynctests failed" && buffer -i namespacesynctests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: misc 
 temp:
 	@> misc.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/temp -failfast > misc.log 2>&1 && echo "misc passed") || (echo "misc failed" && cat misc.log && exit 1)
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/temp -failfast > misc.log 2>&1 && echo "misc passed") || (echo "misc failed" && buffer -i misc.log -u 1000 -z 1k && exit 1)
 
 .PHONY: npltests 
 npltests:
@@ -273,7 +279,7 @@ npltests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/npltests -failfast -timeout 0 \
-	-coverprofile cover-10.out -coverpkg=./... > npltests.log 2>&1 && echo "npltests passed") || (echo "npltests failed" && cat npltests.log && exit 1)
+	-coverprofile cover-10.out -coverpkg=./... > npltests.log 2>&1 && echo "npltests passed") || (echo "npltests failed" && buffer -i npltests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: evhtests 
 evhtests:
@@ -283,16 +289,17 @@ evhtests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/evhtests -failfast -timeout 0 \
-	-coverprofile cover-11.out -coverpkg=./... > evhtests.log 2>&1 && echo "evhtests passed") || (echo "evhtests failed" && cat evhtests.log && exit 1)
+	-coverprofile cover-11.out -coverpkg=./... > evhtests.log 2>&1 && echo "evhtests passed") || (echo "evhtests failed" && buffer -i evhtests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: vippernstests
 vippernstests:
 	@> vippernstests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/evhtests -failfast -timeout 0 -isVipPerNS=true \
-	-coverprofile cover-12.out -coverpkg=./... > vippernstests.log 2>&1 && echo "vippernstests passed") || (echo "vippernstests failed" && cat vippernstests.log && exit 1)
+	-coverprofile cover-12.out -coverpkg=./... > vippernstests.log 2>&1 && echo "vippernstests passed") || (echo "vippernstests failed" && buffer -i vippernstests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: dedicatedevhtests
 dedicatedevhtests:
@@ -302,16 +309,17 @@ dedicatedevhtests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/dedicatedevhtests -failfast -timeout 0 \
-	-coverprofile cover-13.out -coverpkg=./... > dedicatedevhtests.log 2>&1 && echo "dedicatedevhtests passed") || (echo "dedicatedevhtests failed" && cat dedicatedevhtests.log && exit 1)
+	-coverprofile cover-13.out -coverpkg=./... > dedicatedevhtests.log 2>&1 && echo "dedicatedevhtests passed") || (echo "dedicatedevhtests failed" && buffer -i dedicatedevhtests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: dedicatedvippernstests
 dedicatedvippernstests:
 	@> dedicatedvippernstests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/dedicatedevhtests -failfast -timeout 0 -isVipPerNS=true \
-	-coverprofile cover-14.out -coverpkg=./... > dedicatedvippernstests.log 2>&1 && echo "dedicatedvippernstests passed") || (echo "dedicatedvippernstests failed" && cat dedicatedvippernstests.log && exit 1)
+	-coverprofile cover-14.out -coverpkg=./... > dedicatedvippernstests.log 2>&1 && echo "dedicatedvippernstests passed") || (echo "dedicatedvippernstests failed" && buffer -i dedicatedvippernstests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: dedicatedvstests
 dedicatedvstests:
@@ -321,15 +329,16 @@ dedicatedvstests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/dedicatedvstests -failfast -timeout 0 \
-	-coverprofile cover-15.out -coverpkg=./... > dedicatedvstests.log 2>&1 && echo "dedicatedvstests passed") || (echo "dedicatedvstests failed" && cat dedicatedvstests.log && exit 1)
+	-coverprofile cover-15.out -coverpkg=./... > dedicatedvstests.log 2>&1 && echo "dedicatedvstests passed") || (echo "dedicatedvstests failed" && buffer -i dedicatedvstests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: infratests
 infratests:
 	@> infratests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/infratests -failfast -timeout 0 > infratests.log 2>&1 && echo "infratests passed") || (echo "infratests failed" && cat infratests.log && exit 1)
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/infratests -failfast -timeout 0 > infratests.log 2>&1 && echo "infratests passed") || (echo "infratests failed" && buffer -i infratests.log -u 1000 -z 1k && exit 1)
 
 # .PHONY: multiclusteringresstests
 # multiclusteringresstests:
@@ -343,28 +352,31 @@ infratests:
 hatests:
 	@> hatests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/hatests -failfast -timeout 0 \
-	-coverprofile cover-17.out -coverpkg=./... > hatests.log 2>&1 && echo "hatests passed") || (echo "hatests failed" && cat hatests.log && exit 1)
+	-coverprofile cover-17.out -coverpkg=./... > hatests.log 2>&1 && echo "hatests passed") || (echo "hatests failed" && buffer -i hatests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: calicotests
 calicotests:
 	@> calicotests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/cnitests -failfast -timeout 0 -cniPlugin=calico \
-	-coverprofile cover-18.out -coverpkg=./... > calicotests.log 2>&1 && echo "calicotests passed") || (echo "calicotests failed" && cat calicotests.log && exit 1)
+	-coverprofile cover-18.out -coverpkg=./... > calicotests.log 2>&1 && echo "calicotests passed") || (echo "calicotests failed" && buffer -i calicotests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: ciliumtests
 ciliumtests:
 	@> ciliumtests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/cnitests -failfast -timeout 0 -cniPlugin=cilium \
-	-coverprofile cover-19.out -coverpkg=./... > ciliumtests.log 2>&1 && echo "ciliumtests passed") || (echo "ciliumtests failed" && cat ciliumtests.log && exit 1)
+	-coverprofile cover-19.out -coverpkg=./... > ciliumtests.log 2>&1 && echo "ciliumtests passed") || (echo "ciliumtests failed" && buffer -i ciliumtests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: helmtests
 helmtests:
@@ -373,7 +385,7 @@ helmtests:
 	-u root:root \
 	-v $(PWD)/helm/ako:/apps \
 	-v $(PWD)/tests/helmtests:/apps/tests \
-	avi-buildops-docker-registry-02.avilb.broadcom.net:5000/avi-buildops/helmunittest/helm-unittest:3.11.1-0.3.0 . > helmtests.log 2>&1 && echo "helmtests passed") || (echo "helmtests failed" && cat helmtests.log && exit 1)
+	avi-buildops-docker-registry-02.avilb.broadcom.net:5000/avi-buildops/helmunittest/helm-unittest:3.11.1-0.3.0 . > helmtests.log 2>&1 && echo "helmtests passed") || (echo "helmtests failed" && buffer -i helmtests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: gatewayapi_ingestiontests
 gatewayapi_ingestiontests:
@@ -383,41 +395,45 @@ gatewayapi_ingestiontests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/ingestion -failfast -timeout 0 \
-	-coverprofile cover-20.out -coverpkg=./... > gatewayapi_ingestiontests.log 2>&1 && echo "gatewayapi_ingestiontests passed") || (echo "gatewayapi_ingestiontests failed" && cat gatewayapi_ingestiontests.log && exit 1)
+	-coverprofile cover-20.out -coverpkg=./... > gatewayapi_ingestiontests.log 2>&1 && echo "gatewayapi_ingestiontests passed") || (echo "gatewayapi_ingestiontests failed" && buffer -i gatewayapi_ingestiontests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: gatewayapi_graphlayertests
 gatewayapi_graphlayertests:
 	@> gatewayapi_graphlayertests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/graphlayer -failfast -timeout 0 \
-	-coverprofile cover-21.out -coverpkg=./... > gatewayapi_graphlayertests.log 2>&1 && echo "gatewayapi_graphlayertests passed") || (echo "gatewayapi_graphlayertests failed" && cat gatewayapi_graphlayertests.log && exit 1)
+	-coverprofile cover-21.out -coverpkg=./... > gatewayapi_graphlayertests.log 2>&1 && echo "gatewayapi_graphlayertests passed") || (echo "gatewayapi_graphlayertests failed" && buffer -i gatewayapi_graphlayertests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: gatewayapi_statustests
 gatewayapi_statustests:
 	@> gatewayapi_statustests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/status -failfast -timeout 0 \
-	-coverprofile cover-22.out -coverpkg=./...  > gatewayapi_statustests.log 2>&1 && echo "gatewayapi_statustests passed") || (echo "gatewayapi_statustests failed" && cat gatewayapi_statustests.log && exit 1)
+	-coverprofile cover-22.out -coverpkg=./...  > gatewayapi_statustests.log 2>&1 && echo "gatewayapi_statustests passed") || (echo "gatewayapi_statustests failed" && buffer -i gatewayapi_statustests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: multitenancytests
 multitenancytests:
 	@> multitenancytests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multitenancytests -failfast -timeout 0 -coverprofile cover-21.out -coverpkg=./... > multitenancytests.log 2>&1 && echo "multitenancytests passed") || (echo "multitenancytests failed" && cat multitenancytests.log && exit 1)
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multitenancytests -failfast -timeout 0 -coverprofile cover-21.out -coverpkg=./... > multitenancytests.log 2>&1 && echo "multitenancytests passed") || (echo "multitenancytests failed" && buffer -i multitenancytests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: urltests
 urltests:
 	@> urltests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/urltests -failfast -coverprofile cover-22.out -coverpkg=./... > urltests.log 2>&1 && echo "urltests passed") || (echo "urltests failed" && cat urltests.log && exit 1)
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/urltests -failfast -coverprofile cover-22.out -coverpkg=./... > urltests.log 2>&1 && echo "urltests passed") || (echo "urltests failed" && buffer -i urltests.log -u 1000 -z 1k && exit 1)
 
 .PHONY: int_test
 int_test:
@@ -428,7 +444,7 @@ int_test:
 	namespacesynctests servicesapitests npltests misc \
 	dedicatedvstests hatests calicotests ciliumtests \
 	helmtests infratests urltests multitenancytests gatewayapi_ingestiontests gatewayapi_graphlayertests \
-	gatewayapi_statustests > int_test.log 2>&1 \
+	gatewayapi_statustests ENDPOINTSLICES_ENABLED="true" > int_test.log 2>&1 \
 	&& echo "int_test succeeded" && buffer -i int_test.log -u 1000 -z 1k) \
 	|| (echo "int_test failed" && buffer -i int_test.log -u 1000 -z 1k && exit 1)
 
@@ -481,7 +497,7 @@ dev_int_test:
 # .PHONY: test_parallel
 # test_parallel:	
 # 	(make -j 2 --output-sync=target a \
-# 	b c d e f> abc.log 2>&1 && echo "parallel_test succeeded" && cat abc.log | buffer -u 500) || (echo "parallel_test failed" && cat abc.log | buffer -u 500 && exit 1)
+# 	b c d e f> abc.log 2>&1 && echo "parallel_test succeeded" && buffer -i abc.log -u 1000 -z 1k | buffer -u 500) || (echo "parallel_test failed" && buffer -i abc.log -u 1000 -z 1k | buffer -u 500 && exit 1)
 	
 	
 
@@ -490,7 +506,7 @@ dev_int_test:
 
 .PHONY: eps_enabled
 eps_enabled:
-	make -j 1 k8stest integrationtest ingresstests evhtests dedicatedevhtests oshiftroutetests npltests dedicatedvstests gatewayapitests ENDPOINTSLICES_ENABLED="true"  
+	make -j 1 k8stest integrationtest ingresstests evhtests dedicatedevhtests oshiftroutetests npltests dedicatedvstests gatewayapitests ENDPOINTSLICES_ENABLED="true"
 
 .PHONY: scale_test
 scale_test:

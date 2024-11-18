@@ -2091,14 +2091,15 @@ func TestMultiIngressSameHostDifferentNamespaceForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	lib.AKOControlConfig().SetAKOFQDNReusePolicy("strict")
 	modelName, _ := GetModelName("foo.com", "default")
-	SetUpTestForIngress(t, modelName)
+	svcName := objNameMap.GenerateName("avisvc")
+	SetUpTestForIngress(t, svcName, modelName)
 
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:        "ingress-multi1",
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
 		Paths:       []string{"/foo"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 	}).Ingress()
 
 	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
@@ -2112,7 +2113,7 @@ func TestMultiIngressSameHostDifferentNamespaceForEvh(t *testing.T) {
 		Namespace:   "red",
 		DnsNames:    []string{"foo.com"},
 		Paths:       []string{"/bar"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 	}).Ingress()
 
 	ing_red, err := KubeClient.NetworkingV1().Ingresses("red").Create(context.TODO(), ingrFake2, metav1.CreateOptions{})
@@ -2171,5 +2172,5 @@ func TestMultiIngressSameHostDifferentNamespaceForEvh(t *testing.T) {
 	VerifyEvhPoolDeletion(t, g, aviModel, 0)
 	VerifyEvhIngressDeletion(t, g, aviModel, 0)
 	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
-	TearDownTestForIngress(t, modelName)
+	TearDownTestForIngress(t, svcName, modelName)
 }
