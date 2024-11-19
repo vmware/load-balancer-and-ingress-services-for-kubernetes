@@ -105,6 +105,7 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
 		return err, "", ""
 	}
+	vpcMode := lib.GetVPCMode()
 	for i := 0; i < len(elems); i++ {
 		cloud := models.Cloud{}
 		err = json.Unmarshal(elems[i], &cloud)
@@ -115,7 +116,7 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 		if *cloud.Vtype != lib.CLOUD_NSXT || cloud.NsxtConfiguration == nil {
 			continue
 		}
-		if lib.GetVPCMode() && (cloud.NsxtConfiguration.VpcMode == nil || !*cloud.NsxtConfiguration.VpcMode) {
+		if vpcMode && (cloud.NsxtConfiguration.VpcMode == nil || !*cloud.NsxtConfiguration.VpcMode) {
 			continue
 		}
 		if cloud.NsxtConfiguration.ManagementNetworkConfig == nil ||
@@ -125,7 +126,7 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 		// In case of VPC mode, no need to match tranport zone as there would be only 1 cloud presnt in the avi controller
 		if cloud.NsxtConfiguration.DataNetworkConfig == nil ||
 			cloud.NsxtConfiguration.DataNetworkConfig.TransportZone == nil ||
-			(!lib.GetVPCMode() && *cloud.NsxtConfiguration.DataNetworkConfig.TransportZone != tz) {
+			(!vpcMode && *cloud.NsxtConfiguration.DataNetworkConfig.TransportZone != tz) {
 			continue
 		}
 		utils.AviLog.Infof("Found NSX-T cloud: %s match Transport Zone: %s", *cloud.Name, tz)

@@ -352,15 +352,16 @@ func cleanupPools() error {
 Below section is only applicable for T1 based Supervisor deployments
 */
 func cleanupVIPNetwork() error {
-	err := sanitzeAviCloud()
-	if err != nil {
-		return err
-	}
-
 	aviClient := avicache.SharedAVIClients(lib.GetAdminTenant()).AviClient[0]
 	avirest.AviNetCachePopulate(aviClient, utils.CloudName)
 	if len(avirest.NetCache) == 0 {
+		// NetCache is expected to be empty in case of VPC based deployments.
 		return nil
+	}
+
+	err := sanitzeAviCloud()
+	if err != nil {
+		return err
 	}
 
 	err = checkAndUpdateIPAM()
