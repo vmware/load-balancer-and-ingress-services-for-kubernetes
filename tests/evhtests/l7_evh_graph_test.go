@@ -61,6 +61,16 @@ func VerifyEvhVsCacheChildDeletion(t *testing.T, g *gomega.WithT, vsKey cache.Na
 	}, 50*time.Second).Should(gomega.Equal(true))
 }
 
+func SetUpTestForIngressInNodePortMode(t *testing.T, svcName, model_Name string) {
+	objects.SharedAviGraphLister().Delete(model_Name)
+	integrationtest.CreateSVC(t, "default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeNodePort, false)
+}
+
+func TearDownTestForIngressInNodePortMode(t *testing.T, svcName, model_Name string) {
+	objects.SharedAviGraphLister().Delete(model_Name)
+	integrationtest.DelSVC(t, "default", svcName)
+}
+
 func TestL7ModelForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
@@ -111,6 +121,62 @@ func TestL7ModelForEvh(t *testing.T) {
 	VerifyEvhIngressDeletion(t, g, aviModel, 0)
 	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
 	TearDownTestForIngress(t, svcName, modelName)
+}
+
+func TestL7ModelForEvhNodePort(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	integrationtest.SetNodePortMode()
+	defer integrationtest.SetClusterIPMode()
+	nodeIP := "10.1.1.2"
+	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
+	defer integrationtest.DeleteNode(t, "testNodeNP")
+
+	modelName, _ := GetModelName("foo.com", "default")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
+
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	ingrFake := (integrationtest.FakeIngress{
+		Name:        ingressName,
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		ServiceName: svcName,
+	}).Ingress()
+
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 5*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+	g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
+	g.Expect(len(nodes[0].EvhNodes)).To(gomega.Equal(1))
+	g.Expect(nodes[0].EvhNodes[0].PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[0].NetworkPlacementSettings)).To(gomega.Equal(1))
+	_, ok := nodes[0].EvhNodes[0].PoolRefs[0].NetworkPlacementSettings["net123"]
+	g.Expect(ok).To(gomega.Equal(true))
+
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	VerifyEvhPoolDeletion(t, g, aviModel, 0)
+	VerifyEvhIngressDeletion(t, g, aviModel, 0)
+	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
+	TearDownTestForIngressInNodePortMode(t, svcName, modelName)
 }
 
 // This tests the different objects associated in the evh model for ingress
