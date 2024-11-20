@@ -210,6 +210,7 @@ const (
 	NetworkNotFoundError                       = "Network object not found"
 	FQDNReusePolicyStrict                      = "strict"
 	FQDNReusePolicyOpen                        = "internamespaceallowed"
+	DefaultPSName                              = "default-backend"
 
 	// AKO Event constants
 	AKOEventComponent        = "avi-kubernetes-operator"
