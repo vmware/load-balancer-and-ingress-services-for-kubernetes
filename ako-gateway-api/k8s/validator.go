@@ -356,7 +356,7 @@ func ValidateGatewayListenerWithSecret(namespace, name string, deleteFlag bool) 
 						}
 						// add condition for checking gateway status
 						if gwStatus != nil && string(certRef.Name) == name && certNamespace == namespace {
-							setConditions(gwStatus, listenerIndex, gatewayObj.ObjectMeta.Generation, deleteFlag)
+							setListenerConditions(gwStatus, listenerIndex, gatewayObj.ObjectMeta.Generation, deleteFlag)
 							certFound = true
 							break
 						}
@@ -380,7 +380,7 @@ func ValidateGatewayListenerWithSecret(namespace, name string, deleteFlag bool) 
 }
 
 // Mapping has to be taken care between secret and gateway
-func setConditions(gwStatus *gatewayv1.GatewayStatus, index int, generation int64, isDelete bool) {
+func setListenerConditions(gwStatus *gatewayv1.GatewayStatus, index int, generation int64, isDelete bool) {
 	if !isDelete {
 		akogatewayapistatus.NewCondition().
 			Type(string(gatewayv1.ListenerConditionAccepted)).
@@ -427,7 +427,7 @@ func setGatewayCondition(gwStatus *gatewayv1.GatewayStatus, validListenerCount, 
 			Type(string(gatewayv1.GatewayConditionAccepted)).
 			Reason(string(gatewayv1.GatewayReasonListenersNotValid)).
 			Message("Gateway contains atleast one valid listener").
-			Status(metav1.ConditionFalse).
+			Status(metav1.ConditionTrue).
 			ObservedGeneration(observedGeneration).SetIn(&gwStatus.Conditions)
 		return
 	}
