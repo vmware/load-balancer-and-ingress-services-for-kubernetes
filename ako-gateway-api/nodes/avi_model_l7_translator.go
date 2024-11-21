@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -31,8 +32,48 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
+func (o *AviObjectGraph) AddDefaultHTTPPolicySet(key string) {
+	parentVS := o.GetAviEvhVS()[0]
+
+	policyRefName := lib.GetDefaultHTTPPSName()
+	// find default backend, if found make sure it is at last index
+	for i, policyRef := range parentVS.HttpPolicyRefs {
+		if policyRef.Name == policyRefName {
+			if i != len(parentVS.HttpPolicyRefs)-1 {
+				utils.AviLog.Debugf("key: %s msg: Found %s httpref at non last position", key, policyRefName)
+				temp := parentVS.HttpPolicyRefs[i]
+				parentVS.HttpPolicyRefs = append(parentVS.HttpPolicyRefs[:i], parentVS.HttpPolicyRefs[i+1:]...)
+				parentVS.HttpPolicyRefs = append(parentVS.HttpPolicyRefs, temp)
+			}
+			return
+		}
+	}
+	// if not found add it to last index
+
+	utils.AviLog.Debugf("key: %s msg: %s httpref not found. Adding", key, policyRefName)
+	defaultPolicyRef := &nodes.AviHttpPolicySetNode{Name: policyRefName, Tenant: lib.GetTenant()}
+	defaultPolicyRef.RequestRules = []*models.HTTPRequestRule{
+		{
+			Name:   proto.String("default-backend-rule"),
+			Enable: proto.Bool(true),
+			Index:  proto.Int32(0),
+			Match: &models.MatchTarget{
+				Path: &models.PathMatch{
+					MatchCriteria: proto.String("BEGINS_WITH"),
+					MatchStr:      []string{"/"},
+				},
+			},
+			SwitchingAction: &models.HttpswitchingAction{
+				Action:     proto.String("HTTP_SWITCHING_SELECT_LOCAL"),
+				StatusCode: proto.String("HTTP_LOCAL_RESPONSE_STATUS_CODE_404"),
+			},
+		},
+	}
+	parentVS.HttpPolicyRefs = append(parentVS.HttpPolicyRefs, defaultPolicyRef)
+}
+
 func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, parentNsName string, childVSes map[string]struct{}, fullsync bool) {
-	httpRouteConfig := routeModel.ParseRouteConfig()
+	httpRouteConfig := routeModel.ParseRouteConfig(key)
 	noHostsOnRoute := len(httpRouteConfig.Hosts) == 0
 	httpRouteRules := httpRouteConfig.Rules
 	if noHostsOnRoute {
@@ -91,8 +132,10 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 
 	parentNode := o.GetAviEvhVS()
 	parentNs, _, parentName := lib.ExtractTypeNameNamespace(parentNsName)
+	routeTypeNsName := lib.HTTPRoute + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName()
 
-	found, hosts := akogatewayapiobjects.GatewayApiLister().GetGatewayRouteToHostname(parentNsName)
+	gwRouteNsName := fmt.Sprintf("%s/%s", parentNsName, routeTypeNsName)
+	found, hosts := akogatewayapiobjects.GatewayApiLister().GetGatewayRouteToHostname(gwRouteNsName)
 	if !found {
 		utils.AviLog.Warnf("key: %s, msg: No hosts mapped to the route %s/%s/%s", key, routeModel.GetType(), routeModel.GetNamespace(), routeModel.GetName())
 		return
@@ -111,7 +154,8 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	childNode.EVHParent = false
 
 	childNode.ServiceMetadata = lib.ServiceMetadataObj{
-		Gateway: parentNsName,
+		Gateway:   parentNsName,
+		HTTPRoute: routeModel.GetNamespace() + "/" + routeModel.GetName(),
 	}
 	childNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
 	childNode.ServiceEngineGroup = lib.GetSEGName()
@@ -121,13 +165,8 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 		Namespace:   parentNs,
 		Host:        hosts,
 	}
-	for _, host := range hosts {
-		if !strings.Contains(host, utils.WILDCARD) && !utils.HasElem(parentNode[0].VSVIPRefs[0].FQDNs, host) {
-			parentNode[0].VSVIPRefs[0].FQDNs = append(parentNode[0].VSVIPRefs[0].FQDNs, host)
-		}
-	}
+	updateHostname(key, parentNsName, parentNode[0])
 
-	routeTypeNsName := lib.HTTPRoute + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName()
 	// create vhmatch from the match
 	o.BuildVHMatch(key, parentNsName, routeTypeNsName, childNode, rule, hosts)
 
@@ -150,6 +189,32 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 		akogatewayapiobjects.GatewayApiLister().UpdateRouteChildVSMappings(routeModel.GetType()+"/"+routeModel.GetNamespace()+"/"+routeModel.GetName(), childVSName)
 	}
 	utils.AviLog.Infof("key: %s, msg: processing of child vs %s attached to parent vs %s completed", key, childNode.Name, childNode.VHParentName)
+}
+
+func updateHostname(key, parentNsName string, parentNode *nodes.AviEvhVsNode) {
+	ok, routeNsNames := akogatewayapiobjects.GatewayApiLister().GetGatewayToRoute(parentNsName)
+	if !ok || len(routeNsNames) == 0 {
+		utils.AviLog.Warnf("key: %s, msg: No routes from gateway, removing all FQDNs", key)
+		parentNode.VSVIPRefs[0].FQDNs = []string{}
+		return
+	}
+	uniqueHostnamesSet := sets.NewString()
+	for _, routeNsName := range routeNsNames {
+		gwRouteNsName := fmt.Sprintf("%s/%s", parentNsName, routeNsName)
+		ok, hostnames := akogatewayapiobjects.GatewayApiLister().GetGatewayRouteToHostname(gwRouteNsName)
+		if !ok {
+			utils.AviLog.Warnf("key: %s, msg: Unable to fetch hostname from route: %s", key, routeNsName)
+		} else {
+			uniqueHostnamesSet.Insert(hostnames...)
+		}
+	}
+
+	uniqueHostnames := slices.DeleteFunc(uniqueHostnamesSet.List(), func(s string) bool {
+		return strings.Contains(s, utils.WILDCARD)
+	})
+
+	utils.AviLog.Debugf("key: %s, unique hostnames %v found for gatewayNs: %s", uniqueHostnames, parentNsName)
+	parentNode.VSVIPRefs[0].FQDNs = uniqueHostnames
 }
 
 func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
@@ -180,6 +245,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 		Name:   PGName,
 		Tenant: lib.GetTenant(),
 	}
+
 	for _, httpbackend := range rule.Backends {
 		poolName := akogatewayapilib.GetPoolName(parentNs, parentName,
 			routeModel.GetNamespace(), routeModel.GetName(),
@@ -203,9 +269,21 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 			},
 			VrfContext: lib.GetVrf(),
 		}
+
+		t1LR := lib.GetT1LRPath()
+		if t1LR != "" {
+			poolNode.T1Lr = t1LR
+			poolNode.VrfContext = ""
+			utils.AviLog.Infof("key: %s, msg: setting t1LR: %s for pool node.", key, t1LR)
+		}
 		poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
 		serviceType := lib.GetServiceType()
-		if serviceType == lib.NodePort {
+		if serviceType == lib.NodePortLocal {
+			servers := nodes.PopulateServersForNPL(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key)
+			if servers != nil {
+				poolNode.Servers = servers
+			}
+		} else if serviceType == lib.NodePort {
 			servers := nodes.PopulateServersForNodePort(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key)
 			if servers != nil {
 				poolNode.Servers = servers
@@ -221,8 +299,6 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 			childVsNode.ReplaceEvhPoolInEVHNode(poolNode, key)
 		}
 
-		// TODO: Check Backend filter code. This is creating an issue in checksum calculation of object which is result in failure in deletion
-		o.BuildBackendFiltersModel(key, poolName, httpbackend, childVsNode)
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
 		ratio := uint32(httpbackend.Backend.Weight)
 		PG.Members = append(PG.Members, &models.PoolGroupMember{PoolRef: &pool_ref, Ratio: &ratio})
@@ -230,64 +306,6 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 	if len(PG.Members) > 0 {
 		childVsNode.PoolGroupRefs = []*nodes.AviPoolGroupNode{PG}
 		childVsNode.DefaultPoolGroup = PG.Name
-	}
-}
-
-func (o *AviObjectGraph) BuildBackendFiltersModel(key, poolName string, httpbackend *HTTPBackend, vsNode *nodes.AviEvhVsNode) {
-	for _, filter := range httpbackend.Filters {
-
-		var addRequestString string
-		for _, addRequestFilter := range filter.RequestFilter.Add {
-			addRequestString = addRequestString + addRequestFilter.Name + ":" + addRequestFilter.Value + ","
-		}
-		addRequestString = strings.TrimSuffix(addRequestString, ",")
-		name := lib.GetAKOUser() + "-" + akogatewayapilib.AddHeaderStringGroup
-		description := "StringGroup to support ADDRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
-		o.AddOrUpdateStringGroupNode(key, name, description, poolName, addRequestString)
-
-		var setRequestString string
-		for _, setRequestFilter := range filter.RequestFilter.Set {
-			setRequestString = setRequestString + setRequestFilter.Name + ":" + setRequestFilter.Value + ","
-		}
-		setRequestString = strings.TrimSuffix(setRequestString, ",")
-		name = lib.GetAKOUser() + "-" + akogatewayapilib.UpdateHeaderStringGroup
-		description = "StringGroup to support UpdateRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
-		o.AddOrUpdateStringGroupNode(key, name, description, poolName, setRequestString)
-
-		var removeRequestString string
-		for _, removeRequestKey := range filter.RequestFilter.Remove {
-			removeRequestString = removeRequestString + removeRequestKey + ","
-		}
-		removeRequestString = strings.TrimSuffix(removeRequestString, ",")
-		name = lib.GetAKOUser() + "-" + akogatewayapilib.DeleteHeaderStringGroup
-		description = "StringGroup to support DeleteRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
-		o.AddOrUpdateStringGroupNode(key, name, description, poolName, removeRequestString)
-	}
-	if len(httpbackend.Filters) == 0 {
-		o.UpdateStringGroupsOnRouteDeletion(key, poolName)
-
-		//Remove datascript reference from vs if it already exists
-		dsScriptNode := o.ConstructBackendFilterDataScript(key)
-		var updatedHTTPDSrefs []*nodes.AviHTTPDataScriptNode
-		for _, httpDsRef := range vsNode.HTTPDSrefs {
-			if httpDsRef != dsScriptNode {
-				updatedHTTPDSrefs = append(updatedHTTPDSrefs, httpDsRef)
-			}
-		}
-		vsNode.HTTPDSrefs = updatedHTTPDSrefs
-	}
-
-	if httpbackend.Filters != nil && len(httpbackend.Filters) > 0 {
-		dataScriptRefExists := false
-		dsScriptNode := o.ConstructBackendFilterDataScript(key)
-		for _, httpDsRef := range vsNode.HTTPDSrefs {
-			if httpDsRef == dsScriptNode {
-				dataScriptRefExists = true
-			}
-		}
-		if !dataScriptRefExists {
-			vsNode.HTTPDSrefs = append(vsNode.HTTPDSrefs, dsScriptNode)
-		}
 	}
 }
 
@@ -348,6 +366,12 @@ func (o *AviObjectGraph) BuildDefaultPGPoolForParentVS(key, parentNsName, matchN
 			VrfContext: lib.GetVrf(),
 		}
 		poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
+		t1LR := lib.GetT1LRPath()
+		if t1LR != "" {
+			poolNode.T1Lr = t1LR
+			poolNode.VrfContext = ""
+			utils.AviLog.Infof("key: %s, msg: setting t1LR: %s for pool node.", key, t1LR)
+		}
 		serviceType := lib.GetServiceType()
 		if serviceType == lib.NodePort {
 			servers := nodes.PopulateServersForNodePort(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key)
@@ -369,7 +393,6 @@ func (o *AviObjectGraph) BuildDefaultPGPoolForParentVS(key, parentNsName, matchN
 			httpPSPGPool.Pool = uniquePools.List()
 		}
 		pool_ref := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
-		o.BuildBackendFiltersModel(key, poolName, backend, parentVsNode)
 		ratio := uint32(backend.Backend.Weight)
 		PG.Members = append(PG.Members, &models.PoolGroupMember{PoolRef: &pool_ref, Ratio: &ratio})
 	}
@@ -496,7 +519,7 @@ func (o *AviObjectGraph) BuildParentHTTPPS(key, parentNsName string, vsNode *nod
 	parentNs, _, parentName := lib.ExtractTypeNameNamespace(parentNsName)
 
 	// Code to retrieve ports associated with given httproute name
-	routeTypeNsName := fmt.Sprintf("%s/%s", httpRouteNamespace, httpRouteName)
+	routeTypeNsName := fmt.Sprintf("%s/%s/%s", lib.HTTPRoute, httpRouteNamespace, httpRouteName)
 	allListeners := objects.GatewayApiLister().GetRouteToGatewayListener(routeTypeNsName)
 	listeners := []akogatewayapiobjects.GatewayListenerStore{}
 	for _, listener := range allListeners {
@@ -701,62 +724,4 @@ func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestRedirectRules(key, httpPSn
 		}
 	}
 	return isRedirectPresent
-}
-
-func (o *AviObjectGraph) ConstructBackendFilterDataScript(key string) *nodes.AviHTTPDataScriptNode {
-	datascripts := o.GetAviHTTPDSNode()
-	datascriptName := akogatewayapilib.GetDataScriptName()
-	for _, datascript := range datascripts {
-		if datascript.Name == datascriptName {
-			return datascript
-		}
-	}
-	dsScriptNode := &nodes.AviHTTPDataScriptNode{
-		Name:   datascriptName,
-		Tenant: lib.GetTenant(),
-		DataScript: &nodes.DataScript{
-			Script: akogatewayapilib.BackendRefFilterDatascript,
-			Evt:    "VS_DATASCRIPT_EVT_HTTP_LB_DONE",
-		},
-	}
-
-	dsScriptNode.Script = strings.Replace(dsScriptNode.Script, "NAMEPREFIX", lib.GetAKOUser(), 3)
-	dsScriptNode.StringGroups = append(dsScriptNode.StringGroups, lib.GetAKOUser()+"-"+akogatewayapilib.AddHeaderStringGroup, lib.GetAKOUser()+"-"+akogatewayapilib.UpdateHeaderStringGroup, lib.GetAKOUser()+"-"+akogatewayapilib.DeleteHeaderStringGroup)
-	o.AddModelNode(dsScriptNode)
-	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	dataScriptNamespaceName := lib.GetTenant() + "/" + datascriptName
-	ok := saveAviModel(dataScriptNamespaceName, o.AviObjectGraph, key)
-	if ok {
-		nodes.PublishKeyToRestLayer(dataScriptNamespaceName, key, sharedQueue)
-	}
-
-	return dsScriptNode
-}
-
-func (o *AviObjectGraph) UpdateStringGroupsOnRouteDeletion(key string, poolName string) {
-	addStringGroupName := lib.GetAKOUser() + "-" + akogatewayapilib.AddHeaderStringGroup
-	addStringGroupDescription := "StringGroup to support ADDRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
-	setStringGroupName := lib.GetAKOUser() + "-" + akogatewayapilib.UpdateHeaderStringGroup
-	setStringGroupDescription := "StringGroup to support UpdateRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
-	removeStringGroupName := lib.GetAKOUser() + "-" + akogatewayapilib.DeleteHeaderStringGroup
-	removeStringGroupDescription := "StringGroup to support DeleteRequestHeaderModifier from BackendRef Filters in AKO Gateway API"
-
-	o.AddOrUpdateStringGroupNode(key, addStringGroupName, addStringGroupDescription, poolName, "")
-	o.AddOrUpdateStringGroupNode(key, setStringGroupName, setStringGroupDescription, poolName, "")
-	o.AddOrUpdateStringGroupNode(key, removeStringGroupName, removeStringGroupDescription, poolName, "")
-}
-
-func (o *AviObjectGraph) RemovePoolNameFromStringGroups(currentEvhNodeName string, modelEvhNodes []*nodes.AviEvhVsNode, key string) {
-	if len(modelEvhNodes) > 0 && len(modelEvhNodes[0].EvhNodes) > 0 {
-		for _, modelEvhNode := range modelEvhNodes[0].EvhNodes {
-			if currentEvhNodeName == modelEvhNode.Name {
-				utils.AviLog.Infof("key: %s, msg: Updating stringgroups for model: %s", key, currentEvhNodeName)
-				if len(modelEvhNode.PoolRefs) > 0 {
-					poolname := modelEvhNode.PoolRefs[0].Name
-					o.UpdateStringGroupsOnRouteDeletion(key, poolname)
-				}
-				return
-			}
-		}
-	}
 }

@@ -48,7 +48,7 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	cr := lib.AKOUser
 	svc_mdata_json, _ := json.Marshal(&pool_meta.ServiceMetadata)
 	svc_mdata := string(svc_mdata_json)
-	cloudRef := lib.GetCloudRef(lib.GetTenant())
+	cloudRef := fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)
 	placementNetworks := []*avimodels.PlacementNetwork{}
 
 	// set pool placement network if node network details are present and cloud type is CLOUD_VCENTER or CLOUD_NSXT (vlan)
@@ -141,6 +141,10 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 
 	if pool_meta.ApplicationPersistenceProfileRef != nil {
 		pool.ApplicationPersistenceProfileRef = pool_meta.ApplicationPersistenceProfileRef
+	}
+
+	if pool_meta.EnableHttp2 != nil {
+		pool.EnableHttp2 = pool_meta.EnableHttp2
 	}
 
 	for i, server := range pool_meta.Servers {
@@ -284,7 +288,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 
 		var pkiKey avicache.NamespaceName
 		if pkiprof, ok := resp["pki_profile_ref"]; ok && pkiprof != "" {
-			pkiUuid := avicache.ExtractUuid(pkiprof.(string), "pkiprofile-.*.#")
+			pkiUuid := avicache.ExtractUUID(pkiprof.(string), "pkiprofile-.*.#")
 			pkiName, foundPki := rest.cache.PKIProfileCache.AviCacheGetNameByUuid(pkiUuid)
 			if foundPki {
 				pkiKey = avicache.NamespaceName{Namespace: lib.GetTenant(), Name: pkiName.(string)}

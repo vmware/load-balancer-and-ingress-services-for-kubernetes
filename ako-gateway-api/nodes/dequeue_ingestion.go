@@ -36,6 +36,15 @@ func DequeueIngestion(key string, fullsync bool) {
 	if !valid {
 		return
 	}
+	if objType == lib.HTTPRoute {
+		httpRoute, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).Get(name)
+		if err == nil {
+			utils.AviLog.Debugf("key: %s, msg: Successfully retrieved the HTTPRoute object %s", key, name)
+			if !IsHTTPRouteValid(key, httpRoute) {
+				return
+			}
+		}
+	}
 
 	gatewayNsNameList, found := schema.GetGateways(namespace, name, key)
 	if !found {
@@ -94,6 +103,7 @@ func DequeueIngestion(key string, fullsync bool) {
 			}
 			model.DeleteStaleChildVSes(key, routeModel, childVSes, fullsync)
 		}
+		model.AddDefaultHTTPPolicySet(key)
 
 		// Only add this node to the list of models if the checksum has changed.
 		modelChanged := saveAviModel(modelName, model.AviObjectGraph, key)
@@ -215,22 +225,18 @@ func saveAviModel(modelName string, aviGraph *nodes.AviObjectGraph, key string) 
 func (o *AviObjectGraph) ProcessRouteDeletion(key, parentNsName string, routeModel RouteModel, fullsync bool) {
 
 	parentNode := o.GetAviEvhVS()
+	routeTypeNsName := routeModel.GetType() + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName()
 
-	found, childVSNames := akogatewayapiobjects.GatewayApiLister().GetRouteToChildVS(routeModel.GetType() + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName())
+	found, childVSNames := akogatewayapiobjects.GatewayApiLister().GetRouteToChildVS(routeTypeNsName)
+
 	if found {
 		utils.AviLog.Infof("key: %s, msg: child VSes retrieved for deletion %v", key, childVSNames)
 
 		for _, childVSName := range childVSNames {
-			o.RemovePoolNameFromStringGroups(childVSName, parentNode, key)
-			nodes.RemoveEvhInModel(childVSName, parentNode, key)
-		}
-		akogatewayapiobjects.GatewayApiLister().DeleteRouteToChildVS(routeModel.GetType() + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName())
-
-		modelName := lib.GetTenant() + "/" + parentNode[0].Name
-		ok := saveAviModel(modelName, o.AviObjectGraph, key)
-		if ok && len(o.AviObjectGraph.GetOrderedNodes()) != 0 && !fullsync {
-			sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-			nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
+			removed := nodes.RemoveEvhInModel(childVSName, parentNode, key)
+			if removed {
+				akogatewayapiobjects.GatewayApiLister().DeleteRouteChildVSMappings(routeTypeNsName, childVSName)
+			}
 		}
 	} else {
 		// check parent association
@@ -270,13 +276,13 @@ func (o *AviObjectGraph) ProcessRouteDeletion(key, parentNsName string, routeMod
 			}
 		}
 		akogatewayapiobjects.GatewayApiLister().DeleteGatewayRouteToHTTPSPGPool(parentNsName + "/" + routeModel.GetType() + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName())
-		modelName := lib.GetTenant() + "/" + parentNode[0].Name
-
-		ok := saveAviModel(modelName, o.AviObjectGraph, key)
-		if ok && len(o.AviObjectGraph.GetOrderedNodes()) != 0 && !fullsync {
-			sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-			nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
-		}
+	}
+	updateHostname(key, parentNsName, parentNode[0])
+	modelName := lib.GetTenant() + "/" + parentNode[0].Name
+	ok := saveAviModel(modelName, o.AviObjectGraph, key)
+	if ok && len(o.AviObjectGraph.GetOrderedNodes()) != 0 && !fullsync {
+		sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+		nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
 	}
 
 }
@@ -290,8 +296,10 @@ func (o *AviObjectGraph) DeleteStaleChildVSes(key string, routeModel RouteModel,
 	for _, childVSName := range storedChildVSes {
 		if _, ok := childVSes[childVSName]; !ok {
 			utils.AviLog.Infof("key: %s, msg: child VS retrieved for deletion %v", key, childVSName)
-			nodes.RemoveEvhInModel(childVSName, parentNode, key)
-			akogatewayapiobjects.GatewayApiLister().DeleteRouteChildVSMappings(routeModel.GetType()+"/"+routeModel.GetNamespace()+"/"+routeModel.GetName(), childVSName)
+			removed := nodes.RemoveEvhInModel(childVSName, parentNode, key)
+			if removed {
+				akogatewayapiobjects.GatewayApiLister().DeleteRouteChildVSMappings(routeModel.GetType()+"/"+routeModel.GetNamespace()+"/"+routeModel.GetName(), childVSName)
+			}
 		}
 	}
 }

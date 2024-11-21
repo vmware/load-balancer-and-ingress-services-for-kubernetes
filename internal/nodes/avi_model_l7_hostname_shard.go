@@ -53,7 +53,8 @@ func (o *AviObjectGraph) BuildDedicatedL7VSGraphHostNameShard(vsName, hostname s
 	// Populate the hostmap with empty secret for insecure ingress
 	PopulateIngHostMap(namespace, hostname, ingName, "", pathsvcMap)
 	_, ingressHostMap := SharedHostNameLister().Get(hostname)
-	vsNode[0].ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(hostname)
+
+	vsNode[0].ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName()
 	vsNode[0].ServiceMetadata.Namespace = namespace
 	vsNode[0].ServiceMetadata.HostNames = pathFQDNs
 	vsNode[0].AviMarkers = lib.PopulateVSNodeMarkers(namespace, hostname, infraSettingName)
@@ -313,6 +314,7 @@ func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, ro
 			// Processsing insecure ingress
 			if !utils.HasElem(vsNode[0].VSVIPRefs[0].FQDNs, hostname) {
 				vsNode[0].VSVIPRefs[0].FQDNs = append(vsNode[0].VSVIPRefs[0].FQDNs, hostname)
+				// combine maps of each hostname.
 			}
 			// Check poolname length, if >255, don't add it.
 			if lib.CheckObjectNameLength(poolName, lib.Pool) {
@@ -604,6 +606,7 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		var sniHosts []string
 		hostPathSvcMap[sniHost] = paths.ingressHPSvc
 		PopulateIngHostMap(namespace, sniHost, ingName, tlssetting.SecretName, paths)
+
 		_, ingressHostMap := SharedHostNameLister().Get(sniHost)
 		sniHosts = append(sniHosts, sniHost)
 		_, shardVsName := DeriveShardVS(sniHost, key, routeIgrObj)
@@ -670,14 +673,14 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 				Tenant:       vsNode[0].Tenant,
 				IsSNIChild:   true,
 				ServiceMetadata: lib.ServiceMetadataObj{
-					NamespaceIngressName: ingressHostMap.GetIngressesForHostName(sniHost),
+					NamespaceIngressName: ingressHostMap.GetIngressesForHostName(),
 					Namespace:            namespace,
 					HostNames:            sniHosts,
 				},
 			}
 		} else {
 			// The SNI node exists, just update the svc metadata
-			sniNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(sniHost)
+			sniNode.ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName()
 			sniNode.ServiceMetadata.Namespace = namespace
 			sniNode.ServiceMetadata.HostNames = sniHosts
 		}
@@ -687,7 +690,7 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 		sniNode.AviMarkers = lib.PopulateVSNodeMarkers(namespace, sniHost, infraSettingName)
 	} else {
 		//For dedicated VS
-		vsNode[0].ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName(sniHost)
+		vsNode[0].ServiceMetadata.NamespaceIngressName = ingressHostMap.GetIngressesForHostName()
 		vsNode[0].ServiceMetadata.Namespace = namespace
 		vsNode[0].ServiceMetadata.HostNames = sniHosts
 		vsNode[0].AddSSLPort(key)
@@ -771,7 +774,7 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 			SharedHostNameLister().Save(sniHost, ingressHostMap)
 		}
 		// Since the cert couldn't be built, check if this SNI is affected by only in ingress if so remove the sni node from the model
-		if len(ingressHostMap.GetIngressesForHostName(sniHost)) == 0 {
+		if len(ingressHostMap.GetIngressesForHostName()) == 0 {
 			sniHostToRemove = append(sniHostToRemove, sniNode.VHDomainNames...)
 			if !isDedicated {
 				RemoveSniInModel(sniNode.Name, vsNode, key)

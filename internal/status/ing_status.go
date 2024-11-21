@@ -33,8 +33,14 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	types "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
+type Status struct {
+	*gatewayv1.GatewayClassStatus
+	*gatewayv1.GatewayStatus
+	*gatewayv1.HTTPRouteStatus
+}
 type UpdateOptions struct {
 	// IngSvc format: namespace/name, not supposed to be provided by the caller
 	IngSvc             string
@@ -45,6 +51,7 @@ type UpdateOptions struct {
 	VSName             string
 	Message            string
 	Tenant             string
+	Status             *Status
 }
 
 // VSUuidAnnotation is maps a hostname to the UUID of the virtual service where it is placed.
@@ -149,6 +156,19 @@ func updateObject(mIngress *networkingv1.Ingress, updateOption UpdateOptions, re
 	var updatedIng *networkingv1.Ingress
 	var err error
 	if !sameStatus {
+		ingressNsName := mIngress.Namespace + "/" + mIngress.Name
+		//lock here to avoid concurrent updates to same status
+		lib.GetLockSet().Lock(ingressNsName)
+		latestIngress := getIngresses([]string{ingressNsName}, false)
+		if latestIngress[ingressNsName] != nil {
+			latestIngressStatus := latestIngress[ingressNsName].Status.LoadBalancer.DeepCopy()
+			if latestIngressStatus.String() != oldIngressStatus.String() {
+				lib.GetLockSet().Unlock(ingressNsName)
+				//unlock and retry if status was changed by concurrent operation with new status
+				//retry counter not updated since this is not a failure case
+				return updateObject(latestIngress[ingressNsName], updateOption, retry)
+			}
+		}
 		patchPayload, _ := json.Marshal(map[string]interface{}{
 			"status": mIngress.Status,
 		})
@@ -159,6 +179,7 @@ func updateObject(mIngress *networkingv1.Ingress, updateOption UpdateOptions, re
 			// fetch updated ingress and feed for update status
 			mIngresses := getIngresses([]string{mIngress.Namespace + "/" + mIngress.Name}, false)
 			if len(mIngresses) > 0 {
+				lib.GetLockSet().Unlock(ingressNsName)
 				return updateObject(mIngresses[mIngress.Namespace+"/"+mIngress.Name], updateOption, retry+1)
 			}
 		} else {
@@ -171,6 +192,7 @@ func updateObject(mIngress *networkingv1.Ingress, updateOption UpdateOptions, re
 			utils.AviLog.Infof("key: %s, msg: Successfully updated the ingress status of ingress: %s/%s old: %+v new: %+v",
 				key, mIngress.Namespace, mIngress.Name, oldIngressStatus.Ingress, mIngress.Status.LoadBalancer.Ingress)
 		}
+		lib.GetLockSet().Unlock(ingressNsName)
 	} else {
 		utils.AviLog.Debugf("key: %s, msg: no changes detected in the ingress %s/%s status", key, mIngress.Namespace, mIngress.Name)
 	}

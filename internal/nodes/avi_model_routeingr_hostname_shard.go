@@ -121,6 +121,7 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 		return
 	}
 
+	// TODO: These functions will return true or false. Depeding upon that we should update hostcache to have proper sync
 	// Process insecure routes first.
 	ProcessInsecureHosts(routeIgrObj, key, parsedIng, &modelList, Storedhosts, hostsMap)
 
@@ -433,6 +434,11 @@ func RouteIngrDeletePoolsByHostname(routeIgrObj RouteIngressModel, namespace, ob
 		}
 
 		SharedHostNameLister().DeleteNamespace(host)
+		if found, ingressHostMap := SharedHostNameLister().Get(host); found {
+			mapkey := namespace + "/" + objname
+			delete(ingressHostMap.HostNameMap, mapkey)
+
+		}
 		modelName := lib.GetModelName(tenant, shardVsName.Name)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {

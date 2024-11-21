@@ -313,7 +313,7 @@ func TestAdvL4BestCase(t *testing.T) {
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
 	g.Eventually(func() string {
-		gw, _ := AdvL4Client.NetworkingV1alpha1pre1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		gw, _ := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(ns).Get(gatewayName)
 		if len(gw.Status.Addresses) > 0 {
 			return gw.Status.Addresses[0].Value
 		}
@@ -341,9 +341,9 @@ func TestAdvL4BestCase(t *testing.T) {
 
 	TeardownGatewayClass(t, gwClassName)
 	g.Eventually(func() int {
-		gw, _ := AdvL4Client.NetworkingV1alpha1pre1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		gw, _ := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(ns).Get(gatewayName)
 		return len(gw.Status.Addresses)
-	}, 20*time.Second).Should(gomega.Equal(0))
+	}, 30*time.Second).Should(gomega.Equal(0))
 
 	TeardownAdvLBService(t, svcName, ns)
 	TeardownGateway(t, gatewayName, ns)

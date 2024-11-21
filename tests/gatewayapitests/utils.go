@@ -127,19 +127,22 @@ func UnsetListenerHostname(l *gatewayv1.Listener) {
 	l.Hostname = &hname
 }
 
-func GetListenersV1(ports []int32, emptyHostName bool, secrets ...string) []gatewayv1.Listener {
+func GetListenersV1(ports []int32, emptyHostName, samehost bool, secrets ...string) []gatewayv1.Listener {
 	listeners := make([]gatewayv1.Listener, 0, len(ports))
 	for _, port := range ports {
-		hostname := ""
-		if !emptyHostName {
-			hostname = fmt.Sprintf("foo-%d.com", port)
-		}
 		listener := gatewayv1.Listener{
 			Name:     gatewayv1.SectionName(fmt.Sprintf("listener-%d", port)),
 			Port:     gatewayv1.PortNumber(port),
 			Protocol: gatewayv1.ProtocolType("HTTPS"),
-			Hostname: (*gatewayv1.Hostname)(&hostname),
 		}
+		if !samehost && !emptyHostName {
+			hostname := fmt.Sprintf("foo-%d.com", port)
+			listener.Hostname = (*gatewayv1.Hostname)(&hostname)
+		} else if samehost {
+			hostname := "foo.com"
+			listener.Hostname = (*gatewayv1.Hostname)(&hostname)
+		}
+
 		if len(secrets) > 0 {
 			certRefs := make([]gatewayv1.SecretObjectReference, 0, len(secrets))
 			for _, secret := range secrets {
@@ -159,7 +162,22 @@ func GetListenersV1(ports []int32, emptyHostName bool, secrets ...string) []gate
 	return listeners
 }
 
-func GetListenerStatusV1(ports []int32, attachedRoutes []int32) []gatewayv1.ListenerStatus {
+func GetListenersOnHostname(hostnames []string) []gatewayv1.Listener {
+	listeners := make([]gatewayv1.Listener, 0, len(hostnames))
+	for i, hostname := range hostnames {
+		hn := hostname
+		listener := gatewayv1.Listener{
+			Name:     gatewayv1.SectionName(fmt.Sprintf("listener-%d", i)),
+			Port:     gatewayv1.PortNumber(8080),
+			Hostname: (*gatewayv1.Hostname)(&hn),
+			Protocol: gatewayv1.ProtocolType("HTTP"),
+		}
+		listeners = append(listeners, listener)
+	}
+	return listeners
+}
+
+func GetListenerStatusV1(ports []int32, attachedRoutes []int32, getResolvedRefCondition bool, getProgrammedCondition bool) []gatewayv1.ListenerStatus {
 	listeners := make([]gatewayv1.ListenerStatus, 0, len(ports))
 	for i, port := range ports {
 		listener := gatewayv1.ListenerStatus{
@@ -168,13 +186,33 @@ func GetListenerStatusV1(ports []int32, attachedRoutes []int32) []gatewayv1.List
 			AttachedRoutes: attachedRoutes[i],
 			Conditions: []metav1.Condition{
 				{
-					Type:               string(gatewayv1.GatewayConditionAccepted),
+					Type:               string(gatewayv1.ListenerConditionAccepted),
 					Status:             metav1.ConditionTrue,
 					Message:            "Listener is valid",
 					ObservedGeneration: 1,
-					Reason:             string(gatewayv1.GatewayReasonAccepted),
+					Reason:             string(gatewayv1.ListenerReasonAccepted),
 				},
 			},
+		}
+		if getResolvedRefCondition {
+			resolvedRefCondition := &metav1.Condition{
+				Type:               string(gatewayv1.ListenerConditionResolvedRefs),
+				Status:             metav1.ConditionTrue,
+				Message:            "All the references are valid",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.ListenerReasonResolvedRefs),
+			}
+			listener.Conditions = append(listener.Conditions, *resolvedRefCondition)
+		}
+		if getProgrammedCondition {
+			programmedCondition := &metav1.Condition{
+				Type:               string(gatewayv1.ListenerConditionProgrammed),
+				Status:             metav1.ConditionTrue,
+				Message:            "Virtual service configured/updated",
+				ObservedGeneration: 1,
+				Reason:             string(gatewayv1.ListenerReasonProgrammed),
+			}
+			listener.Conditions = append(listener.Conditions, *programmedCondition)
 		}
 		listeners = append(listeners, listener)
 	}
@@ -336,6 +374,36 @@ func GetParentReferencesV1(gatewayNames []string, namespace string, ports []int3
 			}
 			parentRefs = append(parentRefs, parentRef)
 		}
+	}
+	return parentRefs
+}
+
+func GetParentReferencesFromListeners(listeners []gatewayv1.Listener, gwName, namespace string) []gatewayv1.ParentReference {
+	parentRefs := make([]gatewayv1.ParentReference, 0)
+	for i := range listeners {
+		sectionName := gatewayv1.SectionName(fmt.Sprintf("listener-%d", i))
+		parentRef := gatewayv1.ParentReference{
+			Name:        gatewayv1.ObjectName(gwName),
+			Namespace:   (*gatewayv1.Namespace)(&namespace),
+			SectionName: &sectionName,
+		}
+		parentRefs = append(parentRefs, parentRef)
+
+	}
+	return parentRefs
+}
+
+// created new function to avoid confusion
+func GetParentReferencesV1WithGatewayNameOnly(gatewayNames []string, namespace string) []gatewayv1.ParentReference {
+	parentRefs := make([]gatewayv1.ParentReference, 0)
+	for _, gwName := range gatewayNames {
+
+		parentRef := gatewayv1.ParentReference{
+			Name:      gatewayv1.ObjectName(gwName),
+			Namespace: (*gatewayv1.Namespace)(&namespace),
+		}
+		parentRefs = append(parentRefs, parentRef)
+
 	}
 	return parentRefs
 }
@@ -555,9 +623,9 @@ func ValidateGatewayStatus(t *testing.T, actualStatus, expectedStatus *gatewayv1
 		g.Expect(actualStatus.Addresses[0]).Should(gomega.Equal(expectedStatus.Addresses[0]))
 	}
 
+	g.Expect(actualStatus.Listeners).To(gomega.HaveLen(len(expectedStatus.Listeners)))
 	ValidateConditions(t, actualStatus.Conditions, expectedStatus.Conditions)
 
-	g.Expect(actualStatus.Listeners).To(gomega.HaveLen(len(expectedStatus.Listeners)))
 	for _, actualListenerStatus := range actualStatus.Listeners {
 		for _, expectedListenerStatus := range expectedStatus.Listeners {
 			if actualListenerStatus.Name == expectedListenerStatus.Name {

@@ -15,14 +15,10 @@
 package lib
 
 const (
-	Prefix                         = "ako-gw-"
-	GatewayController              = "ako.vmware.com/avi-lb"
-	CoreGroup                      = "v1"
-	GatewayGroup                   = "gateway.networking.k8s.io"
-	BackendRefFilterDatascriptName = "BackendRefFilterDatascript"
-	AddHeaderStringGroup           = "AddHeaderStringGroup"
-	UpdateHeaderStringGroup        = "UpdateHeaderStringGroup"
-	DeleteHeaderStringGroup        = "DeleteHeaderStringGroup"
+	Prefix            = "ako-gw-"
+	GatewayController = "ako.vmware.com/avi-lb"
+	CoreGroup         = "v1"
+	GatewayGroup      = "gateway.networking.k8s.io"
 )
 
 const (
@@ -36,36 +32,4 @@ const (
 const (
 	AllowedRoutesNamespaceFromAll  = "All"
 	AllowedRoutesNamespaceFromSame = "Same"
-)
-
-// BackendRefFIlter data script is used to support Filters within backendRef in a HTTPRoute in Gateways
-const (
-	BackendRefFilterDatascript = `pool_name = avi.pool.name()
-  	add_header_strgrp = "NAMEPREFIX-AddHeaderStringGroup"
-	val, match_found = avi.stringgroup.contains(add_header_strgrp, pool_name)
-	if match_found then
-   		for header_string in string.gmatch(val, '([^,]+)') do
-      		local colon_index=string.find(header_string,":")
-      		local headerkey = string.sub(header_string,1,colon_index-1)
-      		local headerval = string.sub(header_string,colon_index+1)
-      		avi.http.add_header(headerkey, headerval)
-   		end
-	end
-	update_header_strgrp = "NAMEPREFIX-UpdateHeaderStringGroup"
-	val, match_found = avi.stringgroup.contains(update_header_strgrp, pool_name)
-	if match_found then
-   		for header_string in string.gmatch(val, '([^,]+)') do
-      		local colon_index=string.find(header_string,":")
-      		local headerkey = string.sub(header_string,1,colon_index-1)
-      		local headerval = string.sub(header_string,colon_index+1)
-      		avi.http.replace_header(headerkey, headerval)
-   		end
-	end
-	delete_header_strgrp = "NAMEPREFIX-DeleteHeaderStringGroup"
-	val, match_found = avi.stringgroup.contains(delete_header_strgrp, pool_name)
-	if match_found then
-   		for header_key in string.gmatch(val, '([^,]+)') do
-      		avi.http.remove_header(header_key)
-   		end
-	end`
 )

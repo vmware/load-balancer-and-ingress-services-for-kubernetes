@@ -82,7 +82,14 @@ NetworkSettings:
   #  - networkName: net1
   #    networkUUID: net-1234
   #    cidr: 100.1.1.0/24
-  #    v6cidr: 2002::1234:abcd:ffff:c0a8:101/64 # Setting this will enable the VS networks to use ipv6 
+  #    v6cidr: 2002::1234:abcd:ffff:c0a8:101/64 # Setting this will enable the VS networks to use ipv6
+
+  # The defaultDomain flag has two use cases.
+  # For L4 VSes, if multiple sub-domains are configured in the cloud, this flag can be used to set the default sub-domain to use for the VS. This flag should be used instead of L4Settings.defaultDomain, as it will be deprecated in a future release.
+  # If both NetworkSettings.defaultDomain and L4Settings.defaultDomain are set, then NetworkSettings.defaultDomain will be used.
+  # For L7 VSes(created from OpenShift Routes), if spec.subdomain field is specified instead of spec.host field for an OpenShift route, then the default domain specified is appended to the spec.subdomain to form the FQDN for the VS.
+  defaultDomain: ""
+  # defaultDomain: "avi.internal"
 
 ### This section outlines all the knobs  used to control Layer 7 loadbalancing settings in AKO.
 L7Settings:
@@ -92,11 +99,13 @@ L7Settings:
   shardVSSize: "LARGE" # Use this to control the layer 7 VS numbers. This applies to both secure/insecure VSes but does not apply for passthrough. ENUMs: LARGE, MEDIUM, SMALL, DEDICATED
   passthroughShardSize: "SMALL" # Control the passthrough virtualservice numbers using this ENUM. ENUMs: LARGE, MEDIUM, SMALL
   enableMCI: "false" # Enabling this flag would tell AKO to start processing multi-cluster ingress objects.
+  fqdnReusePolicy: "InterNamespaceAllowed" # Use this to control whether AKO allows cross-namespace usage of FQDNs. enum Strict|InterNamespaceAllowed
 
 ### This section outlines all the knobs  used to control Layer 4 loadbalancing settings in AKO.
 L4Settings:
   defaultLBController: "true"
-  defaultDomain: "" # If multiple sub-domains are configured in the cloud, use this knob to set the default sub-domain to use for L4 VSes.
+  defaultDomain: "" # If multiple sub-domains are configured in the cloud, use this knob to set the default sub-domain to use for L4 VSes. This flag will be deprecated in a future release; use NetworkSettings.defaultDomain instead.
+  # If both NetworkSettings.defaultDomain and L4Settings.defaultDomain are set, then NetworkSettings.defaultDomain will be used.
   autoFQDN: "default" # ENUM: default(<svc>.<ns>.<subdomain>), flat (<svc>-<ns>.<subdomain>), "disabled" If the value is disabled then the FQDN generation is disabled.
 
 ### This section outlines settings on the Avi controller that affects AKO's functionality.

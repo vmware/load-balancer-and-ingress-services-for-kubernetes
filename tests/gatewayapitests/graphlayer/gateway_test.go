@@ -135,7 +135,7 @@ func TestGateway(t *testing.T) {
 	ports := []int32{8080}
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false)
+	listeners := tests.GetListenersV1(ports, false, false)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -162,6 +162,9 @@ func TestGateway(t *testing.T) {
 	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].VSVIPRefs).To(gomega.HaveLen(1))
+	// default backend response
+	g.Expect(nodes[0].HttpPolicyRefs[0].RequestRules[0].Match.Path.MatchStr[0]).To(gomega.Equal("/"))
+	g.Expect(*nodes[0].HttpPolicyRefs[0].RequestRules[0].SwitchingAction.StatusCode).To(gomega.Equal("HTTP_LOCAL_RESPONSE_STATUS_CODE_404"))
 
 	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	tests.TeardownGatewayClass(t, gatewayClassName)
@@ -179,7 +182,7 @@ func TestGatewayWithTLS(t *testing.T) {
 	}
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false, secrets...)
+	listeners := tests.GetListenersV1(ports, false, false, secrets...)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -226,7 +229,7 @@ func TestGatewayNoTLSToTLS(t *testing.T) {
 	ports := []int32{8080}
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false)
+	listeners := tests.GetListenersV1(ports, false, false)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -305,7 +308,7 @@ func TestGatewayTLSToNoTLS(t *testing.T) {
 	}
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false, secrets...)
+	listeners := tests.GetListenersV1(ports, false, false, secrets...)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -373,7 +376,7 @@ func TestGatewayDelete(t *testing.T) {
 	ports := []int32{8080}
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false)
+	listeners := tests.GetListenersV1(ports, false, false)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -415,7 +418,7 @@ func TestSecretCreateDelete(t *testing.T) {
 	secrets := []string{"secret-06"}
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := tests.GetListenersV1(ports, false, secrets...)
+	listeners := tests.GetListenersV1(ports, false, false, secrets...)
 	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -424,19 +427,17 @@ func TestSecretCreateDelete(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
-	}, 30*time.Second).Should(gomega.Equal(true))
+	}, 30*time.Second).Should(gomega.Equal(false))
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-	g.Expect(nodes).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(0))
+	g.Expect(aviModel).To(gomega.BeNil())
 
 	integrationtest.AddSecret(secrets[0], DEFAULT_NAMESPACE, "cert", "key")
 
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if found {
-			nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 			g.Expect(nodes).To(gomega.HaveLen(1))
 			g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(1))
 			return true
@@ -450,7 +451,7 @@ func TestSecretCreateDelete(t *testing.T) {
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if found {
-			nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 			g.Expect(nodes).To(gomega.HaveLen(1))
 			g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(0))
 			return true

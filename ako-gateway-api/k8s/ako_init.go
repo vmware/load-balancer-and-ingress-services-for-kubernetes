@@ -274,7 +274,7 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 			resVer := meta.GetResourceVersion()
 			objects.SharedResourceVerInstanceLister().Save(key, resVer)
 		}
-		if IsValidGateway(key, gatewayObj) {
+		if valid, _ := IsValidGateway(key, gatewayObj); valid {
 			filteredGateways = append(filteredGateways, gatewayObj)
 		}
 	}
@@ -304,7 +304,7 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 			resVer := meta.GetResourceVersion()
 			objects.SharedResourceVerInstanceLister().Save(key, resVer)
 		}
-		if IsHTTPRouteValid(key, httpRouteObj) {
+		if IsHTTPRouteConfigValid(key, httpRouteObj) {
 			filteredHTTPRoutes = append(filteredHTTPRoutes, httpRouteObj)
 		}
 	}
@@ -335,6 +335,27 @@ func (c *GatewayController) FullSyncK8s(sync bool) error {
 		}
 		// Not pushing the service to the next layer as it is
 		// not required since we don't create a model out of service
+	}
+	if lib.GetServiceType() == lib.NodePortLocal {
+		podObjs, err := utils.GetInformers().PodInformer.Lister().Pods(metav1.NamespaceAll).List(labels.Everything())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the Pods during full sync: %s", err)
+			return err
+		}
+		for _, podObj := range podObjs {
+			podLabel := utils.ObjKey(podObj)
+			key := utils.Pod + "/" + podLabel
+			if _, ok := podObj.GetAnnotations()[lib.NPLPodAnnotation]; !ok {
+				utils.AviLog.Warnf("key : %s, msg: 'nodeportlocal.antrea.io' annotation not found, ignoring the pod", key)
+				continue
+			}
+			meta, err := meta.Accessor(podObj)
+			if err == nil {
+				resVer := meta.GetResourceVersion()
+				objects.SharedResourceVerInstanceLister().Save(key, resVer)
+			}
+			akogatewayapinodes.DequeueIngestion(key, true)
+		}
 	}
 
 	c.publishAllParentVSKeysToRestLayer()
@@ -490,6 +511,10 @@ func (c *GatewayController) cleanupStaleVSes() {
 
 	vsKeysPending := aviObjCache.VsCacheMeta.AviGetAllKeys()
 
+	if delModels {
+		//Delete NPL annotations
+		k8s.DeleteNPLAnnotations()
+	}
 	if delModels && len(vsKeysPending) == 0 && lib.ConfigDeleteSyncChan != nil {
 		close(lib.ConfigDeleteSyncChan)
 		lib.ConfigDeleteSyncChan = nil

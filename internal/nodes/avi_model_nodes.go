@@ -216,7 +216,6 @@ func (v *AviEvhVsNode) CalculateForGraphChecksum() uint32 {
 	for _, stringGroup := range v.StringGroupRefs {
 		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(stringGroup.GetCheckSum()))
 	}
-
 	return utils.Hash(strings.Join(checksumStringSlice, ":"))
 }
 
@@ -1620,6 +1619,7 @@ type AviPoolCommonFields struct {
 	PkiProfileRef                    *string
 	SslProfileRef                    *string
 	SslKeyAndCertificateRef          *string
+	EnableHttp2                      *bool
 }
 
 func (v *AviPoolNode) GetCheckSum() uint32 {
@@ -1682,6 +1682,9 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.ServiceMetadata.HostNames))
 	}
 
+	if v.EnableHttp2 != nil {
+		checksumStringSlice = append(checksumStringSlice, utils.Stringify(*v.EnableHttp2))
+	}
 	chksumStr := fmt.Sprint(strings.Join(checksumStringSlice, delim))
 
 	checksum := utils.Hash(chksumStr)
@@ -1827,7 +1830,7 @@ func NewSecureHostNameMapProp() SecureHostNameMapProp {
 	return hostNameMap
 }
 
-func (h *SecureHostNameMapProp) GetPathsForHostName(hostname string) []string {
+func (h *SecureHostNameMapProp) GetPathsForHostName() []string {
 	var paths []string
 	for _, v := range h.HostNameMap {
 		paths = append(paths, v.paths...)
@@ -1835,7 +1838,7 @@ func (h *SecureHostNameMapProp) GetPathsForHostName(hostname string) []string {
 	return paths
 }
 
-func (h *SecureHostNameMapProp) GetIngressesForHostName(hostname string) []string {
+func (h *SecureHostNameMapProp) GetIngressesForHostName() []string {
 	var ingresses []string
 	for k := range h.HostNameMap {
 		ingresses = append(ingresses, k)
@@ -1843,7 +1846,7 @@ func (h *SecureHostNameMapProp) GetIngressesForHostName(hostname string) []strin
 	return ingresses
 }
 
-func (h *SecureHostNameMapProp) GetSecretsForHostName(hostname string) []string {
+func (h *SecureHostNameMapProp) GetSecretsForHostName() []string {
 	var secrets []string
 	for _, v := range h.HostNameMap {
 		secrets = append(secrets, v.secretName)
@@ -1909,48 +1912,4 @@ func (o *AviObjectGraph) GetAviStringGroupNodeByName(stringGroupName string) *Av
 		}
 	}
 	return nil
-}
-
-func (o *AviObjectGraph) AddOrUpdateStringGroupNode(key string, stringGroupName string, stringGroupDescription string, poolName string, requestHeaderString string) {
-	//Check if node already exists and update it
-	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-	stringGroupNamespaceName := lib.GetTenant() + "/" + stringGroupName
-	for _, model := range o.modelNodes {
-		stringGroup, ok := model.(*AviStringGroupNode)
-		if ok && *stringGroup.Name == stringGroupName {
-			var newKv []*avimodels.KeyValue
-			for _, kv := range stringGroup.Kv {
-				if *kv.Key != poolName {
-					newKv = append(newKv, kv)
-				}
-			}
-			if len(requestHeaderString) > 0 {
-				newKv = append(newKv, &avimodels.KeyValue{Key: &poolName, Value: &requestHeaderString})
-			}
-			stringGroup.Kv = newKv
-			ok := saveAviModel(stringGroupNamespaceName, o, key)
-			if ok {
-				PublishKeyToRestLayer(stringGroupNamespaceName, key, sharedQueue)
-			}
-			return
-		}
-	}
-	// If node not found, add node
-	tenant := lib.GetTenant()
-	key_value_sg_type := "SG_TYPE_KEYVAL"
-	stringGroupNode := &AviStringGroupNode{
-		StringGroup: &avimodels.StringGroup{
-			TenantRef:   &tenant,
-			Type:        &key_value_sg_type,
-			Description: &stringGroupDescription,
-			Name:        &stringGroupName},
-	}
-	if len(requestHeaderString) > 0 {
-		stringGroupNode.Kv = append(stringGroupNode.Kv, &avimodels.KeyValue{Key: &poolName, Value: &requestHeaderString})
-	}
-	o.AddModelNode(stringGroupNode)
-	ok := saveAviModel(stringGroupNamespaceName, o, key)
-	if ok {
-		PublishKeyToRestLayer(stringGroupNamespaceName, key, sharedQueue)
-	}
 }

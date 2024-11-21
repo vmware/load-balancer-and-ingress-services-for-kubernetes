@@ -74,6 +74,12 @@ func syncFuncForTest(key interface{}, wg *sync.WaitGroup) error {
 }
 
 func setupQueue(stopCh <-chan struct{}) {
+	statusQueueParams := utils.WorkerQueue{NumWorkers: 1, WorkqueueName: utils.StatusQueue}
+	ingestionQueueParams := utils.WorkerQueue{NumWorkers: 1, WorkqueueName: utils.ObjectIngestionLayer}
+	statusQueue := utils.SharedWorkQueue(&ingestionQueueParams, &statusQueueParams).GetQueueByName(utils.StatusQueue)
+	wgStatus := &sync.WaitGroup{}
+	statusQueue.SyncFunc = akogatewayapik8s.SyncFromStatusQueue
+	statusQueue.Run(stopCh, wgStatus)
 	ingestionQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
 	wgIngestion := &sync.WaitGroup{}
 
@@ -124,11 +130,10 @@ func TestMain(m *testing.M) {
 	keyChan = make(chan string)
 
 	ctrl.DisableSync = false
-
+	setupQueue(stopCh)
 	ctrl.SetupEventHandlers(k8s.K8sinformers{Cs: akogatewayapitests.KubeClient})
 	numWorkers := uint32(1)
 	ctrl.SetupGatewayApiEventHandlers(numWorkers)
-	setupQueue(stopCh)
 	os.Exit(m.Run())
 }
 
@@ -395,7 +400,7 @@ func TestGatewayInvalidListenerTLS(t *testing.T) {
 		waitAndverify(t, "Secret/"+DEFAULT_NAMESPACE+"/"+secret)
 	}
 
-	listeners := akogatewayapitests.GetListenersV1(ports, false, secrets...)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false, secrets...)
 	tlsModePassthrough := gatewayv1.TLSModePassthrough
 	listeners[0].TLS.Mode = &tlsModePassthrough
 	//create

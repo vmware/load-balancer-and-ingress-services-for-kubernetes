@@ -16,6 +16,8 @@ package lib
 
 import (
 	"fmt"
+
+	"os"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -35,10 +37,14 @@ func InformersToRegister(kclient *kubernetes.Clientset) ([]string, error) {
 		utils.SecretInformer,
 		utils.ConfigMapInformer,
 	}
+
 	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
 		allInformers = append(allInformers, utils.EndpointSlicesInformer)
 	} else if lib.GetServiceType() != lib.NodePortLocal {
 		allInformers = append(allInformers, utils.EndpointInformer)
+	}
+	if lib.GetServiceType() == lib.NodePortLocal {
+		allInformers = append(allInformers, utils.PodInformer)
 	}
 
 	return allInformers, nil
@@ -76,11 +82,6 @@ func GetPoolGroupName(parentNs, parentName, routeNs, routeName, matchName string
 		name = fmt.Sprintf("%s-%s", name, utils.Stringify(utils.Hash(matchName)))
 	}
 	return lib.Encode(name, lib.PG)
-}
-
-func GetDataScriptName() string {
-	name := lib.GetNamePrefix() + BackendRefFilterDatascriptName
-	return lib.Encode(name, lib.EVHVS)
 }
 
 func GetHTTPRuleName(parentNs, parentName, routeNs, routeName, matchName string) string {
@@ -125,6 +126,9 @@ func FindPortName(serviceName, ns string, servicePort int32, key string) string 
 	}
 	utils.AviLog.Warnf("key: %s, msg: Port name not found in service obj: %v", key, svcObj)
 	return ""
+}
+func GetT1LRPath() string {
+	return os.Getenv("NSXT_T1_LR")
 }
 
 func FindTargetPort(serviceName, ns string, svcPort int32, key string) intstr.IntOrString {

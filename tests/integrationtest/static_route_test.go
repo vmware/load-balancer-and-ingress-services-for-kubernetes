@@ -28,9 +28,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const MODEL_GLOBAL = "admin/global"
+
 func TestNodeAdd(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/global"
+	modelName := MODEL_GLOBAL
 	nodeip := "10.1.1.2"
 	objects.SharedAviGraphLister().Delete(modelName)
 	nodeExample := (FakeNode{
@@ -64,7 +66,7 @@ func TestNodeAdd(t *testing.T) {
 
 func TestNodeUpdate(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/global"
+	modelName := MODEL_GLOBAL
 	nodeip := "10.1.1.2"
 	objects.SharedAviGraphLister().Delete(modelName)
 	nodeExample := (FakeNode{
@@ -102,7 +104,7 @@ func TestNodeUpdate(t *testing.T) {
 
 func TestNodeDel(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/global"
+	modelName := MODEL_GLOBAL
 	nodeName := "testNode1"
 	objects.SharedAviGraphLister().Delete(modelName)
 	err := KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodeName, metav1.DeleteOptions{})
@@ -124,7 +126,7 @@ func TestNodeDel(t *testing.T) {
 
 func TestNodeAddNoPodCIDR(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/global"
+	modelName := MODEL_GLOBAL
 	nodeip := "20.1.1.2"
 	objects.SharedAviGraphLister().Delete(modelName)
 	nodeExample := (FakeNode{
@@ -147,7 +149,7 @@ func TestNodeAddNoPodCIDR(t *testing.T) {
 
 func TestMultiNodeAdd(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/global"
+	modelName := MODEL_GLOBAL
 	nodeip1 := "10.1.1.1"
 	nodeip2 := "10.1.1.2"
 	objects.SharedAviGraphLister().Delete(modelName)
@@ -207,7 +209,7 @@ func TestMultiNodeAdd(t *testing.T) {
 
 func TestMultiNodeUpdate(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/global"
+	modelName := MODEL_GLOBAL
 	nodeip1 := "10.2.1.1"
 	nodeip2 := "10.2.1.2"
 	objects.SharedAviGraphLister().Delete(modelName)
@@ -302,7 +304,7 @@ func TestMultiNodeUpdate(t *testing.T) {
 
 func TestMultiNodeCDC(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/global"
+	modelName := MODEL_GLOBAL
 	nodeip1 := "10.2.1.5"
 	nodeip2 := "10.2.1.6"
 	nodeip3 := "10.2.1.7"
@@ -415,7 +417,7 @@ func TestMultiNodeCDC(t *testing.T) {
 
 func TestNodeCIDRInAnnotation(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/global"
+	modelName := MODEL_GLOBAL
 	nodeip := "30.1.1.2"
 	objects.SharedAviGraphLister().Delete(modelName)
 	nodeExample := (FakeNode{
@@ -493,7 +495,7 @@ func TestNodeCIDRInAnnotation(t *testing.T) {
 func TestNodeOVNKubernetesAdd(t *testing.T) {
 	os.Setenv("CNI_PLUGIN", "ovn-kubernetes")
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/global"
+	modelName := MODEL_GLOBAL
 	nodeip := "10.1.1.2"
 	nodeName := "testNode1"
 	objects.SharedAviGraphLister().Delete(modelName)
@@ -528,7 +530,7 @@ func TestNodeOVNKubernetesAdd(t *testing.T) {
 func TestNodeOVNKubernetesDel(t *testing.T) {
 	os.Setenv("CNI_PLUGIN", "ovn-kubernetes")
 	g := gomega.NewGomegaWithT(t)
-	modelName := "admin/global"
+	modelName := MODEL_GLOBAL
 	nodeName := "testNode1"
 	objects.SharedAviGraphLister().Delete(modelName)
 	err := KubeClient.CoreV1().Nodes().Delete(context.TODO(), nodeName, metav1.DeleteOptions{})

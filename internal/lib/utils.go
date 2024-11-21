@@ -20,8 +20,11 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 
+	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/vmware/alb-sdk/go/clients"
@@ -184,7 +187,29 @@ func GetPodsFromService(namespace, serviceName string, targetPortName intstr.Int
 	objects.SharedSvcToPodLister().Save(svcKey, PodsWithTargetPort{Pods: pods, TargetPort: targetPort})
 	return pods, targetPort
 }
+func IngressLessthan(ing1, ing2 *networkingv1.Ingress) bool {
+	if ing1.CreationTimestamp.Before(&ing2.CreationTimestamp) {
+		return true
+	}
 
+	if ing2.CreationTimestamp.Before(&ing1.CreationTimestamp) {
+		return false
+	}
+
+	return ing1.UID < ing2.UID
+}
+
+func RouteLessthan(route1, route2 *routev1.Route) bool {
+	if route1.CreationTimestamp.Before(&route2.CreationTimestamp) {
+		return true
+	}
+
+	if route2.CreationTimestamp.Before(&route1.CreationTimestamp) {
+		return false
+	}
+
+	return route1.UID < route2.UID
+}
 func GetServicesForPod(pod *corev1.Pod) ([]string, []string) {
 	var svcList, lbList []string
 	services, err := utils.GetInformers().ServiceInformer.Lister().List(labels.Everything())
@@ -484,14 +509,6 @@ func GetTenantInNamespace(namespace string) string {
 	return tenant
 }
 
-func GetCloudRef(tenant string) string {
-	if CompareVersions(AKOControlConfig().ControllerVersion(), ">", CtrlVersion_22_1_6) {
-		return fmt.Sprintf("/api/cloud?tenant=%s&name=%s", tenant, utils.CloudName)
-	}
-	// 22.1.x python webapp is not able to parse cloud name from above reference
-	return fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)
-}
-
 func GetAllTenants(c *clients.AviClient, tenants map[string]struct{}, nextPage ...string) error {
 	uri := "/api/tenant"
 	result, err := AviGetCollectionRaw(c, uri)
@@ -545,4 +562,27 @@ func IsInfraSettingNSScoped(infraSetting, namespace string) bool {
 		}
 	}
 	return false
+}
+
+type LockSet struct {
+	locks sync.Map
+}
+
+var lockSet LockSet
+
+func (s *LockSet) Lock(lockName string) {
+	lock, _ := s.locks.LoadOrStore(lockName, &sync.Mutex{})
+	lock.(*sync.Mutex).Lock()
+}
+
+func (s *LockSet) Unlock(lockName string) {
+	if lock, ok := s.locks.Load(lockName); !ok {
+		panic("unlocked an unlock mutex")
+	} else {
+		lock.(*sync.Mutex).Unlock()
+	}
+}
+
+func GetLockSet() *LockSet {
+	return &lockSet
 }

@@ -120,6 +120,7 @@ const (
 	TLSRoute                                   = "TLSRoute"
 	UDPRoute                                   = "UDPRoute"
 	DuplicateBackends                          = "MultipleBackendsWithSameServiceError"
+	HostAlreadyClaimed                         = "Host already Claimed"
 	DummyVSForStaleData                        = "DummyVSForStaleData"
 	ControllerReqWaitTime                      = 300
 	PassthroughInsecure                        = "-insecure"
@@ -202,11 +203,14 @@ const (
 	FullSyncInterval                           = 300
 	Namespace                                  = "Namespace"
 	VrfContextNotFoundError                    = "VrfContext not found"
+	VrfContextNoPermission                     = "Cannot modify VrfContext"
 	HTTPMethodGet                              = "GET"
 	HTTPMethodPut                              = "PUT"
 	VrfContextObjectNotFoundError              = "VrfContext object not found"
 	NetworkNotFoundError                       = "Network object not found"
-	CtrlVersion_22_1_6                         = "22.1.6"
+	FQDNReusePolicyStrict                      = "strict"
+	FQDNReusePolicyOpen                        = "internamespaceallowed"
+	DefaultPSName                              = "default-backend"
 
 	// AKO Event constants
 	AKOEventComponent        = "avi-kubernetes-operator"
@@ -222,12 +226,18 @@ const (
 	Synced                   = "Synced"
 	Attached                 = "Attached"
 	Detached                 = "Detached"
+	PatchFailed              = "PatchFailed"
 	InvalidConfiguration     = "InvalidConfiguration"
 	AKODeleteConfigSet       = "AKODeleteConfigSet"
 	AKODeleteConfigUnset     = "AKODeleteConfigUnset"
 	AKODeleteConfigDone      = "AKODeleteConfigDone"
 	AKODeleteConfigTimeout   = "AKODeleteConfigTimeout"
 	AKOGatewayEventComponent = "avi-kubernetes-operator-gateway-api"
+	IngressAddEvent          = "IngressAddEvent"
+	IngressDeleteEvent       = "IngressDeleteEvent"
+	IngressUpdateEvent       = "IngressUpdateEvent"
+	RouteAddEvent            = "RouteAddEvent"
+	RouteUpdateEvent         = "RouteUpdateEvent"
 
 	DefaultIngressClassAnnotation    = "ingressclass.kubernetes.io/is-default-class"
 	ExternalDNSAnnotation            = "external-dns.alpha.kubernetes.io/hostname"

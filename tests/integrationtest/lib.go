@@ -79,6 +79,8 @@ const (
 	EXTDNSSVC           = "custom-fqdn-svc"
 	INVALID_LB_CLASS    = "not-ako-lb"
 	letterBytes         = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	DefaultRouteCert    = "router-certs-default"
+	DEFAULT_NAMESPACE   = "default"
 )
 
 var KubeClient *k8sfake.Clientset
@@ -1884,6 +1886,7 @@ type FakeHTTPRulePath struct {
 	HealthMonitors []string
 	LbAlgorithm    string
 	Hash           string
+	EnableHTTP2    bool
 }
 
 func (rr FakeHTTPRule) HTTPRule() *akov1beta1.HTTPRule {
@@ -1900,6 +1903,7 @@ func (rr FakeHTTPRule) HTTPRule() *akov1beta1.HTTPRule {
 				Algorithm: p.LbAlgorithm,
 				Hash:      p.Hash,
 			},
+			EnableHttp2: &p.EnableHTTP2,
 		}
 		if p.DestinationCA != "" {
 			rrForPath.TLS.DestinationCA = p.DestinationCA
@@ -2123,6 +2127,13 @@ func SetupIngressClass(t *testing.T, ingclassName, controller, infraSetting stri
 			t.Fatalf("error in adding IngressClass: %v", err)
 		}
 	}
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() error {
+		_, err := utils.GetInformers().IngressClassInformer.Lister().Get(ingclassName)
+		return err
+	}, 30*time.Second, 2*time.Second).Should(gomega.BeNil())
+
 }
 
 func AnnotateAKONamespaceWithInfraSetting(t *testing.T, ns, infraSettingName string) {
@@ -2533,4 +2544,27 @@ func SetupLicense(license string) {
 	// Set the license
 	aviRestClientPool := cache.SharedAVIClients(lib.GetTenant())
 	lib.AKOControlConfig().SetLicenseType(aviRestClientPool.AviClient[0])
+}
+
+type ObjectNameMap struct {
+	nameMap map[string]int
+}
+
+func (o *ObjectNameMap) InitMap() {
+	o.nameMap = make(map[string]int)
+}
+func (o *ObjectNameMap) GenerateName(s string) string {
+	if val, ok := o.nameMap[s]; ok {
+		o.nameMap[s] = val + 1
+	} else {
+		o.nameMap[s] = 1
+	}
+	return s + "-" + strconv.Itoa(o.nameMap[s])
+}
+
+func (o *ObjectNameMap) GetName(s string) string {
+	if _, ok := o.nameMap[s]; !ok {
+		o.nameMap[s] = 1
+	}
+	return s + "-" + strconv.Itoa(o.nameMap[s])
 }

@@ -17,9 +17,11 @@ package status
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -28,6 +30,8 @@ import (
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
@@ -103,8 +107,8 @@ func (o *gateway) Delete(key string, option status.StatusOptions) {
 	}
 
 	// assuming 1 IP per gateway
-	status := gw.Status.DeepCopy()
-	status.Addresses = []gatewayv1.GatewayStatusAddress{}
+	gatewayStatus := gw.Status.DeepCopy()
+	gatewayStatus.Addresses = []gatewayv1.GatewayStatusAddress{}
 
 	condition := NewCondition()
 	condition.
@@ -113,9 +117,9 @@ func (o *gateway) Delete(key string, option status.StatusOptions) {
 		Reason(string(gatewayv1.GatewayReasonPending)).
 		ObservedGeneration(gw.ObjectMeta.Generation).
 		Message("Virtual service has been deleted").
-		SetIn(&status.Conditions)
+		SetIn(&gatewayStatus.Conditions)
 
-	for i := range status.Listeners {
+	for i := range gatewayStatus.Listeners {
 		listenerCondition := NewCondition()
 		listenerCondition.
 			Type(string(gatewayv1.GatewayConditionProgrammed)).
@@ -123,10 +127,10 @@ func (o *gateway) Delete(key string, option status.StatusOptions) {
 			Reason(string(gatewayv1.GatewayReasonPending)).
 			ObservedGeneration(gw.ObjectMeta.Generation).
 			Message("Virtual service has been deleted").
-			SetIn(&status.Listeners[i].Conditions)
+			SetIn(&gatewayStatus.Listeners[i].Conditions)
 	}
 
-	o.Patch(key, gw, &Status{GatewayStatus: status})
+	o.Patch(key, gw, &status.Status{GatewayStatus: gatewayStatus})
 	utils.AviLog.Infof("key: %s, msg: Successfully reset the address status of gateway: %s", key, gw.Name)
 
 	// TODO: Add annotation delete code here
@@ -138,7 +142,12 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 		return
 	}
 
-	status := gw.Status.DeepCopy()
+	if option.Options != nil && option.Options.Status != nil && option.Options.Status.GatewayStatus != nil {
+		o.Patch(key, gw, option.Options.Status)
+		return
+	}
+
+	gatewaystatus := akogatewayapiobjects.GatewayApiLister().GetGatewayToGatewayStatusMapping(gw.Namespace + "/" + gw.Name)
 	addressType := gatewayv1.IPAddressType
 	ipAddrs := []gatewayv1.GatewayStatusAddress{}
 	for _, vip := range option.Options.Vip {
@@ -147,20 +156,19 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 			Value: vip,
 		})
 	}
-	status.Addresses = ipAddrs
+	gatewaystatus.Addresses = ipAddrs
 
 	condition := NewCondition()
 	var conditionType, reason, message string
 	conditionStatus := metav1.ConditionTrue
 
 	if option.Options.Message != "" {
-		conditionType = string(gatewayv1.GatewayConditionAccepted)
+		conditionType = string(gatewayv1.GatewayConditionProgrammed)
 		conditionStatus = metav1.ConditionFalse
 		reason = string(gatewayv1.GatewayReasonInvalid)
 		message = option.Options.Message
 	} else {
 		conditionType = string(gatewayv1.GatewayConditionProgrammed)
-		conditionStatus = metav1.ConditionTrue
 		reason = string(gatewayv1.GatewayReasonProgrammed)
 		message = "Virtual service configured/updated"
 	}
@@ -170,19 +178,29 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 		Reason(reason).
 		ObservedGeneration(gw.ObjectMeta.Generation).
 		Message(message).
-		SetIn(&status.Conditions)
+		SetIn(&gatewaystatus.Conditions)
 
-	for i := range status.Listeners {
+	for i, listener := range gatewaystatus.Listeners {
 		listenerCondition := NewCondition()
-		listenerCondition.
-			Type(conditionType).
-			Status(conditionStatus).
-			Reason(reason).
-			ObservedGeneration(gw.ObjectMeta.Generation).
-			Message(message).
-			SetIn(&status.Listeners[i].Conditions)
+		if listener.Conditions[0].Type == string(gatewayv1.ListenerConditionAccepted) && listener.Conditions[0].Status == metav1.ConditionTrue && listener.Conditions[1].Type == string(gatewayv1.ListenerConditionResolvedRefs) && listener.Conditions[1].Status == metav1.ConditionTrue {
+			listenerCondition.
+				Type(string(gatewayv1.ListenerConditionProgrammed)).
+				Status(conditionStatus).
+				Reason(string(gatewayv1.ListenerReasonProgrammed)).
+				ObservedGeneration(gw.ObjectMeta.Generation).
+				Message(message).
+				SetIn(&gatewaystatus.Listeners[i].Conditions)
+		} else {
+			listenerCondition.
+				Type(string(gatewayv1.ListenerConditionProgrammed)).
+				Status(metav1.ConditionFalse).
+				Reason(string(gatewayv1.ListenerReasonInvalid)).
+				ObservedGeneration(gw.ObjectMeta.Generation).
+				Message("Virtual service not configured/updated for this listener").
+				SetIn(&gatewaystatus.Listeners[i].Conditions)
+		}
 	}
-	o.Patch(key, gw, &Status{GatewayStatus: status})
+	o.Patch(key, gw, &status.Status{GatewayStatus: gatewaystatus})
 
 	// TODO: Annotation update code here
 }
@@ -193,39 +211,41 @@ func (o *gateway) BulkUpdate(key string, options []status.StatusOptions) {
 	for _, option := range options {
 		nsName := option.Options.ServiceMetadata.Gateway
 		if gw, ok := gwMap[nsName]; ok {
-			status := &gatewayv1.GatewayStatus{}
+			gatewaystatus := &gatewayv1.GatewayStatus{}
 			addressType := gatewayv1.IPAddressType
-			status.Addresses = append(status.Addresses, gatewayv1.GatewayStatusAddress{
+			gatewaystatus.Addresses = append(gatewaystatus.Addresses, gatewayv1.GatewayStatusAddress{
 				Type:  &addressType,
 				Value: option.Options.Vip[0],
 			})
-			apimeta.SetStatusCondition(&status.Conditions, metav1.Condition{
+			apimeta.SetStatusCondition(&gatewaystatus.Conditions, metav1.Condition{
 				Type:               string(gatewayv1.GatewayConditionProgrammed),
 				Status:             metav1.ConditionTrue,
 				Reason:             string(gatewayv1.GatewayReasonProgrammed),
 				Message:            "Virtual service configured/updated",
 				ObservedGeneration: gw.ObjectMeta.Generation + 1,
 			})
-			o.Patch(key, gw, &Status{GatewayStatus: status})
+
+			o.Patch(key, gw, &status.Status{GatewayStatus: gatewaystatus})
 
 			// TODO: Annotation update code here
 		}
 	}
 }
 
-func (o *gateway) Patch(key string, obj runtime.Object, status *Status, retryNum ...int) {
+func (o *gateway) Patch(key string, obj runtime.Object, status *status.Status, retryNum ...int) error {
 	retry := 0
 	if len(retryNum) > 0 {
 		retry = retryNum[0]
 		if retry >= 5 {
 			utils.AviLog.Errorf("key: %s, msg: Patch retried 5 times, aborting", key)
-			return
+			akogatewayapilib.AKOControlConfig().EventRecorder().Eventf(obj, corev1.EventTypeWarning, lib.PatchFailed, "Patch of status failed after multiple retries")
+			return errors.New("Patch retried 5 times, aborting")
 		}
 	}
 
 	gw := obj.(*gatewayv1.Gateway)
 	if o.isStatusEqual(&gw.Status, status.GatewayStatus) {
-		return
+		return nil
 	}
 
 	patchPayload, _ := json.Marshal(map[string]interface{}{
@@ -237,13 +257,13 @@ func (o *gateway) Patch(key string, obj runtime.Object, status *Status, retryNum
 		updatedGW, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(gw.Namespace).Get(gw.Name)
 		if err != nil {
 			utils.AviLog.Warnf("gateway not found %v", err)
-			return
+			return err
 		}
-		o.Patch(key, updatedGW, status, retry+1)
-		return
+		return o.Patch(key, updatedGW, status, retry+1)
 	}
 
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the gateway %s/%s status %+v", key, gw.Namespace, gw.Name, utils.Stringify(status))
+	return nil
 }
 
 func (o *gateway) isStatusEqual(old, new *gatewayv1.GatewayStatus) bool {

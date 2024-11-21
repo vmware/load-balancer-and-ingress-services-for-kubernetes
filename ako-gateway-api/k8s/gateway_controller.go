@@ -17,11 +17,14 @@ package k8s
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	discovery "k8s.io/api/discovery/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -30,6 +33,7 @@ import (
 	gatewayexternalversions "sigs.k8s.io/gateway-api/pkg/client/informers/externalversions"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -80,15 +84,13 @@ func (c *GatewayController) Start(stopCh <-chan struct{}) {
 		go c.informers.EpInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.informers.EpInformer.Informer().HasSynced)
 	}
-
-	if !lib.AviSecretInitialized {
-		go c.informers.SecretInformer.Informer().Run(stopCh)
-		informersList = append(informersList, c.informers.SecretInformer.Informer().HasSynced)
-	}
-
 	if lib.GetServiceType() == lib.NodePortLocal {
 		go c.informers.PodInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.informers.PodInformer.Informer().HasSynced)
+	}
+	if !lib.AviSecretInitialized {
+		go c.informers.SecretInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.informers.SecretInformer.Informer().HasSynced)
 	}
 
 	go akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Informer().Run(stopCh)
@@ -111,146 +113,238 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 	numWorkers := mcpQueue.NumWorkers
 
 	// Add EPSInformer
-	epsEventHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			eps := obj.(*discovery.EndpointSlice)
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(eps))
-			svcName, ok := eps.Labels[discovery.LabelServiceName]
-			if !ok || svcName == "" {
-				utils.AviLog.Debugf("Endpointslice Add event: Endpointslice does not have backing svc")
-				return
-			}
-			key := utils.Endpointslices + "/" + namespace + "/" + svcName
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: ADD", key)
-		},
-		DeleteFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			eps, ok := obj.(*discovery.EndpointSlice)
-			if !ok {
-				// endpoints were deleted but its final state is unrecorded.
-				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-				if !ok {
-					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
+		epsEventHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if c.DisableSync {
 					return
 				}
-				eps, ok = tombstone.Obj.(*discovery.EndpointSlice)
-				if !ok {
-					utils.AviLog.Errorf("Tombstone contained object that is not an Endpointslice: %#v", obj)
-					return
-				}
-			}
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(eps))
-			svcName, ok := eps.Labels[discovery.LabelServiceName]
-			if !ok || svcName == "" {
-				utils.AviLog.Debugf("Endpointslice Delete event: Endpointslice does not have backing svc")
-				return
-			}
-			key := utils.Endpointslices + "/" + namespace + "/" + svcName
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-		},
-		UpdateFunc: func(old, cur interface{}) {
-			if c.DisableSync {
-				return
-			}
-			oldEndpointSlice := old.(*discovery.EndpointSlice)
-			currentEndpointSlice := cur.(*discovery.EndpointSlice)
-			if oldEndpointSlice.ResourceVersion != currentEndpointSlice.ResourceVersion {
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(currentEndpointSlice))
-				svcName, ok := currentEndpointSlice.Labels[discovery.LabelServiceName]
+				eps := obj.(*discovery.EndpointSlice)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(eps))
+				svcName, ok := eps.Labels[discovery.LabelServiceName]
 				if !ok || svcName == "" {
-					svcNameOld, ok := oldEndpointSlice.Labels[discovery.LabelServiceName]
-					if !ok || svcNameOld == "" {
-						utils.AviLog.Debugf("Endpointslice Update event: Endpointslice does not have backing svc")
-						return
-					}
-					svcName = svcNameOld
+					utils.AviLog.Debugf("Endpointslice Add event: Endpointslice does not have backing svc")
+					return
 				}
 				key := utils.Endpointslices + "/" + namespace + "/" + svcName
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-			}
-		},
-	}
-
-	epEventHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			ep := obj.(*corev1.Endpoints)
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
-			key := utils.Endpoints + "/" + utils.ObjKey(ep)
-			if lib.IsNamespaceBlocked(namespace) {
-				utils.AviLog.Debugf("key: %s, msg: Endpoint Add event: Namespace: %s didn't qualify filter", key, namespace)
-				return
-			}
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: ADD", key)
-		},
-		DeleteFunc: func(obj interface{}) {
-			if c.DisableSync {
-				return
-			}
-			ep, ok := obj.(*corev1.Endpoints)
-			if !ok {
-				// endpoints were deleted but its final state is unrecorded.
-				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-				if !ok {
-					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			},
+			DeleteFunc: func(obj interface{}) {
+				if c.DisableSync {
 					return
 				}
-				ep, ok = tombstone.Obj.(*corev1.Endpoints)
+				eps, ok := obj.(*discovery.EndpointSlice)
 				if !ok {
-					utils.AviLog.Errorf("Tombstone contained object that is not an Endpoints: %#v", obj)
+					// endpoints were deleted but its final state is unrecorded.
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					eps, ok = tombstone.Obj.(*discovery.EndpointSlice)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not an Endpointslice: %#v", obj)
+						return
+					}
+				}
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(eps))
+				svcName, ok := eps.Labels[discovery.LabelServiceName]
+				if !ok || svcName == "" {
+					utils.AviLog.Debugf("Endpointslice Delete event: Endpointslice does not have backing svc")
 					return
 				}
-			}
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
-			key := utils.Endpoints + "/" + utils.ObjKey(ep)
-			if lib.IsNamespaceBlocked(namespace) {
-				utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
-				return
-			}
-			bkt := utils.Bkt(namespace, numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-		},
-		UpdateFunc: func(old, cur interface{}) {
-			if c.DisableSync {
-				return
-			}
-			oep := old.(*corev1.Endpoints)
-			cep := cur.(*corev1.Endpoints)
-			if !reflect.DeepEqual(cep.Subsets, oep.Subsets) {
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(cep))
-				key := utils.Endpoints + "/" + utils.ObjKey(cep)
+				key := utils.Endpointslices + "/" + namespace + "/" + svcName
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			},
+			UpdateFunc: func(old, cur interface{}) {
+				if c.DisableSync {
+					return
+				}
+				oldEndpointSlice := old.(*discovery.EndpointSlice)
+				currentEndpointSlice := cur.(*discovery.EndpointSlice)
+				if oldEndpointSlice.ResourceVersion != currentEndpointSlice.ResourceVersion {
+					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(currentEndpointSlice))
+					svcName, ok := currentEndpointSlice.Labels[discovery.LabelServiceName]
+					if !ok || svcName == "" {
+						svcNameOld, ok := oldEndpointSlice.Labels[discovery.LabelServiceName]
+						if !ok || svcNameOld == "" {
+							utils.AviLog.Debugf("Endpointslice Update event: Endpointslice does not have backing svc")
+							return
+						}
+						svcName = svcNameOld
+					}
+					key := utils.Endpointslices + "/" + namespace + "/" + svcName
+					bkt := utils.Bkt(namespace, numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				}
+			},
+		}
+		c.informers.EpSlicesInformer.Informer().AddEventHandler(epsEventHandler)
+	} else if lib.GetServiceType() != lib.NodePortLocal {
+		epEventHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				ep := obj.(*corev1.Endpoints)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
+				key := utils.Endpoints + "/" + utils.ObjKey(ep)
+				if lib.IsNamespaceBlocked(namespace) {
+					utils.AviLog.Debugf("key: %s, msg: Endpoint Add event: Namespace: %s didn't qualify filter", key, namespace)
+					return
+				}
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			},
+			DeleteFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				ep, ok := obj.(*corev1.Endpoints)
+				if !ok {
+					// endpoints were deleted but its final state is unrecorded.
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					ep, ok = tombstone.Obj.(*corev1.Endpoints)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not an Endpoints: %#v", obj)
+						return
+					}
+				}
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
+				key := utils.Endpoints + "/" + utils.ObjKey(ep)
 				if lib.IsNamespaceBlocked(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
 					return
 				}
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-			}
-		},
-	}
-	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
-		c.informers.EpSlicesInformer.Informer().AddEventHandler(epsEventHandler)
-	} else if lib.GetServiceType() != lib.NodePortLocal {
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			},
+			UpdateFunc: func(old, cur interface{}) {
+				if c.DisableSync {
+					return
+				}
+				oep := old.(*corev1.Endpoints)
+				cep := cur.(*corev1.Endpoints)
+				if !reflect.DeepEqual(cep.Subsets, oep.Subsets) {
+					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(cep))
+					key := utils.Endpoints + "/" + utils.ObjKey(cep)
+					if lib.IsNamespaceBlocked(namespace) {
+						utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
+						return
+					}
+					bkt := utils.Bkt(namespace, numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				}
+			},
+		}
 		c.informers.EpInformer.Informer().AddEventHandler(epEventHandler)
 	}
 
+	if lib.GetServiceType() == lib.NodePortLocal {
+		podEventHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				pod := obj.(*corev1.Pod)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(pod))
+				key := utils.Pod + "/" + utils.ObjKey(pod)
+				if lib.IsNamespaceBlocked(namespace) {
+					utils.AviLog.Debugf("key : %s, msg: Pod Add event: Namespace: %s didn't qualify filter", key, namespace)
+					return
+				}
+				ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
+				if ok && resVer.(string) == pod.ResourceVersion {
+					utils.AviLog.Debugf("key : %s, msg: same resource version returning", key)
+					return
+				}
+				if _, ok := pod.GetAnnotations()[lib.NPLPodAnnotation]; !ok {
+					utils.AviLog.Warnf("key : %s, msg: 'nodeportlocal.antrea.io' annotation not found, ignoring the pod", key)
+					return
+				}
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			},
+			DeleteFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				pod, ok := obj.(*corev1.Pod)
+				if !ok {
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					pod, ok = tombstone.Obj.(*corev1.Pod)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not a Pod: %#v", obj)
+						return
+					}
+				}
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(pod))
+				key := utils.Pod + "/" + utils.ObjKey(pod)
+				if lib.IsNamespaceBlocked(namespace) {
+					utils.AviLog.Debugf("key: %s, msg: Pod Delete event: Namespace: %s didn't qualify filter", key, namespace)
+					return
+				}
+				if _, ok := pod.GetAnnotations()[lib.NPLPodAnnotation]; !ok {
+					utils.AviLog.Warnf("key : %s, msg: 'nodeportlocal.antrea.io' annotation not found, ignoring the pod", key)
+					return
+				}
+				bkt := utils.Bkt(namespace, numWorkers)
+				objects.SharedResourceVerInstanceLister().Delete(key)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			},
+			UpdateFunc: func(old, cur interface{}) {
+				if c.DisableSync {
+					return
+				}
+				oldPod := old.(*corev1.Pod)
+				newPod := cur.(*corev1.Pod)
+				key := utils.Pod + "/" + utils.ObjKey(oldPod)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newPod))
+				if lib.IsNamespaceBlocked(namespace) {
+					utils.AviLog.Debugf("key: %s, msg: Pod Update event: Namespace: %s didn't qualify filter", key, namespace)
+					return
+				}
+				if _, ok := newPod.GetAnnotations()[lib.NPLPodAnnotation]; !ok {
+					utils.AviLog.Warnf("key : %s, msg: 'nodeportlocal.antrea.io' annotation not found, ignoring the pod", key)
+					return
+				}
+				for _, container := range newPod.Status.ContainerStatuses {
+					if !container.Ready {
+						if container.State.Terminated != nil {
+							utils.AviLog.Warnf("key : %s, msg: Container %s is in terminated state, ignoring pod update", key, container.Name)
+							return
+						}
+						if container.State.Waiting != nil && container.State.Waiting.Reason == "CrashLoopBackOff" {
+							utils.AviLog.Warnf("key : %s, msg: Container %s is in CrashLoopBackOff state, ignoring pod update", key, container.Name)
+							return
+						}
+					}
+				}
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+			},
+		}
+		c.informers.PodInformer.Informer().AddEventHandler(podEventHandler)
+	}
 	svcEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -381,6 +475,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 	if c.informers.SecretInformer != nil {
 		c.informers.SecretInformer.Informer().AddEventHandler(secretEventHandler)
 	}
+
 }
 
 func checkAviSecretUpdateAndShutdown(secret *corev1.Secret) bool {
@@ -409,13 +504,23 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 				utils.AviLog.Debugf("key: %s, msg: same resource version returning", key)
 				return
 			}
-			if !IsValidGateway(key, gw) {
+			valid, allowedRoutesAll := IsValidGateway(key, gw)
+			if !valid {
 				return
+			}
+			listRoutes, err := validateReferredHTTPRoute(key, allowedRoutesAll, gw)
+			if err != nil {
+				utils.AviLog.Errorf("Validation of Referred HTTPRoutes failed due to error : %s", err.Error())
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			for _, route := range listRoutes {
+				key := lib.HTTPRoute + "/" + utils.ObjKey(route)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -440,6 +545,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
+			akogatewayapiobjects.GatewayApiLister().DeleteGatewayToGatewayStatusMapping(utils.ObjKey(gw))
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 		},
 		UpdateFunc: func(old, obj interface{}) {
@@ -450,13 +556,23 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			gw := obj.(*gatewayv1.Gateway)
 			if IsGatewayUpdated(oldGw, gw) {
 				key := lib.Gateway + "/" + utils.ObjKey(gw)
-				if !IsValidGateway(key, gw) {
+				valid, allowedRoutesAll := IsValidGateway(key, gw)
+				if !valid {
 					return
+				}
+				listRoutes, err := validateReferredHTTPRoute(key, allowedRoutesAll, gw)
+				if err != nil {
+					utils.AviLog.Errorf("Validation of Referred HTTPRoutes Failed due to error : %s", err.Error())
 				}
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				for _, route := range listRoutes {
+					key := lib.HTTPRoute + "/" + utils.ObjKey(route)
+					c.workqueue[bkt].AddRateLimited(key)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				}
 			}
 		},
 	}
@@ -543,7 +659,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 				utils.AviLog.Debugf("key: %s, msg: same resource version returning", key)
 				return
 			}
-			if !IsHTTPRouteValid(key, httpRoute) {
+			if !IsHTTPRouteConfigValid(key, httpRoute) {
 				return
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httpRoute))
@@ -574,6 +690,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(httpRoute))
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
+			akogatewayapiobjects.GatewayApiLister().DeleteRouteToRouteStatusMapping(utils.ObjKey(httpRoute))
 			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 		},
 		UpdateFunc: func(old, obj interface{}) {
@@ -584,7 +701,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			newHTTPRoute := obj.(*gatewayv1.HTTPRoute)
 			if IsHTTPRouteUpdated(oldHTTPRoute, newHTTPRoute) {
 				key := lib.HTTPRoute + "/" + utils.ObjKey(newHTTPRoute)
-				if !IsHTTPRouteValid(key, newHTTPRoute) {
+				if !IsHTTPRouteConfigValid(key, newHTTPRoute) {
 					return
 				}
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(newHTTPRoute))
@@ -621,4 +738,32 @@ func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
 		return configMap, true
 	}
 	return nil, false
+}
+func validateReferredHTTPRoute(key string, allowedRoutesAll bool, gateway *gatewayv1.Gateway) ([]*gatewayv1.HTTPRoute, error) {
+	namespace := gateway.Namespace
+	if allowedRoutesAll {
+		namespace = metav1.NamespaceAll
+	}
+	hrObjs, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).List(labels.Set(nil).AsSelector())
+	httpRoutes := make([]*gatewayv1.HTTPRoute, 0)
+	if err != nil {
+		return nil, err
+	}
+	for _, httpRoute := range hrObjs {
+		for _, parentRef := range httpRoute.Spec.ParentRefs {
+			if parentRef.Name == gatewayv1.ObjectName(gateway.Name) {
+				if IsHTTPRouteConfigValid(key, httpRoute) {
+					httpRoutes = append(httpRoutes, httpRoute)
+				}
+				break
+			}
+		}
+	}
+	sort.Slice(httpRoutes, func(i, j int) bool {
+		if httpRoutes[i].GetCreationTimestamp().Unix() == httpRoutes[j].GetCreationTimestamp().Unix() {
+			return httpRoutes[i].Namespace+"/"+httpRoutes[i].Name < httpRoutes[j].Namespace+"/"+httpRoutes[j].Name
+		}
+		return httpRoutes[i].GetCreationTimestamp().Unix() < httpRoutes[j].GetCreationTimestamp().Unix()
+	})
+	return httpRoutes, nil
 }

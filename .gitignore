@@ -2,7 +2,7 @@ bin/ako
 bin/avi.log
 .golangci-bin/
 cover-*.out
-
+*.log 
 # IDE
 .idea
 .vscode

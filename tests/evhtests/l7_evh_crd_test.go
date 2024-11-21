@@ -46,14 +46,17 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
-var KubeClient *k8sfake.Clientset
-var CRDClient *crdfake.Clientset
-var v1alpha2CRDClient *v1alpha2crdfake.Clientset
-var v1beta1CRDClient *v1beta1crdfake.Clientset
-var ctrl *k8s.AviController
-var akoApiServer *api.FakeApiServer
-var keyChan chan string
-var endpointSliceEnabled bool
+var (
+	KubeClient           *k8sfake.Clientset
+	CRDClient            *crdfake.Clientset
+	v1alpha2CRDClient    *v1alpha2crdfake.Clientset
+	v1beta1CRDClient     *v1beta1crdfake.Clientset
+	ctrl                 *k8s.AviController
+	akoApiServer         *api.FakeApiServer
+	keyChan              chan string
+	endpointSliceEnabled bool
+	objNameMap           integrationtest.ObjectNameMap
+)
 
 var isVipPerNS = flag.String("isVipPerNS", "false", "is vip per namespace enabled")
 
@@ -168,7 +171,40 @@ func TestMain(m *testing.M) {
 	integrationtest.AddDefaultNamespace()
 	integrationtest.AddDefaultNamespace("red")
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
+	objNameMap.InitMap()
 	os.Exit(m.Run())
+}
+
+type IngressTestObject struct {
+	ingressName string
+	namespace   string
+	dnsNames    []string
+	ipAddrs     []string
+	hostnames   []string
+	paths       []string
+	isTLS       bool
+	withSecret  bool
+	secretName  string
+	serviceName string
+	modelNames  []string
+}
+
+func (ing *IngressTestObject) FillParams() {
+	if ing.namespace == "" {
+		ing.namespace = "default"
+	}
+	if len(ing.dnsNames) == 0 {
+		ing.dnsNames = append(ing.dnsNames, "foo.com")
+	}
+	if len(ing.ipAddrs) == 0 {
+		ing.ipAddrs = append(ing.ipAddrs, "8.8.8.8")
+	}
+	if len(ing.hostnames) == 0 {
+		ing.hostnames = append(ing.hostnames, "v1")
+	}
+	if len(ing.paths) == 0 {
+		ing.paths = append(ing.paths, "/foo")
+	}
 }
 
 func SetupDomain() {
@@ -179,108 +215,87 @@ func SetupDomain() {
 	mcache.CloudKeyCache.AviCacheAdd("Default-Cloud", cloudObj)
 }
 
-func SetUpTestForIngress(t *testing.T, modelNames ...string) {
+func SetUpTestForIngress(t *testing.T, svcName string, modelNames ...string) {
 	for _, model := range modelNames {
 		objects.SharedAviGraphLister().Delete(model)
 	}
-	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, "default", "avisvc", false, false, "1.1.1")
+	integrationtest.CreateSVC(t, "default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPorEPS(t, "default", svcName, false, false, "1.1.1")
 }
 
-func TearDownTestForIngress(t *testing.T, modelNames ...string) {
-	// for _, model := range modelNames {
-	// 	objects.SharedAviGraphLister().Delete(model)
-	// }
-	integrationtest.DelSVC(t, "default", "avisvc")
-	integrationtest.DelEPorEPS(t, "default", "avisvc")
+func TearDownTestForIngress(t *testing.T, svcName string, modelNames ...string) {
+	//for _, model := range modelNames {
+	//	objects.SharedAviGraphLister().Delete(model)
+	//}
+	integrationtest.DelSVC(t, "default", svcName)
+	integrationtest.DelEPorEPS(t, "default", svcName)
 }
 
-func SetUpIngressForCacheSyncCheck(t *testing.T, tlsIngress, withSecret bool, modelNames ...string) {
+func SetUpIngressForCacheSyncCheck(t *testing.T, ingTestObj IngressTestObject) {
 	SetupDomain()
-	SetUpTestForIngress(t, modelNames...)
+	SetUpTestForIngress(t, ingTestObj.serviceName, ingTestObj.modelNames...)
 	ingressObject := integrationtest.FakeIngress{
-		Name:        "foo-with-targets",
-		Namespace:   "default",
-		DnsNames:    []string{"foo.com"},
-		Ips:         []string{"8.8.8.8"},
-		HostNames:   []string{"v1"},
-		Paths:       []string{"/foo"},
-		ServiceName: "avisvc",
+		Name:        ingTestObj.ingressName,
+		Namespace:   ingTestObj.namespace,
+		DnsNames:    ingTestObj.dnsNames,
+		Ips:         ingTestObj.ipAddrs,
+		HostNames:   ingTestObj.hostnames,
+		Paths:       ingTestObj.paths,
+		ServiceName: ingTestObj.serviceName,
 	}
-	if withSecret {
-		integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
+	if ingTestObj.withSecret {
+		integrationtest.AddSecret(ingTestObj.secretName, ingTestObj.namespace, "tlsCert", "tlsKey")
 	}
-	if tlsIngress {
+	if ingTestObj.isTLS {
 		ingressObject.TlsSecretDNS = map[string][]string{
-			"my-secret": {"foo.com"},
+			ingTestObj.secretName: {"foo.com"},
 		}
 	}
 	ingrFake := ingressObject.Ingress()
-	if _, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
+	if _, err := KubeClient.NetworkingV1().Ingresses(ingTestObj.namespace).Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Ingress: %v", err)
 	}
-	integrationtest.PollForCompletion(t, modelNames[0], 5)
+	integrationtest.PollForCompletion(t, ingTestObj.modelNames[0], 5)
 }
 
-func TearDownIngressForCacheSyncCheck(t *testing.T, modelName string) {
-	if err := KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{}); err != nil {
+func TearDownIngressForCacheSyncCheck(t *testing.T, secretName, ingressName, svcName, modelName string) {
+	if err := KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingressName, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
-	TearDownTestForIngress(t, modelName)
-}
-
-func SetUpIngressForCacheSyncCheckMultiPaths(t *testing.T, tlsIngress, withSecret bool, fqdns []string, paths []string, modelNames ...string) {
-	SetupDomain()
-	SetUpTestForIngress(t, modelNames...)
-	ingressObject := integrationtest.FakeIngress{
-		Name:        "app-root-test",
-		Namespace:   "default",
-		DnsNames:    fqdns,
-		Ips:         []string{"8.8.8.8"},
-		HostNames:   []string{"v1"},
-		Paths:       paths,
-		ServiceName: "avisvc",
+	if secretName != "" {
+		KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), secretName, metav1.DeleteOptions{})
 	}
-	if withSecret {
-		integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
-	}
-	if tlsIngress {
-		ingressObject.TlsSecretDNS = map[string][]string{
-			"my-secret": {"foo.com"},
-		}
-	}
-	ingrFake := ingressObject.Ingress()
-	if _, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error in adding Ingress: %v", err)
-	}
-	integrationtest.PollForCompletion(t, modelNames[0], 5)
-}
-
-func TearDownIngressForCacheSyncCheckPath(t *testing.T, modelName string) {
-	if err := KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "app-root-test", metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("Couldn't DELETE the Ingress %v", err)
-	}
-	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-secret", metav1.DeleteOptions{})
-	TearDownTestForIngress(t, modelName)
+	TearDownTestForIngress(t, svcName, modelName)
 }
 
 func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
-	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
+	integrationtest.SetupHostRule(t, hrName, "foo.com", true)
 
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
-	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/"+hrName, true)
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
@@ -312,7 +327,7 @@ func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 
 	//Update with another fqdn
 	hrUpdate := integrationtest.FakeHostRule{
-		Name:              hrname,
+		Name:              hrName,
 		Namespace:         "default",
 		Fqdn:              "foo.com",
 		SslKeyCertificate: "thisisaviref-sslkey",
@@ -326,7 +341,7 @@ func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 	g.Eventually(func() []string {
@@ -351,7 +366,7 @@ func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 
 	//Delete/Disable
 	hrUpdate = integrationtest.FakeHostRule{
-		Name:              hrname,
+		Name:              hrName,
 		Namespace:         "default",
 		Fqdn:              "foo.com",
 		SslKeyCertificate: "thisisaviref-sslkey",
@@ -371,7 +386,7 @@ func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 		return true
 	}, 25*time.Second).Should(gomega.Equal(false))
 
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].EvhNodes[0].Enabled).To(gomega.BeNil())
@@ -383,22 +398,34 @@ func TestCreateUpdateDeleteHostRuleForEvh(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].EvhNodes[0].VsDatascriptRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].SslProfileRef).To(gomega.BeNil())
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestCreateDeleteSharedVSHostRuleForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	fqdn := "cluster--Shared-L7-EVH-0.admin.com"
 	if lib.VIPPerNamespace() {
 		fqdn = "cluster--Shared-L7-EVH-NS-default.admin.com"
 	}
 	hostrule := integrationtest.FakeHostRule{
-		Name:                  hrname,
+		Name:                  hrName,
 		Namespace:             "default",
 		Fqdn:                  fqdn,
 		WafPolicy:             "thisisaviref-waf",
@@ -421,12 +448,12 @@ func TestCreateDeleteSharedVSHostRuleForEvh(t *testing.T) {
 	}
 
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: strings.Split(modelName, "/")[1]}
-	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/"+hrName, true)
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].Enabled).To(gomega.Equal(true))
@@ -456,7 +483,7 @@ func TestCreateDeleteSharedVSHostRuleForEvh(t *testing.T) {
 	g.Expect(ports[1]).To(gomega.Equal(8082))
 	g.Expect(ports[2]).To(gomega.Equal(8083))
 
-	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
+	integrationtest.TeardownHostRule(t, g, vsKey, hrName)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].Enabled).To(gomega.BeNil())
@@ -481,22 +508,34 @@ func TestCreateDeleteSharedVSHostRuleForEvh(t *testing.T) {
 	g.Expect(ports[0]).To(gomega.Equal(80))
 	g.Expect(ports[1]).To(gomega.Equal(443))
 
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestCreateHostRuleBeforeIngressForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
-	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	integrationtest.SetupHostRule(t, hrName, "foo.com", true)
 
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	g.Eventually(func() string {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -508,7 +547,7 @@ func TestCreateHostRuleBeforeIngressForEvh(t *testing.T) {
 	}, 10*time.Second).Should(gomega.ContainSubstring("thisisaviref-sslkey"))
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
 
 	g.Eventually(func() string {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -518,7 +557,7 @@ func TestCreateHostRuleBeforeIngressForEvh(t *testing.T) {
 		}
 		return ""
 	}, 10*time.Second).Should(gomega.Equal(""))
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestGoodToBadHostRuleForEvh(t *testing.T) {
@@ -526,16 +565,26 @@ func TestGoodToBadHostRuleForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
-	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       false,
+		withSecret:  false,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
+	integrationtest.SetupHostRule(t, hrName, "foo.com", true)
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
-	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/"+hrName, true)
 
 	// update hostrule with bad ref
 	hrUpdate := integrationtest.FakeHostRule{
-		Name:               hrname,
+		Name:               hrName,
 		Namespace:          "default",
 		Fqdn:               "voo.com",
 		WafPolicy:          "thisisBADaviref",
@@ -547,7 +596,7 @@ func TestGoodToBadHostRuleForEvh(t *testing.T) {
 	}
 
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Rejected"))
 
@@ -566,8 +615,8 @@ func TestGoodToBadHostRuleForEvh(t *testing.T) {
 	g.Expect(*nodes[0].EvhNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
 	g.Expect(*nodes[0].EvhNodes[0].ApplicationProfileRef).To(gomega.ContainSubstring("thisisaviref-appprof"))
 
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
+	TearDownIngressForCacheSyncCheck(t, "", ingressName, svcName, modelName)
 }
 
 func TestInsecureHostAndHostruleForEvh(t *testing.T) {
@@ -575,9 +624,19 @@ func TestInsecureHostAndHostruleForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
-	integrationtest.SetupHostRule(t, hrname, "foo.com", false)
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       false,
+		withSecret:  false,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
+	integrationtest.SetupHostRule(t, hrName, "foo.com", false)
 
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -585,7 +644,7 @@ func TestInsecureHostAndHostruleForEvh(t *testing.T) {
 		return len(nodes[0].EvhNodes)
 	}, 10*time.Second).Should(gomega.Equal(1))
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
-	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/"+hrName, true)
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
@@ -598,7 +657,7 @@ func TestInsecureHostAndHostruleForEvh(t *testing.T) {
 	//Update host rule with another fqdn
 	//Update with another fqdn
 	hrUpdate := integrationtest.FakeHostRule{
-		Name:      hrname,
+		Name:      hrName,
 		Namespace: "default",
 		Fqdn:      "foo.com",
 	}.HostRule()
@@ -611,7 +670,7 @@ func TestInsecureHostAndHostruleForEvh(t *testing.T) {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 	g.Eventually(func() int {
@@ -628,17 +687,27 @@ func TestInsecureHostAndHostruleForEvh(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].VHDomainNames).To(gomega.HaveLen(2))
 	g.Expect(nodes[0].EvhNodes[0].VHDomainNames).To(gomega.ContainElement("baz.com"))
 
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
+	TearDownIngressForCacheSyncCheck(t, "", ingressName, svcName, modelName)
 }
 
 func TestHostruleAnalyticsPolicyUpdateForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "ap-hr-foo"
-	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
-	integrationtest.SetupHostRule(t, hrname, "foo.com", false)
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       false,
+		withSecret:  false,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
+	integrationtest.SetupHostRule(t, hrName, "foo.com", false)
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
@@ -655,7 +724,7 @@ func TestHostruleAnalyticsPolicyUpdateForEvh(t *testing.T) {
 
 	// Update host rule with AnalyticsPolicy
 	hrUpdate := integrationtest.FakeHostRule{
-		Name:      hrname,
+		Name:      hrName,
 		Namespace: "default",
 		Fqdn:      "foo.com",
 	}.HostRule()
@@ -674,7 +743,7 @@ func TestHostruleAnalyticsPolicyUpdateForEvh(t *testing.T) {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -702,7 +771,7 @@ func TestHostruleAnalyticsPolicyUpdateForEvh(t *testing.T) {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -719,17 +788,29 @@ func TestHostruleAnalyticsPolicyUpdateForEvh(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].EvhNodes[0].AnalyticsPolicy).Should(gomega.BeNil())
 
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
+	TearDownIngressForCacheSyncCheck(t, "", ingressName, svcName, modelName)
 }
 
 func TestHostruleFQDNAliasesForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "fqdn-aliases-hr-foo"
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
-	integrationtest.SetupHostRule(t, hrname, "foo.com", false)
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
+	integrationtest.SetupHostRule(t, hrName, "foo.com", false)
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
@@ -766,7 +847,7 @@ func TestHostruleFQDNAliasesForEvh(t *testing.T) {
 
 	// Update host rule with a valid FQDN Aliases
 	hrUpdate := integrationtest.FakeHostRule{
-		Name:      hrname,
+		Name:      hrName,
 		Namespace: "default",
 		Fqdn:      "foo.com",
 	}.HostRule()
@@ -779,7 +860,7 @@ func TestHostruleFQDNAliasesForEvh(t *testing.T) {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -804,7 +885,7 @@ func TestHostruleFQDNAliasesForEvh(t *testing.T) {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -829,7 +910,7 @@ func TestHostruleFQDNAliasesForEvh(t *testing.T) {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -845,8 +926,8 @@ func TestHostruleFQDNAliasesForEvh(t *testing.T) {
 	// Check whether the Alias reference is properly removed from Parent and Child VSes.
 	validateNode(nodes[0], aliases)
 
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestHostruleFQDNAliasesForMultiPathIngressEvh(t *testing.T) {
@@ -854,22 +935,25 @@ func TestHostruleFQDNAliasesForMultiPathIngressEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "fqdn-aliases-hr-multipath-foo"
+	hrName := objNameMap.GenerateName("samplehr-foo")
 
 	SetupDomain()
-	SetUpTestForIngress(t, modelName)
-	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	SetUpTestForIngress(t, svcName, modelName)
+	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
 	integrationtest.PollForCompletion(t, modelName, 5)
 	ingressObject := integrationtest.FakeIngress{
-		Name:        "foo-with-targets",
+		Name:        ingressName,
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
 		Ips:         []string{"10.0.0.1"},
 		HostNames:   []string{"v1"},
 		Paths:       []string{"/foo", "/bar"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
-			"my-secret": {"foo.com"},
+			secretName: {"foo.com"},
 		},
 	}
 
@@ -881,7 +965,7 @@ func TestHostruleFQDNAliasesForMultiPathIngressEvh(t *testing.T) {
 
 	// Create the hostrule with a valid FQDN Aliases
 	hrUpdate := integrationtest.FakeHostRule{
-		Name:      hrname,
+		Name:      hrName,
 		Namespace: "default",
 		Fqdn:      "foo.com",
 	}.HostRule()
@@ -894,7 +978,7 @@ func TestHostruleFQDNAliasesForMultiPathIngressEvh(t *testing.T) {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -931,20 +1015,32 @@ func TestHostruleFQDNAliasesForMultiPathIngressEvh(t *testing.T) {
 	}
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestApplyHostruleToParentVS(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "hr-cluster--Shared-L7-EVH-0"
+	hrName := objNameMap.GenerateName("samplehr-foo")
 
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	hostrule := integrationtest.FakeHostRule{
-		Name:               hrname,
+		Name:               hrName,
 		Namespace:          "default",
 		WafPolicy:          "thisisaviref-waf",
 		ApplicationProfile: "thisisaviref-appprof",
@@ -962,7 +1058,7 @@ func TestApplyHostruleToParentVS(t *testing.T) {
 	}
 
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 30*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -986,7 +1082,7 @@ func TestApplyHostruleToParentVS(t *testing.T) {
 	g.Expect(nodes[0].VsDatascriptRefs[0]).To(gomega.ContainSubstring("thisisaviref-ds2"))
 	g.Expect(nodes[0].VsDatascriptRefs[1]).To(gomega.ContainSubstring("thisisaviref-ds1"))
 
-	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
+	integrationtest.TeardownHostRule(t, g, vsKey, hrName)
 	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/hr-cluster--Shared-L7-EVH-0", false)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
@@ -1000,18 +1096,30 @@ func TestApplyHostruleToParentVS(t *testing.T) {
 	g.Expect(nodes[0].VsDatascriptRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].SslProfileRef).To(gomega.BeNil())
 
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestHostRuleWithEmptyConfig(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	hostrule := integrationtest.FakeHostRule{
-		Name:      hrname,
+		Name:      hrName,
 		Namespace: "default",
 		Fqdn:      "foo.com",
 	}
@@ -1022,7 +1130,7 @@ func TestHostRuleWithEmptyConfig(t *testing.T) {
 	}
 
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -1033,7 +1141,7 @@ func TestHostRuleWithEmptyConfig(t *testing.T) {
 		return found
 	}, 25*time.Second).Should(gomega.Equal(true))
 
-	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/"+hrName, true)
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].EvhNodes[0].Enabled).To(gomega.Equal(true))
@@ -1051,7 +1159,7 @@ func TestHostRuleWithEmptyConfig(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[1].RedirectPorts[0].Hosts).To(gomega.ContainElement("foo.com"))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Host).To(gomega.ContainElement("foo.com"))
 
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].EvhNodes[0].Enabled).To(gomega.BeNil())
@@ -1063,22 +1171,34 @@ func TestHostRuleWithEmptyConfig(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].EvhNodes[0].VsDatascriptRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].SslProfileRef).To(gomega.BeNil())
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestSharedVSHostRuleNoListenerForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	fqdn := "cluster--Shared-L7-EVH-0.admin.com"
 	if lib.VIPPerNamespace() {
 		fqdn = "cluster--Shared-L7-EVH-NS-default.admin.com"
 	}
 	hostrule := integrationtest.FakeHostRule{
-		Name:               hrname,
+		Name:               hrName,
 		Namespace:          "default",
 		Fqdn:               fqdn,
 		WafPolicy:          "thisisaviref-waf",
@@ -1098,12 +1218,12 @@ func TestSharedVSHostRuleNoListenerForEvh(t *testing.T) {
 	}
 
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: strings.Split(modelName, "/")[1]}
-	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/"+hrName, true)
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].Enabled).To(gomega.Equal(true))
@@ -1120,8 +1240,8 @@ func TestSharedVSHostRuleNoListenerForEvh(t *testing.T) {
 	g.Expect(ports[1]).To(gomega.Equal(443))
 	g.Expect(nodes[0].VSVIPRefs[0].IPAddress).To(gomega.Equal("80.80.80.80"))
 
-	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	integrationtest.TeardownHostRule(t, g, vsKey, hrName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 // HttpRule tests
@@ -1134,22 +1254,25 @@ func TestHTTPRuleCreateDeleteForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	rrname := "samplerr-foo"
+	rrName := objNameMap.GenerateName("samplerr-foo")
 
 	SetupDomain()
-	SetUpTestForIngress(t, modelName)
-	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	SetUpTestForIngress(t, svcName, modelName)
+	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
 	integrationtest.PollForCompletion(t, modelName, 5)
 	ingressObject := integrationtest.FakeIngress{
-		Name:        "foo-with-targets",
+		Name:        ingressName,
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
 		Ips:         []string{"8.8.8.8"},
 		HostNames:   []string{"v1"},
 		Paths:       []string{"/foo", "/bar"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
-			"my-secret": {"foo.com"},
+			secretName: {"foo.com"},
 		},
 	}
 
@@ -1159,12 +1282,12 @@ func TestHTTPRuleCreateDeleteForEvh(t *testing.T) {
 	}
 	integrationtest.PollForCompletion(t, modelName, 5)
 
-	poolFooKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com_foo-foo-with-targets-avisvc", lib.Pool)}
-	poolBarKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com_bar-foo-with-targets-avisvc", lib.Pool)}
+	poolFooKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com_foo-"+ingressName+"-"+svcName, lib.Pool)}
+	poolBarKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com_bar-"+ingressName+"-"+svcName, lib.Pool)}
 	httpRulePath := "/"
-	integrationtest.SetupHTTPRule(t, rrname, "foo.com", httpRulePath)
-	integrationtest.VerifyMetadataHTTPRule(t, g, poolFooKey, "default/"+rrname+"/"+httpRulePath, true)
-	integrationtest.VerifyMetadataHTTPRule(t, g, poolBarKey, "default/"+rrname+"/"+httpRulePath, true)
+	integrationtest.SetupHTTPRule(t, rrName, "foo.com", httpRulePath)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolFooKey, "default/"+rrName+"/"+httpRulePath, true)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolBarKey, "default/"+rrName+"/"+httpRulePath, true)
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].EvhNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH"))
@@ -1176,9 +1299,9 @@ func TestHTTPRuleCreateDeleteForEvh(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs[1]).To(gomega.ContainSubstring("thisisaviref-hm1"))
 
 	// delete httprule deletes refs as well
-	integrationtest.TeardownHTTPRule(t, rrname)
-	integrationtest.VerifyMetadataHTTPRule(t, g, poolFooKey, "default/"+rrname+"/"+httpRulePath, false)
-	integrationtest.VerifyMetadataHTTPRule(t, g, poolBarKey, "default/"+rrname+"/"+httpRulePath, false)
+	integrationtest.TeardownHTTPRule(t, rrName)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolFooKey, "default/"+rrName+"/"+httpRulePath, false)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolBarKey, "default/"+rrName+"/"+httpRulePath, false)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.BeNil())
@@ -1186,29 +1309,32 @@ func TestHTTPRuleCreateDeleteForEvh(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].PkiProfile).To(gomega.BeNil())
 	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs).To(gomega.HaveLen(0))
 
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestHTTPRuleCreateDeleteWithPkiRefForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	rrname := "samplerr-foo"
+	rrName := objNameMap.GenerateName("samplerr-foo")
 
 	SetupDomain()
-	SetUpTestForIngress(t, modelName)
-	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	SetUpTestForIngress(t, svcName, modelName)
+	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
 	integrationtest.PollForCompletion(t, modelName, 5)
 	ingressObject := integrationtest.FakeIngress{
-		Name:        "foo-with-targets",
+		Name:        ingressName,
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
 		Ips:         []string{"8.8.8.8"},
 		HostNames:   []string{"v1"},
 		Paths:       []string{"/foo", "/bar"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
-			"my-secret": {"foo.com"},
+			secretName: {"foo.com"},
 		},
 	}
 
@@ -1218,11 +1344,11 @@ func TestHTTPRuleCreateDeleteWithPkiRefForEvh(t *testing.T) {
 	}
 	integrationtest.PollForCompletion(t, modelName, 5)
 
-	poolFooKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com_foo-foo-with-targets-avisvc", lib.Pool)}
-	poolBarKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com_bar-foo-with-targets-avisvc", lib.Pool)}
+	poolFooKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com_foo-"+ingressName+"-"+svcName, lib.Pool)}
+	poolBarKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com_bar-"+ingressName+"-"+svcName, lib.Pool)}
 	httpRulePath := "/"
 	httprule := integrationtest.FakeHTTPRule{
-		Name:      rrname,
+		Name:      rrName,
 		Namespace: "default",
 		Fqdn:      "foo.com",
 		PathProperties: []integrationtest.FakeHTTPRulePath{{
@@ -1237,8 +1363,8 @@ func TestHTTPRuleCreateDeleteWithPkiRefForEvh(t *testing.T) {
 		t.Fatalf("error in adding HTTPRule: %v", err)
 	}
 
-	integrationtest.VerifyMetadataHTTPRule(t, g, poolFooKey, "default/"+rrname+"/"+httpRulePath, true)
-	integrationtest.VerifyMetadataHTTPRule(t, g, poolBarKey, "default/"+rrname+"/"+httpRulePath, true)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolFooKey, "default/"+rrName+"/"+httpRulePath, true)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolBarKey, "default/"+rrName+"/"+httpRulePath, true)
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].EvhNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH"))
@@ -1246,38 +1372,41 @@ func TestHTTPRuleCreateDeleteWithPkiRefForEvh(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].PkiProfile).To(gomega.BeNil())
 
 	// delete httprule deletes refs as well
-	integrationtest.TeardownHTTPRule(t, rrname)
-	integrationtest.VerifyMetadataHTTPRule(t, g, poolFooKey, "default/"+rrname+"/"+httpRulePath, false)
-	integrationtest.VerifyMetadataHTTPRule(t, g, poolBarKey, "default/"+rrname+"/"+httpRulePath, false)
+	integrationtest.TeardownHTTPRule(t, rrName)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolFooKey, "default/"+rrName+"/"+httpRulePath, false)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolBarKey, "default/"+rrName+"/"+httpRulePath, false)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].LbAlgorithm).To(gomega.BeNil())
 	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].PkiProfileRef).To(gomega.BeNil())
 	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].PkiProfile).To(gomega.BeNil())
 
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestHTTPRuleWithInvalidPath(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	rrname := "samplerr-foo"
+	rrName := objNameMap.GenerateName("samplerr-foo")
 
 	SetupDomain()
-	SetUpTestForIngress(t, modelName)
-	integrationtest.AddSecret("my-secret", "default", "tlsCert", "tlsKey")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	SetUpTestForIngress(t, svcName, modelName)
+	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
 	integrationtest.PollForCompletion(t, modelName, 5)
 	ingressObject := integrationtest.FakeIngress{
-		Name:        "foo-with-targets",
+		Name:        ingressName,
 		Namespace:   "default",
 		DnsNames:    []string{"foo.com"},
 		Ips:         []string{"8.8.8.8"},
 		HostNames:   []string{"v1"},
 		Paths:       []string{"/foo", "/bar"},
-		ServiceName: "avisvc",
+		ServiceName: svcName,
 		TlsSecretDNS: map[string][]string{
-			"my-secret": {"foo.com"},
+			secretName: {"foo.com"},
 		},
 	}
 
@@ -1288,7 +1417,7 @@ func TestHTTPRuleWithInvalidPath(t *testing.T) {
 	integrationtest.PollForCompletion(t, modelName, 5)
 
 	// create a httprule with a non-existing path
-	integrationtest.SetupHTTPRule(t, rrname, "foo.com", "/invalidPath")
+	integrationtest.SetupHTTPRule(t, rrName, "foo.com", "/invalidPath")
 
 	time.Sleep(10 * time.Second)
 
@@ -1311,7 +1440,7 @@ func TestHTTPRuleWithInvalidPath(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].PoolRefs[1].HealthMonitorRefs).To(gomega.HaveLen(0))
 
 	// delete httprule must not change any configs
-	integrationtest.TeardownHTTPRule(t, rrname)
+	integrationtest.TeardownHTTPRule(t, rrName)
 
 	time.Sleep(10 * time.Second)
 
@@ -1331,15 +1460,94 @@ func TestHTTPRuleWithInvalidPath(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].PoolRefs[1].PkiProfile).To(gomega.BeNil())
 	g.Expect(nodes[0].EvhNodes[0].PoolRefs[1].HealthMonitorRefs).To(gomega.HaveLen(0))
 
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
+}
+
+func TestHTTPRuleCreateDeleteWithEnableHTTP2ForEvh(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName, _ := GetModelName("foo.com", "default")
+	rrName := objNameMap.GenerateName("samplerr-foo")
+
+	SetupDomain()
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	SetUpTestForIngress(t, svcName, modelName)
+	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
+	integrationtest.PollForCompletion(t, modelName, 5)
+	ingressObject := integrationtest.FakeIngress{
+		Name:        ingressName,
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		Paths:       []string{"/foo", "/bar"},
+		ServiceName: svcName,
+		TlsSecretDNS: map[string][]string{
+			secretName: {"foo.com"},
+		},
+	}
+
+	ingrFake := ingressObject.Ingress(true)
+	if _, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	poolFooKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com_foo-"+ingressName+"-"+svcName, lib.Pool)}
+	poolBarKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--default-foo.com_bar-"+ingressName+"-"+svcName, lib.Pool)}
+	httpRulePath := "/"
+	httprule := integrationtest.FakeHTTPRule{
+		Name:      rrName,
+		Namespace: "default",
+		Fqdn:      "foo.com",
+		PathProperties: []integrationtest.FakeHTTPRulePath{{
+			Path:        httpRulePath,
+			EnableHTTP2: true,
+		}},
+	}
+
+	rrCreate := httprule.HTTPRule()
+	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HTTPRules("default").Create(context.TODO(), rrCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding HTTPRule: %v", err)
+	}
+
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolFooKey, "default/"+rrName+"/"+httpRulePath, true)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolBarKey, "default/"+rrName+"/"+httpRulePath, true)
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(*nodes[0].EvhNodes[0].PoolRefs[0].EnableHttp2).To(gomega.Equal(true))
+
+	// delete httprule disables HTTP2
+	integrationtest.TeardownHTTPRule(t, rrName)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolFooKey, "default/"+rrName+"/"+httpRulePath, false)
+	integrationtest.VerifyMetadataHTTPRule(t, g, poolBarKey, "default/"+rrName+"/"+httpRulePath, false)
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].EnableHttp2).To(gomega.BeNil())
+
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestCreateUpdateDeleteSSORuleForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	srname := "samplesr-foo"
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	srName := objNameMap.GenerateName("samplesr-foo")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	err := integrationtest.SetUpOAuthSecret()
 	if err != nil {
@@ -1348,10 +1556,10 @@ func TestCreateUpdateDeleteSSORuleForEvh(t *testing.T) {
 	// Sleeping for 5s for secret to be updated in informer
 	time.Sleep(5 * time.Second)
 
-	integrationtest.SetupSSORule(t, srname, "foo.com", "OAuth")
+	integrationtest.SetupSSORule(t, srName, "foo.com", "OAuth")
 
 	g.Eventually(func() string {
-		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srname, metav1.GetOptions{})
+		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srName, metav1.GetOptions{})
 		return ssoRule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -1388,7 +1596,7 @@ func TestCreateUpdateDeleteSSORuleForEvh(t *testing.T) {
 
 	//Update with Oidc parameters as false
 	srUpdate := integrationtest.FakeSSORule{
-		Name:      srname,
+		Name:      srName,
 		Namespace: "default",
 		Fqdn:      "foo.com",
 		SSOType:   "OAuth",
@@ -1405,7 +1613,7 @@ func TestCreateUpdateDeleteSSORuleForEvh(t *testing.T) {
 		t.Fatalf("error in updating SSORule: %v", err)
 	}
 	g.Eventually(func() string {
-		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srname, metav1.GetOptions{})
+		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srName, metav1.GetOptions{})
 		return ssoRule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -1419,7 +1627,7 @@ func TestCreateUpdateDeleteSSORuleForEvh(t *testing.T) {
 	g.Expect(*nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].AppSettings.OidcConfig.Profile).To(gomega.Equal(false))
 
 	// Delete/Disable
-	integrationtest.TeardownSSORule(t, g, sniVSKey, srname)
+	integrationtest.TeardownSSORule(t, g, sniVSKey, srName)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 
@@ -1431,17 +1639,27 @@ func TestCreateUpdateDeleteSSORuleForEvh(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in deleting my-oauth-secret: %v", err)
 	}
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestCreateUpdateDeleteSSORuleForEvhInsecure(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	srname := "samplesr-foo"
+	srName := objNameMap.GenerateName("samplesr-foo")
 
 	// create insecure ingress, SSORule should be applied in case of EVH
-	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       false,
+		withSecret:  false,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	err := integrationtest.SetUpOAuthSecret()
 	if err != nil {
@@ -1450,10 +1668,10 @@ func TestCreateUpdateDeleteSSORuleForEvhInsecure(t *testing.T) {
 	// Sleeping for 5s for secret to be updated in informer
 	time.Sleep(5 * time.Second)
 
-	integrationtest.SetupSSORule(t, srname, "foo.com", "SAML")
+	integrationtest.SetupSSORule(t, srName, "foo.com", "SAML")
 
 	g.Eventually(func() string {
-		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srname, metav1.GetOptions{})
+		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srName, metav1.GetOptions{})
 		return ssoRule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -1479,7 +1697,7 @@ func TestCreateUpdateDeleteSSORuleForEvhInsecure(t *testing.T) {
 
 	//Update with oauth parameters instead of saml
 	srUpdate := integrationtest.FakeSSORule{
-		Name:      srname,
+		Name:      srName,
 		Namespace: "default",
 		Fqdn:      "foo.com",
 		SSOType:   "OAuth",
@@ -1490,7 +1708,7 @@ func TestCreateUpdateDeleteSSORuleForEvhInsecure(t *testing.T) {
 		t.Fatalf("error in updating SSORule: %v", err)
 	}
 	g.Eventually(func() string {
-		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srname, metav1.GetOptions{})
+		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srName, metav1.GetOptions{})
 		return ssoRule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -1522,7 +1740,7 @@ func TestCreateUpdateDeleteSSORuleForEvhInsecure(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].OauthVsConfig.OauthSettings[0].ResourceServer.JwtParams).To(gomega.BeNil())
 
 	// Delete/Disable
-	integrationtest.TeardownSSORule(t, g, sniVSKey, srname)
+	integrationtest.TeardownSSORule(t, g, sniVSKey, srName)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 
@@ -1534,15 +1752,27 @@ func TestCreateUpdateDeleteSSORuleForEvhInsecure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in deleting my-oauth-secret: %v", err)
 	}
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, "", ingressName, svcName, modelName)
 }
 
 func TestCreateUpdateDeleteSSORuleForEvhJwt(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	srname := "samplesr-foo"
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	srName := objNameMap.GenerateName("samplesr-foo")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	err := integrationtest.SetUpOAuthSecret()
 	if err != nil {
@@ -1551,10 +1781,10 @@ func TestCreateUpdateDeleteSSORuleForEvhJwt(t *testing.T) {
 		// Sleeping for 5s for secret to be updated in informer
 		time.Sleep(5 * time.Second)
 	}
-	integrationtest.SetupSSORule(t, srname, "foo.com", "OAuth")
+	integrationtest.SetupSSORule(t, srName, "foo.com", "OAuth")
 
 	g.Eventually(func() string {
-		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srname, metav1.GetOptions{})
+		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srName, metav1.GetOptions{})
 		return ssoRule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -1591,7 +1821,7 @@ func TestCreateUpdateDeleteSSORuleForEvhJwt(t *testing.T) {
 
 	//Update with Opaque token parameters instead of jwt
 	srUpdate := integrationtest.FakeSSORule{
-		Name:      srname,
+		Name:      srName,
 		Namespace: "default",
 		Fqdn:      "foo.com",
 		SSOType:   "OAuth",
@@ -1608,7 +1838,7 @@ func TestCreateUpdateDeleteSSORuleForEvhJwt(t *testing.T) {
 		t.Fatalf("error in updating SSORule: %v", err)
 	}
 	g.Eventually(func() string {
-		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srname, metav1.GetOptions{})
+		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srName, metav1.GetOptions{})
 		return ssoRule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -1639,7 +1869,7 @@ func TestCreateUpdateDeleteSSORuleForEvhJwt(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].SamlSpConfig).To(gomega.BeNil())
 
 	// Delete/Disable
-	integrationtest.TeardownSSORule(t, g, sniVSKey, srname)
+	integrationtest.TeardownSSORule(t, g, sniVSKey, srName)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 
@@ -1651,22 +1881,33 @@ func TestCreateUpdateDeleteSSORuleForEvhJwt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in deleting my-oauth-secret: %v", err)
 	}
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestCreateUpdateDeleteSSORuleForEvhSamlACS(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	srname := "samplesr-foo"
+	srName := objNameMap.GenerateName("samplesr-foo")
 
 	// create insecure ingress, SSORule should be applied in case of EVH
-	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       false,
+		withSecret:  false,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
-	integrationtest.SetupSSORule(t, srname, "foo.com", "SAML")
+	integrationtest.SetupSSORule(t, srName, "foo.com", "SAML")
 
 	g.Eventually(func() string {
-		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srname, metav1.GetOptions{})
+		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srName, metav1.GetOptions{})
 		return ssoRule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -1692,7 +1933,7 @@ func TestCreateUpdateDeleteSSORuleForEvhSamlACS(t *testing.T) {
 
 	//Update saml parameters with acs type url
 	srUpdate := integrationtest.FakeSSORule{
-		Name:      srname,
+		Name:      srName,
 		Namespace: "default",
 		Fqdn:      "foo.com",
 		SSOType:   "SAML",
@@ -1708,7 +1949,7 @@ func TestCreateUpdateDeleteSSORuleForEvhSamlACS(t *testing.T) {
 		t.Fatalf("error in updating SSORule: %v", err)
 	}
 	g.Eventually(func() string {
-		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srname, metav1.GetOptions{})
+		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srName, metav1.GetOptions{})
 		return ssoRule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -1730,7 +1971,7 @@ func TestCreateUpdateDeleteSSORuleForEvhSamlACS(t *testing.T) {
 
 	//Update saml parameters with acs type index
 	srUpdate = integrationtest.FakeSSORule{
-		Name:      srname,
+		Name:      srName,
 		Namespace: "default",
 		Fqdn:      "foo.com",
 		SSOType:   "SAML",
@@ -1746,7 +1987,7 @@ func TestCreateUpdateDeleteSSORuleForEvhSamlACS(t *testing.T) {
 		t.Fatalf("error in updating SSORule: %v", err)
 	}
 	g.Eventually(func() string {
-		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srname, metav1.GetOptions{})
+		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srName, metav1.GetOptions{})
 		return ssoRule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -1767,7 +2008,7 @@ func TestCreateUpdateDeleteSSORuleForEvhSamlACS(t *testing.T) {
 	g.Expect(*nodes[0].EvhNodes[0].SamlSpConfig.UseIdpSessionTimeout).To(gomega.Equal(false))
 
 	// Delete/Disable
-	integrationtest.TeardownSSORule(t, g, sniVSKey, srname)
+	integrationtest.TeardownSSORule(t, g, sniVSKey, srName)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 
@@ -1775,13 +2016,13 @@ func TestCreateUpdateDeleteSSORuleForEvhSamlACS(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].OauthVsConfig).To(gomega.BeNil())
 	g.Expect(nodes[0].EvhNodes[0].SamlSpConfig).To(gomega.BeNil())
 
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestCreateSSORuleBeforeIngressForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	srname := "samplesr-foo"
+	srName := objNameMap.GenerateName("samplesr-foo")
 	err := integrationtest.SetUpOAuthSecret()
 	if err != nil {
 		t.Fatalf("error in creating my-oauth-secret: %v", err)
@@ -1790,15 +2031,27 @@ func TestCreateSSORuleBeforeIngressForEvh(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	// creating SSORule before ingress
-	integrationtest.SetupSSORule(t, srname, "foo.com", "OAuth")
+	integrationtest.SetupSSORule(t, srName, "foo.com", "OAuth")
 
 	g.Eventually(func() string {
-		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srname, metav1.GetOptions{})
+		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srName, metav1.GetOptions{})
 		return ssoRule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 
 	modelName, _ := GetModelName("foo.com", "default")
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -1832,27 +2085,37 @@ func TestCreateSSORuleBeforeIngressForEvh(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].SamlSpConfig).To(gomega.BeNil())
 
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
-	integrationtest.TeardownSSORule(t, g, sniVSKey, srname)
+	integrationtest.TeardownSSORule(t, g, sniVSKey, srName)
 	err = integrationtest.TearDownOAuthSecret()
 	if err != nil {
 		t.Fatalf("error in deleting my-oauth-secret: %v", err)
 	}
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestGoodToBadSSORuleForEvh(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	srname := "samplesr-foo"
+	srName := objNameMap.GenerateName("samplesr-foo")
 
 	// create insecure ingress, SSORule should be applied in case of EVH
-	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       false,
+		withSecret:  false,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
-	integrationtest.SetupSSORule(t, srname, "foo.com", "SAML")
+	integrationtest.SetupSSORule(t, srName, "foo.com", "SAML")
 
 	g.Eventually(func() string {
-		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srname, metav1.GetOptions{})
+		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srName, metav1.GetOptions{})
 		return ssoRule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -1878,7 +2141,7 @@ func TestGoodToBadSSORuleForEvh(t *testing.T) {
 
 	//Update with bad sso policy ref
 	srUpdate := integrationtest.FakeSSORule{
-		Name:      srname,
+		Name:      srName,
 		Namespace: "default",
 		Fqdn:      "foo.com",
 		SSOType:   "SAML",
@@ -1891,7 +2154,7 @@ func TestGoodToBadSSORuleForEvh(t *testing.T) {
 		t.Fatalf("error in updating SSORule: %v", err)
 	}
 	g.Eventually(func() string {
-		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srname, metav1.GetOptions{})
+		ssoRule, _ := v1alpha2CRDClient.AkoV1alpha2().SSORules("default").Get(context.TODO(), srName, metav1.GetOptions{})
 		return ssoRule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Rejected"))
 
@@ -1904,7 +2167,7 @@ func TestGoodToBadSSORuleForEvh(t *testing.T) {
 	g.Expect(*nodes[0].EvhNodes[0].SsoPolicyRef).To(gomega.ContainSubstring("thisisaviref-ssopolicysaml"))
 
 	// Delete/Disable
-	integrationtest.TeardownSSORule(t, g, sniVSKey, srname)
+	integrationtest.TeardownSSORule(t, g, sniVSKey, srName)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 
@@ -1912,33 +2175,45 @@ func TestGoodToBadSSORuleForEvh(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].OauthVsConfig).To(gomega.BeNil())
 	g.Expect(nodes[0].EvhNodes[0].SamlSpConfig).To(gomega.BeNil())
 
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, "", ingressName, svcName, modelName)
 }
 
 func TestCreateUpdateDeleteL7RuleInHostRule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
-	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
+	integrationtest.SetupHostRule(t, hrName, "foo.com", true)
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
-	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/"+hrName, true)
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
 	}, 25*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-	l7ruleName := "samplel7rule"
+	l7ruleName := objNameMap.GenerateName("samplel7rule")
 	integrationtest.SetupL7Rule(t, l7ruleName, g)
 
 	//Update hostrule with L7rule
 	hrUpdate := integrationtest.FakeHostRule{
-		Name:      hrname,
+		Name:      hrName,
 		Namespace: "default",
 		Fqdn:      "foo.com",
 	}.HostRule()
@@ -1949,9 +2224,12 @@ func TestCreateUpdateDeleteL7RuleInHostRule(t *testing.T) {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules("default").Get(hrName)
+		if err != nil {
+			return ""
+		}
 		return hostrule.Status.Status
-	}, 10*time.Second).Should(gomega.Equal("Accepted"))
+	}, 30*time.Second, 1*time.Second).Should(gomega.Equal("Accepted"))
 	g.Eventually(func() *bool {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
@@ -1959,7 +2237,14 @@ func TestCreateUpdateDeleteL7RuleInHostRule(t *testing.T) {
 			return nodes[0].EvhNodes[0].AllowInvalidClientCert
 		}
 		return nil
-	}, 25*time.Second).ShouldNot(gomega.BeNil())
+	}, 25*time.Second, 1*time.Second).ShouldNot(gomega.BeNil())
+
+	g.Eventually(func() interface{} {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return nodes[0].EvhNodes[0].AviVsNodeGeneratedFields
+	}, 25*time.Second, 1*time.Second).ShouldNot(gomega.BeNil())
+
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(*nodes[0].EvhNodes[0].CloseClientConnOnConfigUpdate).To(gomega.Equal(true))
@@ -1973,7 +2258,7 @@ func TestCreateUpdateDeleteL7RuleInHostRule(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].SecurityPolicyRef).To(gomega.BeNil())
 	//remove L7rule from hostrule
 	hrUpdate = integrationtest.FakeHostRule{
-		Name:      hrname,
+		Name:      hrName,
 		Namespace: "default",
 		Fqdn:      "foo.com",
 	}.HostRule()
@@ -2001,7 +2286,7 @@ func TestCreateUpdateDeleteL7RuleInHostRule(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HostNameXlate).To(gomega.BeNil())
 	g.Expect(nodes[0].EvhNodes[0].SecurityPolicyRef).To(gomega.BeNil())
 
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 
@@ -2018,31 +2303,43 @@ func TestCreateUpdateDeleteL7RuleInHostRule(t *testing.T) {
 	if err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L7Rules("default").Delete(context.TODO(), l7ruleName, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting l7Rule: %v", err)
 	}
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 func TestDeleteL7RulePresentInHostRule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
-	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
+	integrationtest.SetupHostRule(t, hrName, "foo.com", true)
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
-	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/"+hrName, true)
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
 	}, 25*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-	l7ruleName := "samplel7rule"
+	l7ruleName := objNameMap.GenerateName("samplel7rule")
 	integrationtest.SetupL7Rule(t, l7ruleName, g)
 	//Update hostrule with L7rule
 	hrUpdate := integrationtest.FakeHostRule{
-		Name:      hrname,
+		Name:      hrName,
 		Namespace: "default",
 		Fqdn:      "foo.com",
 	}.HostRule()
@@ -2053,7 +2350,7 @@ func TestDeleteL7RulePresentInHostRule(t *testing.T) {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 	g.Eventually(func() *bool {
@@ -2097,7 +2394,7 @@ func TestDeleteL7RulePresentInHostRule(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HostNameXlate).To(gomega.BeNil())
 	g.Expect(nodes[0].EvhNodes[0].SecurityPolicyRef).To(gomega.BeNil())
 
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(nodes[0].EvhNodes[0].Enabled).To(gomega.BeNil())
@@ -2109,32 +2406,44 @@ func TestDeleteL7RulePresentInHostRule(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].EvhNodes[0].VsDatascriptRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].SslProfileRef).To(gomega.BeNil())
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 
 }
 func TestChangeL7RuleInHostRule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
-	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
+	integrationtest.SetupHostRule(t, hrName, "foo.com", true)
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
-	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/"+hrName, true)
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
 	}, 25*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-	l7ruleName := "samplel7rule"
+	l7ruleName := objNameMap.GenerateName("samplel7rule")
 	integrationtest.SetupL7Rule(t, l7ruleName, g)
 	//Update hostrule with L7rule
 	hrUpdate := integrationtest.FakeHostRule{
-		Name:      hrname,
+		Name:      hrName,
 		Namespace: "default",
 		Fqdn:      "foo.com",
 	}.HostRule()
@@ -2145,7 +2454,7 @@ func TestChangeL7RuleInHostRule(t *testing.T) {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 	g.Eventually(func() *bool {
@@ -2193,7 +2502,7 @@ func TestChangeL7RuleInHostRule(t *testing.T) {
 
 	//Update hostrule with L7rule2
 	hrUpdate = integrationtest.FakeHostRule{
-		Name:      hrname,
+		Name:      hrName,
 		Namespace: "default",
 		Fqdn:      "foo.com",
 	}.HostRule()
@@ -2205,7 +2514,7 @@ func TestChangeL7RuleInHostRule(t *testing.T) {
 	}
 
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 	g.Eventually(func() bool {
@@ -2227,39 +2536,51 @@ func TestChangeL7RuleInHostRule(t *testing.T) {
 	g.Expect(*nodes[0].EvhNodes[0].MinPoolsUp).To(gomega.Equal(uint32(0)))
 	g.Expect(nodes[0].EvhNodes[0].HostNameXlate).To(gomega.BeNil())
 	g.Expect(nodes[0].EvhNodes[0].SecurityPolicyRef).To(gomega.BeNil())
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
 	if err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L7Rules("default").Delete(context.TODO(), l7ruleName, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting l7Rule: %v", err)
 	}
 	if err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L7Rules("default").Delete(context.TODO(), l7ruleName2, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting l7Rule: %v", err)
 	}
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestValidToInvalidL7rule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
-	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
+	integrationtest.SetupHostRule(t, hrName, "foo.com", true)
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
-	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/"+hrName, true)
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
 	}, 25*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-	l7ruleName := "samplel7rule"
+	l7ruleName := objNameMap.GenerateName("samplel7rule")
 	integrationtest.SetupL7Rule(t, l7ruleName, g)
 	//Update hostrule with L7rule
 	hrUpdate := integrationtest.FakeHostRule{
-		Name:      hrname,
+		Name:      hrName,
 		Namespace: "default",
 		Fqdn:      "foo.com",
 	}.HostRule()
@@ -2270,7 +2591,7 @@ func TestValidToInvalidL7rule(t *testing.T) {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 	g.Eventually(func() *bool {
@@ -2350,36 +2671,48 @@ func TestValidToInvalidL7rule(t *testing.T) {
 	g.Expect(*nodes[0].EvhNodes[0].MinPoolsUp).To(gomega.Equal(uint32(0)))
 	g.Expect(nodes[0].EvhNodes[0].HostNameXlate).To(gomega.BeNil())
 	g.Expect(nodes[0].EvhNodes[0].SecurityPolicyRef).To(gomega.BeNil())
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
 	if err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L7Rules("default").Delete(context.TODO(), l7ruleName, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting l7Rule: %v", err)
 	}
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestDeleteHostRuleWithActiveL7Rule(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
-	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
+	integrationtest.SetupHostRule(t, hrName, "foo.com", true)
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
-	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/"+hrName, true)
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
 	}, 25*time.Second).Should(gomega.Equal(true))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-	l7ruleName := "samplel7rule"
+	l7ruleName := objNameMap.GenerateName("samplel7rule")
 	integrationtest.SetupL7Rule(t, l7ruleName, g)
 	//Update hostrule with L7rule
 	hrUpdate := integrationtest.FakeHostRule{
-		Name:      hrname,
+		Name:      hrName,
 		Namespace: "default",
 		Fqdn:      "foo.com",
 	}.HostRule()
@@ -2390,7 +2723,7 @@ func TestDeleteHostRuleWithActiveL7Rule(t *testing.T) {
 		t.Fatalf("error in updating HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 	g.Eventually(func() *bool {
@@ -2413,7 +2746,7 @@ func TestDeleteHostRuleWithActiveL7Rule(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HostNameXlate).To(gomega.BeNil())
 	g.Expect(nodes[0].EvhNodes[0].SecurityPolicyRef).To(gomega.BeNil())
 	//Delete Hostrule
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
 	g.Eventually(func() *bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
 			nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
@@ -2446,7 +2779,7 @@ func TestDeleteHostRuleWithActiveL7Rule(t *testing.T) {
 	if err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L7Rules("default").Delete(context.TODO(), l7ruleName, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting l7Rule: %v", err)
 	}
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 
 }
 
@@ -2454,14 +2787,26 @@ func TestHostRuleUseRegexSecure(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
 	fqdn := "foo.com"
 	namespace := "default"
 
-	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	hostrule := integrationtest.FakeHostRule{
-		Name:      hrname,
+		Name:      hrName,
 		Namespace: namespace,
 		Fqdn:      fqdn,
 		UseRegex:  true,
@@ -2471,7 +2816,7 @@ func TestHostRuleUseRegexSecure(t *testing.T) {
 		t.Fatalf("error in adding HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -2499,7 +2844,7 @@ func TestHostRuleUseRegexSecure(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[1].RedirectPorts[0].Hosts[0]).To(gomega.Equal("foo.com"))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[1].HppMap).To(gomega.BeNil())
 
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
 	time.Sleep(2 * time.Second)
 
 	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
@@ -2516,22 +2861,35 @@ func TestHostRuleUseRegexSecure(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[1].RedirectPorts[0].Hosts[0]).To(gomega.Equal("foo.com"))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[1].HppMap).To(gomega.BeNil())
 
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestHostRuleAppRootSecure(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
 	fqdn := "foo.com"
 	namespace := "default"
 	appRootPath := "/foo"
-
-	SetUpIngressForCacheSyncCheckMultiPaths(t, true, true, []string{fqdn}, []string{"/"}, modelName)
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+		dnsNames:    []string{fqdn},
+		paths:       []string{"/"},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	hostrule := integrationtest.FakeHostRule{
-		Name:                hrname,
+		Name:                hrName,
 		Namespace:           namespace,
 		Fqdn:                fqdn,
 		ApplicationRootPath: "/foo",
@@ -2541,7 +2899,7 @@ func TestHostRuleAppRootSecure(t *testing.T) {
 		t.Fatalf("error in adding HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -2573,7 +2931,7 @@ func TestHostRuleAppRootSecure(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[1].RedirectPorts[0].Hosts[0]).To(gomega.Equal("foo.com"))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[1].HppMap).To(gomega.BeNil())
 
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
 	time.Sleep(2 * time.Second)
 
 	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
@@ -2591,22 +2949,36 @@ func TestHostRuleAppRootSecure(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[1].RedirectPorts[0].Hosts[0]).To(gomega.Equal("foo.com"))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[1].HppMap).To(gomega.BeNil())
 
-	TearDownIngressForCacheSyncCheckPath(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestHostRuleRegexAppRootSecure(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
 	fqdn := "foo.com"
 	namespace := "default"
 	appRootPath := "/foo"
 
-	SetUpIngressForCacheSyncCheckMultiPaths(t, true, true, []string{fqdn, fqdn}, []string{"/something(/|$)(.*)", "/"}, modelName)
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+		dnsNames:    []string{fqdn, fqdn},
+		paths:       []string{"/something(/|$)(.*)", "/"},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	hostrule := integrationtest.FakeHostRule{
-		Name:                hrname,
+		Name:                hrName,
 		Namespace:           namespace,
 		Fqdn:                fqdn,
 		UseRegex:            true,
@@ -2617,7 +2989,7 @@ func TestHostRuleRegexAppRootSecure(t *testing.T) {
 		t.Fatalf("error in adding HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -2654,7 +3026,7 @@ func TestHostRuleRegexAppRootSecure(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[1].RedirectPorts[0].Hosts[0]).To(gomega.Equal("foo.com"))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[1].HppMap).To(gomega.BeNil())
 
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
 	time.Sleep(2 * time.Second)
 
 	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
@@ -2675,21 +3047,31 @@ func TestHostRuleRegexAppRootSecure(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[1].RedirectPorts[0].Hosts[0]).To(gomega.Equal("foo.com"))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[1].HppMap).To(gomega.BeNil())
 
-	TearDownIngressForCacheSyncCheckPath(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestHostRuleUseRegexInsecure(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
 	fqdn := "foo.com"
 	namespace := "default"
 
-	SetUpIngressForCacheSyncCheck(t, false, false, modelName)
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       false,
+		withSecret:  false,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	hostrule := integrationtest.FakeHostRule{
-		Name:      hrname,
+		Name:      hrName,
 		Namespace: namespace,
 		Fqdn:      fqdn,
 		UseRegex:  true,
@@ -2699,7 +3081,7 @@ func TestHostRuleUseRegexInsecure(t *testing.T) {
 		t.Fatalf("error in adding HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -2720,7 +3102,7 @@ func TestHostRuleUseRegexInsecure(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].MatchCase).Should(gomega.Equal("INSENSITIVE"))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].StringGroupRefs).To(gomega.HaveLen(1))
 
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
 	time.Sleep(2 * time.Second)
 
 	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
@@ -2730,22 +3112,34 @@ func TestHostRuleUseRegexInsecure(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].MatchCriteria).Should(gomega.Equal("BEGINS_WITH"))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].StringGroupRefs).To(gomega.HaveLen(0))
 
-	TearDownIngressForCacheSyncCheck(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, "", ingressName, svcName, modelName)
 }
 
 func TestHostRuleAppRootInsecure(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
 	fqdn := "foo.com"
 	namespace := "default"
 	appRootPath := "/foo"
 
-	SetUpIngressForCacheSyncCheckMultiPaths(t, false, false, []string{fqdn}, []string{"/"}, modelName)
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       false,
+		withSecret:  false,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+		dnsNames:    []string{fqdn},
+		paths:       []string{"/"},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	hostrule := integrationtest.FakeHostRule{
-		Name:                hrname,
+		Name:                hrName,
 		Namespace:           namespace,
 		Fqdn:                fqdn,
 		ApplicationRootPath: "/foo",
@@ -2755,7 +3149,7 @@ func TestHostRuleAppRootInsecure(t *testing.T) {
 		t.Fatalf("error in adding HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -2780,7 +3174,7 @@ func TestHostRuleAppRootInsecure(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].RedirectPorts[0].RedirectPath).To(gomega.Equal(strings.TrimPrefix(appRootPath, "/")))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].RedirectPorts[0].MatchCriteria).To(gomega.Equal("EQUALS"))
 
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
 	time.Sleep(2 * time.Second)
 
 	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
@@ -2791,22 +3185,34 @@ func TestHostRuleAppRootInsecure(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0]).To(gomega.Equal("/"))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[0].StringGroupRefs).To(gomega.HaveLen(0))
 
-	TearDownIngressForCacheSyncCheckPath(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, "", ingressName, svcName, modelName)
 }
 
 func TestHostRuleRegexAppRootInsecure(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName, _ := GetModelName("foo.com", "default")
-	hrname := "samplehr-foo"
 	fqdn := "foo.com"
 	namespace := "default"
 	appRootPath := "/foo"
 
-	SetUpIngressForCacheSyncCheckMultiPaths(t, false, false, []string{fqdn, fqdn}, []string{"/something(/|$)(.*)", "/"}, modelName)
+	hrName := objNameMap.GenerateName("samplehr-foo")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       false,
+		withSecret:  false,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+		dnsNames:    []string{fqdn, fqdn},
+		paths:       []string{"/something(/|$)(.*)", "/"},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
 
 	hostrule := integrationtest.FakeHostRule{
-		Name:                hrname,
+		Name:                hrName,
 		Namespace:           namespace,
 		Fqdn:                fqdn,
 		UseRegex:            true,
@@ -2817,7 +3223,7 @@ func TestHostRuleRegexAppRootInsecure(t *testing.T) {
 		t.Fatalf("error in adding HostRule: %v", err)
 	}
 	g.Eventually(func() string {
-		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrName, metav1.GetOptions{})
 		return hostrule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -2847,7 +3253,7 @@ func TestHostRuleRegexAppRootInsecure(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].RedirectPorts[0].RedirectPath).To(gomega.Equal(strings.TrimPrefix(appRootPath, "/")))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].RedirectPorts[0].MatchCriteria).To(gomega.Equal("EQUALS"))
 
-	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
 	time.Sleep(2 * time.Second)
 
 	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
@@ -2861,5 +3267,5 @@ func TestHostRuleRegexAppRootInsecure(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[1].Path[0]).To(gomega.Equal("/"))
 	g.Expect(nodes[0].EvhNodes[0].HttpPolicyRefs[0].HppMap[1].StringGroupRefs).To(gomega.HaveLen(0))
 
-	TearDownIngressForCacheSyncCheckPath(t, modelName)
+	TearDownIngressForCacheSyncCheck(t, "", ingressName, svcName, modelName)
 }

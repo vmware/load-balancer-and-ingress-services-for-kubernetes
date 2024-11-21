@@ -15,7 +15,10 @@
 package objects
 
 import (
+	"fmt"
 	"sync"
+
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -45,6 +48,9 @@ func GatewayApiLister() *GWLister {
 			gatewayListenerToHostnameStore: objects.NewObjectMapStore(),
 			gatewayRouteToHostnameStore:    objects.NewObjectMapStore(),
 			gatewayRouteToHTTPSPGPoolStore: objects.NewObjectMapStore(),
+			podToServiceStore:              objects.NewObjectMapStore(),
+			gatewayToStatus:                objects.NewObjectMapStore(),
+			routeToStatus:                  objects.NewObjectMapStore(),
 		}
 	})
 	return gwLister
@@ -107,6 +113,16 @@ type GWLister struct {
 	// HTTPPS, PG, Pool in parent VS
 	// gatewayns/gatewayname + routenamespace/routename --> [HTTPPS, PG, Pool]
 	gatewayRouteToHTTPSPGPoolStore *objects.ObjectMapStore
+
+	//Pods -> Service Mapping for NPL
+	//podNs/podName -> [svcNs/svcName, ...]
+	podToServiceStore *objects.ObjectMapStore
+
+	// namespace/gateway -> gateway Status
+	gatewayToStatus *objects.ObjectMapStore
+
+	// routeType/routeNs/routeName -> route Status
+	routeToStatus *objects.ObjectMapStore
 }
 
 type GatewayRouteKind struct {
@@ -218,13 +234,55 @@ func (g *GWLister) GetGatewayToListeners(gwNsName string) []GatewayListenerStore
 	g.gwLock.RLock()
 	defer g.gwLock.RUnlock()
 
-	found, listenerList := g.gatewayToListenerStore.Get(gwNsName)
-	if found {
+	_, listenerList := g.gatewayToListenerStore.Get(gwNsName)
+	if listenerList != nil {
 		return listenerList.([]GatewayListenerStore)
-	} else {
+	}
+	return nil
+}
+
+func (g *GWLister) UpdateGatewayToGatewayStatusMapping(gwName string, gwStatus *gatewayv1.GatewayStatus) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	g.gatewayToStatus.AddOrUpdate(gwName, gwStatus)
+}
+
+func (g *GWLister) DeleteGatewayToGatewayStatusMapping(gwName string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	g.gatewayToStatus.Delete(gwName)
+}
+
+func (g *GWLister) GetGatewayToGatewayStatusMapping(gwName string) *gatewayv1.GatewayStatus {
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
+	found, gatewayList := g.gatewayToStatus.Get(gwName)
+	if !found {
 		return nil
 	}
+	return gatewayList.(*gatewayv1.GatewayStatus)
+}
 
+func (g *GWLister) UpdateRouteToRouteStatusMapping(routeTypeNamespaceName string, routeStatus *gatewayv1.HTTPRouteStatus) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	g.routeToStatus.AddOrUpdate(routeTypeNamespaceName, routeStatus)
+}
+
+func (g *GWLister) DeleteRouteToRouteStatusMapping(routeTypeNamespaceName string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	g.routeToStatus.Delete(routeTypeNamespaceName)
+}
+
+func (g *GWLister) GetRouteToRouteStatusMapping(routeTypeNamespaceName string) *gatewayv1.HTTPRouteStatus {
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
+	found, routeList := g.routeToStatus.Get(routeTypeNamespaceName)
+	if !found {
+		return nil
+	}
+	return routeList.(*gatewayv1.HTTPRouteStatus)
 }
 
 //=====All route <-> gateway mappings go here.
@@ -259,7 +317,7 @@ func (g *GWLister) GetGatewayToRoute(gwNsName string) (bool, []string) {
 	return false, []string{}
 }
 
-func (g *GWLister) UpdateGatewayRouteMappings(gwNsName string, gwListeners []GatewayListenerStore, routeTypeNsName string) {
+func (g *GWLister) UpdateGatewayRouteMappings(gwNsName string, routeTypeNsName string) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 
@@ -274,18 +332,6 @@ func (g *GWLister) UpdateGatewayRouteMappings(gwNsName string, gwListeners []Gat
 		g.routeToGateway.AddOrUpdate(routeTypeNsName, []string{gwNsName})
 	}
 
-	if found, gwListenerList := g.routeToGatewayListener.Get(routeTypeNsName); found {
-		gwListenerListObj := gwListenerList.([]GatewayListenerStore)
-		for _, gwListener := range gwListeners {
-			if !utils.HasElem(gwListenerList, gwListener) {
-				gwListenerListObj = append(gwListenerListObj, gwListener)
-			}
-		}
-		g.routeToGatewayListener.AddOrUpdate(routeTypeNsName, gwListenerListObj)
-	} else {
-		g.routeToGatewayListener.AddOrUpdate(routeTypeNsName, gwListeners)
-	}
-
 	// update gateway to route mapping
 	if found, routeTypeNsNameList := g.gatewayToRoute.Get(gwNsName); found {
 		routeTypeNsNameListObj := routeTypeNsNameList.([]string)
@@ -296,6 +342,12 @@ func (g *GWLister) UpdateGatewayRouteMappings(gwNsName string, gwListeners []Gat
 	} else {
 		g.gatewayToRoute.AddOrUpdate(gwNsName, []string{routeTypeNsName})
 	}
+}
+
+func (g *GWLister) UpdateRouteToGatewayListenerMappings(gwListeners []GatewayListenerStore, routeTypeNsName string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	g.routeToGatewayListener.AddOrUpdate(routeTypeNsName, gwListeners)
 }
 
 //=====All gateway <-> service mappings go here.
@@ -691,6 +743,9 @@ func (g *GWLister) DeleteRouteFromStore(routeTypeNsName string) {
 			} else {
 				g.gatewayToRoute.AddOrUpdate(gwNsName, routeNsNameListObj)
 			}
+			// remove hostname mapping
+			gwRouteNsName := fmt.Sprintf("%s/%s", gwNsName, routeTypeNsName)
+			g.gatewayRouteToHostnameStore.Delete(gwRouteNsName)
 		}
 	}
 	g.routeToGateway.Delete(routeTypeNsName)
@@ -809,19 +864,19 @@ func (g *GWLister) UpdateGatewayListenerToHostname(gwListenerNsName, hostname st
 	g.gatewayListenerToHostnameStore.AddOrUpdate(gwListenerNsName, hostname)
 }
 
-func (g *GWLister) UpdateGatewayRouteToHostname(gwNsName string, hostnames []string) {
+func (g *GWLister) UpdateGatewayRouteToHostname(gwRouteNsName string, hostnames []string) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 
-	g.gatewayRouteToHostnameStore.AddOrUpdate(gwNsName, hostnames)
+	g.gatewayRouteToHostnameStore.AddOrUpdate(gwRouteNsName, hostnames)
 
 }
 
-func (g *GWLister) GetGatewayRouteToHostname(gwNsName string) (bool, []string) {
+func (g *GWLister) GetGatewayRouteToHostname(gwRouteNsName string) (bool, []string) {
 	g.gwLock.RLock()
 	defer g.gwLock.RUnlock()
 
-	found, hostnames := g.gatewayRouteToHostnameStore.Get(gwNsName)
+	found, hostnames := g.gatewayRouteToHostnameStore.Get(gwRouteNsName)
 	if found {
 		return true, hostnames.([]string)
 	}
@@ -855,4 +910,30 @@ func (g *GWLister) DeleteGatewayRouteToHTTPSPGPool(gwRouteNsName string) {
 	g.gwLock.RLock()
 	defer g.gwLock.RUnlock()
 	g.gatewayRouteToHTTPSPGPoolStore.Delete(gwRouteNsName)
+}
+
+//Pods <-> Service
+
+func (g *GWLister) GetPodsToService(podNsName string) []string {
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
+
+	if found, services := g.podToServiceStore.Get(podNsName); found {
+		return services.([]string)
+	}
+	return []string{}
+}
+
+func (g *GWLister) UpdatePodsToService(podNsName string, services []string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	g.podToServiceStore.AddOrUpdate(podNsName, services)
+
+}
+func (g *GWLister) DeletePodsToService(podNsName string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	g.podToServiceStore.Delete(podNsName)
 }

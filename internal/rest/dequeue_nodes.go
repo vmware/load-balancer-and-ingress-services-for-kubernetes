@@ -27,8 +27,6 @@ import (
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	"github.com/vmware/alb-sdk/go/session"
 
-	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
-
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
@@ -112,11 +110,6 @@ func (rest *RestOperations) DequeueNodes(key string) {
 		if strings.Contains(name, "StringGroup") {
 			utils.AviLog.Infof("key: %s, msg: processing stringgroup object", key)
 			rest.stringGroupCU(key, name, avimodel)
-			return
-		}
-		if strings.Contains(name, akogatewayapilib.GetDataScriptName()) {
-			utils.AviLog.Infof("key: %s, msg: processing backendfilterdatascript object", key)
-			rest.backendRefFilterDataScriptCU(key, name, avimodel)
 			return
 		}
 		utils.AviLog.Debugf("key: %s, msg: VS create/update.", key)
@@ -1161,12 +1154,7 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 			utils.AviLog.Infof("key: %s, msg: Controller upgrade in progress, would be added to slow retry queue", key)
 			fastRetry = false
 			processNextObj = false
-		} else if statuscode == 400 && strings.Contains(*aviError.Message, lib.VSDataScriptNotFoundError) {
-			utils.AviLog.Infof("key: %s, msg: VSDataScriptSet object not found, would be added to slow retry queue", key)
-			fastRetry = false
-			processNextObj = false
 		} else {
-
 			// We don't want to handle any other error code like 400 etc.
 			utils.AviLog.Infof("key: %s, msg: Detected error code %d that we don't support, not going to retry", key, statuscode)
 			retry = false
@@ -1812,7 +1800,15 @@ func (rest *RestOperations) KeyCertCU(sslkey_nodes []*nodes.AviTLSKeyCertNode, c
 func (rest *RestOperations) SSLKeyCertDelete(ssl_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
 	utils.AviLog.Debugf("key: %s, msg: about to delete ssl keycert %s", key, utils.Stringify(ssl_to_delete))
 	var noCARefRestOps []*utils.RestOp
+	defaultRouteCertName := lib.GetTLSKeyCertNodeName("", "", lib.GetDefaultSecretForRoutes())
+	defaultRouteAltCertName := lib.GetTLSKeyCertNodeName("", "", lib.GetDefaultSecretForRoutes()+"-alt")
 	for _, del_ssl := range ssl_to_delete {
+		// Skip SSL cert deletion if it maps to the Default Router Cert
+		if del_ssl.Name == defaultRouteCertName || del_ssl.Name == defaultRouteAltCertName {
+			if !strings.HasSuffix(key, lib.DummyVSForStaleData) {
+				continue
+			}
+		}
 		ssl_key := avicache.NamespaceName{Namespace: namespace, Name: del_ssl.Name}
 		ssl_cache, ok := rest.cache.SSLKeyCache.AviCacheGet(ssl_key)
 		if ok {
@@ -2013,48 +2009,4 @@ func (rest *RestOperations) StringGroupDelete(sg_to_delete []avicache.NamespaceN
 		}
 	}
 	return rest_ops
-}
-
-func (rest *RestOperations) backendRefFilterDataScriptCU(key, datascriptName string, avimodel *nodes.AviObjectGraph) {
-	var cache_ds_node avicache.NamespaceName
-	var rest_ops []*utils.RestOp
-	ds_node := avimodel.GetAviHTTPDSNodeByName(datascriptName)
-	if ds_node != nil {
-		// Default is POST
-		// check in the ds cache to see if this exists in AVI
-		ds_key := avicache.NamespaceName{Namespace: lib.GetTenant(), Name: ds_node.Name}
-		found := utils.HasElem(cache_ds_node, ds_key)
-		if found {
-			ds_cache, ok := rest.cache.DSCache.AviCacheGet(ds_key)
-			if !ok {
-				// If the DataScript Is not found - let's do a POST call.
-				restOp := rest.AviDSBuild(ds_node, nil, key)
-				if restOp != nil {
-					rest_ops = append(rest_ops, restOp)
-				}
-			} else {
-				dsCacheObj := ds_cache.(*avicache.AviDSCache)
-				if dsCacheObj.CloudConfigCksum != ds_node.GetCheckSum() {
-					utils.AviLog.Debugf("key: %s, msg: datascript checksum changed, updating - %s", key, ds_node.Name)
-					restOp := rest.AviDSBuild(ds_node, dsCacheObj, key)
-					if restOp != nil {
-						rest_ops = append(rest_ops, restOp)
-					}
-				}
-			}
-		} else {
-			// If the datascript Is not found - let's do a POST call.
-			restOp := rest.AviDSBuild(ds_node, nil, key)
-			if restOp != nil {
-				rest_ops = append(rest_ops, restOp)
-			}
-		}
-		utils.AviLog.Debugf("key: %s, msg: the Datascript rest_op is %s", key, utils.Stringify(rest_ops))
-		utils.AviLog.Debugf("key: %s, msg: Executing rest for datascript %s", key, datascriptName)
-		utils.AviLog.Debugf("key: %s, msg: restops %v", key, rest_ops)
-		success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, ds_key, avimodel, key, false)
-		if success {
-			utils.AviLog.Debugf("key: %s, msg: the Datascript added successfully: %s", key, cache_ds_node)
-		}
-	}
 }
