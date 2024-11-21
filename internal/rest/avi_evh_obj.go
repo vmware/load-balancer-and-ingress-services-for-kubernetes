@@ -331,6 +331,10 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 			vs.VrfContextRef = proto.String("/api/vrfcontext?name=" + vs_meta.VrfContext)
 		}
 
+		if vs_meta.ErrorPageProfileRef != "" {
+			vs.ErrorPageProfileRef = &vs_meta.ErrorPageProfileRef
+		}
+
 		var enableRhi bool
 		if vs_meta.EnableRhi != nil {
 			enableRhi = *vs_meta.EnableRhi
