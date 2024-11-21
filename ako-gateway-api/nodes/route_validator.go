@@ -205,6 +205,7 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 	}
 
 	// TODO: Validation for hostname (those being fqdns) need to validate as per the K8 gateway req.
+	// Here I need to check
 	var listenersMatchedToRoute []gatewayv1.Listener
 	for _, listenerObj := range listenersForRoute {
 		// check from store
@@ -215,11 +216,11 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		// Use case to handle for validations of hostname:
 		// USe case 1: Shouldn't contain mor than 1 *
 		// USe case 2: * should be at the beginning only
-		if hostInListener == nil || *hostInListener == "" || *hostInListener == utils.WILDCARD {
+		if (hostInListener == nil || *hostInListener == "" || *hostInListener == utils.WILDCARD) && len(httpRoute.Spec.Hostnames) != 0 {
 			matched = true
 		} else {
 			// mark listener fqdn if it has *
-			if strings.HasPrefix(string(*hostInListener), utils.WILDCARD) {
+			if hostInListener != nil && strings.HasPrefix(string(*hostInListener), utils.WILDCARD) {
 				isListenerFqdnWildcard = true
 			}
 			for _, host := range httpRoute.Spec.Hostnames {
@@ -260,7 +261,7 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 
 			}
 			// if there are no hostnames specified, all parent listneres should be matched.
-			if len(httpRoute.Spec.Hostnames) == 0 {
+			if len(httpRoute.Spec.Hostnames) == 0 && (hostInListener != nil && *hostInListener != "" && *hostInListener != utils.WILDCARD) {
 				matched = true
 			}
 		}
