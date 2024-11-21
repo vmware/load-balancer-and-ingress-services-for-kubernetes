@@ -70,7 +70,7 @@ func TestProfilesAttachedToDedicatedSecureVS(t *testing.T) {
 		return len(nodes.GetAviVS())
 	}, 30*time.Second).Should(gomega.Equal(1))
 
-	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 
 	integrationtest.ResetMiddleware()
 
