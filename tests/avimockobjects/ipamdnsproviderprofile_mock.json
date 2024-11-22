@@ -1,40 +1,10 @@
 {
-    "count": 3,
+    "count": 1,
     "results": [
       {
         "allocate_ip_in_vrf": false,
         "_last_modified": "1571450562728944",
         "url": "https://10.52.3.116:9443/api/ipamdnsproviderprofile/ipamdnsproviderprofile-d49243f3-65f3-4cd1-b93a-e0ec41df409e",
-        "tenant_ref": "https://10.52.3.116:9443/api/tenant/admin",
-        "internal_profile": {
-          "usable_network_refs": [
-            "https://10.52.3.116:9443/api/network/network-bbf5b8e8-db93-4b93-9483-f1c59f16a707"
-          ],
-          "ttl": 30
-        },
-        "uuid": "ipamdnsproviderprofile-d49243f3-65f3-4cd1-b93a-e0ec41df409e",
-        "type": "IPAMDNS_TYPE_INTERNAL",
-        "name": "ns-ipam"
-      },
-      {
-        "allocate_ip_in_vrf": false,
-        "_last_modified": "1571450574591332",
-        "url": "https://10.52.3.116:9443/api/ipamdnsproviderprofile/ipamdnsproviderprofile-be7aa26d-3bc8-4213-9f73-b23b4e1d9c39",
-        "tenant_ref": "https://10.52.3.116:9443/api/tenant/admin",
-        "internal_profile": {
-          "usable_network_refs": [
-            "https://10.52.3.116:9443/api/network/network-18046219-3b49-4cef-9230-74d7c2ccaec9"
-          ],
-          "ttl": 30
-        },
-        "uuid": "ipamdnsproviderprofile-be7aa26d-3bc8-4213-9f73-b23b4e1d9c39",
-        "type": "IPAMDNS_TYPE_INTERNAL",
-        "name": "ew-ipam"
-      },
-      {
-        "allocate_ip_in_vrf": false,
-        "_last_modified": "1571450618936372",
-        "url": "https://10.52.3.116:9443/api/ipamdnsproviderprofile/ipamdnsproviderprofile-19a05809-a373-4892-a318-74702c2237ca",
         "tenant_ref": "https://10.52.3.116:9443/api/tenant/admin",
         "internal_profile": {
           "dns_service_domain": [
@@ -54,11 +24,14 @@
               "pass_through": true
             }
           ],
+          "usable_network_refs": [
+            "https://10.52.3.116:9443/api/network/network-bbf5b8e8-db93-4b93-9483-f1c59f16a707"
+          ],
           "ttl": 30
         },
-        "uuid": "ipamdnsproviderprofile-19a05809-a373-4892-a318-74702c2237ca",
-        "type": "IPAMDNS_TYPE_INTERNAL_DNS",
-        "name": "avi-dns"
+        "uuid": "ipamdnsproviderprofile-d49243f3-65f3-4cd1-b93a-e0ec41df409e",
+        "type": "IPAMDNS_TYPE_INTERNAL",
+        "name": "avi-ipam"
       }
     ]
   }

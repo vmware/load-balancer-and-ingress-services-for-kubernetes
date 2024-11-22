@@ -14,6 +14,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -105,6 +106,7 @@ func (cfg *AKOCleanupConfig) Cleanup(ctx context.Context) error {
 		cleanupPools,
 		func() error { return avirest.DeleteServiceEngines() },
 		avirest.DeleteServiceEngineGroup,
+		cleanupVIPNetwork,
 	}
 
 	for _, op := range ops {
@@ -344,6 +346,110 @@ func cleanupPools() error {
 		pools[key.Namespace] = append(pools[key.Namespace], poolCache.(*avicache.AviPoolCache).Uuid)
 	}
 	return deleteAviResource("/api/pool", pools)
+}
+
+/*
+Below section is only applicable for T1 based Supervisor deployments
+*/
+func cleanupVIPNetwork() error {
+	aviClient := avicache.SharedAVIClients(lib.GetAdminTenant()).AviClient[0]
+	avirest.AviNetCachePopulate(aviClient, utils.CloudName)
+	if len(avirest.NetCache) == 0 {
+		// NetCache is expected to be empty in case of VPC based deployments.
+		return nil
+	}
+
+	err := sanitzeAviCloud()
+	if err != nil {
+		return err
+	}
+
+	err = checkAndUpdateIPAM()
+	if err != nil {
+		return err
+	}
+
+	networks := map[string][]string{
+		lib.GetAdminTenant(): {},
+	}
+
+	for _, network := range avirest.NetCache {
+		networks[lib.GetAdminTenant()] = append(networks[lib.GetAdminTenant()], *network.UUID)
+	}
+	return deleteAviResource("/api/network", networks)
+}
+
+func sanitzeAviCloud() error {
+	aviClient := avicache.SharedAVIClients(lib.GetAdminTenant()).AviClient[0]
+	err := avirest.AviCloudCachePopulate(aviClient, utils.CloudName)
+	if err != nil {
+		return err
+	}
+	dataNetworkTier1Lrs := make([]*models.Tier1LogicalRouterInfo, 0)
+	cloudTier1Lrs := avirest.CloudCache.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs
+	cloudLRLSMap := make(map[string]string)
+	t1Handler := avirest.T1LRNetworking{}
+	err = t1Handler.GetClusterSpecificNSXTSegmentsinCloud(aviClient, cloudLRLSMap)
+	if err != nil {
+		return err
+	}
+
+	utils.AviLog.Infof("Number of stale entries to be remvoved: %d", len(cloudLRLSMap))
+	for i := range cloudTier1Lrs {
+		if _, ok := cloudLRLSMap[*cloudTier1Lrs[i].SegmentID]; ok {
+			continue
+		}
+		dataNetworkTier1Lrs = append(dataNetworkTier1Lrs, cloudTier1Lrs[i])
+	}
+	avirest.CloudCache.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs = dataNetworkTier1Lrs
+	path := "/api/cloud/" + *avirest.CloudCache.UUID
+	restOp := utils.RestOp{
+		ObjName: utils.CloudName,
+		Path:    path,
+		Method:  utils.RestPut,
+		Obj:     &avirest.CloudCache,
+		Tenant:  "admin",
+		Model:   "cloud",
+	}
+	restLayer := rest.NewRestOperations(nil, true)
+	return restLayer.AviRestOperateWrapper(aviClient, []*utils.RestOp{&restOp}, "aviCleanup")
+}
+
+func checkAndUpdateIPAM() error {
+	aviClient := avicache.SharedAVIClients(lib.GetAdminTenant()).AviClient[0]
+	if avirest.CloudCache.IPAMProviderRef == nil || *avirest.CloudCache.IPAMProviderRef == "" {
+		return nil
+	}
+	avirest.AviIPAMCachePopulate(aviClient, strings.Split(*avirest.CloudCache.IPAMProviderRef, "#")[1])
+	ipam := avirest.IPAMCache
+	updateIPAM := false
+	usableNetworks := make([]*models.IPAMUsableNetwork, 0)
+	if ipam.InternalProfile != nil && len(ipam.InternalProfile.UsableNetworks) > 0 {
+		for _, nw := range ipam.InternalProfile.UsableNetworks {
+			netName := strings.Split(*nw.NwRef, "#")[1]
+			if strings.HasPrefix(netName, lib.GetVCFNetworkName()) {
+				utils.AviLog.Infof("Removing VIP Network: %s from the Avi IPAM profile: %s", netName, *ipam.Name)
+				updateIPAM = true
+				continue
+			}
+			networkRef := "/api/network/?name=" + netName
+			usableNetworks = append(usableNetworks, &models.IPAMUsableNetwork{NwRef: &networkRef})
+		}
+	}
+	if !updateIPAM {
+		return nil
+	}
+	ipam.InternalProfile.UsableNetworks = usableNetworks
+	path := strings.Split(*avirest.CloudCache.IPAMProviderRef, "/ipamdnsproviderprofile/")[1]
+	restOp := utils.RestOp{
+		Path:   "/api/ipamdnsproviderprofile/" + path,
+		Method: utils.RestPut,
+		Obj:    &ipam,
+		Tenant: "admin",
+		Model:  "ipamdnsproviderprofile",
+	}
+	restLayer := rest.NewRestOperations(nil, true)
+	return restLayer.AviRestOperateWrapper(aviClient, []*utils.RestOp{&restOp}, "aviCleanup")
 }
 
 func convertPemToDer(cert string) string {
