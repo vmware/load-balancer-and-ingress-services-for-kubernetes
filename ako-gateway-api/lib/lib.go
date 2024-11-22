@@ -151,7 +151,12 @@ func FindTargetPort(serviceName, ns string, svcPort int32, key string) intstr.In
 	}
 	return intstr.IntOrString{}
 }
-
+func IsListenerInvalid(gwStatus *gatewayv1.GatewayStatus, listenerIndex int) bool {
+	if len(gwStatus.Listeners) > int(listenerIndex) && gwStatus.Listeners[listenerIndex].Conditions[0].Type == string(gatewayv1.ListenerConditionAccepted) && gwStatus.Listeners[listenerIndex].Conditions[0].Status == "False" {
+		return true
+	}
+	return false
+}
 func VerifyHostnameSubdomainMatch(hostname string) bool {
 	// Check if a hostname is valid or not by verifying if it has a prefix that
 	// matches any of the sub-domains.

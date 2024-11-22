@@ -411,13 +411,14 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 				return
 			}
 			secret := obj.(*corev1.Secret)
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
+			namespace, name, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
 			key := utils.Secret + "/" + utils.ObjKey(secret)
 			if lib.IsNamespaceBlocked(namespace) {
 				utils.AviLog.Debugf("key: %s, msg: secret add event. namespace: %s didn't qualify filter", key, namespace)
 				return
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
+			ValidateGatewayListenerWithSecret(namespace, name, false)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 		},
@@ -439,13 +440,14 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 				}
 			}
 			if checkAviSecretUpdateAndShutdown(secret) {
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
+				namespace, name, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
 				key := utils.Secret + "/" + utils.ObjKey(secret)
 				if lib.IsNamespaceBlocked(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: secret delete event. namespace: %s didn't qualify filter", key, namespace)
 					return
 				}
 				bkt := utils.Bkt(namespace, numWorkers)
+				ValidateGatewayListenerWithSecret(namespace, name, true)
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 			}
@@ -459,13 +461,14 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 			if oldobj.ResourceVersion != secret.ResourceVersion && !reflect.DeepEqual(secret.Data, oldobj.Data) {
 				if checkAviSecretUpdateAndShutdown(secret) {
 					// Only add the key if the resource versions have changed.
-					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
+					namespace, name, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
 					key := utils.Secret + "/" + utils.ObjKey(secret)
 					if lib.IsNamespaceBlocked(namespace) {
 						utils.AviLog.Debugf("key: %s, msg: secret update event. namespace: %s didn't qualify filter", key, namespace)
 						return
 					}
 					bkt := utils.Bkt(namespace, numWorkers)
+					ValidateGatewayListenerWithSecret(namespace, name, false)
 					c.workqueue[bkt].AddRateLimited(key)
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 				}

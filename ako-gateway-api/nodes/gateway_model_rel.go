@@ -131,7 +131,7 @@ func GatewayGetGw(namespace, name, key string) ([]string, bool) {
 	gwStatus := akogatewayapiobjects.GatewayApiLister().GetGatewayToGatewayStatusMapping(gwNsName)
 
 	for i, listenerObj := range gwObj.Spec.Listeners {
-		if IsListenerInvalid(gwStatus, i) {
+		if akogatewayapilib.IsListenerInvalid(gwStatus, i) {
 			continue
 		}
 		gwListener := akogatewayapiobjects.GatewayListenerStore{}

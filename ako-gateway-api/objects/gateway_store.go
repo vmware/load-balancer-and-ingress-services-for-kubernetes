@@ -545,7 +545,22 @@ func (g *GWLister) GetSecretToGateway(secretNsName string) (bool, []string) {
 		return true, obj.([]string)
 	}
 	return false, []string{}
+}
 
+func (g *GWLister) UpdateSecretToGateway(secretNsName string, gwNSNameList []string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	if found, obj := g.secretToGateway.Get(secretNsName); found {
+		gwList := obj.([]string)
+		for _, gwNSName := range gwNSNameList {
+			if !utils.HasElem(gwList, gwNSName) {
+				gwList = append(gwList, gwNSName)
+			}
+		}
+		g.secretToGateway.AddOrUpdate(secretNsName, gwList)
+	} else {
+		g.secretToGateway.AddOrUpdate(secretNsName, gwNSNameList)
+	}
 }
 func (g *GWLister) UpdateGatewayToSecret(gwNsName string, secretNsNameList []string) {
 	g.gwLock.Lock()
