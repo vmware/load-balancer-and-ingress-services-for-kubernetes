@@ -813,7 +813,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 			if vip.Ip6Address != nil {
 				v6ips = append(v6ips, *vip.Ip6Address.Addr)
 			}
-			if ipamNetworkSubnet := vip.IPAMNetworkSubnet; ipamNetworkSubnet != nil {
+			if ipamNetworkSubnet := vip.IPAMNetworkSubnet; ipamNetworkSubnet != nil && ipamNetworkSubnet.NetworkRef != nil {
 				if networkRef := *ipamNetworkSubnet.NetworkRef; networkRef != "" {
 					if networkRefName := strings.Split(networkRef, "#"); len(networkRefName) == 2 {
 						networkNames = append(networkNames, networkRefName[1])
