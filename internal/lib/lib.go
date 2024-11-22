@@ -2293,3 +2293,12 @@ func init() {
 	}
 	SEGroupName = seGroupToUse
 }
+
+func ValidServiceType(service *v1.Service) bool {
+	switch service.Spec.Type {
+	case v1.ServiceTypeLoadBalancer, v1.ServiceTypeClusterIP, v1.ServiceTypeNodePort:
+		return true
+	default:
+		return false
+	}
+}

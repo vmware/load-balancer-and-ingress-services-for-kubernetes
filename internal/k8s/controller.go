@@ -915,6 +915,11 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
 			isSvcLb := isServiceLBType(svc)
 			var key string
+			if !lib.ValidServiceType(svc) {
+				key := utils.Service + "/" + utils.ObjKey(svc)
+				utils.AviLog.Warnf("key: %s, msg: Invalid service type: [%s] Currently Allowed: [ClusterIP, NodePort, LoadBalancer]", key, string(svc.Spec.Type))
+				return
+			}
 			if isSvcLb && !lib.GetLayer7Only() {
 				//L4 Namespace sync not applicable for advance L4 and service API
 				key = utils.L4LBService + "/" + utils.ObjKey(svc)
@@ -972,6 +977,11 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					return
 				}
 			}
+			if !lib.ValidServiceType(svc) {
+				key := utils.Service + "/" + utils.ObjKey(svc)
+				utils.AviLog.Warnf("key: %s, msg: Invalid service type: [%s] Currently Allowed: [ClusterIP, NodePort, LoadBalancer]", key, string(svc.Spec.Type))
+				return
+			}
 			isSvcLb := isServiceLBType(svc)
 			var key string
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
@@ -1008,6 +1018,11 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 			oldobj := old.(*corev1.Service)
 			svc := cur.(*corev1.Service)
+			if !lib.ValidServiceType(svc) {
+				key := utils.Service + "/" + utils.ObjKey(svc)
+				utils.AviLog.Warnf("key: %s, msg: Invalid service type: [%s] Currently Allowed: [ClusterIP, NodePort, LoadBalancer]", key, string(svc.Spec.Type))
+				return
+			}
 			if oldobj.ResourceVersion != svc.ResourceVersion || !reflect.DeepEqual(svc.Annotations, oldobj.Annotations) {
 				// Only add the key if the resource versions have changed.
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
