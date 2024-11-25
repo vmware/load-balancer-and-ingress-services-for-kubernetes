@@ -307,7 +307,7 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		cksum := vs_meta.CloudConfigCksum
 		checksumstr := strconv.Itoa(int(cksum))
 		cr := lib.AKOUser
-		cloudRef := lib.GetCloudRef(lib.GetTenant())
+		cloudRef := fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)
 		svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 		svc_mdata := string(svc_mdata_json)
 
@@ -329,6 +329,10 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 
 		if vs_meta.VrfContext != "" {
 			vs.VrfContextRef = proto.String("/api/vrfcontext?name=" + vs_meta.VrfContext)
+		}
+
+		if vs_meta.ErrorPageProfileRef != "" {
+			vs.ErrorPageProfileRef = &vs_meta.ErrorPageProfileRef
 		}
 
 		var enableRhi bool
@@ -503,9 +507,9 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		app_prof = *vs_meta.ApplicationProfileRef
 	}
 
-	cloudRef := lib.GetCloudRef(lib.GetTenant())
+	cloudRef := fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)
 	network_prof := "/api/networkprofile/?name=" + "System-TCP-Proxy"
-	seGroupRef := fmt.Sprintf("/api/serviceenginegroup?tenant=%s&name=%s", lib.GetTenant(), lib.GetSEGName())
+	seGroupRef := fmt.Sprintf("/api/serviceenginegroup?name=%s", lib.GetSEGName())
 	svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 	svc_mdata := string(svc_mdata_json)
 	evhChild := &avimodels.VirtualService{

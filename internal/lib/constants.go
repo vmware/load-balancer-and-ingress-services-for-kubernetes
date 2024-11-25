@@ -208,9 +208,10 @@ const (
 	HTTPMethodPut                              = "PUT"
 	VrfContextObjectNotFoundError              = "VrfContext object not found"
 	NetworkNotFoundError                       = "Network object not found"
-	CtrlVersion_22_1_6                         = "22.1.6"
+	TenantDoesNotExist                         = "Tenant '%s' does not exist!"
 	FQDNReusePolicyStrict                      = "strict"
 	FQDNReusePolicyOpen                        = "internamespaceallowed"
+	DefaultPSName                              = "default-backend"
 
 	// AKO Event constants
 	AKOEventComponent        = "avi-kubernetes-operator"

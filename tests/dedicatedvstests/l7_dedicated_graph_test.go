@@ -224,14 +224,14 @@ func SetupDomain() {
 	mcache.CloudKeyCache.AviCacheAdd("Default-Cloud", cloudObj)
 }
 
-func TearDownIngressForCacheSyncCheck(t *testing.T, secretName, ingressName, modelName string) {
+func TearDownIngressForCacheSyncCheck(t *testing.T, secretName, ingressName, svcName, modelName string) {
 	if err := KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingressName, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	if secretName != "" {
 		KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), secretName, metav1.DeleteOptions{})
 	}
-	TearDownTestForIngress(t, modelName)
+	TearDownTestForIngress(t, svcName, modelName)
 }
 
 func TestFQDNCountInL7Model(t *testing.T) {
@@ -268,7 +268,7 @@ func TestFQDNCountInL7Model(t *testing.T) {
 		g.Expect(fqdn).ShouldNot(gomega.ContainSubstring("L7-dedicated"))
 	}
 
-	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestPortsForInsecureDedicatedShard(t *testing.T) {
@@ -300,7 +300,7 @@ func TestPortsForInsecureDedicatedShard(t *testing.T) {
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(1))
 	g.Expect(int(nodes[0].PortProto[0].Port)).To(gomega.Equal(80))
-	TearDownIngressForCacheSyncCheck(t, "", ingressName, modelName)
+	TearDownIngressForCacheSyncCheck(t, "", ingressName, svcName, modelName)
 }
 
 func TestPortsForSecureDedicatedShard(t *testing.T) {
@@ -342,5 +342,5 @@ func TestPortsForSecureDedicatedShard(t *testing.T) {
 	sort.Ints(ports)
 	g.Expect(ports[0]).To(gomega.Equal(80))
 	g.Expect(ports[1]).To(gomega.Equal(443))
-	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }

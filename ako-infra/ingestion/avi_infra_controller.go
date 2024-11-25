@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/alb-sdk/go/models"
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -41,6 +42,11 @@ import (
 type AviControllerInfra struct {
 	AviRestClient *clients.AviClient
 	cs            kubernetes.Interface
+}
+
+var acceptedLicensesInAvi = []string{
+	AVI_ENTERPRISE,
+	AviEnterpriseWithCloudServices,
 }
 
 func NewAviControllerInfra(cs kubernetes.Interface) *AviControllerInfra {
@@ -74,13 +80,14 @@ func (a *AviControllerInfra) VerifyAviControllerLicense() error {
 		return err
 	}
 
-	if *response.DefaultLicenseTier != AVI_ENTERPRISE {
-		errStr := fmt.Sprintf("Avi Controller license is not ENTERPRISE. License tier is: %s", *response.DefaultLicenseTier)
-		return errors.New(errStr)
-	} else {
-		utils.AviLog.Infof("Avi Controller is running with ENTERPRISE license, proceeding with bootup")
+	for _, license := range acceptedLicensesInAvi {
+		if *response.DefaultLicenseTier == license {
+			utils.AviLog.Infof("Avi Controller is running with %s license, proceeding with bootup", *response.DefaultLicenseTier)
+			return nil
+		}
 	}
-	return nil
+
+	return fmt.Errorf("Avi Controller license is not in accepted list %s. License tier is: %s", acceptedLicensesInAvi, *response.DefaultLicenseTier)
 }
 
 func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, string, string) {
@@ -98,6 +105,7 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
 		return err, "", ""
 	}
+	vpcMode := lib.GetVPCMode()
 	for i := 0; i < len(elems); i++ {
 		cloud := models.Cloud{}
 		err = json.Unmarshal(elems[i], &cloud)
@@ -108,12 +116,17 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 		if *cloud.Vtype != lib.CLOUD_NSXT || cloud.NsxtConfiguration == nil {
 			continue
 		}
-		if cloud.NsxtConfiguration.VpcMode != nil && *cloud.NsxtConfiguration.VpcMode != lib.GetVPCMode() {
+		if vpcMode && (cloud.NsxtConfiguration.VpcMode == nil || !*cloud.NsxtConfiguration.VpcMode) {
 			continue
 		}
 		if cloud.NsxtConfiguration.ManagementNetworkConfig == nil ||
-			cloud.NsxtConfiguration.ManagementNetworkConfig.TransportZone == nil ||
-			*cloud.NsxtConfiguration.ManagementNetworkConfig.TransportZone != tz {
+			cloud.NsxtConfiguration.ManagementNetworkConfig.TransportZone == nil {
+			continue
+		}
+		// In case of VPC mode, no need to match tranport zone as there would be only 1 cloud presnt in the avi controller
+		if cloud.NsxtConfiguration.DataNetworkConfig == nil ||
+			cloud.NsxtConfiguration.DataNetworkConfig.TransportZone == nil ||
+			(!vpcMode && *cloud.NsxtConfiguration.DataNetworkConfig.TransportZone != tz) {
 			continue
 		}
 		utils.AviLog.Infof("Found NSX-T cloud: %s match Transport Zone: %s", *cloud.Name, tz)
@@ -152,7 +165,7 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 		}
 		return nil, *cloud.Name, *defaultSEG.UUID
 	}
-	return errors.New("cloud not found"), "", ""
+	return errors.New("cloud not found matching transport zone " + tz), "", ""
 }
 
 func isPlacementScopeConfigured(configuredSEGroup *avimodels.ServiceEngineGroup) bool {
@@ -169,7 +182,8 @@ func isPlacementScopeConfigured(configuredSEGroup *avimodels.ServiceEngineGroup)
 func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
 	err, cloudName, segTemplateUuid := a.DeriveCloudNameAndSEGroupTmpl(tz)
 	if err != nil {
-		return false
+		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "CloudMatchingTZNotFound", err.Error())
+		utils.AviLog.Fatalf("Failed to derive cloud, err: %s", err)
 	}
 	utils.AviLog.Infof("Obtained matching cloud to be used: %s", cloudName)
 	utils.SetCloudName(cloudName)
@@ -322,15 +336,23 @@ func updateSEGroup() {
 	}
 	vcRef := fmt.Sprintf("/api/vcenterserver/?name=%s", vcenterServerName)
 	if len(seGroup.Vcenters) == 0 {
-		seGroup.Vcenters = make([]*avimodels.PlacementScopeConfig, 1)
-	}
-	seGroup.Vcenters[0] = &avimodels.PlacementScopeConfig{
-		VcenterRef: &vcRef,
-		NsxtClusters: &avimodels.NsxtClusters{
+		seGroup.Vcenters = []*avimodels.PlacementScopeConfig{
+			{
+				VcenterRef: &vcRef,
+				NsxtClusters: &avimodels.NsxtClusters{
+					ClusterIds: clusterIDs,
+					Include:    &include,
+				},
+			},
+		}
+	} else {
+		seGroup.Vcenters[0].VcenterRef = &vcRef
+		seGroup.Vcenters[0].NsxtClusters = &avimodels.NsxtClusters{
 			ClusterIds: clusterIDs,
 			Include:    &include,
-		},
+		}
 	}
+
 	response := models.ServiceEngineGroupAPIResponse{}
 	uri = "/api/serviceenginegroup/" + *seGroup.UUID
 	err = lib.AviPut(client, uri, seGroup, response)

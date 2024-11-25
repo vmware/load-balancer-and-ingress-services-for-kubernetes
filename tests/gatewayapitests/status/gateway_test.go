@@ -1397,3 +1397,56 @@ func TestGatewayWithUnsupportedProtocolAndHostnameInListeners(t *testing.T) {
 	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	tests.TeardownGatewayClass(t, gatewayClassName)
 }
+func TestSecretCreateDelete(t *testing.T) {
+
+	gatewayName := "gateway-12"
+	gatewayClassName := "gateway-class-12"
+	ports := []int32{8080}
+	secrets := []string{"secret-12"}
+
+	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := tests.GetListenersV1(ports, false, false, secrets...)
+	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+	if err != nil || gateway == nil {
+		t.Fatalf("Couldn't get the gateway, err: %+v", err)
+	}
+	expectedStatus := tests.GetNegativeConditions(ports)
+	tests.ValidateGatewayStatus(t, &gateway.Status, expectedStatus)
+	time.Sleep(1 * time.Second)
+	integrationtest.AddSecret(secrets[0], DEFAULT_NAMESPACE, "cert", "key")
+	// add delay
+	expectedStatus = tests.GetPositiveConditions(ports)
+	time.Sleep(1 * time.Second)
+
+	gateway, err = tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+	if err != nil || gateway == nil {
+		t.Fatalf("Couldn't get the gateway, err: %+v", err)
+	}
+	tests.ValidateGatewayStatus(t, &gateway.Status, expectedStatus)
+	// delete
+	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
+
+	expectedStatus = tests.GetNegativeConditions(ports)
+
+	// add delay
+	time.Sleep(1 * time.Second)
+	gateway, err = tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+	if err != nil || gateway == nil {
+		t.Fatalf("Couldn't get the gateway, err: %+v", err)
+	}
+	tests.ValidateGatewayStatus(t, &gateway.Status, expectedStatus)
+	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	tests.TeardownGatewayClass(t, gatewayClassName)
+}

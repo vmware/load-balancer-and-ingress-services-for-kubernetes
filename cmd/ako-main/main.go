@@ -172,11 +172,24 @@ func InitializeAKC() {
 	}
 
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, false)
-	pod, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).Get(context.TODO(), os.Getenv("POD_NAME"), metav1.GetOptions{})
-	if err != nil {
-		utils.AviLog.Warnf("Error getting AKO pod details, %s.", err.Error())
+
+	// POD_NAME is not set in case of a WCP cluster
+	if os.Getenv("POD_NAME") == "" {
+		pods, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).List(context.TODO(), metav1.ListOptions{Limit: 1})
+		if err != nil {
+			utils.AviLog.Warnf("Error getting AKO pod details, %s.", err.Error())
+		} else {
+			for _, pod := range pods.Items {
+				akoControlConfig.SaveAKOPodObjectMeta(&pod)
+			}
+		}
+	} else {
+		pod, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).Get(context.TODO(), os.Getenv("POD_NAME"), metav1.GetOptions{})
+		if err != nil {
+			utils.AviLog.Warnf("Error getting AKO pod details, %s.", err.Error())
+		}
+		akoControlConfig.SaveAKOPodObjectMeta(pod)
 	}
-	akoControlConfig.SaveAKOPodObjectMeta(pod)
 
 	// Check for kubernetes apiserver version compatibility with AKO version.
 	if serverVersionInfo, err := kubeClient.Discovery().ServerVersion(); err != nil {

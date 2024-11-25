@@ -216,6 +216,7 @@ oshiftroutetests:
 bootuptests:
 	@> bootuptests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/bootuptests -failfast -timeout 0 \
@@ -225,6 +226,7 @@ bootuptests:
 multicloudtests:
 	@> multicloudtests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multicloudtests -failfast -timeout 0 \
@@ -234,6 +236,7 @@ multicloudtests:
 servicesapitests:
 	@> servicesapitests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/servicesapitests -failfast -timeout 0 \
@@ -243,6 +246,7 @@ servicesapitests:
 advl4tests:
 	@> advl4tests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/advl4tests -failfast -timeout 0 \
@@ -252,6 +256,7 @@ advl4tests:
 namespacesynctests:
 	@> namespacesynctests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/namespacesynctests -failfast -timeout 0 \
@@ -261,6 +266,7 @@ namespacesynctests:
 temp:
 	@> misc.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/temp -failfast > misc.log 2>&1 && echo "misc passed") || (echo "misc failed" && cat misc.log && exit 1)
@@ -289,6 +295,7 @@ evhtests:
 vippernstests:
 	@> vippernstests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/evhtests -failfast -timeout 0 -isVipPerNS=true \
@@ -308,6 +315,7 @@ dedicatedevhtests:
 dedicatedvippernstests:
 	@> dedicatedvippernstests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/dedicatedevhtests -failfast -timeout 0 -isVipPerNS=true \
@@ -327,6 +335,7 @@ dedicatedvstests:
 infratests:
 	@> infratests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/infratests -failfast -timeout 0 > infratests.log 2>&1 && echo "infratests passed") || (echo "infratests failed" && cat infratests.log && exit 1)
@@ -343,6 +352,7 @@ infratests:
 hatests:
 	@> hatests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/hatests -failfast -timeout 0 \
@@ -352,6 +362,7 @@ hatests:
 calicotests:
 	@> calicotests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/cnitests -failfast -timeout 0 -cniPlugin=calico \
@@ -361,6 +372,7 @@ calicotests:
 ciliumtests:
 	@> ciliumtests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/cnitests -failfast -timeout 0 -cniPlugin=cilium \
@@ -389,6 +401,7 @@ gatewayapi_ingestiontests:
 gatewayapi_graphlayertests:
 	@> gatewayapi_graphlayertests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/graphlayer -failfast -timeout 0 \
@@ -398,6 +411,7 @@ gatewayapi_graphlayertests:
 gatewayapi_statustests:
 	@> gatewayapi_statustests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/status -failfast -timeout 0 \
@@ -407,6 +421,7 @@ gatewayapi_statustests:
 multitenancytests:
 	@> multitenancytests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multitenancytests -failfast -timeout 0 -coverprofile cover-21.out -coverpkg=./... > multitenancytests.log 2>&1 && echo "multitenancytests passed") || (echo "multitenancytests failed" && cat multitenancytests.log && exit 1)
@@ -415,6 +430,7 @@ multitenancytests:
 urltests:
 	@> urltests.log
 	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/urltests -failfast -coverprofile cover-22.out -coverpkg=./... > urltests.log 2>&1 && echo "urltests passed") || (echo "urltests failed" && cat urltests.log && exit 1)
@@ -428,9 +444,10 @@ int_test:
 	namespacesynctests servicesapitests npltests misc \
 	dedicatedvstests hatests calicotests ciliumtests \
 	helmtests infratests urltests multitenancytests gatewayapi_ingestiontests gatewayapi_graphlayertests \
-	gatewayapi_statustests > int_test.log 2>&1 \
+	gatewayapi_statustests ENDPOINTSLICES_ENABLED="true" > int_test.log 2>&1 \
 	&& echo "int_test succeeded" && buffer -i int_test.log -u 1000 -z 1k) \
-	|| (echo "int_test failed" && buffer -i int_test.log -u 1000 -z 1k && exit 1)
+	|| (echo "int_test failed" && (buffer -i int_test.log -u 2000 -z 1b || \
+	echo "Dumping the whole log failed; here are the last 100 lines" && tail -n100 int_test.log ) && exit 1)
 
 .PHONY: dev_int_test
 dev_int_test:
@@ -490,7 +507,7 @@ dev_int_test:
 
 .PHONY: eps_enabled
 eps_enabled:
-	make -j 1 k8stest integrationtest ingresstests evhtests dedicatedevhtests oshiftroutetests npltests dedicatedvstests gatewayapitests ENDPOINTSLICES_ENABLED="true"  
+	make -j 1 k8stest integrationtest ingresstests evhtests dedicatedevhtests oshiftroutetests npltests dedicatedvstests gatewayapitests ENDPOINTSLICES_ENABLED="true"
 
 .PHONY: scale_test
 scale_test:

@@ -168,7 +168,7 @@ func TestHostruleFQDNAliasesForDedicatedVS(t *testing.T) {
 	validateNode(nodes[0], aliases)
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestApplyHostruleToDedicatedVS(t *testing.T) {
@@ -274,7 +274,7 @@ func TestApplyHostruleToDedicatedVS(t *testing.T) {
 	g.Expect(portWithoutHostRule[0]).To(gomega.Equal(80))
 	g.Expect(portWithoutHostRule[1]).To(gomega.Equal(443))
 
-	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 
 }
 
@@ -320,7 +320,7 @@ func TestHostruleSSLKeyCertToDedicatedVS(t *testing.T) {
 	g.Expect(nodes[0].Enabled).To(gomega.BeNil())
 	g.Expect(nodes[0].SslKeyAndCertificateRefs).To(gomega.HaveLen(0))
 
-	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestHostruleNoListenerDedicatedVS(t *testing.T) {
@@ -390,7 +390,7 @@ func TestHostruleNoListenerDedicatedVS(t *testing.T) {
 	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
 	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/hr-cluster--foo.com-L7-dedicated", false)
 
-	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 
 }
 
@@ -461,7 +461,7 @@ func TestApplySSLHostruleToInsecureDedicatedVS(t *testing.T) {
 	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
 	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/hr-cluster--foo.com-L7-dedicated", false)
 
-	TearDownIngressForCacheSyncCheck(t, "", ingressName, modelName)
+	TearDownIngressForCacheSyncCheck(t, "", ingressName, svcName, modelName)
 
 }
 
@@ -686,7 +686,7 @@ func TestHostRuleUseRegex(t *testing.T) {
 	g.Expect(node.HttpPolicyRefs[1].RedirectPorts[0].MatchCriteria).To(gomega.Equal(""))
 	g.Expect(node.HttpPolicyRefs[1].RedirectPorts[0].Hosts[0]).To(gomega.Equal("foo.com"))
 
-	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestHostRuleAppRoot(t *testing.T) {
@@ -762,7 +762,7 @@ func TestHostRuleAppRoot(t *testing.T) {
 	g.Expect(node.HttpPolicyRefs[1].RedirectPorts[0].Hosts).Should(gomega.ContainElements(fqdn))
 	g.Expect(node.HttpPolicyRefs[1].HppMap).To(gomega.BeNil())
 
-	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestHostRuleRegexAppRoot(t *testing.T) {
@@ -848,7 +848,7 @@ func TestHostRuleRegexAppRoot(t *testing.T) {
 	g.Expect(node.HttpPolicyRefs[1].RedirectPorts[0].Hosts).Should(gomega.ContainElements(fqdn))
 	g.Expect(node.HttpPolicyRefs[1].HppMap).To(gomega.BeNil())
 
-	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
 }
 
 func TestHTTPRuleCreateDeleteEnableHTTP2(t *testing.T) {
@@ -916,5 +916,5 @@ func TestHTTPRuleCreateDeleteEnableHTTP2(t *testing.T) {
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].PoolRefs[0].EnableHttp2).To(gomega.BeNil())
 
-	TearDownIngressForCacheSyncCheck(t, secretName, ingName, modelName)
+	TearDownIngressForCacheSyncCheck(t, secretName, ingName, svcName, modelName)
 }

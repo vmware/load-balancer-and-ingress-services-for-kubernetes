@@ -1055,9 +1055,8 @@ func TestHTTPRouteGatewayWithEmptyHostnameInGatewayHTTPRoute(t *testing.T) {
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Eventually(func() int {
 		return len(nodes[0].HttpPolicyRefs)
-	}, 20*time.Second).Should(gomega.Equal(2))
-	g.Expect(len(nodes[0].HttpPolicyRefs[0].RequestRules[0].Match.VsPort.Ports)).To(gomega.Equal(1))
-	g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(1))
+	}, 20*time.Second).Should(gomega.Equal(1))
+	g.Expect(len(nodes[0].PoolGroupRefs)).To(gomega.Equal(0))
 
 	// delete httproute
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)

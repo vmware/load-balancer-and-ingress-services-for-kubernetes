@@ -224,9 +224,9 @@ func SetUpTestForIngress(t *testing.T, svcName string, modelNames ...string) {
 }
 
 func TearDownTestForIngress(t *testing.T, svcName string, modelNames ...string) {
-	// for _, model := range modelNames {
-	// 	objects.SharedAviGraphLister().Delete(model)
-	// }
+	//for _, model := range modelNames {
+	//	objects.SharedAviGraphLister().Delete(model)
+	//}
 	integrationtest.DelSVC(t, "default", svcName)
 	integrationtest.DelEPorEPS(t, "default", svcName)
 }

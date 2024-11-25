@@ -77,14 +77,14 @@ func (c *GatewayController) Start(stopCh <-chan struct{}) {
 	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
 		go c.informers.EpSlicesInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.informers.EpSlicesInformer.Informer().HasSynced)
-	} else if lib.GetServiceType() == lib.NodePortLocal {
-		go c.informers.PodInformer.Informer().Run(stopCh)
-		informersList = append(informersList, c.informers.PodInformer.Informer().HasSynced)
-	} else {
+	} else if lib.GetServiceType() != lib.NodePortLocal {
 		go c.informers.EpInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.informers.EpInformer.Informer().HasSynced)
 	}
-
+	if lib.GetServiceType() == lib.NodePortLocal {
+		go c.informers.PodInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.informers.PodInformer.Informer().HasSynced)
+	}
 	if !lib.AviSecretInitialized {
 		go c.informers.SecretInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.informers.SecretInformer.Informer().HasSynced)
@@ -182,7 +182,74 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 			},
 		}
 		c.informers.EpSlicesInformer.Informer().AddEventHandler(epsEventHandler)
-	} else if lib.GetServiceType() == lib.NodePortLocal {
+	} else if lib.GetServiceType() != lib.NodePortLocal {
+		epEventHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				ep := obj.(*corev1.Endpoints)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
+				key := utils.Endpoints + "/" + utils.ObjKey(ep)
+				if lib.IsNamespaceBlocked(namespace) {
+					utils.AviLog.Debugf("key: %s, msg: Endpoint Add event: Namespace: %s didn't qualify filter", key, namespace)
+					return
+				}
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
+			},
+			DeleteFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				ep, ok := obj.(*corev1.Endpoints)
+				if !ok {
+					// endpoints were deleted but its final state is unrecorded.
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					ep, ok = tombstone.Obj.(*corev1.Endpoints)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not an Endpoints: %#v", obj)
+						return
+					}
+				}
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
+				key := utils.Endpoints + "/" + utils.ObjKey(ep)
+				if lib.IsNamespaceBlocked(namespace) {
+					utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
+					return
+				}
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+			},
+			UpdateFunc: func(old, cur interface{}) {
+				if c.DisableSync {
+					return
+				}
+				oep := old.(*corev1.Endpoints)
+				cep := cur.(*corev1.Endpoints)
+				if !reflect.DeepEqual(cep.Subsets, oep.Subsets) {
+					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(cep))
+					key := utils.Endpoints + "/" + utils.ObjKey(cep)
+					if lib.IsNamespaceBlocked(namespace) {
+						utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
+						return
+					}
+					bkt := utils.Bkt(namespace, numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+				}
+			},
+		}
+		c.informers.EpInformer.Informer().AddEventHandler(epEventHandler)
+	}
+
+	if lib.GetServiceType() == lib.NodePortLocal {
 		podEventHandler := cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				if c.DisableSync {
@@ -274,73 +341,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 			},
 		}
 		c.informers.PodInformer.Informer().AddEventHandler(podEventHandler)
-	} else {
-		epEventHandler := cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				if c.DisableSync {
-					return
-				}
-				ep := obj.(*corev1.Endpoints)
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
-				key := utils.Endpoints + "/" + utils.ObjKey(ep)
-				if lib.IsNamespaceBlocked(namespace) {
-					utils.AviLog.Debugf("key: %s, msg: Endpoint Add event: Namespace: %s didn't qualify filter", key, namespace)
-					return
-				}
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: ADD", key)
-			},
-			DeleteFunc: func(obj interface{}) {
-				if c.DisableSync {
-					return
-				}
-				ep, ok := obj.(*corev1.Endpoints)
-				if !ok {
-					// endpoints were deleted but its final state is unrecorded.
-					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-					if !ok {
-						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
-						return
-					}
-					ep, ok = tombstone.Obj.(*corev1.Endpoints)
-					if !ok {
-						utils.AviLog.Errorf("Tombstone contained object that is not an Endpoints: %#v", obj)
-						return
-					}
-				}
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
-				key := utils.Endpoints + "/" + utils.ObjKey(ep)
-				if lib.IsNamespaceBlocked(namespace) {
-					utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
-					return
-				}
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-			},
-			UpdateFunc: func(old, cur interface{}) {
-				if c.DisableSync {
-					return
-				}
-				oep := old.(*corev1.Endpoints)
-				cep := cur.(*corev1.Endpoints)
-				if !reflect.DeepEqual(cep.Subsets, oep.Subsets) {
-					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(cep))
-					key := utils.Endpoints + "/" + utils.ObjKey(cep)
-					if lib.IsNamespaceBlocked(namespace) {
-						utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
-						return
-					}
-					bkt := utils.Bkt(namespace, numWorkers)
-					c.workqueue[bkt].AddRateLimited(key)
-					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-				}
-			},
-		}
-		c.informers.EpInformer.Informer().AddEventHandler(epEventHandler)
 	}
-
 	svcEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -407,13 +408,14 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 				return
 			}
 			secret := obj.(*corev1.Secret)
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
+			namespace, name, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
 			key := utils.Secret + "/" + utils.ObjKey(secret)
 			if lib.IsNamespaceBlocked(namespace) {
 				utils.AviLog.Debugf("key: %s, msg: secret add event. namespace: %s didn't qualify filter", key, namespace)
 				return
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
+			ValidateGatewayListenerWithSecret(namespace, name, false)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 		},
@@ -435,13 +437,14 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 				}
 			}
 			if checkAviSecretUpdateAndShutdown(secret) {
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
+				namespace, name, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
 				key := utils.Secret + "/" + utils.ObjKey(secret)
 				if lib.IsNamespaceBlocked(namespace) {
 					utils.AviLog.Debugf("key: %s, msg: secret delete event. namespace: %s didn't qualify filter", key, namespace)
 					return
 				}
 				bkt := utils.Bkt(namespace, numWorkers)
+				ValidateGatewayListenerWithSecret(namespace, name, true)
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 			}
@@ -455,13 +458,14 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 			if oldobj.ResourceVersion != secret.ResourceVersion && !reflect.DeepEqual(secret.Data, oldobj.Data) {
 				if checkAviSecretUpdateAndShutdown(secret) {
 					// Only add the key if the resource versions have changed.
-					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
+					namespace, name, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(secret))
 					key := utils.Secret + "/" + utils.ObjKey(secret)
 					if lib.IsNamespaceBlocked(namespace) {
 						utils.AviLog.Debugf("key: %s, msg: secret update event. namespace: %s didn't qualify filter", key, namespace)
 						return
 					}
 					bkt := utils.Bkt(namespace, numWorkers)
+					ValidateGatewayListenerWithSecret(namespace, name, false)
 					c.workqueue[bkt].AddRateLimited(key)
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 				}

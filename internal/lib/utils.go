@@ -509,14 +509,6 @@ func GetTenantInNamespace(namespace string) string {
 	return tenant
 }
 
-func GetCloudRef(tenant string) string {
-	if CompareVersions(AKOControlConfig().ControllerVersion(), ">", CtrlVersion_22_1_6) {
-		return fmt.Sprintf("/api/cloud?tenant=%s&name=%s", tenant, utils.CloudName)
-	}
-	// 22.1.x python webapp is not able to parse cloud name from above reference
-	return fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)
-}
-
 func GetAllTenants(c *clients.AviClient, tenants map[string]struct{}, nextPage ...string) error {
 	uri := "/api/tenant"
 	result, err := AviGetCollectionRaw(c, uri)

@@ -92,7 +92,7 @@ func (t *T1LRNetworking) SyncLSLRNetwork() {
 	utils.AviLog.Infof("Got data LS LR Map: %v, from NetworkInfo CR", lslrmap)
 
 	client := InfraAviClientInstance()
-	found, cloudModel := getAviCloudFromCache(client, utils.CloudName, false)
+	found, cloudModel := getAviCloudFromCache(client, utils.CloudName)
 	if !found {
 		utils.AviLog.Warnf("Failed to get Cloud data from cache")
 		return
@@ -152,7 +152,6 @@ func (t *T1LRNetworking) createInfraSettingAndAnnotateNS(nsLRMap map[string]stri
 	}
 
 	processedInfraSettingCRSet := make(map[string]struct{})
-	wg := sync.WaitGroup{}
 	for ns, lr := range nsLRMap {
 		infraSettingName := getInfraSettingNameFromT1LR(lr)
 		netName := lib.GetVCFNetworkName()
@@ -160,6 +159,7 @@ func (t *T1LRNetworking) createInfraSettingAndAnnotateNS(nsLRMap map[string]stri
 			netName = lib.GetVCFNetworkNameWithNS(ns)
 			infraSettingName = infraSettingName + "-" + ns
 		}
+		infraSettingName = strings.ReplaceAll(infraSettingName, "_", "-")
 		// multiple namespaces can have the same lr, and there will always be only 1 infrasetting per lr
 		// so no need to attempt Infrasetting creation
 		// just annotate the namespace with the infrasetting name
@@ -167,32 +167,24 @@ func (t *T1LRNetworking) createInfraSettingAndAnnotateNS(nsLRMap map[string]stri
 			lib.AnnotateNamespaceWithInfraSetting(ns, infraSettingName)
 			continue
 		}
+
 		processedInfraSettingCRSet[infraSettingName] = struct{}{}
 		delete(staleInfraSettingCRSet, infraSettingName)
 
-		wg.Add(1)
-		go func(lr, ns string) {
-			defer wg.Done()
-			_, err := lib.CreateOrUpdateAviInfraSetting(infraSettingName, netName, lr)
-			if err != nil {
-				utils.AviLog.Errorf("failed to create aviInfraSetting, name: %s, error: %s", infraSettingName, err.Error())
-				return
-			}
-			lib.AnnotateNamespaceWithInfraSetting(ns, infraSettingName)
-		}(lr, ns)
+		_, err := lib.CreateOrUpdateAviInfraSetting(infraSettingName, netName, lr)
+		if err != nil {
+			utils.AviLog.Errorf("failed to create aviInfraSetting, name: %s, error: %s", infraSettingName, err.Error())
+			continue
+		}
+		lib.AnnotateNamespaceWithInfraSetting(ns, infraSettingName)
 	}
 
 	for infraSettingName := range staleInfraSettingCRSet {
-		wg.Add(1)
-		go func(name string) {
-			err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Delete(context.TODO(), name, metav1.DeleteOptions{})
-			if err != nil {
-				utils.AviLog.Errorf("failed to delete aviInfraSetting, name: %s, error: %s", name, err.Error())
-			}
-			wg.Done()
-		}(infraSettingName)
+		err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Delete(context.TODO(), infraSettingName, metav1.DeleteOptions{})
+		if err != nil {
+			utils.AviLog.Errorf("failed to delete aviInfraSetting, name: %s, error: %s", infraSettingName, err.Error())
+		}
 	}
-	wg.Wait()
 	lib.RemoveInfraSettingAnnotationFromNamespaces(staleInfraSettingCRSet)
 }
 
@@ -302,7 +294,7 @@ func (t *T1LRNetworking) addNetworkInCloud(objKey string, cidrToNS map[string]ma
 }
 
 func (t *T1LRNetworking) addNetworkInIPAM(key string, networksToDelete map[string]string, client *clients.AviClient) {
-	found, cloudModel := getAviCloudFromCache(client, utils.CloudName, false)
+	found, cloudModel := getAviCloudFromCache(client, utils.CloudName)
 	if !found {
 		utils.AviLog.Warnf("Failed to get Cloud data from cache")
 		return
@@ -442,7 +434,7 @@ func (t *T1LRNetworking) deleteNetworkInCloud(objKey string, networksToDelete ma
 	wg.Wait()
 }
 
-func (t *T1LRNetworking) getClusterSpecificNSXTSegmentsinCloud(client *clients.AviClient, lsLRMap map[string]string, next ...string) error {
+func (t *T1LRNetworking) GetClusterSpecificNSXTSegmentsinCloud(client *clients.AviClient, lsLRMap map[string]string, next ...string) error {
 	uri := fmt.Sprintf("/api/nsxtsegmentruntime/?cloud_ref.name=%s", utils.CloudName)
 	if len(next) > 0 {
 		uri = next[0]
@@ -472,7 +464,7 @@ func (t *T1LRNetworking) getClusterSpecificNSXTSegmentsinCloud(client *clients.A
 		next_uri := strings.Split(result.Next, "/api/nsxtsegmentruntime")
 		if len(next_uri) > 1 {
 			nextPage := "/api/nsxtsegmentruntime" + next_uri[1]
-			err = t.getClusterSpecificNSXTSegmentsinCloud(client, lsLRMap, nextPage)
+			err = t.GetClusterSpecificNSXTSegmentsinCloud(client, lsLRMap, nextPage)
 			if err != nil {
 				return err
 			}
@@ -486,7 +478,7 @@ func (t *T1LRNetworking) removeStaleLRLSEntries(client *clients.AviClient, cloud
 	cloudTier1Lrs := cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs
 	dataNetworkTier1Lrs := make([]*models.Tier1LogicalRouterInfo, 0)
 	cloudLRLSMap := make(map[string]string)
-	err := t.getClusterSpecificNSXTSegmentsinCloud(client, cloudLRLSMap)
+	err := t.GetClusterSpecificNSXTSegmentsinCloud(client, cloudLRLSMap)
 	if err != nil {
 		utils.AviLog.Warnf("Failed to get LR to LS Map from cloud, err: %s", err)
 		copy(dataNetworkTier1Lrs, cloudTier1Lrs)

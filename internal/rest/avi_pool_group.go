@@ -39,7 +39,7 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", pg_meta.Tenant)
 	members := rest.SanitizePGMembers(pg_meta.Members, key)
 	cr := lib.AKOUser
-	cloudRef := lib.GetCloudRef(lib.GetTenant())
+	cloudRef := fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)
 
 	pg := avimodels.PoolGroup{Name: &name, CloudConfigCksum: &cksumString,
 		CreatedBy: &cr, TenantRef: &tenant, Members: members, CloudRef: &cloudRef, ImplicitPriorityLabels: &pg_meta.ImplicitPriorityLabel}

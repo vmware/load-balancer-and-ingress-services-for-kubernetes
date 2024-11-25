@@ -19,12 +19,13 @@ import (
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
-	"k8s.io/apimachinery/pkg/labels"
-
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	akogatewayapistatus "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/status"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
@@ -252,6 +253,9 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 			_, err := utils.GetInformers().ClientSet.CoreV1().Secrets(gateway.ObjectMeta.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
 			if err != nil {
 				utils.AviLog.Errorf("key: %s, msg: Secret specified in CertificateRef does not exist %+v/%+v", key, gateway.Name, listener.Name)
+				gWNSName := gateway.ObjectMeta.Namespace + "/" + gateway.ObjectMeta.Name
+				secretNSName := gateway.ObjectMeta.Namespace + "/" + name
+				akogatewayapiobjects.GatewayApiLister().UpdateSecretToGateway(secretNSName, []string{gWNSName})
 				defaultCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
 				resolvedRefCondition.
 					Reason(string(gatewayv1.ListenerReasonInvalidCertificateRef)).
@@ -317,4 +321,120 @@ func IsHTTPRouteConfigValid(key string, obj *gatewayv1.HTTPRoute) bool {
 		return false
 	}
 	return true
+}
+
+func ValidateGatewayListenerWithSecret(namespace, name string, deleteFlag bool) {
+	secretNSName := namespace + "/" + name
+	present, gwList := akogatewayapiobjects.GatewayApiLister().GetSecretToGateway(secretNSName)
+
+	if present {
+		clonedGWList := make([]string, len(gwList))
+		copy(clonedGWList, gwList)
+		for _, gwNSName := range gwList {
+			gwNamespace, _, gwName := lib.ExtractTypeNameNamespace(gwNSName)
+			// Check gateway present or not
+			gatewayObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(gwNamespace).Get(gwName)
+			if err != nil {
+				// ignore gateway
+				continue
+			}
+			gwStatus := akogatewayapiobjects.GatewayApiLister().GetGatewayToGatewayStatusMapping(gwNamespace + "/" + gwName)
+
+			// go through listeners, check cert is present there or not.
+			validListenerCount := 0
+			certFound := false
+			for listenerIndex, listener := range gatewayObj.Spec.Listeners {
+				if listener.TLS != nil {
+					if (listener.TLS.Mode != nil && *listener.TLS.Mode != gatewayv1.TLSModeTerminate) || len(listener.TLS.CertificateRefs) == 0 {
+						continue
+					}
+					for _, certRef := range listener.TLS.CertificateRefs {
+						// TODO: In future, ref grant impact needs to be considered.
+						certNamespace := namespace
+						if certRef.Namespace != nil {
+							certNamespace = string(*certRef.Namespace)
+						}
+						// add condition for checking gateway status
+						if gwStatus != nil && string(certRef.Name) == name && certNamespace == namespace {
+							setListenerConditions(gwStatus, listenerIndex, gatewayObj.ObjectMeta.Generation, deleteFlag)
+							certFound = true
+							break
+						}
+					}
+				}
+				if gwStatus != nil && !akogatewayapilib.IsListenerInvalid(gwStatus, listenerIndex) {
+					validListenerCount += 1
+				}
+			} // listener loop ends
+			// if cert not found, that means it is stale entry in secret to gateway map
+			if certFound {
+				setGatewayCondition(gwStatus, validListenerCount, len(gatewayObj.Spec.Listeners), gatewayObj.ObjectMeta.Generation)
+			} else {
+				//remove the entry from the clone
+				clonedGWList = utils.Remove(clonedGWList, gwNSName)
+			}
+		} // gw loop ends
+		// update the mapping
+		akogatewayapiobjects.GatewayApiLister().UpdateSecretToGateway(secretNSName, clonedGWList)
+	}
+}
+
+// Mapping has to be taken care between secret and gateway
+func setListenerConditions(gwStatus *gatewayv1.GatewayStatus, index int, generation int64, isDelete bool) {
+	if !isDelete {
+		akogatewayapistatus.NewCondition().
+			Type(string(gatewayv1.ListenerConditionAccepted)).
+			Reason(string(gatewayv1.ListenerReasonAccepted)).
+			Message("Listener is valid").
+			Status(metav1.ConditionTrue).
+			ObservedGeneration(generation).SetIn(&gwStatus.Listeners[index].Conditions)
+
+		akogatewayapistatus.NewCondition().
+			Type(string(gatewayv1.ListenerConditionResolvedRefs)).
+			Reason(string(gatewayv1.ListenerReasonResolvedRefs)).
+			Message("Reference is valid").
+			Status(metav1.ConditionTrue).
+			ObservedGeneration(generation).SetIn(&gwStatus.Listeners[index].Conditions)
+		return
+	}
+	akogatewayapistatus.NewCondition().
+		Type(string(gatewayv1.ListenerConditionAccepted)).
+		Reason(string(gatewayv1.ListenerReasonInvalid)).
+		Message("Listener is Invalid").
+		Status(metav1.ConditionFalse).
+		ObservedGeneration(generation).SetIn(&gwStatus.Listeners[index].Conditions)
+
+	akogatewayapistatus.NewCondition().
+		Type(string(gatewayv1.ListenerConditionResolvedRefs)).
+		Reason(string(gatewayv1.ListenerReasonInvalidCertificateRef)).
+		Message("Secret does not exist").
+		Status(metav1.ConditionFalse).
+		ObservedGeneration(generation).SetIn(&gwStatus.Listeners[index].Conditions)
+}
+
+func setGatewayCondition(gwStatus *gatewayv1.GatewayStatus, validListenerCount, totalListenerCount int, observedGeneration int64) {
+	if validListenerCount == 0 {
+		akogatewayapistatus.NewCondition().
+			Type(string(gatewayv1.GatewayConditionAccepted)).
+			Reason(string(gatewayv1.GatewayReasonListenersNotValid)).
+			Message("Gateway does not contain any valid listener").
+			Status(metav1.ConditionFalse).
+			ObservedGeneration(observedGeneration).SetIn(&gwStatus.Conditions)
+		return
+	}
+	if validListenerCount < totalListenerCount {
+		akogatewayapistatus.NewCondition().
+			Type(string(gatewayv1.GatewayConditionAccepted)).
+			Reason(string(gatewayv1.GatewayReasonListenersNotValid)).
+			Message("Gateway contains atleast one valid listener").
+			Status(metav1.ConditionTrue).
+			ObservedGeneration(observedGeneration).SetIn(&gwStatus.Conditions)
+		return
+	}
+	akogatewayapistatus.NewCondition().
+		Type(string(gatewayv1.GatewayConditionAccepted)).
+		Reason(string(gatewayv1.GatewayReasonAccepted)).
+		Message("Gateway configuration is valid").
+		Status(metav1.ConditionTrue).
+		ObservedGeneration(observedGeneration).SetIn(&gwStatus.Conditions)
 }

@@ -226,7 +226,7 @@ func TestAKOInfraAviInfraSettingCreationVPC(t *testing.T) {
 	gatewayPathName := objNameMap.GenerateName("testGW")
 	vpcNetConfig := objNameMap.GenerateName("testvpcnetworkconfig")
 	testData[0].SetUnstructuredContent(map[string]interface{}{
-		"apiVersion": "nsx.vmware.com/v1alpha1",
+		"apiVersion": "crd.nsx.vmware.com/v1alpha1",
 		"kind":       "vpcnetworkconfigurations",
 		"metadata": map[string]interface{}{
 			"name": vpcNetConfig,
@@ -493,7 +493,7 @@ func TestAKOInfraMultiAviInfraSettingCreationVPC(t *testing.T) {
 	vpcNetConfig := objNameMap.GenerateName("testvpcnetworkconfig")
 	vpcRedNetConfig := vpcNetConfig + "-red"
 	testData[0].SetUnstructuredContent(map[string]interface{}{
-		"apiVersion": "nsx.vmware.com/v1alpha1",
+		"apiVersion": "crd.nsx.vmware.com/v1alpha1",
 		"kind":       "vpcnetworkconfigurations",
 		"metadata": map[string]interface{}{
 			"name": vpcNetConfig,
@@ -509,7 +509,7 @@ func TestAKOInfraMultiAviInfraSettingCreationVPC(t *testing.T) {
 	})
 	testData = append(testData, &unstructured.Unstructured{})
 	testData[1].SetUnstructuredContent(map[string]interface{}{
-		"apiVersion": "nsx.vmware.com/v1alpha1",
+		"apiVersion": "crd.nsx.vmware.com/v1alpha1",
 		"kind":       "vpcnetworkconfigurations",
 		"metadata": map[string]interface{}{
 			"name": vpcRedNetConfig,
