@@ -11,7 +11,7 @@ metadata:
   namespace: avi-system
 spec:
   replicaCount: 1
-  imageRepository: projects.registry.vmware.com/ako/ako:1.12.2
+  imageRepository: projects.packages.broadcom.com/ako/ako:1.12.2
   imagePullPolicy: "IfNotPresent"
   imagePullSecrets:
     - name: regcred
@@ -89,7 +89,7 @@ spec:
     enablePrometheus: false
   gatewayAPI:
     image:
-      repository: "projects.registry.vmware.com/ako/ako-gateway-api:1.12.2"
+      repository: "projects.packages.broadcom.com/ako/ako-gateway-api:1.12.2"
       pullPolicy: "IfNotPresent"
   akoGatewayLogFile: "avi-gw.log"
   ```
