@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -50,8 +51,9 @@ func IsHTTPRouteValid(key string, obj *gatewayv1.HTTPRoute) bool {
 	httpRouteStatus.Parents = make([]gatewayv1.RouteParentStatus, 0, len(httpRoute.Spec.ParentRefs))
 	var invalidParentRefCount int
 	parentRefIndexInHttpRouteStatus := 0
+	indexInCache := -1
 	for parentRefIndexFromSpec := range httpRoute.Spec.ParentRefs {
-		err := validateParentReference(key, httpRoute, httpRouteStatus, parentRefIndexFromSpec, &parentRefIndexInHttpRouteStatus)
+		err := validateParentReference(key, httpRoute, httpRouteStatus, parentRefIndexFromSpec, &parentRefIndexInHttpRouteStatus, &indexInCache)
 		if err != nil {
 			invalidParentRefCount++
 			parentRefName := httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].Name
@@ -110,7 +112,7 @@ func setResolvedRefConditionInHTTPRouteStatus(key string, routeConditionResolved
 	akogatewayapistatus.Record(key, httpRoute, &status.Status{HTTPRouteStatus: httpRouteStatus})
 }
 
-func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRouteStatus *gatewayv1.HTTPRouteStatus, parentRefIndexFromSpec int, parentRefIndexInHttpRouteStatus *int) error {
+func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRouteStatus *gatewayv1.HTTPRouteStatus, parentRefIndexFromSpec int, parentRefIndexInHttpRouteStatus *int, indexInCache *int) error {
 
 	name := string(httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].Name)
 	namespace := httpRoute.Namespace
@@ -139,7 +141,15 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 	if httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].SectionName != nil {
 		httpRouteStatus.Parents[*parentRefIndexInHttpRouteStatus].ParentRef.SectionName = httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].SectionName
 	}
-
+	routeTypeNsName := lib.HTTPRoute + "/" + httpRoute.Namespace + "/" + httpRoute.Name
+	routeStatusInCache := akogatewayapiobjects.GatewayApiLister().GetRouteToRouteStatusMapping(routeTypeNsName)
+	if *indexInCache != -1 && routeStatusInCache != nil {
+		if *indexInCache < len(routeStatusInCache.Parents) {
+			if reflect.DeepEqual(routeStatusInCache.Parents[*indexInCache], httpRouteStatus.Parents[*parentRefIndexInHttpRouteStatus]) {
+				*indexInCache = *indexInCache + 1
+			}
+		}
+	}
 	defaultCondition := akogatewayapistatus.NewCondition().
 		Type(string(gatewayv1.RouteConditionAccepted)).
 		Status(metav1.ConditionFalse).
