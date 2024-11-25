@@ -629,10 +629,10 @@ func validateReferredHTTPRoute(key, name, namespace string, allowedRoutesAll boo
 		ns = metav1.NamespaceAll
 	}
 	hrObjs, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(ns).List(labels.Set(nil).AsSelector())
-	httpRoutes := make([]*gatewayv1.HTTPRoute, 0)
 	if err != nil {
 		return nil, err
 	}
+	httpRoutes := make([]*gatewayv1.HTTPRoute, 0)
 	for _, httpRoute := range hrObjs {
 		for _, parentRef := range httpRoute.Spec.ParentRefs {
 			if parentRef.Name == gatewayv1.ObjectName(name) {
@@ -650,9 +650,9 @@ func validateReferredHTTPRoute(key, name, namespace string, allowedRoutesAll boo
 		return httpRoutes[i].GetCreationTimestamp().Unix() < httpRoutes[j].GetCreationTimestamp().Unix()
 	})
 	var routes []string
-	for _, httpRoutes := range httpRoutes {
-		httpRouteToGatewayOperation(httpRoutes, key, name, namespace)
-		routeTypeNsName := lib.HTTPRoute + "/" + httpRoutes.Namespace + "/" + httpRoutes.Name
+	for _, httpRoute := range httpRoutes {
+		httpRouteToGatewayOperation(httpRoute, key, name, namespace)
+		routeTypeNsName := lib.HTTPRoute + "/" + httpRoute.Namespace + "/" + httpRoute.Name
 		routes = append(routes, routeTypeNsName)
 	}
 	return routes, nil
