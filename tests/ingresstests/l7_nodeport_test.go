@@ -86,7 +86,10 @@ func TestL7ModelInNodePort(t *testing.T) {
 	g.Expect(len(nodes)).To(gomega.Equal(1))
 	g.Expect(nodes[0].Name).To(gomega.ContainSubstring("Shared-L7"))
 	g.Expect(nodes[0].Tenant).To(gomega.Equal("admin"))
-
+	g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
+	g.Expect(len(nodes[0].PoolRefs[0].NetworkPlacementSettings)).To(gomega.Equal(1))
+	_, ok := nodes[0].PoolRefs[0].NetworkPlacementSettings["net123"]
+	g.Expect(ok).To(gomega.Equal(true))
 	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
