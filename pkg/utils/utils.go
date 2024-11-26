@@ -631,3 +631,16 @@ func String(s *string) string {
 	}
 	return ""
 }
+
+func GetUriEncoded(uri string) string {
+	newUri, err := url.Parse(uri)
+	if err != nil {
+		AviLog.Errorf("Error while parsing uri: %+v", err)
+	}
+	queryValues := newUri.Query()
+	if len(queryValues) == 0 {
+		return uri
+	}
+	newUri.RawQuery = queryValues.Encode()
+	return newUri.String()
+}

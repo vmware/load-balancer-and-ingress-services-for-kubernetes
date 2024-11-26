@@ -1332,7 +1332,7 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 				name_split := strings.Split(query_components[0], "=")
 				infraname = name_split[1]
 			} else if len(query_components) == 3 {
-				name_split := strings.Split(query_components[1], "=")
+				name_split := strings.Split(query_components[2], "=")
 				infraname = name_split[1]
 			}
 			json.Unmarshal(data, &resp)
