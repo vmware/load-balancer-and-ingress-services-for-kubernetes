@@ -17,8 +17,8 @@ package nodes
 import (
 	"encoding/json"
 	"fmt"
-	corev1 "k8s.io/api/core/v1"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -471,7 +471,6 @@ func ServiceToRoutes(namespace, name, key string) ([]string, bool) {
 	if lib.AutoAnnotateNPLSvc() {
 		service, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
 		if err != nil || service.Spec.Type == corev1.ServiceTypeNodePort {
-
 			statusOption := status.StatusOptions{
 				ObjType:   lib.NPLService,
 				Op:        lib.DeleteStatus,
@@ -480,22 +479,16 @@ func ServiceToRoutes(namespace, name, key string) ([]string, bool) {
 				Key:       key,
 			}
 			status.PublishToStatusQueue(name, statusOption)
-			return routeTypeNsNameList, found
-		}
-		ann := service.GetAnnotations()
-		if val, found := ann[lib.NPLSvcAnnotation]; found {
-			if val == "true" {
-				return routeTypeNsNameList, found
+		} else if !status.CheckNPLSvcAnnotation(key, namespace, name) {
+			statusOption := status.StatusOptions{
+				ObjType:   lib.NPLService,
+				Op:        lib.UpdateStatus,
+				ObjName:   name,
+				Namespace: namespace,
+				Key:       key,
 			}
+			status.PublishToStatusQueue(name, statusOption)
 		}
-		statusOption := status.StatusOptions{
-			ObjType:   lib.NPLService,
-			Op:        lib.UpdateStatus,
-			ObjName:   name,
-			Namespace: namespace,
-			Key:       key,
-		}
-		status.PublishToStatusQueue(name, statusOption)
 	}
 	return routeTypeNsNameList, found
 }

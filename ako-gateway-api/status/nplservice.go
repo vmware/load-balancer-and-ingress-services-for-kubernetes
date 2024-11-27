@@ -1,8 +1,9 @@
 package status
 
 import (
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 )
 
 type nplservice struct {

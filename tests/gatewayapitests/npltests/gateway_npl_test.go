@@ -34,6 +34,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	tests "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/gatewayapitests"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
@@ -447,6 +448,179 @@ func TestDelSvc(t *testing.T) {
 		}
 		return -1
 	}, 40*time.Second).Should(gomega.Equal(0))
+
+	cleanupGatewayForNPL(t, gatewayClassName, gatewayName, httpRouteName)
+}
+
+func TestSvcAutoAnnotate(t *testing.T) {
+	// create gateway
+	// create http route 1
+	// create service
+	// check annotation present
+	// delete route 1
+	// check annotation not present
+	// create route 1
+	// check annotation present
+
+	// create route 2
+	// delete route 1
+	// check annotation present
+
+	// delete route 2
+	// check annotation not present
+
+	gatewayName := "gateway-npl-06"
+	gatewayClassName := "gateway-class-npl-06"
+	httpRouteName := "http-route-npl-06a"
+	httpRouteName2 := "http-route-npl-06b"
+	ports := []int32{8080}
+	modelName, _ := tests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
+
+	g := gomega.NewGomegaWithT(t)
+
+	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := tests.GetListenersV1(ports, false, false)
+
+	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	parentRefs := tests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
+	rule := tests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add"}},
+		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
+	rules := []gatewayv1.HTTPRouteRule{rule}
+	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
+	tests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	selectors := make(map[string]string)
+	selectors["app"] = "npl"
+	integrationtest.CreateServiceWithSelectors(t, DEFAULT_NAMESPACE, "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, selectors)
+	g.Eventually(func() bool {
+		if !status.CheckNPLSvcAnnotation(modelName, DEFAULT_NAMESPACE, "avisvc") {
+			return false
+		}
+		return true
+	}, 5*time.Second).Should(gomega.Equal(true))
+
+	tests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+
+	g.Eventually(func() bool {
+		if status.CheckNPLSvcAnnotation(modelName, DEFAULT_NAMESPACE, "avisvc") {
+			return false
+		}
+		return true
+	}, 5*time.Second).Should(gomega.Equal(true))
+
+	tests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	g.Eventually(func() bool {
+		if !status.CheckNPLSvcAnnotation(modelName, DEFAULT_NAMESPACE, "avisvc") {
+			return false
+		}
+		return true
+	}, 5*time.Second).Should(gomega.Equal(true))
+
+	// create route 2
+	tests.SetupHTTPRoute(t, httpRouteName2, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	tests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+	g.Eventually(func() bool {
+		if !status.CheckNPLSvcAnnotation(modelName, DEFAULT_NAMESPACE, "avisvc") {
+			return false
+		}
+		return true
+	}, 5*time.Second).Should(gomega.Equal(true))
+
+	tests.TeardownHTTPRoute(t, httpRouteName2, DEFAULT_NAMESPACE)
+
+	g.Eventually(func() bool {
+		if status.CheckNPLSvcAnnotation(modelName, DEFAULT_NAMESPACE, "avisvc") {
+			return false
+		}
+		return true
+	}, 5*time.Second).Should(gomega.Equal(true))
+
+	integrationtest.DelSVC(t, "default", "avisvc")
+
+	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	tests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestSvcUpdateAutoAnnotate(t *testing.T) {
+	gatewayName := "gateway-npl-06"
+	gatewayClassName := "gateway-class-npl-06"
+	httpRouteName := "http-route-npl-06a"
+	ports := []int32{8080}
+	modelName, _ := tests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
+
+	g := gomega.NewGomegaWithT(t)
+
+	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := tests.GetListenersV1(ports, false, false)
+
+	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	parentRefs := tests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
+	rule := tests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add"}},
+		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
+	rules := []gatewayv1.HTTPRouteRule{rule}
+	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
+	tests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	selectors := make(map[string]string)
+	selectors["app"] = "npl"
+	integrationtest.CreateServiceWithSelectors(t, DEFAULT_NAMESPACE, "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeNodePort, false, selectors)
+	g.Eventually(func() bool {
+		if status.CheckNPLSvcAnnotation(modelName, DEFAULT_NAMESPACE, "avisvc") {
+			return false
+		}
+		return true
+	}, 5*time.Second).Should(gomega.Equal(true))
+
+	integrationtest.UpdateSVC(t, DEFAULT_NAMESPACE, "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
+	g.Eventually(func() bool {
+		if !status.CheckNPLSvcAnnotation(modelName, DEFAULT_NAMESPACE, "avisvc") {
+			return false
+		}
+		return true
+	}, 5*time.Second).Should(gomega.Equal(true))
 
 	cleanupGatewayForNPL(t, gatewayClassName, gatewayName, httpRouteName)
 }
