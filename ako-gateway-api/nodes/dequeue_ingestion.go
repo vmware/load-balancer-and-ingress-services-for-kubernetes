@@ -57,6 +57,19 @@ func DequeueIngestion(key string, fullsync bool) {
 		handleGateway(namespace, name, fullsync, key)
 	}
 
+	if objType == utils.Service {
+		_, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				objects.SharedClusterIpLister().Delete(namespace + "/" + name)
+			} else {
+				utils.AviLog.Errorf("key: %s, msg: got error while getting service object", key)
+				return
+			}
+		}
+		objects.SharedClusterIpLister().Save(namespace+"/"+name, name)
+	}
+
 	routeTypeNsNameList, found := schema.GetRoutes(namespace, name, key)
 	if !found {
 		utils.AviLog.Errorf("key: %s, msg: got error while getting object", key, objType)
