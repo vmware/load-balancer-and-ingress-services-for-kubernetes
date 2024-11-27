@@ -328,6 +328,60 @@ func TestNoBackendL7Model(t *testing.T) {
 	TearDownTestForIngress(t, svcName, modelName)
 }
 
+func TestIngressWithExternalNameService(t *testing.T) {
+	// Note: We do not support ExternalService Type in service as of now.
+	// We will mimic the same behaviour that was present in AKO 1.11.x
+	// i.e. create parent VS with Pools with 0 servers as service with ExternalType has no endpoints
+
+	g := gomega.NewGomegaWithT(t)
+	modelName := MODEL_NAME_PREFIX + "0"
+	svcName := objNameMap.GenerateName("avisvc")
+	ingName := objNameMap.GenerateName("foo-with-targets")
+	objects.SharedAviGraphLister().Delete(modelName)
+	svcExample := (integrationtest.FakeService{
+		Name:         svcName,
+		Namespace:    "default",
+		Type:         corev1.ServiceTypeExternalName,
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+
+	_, err := KubeClient.CoreV1().Services("default").Create(context.TODO(), svcExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+
+	ingrFake1 := (integrationtest.FakeIngress{
+		Name:        ingName,
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		ServiceName: svcName,
+	}).Ingress()
+
+	_, err = KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake1, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	if !found {
+		t.Fatalf("Could not find model on ingress delete: %v", err)
+	}
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(len(nodes)).To(gomega.Equal(1))
+	g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(1))
+	g.Expect(len(nodes[0].PoolRefs[0].Servers)).To(gomega.Equal(0))
+
+	integrationtest.DelSVC(t, "default", svcName)
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingName, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
+}
+
 func TestMultiIngressToSameSvc(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := MODEL_NAME_PREFIX + "0"
