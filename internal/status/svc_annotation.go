@@ -28,7 +28,7 @@ import (
 
 func CheckNPLSvcAnnotation(key, namespace, name string) bool {
 	service, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
-	if err != nil || service.Spec.Type == corev1.ServiceTypeNodePort {
+	if err != nil {
 		return false
 	}
 	ann := service.GetAnnotations()

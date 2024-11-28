@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -27,6 +28,7 @@ import (
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -376,7 +378,7 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 		// httproute must be deleted so remove mappings
 
 		//delete route to service must also update gateway to service (through route)
-		akogatewayapiobjects.GatewayApiLister().DeleteRouteFromStore(routeTypeNsName)
+		akogatewayapiobjects.GatewayApiLister().DeleteRouteFromStore(routeTypeNsName, key)
 		return []string{routeTypeNsName}, true
 	}
 
@@ -407,7 +409,7 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 	if found {
 		for _, svcNsName := range oldSvcs {
 			if !utils.HasElem(svcNsNameList, svcNsName) {
-				akogatewayapiobjects.GatewayApiLister().DeleteRouteToServiceMappings(routeTypeNsName, svcNsName)
+				akogatewayapiobjects.GatewayApiLister().DeleteRouteToServiceMappings(routeTypeNsName, svcNsName, key)
 			}
 		}
 	}
@@ -423,7 +425,7 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 
 	// updates route <-> service mappings with new services
 	for _, svcNsName := range svcNsNameList {
-		akogatewayapiobjects.GatewayApiLister().UpdateRouteServiceMappings(routeTypeNsName, svcNsName)
+		akogatewayapiobjects.GatewayApiLister().UpdateRouteServiceMappings(routeTypeNsName, svcNsName, key)
 	}
 
 	// updates gateway <-> service mappings with new services
@@ -466,6 +468,28 @@ func ServiceToRoutes(namespace, name, key string) ([]string, bool) {
 		return []string{}, true
 	}
 	utils.AviLog.Debugf("key: %s, msg: Routes retrieved %s", key, routeTypeNsNameList)
+	if lib.AutoAnnotateNPLSvc() {
+		service, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
+		if err != nil || service.Spec.Type == corev1.ServiceTypeNodePort {
+			statusOption := status.StatusOptions{
+				ObjType:   lib.NPLService,
+				Op:        lib.DeleteStatus,
+				ObjName:   name,
+				Namespace: namespace,
+				Key:       key,
+			}
+			status.PublishToStatusQueue(name, statusOption)
+		} else if !status.CheckNPLSvcAnnotation(key, namespace, name) {
+			statusOption := status.StatusOptions{
+				ObjType:   lib.NPLService,
+				Op:        lib.UpdateStatus,
+				ObjName:   name,
+				Namespace: namespace,
+				Key:       key,
+			}
+			status.PublishToStatusQueue(name, statusOption)
+		}
+	}
 	return routeTypeNsNameList, found
 }
 

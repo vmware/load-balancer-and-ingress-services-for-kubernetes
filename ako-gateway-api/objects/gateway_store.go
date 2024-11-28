@@ -16,11 +16,14 @@ package objects
 
 import (
 	"fmt"
+
 	"sync"
 
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -455,10 +458,23 @@ func (g *GWLister) GetServiceToRoute(svcNsName string) (bool, []string) {
 	return false, []string{}
 }
 
-func (g *GWLister) UpdateRouteServiceMappings(routeTypeNsName, svcNsName string) {
+func (g *GWLister) UpdateRouteServiceMappings(routeTypeNsName, svcNsName, key string) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 
+	namespace, svc := utils.ExtractNamespaceObjectName(svcNsName)
+	if lib.AutoAnnotateNPLSvc() {
+		if !status.CheckNPLSvcAnnotation(key, namespace, svc) {
+			statusOption := status.StatusOptions{
+				ObjType:   lib.NPLService,
+				Op:        lib.UpdateStatus,
+				ObjName:   svc,
+				Namespace: namespace,
+				Key:       key,
+			}
+			status.PublishToStatusQueue(svc, statusOption)
+		}
+	}
 	// update route to service mapping
 	if found, svcNsNameList := g.routeToService.Get(routeTypeNsName); found {
 		svcNsNameListObj := svcNsNameList.([]string)
@@ -482,7 +498,7 @@ func (g *GWLister) UpdateRouteServiceMappings(routeTypeNsName, svcNsName string)
 	}
 }
 
-func (g *GWLister) DeleteRouteToServiceMappings(routeTypeNsName, svcNsName string) {
+func (g *GWLister) DeleteRouteToServiceMappings(routeTypeNsName, svcNsName, key string) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 
@@ -491,6 +507,17 @@ func (g *GWLister) DeleteRouteToServiceMappings(routeTypeNsName, svcNsName strin
 		routeTypeNsNameListObj := routeTypeNsNameList.([]string)
 		routeTypeNsNameListObj = utils.Remove(routeTypeNsNameListObj, routeTypeNsName)
 		if len(routeTypeNsNameListObj) == 0 {
+			namespace, svc := utils.ExtractNamespaceObjectName(svcNsName)
+			if lib.AutoAnnotateNPLSvc() {
+				statusOption := status.StatusOptions{
+					ObjType:   lib.NPLService,
+					Op:        lib.DeleteStatus,
+					ObjName:   svc,
+					Namespace: namespace,
+					Key:       key,
+				}
+				status.PublishToStatusQueue(svc, statusOption)
+			}
 			g.serviceToRoute.Delete(svcNsName)
 		} else {
 			g.serviceToRoute.AddOrUpdate(svcNsName, routeTypeNsNameListObj)
@@ -736,7 +763,7 @@ func (g *GWLister) DeleteRouteChildVSMappings(routeTypeNsName, childVS string) {
 
 //=====All route functions go here.
 
-func (g *GWLister) DeleteRouteFromStore(routeTypeNsName string) {
+func (g *GWLister) DeleteRouteFromStore(routeTypeNsName string, key string) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 
@@ -771,10 +798,21 @@ func (g *GWLister) DeleteRouteFromStore(routeTypeNsName string) {
 		svcListObj = svcList.([]string)
 	}
 	for _, svcNsName := range svcListObj {
+		namespace, svc := utils.ExtractNamespaceObjectName(svcNsName)
 		if found, routeNsNameList := g.serviceToRoute.Get(svcNsName); found {
 			routeNsNameListObj := routeNsNameList.([]string)
 			routeNsNameListObj = utils.Remove(routeNsNameListObj, routeTypeNsName)
 			if len(routeNsNameListObj) == 0 {
+				if lib.AutoAnnotateNPLSvc() {
+					statusOption := status.StatusOptions{
+						ObjType:   lib.NPLService,
+						Op:        lib.DeleteStatus,
+						ObjName:   svc,
+						Namespace: namespace,
+						Key:       key,
+					}
+					status.PublishToStatusQueue(svc, statusOption)
+				}
 				g.serviceToRoute.Delete(svcNsName)
 			} else {
 				g.serviceToRoute.AddOrUpdate(svcNsName, routeNsNameListObj)
