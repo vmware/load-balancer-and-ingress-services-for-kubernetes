@@ -23,6 +23,7 @@ import (
 
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -469,10 +470,10 @@ func TestSvcAutoAnnotate(t *testing.T) {
 	// delete route 2
 	// check annotation not present
 
-	gatewayName := "gateway-npl-06"
-	gatewayClassName := "gateway-class-npl-06"
-	httpRouteName := "http-route-npl-06a"
-	httpRouteName2 := "http-route-npl-06b"
+	gatewayName := "gateway-npl-07"
+	gatewayClassName := "gateway-class-npl-07"
+	httpRouteName := "http-route-npl-07a"
+	httpRouteName2 := "http-route-npl-07b"
 	ports := []int32{8080}
 	modelName, _ := tests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
 
@@ -537,7 +538,6 @@ func TestSvcAutoAnnotate(t *testing.T) {
 	tests.SetupHTTPRoute(t, httpRouteName2, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
 	g.Eventually(func() int {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-
 		if !found {
 			return 0
 		}
@@ -546,6 +546,12 @@ func TestSvcAutoAnnotate(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(1))
 
 	tests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+
+	g.Eventually(func() bool {
+		_, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(DEFAULT_NAMESPACE).Get(httpRouteName)
+		return errors.IsNotFound(err)
+	}, 5*time.Second).Should(gomega.Equal(true))
+
 	g.Eventually(func() bool {
 		if !status.CheckNPLSvcAnnotation(modelName, DEFAULT_NAMESPACE, "avisvc") {
 			return false
@@ -569,9 +575,9 @@ func TestSvcAutoAnnotate(t *testing.T) {
 }
 
 func TestSvcUpdateAutoAnnotate(t *testing.T) {
-	gatewayName := "gateway-npl-06"
-	gatewayClassName := "gateway-class-npl-06"
-	httpRouteName := "http-route-npl-06a"
+	gatewayName := "gateway-npl-08"
+	gatewayClassName := "gateway-class-npl-08"
+	httpRouteName := "http-route-npl-08a"
 	ports := []int32{8080}
 	modelName, _ := tests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
 
