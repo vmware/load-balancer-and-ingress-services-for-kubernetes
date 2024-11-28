@@ -937,6 +937,7 @@ func (g *GWLister) GetGatewayRouteToHostname(gwRouteNsName string) (bool, []stri
 }
 
 // == All GW+route to HTTPS, PG , pool mapping
+// Redundant functions. Might be useful in future.
 func (g *GWLister) UpdateGatewayRouteToHTTPPSPGPool(gwRouteNsName string, httpPSPGPool HTTPPSPGPool) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
