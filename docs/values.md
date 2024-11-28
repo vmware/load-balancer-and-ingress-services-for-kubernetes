@@ -343,3 +343,7 @@ Enable Gateway API in the featureGate to use this field.
 ### GatewayAPI.image.repository
 
 If you are using a private container registry and you'd like to override the default dockerhub settings, then this field can be edited with the private registry name.
+
+### featureGates.EnableEndpointSlice
+
+Enable this flag to use EndpointSlices instead of Endpoints in AKO. This also supports graceful shutdown of servers. Enabled by default from AKO 1.13.1.
