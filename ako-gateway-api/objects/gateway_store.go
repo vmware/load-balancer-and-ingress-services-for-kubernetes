@@ -380,7 +380,7 @@ func (g *GWLister) UpdateGatewayServiceMappings(gwNsName, svcNsName string) {
 		g.gatewayToService.AddOrUpdate(gwNsName, []string{svcNsName})
 	}
 	// update service to gateway mapping
-	if found, gwNsNameList := g.serviceToGateway.Get(gwNsName); found {
+	if found, gwNsNameList := g.serviceToGateway.Get(svcNsName); found {
 		gwNsNameListObj := gwNsNameList.([]string)
 		if !utils.HasElem(gwNsNameListObj, gwNsName) {
 			gwNsNameListObj = append(gwNsNameListObj, gwNsName)
