@@ -108,6 +108,13 @@ func (o *gateway) Delete(key string, option status.StatusOptions) {
 
 	// assuming 1 IP per gateway
 	gatewayStatus := gw.Status.DeepCopy()
+	namespace := gw.Namespace
+	name := gw.Name
+
+	gwStatusFromMapping := akogatewayapiobjects.GatewayApiLister().GetGatewayToGatewayStatusMapping(namespace + "/" + name)
+	if gwStatusFromMapping != nil {
+		gatewayStatus = gwStatusFromMapping
+	}
 	gatewayStatus.Addresses = []gatewayv1.GatewayStatusAddress{}
 
 	condition := NewCondition()
@@ -155,6 +162,9 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 			Type:  &addressType,
 			Value: vip,
 		})
+	}
+	if gatewaystatus == nil {
+		gatewaystatus = gw.Status.DeepCopy()
 	}
 	gatewaystatus.Addresses = ipAddrs
 

@@ -430,7 +430,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 				return
 			}
 			bkt := utils.Bkt(namespace, numWorkers)
-			ValidateGatewayListenerWithSecret(namespace, name, false)
+			ValidateGatewayListenerWithSecret(key, namespace, name, false)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
 		},
@@ -459,7 +459,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 					return
 				}
 				bkt := utils.Bkt(namespace, numWorkers)
-				ValidateGatewayListenerWithSecret(namespace, name, true)
+				ValidateGatewayListenerWithSecret(key, namespace, name, true)
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
 			}
@@ -480,7 +480,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 						return
 					}
 					bkt := utils.Bkt(namespace, numWorkers)
-					ValidateGatewayListenerWithSecret(namespace, name, false)
+					ValidateGatewayListenerWithSecret(key, namespace, name, false)
 					c.workqueue[bkt].AddRateLimited(key)
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 				}

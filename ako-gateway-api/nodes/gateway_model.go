@@ -187,11 +187,6 @@ func DeleteTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gatewa
 	totalListeners := len(gateway.Spec.Listeners)
 	invalidListeners := 0
 	for i, listener := range gateway.Spec.Listeners {
-		// Check Listener conditions validity for non-tls type
-		if listener.TLS == nil && akogatewayapilib.IsListenerInvalid(gwStatus, i) {
-			invalidListeners += 1
-			continue
-		}
 		if listener.TLS != nil {
 			for _, certRef := range listener.TLS.CertificateRefs {
 				name := string(certRef.Name)
@@ -213,9 +208,10 @@ func DeleteTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gatewa
 					}
 				}
 			}
-			if akogatewayapilib.IsListenerInvalid(gwStatus, i) {
-				invalidListeners += 1
-			}
+		}
+		// Check Listener conditions validity for non-tls type
+		if akogatewayapilib.IsListenerInvalid(gwStatus, i) {
+			invalidListeners += 1
 		}
 	}
 	if invalidListeners < totalListeners && len(tlsNodes) > 0 {

@@ -95,12 +95,11 @@ func DequeueIngestion(key string, fullsync bool) {
 			}
 			// Fetch routes for a gateway
 			routeTypeNsNameList, found = GatewayToRoutes(parentNs, parentName, key)
-			utils.AviLog.Infof("key: %s, msg: Routes for gateway %s/%s are: %v", key, parentNs, parentName, utils.Stringify(routeTypeNsNameList))
 			if !found {
 				utils.AviLog.Errorf("key: %s, msg: got error while getting route objects for gateway %s/%s", key, parentNs, parentName)
 				continue
 			}
-
+			utils.AviLog.Infof("key: %s, msg: Routes for gateway %s/%s are: %v", key, parentNs, parentName, utils.Stringify(routeTypeNsNameList))
 		} else if modelNil {
 			utils.AviLog.Warnf("key: %s, msg: no model found: %s", key, modelName)
 			continue
