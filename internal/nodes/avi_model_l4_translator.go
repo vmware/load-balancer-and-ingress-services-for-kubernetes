@@ -519,7 +519,7 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 	if len(svcObj.Spec.IPFamilies) == 2 {
 		v4Family = true
 		v6Family = true
-	} else if svcObj.Spec.IPFamilies[0] == "IPv6" {
+	} else if len(svcObj.Spec.IPFamilies) > 0 && svcObj.Spec.IPFamilies[0] == "IPv6" {
 		v6Family = true
 	} else {
 		v4Family = true

@@ -349,6 +349,10 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 			}
 			svc := obj.(*corev1.Service)
 			key := utils.Service + "/" + utils.ObjKey(svc)
+			if !lib.ValidServiceType(svc) {
+				utils.AviLog.Warnf("key: %s, msg: Invalid service type: [%s] Currently Allowed: [ClusterIP, NodePort, LoadBalancer]", key, string(svc.Spec.Type))
+				return
+			}
 			ok, resVer := objects.SharedResourceVerInstanceLister().Get(key)
 			if ok && resVer.(string) == svc.ResourceVersion {
 				utils.AviLog.Debugf("key: %s, msg: same resource version returning", key)
@@ -377,8 +381,12 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 					return
 				}
 			}
-			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
 			key := utils.Service + "/" + utils.ObjKey(svc)
+			if !lib.ValidServiceType(svc) {
+				utils.AviLog.Warnf("key: %s, msg: Invalid service type: [%s] Currently Allowed: [ClusterIP, NodePort, LoadBalancer]", key, string(svc.Spec.Type))
+				return
+			}
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			objects.SharedResourceVerInstanceLister().Delete(key)
@@ -390,10 +398,14 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 			}
 			oldobj := old.(*corev1.Service)
 			svc := cur.(*corev1.Service)
+			key := utils.Service + "/" + utils.ObjKey(svc)
+			if !lib.ValidServiceType(svc) {
+				utils.AviLog.Warnf("key: %s, msg: Invalid service type: [%s] Currently Allowed: [ClusterIP, NodePort, LoadBalancer]", key, string(svc.Spec.Type))
+				return
+			}
 			if oldobj.ResourceVersion != svc.ResourceVersion {
 				// Only add the key if the resource versions have changed.
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(svc))
-				key := utils.Service + "/" + utils.ObjKey(svc)
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
