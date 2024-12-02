@@ -446,6 +446,11 @@ urltests:
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/urltests -failfast -coverprofile cover-25.out -coverpkg=./... > urltests.log 2>&1 && echo "urltests passed") || (echo "urltests failed" && cat urltests.log && exit 1)
 
+.PHONY: gatewayapi_tests
+gatewayapi_tests:
+	@> gatewayapi_tests.log
+	(make -j 4 --output-sync=target gatewayapi_ingestiontests gatewayapi_graphlayertests gatewayapi_statustests gatewayapi_npltests ENDPOINTSLICES_ENABLED="true" > gatewayapi_tests.log 2>&1 && echo "gatewayapi_tests passed") || (echo "gatewayapi_tests failed" && cat gatewayapi_tests.log && exit 1)
+
 .PHONY: int_test
 int_test:
 	@> int_test.log
@@ -459,62 +464,6 @@ int_test:
 	&& echo "int_test succeeded" && buffer -i int_test.log -u 1000 -z 1k) \
 	|| (echo "int_test failed" && (buffer -i int_test.log -u 2000 -z 1b || \
 	echo "Dumping the whole log failed; here are the last 100 lines" && tail -n100 int_test.log ) && exit 1)
-
-.PHONY: dev_int_test
-dev_int_test:
-	@> dev_int_test.log
-	(make -j 16 --output-sync=target gatewayapi_ingestiontests gatewayapi_graphlayertests \
-	gatewayapi_statustests > dev_int_test.log 2>&1 \
-	&& echo "dev_int_test succeeded" && buffer -i dev_int_test.log -u 1000 -z 1k) \
-	|| (echo "dev_int_test failed" && buffer -i dev_int_test.log -u 1000 -z 1k && exit 1) 
-
-# .PHONY: a
-# a:
-# 	@echo "a start"
-# 	exit 1
-# 	@sleep 3
-# 	@echo "a end" 
-	
-
-# .PHONY: b
-# b:
-# 	@echo "b start"
-# 	@sleep 6
-# 	@echo "b end"
-
-# .PHONY: c
-# c:
-# 	@echo "c start"
-# 	@sleep 2
-# 	@echo "c end"
-
-# .PHONY: d
-# d:
-# 	@echo "d start"
-# 	@sleep 3	
-# 	@echo "d end" 
-
-# .PHONY: e
-# e:
-# 	@echo "e start"
-# 	@sleep 3	
-# 	@echo "e end" 
-
-# .PHONY: f
-# f:
-# 	@echo "f start"
-# 	@sleep 3	
-# 	@echo "f end"
-
-# .PHONY: test_parallel
-# test_parallel:	
-# 	(make -j 2 --output-sync=target a \
-# 	b c d e f> abc.log 2>&1 && echo "parallel_test succeeded" && cat abc.log | buffer -u 500) || (echo "parallel_test failed" && cat abc.log | buffer -u 500 && exit 1)
-	
-	
-
-# .PHONY: parallel_test
-# parallel_test: clear_logs test_parallel 
 
 .PHONY: eps_enabled
 eps_enabled:
