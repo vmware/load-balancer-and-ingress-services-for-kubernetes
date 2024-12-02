@@ -185,5 +185,8 @@ func ProtocolToRoute(proto string) string {
 	}
 
 	return innerMap[proto]
+}
 
+func GetDefaultHTTPPSName() string {
+	return Prefix + lib.GetClusterName() + "--" + lib.DefaultPSName
 }

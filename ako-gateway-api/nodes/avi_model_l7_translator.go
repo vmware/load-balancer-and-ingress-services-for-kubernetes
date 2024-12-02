@@ -35,7 +35,7 @@ import (
 func (o *AviObjectGraph) AddDefaultHTTPPolicySet(key string) {
 	parentVS := o.GetAviEvhVS()[0]
 
-	policyRefName := lib.GetDefaultHTTPPSName()
+	policyRefName := akogatewayapilib.GetDefaultHTTPPSName()
 	// find default backend, if found make sure it is at last index
 	for i, policyRef := range parentVS.HttpPolicyRefs {
 		if policyRef.Name == policyRefName {
