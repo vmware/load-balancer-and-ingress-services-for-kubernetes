@@ -155,6 +155,10 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 	}
 
 	gatewaystatus := akogatewayapiobjects.GatewayApiLister().GetGatewayToGatewayStatusMapping(gw.Namespace + "/" + gw.Name)
+	if gatewaystatus == nil {
+		utils.AviLog.Warnf("key: %s, msg: Gateway status not found for [%s/%s]", key, gw.Namespace, gw.Name)
+		return
+	}
 	addressType := gatewayv1.IPAddressType
 	ipAddrs := []gatewayv1.GatewayStatusAddress{}
 	for _, vip := range option.Options.Vip {
