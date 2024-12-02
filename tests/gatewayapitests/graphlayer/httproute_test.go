@@ -2758,3 +2758,96 @@ func TestHTTPRouteBackendServiceInvalidType(t *testing.T) {
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 }
+
+func TestSecretCreateDeleteWithHTTPRoute(t *testing.T) {
+
+	/*
+		1. Create Secret, GW, HTTPRoute. Model should be present with all child values.
+		2. Delete secret. model should be nil (Parent VS and child VS not present)
+		3. Create secret again. Model should be present with all child values.
+	*/
+	gatewayName := "gateway-hr-27"
+	gatewayClassName := "gateway-class-hr-27"
+	httpRouteName := "http-route-hr-27"
+	svcName1 := "avisvc-hr-27"
+
+	ports := []int32{8080}
+	secrets := []string{"secret-27"}
+	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
+
+	g := gomega.NewGomegaWithT(t)
+	integrationtest.AddSecret(secrets[0], DEFAULT_NAMESPACE, "cert", "key")
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false, secrets...)
+	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName1, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
+	rule := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
+		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
+	rules := []gatewayv1.HTTPRouteRule{rule}
+	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	childNode := nodes[0].EvhNodes[0]
+	g.Expect(childNode.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode.PoolGroupRefs[0].Members).To(gomega.HaveLen(1))
+	g.Expect(childNode.DefaultPoolGroup).NotTo(gomega.Equal(""))
+
+	// Delete secret
+	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if found {
+			return aviModel != nil
+		}
+		return found
+	}, 30*time.Second).Should(gomega.Equal(false))
+
+	// again add the certificate
+	integrationtest.AddSecret(secrets[0], DEFAULT_NAMESPACE, "cert", "key")
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if found {
+			return aviModel == nil
+		}
+		return found
+	}, 30*time.Second).Should(gomega.Equal(false))
+
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+
+	childNode = nodes[0].EvhNodes[0]
+	g.Expect(childNode.PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode.PoolGroupRefs[0].Members).To(gomega.HaveLen(1))
+	g.Expect(childNode.DefaultPoolGroup).NotTo(gomega.Equal(""))
+
+	// Delete secret
+	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
+
+	//reset the field
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}

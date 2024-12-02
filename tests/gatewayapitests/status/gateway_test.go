@@ -1424,7 +1424,6 @@ func TestSecretCreateDelete(t *testing.T) {
 	}
 	expectedStatus := tests.GetNegativeConditions(ports)
 	tests.ValidateGatewayStatus(t, &gateway.Status, expectedStatus)
-	time.Sleep(1 * time.Second)
 	integrationtest.AddSecret(secrets[0], DEFAULT_NAMESPACE, "cert", "key")
 	// add delay
 	expectedStatus = tests.GetPositiveConditions(ports)

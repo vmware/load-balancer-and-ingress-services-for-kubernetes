@@ -210,7 +210,7 @@ func GatewayToRoutes(namespace, name, key string) ([]string, bool) {
 	gwNsName := namespace + "/" + name
 	found, routeTypeNsNameList := akogatewayapiobjects.GatewayApiLister().GetGatewayToRoute(gwNsName)
 	if !found {
-		utils.AviLog.Debugf("key: %s, msg: No route objects mapped to this gateway", key)
+		utils.AviLog.Debugf("key: %s, msg: No route objects mapped to %s/%s gateway", key, namespace, name)
 		return []string{}, true
 	}
 	return routeTypeNsNameList, found
@@ -355,7 +355,9 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 		uniqueHosts := sets.NewString(hostnameIntersection...)
 		gwRouteNsName := fmt.Sprintf("%s/%s", gwNsName, routeTypeNsName)
 		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteToHostname(gwRouteNsName, uniqueHosts.List())
+		utils.AviLog.Infof("key: %s, msg: Hosts mapped to GatewayRoute [%s] are [%v]", key, gwRouteNsName, uniqueHosts.List())
 		akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteMappings(gwNsName, routeTypeNsName)
+		utils.AviLog.Infof("key: %s, msg: Routes mapped to Gateway [%v] are : [%v]", key, gwNsName, routeTypeNsName)
 		if !utils.HasElem(gwNsNameList, gwNsName) {
 			gwNsNameList = append(gwNsNameList, gwNsName)
 		}
