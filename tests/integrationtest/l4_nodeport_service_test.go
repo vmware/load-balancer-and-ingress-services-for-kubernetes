@@ -76,6 +76,9 @@ func TestSinglePortL4SvcNodePort(t *testing.T) {
 	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].PoolRefs[0].Port).To(gomega.Equal(nodePort))
 	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&nodeIP))
+	g.Expect(len(nodes[0].PoolRefs[0].NetworkPlacementSettings)).To(gomega.Equal(1))
+	_, ok := nodes[0].PoolRefs[0].NetworkPlacementSettings["net123"]
+	g.Expect(ok).To(gomega.Equal(true))
 	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
 	// If we transition the service from Loadbalancer to ClusterIP - it should get deleted.
 	svcExample := (FakeService{

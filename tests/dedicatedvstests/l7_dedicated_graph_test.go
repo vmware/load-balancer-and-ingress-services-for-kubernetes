@@ -216,6 +216,29 @@ func SetUpIngressForCacheSyncCheck(t *testing.T, ingTestObj IngressTestObject) {
 	integrationtest.PollForCompletion(t, ingTestObj.modelNames[0], 5)
 }
 
+func SetUpTestForIngressInNodePortMode(t *testing.T, svcName, model_Name string) {
+	objects.SharedAviGraphLister().Delete(model_Name)
+	integrationtest.CreateSVC(t, "default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeNodePort, false)
+}
+
+func TearDownTestForIngressInNodePortMode(t *testing.T, svcName, model_Name string) {
+	objects.SharedAviGraphLister().Delete(model_Name)
+	integrationtest.DelSVC(t, "default", svcName)
+}
+
+func VerifyIngressDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, poolCount int) {
+	var nodes []*avinodes.AviVsNode
+	g.Eventually(func() []*avinodes.AviPoolNode {
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return nodes[0].PoolRefs
+	}, 10*time.Second).Should(gomega.HaveLen(poolCount))
+
+	g.Eventually(func() []*avinodes.AviPoolGroupNode {
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return nodes[0].PoolGroupRefs
+	}, 10*time.Second).Should(gomega.HaveLen(poolCount))
+}
+
 func SetupDomain() {
 	mcache := cache.SharedAviObjCache()
 	cloudObj := &cache.AviCloudPropertyCache{Name: "Default-Cloud", VType: "mock"}
@@ -301,6 +324,59 @@ func TestPortsForInsecureDedicatedShard(t *testing.T) {
 	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(1))
 	g.Expect(int(nodes[0].PortProto[0].Port)).To(gomega.Equal(80))
 	TearDownIngressForCacheSyncCheck(t, "", ingressName, svcName, modelName)
+}
+
+func TestPlacementNetworkDedicatedNodePort(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	integrationtest.SetNodePortMode()
+	defer integrationtest.SetClusterIPMode()
+	nodeIP := "10.1.1.2"
+	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
+	defer integrationtest.DeleteNode(t, "testNodeNP")
+
+	modelName := "admin/cluster--foo.com-L7-dedicated"
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
+
+	ingrFake := (integrationtest.FakeIngress{
+		Name:        ingressName,
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		ServiceName: svcName,
+	}).Ingress()
+
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes, ok := aviModel.(*avinodes.AviObjectGraph)
+		if !ok {
+			return 0
+		}
+		return len(nodes.GetAviVS())
+	}, 20*time.Second).Should(gomega.Equal(1))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	g.Expect((nodes[0].PoolRefs[0].NetworkPlacementSettings)).To(gomega.HaveLen(1))
+	_, ok := nodes[0].PoolRefs[0].NetworkPlacementSettings["net123"]
+	g.Expect(ok).To(gomega.Equal(true))
+
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
+	TearDownTestForIngressInNodePortMode(t, svcName, modelName)
 }
 
 func TestPortsForSecureDedicatedShard(t *testing.T) {

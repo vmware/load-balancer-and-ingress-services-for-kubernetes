@@ -39,6 +39,8 @@ func New(ObjectType string) StatusUpdater {
 		return &gateway{}
 	case lib.HTTPRoute:
 		return &httproute{}
+	case lib.NPLService:
+		return &nplservice{publisher: status.NewStatusPublisher()}
 	}
 	return nil
 }
@@ -55,7 +57,7 @@ func DequeueStatus(objIntf interface{}) error {
 		utils.AviLog.Debugf("key: %s, msg: unknown object received", option.Key)
 		return nil
 	}
-	if option.Options.ServiceMetadata.HTTPRoute != "" && option.Options.Status == nil {
+	if option.Options != nil && option.Options.ServiceMetadata.HTTPRoute != "" && option.Options.Status == nil {
 		utils.AviLog.Debugf("key: %s, msg: Status update for ChildVs received", option.Options.ServiceMetadata.HTTPRoute)
 		return nil
 	}

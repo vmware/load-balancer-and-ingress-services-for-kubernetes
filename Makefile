@@ -395,7 +395,7 @@ gatewayapi_ingestiontests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/ingestion -failfast -timeout 0 \
-	-coverprofile cover-20.out -coverpkg=./... > gatewayapi_ingestiontests.log 2>&1 && echo "gatewayapi_ingestiontests passed") || (echo "gatewayapi_ingestiontests failed" && cat gatewayapi_ingestiontests.log && exit 1)
+	-coverprofile cover-20.out -coverpkg=./ako-gateway-api/k8s/... > gatewayapi_ingestiontests.log 2>&1 && echo "gatewayapi_ingestiontests passed") || (echo "gatewayapi_ingestiontests failed" && cat gatewayapi_ingestiontests.log && exit 1)
 
 .PHONY: gatewayapi_graphlayertests
 gatewayapi_graphlayertests:
@@ -405,7 +405,7 @@ gatewayapi_graphlayertests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/graphlayer -failfast -timeout 0 \
-	-coverprofile cover-21.out -coverpkg=./... > gatewayapi_graphlayertests.log 2>&1 && echo "gatewayapi_graphlayertests passed") || (echo "gatewayapi_graphlayertests failed" && cat gatewayapi_graphlayertests.log && exit 1)
+	-coverprofile cover-21.out -coverpkg=./ako-gateway-api/nodes/...,./ako-gateway-api/lib/...,./ako-gateway-api/objects/... > gatewayapi_graphlayertests.log 2>&1 && echo "gatewayapi_graphlayertests passed") || (echo "gatewayapi_graphlayertests failed" && cat gatewayapi_graphlayertests.log && exit 1)
 
 .PHONY: gatewayapi_statustests
 gatewayapi_statustests:
@@ -415,7 +415,18 @@ gatewayapi_statustests:
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/status -failfast -timeout 0 \
-	-coverprofile cover-22.out -coverpkg=./...  > gatewayapi_statustests.log 2>&1 && echo "gatewayapi_statustests passed") || (echo "gatewayapi_statustests failed" && cat gatewayapi_statustests.log && exit 1)
+	-coverprofile cover-22.out -coverpkg=./ako-gateway-api/status/...  > gatewayapi_statustests.log 2>&1 && echo "gatewayapi_statustests passed") || (echo "gatewayapi_statustests failed" && cat gatewayapi_statustests.log && exit 1)
+
+.PHONY: gatewayapi_npltests
+gatewayapi_npltests:
+	@> gatewayapi_npltests.log
+	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/npltests -failfast -timeout 0 \
+	-coverprofile cover-23.out -coverpkg=./ako-gateway-api/...  > gatewayapi_npltests.log 2>&1 && echo "gatewayapi_npltests passed") || (echo "gatewayapi_npltests failed" && cat gatewayapi_npltests.log && exit 1)
+
 
 .PHONY: multitenancytests
 multitenancytests:
@@ -424,7 +435,7 @@ multitenancytests:
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multitenancytests -failfast -timeout 0 -coverprofile cover-21.out -coverpkg=./... > multitenancytests.log 2>&1 && echo "multitenancytests passed") || (echo "multitenancytests failed" && cat multitenancytests.log && exit 1)
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multitenancytests -failfast -timeout 0 -coverprofile cover-24.out -coverpkg=./... > multitenancytests.log 2>&1 && echo "multitenancytests passed") || (echo "multitenancytests failed" && cat multitenancytests.log && exit 1)
 
 .PHONY: urltests
 urltests:
@@ -433,7 +444,7 @@ urltests:
 	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/urltests -failfast -coverprofile cover-22.out -coverpkg=./... > urltests.log 2>&1 && echo "urltests passed") || (echo "urltests failed" && cat urltests.log && exit 1)
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/urltests -failfast -coverprofile cover-25.out -coverpkg=./... > urltests.log 2>&1 && echo "urltests passed") || (echo "urltests failed" && cat urltests.log && exit 1)
 
 .PHONY: int_test
 int_test:
@@ -444,7 +455,7 @@ int_test:
 	namespacesynctests servicesapitests npltests misc \
 	dedicatedvstests hatests calicotests ciliumtests \
 	helmtests infratests urltests multitenancytests gatewayapi_ingestiontests gatewayapi_graphlayertests \
-	gatewayapi_statustests ENDPOINTSLICES_ENABLED="true" > int_test.log 2>&1 \
+	gatewayapi_statustests gatewayapi_npltests ENDPOINTSLICES_ENABLED="true" > int_test.log 2>&1 \
 	&& echo "int_test succeeded" && buffer -i int_test.log -u 1000 -z 1k) \
 	|| (echo "int_test failed" && (buffer -i int_test.log -u 2000 -z 1b || \
 	echo "Dumping the whole log failed; here are the last 100 lines" && tail -n100 int_test.log ) && exit 1)

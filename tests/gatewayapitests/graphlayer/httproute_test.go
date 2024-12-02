@@ -2706,6 +2706,59 @@ func TestHTTPRouteFilterCRUDWithNSXT(t *testing.T) {
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 }
 
+func TestHTTPRouteBackendServiceInvalidType(t *testing.T) {
+
+	gatewayName := "gateway-hr-27"
+	gatewayClassName := "gateway-class-hr-27"
+	httpRouteName := "http-route-hr-27"
+	svcName1 := "avisvc-hr-27"
+
+	ports := []int32{8080}
+	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName1, "TCP", corev1.ServiceTypeExternalName, false)
+
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
+	rule := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+		map[string][]string{},
+		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
+	rules := []gatewayv1.HTTPRouteRule{rule}
+	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+
+	childNode := nodes[0].EvhNodes[0]
+	g.Expect(childNode.PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode.PoolRefs[0].Servers).To(gomega.HaveLen(0))
+
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+
 func TestHttpRouteWithDifferentGatewayController(t *testing.T) {
 	gatewayName1 := "gateway-hr-28a"
 	gatewayName2 := "gateway-hr-28b"
@@ -2744,9 +2797,9 @@ func TestHttpRouteWithDifferentGatewayController(t *testing.T) {
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName2, DEFAULT_NAMESPACE, "8081", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule1, rule2}
-
 	hostnames := []gatewayv1.Hostname{"foo-8081.com"}
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+	time.Sleep(10 * time.Second)
 	akogatewayapitests.SetupGateway(t, gatewayName3, DEFAULT_NAMESPACE, gatewayClassName1, nil, listeners[1:2])
 	modelName3, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName3)
 	g.Eventually(func() int {
@@ -2794,5 +2847,8 @@ func TestHttpRouteWithDifferentGatewayController(t *testing.T) {
 	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName2)
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGateway(t, gatewayName1, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gatewayName2, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gatewayName3, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName1)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName2)
 }

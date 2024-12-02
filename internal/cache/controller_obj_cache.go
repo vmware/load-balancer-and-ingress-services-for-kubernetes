@@ -3938,8 +3938,8 @@ func FetchNodeNetworks(segMgmtNetwork string, client *clients.AviClient, returnE
 }
 
 func checkNodeNetwork(client *clients.AviClient, returnErr *error) bool {
-	// Not applicable for NodePort mode and non vcenter and nsx-t clouds (overlay)
-	if lib.IsNodePortMode() || !lib.IsNodeNetworkAllowedCloud() {
+	// Not applicable for non vcenter and nsx-t clouds (overlay)
+	if !lib.IsNodeNetworkAllowedCloud() {
 		utils.AviLog.Infof("Skipping the check for Node Network ")
 		return true
 	}
