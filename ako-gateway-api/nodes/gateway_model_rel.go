@@ -640,7 +640,9 @@ func parentRefGatewayMappings(parentRef gatewayv1.ParentReference,
 	uniqueHosts := sets.NewString(hostnameIntersection...)
 	gwRouteNsName := fmt.Sprintf("%s/%s", gwNsName, routeTypeNsName)
 	akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteToHostname(gwRouteNsName, uniqueHosts.List())
+	utils.AviLog.Infof("key: %s, msg: Hosts mapped to GatewayRoute [%s] are [%v]", key, gwRouteNsName, uniqueHosts.List())
 	akogatewayapiobjects.GatewayApiLister().UpdateGatewayRouteMappings(gwNsName, routeTypeNsName)
+	utils.AviLog.Infof("key: %s, msg: Routes mapped to Gateway [%v] are : [%v]", key, gwNsName, routeTypeNsName)
 	akogatewayapiobjects.GatewayApiLister().UpdateRouteToGatewayListenerMappings(gatewayToListenersMap[gwNsName], routeTypeNsName, gwNsName)
 	if !utils.HasElem(gwNsNameList, gwNsName) {
 		*gwNsNameList = append(*gwNsNameList, gwNsName)

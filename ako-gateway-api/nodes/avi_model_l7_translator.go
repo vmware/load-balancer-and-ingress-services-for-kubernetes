@@ -136,7 +136,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	o.BuildPGPool(key, parentNsName, childNode, routeModel, rule)
 
 	// create the httppolicyset if the filter is present
-	o.BuildHTTPPolicySet(key, childNode, routeModel, rule, 0, childVSName, &objects.HTTPPSPGPool{})
+	o.BuildHTTPPolicySet(key, childNode, routeModel, rule, 0, childVSName)
 
 	foundEvhModel := nodes.FindAndReplaceEvhInModel(childNode, parentNode, key)
 	if !foundEvhModel {
@@ -323,7 +323,7 @@ func (o *AviObjectGraph) BuildVHMatch(key string, parentNsName string, routeType
 	utils.AviLog.Infof("key: %s, msg: Attached match criteria to vs %s", key, vsNode.Name)
 }
 
-func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule, index int, httpPSName string, httpPSPGPool *objects.HTTPPSPGPool) {
+func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule, index int, httpPSName string) {
 
 	if len(rule.Filters) == 0 {
 		vsNode.HttpPolicyRefs = nil
@@ -341,9 +341,6 @@ func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNo
 	if policy == nil {
 		policy = &nodes.AviHttpPolicySetNode{Name: httpPSName, Tenant: lib.GetTenant()}
 		vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs, policy)
-		httpPSPGPool.HTTPPS = append(httpPSPGPool.HTTPPS, httpPSName)
-		uniqueHTTPS := sets.NewString(httpPSPGPool.HTTPPS...)
-		httpPSPGPool.HTTPPS = uniqueHTTPS.List()
 		index = len(vsNode.HttpPolicyRefs) - 1
 	}
 	isRedirectPresent := o.BuildHTTPPolicySetHTTPRequestRedirectRules(key, httpPSName, vsNode, routeModel, rule.Filters, index)
@@ -455,7 +452,7 @@ func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestRedirectRules(key, httpPSn
 			}
 			redirectAction.StatusCode = &statusCode
 			requestRule := &models.HTTPRequestRule{Name: &httpPSname, Enable: proto.Bool(true), RedirectAction: redirectAction, Index: proto.Int32(int32(index + 1))}
-			vsNode.HttpPolicyRefs[index].RequestRules = append(vsNode.HttpPolicyRefs[index].RequestRules, requestRule)
+			vsNode.HttpPolicyRefs[index].RequestRules = []*models.HTTPRequestRule{requestRule}
 			isRedirectPresent = true
 			utils.AviLog.Debugf("key: %s, msg: Attached HTTP request redirect policies %s to vs %s", key, utils.Stringify(vsNode.HttpPolicyRefs[index].RequestRules), vsNode.Name)
 			break

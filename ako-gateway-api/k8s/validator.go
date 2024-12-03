@@ -323,10 +323,10 @@ func IsHTTPRouteConfigValid(key string, obj *gatewayv1.HTTPRoute) bool {
 	return true
 }
 
-func ValidateGatewayListenerWithSecret(namespace, name string, deleteFlag bool) {
+func ValidateGatewayListenerWithSecret(key, namespace, name string, deleteFlag bool) {
 	secretNSName := namespace + "/" + name
 	present, gwList := akogatewayapiobjects.GatewayApiLister().GetSecretToGateway(secretNSName)
-
+	utils.AviLog.Debugf("key: %s, msg: Gateways associated with secret [%s/%s] are [%v]", key, namespace, name, gwList)
 	if present {
 		clonedGWList := make([]string, len(gwList))
 		copy(clonedGWList, gwList)
@@ -375,6 +375,7 @@ func ValidateGatewayListenerWithSecret(namespace, name string, deleteFlag bool) 
 			}
 		} // gw loop ends
 		// update the mapping
+		utils.AviLog.Debugf("key: %s, msg: after validations, Gateways associated with secret [%s/%s] are [%v]", key, namespace, name, gwList)
 		akogatewayapiobjects.GatewayApiLister().UpdateSecretToGateway(secretNSName, clonedGWList)
 	}
 }

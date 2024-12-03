@@ -123,7 +123,12 @@ func BuildTLSNodesForGateway(gateway *gatewayv1.Gateway, key string) []*nodes.Av
 					utils.AviLog.Warnf("key: %s, msg: secret %s has been deleted, err: %s", key, name, err)
 					continue
 				}
-				tlsNode := TLSNodeFromSecret(secretObj, string(*listener.Hostname), name, key)
+				// Hostname can be empty so initialize it to section name of listener
+				hostname := string(listener.Name)
+				if listener.Hostname != nil {
+					hostname = string(*listener.Hostname)
+				}
+				tlsNode := TLSNodeFromSecret(secretObj, hostname, name, key)
 				tlsNodes = append(tlsNodes, tlsNode)
 			}
 		}
@@ -174,19 +179,23 @@ func BuildVsVipNodeForGateway(gateway *gatewayv1.Gateway, vsName string) *nodes.
 	return vsvipNode
 }
 
-func DeleteTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gateway, secretObj *corev1.Secret, encodedCertNameIndexMap map[string][]int) {
+func DeleteTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gateway, secretObj *corev1.Secret, encodedCertNameIndexMap map[string][]int) bool {
 	var tlsNodes []*nodes.AviTLSKeyCertNode
 	_, _, secretName := lib.ExtractTypeNameNamespace(key)
 	evhVsCertRefs := object.GetAviEvhVS()[0].SSLKeyCertRefs
 	gwStatus := akogatewayapiobjects.GatewayApiLister().GetGatewayToGatewayStatusMapping(gateway.Namespace + "/" + gateway.Name)
+	totalListeners := len(gateway.Spec.Listeners)
+	invalidListeners := 0
 	for i, listener := range gateway.Spec.Listeners {
-		if akogatewayapilib.IsListenerInvalid(gwStatus, i) {
-			continue
-		}
 		if listener.TLS != nil {
 			for _, certRef := range listener.TLS.CertificateRefs {
 				name := string(certRef.Name)
-				encodedCertName := lib.GetTLSKeyCertNodeName("", string(*listener.Hostname), name)
+				// Hostname can be empty so initialize it to section name of listener
+				hostname := string(listener.Name)
+				if listener.Hostname != nil {
+					hostname = string(*listener.Hostname)
+				}
+				encodedCertName := lib.GetTLSKeyCertNodeName("", hostname, name)
 				indexlist, exists := encodedCertNameIndexMap[encodedCertName]
 				if exists {
 					if name != secretName {
@@ -200,9 +209,19 @@ func DeleteTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gatewa
 				}
 			}
 		}
+		// Check Listener conditions validity for non-tls type
+		if akogatewayapilib.IsListenerInvalid(gwStatus, i) {
+			invalidListeners += 1
+		}
+	}
+	if invalidListeners < totalListeners && len(tlsNodes) > 0 {
+		object.GetAviEvhVS()[0].SSLKeyCertRefs = tlsNodes
+	} else {
+		utils.AviLog.Warnf("key: %s, msg: No certificate present for Parent VS %s", key, object.GetAviEvhVS()[0].Name)
+		object.GetAviEvhVS()[0].SSLKeyCertRefs = nil
 	}
 	utils.AviLog.Infof("key: %s, msg: Updated cert_refs in parentVS: %s", key, object.GetAviEvhVS()[0].Name)
-	object.GetAviEvhVS()[0].SSLKeyCertRefs = tlsNodes
+	return invalidListeners == totalListeners
 }
 
 func AddTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gateway, secretObj *corev1.Secret, encodedCertNameIndexMap map[string][]int) {
@@ -217,7 +236,12 @@ func AddTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gateway, 
 		if listener.TLS != nil {
 			for _, certRef := range listener.TLS.CertificateRefs {
 				name := string(certRef.Name)
-				encodedCertName := lib.GetTLSKeyCertNodeName("", string(*listener.Hostname), name)
+				// Hostname can be empty so initialize it to section name of listener
+				hostname := string(listener.Name)
+				if listener.Hostname != nil {
+					hostname = string(*listener.Hostname)
+				}
+				encodedCertName := lib.GetTLSKeyCertNodeName("", hostname, name)
 				indexlist, exists := encodedCertNameIndexMap[encodedCertName]
 				if exists {
 					tlsNodes = append(tlsNodes, evhVsCertRefs[indexlist[0]])
@@ -228,7 +252,7 @@ func AddTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gateway, 
 					}
 				} else {
 					if name == secretName {
-						tlsNode := TLSNodeFromSecret(secretObj, string(*listener.Hostname), name, key)
+						tlsNode := TLSNodeFromSecret(secretObj, hostname, name, key)
 						tlsNodes = append(tlsNodes, tlsNode)
 					}
 				}

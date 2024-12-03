@@ -447,14 +447,56 @@ func TestSecretCreateDelete(t *testing.T) {
 	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
 
 	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		return aviModel == nil
+
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	tests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestSecretCreateDeleteWithEmptyHostname(t *testing.T) {
+
+	gatewayName := "gateway-07"
+	gatewayClassName := "gateway-class-07"
+	ports := []int32{8080}
+	secrets := []string{"secret-07"}
+
+	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	// listener with empty hostname
+	listeners := tests.GetListenersV1(ports, true, false, secrets...)
+	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(DEFAULT_NAMESPACE, gatewayName))
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(false))
+	// add delay
+	time.Sleep(1 * time.Second)
+	integrationtest.AddSecret(secrets[0], DEFAULT_NAMESPACE, "cert", "key")
+
+	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if found {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 			g.Expect(nodes).To(gomega.HaveLen(1))
-			g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(0))
+			g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(1))
 			return true
 		}
 		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// delete
+	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
+
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		return aviModel == nil
+
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
