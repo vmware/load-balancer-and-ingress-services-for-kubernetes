@@ -181,13 +181,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 	// create the PG from backends
 	routeTypeNsName := lib.HTTPRoute + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName()
 	parentNs, _, parentName := lib.ExtractTypeNameNamespace(parentNsName)
-	allListeners := akogatewayapiobjects.GatewayApiLister().GetRouteToGatewayListener(routeTypeNsName)
-	listeners := []akogatewayapiobjects.GatewayListenerStore{}
-	for _, listener := range allListeners {
-		if listener.Gateway == parentNsName {
-			listeners = append(listeners, listener)
-		}
-	}
+	listeners := akogatewayapiobjects.GatewayApiLister().GetRouteToGatewayListener(routeTypeNsName, parentNsName)
 	if len(listeners) == 0 {
 		utils.AviLog.Warnf("key: %s, msg: No matching listener available for the route : %s", key, routeTypeNsName)
 		return
@@ -268,13 +262,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 func (o *AviObjectGraph) BuildVHMatch(key string, parentNsName string, routeTypeNsName string, vsNode *nodes.AviEvhVsNode, rule *Rule, hosts []string) {
 	var vhMatches []*models.VHMatch
 
-	allListeners := objects.GatewayApiLister().GetRouteToGatewayListener(routeTypeNsName)
-	listeners := []akogatewayapiobjects.GatewayListenerStore{}
-	for _, listener := range allListeners {
-		if listener.Gateway == parentNsName {
-			listeners = append(listeners, listener)
-		}
-	}
+	listeners := objects.GatewayApiLister().GetRouteToGatewayListener(routeTypeNsName, parentNsName)
 
 	for _, host := range hosts {
 		hostname := host

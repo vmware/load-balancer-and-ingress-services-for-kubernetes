@@ -77,6 +77,7 @@ type GWLister struct {
 	// routeType/routeNs/routeName -> [namespace/gateway, ...]
 	routeToGateway *objects.ObjectMapStore
 
+	// routeType/routeNs/routeName -> [namespace/gatewayName -> [GatewayListenerStore, ...], ...]
 	routeToGatewayListener *objects.ObjectMapStore
 
 	// namespace/gateway -> [routeType/routeNs/routeName, ...]
@@ -300,12 +301,15 @@ func (g *GWLister) GetRouteToGateway(routeTypeNsName string) (bool, []string) {
 	return false, []string{}
 }
 
-func (g *GWLister) GetRouteToGatewayListener(routeTypeNsName string) []GatewayListenerStore {
+func (g *GWLister) GetRouteToGatewayListener(routeTypeNsName, gwNsName string) []GatewayListenerStore {
 	g.gwLock.RLock()
 	defer g.gwLock.RUnlock()
 
 	if found, obj := g.routeToGatewayListener.Get(routeTypeNsName); found {
-		return obj.([]GatewayListenerStore)
+		routeToGatewayListenerObj := obj.(map[string][]GatewayListenerStore)
+		if val, ok := routeToGatewayListenerObj[gwNsName]; ok {
+			return val
+		}
 	}
 	return []GatewayListenerStore{}
 }
@@ -347,10 +351,17 @@ func (g *GWLister) UpdateGatewayRouteMappings(gwNsName string, routeTypeNsName s
 	}
 }
 
-func (g *GWLister) UpdateRouteToGatewayListenerMappings(gwListeners []GatewayListenerStore, routeTypeNsName string) {
+func (g *GWLister) UpdateRouteToGatewayListenerMappings(gwListeners []GatewayListenerStore, routeTypeNsName, gwNsName string) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
-	g.routeToGatewayListener.AddOrUpdate(routeTypeNsName, gwListeners)
+	var routeToGatewayListenerObj map[string][]GatewayListenerStore
+	if found, obj := g.routeToGatewayListener.Get(routeTypeNsName); found {
+		routeToGatewayListenerObj = obj.(map[string][]GatewayListenerStore)
+	} else {
+		routeToGatewayListenerObj = make(map[string][]GatewayListenerStore)
+	}
+	routeToGatewayListenerObj[gwNsName] = gwListeners
+	g.routeToGatewayListener.AddOrUpdate(routeTypeNsName, routeToGatewayListenerObj)
 }
 
 //=====All gateway <-> service mappings go here.

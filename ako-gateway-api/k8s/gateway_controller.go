@@ -17,14 +17,11 @@ package k8s
 import (
 	"fmt"
 	"reflect"
-	"sort"
 	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	discovery "k8s.io/api/discovery/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -519,23 +516,14 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 				utils.AviLog.Debugf("key: %s, msg: same resource version returning", key)
 				return
 			}
-			valid, allowedRoutesAll := IsValidGateway(key, gw)
+			valid, _ := IsValidGateway(key, gw)
 			if !valid {
 				return
-			}
-			listRoutes, err := validateReferredHTTPRoute(key, allowedRoutesAll, gw)
-			if err != nil {
-				utils.AviLog.Errorf("Validation of Referred HTTPRoutes failed due to error : %s", err.Error())
 			}
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 			utils.AviLog.Debugf("key: %s, msg: ADD", key)
-			for _, route := range listRoutes {
-				key := lib.HTTPRoute + "/" + utils.ObjKey(route)
-				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -571,23 +559,14 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			gw := obj.(*gatewayv1.Gateway)
 			if IsGatewayUpdated(oldGw, gw) {
 				key := lib.Gateway + "/" + utils.ObjKey(gw)
-				valid, allowedRoutesAll := IsValidGateway(key, gw)
+				valid, _ := IsValidGateway(key, gw)
 				if !valid {
 					return
-				}
-				listRoutes, err := validateReferredHTTPRoute(key, allowedRoutesAll, gw)
-				if err != nil {
-					utils.AviLog.Errorf("Validation of Referred HTTPRoutes Failed due to error : %s", err.Error())
 				}
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-				for _, route := range listRoutes {
-					key := lib.HTTPRoute + "/" + utils.ObjKey(route)
-					c.workqueue[bkt].AddRateLimited(key)
-					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-				}
 			}
 		},
 	}
@@ -753,32 +732,4 @@ func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
 		return configMap, true
 	}
 	return nil, false
-}
-func validateReferredHTTPRoute(key string, allowedRoutesAll bool, gateway *gatewayv1.Gateway) ([]*gatewayv1.HTTPRoute, error) {
-	namespace := gateway.Namespace
-	if allowedRoutesAll {
-		namespace = metav1.NamespaceAll
-	}
-	hrObjs, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).List(labels.Set(nil).AsSelector())
-	httpRoutes := make([]*gatewayv1.HTTPRoute, 0)
-	if err != nil {
-		return nil, err
-	}
-	for _, httpRoute := range hrObjs {
-		for _, parentRef := range httpRoute.Spec.ParentRefs {
-			if parentRef.Name == gatewayv1.ObjectName(gateway.Name) {
-				if IsHTTPRouteConfigValid(key, httpRoute) {
-					httpRoutes = append(httpRoutes, httpRoute)
-				}
-				break
-			}
-		}
-	}
-	sort.Slice(httpRoutes, func(i, j int) bool {
-		if httpRoutes[i].GetCreationTimestamp().Unix() == httpRoutes[j].GetCreationTimestamp().Unix() {
-			return httpRoutes[i].Namespace+"/"+httpRoutes[i].Name < httpRoutes[j].Namespace+"/"+httpRoutes[j].Name
-		}
-		return httpRoutes[i].GetCreationTimestamp().Unix() < httpRoutes[j].GetCreationTimestamp().Unix()
-	})
-	return httpRoutes, nil
 }
