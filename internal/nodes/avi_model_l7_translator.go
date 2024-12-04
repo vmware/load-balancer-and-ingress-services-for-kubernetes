@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"strings"
 
+	lib2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
@@ -110,7 +111,7 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName, tenant, key string, routeI
 	o.AddModelNode(avi_vs_meta)
 
 	shardSize := lib.GetShardSizeFromAviInfraSetting(routeIgrObj.GetAviInfraSetting())
-	subDomains := GetDefaultSubDomain()
+	subDomains := lib2.GetDefaultSubDomain()
 	fqdns, fqdn := lib.GetFqdns(vsName, key, tenant, subDomains, shardSize)
 	configuredSharedVSFqdn := fqdn
 

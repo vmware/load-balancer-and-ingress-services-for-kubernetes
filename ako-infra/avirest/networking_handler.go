@@ -1,6 +1,7 @@
 package avirest
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -183,7 +184,7 @@ func executeRestOp(key string, client *clients.AviClient, restOp *utils.RestOp, 
 	}
 
 	restLayer := rest.NewRestOperations(nil, true)
-	err := restLayer.AviRestOperateWrapper(client, []*utils.RestOp{restOp}, key)
+	err := restLayer.AviRestOperateWrapper(context.Background(), client, []*utils.RestOp{restOp}, key)
 	if restOp.Err != nil {
 		err = restOp.Err
 	}

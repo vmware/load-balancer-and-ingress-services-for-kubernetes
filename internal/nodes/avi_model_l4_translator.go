@@ -15,16 +15,17 @@
 package nodes
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strconv"
 	"strings"
 
+	lib2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"google.golang.org/protobuf/proto"
 
 	discovery "k8s.io/api/discovery/v1"
 
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
@@ -54,7 +55,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		fqdns = append(fqdns, extDNS)
 	}
 
-	subDomains := GetDefaultSubDomain()
+	subDomains := lib2.GetDefaultSubDomain()
 	if subDomains != nil && autoFQDN {
 		if fqdn := getAutoFQDNForService(svcObj.Namespace, svcObj.Name); fqdn != "" {
 			fqdns = append(fqdns, fqdn)
@@ -729,7 +730,7 @@ func (o *AviObjectGraph) BuildL4LBGraph(namespace string, svcName string, key st
 
 func getAutoFQDNForService(svcNamespace, svcName string) string {
 	var fqdn string
-	subDomains := GetDefaultSubDomain()
+	subDomains := lib2.GetDefaultSubDomain()
 
 	// honour defaultSubDomain from values.yaml if specified.
 	defaultSubDomain := lib.GetDomain()
@@ -771,27 +772,6 @@ func getAutoFQDNForService(svcNamespace, svcName string) string {
 	}
 
 	return fqdn
-}
-
-func GetDefaultSubDomain() []string {
-	cache := avicache.SharedAviObjCache()
-	cloud, ok := cache.CloudKeyCache.AviCacheGet(utils.CloudName)
-	if !ok || cloud == nil {
-		utils.AviLog.Warnf("Cloud object %s not found in cache", utils.CloudName)
-		return nil
-	}
-	cloudProperty, ok := cloud.(*avicache.AviCloudPropertyCache)
-	if !ok {
-		utils.AviLog.Warnf("Cloud property object not found")
-		return nil
-	}
-
-	if len(cloudProperty.NSIpamDNS) > 0 {
-		sort.Strings(cloudProperty.NSIpamDNS)
-	} else {
-		return nil
-	}
-	return cloudProperty.NSIpamDNS
 }
 
 func getL4InfraSetting(key, namespace string, svc *corev1.Service, advl4GWClassName *string) (*akov1beta1.AviInfraSetting, error) {
@@ -982,5 +962,5 @@ func DeleteStaleTenantModelData(objName, namespace, key, tenant, objType string)
 	}
 	utils.AviLog.Infof("key: %s, msg: Deleting old model data, model: %s", key, oldModelName)
 	objects.SharedAviGraphLister().Save(oldModelName, nil)
-	PublishKeyToRestLayer(oldModelName, key, utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer))
+	PublishKeyToRestLayer(context.Background(), key, oldModelName, utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer))
 }

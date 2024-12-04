@@ -15,6 +15,8 @@
 package nodes
 
 import (
+	"context"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
@@ -115,7 +117,7 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 		if !fullsync {
 			utils.AviLog.Infof("key: %s, msg: List of models to publish: %s", key, modelList)
 			for _, modelName := range modelList {
-				PublishKeyToRestLayer(modelName, key, sharedQueue)
+				PublishKeyToRestLayer(context.Background(), key, modelName, sharedQueue)
 			}
 		}
 		return
@@ -142,7 +144,7 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 	if !fullsync {
 		utils.AviLog.Infof("key: %s, msg: List of models to publish: %s", key, modelList)
 		for _, modelName := range modelList {
-			PublishKeyToRestLayer(modelName, key, sharedQueue)
+			PublishKeyToRestLayer(context.Background(), key, modelName, sharedQueue)
 		}
 	}
 }
@@ -402,7 +404,7 @@ func DeleteStaleDataForModelChange(routeIgrObj RouteIngressModel, namespace, obj
 
 		ok := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
 		if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
-			PublishKeyToRestLayer(modelName, key, sharedQueue)
+			PublishKeyToRestLayer(context.Background(), key, modelName, sharedQueue)
 		}
 	}
 }
@@ -458,12 +460,12 @@ func RouteIngrDeletePoolsByHostname(routeIgrObj RouteIngressModel, namespace, ob
 		if !deleteVS {
 			ok := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
 			if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
-				PublishKeyToRestLayer(modelName, key, sharedQueue)
+				PublishKeyToRestLayer(context.Background(), key, modelName, sharedQueue)
 			}
 		} else {
 			utils.AviLog.Debugf("key: %s, msg: setting up model name :[%v] to nil", key, modelName)
 			objects.SharedAviGraphLister().Save(modelName, nil)
-			PublishKeyToRestLayer(modelName, key, sharedQueue)
+			PublishKeyToRestLayer(context.Background(), key, modelName, sharedQueue)
 		}
 	}
 	// Now remove the secret relationship

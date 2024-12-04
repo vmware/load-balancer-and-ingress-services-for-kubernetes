@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"strings"
 
+	lib2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
@@ -205,7 +206,7 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 			autoFQDN = false
 		}
 
-		subDomains := GetDefaultSubDomain()
+		subDomains := lib2.GetDefaultSubDomain()
 		if subDomains != nil && autoFQDN {
 			services := listenerSvcMapping[fmt.Sprintf("%s/%d", listener.Protocol, listener.Port)]
 			for _, service := range services {
@@ -462,7 +463,7 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 
 	var fqdns []string
 	autoFQDN := true
-	subDomains := GetDefaultSubDomain()
+	subDomains := lib2.GetDefaultSubDomain()
 	if subDomains != nil && autoFQDN {
 		for _, service := range serviceNSNames {
 			svcNsName := strings.Split(service, "/")
@@ -601,7 +602,7 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 	var l4Rule *akov1alpha2.L4Rule
 
 	var portPoolSet []AviHostPathPortPoolPG
-	subDomains := GetDefaultSubDomain()
+	subDomains := lib2.GetDefaultSubDomain()
 	t1lr := lib.GetT1LRPath()
 
 	for i, serviceNSName := range serviceNSNames {

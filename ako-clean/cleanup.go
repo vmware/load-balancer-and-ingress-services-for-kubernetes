@@ -412,7 +412,7 @@ func sanitzeAviCloud() error {
 		Model:   "cloud",
 	}
 	restLayer := rest.NewRestOperations(nil, true)
-	return restLayer.AviRestOperateWrapper(aviClient, []*utils.RestOp{&restOp}, "aviCleanup")
+	return restLayer.AviRestOperateWrapper(context.Background(), aviClient, []*utils.RestOp{&restOp}, "aviCleanup")
 }
 
 func checkAndUpdateIPAM() error {
@@ -449,7 +449,7 @@ func checkAndUpdateIPAM() error {
 		Model:  "ipamdnsproviderprofile",
 	}
 	restLayer := rest.NewRestOperations(nil, true)
-	return restLayer.AviRestOperateWrapper(aviClient, []*utils.RestOp{&restOp}, "aviCleanup")
+	return restLayer.AviRestOperateWrapper(context.Background(), aviClient, []*utils.RestOp{&restOp}, "aviCleanup")
 }
 
 func convertPemToDer(cert string) string {

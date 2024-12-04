@@ -16,16 +16,17 @@ package lib
 
 import (
 	"fmt"
+	"sort"
 
 	"os"
 	"strings"
 
+	cache2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -160,7 +161,7 @@ func IsListenerInvalid(gwStatus *gatewayv1.GatewayStatus, listenerIndex int) boo
 func VerifyHostnameSubdomainMatch(hostname string) bool {
 	// Check if a hostname is valid or not by verifying if it has a prefix that
 	// matches any of the sub-domains.
-	subDomains := nodes.GetDefaultSubDomain()
+	subDomains := GetDefaultSubDomain()
 	if len(subDomains) == 0 {
 		// No IPAM DNS configured, we simply pass the hostname
 		return true
@@ -186,4 +187,25 @@ func ProtocolToRoute(proto string) string {
 
 	return innerMap[proto]
 
+}
+
+func GetDefaultSubDomain() []string {
+	cache := cache2.SharedAviObjCache()
+	cloud, ok := cache.CloudKeyCache.AviCacheGet(utils.CloudName)
+	if !ok || cloud == nil {
+		utils.AviLog.Warnf("Cloud object %s not found in cache", utils.CloudName)
+		return nil
+	}
+	cloudProperty, ok := cloud.(*cache2.AviCloudPropertyCache)
+	if !ok {
+		utils.AviLog.Warnf("Cloud property object not found")
+		return nil
+	}
+
+	if len(cloudProperty.NSIpamDNS) > 0 {
+		sort.Strings(cloudProperty.NSIpamDNS)
+	} else {
+		return nil
+	}
+	return cloudProperty.NSIpamDNS
 }

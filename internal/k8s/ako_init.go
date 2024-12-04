@@ -881,7 +881,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			// Publish vrfcontext model now, this has to be processed first
 			vrfModelName = lib.GetModelName(lib.GetTenant(), lib.GetVrf())
 			utils.AviLog.Infof("Processing model for vrf context in full sync: %s", vrfModelName)
-			nodes.PublishKeyToRestLayer(vrfModelName, "fullsync", sharedQueue)
+			nodes.PublishKeyToRestLayer(context.Background(), "fullsync", vrfModelName, sharedQueue)
 			utils.AviLog.Infof("Processing done for VRF")
 		} else {
 			utils.AviLog.Warnf("AKO is not primary instance, skipping vrf context publish in full sync.")
@@ -1354,26 +1354,26 @@ func (c *AviController) publishAllParentVSKeysToRestLayer() {
 				if strings.HasPrefix(vsCacheKey.Name, shardVsPrefix) {
 					delete(allModels, modelName)
 					utils.AviLog.Infof("Model published L7 VS during namespace based sync: %s", modelName)
-					nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
+					nodes.PublishKeyToRestLayer(context.Background(), "fullsync", modelName, sharedQueue)
 				}
 			}
 			// For namespace based syncs, the L4 VSes would be named: clusterName + "--" + namespace
 			if strings.HasPrefix(vsCacheKey.Name, lib.GetNamePrefix()+syncNamespace) {
 				delete(allModels, modelName)
 				utils.AviLog.Infof("Model published L4 VS during namespace based sync: %s", modelName)
-				nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
+				nodes.PublishKeyToRestLayer(context.Background(), "fullsync", modelName, sharedQueue)
 			}
 		} else {
 			delete(allModels, modelName)
 			utils.AviLog.Infof("Model published in full sync %s", modelName)
-			nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
+			nodes.PublishKeyToRestLayer(context.Background(), "fullsync", modelName, sharedQueue)
 		}
 	}
 	// Now also publish the newly generated models (if any)
 	// Publish all the models to REST layer.
 	utils.AviLog.Debugf("Newly generated models that do not exist in cache %s", utils.Stringify(allModels))
 	for modelName := range allModels {
-		nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
+		nodes.PublishKeyToRestLayer(context.Background(), "fullsync", modelName, sharedQueue)
 	}
 }
 
@@ -1513,7 +1513,7 @@ func SyncFromNodesLayer(key interface{}, wg *sync.WaitGroup) error {
 	}
 	cache := avicache.SharedAviObjCache()
 	restlayer := rest.NewRestOperations(cache)
-	restlayer.DequeueNodes(keyStr)
+	restlayer.DequeueNodes(context.Background(), keyStr)
 	return nil
 }
 

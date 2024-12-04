@@ -48,3 +48,8 @@ func NewKeyContextWithTraceID(key string, ctx context.Context) KeyContext {
 	return KeyContext{KeyStr: key,
 		Ctx: logger.SetTraceID(ctx, getNewTraceId())}
 }
+
+func NewKeyContext(key string, ctx context.Context) KeyContext {
+	return KeyContext{KeyStr: key,
+		Ctx: ctx}
+}

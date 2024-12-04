@@ -15,6 +15,7 @@
 package rest
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -245,7 +246,7 @@ type AviRestClientPool struct {
 }
 
 type RestOperator interface {
-	AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, key string) error
+	AviRestOperate(ctx context.Context, c *clients.AviClient, rest_ops []*utils.RestOp, key string) error
 	isRetryRequired(key string, err error) bool
 	SyncObjectStatuses()
 	RestRespArrToObjByType(rest_op *utils.RestOp, obj_type string, key string) []map[string]interface{}
@@ -272,7 +273,8 @@ func (l *leader) isRetryRequired(key string, err error) bool {
 	return false
 }
 
-func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, key string) error {
+func (l *leader) AviRestOperate(ctx context.Context, c *clients.AviClient, rest_ops []*utils.RestOp, key string) error {
+	options := session.SetContext(ctx)
 	for i, op := range rest_ops {
 		// This condition check is introduced to prevent any keys which is already present in the Graph
 		// Queue from doing any POST/PUT/PATCH/GET operations at the controller when the `deleteConfig` is set.
@@ -289,16 +291,16 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 		}
 		switch op.Method {
 		case utils.RestPost:
-			op.Err = c.AviSession.Post(utils.GetUriEncoded(op.Path), op.Obj, &op.Response)
+			op.Err = c.AviSession.Post(utils.GetUriEncoded(op.Path), op.Obj, &op.Response, options)
 		case utils.RestPut:
-			op.Err = c.AviSession.Put(utils.GetUriEncoded(op.Path), op.Obj, &op.Response)
+			op.Err = c.AviSession.Put(utils.GetUriEncoded(op.Path), op.Obj, &op.Response, options)
 		case utils.RestGet:
-			op.Err = c.AviSession.Get(utils.GetUriEncoded(op.Path), &op.Response)
+			op.Err = c.AviSession.Get(utils.GetUriEncoded(op.Path), &op.Response, options)
 		case utils.RestPatch:
 			op.Err = c.AviSession.Patch(utils.GetUriEncoded(op.Path), op.Obj, op.PatchOp,
-				&op.Response)
+				&op.Response, options)
 		case utils.RestDelete:
-			op.Err = c.AviSession.Delete(utils.GetUriEncoded(op.Path))
+			op.Err = c.AviSession.DeleteObject(utils.GetUriEncoded(op.Path), options)
 		default:
 			utils.AviLog.Errorf("Unknown RestOp %v", op.Method)
 			op.Err = fmt.Errorf("Unknown RestOp %v", op.Method)
@@ -338,7 +340,7 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 				utils.AviLog.Warnf("key: %s, msg: RestOp method %v path %v tenant %v Obj %s returned err %s with response %s",
 					key, op.Method, op.Path, lib.GetAdminTenant(), utils.Stringify(op.Obj), utils.Stringify(op.Err), utils.Stringify(op.Response))
 				err = &utils.WebSyncError{Err: op.Err, Operation: string(op.Method)}
-			} else if !isErrorRetryable(aviErr.HttpStatusCode, *aviErr.Message) {
+			} else if aviErr.Message != nil && !isErrorRetryable(aviErr.HttpStatusCode, *aviErr.Message) {
 				if op.Method != utils.RestPost {
 					continue
 				}
@@ -352,7 +354,7 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 			}
 			return err
 		} else {
-			utils.AviLog.Debugf("key: %s, msg: RestOp method %v path %v tenant %v response %v objName %v",
+			utils.AviLog.WithContext(ctx).Debugf("key: %s, msg: RestOp method %v path %v tenant %v response %v objName %v",
 				key, op.Method, op.Path, op.Tenant, utils.Stringify(op.Response), op.ObjName)
 		}
 	}
@@ -372,7 +374,7 @@ func (f *follower) isRetryRequired(key string, err error) bool {
 	return false
 }
 
-func (f *follower) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, key string) error {
+func (f *follower) AviRestOperate(ctx context.Context, c *clients.AviClient, rest_ops []*utils.RestOp, key string) error {
 
 	// Adding a delay of 500ms before doing a GET operation in the follower AKO.
 	// 500ms is selected to give leader AKO enough time to create the objects in the controller,

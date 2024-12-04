@@ -115,7 +115,7 @@ func DequeueIngestion(key string, fullsync bool) {
 				objects.SharedAviGraphLister().Save(modelName, nil)
 				if !fullsync {
 					sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-					nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
+					nodes.PublishKeyToRestLayer(ctx, key, modelName, sharedQueue)
 					return
 				}
 			}
@@ -150,7 +150,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		modelChanged := saveAviModel(modelName, model.AviObjectGraph, key)
 		if modelChanged && !fullsync {
 			sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-			nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
+			nodes.PublishKeyToRestLayer(ctx, key, modelName, sharedQueue)
 		}
 	}
 }
@@ -209,7 +209,7 @@ func handleGateway(namespace, name string, fullsync bool, key string) {
 			objects.SharedAviGraphLister().Save(modelName, nil)
 			if !fullsync {
 				sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-				nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
+				nodes.PublishKeyToRestLayer(context.Background(), key, modelName, sharedQueue)
 			}
 		}
 		return
@@ -223,7 +223,7 @@ func handleGateway(namespace, name string, fullsync bool, key string) {
 		objects.SharedAviGraphLister().Save(modelName, nil)
 		if !fullsync {
 			sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-			nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
+			nodes.PublishKeyToRestLayer(context.Background(), key, modelName, sharedQueue)
 		}
 		return
 	}
@@ -239,7 +239,7 @@ func handleGateway(namespace, name string, fullsync bool, key string) {
 	modelChanged := saveAviModel(modelName, aviModelGraph.AviObjectGraph, key)
 	if modelChanged && !fullsync {
 		sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-		nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
+		nodes.PublishKeyToRestLayer(context.Background(), key, modelName, sharedQueue)
 	}
 }
 
@@ -291,7 +291,7 @@ func (o *AviObjectGraph) ProcessRouteDeletion(key, parentNsName string, routeMod
 	ok := saveAviModel(modelName, o.AviObjectGraph, key)
 	if ok && len(o.AviObjectGraph.GetOrderedNodes()) != 0 && !fullsync {
 		sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-		nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
+		nodes.PublishKeyToRestLayer(context.Background(), key, modelName, sharedQueue)
 	}
 
 }

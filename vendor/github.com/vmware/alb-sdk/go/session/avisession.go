@@ -4,6 +4,7 @@ package session
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -23,6 +24,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vmware/alb-sdk/go/logger"
 
 	"github.com/golang/glog"
 )
@@ -129,7 +132,7 @@ func (avisess *AviSession) restMultipartFileObjectUploadRequest(verb string, fil
 	// If you don't close it, your request will be missing the terminating boundary.
 	w.Close()
 
-	req, errorResult := avisess.newAviRequest(verb, url, &b, tenant)
+	req, errorResult := avisess.newAviRequest(context.Background(), verb, url, &b, tenant)
 	if errorResult.err != nil {
 		return errorResult
 	}
@@ -717,7 +720,7 @@ func (avisess *AviSession) checkRetryForSleep(retry int, verb string, url string
 	return nil
 }
 
-func (avisess *AviSession) newAviRequest(verb string, url string, payload io.Reader, tenant string) (*http.Request, AviError) {
+func (avisess *AviSession) newAviRequest(ctx context.Context, verb string, url string, payload io.Reader, tenant string) (*http.Request, AviError) {
 	req, err := http.NewRequest(verb, url, payload)
 	errorResult := AviError{Verb: verb, Url: url}
 	if err != nil {
@@ -734,7 +737,10 @@ func (avisess *AviSession) newAviRequest(verb string, url string, payload io.Rea
 			req.Header.Set(k, v)
 		}
 	}
-
+	traceID := logger.GetTraceID(ctx)
+	if traceID != "" {
+		req.Header.Set("X-Request-ID", traceID)
+	}
 	//req.Header.Set("Accept", "application/json")
 	req.Header.Set("X-Avi-Version", avisess.version)
 	if tenant == "" {
@@ -787,14 +793,13 @@ func (avisess *AviSession) collectCookiesFromResp(resp *http.Response) {
 // Returns http.Response for accessing the whole http Response struct including headers and response body
 func (avisess *AviSession) RestRequest(verb string, uri string, payload interface{}, tenant string, lastError error,
 	retryNum ...int) (*http.Response, error) {
-	return avisess.restRequest(verb, uri, payload, tenant, nil)
+	return avisess.restRequest(context.Background(), verb, uri, payload, tenant, nil)
 }
 
 // restRequest makes a REST request to the Avi Controller's REST API.
 // Returns http.Response if successful
 // Note: The caller of the function is responsible for doing resp.Body.Close()
-func (avisess *AviSession) restRequest(verb string, uri string, payload interface{}, tenant string, lastError error,
-	retryNum ...int) (*http.Response, error) {
+func (avisess *AviSession) restRequest(ctx context.Context, verb string, uri string, payload interface{}, tenant string, lastError error, retryNum ...int) (*http.Response, error) {
 	url := avisess.prefix + uri
 	// If optional retryNum arg is provided, then count which retry number this is
 	retry := 0
@@ -818,7 +823,7 @@ func (avisess *AviSession) restRequest(verb string, uri string, payload interfac
 		payloadIO = bytes.NewBuffer(jsonStr)
 	}
 
-	req, errorResult := avisess.newAviRequest(verb, url, payloadIO, tenant)
+	req, errorResult := avisess.newAviRequest(ctx, verb, url, payloadIO, tenant)
 	if errorResult.err != nil {
 		return nil, errorResult
 	}
@@ -883,7 +888,7 @@ func (avisess *AviSession) restRequest(verb string, uri string, payload interfac
 				}
 				return nil, err
 			}
-			return avisess.restRequest(verb, uri, payload, tenant, errorResult, retry+1)
+			return avisess.restRequest(context.Background(), verb, uri, payload, tenant, errorResult, retry+1)
 		} else {
 			glog.Error("CheckControllerStatus is disabled for this session, not going to retry.")
 			if err != nil {
@@ -996,7 +1001,7 @@ func (avisess *AviSession) restMultipartUploadRequest(verb string, uri string, f
 		errorResult.err = fmt.Errorf("restMultipartUploadRequest Adding URI field failed: %v", err)
 		return errorResult
 	}
-	req, errorResult := avisess.newAviRequest(verb, url, &b, tenant)
+	req, errorResult := avisess.newAviRequest(context.Background(), verb, url, &b, tenant)
 	if errorResult.err != nil {
 		return errorResult
 	}
@@ -1077,7 +1082,7 @@ func (avisess *AviSession) restMultipartDownloadRequest(verb string, uri string,
 		return errorResult
 	}
 
-	req, errorResult := avisess.newAviRequest(verb, url, nil, tenant)
+	req, errorResult := avisess.newAviRequest(context.Background(), verb, url, nil, tenant)
 	if errorResult.err != nil {
 		return errorResult
 	}
@@ -1229,7 +1234,7 @@ func (avisess *AviSession) restRequestInterfaceResponse(verb string, url string,
 	if len(opts.params) != 0 {
 		url = updateUri(url, opts)
 	}
-	httpResponse, rerror := avisess.restRequest(verb, url, payload, opts.tenant, nil)
+	httpResponse, rerror := avisess.restRequest(opts.ctx, verb, url, payload, opts.tenant, nil)
 	if rerror != nil {
 		return rerror
 	}
@@ -1291,7 +1296,7 @@ func (avisess *AviSession) GetCollectionRaw(uri string, options ...ApiOptionsPar
 	if len(opts.params) != 0 {
 		uri = updateUri(uri, opts)
 	}
-	httpResponse, rerror := avisess.restRequest("GET", uri, nil, opts.tenant, nil)
+	httpResponse, rerror := avisess.restRequest(context.Background(), "GET", uri, nil, opts.tenant, nil)
 	if rerror != nil || httpResponse == nil {
 		return result, rerror
 	}
@@ -1330,7 +1335,7 @@ func (avisess *AviSession) GetRaw(uri string, options ...ApiOptionsParams) ([]by
 	if len(opts.params) != 0 {
 		uri = updateUri(uri, opts)
 	}
-	resp, rerror := avisess.restRequest("GET", uri, nil, opts.tenant, nil)
+	resp, rerror := avisess.restRequest(context.Background(), "GET", uri, nil, opts.tenant, nil)
 	if rerror != nil || resp == nil {
 		return nil, rerror
 	}
@@ -1347,7 +1352,7 @@ func (avisess *AviSession) PostRaw(uri string, payload interface{}, options ...A
 	if len(opts.params) != 0 {
 		uri = updateUri(uri, opts)
 	}
-	resp, rerror := avisess.restRequest("POST", uri, payload, opts.tenant, nil)
+	resp, rerror := avisess.restRequest(context.Background(), "POST", uri, payload, opts.tenant, nil)
 	if rerror != nil || resp == nil {
 		return nil, rerror
 	}
@@ -1363,7 +1368,7 @@ func (avisess *AviSession) PutRaw(uri string, payload interface{}, options ...Ap
 	if len(opts.params) != 0 {
 		uri = updateUri(uri, opts)
 	}
-	resp, rerror := avisess.restRequest("PUT", uri, payload, opts.tenant, nil)
+	resp, rerror := avisess.restRequest(context.Background(), "PUT", uri, payload, opts.tenant, nil)
 	if rerror != nil || resp == nil {
 		return nil, rerror
 	}
@@ -1400,6 +1405,18 @@ type ApiOptions struct {
 	payload     interface{}
 	result      interface{}
 	params      map[string]string
+	ctx         context.Context
+}
+
+func SetContext(ctx context.Context) func(*ApiOptions) error {
+	return func(opts *ApiOptions) error {
+		return opts.setContext(ctx)
+	}
+}
+
+func (opts *ApiOptions) setContext(ctx context.Context) error {
+	opts.ctx = ctx
+	return nil
 }
 
 func SetOptTenant(tenant string) func(*ApiOptions) error {
@@ -1594,7 +1611,7 @@ func (avisess *AviSession) GetControllerVersion() (string, error) {
 // Logout performs log out operation of the Avi Controller
 func (avisess *AviSession) Logout() error {
 	url := avisess.prefix + "logout"
-	req, _ := avisess.newAviRequest("POST", url, nil, avisess.tenant)
+	req, _ := avisess.newAviRequest(context.Background(), "POST", url, nil, avisess.tenant)
 	_, err := avisess.client.Do(req)
 	if err != nil {
 		return err

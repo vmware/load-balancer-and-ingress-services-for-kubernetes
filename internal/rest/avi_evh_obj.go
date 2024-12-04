@@ -15,6 +15,7 @@
 package rest
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -30,7 +31,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
-func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string, avimodel *nodes.AviObjectGraph, sniNode bool, vs_cache_obj *avicache.AviVsCache, key string) {
+func (rest *RestOperations) RestOperationForEvh(ctx context.Context, vsName string, namespace string, avimodel *nodes.AviObjectGraph, sniNode bool, vs_cache_obj *avicache.AviVsCache, key string) {
 	var pools_to_delete []avicache.NamespaceName
 	var pgs_to_delete []avicache.NamespaceName
 	var vsvip_to_delete []avicache.NamespaceName
@@ -84,7 +85,7 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 			}
 
 		}
-		if success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, true); !success {
+		if success, _ := rest.ExecuteRestAndPopulateCache(ctx, rest_ops, vsKey, avimodel, key, true); !success {
 			return
 		}
 	} else {
@@ -109,7 +110,7 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 		}
 		utils.AviLog.Debugf("POST key: %s, vsKey: %s", key, vsKey)
 		utils.AviLog.Debugf("POST restops %s", utils.Stringify(rest_ops))
-		if success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, true); !success {
+		if success, _ := rest.ExecuteRestAndPopulateCache(ctx, rest_ops, vsKey, avimodel, key, true); !success {
 			return
 		}
 	}
@@ -132,7 +133,7 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 	rest_ops = rest.L4PolicyDelete(l4pol_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.PoolGroupDelete(pgs_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.PoolDelete(pools_to_delete, namespace, rest_ops, key)
-	if success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, true); !success {
+	if success, _ := rest.ExecuteRestAndPopulateCache(ctx, rest_ops, vsKey, avimodel, key, true); !success {
 		return
 	}
 
@@ -146,7 +147,7 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 		} else {
 			_, evh_rest_ops = rest.EvhNodeCU(evhNode, nil, namespace, sni_to_delete, evh_rest_ops, key)
 		}
-		if success, processNextChild := rest.ExecuteRestAndPopulateCache(evh_rest_ops, vsKey, avimodel, key, true); !success {
+		if success, processNextChild := rest.ExecuteRestAndPopulateCache(ctx, evh_rest_ops, vsKey, avimodel, key, true); !success {
 			if !processNextChild {
 				utils.AviLog.Infof("key: %s, msg: Failure in processing EVH node: %s. Not processing other child nodes.", key, evhNode.Name)
 				return
@@ -160,7 +161,7 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 		var rest_ops []*utils.RestOp
 		for _, del_sni := range sni_to_delete {
 			rest.SNINodeDelete(del_sni, namespace, rest_ops, avimodel, key)
-			if success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, true); !success {
+			if success, _ := rest.ExecuteRestAndPopulateCache(ctx, rest_ops, vsKey, avimodel, key, true); !success {
 				return
 			}
 		}

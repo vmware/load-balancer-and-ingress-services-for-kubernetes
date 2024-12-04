@@ -385,14 +385,14 @@ func (c *GatewayController) publishAllParentVSKeysToRestLayer() {
 		modelName := vsCacheKey.Namespace + "/" + vsCacheKey.Name
 		delete(allModels, modelName)
 		utils.AviLog.Infof("Model published in full sync %s", modelName)
-		nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
+		nodes.PublishKeyToRestLayer(context.Background(), "fullsync", modelName, sharedQueue)
 
 	}
 	// Now also publish the newly generated models (if any)
 	// Publish all the models to REST layer.
 	utils.AviLog.Debugf("Newly generated models that do not exist in cache %s", utils.Stringify(allModels))
 	for modelName := range allModels {
-		nodes.PublishKeyToRestLayer(modelName, "fullsync", sharedQueue)
+		nodes.PublishKeyToRestLayer(context.Background(), "fullsync", modelName, sharedQueue)
 	}
 }
 
@@ -428,14 +428,14 @@ func (c *GatewayController) FullSync() {
 }
 
 func SyncFromNodesLayer(key interface{}, wg *sync.WaitGroup) error {
-	keyStr, ok := key.(string)
+	keyStr, ok := key.(akogatewayapilib.KeyContext)
 	if !ok {
 		utils.AviLog.Warnf("Unexpected object type: expected string, got %T", key)
 		return nil
 	}
 	cache := avicache.SharedAviObjCache()
 	restlayer := rest.NewRestOperations(cache)
-	restlayer.DequeueNodes(keyStr)
+	restlayer.DequeueNodes(keyStr.Ctx, keyStr.KeyStr)
 	return nil
 }
 

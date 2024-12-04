@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 
+	lib2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
@@ -862,7 +863,7 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, tenant, key st
 	o.AddModelNode(avi_vs_meta)
 
 	shardSize := lib.GetShardSizeFromAviInfraSetting(routeIgrObj.GetAviInfraSetting())
-	subDomains := GetDefaultSubDomain()
+	subDomains := lib2.GetDefaultSubDomain()
 	fqdns, fqdn := lib.GetFqdns(vsName, key, tenant, subDomains, shardSize)
 	configuredSharedVSFqdn := fqdn
 
@@ -2176,12 +2177,12 @@ func RouteIngrDeletePoolsByHostnameForEvh(routeIgrObj RouteIngressModel, namespa
 		if !deleteVS {
 			ok := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
 			if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
-				PublishKeyToRestLayer(modelName, key, sharedQueue)
+				PublishKeyToRestLayer(context.Background(), key, modelName, sharedQueue)
 			}
 		} else {
 			utils.AviLog.Debugf("Setting up model name :[%v] to nil", modelName)
 			objects.SharedAviGraphLister().Save(modelName, nil)
-			PublishKeyToRestLayer(modelName, key, sharedQueue)
+			PublishKeyToRestLayer(context.Background(), key, modelName, sharedQueue)
 		}
 	}
 	// Now remove the secret relationship
@@ -2243,7 +2244,7 @@ func DeleteStaleDataForModelChangeForEvh(routeIgrObj RouteIngressModel, namespac
 
 		ok := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
 		if ok && len(aviModel.(*AviObjectGraph).GetOrderedNodes()) != 0 && !fullsync {
-			PublishKeyToRestLayer(modelName, key, sharedQueue)
+			PublishKeyToRestLayer(context.Background(), key, modelName, sharedQueue)
 		}
 	}
 }

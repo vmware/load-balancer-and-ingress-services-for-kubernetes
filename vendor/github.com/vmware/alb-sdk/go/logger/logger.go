@@ -7,6 +7,9 @@ import (
 )
 
 func GetTraceID(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
 	traceIDType := ctx.Value(models.TraceID)
 	traceID, ok := traceIDType.(string)
 	if !ok {

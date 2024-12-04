@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"strings"
 
+	lib2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
@@ -39,7 +40,7 @@ type Validator struct {
 func NewNodesValidator() *Validator {
 	validator := &Validator{}
 	if !lib.IsWCP() {
-		validator.subDomains = GetDefaultSubDomain()
+		validator.subDomains = lib2.GetDefaultSubDomain()
 	}
 	return validator
 }
@@ -197,7 +198,7 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 	hostMap := make(IngressHostMap)
 	additionalSecureHostMap := make(IngressHostMap)
 	secretHostsMap := make(map[string][]string)
-	subDomains := GetDefaultSubDomain()
+	subDomains := lib2.GetDefaultSubDomain()
 
 	var useDefaultSecret bool
 	if val, found := annotations[lib.DefaultSecretEnabled]; found {

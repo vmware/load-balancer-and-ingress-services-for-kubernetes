@@ -15,11 +15,13 @@
 package nodes
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 
+	lib2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -73,7 +75,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		newAviModel.AddModelNode(sslNode)
 		ok := saveAviModel(lib.IstioModel, newAviModel, key)
 		if ok {
-			PublishKeyToRestLayer(lib.IstioModel, key, sharedQueue)
+			PublishKeyToRestLayer(context.Background(), key, lib.IstioModel, sharedQueue)
 		}
 		return
 	}
@@ -151,7 +153,7 @@ func DequeueIngestion(key string, fullsync bool) {
 			model_name := lib.GetModelName(tenant, lib.Encode(lib.GetNamePrefix()+namespace+"-"+name, lib.L4VS))
 			objects.SharedAviGraphLister().Save(model_name, nil)
 			if !fullsync {
-				PublishKeyToRestLayer(model_name, key, sharedQueue)
+				PublishKeyToRestLayer(context.Background(), key, model_name, sharedQueue)
 			}
 		}
 	}
@@ -234,7 +236,7 @@ func DequeueIngestion(key string, fullsync bool) {
 					model_name := lib.GetModelName(aviModelGraph.GetAviVS()[0].Tenant, aviModelGraph.GetAviVS()[0].Name)
 					ok := saveAviModel(model_name, aviModelGraph, key)
 					if ok && !fullsync {
-						PublishKeyToRestLayer(model_name, key, sharedQueue)
+						PublishKeyToRestLayer(context.Background(), key, model_name, sharedQueue)
 					}
 				}
 			}
@@ -272,7 +274,7 @@ func DequeueIngestion(key string, fullsync bool) {
 					if found, _ := objects.SharedAviGraphLister().Get(modelName); found {
 						objects.SharedAviGraphLister().Save(modelName, nil)
 						if !fullsync {
-							PublishKeyToRestLayer(modelName, key, sharedQueue)
+							PublishKeyToRestLayer(context.Background(), key, modelName, sharedQueue)
 						}
 					}
 				} else {
@@ -282,7 +284,7 @@ func DequeueIngestion(key string, fullsync bool) {
 						modelName := lib.GetModelName(aviModelGraph.GetAviVS()[0].Tenant, lib.Encode(lib.GetNamePrefix()+namespace+"-"+gwName, lib.ADVANCED_L4))
 						ok := saveAviModel(modelName, aviModelGraph, key)
 						if ok && !fullsync {
-							PublishKeyToRestLayer(modelName, key, sharedQueue)
+							PublishKeyToRestLayer(context.Background(), key, modelName, sharedQueue)
 						}
 					}
 				}
@@ -299,7 +301,7 @@ func DequeueIngestion(key string, fullsync bool) {
 				if found, _ := objects.SharedAviGraphLister().Get(modelName); found {
 					objects.SharedAviGraphLister().Save(modelName, nil)
 				}
-				PublishKeyToRestLayer(modelName, vsKey.Namespace+"/"+vsKey.Name, sharedQueue)
+				PublishKeyToRestLayer(context.Background(), vsKey.Namespace+"/"+vsKey.Name, modelName, sharedQueue)
 				break
 			}
 		}
@@ -408,7 +410,7 @@ func handleHostRuleForSharedVS(key string, fullsync bool) {
 				BuildL7HostRule(fqdn, key, vsNode)
 				ok := saveAviModel(modelName, aviModelObject, key)
 				if ok && len(aviModelObject.GetOrderedNodes()) != 0 && !fullsync {
-					PublishKeyToRestLayer(modelName, key, sharedQueue)
+					PublishKeyToRestLayer(context.Background(), key, modelName, sharedQueue)
 				}
 			}
 		}
@@ -647,7 +649,7 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 		if found, _ := objects.SharedAviGraphLister().Get(modelName); found {
 			objects.SharedAviGraphLister().Save(modelName, nil)
 			if !fullsync {
-				PublishKeyToRestLayer(modelName, key, sharedQueue)
+				PublishKeyToRestLayer(context.Background(), key, modelName, sharedQueue)
 			}
 		}
 	} else {
@@ -672,7 +674,7 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 		aviModelGraph.BuildAdvancedL4Graph(namespace, vipKey, key, true)
 		ok := saveAviModel(modelName, aviModelGraph, key)
 		if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
-			PublishKeyToRestLayer(modelName, key, sharedQueue)
+			PublishKeyToRestLayer(context.Background(), key, modelName, sharedQueue)
 		}
 	}
 }
@@ -716,7 +718,7 @@ func handleL4Service(key string, fullsync bool) {
 			model_name := lib.GetModelName(aviModelGraph.GetAviVS()[0].Tenant, aviModelGraph.GetAviVS()[0].Name)
 			ok := saveAviModel(model_name, aviModelGraph, key)
 			if ok && !fullsync {
-				PublishKeyToRestLayer(model_name, key, sharedQueue)
+				PublishKeyToRestLayer(context.Background(), key, model_name, sharedQueue)
 			}
 		}
 
@@ -848,14 +850,15 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsy
 
 	ok := saveAviModel(model_name, aviModelGraph, key)
 	if ok && !fullsync {
-		PublishKeyToRestLayer(model_name, key, sharedQueue)
+		PublishKeyToRestLayer(context.Background(), key, model_name, sharedQueue)
 	}
 
 }
 
-func PublishKeyToRestLayer(modelName string, key string, sharedQueue *utils.WorkerQueue) {
+func PublishKeyToRestLayer(ctx context.Context, key string, modelName string, sharedQueue *utils.WorkerQueue) {
 	bkt := utils.Bkt(modelName, sharedQueue.NumWorkers)
-	sharedQueue.Workqueue[bkt].AddRateLimited(modelName)
+	keyCtx := lib2.NewKeyContext(modelName, ctx)
+	sharedQueue.Workqueue[bkt].AddRateLimited(keyCtx)
 	lib.IncrementQueueCounter(utils.GraphLayer)
 	utils.AviLog.Infof("key: %s, msg: Published key with modelName: %s", key, modelName)
 }
