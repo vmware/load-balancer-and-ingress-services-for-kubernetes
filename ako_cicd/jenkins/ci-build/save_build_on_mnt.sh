@@ -55,3 +55,5 @@ if [ "$minor_version" -ge "11" ]; then
 	sudo cp -r ako-operator.tar $target_path/
 	sudo cp -r ako-gateway-api.tar $target_path/
 fi
+
+echo "Docker image tar files generated and stored succssfully..."
