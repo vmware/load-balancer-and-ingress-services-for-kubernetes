@@ -16,6 +16,7 @@ if [ "$minor_version" -ge "11" ]; then
 fi
 
 echo ${AKO_IMAGES[@]}
+
 for image in "${AKO_IMAGES[@]}"
 do
   source_image=$image:latest
