@@ -16,7 +16,7 @@ if [ "$minor_version" -ge "11" ]; then
 fi
 
 echo ${AKO_IMAGES[@]}
-
+branch=av-223899_master
 for image in "${AKO_IMAGES[@]}"
 do
   source_image=$image:latest
