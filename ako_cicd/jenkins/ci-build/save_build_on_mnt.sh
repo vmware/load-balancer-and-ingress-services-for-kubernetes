@@ -47,11 +47,11 @@ sudo sed -i --regexp-extended "s/^(\s*)(appVersion\s*:\s*latest\s*$)/\1appVersio
 branch_version=$($WORKSPACE/hack/jenkins/get_branch_version.sh)
 version_numbers=(${branch_version//./ })
 minor_version=${version_numbers[1]}
-docker save -o ako.tar ako:latest
+sudo docker save -o ako.tar ako:latest
 sudo cp -r ako.tar $target_path/
 if [ "$minor_version" -ge "11" ]; then
-	docker save -o ako-operator.tar ako-operator:latest
-	docker save -o ako-gateway-api.tar ako-gateway-api:latest
+	sudo docker save -o ako-operator.tar ako-operator:latest
+	sudo docker save -o ako-gateway-api.tar ako-gateway-api:latest
 	sudo cp -r ako-operator.tar $target_path/
 	sudo cp -r ako-gateway-api.tar $target_path/
 fi
