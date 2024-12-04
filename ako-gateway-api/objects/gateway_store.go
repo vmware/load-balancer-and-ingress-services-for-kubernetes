@@ -660,7 +660,7 @@ func (g *GWLister) DeleteGatewayFromStore(gwNsName string) {
 
 	if found, secretNsNameList := g.gatewayToSecret.Get(gwNsName); found {
 		for _, secretNsName := range secretNsNameList.([]string) {
-			if found, gwNsNameList := g.serviceToGateway.Get(secretNsName); found {
+			if found, gwNsNameList := g.secretToGateway.Get(secretNsName); found {
 				gwNsNameListObj := gwNsNameList.([]string)
 				gwNsNameListObj = utils.Remove(gwNsNameListObj, gwNsName)
 				if len(gwNsNameListObj) == 0 {
@@ -862,11 +862,11 @@ func (g *GWLister) DeleteRouteFromStore(routeTypeNsName string, key string) {
 						g.gatewayToService.AddOrUpdate(gwNsName, gwSvcListObj)
 					}
 				}
-				if found, svcGwList := g.serviceToGateway.Get(gwNsName); found {
+				if found, svcGwList := g.serviceToGateway.Get(svcNsName); found {
 					svcGwListObj := svcGwList.([]string)
 					svcGwListObj = utils.Remove(svcGwListObj, gwNsName)
 					if len(svcGwListObj) == 0 {
-						g.serviceToGateway.Delete(gwNsName)
+						g.serviceToGateway.Delete(svcNsName)
 					} else {
 						g.serviceToGateway.AddOrUpdate(svcNsName, svcGwListObj)
 					}
