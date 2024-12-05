@@ -310,7 +310,7 @@ func isInfraSettingUpdateRequired(infraSettingCR *akov1beta1.AviInfraSetting, ne
 	return false
 }
 
-func CreateOrUpdateAviInfraSetting(name, network, t1lr string) (*akov1beta1.AviInfraSetting, error) {
+func CreateOrUpdateAviInfraSetting(name, network, t1lr, seGroup string) (*akov1beta1.AviInfraSetting, error) {
 	infraSettingCR, err := AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(name)
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
@@ -335,7 +335,7 @@ func CreateOrUpdateAviInfraSetting(name, network, t1lr string) (*akov1beta1.AviI
 					ShardSize: "SMALL",
 				},
 				SeGroup: akov1beta1.AviInfraSettingSeGroup{
-					Name: GetClusterID(),
+					Name: seGroup,
 				},
 			},
 		}

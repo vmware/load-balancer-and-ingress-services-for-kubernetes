@@ -26,6 +26,7 @@ import (
 	v1beta1crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -133,8 +134,15 @@ func InitializeAKOInfra() {
 	c.InitNetworkingHandler()
 	lib.RunAviInfraSettingInformer(stopCh)
 	c.AddSecretEventHandler(stopCh)
-	a.SetupSEGroup(transportZone)
-	c.AddAvailabilityZoneCREventHandler(stopCh)
+	segTemplateUUID, err := a.DeriveCloudNameAndSEGroupTmpl(transportZone)
+	if err != nil {
+		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "CloudMatchingTZNotFound", err.Error())
+		utils.AviLog.Fatalf("Failed to derive cloud, err: %s", err)
+	}
+	if !lib.GetVPCMode() {
+		a.SetupSEGroup(segTemplateUUID)
+		c.AddAvailabilityZoneCREventHandler(stopCh)
+	}
 	c.AddNamespaceEventHandler(stopCh)
 	c.Sync()
 	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName)
