@@ -92,7 +92,7 @@ func (v *VPCHandler) createInfraSettingAndAnnotateNS(nsToVPCMap map[string]strin
 		processedInfraSettingCRSet[infraSettingName] = struct{}{}
 		delete(staleInfraSettingCRSet, infraSettingName)
 
-		_, err = lib.CreateOrUpdateAviInfraSetting(infraSettingName, "", vpc)
+		_, err = lib.CreateOrUpdateAviInfraSetting(infraSettingName, "", vpc, "")
 		if err != nil {
 			utils.AviLog.Errorf("failed to create aviInfraSetting, name: %s, error: %s", infraSettingName, err.Error())
 			continue

@@ -210,20 +210,24 @@ func (c *AviController) SetSEGroupCloudNameFromNSAnnotations() bool {
 
 	var ok bool
 	annotations := nsObj.GetAnnotations()
-	seGroup, ok = annotations[lib.WCPSEGroup]
-	if !ok {
-		utils.AviLog.Warnf("Failed to get SEGroup from annotation in namespace")
-		return false
-	}
-
 	cloudName, ok = annotations[lib.WCPCloud]
 	if !ok {
 		utils.AviLog.Warnf("Failed to get cloud name from annotation in namespace")
 		return false
 	}
-
-	lib.SetSEGName(seGroup)
 	utils.SetCloudName(cloudName)
+
+	if lib.GetVPCMode() {
+		utils.AviLog.Infof("Setting cloud %s for VS placement.", cloudName)
+		return true
+	}
+
+	seGroup, ok = annotations[lib.WCPSEGroup]
+	if !ok {
+		utils.AviLog.Warnf("Failed to get SEGroup from annotation in namespace")
+		return false
+	}
+	lib.SetSEGName(seGroup)
 	utils.AviLog.Infof("Setting SEGroup %s, cloud %s for VS placement.", seGroup, cloudName)
 	return true
 }
