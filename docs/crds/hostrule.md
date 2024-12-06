@@ -309,6 +309,97 @@ The `networkSecurityPolicy` setting, in addition to any other parameters provide
 1. This property is available only in HostRule `v1beta1` schema definition.
 2. The HostRule CRD is not aware of the misconfigurations if it is applied to Child VS while it is being created, therefore the HostRule will be `Accepted` nonetheless. AKO will print warning message regarding this.
 
+#### Enable Regular Expression in path
+The `useRegex` field is an optional field where the user will specify if at least one path for the specified host in Kubernetes Ingress or OpenShift Route is a regular expression. This field should be set to **True** if at least one path is a regex. If the useRegex field is set to **True** for a given host, then all paths defined for that host, regardless of what Ingress/Route they are defined on, will be considered as case-insensitive regular expressions.
+
+        fqdn: test-avi.vmware.com
+        fqdnType: Exact
+        useRegex: True
+
+Avi will always follow the longest match approach to match path in the incoming request url, against the available regex paths for the host.
+
+        apiVersion: networking.k8s.io/v1
+        kind: Ingress
+        metadata:
+          name: test-ingress
+        spec:
+          rules:
+          - host: test-avi.vmware.com
+            http:
+              paths:
+              - backend:
+                  service:
+                    name: my-app-0
+                    port:
+                      number: 80
+                path: /bar.*
+                pathType: ImplementationSpecific
+              - backend:
+                  service:
+                    name: my-app-1
+                    port:
+                      number: 80
+                path: /bar/foo
+                pathType: ImplementationSpecific
+          tls:
+          - hosts:
+            - test-avi.vmware.com
+            secretName: ingress-secret
+
+For the above Ingress definition, if we create a hostrule with `useRegex` set to True, then :
+1. A request that comes on the URL **https://test-avi.vmware.com/bar/foo** will be routed to backend **my-app-1**.
+2. A request that comes on the URL **https://test-avi.vmware.com/bar/baz** will be routed to backend **my-app-0**.
+
+***Note***
+1. This property is available only in HostRule `v1beta1` schema definition.
+2. the `useRegex` field will not be supported for insecure SNI and insecure SNI dedicated virtual services.
+
+#### Express Application Root Redirect path
+The `applicationRootPath` is an optional field where the user can specify the application-root redirect path. If the application root, i.e., path `/` for a given host, is defined in a Kubernetes Ingress or OpenShift Route, but exposed on a different path in the backend and needs to be redirected, set this field to redirect requests to the required path. The host and query strings in the redirect URI will be kept the same. The port in the redirect request will be set as the front end port specified in the ingress and redirect protocol will be set based on the redirect port (HTTPS for ports 443 and 6443 and HTTP for any other port).
+
+        fqdn: test-avi.vmware.com
+        fqdnType: Exact
+        applicationRootPath: "/foo"
+
+If any other path (along with application root **/**) is also specified for the host in the ingress/route, then requests for that path will be routed normally (without any redirect) by Avi. The path that is used as the **applicationRootPath** should not also be used as a regular path in the ingress/route as it will lead to ambiguity while backend selection in Avi.
+
+        apiVersion: networking.k8s.io/v1
+        kind: Ingress
+        metadata:
+          name: test-ingress
+        spec:
+          rules:
+          - host: test-avi.vmware.com
+            http:
+              paths:
+              - backend:
+                  service:
+                    name: my-app-0
+                    port:
+                      number: 80
+                path: /bar
+                pathType: ImplementationSpecific
+              - backend:
+                  service:
+                    name: my-app-1
+                    port:
+                      number: 443
+                path: /
+                pathType: Exact
+          tls:
+          - hosts:
+            - test-avi.vmware.com
+            secretName: ingress-secret
+
+For the above Ingress definition, if we create a hostrule with `applicationRootPath` set to `/foo`, then :
+1. A request that comes on the URL **https://test-avi.vmware.com/** will first be redirected to **https://test-avi.vmware.com:443/foo** and then routed to the backend **my-app-1**.
+2. A request that comes on the URL **https://test-avi.vmware.com/bar** will be routed to backend **my-app-0**.
+
+***Note***
+1. This property is available only in HostRule `v1beta1` schema definition.
+2. The `applicationRootPath` field will not be supported for insecure SNI and insecure SNI dedicated virtual services.
+3. The `useRegex` and `applicationRootPath` fields can be used together, i.e., useRegex can be set to **True** and applicationRootPath can be specified in the same hostrule, and both properties will have the same effect as described in their respective sections.
+
 #### Status Messages
 
 The status messages are used to give instantaneous feedback to the users about the reference objects specified in the HostRule CRD.
