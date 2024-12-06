@@ -115,6 +115,15 @@ While AKO can terminate TLS traffic, it also provides and option where the users
 In case of reencrypt, if `destinationCA` is specified in the HTTPRule CRD, as shown in the example, a corresponding PKI profile is created for that Pool (host path combination).
 Also Note that only one of `pkiProfile` or `destinationCA` can be provided to configure reencrypt for a Pool corresponding to the host path backend Service.
 
+#### Enable HTTP/2 protocol support for backend
+
+HTTPRule custom resource can be used to enable HTTP/2 traffic support to the backend for L7 virtual services. The user needs to set the `enableHTTP2` field to **true** for specific FQDN and path, and AKO will enable HTTP/2 traffic support in the corresponding pool created for the backend.
+
+A sample setting with this field would look like this:
+
+      - target: /foo 
+        enableHTTP2: true
+
 #### Status Messages
 
 The status messages are used to give instanteneous feedback to the users about the whether a HTTPRule CRD was `Accepted` or `Rejected`.
