@@ -157,6 +157,13 @@ func IsListenerInvalid(gwStatus *gatewayv1.GatewayStatus, listenerIndex int) boo
 	}
 	return false
 }
+func IsGatewayInvalid(gwStatus *gatewayv1.GatewayStatus) bool {
+	if gwStatus.Conditions[0].Type == string(gatewayv1.ListenerConditionAccepted) && gwStatus.Conditions[0].Status == "False" {
+		return true
+	}
+	return false
+}
+
 func VerifyHostnameSubdomainMatch(hostname string) bool {
 	// Check if a hostname is valid or not by verifying if it has a prefix that
 	// matches any of the sub-domains.
@@ -189,4 +196,9 @@ func ProtocolToRoute(proto string) string {
 
 func GetDefaultHTTPPSName() string {
 	return Prefix + lib.GetClusterName() + "--" + lib.DefaultPSName
+}
+
+func GetTLSKeyCertNodeName(gatewayNameSpace, gatewayName, secretNameSpace, secretName string) string {
+	namePrefix := gatewayNameSpace + "-" + gatewayName + "-" + secretNameSpace + "-" + secretName
+	return lib.Encode(namePrefix, lib.TLSKeyCert)
 }
