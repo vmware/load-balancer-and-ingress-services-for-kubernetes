@@ -176,19 +176,19 @@ func GetDynamicInformers() *DynamicInformers {
 
 func GetNetworkInfoCRData() (map[string]string, map[string]string, map[string]map[string]struct{}) {
 	clientSet := GetDynamicClientSet()
-	lslrMap := make(map[string]string)
+	lrlsMap := make(map[string]string)
 	nsLRMap := make(map[string]string)
 	cidrs := make(map[string]map[string]struct{})
 
 	crList, err := clientSet.Resource(NetworkInfoGVR).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		utils.AviLog.Errorf("Error getting Networkinfo CR %v", err)
-		return lslrMap, nsLRMap, cidrs
+		return lrlsMap, nsLRMap, cidrs
 	}
 
 	if len(crList.Items) == 0 {
 		utils.AviLog.Infof("No Networkinfo CRs found.")
-		return lslrMap, nsLRMap, cidrs
+		return lrlsMap, nsLRMap, cidrs
 	}
 
 	if cidrIntf, clusterNetworkCIDRFound := GetClusterNetworkInfoCRData(clientSet); clusterNetworkCIDRFound {
@@ -207,15 +207,15 @@ func GetNetworkInfoCRData() (map[string]string, map[string]string, map[string]ma
 		spec := obj.Object["topology"].(map[string]interface{})
 		lr, ok := spec["gatewayPath"].(string)
 		if !ok {
-			utils.AviLog.Infof("lr not found in networkinfo object")
+			utils.AviLog.Infof("lr not found in networkinfo object, name: %s, namespace: %s", obj.GetName(), ns)
 			continue
 		}
 		ls, ok := spec["aviSegmentPath"].(string)
 		if !ok {
-			utils.AviLog.Infof("ls not found in networkinfo object")
+			utils.AviLog.Infof("ls not found in networkinfo object, name: %s, namespace: %s", obj.GetName(), ns)
 			continue
 		}
-		lslrMap[ls] = lr
+		lrlsMap[lr] = ls
 		nsLRMap[ns] = lr
 		cidrIntf, ok := spec["ingressCIDRs"].([]interface{})
 		if !ok {
@@ -230,7 +230,7 @@ func GetNetworkInfoCRData() (map[string]string, map[string]string, map[string]ma
 		}
 	}
 
-	return lslrMap, nsLRMap, cidrs
+	return lrlsMap, nsLRMap, cidrs
 }
 
 func GetAvailabilityZonesCRData(clientSet dynamic.Interface) ([]string, error) {
