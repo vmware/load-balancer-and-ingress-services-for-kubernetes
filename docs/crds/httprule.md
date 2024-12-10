@@ -124,6 +124,17 @@ A sample setting with this field would look like this:
       - target: /foo 
         enableHTTP2: true
 
+This field needs to be used along with an Aviinfrasetting custom resource object to enable end-to-end HTTP/2 traffic flow from client to server and vice versa. Aviinfrasetting custom resource can be used to enable HTTP/2 protocol support for front-end ports opened for L7 Shared or Dedicated virtual services. Please refer to [aviinfrasetting](../crds/avinfrasetting.md#custom-ports) for more details.
+
+        network:
+          listeners:
+          - enableHTTP2: true
+            enableSSL: true
+            port: 443
+
+***Note***
+1. This property is available only in HTTPRule `v1beta1` schema definition.
+
 #### Status Messages
 
 The status messages are used to give instanteneous feedback to the users about the whether a HTTPRule CRD was `Accepted` or `Rejected`.
