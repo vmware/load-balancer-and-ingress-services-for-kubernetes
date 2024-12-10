@@ -184,10 +184,12 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 			analyticsPolicy = &models.AnalyticsPolicy{
 				FullClientLogs: &models.FullClientLogs{
 					Duration: &infinite,
-					Enabled:  hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Enabled,
-					Throttle: lib.GetThrottle(hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Throttle),
 				},
 				AllHeaders: hostrule.Spec.VirtualHost.AnalyticsPolicy.LogAllHeaders,
+			}
+			if hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs != nil {
+				analyticsPolicy.FullClientLogs.Enabled = hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Enabled
+				analyticsPolicy.FullClientLogs.Throttle = lib.GetThrottle(hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Throttle)
 			}
 		}
 
