@@ -404,7 +404,7 @@ For the above Ingress definition, if we create a hostrule with `applicationRootP
 
 ***Note***
 1. This property is available only in HostRule `v1beta1` schema definition.
-2. The `applicationRootPath` field will not be supported or insecure Ingress/Route when AKO is running in SNI mode or SNI Dedicated mode.
+2. The `applicationRootPath` field will not be supported for insecure Ingress/Route when AKO is running in SNI mode or SNI Dedicated mode.
 3. The `useRegex` and `applicationRootPath` fields can be used together; i.e., useRegex can be set to **True**, and applicationRootPath can be specified in the same hostrule, and both properties will have the same effect as described in their respective sections.
 
 #### Status Messages
