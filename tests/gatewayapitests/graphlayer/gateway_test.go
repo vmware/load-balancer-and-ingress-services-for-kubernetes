@@ -443,6 +443,9 @@ func TestSecretCreateDelete(t *testing.T) {
 		return found
 	}, 30*time.Second).Should(gomega.Equal(true))
 
+	integrationtest.UpdateSecret(secrets[0], DEFAULT_NAMESPACE, "certnew", "keynew")
+	time.Sleep(30 * time.Second)
+
 	// delete
 	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
 
