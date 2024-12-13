@@ -743,21 +743,16 @@ func TestHostruleAnalyticsPolicyUpdateForEvh(t *testing.T) {
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
-	g.Eventually(func() int {
+	g.Eventually(func() bool {
 		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
-	}, 10*time.Second).Should(gomega.Equal(1))
+		if len(nodes[0].EvhNodes) == 1 && nodes[0].EvhNodes[0].AnalyticsPolicy != nil {
+			return *nodes[0].EvhNodes[0].AnalyticsPolicy.AllHeaders
+		}
+		return false
+	}, 10*time.Second).Should(gomega.Equal(true))
 
-	// update is not getting reflected on evh nodes immediately. Hence adding a sleep of 5 seconds.
-	time.Sleep(5 * time.Second)
-
-	// Check whether the AnalyticsPolicy values are properly updated
-	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].EvhNodes[0].AnalyticsPolicy).ShouldNot(gomega.BeNil())
-	g.Expect(*nodes[0].EvhNodes[0].AnalyticsPolicy.AllHeaders).To(gomega.BeTrue())
-
-	// Update host rule with AnalyticsPolicy - with LogAllHeader, Enabled
+	// Update host rule with AnalyticsPolicy - with LogAllHeader, FullClientLogs.Enabled
 	hrUpdate = integrationtest.FakeHostRule{
 		Name:      hrName,
 		Namespace: "default",
@@ -781,20 +776,17 @@ func TestHostruleAnalyticsPolicyUpdateForEvh(t *testing.T) {
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
-	g.Eventually(func() int {
+	g.Eventually(func() bool {
 		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
-	}, 10*time.Second).Should(gomega.Equal(1))
-
-	// update is not getting reflected on evh nodes immediately. Hence adding a sleep of 5 seconds.
-	time.Sleep(5 * time.Second)
-
-	// Check whether the AnalyticsPolicy values are properly updated
-	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].EvhNodes[0].AnalyticsPolicy).ShouldNot(gomega.BeNil())
-	g.Expect(*nodes[0].EvhNodes[0].AnalyticsPolicy.AllHeaders).To(gomega.BeTrue())
-	g.Expect(*nodes[0].EvhNodes[0].AnalyticsPolicy.FullClientLogs.Enabled).To(gomega.BeTrue())
+		if len(nodes[0].EvhNodes) == 1 && nodes[0].EvhNodes[0].AnalyticsPolicy != nil &&
+			nodes[0].EvhNodes[0].AnalyticsPolicy.FullClientLogs != nil &&
+			nodes[0].EvhNodes[0].AnalyticsPolicy.FullClientLogs.Enabled != nil {
+			return *nodes[0].EvhNodes[0].AnalyticsPolicy.AllHeaders &&
+				*nodes[0].EvhNodes[0].AnalyticsPolicy.FullClientLogs.Enabled
+		}
+		return false
+	}, 10*time.Second).Should(gomega.Equal(true))
 
 	// Update host rule with AnalyticsPolicy - All fields
 	hrUpdate = integrationtest.FakeHostRule{
@@ -821,21 +813,19 @@ func TestHostruleAnalyticsPolicyUpdateForEvh(t *testing.T) {
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
-	g.Eventually(func() int {
+	g.Eventually(func() bool {
 		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
-	}, 10*time.Second).Should(gomega.Equal(1))
+		if len(nodes[0].EvhNodes) == 1 && nodes[0].EvhNodes[0].AnalyticsPolicy != nil &&
+			nodes[0].EvhNodes[0].AnalyticsPolicy.FullClientLogs != nil &&
+			nodes[0].EvhNodes[0].AnalyticsPolicy.FullClientLogs.Throttle != nil {
+			return *nodes[0].EvhNodes[0].AnalyticsPolicy.FullClientLogs.Throttle == *lib.GetThrottle("LOW")
+		}
+		return false
+	}, 10*time.Second).Should(gomega.Equal(true))
 
-	// update is not getting reflected on evh nodes immediately. Hence adding a sleep of 5 seconds.
-	time.Sleep(5 * time.Second)
-
-	// Check whether the AnalyticsPolicy values are properly updated
-	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].EvhNodes[0].AnalyticsPolicy).ShouldNot(gomega.BeNil())
 	g.Expect(*nodes[0].EvhNodes[0].AnalyticsPolicy.AllHeaders).To(gomega.BeTrue())
 	g.Expect(*nodes[0].EvhNodes[0].AnalyticsPolicy.FullClientLogs.Enabled).To(gomega.BeTrue())
-	g.Expect(*nodes[0].EvhNodes[0].AnalyticsPolicy.FullClientLogs.Throttle).To(gomega.Equal(*lib.GetThrottle("LOW")))
 
 	// Remove the analytics Policy and check whether it is removed from VS.
 	hrUpdate.Spec.VirtualHost.AnalyticsPolicy = nil
@@ -849,18 +839,14 @@ func TestHostruleAnalyticsPolicyUpdateForEvh(t *testing.T) {
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
-	g.Eventually(func() int {
+	g.Eventually(func() bool {
 		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
-	}, 10*time.Second).Should(gomega.Equal(1))
-
-	// update is not getting reflected on evh nodes immediately. Hence adding a sleep of 5 seconds.
-	time.Sleep(5 * time.Second)
-
-	// Check whether the AnalyticsPolicy values are properly removed
-	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].EvhNodes[0].AnalyticsPolicy).Should(gomega.BeNil())
+		if len(nodes[0].EvhNodes) == 1 {
+			return nodes[0].EvhNodes[0].AnalyticsPolicy == nil
+		}
+		return false
+	}, 10*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
 	TearDownIngressForCacheSyncCheck(t, "", ingressName, svcName, modelName)

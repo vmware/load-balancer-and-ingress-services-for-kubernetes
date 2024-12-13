@@ -781,19 +781,15 @@ func TestHostruleAnalyticsPolicyUpdate(t *testing.T) {
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
-	g.Eventually(func() int {
+	g.Eventually(func() bool {
 		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return len(nodes[0].SniNodes)
-	}, 10*time.Second).Should(gomega.Equal(1))
-
-	// update is not getting reflected on child nodes immediately. Hence adding a sleep of 5 seconds.
-	time.Sleep(5 * time.Second)
-
-	// Check whether the AnalyticsPolicy values are properly updated
-	g.Expect(nodes[0].SniNodes).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].SniNodes[0].AnalyticsPolicy).ShouldNot(gomega.BeNil())
-	g.Expect(*nodes[0].SniNodes[0].AnalyticsPolicy.AllHeaders).To(gomega.BeTrue())
+		if len(nodes[0].SniNodes) == 1 &&
+			nodes[0].SniNodes[0].AnalyticsPolicy != nil {
+			return *nodes[0].SniNodes[0].AnalyticsPolicy.AllHeaders
+		}
+		return false
+	}, 10*time.Second).Should(gomega.Equal(true))
 
 	// Update host rule with AnalyticsPolicy - only LogAllHeaders, FullClientLogs.Enabled.
 	hrUpdate = integrationtest.FakeHostRule{
@@ -819,20 +815,16 @@ func TestHostruleAnalyticsPolicyUpdate(t *testing.T) {
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
-	g.Eventually(func() int {
+	g.Eventually(func() bool {
 		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return len(nodes[0].SniNodes)
-	}, 10*time.Second).Should(gomega.Equal(1))
-
-	// update is not getting reflected on child nodes immediately. Hence adding a sleep of 5 seconds.
-	time.Sleep(5 * time.Second)
-
-	// Check whether the AnalyticsPolicy values are properly updated
-	g.Expect(nodes[0].SniNodes).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].SniNodes[0].AnalyticsPolicy).ShouldNot(gomega.BeNil())
-	g.Expect(*nodes[0].SniNodes[0].AnalyticsPolicy.AllHeaders).To(gomega.BeTrue())
-	g.Expect(*nodes[0].SniNodes[0].AnalyticsPolicy.FullClientLogs.Enabled).To(gomega.BeTrue())
+		if len(nodes[0].SniNodes) == 1 && nodes[0].SniNodes[0].AnalyticsPolicy != nil &&
+			nodes[0].SniNodes[0].AnalyticsPolicy.FullClientLogs != nil &&
+			nodes[0].SniNodes[0].AnalyticsPolicy.FullClientLogs.Enabled != nil {
+			return *nodes[0].SniNodes[0].AnalyticsPolicy.AllHeaders && *nodes[0].SniNodes[0].AnalyticsPolicy.FullClientLogs.Enabled
+		}
+		return false
+	}, 10*time.Second).Should(gomega.Equal(true))
 
 	// Update host rule with AnalyticsPolicy - with all fields
 	hrUpdate = integrationtest.FakeHostRule{
@@ -859,21 +851,19 @@ func TestHostruleAnalyticsPolicyUpdate(t *testing.T) {
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
-	g.Eventually(func() int {
+	g.Eventually(func() bool {
 		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return len(nodes[0].SniNodes)
-	}, 10*time.Second).Should(gomega.Equal(1))
+		if len(nodes[0].SniNodes) == 1 && nodes[0].SniNodes[0].AnalyticsPolicy != nil &&
+			nodes[0].SniNodes[0].AnalyticsPolicy.FullClientLogs != nil &&
+			nodes[0].SniNodes[0].AnalyticsPolicy.FullClientLogs.Throttle != nil {
+			return *nodes[0].SniNodes[0].AnalyticsPolicy.FullClientLogs.Throttle == *lib.GetThrottle("LOW")
+		}
+		return false
+	}, 10*time.Second).Should(gomega.Equal(true))
 
-	// update is not getting reflected on child nodes immediately. Hence adding a sleep of 5 seconds.
-	time.Sleep(5 * time.Second)
-
-	// Check whether the AnalyticsPolicy values are properly updated
-	g.Expect(nodes[0].SniNodes).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].SniNodes[0].AnalyticsPolicy).ShouldNot(gomega.BeNil())
 	g.Expect(*nodes[0].SniNodes[0].AnalyticsPolicy.AllHeaders).To(gomega.BeTrue())
 	g.Expect(*nodes[0].SniNodes[0].AnalyticsPolicy.FullClientLogs.Enabled).To(gomega.BeTrue())
-	g.Expect(*nodes[0].SniNodes[0].AnalyticsPolicy.FullClientLogs.Throttle).To(gomega.Equal(*lib.GetThrottle("LOW")))
 
 	// Remove the analyticPolicy and check whether values are removed from VS
 	hrUpdate.Spec.VirtualHost.AnalyticsPolicy = nil
@@ -887,18 +877,14 @@ func TestHostruleAnalyticsPolicyUpdate(t *testing.T) {
 		return hostrule.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Accepted"))
 
-	g.Eventually(func() int {
+	g.Eventually(func() bool {
 		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		return len(nodes[0].SniNodes)
-	}, 10*time.Second).Should(gomega.Equal(1))
-
-	// update is not getting reflected on child nodes immediately. Hence adding a sleep of 5 seconds.
-	time.Sleep(5 * time.Second)
-
-	// Check whether the AnalyticsPolicy values are properly removed
-	g.Expect(nodes[0].SniNodes).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].SniNodes[0].AnalyticsPolicy).Should(gomega.BeNil())
+		if len(nodes[0].SniNodes) == 1 {
+			return nodes[0].SniNodes[0].AnalyticsPolicy == nil
+		}
+		return false
+	}, 10*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
 	TearDownIngressForCacheSyncCheck(t, ingName, svcName, secretName, modelName)
