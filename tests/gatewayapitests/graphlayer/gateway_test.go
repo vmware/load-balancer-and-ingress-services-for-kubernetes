@@ -443,6 +443,21 @@ func TestSecretCreateDelete(t *testing.T) {
 		return found
 	}, 30*time.Second).Should(gomega.Equal(true))
 
+	integrationtest.UpdateSecret(secrets[0], DEFAULT_NAMESPACE, "certnew", "keynew")
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+			g.Expect(nodes).To(gomega.HaveLen(1))
+			g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(1))
+			g.Expect(string(nodes[0].SSLKeyCertRefs[0].Cert)).To(gomega.Equal("certnew"))
+			g.Expect(string(nodes[0].SSLKeyCertRefs[0].Key)).To(gomega.Equal("keynew"))
+			return true
+		}
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+
 	// delete
 	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
 

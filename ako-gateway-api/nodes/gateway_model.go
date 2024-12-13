@@ -215,7 +215,12 @@ func AddTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gateway, 
 				}
 				if name == secretName && listenerCertRefNamespace == certNamespace {
 					tlsNode := TLSNodeFromSecret(secretObj, gateway.Namespace, gateway.Name, certNamespace, secretName, key)
-					tlsNodes = append(tlsNodes, tlsNode)
+					indexOfTLSNode := utils.HasElemWithName(tlsNodes, tlsNode)
+					if indexOfTLSNode == -1 {
+						tlsNodes = append(tlsNodes, tlsNode)
+					} else {
+						tlsNodes[indexOfTLSNode] = tlsNode
+					}
 					foundMatchingCertRef = true
 					break
 				}
