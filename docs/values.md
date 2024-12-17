@@ -203,6 +203,14 @@ ingress object.
 
 If you do not use ingress classes, then keep this knob untouched and AKO will take care of syncing all your ingress objects to Avi.
 
+### L7Settings.fqdnReusePolicy
+
+This field is used to restrict or allow FQDN to be spanned across multiple namespace.
+
+* InterNamespaceAllowed: With this value, AKO will allowed hostname/FQDN to be associate with Ingresses/Routes, spanned across multiple namespaces.
+
+* Strict: With this value, AKO will restrict hostname/FQDN to be associated with Ingresses/Routes, present in the same namespace.
+
 ### L4Settings.defaultDomain
 
 If you have multiple sub-domains configured in your Avi cloud, use this knob to specify the default sub-domain.
