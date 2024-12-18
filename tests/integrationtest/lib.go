@@ -1503,6 +1503,8 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_AZURE"))
 		} else if strings.HasSuffix(r.URL.RawQuery, "CLOUD_AWS") {
 			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_AWS"))
+		} else if strings.HasSuffix(r.URL.RawQuery, "CLOUD_NSXT1") {
+			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_NSXT1"))
 		} else if strings.HasSuffix(r.URL.RawQuery, "CLOUD_NSXT") {
 			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_NSXT"))
 		} else {
@@ -1555,6 +1557,8 @@ func FeedMockCollectionData(w http.ResponseWriter, r *http.Request, mockFilePath
 				filePath = fmt.Sprintf("%s/crd_network_ipam2.json", mockFilePath)
 			} else if strings.Contains(r.URL.RawQuery, "multivip-network3") {
 				filePath = fmt.Sprintf("%s/crd_network_ipam3.json", mockFilePath)
+			} else if strings.Contains(r.URL.RawQuery, "kube-apiserver-lb-svc") {
+				filePath = fmt.Sprintf("%s/kube-apiserver-lb-svc-vs_mock.json", mockFilePath)
 			} else {
 				filePath = fmt.Sprintf("%s/%s_mock.json", mockFilePath, splitURL[1])
 			}
