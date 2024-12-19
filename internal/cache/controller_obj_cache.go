@@ -3004,18 +3004,17 @@ func ValidateUserInput(client *clients.AviClient, isGateway bool) (bool, error) 
 		}
 	}
 	isRequiredValuesValid := checkRequiredValuesYaml(client, isGateway, &err)
-	isSegroupValid := validateAndConfigureSeGroup(client, &err)
 	if utils.IsWCP() {
 		if isTenantValid &&
 			isCloudValid &&
-			isRequiredValuesValid &&
-			isSegroupValid {
+			isRequiredValuesValid {
 			utils.AviLog.Infof("All values verified for advanced L4, proceeding with bootup.")
 			return true, nil
 		}
 		return false, err
 	}
 
+	isSegroupValid := validateAndConfigureSeGroup(client, &err)
 	isNodeNetworkValid := checkNodeNetwork(client, &err)
 	isBGPConfigurationValid := checkBGPParams(&err)
 	isPublicCloudConfigValid := checkPublicCloud(client, &err)

@@ -134,13 +134,13 @@ func InitializeAKOInfra() {
 	c.InitNetworkingHandler()
 	lib.RunAviInfraSettingInformer(stopCh)
 	c.AddSecretEventHandler(stopCh)
-	segTemplateUUID, err := a.DeriveCloudNameAndSEGroupTmpl(transportZone)
+	aviCloud, err := a.DeriveCloudMappedToTZ(transportZone)
 	if err != nil {
 		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "CloudMatchingTZNotFound", err.Error())
-		utils.AviLog.Fatalf("Failed to derive cloud, err: %s", err)
+		utils.AviLog.Fatalf("Failed to derive cloud, err: %s", err.Error())
 	}
 	if !lib.GetVPCMode() {
-		a.SetupSEGroup(segTemplateUUID)
+		a.SetupSEGroup(aviCloud)
 		c.AddAvailabilityZoneCREventHandler(stopCh)
 	}
 	c.AddNamespaceEventHandler(stopCh)
