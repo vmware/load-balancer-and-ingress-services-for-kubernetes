@@ -19,13 +19,11 @@ package ingestion
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -139,7 +137,7 @@ func (a *AviControllerInfra) checkVirtualService() (error, string) {
 	return nil, cloudName
 }
 
-func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, string, string) {
+func (a *AviControllerInfra) DeriveCloudMappedToTZ(tz string) (models.Cloud, error) {
 	uri := "/api/cloud/"
 
 	err, cloudName := a.checkNSAnnotations()
@@ -159,13 +157,13 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 	result, err := lib.AviGetCollectionRaw(a.AviRestClient, uri)
 	if err != nil {
 		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-		return err, cloudName, ""
+		return models.Cloud{}, err
 	}
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
 		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
-		return err, cloudName, ""
+		return models.Cloud{}, err
 	}
 	for i := 0; i < len(elems); i++ {
 		cloud := models.Cloud{}
@@ -191,16 +189,17 @@ func (a *AviControllerInfra) DeriveCloudNameAndSEGroupTmpl(tz string) (error, st
 			continue
 		}
 		utils.AviLog.Infof("Found NSX-T cloud: %s match Transport Zone: %s", *cloud.Name, tz)
-		return a.checkSEGroup(cloud)
+		utils.SetCloudName(cloudName)
+		return cloud, nil
 	}
-	return errors.New("cloud not found matching transport zone " + tz), "", ""
+	return models.Cloud{}, fmt.Errorf("cloud not found matching transport zone %s", tz)
 }
 
-func (a *AviControllerInfra) checkSEGroup(cloud models.Cloud) (error, string, string) {
+func (a *AviControllerInfra) getSEGroupTemplateUUID(cloud models.Cloud) (string, error) {
 	if cloud.SeGroupTemplateRef != nil && *cloud.SeGroupTemplateRef != "" {
 		tokenized := strings.Split(*cloud.SeGroupTemplateRef, "/api/serviceenginegroup/")
 		if len(tokenized) == 2 {
-			return nil, *cloud.Name, tokenized[1]
+			return tokenized[1], nil
 		}
 	}
 	// fetch Default-SEGroup uuid
@@ -208,27 +207,27 @@ func (a *AviControllerInfra) checkSEGroup(cloud models.Cloud) (error, string, st
 	results, err := lib.AviGetCollectionRaw(a.AviRestClient, uri)
 	if err != nil {
 		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-		return err, *cloud.Name, ""
+		return "", err
 	}
 
 	elems := make([]json.RawMessage, results.Count)
 	err = json.Unmarshal(results.Results, &elems)
 	if err != nil {
 		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
-		return err, *cloud.Name, ""
+		return "", err
 	}
 	if len(elems) == 0 {
 		utils.AviLog.Errorf("No ServiceEngine Group with name Default-Group found.")
-		return errors.New("No ServiceEngine Group with name Default-Group found."), *cloud.Name, ""
+		return "", fmt.Errorf("no ServiceEngine Group with name Default-Group found")
 	}
 
 	defaultSEG := models.ServiceEngineGroup{}
 	err = json.Unmarshal(elems[0], &defaultSEG)
 	if err != nil {
 		utils.AviLog.Errorf("Failed to unmarshal cloud data, err: %v", err)
-		return err, *cloud.Name, ""
+		return "", err
 	}
-	return nil, *cloud.Name, *defaultSEG.UUID
+	return *defaultSEG.UUID, nil
 }
 
 func isPlacementScopeConfigured(configuredSEGroup *models.ServiceEngineGroup) bool {
@@ -242,15 +241,11 @@ func isPlacementScopeConfigured(configuredSEGroup *models.ServiceEngineGroup) bo
 	return configured
 }
 
-func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
-	err, cloudName, segTemplateUuid := a.DeriveCloudNameAndSEGroupTmpl(tz)
+func (a *AviControllerInfra) SetupSEGroup(cloud models.Cloud) {
+	segTemplateUuid, err := a.getSEGroupTemplateUUID(cloud)
 	if err != nil {
-		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "CloudMatchingTZNotFound", err.Error())
-		utils.AviLog.Fatalf("Failed to derive cloud, err: %s", err)
+		utils.AviLog.Fatalf("Failed to get SEG template in Avi, err: %s", err.Error())
 	}
-	utils.AviLog.Infof("Obtained matching cloud to be used: %s", cloudName)
-	utils.SetCloudName(cloudName)
-
 	clusterName := lib.GetClusterID()
 	err, configuredSEGroup := fetchSEGroup(a.AviRestClient)
 	seGroupExists := false
@@ -262,10 +257,7 @@ func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
 			configuredSEGroup.Markers[0].Values[0] == clusterName &&
 			isPlacementScopeConfigured(configuredSEGroup) {
 			utils.AviLog.Infof("SE Group: %s already configured with the markers: %s", *configuredSEGroup.Name, utils.Stringify(configuredSEGroup.Markers))
-			cloudName := strings.Split(*configuredSEGroup.CloudRef, "#")[1]
-			utils.AviLog.Infof("Obtained matching cloud to be used: %s", cloudName)
-			utils.SetCloudName(cloudName)
-			return true
+			return
 		}
 	}
 
@@ -274,16 +266,13 @@ func (a *AviControllerInfra) SetupSEGroup(tz string) bool {
 		uri := "/api/serviceenginegroup/" + segTemplateUuid
 		err = lib.AviGet(a.AviRestClient, uri, &configuredSEGroup)
 		if err != nil {
-			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-			return false
+			utils.AviLog.Fatalf("Failed to fetch template SE Group in Avi, segID: %s, err: %s", segTemplateUuid, err.Error())
 		}
 	}
 
-	if !ConfigureSeGroup(a.AviRestClient, configuredSEGroup, seGroupExists) {
-		return false
+	if err := configureSeGroup(a.AviRestClient, configuredSEGroup, seGroupExists); err != nil {
+		utils.AviLog.Fatalf("Failed to configure SE Group in Avi, err: %s", err.Error())
 	}
-
-	return true
 }
 
 func fetchSEGroup(client *clients.AviClient, overrideUri ...lib.NextPage) (error, *models.ServiceEngineGroup) {
@@ -427,7 +416,7 @@ func updateSEGroup() {
 }
 
 // ConfigureSeGroup creates the SE group with the supplied properties, alters just the SE group name and the markers.
-func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGroup, segExists bool) bool {
+func configureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGroup, segExists bool) error {
 	var err error
 	// Change the name of the SE group, and add markers
 	*seGroup.Name = lib.GetClusterID()
@@ -441,7 +430,7 @@ func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGr
 		vcenterServerName, err := fetchVcenterServer(client)
 		if err != nil {
 			utils.AviLog.Warnf("Error during API call to fetch Vcenter Server Info, err: %s", err.Error())
-			return false
+			return err
 		}
 		vcRef := fmt.Sprintf("/api/vcenterserver/?name=%s", vcenterServerName)
 		seGroup.Vcenters = append(seGroup.Vcenters,
@@ -465,11 +454,11 @@ func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGr
 
 	if err != nil {
 		utils.AviLog.Warnf("Error during API call to CreateOrUpdate the SE group :%v", err.Error())
-		return false
+		return err
 	}
 
 	utils.AviLog.Infof("Markers: %v set on Service Engine Group: %v", utils.Stringify(markers), *seGroup.Name)
-	return true
+	return nil
 }
 
 func (a *AviControllerInfra) AnnotateSystemNamespace(seGroup string, cloudName string, retries ...int) bool {
@@ -490,8 +479,10 @@ func (a *AviControllerInfra) AnnotateSystemNamespace(seGroup string, cloudName s
 		nsObj.Annotations = make(map[string]string)
 	}
 	// Update the namespace with the required annotations
-	nsObj.Annotations["ako.vmware.com/wcp-se-group"] = seGroup
 	nsObj.Annotations["ako.vmware.com/wcp-cloud-name"] = cloudName
+	if !lib.GetVPCMode() {
+		nsObj.Annotations["ako.vmware.com/wcp-se-group"] = seGroup
+	}
 	_, err = a.cs.CoreV1().Namespaces().Update(context.TODO(), nsObj, metav1.UpdateOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error occurred while Updating namespace: %v", err)
