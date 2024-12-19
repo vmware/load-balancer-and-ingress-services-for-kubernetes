@@ -99,7 +99,7 @@ func (c *AviObjCache) AviRefreshObjectCache(client []*clients.AviClient, cloud s
 		defer wg.Done()
 		c.PopulateVsVipDataToCache(client[7], cloud, tenant)
 	}()
-	c.PopulatePkiProfilesToCache(client[0], cloud, tenant)
+	c.PopulatePkiProfilesToCache(client[0], tenant)
 	c.PopulatePoolsToCache(client[1], cloud, tenant)
 	c.PopulatePgDataToCache(client[2], cloud, tenant)
 	c.PopulateStringGroupDataToCache(client[8], cloud, tenant)
@@ -560,14 +560,14 @@ func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient, cloud, te
 	}
 }
 
-func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, cloud string, pkiData *[]AviPkiProfileCache, overrideUri ...NextPage) (*[]AviPkiProfileCache, int, error) {
+func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiData *[]AviPkiProfileCache, overrideUri ...NextPage) (*[]AviPkiProfileCache, int, error) {
 	var uri string
 	akoUser := lib.AKOUser
 
 	if len(overrideUri) == 1 {
 		uri = overrideUri[0].NextURI
 	} else {
-		uri = "/api/pkiprofile/?" + "&include_name=true&cloud_ref.name=" + cloud + "&created_by=" + akoUser + "&page_size=100"
+		uri = "/api/pkiprofile/?" + "&include_name=true&created_by=" + akoUser + "&page_size=100"
 	}
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
@@ -608,7 +608,7 @@ func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, cloud
 		if len(next_uri) > 1 {
 			overrideUri := "/api/pkiprofile" + next_uri[1]
 			nextPage := NextPage{NextURI: overrideUri}
-			_, _, err := c.AviPopulateAllPkiPRofiles(client, cloud, pkiData, nextPage)
+			_, _, err := c.AviPopulateAllPkiPRofiles(client, pkiData, nextPage)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -693,9 +693,9 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 	return poolData, result.Count, nil
 }
 
-func (c *AviObjCache) PopulatePkiProfilesToCache(client *clients.AviClient, cloud string, tenant string, overrideUri ...NextPage) {
+func (c *AviObjCache) PopulatePkiProfilesToCache(client *clients.AviClient, tenant string, overrideUri ...NextPage) {
 	var pkiProfData []AviPkiProfileCache
-	c.AviPopulateAllPkiPRofiles(client, cloud, &pkiProfData)
+	c.AviPopulateAllPkiPRofiles(client, &pkiProfData)
 
 	pkiCacheData := c.PKIProfileCache.ShallowCopy()
 	for i, pkiCacheObj := range pkiProfData {
