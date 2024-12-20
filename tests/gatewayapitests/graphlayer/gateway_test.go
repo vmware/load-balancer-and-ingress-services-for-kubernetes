@@ -443,6 +443,21 @@ func TestSecretCreateDelete(t *testing.T) {
 		return found
 	}, 30*time.Second).Should(gomega.Equal(true))
 
+	integrationtest.UpdateSecret(secrets[0], DEFAULT_NAMESPACE, "certnew", "keynew")
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+			g.Expect(nodes).To(gomega.HaveLen(1))
+			g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(1))
+			g.Expect(string(nodes[0].SSLKeyCertRefs[0].Cert)).To(gomega.Equal("certnew"))
+			g.Expect(string(nodes[0].SSLKeyCertRefs[0].Key)).To(gomega.Equal("keynew"))
+			return true
+		}
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+
 	// delete
 	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
 
@@ -482,6 +497,381 @@ func TestSecretCreateDeleteWithEmptyHostname(t *testing.T) {
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if found {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+			g.Expect(nodes).To(gomega.HaveLen(1))
+			g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(1))
+			return true
+		}
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// delete
+	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
+
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		return aviModel == nil
+
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	tests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestGatewaywithDuplicateCertificateRefsinListener(t *testing.T) {
+	/* This testcase will test one gateway having multiple duplicate certRefs in one listener
+	1. Create secret
+	2. Create gateway
+	3. Delete secret
+	4. Create secret
+	5. Delete secret
+	6. Delete gateway
+	*/
+	gatewayName := "gateway-08"
+	gatewayClassName := "gateway-class-08"
+	ports := []int32{8080}
+
+	secrets := []string{"secret-08", "secret-08"}
+	integrationtest.AddSecret(secrets[0], DEFAULT_NAMESPACE, "cert", "key")
+
+	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := tests.GetListenersV1(ports, false, false, secrets...)
+	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(DEFAULT_NAMESPACE, gatewayName))
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto[0].EnableSSL).To(gomega.Equal(true))
+	g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].VSVIPRefs).To(gomega.HaveLen(1))
+
+	// delete
+	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
+
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		return aviModel == nil
+
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	//create
+	integrationtest.AddSecret(secrets[0], DEFAULT_NAMESPACE, "cert", "key")
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+			g.Expect(nodes).To(gomega.HaveLen(1))
+			g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(1))
+			return true
+		}
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// delete
+	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
+
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		return aviModel == nil
+
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	tests.TeardownGatewayClass(t, gatewayClassName)
+}
+func TestMultipleGatewaywithSameCertificateRefsinListener(t *testing.T) {
+	/* This testcase will test two gateways having same certRefs in their listener
+	1. Create secret
+	2. Create gateway1 and gateway2
+	3. Delete secret
+	4. Create secret
+	5. Delete secret
+	6. Delete gateway
+	*/
+	gatewayName1 := "gateway-09-a"
+	gatewayName2 := "gateway-09-b"
+	gatewayClassName := "gateway-class-09"
+	ports1 := []int32{8080}
+	ports2 := []int32{8081}
+
+	secrets := []string{"secret-09"}
+	integrationtest.AddSecret(secrets[0], DEFAULT_NAMESPACE, "cert", "key")
+
+	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners1 := tests.GetListenersV1(ports1, false, false, secrets...)
+	tests.SetupGateway(t, gatewayName1, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners1)
+	listeners2 := tests.GetListenersV1(ports2, false, false, secrets...)
+	tests.SetupGateway(t, gatewayName2, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners2)
+
+	g := gomega.NewGomegaWithT(t)
+	modelName1 := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(DEFAULT_NAMESPACE, gatewayName1))
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName1)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName1, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName1)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto[0].EnableSSL).To(gomega.Equal(true))
+	g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].VSVIPRefs).To(gomega.HaveLen(1))
+
+	modelName2 := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(DEFAULT_NAMESPACE, gatewayName2))
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName2)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName2, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName2)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto[0].EnableSSL).To(gomega.Equal(true))
+	g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].VSVIPRefs).To(gomega.HaveLen(1))
+
+	// delete
+	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
+
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName1)
+		return aviModel == nil
+
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName2)
+		return aviModel == nil
+
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	//create
+	integrationtest.AddSecret(secrets[0], DEFAULT_NAMESPACE, "cert", "key")
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName1)
+		if found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+			g.Expect(nodes).To(gomega.HaveLen(1))
+			g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(1))
+			return true
+		}
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName2)
+		if found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+			g.Expect(nodes).To(gomega.HaveLen(1))
+			g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(1))
+			return true
+		}
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// delete
+	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
+
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName1)
+		return aviModel == nil
+
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName2)
+		return aviModel == nil
+
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	tests.TeardownGateway(t, gatewayName1, DEFAULT_NAMESPACE)
+	tests.TeardownGateway(t, gatewayName2, DEFAULT_NAMESPACE)
+	tests.TeardownGatewayClass(t, gatewayClassName)
+}
+func TestGatewaywithSameCertificateRefsinMultipleListeners(t *testing.T) {
+	/* This testcase will test one gateway having same certRefs in multiple listeners
+	1. Create secret
+	2. Create gateway
+	3. Delete secret
+	4. Create secret
+	5. Delete secret
+	6. Delete gateway
+	*/
+	gatewayName := "gateway-10"
+	gatewayClassName := "gateway-class-10"
+	ports := []int32{8080, 8081}
+
+	secrets := []string{"secret-10"}
+	integrationtest.AddSecret(secrets[0], DEFAULT_NAMESPACE, "cert", "key")
+
+	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := tests.GetListenersV1(ports, false, false, secrets...)
+	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(DEFAULT_NAMESPACE, gatewayName))
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(2))
+	g.Expect(nodes[0].PortProto[0].EnableSSL).To(gomega.Equal(true))
+	g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].VSVIPRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto[1].EnableSSL).To(gomega.Equal(true))
+
+	// delete
+	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
+
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		return aviModel == nil
+
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	//create
+	integrationtest.AddSecret(secrets[0], DEFAULT_NAMESPACE, "cert", "key")
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if found && aviModel != nil {
+			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+			g.Expect(nodes).To(gomega.HaveLen(1))
+			g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(1))
+			return true
+		}
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// delete
+	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
+
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		return aviModel == nil
+
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	tests.TeardownGatewayClass(t, gatewayClassName)
+}
+func TestGatewaywithSameCertificateRefsinMultipleListenersWithSameHostname(t *testing.T) {
+	/* This testcase will test one gateway having same certRefs in multiple listeners sharing same hostname.
+	1. Create secret
+	2. Create gateway
+	3. Delete secret
+	4. Create secret
+	5. Delete secret
+	6. Delete gateway
+	*/
+	gatewayName := "gateway-11"
+	gatewayClassName := "gateway-class-11"
+	ports := []int32{8080, 8081}
+
+	secrets := []string{"secret-11"}
+	integrationtest.AddSecret(secrets[0], DEFAULT_NAMESPACE, "cert", "key")
+
+	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := tests.GetListenersV1(ports, false, true, secrets...)
+	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(DEFAULT_NAMESPACE, gatewayName))
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(2))
+	g.Expect(nodes[0].PortProto[0].EnableSSL).To(gomega.Equal(true))
+	g.Expect(nodes[0].PortProto[1].EnableSSL).To(gomega.Equal(true))
+	g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].VSVIPRefs).To(gomega.HaveLen(1))
+
+	// delete
+	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
+
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		return aviModel == nil
+
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	//create
+	integrationtest.AddSecret(secrets[0], DEFAULT_NAMESPACE, "cert", "key")
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if found && aviModel != nil {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 			g.Expect(nodes).To(gomega.HaveLen(1))
 			g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(1))
