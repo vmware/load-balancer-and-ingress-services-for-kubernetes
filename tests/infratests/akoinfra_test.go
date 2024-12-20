@@ -730,4 +730,5 @@ func TestAKOInfraDeriveCloudName(t *testing.T) {
 			t.Fatalf("NS cloud annotation update to %s failed", origCloud)
 		}
 	}
+	os.Unsetenv("VPC_MODE")
 }
