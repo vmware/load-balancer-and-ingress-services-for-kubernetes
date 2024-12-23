@@ -316,6 +316,25 @@ func HasElem(s interface{}, elem interface{}) bool {
 	return false
 }
 
+func HasElemWithName(s interface{}, elem interface{}) int {
+	arrV := reflect.ValueOf(s)
+
+	if arrV.Kind() == reflect.Slice {
+		for i := 0; i < arrV.Len(); i++ {
+			// Important - Panics if slice element points to an unexported struct field
+			// see https://golang.org/pkg/reflect/#Value.Interface
+			elemV := arrV.Index(i)
+			elemInterface := elemV.Interface()
+			elemName := reflect.Indirect(reflect.ValueOf(elemInterface)).FieldByName("Name")
+			if elemName.IsValid() && elemName.String() == reflect.Indirect(reflect.ValueOf(elem)).FieldByName("Name").String() {
+				return i
+			}
+		}
+	}
+
+	return -1
+}
+
 func ObjKey(obj interface{}) string {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {

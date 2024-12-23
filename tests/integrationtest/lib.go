@@ -270,6 +270,17 @@ func AddSecret(secretName string, namespace string, cert string, key string) {
 	KubeClient.CoreV1().Secrets(namespace).Create(context.TODO(), fakeSecret, metav1.CreateOptions{})
 }
 
+func UpdateSecret(secretName string, namespace string, cert string, key string) {
+	fakeSecret := (FakeSecret{
+		Cert:      cert,
+		Key:       key,
+		Namespace: namespace,
+		Name:      secretName,
+	}).Secret()
+	fakeSecret.ResourceVersion = "2"
+	KubeClient.CoreV1().Secrets(namespace).Update(context.TODO(), fakeSecret, metav1.UpdateOptions{})
+}
+
 func DeleteSecret(secretName string, namespace string) {
 	KubeClient.CoreV1().Secrets(namespace).Delete(context.TODO(), secretName, metav1.DeleteOptions{})
 }

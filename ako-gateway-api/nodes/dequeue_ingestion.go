@@ -105,10 +105,8 @@ func DequeueIngestion(key string, fullsync bool) {
 		} else if modelNil {
 			utils.AviLog.Warnf("key: %s, msg: no model found: %s", key, modelName)
 			continue
-		}
-
-		model := &AviObjectGraph{modelIntf.(*nodes.AviObjectGraph)}
-		if objType == utils.Secret {
+		} else if objType == utils.Secret {
+			model := &AviObjectGraph{modelIntf.(*nodes.AviObjectGraph)}
 			vsToDelete := handleSecrets(parentNs, parentName, key, model)
 			if vsToDelete {
 				utils.AviLog.Warnf("key: %s, msg: No valid listener on Gateway %s/%s. Removing Parent VS from Controller", key, parentNs, parentName)
@@ -116,10 +114,11 @@ func DequeueIngestion(key string, fullsync bool) {
 				if !fullsync {
 					sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 					nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
-					return
+					continue
 				}
 			}
 		}
+		model := &AviObjectGraph{modelIntf.(*nodes.AviObjectGraph)}
 		for _, routeTypeNsName := range routeTypeNsNameList {
 			objType, namespace, name := lib.ExtractTypeNameNamespace(routeTypeNsName)
 			utils.AviLog.Infof("key: %s, msg: processing route %s mapped to gateway %s", key, routeTypeNsName, gatewayNsName)
@@ -158,29 +157,19 @@ func handleSecrets(gatewayNamespace string, gatewayName string, key string, obje
 	_, _, secretName := lib.ExtractTypeNameNamespace(key)
 	utils.AviLog.Infof("key: %s, msg: Processing secret update %s has been added.", key, secretName)
 	cs := utils.GetInformers().ClientSet
-	evhVsCertRefs := object.GetAviEvhVS()[0].SSLKeyCertRefs
 	gatewayObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(gatewayNamespace).Get(gatewayName)
 	if err != nil {
 		utils.AviLog.Errorf("key: %s, msg: unable to get the gateway object. err: %s", key, err)
 		return false
 	}
 	secretObj, err := cs.CoreV1().Secrets(gatewayNamespace).Get(context.TODO(), secretName, metav1.GetOptions{})
-	encodedCertNameIndexMap := make(map[string][]int)
-	for index, evhVsCertRef := range evhVsCertRefs {
-		_, exists := encodedCertNameIndexMap[evhVsCertRef.Name]
-		if exists {
-			encodedCertNameIndexMap[evhVsCertRef.Name] = append(encodedCertNameIndexMap[evhVsCertRef.Name], index)
-		} else {
-			encodedCertNameIndexMap[evhVsCertRef.Name] = []int{index}
-		}
-	}
 	if err != nil || secretObj == nil {
 		utils.AviLog.Warnf("key: %s, msg: secret %s has been deleted, err: %s", key, secretName, err)
-		vsToDelete := DeleteTLSNode(key, object, gatewayObj, secretObj, encodedCertNameIndexMap)
+		vsToDelete := DeleteTLSNode(key, object, gatewayObj, secretObj)
 		return vsToDelete
 	} else {
 		utils.AviLog.Infof("key: %s, msg: secret %s has been added.", key, secretName)
-		AddTLSNode(key, object, gatewayObj, secretObj, encodedCertNameIndexMap)
+		AddTLSNode(key, object, gatewayObj, secretObj)
 	}
 	return false
 }
