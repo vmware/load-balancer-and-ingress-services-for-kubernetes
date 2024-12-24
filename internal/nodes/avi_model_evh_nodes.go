@@ -2288,6 +2288,8 @@ func buildWithInfraSettingForEvh(key, namespace string, vs *AviEvhVsNode, vsvip 
 		}
 		if infraSetting.Spec.NSXSettings.T1LR != nil {
 			vsvip.T1Lr = *infraSetting.Spec.NSXSettings.T1LR
+			vsvip.VrfContext = ""
+			vs.VrfContext = ""
 		}
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 	}
