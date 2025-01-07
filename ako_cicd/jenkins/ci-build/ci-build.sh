@@ -2,8 +2,8 @@
 
 set -xe
 
-export GOLANG_SRC_REPO=${PVT_DOCKER_REGISTRY}/golang:latest
-export PHOTON_SRC_REPO=${VMWARE_DOCKER_REGISTRY}/photon/photon4:latest
+export GOLANG_SRC_REPO=${PVT_DOCKER_REGISTRY}/dockerhub-proxy-cache/library/golang:latest
+export PHOTON_SRC_REPO=${PVT_DOCKER_REGISTRY}/dockerhub-proxy-cache/library/photon:5.0
 
 branch_version=$($WORKSPACE/hack/jenkins/get_branch_version.sh)
 version_numbers=(${branch_version//./ })
