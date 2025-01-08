@@ -1,0 +1,63 @@
+{
+  "count": 1,
+  "results": [
+    {
+      "url": "https://10.50.63.199/api/cloud/cloud-996845b8-8ed7-438e-8a62-787de541c328",
+      "uuid": "cloud-996845b8-8ed7-438e-8a62-787de541c328",
+      "name": "CLOUD_NSXT1",
+      "tenant_ref": "https://10.50.63.199/api/tenant/admin",
+      "_last_modified": "1637130116495634",
+      "vtype": "CLOUD_NSXT",
+      "apic_mode": false,
+      "nsxt_configuration": {
+        "nsxt_url": "10.50.62.110",
+        "site_id": "default",
+        "enforcementpoint_id": "default",
+        "domain_id": "default",
+        "automate_dfw_rules": false,
+        "management_network_config": {
+          "tz_type": "OVERLAY",
+          "transport_zone": "/infra/sites/default/enforcement-points/default/transport-zones/1b3a2f36-bfd1-443e-a0f6-4de01abc963e",
+          "overlay_segment": {
+            "tier1_lr_id": "/infra/tier-1s/ako-dev-k8s-1",
+            "segment_id": "/infra/segments/seg-ako-dev-k8s-1"
+          }
+        },
+        "data_network_config": {
+          "tz_type": "OVERLAY",
+          "transport_zone": "/infra/sites/default/enforcement-points/default/transport-zones/1b3a2f36-bfd1-443e-a0f6-4de01abc963e",
+          "tier1_segment_config": {
+            "segment_config_mode": "TIER1_SEGMENT_MANUAL",
+            "manual": {
+              "tier1_lrs": [
+                {
+                  "tier1_lr_id": "/infra/tier-1s/ako-dev-k8s-1",
+                  "segment_id": "/infra/segments/seg-ako-dev-k8s-1"
+                }
+              ]
+            }
+          }
+        },
+        "nsxt_credentials_ref": "https://10.50.63.199/api/cloudconnectoruser/cloudconnectoruser-d21e701b-fd91-4cbf-841e-d21e2e52526f",
+        "vpc_mode": true
+      },
+      "dhcp_enabled": true,
+      "mtu": 1500,
+      "prefer_static_routes": false,
+      "enable_vip_static_routes": false,
+      "obj_name_prefix": "nsxt",
+      "license_type": "LIC_CORES",
+      "state_based_dns_registration": true,
+      "ip6_autocfg_enabled": false,
+      "dns_resolution_on_se": false,
+      "enable_vip_on_all_interfaces": false,
+      "maintenance_mode": false,
+      "license_tier": "ENTERPRISE",
+      "autoscale_polling_interval": 60,
+      "vmc_deployment": false,
+      "ipam_provider_ref": "https://10.50.63.199/api/ipamdnsproviderprofile/ipamdnsproviderprofile-3abd2780-ee6d-4435-9616-5066f0f1909a#avi-ipam",
+      "dns_provider_ref": "https://10.50.63.199/api/ipamdnsproviderprofile/ipamdnsproviderprofile-dd704396-053a-4c43-9d88-fa211cfd8f58#avi-dns",
+      "se_group_template_ref": "https://10.50.63.199/api/serviceenginegroup/serviceenginegroup-f8046781-d105-4c41-843f-94bcbe2dad82#avi-setemplate"
+    }
+  ]
+}
