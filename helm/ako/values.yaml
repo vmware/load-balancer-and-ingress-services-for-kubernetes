@@ -56,7 +56,7 @@ AKOSettings:
 ### This section outlines the network settings for virtualservices. 
 NetworkSettings:
   ## This list of network and cidrs are used in pool placement network for vcenter cloud.
-  ## Node Network details are not needed when in nodeport mode / static routes are disabled / non vcenter clouds.
+  ## Node Network details are not needed when static routes are disabled / for non vcenter clouds.
   ## Either networkName or networkUUID should be specified.
   ## If duplicate networks are present for the network name, networkUUID should be used for appropriate network.
   nodeNetworkList: []

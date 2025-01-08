@@ -112,7 +112,7 @@ Default value is `false`.
 
 ### NetworkSettings.nodeNetworkList
 
-The `nodeNetworkList` lists the Networks (specified using either `networkName` or `networkUUID`) and Node CIDR's where the k8s Nodes are created. This is only used in the ClusterIP deployment of AKO and in vCenter cloud and only when disableStaticRouteSync is set to false.
+The `nodeNetworkList` lists the Networks (specified using either `networkName` or `networkUUID`) and Node CIDR's where the k8s Nodes are created. This is only used in vCenter cloud and only when disableStaticRouteSync is set to false.
 
 If two Kubernetes clusters have overlapping Pod CIDRs, the service engine needs to identify the right gateway for each of the overlapping CIDR groups. This is achieved by specifying the right placement network for the pools that helps the Service Engine place the pools appropriately.
 
