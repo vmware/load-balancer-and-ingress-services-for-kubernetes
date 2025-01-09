@@ -151,7 +151,7 @@ The following table lists the configurable parameters of the AKO chart and their
 | `NetworkSettings.enableRHI` | Publish route information to BGP peers | false |
 | `NetworkSettings.bgpPeerLabels` | Select BGP peers using bgpPeerLabels, for selective VsVip advertisement. | `Empty List` |
 | `NetworkSettings.nsxtT1LR` | Unique ID (note: not display name) of the T1 Logical Router for Service Engine connectivity. Only applies to NSX-T cloud.| `Empty string` |
-| `NetworkSettings.defaultDomain` | Specify a default sub-domain for L4 virtual services/L7 virtual service created from OpenShift route. | First domainname found in cloud's dnsprofile for L4 vs and `empty string` for L7 vs |
+| `NetworkSettings.defaultDomain` | Specify a default sub-domain for L4 virtual services/L7 virtual service created from OpenShift route. | First domain name found in cloud's dnsprofile for L4 vs and `empty string` for L7 vs |
 | `FeatureGates.gatewayAPI` | FeatureGates is to enable or disable experimental features. GatewayAPI feature gate enables/disables processing of Kubernetes Gateway API CRDs. | false |
 | `FeatureGates.enableEndpointSlice` | EnableEndpointSlice feature gate enables/disables processing of Kubernetes EndpointSlices instead of Endpoints. | true |
 | `GatewayAPI.Image.repository` | Specify docker-registry that has the ako-gateway-api image | projects.registry.vmware.com/ako/ako-gateway-api |
