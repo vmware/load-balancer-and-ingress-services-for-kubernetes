@@ -216,6 +216,14 @@ ingress object.
 
 If you do not use ingress classes, then keep this knob untouched and AKO will take care of syncing all your ingress objects to Avi.
 
+### L7Settings.fqdnReusePolicy
+
+This field is used to restrict or allow FQDN to be spanned across multiple namespaces.
+
+* InterNamespaceAllowed: With this value, AKO will allow hostname/FQDN to be associate with Ingresses/Routes which are spanned across multiple namespaces.
+
+* Strict: With this value, AKO will restrict hostname/FQDN to be associated with Ingresses/Routes, present in the same namespace.
+
 ### L4Settings.defaultDomain
 
 If you have multiple sub-domains configured in your Avi cloud, use this knob to specify the default sub-domain.
@@ -347,7 +355,7 @@ SecurityContext holds security configuration that will be applied to the AKO pod
 This can be used to set securityContext of AKO pod, if necessary. For example, in openshift environment, if a persistent storage with hostpath is used for logging, then securityContext must have privileged: true (Reference - https://docs.openshift.com/container-platform/4.11/storage/persistent_storage/persistent-storage-hostpath.html)
 
 
-### featureGates.GatewayAPI (Tech Preview)
+### featureGates.GatewayAPI
 
 Use this flag if you want to enable Gateway API feature for AKO. It is disabled by default. Set the flag to `true` to enable the flag.
 
