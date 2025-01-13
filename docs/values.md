@@ -174,6 +174,19 @@ This feature allows configuring BGP Peer labels for BGP virtualservices. AKO con
 This knob is used to specify the T1 logical router's name in the format of `/infra/tier-1s/<name-of-t1>`.
 This T1 router with a logical segment must be pre-configured in the NSX-T cloud as a `data network segment`. AKO uses this information to populate the virtualservice's and pool's T1Lr attribute.
 
+#### NetworkSettings.defaultDomain
+
+The defaultDomain flag has two use cases.
+For **L4** VSes, if multiple sub-domains are configured in the cloud, this flag can be used to set the default sub-domain to use for the VS. This is used to generate the FQDN for the Service of type loadbalancer. If unspecified, the behavior works on a sorting logic. The first sorted sub-domain in chosen, so we recommend using this parameter if you want to be in control of your DNS resolution for service of type LoadBalancer.  
+This flag should be used instead of [L4Settings.defaultDomain](#L4SettingsdefaultDomain), as it will be deprecated in a future release.
+If both `NetworkSettings.defaultDomain` and `L4Settings.defaultDomain` are set, then `NetworkSettings.defaultDomain` will be used.  
+For **L7** VSes(created from OpenShift Routes), if `spec.subdomain` field is specified instead of `spec.host` field for an OpenShift route, then the default domain specified is appended to the `spec.subdomain` to form the FQDN for the VS. The **defaultDomain** should be configured as a sub-domain in your Avi cloud.
+
+    defaultDomain: "avi.internal"
+
+For example, if `spec.subdomain` for an OpenShift route is **my_route-my_namespace** and `defaultDomain` is specified as **avi.internal**, then FQDN for the L7 VS will be **my_route-my_namespace.avi.internal**.
+
+
 ### L7Settings.shardVSSize
 
 AKO uses a sharding logic for Layer 7 ingress objects. A sharded VS involves hosting multiple insecure or secure ingresses hosted by
@@ -208,6 +221,8 @@ If you do not use ingress classes, then keep this knob untouched and AKO will ta
 If you have multiple sub-domains configured in your Avi cloud, use this knob to specify the default sub-domain.
 This is used to generate the FQDN for the Service of type loadbalancer. If unspecified, the behavior works on a sorting logic.
 The first sorted sub-domain in chosen, so we recommend using this parameter if you want to be in control of your DNS resolution for service of type LoadBalancer.
+
+**Note:** This flag will be deprecated in a future release; use [NetworkSettings.defaultDomain](#NetworkSettingsdefaultDomain) instead. If both NetworkSettings.defaultDomain and L4Settings.defaultDomain are set, then NetworkSettings.defaultDomain will be used.
 
 ### L4Settings.autoFQDN
 
