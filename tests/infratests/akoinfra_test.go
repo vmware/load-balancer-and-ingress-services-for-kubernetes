@@ -67,6 +67,33 @@ func annotateNamespaceWithVpcNetworkConfigCR(t *testing.T, ns, vpcNetConfigCR st
 	}
 }
 
+func annotateNamespaceWithCloud(t *testing.T, ns, cloudName string) {
+	namespace, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), ns, metav1.GetOptions{})
+	if err != nil {
+		namespace := (integrationtest.FakeNamespace{
+			Name:   ns,
+			Labels: map[string]string{},
+		}).Namespace()
+		namespace.ResourceVersion = "1"
+		namespace.Annotations = map[string]string{
+			"ako.vmware.com/wcp-cloud-name": cloudName,
+		}
+		_, err = kubeClient.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
+		if err != nil {
+			t.Fatalf("Error occurred while Adding namespace: %v", err)
+		}
+	} else {
+		namespace.ResourceVersion = "2"
+		namespace.Annotations = map[string]string{
+			"ako.vmware.com/wcp-cloud-name": cloudName,
+		}
+		_, err = kubeClient.CoreV1().Namespaces().Update(context.TODO(), namespace, metav1.UpdateOptions{})
+		if err != nil {
+			t.Fatalf("Error occurred while Updating namespace: %v", err)
+		}
+	}
+}
+
 func TestMain(m *testing.M) {
 	os.Setenv("CLOUD_NAME", "CLOUD_NSXT")
 	os.Setenv("POD_NAMESPACE", "vmware-system-ako")
@@ -213,7 +240,6 @@ func TestAKOInfraAviInfraSettingCreationT1(t *testing.T) {
 			return ns.Annotations[lib.InfraSettingNameAnnotation] != gatewayPathName
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
-
 	worker.Shutdown()
 }
 
@@ -641,5 +667,68 @@ func TestAKOInfraMultiAviInfraSettingCreationVPC(t *testing.T) {
 	}, 10*time.Second).Should(gomega.Equal(true))
 
 	worker.Shutdown()
+	os.Unsetenv("VPC_MODE")
+}
+
+func TestAKOInfraDeriveCloudName(t *testing.T) {
+	// Add Cloud Annotation to the  AKO NS
+	// AKO should pick the cloud from AKO NS annotation
+	// Add wrong cloud annotation to AKO NS
+	// AKO should fail to pick the cloud
+	// Remove the NS cloud annotation
+	// AKO should pick the cloud from kube lbservice VS
+	origCloud := ""
+	os.Setenv("VPC_MODE", "true")
+	lib.SetAKOUser(lib.AKOPrefix)
+	a := ingestion.NewAviControllerInfra(kubeClient)
+	if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), utils.GetAKONamespace(), metav1.GetOptions{}); err != nil {
+		t.Fatalf("Error occurred while GET namespace: %v", err)
+	} else {
+		origCloud = ns.Annotations[lib.WCPCloud]
+	}
+	annotateNamespaceWithCloud(t, utils.GetAKONamespace(), "CLOUD_NSXT1")
+	if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), utils.GetAKONamespace(), metav1.GetOptions{}); err != nil {
+		t.Fatalf("Error occurred while GET namespace: %v", err)
+	} else {
+		if ns.Annotations[lib.WCPCloud] != "CLOUD_NSXT1" {
+			t.Fatalf("NS cloud annotation update to CLOUD_NSXT1 failed")
+		}
+	}
+	err, cloudName, _ := a.DeriveCloudNameAndSEGroupTmpl("")
+	if err != nil || cloudName != "CLOUD_NSXT1" {
+		t.Fatalf("Cloud name derivation using NS annotation failed: %v", err)
+	}
+	annotateNamespaceWithCloud(t, utils.GetAKONamespace(), "CLOUD_VCENTER")
+	if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), utils.GetAKONamespace(), metav1.GetOptions{}); err != nil {
+		t.Fatalf("Error occurred while GET namespace: %v", err)
+	} else {
+		if ns.Annotations[lib.WCPCloud] != "CLOUD_VCENTER" {
+			t.Fatalf("NS cloud annotation update to CLOUD_VCENTER failed")
+		}
+	}
+	err, _, _ = a.DeriveCloudNameAndSEGroupTmpl("")
+	if err == nil {
+		t.Fatalf("Cloud name derivation using NS annotation passed for wrong cloud")
+	}
+	annotateNamespaceWithCloud(t, utils.GetAKONamespace(), "")
+	if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), utils.GetAKONamespace(), metav1.GetOptions{}); err != nil {
+		t.Fatalf("Error occurred while GET namespace: %v", err)
+	} else {
+		if ns.Annotations[lib.WCPCloud] != "" {
+			t.Fatalf("NS cloud annotation update to empty failed")
+		}
+	}
+	err, cloudName, _ = a.DeriveCloudNameAndSEGroupTmpl("")
+	if err != nil || cloudName != "CLOUD_NSXT1" {
+		t.Fatalf("Cloud name derivation using VS failed: %v", err)
+	}
+	annotateNamespaceWithCloud(t, utils.GetAKONamespace(), origCloud)
+	if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), utils.GetAKONamespace(), metav1.GetOptions{}); err != nil {
+		t.Fatalf("Error occurred while GET namespace: %v", err)
+	} else {
+		if ns.Annotations[lib.WCPCloud] != origCloud {
+			t.Fatalf("NS cloud annotation update to %s failed", origCloud)
+		}
+	}
 	os.Unsetenv("VPC_MODE")
 }
