@@ -185,17 +185,17 @@ func (c *AviController) SetupNamespaceEventHandler(numWorkers uint32) {
 		UpdateFunc: func(old, cur interface{}) {
 			nsOld := old.(*corev1.Namespace)
 			nsCur := cur.(*corev1.Namespace)
-			if isNamespaceUpdated(nsOld, nsCur) {
-				oldTenant := nsOld.Annotations[lib.TenantAnnotation]
-				newTenant := nsCur.Annotations[lib.TenantAnnotation]
-				if oldTenant != newTenant {
-					if utils.GetInformers().IngressInformer != nil {
-						utils.AviLog.Debugf("Adding ingresses for namespaces: %s", nsCur.GetName())
-						AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
-					}
-					utils.AviLog.Debugf("Adding Gateways for namespaces: %s", nsCur.GetName())
-					AddGatewaysFromNSToIngestionQueueWCP(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
+			oldTenant := nsOld.Annotations[lib.TenantAnnotation]
+			newTenant := nsCur.Annotations[lib.TenantAnnotation]
+			oldInfraSetting := nsOld.Annotations[lib.InfraSettingNameAnnotation]
+			newInfraSetting := nsCur.Annotations[lib.InfraSettingNameAnnotation]
+			if oldTenant != newTenant || oldInfraSetting != newInfraSetting {
+				if utils.GetInformers().IngressInformer != nil {
+					utils.AviLog.Debugf("Adding ingresses for namespaces: %s", nsCur.GetName())
+					AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
 				}
+				utils.AviLog.Debugf("Adding Gateways for namespaces: %s", nsCur.GetName())
+				AddGatewaysFromNSToIngestionQueueWCP(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
 			}
 			objKey := utils.ObjKey(nsCur)
 			if objKey == "" {
