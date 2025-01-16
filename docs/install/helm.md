@@ -159,7 +159,7 @@ The following table lists the configurable parameters of the AKO chart and their
 | `L4Settings.defaultDomain` | Specify a default sub-domain for L4 LB services. This flag will be deprecated in a future release; use **NetworkSettings.defaultDomain** instead. If both NetworkSettings.defaultDomain and L4Settings.defaultDomain are set, then NetworkSettings.defaultDomain will be used.| First domain name found in cloud's dnsprofile |
 | `L4Settings.autoFQDN`  | Specify the layer 4 FQDN format | default |  
 | `L7Settings.noPGForSNI`  | Skip using Pool Groups for SNI children | false |  
-| `L7Settings.l7ShardingScheme` | Sharding scheme enum values: hostname, namespace | hostname |
+| `L7Settings.fqdnReusePolicy` | Restrict FQDN to single namespace if set to `Strict`. enum: InterNamespaceAllowed, Strict | InterNamespaceAllowed |
 | `AKOSettings.cniPlugin` | CNI Plugin being used in kubernetes cluster. Specify one of: calico, canal, flannel, openshift, antrea, ncp, ovn-kubernetes, cilium | **required** for calico, openshift, ovn-kubernetes, ncp setups. For Cilium CNI, set the string as **cilium** only when using Cluster Scope mode for IPAM and leave it empty if using Kubernetes Host Scope mode for IPAM. |
 | `AKOSettings.enableEvents` | enableEvents can be changed dynamically from the configmap | true |
 | `AKOSettings.logLevel` | logLevel enum values: INFO, DEBUG, WARN, ERROR. logLevel can be changed dynamically from the configmap | INFO |
