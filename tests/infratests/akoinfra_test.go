@@ -289,7 +289,7 @@ func TestAKOInfraAviInfraSettingCreationVPC(t *testing.T) {
 		} else {
 			return *infraSetting.Spec.NSXSettings.T1LR == "/orgs/default/projects/test-project/vpcs/"+gatewayPathName &&
 				len(infraSetting.Spec.Network.VipNetworks) == 0 &&
-				infraSetting.Spec.SeGroup.Name == lib.GetClusterID()
+				infraSetting.Spec.SeGroup.Name == "Default-Group"
 		}
 	}, 30*time.Second).Should(gomega.Equal(true))
 
@@ -579,7 +579,7 @@ func TestAKOInfraMultiAviInfraSettingCreationVPC(t *testing.T) {
 		} else {
 			return *infraSetting.Spec.NSXSettings.T1LR == "/orgs/default/projects/test-project/vpcs/"+gatewayPathName &&
 				len(infraSetting.Spec.Network.VipNetworks) == 0 &&
-				infraSetting.Spec.SeGroup.Name == lib.GetClusterID()
+				infraSetting.Spec.SeGroup.Name == "Default-Group"
 		}
 	}, 30*time.Second).Should(gomega.Equal(true))
 
@@ -589,7 +589,7 @@ func TestAKOInfraMultiAviInfraSettingCreationVPC(t *testing.T) {
 		} else {
 			return *infraSetting.Spec.NSXSettings.T1LR == "/orgs/default/projects/test-project/vpcs/"+gatewayRedPathName &&
 				len(infraSetting.Spec.Network.VipNetworks) == 0 &&
-				infraSetting.Spec.SeGroup.Name == lib.GetClusterID()
+				infraSetting.Spec.SeGroup.Name == "Default-Group"
 		}
 	}, 30*time.Second).Should(gomega.Equal(true))
 
@@ -694,8 +694,8 @@ func TestAKOInfraDeriveCloudName(t *testing.T) {
 			t.Fatalf("NS cloud annotation update to CLOUD_NSXT1 failed")
 		}
 	}
-	err, cloudName, _ := a.DeriveCloudNameAndSEGroupTmpl("")
-	if err != nil || cloudName != "CLOUD_NSXT1" {
+	aviCloud, err := a.DeriveCloudMappedToTZ("")
+	if err != nil || *aviCloud.Name != "CLOUD_NSXT1" {
 		t.Fatalf("Cloud name derivation using NS annotation failed: %v", err)
 	}
 	annotateNamespaceWithCloud(t, utils.GetAKONamespace(), "CLOUD_VCENTER")
@@ -706,20 +706,18 @@ func TestAKOInfraDeriveCloudName(t *testing.T) {
 			t.Fatalf("NS cloud annotation update to CLOUD_VCENTER failed")
 		}
 	}
-	err, _, _ = a.DeriveCloudNameAndSEGroupTmpl("")
+	aviCloud, err = a.DeriveCloudMappedToTZ("")
 	if err == nil {
 		t.Fatalf("Cloud name derivation using NS annotation passed for wrong cloud")
 	}
 	annotateNamespaceWithCloud(t, utils.GetAKONamespace(), "")
 	if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), utils.GetAKONamespace(), metav1.GetOptions{}); err != nil {
 		t.Fatalf("Error occurred while GET namespace: %v", err)
-	} else {
-		if ns.Annotations[lib.WCPCloud] != "" {
-			t.Fatalf("NS cloud annotation update to empty failed")
-		}
+	} else if ns.Annotations[lib.WCPCloud] != "" {
+		t.Fatalf("NS cloud annotation update to empty failed")
 	}
-	err, cloudName, _ = a.DeriveCloudNameAndSEGroupTmpl("")
-	if err != nil || cloudName != "CLOUD_NSXT1" {
+	aviCloud, err = a.DeriveCloudMappedToTZ("")
+	if err != nil || *aviCloud.Name != "CLOUD_NSXT1" {
 		t.Fatalf("Cloud name derivation using VS failed: %v", err)
 	}
 	annotateNamespaceWithCloud(t, utils.GetAKONamespace(), origCloud)
