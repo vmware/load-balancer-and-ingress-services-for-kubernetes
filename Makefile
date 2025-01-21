@@ -385,7 +385,7 @@ helmtests:
 	-u root:root \
 	-v $(PWD)/helm/ako:/apps \
 	-v $(PWD)/tests/helmtests:/apps/tests \
-	avi-buildops-docker-registry-02.avilb.broadcom.net:5000/avi-buildops/helmunittest/helm-unittest:3.11.1-0.3.0 . > helmtests.log 2>&1 && echo "helmtests passed") || (echo "helmtests failed" && cat helmtests.log && exit 1)
+	avi-buildops-docker-registry-02-lv.avilb.broadcom.net:8080/avi-buildops/helmunittest/helm-unittest:3.11.1-0.3.0 . > helmtests.log 2>&1 && echo "helmtests passed") || (echo "helmtests failed" && cat helmtests.log && exit 1)
 
 .PHONY: gatewayapi_ingestiontests
 gatewayapi_ingestiontests:
