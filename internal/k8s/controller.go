@@ -244,8 +244,14 @@ func AddServicesFromNSToIngestionQueue(numWorkers uint32, c *AviController, name
 		//Add L4 and Cluster API services to queue
 		if isSvcLb && !lib.GetLayer7Only() {
 			key = utils.L4LBService + "/" + utils.ObjKey(svcObj)
+			if !lib.ValidateSvcforClass(key, svcObj) && svcObj.Annotations[lib.SharedVipSvcLBAnnotation] == "" {
+				continue
+			}
 			if lib.UseServicesAPI() {
 				checkSvcForSvcApiGatewayPortConflict(svcObj, key)
+			}
+			if svcObj.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
+				key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svcObj)
 			}
 		} else {
 			key = utils.Service + "/" + utils.ObjKey(svcObj)
