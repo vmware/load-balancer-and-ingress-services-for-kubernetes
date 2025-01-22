@@ -573,8 +573,7 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	_, namespace, name := lib.ExtractTypeNameNamespace(key)
-	tenant := lib.GetTenantInNamespace(namespace)
-	modelName := lib.GetModelName(tenant, lib.Encode(lib.GetNamePrefix()+strings.ReplaceAll(namespacedVipKey, "/", "-"), lib.ADVANCED_L4))
+	modelName := lib.GetModelName(lib.GetTenant(), lib.Encode(lib.GetNamePrefix()+strings.ReplaceAll(namespacedVipKey, "/", "-"), lib.ADVANCED_L4))
 
 	found, serviceNSNames := objects.SharedlbLister().GetSharedVipKeyToServices(namespacedVipKey)
 	isShareVipKeyDelete := !found || len(serviceNSNames) == 0
