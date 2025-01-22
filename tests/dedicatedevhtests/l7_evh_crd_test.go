@@ -1444,3 +1444,118 @@ func TestHTTPRuleCreateDeleteWithEnableHTTP2ForEvh(t *testing.T) {
 
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
+
+func TestFQDNRestrictDedicatedSecureEVH(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	lib.AKOControlConfig().SetAKOFQDNReusePolicy("strict")
+	modelName, _ := GetDedicatedModel("foo.com", "default")
+
+	secretName := "my-secret"
+	ingressName := "foo-with-targets"
+	svcName := "avisvc"
+	SetupDomain()
+	SetUpTestForIngress(t, svcName, modelName)
+	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
+	integrationtest.PollForCompletion(t, modelName, 5)
+	ingressObject := integrationtest.FakeIngress{
+		Name:        ingressName,
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		Paths:       []string{"/foo", "/bar"},
+		ServiceName: svcName,
+		TlsSecretDNS: map[string][]string{
+			secretName: {"foo.com"},
+		},
+	}
+
+	ingrFake := ingressObject.Ingress(true)
+	if _, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.BeTrue())
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+
+	var evhNode *avinodes.AviEvhVsNode
+	if *isVipPerNS == "true" {
+		evhNode = nodes[0].EvhNodes[0]
+	} else {
+		evhNode = nodes[0]
+	}
+	g.Expect(evhNode).To(gomega.Not(gomega.BeNil()))
+	g.Expect(evhNode.PoolGroupRefs[0].AviMarkers.Host[0]).To(gomega.Equal("foo.com"))
+
+	modelNameBar, _ := GetDedicatedModel("bar.com", "red")
+	integrationtest.AddDefaultNamespace("red")
+	integrationtest.CreateSVC(t, "red", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPorEPS(t, "red", "avisvc", false, false, "1.1.1")
+	integrationtest.AddSecret(secretName, "red", "tlsCert", "tlsKey")
+	integrationtest.PollForCompletion(t, modelNameBar, 5)
+
+	ingressNameBar := "bar-with-targets"
+	ingressObject2 := integrationtest.FakeIngress{
+		Name:        ingressNameBar,
+		Namespace:   "red",
+		DnsNames:    []string{"bar.com"},
+		Ips:         []string{"8.8.8.8"},
+		Paths:       []string{"/foo", "/bar"},
+		ServiceName: svcName,
+		TlsSecretDNS: map[string][]string{
+			secretName: {"foo.com"},
+		},
+	}
+
+	ingrFake2 := ingressObject2.Ingress(true)
+	if _, err := KubeClient.NetworkingV1().Ingresses("red").Create(context.TODO(), ingrFake2, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelNameBar, 5)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelNameBar)
+		return found
+	}, 30*time.Second).Should(gomega.BeTrue())
+	_, aviModel = objects.SharedAviGraphLister().Get(modelNameBar)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	if *isVipPerNS == "true" {
+		evhNode = nodes[0].EvhNodes[0]
+	} else {
+		evhNode = nodes[0]
+	}
+	g.Expect(evhNode).To(gomega.Not(gomega.BeNil()))
+	g.Expect(evhNode.PoolGroupRefs[0].AviMarkers.Host[0]).To(gomega.Equal("bar.com"))
+
+	_, err := (integrationtest.FakeIngress{
+		Name:      ingressNameBar,
+		Namespace: "red",
+		DnsNames:  []string{"foo.com"},
+		Ips:       []string{"8.8.8.8"},
+		Paths:     []string{"/foo", "/bar"},
+		TlsSecretDNS: map[string][]string{
+			secretName: {"foo.com"},
+		},
+		ServiceName: svcName,
+	}).UpdateIngress()
+	if err != nil {
+		t.Fatalf("error in updating ingress %s", err)
+	}
+	integrationtest.PollForCompletion(t, modelNameBar, 5)
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelNameBar)
+		return found && aviModel == nil
+	}, 30*time.Second).Should(gomega.BeTrue())
+
+	if err := KubeClient.NetworkingV1().Ingresses("red").Delete(context.TODO(), "bar-with-targets", metav1.DeleteOptions{}); err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	if err := KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), "foo-with-targets", metav1.DeleteOptions{}); err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	TearDownTestForIngress(t, modelName)
+	TearDownTestForIngress(t, modelNameBar)
+}
