@@ -104,7 +104,7 @@ func parseOptionsFromMetadata(options []UpdateOptions, bulk bool) ([]string, []U
 
 func (l *leader) DeleteGatewayStatusAddress(svcMetadataObj lib.ServiceMetadataObj, key string) error {
 	gwNSName := strings.Split(svcMetadataObj.Gateway, "/")
-	if lib.IsWCP() {
+	if utils.IsWCP() {
 		gw, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: there was a problem in resetting the gateway address status: %s", key, err)

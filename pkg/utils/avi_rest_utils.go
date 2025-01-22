@@ -266,7 +266,11 @@ func GetHTTPTransportWithCert(rootPEMCerts string) (*http.Transport, bool) {
 	var transport *http.Transport
 	var isSecure bool
 	if rootPEMCerts != "" {
-		caCertPool := x509.NewCertPool()
+		caCertPool, err := x509.SystemCertPool()
+		if err != nil {
+			AviLog.Warnf("Failed to get System Cert Pool, error: %s", err.Error())
+			caCertPool = x509.NewCertPool()
+		}
 		caCertPool.AppendCertsFromPEM([]byte(rootPEMCerts))
 
 		transport = &http.Transport{

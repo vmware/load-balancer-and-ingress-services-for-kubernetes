@@ -88,8 +88,8 @@ func (t *T1LRNetworking) AddNetworkInfoEventHandler(stopCh <-chan struct{}) {
 // and updates the cloud if any LS-LR data is missing. It also creates or updates the VCF network with the CIDRs
 // Provided in the Networkinfo objects.
 func (t *T1LRNetworking) SyncLSLRNetwork() {
-	lslrmap, nsLRMap, cidrs := lib.GetNetworkInfoCRData()
-	utils.AviLog.Infof("Got data LS LR Map: %v, from NetworkInfo CR", lslrmap)
+	lrlsMap, nsLRMap, cidrs := lib.GetNetworkInfoCRData()
+	utils.AviLog.Infof("Got data LR LS Map: %v, from NetworkInfo CR", lrlsMap)
 
 	client := InfraAviClientInstance()
 	found, cloudModel := getAviCloudFromCache(client, utils.CloudName)
@@ -113,10 +113,10 @@ func (t *T1LRNetworking) SyncLSLRNetwork() {
 		return
 	}
 
-	if len(lslrmap) > 0 {
-		dataNetworkTier1Lrs, updateRequired := t.removeStaleLRLSEntries(client, cloudModel, lslrmap)
-		if !t.matchSegmentInCloud(dataNetworkTier1Lrs, lslrmap) || updateRequired {
-			cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs = t.constructLsLrInCloud(dataNetworkTier1Lrs, lslrmap)
+	if len(lrlsMap) > 0 {
+		dataNetworkTier1Lrs, updateRequired := t.removeStaleLRLSEntries(client, cloudModel, lrlsMap)
+		if updateRequired || !t.matchSegmentInCloud(dataNetworkTier1Lrs, lrlsMap) {
+			cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs = t.constructLsLrInCloud(dataNetworkTier1Lrs, lrlsMap)
 			path := "/api/cloud/" + *cloudModel.UUID
 			restOp := utils.RestOp{
 				ObjName: utils.CloudName,
@@ -133,7 +133,7 @@ func (t *T1LRNetworking) SyncLSLRNetwork() {
 	}
 
 	t.addNetworkInCloud("fullsync", cidrs, client)
-	networksToDelete := t.getNetworksToDeleteInCloud("fullsync", cidrs, client)
+	networksToDelete := t.getNetworksToDeleteInCloud(cidrs, client)
 	t.addNetworkInIPAM("fullsync", networksToDelete, client)
 	t.deleteNetworkInCloud("fullsync", networksToDelete, client)
 	t.createInfraSettingAndAnnotateNS(nsLRMap, cidrs)
@@ -171,7 +171,7 @@ func (t *T1LRNetworking) createInfraSettingAndAnnotateNS(nsLRMap map[string]stri
 		processedInfraSettingCRSet[infraSettingName] = struct{}{}
 		delete(staleInfraSettingCRSet, infraSettingName)
 
-		_, err := lib.CreateOrUpdateAviInfraSetting(infraSettingName, netName, lr)
+		_, err := lib.CreateOrUpdateAviInfraSetting(infraSettingName, netName, lr, lib.GetClusterID())
 		if err != nil {
 			utils.AviLog.Errorf("failed to create aviInfraSetting, name: %s, error: %s", infraSettingName, err.Error())
 			continue
@@ -359,23 +359,23 @@ func (t *T1LRNetworking) addNetworkInIPAM(key string, networksToDelete map[strin
 	executeRestOp(key, client, &restOp)
 }
 
-func (t *T1LRNetworking) matchSegmentInCloud(lslrList []*models.Tier1LogicalRouterInfo, lslrMap map[string]string) bool {
-	cloudLSLRMap := make(map[string]string)
+func (t *T1LRNetworking) matchSegmentInCloud(lslrList []*models.Tier1LogicalRouterInfo, lrlsMap map[string]string) bool {
+	cloudLRLSMap := make(map[string]string)
 	for i := range lslrList {
-		cloudLSLRMap[*lslrList[i].SegmentID] = *lslrList[i].Tier1LrID
+		cloudLRLSMap[*lslrList[i].Tier1LrID] = *lslrList[i].SegmentID
 	}
 
-	for ls, lr := range lslrMap {
-		if val, ok := cloudLSLRMap[ls]; !ok || (ok && val != lr) {
+	for lr, ls := range lrlsMap {
+		if val, ok := cloudLRLSMap[lr]; !ok || val != ls {
 			return false
 		}
 	}
 	return true
 }
 
-func (t *T1LRNetworking) constructLsLrInCloud(lslrList []*models.Tier1LogicalRouterInfo, lslrMap map[string]string) []*models.Tier1LogicalRouterInfo {
+func (t *T1LRNetworking) constructLsLrInCloud(lslrList []*models.Tier1LogicalRouterInfo, lrlsMap map[string]string) []*models.Tier1LogicalRouterInfo {
 	var cloudLSLRList []*models.Tier1LogicalRouterInfo
-	cloudLSLRMap := make(map[string]string)
+	cloudLRLSMap := make(map[string]string)
 	addLRInfo := func(ls, lr string) {
 		cloudLSLRList = append(cloudLSLRList, &models.Tier1LogicalRouterInfo{
 			SegmentID: &ls,
@@ -383,20 +383,20 @@ func (t *T1LRNetworking) constructLsLrInCloud(lslrList []*models.Tier1LogicalRou
 		})
 	}
 	for i := range lslrList {
-		cloudLSLRMap[*lslrList[i].SegmentID] = *lslrList[i].Tier1LrID
+		cloudLRLSMap[*lslrList[i].Tier1LrID] = *lslrList[i].SegmentID
 	}
-	for ls, lr := range lslrMap {
-		if val, ok := cloudLSLRMap[ls]; !ok || (ok && val != lr) {
-			cloudLSLRMap[ls] = lr
+	for lr, ls := range lrlsMap {
+		if val, ok := cloudLRLSMap[lr]; !ok || val != ls {
+			cloudLRLSMap[lr] = ls
 		}
 	}
-	for ls, lr := range cloudLSLRMap {
+	for lr, ls := range cloudLRLSMap {
 		addLRInfo(ls, lr)
 	}
 	return cloudLSLRList
 }
 
-func (t *T1LRNetworking) getNetworksToDeleteInCloud(objKey string, cidrToNS map[string]map[string]struct{}, client *clients.AviClient) map[string]string {
+func (t *T1LRNetworking) getNetworksToDeleteInCloud(cidrToNS map[string]map[string]struct{}, client *clients.AviClient) map[string]string {
 	networks := make(map[string]string)
 	_, netModels := getAviNetFromCache(client)
 	for netName, net := range netModels {
@@ -434,7 +434,7 @@ func (t *T1LRNetworking) deleteNetworkInCloud(objKey string, networksToDelete ma
 	wg.Wait()
 }
 
-func (t *T1LRNetworking) GetClusterSpecificNSXTSegmentsinCloud(client *clients.AviClient, lsLRMap map[string]string, next ...string) error {
+func (t *T1LRNetworking) GetClusterSpecificNSXTSegmentsinCloud(client *clients.AviClient, lrlsMap map[string]string, next ...string) error {
 	uri := fmt.Sprintf("/api/nsxtsegmentruntime/?cloud_ref.name=%s", utils.CloudName)
 	if len(next) > 0 {
 		uri = next[0]
@@ -457,14 +457,14 @@ func (t *T1LRNetworking) GetClusterSpecificNSXTSegmentsinCloud(client *clients.A
 			return err
 		}
 		if strings.HasPrefix(*sg.Name, fmt.Sprintf("avi-%s", lib.GetClusterName())) {
-			lsLRMap[*sg.SegmentID] = *sg.Tier1ID
+			lrlsMap[*sg.Tier1ID] = *sg.SegmentID
 		}
 	}
 	if result.Next != "" {
 		next_uri := strings.Split(result.Next, "/api/nsxtsegmentruntime")
 		if len(next_uri) > 1 {
 			nextPage := "/api/nsxtsegmentruntime" + next_uri[1]
-			err = t.GetClusterSpecificNSXTSegmentsinCloud(client, lsLRMap, nextPage)
+			err = t.GetClusterSpecificNSXTSegmentsinCloud(client, lrlsMap, nextPage)
 			if err != nil {
 				return err
 			}
@@ -473,7 +473,7 @@ func (t *T1LRNetworking) GetClusterSpecificNSXTSegmentsinCloud(client *clients.A
 	return nil
 }
 
-func (t *T1LRNetworking) removeStaleLRLSEntries(client *clients.AviClient, cloudModel models.Cloud, lslrmap map[string]string) ([]*models.Tier1LogicalRouterInfo, bool) {
+func (t *T1LRNetworking) removeStaleLRLSEntries(client *clients.AviClient, cloudModel models.Cloud, lrlsMap map[string]string) ([]*models.Tier1LogicalRouterInfo, bool) {
 	updatedRequired := false
 	cloudTier1Lrs := cloudModel.NsxtConfiguration.DataNetworkConfig.Tier1SegmentConfig.Manual.Tier1Lrs
 	dataNetworkTier1Lrs := make([]*models.Tier1LogicalRouterInfo, 0)
@@ -485,8 +485,8 @@ func (t *T1LRNetworking) removeStaleLRLSEntries(client *clients.AviClient, cloud
 		return dataNetworkTier1Lrs, updatedRequired
 	}
 	for i := 0; i < len(cloudTier1Lrs); i++ {
-		if _, ok := lslrmap[*cloudTier1Lrs[i].SegmentID]; !ok {
-			if _, present := cloudLRLSMap[*cloudTier1Lrs[i].SegmentID]; present {
+		if _, ok := lrlsMap[*cloudTier1Lrs[i].Tier1LrID]; !ok {
+			if _, present := cloudLRLSMap[*cloudTier1Lrs[i].Tier1LrID]; present {
 				// Skipping this LS-LR entry, as it is present in cloud config, but not in WCP clutser
 				updatedRequired = true
 				continue

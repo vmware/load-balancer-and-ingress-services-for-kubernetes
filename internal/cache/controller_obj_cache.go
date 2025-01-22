@@ -2880,7 +2880,7 @@ func (c *AviObjCache) AviCloudPropertiesPopulate(client *clients.AviClient, clou
 	cloud_obj.IPAMType = ipamType
 	utils.AviLog.Infof("IPAM Provider type configured as %s for Cloud %s", cloud_obj.IPAMType, cloud_obj.Name)
 
-	if !lib.IsWCP() {
+	if !utils.IsWCP() {
 		subdomains := c.AviDNSPropertyPopulate(client, *cloud.UUID)
 		if len(subdomains) == 0 {
 			utils.AviLog.Warnf("Cloud: %v does not have a dns provider configured", cloudName)
@@ -3004,18 +3004,17 @@ func ValidateUserInput(client *clients.AviClient, isGateway bool) (bool, error) 
 		}
 	}
 	isRequiredValuesValid := checkRequiredValuesYaml(client, isGateway, &err)
-	isSegroupValid := validateAndConfigureSeGroup(client, &err)
-	if lib.IsWCP() {
+	if utils.IsWCP() {
 		if isTenantValid &&
 			isCloudValid &&
-			isRequiredValuesValid &&
-			isSegroupValid {
+			isRequiredValuesValid {
 			utils.AviLog.Infof("All values verified for advanced L4, proceeding with bootup.")
 			return true, nil
 		}
 		return false, err
 	}
 
+	isSegroupValid := validateAndConfigureSeGroup(client, &err)
 	isNodeNetworkValid := checkNodeNetwork(client, &err)
 	isBGPConfigurationValid := checkBGPParams(&err)
 	isPublicCloudConfigValid := checkPublicCloud(client, &err)
@@ -3633,8 +3632,8 @@ func checkAndSetCloudType(client *clients.AviClient, returnErr *error) bool {
 		// TODO: Fetch it from SE Group defined.
 		lib.SetCloudMgmtNetwork(*cloud.VcenterConfiguration.ManagementNetwork)
 	}
-	// IPAM is mandatory for vcenter and noaccess cloud
-	if !lib.IsPublicCloud() && cloud.IPAMProviderRef == nil {
+	// IPAM is mandatory for vcenter, nsxt and noaccess cloud but not for public clouds and nsxt cloud in VPC mode
+	if !lib.IsPublicCloud() && !lib.GetVPCMode() && cloud.IPAMProviderRef == nil {
 		*returnErr = fmt.Errorf("Cloud does not have a ipam_provider_ref configured")
 		return false
 	}
@@ -3708,7 +3707,7 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 	// 3. Marker based (only advancedL4 - AKO in VDS)
 	var err error
 	markerNetworkFound := ""
-	if lib.GetAdvancedL4() && ipamRefUri != nil {
+	if utils.GetAdvancedL4() && ipamRefUri != nil {
 		// Using clusterID for advl4.
 		ipam := models.IPAMDNSProviderProfile{}
 		ipamRef := strings.SplitAfter(*ipamRefUri, "/api/")
@@ -3745,7 +3744,7 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 	}
 
 	// 4. Empty VipNetworkList
-	if lib.IsWCP() && markerNetworkFound == "" {
+	if utils.IsWCP() && markerNetworkFound == "" {
 		utils.SetVipNetworkList([]akov1beta1.AviInfraSettingVipNetwork{})
 		return true, nil
 	}
