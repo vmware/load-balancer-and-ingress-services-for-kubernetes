@@ -213,6 +213,9 @@ func (v *Validator) ParseHostPathForIngress(ns string, ingName string, ingSpec n
 
 	var tlsConfigs []TlsSettings
 	for _, rule := range ingSpec.Rules {
+		if hostnameExistInDifferentNamespace(key, rule.Host, ns) {
+			continue
+		}
 		var hostPathMapSvcList HostMetadata
 		var hostName string
 		if rule.Host == "" {
