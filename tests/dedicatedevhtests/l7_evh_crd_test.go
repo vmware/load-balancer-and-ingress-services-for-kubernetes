@@ -1547,7 +1547,13 @@ func TestFQDNRestrictDedicatedSecureEVH(t *testing.T) {
 	integrationtest.PollForCompletion(t, modelNameBar, 5)
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelNameBar)
-		return found && aviModel == nil
+		var isAviModelNil bool
+		if *isVipPerNS == "true" {
+			isAviModelNil = len(aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()[0].EvhNodes) == 0
+		} else {
+			isAviModelNil = aviModel == nil
+		}
+		return found && isAviModelNil
 	}, 30*time.Second).Should(gomega.BeTrue())
 
 	if err := KubeClient.NetworkingV1().Ingresses("red").Delete(context.TODO(), "bar-with-targets", metav1.DeleteOptions{}); err != nil {
