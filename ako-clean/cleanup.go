@@ -175,26 +175,20 @@ func populateControllerProperties(cfg *AKOCleanupConfig, referer string) {
 }
 
 func populateCache() error {
-	adminRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
-	tenants := make(map[string]struct{})
-	err := lib.GetAllTenants(adminRestClientPool.AviClient[0], tenants)
+	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
+	if aviRestClientPool == nil || len(aviRestClientPool.AviClient) == 0 {
+		return fmt.Errorf("avi Rest client initialization failed")
+	}
+
+	aviObjCache := avicache.SharedAviObjCache()
+	// Randomly pickup a client.
+	_, _, err := aviObjCache.AviObjCachePopulate(aviRestClientPool.AviClient, lib.AKOControlConfig().ControllerVersion(), utils.CloudName)
 	if err != nil {
+		utils.AviLog.Warnf("failed to populate avi cache with error: %v", err.Error())
 		return err
 	}
-	for tenant := range tenants {
-		aviRestClientPool := avicache.SharedAVIClients(tenant)
-		aviObjCache := avicache.SharedAviObjCache()
-		// Randomly pickup a client.
-		if aviRestClientPool != nil && len(aviRestClientPool.AviClient) > 0 {
-			_, _, err = aviObjCache.AviObjCachePopulate(aviRestClientPool.AviClient, lib.AKOControlConfig().ControllerVersion(), utils.CloudName, tenant)
-			if err != nil {
-				utils.AviLog.Warnf("failed to populate avi cache with error: %v", err.Error())
-				return err
-			}
 
-		}
-	}
-	if err = avicache.SetControllerClusterUUID(adminRestClientPool); err != nil {
+	if err = avicache.SetControllerClusterUUID(aviRestClientPool); err != nil {
 		utils.AviLog.Warnf("Failed to set the controller cluster uuid with error: %v", err)
 	}
 
