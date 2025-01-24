@@ -509,8 +509,11 @@ func GetTenantInNamespace(namespace string) string {
 	return tenant
 }
 
-func GetAllTenants(c *clients.AviClient, tenants map[string]struct{}, nextPage ...string) error {
+func GetAllTenants(c *clients.AviClient, tenants map[string]struct{}, nextPage ...NextPage) error {
 	uri := "/api/tenant"
+	if len(nextPage) == 1 {
+		uri = nextPage[0].NextURI
+	}
 	result, err := AviGetCollectionRaw(c, uri)
 	if err != nil {
 		return err
@@ -533,7 +536,8 @@ func GetAllTenants(c *clients.AviClient, tenants map[string]struct{}, nextPage .
 	if result.Next != "" {
 		next_uri := strings.Split(result.Next, "/api/tenant")
 		if len(next_uri) > 1 {
-			nextPage := "/api/tenant" + next_uri[1]
+			overrideURI := "/api/tenant" + next_uri[1]
+			nextPage := NextPage{NextURI: overrideURI}
 			err = GetAllTenants(c, tenants, nextPage)
 			if err != nil {
 				return err
