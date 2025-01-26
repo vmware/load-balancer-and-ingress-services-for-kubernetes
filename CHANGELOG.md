@@ -480,8 +480,6 @@ All notable changes to this project will be documented in this file. The format 
  - AKO now creates single SSLKeyCertificate per tenant for default secret present in the cluster.
 
 ### Fixed
- - Fix: AKO Gateway does not create virtual service if Gateway have multiple listeners with same host name.
- - Fix: AKO Gateway container crashes when it boots up in NPL mode.
  - Fix: AKO does not honour readiness probe for pods when AKO boots up in NPL mode.
  - Fix: AKO Shared VIP functionality doesn't work in NSX-T setup.
  - Fix: AKO crashes in NSX-T shared L4 vip environment with no subdomain configured.

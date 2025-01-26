@@ -15,6 +15,12 @@ All notable changes to this project will be documented in this file. The format 
 ### Added:
  - AKO now claims support for v1 for HttpRoute, Gateway, GatewayClass.
 
+## AKO-Gateway-1.12.2
+
+### Fixed:
+ - Fix: AKO Gateway does not create a virtual service if Gateway has multiple listeners with the same host name.
+ - Fix: AKO Gateway container crashes when it boots up in NPL mode.
+
 ## AKO-Gateway-1.13.1
 
 ### Changed:
