@@ -938,7 +938,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					utils.AviLog.Debugf("key: %s, msg: L4 Service add event: Namespace: %s didn't qualify filter. Not adding service.", key, namespace)
 					return
 				}
-				if lib.IsWCP() {
+				if utils.IsWCP() {
 					checkSvcForGatewayPortConflict(svc, key)
 				}
 				if svc.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
@@ -947,7 +947,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
 				}
 			} else {
-				if lib.IsNamespaceBlocked(namespace) || lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
+				if lib.IsNamespaceBlocked(namespace) || utils.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 					return
 				}
 				if lib.UseServicesAPI() {
@@ -1007,7 +1007,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
 				}
 			} else {
-				if lib.IsNamespaceBlocked(namespace) || lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
+				if lib.IsNamespaceBlocked(namespace) || utils.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 					return
 				}
 				key = utils.Service + "/" + utils.ObjKey(svc)
@@ -1043,14 +1043,14 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 						utils.AviLog.Debugf("key: %s, msg: L4 Service update event: Namespace: %s didn't qualify filter. Not updating service.", key, namespace)
 						return
 					}
-					if lib.IsWCP() {
+					if utils.IsWCP() {
 						checkSvcForGatewayPortConflict(svc, key)
 					}
 					if svc.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
 						key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
 					}
 				} else {
-					if lib.IsNamespaceBlocked(namespace) || lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
+					if lib.IsNamespaceBlocked(namespace) || utils.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 						return
 					}
 					if lib.UseServicesAPI() {
@@ -1302,11 +1302,11 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		c.informers.NSInformer.Informer().AddEventHandler(nsEventHandler)
 	}
 
-	if lib.IsWCP() {
+	if utils.IsWCP() {
 		// servicesAPI handlers GW/GWClass
 		c.SetupAdvL4EventHandlers(numWorkers)
 		c.SetupNamespaceEventHandler(numWorkers)
-		if lib.GetAdvancedL4() {
+		if utils.GetAdvancedL4() {
 			return
 		}
 	}
@@ -1681,7 +1681,7 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 	}
 
 	// Disable all informers if we are in advancedL4 mode. We expect to only provide L4 load balancing capability for this feature.
-	if lib.IsWCP() {
+	if utils.IsWCP() {
 		go lib.AKOControlConfig().AdvL4Informers().GatewayClassInformer.Informer().Run(stopCh)
 		informersList = append(informersList, lib.AKOControlConfig().AdvL4Informers().GatewayClassInformer.Informer().HasSynced)
 		go lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Informer().Run(stopCh)

@@ -333,7 +333,7 @@ func CheckAndShortenLabelToFollowRFC1035(svcName string, svcNamespace string) (s
 }
 
 func isInfraSettingUpdateRequired(infraSettingCR *akov1beta1.AviInfraSetting, network, t1lr string) bool {
-	if infraSettingCR.Spec.NSXSettings.T1LR != nil && *infraSettingCR.Spec.NSXSettings.T1LR != t1lr {
+	if infraSettingCR.Spec.NSXSettings.T1LR == nil || *infraSettingCR.Spec.NSXSettings.T1LR != t1lr {
 		return true
 	}
 	infraNetwork := ""
@@ -346,7 +346,7 @@ func isInfraSettingUpdateRequired(infraSettingCR *akov1beta1.AviInfraSetting, ne
 	return false
 }
 
-func CreateOrUpdateAviInfraSetting(name, network, t1lr string) (*akov1beta1.AviInfraSetting, error) {
+func CreateOrUpdateAviInfraSetting(name, network, t1lr, seGroup string) (*akov1beta1.AviInfraSetting, error) {
 	infraSettingCR, err := AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(name)
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
@@ -361,36 +361,40 @@ func CreateOrUpdateAviInfraSetting(name, network, t1lr string) (*akov1beta1.AviI
 		if !updateRequired {
 			return infraSettingCR, nil
 		}
-	}
-	infraSettingCR = &akov1beta1.AviInfraSetting{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Spec: akov1beta1.AviInfraSettingSpec{
-			L7Settings: akov1beta1.AviInfraL7Settings{
-				ShardSize: "SMALL",
+	} else {
+		infraSettingCR = &akov1beta1.AviInfraSetting{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
 			},
-			NSXSettings: akov1beta1.AviInfraNSXSettings{
-				T1LR: &t1lr,
-			},
-			SeGroup: akov1beta1.AviInfraSettingSeGroup{
-				Name: GetClusterID(),
-			},
-		},
-	}
-	if network != "" {
-		infraSettingCR.Spec.Network = akov1beta1.AviInfraSettingNetwork{
-			VipNetworks: []akov1beta1.AviInfraSettingVipNetwork{
-				{
-					NetworkName: network,
+			Spec: akov1beta1.AviInfraSettingSpec{
+				L7Settings: akov1beta1.AviInfraL7Settings{
+					ShardSize: "SMALL",
+				},
+				SeGroup: akov1beta1.AviInfraSettingSeGroup{
+					Name: seGroup,
 				},
 			},
 		}
 	}
 
+	infraSettingCR.Spec.NSXSettings = akov1beta1.AviInfraNSXSettings{
+		T1LR: &t1lr,
+	}
+
+	infraSettingCR.Spec.Network = akov1beta1.AviInfraSettingNetwork{}
+	if network != "" {
+		infraSettingCR.Spec.Network.VipNetworks = []akov1beta1.AviInfraSettingVipNetwork{
+			{
+				NetworkName: network,
+			},
+		}
+	}
+
 	if updateRequired {
+		utils.AviLog.Infof("VRF/Network mismatch, updating AviInfraSetting CR, name: %s", name)
 		return AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Update(context.TODO(), infraSettingCR, metav1.UpdateOptions{})
 	}
+	utils.AviLog.Infof("Creating AviInfraSetting CR, name: %s", name)
 	return AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Create(context.TODO(), infraSettingCR, metav1.CreateOptions{})
 }
 

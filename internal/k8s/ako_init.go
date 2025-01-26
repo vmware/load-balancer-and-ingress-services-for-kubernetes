@@ -210,20 +210,24 @@ func (c *AviController) SetSEGroupCloudNameFromNSAnnotations() bool {
 
 	var ok bool
 	annotations := nsObj.GetAnnotations()
-	seGroup, ok = annotations[lib.WCPSEGroup]
-	if !ok {
-		utils.AviLog.Warnf("Failed to get SEGroup from annotation in namespace")
-		return false
-	}
-
 	cloudName, ok = annotations[lib.WCPCloud]
 	if !ok {
 		utils.AviLog.Warnf("Failed to get cloud name from annotation in namespace")
 		return false
 	}
-
-	lib.SetSEGName(seGroup)
 	utils.SetCloudName(cloudName)
+
+	if lib.GetVPCMode() {
+		utils.AviLog.Infof("Setting cloud %s for VS placement.", cloudName)
+		return true
+	}
+
+	seGroup, ok = annotations[lib.WCPSEGroup]
+	if !ok {
+		utils.AviLog.Warnf("Failed to get SEGroup from annotation in namespace")
+		return false
+	}
+	lib.SetSEGName(seGroup)
 	utils.AviLog.Infof("Setting SEGroup %s, cloud %s for VS placement.", seGroup, cloudName)
 	return true
 }
@@ -485,7 +489,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	if lib.GetNamespaceToSync() != "" {
 		informersArg[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
 	}
-	if !utils.IsVCFCluster() && lib.GetAdvancedL4() {
+	if !utils.IsVCFCluster() && utils.GetAdvancedL4() {
 		informersArg[utils.INFORMERS_ADVANCED_L4] = true
 	}
 	c.informers = utils.NewInformers(utils.KubeClientIntf{ClientSet: informers.Cs}, registeredInformers, informersArg)
@@ -542,7 +546,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
 	interval, err := strconv.ParseInt(fullSyncInterval, 10, 64)
 
-	if lib.IsWCP() {
+	if utils.IsWCP() {
 		// Set the error to nil
 		err = nil
 		interval = 300 // seconds, hardcoded for now.
@@ -571,7 +575,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	if lib.IsWCP() {
+	if utils.IsWCP() {
 		c.OnStartedLeading()
 	} else {
 		// Leader election happens after populating controller cache and fullsynck8s.
@@ -635,7 +639,7 @@ LABEL:
 	}
 
 	cancel()
-	if !lib.IsWCP() {
+	if !utils.IsWCP() {
 		// Cancel the Leader election goroutines
 		<-ctx.Done()
 	}
@@ -809,7 +813,7 @@ func (c *AviController) FullSync() {
 	// Randomly pickup a client.
 	if len(aviRestClientPool.AviClient) > 0 {
 		aviObjCache.AviClusterStatusPopulate(aviRestClientPool.AviClient[0])
-		if !lib.IsWCP() {
+		if !utils.IsWCP() {
 			aviObjCache.AviCacheRefresh(aviRestClientPool.AviClient[0], utils.CloudName)
 		} else {
 			// In this case we just sync the Gateway status to the LB status
@@ -902,7 +906,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 	}
 
 	// Re-order informer loading. all crds- then objects depends upon it.
-	if !lib.IsWCP() {
+	if !utils.IsWCP() {
 		l7RuleObjs, err := lib.AKOControlConfig().CRDInformers().L7RuleInformer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the L7Rules during full sync: %s", err)
@@ -1035,7 +1039,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svcObj)
 				}
 			} else {
-				if lib.IsWCP() {
+				if utils.IsWCP() {
 					continue
 				}
 				key = utils.Service + "/" + utils.ObjKey(svcObj)
@@ -1077,7 +1081,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 		}
 	}
 
-	if !lib.IsWCP() {
+	if !utils.IsWCP() {
 		// IngressClass Section
 		if utils.GetInformers().IngressClassInformer != nil {
 			ingClassObjs, err := utils.GetInformers().IngressClassInformer.Lister().List(labels.Set(nil).AsSelector())

@@ -35,7 +35,7 @@ func (l *leader) UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 	var updateServiceOptions []UpdateOptions
 
 	for _, option := range options {
-		if len(option.ServiceMetadata.HostNames) != 1 && !lib.IsWCP() {
+		if len(option.ServiceMetadata.HostNames) != 1 && !utils.IsWCP() {
 			utils.AviLog.Warnf("key: %s, msg: Service hostname not found for service %v status update", option.Key, option.ServiceMetadata.NamespaceServiceName)
 		}
 
