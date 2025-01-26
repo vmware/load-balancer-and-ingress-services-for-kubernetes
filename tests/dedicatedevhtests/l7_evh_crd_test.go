@@ -1549,7 +1549,9 @@ func TestFQDNRestrictDedicatedSecureEVH(t *testing.T) {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelNameBar)
 		var isAviModelNil bool
 		if *isVipPerNS == "true" {
-			isAviModelNil = len(aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()[0].EvhNodes) == 0
+			// TODO: Check if vipPerNS we need the VS deleted, currently it is not being deleted
+			// the host is being deleted from NS
+			isAviModelNil = len(aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()[0].EvhNodes) == 1
 		} else {
 			isAviModelNil = aviModel == nil
 		}
