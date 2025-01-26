@@ -445,3 +445,45 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
  - Fix: Certificate, from hostrule CRD, can not be assigned to L7 VirtualService when AKO is deployed in Dedicated mode.
  - Fix: Virtualservices are getting deleted when there is an issue with an access to the kube_api server which results in setting up `deleteConfig` flag to true.
+
+## AKO-1.12.1
+
+### Added
+- AKO now claims support for Kubernetes 1.29, OCP version 4.14.
+- AKO supports LoadBalancerClass for LoadBalancer type services.
+- AKO allows pool member to be IPV6 or IPV4 in dual stack deployment for `CALICO` and `ANTREA` CNI.
+- IPV6 address can be used to connect to the Avi Controller.
+- VRF support within VCenter Cloud
+- AKO now has a `L7Rule` CRD to change default parameters of L7 VirtualService in addition to `HostRule` CRD.
+- Support for Network Security policy in `HostRule` CRD.
+- AKO can use pre-existing avi-secret, present in AKO helm installation namespace to connect to the Avi Controller. Customer should not specify credentials as part of values.yaml during installation.
+
+### Changed
+- L4 CRD can be applied to LoadBalancer type service present in different namespace.
+- AKO shows all IPV4 and IPV6 addresses associated with VirtualService as part of Ingress, LoadBalancer status.
+- AKO updates Route's `Status:Reason` field with vsuuid and controller uuid.
+
+### Fixed
+- AKO allows VIP to be IPV6 for LoadBalancer type services.
+- Fix: Static routes are not added due to an error: `Field check for static_routes failed: Unique constraints route_id has duplicated value` when calico CNI allocates multiple block-affinities for a node and that may result in AKO crash.
+- Fix: Failure in creating Virtual Service, PoolGroup and other Pools if name of one of the Pool, attached to PoolGroup, exceeds maximum Avi Controller name length limit.
+
+### Known Issue
+- L4 Rule CRD, with `enableSSL: true` in listener propterties, will not be applied to L4 Virtual Service if Avi Controller license is of type `Enterprise with Cloud Service`.
+
+## AKO-1.12.2
+
+### Added
+ - AKO now claims support for Kubernetes 1.30, OCP 4.15
+
+### Changed
+ - AKO now creates single SSLKeyCertificate per tenant for default secret present in the cluster.
+
+### Fixed
+ - Fix: AKO Gateway does not create virtual service if Gateway have multiple listeners with same host name.
+ - Fix: AKO Gateway container crashes when it boots up in NPL mode.
+ - Fix: AKO does not honour readiness probe for pods when AKO boots up in NPL mode.
+ - Fix: AKO Shared VIP functionality doesn't work in NSX-T setup.
+ - Fix: AKO crashes in NSX-T shared L4 vip environment with no subdomain configured.
+ - Fix: L4Rule, with SSL enabled, is not applied to L4 VS if license type is Enterprise with Cloud Services.
+ - Fix: Cloud name with spaces in causes AKO to fail to start after upgrading Avi to 30.x.
