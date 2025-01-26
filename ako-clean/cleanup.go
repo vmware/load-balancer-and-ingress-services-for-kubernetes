@@ -26,6 +26,7 @@ var (
 	ServerCertHeader     = "x-vmware-server-tls-cert"
 	SEGroupNotFoundError = "SEGroup does not exist"
 	Referer              = "Referer"
+	VPCMode              = false
 )
 
 type aviControllerConfig struct {
@@ -100,8 +101,18 @@ func (cfg *AKOCleanupConfig) Cleanup(ctx context.Context) error {
 		cleanupL4PolicySets,
 		cleanupPoolGroups,
 		cleanupPools,
-		func() error { return avirest.DeleteServiceEngines() },
-		avirest.DeleteServiceEngineGroup,
+		func() error {
+			if VPCMode {
+				return nil
+			}
+			return avirest.DeleteServiceEngines()
+		},
+		func() error {
+			if VPCMode {
+				return nil
+			}
+			return avirest.DeleteServiceEngineGroup()
+		},
 		cleanupVIPNetwork,
 	}
 
@@ -153,6 +164,7 @@ func getCloudInVPCMode() (string, error) {
 			cloud.NsxtConfiguration.ManagementNetworkConfig.TransportZone == nil {
 			continue
 		}
+		VPCMode = true
 		return *cloud.Name, nil
 	}
 	return "", nil
@@ -384,6 +396,10 @@ func cleanupPools() error {
 Below section is only applicable for T1 based Supervisor deployments
 */
 func cleanupVIPNetwork() error {
+	if VPCMode {
+		return nil
+	}
+
 	aviClient := avicache.SharedAVIClients(lib.GetAdminTenant()).AviClient[0]
 	avirest.AviNetCachePopulate(aviClient, utils.CloudName)
 	if len(avirest.NetCache) == 0 {
