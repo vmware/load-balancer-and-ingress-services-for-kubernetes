@@ -487,3 +487,22 @@ All notable changes to this project will be documented in this file. The format 
  - Fix: AKO crashes in NSX-T shared L4 vip environment with no subdomain configured.
  - Fix: L4Rule, with SSL enabled, is not applied to L4 VS if license type is Enterprise with Cloud Services.
  - Fix: Cloud name with spaces in causes AKO to fail to start after upgrading Avi to 30.x.
+
+## AKO-1.13.1
+
+### Added
+ - AKO now claims support for Kubernetes 1.31 and OCP 4.17.
+ - AKO now supports `multitenancy`. This feature allows AKO to map each Kubernetes/OpenShift cluster uniquely to a tenant in Avi or to map each namespace in a single Kubernetes/OpenShift cluster uniquely to a tenant in Avi.
+ - Support for EndpointSlices as the default mechanism to determine the network endpoints backing a service in Kubernetes. The preferred mechanism between EndpointSlices and Endpoints can be set using the `enableEndpointSlice` flag in ConfigMap.
+ - Support for graceful shutdown of backend servers when EndpointSlices usage is enabled.
+ - Support for `useRegex` and `applicationRootPath` fields in HostRule CRD. These will enable users to define paths that are regular expressions and the application root path, respectively, for an Ingress/OpenShift Route.
+ - Support for `enableHTTP2` field in HTTPRule CRD. This field can be used to enable HTTP/2 traffic support to the backend for L7 virtual services.
+ - Support for restricting cross-namespace usage of FQDNs/hostnames using the `fqdnReusePolicy` flag in ConfigMap.
+ - AKO now supports OpenShift Routes with `spec.subdomain` field specified instead of `spec.host` field, using the `defaultDomain` field in ConfigMap. The default domain specified is appended to `spec.subdomain` to form the FQDN for the VS.
+
+### Changed
+ - The `L4Settings.defaultDomain` field in Helm values.yaml is deprecated in favour of the newly introduced `NetworkSettings.defaultDomain` field. The value in the latter will be preferred for populating `defaultDomain` field in ConfigMap.
+
+### Fixed
+ - Fix: AKO is crashing when a HostRule object, with `analyticsPolicy.logAllHeaders` set, is applied to an Ingress.
+ - Fix: AKO does not configure the **Error Page Profile** for an EVH parent shared virtual service, when `errorPageProfile` is set in a matching HostRule object.
