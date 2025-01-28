@@ -1393,10 +1393,7 @@ func ProcessSecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parsedI
 		locEvhHostMap := evhNodeHostName(routeIgrObj, tlssetting, routeIgrObj.GetName(), routeIgrObj.GetNamespace(), key, fullsync, sharedQueue, modelList)
 		for host, newPathSvc := range locEvhHostMap {
 			// Remove this entry from storedHosts. First check if the host exists in the stored map or not.
-			flag := EnqueueIng(key, routeIgrObj.GetNamespace(), host, routeIgrObj.GetName())
-			if !flag {
-				continue
-			}
+
 			// Remove this entry from storedHosts. First check if the host exists in the stored map or not.
 			hostData, found := Storedhosts[host]
 			if found && hostData.InsecurePolicy == lib.PolicyAllow {
@@ -1432,8 +1429,10 @@ func ProcessSecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parsedI
 func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingName, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue, modelList *[]string) map[string][]IngressHostPathSvc {
 	hostPathSvcMap := make(map[string][]IngressHostPathSvc)
 	infraSetting := routeIgrObj.GetAviInfraSetting()
-
 	for host, paths := range tlssetting.Hosts {
+		if !EnqueueIng(key, namespace, host, ingName) {
+			continue
+		}
 		var hosts []string
 		hostPathSvcMap[host] = paths.ingressHPSvc
 
