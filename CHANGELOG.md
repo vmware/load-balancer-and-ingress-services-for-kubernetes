@@ -490,16 +490,16 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
  - AKO now claims support for Kubernetes 1.31 and OCP 4.17.
- - AKO now supports `multitenancy`. This feature allows AKO to map each Kubernetes/OpenShift cluster uniquely to a tenant in Avi or to map each namespace in a single Kubernetes/OpenShift cluster uniquely to a tenant in Avi.
- - Support for EndpointSlices as the default mechanism to determine the network endpoints backing a service in Kubernetes. The preferred mechanism between EndpointSlices and Endpoints can be set using the `enableEndpointSlice` flag in ConfigMap.
- - Support for graceful shutdown of backend servers when EndpointSlices usage is enabled.
- - Support for `useRegex` and `applicationRootPath` fields in HostRule CRD. These will enable users to define paths that are regular expressions and the application root path, respectively, for an Ingress/OpenShift Route.
- - Support for `enableHTTP2` field in HTTPRule CRD. This field can be used to enable HTTP/2 traffic support to the backend for L7 virtual services.
- - Support for restricting cross-namespace usage of FQDNs/hostnames using the `fqdnReusePolicy` flag in ConfigMap.
- - AKO now supports OpenShift Routes with `spec.subdomain` field specified instead of `spec.host` field, using the `defaultDomain` field in ConfigMap. The default domain specified is appended to `spec.subdomain` to form the FQDN for the VS.
+ - AKO now supports `multitenancy`. This feature allows AKO to map each Kubernetes/OpenShift cluster uniquely to a tenant in Avi or to map each namespace in a single Kubernetes/OpenShift cluster uniquely to a tenant in Avi. See [AKO Tenancy](docs/ako_tenancy.md) for more details.
+ - Support for EndpointSlices as the default mechanism to determine the network endpoints backing a service in Kubernetes. The preferred mechanism between EndpointSlices and Endpoints can be set using the `enableEndpointSlice` flag in ConfigMap. See [enableEndpointSlice](docs/values.md#featuregatesenableendpointslice) for more details.
+ - Support for graceful shutdown of backend servers when EndpointSlices usage is enabled. See [enableEndpointSlice](docs/values.md#featuregatesenableendpointslice) for more details.
+ - Support for `useRegex` and `applicationRootPath` fields in HostRule CRD. These will enable users to define paths that are regular expressions and the application root path, respectively, for an Ingress/OpenShift Route. See [useRegex](docs/crds/hostrule.md#enable-regular-expression-in-path) and [applicationRootPath](docs/crds/hostrule.md#specifying-application-root-redirect-path) for more details.
+ - Support for `enableHTTP2` field in HTTPRule CRD. This field can be used to enable HTTP/2 traffic support to the backend for L7 virtual services. See [enableHTTP2](docs/crds/httprule.md#enable-http2-protocol-support-for-backend) for more details.
+ - Support for restricting cross-namespace usage of FQDNs/hostnames using the `fqdnReusePolicy` flag in ConfigMap. See [FQDN Restriction](docs/ako_fqdnrestriction.md) for more details.
+ - AKO now supports OpenShift Routes with `spec.subdomain` field specified instead of `spec.host` field, using the `defaultDomain` field in ConfigMap. The default domain specified is appended to `spec.subdomain` to form the FQDN for the VS. See [defaultDomain](docs/values.md#networksettingsdefaultdomain) for more details.
 
 ### Changed
- - The `L4Settings.defaultDomain` field in Helm values.yaml is deprecated in favour of the newly introduced `NetworkSettings.defaultDomain` field. The value in the latter will be preferred for populating `defaultDomain` field in ConfigMap.
+ - The `L4Settings.defaultDomain` field in Helm values.yaml is deprecated in favour of the newly introduced `NetworkSettings.defaultDomain` field. The value in the latter will be preferred for populating `defaultDomain` field in ConfigMap. See [defaultDomain](docs/values.md#networksettingsdefaultdomain) for more details.
 
 ### Fixed
  - Fix: AKO is crashing when a HostRule object, with `analyticsPolicy.logAllHeaders` set, is applied to an Ingress.
