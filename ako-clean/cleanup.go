@@ -2,6 +2,8 @@ package akoclean
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -22,12 +24,6 @@ var (
 	SidecarProxyEndpoint = "localhost:1080"
 	UseExternalCert      = "external-cert"
 	ServerCertHeader     = "x-vmware-server-tls-cert"
-	AviMinVersion        = "30.1.1"
-	NamePrefix           = ""
-	AKOuser              = ""
-	AdminTenant          = "admin"
-	Cloud                = ""
-	SEGroupUUID          = ""
 	SEGroupNotFoundError = "SEGroup does not exist"
 	Referer              = "Referer"
 )
@@ -125,19 +121,61 @@ func (cfg *AKOCleanupConfig) Cleanup(ctx context.Context) error {
 	}
 	return nil
 }
+func getCloudInVPCMode() (string, error) {
+	uri := "/api/cloud/"
+	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
+
+	result, err := lib.AviGetCollectionRaw(aviRestClientPool.AviClient[0], uri)
+	if err != nil {
+		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+		return "", err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+		return "", err
+	}
+	for i := 0; i < len(elems); i++ {
+		cloud := models.Cloud{}
+		err = json.Unmarshal(elems[i], &cloud)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal cloud data, err: %v", err)
+			continue
+		}
+		if *cloud.Vtype != lib.CLOUD_NSXT || cloud.NsxtConfiguration == nil {
+			continue
+		}
+		if cloud.NsxtConfiguration.VpcMode == nil || !*cloud.NsxtConfiguration.VpcMode {
+			continue
+		}
+		if cloud.NsxtConfiguration.ManagementNetworkConfig == nil ||
+			cloud.NsxtConfiguration.ManagementNetworkConfig.TransportZone == nil {
+			continue
+		}
+		return *cloud.Name, nil
+	}
+	return "", nil
+}
 
 func setCloudName() error {
-	uri := "/api/serviceenginegroup/?name=" + lib.GetClusterID() + "&include_name=True"
-	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
-	response := models.ServiceEngineGroupAPIResponse{}
-	err := lib.AviGet(aviRestClientPool.AviClient[0], uri, &response)
+	cloudName, err := getCloudInVPCMode()
 	if err != nil {
 		return err
 	}
-	if len(response.Results) == 0 {
-		return fmt.Errorf(SEGroupNotFoundError)
+	if cloudName == "" {
+		uri := "/api/serviceenginegroup/?name=" + lib.GetClusterID() + "&include_name=True"
+		aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
+		response := models.ServiceEngineGroupAPIResponse{}
+		err := lib.AviGet(aviRestClientPool.AviClient[0], uri, &response)
+		if err != nil {
+			return err
+		}
+		if len(response.Results) == 0 {
+			return errors.New(SEGroupNotFoundError)
+		}
+		cloudName = strings.Split(*response.Results[0].CloudRef, "#")[1]
 	}
-	cloudName := strings.Split(*response.Results[0].CloudRef, "#")[1]
 	utils.SetCloudName(cloudName)
 	return nil
 }
