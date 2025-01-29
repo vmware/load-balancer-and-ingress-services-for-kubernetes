@@ -158,7 +158,7 @@ In AKO Gateway API Implementation, Gateway objects corresponds to following AVI 
   2. `tls specification (certificate refs)` from each `Gateway Listener` will get added to the parent VS as `SSLKeyAndCertificateRef`. 
   3. Every `Secret` created corresponds to an `SSLKeyAndCertificate` object.
   4. `Addresses` in a Gateway specification gets added as static ip for `Vsvip` for parent VS.
-  5. Each `hostname` specified in a Gateway listener gets mapped to `DNS` in the `Vsvip` for the parent VS. If hostname in Gateway listener is `empty` or `*`, AKO GW will map empty `hostname` as `*`  hostname and then translate it to `*.subdomain` for each subdomain configured in AviController.
+  5. Each `hostname`, except `wild card hostnames`, specified in a Gateway listener is mapped to the `DNS` in the `Vsvip` of the parent VS.
   6. `hostname` specified in HTTPRoute gets mapped to `VHMatch` in the childVS.
   7. Every `Rule` in `HTTPRoute` corresponds to an `EVH Child Virtual Service`, with `Match` translated to `VH match` and `Filters` translated to `HTTPPolicySet` configuration. If no matches are specified for a particular HTTPRoute rule, a childVS with path as `/` in `VHmatch` will be created and attached to the parentVS corresponding to that rule.
   8. Each `backendRefs` specification (list of backends) in a `HTTPRoute Rule` will be added as a `Pool Group`.
