@@ -32,15 +32,16 @@ type NamespaceName struct {
  */
 
 type AviPoolCache struct {
-	Name                 string
-	Tenant               string
-	Uuid                 string
-	CloudConfigCksum     string
-	ServiceMetadataObj   lib.ServiceMetadataObj
-	PkiProfileCollection NamespaceName
-	LastModified         string
-	InvalidData          bool
-	HasReference         bool
+	Name                    string
+	Tenant                  string
+	Uuid                    string
+	CloudConfigCksum        string
+	ServiceMetadataObj      lib.ServiceMetadataObj
+	PkiProfileCollection    NamespaceName
+	LastModified            string
+	InvalidData             bool
+	HasReference            bool
+	GracefulShutdownTimeout int32
 }
 
 type AviDSCache struct {

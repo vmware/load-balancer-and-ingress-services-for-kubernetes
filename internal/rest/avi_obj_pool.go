@@ -104,6 +104,7 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		SslProfileRef:           pool_meta.SslProfileRef,
 		SslKeyAndCertificateRef: pool_meta.SslKeyAndCertificateRef,
 		PkiProfileRef:           pool_meta.PkiProfileRef,
+		GracefulDisableTimeout:  &pool_meta.GracefulShutdownTimeout,
 		PlacementNetworks:       placementNetworks,
 	}
 
@@ -274,7 +275,11 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 				utils.AviLog.Warnf("Error parsing service metadata :%v", err)
 			}
 		}
-
+		var gracefulShutdownTimeout float64
+		gracefulShutdownTimeout = resp["graceful_disable_timeout"].(float64)
+		if !ok {
+			utils.AviLog.Warnf("key: %s, msg: graceful_disable_timeout not present in response %v", key, resp)
+		}
 		var lastModifiedStr string
 		lastModifiedIntf, ok := resp["_last_modified"]
 		if !ok {
@@ -304,13 +309,14 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 		}
 
 		pool_cache_obj := avicache.AviPoolCache{
-			Name:                 name,
-			Tenant:               rest_op.Tenant,
-			Uuid:                 uuid,
-			CloudConfigCksum:     cksum,
-			ServiceMetadataObj:   svc_mdata_obj,
-			PkiProfileCollection: pkiKey,
-			LastModified:         lastModifiedStr,
+			Name:                    name,
+			Tenant:                  rest_op.Tenant,
+			Uuid:                    uuid,
+			CloudConfigCksum:        cksum,
+			ServiceMetadataObj:      svc_mdata_obj,
+			PkiProfileCollection:    pkiKey,
+			LastModified:            lastModifiedStr,
+			GracefulShutdownTimeout: int32(gracefulShutdownTimeout),
 		}
 		if lastModifiedStr == "" {
 			pool_cache_obj.InvalidData = true

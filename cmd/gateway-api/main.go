@@ -92,6 +92,7 @@ func Initialize() {
 	//TODO handle leader logic, must not be used with HA
 	lib.AKOControlConfig().SetIsLeaderFlag(true)
 	lib.AKOControlConfig().SetEndpointSlicesEnabled(lib.GetEndpointSliceEnabled())
+	lib.AKOControlConfig().SetGracefulShutdownTimeout(lib.GetGracefulShutdownTimeout())
 
 	gwApiClient, err := gatewayclientset.NewForConfig(cfg)
 	if err != nil {

@@ -288,6 +288,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: enableEndpointSlice
+          - name: GRACEFUL_SHUTDOWN_TIMEOUT
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: gracefulShutdownTimeout
           - name: FQDN_REUSE_POLICY
             valueFrom:
               configMapKeyRef:

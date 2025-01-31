@@ -166,6 +166,9 @@ type akoControlConfig struct {
 	//endpointSlices Enabled
 	isEndpointSlicesEnabled bool
 
+	// gracefulShutdownTimeout is an int32 which specifies the graceful timeout in minutes, 0 ends immediately, -1 is infinite
+	gracefulShutdownTimeout int32
+
 	//fqdnReusePolicy is set to Strict/InterNamespaceAllowed according to whether AKO allows FQDN sharing across namespaces
 	fqdnReusePolicy string
 }
@@ -218,6 +221,13 @@ func (c *akoControlConfig) SetEndpointSlicesEnabled(flag bool) {
 }
 func (c *akoControlConfig) GetEndpointSlicesEnabled() bool {
 	return c.isEndpointSlicesEnabled
+}
+
+func (c *akoControlConfig) SetGracefulShutdownTimeout(timeout int32) {
+	c.gracefulShutdownTimeout = timeout
+}
+func (c *akoControlConfig) GetGracefulShutdownTimeout() int32 {
+	return c.gracefulShutdownTimeout
 }
 
 func (c *akoControlConfig) SetAKOBlockedNSList(nsList []string) {

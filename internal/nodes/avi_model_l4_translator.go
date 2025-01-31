@@ -335,6 +335,7 @@ func PopulateServersForNPL(poolNode *AviPoolNode, ns string, serviceName string,
 				}
 			}
 		}
+		poolNode.GracefulShutdownTimeout = lib.AKOControlConfig().GetGracefulShutdownTimeout()
 	}
 
 	for _, pod := range pods {
@@ -594,6 +595,7 @@ func PopulateServers(poolNode *AviPoolNode, ns string, serviceName string, ingre
 				pool_meta = append(pool_meta, server)
 			}
 		}
+		poolNode.GracefulShutdownTimeout = lib.AKOControlConfig().GetGracefulShutdownTimeout()
 	} else {
 		epObj, err := utils.GetInformers().EpInformer.Lister().Endpoints(ns).Get(serviceName)
 		if err != nil {

@@ -56,5 +56,6 @@ data:
   istioEnabled: {{ .Values.AKOSettings.istioEnabled | quote }}
   useDefaultSecretsOnly: {{ .Values.AKOSettings.useDefaultSecretsOnly | quote }}
   enablePrometheus: {{ default "false" .Values.featureGates.EnablePrometheus | quote }}
-  enableEndpointSlice: {{ default "false" .Values.featureGates.EnableEndpointSlice | quote }} 
+  enableEndpointSlice: {{ default "false" .Values.featureGates.EnableEndpointSlice | quote }}
+  gracefulShutdownTimeout: {{ .Values.gracefulShutdownTimeout | default 1 | int | quote }}
   fqdnReusePolicy: {{ default "InterNamespaceAllowed" .Values.L7Settings.fqdnReusePolicy | quote}}

@@ -1598,6 +1598,7 @@ type AviPoolNode struct {
 	T1Lr                     string // Only applicable to NSX-T cloud, if this value is set, we automatically should unset the VRF context value.
 	AviMarkers               utils.AviObjectMarkers
 	AttachedWithSharedVS     bool
+	GracefulShutdownTimeout  int32
 
 	AviPoolCommonFields
 
@@ -1640,6 +1641,7 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		strconv.Itoa(int(v.Port)),
 		v.PortName,
 		utils.Stringify(servers),
+		strconv.Itoa(int(v.GracefulShutdownTimeout)),
 	}
 
 	if v.LbAlgorithm != nil {

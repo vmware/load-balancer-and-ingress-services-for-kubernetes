@@ -867,6 +867,15 @@ func GetEndpointSliceEnabled() bool {
 	return flag
 }
 
+func GetGracefulShutdownTimeout() int32 {
+	timeout := os.Getenv("GRACEFUL_SHUTDOWN_TIMEOUT")
+	timeoutInt, err := strconv.ParseInt(timeout, 10, 32)
+	if err != nil {
+		timeoutInt = 1
+	}
+	return int32(timeoutInt)
+}
+
 func GetGlobalBlockedNSList() []string {
 	var blockedNs []string
 	blockedNSStr := os.Getenv(BLOCKED_NS_LIST)
