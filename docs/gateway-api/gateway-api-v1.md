@@ -144,11 +144,11 @@ A sample HTTPRoute object is shown below:
         weight: 2
   ```
 
-The above HTTPRoute object gets translated to two child VSes in the AVI controller. One child VS with match criteria as the path begins with `/bar` and a single Pool Group with a single pool and another child VS with match criteria as path begins with `/foo`, a single Pool Group with two pools, and an HTTP Request policy to add `my-header` to the HTTP request forwarded to the backends.
+The above HTTPRoute object gets translated to two child virtual services in the Avi Load Balancer Controller. One child virtual service with match criteria as the path begins with `/bar` and a single Pool Group with a single pool and another child virtual service with match criteria as path begins with `/foo` and header with name as `magic` and value as `foo`, a single Pool Group with two pools and an HTTP Request policy to add `my-header` with value `foo` to the HTTP request forwarded to the back-ends.
 
-Hostnames are mandatory and can be prefixed with a wildcard.
+**NOTE:** Hostnames are mandatory and can be prefixed with a wildcard.
 
-AKO Gateway APIs does not support `filters` within `backendRefs`.
+**NOTE:** AKO Gateway APIs does not support `filters` within `backendRefs`.
 
 ### Gateway API Objects to AVI Controller Objects Mapping
 
@@ -159,8 +159,8 @@ In AKO Gateway API Implementation, Gateway objects corresponds to following AVI 
   3. Every `Secret` created corresponds to an `SSLKeyAndCertificate` object.
   4. `Addresses` in a Gateway specification gets added as static ip for `Vsvip` for parent VS.
   5. Each `hostname`, except `wild card hostnames`, specified in a Gateway listener is mapped to the `DNS` in the `Vsvip` of the parent VS.
-  6. `hostname` specified in HTTPRoute gets mapped to `VHMatch` in the childVS.
-  7. Every `Rule` in `HTTPRoute` corresponds to an `EVH Child Virtual Service`, with `Match` translated to `VH match` and `Filters` translated to `HTTPPolicySet` configuration. If no matches are specified for a particular HTTPRoute rule, a childVS with path as `/` in `VHmatch` will be created and attached to the parentVS corresponding to that rule.
+  6. Every `Rule` in `HTTPRoute` corresponds to an `EVH Child Virtual Service`, with `Match` translated to `VH match` and `Filters` translated to `HTTPPolicySet` configuration. If no matches are specified for a particular HTTPRoute rule, a childVS with path as `/` in `VHmatch` will be created and attached to the parentVS corresponding to that rule.
+  7. If `hostname` specified in httproute is a complete FQDN, it will be part of `VSVIP` dnsinfo. All `hostnames` mentioned in HTTPRoute will be part of `hostname` of `VHMatch` of Child VS.
   8. Each `backendRefs` specification (list of backends) in a `HTTPRoute Rule` will be added as a `Pool Group`.
   9. Each `backendRef` in a `HTTPRoute Rule` will be translated to a `Pool`.
   10. Every parentVS will have a default `HTTPPolicyset` attached to it which will return `404`, if no path matches a given HTTP request.     
