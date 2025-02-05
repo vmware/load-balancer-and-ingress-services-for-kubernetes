@@ -59,7 +59,7 @@ Step 4: Check the installation
 helm list -n avi-system
 
 NAME          	NAMESPACE 	REVISION	UPDATED     STATUS  	CHART    	APP VERSION
-ako-1691752136	avi-system	1       	2023-09-28	deployed	ako-1.13.1	1.13.1
+ako-1691752136	avi-system	1       	2025-01-31	deployed	ako-1.13.1	1.13.1
 ```
 
 ## Uninstall using *helm*
@@ -105,7 +105,7 @@ kubectl apply -f <output_dir>/ako/crds/
 helm list -n avi-system
 
 NAME          	NAMESPACE 	REVISION	UPDATED                             	    STATUS  	CHART    	APP VERSION
-ako-1593523840	avi-system	1       	2023-04-16 13:44:31.609195757 +0000 UTC	    deployed	ako-1.10.3	1.10.3
+ako-1593523840	avi-system	1       	2024-08-04 13:44:31.609195757 +0000 UTC	    deployed	ako-1.12.2	1.12.2
 ```
 
 *Step3*

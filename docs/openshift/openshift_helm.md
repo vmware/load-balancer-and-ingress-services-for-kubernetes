@@ -55,7 +55,5 @@ Verify the installation
 helm list -n avi-system
 
 NAME          	NAMESPACE 	REVISION	UPDATED     STATUS  	CHART    	APP VERSION
-ako-1691752136	avi-system	1       	2023-09-28	deployed	ako-1.13.1	1.13.1
+ako-1691752136	avi-system	1       	2025-01-31	deployed	ako-1.13.1	1.13.1
 ```
-
-
