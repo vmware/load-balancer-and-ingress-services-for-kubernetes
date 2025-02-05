@@ -105,7 +105,7 @@ kubectl apply -f <output_dir>/ako/crds/
 helm list -n avi-system
 
 NAME          	NAMESPACE 	REVISION	UPDATED                             	    STATUS  	CHART    	APP VERSION
-ako-1593523840	avi-system	1       	2023-04-16 13:44:31.609195757 +0000 UTC	    deployed	ako-1.10.3	1.10.3
+ako-1593523840	avi-system	1       	2024-08-04 13:44:31.609195757 +0000 UTC	    deployed	ako-1.12.2	1.12.2
 ```
 
 *Step3*
