@@ -15,7 +15,6 @@
 package nodes
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -25,6 +24,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	akoErrors "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/errors"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -1065,14 +1065,14 @@ func validateGatewayForClass(key string, gateway *advl4v1alpha1pre1.Gateway) err
 		if !nameOk || !nsOk ||
 			(nameOk && gwName != gateway.Name) ||
 			(nsOk && gwNamespace != gateway.Namespace) {
-			return errors.New("Incorrect gateway matchLabels configuration")
+			return akoErrors.NewAkoError("Incorrect gateway matchLabels configuration")
 		}
 	}
 
 	// Additional check to see if the gatewayclass is a valid avi gateway class or not.
 	if gwClassObj.Spec.Controller != lib.AviGatewayController {
 		// Return an error since this is not our object.
-		return errors.New("Unexpected controller")
+		return akoErrors.NewAkoError("Unexpected controller")
 	}
 
 	return nil
@@ -1092,14 +1092,14 @@ func validateSvcApiGatewayForClass(key string, gateway *svcapiv1alpha1.Gateway) 
 		if !nameOk || !nsOk ||
 			(nameOk && gwName != gateway.Name) ||
 			(nsOk && gwNamespace != gateway.Namespace) {
-			return errors.New("Incorrect gateway matchLabels configuration")
+			return akoErrors.NewAkoError("Incorrect gateway matchLabels configuration")
 		}
 	}
 
 	// Additional check to see if the gatewayclass is a valid avi gateway class or not.
 	if gwClassObj.Spec.Controller != lib.SvcApiAviGatewayController {
 		// Return an error since this is not our object.
-		return errors.New("Unexpected controller")
+		return akoErrors.NewAkoError("Unexpected controller")
 	}
 
 	return nil

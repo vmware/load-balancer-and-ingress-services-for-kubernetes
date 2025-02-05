@@ -20,6 +20,8 @@ import (
 	"strconv"
 	"strings"
 
+	akoErrors "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/errors"
+
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -27,7 +29,6 @@ import (
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
-	"k8s.io/apimachinery/pkg/api/errors"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -422,7 +423,7 @@ func handlePod(key, namespace, podName string, fullsync bool) {
 	podKey := namespace + "/" + podName
 	pod, err := utils.GetInformers().PodInformer.Lister().Pods(namespace).Get(podName)
 	if err != nil {
-		if !errors.IsNotFound(err) {
+		if !k8serrors.IsNotFound(err) {
 			utils.AviLog.Infof("key: %s, got error while getting pod: %v", key, err)
 			return
 		}
@@ -484,9 +485,10 @@ func handleLBSvcUpdateForPod(key string, lbSvcs []string, fullsync bool) {
 func isGatewayDelete(gatewayKey, key string) bool {
 	// parse the gateway name and namespace
 	namespace, _, gwName := lib.ExtractTypeNameNamespace(gatewayKey)
+	var err error
 	if utils.IsWCP() {
 		gateway, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
-		if err != nil && errors.IsNotFound(err) {
+		if err != nil && k8serrors.IsNotFound(err) {
 			return true
 		}
 
@@ -495,13 +497,7 @@ func isGatewayDelete(gatewayKey, key string) bool {
 			utils.AviLog.Infof("key: %s, msg: deletionTimestamp set on gateway, will be deleting VS", key)
 			return true
 		}
-
-		// Check if the gateway has a valid gateway class
 		err = validateGatewayForClass(key, gateway)
-		if err != nil {
-			utils.AviLog.Infof("key: %s, msg: Valid GatewayClass for gateway %s not found", key, gateway)
-			return true
-		}
 	} else if lib.UseServicesAPI() {
 		// If namespace is not accepted, return true to delete model
 		if !utils.CheckIfNamespaceAccepted(namespace) {
@@ -509,7 +505,7 @@ func isGatewayDelete(gatewayKey, key string) bool {
 		}
 
 		gateway, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
-		if err != nil && errors.IsNotFound(err) {
+		if err != nil && k8serrors.IsNotFound(err) {
 			return true
 		}
 
@@ -518,12 +514,18 @@ func isGatewayDelete(gatewayKey, key string) bool {
 			utils.AviLog.Infof("key: %s, deletionTimestamp set on gateway, will be deleting VS", key)
 			return true
 		}
-
-		// Check if the gateway has a valid gateway class
 		err = validateSvcApiGatewayForClass(key, gateway)
-		if err != nil {
-			utils.AviLog.Infof("key: %s, msg: Valid GatewayClass for gateway %s not found", key, gateway)
+	}
+	if err != nil {
+		switch err.(type) {
+		case *akoErrors.AkoError:
+			utils.AviLog.Infof("key: %s, msg: Valid GatewayClass for gateway %s not found", key, gwName)
 			return true
+		case k8serrors.APIStatus:
+			if k8serrors.IsNotFound(err) {
+				utils.AviLog.Infof("key: %s, msg: GatewayClass for gateway %s not found", key, gwName)
+				return true
+			}
 		}
 	}
 	found, _ := objects.ServiceGWLister().GetGWListeners(namespace + "/" + gwName)
@@ -813,7 +815,7 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsy
 	if err == nil {
 		utils.AviLog.Debugf("key: %s, Node Object %v", key, nodeObj)
 		objects.SharedNodeLister().AddOrUpdate(nodename, nodeObj)
-	} else if errors.IsNotFound(err) {
+	} else if k8serrors.IsNotFound(err) {
 		utils.AviLog.Debugf("key: %s, msg: Node Deleted", key)
 		objects.SharedNodeLister().Delete(nodename)
 		deleteFlag = true
@@ -864,8 +866,10 @@ func isServiceDelete(svcName string, namespace string, key string) bool {
 	svc, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: could not retrieve the object for service: %s", key, err)
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			return true
+		} else {
+			return false
 		}
 	}
 
