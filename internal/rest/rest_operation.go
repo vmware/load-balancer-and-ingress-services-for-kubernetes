@@ -340,9 +340,11 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 				err = &utils.WebSyncError{Err: op.Err, Operation: string(op.Method)}
 			} else if !isErrorRetryable(aviErr.HttpStatusCode, *aviErr.Message) {
 				if op.Method != utils.RestPost {
+					utils.AviLog.Warnf("key: %s, msg: RestOp method %v error %s is not retryable", key, op.Method, utils.Stringify(op.Err))
 					continue
 				}
 				if removeObjRefFromRestOps(rest_ops, op.ObjName, op.Model) {
+					utils.AviLog.Warnf("key: %s, msg: RestOp method %v error %s is not retryable. Removed object %s from rest op", key, op.Method, utils.Stringify(op.Err), op.ObjName)
 					continue
 				}
 			}
@@ -352,7 +354,7 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 			}
 			return err
 		} else {
-			utils.AviLog.Debugf("key: %s, msg: RestOp method %v path %v tenant %v response %v objName %v",
+			utils.AviLog.Infof("key: %s, msg: RestOp method %v path %v tenant %v response %v objName %v",
 				key, op.Method, op.Path, op.Tenant, utils.Stringify(op.Response), op.ObjName)
 		}
 	}
@@ -411,9 +413,11 @@ func (f *follower) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp
 				continue
 			} else if !isErrorRetryable(aviErr.HttpStatusCode, *aviErr.Message) {
 				if op.Method != utils.RestPost {
+					utils.AviLog.Warnf("key: %s, msg: RestOp method %v error %s is not retryable", key, op.Method, utils.Stringify(op.Err))
 					continue
 				}
 				if removeObjRefFromRestOps(rest_ops, op.ObjName, op.Model) {
+					utils.AviLog.Warnf("key: %s, msg: RestOp method %v error %s is not retryable. Removed object %s from rest op", key, op.Method, utils.Stringify(op.Err), op.ObjName)
 					continue
 				}
 			}
@@ -423,7 +427,7 @@ func (f *follower) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp
 			}
 			return err
 		} else {
-			utils.AviLog.Debugf("key: %s, msg: RestOp method %v path %v tenant %v response %v objName %v",
+			utils.AviLog.Infof("key: %s, msg: RestOp method %v path %v tenant %v response %v objName %v",
 				key, op.Method, op.Path, op.Tenant, utils.Stringify(op.Response), op.ObjName)
 			if op.Method == utils.RestDelete && op.Response != nil {
 				return errors.New("Got non-empty response for delete operation")

@@ -170,7 +170,7 @@ func (rest *RestOperations) IstioCU(key string, avimodel *nodes.AviObjectGraph) 
 }
 func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObjectGraph) {
 	if lib.GetDisableStaticRoute() {
-		utils.AviLog.Debugf("key: %s, msg: static route sync disabled", key)
+		utils.AviLog.Warnf("key: %s, msg: static route sync disabled", key)
 		if lib.StaticRouteSyncChan != nil {
 			close(lib.StaticRouteSyncChan)
 			lib.StaticRouteSyncChan = nil
@@ -179,7 +179,7 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 	}
 	// Disable static route sync if ako is in  NodePort mode
 	if lib.IsNodePortMode() {
-		utils.AviLog.Debugf("key: %s, msg: static route sync disabled in NodePort Mode", key)
+		utils.AviLog.Warnf("key: %s, msg: static route sync disabled in NodePort Mode", key)
 		return
 	}
 	vrfNode := avimodel.GetAviVRF()
@@ -202,7 +202,7 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 		return
 	}
 	if vrfCacheObj.CloudConfigCksum == aviVrfNode.CloudConfigCksum {
-		utils.AviLog.Debugf("key: %s, msg: checksum for vrf %s has not changed, skipping", key, vrfName)
+		utils.AviLog.Infof("key: %s, msg: checksum for vrf %s has not changed, skipping", key, vrfName)
 		if lib.StaticRouteSyncChan != nil {
 			close(lib.StaticRouteSyncChan)
 			lib.StaticRouteSyncChan = nil
@@ -212,7 +212,7 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 	var restOps []*utils.RestOp
 	restOp := rest.AviVrfBuild(key, aviVrfNode, vrfCacheObj.Uuid)
 	if restOp == nil {
-		utils.AviLog.Debugf("key: %s, no rest operation for vrf %s", key, vrfName)
+		utils.AviLog.Infof("key: %s, no rest operation for vrf %s", key, vrfName)
 		if lib.StaticRouteSyncChan != nil {
 			close(lib.StaticRouteSyncChan)
 			lib.StaticRouteSyncChan = nil
@@ -637,7 +637,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 				}
 			}
 			nsPublishKey := avicache.NamespaceName{Namespace: aviObjKey.Namespace, Name: publishKey}
-
+			utils.AviLog.Warnf("key: %s, msg: there was an error sending the macro %v", key, err.Error())
 			if rest.restOperator.isRetryRequired(key, err) {
 				rest.PublishKeyToRetryLayer(nsPublishKey, key)
 				return false, processNextObj
@@ -646,7 +646,6 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 			if rest.CheckAndPublishForRetry(err, nsPublishKey, key, avimodel) {
 				return false, processNextObj
 			}
-			utils.AviLog.Warnf("key: %s, msg: there was an error sending the macro %v", key, err.Error())
 			models.RestStatus.UpdateAviApiRestStatus("", err)
 
 			for i := len(rest_ops) - 1; i >= 0; i-- {

@@ -124,9 +124,9 @@ func (l *leader) AddStatefulSetAnnotation(statusName string, reason string) {
 }
 
 func (f *follower) AddStatefulSetAnnotation(statusName string, reason string) {
-	utils.AviLog.Debugf("key: %s, AKO is not a leader, not updating the StatefulSet Annotation")
+	utils.AviLog.Debugf("AKO is not a leader, not updating the StatefulSet Annotation")
 }
 
 func (f *follower) ResetStatefulSetAnnotation(statusName string) {
-	utils.AviLog.Debugf("key: %s, AKO is not a leader, not deleting the StatefulSet Annotation")
+	utils.AviLog.Debugf("AKO is not a leader, not deleting the StatefulSet Annotation")
 }
