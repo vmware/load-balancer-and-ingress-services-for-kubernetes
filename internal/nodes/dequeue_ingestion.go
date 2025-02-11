@@ -20,16 +20,18 @@ import (
 	"strconv"
 	"strings"
 
-	akoErrors "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	v1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
+
+	"github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	akoErrors "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/errors"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 func DequeueIngestion(key string, fullsync bool) {
@@ -487,7 +489,8 @@ func isGatewayDelete(gatewayKey, key string) bool {
 	namespace, _, gwName := lib.ExtractTypeNameNamespace(gatewayKey)
 	var err error
 	if utils.IsWCP() {
-		gateway, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		var gateway *v1alpha1pre1.Gateway
+		gateway, err = lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
 		if err != nil && k8serrors.IsNotFound(err) {
 			return true
 		}
@@ -503,8 +506,8 @@ func isGatewayDelete(gatewayKey, key string) bool {
 		if !utils.CheckIfNamespaceAccepted(namespace) {
 			return true
 		}
-
-		gateway, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		var gateway *v1alpha1.Gateway
+		gateway, err = lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
 		if err != nil && k8serrors.IsNotFound(err) {
 			return true
 		}

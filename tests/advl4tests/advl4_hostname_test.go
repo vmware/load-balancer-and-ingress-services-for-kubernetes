@@ -16,10 +16,21 @@ package advl4tests
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/onsi/gomega"
+	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/watch"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
@@ -28,17 +39,9 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
 	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 	advl4fake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned/fake"
-
-	"github.com/onsi/gomega"
-	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
 var KubeClient *k8sfake.Clientset
@@ -46,6 +49,13 @@ var AdvL4Client *advl4fake.Clientset
 var CRDClient *crdfake.Clientset
 var V1beta1CRDClient *v1beta1crdfake.Clientset
 var ctrl *k8s.AviController
+
+var stopCh, ctrlCh chan struct{}
+
+func init() {
+	stopCh = make(chan struct{})
+	ctrlCh = make(chan struct{})
+}
 
 func TestMain(m *testing.M) {
 	os.Setenv("CLUSTER_ID", "abc:cluster")
@@ -99,8 +109,6 @@ func TestMain(m *testing.M) {
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()
-	stopCh := utils.SetupSignalHandler()
-	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
 	waitGroupMap := make(map[string]*sync.WaitGroup)
 	wgIngestion := &sync.WaitGroup{}
@@ -125,6 +133,128 @@ func TestMain(m *testing.M) {
 	integrationtest.AddDefaultNamespace()
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
+}
+
+func RestartController(stopCh, ctrlCh chan struct{}) {
+	akoControlConfig := lib.AKOControlConfig()
+	KubeClient = k8sfake.NewSimpleClientset()
+	AdvL4Client = advl4fake.NewSimpleClientset()
+
+	AdvL4Client.PrependWatchReactor("*", func(action k8stesting.Action) (handled bool, ret watch.Interface, err error) {
+		return true, nil, fmt.Errorf("simulated watch error")
+	})
+	AdvL4Client.PrependReactor("list", "gateways", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, fmt.Errorf("simulated list error")
+	})
+	AdvL4Client.PrependReactor("list", "gatewayclasses", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, fmt.Errorf("simulated list error")
+	})
+	CRDClient = crdfake.NewSimpleClientset()
+	V1beta1CRDClient = v1beta1crdfake.NewSimpleClientset()
+	akoControlConfig.SetAKOInstanceFlag(true)
+	akoControlConfig.SetAdvL4Clientset(AdvL4Client)
+	akoControlConfig.Setv1beta1CRDClientset(V1beta1CRDClient)
+	akoControlConfig.SetCRDClientsetAndEnableInfraSettingParam(V1beta1CRDClient)
+	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
+	akoControlConfig.SetDefaultLBController(true)
+
+	registeredInformers := []string{
+		utils.ServiceInformer,
+		utils.EndpointInformer,
+		utils.SecretInformer,
+		utils.NSInformer,
+		utils.ConfigMapInformer,
+	}
+	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
+	informers := k8s.K8sinformers{Cs: KubeClient}
+	k8s.NewCRDInformers()
+	k8s.NewAdvL4Informers(AdvL4Client)
+
+	integrationtest.KubeClient = KubeClient
+
+	quickSyncCh := make(chan struct{})
+	waitGroupMap := make(map[string]*sync.WaitGroup)
+	wgIngestion := &sync.WaitGroup{}
+	waitGroupMap["ingestion"] = wgIngestion
+	wgFastRetry := &sync.WaitGroup{}
+	waitGroupMap["fastretry"] = wgFastRetry
+	wgSlowRetry := &sync.WaitGroup{}
+	waitGroupMap["slowretry"] = wgSlowRetry
+	wgGraph := &sync.WaitGroup{}
+	waitGroupMap["graph"] = wgGraph
+	wgStatus := &sync.WaitGroup{}
+	waitGroupMap["status"] = wgStatus
+	wgLeaderElection := &sync.WaitGroup{}
+	waitGroupMap["leaderElection"] = wgLeaderElection
+	ctrl.State = &k8s.State{}
+	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
+}
+
+func TestAdvL4InformerError(t *testing.T) {
+
+	g := gomega.NewGomegaWithT(t)
+
+	gwClassName, gatewayName, ns := "avi-lb-1", "my-gateway-1", "default"
+	modelName := "admin/abc--default-" + gatewayName
+	svcName := "svc-1"
+
+	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
+	SetupGateway(t, gatewayName, ns, gwClassName)
+
+	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
+
+	g.Eventually(func() string {
+		gw, _ := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(ns).Get(gatewayName)
+		if len(gw.Status.Addresses) > 0 {
+			return gw.Status.Addresses[0].Value
+		}
+		return ""
+	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
+
+	g.Eventually(func() string {
+		svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName, metav1.GetOptions{})
+		if len(svc.Status.LoadBalancer.Ingress) > 0 {
+			return svc.Status.LoadBalancer.Ingress[0].IP
+		}
+		return ""
+	}, 30*time.Second).Should(gomega.Equal("10.250.250.1"))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8081)))
+	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Port).To(gomega.Equal(uint32(8081)))
+	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Protocol).To(gomega.Equal("TCP"))
+	g.Expect(nodes[0].ServiceMetadata.NamespaceServiceName[0]).To(gomega.Equal("default/" + svcName))
+	g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/" + gatewayName))
+	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(3))
+
+	go func() {
+		close(stopCh)
+		ctrlCh <- struct{}{}
+	}()
+	time.Sleep(10 * time.Second)
+	stopCh := make(chan struct{})
+	go RestartController(stopCh, ctrlCh)
+	time.Sleep(10 * time.Second)
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		return found && aviModel != nil
+	}, 30*time.Second).Should(gomega.BeTrue())
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8081)))
+	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Port).To(gomega.Equal(uint32(8081)))
+	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Protocol).To(gomega.Equal("TCP"))
+	g.Expect(nodes[0].ServiceMetadata.NamespaceServiceName[0]).To(gomega.Equal("default/" + svcName))
+	g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/" + gatewayName))
+	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(3))
+
 }
 
 // Gateway/GatewayClass lib functions

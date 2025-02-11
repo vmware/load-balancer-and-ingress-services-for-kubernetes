@@ -26,6 +26,8 @@ import (
 	"strings"
 	"sync"
 
+	"k8s.io/apimachinery/pkg/labels"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
@@ -3388,11 +3390,11 @@ func validateAndConfigureSeGroup(client *clients.AviClient, returnErr *error) bo
 	// This takes care of syncing SeGroup label settings during reboots.
 	seGroupSet := sets.NewString()
 	if lib.AKOControlConfig().AviInfraSettingEnabled() {
-		infraSettingList, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().List(context.TODO(), metav1.ListOptions{})
+		infraSettingList, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().List(labels.Everything())
 		if err != nil {
 			utils.AviLog.Warnf("Unable to list AviInfraSettings %s", err.Error())
 		}
-		for _, setting := range infraSettingList.Items {
+		for _, setting := range infraSettingList {
 			seGroupSet.Insert(setting.Spec.SeGroup.Name)
 		}
 	}
