@@ -14,22 +14,22 @@ kubectl create ns avi-system
 Step 2: Search the available charts for AKO
 
 ```
-helm show chart oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.11.4
+helm show chart oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.11.5
 
-Pulled: projects.registry.vmware.com/ako/helm-charts/ako:1.11.4
+Pulled: projects.registry.vmware.com/ako/helm-charts/ako:1.11.5
 Digest: sha256:xyxyxxyxyx
 apiVersion: v2
-appVersion: 1.11.4
+appVersion: 1.11.5
 description: A helm chart for Avi Kubernetes Operator
 name: ako
 type: application
-version: 1.11.4
+version: 1.11.5
 ```
 
 Use the `values.yaml` from this chart to edit values related to Avi configuration. To get the values.yaml for a release, run the following command
 
 ```
-helm show values oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.11.4 > values.yaml
+helm show values oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.11.5 > values.yaml
 
 ```
 
@@ -44,12 +44,12 @@ Starting AKO-1.7.1, multiple AKO instances can be installed in a cluster.
 
 <b>Primary AKO installation</b>
 ```
-helm install --generate-name oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.11.4 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=true --namespace=avi-system
+helm install --generate-name oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.11.5 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=true --namespace=avi-system
 ```
 
 <b>Secondary AKO installation</b>
 ```
-helm install --generate-name oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.11.4 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=false --namespace=avi-system
+helm install --generate-name oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.11.5 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=false --namespace=avi-system
 
 ```
 
@@ -59,7 +59,7 @@ Step 4: Check the installation
 helm list -n avi-system
 
 NAME          	NAMESPACE 	REVISION	UPDATED     STATUS  	CHART    	APP VERSION
-ako-1691752136	avi-system	1       	2024-07-02	deployed	ako-1.11.4	1.11.4
+ako-1691752136	avi-system	1       	2024-07-02	deployed	ako-1.11.5	1.11.5
 ```
 
 ## Uninstall using *helm*
@@ -89,7 +89,7 @@ Follow these steps if you are upgrading from an older AKO release.
 Helm does not upgrade the CRDs during a release upgrade. Before you upgrade a release, run the following command to download and upgrade the CRDs:
 
 ```
-helm template oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.11.4 --include-crds --output-dir <output_dir>
+helm template oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.11.5 --include-crds --output-dir <output_dir>
 ```
 
 This will save the helm files to an output directory which will contain the CRDs corresponding to the AKO version.
@@ -110,10 +110,10 @@ ako-1593523840	avi-system	1       	2023-11-16 13:44:31.609195757 +0000 UTC	    d
 
 *Step3*
 
-Get the values.yaml for the AKO version 1.11.4 and edit the values as per the requirement.
+Get the values.yaml for the AKO version 1.11.5 and edit the values as per the requirement.
 
 ```
-helm show values oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.11.4 > values.yaml
+helm show values oci://projects.registry.vmware.com/ako/helm-charts/ako --version 1.11.5 > values.yaml
 
 ```
 *Step4*
@@ -121,7 +121,7 @@ helm show values oci://projects.registry.vmware.com/ako/helm-charts/ako --versio
 Upgrade the helm chart
 
 ```
-helm upgrade ako-1593523840  oci://projects.registry.vmware.com/ako/helm-charts/ako -f /path/to/values.yaml --version 1.11.4 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username> --namespace=avi-system
+helm upgrade ako-1593523840  oci://projects.registry.vmware.com/ako/helm-charts/ako -f /path/to/values.yaml --version 1.11.5 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username> --namespace=avi-system
 
 ```
 
