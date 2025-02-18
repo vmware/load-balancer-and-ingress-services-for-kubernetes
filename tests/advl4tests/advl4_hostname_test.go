@@ -16,21 +16,16 @@ package advl4tests
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/onsi/gomega"
-	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apimachinery/pkg/watch"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
-	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
@@ -43,19 +38,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 	advl4fake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned/fake"
 )
-
-var KubeClient *k8sfake.Clientset
-var AdvL4Client *advl4fake.Clientset
-var CRDClient *crdfake.Clientset
-var V1beta1CRDClient *v1beta1crdfake.Clientset
-var ctrl *k8s.AviController
-
-var stopCh, ctrlCh chan struct{}
-
-func init() {
-	stopCh = make(chan struct{})
-	ctrlCh = make(chan struct{})
-}
 
 func TestMain(m *testing.M) {
 	os.Setenv("CLUSTER_ID", "abc:cluster")
@@ -109,6 +91,8 @@ func TestMain(m *testing.M) {
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	ctrl = k8s.SharedAviController()
+	stopCh := utils.SetupSignalHandler()
+	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
 	waitGroupMap := make(map[string]*sync.WaitGroup)
 	wgIngestion := &sync.WaitGroup{}
@@ -133,298 +117,6 @@ func TestMain(m *testing.M) {
 	integrationtest.AddDefaultNamespace()
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
-}
-
-func RestartController(stopCh, ctrlCh chan struct{}) {
-	akoControlConfig := lib.AKOControlConfig()
-	KubeClient = k8sfake.NewSimpleClientset()
-	AdvL4Client = advl4fake.NewSimpleClientset()
-
-	AdvL4Client.PrependWatchReactor("*", func(action k8stesting.Action) (handled bool, ret watch.Interface, err error) {
-		return true, nil, fmt.Errorf("simulated watch error")
-	})
-	AdvL4Client.PrependReactor("list", "gateways", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, fmt.Errorf("simulated list error")
-	})
-	AdvL4Client.PrependReactor("list", "gatewayclasses", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, fmt.Errorf("simulated list error")
-	})
-	CRDClient = crdfake.NewSimpleClientset()
-	V1beta1CRDClient = v1beta1crdfake.NewSimpleClientset()
-	akoControlConfig.SetAKOInstanceFlag(true)
-	akoControlConfig.SetAdvL4Clientset(AdvL4Client)
-	akoControlConfig.Setv1beta1CRDClientset(V1beta1CRDClient)
-	akoControlConfig.SetCRDClientsetAndEnableInfraSettingParam(V1beta1CRDClient)
-	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
-	akoControlConfig.SetDefaultLBController(true)
-
-	registeredInformers := []string{
-		utils.ServiceInformer,
-		utils.EndpointInformer,
-		utils.SecretInformer,
-		utils.NSInformer,
-		utils.ConfigMapInformer,
-	}
-	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
-	informers := k8s.K8sinformers{Cs: KubeClient}
-	k8s.NewCRDInformers()
-	k8s.NewAdvL4Informers(AdvL4Client)
-
-	integrationtest.KubeClient = KubeClient
-
-	quickSyncCh := make(chan struct{})
-	waitGroupMap := make(map[string]*sync.WaitGroup)
-	wgIngestion := &sync.WaitGroup{}
-	waitGroupMap["ingestion"] = wgIngestion
-	wgFastRetry := &sync.WaitGroup{}
-	waitGroupMap["fastretry"] = wgFastRetry
-	wgSlowRetry := &sync.WaitGroup{}
-	waitGroupMap["slowretry"] = wgSlowRetry
-	wgGraph := &sync.WaitGroup{}
-	waitGroupMap["graph"] = wgGraph
-	wgStatus := &sync.WaitGroup{}
-	waitGroupMap["status"] = wgStatus
-	wgLeaderElection := &sync.WaitGroup{}
-	waitGroupMap["leaderElection"] = wgLeaderElection
-	ctrl.State = &k8s.State{}
-	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
-}
-
-func TestAdvL4InformerError(t *testing.T) {
-
-	g := gomega.NewGomegaWithT(t)
-
-	gwClassName, gatewayName, ns := "avi-lb-1", "my-gateway-1", "default"
-	modelName := "admin/abc--default-" + gatewayName
-	svcName := "svc-1"
-
-	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
-
-	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
-
-	g.Eventually(func() string {
-		gw, _ := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(ns).Get(gatewayName)
-		if len(gw.Status.Addresses) > 0 {
-			return gw.Status.Addresses[0].Value
-		}
-		return ""
-	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
-
-	g.Eventually(func() string {
-		svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName, metav1.GetOptions{})
-		if len(svc.Status.LoadBalancer.Ingress) > 0 {
-			return svc.Status.LoadBalancer.Ingress[0].IP
-		}
-		return ""
-	}, 30*time.Second).Should(gomega.Equal("10.250.250.1"))
-
-	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8081)))
-	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
-	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Port).To(gomega.Equal(uint32(8081)))
-	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Protocol).To(gomega.Equal("TCP"))
-	g.Expect(nodes[0].ServiceMetadata.NamespaceServiceName[0]).To(gomega.Equal("default/" + svcName))
-	g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/" + gatewayName))
-	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(3))
-
-	go func() {
-		close(stopCh)
-		ctrlCh <- struct{}{}
-	}()
-	time.Sleep(10 * time.Second)
-	stopCh := make(chan struct{})
-	go RestartController(stopCh, ctrlCh)
-	time.Sleep(10 * time.Second)
-
-	g.Eventually(func() bool {
-		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		return found && aviModel != nil
-	}, 30*time.Second).Should(gomega.BeTrue())
-	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
-
-	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8081)))
-	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
-	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Port).To(gomega.Equal(uint32(8081)))
-	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Protocol).To(gomega.Equal("TCP"))
-	g.Expect(nodes[0].ServiceMetadata.NamespaceServiceName[0]).To(gomega.Equal("default/" + svcName))
-	g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/" + gatewayName))
-	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(3))
-
-}
-
-// Gateway/GatewayClass lib functions
-type FakeGateway struct {
-	Name      string
-	Namespace string
-	GWClass   string
-	IPAddress string
-	Listeners []FakeGWListener
-}
-
-type FakeGWListener struct {
-	Port     int32
-	Protocol string
-	Labels   map[string]string
-}
-
-func (gw FakeGateway) Gateway() *advl4v1alpha1pre1.Gateway {
-	var fakeListeners []advl4v1alpha1pre1.Listener
-	for _, listener := range gw.Listeners {
-		fakeListeners = append(fakeListeners, advl4v1alpha1pre1.Listener{
-			Port:     listener.Port,
-			Protocol: advl4v1alpha1pre1.ProtocolType(listener.Protocol),
-			Routes: advl4v1alpha1pre1.RouteBindingSelector{
-				Resource: "services",
-				RouteSelector: metav1.LabelSelector{
-					MatchLabels: listener.Labels,
-				},
-			},
-		})
-	}
-
-	gateway := &advl4v1alpha1pre1.Gateway{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: gw.Namespace,
-			Name:      gw.Name,
-		},
-		Spec: advl4v1alpha1pre1.GatewaySpec{
-			Class:     gw.GWClass,
-			Listeners: fakeListeners,
-		},
-	}
-
-	if gw.IPAddress != "" {
-		gateway.Spec.Addresses = []advl4v1alpha1pre1.GatewayAddress{{
-			Type:  advl4v1alpha1pre1.IPAddressType,
-			Value: gw.IPAddress,
-		}}
-	}
-
-	return gateway
-}
-
-func SetupGateway(t *testing.T, gwname, namespace, gwclass string) {
-	gateway := FakeGateway{
-		Name:      gwname,
-		Namespace: namespace,
-		GWClass:   gwclass,
-		Listeners: []FakeGWListener{{
-			Port:     int32(8081),
-			Protocol: "TCP",
-			Labels: map[string]string{
-				lib.GatewayNameLabelKey:      gwname,
-				lib.GatewayNamespaceLabelKey: namespace,
-				lib.GatewayTypeLabelKey:      "direct",
-			},
-		}},
-	}
-
-	gwCreate := gateway.Gateway()
-	if _, err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().Gateways(namespace).Create(context.TODO(), gwCreate, metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error in adding Gateway: %v", err)
-	}
-}
-
-func TeardownGateway(t *testing.T, gwname, namespace string) {
-	if err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().Gateways(namespace).Delete(context.TODO(), gwname, metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("error in deleting Gateway: %v", err)
-	}
-}
-
-type FakeGWClass struct {
-	Name       string
-	Controller string
-}
-
-func (gwclass FakeGWClass) GatewayClass() *advl4v1alpha1pre1.GatewayClass {
-	gatewayclass := &advl4v1alpha1pre1.GatewayClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: gwclass.Name,
-		},
-		Spec: advl4v1alpha1pre1.GatewayClassSpec{
-			Controller: gwclass.Controller,
-		},
-	}
-
-	return gatewayclass
-}
-
-func SetupGatewayClass(t *testing.T, gwclassName, controller string) {
-	gatewayclass := FakeGWClass{
-		Name:       gwclassName,
-		Controller: controller,
-	}
-
-	gwClassCreate := gatewayclass.GatewayClass()
-	if _, err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().GatewayClasses().Create(context.TODO(), gwClassCreate, metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error in adding GatewayClass: %v", err)
-	}
-}
-
-func TeardownGatewayClass(t *testing.T, gwClassName string) {
-	if err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().GatewayClasses().Delete(context.TODO(), gwClassName, metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("error in deleting GatewayClass: %v", err)
-	}
-}
-
-func SetupAdvLBService(t *testing.T, svcname, namespace, gwname, gwnamespace string) {
-	svc := integrationtest.FakeService{
-		Name:      svcname,
-		Namespace: namespace,
-		Labels: map[string]string{
-			lib.GatewayNameLabelKey:      gwname,
-			lib.GatewayNamespaceLabelKey: gwnamespace,
-			lib.GatewayTypeLabelKey:      "direct",
-		},
-		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8081, TargetPort: intstr.FromInt(8081)}},
-	}
-
-	svcCreate := svc.Service()
-	if _, err := KubeClient.CoreV1().Services(namespace).Create(context.TODO(), svcCreate, metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
-	integrationtest.CreateEP(t, namespace, svcname, false, true, "1.1.1")
-}
-
-func SetupAdvLBServiceWithLoadBalancerClass(t *testing.T, svcname, namespace, gwname, gwnamespace string, LBClass string) {
-	svc := integrationtest.FakeService{
-		Name:      svcname,
-		Namespace: namespace,
-		Labels: map[string]string{
-			lib.GatewayNameLabelKey:      gwname,
-			lib.GatewayNamespaceLabelKey: gwnamespace,
-			lib.GatewayTypeLabelKey:      "direct",
-		},
-		Type:              corev1.ServiceTypeLoadBalancer,
-		ServicePorts:      []integrationtest.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8081, TargetPort: intstr.FromInt(8081)}},
-		LoadBalancerClass: LBClass,
-	}
-
-	svcCreate := svc.Service()
-	if _, err := KubeClient.CoreV1().Services(namespace).Create(context.TODO(), svcCreate, metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
-	integrationtest.CreateEP(t, namespace, svcname, false, true, "1.1.1")
-}
-
-func TeardownAdvLBService(t *testing.T, svcname, namespace string) {
-	if err := KubeClient.CoreV1().Services(namespace).Delete(context.TODO(), svcname, metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("error in deleting AdvLB Service: %v", err)
-	}
-	integrationtest.DelEP(t, namespace, svcname)
-}
-
-func VerifyGatewayVSNodeDeletion(g *gomega.WithT, modelName string) {
-	g.Eventually(func() interface{} {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		return aviModel
-	}, 30*time.Second).Should(gomega.BeNil())
 }
 
 func TestAdvL4BestCase(t *testing.T) {

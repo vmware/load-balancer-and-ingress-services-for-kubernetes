@@ -1230,7 +1230,7 @@ func GetShardVSNumber(s string) string {
 	return vsNumber
 }
 
-const defaultMockFilePath = "../avimockobjects"
+var DefaultMockFilePath = "../avimockobjects"
 
 var AviFakeClientInstance *httptest.Server
 var FakeServerMiddleware InjectFault
@@ -1286,7 +1286,7 @@ func NewAviFakeClientInstance(kubeclient *k8sfake.Clientset, skipCachePopulation
 }
 
 func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...string) {
-	mockFilePath := defaultMockFilePath
+	mockFilePath := DefaultMockFilePath
 	if len(args) > 0 {
 		mockFilePath = args[0]
 	}
