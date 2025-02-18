@@ -37,7 +37,7 @@ Passive AKO does the following:
 * Change the `replicaCount` in `values.yaml` to two.
 * Execute the helm upgrade command and provide the updated `values.yaml` file.
 
-helm upgrade ako-1593523840 oci://projects.registry.vmware.com/ako/helm-charts/ako -f /path/to/values.yaml --version 1.11.4 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username> --namespace=avi-system
+helm upgrade ako-1593523840 oci://projects.registry.vmware.com/ako/helm-charts/ako -f /path/to/values.yaml --version 1.11.5 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username> --namespace=avi-system
 
 **Note:**
 1. Currently, more than two replicas are not supported.
