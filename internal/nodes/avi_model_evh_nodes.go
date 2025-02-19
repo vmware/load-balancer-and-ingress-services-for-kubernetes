@@ -1107,6 +1107,12 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 				buildWithInfraSettingForEvh(key, routeIgrObj.GetNamespace(), vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 			}
 		}
+		// For dedicated vs we need to reprocess app-root since we are not building app-root for the portProto that is added as part of same BuildL7HostRule call.
+		// This is because for non-dedicated mode, we need the portProto from the parent vs node so it is ready by the time we apply app-root settings to child vs.
+		// Where as for dedicated vs, hostrule tcp listener ports will override the existing portProto for the same vs node and later aviinfrasetting may update the listener ports as well.
+		if vsNode[0].IsDedicatedVS() {
+			BuildOnlyRegexAppRootDedicated(host, key, vsNode[0])
+		}
 		changedModel := saveAviModel(modelName, modelGraph, key)
 		if !utils.HasElem(modelList, modelName) && changedModel {
 			*modelList = append(*modelList, modelName)
@@ -1216,6 +1222,8 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 			vsNode[0].EvhNodes = append(vsNode[0].EvhNodes, evhNode)
 		}
 	}
+	// setting child node portProto with same value as parent node so that redirect rules are added for all front-end ports if app-root is set
+	evhNode.SetPortProtocols(vsNode[0].PortProto)
 	// build host rule for insecure ingress in evh
 	BuildL7HostRule(host, key, evhNode)
 	// build SSORule for insecure ingress in evh
@@ -1468,6 +1476,12 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 				buildWithInfraSettingForEvh(key, namespace, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 			}
 		}
+		// For dedicated vs we need to reprocess app-root since we are not building app-root for the portProto that is added as part of same BuildL7HostRule call.
+		// This is because for non-dedicated mode, we need the portProto from the parent vs node so it is ready by the time we apply app-root settings to child vs.
+		// Where as for dedicated vs, hostrule tcp listener ports will override the existing portProto for the same vs node and later aviinfrasetting may update the listener ports as well.
+		if vsNode[0].IsDedicatedVS() {
+			BuildOnlyRegexAppRootDedicated(host, key, vsNode[0])
+		}
 
 		// Only add this node to the list of models if the checksum has changed.
 		utils.AviLog.Debugf("key: %s, Saving Model: %v", key, utils.Stringify(vsNode))
@@ -1598,6 +1612,8 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			//Add drop rule to block traffic on 80
 			o.BuildHTTPSecurityPolicyForVSForEvh(evhNode, hosts, namespace, ingName, key, infraSettingName)
 		}
+		// setting child node portProto with same value as parent node so that redirect rules are added for all front-end ports if app-root is set
+		evhNode.SetPortProtocols(vsNode[0].PortProto)
 		// Enable host rule
 		BuildL7HostRule(host, key, evhNode)
 		// build SSORule for secure ingress in evh

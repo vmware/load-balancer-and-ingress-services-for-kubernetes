@@ -1255,15 +1255,16 @@ func (v *AviHostPathPortPoolPG) CalculateCheckSum() {
 }
 
 type AviRedirectPort struct {
-	Name          string
-	Hosts         []string
-	RedirectPort  int32
-	StatusCode    string
-	VsPort        int32
-	Protocol      string
-	Path          string
-	RedirectPath  string
-	MatchCriteria string
+	Name              string
+	Hosts             []string
+	RedirectPort      int32
+	StatusCode        string
+	VsPort            int32
+	Protocol          string
+	Path              string
+	RedirectPath      string
+	MatchCriteriaPath string
+	MatchCriteriaPort string
 }
 type AviHTTPSecurity struct {
 	Name          string
