@@ -93,6 +93,14 @@ func (cfg *AKOCleanupConfig) Cleanup(ctx context.Context) error {
 
 	ops := []func() error{
 		setCloudName,
+		func() error {
+			if VPCMode {
+				os.Setenv(utils.VPC_MODE, "true")
+				lib.SetNamePrefix("")
+				lib.SetAKOUser(lib.AKOPrefix)
+			}
+			return nil
+		},
 		populateCache,
 		cleanupVirtualServices,
 		cleanupVsVips,

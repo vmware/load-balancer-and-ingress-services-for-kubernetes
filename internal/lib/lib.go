@@ -702,7 +702,7 @@ func GetVrf() string {
 }
 
 func GetVPCMode() bool {
-	if vpcMode, _ := strconv.ParseBool(os.Getenv("VPC_MODE")); vpcMode {
+	if vpcMode, _ := strconv.ParseBool(os.Getenv(utils.VPC_MODE)); vpcMode {
 		return true
 	}
 	return false
