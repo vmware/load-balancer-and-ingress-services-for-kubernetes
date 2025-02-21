@@ -99,6 +99,10 @@ func InitializeAKC() {
 		}
 	}
 
+	// Configure QPS and Burst with custom values to increase rate limit
+	cfg.QPS = 100
+	cfg.Burst = 100
+
 	// Initialize akoControlConfig
 	akoControlConfig := lib.AKOControlConfig()
 	//Used to set vrf context, static routes
