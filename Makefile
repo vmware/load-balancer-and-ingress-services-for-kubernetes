@@ -13,6 +13,7 @@ REL_PATH_AKO_INFRA=$(PACKAGE_PATH_AKO)/cmd/infra-main
 REL_PATH_AKO_GATEWAY_API=$(PACKAGE_PATH_AKO)/cmd/gateway-api
 AKO_OPERATOR_IMAGE=ako-operator
 ENDPOINTSLICES_ENABLED?="false"
+INFORMERS_PACKAGES := $(shell go list ./tests/... | grep informers)
 define GetSupportabilityMatrix
 $(shell node -p "require('./buildsettings.json').$(1)")
 endef
@@ -451,6 +452,16 @@ gatewayapi_tests:
 	@> gatewayapi_tests.log
 	(make -j 4 --output-sync=target gatewayapi_ingestiontests gatewayapi_graphlayertests gatewayapi_statustests gatewayapi_npltests ENDPOINTSLICES_ENABLED="true" > gatewayapi_tests.log 2>&1 && echo "gatewayapi_tests passed") || (echo "gatewayapi_tests failed" && cat gatewayapi_tests.log && exit 1)
 
+.PHONY: informers_tests
+informers_tests:
+	@> informers_tests.log
+	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
+	$(GOTEST) -v -mod=vendor $(INFORMERS_PACKAGES)  -failfast -timeout 0 \
+	-coverprofile cover-26.out -coverpkg=./... > informers_tests.log 2>&1 && echo "informers_tests passed") || (echo "informers_tests failed" && cat informers_tests.log && exit 1)
+
 .PHONY: int_test
 int_test:
 	@> int_test.log
@@ -460,7 +471,7 @@ int_test:
 	namespacesynctests servicesapitests npltests misc \
 	dedicatedvstests hatests calicotests ciliumtests \
 	helmtests infratests urltests multitenancytests gatewayapi_ingestiontests gatewayapi_graphlayertests \
-	gatewayapi_statustests gatewayapi_npltests ENDPOINTSLICES_ENABLED="true" > int_test.log 2>&1 \
+	gatewayapi_statustests gatewayapi_npltests informers_tests ENDPOINTSLICES_ENABLED="true" > int_test.log 2>&1 \
 	&& echo "int_test succeeded" && buffer -i int_test.log -u 1000 -z 1k) \
 	|| (echo "int_test failed" && (buffer -i int_test.log -u 2000 -z 1b || \
 	echo "Dumping the whole log failed; here are the last 100 lines" && tail -n100 int_test.log ) && exit 1)
