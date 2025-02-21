@@ -274,6 +274,8 @@ func GetNSXTTransportZone() string {
 	return NsxTTzType
 }
 
+var nonDnsLabelRegex = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
+
 func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32) ([]string, string) {
 	var fqdns []string
 	var fqdn string
@@ -283,7 +285,8 @@ func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32)
 	if shardSize == 0 {
 		return fqdns, fqdn
 	}
-
+	//Replace all non valid dns label characters with - in tenant name
+	tenantNameWithValidChars := nonDnsLabelRegex.ReplaceAllString(tenant, "-")
 	autoFQDN := true
 	if GetL4FqdnFormat() == AutoFQDNDisabled {
 		autoFQDN = false
@@ -303,10 +306,10 @@ func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32)
 		}
 		if GetL4FqdnFormat() == AutoFQDNDefault {
 			// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
-			fqdn = vsName + "." + tenant + "." + subdomain
+			fqdn = vsName + "." + tenantNameWithValidChars + "." + subdomain
 		} else if GetL4FqdnFormat() == AutoFQDNFlat {
 			// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
-			fqdn = vsName + "-" + tenant + "." + subdomain
+			fqdn = vsName + "-" + tenantNameWithValidChars + "." + subdomain
 		}
 		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(fqdn, GetModelName(tenant, vsName))
 		utils.AviLog.Infof("key: %s, msg: Configured the shared VS with default fqdn as: %s", key, fqdn)

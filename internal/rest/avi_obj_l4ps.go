@@ -17,6 +17,7 @@ package rest
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
@@ -37,7 +38,7 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 		return nil
 	}
 	name := hps_meta.Name
-	tenant := fmt.Sprintf("/api/tenant/?name=%s", hps_meta.Tenant)
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", url.QueryEscape(hps_meta.Tenant))
 	cr := lib.AKOUser
 
 	hps := avimodels.L4PolicySet{

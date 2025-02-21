@@ -17,6 +17,7 @@ package rest
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -361,7 +362,7 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		} else {
 			utils.AviLog.Warnf("key: %s, msg: unable to set the vsvip reference")
 		}
-		tenant := fmt.Sprintf("/api/tenant/?name=%s", vs_meta.Tenant)
+		tenant := fmt.Sprintf("/api/tenant/?name=%s", url.QueryEscape(vs_meta.Tenant))
 		vs.TenantRef = &tenant
 
 		if vs_meta.EVHParent {
