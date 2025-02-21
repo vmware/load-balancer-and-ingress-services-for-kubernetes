@@ -426,7 +426,7 @@ func handlePod(key, namespace, podName string, fullsync bool) {
 	pod, err := utils.GetInformers().PodInformer.Lister().Pods(namespace).Get(podName)
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
-			utils.AviLog.Infof("key: %s, got error while getting pod: %v", key, err)
+			utils.AviLog.Warnf("key: %s, got error while getting pod: %v", key, err)
 			return
 		}
 
@@ -492,6 +492,7 @@ func isGatewayDelete(gatewayKey, key string) bool {
 		var gateway *v1alpha1pre1.Gateway
 		gateway, err = lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
 		if err != nil && k8serrors.IsNotFound(err) {
+			utils.AviLog.Warnf("key: %s, msg: gateway %s not found", key, gwName)
 			return true
 		}
 
@@ -522,11 +523,11 @@ func isGatewayDelete(gatewayKey, key string) bool {
 	if err != nil {
 		switch err.(type) {
 		case *akoErrors.AkoError:
-			utils.AviLog.Infof("key: %s, msg: Valid GatewayClass for gateway %s not found", key, gwName)
+			utils.AviLog.Warnf("key: %s, msg: Valid GatewayClass for gateway %s not found", key, gwName)
 			return true
 		case k8serrors.APIStatus:
 			if k8serrors.IsNotFound(err) {
-				utils.AviLog.Infof("key: %s, msg: GatewayClass for gateway %s not found", key, gwName)
+				utils.AviLog.Warnf("key: %s, msg: GatewayClass for gateway %s not found", key, gwName)
 				return true
 			}
 		}

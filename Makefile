@@ -471,7 +471,7 @@ int_test:
 	namespacesynctests servicesapitests npltests misc \
 	dedicatedvstests hatests calicotests ciliumtests \
 	helmtests infratests urltests multitenancytests gatewayapi_ingestiontests gatewayapi_graphlayertests \
-	gatewayapi_statustests gatewayapi_npltests ENDPOINTSLICES_ENABLED="true" > int_test.log 2>&1 \
+	gatewayapi_statustests gatewayapi_npltests informers_tests ENDPOINTSLICES_ENABLED="true" > int_test.log 2>&1 \
 	&& echo "int_test succeeded" && buffer -i int_test.log -u 1000 -z 1k) \
 	|| (echo "int_test failed" && (buffer -i int_test.log -u 2000 -z 1b || \
 	echo "Dumping the whole log failed; here are the last 100 lines" && tail -n100 int_test.log ) && exit 1)
