@@ -105,7 +105,7 @@ kubectl apply -f <output_dir>/ako/crds/
 helm list -n avi-system
 
 NAME          	NAMESPACE 	REVISION	UPDATED                             	    STATUS  	CHART    	APP VERSION
-ako-1593523840	avi-system	1       	2023-04-16 13:44:31.609195757 +0000 UTC	    deployed	ako-1.10.3	1.10.3
+ako-1593523840	avi-system	1       	2024-08-04 13:44:31.609195757 +0000 UTC	    deployed	ako-1.12.2	1.12.2
 ```
 
 *Step3*
@@ -151,7 +151,7 @@ The following table lists the configurable parameters of the AKO chart and their
 | `NetworkSettings.enableRHI` | Publish route information to BGP peers | false |
 | `NetworkSettings.bgpPeerLabels` | Select BGP peers using bgpPeerLabels, for selective VsVip advertisement. | `Empty List` |
 | `NetworkSettings.nsxtT1LR` | Unique ID (note: not display name) of the T1 Logical Router for Service Engine connectivity. Only applies to NSX-T cloud.| `Empty string` |
-| `NetworkSettings.defaultDomain` | Specify a default sub-domain for L4 virtual services/L7 virtual service created from OpenShift route. | First domain name found in cloud's dnsprofile for L4 vs and `empty string` for L7 vs |
+| `NetworkSettings.defaultDomain` | This flag has two use cases. It can be used to specify a default subdomain for L4 virtual services. It can also be used to generate the hostname for an OpenShift route if the OpenShift route uses a subdomain instead of a host field. | First domain name found in cloud's dnsprofile for L4 vs and `empty string` for an Openshift route |
 | `FeatureGates.gatewayAPI` | FeatureGates is to enable or disable experimental features. GatewayAPI feature gate enables/disables processing of Kubernetes Gateway API CRDs. | false |
 | `FeatureGates.enableEndpointSlice` | EnableEndpointSlice feature gate enables/disables processing of Kubernetes EndpointSlices instead of Endpoints. | true |
 | `GatewayAPI.Image.repository` | Specify docker-registry that has the ako-gateway-api image | projects.registry.vmware.com/ako/ako-gateway-api |
