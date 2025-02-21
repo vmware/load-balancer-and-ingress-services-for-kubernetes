@@ -264,10 +264,7 @@ func ProcessPassthroughHosts(routeIgrObj RouteIngressModel, key string, parsedIn
 	Storedhosts map[string]*objects.RouteIngrhost, hostsMap map[string]*objects.RouteIngrhost) {
 	utils.AviLog.Debugf("key: %s, msg: Storedhosts before processing passthrough hosts: %v", key, Storedhosts)
 	infraSetting := routeIgrObj.GetAviInfraSetting()
-	tenant := objects.SharedNamespaceTenantLister().GetTenantInNamespace(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName())
-	if tenant == "" {
-		tenant = lib.GetTenant()
-	}
+	tenant := lib.GetTenantInNamespace(routeIgrObj.GetNamespace())
 	for host, pass := range parsedIng.PassthroughCollection {
 		hostData, found := Storedhosts[host]
 		if found && hostData.SecurePolicy == lib.PolicyPass {
