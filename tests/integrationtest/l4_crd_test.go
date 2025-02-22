@@ -1328,6 +1328,7 @@ func TestSharedVIPSvcWithL4RuleTransition(t *testing.T) {
 	g.Expect(*nodes[0].AviVsNodeCommonFields.ApplicationProfileRef).To(gomega.ContainSubstring("thisisaviref-l4-appprofile"))
 
 	TearDownTestForSharedVIPSvcLB(t, g)
+	TeardownL4Rule(t, L4RuleName, NAMESPACE)
 }
 
 func TestCreateDeleteL4RuleSSLCustomValues(t *testing.T) {
