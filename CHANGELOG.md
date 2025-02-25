@@ -486,4 +486,12 @@ All notable changes to this project will be documented in this file. The format 
  - Fix: AKO Shared VIP functionality doesn't work in NSX-T setup.
  - Fix: AKO crashes in NSX-T shared L4 vip environment with no subdomain configured.
  - Fix: L4Rule, with SSL enabled, is not applied to L4 VS if license type is Enterprise with Cloud Services.
- - Fix: Cloud name with spaces in causes AKO to fail to start after upgrading Avi to 30.x. 
+ - Fix: Cloud name with spaces in causes AKO to fail to start after upgrading Avi to 30.x.
+
+## AKO-1.12.3
+
+### Added
+ - AKO now supports Kubernetes 1.24 as the minimum supported Kubernetes version.
+
+### Fixed
+ - Fix: For shared VIP L4 virtual service, when the service type is changed from LoadBalancer to ClusterIP and reverted, AKO does not re-create the virtual service.
