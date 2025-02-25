@@ -326,7 +326,7 @@ helmtests:
 	-u root:root \
 	-v $(PWD)/helm/ako:/apps \
 	-v $(PWD)/tests/helmtests:/apps/tests \
-	avi-buildops-docker-registry-02.eng.vmware.com:5000/avi-buildops/helmunittest/helm-unittest:3.11.1-0.3.0 .
+	avi-buildops-docker-registry-02-lv.avilb.broadcom.net:8080/avi-buildops/helmunittest/helm-unittest:3.11.1-0.3.0 .
 
 .PHONY: gatewayapitests
 gatewayapitests:

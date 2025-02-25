@@ -5,7 +5,7 @@
     },
     "kubernetes": {
         "maxVersion": "1.30",
-        "minVersion": "1.25"
+        "minVersion": "1.24"
     },
     "version": "1.12.3"
 }

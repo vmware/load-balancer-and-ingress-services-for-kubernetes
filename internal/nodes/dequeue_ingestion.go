@@ -137,10 +137,9 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 
 	if objType == utils.Service {
-		objects.SharedClusterIpLister().Save(namespace+"/"+name, name)
 		found, _ := objects.SharedlbLister().Get(namespace + "/" + name)
-		// This service is found in the LB list - this means it's a transition from LB to clusterIP or NodePort.
 		if found {
+			// This service is found in the LB list - this means it's a transition from LB to clusterIP or NodePort.
 			objects.SharedlbLister().Delete(namespace + "/" + name)
 			utils.AviLog.Infof("key: %s, msg: service transitioned from type loadbalancer to ClusterIP or NodePort, will delete model", name)
 			model_name := lib.GetModelName(lib.GetTenant(), lib.Encode(lib.GetNamePrefix()+namespace+"-"+name, lib.L4VS))
@@ -149,6 +148,15 @@ func DequeueIngestion(key string, fullsync bool) {
 				PublishKeyToRestLayer(model_name, key, sharedQueue)
 			}
 		}
+		serviceNamespaceName := namespace + "/" + name
+		found, oldKey := objects.SharedlbLister().GetServiceToSharedVipKey(serviceNamespaceName)
+		if found {
+			// This service is found in the Shared vip LB list - this means it's a transition from Shared vip LB to clusterIP or NodePort.
+			objects.SharedlbLister().RemoveSharedVipKeyServiceMappings(serviceNamespaceName)
+			utils.AviLog.Infof("key: %s, msg: service %s transitioned from type Shared vip loadbalancer to ClusterIP or NodePort, will remove service from shared vip object, oldkey: %s", key, name, oldKey)
+			handleL4SharedVipService(oldKey, key, fullsync)
+		}
+		objects.SharedClusterIpLister().Save(namespace+"/"+name, name)
 	}
 
 	if routeFound {
@@ -662,6 +670,17 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 		if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
 			PublishKeyToRestLayer(modelName, key, sharedQueue)
 		}
+		found, _ := objects.SharedClusterIpLister().Get(namespace + "/" + name)
+		if found {
+			// This is transition from ClusterIP or NodePort to service of type shared vip LB svc
+			utils.AviLog.Infof("key: %s, msg: transition case from ClusterIP or NodePort to service of type Shared vip Loadbalancer", key)
+			objects.SharedClusterIpLister().Delete(namespace + "/" + name)
+			affectedIngs, _ := SvcToIng(name, namespace, key)
+			for _, ingress := range affectedIngs {
+				utils.AviLog.Infof("key: %s, msg: Ingress affected as part of transition: %s", key, ingress)
+				HostNameShardAndPublish(utils.Ingress, ingress, namespace, key, fullsync, sharedQueue)
+			}
+		}
 	}
 }
 
@@ -710,11 +729,12 @@ func handleL4Service(key string, fullsync bool) {
 
 		found, _ := objects.SharedClusterIpLister().Get(namespace + "/" + name)
 		if found {
-			// This is transition from clusterIP to service of type LB
+			// This is transition from ClusterIP or NodePort to service of type LB
+			utils.AviLog.Infof("key: %s, msg: transition case from ClusterIP or NodePort to service of type Loadbalancer", key)
 			objects.SharedClusterIpLister().Delete(namespace + "/" + name)
 			affectedIngs, _ := SvcToIng(name, namespace, key)
 			for _, ingress := range affectedIngs {
-				utils.AviLog.Infof("key: %s, msg: transition case from ClusterIP to service of type Loadbalancer: %s", key, ingress)
+				utils.AviLog.Infof("key: %s, msg: Ingress affected as part of transition: %s", key, ingress)
 				HostNameShardAndPublish(utils.Ingress, ingress, namespace, key, fullsync, sharedQueue)
 			}
 		}
