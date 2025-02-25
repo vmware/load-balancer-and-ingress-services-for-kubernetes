@@ -14,6 +14,9 @@ REL_PATH_AKO_GATEWAY_API=$(PACKAGE_PATH_AKO)/cmd/gateway-api
 AKO_OPERATOR_IMAGE=ako-operator
 ENDPOINTSLICES_ENABLED?="false"
 INFORMERS_PACKAGES := $(shell go list ./tests/... | grep informers)
+CRD_OUTPUT_PATH = helm/ako/crds
+PKG_APIS = $(shell go list ./pkg/apis/ako/v1alpha1/...)
+
 define GetSupportabilityMatrix
 $(shell node -p "require('./buildsettings.json').$(1)")
 endef
@@ -512,3 +515,12 @@ golangci: .golangci-bin
 golangci-fix: .golangci-bin
 	@echo "Running golangci-fix"
 	@GOOS=linux GOGC=1 .golangci-bin/golangci-lint run -c .golangci.yml --fix
+
+.controller-gen:
+	@echo "Installing controller-gen"
+	go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
+
+.PHONY: manifests
+manifests: .controller-gen
+	$(CONTROLLER_GEN) crd paths="$(PKG_APIS)" output:crd:artifacts:config=$(CRD_OUTPUT_PATH)
+
