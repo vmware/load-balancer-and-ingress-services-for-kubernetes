@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
@@ -59,7 +58,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		return nil, nil
 	}
 	name := vsvip_meta.Name
-	tenant := fmt.Sprintf("/api/tenant/?name=%s", url.QueryEscape(vsvip_meta.Tenant))
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", lib.GetEscapedValue(vsvip_meta.Tenant))
 	cloudRef := fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)
 	var dns_info_arr []*avimodels.DNSInfo
 	var path string

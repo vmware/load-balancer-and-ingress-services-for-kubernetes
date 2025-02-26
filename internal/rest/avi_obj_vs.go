@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -91,7 +90,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			CloudConfigCksum:      proto.String(strconv.Itoa(int(vs_meta.CloudConfigCksum))),
 			CreatedBy:             proto.String(lib.AKOUser),
 			CloudRef:              proto.String(fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)),
-			TenantRef:             proto.String(fmt.Sprintf("/api/tenant/?name=%s", url.QueryEscape(vs_meta.Tenant))),
+			TenantRef:             proto.String(fmt.Sprintf("/api/tenant/?name=%s", lib.GetEscapedValue(vs_meta.Tenant))),
 			ApplicationProfileRef: proto.String("/api/applicationprofile/?name=" + vs_meta.ApplicationProfile),
 			SeGroupRef:            proto.String("/api/serviceenginegroup?name=" + vs_meta.ServiceEngineGroup),
 			WafPolicyRef:          vs_meta.WafPolicyRef,

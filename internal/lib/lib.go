@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"reflect"
 	"regexp"
@@ -317,7 +318,9 @@ func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32)
 	}
 	return fqdns, fqdn
 }
-
+func GetEscapedValue(val string) string {
+	return url.QueryEscape(val)
+}
 func SetDisableSync(state bool) {
 	DisableSync = state
 	utils.AviLog.Infof("Setting Disable Sync to: %v", state)

@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/url"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -3579,7 +3578,7 @@ func GetAviSeGroup(client *clients.AviClient, segName string) (*models.ServiceEn
 }
 
 func checkTenant(client *clients.AviClient, returnError *error) bool {
-	uri := "/api/tenant/?include_name&name=" + url.QueryEscape(lib.GetTenant())
+	uri := "/api/tenant/?include_name&name=" + lib.GetEscapedValue(lib.GetTenant())
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
 		*returnError = fmt.Errorf("get uri %v returned err %v", uri, err)
