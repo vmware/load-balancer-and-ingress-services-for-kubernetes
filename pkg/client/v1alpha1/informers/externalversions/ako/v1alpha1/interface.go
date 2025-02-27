@@ -26,6 +26,8 @@ import (
 type Interface interface {
 	// ClusterSets returns a ClusterSetInformer.
 	ClusterSets() ClusterSetInformer
+	// HealthMonitors returns a HealthMonitorInformer.
+	HealthMonitors() HealthMonitorInformer
 	// MultiClusterIngresses returns a MultiClusterIngressInformer.
 	MultiClusterIngresses() MultiClusterIngressInformer
 	// ServiceImports returns a ServiceImportInformer.
@@ -46,6 +48,11 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // ClusterSets returns a ClusterSetInformer.
 func (v *version) ClusterSets() ClusterSetInformer {
 	return &clusterSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// HealthMonitors returns a HealthMonitorInformer.
+func (v *version) HealthMonitors() HealthMonitorInformer {
+	return &healthMonitorInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // MultiClusterIngresses returns a MultiClusterIngressInformer.

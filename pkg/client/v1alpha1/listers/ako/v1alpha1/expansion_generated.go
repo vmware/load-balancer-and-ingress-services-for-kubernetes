@@ -26,6 +26,14 @@ type ClusterSetListerExpansion interface{}
 // ClusterSetNamespaceLister.
 type ClusterSetNamespaceListerExpansion interface{}
 
+// HealthMonitorListerExpansion allows custom methods to be added to
+// HealthMonitorLister.
+type HealthMonitorListerExpansion interface{}
+
+// HealthMonitorNamespaceListerExpansion allows custom methods to be added to
+// HealthMonitorNamespaceLister.
+type HealthMonitorNamespaceListerExpansion interface{}
+
 // MultiClusterIngressListerExpansion allows custom methods to be added to
 // MultiClusterIngressLister.
 type MultiClusterIngressListerExpansion interface{}

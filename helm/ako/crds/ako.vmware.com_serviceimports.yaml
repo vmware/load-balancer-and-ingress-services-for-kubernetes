@@ -1,10 +1,11 @@
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
   name: serviceimports.ako.vmware.com
 spec:
-  conversion:
-    strategy: None
   group: ako.vmware.com
   names:
     kind: ServiceImport
@@ -14,48 +15,72 @@ spec:
     - si
     singular: serviceimport
   scope: Namespaced
-
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        type: object
+        description: ServiceImport is the top-level type
         properties:
-          spec:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
             type: object
+          spec:
+            description: spec for MultiClusterIngress Config
             properties:
               cluster:
-                description: "Cluster from which this service is imported from"
-                type: "string"
+                description: Cluster from which this service is imported from
+                type: string
               namespace:
-                description: "namespace in the backend cluster where this service exists"
-                type: "string"
+                description: namespace in the backend cluster where this service exists
+                type: string
               service:
-                description: "name of the service in the backend cluster"
-                type: "string"
+                description: name of the service in the backend cluster
+                type: string
               svcPorts:
-                description: "ports specified for this service in the MCI object"
-                type: array
+                description: ports specified for this service in the MCI object
                 items:
-                  type: object
                   properties:
-                    port:
-                      description: "service port specified for this service in the MCI object"
-                      type: integer
                     endpoints:
-                      description: "endpoints for this service in the backend cluster"
-                      type: array
+                      description: endpoints for this service in the backend cluster
                       items:
-                        type: object
                         properties:
                           ip:
-                            description: "IP address of the backend server"
-                            type: "string"
+                            description: IP address of the backend server
+                            type: string
                           port:
-                            description: "Port number of the backend server"
+                            description: Port number of the backend server
+                            format: int32
+                            maximum: 65535
+                            minimum: 1
                             type: integer
-
+                        type: object
+                      type: array
+                    port:
+                      description: service port specified for this service in the
+                        MCI
+                      format: int32
+                      maximum: 65535
+                      minimum: 1
+                      type: integer
+                  type: object
+                type: array
+            type: object
         required:
         - spec
+        type: object
     served: true
     storage: true

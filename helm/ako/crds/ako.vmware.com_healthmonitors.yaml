@@ -1,0 +1,330 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: healthmonitors.ako.vmware.com
+spec:
+  group: ako.vmware.com
+  names:
+    kind: HealthMonitor
+    listKind: HealthMonitorList
+    plural: healthmonitors
+    singular: healthmonitor
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: HealthMonitor is the Schema for the healthmonitors API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec defines the desired state of HealthMonitor
+            properties:
+              authentication:
+                description: Authentication defines the authentication information
+                  for HTTP/HTTPS monitors.
+                properties:
+                  password:
+                    description: Password for server authentication.
+                    maxLength: 128
+                    minLength: 1
+                    type: string
+                  username:
+                    description: Username for server authentication.
+                    maxLength: 128
+                    minLength: 1
+                    type: string
+                required:
+                - password
+                - username
+                type: object
+              cloud_ref:
+                description: CloudRef is the reference to the cloud in Avi
+                type: string
+              failed_checks:
+                description: FailedChecks is the number of failed pings before marking
+                  down.
+                format: int32
+                maximum: 50
+                minimum: 1
+                type: integer
+              http:
+                description: HTTP defines the HTTP monitor configuration.
+                properties:
+                  auth_type:
+                    description: AuthType is the type of authentication to use.
+                    enum:
+                    - Basic
+                    - NTLM
+                    type: string
+                  exact_http_request:
+                    description: ExactHttpRequest checks if the whole http request
+                      should match.
+                    type: boolean
+                  http_headers:
+                    description: HTTPHeaders is the list of headers to send.
+                    items:
+                      type: string
+                    type: array
+                  http_method:
+                    description: HTTPMethod is the HTTP method to use.
+                    type: string
+                  http_request:
+                    description: HTTPRequest is the HTTP request to send.
+                    type: string
+                  http_request_body:
+                    description: HTTPRequestBody is the request body to send.
+                    type: string
+                  http_request_header_path:
+                    description: HTTPRequestHeaderPath is the path to use for headers.
+                    type: string
+                  http_response:
+                    description: HTTPResponse is a keyword to match in the response
+                      body.
+                    type: string
+                  http_response_code:
+                    description: HTTPResponseCode is the list of expected HTTP response
+                      codes.
+                    items:
+                      type: string
+                    type: array
+                  maintenance_code:
+                    description: MaintenanceCode is the HTTP code for maintenance
+                      response.
+                    items:
+                      format: int32
+                      type: integer
+                    type: array
+                  maintenance_response:
+                    description: MaintenanceResponse is the body content to match
+                      for maintenance response.
+                    type: string
+                  response_size:
+                    description: ResponseSize is the expected size of the response.
+                    format: int32
+                    type: integer
+                  ssl_attributes:
+                    description: SslAttributes is the SSL attributes to use for HTTPS.
+                    properties:
+                      pki_profile_ref:
+                        description: PKI profile used to validate the SSL certificate
+                          presented by a server. It is a reference to an object of
+                          type PKIProfile. Field introduced in 17.1.1. Allowed in
+                          Enterprise edition with any value, Essentials, Basic, Enterprise
+                          with Cloud Services edition.
+                        type: string
+                      server_name:
+                        description: Fully qualified DNS hostname which will be used
+                          in the TLS SNI extension in server connections indicating
+                          SNI is enabled. Field introduced in 18.2.3. Allowed in Enterprise
+                          edition with any value, Essentials, Basic, Enterprise with
+                          Cloud Services edition.
+                        type: string
+                      ssl_key_and_certificate_ref:
+                        description: Service engines will present this SSL certificate
+                          to the server. It is a reference to an object of type SSLKeyAndCertificate.
+                          Field introduced in 17.1.1. Allowed in Enterprise edition
+                          with any value, Essentials, Basic, Enterprise with Cloud
+                          Services edition.
+                        type: string
+                      ssl_profile_ref:
+                        description: SSL profile defines ciphers and SSL versions
+                          to be used for healthmonitor traffic to the back-end servers.
+                          It is a reference to an object of type SSLProfile. Field
+                          introduced in 17.1.1. Allowed in Enterprise edition with
+                          any value, Essentials, Basic, Enterprise with Cloud Services
+                          edition.
+                        type: string
+                    required:
+                    - ssl_profile_ref
+                    type: object
+                type: object
+              https:
+                description: HTTPS defines the HTTPS monitor configuration.
+                properties:
+                  auth_type:
+                    description: AuthType is the type of authentication to use.
+                    enum:
+                    - Basic
+                    - NTLM
+                    type: string
+                  exact_http_request:
+                    description: ExactHttpRequest checks if the whole http request
+                      should match.
+                    type: boolean
+                  http_headers:
+                    description: HTTPHeaders is the list of headers to send.
+                    items:
+                      type: string
+                    type: array
+                  http_method:
+                    description: HTTPMethod is the HTTP method to use.
+                    type: string
+                  http_request:
+                    description: HTTPRequest is the HTTP request to send.
+                    type: string
+                  http_request_body:
+                    description: HTTPRequestBody is the request body to send.
+                    type: string
+                  http_request_header_path:
+                    description: HTTPRequestHeaderPath is the path to use for headers.
+                    type: string
+                  http_response:
+                    description: HTTPResponse is a keyword to match in the response
+                      body.
+                    type: string
+                  http_response_code:
+                    description: HTTPResponseCode is the list of expected HTTP response
+                      codes.
+                    items:
+                      type: string
+                    type: array
+                  maintenance_code:
+                    description: MaintenanceCode is the HTTP code for maintenance
+                      response.
+                    items:
+                      format: int32
+                      type: integer
+                    type: array
+                  maintenance_response:
+                    description: MaintenanceResponse is the body content to match
+                      for maintenance response.
+                    type: string
+                  response_size:
+                    description: ResponseSize is the expected size of the response.
+                    format: int32
+                    type: integer
+                  ssl_attributes:
+                    description: SslAttributes is the SSL attributes to use for HTTPS.
+                    properties:
+                      pki_profile_ref:
+                        description: PKI profile used to validate the SSL certificate
+                          presented by a server. It is a reference to an object of
+                          type PKIProfile. Field introduced in 17.1.1. Allowed in
+                          Enterprise edition with any value, Essentials, Basic, Enterprise
+                          with Cloud Services edition.
+                        type: string
+                      server_name:
+                        description: Fully qualified DNS hostname which will be used
+                          in the TLS SNI extension in server connections indicating
+                          SNI is enabled. Field introduced in 18.2.3. Allowed in Enterprise
+                          edition with any value, Essentials, Basic, Enterprise with
+                          Cloud Services edition.
+                        type: string
+                      ssl_key_and_certificate_ref:
+                        description: Service engines will present this SSL certificate
+                          to the server. It is a reference to an object of type SSLKeyAndCertificate.
+                          Field introduced in 17.1.1. Allowed in Enterprise edition
+                          with any value, Essentials, Basic, Enterprise with Cloud
+                          Services edition.
+                        type: string
+                      ssl_profile_ref:
+                        description: SSL profile defines ciphers and SSL versions
+                          to be used for healthmonitor traffic to the back-end servers.
+                          It is a reference to an object of type SSLProfile. Field
+                          introduced in 17.1.1. Allowed in Enterprise edition with
+                          any value, Essentials, Basic, Enterprise with Cloud Services
+                          edition.
+                        type: string
+                    required:
+                    - ssl_profile_ref
+                    type: object
+                type: object
+              monitor_port:
+                description: MonitorPort is the port to use for the health check.
+                format: int32
+                type: integer
+              receive_timeout:
+                description: ReceiveTimeout is the timeout for receiving a ping response,
+                  in seconds.
+                format: int32
+                maximum: 2400
+                minimum: 1
+                type: integer
+              send_interval:
+                description: SendInterval is the frequency, in seconds, that pings
+                  are sent.
+                format: int32
+                maximum: 3600
+                minimum: 1
+                type: integer
+              successful_checks:
+                description: SuccessfulChecks is the number of successful pings before
+                  marking up.
+                format: int32
+                maximum: 50
+                minimum: 1
+                type: integer
+              tcp:
+                description: TCP defines the TCP monitor configuration.
+                properties:
+                  maintenance_response:
+                    description: MaintenanceResponse is the response to send when
+                      in maintenance mode.
+                    type: string
+                  monitor_port:
+                    description: MonitorPort is the port to use for the TCP health
+                      check.
+                    format: int32
+                    type: integer
+                  tcp_half_open:
+                    description: TcpHalfOpen is a boolean to check if the tcp monitor
+                      is in half open mode
+                    type: boolean
+                  tcp_request:
+                    description: TcpRequest is the request to send for the TCP health
+                      check.
+                    type: string
+                  tcp_response:
+                    description: TcpResponse is the expected response for the TCP
+                      health check.
+                    type: string
+                type: object
+              tenant_ref:
+                description: TenantRef is the reference to the tenant in Avi
+                type: string
+              type:
+                description: Type is the type of health monitor.
+                enum:
+                - HEALTH_MONITOR_TCP
+                - HEALTH_MONITOR_PING
+                - HEALTH_MONITOR_HTTP
+                - HEALTH_MONITOR_HTTPS
+                type: string
+            type: object
+          status:
+            description: Status defines the observed state of HealthMonitor
+            properties:
+              error:
+                description: Error if any error was encountered
+                type: string
+              status:
+                description: Status of the healthmonitor
+                type: string
+            required:
+            - error
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
