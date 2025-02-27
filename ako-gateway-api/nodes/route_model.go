@@ -17,6 +17,7 @@ package nodes
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -93,11 +94,17 @@ type RedirectFilter struct {
 	StatusCode int32
 }
 
+type HTTPUrlRewriteFilter struct {
+	hostname string
+	path     *gatewayv1.HTTPPathModifier
+}
+
 type Filter struct {
-	Type           string
-	RequestFilter  *HeaderFilter
-	ResponseFilter *HeaderFilter
-	RedirectFilter *RedirectFilter
+	Type             string
+	RequestFilter    *HeaderFilter
+	ResponseFilter   *HeaderFilter
+	RedirectFilter   *RedirectFilter
+	UrlRewriteFilter *HTTPUrlRewriteFilter
 }
 
 type Backend struct {
@@ -273,6 +280,21 @@ func (hr *httpRoute) ParseRouteRules() *RouteConfig {
 				}
 				if ruleFilter.RequestRedirect.StatusCode != nil {
 					filter.RedirectFilter.StatusCode = int32(*ruleFilter.RequestRedirect.StatusCode)
+				}
+			}
+
+			// URL rewrite filter
+			if ruleFilter.URLRewrite != nil {
+				filter.UrlRewriteFilter = &HTTPUrlRewriteFilter{}
+				if ruleFilter.URLRewrite.Hostname != nil {
+					filter.UrlRewriteFilter.hostname = string(*ruleFilter.URLRewrite.Hostname)
+				}
+				if ruleFilter.URLRewrite.Path != nil {
+					filter.UrlRewriteFilter.path = ruleFilter.URLRewrite.Path.DeepCopy()
+					if strings.HasPrefix(*filter.UrlRewriteFilter.path.ReplaceFullPath, "/") {
+						*filter.UrlRewriteFilter.path.ReplaceFullPath = (*filter.UrlRewriteFilter.path.ReplaceFullPath)[1:]
+					}
+
 				}
 			}
 			routeConfigRule.Filters = append(routeConfigRule.Filters, filter)
