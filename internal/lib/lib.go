@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"reflect"
 	"regexp"
@@ -274,6 +275,8 @@ func GetNSXTTransportZone() string {
 	return NsxTTzType
 }
 
+var nonDnsLabelRegex = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
+
 func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32) ([]string, string) {
 	var fqdns []string
 	var fqdn string
@@ -294,7 +297,8 @@ func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32)
 		if defaultSubDomain != "" && utils.HasElem(subDomains, defaultSubDomain) {
 			subDomains = []string{defaultSubDomain}
 		}
-
+		// Replace all non valid dns label characters with - in tenant name
+		tenantNameWithValidChars := nonDnsLabelRegex.ReplaceAllString(tenant, "-")
 		// subDomains[0] would either have the defaultSubDomain value
 		// or would default to the first dns subdomain it gets from the dns profile
 		subdomain := subDomains[0]
@@ -303,10 +307,10 @@ func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32)
 		}
 		if GetL4FqdnFormat() == AutoFQDNDefault {
 			// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
-			fqdn = vsName + "." + tenant + "." + subdomain
+			fqdn = vsName + "." + tenantNameWithValidChars + "." + subdomain
 		} else if GetL4FqdnFormat() == AutoFQDNFlat {
 			// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
-			fqdn = vsName + "-" + tenant + "." + subdomain
+			fqdn = vsName + "-" + tenantNameWithValidChars + "." + subdomain
 		}
 		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(fqdn, GetModelName(tenant, vsName))
 		utils.AviLog.Infof("key: %s, msg: Configured the shared VS with default fqdn as: %s", key, fqdn)
@@ -314,7 +318,9 @@ func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32)
 	}
 	return fqdns, fqdn
 }
-
+func GetEscapedValue(val string) string {
+	return url.QueryEscape(val)
+}
 func SetDisableSync(state bool) {
 	DisableSync = state
 	utils.AviLog.Infof("Setting Disable Sync to: %v", state)

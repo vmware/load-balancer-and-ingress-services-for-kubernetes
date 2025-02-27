@@ -43,7 +43,7 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 	var httpPresentPaths []string
 	httpPresentIng := sets.NewString()
 
-	tenant := fmt.Sprintf("/api/tenant/?name=%s", hps_meta.Tenant)
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", lib.GetEscapedValue(hps_meta.Tenant))
 	cr := lib.AKOUser
 
 	http_req_pol := avimodels.HTTPRequestPolicy{}
