@@ -639,6 +639,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 			nsPublishKey := avicache.NamespaceName{Namespace: aviObjKey.Namespace, Name: publishKey}
 
 			if rest.restOperator.isRetryRequired(key, err) {
+				rest.RefreshCacheForPartialOperation(rest_ops, aviObjKey, aviclient, avimodel, key, isEvh, publishKey)
 				rest.PublishKeyToRetryLayer(nsPublishKey, key)
 				return false, processNextObj
 			}
@@ -649,65 +650,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 			utils.AviLog.Warnf("key: %s, msg: there was an error sending the macro %v", key, err.Error())
 			models.RestStatus.UpdateAviApiRestStatus("", err)
 
-			for i := len(rest_ops) - 1; i >= 0; i-- {
-				// Go over each of the failed requests and enqueue them to the worker queue for retry.
-				if rest_ops[i].Err != nil {
-					// check for VSVIP errors for blocked IP address updates
-					if checkVsVipUpdateErrors(key, rest_ops[i]) {
-						rest.PopulateOneCache(rest_ops[i], aviObjKey, key)
-						continue
-					}
-					if rest_ops[i].Obj != nil && rest_ops[i].Caller != "" {
-						updateGatewayStatusWithVsError(key, rest_ops[i])
-					}
-					// If it's for a SNI child, publish the parent VS's key
-					refreshCacheForRetry := false
-					if avimodel != nil && isEvh && len(avimodel.GetAviEvhVS()) > 0 {
-						refreshCacheForRetry = true
-					} else if avimodel != nil && !isEvh && len(avimodel.GetAviVS()) > 0 {
-						refreshCacheForRetry = true
-					}
-					if refreshCacheForRetry {
-						utils.AviLog.Warnf("key: %s, msg: Retrieved key for Retry:%s, object: %s", key, publishKey, rest_ops[i].ObjName)
-						aviError, ok := rest_ops[i].Err.(session.AviError)
-						if !ok {
-							utils.AviLog.Infof("key: %s, msg: Error is not of type AviError, err: %v, %T", key, rest_ops[i].Err, rest_ops[i].Err)
-							continue
-						}
-						aviclient := aviRestPoolClient.AviClient[bkt]
-						retryable, fastRetryable, nextObj := rest.RefreshCacheForRetryLayer(publishKey, aviObjKey, rest_ops[i], aviError, aviclient, avimodel, key, isEvh)
-						retry = retry || retryable
-						processNextObj = processNextObj || nextObj
-						if avimodel.GetRetryCounter() != 0 {
-							fastRetry = fastRetry || fastRetryable
-						} else {
-							fastRetry = false
-							utils.AviLog.Warnf("key: %s, msg: retry count exhausted, would be added to slow retry queue", key)
-						}
-					} else {
-						utils.AviLog.Warnf("key: %s, msg: Avi model not set, possibly a DELETE call", key)
-						aviError, ok := rest_ops[i].Err.(session.AviError)
-						// If it's 404, don't retry
-						if ok {
-							statuscode := aviError.HttpStatusCode
-							if statuscode != 404 {
-								if statuscode == 412 {
-									// concurrent update scenario currently happens for VRFContext only
-									rest.PublishKeyToRetryLayer(nsPublishKey, key)
-								} else {
-									rest.PublishKeyToSlowRetryLayer(nsPublishKey, key)
-								}
-								return false, true
-							} else {
-								rest.AviVsCacheDel(rest_ops[i], aviObjKey, key)
-							}
-						}
-					}
-				} else {
-					rest.PopulateOneCache(rest_ops[i], aviObjKey, key)
-				}
-			}
-
+			retry, fastRetry, processNextObj = rest.RefreshCacheForPartialOperation(rest_ops, aviObjKey, aviclient, avimodel, key, isEvh, publishKey)
 			if retry {
 				if fastRetry {
 					rest.PublishKeyToRetryLayer(nsPublishKey, key)
@@ -719,6 +662,75 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 		}
 	}
 	return true, true
+}
+
+func (rest *RestOperations) RefreshCacheForPartialOperation(rest_ops []*utils.RestOp, aviObjKey avicache.NamespaceName, aviclient *clients.AviClient, avimodel *nodes.AviObjectGraph, key string, isEvh bool, publishKey string) (bool, bool, bool) {
+	var retry, fastRetry, processNextObj bool
+	for i := len(rest_ops) - 1; i >= 0; i-- {
+		// Go over each of the failed requests and enqueue them to the worker queue for retry.
+		if rest_ops[i].Err != nil {
+			// check for VSVIP errors for blocked IP address updates
+			if checkVsVipUpdateErrors(key, rest_ops[i]) {
+				rest.PopulateOneCache(rest_ops[i], aviObjKey, key)
+				continue
+			}
+			if rest_ops[i].Obj != nil && rest_ops[i].Caller != "" {
+				updateGatewayStatusWithVsError(key, rest_ops[i])
+			}
+			// If it's for a SNI child, publish the parent VS's key
+			refreshCacheForRetry := false
+			if avimodel != nil && isEvh && len(avimodel.GetAviEvhVS()) > 0 {
+				refreshCacheForRetry = true
+			} else if avimodel != nil && !isEvh && len(avimodel.GetAviVS()) > 0 {
+				refreshCacheForRetry = true
+			}
+			if refreshCacheForRetry {
+				utils.AviLog.Warnf("key: %s, msg: Retrieved key for Retry:%s, object: %s", key, publishKey, rest_ops[i].ObjName)
+				aviError, ok := rest_ops[i].Err.(session.AviError)
+				if !ok {
+					utils.AviLog.Infof("key: %s, msg: Error is not of type AviError, err: %v, %T", key, rest_ops[i].Err, rest_ops[i].Err)
+					continue
+				}
+				retryable, fastRetryable, nextObj := rest.RefreshCacheForRetryLayer(publishKey, aviObjKey, rest_ops[i], aviError, aviclient, avimodel, key, isEvh)
+				retry = retry || retryable
+				processNextObj = processNextObj || nextObj
+				if avimodel.GetRetryCounter() != 0 {
+					fastRetry = fastRetry || fastRetryable
+				} else {
+					fastRetry = false
+					utils.AviLog.Warnf("key: %s, msg: retry count exhausted, would be added to slow retry queue", key)
+				}
+			} else {
+				utils.AviLog.Warnf("key: %s, msg: Avi model not set, possibly a DELETE call", key)
+				aviError, ok := rest_ops[i].Err.(session.AviError)
+				// If it's 404, don't retry
+				if ok {
+					statuscode := aviError.HttpStatusCode
+					if statuscode != 404 {
+						if statuscode == 412 {
+							// concurrent update scenario currently happens for VRFContext only
+							fastRetry = true
+						} else {
+							fastRetry = false
+						}
+						retry = true
+						processNextObj = true
+						return retry, fastRetry, processNextObj
+					} else {
+						if !lib.AKOControlConfig().IsLeader() {
+							utils.AviLog.Infof("key: %s, msg: Populating cache for follower, possibly a DELETE call", key)
+							rest.PopulateOneCache(rest_ops[i], aviObjKey, key)
+						} else {
+							rest.AviVsCacheDel(rest_ops[i], aviObjKey, key)
+						}
+					}
+				}
+			}
+		} else {
+			rest.PopulateOneCache(rest_ops[i], aviObjKey, key)
+		}
+	}
+	return retry, fastRetry, processNextObj
 }
 
 func updateGatewayStatusWithVsError(key string, rest_op *utils.RestOp) {
