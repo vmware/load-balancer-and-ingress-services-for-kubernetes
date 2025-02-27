@@ -530,6 +530,16 @@ func GetHTTPRouteFilterV1(filterType string, actions []string) gatewayv1.HTTPRou
 			Hostname:   (*gatewayv1.PreciseHostname)(&host),
 			StatusCode: &statusCode302,
 		}
+	case "URLRewrite":
+		replaceFullPath := "/bar"
+		host := "rewrite.com"
+		routeFilter.URLRewrite = &gatewayv1.HTTPURLRewriteFilter{
+			Hostname: (*gatewayv1.PreciseHostname)(&host),
+			Path: &gatewayv1.HTTPPathModifier{
+				Type:            gatewayv1.FullPathHTTPPathModifier,
+				ReplaceFullPath: &replaceFullPath,
+			},
+		}
 	}
 	return routeFilter
 }
