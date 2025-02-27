@@ -44,7 +44,7 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	name := pool_meta.Name
 	cksum := pool_meta.CloudConfigCksum
 	cksumString := strconv.Itoa(int(cksum))
-	tenant := fmt.Sprintf("/api/tenant/?name=%s", pool_meta.Tenant)
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", lib.GetEscapedValue(pool_meta.Tenant))
 	cr := lib.AKOUser
 	svc_mdata_json, _ := json.Marshal(&pool_meta.ServiceMetadata)
 	svc_mdata := string(svc_mdata_json)

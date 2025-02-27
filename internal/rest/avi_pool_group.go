@@ -36,7 +36,7 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 	name := pg_meta.Name
 	cksum := pg_meta.CloudConfigCksum
 	cksumString := strconv.Itoa(int(cksum))
-	tenant := fmt.Sprintf("/api/tenant/?name=%s", pg_meta.Tenant)
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", lib.GetEscapedValue(pg_meta.Tenant))
 	members := rest.SanitizePGMembers(pg_meta.Members, key)
 	cr := lib.AKOUser
 	cloudRef := fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)
