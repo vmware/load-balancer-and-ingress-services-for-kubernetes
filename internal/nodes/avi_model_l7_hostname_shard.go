@@ -634,6 +634,12 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 				buildWithInfraSetting(key, namespace, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 			}
 		}
+		// For dedicated vs we need to reprocess app-root since we are not building app-root for the portProto that is added as part of same BuildL7HostRule call.
+		// This is because for non-dedicated mode, we need the portProto from the parent vs node so it is ready by the time we apply app-root settings to child vs.
+		// Where as for dedicated vs, hostrule tcp listener ports will override the existing portProto for the same vs node and later aviinfrasetting may update the listener ports as well.
+		if vsNode[0].IsDedicatedVS() {
+			BuildOnlyRegexAppRootDedicated(sniHost, key, vsNode[0])
+		}
 		// Only add this node to the list of models if the checksum has changed.
 		modelChanged := saveAviModel(model_name, modelGraph, key)
 		if !utils.HasElem(*modelList, model_name) && modelChanged {
@@ -745,6 +751,8 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 			}
 			o.BuildPolicyRedirectForVS(vsNode, sniHosts, namespace, infraSettingName, sniHost, key)
 		}
+		// setting child node portProto with same value as parent node so that redirect rules are added for all front-end ports if app-root is set
+		sniNode.SetPortProtocols(vsNode[0].PortProto)
 		BuildL7HostRule(sniHost, key, sniNode)
 
 		// Compare and remove the deleted aliases from the FQDN list

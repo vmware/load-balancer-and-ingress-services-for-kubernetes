@@ -407,19 +407,38 @@ func handleHostRuleForSharedVS(key string, fullsync bool) {
 					continue
 				} else {
 					vsNode = nodes[0]
+					if found, fqdn := objects.SharedCRDLister().GetSharedVSModelFQDNMapping(modelName); found {
+						BuildL7HostRule(fqdn, key, vsNode)
+						for _, evh := range nodes[0].EvhNodes {
+							// setting child node portProto with same value as parent node so that redirect rules are added for all front-end ports if app-root is set
+							evh.SetPortProtocols(vsNode.GetPortProtocols())
+							// invoking BuildL7HostRule for all child nodes so that we can rebuild with app-root if hostrule for parent vs has updated the listener ports
+							BuildL7HostRule(evh.GetVHDomainNames()[0], key, evh)
+						}
+						ok := saveAviModel(modelName, aviModelObject, key)
+						if ok && len(aviModelObject.GetOrderedNodes()) != 0 && !fullsync {
+							PublishKeyToRestLayer(modelName, key, sharedQueue)
+						}
+					}
 				}
 			} else {
 				if nodes := aviModelObject.GetAviVS(); len(nodes) == 0 {
 					continue
 				} else {
 					vsNode = nodes[0]
-				}
-			}
-			if found, fqdn := objects.SharedCRDLister().GetSharedVSModelFQDNMapping(modelName); found {
-				BuildL7HostRule(fqdn, key, vsNode)
-				ok := saveAviModel(modelName, aviModelObject, key)
-				if ok && len(aviModelObject.GetOrderedNodes()) != 0 && !fullsync {
-					PublishKeyToRestLayer(modelName, key, sharedQueue)
+					if found, fqdn := objects.SharedCRDLister().GetSharedVSModelFQDNMapping(modelName); found {
+						BuildL7HostRule(fqdn, key, vsNode)
+						for _, sni := range nodes[0].SniNodes {
+							// setting child node portProto with same value as parent node so that redirect rules are added for all front-end ports if app-root is set
+							sni.SetPortProtocols(vsNode.GetPortProtocols())
+							// invoking BuildL7HostRule for all child nodes so that we can rebuild with app-root if hostrule for parent vs has updated the listener ports
+							BuildL7HostRule(sni.GetVHDomainNames()[0], key, sni)
+						}
+						ok := saveAviModel(modelName, aviModelObject, key)
+						if ok && len(aviModelObject.GetOrderedNodes()) != 0 && !fullsync {
+							PublishKeyToRestLayer(modelName, key, sharedQueue)
+						}
+					}
 				}
 			}
 		}
