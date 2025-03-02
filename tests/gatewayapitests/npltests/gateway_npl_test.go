@@ -182,7 +182,7 @@ func setupAndVerifyGatewayForNPL(t *testing.T, g *gomega.WithT, gatewayClassName
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	parentRefs := tests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule := tests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+	rule := tests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add"}},
 		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
@@ -490,7 +490,7 @@ func TestSvcAutoAnnotate(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	parentRefs := tests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule := tests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+	rule := tests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add"}},
 		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
@@ -594,7 +594,7 @@ func TestSvcUpdateAutoAnnotate(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	parentRefs := tests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule := tests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+	rule := tests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add"}},
 		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
