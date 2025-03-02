@@ -552,10 +552,10 @@ func GetHTTPRouteBackendV1(backendRefs []string) gatewayv1.HTTPBackendRef {
 
 }
 
-func GetHTTPRouteRuleV1(paths []string, matchHeaders []string, filterActionMap map[string][]string, backendRefs [][]string, backendRefFilters map[string][]string) gatewayv1.HTTPRouteRule {
+func GetHTTPRouteRuleV1(pathMatchType string, paths []string, matchHeaders []string, filterActionMap map[string][]string, backendRefs [][]string, backendRefFilters map[string][]string) gatewayv1.HTTPRouteRule {
 	matches := make([]gatewayv1.HTTPRouteMatch, 0, len(paths))
 	for _, path := range paths {
-		match := GetHTTPRouteMatchV1(path, "PathPrefix", matchHeaders)
+		match := GetHTTPRouteMatchV1(path, pathMatchType, matchHeaders)
 		matches = append(matches, match)
 	}
 

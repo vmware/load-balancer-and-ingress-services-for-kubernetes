@@ -64,7 +64,7 @@ func TestHTTPRouteWithValidConfig(t *testing.T) {
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
 	hostnames := []gatewayv1.Hostname{"foo-8080.com", "foo-8081.com"}
-	rule := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+	rule := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName, namespace, "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
@@ -1055,7 +1055,7 @@ func TestHTTPRouteWithInvalidBackendKind(t *testing.T) {
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
-	rule := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+	rule := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
 	kind := gatewayv1.Kind("InvalidKind")
@@ -1132,7 +1132,7 @@ func TestHTTPRouteWithValidAndInvalidBackendKind(t *testing.T) {
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
-	rule := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+	rule := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{"avisvc", "default", "8080", "1"}, {svcName, "default", "8080", "1"}}, nil)
 	kind := gatewayv1.Kind("InvalidKind")
@@ -1206,7 +1206,7 @@ func TestHTTPRouteGatewayWithEmptyHostnameInGatewayHTTPRoute(t *testing.T) {
 	}, 5*time.Second).Should(gomega.Equal(true))
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
-	rule := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{}, nil,
+	rule := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{}, nil,
 		[][]string{{svcName, namespace, "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
 	hostnames := []gatewayv1.Hostname{}

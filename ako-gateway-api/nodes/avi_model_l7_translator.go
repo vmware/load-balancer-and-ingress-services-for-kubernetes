@@ -287,6 +287,8 @@ func (o *AviObjectGraph) BuildVHMatch(key string, parentNsName string, routeType
 					rule.Matches.Path.MatchCriteria = proto.String("EQUALS")
 				} else if match.PathMatch.Type == "PathPrefix" {
 					rule.Matches.Path.MatchCriteria = proto.String("BEGINS_WITH")
+				} else if match.PathMatch.Type == "RegularExpression" {
+					rule.Matches.Path.MatchCriteria = proto.String("REGEX_MATCH")
 				}
 			}
 

@@ -306,7 +306,7 @@ func (hr *httpRoute) ParseRouteConfig(key string) *RouteConfig {
 				backend.Weight = *ruleBackend.Weight
 			}
 			httpBackend.Backend = backend
-			isValidBackend, resolvedRefConditionforBackend := validateBackendReference(key, *backend, hr)
+			isValidBackend, resolvedRefConditionforBackend := validateBackendReference(key, *backend)
 			if isValidBackend {
 				routeConfigRule.Backends = append(routeConfigRule.Backends, httpBackend)
 				if !hasInvalidBackend {
