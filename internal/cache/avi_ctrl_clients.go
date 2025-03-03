@@ -52,6 +52,9 @@ func SharedAVIClients(tenant string) *utils.AviRestClientPool {
 			lib.AKOShutdown, "Avi Controller information missing (username: %s, password: %s, authToken: %s, controller: %s)",
 			ctrlUsername, passwordLog, authTokenLog, ctrlIpAddress,
 		)
+		if ctrlIpAddress == "" {
+			utils.AviLog.Fatalf("Avi Controller information missing (username: %s, password: %s, authToken: %s, controller: %s). Update the controller IP in ConfigMap : avi-k8s-config", ctrlUsername, passwordLog, authTokenLog, ctrlIpAddress)
+		}
 		utils.AviLog.Fatalf("Avi Controller information missing (username: %s, password: %s, authToken: %s, controller: %s). Update them in avi-secret.", ctrlUsername, passwordLog, authTokenLog, ctrlIpAddress)
 	}
 
