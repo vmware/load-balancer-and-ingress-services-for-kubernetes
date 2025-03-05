@@ -73,7 +73,7 @@ func IsHTTPRouteValid(key string, obj *gatewayv1.HTTPRoute) bool {
 	return true
 }
 
-func validateBackendReference(key string, backend Backend, httpRoute *httpRoute) (bool, akogatewayapistatus.Condition) {
+func validateBackendReference(key string, backend Backend) (bool, akogatewayapistatus.Condition) {
 	routeConditionResolvedRef := akogatewayapistatus.NewCondition().
 		Type(string(gatewayv1.RouteConditionResolvedRefs)).
 		Status(metav1.ConditionFalse)

@@ -27,6 +27,9 @@ const (
 
 const (
 	GatewayClassGatewayControllerIndex = "GatewayClassGatewayController"
+	REGULAREXPRESSION                  = "RegularExpression"
+	EXACT                              = "Exact"
+	PATHPREFIX                         = "PathPrefix"
 )
 
 const (

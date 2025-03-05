@@ -81,6 +81,8 @@ const (
 	letterBytes         = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	DefaultRouteCert    = "router-certs-default"
 	DEFAULT_NAMESPACE   = "default"
+	PATHPREFIX          = "PathPrefix"
+	REGULAREXPRESSION   = "RegularExpression"
 )
 
 var KubeClient *k8sfake.Clientset
