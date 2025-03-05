@@ -134,7 +134,11 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName, tenant, key string, routeI
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 	//Apply hostrule on shared Vs fqdn
-	if avi_vs_meta.SharedVS && configuredSharedVSFqdn != "" {
+	if avi_vs_meta.SharedVS {
+		if configuredSharedVSFqdn == "" {
+			// in case no dns profile present
+			configuredSharedVSFqdn = vsName
+		}
 		BuildL7HostRule(configuredSharedVSFqdn, key, avi_vs_meta)
 	}
 }
