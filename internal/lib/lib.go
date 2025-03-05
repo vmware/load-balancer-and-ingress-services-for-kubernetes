@@ -286,13 +286,14 @@ func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32)
 	if shardSize == 0 {
 		return fqdns, fqdn
 	}
-	//Replace all non valid dns label characters with - in tenant name
-	tenantNameWithValidChars := nonDnsLabelRegex.ReplaceAllString(tenant, "-")
+
 	autoFQDN := true
 	if GetL4FqdnFormat() == AutoFQDNDisabled {
 		autoFQDN = false
 	}
 	if subDomains != nil && autoFQDN {
+		//Replace all non valid dns label characters with - in tenant name
+		tenantNameWithValidChars := nonDnsLabelRegex.ReplaceAllString(tenant, "-")
 		// honour defaultSubDomain from values.yaml if specified
 		defaultSubDomain := GetDomain()
 		if defaultSubDomain != "" && utils.HasElem(subDomains, defaultSubDomain) {
@@ -315,6 +316,8 @@ func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32)
 		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(fqdn, GetModelName(tenant, vsName))
 		utils.AviLog.Infof("key: %s, msg: Configured the shared VS with default fqdn as: %s", key, fqdn)
 		fqdns = append(fqdns, fqdn)
+	} else {
+		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(vsName, GetModelName(tenant, vsName))
 	}
 	return fqdns, fqdn
 }

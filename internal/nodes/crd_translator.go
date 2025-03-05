@@ -39,7 +39,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	found, hrNamespaceName := objects.SharedCRDLister().GetFQDNToHostruleMappingWithType(host)
 	deleteCase := false
 	if !found {
-		utils.AviLog.Debugf("key: %s, msg: No HostRule found for virtualhost: %s in Cache", key, host)
+		utils.AviLog.Warnf("key: %s, msg: No HostRule found for virtualhost: %s in Cache", key, host)
 		deleteCase = true
 	}
 
