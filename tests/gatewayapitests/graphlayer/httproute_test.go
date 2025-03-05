@@ -76,7 +76,7 @@ func TestHTTPRouteCRUD(t *testing.T) {
 	integrationtest.CreateEPorEPS(t, "default", "avisvc", false, false, "1.1.1")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
@@ -102,7 +102,7 @@ func TestHTTPRouteCRUD(t *testing.T) {
 	g.Expect(childNode.VHMatches[0].Rules[0].Matches.Path.MatchStr).To(gomega.ContainElement("/foo"))
 	g.Expect(*childNode.VHMatches[0].Rules[0].Matches.Path.MatchCriteria).To(gomega.Equal("BEGINS_WITH"))
 
-	rule = akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add"}},
 		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
 	rules = []gatewayv1.HTTPRouteRule{rule}
@@ -159,10 +159,10 @@ func TestHTTPRouteRuleCRUD(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	ruleWithoutCanary := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	ruleWithoutCanary := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
-	ruleWithCanary := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/bar"}, []string{"canary"},
+	ruleWithCanary := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/bar"}, []string{"canary"},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{ruleWithCanary, ruleWithoutCanary}
@@ -227,7 +227,7 @@ func TestHTTPRouteFilterCRUD(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add"}},
 		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
@@ -262,7 +262,7 @@ func TestHTTPRouteFilterCRUD(t *testing.T) {
 	g.Expect(*childVS.HttpPolicyRefs[0].RequestRules[0].HdrAction[0].Action).To(gomega.Equal("HTTP_ADD_HDR"))
 
 	// update httproute
-	rule = akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"replace"}},
 		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
 	rules = []gatewayv1.HTTPRouteRule{rule}
@@ -303,7 +303,7 @@ func TestHTTPRouteFilterWithRequestHeaderModifier(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "replace", "remove"}},
 		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
@@ -340,7 +340,7 @@ func TestHTTPRouteFilterWithRequestHeaderModifier(t *testing.T) {
 	g.Expect(*childVS.HttpPolicyRefs[0].RequestRules[0].HdrAction[2].Action).To(gomega.Equal("HTTP_REMOVE_HDR"))
 
 	// update httproute
-	rule = akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"replace", "remove"}},
 		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
 	rules = []gatewayv1.HTTPRouteRule{rule}
@@ -383,7 +383,7 @@ func TestHTTPRouteFilterWithResponseHeaderModifier(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"ResponseHeaderModifier": {"add", "replace", "remove"}},
 		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
@@ -420,7 +420,7 @@ func TestHTTPRouteFilterWithResponseHeaderModifier(t *testing.T) {
 	g.Expect(*childVS.HttpPolicyRefs[0].ResponseRules[0].HdrAction[2].Action).To(gomega.Equal("HTTP_REMOVE_HDR"))
 
 	// update httproute
-	rule = akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"ResponseHeaderModifier": {"replace", "remove"}},
 		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
 	rules = []gatewayv1.HTTPRouteRule{rule}
@@ -463,7 +463,7 @@ func TestHTTPRouteFilterWithRequestRedirect(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestRedirect": {}},
 		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
@@ -499,7 +499,7 @@ func TestHTTPRouteFilterWithRequestRedirect(t *testing.T) {
 	g.Expect(*childVS.HttpPolicyRefs[0].RequestRules[0].RedirectAction.StatusCode).To(gomega.Equal("HTTP_REDIRECT_STATUS_CODE_302"))
 
 	// update httproute
-	rule = akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{},
 		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
 	rules = []gatewayv1.HTTPRouteRule{rule}
@@ -545,7 +545,7 @@ func TestHTTPRouteWithValidConfig(t *testing.T) {
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
 	hostnames := []gatewayv1.Hostname{"foo-8080.com", "foo-8081.com"}
-	rule := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName, namespace, "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
@@ -621,7 +621,7 @@ func TestHTTPRouteBackendRefCRUD(t *testing.T) {
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
@@ -645,7 +645,7 @@ func TestHTTPRouteBackendRefCRUD(t *testing.T) {
 	g.Expect(childNode.PoolGroupRefs[0].Members).To(gomega.HaveLen(1))
 	g.Expect(childNode.DefaultPoolGroup).NotTo(gomega.Equal(""))
 
-	rule = akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add"}}, nil, nil)
 	rules = []gatewayv1.HTTPRouteRule{rule}
 	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
@@ -667,7 +667,7 @@ func TestHTTPRouteBackendRefCRUD(t *testing.T) {
 	g.Expect(childNode.DefaultPoolGroup).To(gomega.Equal(""))
 
 	// update the backend service
-	rule = akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add"}},
 		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
 	rules = []gatewayv1.HTTPRouteRule{rule}
@@ -720,7 +720,7 @@ func TestHTTPRouteBackendServiceCDC(t *testing.T) {
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
@@ -807,7 +807,7 @@ func TestHTTPRouteBackendServiceUpdate(t *testing.T) {
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
@@ -834,7 +834,7 @@ func TestHTTPRouteBackendServiceUpdate(t *testing.T) {
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName2, "TCP", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
 
-	rule = akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add"}},
 		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}, {svcName2, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
 	rules = []gatewayv1.HTTPRouteRule{rule}
@@ -850,7 +850,7 @@ func TestHTTPRouteBackendServiceUpdate(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(2))
 
 	// update the backend service
-	rule = akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add"}},
 		[][]string{{svcName2, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
 	rules = []gatewayv1.HTTPRouteRule{rule}
@@ -906,7 +906,7 @@ func TestHTTPRouteMultiportBackendSvc(t *testing.T) {
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, true, true, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
@@ -965,7 +965,7 @@ func TestHTTPRouteInvalidHostname(t *testing.T) {
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
@@ -1034,7 +1034,7 @@ func TestHTTPRouteGatewayWithEmptyHostnameInGatewayHTTPRoute(t *testing.T) {
 	}, 5*time.Second).Should(gomega.Equal(true))
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{}, nil,
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{}, nil,
 		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
 	hostnames := []gatewayv1.Hostname{}
@@ -1101,12 +1101,12 @@ func TestHTTPRouteWithMultipleListenerGateway(t *testing.T) {
 	parentRefs := akogatewayapitests.GetParentReferencesV1WithGatewayNameOnly([]string{gatewayName}, DEFAULT_NAMESPACE)
 
 	// httproute rule 1
-	rule1 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{}, nil,
+	rule1 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{}, nil,
 		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule1}
 
 	// httproute rule2
-	rule2 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/bar"}, []string{}, nil,
+	rule2 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/bar"}, []string{}, nil,
 		[][]string{{svcName, DEFAULT_NAMESPACE, "8082", "1"}}, nil)
 	rules = append(rules, rule2)
 
@@ -1201,9 +1201,9 @@ func TestHTTPRouteWithMultipleGateways(t *testing.T) {
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName1, gatewayName2}, DEFAULT_NAMESPACE, []int32{8080, 8081})
 	parentRefs = []gatewayv1.ParentReference{parentRefs[0], parentRefs[3]}
-	rule1 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{}, nil,
+	rule1 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{}, nil,
 		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
-	rule2 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/bar"}, []string{}, nil,
+	rule2 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/bar"}, []string{}, nil,
 		[][]string{{svcName, DEFAULT_NAMESPACE, "8081", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule1, rule2}
 	hostnames := []gatewayv1.Hostname{"foo-8080.com", "foo-8081.com"}
@@ -1305,7 +1305,7 @@ func TestHTTPRouteParentFQDN(t *testing.T) {
 	}, 45*time.Second).Should(gomega.Equal(true))
 
 	parentRefs := akogatewayapitests.GetParentReferencesFromListeners(listeners, gatewayName1, DEFAULT_NAMESPACE)
-	rule1 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{}, nil,
+	rule1 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{}, nil,
 		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
 
 	rules := []gatewayv1.HTTPRouteRule{rule1}
@@ -1366,7 +1366,7 @@ func TestHTTPRouteParentFQDN(t *testing.T) {
 	g.Expect(nodes[0].VSVIPRefs[0].FQDNs[1]).To(gomega.Equal("efg.avi.internal"))
 
 	// create httproute 2 and attach it to listener 2
-	rule1 = akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{}, nil,
+	rule1 = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{}, nil,
 		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
 
 	rules = []gatewayv1.HTTPRouteRule{rule1}
@@ -1453,10 +1453,10 @@ func TestHttpRouteWithValidAndInvalidGatewayListeners(t *testing.T) {
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule1 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule1 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
-	rule2 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/bar"}, []string{},
+	rule2 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/bar"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName2, DEFAULT_NAMESPACE, "8081", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule1, rule2}
@@ -1538,7 +1538,7 @@ func TestMultipleHttpRoutesWithValidAndInvalidGatewayListeners(t *testing.T) {
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
 
 	parentRefs1 := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, []int32{ports[0]})
-	rule1 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule1 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
 	rules1 := []gatewayv1.HTTPRouteRule{rule1}
@@ -1546,7 +1546,7 @@ func TestMultipleHttpRoutesWithValidAndInvalidGatewayListeners(t *testing.T) {
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName1, DEFAULT_NAMESPACE, parentRefs1, hostnames1, rules1)
 
 	parentRefs2 := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, []int32{ports[1]})
-	rule2 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/bar"}, []string{},
+	rule2 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/bar"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName, DEFAULT_NAMESPACE, "8081", "1"}}, nil)
 	rules2 := []gatewayv1.HTTPRouteRule{rule2}
@@ -1615,10 +1615,10 @@ func TestTransitionsHttpRouteWithPartiallyValidGatewayToValidGateway(t *testing.
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule1 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule1 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
-	rule2 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/bar"}, []string{},
+	rule2 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/bar"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName2, DEFAULT_NAMESPACE, "8081", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule1, rule2}
@@ -1790,10 +1790,10 @@ func TestTransitionsHttpRouteWithPartiallyValidGatewayToInvalidGateway(t *testin
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule1 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule1 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
-	rule2 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/bar"}, []string{},
+	rule2 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/bar"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName2, DEFAULT_NAMESPACE, "8081", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule1, rule2}
@@ -1901,10 +1901,10 @@ func TestTransitionsHttpRouteWithInvalidGatewayToPartiallyValidGateway(t *testin
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule1 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule1 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
-	rule2 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/bar"}, []string{},
+	rule2 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/bar"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName2, DEFAULT_NAMESPACE, "8081", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule1, rule2}
@@ -2002,10 +2002,10 @@ func TestTransitionsHttpRouteWithValidGatewayToPartiallyValidGateway(t *testing.
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule1 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule1 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
-	rule2 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/bar"}, []string{},
+	rule2 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/bar"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName2, DEFAULT_NAMESPACE, "8081", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule1, rule2}
@@ -2169,10 +2169,10 @@ func TestTransitionsMultipleHttpRoutesWithPartiallyValidGatewayToValidGateway(t 
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, []int32{ports[0]})
-	rule1 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule1 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
-	rule2 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/bar"}, []string{},
+	rule2 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/bar"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName2, DEFAULT_NAMESPACE, "8081", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule1, rule2}
@@ -2332,10 +2332,10 @@ func TestTransitionsMultipleHttpRouteWithInvalidGatewayToPartiallyValidGateway(t
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, []int32{ports[0]})
-	rule1 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule1 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
-	rule2 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/bar"}, []string{},
+	rule2 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/bar"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName2, DEFAULT_NAMESPACE, "8081", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule1, rule2}
@@ -2423,7 +2423,7 @@ func TestHttpRouteCreationBeforeGateway(t *testing.T) {
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, []int32{ports[0]})
-	rule := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
 
@@ -2510,10 +2510,10 @@ func TestHttpRouteWithPortUpdateInGateway(t *testing.T) {
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule1 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule1 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
-	rule2 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/bar"}, []string{},
+	rule2 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/bar"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName2, DEFAULT_NAMESPACE, "8081", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule1, rule2}
@@ -2664,7 +2664,7 @@ func TestHTTPRouteFilterCRUDWithNSXT(t *testing.T) {
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
@@ -2730,7 +2730,7 @@ func TestHTTPRouteBackendServiceInvalidType(t *testing.T) {
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName1, "TCP", corev1.ServiceTypeExternalName, false)
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{},
 		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
@@ -2784,7 +2784,7 @@ func TestSecretCreateDeleteWithHTTPRoute(t *testing.T) {
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName1, "TCP", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
@@ -2883,10 +2883,10 @@ func TestHttpRouteWithDifferentGatewayController(t *testing.T) {
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName1, gatewayName2, gatewayName3}, DEFAULT_NAMESPACE, ports)
 	parentRefs = []gatewayv1.ParentReference{parentRefs[0], parentRefs[2], parentRefs[5]}
-	rule1 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule1 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
-	rule2 := akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/bar"}, []string{},
+	rule2 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/bar"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName2, DEFAULT_NAMESPACE, "8081", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule1, rule2}
@@ -2979,7 +2979,7 @@ func TestHTTPRouteCRUDWithRegexPath(t *testing.T) {
 	integrationtest.CreateEPorEPS(t, "default", svcName, false, false, "1.1.1")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule := akogatewayapitests.GetHTTPRouteRuleV1("RegularExpression", []string{"/foo/[a-z]+/bar"}, []string{},
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.REGULAREXPRESSION, []string{"/foo/[a-z]+/bar"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{svcName, "default", "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
@@ -3005,7 +3005,7 @@ func TestHTTPRouteCRUDWithRegexPath(t *testing.T) {
 	g.Expect(childNode.VHMatches[0].Rules[0].Matches.Path.MatchStr).To(gomega.ContainElement("/foo/[a-z]+/bar"))
 	g.Expect(*childNode.VHMatches[0].Rules[0].Matches.Path.MatchCriteria).To(gomega.Equal("REGEX_MATCH"))
 
-	rule = akogatewayapitests.GetHTTPRouteRuleV1("PathPrefix", []string{"/foo"}, []string{},
+	rule = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add"}},
 		[][]string{{svcName, "default", "8080", "1"}}, nil)
 	rules = []gatewayv1.HTTPRouteRule{rule}
