@@ -886,7 +886,11 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, tenant, key st
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 
-	if avi_vs_meta.SharedVS && configuredSharedVSFqdn != "" {
+	if avi_vs_meta.SharedVS {
+		if configuredSharedVSFqdn == "" {
+			// in case of dns profile not present
+			configuredSharedVSFqdn = vsName
+		}
 		BuildL7HostRule(configuredSharedVSFqdn, key, avi_vs_meta)
 	}
 }
