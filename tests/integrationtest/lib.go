@@ -2583,3 +2583,15 @@ func (o *ObjectNameMap) GetName(s string) string {
 	}
 	return s + "-" + strconv.Itoa(o.nameMap[s])
 }
+func SetEmptyDomainList() {
+	// Inject middleware with empty dns list for dns api call
+	AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		url := r.URL.EscapedPath()
+		if r.Method == "GET" && strings.Contains(url, "/api/ipamdnsproviderprofiledomainlist") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"domains": []}`))
+			return
+		}
+		NormalControllerServer(w, r)
+	})
+}
