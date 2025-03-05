@@ -22,6 +22,7 @@ import (
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	akogatewayapitests "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/gatewayapitests"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 )
 
 func TestHTTPRouteCUD(t *testing.T) {
@@ -272,11 +273,10 @@ func TestHTTPRouteGatewayWithRegexPath(t *testing.T) {
 	t.Logf("Created Gateway %s", gatewayName)
 	waitAndverify(t, gwKey)
 
-	// httproute without hostname
-	t.Logf("Now creating httproute without hostname")
+	t.Logf("Now creating httproute")
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
 	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
-	rule := akogatewayapitests.GetHTTPRouteRuleV1("RegularExpression", []string{"/foo/[a-z]+/bar"}, []string{}, nil,
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.REGULAREXPRESSION, []string{"/foo/[a-z]+/bar"}, []string{}, nil,
 		nil, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)

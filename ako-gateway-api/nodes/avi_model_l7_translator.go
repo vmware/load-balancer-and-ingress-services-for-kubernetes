@@ -283,11 +283,11 @@ func (o *AviObjectGraph) BuildVHMatch(key string, parentNsName string, routeType
 					MatchCase: proto.String("SENSITIVE"),
 					MatchStr:  []string{match.PathMatch.Path},
 				}
-				if match.PathMatch.Type == "Exact" {
+				if match.PathMatch.Type == akogatewayapilib.EXACT {
 					rule.Matches.Path.MatchCriteria = proto.String("EQUALS")
-				} else if match.PathMatch.Type == "PathPrefix" {
+				} else if match.PathMatch.Type == akogatewayapilib.PATHPREFIX {
 					rule.Matches.Path.MatchCriteria = proto.String("BEGINS_WITH")
-				} else if match.PathMatch.Type == "RegularExpression" {
+				} else if match.PathMatch.Type == akogatewayapilib.REGULAREXPRESSION {
 					rule.Matches.Path.MatchCriteria = proto.String("REGEX_MATCH")
 				}
 			}
