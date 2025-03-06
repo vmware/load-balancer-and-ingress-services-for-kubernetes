@@ -1,0 +1,93 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: pkiprofiles.ako.vmware.com
+spec:
+  group: ako.vmware.com
+  names:
+    kind: PKIProfile
+    listKind: PKIProfileList
+    plural: pkiprofiles
+    shortNames:
+    - pkiprofile
+    singular: pkiprofile
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: PKIProfile is the Schema for the pki profile API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: PKIProfileSpec defines the desired state of PKIProfile
+            properties:
+              ca_certs:
+                items:
+                  type: string
+                minItems: 1
+                type: array
+              crl_check:
+                type: boolean
+              crl_data:
+                properties:
+                  crl_file_uuids:
+                    description: Avi controller CRL fileobject ref
+                    items:
+                      type: string
+                    type: array
+                  crl_server_url:
+                    description: CRL server URL
+                    items:
+                      type: string
+                    type: array
+                required:
+                - crl_server_url
+                type: object
+                x-kubernetes-validations:
+                - message: crl_data is mandatory if crl_check is set to true
+                  rule: self.crl_check == false || self.crl_data != null
+                - message: When crl_data is specified, at least one of crl_file_uuids
+                    or crl_server_url must be specified
+                  rule: self.crl_data == null || size(self.crl_data.crl_file_uuids)
+                    > 0 || size(self.crl_data.crl_server_url) > 0
+              ignore_peer_chain:
+                type: boolean
+              is_federated:
+                type: boolean
+              validate_only_leaf_crl:
+                type: boolean
+            type: object
+          status:
+            description: PKIProfileStatus defines the observed state of PKIProfile
+            properties:
+              accepted:
+                type: boolean
+              url:
+                type: string
+            required:
+            - accepted
+            - url
+            type: object
+        type: object
+    served: true
+    storage: true

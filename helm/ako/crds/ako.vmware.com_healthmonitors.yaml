@@ -57,10 +57,8 @@ spec:
                 - password
                 - username
                 type: object
-              cloud_ref:
-                description: CloudRef is the reference to the cloud in Avi
-                type: string
               failed_checks:
+                default: 2
                 description: FailedChecks is the number of failed pings before marking
                   down.
                 format: int32
@@ -122,41 +120,6 @@ spec:
                     description: ResponseSize is the expected size of the response.
                     format: int32
                     type: integer
-                  ssl_attributes:
-                    description: SslAttributes is the SSL attributes to use for HTTPS.
-                    properties:
-                      pki_profile_ref:
-                        description: PKI profile used to validate the SSL certificate
-                          presented by a server. It is a reference to an object of
-                          type PKIProfile. Field introduced in 17.1.1. Allowed in
-                          Enterprise edition with any value, Essentials, Basic, Enterprise
-                          with Cloud Services edition.
-                        type: string
-                      server_name:
-                        description: Fully qualified DNS hostname which will be used
-                          in the TLS SNI extension in server connections indicating
-                          SNI is enabled. Field introduced in 18.2.3. Allowed in Enterprise
-                          edition with any value, Essentials, Basic, Enterprise with
-                          Cloud Services edition.
-                        type: string
-                      ssl_key_and_certificate_ref:
-                        description: Service engines will present this SSL certificate
-                          to the server. It is a reference to an object of type SSLKeyAndCertificate.
-                          Field introduced in 17.1.1. Allowed in Enterprise edition
-                          with any value, Essentials, Basic, Enterprise with Cloud
-                          Services edition.
-                        type: string
-                      ssl_profile_ref:
-                        description: SSL profile defines ciphers and SSL versions
-                          to be used for healthmonitor traffic to the back-end servers.
-                          It is a reference to an object of type SSLProfile. Field
-                          introduced in 17.1.1. Allowed in Enterprise edition with
-                          any value, Essentials, Basic, Enterprise with Cloud Services
-                          edition.
-                        type: string
-                    required:
-                    - ssl_profile_ref
-                    type: object
                 type: object
               https:
                 description: HTTPS defines the HTTPS monitor configuration.
@@ -213,47 +176,13 @@ spec:
                     description: ResponseSize is the expected size of the response.
                     format: int32
                     type: integer
-                  ssl_attributes:
-                    description: SslAttributes is the SSL attributes to use for HTTPS.
-                    properties:
-                      pki_profile_ref:
-                        description: PKI profile used to validate the SSL certificate
-                          presented by a server. It is a reference to an object of
-                          type PKIProfile. Field introduced in 17.1.1. Allowed in
-                          Enterprise edition with any value, Essentials, Basic, Enterprise
-                          with Cloud Services edition.
-                        type: string
-                      server_name:
-                        description: Fully qualified DNS hostname which will be used
-                          in the TLS SNI extension in server connections indicating
-                          SNI is enabled. Field introduced in 18.2.3. Allowed in Enterprise
-                          edition with any value, Essentials, Basic, Enterprise with
-                          Cloud Services edition.
-                        type: string
-                      ssl_key_and_certificate_ref:
-                        description: Service engines will present this SSL certificate
-                          to the server. It is a reference to an object of type SSLKeyAndCertificate.
-                          Field introduced in 17.1.1. Allowed in Enterprise edition
-                          with any value, Essentials, Basic, Enterprise with Cloud
-                          Services edition.
-                        type: string
-                      ssl_profile_ref:
-                        description: SSL profile defines ciphers and SSL versions
-                          to be used for healthmonitor traffic to the back-end servers.
-                          It is a reference to an object of type SSLProfile. Field
-                          introduced in 17.1.1. Allowed in Enterprise edition with
-                          any value, Essentials, Basic, Enterprise with Cloud Services
-                          edition.
-                        type: string
-                    required:
-                    - ssl_profile_ref
-                    type: object
                 type: object
               monitor_port:
                 description: MonitorPort is the port to use for the health check.
                 format: int32
                 type: integer
               receive_timeout:
+                default: 4
                 description: ReceiveTimeout is the timeout for receiving a ping response,
                   in seconds.
                 format: int32
@@ -261,6 +190,7 @@ spec:
                 minimum: 1
                 type: integer
               send_interval:
+                default: 10
                 description: SendInterval is the frequency, in seconds, that pings
                   are sent.
                 format: int32
@@ -268,6 +198,7 @@ spec:
                 minimum: 1
                 type: integer
               successful_checks:
+                default: 2
                 description: SuccessfulChecks is the number of successful pings before
                   marking up.
                 format: int32
@@ -281,11 +212,6 @@ spec:
                     description: MaintenanceResponse is the response to send when
                       in maintenance mode.
                     type: string
-                  monitor_port:
-                    description: MonitorPort is the port to use for the TCP health
-                      check.
-                    format: int32
-                    type: integer
                   tcp_half_open:
                     description: TcpHalfOpen is a boolean to check if the tcp monitor
                       is in half open mode
@@ -299,9 +225,6 @@ spec:
                       health check.
                     type: string
                 type: object
-              tenant_ref:
-                description: TenantRef is the reference to the tenant in Avi
-                type: string
               type:
                 description: Type is the type of health monitor.
                 enum:
