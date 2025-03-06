@@ -1,0 +1,146 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: sslkeyandcertificates.ako.vmware.com
+spec:
+  group: ako.vmware.com
+  names:
+    kind: SSLKeyAndCertificate
+    listKind: SSLKeyAndCertificateList
+    plural: sslkeyandcertificates
+    shortNames:
+    - sslkeyandcertificate
+    singular: sslkeyandcertificate
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: SSLKeyAndCertificate is the Schema for the ssl key and certificate
+          API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: SSLKeyAndCertificateSpec defines the desired state of SSLKeyAndCertificate
+            properties:
+              certificate_secret_ref:
+                type: string
+              enable_ocsp_stapling:
+                type: boolean
+              is_federated:
+                type: boolean
+              key_passphrase:
+                type: string
+              key_secret_ref:
+                type: string
+              ocsp_config:
+                description: OCSPConfig represents the OCSP configuration.
+                properties:
+                  failed_ocsp_jobs_retry_interval:
+                    default: 3600
+                    format: int32
+                    maximum: 86400
+                    minimum: 60
+                    type: integer
+                  max_tries:
+                    default: 10
+                    format: int32
+                    type: integer
+                  ocsp_req_interval:
+                    default: 86400
+                    format: int32
+                    maximum: 31536000
+                    minimum: 60
+                    type: integer
+                  ocsp_resp_timeout:
+                    format: int32
+                    type: integer
+                  responder_url_lists:
+                    items:
+                      type: string
+                    type: array
+                  url_action:
+                    allOf:
+                    - enum:
+                      - OCSP_RESPONDER_URL_FAILOVER
+                      - OCSP_RESPONDER_URL_OVERRIDE
+                    - enum:
+                      - OCSP_RESPONDER_URL_FAILOVER
+                      - OCSP_RESPONDER_URL_OVERRIDE
+                    default: OCSP_RESPONDER_URL_FAILOVER
+                    description: OCSPResponderUrlAction represents an OCSP responder
+                      action.
+                    type: string
+                type: object
+              self_signed_certificate:
+                description: SSLCertificateDescription represents common fields in
+                  a certificate (subject, issuer).
+                properties:
+                  common_name:
+                    type: string
+                  country:
+                    type: string
+                  email_address:
+                    type: string
+                  locality:
+                    type: string
+                  organization:
+                    type: string
+                  organization_unit:
+                    type: string
+                  state:
+                    type: string
+                required:
+                - common_name
+                type: object
+            type: object
+            x-kubernetes-validations:
+            - message: If self signed certificate is not defined, you must define
+                the certificate secret ref
+              rule: self.spec.self_signed_certificate.common_name != '' || self.spec.certificate_secret_ref
+                != ''
+            - message: If certificate secret ref is defined, you must define the key
+                secret ref
+              rule: self.spec.certificate_secret_ref != '' && self.spec.key_secret_ref
+                != ''
+          status:
+            description: SSLKeyAndCertificateStatus defines the observed state of
+              SSLKeyAndCertificate
+            properties:
+              accepted:
+                type: boolean
+              ssl_certificate_status:
+                description: SSLCertificateStatus represents an ssl certificate status
+                enum:
+                - SSL_CERTIFICATE_FINISHED
+                - SSL_CERTIFICATE_PENDING
+                type: string
+              url:
+                type: string
+            required:
+            - accepted
+            - ssl_certificate_status
+            - url
+            type: object
+        type: object
+    served: true
+    storage: true

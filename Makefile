@@ -526,7 +526,7 @@ golangci-fix: .golangci-bin
 
 .PHONY: manifests
 manifests: controller-gen
-	$(CONTROLLER_GEN) crd paths="$(PKG_APIS)" output:crd:artifacts:config=$(CRD_OUTPUT_PATH)
+	$(CONTROLLER_GEN) crd paths="$(PKG_APIS)" output:crd:artifacts:config=$(CRD_OUTPUT_PATH) object
 
 CONTROLLER_TOOLS_VERSION ?= v0.17.2
 .PHONY: controller-gen

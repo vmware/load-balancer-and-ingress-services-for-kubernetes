@@ -40,6 +40,18 @@ func (c *FakeAkoV1alpha1) MultiClusterIngresses(namespace string) v1alpha1.Multi
 	return &FakeMultiClusterIngresses{c, namespace}
 }
 
+func (c *FakeAkoV1alpha1) PKIProfiles(namespace string) v1alpha1.PKIProfileInterface {
+	return &FakePKIProfiles{c, namespace}
+}
+
+func (c *FakeAkoV1alpha1) SSLKeyAndCertificates(namespace string) v1alpha1.SSLKeyAndCertificateInterface {
+	return &FakeSSLKeyAndCertificates{c, namespace}
+}
+
+func (c *FakeAkoV1alpha1) SSLProfiles(namespace string) v1alpha1.SSLProfileInterface {
+	return &FakeSSLProfiles{c, namespace}
+}
+
 func (c *FakeAkoV1alpha1) ServiceImports(namespace string) v1alpha1.ServiceImportInterface {
 	return &FakeServiceImports{c, namespace}
 }
