@@ -708,7 +708,7 @@ func GetVrf() string {
 }
 
 func GetVPCMode() bool {
-	if vpcMode, _ := strconv.ParseBool(os.Getenv("VPC_MODE")); vpcMode {
+	if vpcMode, _ := strconv.ParseBool(os.Getenv(utils.VPC_MODE)); vpcMode {
 		return true
 	}
 	return false
@@ -1115,6 +1115,10 @@ func GetClusterIDSplit() string {
 	if clusterID != "" {
 		clusterName := strings.Split(clusterID, ":")
 		if len(clusterName) > 1 {
+			if GetVPCMode() {
+				// Include first 5 characters to add more uniqueness to cluster name
+				return clusterName[0] + "-" + clusterName[1][:5]
+			}
 			return clusterName[0]
 		}
 	}
