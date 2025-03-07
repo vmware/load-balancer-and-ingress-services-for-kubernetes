@@ -1615,11 +1615,17 @@ func (ing FakeIngress) UpdateIngress() (*networking.Ingress, error) {
 	return updatedIngress, err
 }
 
+type ListenerPorts struct {
+	Port      int
+	EnableSSL bool
+}
+
 // HostRule/HTTPRule lib functions
 type FakeHostRule struct {
 	Name                  string
 	Namespace             string
 	Fqdn                  string
+	FqdnType              string
 	SslKeyCertificate     string
 	SslProfile            string
 	WafPolicy             string
@@ -1635,10 +1641,16 @@ type FakeHostRule struct {
 	L7Rule                string
 	UseRegex              bool
 	ApplicationRootPath   string
+	ListenerPorts         []ListenerPorts
+	LoadBalancerIP        string
 }
 
 func (hr FakeHostRule) HostRule() *akov1beta1.HostRule {
 	enable := true
+	fqdnType := hr.FqdnType
+	if fqdnType == "" {
+		fqdnType = "Exact"
+	}
 	hostrule := &akov1beta1.HostRule{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: hr.Namespace,
@@ -1646,7 +1658,8 @@ func (hr FakeHostRule) HostRule() *akov1beta1.HostRule {
 		},
 		Spec: akov1beta1.HostRuleSpec{
 			VirtualHost: akov1beta1.HostRuleVirtualHost{
-				Fqdn: hr.Fqdn,
+				Fqdn:     hr.Fqdn,
+				FqdnType: akov1beta1.FqdnType(fqdnType),
 				TLS: akov1beta1.HostRuleTLS{
 					SSLKeyCertificate: akov1beta1.HostRuleSSLKeyCertificate{
 						Name: hr.SslKeyCertificate,
@@ -1676,7 +1689,29 @@ func (hr FakeHostRule) HostRule() *akov1beta1.HostRule {
 			},
 		},
 	}
-
+	var tcpSettings *akov1beta1.HostRuleTCPSettings
+	var listenerPorts []akov1beta1.HostRuleTCPListeners
+	for _, listenerPortHr := range hr.ListenerPorts {
+		listener := akov1beta1.HostRuleTCPListeners{
+			Port:      listenerPortHr.Port,
+			EnableSSL: listenerPortHr.EnableSSL,
+		}
+		listenerPorts = append(listenerPorts, listener)
+	}
+	if len(listenerPorts) > 0 && hr.LoadBalancerIP != "" {
+		tcpSettings = &akov1beta1.HostRuleTCPSettings{
+			Listeners:      listenerPorts,
+			LoadBalancerIP: hr.LoadBalancerIP}
+	} else if len(listenerPorts) > 0 {
+		tcpSettings = &akov1beta1.HostRuleTCPSettings{
+			Listeners: listenerPorts}
+	} else if hr.LoadBalancerIP != "" {
+		tcpSettings = &akov1beta1.HostRuleTCPSettings{
+			LoadBalancerIP: hr.LoadBalancerIP}
+	}
+	if tcpSettings != nil {
+		hostrule.Spec.VirtualHost.TCPSettings = tcpSettings
+	}
 	return hostrule
 }
 

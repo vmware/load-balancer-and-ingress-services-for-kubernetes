@@ -968,14 +968,24 @@ func TestHostRuleAppRoot(t *testing.T) {
 	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0]).Should(gomega.Equal(appRootPath))
 	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].StringGroupRefs).To(gomega.HaveLen(0))
 	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].PoolGroup).To(gomega.Equal("cluster--default-foo.com_-foo"))
-	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts).To(gomega.HaveLen(1))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts).To(gomega.HaveLen(2))
 	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].Path).To(gomega.Equal("/"))
-	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].RedirectPort).To(gomega.Equal(int32(8080)))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].Protocol).To(gomega.Equal("HTTP"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].RedirectPort).To(gomega.Equal(int32(80)))
 	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].RedirectPath).To(gomega.Equal(strings.TrimPrefix(appRootPath, "/")))
-	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].MatchCriteria).To(gomega.Equal("EQUALS"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].MatchCriteriaPath).To(gomega.Equal("EQUALS"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].MatchCriteriaPort).To(gomega.Equal("IS_IN"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].Path).To(gomega.Equal("/"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].Protocol).To(gomega.Equal("HTTPS"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].RedirectPort).To(gomega.Equal(int32(443)))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].RedirectPath).To(gomega.Equal(strings.TrimPrefix(appRootPath, "/")))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].MatchCriteriaPath).To(gomega.Equal("EQUALS"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].MatchCriteriaPort).To(gomega.Equal("IS_IN"))
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	time.Sleep(2 * time.Second)
+	g.Eventually(func() bool {
+		return node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts == nil
+	}, 30*time.Second).Should(gomega.BeTrue())
 
 	g.Expect(node.SniNodes).To(gomega.HaveLen(1))
 	g.Expect(node.SniNodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
@@ -1041,14 +1051,248 @@ func TestHostRuleRegexAppRoot(t *testing.T) {
 	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].PoolGroup).To(gomega.Equal(lib.GetEncodedSniPGPoolNameforRegex("cluster--default-foo.com_-foo")))
 	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0]).To(gomega.Equal(appRootPath))
 
-	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts).To(gomega.HaveLen(1))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts).To(gomega.HaveLen(2))
 	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].Path).To(gomega.Equal("/"))
-	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].RedirectPort).To(gomega.Equal(int32(8080)))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].RedirectPort).To(gomega.Equal(int32(80)))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].Protocol).To(gomega.Equal("HTTP"))
 	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].RedirectPath).To(gomega.Equal(strings.TrimPrefix(appRootPath, "/")))
-	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].MatchCriteria).To(gomega.Equal("EQUALS"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].MatchCriteriaPath).To(gomega.Equal("EQUALS"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].MatchCriteriaPort).To(gomega.Equal("IS_IN"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].Path).To(gomega.Equal("/"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].Protocol).To(gomega.Equal("HTTPS"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].RedirectPort).To(gomega.Equal(int32(443)))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].RedirectPath).To(gomega.Equal(strings.TrimPrefix(appRootPath, "/")))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].MatchCriteriaPath).To(gomega.Equal("EQUALS"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].MatchCriteriaPort).To(gomega.Equal("IS_IN"))
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	time.Sleep(2 * time.Second)
+	g.Eventually(func() bool {
+		return node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts == nil
+	}, 30*time.Second).Should(gomega.BeTrue())
+
+	g.Expect(node.SniNodes).To(gomega.HaveLen(1))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts).To(gomega.BeNil())
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap).To(gomega.HaveLen(1))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].MatchCriteria).Should(gomega.Equal("BEGINS_WITH"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0]).To(gomega.Equal("/"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].StringGroupRefs).To(gomega.HaveLen(0))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].PoolGroup).To(gomega.Equal("cluster--default-foo.com_-foo"))
+
+	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
+	TearDownTestForRoute(t, defaultModelName)
+}
+
+func TestHostRuleAppRootListenerPorts(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/cluster--Shared-L7-0"
+	hrname := "samplehr-foo"
+	sharedHrName := "samplehr-shared"
+	fqdn := "foo.com"
+	namespace := "default"
+	appRootPath := "/foo"
+
+	SetUpTestForRoute(t, modelName)
+	routeExample := FakeRoute{Path: "/", TargetPort: 8080}.SecureRoute()
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	ValidateSniModel(t, g, modelName)
+
+	hostrule := integrationtest.FakeHostRule{
+		Name:                hrname,
+		Namespace:           namespace,
+		Fqdn:                fqdn,
+		ApplicationRootPath: appRootPath,
+	}
+	hrCreate := hostrule.HostRule()
+	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules(namespace).Create(context.TODO(), hrCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding HostRule: %v", err)
+	}
+	g.Eventually(func() string {
+		hostrule, _ := V1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 20*time.Second).Should(gomega.Equal("Accepted"))
+
+	sharedFQDN := "Shared-L7"
+	hostruleShared := integrationtest.FakeHostRule{
+		Name:      sharedHrName,
+		Namespace: namespace,
+		Fqdn:      sharedFQDN,
+		FqdnType:  "Contains",
+		ListenerPorts: []integrationtest.ListenerPorts{
+			{
+				Port:      8081,
+				EnableSSL: false,
+			},
+			{
+				Port:      6443,
+				EnableSSL: true,
+			},
+		},
+	}
+
+	hrCreate = hostruleShared.HostRule()
+	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules(namespace).Create(context.TODO(), hrCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding HostRule: %v", err)
+	}
+	g.Eventually(func() string {
+		hostrule, _ := V1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), sharedHrName, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 20*time.Second).Should(gomega.Equal("Accepted"))
+
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes[0].SniNodes)
+	}, 10*time.Second).Should(gomega.Equal(1))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	node := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0]
+
+	g.Expect(node.SniNodes).To(gomega.HaveLen(1))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap).To(gomega.HaveLen(1))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].MatchCriteria).Should(gomega.Equal("BEGINS_WITH"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0]).Should(gomega.Equal(appRootPath))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].StringGroupRefs).To(gomega.HaveLen(0))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].PoolGroup).To(gomega.Equal("cluster--default-foo.com_-foo"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts).To(gomega.HaveLen(2))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].Path).To(gomega.Equal("/"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].Protocol).To(gomega.Equal("HTTP"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].RedirectPort).To(gomega.Equal(int32(8081)))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].RedirectPath).To(gomega.Equal(strings.TrimPrefix(appRootPath, "/")))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].MatchCriteriaPath).To(gomega.Equal("EQUALS"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].MatchCriteriaPort).To(gomega.Equal("IS_IN"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].Path).To(gomega.Equal("/"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].Protocol).To(gomega.Equal("HTTPS"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].RedirectPort).To(gomega.Equal(int32(6443)))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].RedirectPath).To(gomega.Equal(strings.TrimPrefix(appRootPath, "/")))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].MatchCriteriaPath).To(gomega.Equal("EQUALS"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].MatchCriteriaPort).To(gomega.Equal("IS_IN"))
+
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, sharedHrName)
+	g.Eventually(func() bool {
+		return node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts == nil
+	}, 30*time.Second).Should(gomega.BeTrue())
+
+	g.Expect(node.SniNodes).To(gomega.HaveLen(1))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts).To(gomega.BeNil())
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap).To(gomega.HaveLen(1))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].MatchCriteria).Should(gomega.Equal("BEGINS_WITH"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0]).To(gomega.Equal("/"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].StringGroupRefs).To(gomega.HaveLen(0))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].PoolGroup).To(gomega.Equal("cluster--default-foo.com_-foo"))
+
+	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
+	TearDownTestForRoute(t, defaultModelName)
+}
+
+func TestHostRuleRegexAppRootListenerPorts(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := "admin/cluster--Shared-L7-0"
+	hrname := "samplehr-foo"
+	sharedHrName := "samplehr-shared"
+	fqdn := "foo.com"
+	namespace := "default"
+	appRootPath := "/foo"
+
+	SetUpTestForRoute(t, modelName)
+	routeExample := FakeRoute{Path: "/", TargetPort: 8080}.SecureRoute()
+	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding route: %v", err)
+	}
+
+	sharedFQDN := "Shared-L7"
+	hostruleShared := integrationtest.FakeHostRule{
+		Name:      sharedHrName,
+		Namespace: namespace,
+		Fqdn:      sharedFQDN,
+		FqdnType:  "Contains",
+		ListenerPorts: []integrationtest.ListenerPorts{
+			{
+				Port:      8081,
+				EnableSSL: false,
+			},
+			{
+				Port:      6443,
+				EnableSSL: true,
+			},
+		},
+	}
+
+	hrCreate := hostruleShared.HostRule()
+	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules(namespace).Create(context.TODO(), hrCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding HostRule: %v", err)
+	}
+	g.Eventually(func() string {
+		hostrule, _ := V1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), sharedHrName, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 20*time.Second).Should(gomega.Equal("Accepted"))
+
+	hostrule := integrationtest.FakeHostRule{
+		Name:                hrname,
+		Namespace:           namespace,
+		Fqdn:                fqdn,
+		ApplicationRootPath: appRootPath,
+		UseRegex:            true,
+	}
+	hrCreate = hostrule.HostRule()
+	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules(namespace).Create(context.TODO(), hrCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding HostRule: %v", err)
+	}
+	g.Eventually(func() string {
+		hostrule, _ := V1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 20*time.Second).Should(gomega.Equal("Accepted"))
+
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/samplehr-foo", true)
+
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes[0].SniNodes)
+	}, 10*time.Second).Should(gomega.Equal(1))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	node := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0]
+
+	g.Expect(node.SniNodes).To(gomega.HaveLen(1))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].MatchCriteria).Should(gomega.Equal("REGEX_MATCH"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].MatchCase).Should(gomega.Equal("INSENSITIVE"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].StringGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].PoolGroup).To(gomega.Equal(lib.GetEncodedSniPGPoolNameforRegex("cluster--default-foo.com_-foo")))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].Path[0]).To(gomega.Equal(appRootPath))
+
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts).To(gomega.HaveLen(2))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].Path).To(gomega.Equal("/"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].RedirectPort).To(gomega.Equal(int32(8081)))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].Protocol).To(gomega.Equal("HTTP"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].RedirectPath).To(gomega.Equal(strings.TrimPrefix(appRootPath, "/")))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].MatchCriteriaPath).To(gomega.Equal("EQUALS"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[0].MatchCriteriaPort).To(gomega.Equal("IS_IN"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].Path).To(gomega.Equal("/"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].Protocol).To(gomega.Equal("HTTPS"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].RedirectPort).To(gomega.Equal(int32(6443)))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].RedirectPath).To(gomega.Equal(strings.TrimPrefix(appRootPath, "/")))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].MatchCriteriaPath).To(gomega.Equal("EQUALS"))
+	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts[1].MatchCriteriaPort).To(gomega.Equal("IS_IN"))
+
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	integrationtest.TeardownHostRule(t, g, sniVSKey, sharedHrName)
+	g.Eventually(func() bool {
+		return node.SniNodes[0].HttpPolicyRefs[0].RedirectPorts == nil
+	}, 30*time.Second).Should(gomega.BeTrue())
 
 	g.Expect(node.SniNodes).To(gomega.HaveLen(1))
 	g.Expect(node.SniNodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
