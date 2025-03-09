@@ -106,14 +106,45 @@ func validateHTTPRouteRules(key string, httpRoute *gatewayv1.HTTPRoute, httpRout
 	if httpRoute.Spec.Rules != nil {
 		for _, rule := range httpRoute.Spec.Rules {
 			for _, filter := range rule.Filters {
-				if filter.Type == gatewayv1.HTTPRouteFilterURLRewrite && filter.URLRewrite != nil && filter.URLRewrite.Path.Type != gatewayv1.FullPathHTTPPathModifier {
-					routeConditionAccepted := akogatewayapistatus.NewCondition().
-						Type(string(gatewayv1.RouteConditionAccepted)).
-						Status(metav1.ConditionFalse).
-						ObservedGeneration(httpRoute.ObjectMeta.Generation).
-						Reason(string(gatewayv1.RouteReasonUnsupportedValue))
-					routeConditionAccepted.SetIn(&httpRouteStatus.Parents[0].Conditions)
-					utils.AviLog.Errorf("key: %s, msg: HTTPUrlRewrite Path Type has Unsupported value %s.", key, filter.URLRewrite.Path.Type)
+				if filter.Type == gatewayv1.HTTPRouteFilterURLRewrite && filter.URLRewrite != nil && filter.URLRewrite.Path != nil && filter.URLRewrite.Path.Type != gatewayv1.FullPathHTTPPathModifier {
+					for parentRefIndexFromSpec := range httpRoute.Spec.ParentRefs {
+
+						// creates the Parent status only when the AKO is the gateway controller
+						name := string(httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].Name)
+						namespace := httpRoute.Namespace
+						if httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].Namespace != nil {
+							namespace = string(*httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].Namespace)
+						}
+						obj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).Get(name)
+						if err != nil {
+							utils.AviLog.Errorf("key: %s, msg: unable to get the gateway object. err: %s", key, err)
+							return false
+						}
+						gateway := obj.DeepCopy()
+
+						gwClass := string(gateway.Spec.GatewayClassName)
+						_, isAKOCtrl := akogatewayapiobjects.GatewayApiLister().IsGatewayClassControllerAKO(gwClass)
+						if !isAKOCtrl {
+							utils.AviLog.Warnf("key: %s, msg: controller for the parent reference %s of HTTPRoute object %s is not ako", key, name, httpRoute.Name)
+							continue
+						}
+
+						httpRouteStatus.Parents = append(httpRouteStatus.Parents, gatewayv1.RouteParentStatus{})
+						httpRouteStatus.Parents[parentRefIndexFromSpec].ControllerName = akogatewayapilib.GatewayController
+						httpRouteStatus.Parents[parentRefIndexFromSpec].ParentRef.Name = gatewayv1.ObjectName(name)
+						httpRouteStatus.Parents[parentRefIndexFromSpec].ParentRef.Namespace = (*gatewayv1.Namespace)(&namespace)
+						if httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].SectionName != nil {
+							httpRouteStatus.Parents[parentRefIndexFromSpec].ParentRef.SectionName = httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].SectionName
+						}
+						routeConditionAccepted := akogatewayapistatus.NewCondition().
+							Type(string(gatewayv1.RouteConditionAccepted)).
+							Status(metav1.ConditionFalse).
+							ObservedGeneration(httpRoute.ObjectMeta.Generation).
+							Reason(string(gatewayv1.RouteReasonUnsupportedValue)).
+							Message("HTTPUrlRewrite PathType has Unsupported value")
+						routeConditionAccepted.SetIn(&httpRouteStatus.Parents[parentRefIndexFromSpec].Conditions)
+					}
+					utils.AviLog.Errorf("key: %s, msg: HTTPUrlRewrite PathType has Unsupported value %s.", key, filter.URLRewrite.Path.Type)
 					return false
 
 				}

@@ -469,21 +469,25 @@ func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestUrlRewriteRules(key, httpP
 	for _, filter := range filters {
 		// considering only the first reWriteFilter
 		if filter.UrlRewriteFilter != nil {
-			urlRewriteAction.HostHdr = &models.URIParam{
-				Tokens: []*models.URIParamToken{
-					{
-						StrValue: &filter.UrlRewriteFilter.hostname,
-						Type:     proto.String("URI_TOKEN_TYPE_STRING"),
+			if filter.UrlRewriteFilter.hostname != "" {
+				urlRewriteAction.HostHdr = &models.URIParam{
+					Tokens: []*models.URIParamToken{
+						{
+							StrValue: &filter.UrlRewriteFilter.hostname,
+							Type:     proto.String("URI_TOKEN_TYPE_STRING"),
+						},
 					},
-				},
-				Type: proto.String("URI_PARAM_TYPE_TOKENIZED"),
+					Type: proto.String("URI_PARAM_TYPE_TOKENIZED"),
+				}
 			}
-			urlRewriteAction.Path = &models.URIParam{
-				Tokens: []*models.URIParamToken{{
-					StrValue: filter.UrlRewriteFilter.path.ReplaceFullPath,
-					Type:     proto.String("URI_TOKEN_TYPE_STRING"),
-				}},
-				Type: proto.String("URI_PARAM_TYPE_TOKENIZED"),
+			if filter.UrlRewriteFilter.path != nil {
+				urlRewriteAction.Path = &models.URIParam{
+					Tokens: []*models.URIParamToken{{
+						StrValue: filter.UrlRewriteFilter.path.ReplaceFullPath,
+						Type:     proto.String("URI_TOKEN_TYPE_STRING"),
+					}},
+					Type: proto.String("URI_PARAM_TYPE_TOKENIZED"),
+				}
 			}
 			urlRewriteAction.Query = &models.URIParamQuery{
 				AddString: nil,
