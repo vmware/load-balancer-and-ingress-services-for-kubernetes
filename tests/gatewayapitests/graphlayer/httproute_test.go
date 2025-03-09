@@ -3047,9 +3047,9 @@ func TestHTTPRouteCRUDWithRegexPath(t *testing.T) {
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 }
 func TestHTTPRouteFilterWithUrlRewrite(t *testing.T) {
-	gatewayName := "gateway-hr-29"
-	gatewayClassName := "gateway-class-hr-29"
-	httpRouteName := "http-route-hr-29"
+	gatewayName := "gateway-hr-30"
+	gatewayClassName := "gateway-class-hr-30"
+	httpRouteName := "http-route-hr-30"
 	ports := []int32{8080}
 	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
 
@@ -3064,7 +3064,7 @@ func TestHTTPRouteFilterWithUrlRewrite(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
-	rule := akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"URLRewrite": {}},
 		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
 	rules := []gatewayv1.HTTPRouteRule{rule}
@@ -3077,19 +3077,16 @@ func TestHTTPRouteFilterWithUrlRewrite(t *testing.T) {
 			return 0
 		}
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
-	}, 25*time.Second).Should(gomega.Equal(1))
-
-	g.Eventually(func() int {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		childVS := nodes[0].EvhNodes[0]
-		if len(childVS.HttpPolicyRefs) != 1 {
-			return -1
+		if len(nodes[0].EvhNodes) == 1 {
+			childVS := nodes[0].EvhNodes[0]
+			if len(childVS.HttpPolicyRefs) != 1 {
+				return -1
+			}
+			return len(childVS.HttpPolicyRefs[0].RequestRules)
 		}
-		return len(childVS.HttpPolicyRefs[0].RequestRules)
-	}, 25*time.Second).Should(gomega.Equal(1))
+		return -1
 
+	}, 25*time.Second).Should(gomega.Equal(1))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	childVS := nodes[0].EvhNodes[0]
@@ -3100,7 +3097,7 @@ func TestHTTPRouteFilterWithUrlRewrite(t *testing.T) {
 	g.Expect(*childVS.HttpPolicyRefs[0].RequestRules[0].RewriteURLAction.Path.Tokens[0].StrValue).To(gomega.Equal("bar"))
 
 	//update httproute and combine requestRewrite with other requestHeader modifiers except requestRedirect
-	rule = akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+	rule = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"URLRewrite": {}, "RequestHeaderModifier": {"add", "remove", "replace"}},
 		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
 	rules = []gatewayv1.HTTPRouteRule{rule}
@@ -3112,17 +3109,14 @@ func TestHTTPRouteFilterWithUrlRewrite(t *testing.T) {
 			return 0
 		}
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
-	}, 25*time.Second).Should(gomega.Equal(1))
-
-	g.Eventually(func() int {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		childVS := nodes[0].EvhNodes[0]
-		if len(childVS.HttpPolicyRefs) != 1 {
-			return -1
+		if len(nodes[0].EvhNodes) == 1 {
+			childVS := nodes[0].EvhNodes[0]
+			if len(childVS.HttpPolicyRefs) != 1 {
+				return -1
+			}
+			return len(childVS.HttpPolicyRefs[0].RequestRules[0].HdrAction)
 		}
-		return len(childVS.HttpPolicyRefs[0].RequestRules[0].HdrAction)
+		return -1
 	}, 25*time.Second).Should(gomega.Equal(3))
 
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
@@ -3146,7 +3140,7 @@ func TestHTTPRouteFilterWithUrlRewrite(t *testing.T) {
 	g.Expect(*childVS.HttpPolicyRefs[0].RequestRules[0].HdrAction[2].HdrIndex).To(gomega.Equal(uint32(2)))
 
 	//update httproute to have only rewrite filter
-	rule = akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+	rule = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"URLRewrite": {}},
 		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
 	rules = []gatewayv1.HTTPRouteRule{rule}
@@ -3158,17 +3152,14 @@ func TestHTTPRouteFilterWithUrlRewrite(t *testing.T) {
 			return 0
 		}
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
-	}, 25*time.Second).Should(gomega.Equal(1))
-
-	g.Eventually(func() int {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		childVS := nodes[0].EvhNodes[0]
-		if len(childVS.HttpPolicyRefs) != 1 {
-			return -1
+		if len(nodes[0].EvhNodes) == 1 {
+			childVS := nodes[0].EvhNodes[0]
+			if len(childVS.HttpPolicyRefs) != 1 {
+				return -1
+			}
+			return len(childVS.HttpPolicyRefs[0].RequestRules[0].HdrAction)
 		}
-		return len(childVS.HttpPolicyRefs[0].RequestRules[0].HdrAction)
+		return -1
 	}, 25*time.Second).Should(gomega.Equal(0))
 
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
@@ -3182,7 +3173,113 @@ func TestHTTPRouteFilterWithUrlRewrite(t *testing.T) {
 	g.Expect(*childVS.HttpPolicyRefs[0].RequestRules[0].RewriteURLAction.Path.Tokens[0].StrValue).To(gomega.Equal("bar"))
 
 	// update httproute to remove all the filters
-	rule = akogatewayapitests.GetHTTPRouteRuleV1([]string{"/foo"}, []string{},
+	rule = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{},
+		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
+	rules = []gatewayv1.HTTPRouteRule{rule}
+	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		childVS := nodes[0].EvhNodes[0]
+		return len(childVS.HttpPolicyRefs)
+	}, 25*time.Second).Should(gomega.Equal(0))
+
+	// delete httproute
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestHTTPRouteFilterWithUrlRewriteOnlyHostnameOrPath(t *testing.T) {
+	gatewayName := "gateway-hr-30"
+	gatewayClassName := "gateway-class-hr-30"
+	httpRouteName := "http-route-hr-30"
+	ports := []int32{8080}
+	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{"URLRewrite": {}},
+		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
+	rules := []gatewayv1.HTTPRouteRule{rule}
+
+	//Setting the hostname to be nil
+	rules[0].Filters[0].URLRewrite.Hostname = nil
+	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found || aviModel == nil {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		if len(nodes[0].EvhNodes) == 1 {
+			childVS := nodes[0].EvhNodes[0]
+			if len(childVS.HttpPolicyRefs) != 1 {
+				return -1
+			}
+			return len(childVS.HttpPolicyRefs[0].RequestRules)
+
+		}
+		return -1
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	childVS := nodes[0].EvhNodes[0]
+
+	g.Expect(*childVS.HttpPolicyRefs[0].RequestRules[0].Name).To(gomega.Equal(childVS.Name))
+	g.Expect(childVS.HttpPolicyRefs[0].RequestRules[0].RewriteURLAction).ShouldNot(gomega.BeNil())
+	g.Expect(childVS.HttpPolicyRefs[0].RequestRules[0].RewriteURLAction.HostHdr).To(gomega.BeNil())
+	g.Expect(*childVS.HttpPolicyRefs[0].RequestRules[0].RewriteURLAction.Path.Tokens[0].StrValue).To(gomega.Equal("bar"))
+
+	//Setting the path to be nil
+	rules[0].Filters[0].URLRewrite.Path = nil
+	host := "rewrite.com"
+	rules[0].Filters[0].URLRewrite.Hostname = (*gatewayv1.PreciseHostname)(&host)
+	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return false
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		if len(nodes[0].EvhNodes) == 1 {
+			childVS := nodes[0].EvhNodes[0]
+			if len(childVS.HttpPolicyRefs) != 1 {
+				return false
+			}
+			return childVS.HttpPolicyRefs[0].RequestRules[0].RewriteURLAction != nil && childVS.HttpPolicyRefs[0].RequestRules[0].RewriteURLAction.Path == nil
+		}
+		return false
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	childVS = nodes[0].EvhNodes[0]
+
+	g.Expect(*childVS.HttpPolicyRefs[0].RequestRules[0].Name).To(gomega.Equal(childVS.Name))
+	g.Expect(childVS.HttpPolicyRefs[0].RequestRules[0].RewriteURLAction).ShouldNot(gomega.BeNil())
+	g.Expect(*childVS.HttpPolicyRefs[0].RequestRules[0].RewriteURLAction.HostHdr.Tokens[0].StrValue).To(gomega.Equal("rewrite.com"))
+	g.Expect(childVS.HttpPolicyRefs[0].RequestRules[0].RewriteURLAction.Path).To(gomega.BeNil())
+	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	// update httproute to remove all the filters
+	rule = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{},
 		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
 	rules = []gatewayv1.HTTPRouteRule{rule}
