@@ -276,18 +276,21 @@ func IsHTTPRouteValid(key string, obj *gatewayv1.HTTPRoute) bool {
 	httpRouteStatus := obj.Status.DeepCopy()
 	httpRouteStatus.Parents = make([]gatewayv1.RouteParentStatus, 0, len(httpRoute.Spec.ParentRefs))
 	var invalidParentRefCount int
-	for index := range httpRoute.Spec.ParentRefs {
-		err := validateParentReference(key, httpRoute, httpRouteStatus, index)
-		if err != nil {
-			invalidParentRefCount++
-			parentRefName := httpRoute.Spec.ParentRefs[index].Name
-			utils.AviLog.Warnf("key: %s, msg: Parent Reference %s of HTTPRoute object %s is not valid, err: %v", key, parentRefName, httpRoute.Name, err)
+	isValidHttprouteRules := validateHTTPRouteRules(key, httpRoute, httpRouteStatus)
+	if isValidHttprouteRules {
+		for index := range httpRoute.Spec.ParentRefs {
+			err := validateParentReference(key, httpRoute, httpRouteStatus, index)
+			if err != nil {
+				invalidParentRefCount++
+				parentRefName := httpRoute.Spec.ParentRefs[index].Name
+				utils.AviLog.Warnf("key: %s, msg: Parent Reference %s of HTTPRoute object %s is not valid, err: %v", key, parentRefName, httpRoute.Name, err)
+			}
 		}
 	}
 	akogatewayapistatus.Record(key, httpRoute, &akogatewayapistatus.Status{HTTPRouteStatus: httpRouteStatus})
 
 	// No valid attachment, we can't proceed with this HTTPRoute object.
-	if invalidParentRefCount == len(httpRoute.Spec.ParentRefs) {
+	if invalidParentRefCount == len(httpRoute.Spec.ParentRefs) || !isValidHttprouteRules {
 		utils.AviLog.Errorf("key: %s, msg: HTTPRoute object %s is not valid", key, httpRoute.Name)
 		akogatewayapilib.AKOControlConfig().EventRecorder().Eventf(httpRoute, corev1.EventTypeWarning,
 			lib.Detached, "HTTPRoute object %s is not valid", httpRoute.Name)
@@ -441,4 +444,60 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		SetIn(&httpRouteStatus.Parents[index].Conditions)
 	utils.AviLog.Infof("key: %s, msg: Parent Reference %s of HTTPRoute object %s is valid", key, name, httpRoute.Name)
 	return nil
+}
+func validateHTTPRouteRules(key string, httpRoute *gatewayv1.HTTPRoute, httpRouteStatus *gatewayv1.HTTPRouteStatus) bool {
+
+	//Validate Filters
+
+	//Validate URL Rewrite Filter
+	if httpRoute.Spec.Rules != nil {
+		for _, rule := range httpRoute.Spec.Rules {
+			for _, filter := range rule.Filters {
+				if filter.Type == gatewayv1.HTTPRouteFilterURLRewrite && filter.URLRewrite != nil && filter.URLRewrite.Path != nil && filter.URLRewrite.Path.Type != gatewayv1.FullPathHTTPPathModifier {
+					for parentRefIndexFromSpec := range httpRoute.Spec.ParentRefs {
+
+						// creates the Parent status only when the AKO is the gateway controller
+						name := string(httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].Name)
+						namespace := httpRoute.Namespace
+						if httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].Namespace != nil {
+							namespace = string(*httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].Namespace)
+						}
+						obj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).Get(name)
+						if err != nil {
+							utils.AviLog.Errorf("key: %s, msg: unable to get the gateway object. err: %s", key, err)
+							return false
+						}
+						gateway := obj.DeepCopy()
+
+						gwClass := string(gateway.Spec.GatewayClassName)
+						_, isAKOCtrl := akogatewayapiobjects.GatewayApiLister().IsGatewayClassControllerAKO(gwClass)
+						if !isAKOCtrl {
+							utils.AviLog.Warnf("key: %s, msg: controller for the parent reference %s of HTTPRoute object %s is not ako", key, name, httpRoute.Name)
+							continue
+						}
+
+						httpRouteStatus.Parents = append(httpRouteStatus.Parents, gatewayv1.RouteParentStatus{})
+						httpRouteStatus.Parents[parentRefIndexFromSpec].ControllerName = akogatewayapilib.GatewayController
+						httpRouteStatus.Parents[parentRefIndexFromSpec].ParentRef.Name = gatewayv1.ObjectName(name)
+						httpRouteStatus.Parents[parentRefIndexFromSpec].ParentRef.Namespace = (*gatewayv1.Namespace)(&namespace)
+						if httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].SectionName != nil {
+							httpRouteStatus.Parents[parentRefIndexFromSpec].ParentRef.SectionName = httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].SectionName
+						}
+						routeConditionAccepted := akogatewayapistatus.NewCondition().
+							Type(string(gatewayv1.RouteConditionAccepted)).
+							Status(metav1.ConditionFalse).
+							ObservedGeneration(httpRoute.ObjectMeta.Generation).
+							Reason(string(gatewayv1.RouteReasonUnsupportedValue)).
+							Message("HTTPUrlRewrite PathType has Unsupported value")
+						routeConditionAccepted.SetIn(&httpRouteStatus.Parents[parentRefIndexFromSpec].Conditions)
+					}
+					utils.AviLog.Errorf("key: %s, msg: HTTPUrlRewrite PathType has Unsupported value %s.", key, filter.URLRewrite.Path.Type)
+					return false
+
+				}
+			}
+		}
+	}
+
+	return true
 }

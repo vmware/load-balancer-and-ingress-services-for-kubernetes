@@ -93,7 +93,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	o.BuildPGPool(key, parentNsName, childNode, routeModel, rule)
 
 	// create the httppolicyset if the filter is present
-	o.BuildHTTPPolicySet(key, childNode, routeModel, rule)
+	o.BuildHTTPPolicySet(key, childNode, routeModel, rule, 0, childVSName)
 
 	foundEvhModel := nodes.FindAndReplaceEvhInModel(childNode, parentNode, key)
 	if !foundEvhModel {
@@ -252,7 +252,7 @@ func (o *AviObjectGraph) BuildVHMatch(key string, parentNsName string, routeType
 	utils.AviLog.Infof("key: %s, msg: Attached match criteria to vs %s", key, vsNode.Name)
 }
 
-func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
+func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule, index int, httpPSname string) {
 
 	if len(rule.Filters) == 0 {
 		vsNode.HttpPolicyRefs = nil
@@ -262,16 +262,16 @@ func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNo
 	policy := &nodes.AviHttpPolicySetNode{Name: vsNode.Name, Tenant: lib.GetTenant()}
 	vsNode.HttpPolicyRefs = []*nodes.AviHttpPolicySetNode{policy}
 
-	o.BuildHTTPPolicySetHTTPRequestRedirectRules(key, vsNode, routeModel, rule.Filters)
+	o.BuildHTTPPolicySetHTTPRequestRedirectRules(key, vsNode, routeModel, rule.Filters, index, httpPSname)
 	if len(vsNode.HttpPolicyRefs[0].RequestRules) == 1 {
 		// When the RedirectAction is specified the Request and Response Modify Header Action
 		// won't have any effect, hence returning.
 		utils.AviLog.Infof("key: %s, msg: Attached HTTP redirect policy to vs %s", key, vsNode.Name)
 		return
 	}
-	o.BuildHTTPPolicySetHTTPRequestRules(key, httpPSName, vsNode, routeModel, rule.Filters, index)
-	o.BuildHTTPPolicySetHTTPRequestUrlRewriteRules(key, httpPSName, vsNode, routeModel, rule.Filters, index)
-	o.BuildHTTPPolicySetHTTPResponseRules(key, vsNode, routeModel, rule.Filters, index)
+	o.BuildHTTPPolicySetHTTPRequestRules(key, vsNode, routeModel, rule.Filters)
+	o.BuildHTTPPolicySetHTTPRequestUrlRewriteRules(key, httpPSname, vsNode, routeModel, rule.Filters, index)
+	o.BuildHTTPPolicySetHTTPResponseRules(key, vsNode, routeModel, rule.Filters)
 	utils.AviLog.Infof("key: %s, msg: Attached HTTP policies to vs %s", key, vsNode.Name)
 }
 
@@ -349,8 +349,9 @@ func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRuleHdrAction(key string, action 
 	return hdrAction
 }
 
-func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestRedirectRules(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, filters []*Filter) {
+func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestRedirectRules(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, filters []*Filter, index int, httpPSname string) bool {
 	redirectAction := &models.HTTPRedirectAction{}
+	isRedirectPresent := false
 	for _, filter := range filters {
 		// considering only the first RedirectFilter
 		if filter.RedirectFilter != nil {
@@ -376,6 +377,7 @@ func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestRedirectRules(key string, 
 			break
 		}
 	}
+	return isRedirectPresent
 }
 
 func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestUrlRewriteRules(key, httpPSname string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, filters []*Filter, index int) {
@@ -383,21 +385,25 @@ func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestUrlRewriteRules(key, httpP
 	for _, filter := range filters {
 		// considering only the first reWriteFilter
 		if filter.UrlRewriteFilter != nil {
-			urlRewriteAction.HostHdr = &models.URIParam{
-				Tokens: []*models.URIParamToken{
-					{
-						StrValue: &filter.UrlRewriteFilter.hostname,
-						Type:     proto.String("URI_TOKEN_TYPE_STRING"),
+			if filter.UrlRewriteFilter.hostname != "" {
+				urlRewriteAction.HostHdr = &models.URIParam{
+					Tokens: []*models.URIParamToken{
+						{
+							StrValue: &filter.UrlRewriteFilter.hostname,
+							Type:     proto.String("URI_TOKEN_TYPE_STRING"),
+						},
 					},
-				},
-				Type: proto.String("URI_PARAM_TYPE_TOKENIZED"),
+					Type: proto.String("URI_PARAM_TYPE_TOKENIZED"),
+				}
 			}
-			urlRewriteAction.Path = &models.URIParam{
-				Tokens: []*models.URIParamToken{{
-					StrValue: filter.UrlRewriteFilter.path.ReplaceFullPath,
-					Type:     proto.String("URI_TOKEN_TYPE_STRING"),
-				}},
-				Type: proto.String("URI_PARAM_TYPE_TOKENIZED"),
+			if filter.UrlRewriteFilter.path != nil {
+				urlRewriteAction.Path = &models.URIParam{
+					Tokens: []*models.URIParamToken{{
+						StrValue: filter.UrlRewriteFilter.path.ReplaceFullPath,
+						Type:     proto.String("URI_TOKEN_TYPE_STRING"),
+					}},
+					Type: proto.String("URI_PARAM_TYPE_TOKENIZED"),
+				}
 			}
 			urlRewriteAction.Query = &models.URIParamQuery{
 				AddString: nil,
