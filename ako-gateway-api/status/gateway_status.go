@@ -137,7 +137,7 @@ func (o *gateway) Delete(key string, option status.StatusOptions) {
 			SetIn(&gatewayStatus.Listeners[i].Conditions)
 	}
 
-	o.Patch(key, gw, &status.Status{GatewayStatus: gatewayStatus})
+	o.UpdateStatus(key, gw, &status.Status{GatewayStatus: gatewayStatus})
 	utils.AviLog.Infof("key: %s, msg: Successfully reset the address status of gateway: %s", key, gw.Name)
 
 	// TODO: Add annotation delete code here
@@ -240,6 +240,36 @@ func (o *gateway) BulkUpdate(key string, options []status.StatusOptions) {
 			// TODO: Annotation update code here
 		}
 	}
+}
+func (o *gateway) UpdateStatus(key string, obj runtime.Object, status *status.Status, retryNum ...int) error {
+	retry := 0
+	if len(retryNum) > 0 {
+		retry = retryNum[0]
+		if retry >= 5 {
+			utils.AviLog.Errorf("key: %s, msg: Update retried 5 times, aborting", key)
+			akogatewayapilib.AKOControlConfig().EventRecorder().Eventf(obj, corev1.EventTypeWarning, lib.PatchFailed, "Update of status failed after multiple retries")
+			return errors.New("Update retried 5 times, aborting")
+		}
+	}
+
+	gw := obj.(*gatewayv1.Gateway)
+	if o.isStatusEqual(&gw.Status, status.GatewayStatus) {
+		return nil
+	}
+	gw.Status = *status.GatewayStatus.DeepCopy()
+	_, err := akogatewayapilib.AKOControlConfig().GatewayAPIClientset().GatewayV1().Gateways(gw.Namespace).UpdateStatus(context.TODO(), gw, metav1.UpdateOptions{})
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: there was an error in updating the gateway status. err: %+v, retry: %d", key, err, retry)
+		updatedGW, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(gw.Namespace).Get(gw.Name)
+		if err != nil {
+			utils.AviLog.Warnf("gateway not found %v", err)
+			return err
+		}
+		return o.UpdateStatus(key, updatedGW, status, retry+1)
+	}
+
+	utils.AviLog.Infof("key: %s, msg: Successfully updated the gateway %s/%s status %+v", key, gw.Namespace, gw.Name, utils.Stringify(status))
+	return nil
 }
 
 func (o *gateway) Patch(key string, obj runtime.Object, status *status.Status, retryNum ...int) error {
