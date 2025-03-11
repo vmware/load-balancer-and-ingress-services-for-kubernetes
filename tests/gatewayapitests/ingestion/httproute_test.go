@@ -22,6 +22,7 @@ import (
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	akogatewayapitests "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/gatewayapitests"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 )
 
 func TestHTTPRouteCUD(t *testing.T) {
@@ -239,6 +240,46 @@ func TestHTTPRouteGatewayWithEmptyHostname(t *testing.T) {
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
 	hostnames := []gatewayv1.Hostname{}
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, nil)
+	waitAndverify(t, key)
+
+	// delete
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
+	waitAndverify(t, key)
+	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	waitAndverify(t, gwKey)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+	waitAndverify(t, gwClassKey)
+}
+
+func TestHTTPRouteGatewayWithRegexPath(t *testing.T) {
+	gatewayClassName := "gateway-class-07"
+	gatewayName := "gateway-07"
+	httpRouteName := "httproute-07"
+	gwKey := "Gateway/" + DEFAULT_NAMESPACE + "/" + gatewayName
+	gwClassKey := "GatewayClass/" + gatewayClassName
+	namespace := "default"
+	ports := []int32{8080}
+	key := "HTTPRoute" + "/" + namespace + "/" + httpRouteName
+
+	// gatewayclass
+	akogatewayapiobjects.GatewayApiLister().UpdateGatewayClass(gatewayClassName, true)
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	t.Logf("Created GatewayClass %s", gatewayClassName)
+	waitAndverify(t, gwClassKey)
+
+	// Gateway without hostname
+	listeners := akogatewayapitests.GetListenersV1(ports, true, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
+	t.Logf("Created Gateway %s", gatewayName)
+	waitAndverify(t, gwKey)
+
+	t.Logf("Now creating httproute")
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
+	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.REGULAREXPRESSION, []string{"/foo/[a-z]+/bar"}, []string{}, nil,
+		nil, nil)
+	rules := []gatewayv1.HTTPRouteRule{rule}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
 	waitAndverify(t, key)
 
 	// delete
