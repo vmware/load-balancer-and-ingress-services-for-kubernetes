@@ -37,7 +37,7 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 		return nil
 	}
 	name := hps_meta.Name
-	tenant := fmt.Sprintf("/api/tenant/?name=%s", hps_meta.Tenant)
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", lib.GetEscapedValue(hps_meta.Tenant))
 	cr := lib.AKOUser
 
 	hps := avimodels.L4PolicySet{
