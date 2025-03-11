@@ -87,30 +87,38 @@ spec:
                     description: HTTPMethod is the HTTP method to use.
                     type: string
                   http_request:
+                    default: GET / HTTP/1.0
                     description: HTTPRequest is the HTTP request to send.
+                    maxLength: 1024
                     type: string
                   http_request_body:
                     description: HTTPRequestBody is the request body to send.
                     type: string
                   http_request_header_path:
                     description: HTTPRequestHeaderPath is the path to use for headers.
+                    maxLength: 1024
                     type: string
                   http_response:
                     description: HTTPResponse is a keyword to match in the response
                       body.
+                    maxLength: 512
                     type: string
                   http_response_code:
                     description: HTTPResponseCode is the list of expected HTTP response
                       codes.
                     items:
                       type: string
+                    minItems: 1
                     type: array
                   maintenance_code:
                     description: MaintenanceCode is the HTTP code for maintenance
                       response.
                     items:
-                      format: int32
+                      format: uint32
+                      maximum: 599
+                      minimum: 101
                       type: integer
+                    maxItems: 4
                     type: array
                   maintenance_response:
                     description: MaintenanceResponse is the body content to match
@@ -119,6 +127,8 @@ spec:
                   response_size:
                     description: ResponseSize is the expected size of the response.
                     format: int32
+                    maximum: 16384
+                    minimum: 2048
                     type: integer
                 type: object
               https:
@@ -143,30 +153,38 @@ spec:
                     description: HTTPMethod is the HTTP method to use.
                     type: string
                   http_request:
+                    default: GET / HTTP/1.0
                     description: HTTPRequest is the HTTP request to send.
+                    maxLength: 1024
                     type: string
                   http_request_body:
                     description: HTTPRequestBody is the request body to send.
                     type: string
                   http_request_header_path:
                     description: HTTPRequestHeaderPath is the path to use for headers.
+                    maxLength: 1024
                     type: string
                   http_response:
                     description: HTTPResponse is a keyword to match in the response
                       body.
+                    maxLength: 512
                     type: string
                   http_response_code:
                     description: HTTPResponseCode is the list of expected HTTP response
                       codes.
                     items:
                       type: string
+                    minItems: 1
                     type: array
                   maintenance_code:
                     description: MaintenanceCode is the HTTP code for maintenance
                       response.
                     items:
-                      format: int32
+                      format: uint32
+                      maximum: 599
+                      minimum: 101
                       type: integer
+                    maxItems: 4
                     type: array
                   maintenance_response:
                     description: MaintenanceResponse is the body content to match
@@ -175,11 +193,23 @@ spec:
                   response_size:
                     description: ResponseSize is the expected size of the response.
                     format: int32
+                    maximum: 16384
+                    minimum: 2048
                     type: integer
                 type: object
+              is_federated:
+                description: |-
+                  IsFederated describes the object's replication scope. If the
+                  field is set to false, then the object is visible within
+                  the controller-cluster and its associated service-engines.
+                  If the field is set to true, then the object is replicated
+                  across the federation
+                type: boolean
               monitor_port:
                 description: MonitorPort is the port to use for the health check.
                 format: int32
+                maximum: 65535
+                minimum: 0
                 type: integer
               receive_timeout:
                 default: 4
@@ -211,6 +241,7 @@ spec:
                   maintenance_response:
                     description: MaintenanceResponse is the response to send when
                       in maintenance mode.
+                    maxLength: 512
                     type: string
                   tcp_half_open:
                     description: TcpHalfOpen is a boolean to check if the tcp monitor
@@ -219,12 +250,19 @@ spec:
                   tcp_request:
                     description: TcpRequest is the request to send for the TCP health
                       check.
+                    maxLength: 1024
                     type: string
                   tcp_response:
                     description: TcpResponse is the expected response for the TCP
                       health check.
+                    maxLength: 512
                     type: string
                 type: object
+                x-kubernetes-validations:
+                - message: tcp_request, tcp_response, and maintenance_response cannot
+                    be set when tcp_half_open is true
+                  rule: '!(self.tcp_half_open) || (self.tcp_request == '''' && self.tcp_response
+                    == '''' && self.maintenance_response == '''')'
               type:
                 description: Type is the type of health monitor.
                 enum:

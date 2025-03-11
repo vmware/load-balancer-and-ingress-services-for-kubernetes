@@ -55,11 +55,20 @@ type HealthMonitorSpec struct {
 	Type HealthMonitorType `json:"type,omitempty"`
 
 	// MonitorPort is the port to use for the health check.
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=65535
 	MonitorPort int32 `json:"monitor_port,omitempty"`
 
 	// Authentication defines the authentication information for HTTP/HTTPS monitors.
 	// +optional
 	Authentication *HealthMonitorInfo `json:"authentication,omitempty"`
+
+	// IsFederated describes the object's replication scope. If the
+	// field is set to false, then the object is visible within
+	// the controller-cluster and its associated service-engines.
+	// If the field is set to true, then the object is replicated
+	// across the federation
+	IsFederated bool `json:"is_federated,omitempty"`
 
 	// TCP defines the TCP monitor configuration.
 	// +optional
@@ -87,15 +96,19 @@ type HealthMonitorInfo struct {
 }
 
 // TCPMonitor defines the TCP monitor configuration.
+// +kubebuilder:validation:XValidation:rule="!(self.tcp_half_open) || (self.tcp_request == '' && self.tcp_response == '' && self.maintenance_response == '')",message="tcp_request, tcp_response, and maintenance_response cannot be set when tcp_half_open is true"
 type TCPMonitor struct {
 	// TcpRequest is the request to send for the TCP health check.
 	// +optional
+	// +kubebuilder:validation:MaxLength=1024
 	TcpRequest string `json:"tcp_request,omitempty"`
 	// TcpResponse is the expected response for the TCP health check.
 	// +optional
+	// +kubebuilder:validation:MaxLength=512
 	TcpResponse string `json:"tcp_response,omitempty"`
 	// MaintenanceResponse is the response to send when in maintenance mode.
 	// +optional
+	// +kubebuilder:validation:MaxLength=512
 	MaintenanceResponse string `json:"maintenance_response,omitempty"`
 	// TcpHalfOpen is a boolean to check if the tcp monitor is in half open mode
 	// +optional
@@ -106,17 +119,26 @@ type TCPMonitor struct {
 type HTTPMonitor struct {
 	// HTTPRequest is the HTTP request to send.
 	// +optional
+	// +kubebuilder:validation:MaxLength=1024
+	// +kubebuilder:default:="GET / HTTP/1.0"
 	HTTPRequest string `json:"http_request,omitempty"`
 	// HTTPResponseCode is the list of expected HTTP response codes.
+	// +kubebuilder:validation:MinItems=1
 	HTTPResponseCode []string `json:"http_response_code,omitempty"` // Use string array for enum values
 	// HTTPResponse is a keyword to match in the response body.
 	// +optional
+	// +kubebuilder:validation:MaxLength=512
 	HTTPResponse string `json:"http_response,omitempty"`
 	// MaintenanceCode is the HTTP code for maintenance response.
 	// +optional
-	MaintenanceCode []int32 `json:"maintenance_code,omitempty"`
+	// +kubebuilder:validation:items:Minimum=101
+	// +kubebuilder:validation:items:Maximum=599
+	// +kubebuilder:validation:MaxItems=4
+	// +kubebuilder:validation:items:Format=uint32
+	MaintenanceCode []uint32 `json:"maintenance_code,omitempty"`
 	// MaintenanceResponse is the body content to match for maintenance response.
 	// +optional
+	// +kubebuilder:validation: MaxLength=512
 	MaintenanceResponse string `json:"maintenance_response,omitempty"`
 	// ExactHttpRequest checks if the whole http request should match.
 	// +optional
@@ -128,7 +150,9 @@ type HTTPMonitor struct {
 	HTTPRequestBody string `json:"http_request_body,omitempty"`
 	// ResponseSize is the expected size of the response.
 	// +optional
-	ResponseSize int32 `json:"response_size,omitempty"`
+	// +kubebuilder:validation:Minimum=2048
+	// +kubebuilder:validation:Maximum=16384
+	ResponseSize uint32 `json:"response_size,omitempty"`
 	// HTTPHeaders is the list of headers to send.
 	HTTPHeaders []string `json:"http_headers,omitempty"`
 	// HTTPMethod is the HTTP method to use.
@@ -136,6 +160,7 @@ type HTTPMonitor struct {
 	HTTPMethod string `json:"http_method,omitempty"`
 	// HTTPRequestHeaderPath is the path to use for headers.
 	// +optional
+	// +kubebuilder:validation:MaxLength=1024
 	HTTPRequestHeaderPath string `json:"http_request_header_path,omitempty"`
 }
 
@@ -154,8 +179,12 @@ type HealthMonitorSSlattributes struct {
 	SslKeyAndCertificateRef ParentReference `json:"ssl_key_and_certificate_ref,omitempty"`
 
 	// SSL profile defines ciphers and SSL versions to be used for healthmonitor traffic to the back-end servers. It is a reference to an object of type SSLProfile.
-	// +optional
+	// +kubebuilder:validation:Required
 	SslProfileRef ParentReference `json:"ssl_profile_ref"`
+
+	// UsePoolSNIServerName Use the SNI server name configured in the Pool. This will override the server_name configured in the Health Monitor.
+	// +kubebuilder:validation:XValidation:rule="!(self.use_pool_sni_server_name) || (self.server_name == '')",message="server_name cannot be set when use_pool_sni_server_name is true"
+	UsePoolSNIServerName bool `json:"use_pool_sni_server_name,omitempty"`
 }
 
 type ParentReference struct {

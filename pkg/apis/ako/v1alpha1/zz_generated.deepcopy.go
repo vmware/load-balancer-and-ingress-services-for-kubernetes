@@ -208,7 +208,7 @@ func (in *HTTPMonitor) DeepCopyInto(out *HTTPMonitor) {
 	}
 	if in.MaintenanceCode != nil {
 		in, out := &in.MaintenanceCode, &out.MaintenanceCode
-		*out = make([]int32, len(*in))
+		*out = make([]uint32, len(*in))
 		copy(*out, *in)
 	}
 	if in.HTTPHeaders != nil {
