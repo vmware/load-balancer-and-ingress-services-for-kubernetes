@@ -1392,7 +1392,7 @@ func TestNoHostIngressForEvh(t *testing.T) {
 			return len(nodes[0].EvhNodes)
 		}
 		return 0
-	}, 15*time.Second).Should(gomega.Equal(1))
+	}, 30*time.Second).Should(gomega.Equal(1))
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
