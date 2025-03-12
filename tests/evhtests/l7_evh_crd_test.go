@@ -3947,4 +3947,11 @@ func TestApplyHostruleToParentVSWithEmptyDomains(t *testing.T) {
 	g.Expect(nodes[0].SslProfileRef).To(gomega.BeNil())
 
 	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
+
+	mcache := cache.SharedAviObjCache()
+	cloudObj := &cache.AviCloudPropertyCache{Name: "Default-Cloud", VType: "mock"}
+	subdomains := []string{"avi.internal", ".com"}
+	cloudObj.NSIpamDNS = subdomains
+	mcache.CloudKeyCache.AviCacheAdd("Default-Cloud", cloudObj)
+
 }
