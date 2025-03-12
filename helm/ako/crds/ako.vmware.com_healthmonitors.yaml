@@ -196,6 +196,87 @@ spec:
                     maximum: 16384
                     minimum: 2048
                     type: integer
+                  ssl_attributes:
+                    description: HealthMonitorSSlattributes defines the SSL attributes
+                      for HTTPS monitors.
+                    properties:
+                      pki_profile_ref:
+                        description: PKI profile used to validate the SSL certificate
+                          presented by a server. It is a reference to an object of
+                          type PKIProfile.
+                        properties:
+                          name:
+                            description: Name is the name of the referent.
+                            type: string
+                          namespace:
+                            description: |-
+                              Namespace is the namespace of the referent. When unspecified, this refers
+                              to the local namespace of the HealthMonitor
+                            type: string
+                          ref_name:
+                            description: Avi Controller object ref name
+                            type: string
+                        required:
+                        - name
+                        - ref_name
+                        type: object
+                      server_name:
+                        description: Fully qualified DNS hostname which will be used
+                          in the TLS SNI extension in server connections indicating
+                          SNI is enabled.
+                        type: string
+                      ssl_key_and_certificate_ref:
+                        description: Service engines will present this SSL certificate
+                          to the server. It is a reference to an object of type SSLKeyAndCertificate.
+                        properties:
+                          name:
+                            description: Name is the name of the referent.
+                            type: string
+                          namespace:
+                            description: |-
+                              Namespace is the namespace of the referent. When unspecified, this refers
+                              to the local namespace of the HealthMonitor
+                            type: string
+                          ref_name:
+                            description: Avi Controller object ref name
+                            type: string
+                        required:
+                        - name
+                        - ref_name
+                        type: object
+                      ssl_profile_ref:
+                        description: SSL profile defines ciphers and SSL versions
+                          to be used for healthmonitor traffic to the back-end servers.
+                          It is a reference to an object of type SSLProfile.
+                        properties:
+                          name:
+                            description: Name is the name of the referent.
+                            type: string
+                          namespace:
+                            description: |-
+                              Namespace is the namespace of the referent. When unspecified, this refers
+                              to the local namespace of the HealthMonitor
+                            type: string
+                          ref_name:
+                            description: Avi Controller object ref name
+                            type: string
+                        required:
+                        - name
+                        - ref_name
+                        type: object
+                      use_pool_sni_server_name:
+                        description: UsePoolSNIServerName Use the SNI server name
+                          configured in the Pool. This will override the server_name
+                          configured in the Health Monitor.
+                        type: boolean
+                    required:
+                    - ssl_profile_ref
+                    type: object
+                    x-kubernetes-validations:
+                    - message: server_name cannot be set when use_pool_sni_server_name
+                        is true
+                      rule: self.use_pool_sni_server_name == false || self.server_name
+                        == ''
                 type: object
               is_federated:
                 description: |-
@@ -261,8 +342,8 @@ spec:
                 x-kubernetes-validations:
                 - message: tcp_request, tcp_response, and maintenance_response cannot
                     be set when tcp_half_open is true
-                  rule: '!(self.tcp_half_open) || (self.tcp_request == '''' && self.tcp_response
-                    == '''' && self.maintenance_response == '''')'
+                  rule: self.tcp_half_open == false || (self.tcp_request == '' &&
+                    self.tcp_response == '' && self.maintenance_response == '')
               type:
                 description: Type is the type of health monitor.
                 enum:
@@ -271,6 +352,11 @@ spec:
                 - HEALTH_MONITOR_HTTP
                 - HEALTH_MONITOR_HTTPS
                 type: string
+                x-kubernetes-validations:
+                - message: type is immutable
+                  rule: self == oldSelf
+            required:
+            - type
             type: object
           status:
             description: Status defines the observed state of HealthMonitor

@@ -140,8 +140,8 @@ type SSLKeyAndCertificateList struct {
 	Items           []SSLKeyAndCertificate `json:"items"`
 }
 
-// +kubebuilder:validation:XValidation:rule="self.spec.self_signed_certificate.common_name != '' || self.spec.certificate_secret_ref != ''",message="If self signed certificate is not defined, you must define the certificate secret ref"
-// +kubebuilder:validation:XValidation:rule="self.spec.certificate_secret_ref != '' && self.spec.key_secret_ref != ''",message="If certificate secret ref is defined, you must define the key secret ref"
+// +kubebuilder:validation:XValidation:rule="(has(self.certificate_secret_ref) && !has(self.self_signed_certificate)) || (!has(self.certificate_secret_ref) && has(self.self_signed_certificate))",message=one of certificate_secret_ref or self_signed_certificate can be defined
+// +kubebuilder:validation:XValidation:rule="(has(self.certificate_secret_ref) && has(self.key_secret_ref)) || (!has(self.certificate_secret_ref) && !has(self.key_secret_ref))",message=both certificate_secret_ref and key_secret_ref should be defined/undefined
 
 // SSLKeyAndCertificateSpec defines the desired state of SSLKeyAndCertificate
 type SSLKeyAndCertificateSpec struct {
@@ -150,7 +150,7 @@ type SSLKeyAndCertificateSpec struct {
 	// +kubebuilder:validation:Optional
 	KeySecretRef string `json:"key_secret_ref"`
 	// +kubebuilder:validation:Optional
-	SelfSignedCertificate SSLCertificateDescription `json:"self_signed_certificate"`
+	SelfSignedCertificate *SSLCertificateDescription `json:"self_signed_certificate"`
 	// +optional
 	KeyPassphrase string `json:"key_passphrase,omitempty"`
 	// +optional
@@ -265,26 +265,26 @@ type PKIProfileSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	CACertsSecretRef []string `json:"ca_certs,omitempty"`
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:XValidation:rule="self.crl_check == false || self.crl_data != null",message="crl_data is mandatory if crl_check is set to true"
-	CRLData CRLDataRef `json:"crl_data,omitempty"`
+	// //+kubebuilder:validation:XValidation:rule="self.crl_check == false || self.crl_data != null",message="crl_data is mandatory if crl_check is set to true"
+	//CRLData CRLDataRef `json:"crl_data,omitempty"`
 	// +kubebuilder:validation:Optional
 	IgnorePeerChain bool `json:"ignore_peer_chain,omitempty"`
 	// +kubebuilder:validation:Optional
-	CRLCheck bool `json:"crl_check,omitempty"`
+	//CRLCheck bool `json:"crl_check,omitempty"`
 	// +kubebuilder:validation:Optional
-	ValidateOnlyLeafCRL bool `json:"validate_only_leaf_crl,omitempty"`
+	//ValidateOnlyLeafCRL bool `json:"validate_only_leaf_crl,omitempty"`
 	// +optional
 	IsFederated bool `json:"is_federated,omitempty"`
 }
 
-// +kubebuilder:validation:XValidation:rule="self.crl_data == null || size(self.crl_data.crl_file_uuids) > 0 || size(self.crl_data.crl_server_url) > 0", message="When crl_data is specified, at least one of crl_file_uuids or crl_server_url must be specified"
-
-type CRLDataRef struct {
-	// Avi controller CRL fileobject ref
-	CRLFileUUIDs []string `json:"crl_file_uuids,omitempty"`
-	// CRL server URL
-	CRLServerURL []string `json:"crl_server_url"`
-}
+//// +kubebuilder:validation:XValidation:rule="self.crl_data == null || size(self.crl_data.crl_file_uuids) > 0 || size(self.crl_data.crl_server_url) > 0", message="When crl_data is specified, at least one of crl_file_uuids or crl_server_url must be specified"
+//
+//type CRLDataRef struct {
+//	// Avi controller CRL fileobject ref
+//	CRLFileUUIDs []string `json:"crl_file_uuids,omitempty"`
+//	// CRL server URL
+//	CRLServerURL []string `json:"crl_server_url"`
+//}
 
 // PKIProfileStatus defines the observed state of PKIProfile
 type PKIProfileStatus struct {

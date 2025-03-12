@@ -114,14 +114,13 @@ spec:
                 type: object
             type: object
             x-kubernetes-validations:
-            - message: If self signed certificate is not defined, you must define
-                the certificate secret ref
-              rule: self.spec.self_signed_certificate.common_name != '' || self.spec.certificate_secret_ref
-                != ''
-            - message: If certificate secret ref is defined, you must define the key
-                secret ref
-              rule: self.spec.certificate_secret_ref != '' && self.spec.key_secret_ref
-                != ''
+            - message: one of certificate_secret_ref or self_signed_certificate can
+                be defined
+              rule: (has(self.certificate_secret_ref) && !has(self.self_signed_certificate))
+                || (!has(self.certificate_secret_ref) && has(self.self_signed_certificate))
+            - message: both certificate_secret_ref and key_secret_ref should be defined/undefined
+              rule: (has(self.certificate_secret_ref) && has(self.key_secret_ref))
+                || (!has(self.certificate_secret_ref) && !has(self.key_secret_ref))
           status:
             description: SSLKeyAndCertificateStatus defines the observed state of
               SSLKeyAndCertificate

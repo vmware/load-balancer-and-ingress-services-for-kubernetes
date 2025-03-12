@@ -52,6 +52,8 @@ type HealthMonitorSpec struct {
 	FailedChecks int32 `json:"failed_checks,omitempty"`
 
 	// Type is the type of health monitor.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="type is immutable"
 	Type HealthMonitorType `json:"type,omitempty"`
 
 	// MonitorPort is the port to use for the health check.
@@ -80,7 +82,12 @@ type HealthMonitorSpec struct {
 
 	// HTTPS defines the HTTPS monitor configuration.
 	// +optional
-	HTTPS *HTTPMonitor `json:"https,omitempty"`
+	HTTPS *HTTPSMonitor `json:"https,omitempty"`
+}
+
+type HTTPSMonitor struct {
+	HTTPMonitor   `json:",inline"`
+	SSLAttributes HealthMonitorSSlattributes `json:"ssl_attributes,omitempty"`
 }
 
 // HealthMonitorInfo defines authentication information for HTTP/HTTPS monitors.
@@ -95,8 +102,9 @@ type HealthMonitorInfo struct {
 	Password string `json:"password"`
 }
 
+// +kubebuilder:validation:XValidation:rule="self.tcp_half_open == false || (self.tcp_request == '' && self.tcp_response == '' && self.maintenance_response == '')",message="tcp_request, tcp_response, and maintenance_response cannot be set when tcp_half_open is true"
+
 // TCPMonitor defines the TCP monitor configuration.
-// +kubebuilder:validation:XValidation:rule="!(self.tcp_half_open) || (self.tcp_request == '' && self.tcp_response == '' && self.maintenance_response == '')",message="tcp_request, tcp_response, and maintenance_response cannot be set when tcp_half_open is true"
 type TCPMonitor struct {
 	// TcpRequest is the request to send for the TCP health check.
 	// +optional
@@ -164,6 +172,8 @@ type HTTPMonitor struct {
 	HTTPRequestHeaderPath string `json:"http_request_header_path,omitempty"`
 }
 
+// +kubebuilder:validation:XValidation:rule="self.use_pool_sni_server_name == false || self.server_name == ''",message="server_name cannot be set when use_pool_sni_server_name is true"
+
 // HealthMonitorSSlattributes defines the SSL attributes for HTTPS monitors.
 type HealthMonitorSSlattributes struct {
 	// PKI profile used to validate the SSL certificate presented by a server. It is a reference to an object of type PKIProfile.
@@ -183,7 +193,6 @@ type HealthMonitorSSlattributes struct {
 	SslProfileRef ParentReference `json:"ssl_profile_ref"`
 
 	// UsePoolSNIServerName Use the SNI server name configured in the Pool. This will override the server_name configured in the Health Monitor.
-	// +kubebuilder:validation:XValidation:rule="!(self.use_pool_sni_server_name) || (self.server_name == '')",message="server_name cannot be set when use_pool_sni_server_name is true"
 	UsePoolSNIServerName bool `json:"use_pool_sni_server_name,omitempty"`
 }
 

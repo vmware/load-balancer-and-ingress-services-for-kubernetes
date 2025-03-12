@@ -46,35 +46,15 @@ spec:
                   type: string
                 minItems: 1
                 type: array
-              crl_check:
-                type: boolean
-              crl_data:
-                properties:
-                  crl_file_uuids:
-                    description: Avi controller CRL fileobject ref
-                    items:
-                      type: string
-                    type: array
-                  crl_server_url:
-                    description: CRL server URL
-                    items:
-                      type: string
-                    type: array
-                required:
-                - crl_server_url
-                type: object
-                x-kubernetes-validations:
-                - message: crl_data is mandatory if crl_check is set to true
-                  rule: self.crl_check == false || self.crl_data != null
-                - message: When crl_data is specified, at least one of crl_file_uuids
-                    or crl_server_url must be specified
-                  rule: self.crl_data == null || size(self.crl_data.crl_file_uuids)
-                    > 0 || size(self.crl_data.crl_server_url) > 0
               ignore_peer_chain:
+                description: |-
+                  //+kubebuilder:validation:XValidation:rule="self.crl_check == false || self.crl_data != null",message="crl_data is mandatory if crl_check is set to true"
+                  CRLData CRLDataRef `json:"crl_data,omitempty"`
                 type: boolean
               is_federated:
-                type: boolean
-              validate_only_leaf_crl:
+                description: |-
+                  CRLCheck bool `json:"crl_check,omitempty"`
+                  ValidateOnlyLeafCRL bool `json:"validate_only_leaf_crl,omitempty"`
                 type: boolean
             type: object
           status:
