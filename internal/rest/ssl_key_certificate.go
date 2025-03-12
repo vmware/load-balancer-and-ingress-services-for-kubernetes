@@ -35,7 +35,7 @@ func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache
 		return nil
 	}
 	name := ssl_node.Name
-	tenant := fmt.Sprintf("/api/tenant/?name=%s", ssl_node.Tenant)
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", lib.GetEscapedValue(ssl_node.Tenant))
 	certificate := string(ssl_node.Cert)
 	key := string(ssl_node.Key)
 	cr := lib.AKOUser
@@ -221,7 +221,7 @@ func (rest *RestOperations) AviPkiProfileBuild(pki_node *nodes.AviPkiProfileNode
 		return nil
 	}
 	caCert := string(pki_node.CACert)
-	tenant := fmt.Sprintf("/api/tenant/?name=%s", pki_node.Tenant)
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", lib.GetEscapedValue(pki_node.Tenant))
 	name := pki_node.Name
 	var caCerts []*avimodels.SSLCertificate
 	cr := lib.AKOUser

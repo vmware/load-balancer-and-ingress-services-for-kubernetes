@@ -43,7 +43,7 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 	var httpPresentPaths []string
 	httpPresentIng := sets.NewString()
 
-	tenant := fmt.Sprintf("/api/tenant/?name=%s", hps_meta.Tenant)
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", lib.GetEscapedValue(hps_meta.Tenant))
 	cr := lib.AKOUser
 
 	http_req_pol := avimodels.HTTPRequestPolicy{}
@@ -198,14 +198,16 @@ func (rest *RestOperations) AviHttpPSBuild(hps_meta *nodes.AviHttpPolicySetNode,
 			port_match_crit := "IS_IN"
 			match_target.VsPort = &avimodels.PortMatch{MatchCriteria: &port_match_crit, Ports: []int64{int64(hppmap.VsPort)}}
 		}
-		if hppmap.Path != "" && hppmap.MatchCriteria != "" {
+		if hppmap.Path != "" && hppmap.MatchCriteriaPath != "" {
 			match_case := "SENSITIVE"
 			path_match := avimodels.PathMatch{
-				MatchCriteria: &hppmap.MatchCriteria,
+				MatchCriteria: &hppmap.MatchCriteriaPath,
 				MatchCase:     &match_case,
 				MatchStr:      []string{hppmap.Path},
 			}
+			redirect_port_match := avimodels.PortMatch{MatchCriteria: &hppmap.MatchCriteriaPort, Ports: []int64{int64(hppmap.RedirectPort)}}
 			match_target.Path = &path_match
+			match_target.VsPort = &redirect_port_match
 		}
 		redirect_action := avimodels.HTTPRedirectAction{}
 		protocol := "HTTPS"

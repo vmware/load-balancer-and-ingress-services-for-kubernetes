@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -146,6 +147,10 @@ func (l *leader) UpdateRouteStatus(options []UpdateOptions, bulk bool) {
 	if bulk {
 		for routeNSName, route := range routeMap {
 			if val, ok := skipDelete[routeNSName]; ok && val {
+				continue
+			}
+			if checkIfVsPresentInCache(route) {
+				utils.AviLog.Infof("key: %s, msg: Skipping status delete of route %s since vs is present in cache", lib.SyncStatusKey, routeNSName)
 				continue
 			}
 			l.DeleteRouteStatus([]UpdateOptions{{
@@ -683,6 +688,67 @@ func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta lib.ServiceMetadataO
 	}
 
 	return nil
+}
+
+func checkIfVsPresentInCache(route *routev1.Route) bool {
+	hostname := route.Spec.Host
+	if hostname == "" {
+		hostname = lib.GetHostnameforSubdomain(route.Spec.Subdomain)
+	}
+
+	for _, ingress := range route.Status.Ingress {
+		if ingress.Host != hostname {
+			continue
+		}
+
+		if ingress.RouterName != lib.AKOUser {
+			utils.AviLog.Debugf("Skipping non-AKO managed ingress for host %s in route %s/%s", ingress.Host, route.Namespace, route.Name)
+			continue
+		}
+
+		if len(ingress.Conditions) == 0 {
+			utils.AviLog.Debugf("No conditions found for ingress %s in route %s/%s", ingress.Host, route.Namespace, route.Name)
+			continue
+		}
+
+		if ingress.Conditions[0].Reason == "" {
+			utils.AviLog.Debugf("Empty reason field found for ingress %s in route %s/%s", ingress.Host, route.Namespace, route.Name)
+			continue
+		}
+
+		var akoVSControllerUUID map[string]string
+		err := json.Unmarshal([]byte(ingress.Conditions[0].Reason), &akoVSControllerUUID)
+		if err != nil {
+			utils.AviLog.Debugf("Error unmarshalling Status reason for ingress %s in route %s/%s: %v", ingress.Host, route.Namespace, route.Name, err)
+			continue
+		}
+
+		vsUUIDStr, exists := akoVSControllerUUID[lib.VSAnnotation]
+		if !exists {
+			utils.AviLog.Debugf("No VS UUID found in status reason for ingress %s in route %s/%s: %v", ingress.Host, route.Namespace, route.Name, akoVSControllerUUID)
+			continue
+		}
+
+		var vsUUIDs map[string]string
+		if err := json.Unmarshal([]byte(vsUUIDStr), &vsUUIDs); err != nil {
+			utils.AviLog.Debugf("Error in unmarshalling VS UUID for ingress %s in route %s/%s : %v", ingress.Host, route.Namespace, route.Name, err)
+			continue
+		}
+
+		vsUUID, exists := vsUUIDs[hostname]
+		if !exists {
+			utils.AviLog.Debugf("No vsUUID found for host %s in  vsUUIDs: %v", hostname, vsUUIDs)
+			continue
+		}
+
+		_, exists = cache.SharedAviObjCache().VsCacheMeta.AviCacheGetKeyByUuid(vsUUID)
+		if exists {
+			return true
+		}
+		utils.AviLog.Debugf("No entry found in cache for vs uuid %s for host %s in route %s/%s", vsUUID, hostname, route.Namespace, route.Name)
+	}
+
+	return false
 }
 
 func (f *follower) UpdateRouteStatus(options []UpdateOptions, bulk bool) {

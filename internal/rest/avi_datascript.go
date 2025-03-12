@@ -43,7 +43,7 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 	}
 	datascript := avimodels.VSDataScript{Evt: &ds_meta.Evt, Script: &ds_meta.Script}
 	datascriptlist = append(datascriptlist, &datascript)
-	tenant_ref := "/api/tenant/?name=" + ds_meta.Tenant
+	tenant_ref := "/api/tenant/?name=" + lib.GetEscapedValue(ds_meta.Tenant)
 	cr := lib.AKOUser
 	vsdatascriptset := avimodels.VSDataScriptSet{
 		CreatedBy:     &cr,

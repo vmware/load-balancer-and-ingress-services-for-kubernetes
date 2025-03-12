@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"reflect"
 	"regexp"
@@ -274,6 +275,8 @@ func GetNSXTTransportZone() string {
 	return NsxTTzType
 }
 
+var nonDnsLabelRegex = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
+
 func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32) ([]string, string) {
 	var fqdns []string
 	var fqdn string
@@ -289,6 +292,8 @@ func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32)
 		autoFQDN = false
 	}
 	if subDomains != nil && autoFQDN {
+		//Replace all non valid dns label characters with - in tenant name
+		tenantNameWithValidChars := nonDnsLabelRegex.ReplaceAllString(tenant, "-")
 		// honour defaultSubDomain from values.yaml if specified
 		defaultSubDomain := GetDomain()
 		if defaultSubDomain != "" && utils.HasElem(subDomains, defaultSubDomain) {
@@ -303,18 +308,22 @@ func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32)
 		}
 		if GetL4FqdnFormat() == AutoFQDNDefault {
 			// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
-			fqdn = vsName + "." + tenant + "." + subdomain
+			fqdn = vsName + "." + tenantNameWithValidChars + "." + subdomain
 		} else if GetL4FqdnFormat() == AutoFQDNFlat {
 			// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
-			fqdn = vsName + "-" + tenant + "." + subdomain
+			fqdn = vsName + "-" + tenantNameWithValidChars + "." + subdomain
 		}
 		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(fqdn, GetModelName(tenant, vsName))
 		utils.AviLog.Infof("key: %s, msg: Configured the shared VS with default fqdn as: %s", key, fqdn)
 		fqdns = append(fqdns, fqdn)
+	} else {
+		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(vsName, GetModelName(tenant, vsName))
 	}
 	return fqdns, fqdn
 }
-
+func GetEscapedValue(val string) string {
+	return url.QueryEscape(val)
+}
 func SetDisableSync(state bool) {
 	DisableSync = state
 	utils.AviLog.Infof("Setting Disable Sync to: %v", state)
@@ -702,7 +711,7 @@ func GetVrf() string {
 }
 
 func GetVPCMode() bool {
-	if vpcMode, _ := strconv.ParseBool(os.Getenv("VPC_MODE")); vpcMode {
+	if vpcMode, _ := strconv.ParseBool(os.Getenv(utils.VPC_MODE)); vpcMode {
 		return true
 	}
 	return false
@@ -1109,6 +1118,10 @@ func GetClusterIDSplit() string {
 	if clusterID != "" {
 		clusterName := strings.Split(clusterID, ":")
 		if len(clusterName) > 1 {
+			if GetVPCMode() {
+				// Include first 5 characters to add more uniqueness to cluster name
+				return clusterName[0] + "-" + clusterName[1][:5]
+			}
 			return clusterName[0]
 		}
 	}
