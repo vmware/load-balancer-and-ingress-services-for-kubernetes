@@ -32,8 +32,24 @@ func (c *FakeAkoV1alpha1) ClusterSets(namespace string) v1alpha1.ClusterSetInter
 	return &FakeClusterSets{c, namespace}
 }
 
+func (c *FakeAkoV1alpha1) HealthMonitors(namespace string) v1alpha1.HealthMonitorInterface {
+	return &FakeHealthMonitors{c, namespace}
+}
+
 func (c *FakeAkoV1alpha1) MultiClusterIngresses(namespace string) v1alpha1.MultiClusterIngressInterface {
 	return &FakeMultiClusterIngresses{c, namespace}
+}
+
+func (c *FakeAkoV1alpha1) PKIProfiles(namespace string) v1alpha1.PKIProfileInterface {
+	return &FakePKIProfiles{c, namespace}
+}
+
+func (c *FakeAkoV1alpha1) SSLKeyAndCertificates(namespace string) v1alpha1.SSLKeyAndCertificateInterface {
+	return &FakeSSLKeyAndCertificates{c, namespace}
+}
+
+func (c *FakeAkoV1alpha1) SSLProfiles(namespace string) v1alpha1.SSLProfileInterface {
+	return &FakeSSLProfiles{c, namespace}
 }
 
 func (c *FakeAkoV1alpha1) ServiceImports(namespace string) v1alpha1.ServiceImportInterface {

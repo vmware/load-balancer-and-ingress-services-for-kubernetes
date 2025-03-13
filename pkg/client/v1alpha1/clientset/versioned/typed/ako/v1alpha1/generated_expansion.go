@@ -20,6 +20,14 @@ package v1alpha1
 
 type ClusterSetExpansion interface{}
 
+type HealthMonitorExpansion interface{}
+
 type MultiClusterIngressExpansion interface{}
+
+type PKIProfileExpansion interface{}
+
+type SSLKeyAndCertificateExpansion interface{}
+
+type SSLProfileExpansion interface{}
 
 type ServiceImportExpansion interface{}

@@ -55,8 +55,16 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	// Group=ako.vmware.com, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("clustersets"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ako().V1alpha1().ClusterSets().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("healthmonitors"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ako().V1alpha1().HealthMonitors().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("multiclusteringresses"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ako().V1alpha1().MultiClusterIngresses().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("pkiprofiles"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ako().V1alpha1().PKIProfiles().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("sslkeyandcertificates"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ako().V1alpha1().SSLKeyAndCertificates().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("sslprofiles"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ako().V1alpha1().SSLProfiles().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("serviceimports"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ako().V1alpha1().ServiceImports().Informer()}, nil
 
