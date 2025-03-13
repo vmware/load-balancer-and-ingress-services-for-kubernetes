@@ -677,12 +677,18 @@ func validateReferredHTTPRoute(key, name, namespace string, allowedRoutesAll boo
 				matchNamespace = string(*parentRef.Namespace)
 			}
 			if (parentRef.Name == gatewayv1.ObjectName(name)) && (matchNamespace == namespace) {
-				err := validateParentReference(key, httpRoute, httpRouteStatus, parentRefIndexFromSpec, &parentRefIndexInHttpRouteStatus, &indexInCache)
-				if err != nil {
-					parentRefName := parentRef.Name
-					utils.AviLog.Warnf("key: %s, msg: Parent Reference %s of HTTPRoute object %s is not valid, err: %v", key, parentRefName, httpRoute.Name, err)
+				isValidHttprouteRules := validateHTTPRouteRules(key, httpRoute, httpRouteStatus)
+				if isValidHttprouteRules {
+					err := validateParentReference(key, httpRoute, httpRouteStatus, parentRefIndexFromSpec, &parentRefIndexInHttpRouteStatus, &indexInCache)
+					if err != nil {
+						parentRefName := parentRef.Name
+						utils.AviLog.Warnf("key: %s, msg: Parent Reference %s of HTTPRoute object %s is not valid, err: %v", key, parentRefName, httpRoute.Name, err)
+					} else {
+						appendRoute = true
+					}
 				} else {
-					appendRoute = true
+					utils.AviLog.Warnf("key: %s, msg: HTTPUrlRewrite PathType has Unsupported value.", key)
+					appendRoute = false
 				}
 			} else {
 				gwName := parentRef.Name
