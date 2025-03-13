@@ -47,14 +47,8 @@ spec:
                 minItems: 1
                 type: array
               ignore_peer_chain:
-                description: |-
-                  //+kubebuilder:validation:XValidation:rule="self.crl_check == false || self.crl_data != null",message="crl_data is mandatory if crl_check is set to true"
-                  CRLData CRLDataRef `json:"crl_data,omitempty"`
                 type: boolean
               is_federated:
-                description: |-
-                  CRLCheck bool `json:"crl_check,omitempty"`
-                  ValidateOnlyLeafCRL bool `json:"validate_only_leaf_crl,omitempty"`
                 type: boolean
             type: object
           status:

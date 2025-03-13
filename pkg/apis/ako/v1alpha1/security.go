@@ -265,26 +265,10 @@ type PKIProfileSpec struct {
 	// +kubebuilder:validation:MinItems=1
 	CACertsSecretRef []string `json:"ca_certs,omitempty"`
 	// +kubebuilder:validation:Optional
-	// //+kubebuilder:validation:XValidation:rule="self.crl_check == false || self.crl_data != null",message="crl_data is mandatory if crl_check is set to true"
-	//CRLData CRLDataRef `json:"crl_data,omitempty"`
-	// +kubebuilder:validation:Optional
 	IgnorePeerChain bool `json:"ignore_peer_chain,omitempty"`
-	// +kubebuilder:validation:Optional
-	//CRLCheck bool `json:"crl_check,omitempty"`
-	// +kubebuilder:validation:Optional
-	//ValidateOnlyLeafCRL bool `json:"validate_only_leaf_crl,omitempty"`
 	// +optional
 	IsFederated bool `json:"is_federated,omitempty"`
 }
-
-//// +kubebuilder:validation:XValidation:rule="self.crl_data == null || size(self.crl_data.crl_file_uuids) > 0 || size(self.crl_data.crl_server_url) > 0", message="When crl_data is specified, at least one of crl_file_uuids or crl_server_url must be specified"
-//
-//type CRLDataRef struct {
-//	// Avi controller CRL fileobject ref
-//	CRLFileUUIDs []string `json:"crl_file_uuids,omitempty"`
-//	// CRL server URL
-//	CRLServerURL []string `json:"crl_server_url"`
-//}
 
 // PKIProfileStatus defines the observed state of PKIProfile
 type PKIProfileStatus struct {
