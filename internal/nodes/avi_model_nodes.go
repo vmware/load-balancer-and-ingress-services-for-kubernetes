@@ -413,6 +413,7 @@ type AviVsNode struct {
 	Dedicated             bool
 	IsL4VS                bool
 	Secure                bool
+	AppProfileNode        *AviAppProfileNode
 
 	AviVsNodeCommonFields
 
@@ -632,6 +633,18 @@ func (v *AviVsNode) SetNetworkSecurityPolicyRef(networkSecurityPolicyRef *string
 
 func (v *AviVsNode) GetTenant() string {
 	return v.Tenant
+}
+
+func (v *AviVsNode) GetAppProfileNode() *AviAppProfileNode {
+	return v.AppProfileNode
+}
+
+func (v *AviVsNode) SetAppProfileNode(appProfileNode *AviAppProfileNode) {
+	v.AppProfileNode = appProfileNode
+}
+
+func (o *AviVsNode) CheckAppProfileNodeChecksum(checksum uint32) bool {
+	return !(o.AppProfileNode.GetCheckSum() == checksum)
 }
 
 func (o *AviObjectGraph) GetAviVS() []*AviVsNode {
@@ -1022,6 +1035,10 @@ func (v *AviVsNode) CalculateCheckSum() {
 
 	for _, passthroughChild := range v.PassthroughChildNodes {
 		checksumStringSlice = append(checksumStringSlice, "PassthroughChild"+passthroughChild.Name)
+	}
+
+	if v.AppProfileNode != nil {
+		checksumStringSlice = append(checksumStringSlice, "AppProfileNode"+v.AppProfileNode.Name)
 	}
 
 	sort.Strings(checksumStringSlice)
@@ -1798,4 +1815,39 @@ func (h *SecureHostNameMapProp) GetSecretsForHostName(hostname string) []string 
 type HostNamePathSecrets struct {
 	secretName string
 	paths      []string
+}
+
+type AviAppProfileNode struct {
+	Name                string
+	Tenant              string
+	Type                string
+	EnableProxyProtocol bool
+	CloudConfigCksum    uint32
+}
+
+func (v *AviAppProfileNode) GetNodeType() string {
+	return "AppProfileNode"
+}
+
+func (v *AviAppProfileNode) CopyNode() AviModelNode {
+	newNode := AviAppProfileNode{}
+	bytes, err := json.Marshal(v)
+	if err != nil {
+		utils.AviLog.Warnf("Unable to marshal AviAppProfileNode: %s", err)
+	}
+	err = json.Unmarshal(bytes, &newNode)
+	if err != nil {
+		utils.AviLog.Warnf("Unable to unmarshal AviAppProfileNode: %s", err)
+	}
+	return &newNode
+}
+
+func (v *AviAppProfileNode) GetCheckSum() uint32 {
+	// Calculate checksum and return
+	v.CalculateCheckSum()
+	return v.CloudConfigCksum
+}
+
+func (v *AviAppProfileNode) CalculateCheckSum() {
+	v.CloudConfigCksum = utils.Hash(utils.Stringify(v))
 }
