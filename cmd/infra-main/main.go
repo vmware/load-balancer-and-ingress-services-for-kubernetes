@@ -113,7 +113,6 @@ func InitializeAKOInfra() {
 
 	transportZone := c.HandleVCF(stopCh, ctrlCh)
 	lib.VCFInitialized = true
-	lib.SetAKOUser(lib.AKOPrefix)
 
 	// Checking/Setting up Avi pre-reqs
 	a := ingestion.NewAviControllerInfra(kubeClient)
@@ -139,13 +138,21 @@ func InitializeAKOInfra() {
 		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "CloudMatchingTZNotFound", err.Error())
 		utils.AviLog.Fatalf("Failed to derive cloud, err: %s", err.Error())
 	}
+	clusterName := lib.GetClusterName()
 	if !lib.GetVPCMode() {
-		a.SetupSEGroup(aviCloud)
+		segExists := a.SetupSEGroup(aviCloud)
+		clusterName, err = a.DeriveClusterNameToBeUsedInAKOUser(segExists)
+		if err != nil {
+			lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "ClusterNameDerivationFailure", err.Error())
+			utils.AviLog.Fatalf("Failed to derive Cluster name to be used in the AKO User, err: %s", err.Error())
+		}
 		c.AddAvailabilityZoneCREventHandler(stopCh)
 	}
+	lib.SetClusterName(clusterName)
+	lib.SetAKOUser(lib.AKOPrefix)
 	c.AddNamespaceEventHandler(stopCh)
 	c.Sync()
-	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName)
+	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName, clusterName)
 	c.AddNetworkInfoEventHandler(stopCh)
 
 	worker := c.InitFullSyncWorker()
