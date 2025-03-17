@@ -251,6 +251,7 @@ const (
 	OVNNodeSubnetAnnotation          = "k8s.ovn.org/node-subnets"
 	WCPSEGroup                       = "ako.vmware.com/wcp-se-group"
 	WCPCloud                         = "ako.vmware.com/wcp-cloud-name"
+	WCPAKOUserClusterName            = "ako.vmware.com/ako-user-cluster-name"
 	VSAnnotation                     = "ako.vmware.com/host-fqdn-vs-uuid-map"
 	ControllerAnnotation             = "ako.vmware.com/controller-cluster-uuid"
 	SharedVipSvcLBAnnotation         = "ako.vmware.com/enable-shared-vip"
