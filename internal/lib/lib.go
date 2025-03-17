@@ -69,6 +69,7 @@ var fqdnMap = map[string]string{
 }
 
 var ClusterID string
+var ClusterName string
 
 type CRDMetadata struct {
 	Type   string `json:"type"`
@@ -907,7 +908,14 @@ func GetDisableStaticRoute() bool {
 	return false
 }
 
+func SetClusterName(clusterName string) {
+	ClusterName = clusterName
+}
+
 func GetClusterName() string {
+	if ClusterName != "" {
+		return ClusterName
+	}
 	if IsWCP() {
 		return GetClusterIDSplit()
 	}
