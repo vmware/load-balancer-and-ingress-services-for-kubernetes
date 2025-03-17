@@ -220,6 +220,10 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 			VrfContext: lib.GetVrf(),
 		}
 
+		if lib.IsIstioEnabled() {
+			poolNode.UpdatePoolNodeForIstio()
+		}
+
 		t1LR := lib.GetT1LRPath()
 		if t1LR != "" {
 			poolNode.T1Lr = t1LR
