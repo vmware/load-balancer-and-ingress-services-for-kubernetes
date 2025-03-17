@@ -1584,7 +1584,7 @@ func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
 			}
 		}
 		emptyIngestionMarkers := utils.AviObjectMarkers{}
-		cksum := lib.L4PolicyChecksum(ports, protocols, emptyIngestionMarkers, l4pol.Markers, true)
+		cksum := lib.L4PolicyChecksum(ports, protocols, pools, emptyIngestionMarkers, l4pol.Markers, true)
 		tenant := getTenantFromTenantRef(*l4pol.TenantRef)
 		l4PolCacheObj := AviL4PolicyCache{
 			Name:             *l4pol.Name,
@@ -1815,7 +1815,7 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 		}
 
 		emptyIngestionMarkers := utils.AviObjectMarkers{}
-		cksum := lib.L4PolicyChecksum(ports, protocols, emptyIngestionMarkers, l4pol.Markers, true)
+		cksum := lib.L4PolicyChecksum(ports, protocols, pools, emptyIngestionMarkers, l4pol.Markers, true)
 		l4PolCacheObj := AviL4PolicyCache{
 			Name:             *l4pol.Name,
 			Tenant:           getTenantFromTenantRef(*l4pol.TenantRef),
