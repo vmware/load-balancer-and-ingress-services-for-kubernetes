@@ -85,7 +85,7 @@
         "bulk_sync_kvcache": false,
         "cloud_type": "CLOUD_NSXT",
         "_last_modified": "1577201494910529",
-        "cloud_ref": "https://10.52.2.174:9443/api/cloud/cloud-40669233-877c-4beb-bda6-1ced0f226368#CLOUD_NSXT1",
+        "cloud_ref": "https://10.52.2.174:9443/api/cloud/cloud-886945b9-9ed7-439e-9a62-797de541c329#CLOUD_NSXT",
         "se_group_ref": "https://10.52.2.174:9443/api/serviceenginegroup/serviceenginegroup-05f6b81c-5a68-424a-8d4b-b18d3fa098bb",
         "scaleout_ecmp": false,
         "max_cps_per_client": 0,

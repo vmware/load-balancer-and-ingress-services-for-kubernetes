@@ -2,6 +2,8 @@ package infratests
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -192,7 +194,7 @@ func TestMain(m *testing.M) {
 	lib.RunAviInfraSettingInformer(stopCh)
 	c.AddSecretEventHandler(stopCh)
 
-	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName)
+	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName, lib.GetClusterName())
 	c.AddNamespaceEventHandler(stopCh)
 	objNameMap.InitMap()
 
@@ -870,7 +872,76 @@ func TestAKOInfraAviInfraSettingCreationVPCSEG(t *testing.T) {
 	os.Unsetenv("VPC_MODE")
 }
 
-func TestAKOInfraDeriveCloudName(t *testing.T) {
+func TestAKOInfraDeriveCloudNameT1(t *testing.T) {
+	origCloud := ""
+	lib.SetAKOUser(lib.AKOPrefix)
+	tz := "/infra/sites/default/enforcement-points/default/transport-zones/1b3a2f36-bfd1-443e-a0f6-4de01abc963e"
+	a := ingestion.NewAviControllerInfra(kubeClient)
+	if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), utils.GetAKONamespace(), metav1.GetOptions{}); err != nil {
+		t.Fatalf("Error occurred while GET namespace: %v", err)
+	} else {
+		origCloud = ns.Annotations[lib.WCPCloud]
+	}
+	annotateNamespaceWithCloud(t, utils.GetAKONamespace(), "CLOUD_NSXT")
+	if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), utils.GetAKONamespace(), metav1.GetOptions{}); err != nil {
+		t.Fatalf("Error occurred while GET namespace: %v", err)
+	} else {
+		if ns.Annotations[lib.WCPCloud] != "CLOUD_NSXT" {
+			t.Fatalf("NS cloud annotation update to CLOUD_NSXT failed")
+		}
+	}
+	aviCloud, err := a.DeriveCloudMappedToTZ(tz)
+	if err != nil || *aviCloud.Name != "CLOUD_NSXT" {
+		t.Fatalf("Cloud name derivation using NS annotation failed: %v", err)
+	}
+	annotateNamespaceWithCloud(t, utils.GetAKONamespace(), "CLOUD_VCENTER")
+	if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), utils.GetAKONamespace(), metav1.GetOptions{}); err != nil {
+		t.Fatalf("Error occurred while GET namespace: %v", err)
+	} else {
+		if ns.Annotations[lib.WCPCloud] != "CLOUD_VCENTER" {
+			t.Fatalf("NS cloud annotation update to CLOUD_VCENTER failed")
+		}
+	}
+	aviCloud, err = a.DeriveCloudMappedToTZ(tz)
+	if err == nil {
+		t.Fatalf("Cloud name derivation using NS annotation passed for wrong cloud")
+	}
+
+	annotateNamespaceWithCloud(t, utils.GetAKONamespace(), "")
+	if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), utils.GetAKONamespace(), metav1.GetOptions{}); err != nil {
+		t.Fatalf("Error occurred while GET namespace: %v", err)
+	} else if ns.Annotations[lib.WCPCloud] != "" {
+		t.Fatalf("NS cloud annotation update to empty failed")
+	}
+
+	aviCloud, err = a.DeriveCloudMappedToTZ(tz)
+	if err != nil || *aviCloud.Name != "CLOUD_NSXT" {
+		t.Fatalf("Cloud name derivation using VS failed: %v", err)
+	}
+
+	annotateNamespaceWithCloud(t, utils.GetAKONamespace(), origCloud)
+	if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), utils.GetAKONamespace(), metav1.GetOptions{}); err != nil {
+		t.Fatalf("Error occurred while GET namespace: %v", err)
+	} else {
+		if ns.Annotations[lib.WCPCloud] != origCloud {
+			t.Fatalf("NS cloud annotation update to %s failed", origCloud)
+		}
+	}
+}
+
+func injectMWNSXVPCCoud() {
+	integrationtest.AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		url := r.URL.EscapedPath()
+		mockFilePath := integrationtest.DefaultMockFilePath
+		if r.Method == "GET" && strings.Contains(url, "/api/cloud/") {
+			data, _ := os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_NSXT1"))
+			w.WriteHeader(http.StatusOK)
+			w.Write(data)
+		}
+	})
+}
+
+func TestAKOInfraDeriveCloudNameVPC(t *testing.T) {
 	// Add Cloud Annotation to the  AKO NS
 	// AKO should pick the cloud from AKO NS annotation
 	// Add wrong cloud annotation to AKO NS
@@ -910,16 +981,21 @@ func TestAKOInfraDeriveCloudName(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Cloud name derivation using NS annotation passed for wrong cloud")
 	}
+
 	annotateNamespaceWithCloud(t, utils.GetAKONamespace(), "")
 	if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), utils.GetAKONamespace(), metav1.GetOptions{}); err != nil {
 		t.Fatalf("Error occurred while GET namespace: %v", err)
 	} else if ns.Annotations[lib.WCPCloud] != "" {
 		t.Fatalf("NS cloud annotation update to empty failed")
 	}
+
+	injectMWNSXVPCCoud()
+
 	aviCloud, err = a.DeriveCloudMappedToTZ("")
 	if err != nil || *aviCloud.Name != "CLOUD_NSXT1" {
-		t.Fatalf("Cloud name derivation using VS failed: %v", err)
+		t.Fatalf("Cloud name derivation failed: %v", err)
 	}
+
 	annotateNamespaceWithCloud(t, utils.GetAKONamespace(), origCloud)
 	if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), utils.GetAKONamespace(), metav1.GetOptions{}); err != nil {
 		t.Fatalf("Error occurred while GET namespace: %v", err)
@@ -929,4 +1005,5 @@ func TestAKOInfraDeriveCloudName(t *testing.T) {
 		}
 	}
 	os.Unsetenv("VPC_MODE")
+	integrationtest.ResetMiddleware()
 }
