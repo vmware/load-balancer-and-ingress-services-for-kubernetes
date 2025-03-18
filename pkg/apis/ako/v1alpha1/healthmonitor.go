@@ -79,15 +79,6 @@ type HealthMonitorSpec struct {
 	// HTTP defines the HTTP monitor configuration.
 	// +optional
 	HTTP *HTTPMonitor `json:"http,omitempty"`
-
-	// HTTPS defines the HTTPS monitor configuration.
-	// +optional
-	HTTPS *HTTPSMonitor `json:"https,omitempty"`
-}
-
-type HTTPSMonitor struct {
-	HTTPMonitor   `json:",inline"`
-	SSLAttributes HealthMonitorSSlattributes `json:"ssl_attributes,omitempty"`
 }
 
 // HealthMonitorInfo defines authentication information for HTTP/HTTPS monitors.
@@ -170,42 +161,6 @@ type HTTPMonitor struct {
 	// +optional
 	// +kubebuilder:validation:MaxLength=1024
 	HTTPRequestHeaderPath string `json:"http_request_header_path,omitempty"`
-}
-
-// +kubebuilder:validation:XValidation:rule="self.use_pool_sni_server_name == false || self.server_name == ''",message="server_name cannot be set when use_pool_sni_server_name is true"
-
-// HealthMonitorSSlattributes defines the SSL attributes for HTTPS monitors.
-type HealthMonitorSSlattributes struct {
-	// PKI profile used to validate the SSL certificate presented by a server. It is a reference to an object of type PKIProfile.
-	// +optional
-	PkiProfileRef ParentReference `json:"pki_profile_ref,omitempty"`
-
-	// Fully qualified DNS hostname which will be used in the TLS SNI extension in server connections indicating SNI is enabled.
-	// +optional
-	ServerName string `json:"server_name,omitempty"`
-
-	// Service engines will present this SSL certificate to the server. It is a reference to an object of type SSLKeyAndCertificate.
-	// +optional
-	SslKeyAndCertificateRef ParentReference `json:"ssl_key_and_certificate_ref,omitempty"`
-
-	// SSL profile defines ciphers and SSL versions to be used for healthmonitor traffic to the back-end servers. It is a reference to an object of type SSLProfile.
-	// +kubebuilder:validation:Required
-	SslProfileRef ParentReference `json:"ssl_profile_ref"`
-
-	// UsePoolSNIServerName Use the SNI server name configured in the Pool. This will override the server_name configured in the Health Monitor.
-	UsePoolSNIServerName bool `json:"use_pool_sni_server_name,omitempty"`
-}
-
-type ParentReference struct {
-	// Namespace is the namespace of the referent. When unspecified, this refers
-	// to the local namespace of the HealthMonitor
-	Namespace string `json:"namespace,omitempty"`
-
-	// Name is the name of the referent.
-	Name string `json:"name"`
-
-	// Avi Controller object ref name
-	RefName string `json:"ref_name"`
 }
 
 // HealthMonitorStatus defines the observed state of HealthMonitor
