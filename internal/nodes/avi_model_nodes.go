@@ -1086,6 +1086,7 @@ func (v *AviL4PolicyNode) CalculateCheckSum() {
 	var checksum uint32
 	var ports []int64
 	var protocols []string
+	var pools []string
 	if len(v.PortPool) > 0 {
 		sort.Slice(v.PortPool, func(i, j int) bool {
 			return v.PortPool[i].Name < v.PortPool[j].Name
@@ -1094,9 +1095,13 @@ func (v *AviL4PolicyNode) CalculateCheckSum() {
 	for _, hpp := range v.PortPool {
 		ports = append(ports, int64(hpp.Port))
 		protocols = append(protocols, hpp.Protocol)
+		// Include Pool name in checksum logic
+		pool := strings.TrimPrefix(hpp.Pool, "/api/pool?name=")
+		pools = append(pools, pool)
+
 	}
 	if len(v.PortPool) > 0 {
-		checksum = lib.L4PolicyChecksum(ports, protocols, v.AviMarkers, nil, false)
+		checksum = lib.L4PolicyChecksum(ports, protocols, pools, v.AviMarkers, nil, false)
 	}
 	v.CloudConfigCksum = checksum
 }
