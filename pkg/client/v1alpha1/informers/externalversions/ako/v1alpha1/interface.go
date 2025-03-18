@@ -30,12 +30,6 @@ type Interface interface {
 	HealthMonitors() HealthMonitorInformer
 	// MultiClusterIngresses returns a MultiClusterIngressInformer.
 	MultiClusterIngresses() MultiClusterIngressInformer
-	// PKIProfiles returns a PKIProfileInformer.
-	PKIProfiles() PKIProfileInformer
-	// SSLKeyAndCertificates returns a SSLKeyAndCertificateInformer.
-	SSLKeyAndCertificates() SSLKeyAndCertificateInformer
-	// SSLProfiles returns a SSLProfileInformer.
-	SSLProfiles() SSLProfileInformer
 	// ServiceImports returns a ServiceImportInformer.
 	ServiceImports() ServiceImportInformer
 }
@@ -64,21 +58,6 @@ func (v *version) HealthMonitors() HealthMonitorInformer {
 // MultiClusterIngresses returns a MultiClusterIngressInformer.
 func (v *version) MultiClusterIngresses() MultiClusterIngressInformer {
 	return &multiClusterIngressInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
-// PKIProfiles returns a PKIProfileInformer.
-func (v *version) PKIProfiles() PKIProfileInformer {
-	return &pKIProfileInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
-// SSLKeyAndCertificates returns a SSLKeyAndCertificateInformer.
-func (v *version) SSLKeyAndCertificates() SSLKeyAndCertificateInformer {
-	return &sSLKeyAndCertificateInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
-// SSLProfiles returns a SSLProfileInformer.
-func (v *version) SSLProfiles() SSLProfileInformer {
-	return &sSLProfileInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // ServiceImports returns a ServiceImportInformer.

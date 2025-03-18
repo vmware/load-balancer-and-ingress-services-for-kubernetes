@@ -31,9 +31,6 @@ type AkoV1alpha1Interface interface {
 	ClusterSetsGetter
 	HealthMonitorsGetter
 	MultiClusterIngressesGetter
-	PKIProfilesGetter
-	SSLKeyAndCertificatesGetter
-	SSLProfilesGetter
 	ServiceImportsGetter
 }
 
@@ -52,18 +49,6 @@ func (c *AkoV1alpha1Client) HealthMonitors(namespace string) HealthMonitorInterf
 
 func (c *AkoV1alpha1Client) MultiClusterIngresses(namespace string) MultiClusterIngressInterface {
 	return newMultiClusterIngresses(c, namespace)
-}
-
-func (c *AkoV1alpha1Client) PKIProfiles(namespace string) PKIProfileInterface {
-	return newPKIProfiles(c, namespace)
-}
-
-func (c *AkoV1alpha1Client) SSLKeyAndCertificates(namespace string) SSLKeyAndCertificateInterface {
-	return newSSLKeyAndCertificates(c, namespace)
-}
-
-func (c *AkoV1alpha1Client) SSLProfiles(namespace string) SSLProfileInterface {
-	return newSSLProfiles(c, namespace)
 }
 
 func (c *AkoV1alpha1Client) ServiceImports(namespace string) ServiceImportInterface {

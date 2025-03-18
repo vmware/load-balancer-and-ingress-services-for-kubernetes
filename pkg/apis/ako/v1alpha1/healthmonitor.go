@@ -178,6 +178,8 @@ type HealthMonitorStatus struct {
 // +kubebuilder:subresource:status
 
 // HealthMonitor is the Schema for the healthmonitors API
+// +kubebuilder:object:root=true
+// +kubebuilder:resource:path=healthmonitors,shortName=hm,singular=healthmonitor,scope=Namespaced
 type HealthMonitor struct {
 	metav1.TypeMeta `json:",inline"`
 	// +optional
@@ -192,8 +194,6 @@ type HealthMonitor struct {
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:object:root=true
-
 // HealthMonitorList contains a list of HealthMonitor
 type HealthMonitorList struct {
 	metav1.TypeMeta `json:",inline"`

@@ -42,30 +42,6 @@ type MultiClusterIngressListerExpansion interface{}
 // MultiClusterIngressNamespaceLister.
 type MultiClusterIngressNamespaceListerExpansion interface{}
 
-// PKIProfileListerExpansion allows custom methods to be added to
-// PKIProfileLister.
-type PKIProfileListerExpansion interface{}
-
-// PKIProfileNamespaceListerExpansion allows custom methods to be added to
-// PKIProfileNamespaceLister.
-type PKIProfileNamespaceListerExpansion interface{}
-
-// SSLKeyAndCertificateListerExpansion allows custom methods to be added to
-// SSLKeyAndCertificateLister.
-type SSLKeyAndCertificateListerExpansion interface{}
-
-// SSLKeyAndCertificateNamespaceListerExpansion allows custom methods to be added to
-// SSLKeyAndCertificateNamespaceLister.
-type SSLKeyAndCertificateNamespaceListerExpansion interface{}
-
-// SSLProfileListerExpansion allows custom methods to be added to
-// SSLProfileLister.
-type SSLProfileListerExpansion interface{}
-
-// SSLProfileNamespaceListerExpansion allows custom methods to be added to
-// SSLProfileNamespaceLister.
-type SSLProfileNamespaceListerExpansion interface{}
-
 // ServiceImportListerExpansion allows custom methods to be added to
 // ServiceImportLister.
 type ServiceImportListerExpansion interface{}

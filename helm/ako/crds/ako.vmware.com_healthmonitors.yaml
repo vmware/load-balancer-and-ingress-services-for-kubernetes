@@ -11,6 +11,8 @@ spec:
     kind: HealthMonitor
     listKind: HealthMonitorList
     plural: healthmonitors
+    shortNames:
+    - hm
     singular: healthmonitor
   scope: Namespaced
   versions:
