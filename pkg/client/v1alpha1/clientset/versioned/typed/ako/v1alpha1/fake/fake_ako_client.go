@@ -32,6 +32,10 @@ func (c *FakeAkoV1alpha1) ClusterSets(namespace string) v1alpha1.ClusterSetInter
 	return &FakeClusterSets{c, namespace}
 }
 
+func (c *FakeAkoV1alpha1) HealthMonitors(namespace string) v1alpha1.HealthMonitorInterface {
+	return &FakeHealthMonitors{c, namespace}
+}
+
 func (c *FakeAkoV1alpha1) MultiClusterIngresses(namespace string) v1alpha1.MultiClusterIngressInterface {
 	return &FakeMultiClusterIngresses{c, namespace}
 }

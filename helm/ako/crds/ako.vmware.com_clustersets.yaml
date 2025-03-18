@@ -1,10 +1,11 @@
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
   name: clustersets.ako.vmware.com
 spec:
-  conversion:
-    strategy: None
   group: ako.vmware.com
   names:
     kind: ClusterSet
@@ -14,42 +15,73 @@ spec:
     - cs
     singular: clusterset
   scope: Namespaced
-
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        type: object
+        description: ClusterSet is the top-level type
         properties:
-          spec:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
             type: object
+          spec:
+            description: |-
+              ClusterSetSpec has the configuration of the cluster list which form this set.
+              It also has the secret which contains the kubeconfig for all the clusters defined
+              in this set.
             properties:
-              secretName:
-                description: "Kubeconfig secret containing the configuration for all the clusters defined in the clusters field"
-                type: string
               clusters:
-                description: "Cluster context names in the cluster set boundary"
-                type: array
+                description: Cluster context names in the cluster set boundary
                 items:
-                  type: object
+                  description: ClusterConfig has the contains the cluster context
+                    name.
                   properties:
                     context:
-                      description: "Context name for a kubernetes cluster as defined in the kubeconfig secret"
+                      description: |-
+                        Context name for a kubernetes cluster as defined in
+                        the kubeconfig secret
                       type: string
-          status:
+                  required:
+                  - context
+                  type: object
+                type: array
+              secretName:
+                description: |-
+                  Kubeconfig secret containing the configuration for all the
+                  clusters defined in the clusters field
+                type: string
             type: object
+          status:
+            description: ClusterSetStatus has the status of the clusters
             properties:
               serviceDiscoveryStatus:
-                type: array
                 items:
-                  type: object
+                  description: 'ServiceDiscoveryStatus contains the cluster and it''s
+                    last status: connected or not.'
                   properties:
                     cluster:
                       type: string
                     status:
                       type: string
-
+                  type: object
+                type: array
+            type: object
         required:
         - spec
+        type: object
     served: true
     storage: true

@@ -20,6 +20,8 @@ package v1alpha1
 
 type ClusterSetExpansion interface{}
 
+type HealthMonitorExpansion interface{}
+
 type MultiClusterIngressExpansion interface{}
 
 type ServiceImportExpansion interface{}
