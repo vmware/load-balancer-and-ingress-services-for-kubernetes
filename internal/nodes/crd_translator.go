@@ -320,16 +320,17 @@ func BuildRegexAppRootForHostRule(hostrule *akov1beta1.HostRule, vsNode AviVsEvh
 					vsStringGroupRefs = append(vsStringGroupRefs, &aviStringGroupNode)
 					stringGroupRef := []string{"/api/stringgroup?name=" + regexStringGroupName}
 					hppMap.StringGroupRefs = stringGroupRef
-					if !lib.IsEvhEnabled() {
-						if hppMap.PoolGroup != "" && !lib.IsNameEncoded(hppMap.PoolGroup) {
-							hppMap.PoolGroup = lib.GetEncodedSniPGPoolNameforRegex(hppMap.PoolGroup)
-						}
-						if hppMap.Pool != "" && !lib.IsNameEncoded(hppMap.Pool) {
-							hppMap.Pool = lib.GetEncodedSniPGPoolNameforRegex(hppMap.Pool)
-						}
-					}
-					hppMap.CalculateCheckSum()
 				}
+				if !lib.IsEvhEnabled() {
+					if hppMap.PoolGroup != "" && !lib.IsNameEncoded(hppMap.PoolGroup) {
+						hppMap.PoolGroup = lib.GetEncodedSniPGPoolNameforRegex(hppMap.PoolGroup)
+					}
+					if hppMap.Pool != "" && !lib.IsNameEncoded(hppMap.Pool) {
+						hppMap.Pool = lib.GetEncodedSniPGPoolNameforRegex(hppMap.Pool)
+					}
+				}
+				hppMap.CalculateCheckSum()
+
 			}
 			regexhppMap = append(regexhppMap, hppMap)
 		}

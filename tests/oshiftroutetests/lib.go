@@ -245,15 +245,21 @@ func TearDownTestForRoute(t *testing.T, modelName string) {
 
 // TO DO (Aakash) : Rename function to DeleteRouteAndVerify
 func VerifyRouteDeletion(t *testing.T, g *gomega.WithT, aviModel interface{}, poolCount int, nsname ...string) {
-	namespace, name := defaultNamespace, defaultRouteName
 	if len(nsname) > 0 {
-		namespace, name = strings.Split(nsname[0], "/")[0], strings.Split(nsname[0], "/")[1]
+		for _, nsNameVal := range nsname {
+			namespace, name := strings.Split(nsNameVal, "/")[0], strings.Split(nsNameVal, "/")[1]
+			err := OshiftClient.RouteV1().Routes(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+			if err != nil {
+				t.Fatalf("Couldn't DELETE the route %v", err)
+			}
+		}
+	} else {
+		err := OshiftClient.RouteV1().Routes(defaultNamespace).Delete(context.TODO(), defaultRouteName, metav1.DeleteOptions{})
+		if err != nil {
+			t.Fatalf("Couldn't DELETE the route %v", err)
+		}
 	}
 
-	err := OshiftClient.RouteV1().Routes(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the route %v", err)
-	}
 	var nodes []*avinodes.AviVsNode
 	g.Eventually(func() []*avinodes.AviPoolNode {
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()

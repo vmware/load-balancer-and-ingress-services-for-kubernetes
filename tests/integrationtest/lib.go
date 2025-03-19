@@ -297,6 +297,7 @@ type FakeIngress struct {
 	annotations  map[string]string
 	ServiceName  string
 	TlsSecretDNS map[string][]string
+	NoPath       bool
 }
 
 func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
@@ -344,17 +345,30 @@ func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
 							}}}}}}},
 			)
 		} else {
-			ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
-				Host: dnsName,
-				IngressRuleValue: networking.IngressRuleValue{
-					HTTP: &networking.HTTPIngressRuleValue{
-						Paths: []networking.HTTPIngressPath{{
-							Path: path,
-							Backend: networking.IngressBackend{Service: &networking.IngressServiceBackend{
-								Name: ing.ServiceName,
-								Port: networking.ServiceBackendPort{Number: 8080},
-							}}}}}}},
-			)
+			if ing.NoPath {
+				ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
+					Host: dnsName,
+					IngressRuleValue: networking.IngressRuleValue{
+						HTTP: &networking.HTTPIngressRuleValue{
+							Paths: []networking.HTTPIngressPath{{
+								Backend: networking.IngressBackend{Service: &networking.IngressServiceBackend{
+									Name: ing.ServiceName,
+									Port: networking.ServiceBackendPort{Number: 8080},
+								}}}}}}},
+				)
+			} else {
+				ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
+					Host: dnsName,
+					IngressRuleValue: networking.IngressRuleValue{
+						HTTP: &networking.HTTPIngressRuleValue{
+							Paths: []networking.HTTPIngressPath{{
+								Path: path,
+								Backend: networking.IngressBackend{Service: &networking.IngressServiceBackend{
+									Name: ing.ServiceName,
+									Port: networking.ServiceBackendPort{Number: 8080},
+								}}}}}}},
+				)
+			}
 		}
 	}
 	for secret, hosts := range ing.TlsSecretDNS {
