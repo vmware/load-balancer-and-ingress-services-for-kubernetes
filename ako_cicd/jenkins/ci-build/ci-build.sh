@@ -9,6 +9,7 @@ branch_version=$($WORKSPACE/hack/jenkins/get_branch_version.sh)
 version_numbers=(${branch_version//./ })
 minor_version=${version_numbers[1]}
 
+echo "test"
 make build
 make BUILD_TAG=$version_tag docker
 make BUILD_TAG=$version_tag ako-operator-docker
