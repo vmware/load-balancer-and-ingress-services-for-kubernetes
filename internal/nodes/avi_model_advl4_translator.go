@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -135,9 +136,26 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 			isSCTP = true
 		}
 	}
-
 	avi_vs_meta.PortProto = portProtocols
+
 	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
+	if proxyProtoEnb, ok := gw.GetAnnotations()[lib.GwProxyProtocolEnableAnnotation]; ok {
+		proxyProtocolEnabled, err := strconv.ParseBool(proxyProtoEnb)
+		if err == nil && proxyProtocolEnabled {
+			appProfileNode := &AviAppProfileNode{
+				Name:                lib.GetClusterName(),
+				Tenant:              lib.GetAdminTenant(),
+				Type:                lib.AllowedL4ApplicationProfile,
+				EnableProxyProtocol: proxyProtocolEnabled,
+			}
+			avi_vs_meta.AppProfileNode = appProfileNode
+			avi_vs_meta.ApplicationProfile = ""
+		} else {
+			if err != nil {
+				utils.AviLog.Errorf("key: %s, msg: GatewayProxyProtocol Annotation with non bool value not supported", key)
+			}
+		}
+	}
 
 	avi_vs_meta.NetworkProfile = getNetworkProfile(isSCTP, isTCP, isUDP)
 

@@ -302,6 +302,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 	var httppol_to_delete []avicache.NamespaceName
 	var l4pol_to_delete []avicache.NamespaceName
 	var sslkey_cert_delete []avicache.NamespaceName
+	var appprof_to_delete avicache.NamespaceName
 	var vsvipErr error
 	var publishKey string
 
@@ -339,6 +340,9 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		httppol_to_delete, rest_ops = rest.HTTPPolicyCU(aviVsNode.HttpPolicyRefs, vs_cache_obj, namespace, rest_ops, key)
 		ds_to_delete, rest_ops = rest.DatascriptCU(aviVsNode.HTTPDSrefs, vs_cache_obj, namespace, rest_ops, key)
 		l4pol_to_delete, rest_ops = rest.L4PolicyCU(aviVsNode.L4PolicyRefs, vs_cache_obj, namespace, rest_ops, key)
+		if aviVsNode.AppProfileNode != nil {
+			appprof_to_delete, rest_ops = rest.AppProfileCU(aviVsNode.AppProfileNode, vs_cache_obj, namespace, rest_ops, key)
+		}
 		utils.AviLog.Debugf("key: %s, msg: stored checksum for VS: %s, model checksum: %s", key, vs_cache_obj.CloudConfigCksum, strconv.Itoa(int(aviVsNode.GetCheckSum())))
 		if vs_cache_obj.CloudConfigCksum == strconv.Itoa(int(aviVsNode.GetCheckSum())) {
 			utils.AviLog.Debugf("key: %s, msg: the checksums are same for vs %s, not doing anything", key, vs_cache_obj.Name)
@@ -371,6 +375,9 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 		_, rest_ops = rest.HTTPPolicyCU(aviVsNode.HttpPolicyRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.L4PolicyCU(aviVsNode.L4PolicyRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.DatascriptCU(aviVsNode.HTTPDSrefs, nil, namespace, rest_ops, key)
+		if aviVsNode.AppProfileNode != nil {
+			_, rest_ops = rest.AppProfileCU(aviVsNode.AppProfileNode, nil, namespace, rest_ops, key)
+		}
 
 		// The cache was not found - it's a POST call.
 		restOp := rest.AviVsBuild(aviVsNode, utils.RestPost, nil, key)
@@ -402,6 +409,9 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 	rest_ops = rest.HTTPPolicyDelete(httppol_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.L4PolicyDelete(l4pol_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.DSDelete(ds_to_delete, namespace, rest_ops, key)
+	if aviVsNode.AppProfileNode != nil {
+		rest_ops = rest.AppProfileDelete(appprof_to_delete, namespace, rest_ops, key)
+	}
 	rest_ops = rest.PoolGroupDelete(pgs_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.PoolDelete(pools_to_delete, namespace, rest_ops, key)
 	if success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, false); !success {
@@ -540,6 +550,7 @@ func (rest *RestOperations) DeleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 		rest_ops = rest.L4PolicyDelete(vs_cache_obj.L4PolicyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(vs_cache_obj.PGKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolDelete(vs_cache_obj.PoolKeyCollection, namespace, rest_ops, key)
+		rest_ops = rest.AppProfileDelete(vs_cache_obj.AppProfileRef, namespace, rest_ops, key)
 		success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, nil, key, false)
 		if success {
 			vsKeysPending := rest.cache.VsCacheMeta.AviGetAllKeys()
@@ -796,6 +807,8 @@ func (rest *RestOperations) PopulateOneCache(rest_op *utils.RestOp, aviObjKey av
 			rest.AviVrfCacheAdd(rest_op, aviObjKey, key)
 		} else if rest_op.Model == "VsVip" {
 			rest.AviVsVipCacheAdd(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "ApplicationProfile" {
+			rest.AviAppProfileCacheAdd(rest_op, aviObjKey, key)
 		}
 
 	} else if (rest_op.Err == nil || aviErr.HttpStatusCode == 404) &&
@@ -819,6 +832,8 @@ func (rest *RestOperations) PopulateOneCache(rest_op *utils.RestOp, aviObjKey av
 			rest.AviVsVipCacheDel(rest_op, aviObjKey, key)
 		} else if rest_op.Model == "VSDataScriptSet" {
 			rest.AviDSCacheDel(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "ApplicationProfile" {
+			rest.AviAppProfileCacheDel(rest_op, aviObjKey, key)
 		}
 	}
 }
@@ -1017,6 +1032,18 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 					rest_op.ObjName = PKIprofile
 				}
 				rest.AviPkiProfileCacheDel(rest_op, aviObjKey, key)
+			case "ApplicationProfile":
+				var AppProfile string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					AppProfile = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.ApplicationProfile).Name
+				case avimodels.ApplicationProfile:
+					AppProfile = *rest_op.Obj.(avimodels.ApplicationProfile).Name
+				}
+				if AppProfile != "" {
+					rest_op.ObjName = AppProfile
+				}
+				rest.AviAppProfileCacheDel(rest_op, aviObjKey, key)
 			case "VirtualService":
 				rest.AviVsCacheDel(rest_op, aviObjKey, key)
 			case "VSDataScriptSet":
@@ -1102,6 +1129,15 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 					PKIprofile = *rest_op.Obj.(avimodels.PKIprofile).Name
 				}
 				aviObjCache.AviPopulateOnePKICache(c, utils.CloudName, PKIprofile)
+			case "ApplicationProfile":
+				var AppProfile string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					AppProfile = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.ApplicationProfile).Name
+				case avimodels.ApplicationProfile:
+					AppProfile = *rest_op.Obj.(avimodels.ApplicationProfile).Name
+				}
+				aviObjCache.AviPopulateOneAppProfileCache(c, AppProfile)
 			case "VirtualService":
 				aviObjCache.AviObjOneVSCachePopulate(c, utils.CloudName, aviObjKey.Name, aviObjKey.Namespace)
 				vsObjMeta, ok := rest.cache.VsCacheMeta.AviCacheGet(aviObjKey)
@@ -1867,6 +1903,62 @@ func (rest *RestOperations) PkiProfileDelete(pkiProfileDelete []avicache.Namespa
 			rest_ops = append(rest_ops, restOp)
 
 		}
+	}
+	return rest_ops
+}
+
+func (rest *RestOperations) AppProfileCU(appProfileNode *nodes.AviAppProfileNode, vs_cache_obj *avicache.AviVsCache, namespace string, rest_ops []*utils.RestOp, key string) (avicache.NamespaceName, []*utils.RestOp) {
+	var appProfCacheKey avicache.NamespaceName
+	if vs_cache_obj != nil {
+		appProfCacheKey = vs_cache_obj.AppProfileRef
+		if appProfileNode != nil {
+			appProfKey := avicache.NamespaceName{Namespace: namespace, Name: appProfileNode.Name}
+			if appProfCacheKey == appProfKey {
+				appProfCacheKey = avicache.NamespaceName{}
+				appProfCache, ok := rest.cache.AppProfileCache.AviCacheGet(appProfKey)
+				if !ok {
+					restOp := rest.AviAppProfileBuild(appProfileNode, nil, key)
+					if restOp != nil {
+						rest_ops = append(rest_ops, restOp)
+					}
+				} else {
+					appProfCacheObj, _ := appProfCache.(*avicache.AviAppProfileCache)
+					if appProfCacheObj.CloudConfigCksum != appProfileNode.GetCheckSum() {
+						utils.AviLog.Debugf("key: %s, msg: app profile checksum changed, updating - %s", key, appProfileNode.Name)
+						restOp := rest.AviAppProfileBuild(appProfileNode, appProfCacheObj, key)
+						if restOp != nil {
+							rest_ops = append(rest_ops, restOp)
+						}
+					}
+				}
+			} else {
+				restOp := rest.AviAppProfileBuild(appProfileNode, nil, key)
+				if restOp != nil {
+					rest_ops = append(rest_ops, restOp)
+				}
+			}
+		}
+	} else {
+		restOp := rest.AviAppProfileBuild(appProfileNode, nil, key)
+		if restOp != nil {
+			rest_ops = append(rest_ops, restOp)
+		}
+	}
+	utils.AviLog.Debugf("key: %s, msg: the app profile rest_op is %s", key, utils.Stringify(rest_ops))
+	utils.AviLog.Debugf("key: %s, msg: the app profile to be deleted are: %s", key, appProfCacheKey)
+	return appProfCacheKey, rest_ops
+}
+
+func (rest *RestOperations) AppProfileDelete(appProfKey avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
+	utils.AviLog.Infof("key: %s, msg: about to delete the app profile %s", key, appProfKey)
+	appProfCache, ok := rest.cache.AppProfileCache.AviCacheGet(appProfKey)
+	if ok {
+		appProfCacheObj, _ := appProfCache.(*avicache.AviAppProfileCache)
+		restOp := rest.AviAppProfileDel(appProfCacheObj.Uuid, namespace, key)
+		restOp.ObjName = appProfKey.Name
+		rest_ops = append(rest_ops, restOp)
+	} else {
+		utils.AviLog.Debugf("key: %s, msg: app profile not found in cache during delete %s", key, appProfKey)
 	}
 	return rest_ops
 }

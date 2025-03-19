@@ -82,6 +82,7 @@ type AviVsCache struct {
 	ParentVSRef          NamespaceName
 	PassthroughParentRef NamespaceName
 	PassthroughChildRef  NamespaceName
+	AppProfileRef        NamespaceName
 	ServiceMetadataObj   lib.ServiceMetadataObj
 	LastModified         string
 	EnableRhi            bool
@@ -247,6 +248,14 @@ func (v *AviVsCache) RemoveFromL4PolicyCollection(k NamespaceName) {
 	v.L4PolicyCollection = RemoveNamespaceName(v.L4PolicyCollection, k)
 }
 
+func (v *AviVsCache) AddAppProfileRef(k NamespaceName) {
+	v.AppProfileRef = k
+}
+
+func (v *AviVsCache) RemoveAppProfileRef() {
+	v.AppProfileRef = NamespaceName{}
+}
+
 func (v *AviVsCache) AddToSNIChildCollection(k string) {
 	if v.SNIChildCollection == nil {
 		v.SNIChildCollection = []string{k}
@@ -347,6 +356,17 @@ type AviVrfCache struct {
 	Name             string
 	Uuid             string
 	CloudConfigCksum uint32
+}
+
+type AviAppProfileCache struct {
+	Name                string
+	Tenant              string
+	Uuid                string
+	Type                string
+	CloudConfigCksum    uint32
+	EnableProxyProtocol bool
+	LastModified        string
+	HasReference        bool
 }
 
 func (v *AviVsCache) GetVSCopy() (*AviVsCache, bool) {
@@ -499,6 +519,12 @@ func (c *AviCache) AviCacheGetNameByUuid(uuid string) (interface{}, bool) {
 				utils.AviLog.Warnf("Got nil value in cache for pki profile key %v", reflect.ValueOf(key))
 			} else if value.(*AviPkiProfileCache).Uuid == uuid {
 				return value.(*AviPkiProfileCache).Name, true
+			}
+		case *AviAppProfileCache:
+			if value.(*AviAppProfileCache) == nil {
+				utils.AviLog.Warnf("Got nil value in cache for app profile key %v", reflect.ValueOf(key))
+			} else if value.(*AviAppProfileCache).Uuid == uuid {
+				return value.(*AviAppProfileCache).Name, true
 			}
 		}
 	}

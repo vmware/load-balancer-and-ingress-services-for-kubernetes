@@ -1449,6 +1449,10 @@ func L4PolicyChecksum(ports []int64, protocols []string, ingestionMarkers utils.
 	return checksum
 }
 
+func AppProfileChecksum(name, tenant, appType string, ppe bool) uint32 {
+	return utils.Hash(name + tenant + appType + strconv.FormatBool(ppe))
+}
+
 func IsNodePortMode() bool {
 	nodePortType := os.Getenv(SERVICE_TYPE)
 	if nodePortType == NODE_PORT {

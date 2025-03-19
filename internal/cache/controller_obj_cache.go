@@ -54,6 +54,7 @@ type AviObjCache struct {
 	VsCacheMeta        *AviCache
 	VsCacheLocal       *AviCache
 	ClusterStatusCache *AviCache
+	AppProfileCache    *AviCache
 }
 
 func NewAviObjCache() *AviObjCache {
@@ -71,6 +72,7 @@ func NewAviObjCache() *AviObjCache {
 	c.VrfCache = NewAviCache()
 	c.PKIProfileCache = NewAviCache()
 	c.ClusterStatusCache = NewAviCache()
+	c.AppProfileCache = NewAviCache()
 	return &c
 }
 
@@ -87,7 +89,7 @@ func SharedAviObjCache() *AviObjCache {
 func (c *AviObjCache) AviRefreshObjectCache(client []*clients.AviClient, cloud string, tenant string) {
 	var wg sync.WaitGroup
 	// We want to run 8 go routines which will simultanesouly fetch objects from the controller.
-	wg.Add(5)
+	wg.Add(6)
 	go func() {
 		defer wg.Done()
 		c.PopulateSSLKeyToCache(client[4], cloud, tenant)
@@ -112,6 +114,10 @@ func (c *AviObjCache) AviRefreshObjectCache(client []*clients.AviClient, cloud s
 	go func() {
 		defer wg.Done()
 		c.PopulateL4PolicySetToCache(client[6], cloud, tenant)
+	}()
+	go func() {
+		defer wg.Done()
+		c.PopulateAppProfileToCache(client[8], tenant)
 	}()
 
 	wg.Wait()
@@ -320,6 +326,14 @@ func (c *AviObjCache) MarkReference(vsCacheObj *AviVsCache) {
 			}
 		}
 	}
+
+	if vsCacheObj.AppProfileRef != (NamespaceName{}) {
+		if intf, found := c.AppProfileCache.AviCacheGet(vsCacheObj.AppProfileRef); found {
+			if obj, ok := intf.(*AviAppProfileCache); ok {
+				obj.HasReference = true
+			}
+		}
+	}
 }
 
 // DeleteUnmarked : Adds non referenced cached objects to a Dummy VS, which
@@ -328,6 +342,7 @@ func (c *AviObjCache) DeleteUnmarked(childCollection []string, tenant string) {
 
 	var dsKeys, vsVipKeys, httpKeys, sslKeys []NamespaceName
 	var pgKeys, poolKeys, l4Keys []NamespaceName
+	var appProfileKey NamespaceName
 	for _, objkey := range c.DSCache.AviGetAllKeys() {
 		if objkey.Namespace != tenant {
 			continue
@@ -412,6 +427,18 @@ func (c *AviObjCache) DeleteUnmarked(childCollection []string, tenant string) {
 		}
 	}
 
+	for _, objkey := range c.AppProfileCache.AviGetAllKeys() {
+		if objkey.Namespace != tenant {
+			continue
+		}
+		intf, _ := c.AppProfileCache.AviCacheGet(objkey)
+		if obj, ok := intf.(*AviAppProfileCache); ok {
+			if !obj.HasReference || lib.GetDeleteConfigMap() {
+				appProfileKey = objkey
+			}
+		}
+	}
+
 	for _, objkey := range c.VSVIPCache.AviGetAllKeys() {
 		if objkey.Namespace != tenant {
 			continue
@@ -440,6 +467,7 @@ func (c *AviObjCache) DeleteUnmarked(childCollection []string, tenant string) {
 		PoolKeyCollection:    poolKeys,
 		L4PolicyCollection:   l4Keys,
 		SNIChildCollection:   childCollection,
+		AppProfileRef:        appProfileKey,
 	}
 	vsKey := NamespaceName{
 		Namespace: tenant,
@@ -1867,6 +1895,133 @@ func (c *AviObjCache) PopulateL4PolicySetToCache(client *clients.AviClient, clou
 	}
 }
 
+func (c *AviObjCache) AviPopulateAllAppProfiles(client *clients.AviClient, appProfiles *[]AviAppProfileCache, nextPage ...NextPage) (*[]AviAppProfileCache, int, error) {
+	var uri string
+	if len(nextPage) == 1 {
+		uri = nextPage[0].NextURI
+	} else {
+		uri = "/api/applicationprofile/?" + "&include_name=true" + "&created_by=" + lib.GetAKOUser() + "&page_size=100"
+	}
+	result, err := lib.AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err for app profile %v", uri, err)
+		return nil, 0, err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal app profile data, err: %v", err)
+		return nil, 0, err
+	}
+	for i := 0; i < len(elems); i++ {
+		appProf := models.ApplicationProfile{}
+		err = json.Unmarshal(elems[i], &appProf)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal app profile data, err: %v", err)
+			continue
+		}
+		if appProf.Name == nil || appProf.UUID == nil || appProf.TCPAppProfile == nil {
+			utils.AviLog.Warnf("Incomplete app profile data unmarshalled, %s", utils.Stringify(appProf))
+			continue
+		}
+		name := *appProf.Name
+		tenant := getTenantFromTenantRef(*appProf.TenantRef)
+		appType := *appProf.Type
+		ppe := *appProf.TCPAppProfile.ProxyProtocolEnabled
+		cksum := lib.AppProfileChecksum(name, tenant, appType, ppe)
+		appProfileCacheObj := AviAppProfileCache{
+			Name:                name,
+			Tenant:              tenant,
+			Uuid:                *appProf.UUID,
+			Type:                appType,
+			LastModified:        *appProf.LastModified,
+			CloudConfigCksum:    cksum,
+			EnableProxyProtocol: ppe,
+		}
+		*appProfiles = append(*appProfiles, appProfileCacheObj)
+	}
+	if result.Next != "" {
+		next_uri := strings.Split(result.Next, "/api/applicationprofile")
+		if len(next_uri) > 1 {
+			overrideUri := "/api/applicationprofile" + next_uri[1]
+			nextPage := NextPage{NextURI: overrideUri}
+			_, _, err := c.AviPopulateAllAppProfiles(client, appProfiles, nextPage)
+			if err != nil {
+				return nil, 0, err
+			}
+		}
+	}
+	return appProfiles, result.Count, nil
+}
+
+func (c *AviObjCache) AviPopulateOneAppProfileCache(client *clients.AviClient, objName string) error {
+	uri := "/api/applicationprofile/?name=" + objName + "&include_name=true" + "&created_by=" + lib.GetAKOUser()
+	result, err := lib.AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err for app profile %v", uri, err)
+		return err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal app profile data, err: %v", err)
+		return err
+	}
+	for i := 0; i < len(elems); i++ {
+		appProf := models.ApplicationProfile{}
+		err = json.Unmarshal(elems[i], &appProf)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal app profile data, err: %v", err)
+			continue
+		}
+		if appProf.Name == nil || appProf.UUID == nil || appProf.TCPAppProfile == nil {
+			utils.AviLog.Warnf("Incomplete app profile data unmarshalled, %s", utils.Stringify(appProf))
+			continue
+		}
+		name := *appProf.Name
+		tenant := getTenantFromTenantRef(*appProf.TenantRef)
+		appType := *appProf.Type
+		ppe := *appProf.TCPAppProfile.ProxyProtocolEnabled
+		cksum := lib.AppProfileChecksum(name, tenant, appType, ppe)
+		appProfileCacheObj := AviAppProfileCache{
+			Name:                name,
+			Tenant:              tenant,
+			Uuid:                *appProf.UUID,
+			Type:                appType,
+			LastModified:        *appProf.LastModified,
+			CloudConfigCksum:    cksum,
+			EnableProxyProtocol: ppe,
+		}
+		k := NamespaceName{Namespace: tenant, Name: *appProf.Name}
+		c.AppProfileCache.AviCacheAdd(k, &appProfileCacheObj)
+		utils.AviLog.Infof("Adding app profile to Cache during refresh %s", utils.Stringify(appProfileCacheObj))
+	}
+	return nil
+}
+
+func (c *AviObjCache) PopulateAppProfileToCache(client *clients.AviClient, tenant string, overrideUri ...NextPage) {
+	var appProfiles []AviAppProfileCache
+	_, count, err := c.AviPopulateAllAppProfiles(client, &appProfiles)
+	if err != nil || len(appProfiles) != count {
+		return
+	}
+	appProfilesCache := c.AppProfileCache.ShallowCopy()
+	for i, appProfile := range appProfiles {
+		k := NamespaceName{Namespace: appProfile.Tenant, Name: appProfile.Name}
+		utils.AviLog.Debugf("Adding key to app profile cache :%s", utils.Stringify(appProfile))
+		c.AppProfileCache.AviCacheAdd(k, &appProfiles[i])
+		delete(appProfilesCache, k)
+	}
+	for key := range appProfilesCache {
+		namespaceKey, ok := key.(NamespaceName)
+		if !ok || namespaceKey.Namespace != tenant {
+			continue
+		}
+		utils.AviLog.Debugf("Deleting key from app profile cache :%s", key)
+		c.AppProfileCache.AviCacheDelete(key)
+	}
+}
+
 func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud string) error {
 	if lib.GetDisableStaticRoute() {
 		utils.AviLog.Debugf("Static route sync disabled, skipping vrf cache population")
@@ -1994,6 +2149,7 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 				var poolgroupKeys []NamespaceName
 				var poolKeys []NamespaceName
 				var sharedVsOrL4 bool
+				var appProfKey NamespaceName
 
 				// Populate the VSVIP cache
 				if vs["vsvip_ref"] != nil {
@@ -2142,6 +2298,18 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 					}
 				}
 
+				if vs["application_profile_ref"] != nil {
+					appRef, ok := vs["application_profile_ref"].(string)
+					if ok {
+						appNameFromRef := strings.Split(appRef, "#")[1]
+						appUuid := ExtractUuid(appRef, "applicationprofile-.*.#")
+						appNameFromCache, foundAppProf := c.AppProfileCache.AviCacheGetNameByUuid(appUuid)
+						if foundAppProf && appNameFromCache.(string) == appNameFromRef {
+							appProfKey = NamespaceName{Namespace: tenant, Name: appNameFromCache.(string)}
+						}
+					}
+				}
+
 				// Populate the vscache meta object here.
 				vsMetaObj := AviVsCache{
 					Name:                 vs["name"].(string),
@@ -2162,6 +2330,9 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 				}
 				if val, ok := vs["enable_rhi"]; ok {
 					vsMetaObj.EnableRhi = val.(bool)
+				}
+				if appProfKey != (NamespaceName{}) {
+					vsMetaObj.AppProfileRef = appProfKey
 				}
 				c.VsCacheLocal.AviCacheAdd(k, &vsMetaObj)
 				utils.AviLog.Debugf("Added VS cache key :%s", utils.Stringify(&vsMetaObj))
@@ -2258,6 +2429,7 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 				var poolgroupKeys []NamespaceName
 				var poolKeys []NamespaceName
 				var l4Keys []NamespaceName
+				var appProfKey NamespaceName
 
 				// Populate the VSVIP cache
 				if vs["vsvip_ref"] != nil {
@@ -2389,6 +2561,16 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 						}
 					}
 				}
+				if vs["application_profile_ref"] != nil {
+					appRef, ok := vs["application_profile_ref"].(string)
+					if ok {
+						appUuid := ExtractUuid(appRef, "applicationprofile-.*.#")
+						appProfName, foundAppProf := c.AppProfileCache.AviCacheGetNameByUuid(appUuid)
+						if foundAppProf {
+							appProfKey = NamespaceName{Namespace: tenant, Name: appProfName.(string)}
+						}
+					}
+				}
 				// Populate the vscache meta object here.
 				vsMetaObj := AviVsCache{
 					Name:                 vs["name"].(string),
@@ -2408,6 +2590,9 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 				}
 				if val, ok := vs["enable_rhi"]; ok {
 					vsMetaObj.EnableRhi = val.(bool)
+				}
+				if appProfKey != (NamespaceName{}) {
+					vsMetaObj.AppProfileRef = appProfKey
 				}
 				c.VsCacheMeta.AviCacheAdd(k, &vsMetaObj)
 				vs_cache, found := c.VsCacheMeta.AviCacheGet(parentVSKey)
