@@ -107,6 +107,12 @@ func (rest *RestOperations) DequeueNodes(key string) {
 			rest.vrfCU(key, name, avimodel)
 			return
 		}
+		appProfNode := avimodel.GetAviAppProfileNode()
+		if appProfNode != nil {
+			utils.AviLog.Infof("key: %s, msg: processing app profile object", key)
+			rest.AppProfileCU(key, avimodel)
+			return
+		}
 		utils.AviLog.Debugf("key: %s, msg: VS create/update.", key)
 		if strings.Contains(name, "-EVH") && lib.IsEvhEnabled() {
 			if len(avimodel.GetAviEvhVS()) != 1 {
@@ -227,6 +233,26 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 			close(lib.ConfigDeleteSyncChan)
 			lib.ConfigDeleteSyncChan = nil
 		}
+	}
+}
+
+func (rest *RestOperations) AppProfileCU(key string, avimodel *nodes.AviObjectGraph) {
+	appProfileNode := avimodel.GetAviAppProfileNode()
+	name := appProfileNode.Name
+	appProfKey := avicache.NamespaceName{Namespace: appProfileNode.Tenant, Name: name}
+	appProfCacheObj := rest.getAppProfCacheObj(appProfKey)
+	var restOps []*utils.RestOp
+	restOp := rest.AviAppProfileBuild(appProfileNode, appProfCacheObj, key)
+	if restOp == nil {
+		utils.AviLog.Debugf("key: %s, no rest operation for app profile %s", key, name)
+		return
+	}
+	restOps = append(restOps, restOp)
+	utils.AviLog.Debugf("key: %s, msg: Executing rest for app profile %s", key, name)
+	utils.AviLog.Debugf("key: %s, msg: restops %v", key, *restOp)
+	success, _ := rest.ExecuteRestAndPopulateCache(restOps, appProfKey, avimodel, key, false)
+	if success {
+		utils.AviLog.Infof("key: %s, msg: Rest executed successfully for app profile %s", key, name)
 	}
 }
 
@@ -617,6 +643,8 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 				publishKey = avimodel.GetAviEvhVS()[0].Name
 			} else if avimodel != nil && !isEvh && len(avimodel.GetAviVS()) > 0 {
 				publishKey = avimodel.GetAviVS()[0].Name
+			} else if avimodel != nil && avimodel.GetAviAppProfileNode() != nil {
+				publishKey = avimodel.GetAviAppProfileNode().Name
 			}
 
 			if publishKey == "" {
@@ -655,6 +683,8 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 					if avimodel != nil && isEvh && len(avimodel.GetAviEvhVS()) > 0 {
 						refreshCacheForRetry = true
 					} else if avimodel != nil && !isEvh && len(avimodel.GetAviVS()) > 0 {
+						refreshCacheForRetry = true
+					} else if avimodel != nil && avimodel.GetAviAppProfileNode() != nil {
 						refreshCacheForRetry = true
 					}
 					if refreshCacheForRetry {
@@ -796,6 +826,8 @@ func (rest *RestOperations) PopulateOneCache(rest_op *utils.RestOp, aviObjKey av
 			rest.AviVrfCacheAdd(rest_op, aviObjKey, key)
 		} else if rest_op.Model == "VsVip" {
 			rest.AviVsVipCacheAdd(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "ApplicationProfile" {
+			rest.AviAppProfileCacheAdd(rest_op, aviObjKey, key)
 		}
 
 	} else if (rest_op.Err == nil || aviErr.HttpStatusCode == 404) &&
@@ -819,6 +851,8 @@ func (rest *RestOperations) PopulateOneCache(rest_op *utils.RestOp, aviObjKey av
 			rest.AviVsVipCacheDel(rest_op, aviObjKey, key)
 		} else if rest_op.Model == "VSDataScriptSet" {
 			rest.AviDSCacheDel(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "ApplicationProfile" {
+			rest.AviAppProfileCacheDel(rest_op, aviObjKey, key)
 		}
 	}
 }
@@ -1017,6 +1051,12 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 					rest_op.ObjName = PKIprofile
 				}
 				rest.AviPkiProfileCacheDel(rest_op, aviObjKey, key)
+			case "ApplicationProfile":
+				AppProfile := *rest_op.Obj.(avimodels.ApplicationProfile).Name
+				if AppProfile != "" {
+					rest_op.ObjName = AppProfile
+				}
+				rest.AviAppProfileCacheDel(rest_op, aviObjKey, key)
 			case "VirtualService":
 				rest.AviVsCacheDel(rest_op, aviObjKey, key)
 			case "VSDataScriptSet":
@@ -1102,6 +1142,8 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 					PKIprofile = *rest_op.Obj.(avimodels.PKIprofile).Name
 				}
 				aviObjCache.AviPopulateOnePKICache(c, utils.CloudName, PKIprofile)
+			case "ApplicationProfile":
+				aviObjCache.AviObjAppProfileCachePopulate(c)
 			case "VirtualService":
 				aviObjCache.AviObjOneVSCachePopulate(c, utils.CloudName, aviObjKey.Name, aviObjKey.Namespace)
 				vsObjMeta, ok := rest.cache.VsCacheMeta.AviCacheGet(aviObjKey)
