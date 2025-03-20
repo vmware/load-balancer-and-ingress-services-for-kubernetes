@@ -201,6 +201,37 @@ func SetUpIngressForCacheSyncCheck(t *testing.T, ingTestObj IngressTestObject) {
 		Paths:       ingTestObj.paths,
 		ServiceName: ingTestObj.serviceName,
 	}
+	if len(ingTestObj.paths) == 0 {
+		ingressObject.NoPath = true
+	}
+	if ingTestObj.withSecret {
+		integrationtest.AddSecret(ingTestObj.secretName, ingTestObj.namespace, "tlsCert", "tlsKey")
+	}
+	if ingTestObj.isTLS {
+		ingressObject.TlsSecretDNS = map[string][]string{
+			ingTestObj.secretName: {"foo.com"},
+		}
+	}
+	ingrFake := ingressObject.Ingress()
+	if _, err := KubeClient.NetworkingV1().Ingresses(ingTestObj.namespace).Create(context.TODO(), ingrFake, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, ingTestObj.modelNames[0], 5)
+}
+
+func CreateIngress(t *testing.T, ingTestObj IngressTestObject) {
+	ingressObject := integrationtest.FakeIngress{
+		Name:        ingTestObj.ingressName,
+		Namespace:   ingTestObj.namespace,
+		DnsNames:    ingTestObj.dnsNames,
+		Ips:         ingTestObj.ipAddrs,
+		HostNames:   ingTestObj.hostnames,
+		Paths:       ingTestObj.paths,
+		ServiceName: ingTestObj.serviceName,
+	}
+	if len(ingTestObj.paths) == 0 {
+		ingressObject.NoPath = true
+	}
 	if ingTestObj.withSecret {
 		integrationtest.AddSecret(ingTestObj.secretName, ingTestObj.namespace, "tlsCert", "tlsKey")
 	}
