@@ -423,18 +423,34 @@ func (c *AviObjCache) DeleteUnmarked(childCollection map[string][]string) {
 		}
 	}
 
+	sgKeys := make(map[string][]NamespaceName)
+	for _, objkey := range c.StringGroupCache.AviGetAllKeys() {
+		if _, ok := allTenants[objkey.Namespace]; !ok {
+			allTenants[objkey.Namespace] = struct{}{}
+		}
+		intf, _ := c.StringGroupCache.AviCacheGet(objkey)
+		if obj, ok := intf.(*AviStringGroupCache); ok {
+			if !obj.HasReference {
+				utils.AviLog.Infof("Reference Not found for stringgroup: %s", objkey)
+				sgKeys[objkey.Namespace] = append(sgKeys[objkey.Namespace], objkey)
+			}
+		}
+
+	}
+
 	for tenant := range allTenants {
 		// Only add this if we have stale data
 		vsMetaObj := AviVsCache{
-			Name:                 lib.DummyVSForStaleData,
-			VSVipKeyCollection:   vsVipKeys[tenant],
-			HTTPKeyCollection:    httpKeys[tenant],
-			DSKeyCollection:      dsKeys[tenant],
-			SSLKeyCertCollection: sslKeys[tenant],
-			PGKeyCollection:      pgKeys[tenant],
-			PoolKeyCollection:    poolKeys[tenant],
-			L4PolicyCollection:   l4Keys[tenant],
-			SNIChildCollection:   childCollection[tenant],
+			Name:                     lib.DummyVSForStaleData,
+			VSVipKeyCollection:       vsVipKeys[tenant],
+			HTTPKeyCollection:        httpKeys[tenant],
+			DSKeyCollection:          dsKeys[tenant],
+			SSLKeyCertCollection:     sslKeys[tenant],
+			PGKeyCollection:          pgKeys[tenant],
+			PoolKeyCollection:        poolKeys[tenant],
+			L4PolicyCollection:       l4Keys[tenant],
+			StringGroupKeyCollection: sgKeys[tenant],
+			SNIChildCollection:       childCollection[tenant],
 		}
 		vsKey := NamespaceName{
 			Namespace: tenant,
@@ -1983,7 +1999,7 @@ func (c *AviObjCache) AviPopulateAllStringGroups(client *clients.AviClient, clou
 		uri = nextPage[0].NextURI
 	} else {
 		//Fetching container specific StringGroups
-		uri = "/api/stringgroup?&include_name=true&cloud_ref.name=" + cloud + "&label_key=created_by&label_value=" + lib.GetAKOUser() + "&page_size=100"
+		uri = "/api/stringgroup?&include_name=true&label_key=created_by&label_value=" + lib.GetAKOUser() + "&page_size=100"
 	}
 
 	result, err := lib.AviGetCollectionRaw(client, uri)
