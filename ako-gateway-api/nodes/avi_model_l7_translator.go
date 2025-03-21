@@ -353,6 +353,7 @@ func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNo
 		return
 	}
 	o.BuildHTTPPolicySetHTTPRequestRules(key, httpPSName, vsNode, routeModel, rule.Filters, index)
+	o.BuildHTTPPolicySetHTTPRequestUrlRewriteRules(key, httpPSName, vsNode, routeModel, rule.Filters, index)
 	o.BuildHTTPPolicySetHTTPResponseRules(key, vsNode, routeModel, rule.Filters, index)
 	utils.AviLog.Infof("key: %s, msg: Attached HTTP policies to vs %s", key, vsNode.Name)
 }
@@ -461,4 +462,46 @@ func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestRedirectRules(key, httpPSn
 		}
 	}
 	return isRedirectPresent
+}
+
+func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestUrlRewriteRules(key, httpPSname string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, filters []*Filter, index int) {
+	urlRewriteAction := &models.HTTPRewriteURLAction{}
+	for _, filter := range filters {
+		// considering only the first reWriteFilter
+		if filter.UrlRewriteFilter != nil {
+			if filter.UrlRewriteFilter.hostname != "" {
+				urlRewriteAction.HostHdr = &models.URIParam{
+					Tokens: []*models.URIParamToken{
+						{
+							StrValue: &filter.UrlRewriteFilter.hostname,
+							Type:     proto.String("URI_TOKEN_TYPE_STRING"),
+						},
+					},
+					Type: proto.String("URI_PARAM_TYPE_TOKENIZED"),
+				}
+			}
+			if filter.UrlRewriteFilter.path != nil {
+				urlRewriteAction.Path = &models.URIParam{
+					Tokens: []*models.URIParamToken{{
+						StrValue: filter.UrlRewriteFilter.path.ReplaceFullPath,
+						Type:     proto.String("URI_TOKEN_TYPE_STRING"),
+					}},
+					Type: proto.String("URI_PARAM_TYPE_TOKENIZED"),
+				}
+			}
+			urlRewriteAction.Query = &models.URIParamQuery{
+				AddString: nil,
+				KeepQuery: proto.Bool(true),
+			}
+
+			if len(vsNode.HttpPolicyRefs[index].RequestRules) == 0 {
+				requestRule := &models.HTTPRequestRule{Name: &httpPSname, Enable: proto.Bool(true), RewriteURLAction: urlRewriteAction, Index: proto.Int32(int32(index + 1))}
+				vsNode.HttpPolicyRefs[index].RequestRules = []*models.HTTPRequestRule{requestRule}
+			} else {
+				vsNode.HttpPolicyRefs[index].RequestRules[0].RewriteURLAction = urlRewriteAction
+			}
+			utils.AviLog.Debugf("key: %s, msg: Attached HTTP request redirect policies %s to vs %s", key, utils.Stringify(vsNode.HttpPolicyRefs[index].RequestRules), vsNode.Name)
+			break
+		}
+	}
 }
