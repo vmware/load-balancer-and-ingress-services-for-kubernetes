@@ -422,7 +422,7 @@ func TestCreateDeleteSharedVSHostRuleForEvh(t *testing.T) {
 
 	fqdn := "cluster--Shared-L7-EVH-0.admin.com"
 	if lib.VIPPerNamespace() {
-		fqdn = "cluster--Shared-L7-EVH-NS-default.admin.com"
+		fqdn = "Shared-L7-EVH-NS"
 	}
 	hostrule := integrationtest.FakeHostRule{
 		Name:                  hrName,
@@ -442,6 +442,9 @@ func TestCreateDeleteSharedVSHostRuleForEvh(t *testing.T) {
 		Listeners: []v1beta1.HostRuleTCPListeners{
 			{Port: 8081}, {Port: 8082}, {Port: 8083, EnableSSL: true},
 		},
+	}
+	if lib.VIPPerNamespace() {
+		hrCreate.Spec.VirtualHost.FqdnType = "Contains"
 	}
 	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Create(context.TODO(), hrCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding HostRule: %v", err)
@@ -1255,7 +1258,7 @@ func TestSharedVSHostRuleNoListenerForEvh(t *testing.T) {
 
 	fqdn := "cluster--Shared-L7-EVH-0.admin.com"
 	if lib.VIPPerNamespace() {
-		fqdn = "cluster--Shared-L7-EVH-NS-default.admin.com"
+		fqdn = "Shared-L7-EVH-NS"
 	}
 	hostrule := integrationtest.FakeHostRule{
 		Name:               hrName,
@@ -1272,6 +1275,9 @@ func TestSharedVSHostRuleNoListenerForEvh(t *testing.T) {
 	hrCreate := hostrule.HostRule()
 	hrCreate.Spec.VirtualHost.TCPSettings = &v1beta1.HostRuleTCPSettings{
 		LoadBalancerIP: "80.80.80.80",
+	}
+	if lib.VIPPerNamespace() {
+		hrCreate.Spec.VirtualHost.FqdnType = "Contains"
 	}
 	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Create(context.TODO(), hrCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding HostRule: %v", err)

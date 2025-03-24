@@ -291,7 +291,8 @@ func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32)
 	if GetL4FqdnFormat() == AutoFQDNDisabled {
 		autoFQDN = false
 	}
-	if subDomains != nil && autoFQDN {
+
+	if subDomains != nil && autoFQDN && !VIPPerNamespace() {
 		// honour defaultSubDomain from values.yaml if specified
 		defaultSubDomain := GetDomain()
 		if defaultSubDomain != "" && utils.HasElem(subDomains, defaultSubDomain) {
@@ -307,15 +308,21 @@ func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32)
 		}
 		if GetL4FqdnFormat() == AutoFQDNDefault {
 			// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
+			// TODO: check label length for vsName, tenantName so that it doesn't exceed 63 characters.
 			fqdn = vsName + "." + tenantNameWithValidChars + "." + subdomain
 		} else if GetL4FqdnFormat() == AutoFQDNFlat {
 			// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
+			// TODO: check label length for vsName-tenantName so that it doesn't exceed 63 characters.
 			fqdn = vsName + "-" + tenantNameWithValidChars + "." + subdomain
 		}
 		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(fqdn, GetModelName(tenant, vsName))
 		utils.AviLog.Infof("key: %s, msg: Configured the shared VS with default fqdn as: %s", key, fqdn)
 		fqdns = append(fqdns, fqdn)
 	} else {
+		// Do not generate auto-fqdn for vipPerNS use case
+		if VIPPerNamespace() {
+			utils.AviLog.Warnf("key: %s, msg: Auto-FQDN is disabled for VIP PER NS mode.", key)
+		}
 		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(vsName, GetModelName(tenant, vsName))
 	}
 	return fqdns, fqdn
