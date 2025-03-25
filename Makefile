@@ -501,7 +501,7 @@ fmt:
 
 .golangci-bin:
 	@echo "Installing Golangci-lint"
-	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $@ v1.55.2
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $@ v1.64.7
 
 .PHONY: golangci
 golangci: .golangci-bin
