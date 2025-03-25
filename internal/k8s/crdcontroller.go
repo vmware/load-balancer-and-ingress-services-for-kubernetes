@@ -33,6 +33,7 @@ import (
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 
+	v1alpha1akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions"
 	v1alpha2akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/informers/externalversions"
 	v1beta1akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/informers/externalversions"
 
@@ -44,6 +45,9 @@ import (
 )
 
 func NewCRDInformers() {
+	v1alpha1AkoInformers := v1alpha1akoinformers.NewSharedInformerFactory(lib.AKOControlConfig().CRDClientset(), time.Second*30)
+	hmInformer := v1alpha1AkoInformers.Ako().V1alpha1().HealthMonitors()
+
 	v1alpha2akoInformerFactory := v1alpha2akoinformers.NewSharedInformerFactoryWithOptions(
 		lib.AKOControlConfig().V1alpha2CRDClientset(), time.Second*30)
 	ssoRuleInformer := v1alpha2akoInformerFactory.Ako().V1alpha2().SSORules()
@@ -64,6 +68,7 @@ func NewCRDInformers() {
 		L4RuleInformer:          l4RuleInformer,
 		L7RuleInformer:          l7RuleInformer,
 		AviInfraSettingInformer: aviInfraSettingInformer,
+		HMInformer:              hmInformer,
 	})
 }
 
@@ -152,6 +157,17 @@ func isL7RuleUpdated(oldL7Rule, newL7Rule *akov1alpha2.L7Rule) bool {
 
 	oldSpecHash := utils.Hash(utils.Stringify(oldL7Rule.Spec) + oldL7Rule.Status.Status)
 	newSpecHash := utils.Hash(utils.Stringify(newL7Rule.Spec) + newL7Rule.Status.Status)
+
+	return oldSpecHash != newSpecHash
+}
+
+func isHmUpdated(oldHM, newHM *akov1alpha1.HealthMonitor) bool {
+	if oldHM.ResourceVersion == newHM.ResourceVersion {
+		return false
+	}
+
+	oldSpecHash := utils.Hash(utils.Stringify(oldHM.Spec) + oldHM.Status.Status)
+	newSpecHash := utils.Hash(utils.Stringify(newHM.Spec) + newHM.Status.Status)
 
 	return oldSpecHash != newSpecHash
 }
@@ -595,6 +611,69 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 		}
 		informer.L7RuleInformer.Informer().AddEventHandler(l7RuleEventHandler)
 	}
+
+	if lib.AKOControlConfig().HealthMonitorEnabled() {
+		hmEventHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				hm := obj.(*akov1alpha1.HealthMonitor)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hm))
+				key := lib.HealthMonitor + "/" + utils.ObjKey(hm)
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+			},
+			UpdateFunc: func(old, new interface{}) {
+				if c.DisableSync {
+					return
+				}
+				oldObj := old.(*akov1alpha1.HealthMonitor)
+				hm := new.(*akov1alpha1.HealthMonitor)
+				// reflect.DeepEqual does not work on type []byte,
+				// unable to capture edits in destinationCA
+				if isHmUpdated(oldObj, hm) {
+					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hm))
+					key := lib.HealthMonitor + "/" + utils.ObjKey(hm)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+					bkt := utils.Bkt(namespace, numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				hm, ok := obj.(*akov1alpha1.HealthMonitor)
+				if !ok {
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					hm, ok = tombstone.Obj.(*akov1alpha1.HealthMonitor)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not an HealthMonitor: %#v", obj)
+						return
+					}
+				}
+				key := lib.HealthMonitor + "/" + utils.ObjKey(hm)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(hm))
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+
+				bkt := utils.Bkt(namespace, numWorkers)
+				objects.SharedResourceVerInstanceLister().Delete(key)
+				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+			},
+		}
+
+		informer.HMInformer.Informer().AddEventHandler(hmEventHandler)
+	}
+
 	return
 }
 

@@ -1755,6 +1755,11 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 			go c.informers.ServiceImportInformer.Informer().Run(stopCh)
 			informersList = append(informersList, c.informers.ServiceImportInformer.Informer().HasSynced)
 		}
+
+		if lib.AKOControlConfig().HealthMonitorEnabled() {
+			go lib.AKOControlConfig().CRDInformers().HMInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().HMInformer.Informer().HasSynced)
+		}
 	}
 
 	if !cache.WaitForCacheSync(stopCh, informersList...) {

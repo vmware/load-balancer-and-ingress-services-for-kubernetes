@@ -213,6 +213,9 @@ func DequeueIngestion(key string, fullsync bool) {
 		}
 	}
 
+	if objType == lib.HealthMonitor {
+		handleHealthMonitor(key, fullsync)
+	}
 	if !ingressFound && !utils.IsWCP() && !mciFound {
 		// If ingress is not found, let's do the other checks.
 		if objType == lib.SharedVipServiceKey {
@@ -1076,4 +1079,9 @@ func DerivePassthroughVS(hostname string, key string, routeIgrObj RouteIngressMo
 
 	utils.AviLog.Infof("key: %s, msg: Shard Passthrough VSNames: %v %v", key, oldVsName, newVsName)
 	return oldVsName, newVsName
+}
+
+func handleHealthMonitor(key, namespace, name string, fullsync bool) {
+	utils.AviLog.Debugf("key: %s, msg: handling Health Monitor")
+
 }

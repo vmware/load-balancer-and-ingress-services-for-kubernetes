@@ -96,6 +96,7 @@ const (
 	SSORule                                    = "SSORule"
 	L4Rule                                     = "L4Rule"
 	L7Rule                                     = "L7Rule"
+	HealthMonitor                              = "HealthMonitor"
 	IstioVirtualService                        = "IstioVirtualService"
 	IstioDestinationRule                       = "DestinationRule"
 	IstioGateway                               = "IstioGateway"

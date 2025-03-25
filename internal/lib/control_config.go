@@ -35,6 +35,7 @@ import (
 
 	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
 
+	v1alpha1akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions/ako/v1alpha1"
 	v1alpha2akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned"
 	v1alpha2akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/informers/externalversions/ako/v1alpha2"
 	v1beta1akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned"
@@ -65,6 +66,7 @@ type AKOCrdInformers struct {
 	SSORuleInformer         v1alpha2akoinformer.SSORuleInformer
 	L4RuleInformer          v1alpha2akoinformer.L4RuleInformer
 	L7RuleInformer          v1alpha2akoinformer.L7RuleInformer
+	HMInformer              v1alpha1akoinformer.HealthMonitorInformer
 }
 
 type IstioCRDInformers struct {
@@ -135,6 +137,10 @@ type akoControlConfig struct {
 	// l7RuleEnabled is set to true if the cluster has
 	// L7Rule CRD installed.
 	l7RuleEnabled bool
+
+	// hmEnabled is set to true if the cluster has
+	// HealthMonitor CRD installed
+	hmRuleEnabled bool
 
 	// licenseType holds the default license tier which would be used by new Clouds. Enum options - ENTERPRISE_16, ENTERPRISE, ENTERPRISE_18, BASIC, ESSENTIALS.
 	licenseType string
@@ -299,6 +305,10 @@ func (c *akoControlConfig) Setv1beta1CRDClientset(cs v1beta1akocrd.Interface) {
 func (c *akoControlConfig) V1beta1CRDClientset() v1beta1akocrd.Interface {
 	return c.v1beta1crdClientset
 }
+
+func (c *akoControlConfig) HealthMonitorEnabled() bool {
+	return c.hmRuleEnabled
+}
 func (c *akoControlConfig) Setv1beta1CRDEnabledParams(cs v1beta1akocrd.Interface) {
 	c.aviInfraSettingEnabled = true
 	c.hostRuleEnabled = true
@@ -310,6 +320,7 @@ func (c *akoControlConfig) SetCRDEnabledParams(cs akocrd.Interface) {
 	c.aviInfraSettingEnabled = true
 	c.hostRuleEnabled = true
 	c.httpRuleEnabled = true
+	c.hmRuleEnabled = true
 }
 
 func (c *akoControlConfig) Setv1alpha2CRDEnabledParams(cs v1alpha2akocrd.Interface) {
