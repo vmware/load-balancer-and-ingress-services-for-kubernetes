@@ -73,6 +73,9 @@ func (rest *RestOperations) DequeueNodes(key string) {
 		return
 	}
 	namespace, name := utils.ExtractNamespaceObjectName(key)
+	if strings.Contains(key, lib.HealthMonitor) {
+		rest.HealthMonitorCU()
+	}
 	vsKey := avicache.NamespaceName{Namespace: namespace, Name: name}
 	vs_cache_obj := rest.getVsCacheObj(vsKey, key)
 	if !ok || avimodelIntf == nil {

@@ -22,6 +22,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -1572,6 +1573,7 @@ func (v *AviPkiProfileNode) CopyNode() AviModelNode {
 	}
 	return &newNode
 }
+
 func (v *AviPkiProfileNode) GetCheckSum() uint32 {
 	// Calculate checksum and return
 	v.CalculateCheckSum()
@@ -1581,6 +1583,73 @@ func (v *AviPkiProfileNode) GetCheckSum() uint32 {
 func (v *AviPkiProfileNode) CalculateCheckSum() {
 	checksum := lib.SSLKeyCertChecksum(v.Name, "", v.CACert, v.AviMarkers, nil, false)
 	v.CloudConfigCksum = checksum
+}
+
+type AviHealthMonitor struct {
+	*v1alpha1.HealthMonitorSpec
+	Name             string
+	Tenant           string
+	CloudConfigCksum uint32
+}
+
+func (v *AviHealthMonitor) GetNodeType() string { return "HealthMonitorNode" }
+
+func (v *AviHealthMonitor) CopyNode() AviModelNode {
+	newNode := AviHealthMonitor{}
+	bytes, err := json.Marshal(v)
+	if err != nil {
+		utils.AviLog.Warnf("Unable to marshal HealthMonitorNode: %s", err)
+	}
+	err = json.Unmarshal(bytes, &newNode)
+	if err != nil {
+		utils.AviLog.Warnf("Unable to unmarshal HealthMonitorNode: %s", err)
+	}
+	return &newNode
+}
+
+func (v *AviHealthMonitor) GetCheckSum() uint32 {
+	// Calculate checksum and return
+	v.CalculateCheckSum()
+	return v.CloudConfigCksum
+}
+
+func (v *AviHealthMonitor) CalculateCheckSum() {
+	checkSumStrSlice := []string{
+		strconv.Itoa(int(v.FailedChecks)),
+		strconv.Itoa(int(v.SuccessfulChecks)),
+		strconv.Itoa(int(v.ReceiveTimeout)),
+		strconv.Itoa(int(v.SendInterval)),
+		strconv.Itoa(int(v.MonitorPort)),
+		strconv.FormatBool(v.IsFederated),
+	}
+	if v.Authentication != nil {
+		checkSumStrSlice = append(checkSumStrSlice, v.Authentication.Username, v.Authentication.Password)
+	}
+	if v.TCP != nil {
+		checkSumStrSlice = append(checkSumStrSlice,
+			v.TCP.TcpRequest,
+			v.TCP.TcpResponse,
+			v.TCP.MaintenanceResponse,
+			strconv.FormatBool(v.TCP.TcpHalfOpen))
+	}
+	if v.HTTP != nil {
+		sort.Strings(v.HTTP.HTTPResponseCode)
+		sort.Strings(v.HTTP.HTTPHeaders)
+		checkSumStrSlice = append(checkSumStrSlice, utils.Stringify(v.HTTP.HTTPResponseCode), utils.Stringify(v.HTTP.HTTPHeaders))
+		for _, code := range v.HTTP.MaintenanceCode {
+			checkSumStrSlice = append(checkSumStrSlice, strconv.Itoa(int(code)))
+		}
+		checkSumStrSlice = append(checkSumStrSlice, v.HTTP.HTTPRequest,
+			v.HTTP.HTTPResponse,
+			v.HTTP.MaintenanceResponse,
+			strconv.FormatBool(v.HTTP.ExactHttpRequest),
+			string(v.HTTP.AuthType),
+			v.HTTP.HTTPRequestBody,
+			strconv.Itoa(int(v.HTTP.ResponseSize)),
+			v.HTTP.HTTPMethod,
+			v.HTTP.HTTPRequestHeaderPath)
+	}
+	v.CloudConfigCksum = utils.Hash(strings.Join(checkSumStrSlice, delim))
 }
 
 type AviPoolNode struct {

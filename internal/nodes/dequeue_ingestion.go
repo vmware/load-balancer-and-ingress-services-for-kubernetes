@@ -330,6 +330,40 @@ func isNamespaceDeleted(name string) bool {
 	}
 	return ns.DeletionTimestamp != nil
 }
+func handleHealthMonitor(key string, fullsync bool) {
+	_, namespace, name := lib.ExtractTypeNameNamespace(key)
+	modelName := lib.GetModelName(namespace, name)
+	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+
+	hm, err := lib.AKOControlConfig().CRDInformers().HMInformer.Lister().HealthMonitors(namespace).Get(name)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			utils.AviLog.Debugf("key: %s, msg: HealthMonitor Deleted", key)
+			if found, _ := objects.SharedAviGraphLister().Get(modelName); found {
+				objects.SharedAviGraphLister().Save(modelName, nil)
+				if !fullsync {
+					PublishKeyToRestLayer(modelName, key, sharedQueue)
+				}
+			}
+		} else {
+			utils.AviLog.Errorf("key: %s, msg: Error getting HealthMonitor: %v", key, err)
+			return
+		}
+	}
+	var hmAviModel *AviObjectGraph
+	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	if !found || aviModel == nil {
+		utils.AviLog.Debugf("key: %s, msg: model not found for %s", key, modelName)
+		hmAviModel = NewAviObjectGraph()
+	} else {
+		hmAviModel = aviModel.(*AviObjectGraph)
+	}
+	hmAviModel.BuildHealthMonitorGraph(namespace, name, key, hm)
+	ok := saveAviModel(modelName, hmAviModel, key)
+	if ok {
+		PublishKeyToRestLayer(modelName, key, sharedQueue)
+	}
+}
 
 func handleHostRuleForSharedVS(key string, fullsync bool) {
 	allModels := []string{}
@@ -1079,9 +1113,4 @@ func DerivePassthroughVS(hostname string, key string, routeIgrObj RouteIngressMo
 
 	utils.AviLog.Infof("key: %s, msg: Shard Passthrough VSNames: %v %v", key, oldVsName, newVsName)
 	return oldVsName, newVsName
-}
-
-func handleHealthMonitor(key, namespace, name string, fullsync bool) {
-	utils.AviLog.Debugf("key: %s, msg: handling Health Monitor")
-
 }
