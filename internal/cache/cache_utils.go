@@ -349,6 +349,16 @@ type AviVrfCache struct {
 	CloudConfigCksum uint32
 }
 
+type AviAppProfileCache struct {
+	Name                string
+	Tenant              string
+	Uuid                string
+	Type                string
+	CloudConfigCksum    uint32
+	EnableProxyProtocol bool
+	LastModified        string
+}
+
 func (v *AviVsCache) GetVSCopy() (*AviVsCache, bool) {
 	v.VSCacheLock.RLock()
 	defer v.VSCacheLock.RUnlock()

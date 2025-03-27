@@ -689,6 +689,11 @@ func GetVrf() string {
 	return VRFContext
 }
 
+// One proxy enabled app profile per cluster
+func GetProxyEnabledApplicationProfileName() string {
+	return Encode(GetClusterName()+"-applicationprofile", ApplicationProfile)
+}
+
 func GetVPCMode() bool {
 	if vpcMode, _ := strconv.ParseBool(os.Getenv(utils.VPC_MODE)); vpcMode {
 		return true
@@ -1448,6 +1453,10 @@ func L4PolicyChecksum(ports []int64, protocols []string, pools []string, ingesti
 	}
 	checksum += GetMarkersChecksum(ingestionMarkers)
 	return checksum
+}
+
+func AppProfileChecksum(name, tenant, appType string, ppe bool) uint32 {
+	return utils.Hash(name + tenant + appType + strconv.FormatBool(ppe))
 }
 
 func IsNodePortMode() bool {
