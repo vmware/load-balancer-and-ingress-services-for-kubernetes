@@ -289,6 +289,15 @@ func DequeueIngestion(key string, fullsync bool) {
 			}
 		}
 	}
+	if objType == lib.ApplicationProfile && utils.IsWCP() {
+		modelName := lib.GetModelName(namespace, name)
+		aviModelGraph := NewAviObjectGraph()
+		aviModelGraph.BuildAppProfileGraph(namespace, name, key)
+		ok := saveAviModel(modelName, aviModelGraph, key)
+		if ok && !fullsync {
+			PublishKeyToRestLayer(modelName, key, sharedQueue)
+		}
+	}
 	if objType == utils.Namespace && utils.IsWCP() && isNamespaceDeleted(name) {
 		cache := avicache.SharedAviObjCache()
 		vsKeys := cache.VsCacheMeta.AviCacheGetAllParentVSKeys()

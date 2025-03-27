@@ -54,6 +54,7 @@ type AviObjCache struct {
 	VsCacheMeta        *AviCache
 	VsCacheLocal       *AviCache
 	ClusterStatusCache *AviCache
+	AppProfileCache    *AviCache
 }
 
 func NewAviObjCache() *AviObjCache {
@@ -71,6 +72,7 @@ func NewAviObjCache() *AviObjCache {
 	c.VrfCache = NewAviCache()
 	c.PKIProfileCache = NewAviCache()
 	c.ClusterStatusCache = NewAviCache()
+	c.AppProfileCache = NewAviCache()
 	return &c
 }
 
@@ -128,6 +130,12 @@ func (c *AviObjCache) AviObjCachePopulate(client []*clients.AviClient, version s
 	err := c.AviObjVrfCachePopulate(client[0], cloud)
 	if err != nil {
 		return vsCacheCopy, allVsKeys, err
+	}
+	if utils.IsWCP() && tenant == lib.GetAdminTenant() {
+		err := c.AviObjAppProfileCachePopulate(client[0])
+		if err != nil {
+			return vsCacheCopy, allVsKeys, err
+		}
 	}
 	// Populate the VS cache
 	utils.AviLog.Infof("Refreshing all object cache")
@@ -1913,6 +1921,51 @@ func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud st
 		lib.SetVrfUuid(*vrf.UUID)
 		utils.AviLog.Debugf("Adding vrf to Cache %s", vrfName)
 		c.VrfCache.AviCacheAdd(vrfName, &vrfCacheObj)
+	}
+	return nil
+}
+
+func (c *AviObjCache) AviObjAppProfileCachePopulate(client *clients.AviClient) error {
+	appName := lib.GetProxyEnabledApplicationProfileName()
+	uri := "/api/applicationprofile?name=" + appName + "&include_name=true" + "&created_by=" + lib.GetAKOUser()
+	result, err := lib.AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err for app profile %v", uri, err)
+		return err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal app profile data, err: %v", err)
+		return err
+	}
+	for i := 0; i < result.Count; i++ {
+		appProf := models.ApplicationProfile{}
+		err = json.Unmarshal(elems[i], &appProf)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal app profile data, err: %v", err)
+			continue
+		}
+		if appProf.Name == nil || appProf.UUID == nil || appProf.TCPAppProfile == nil {
+			utils.AviLog.Warnf("Incomplete app profile data unmarshalled, %s", utils.Stringify(appProf))
+			continue
+		}
+		tenant := getTenantFromTenantRef(*appProf.TenantRef)
+		appType := *appProf.Type
+		ppe := *appProf.TCPAppProfile.ProxyProtocolEnabled
+		cksum := lib.AppProfileChecksum(appName, tenant, appType, ppe)
+		appProfileCacheObj := AviAppProfileCache{
+			Name:                appName,
+			Tenant:              tenant,
+			Uuid:                *appProf.UUID,
+			Type:                appType,
+			LastModified:        *appProf.LastModified,
+			CloudConfigCksum:    cksum,
+			EnableProxyProtocol: ppe,
+		}
+		k := NamespaceName{Namespace: tenant, Name: appName}
+		c.AppProfileCache.AviCacheAdd(k, &appProfileCacheObj)
+		utils.AviLog.Infof("Adding app profile to cache during refresh %s", utils.Stringify(appProfileCacheObj))
 	}
 	return nil
 }

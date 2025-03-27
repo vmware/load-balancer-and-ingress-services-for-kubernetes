@@ -109,6 +109,7 @@ func (cfg *AKOCleanupConfig) Cleanup(ctx context.Context) error {
 		cleanupL4PolicySets,
 		cleanupPoolGroups,
 		cleanupPools,
+		cleanupAppProfiles,
 		func() error {
 			if VPCMode {
 				return nil
@@ -140,6 +141,7 @@ func (cfg *AKOCleanupConfig) Cleanup(ctx context.Context) error {
 	}
 	return nil
 }
+
 func getCloudInVPCMode() (string, error) {
 	uri := "/api/cloud/"
 	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
@@ -404,6 +406,19 @@ func cleanupPools() error {
 		pools[key.Namespace] = append(pools[key.Namespace], poolCache.(*avicache.AviPoolCache).Uuid)
 	}
 	return deleteAviResource("/api/pool", pools)
+}
+
+func cleanupAppProfiles() error {
+	aviObjCache := avicache.SharedAviObjCache()
+	appProfiles := make(map[string][]string)
+	for _, key := range aviObjCache.AppProfileCache.AviGetAllKeys() {
+		if _, ok := appProfiles[key.Namespace]; !ok {
+			appProfiles[key.Namespace] = []string{}
+		}
+		appProfCache, _ := aviObjCache.AppProfileCache.AviCacheGet(key)
+		appProfiles[key.Namespace] = append(appProfiles[key.Namespace], appProfCache.(*avicache.AviAppProfileCache).Uuid)
+	}
+	return deleteAviResource("/api/applicationprofile", appProfiles)
 }
 
 /*

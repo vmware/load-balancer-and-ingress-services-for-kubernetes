@@ -1226,6 +1226,11 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			}
 		}
 
+		appProfileLabel := lib.GetModelName(lib.GetAdminTenant(), lib.GetProxyEnabledApplicationProfileName())
+		appKey := lib.ApplicationProfile + "/" + appProfileLabel
+		lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+		nodes.DequeueIngestion(appKey, true)
+
 		//Ingress Section
 		if utils.GetInformers().IngressInformer != nil {
 			for namespace := range acceptedNamespaces {

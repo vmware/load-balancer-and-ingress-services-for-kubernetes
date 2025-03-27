@@ -163,6 +163,7 @@ const (
 	PriorityLabel                              = "PriorityLabel"
 	SSLKeyCert                                 = "SSLKeyandCertificate"
 	PKIProfile                                 = "PKI Profile"
+	ApplicationProfile                         = "ApplicationProfile"
 	PassthroughPG                              = "Passthrough PG"
 	Passthroughpool                            = "Passthrough pool"
 	PassthroughVS                              = "Passthrough VirtualService"
@@ -261,6 +262,7 @@ const (
 	CalicoIPv6AddressAnnotation      = "projectcalico.org/IPv6Address"
 	AntreaTransportAddressAnnotation = "node.antrea.io/transport-addresses"
 	TenantAnnotation                 = "ako.vmware.com/tenant-name"
+	GwProxyProtocolEnableAnnotation  = "iaas.vmware.com/proxy-protocol-enabled"
 
 	// Specifies command used in namespace event handler
 	NsFilterAdd                    = "ADD"
