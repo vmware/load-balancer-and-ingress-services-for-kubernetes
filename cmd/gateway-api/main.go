@@ -59,7 +59,7 @@ func Initialize() {
 	os.Setenv("ISTIO_ENABLED", "false")
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("PASSTHROUGH_SHARD_SIZE", "LARGE")
-	os.Setenv(lib.DISABLE_STATIC_ROUTE_SYNC, "false")
+	os.Setenv(lib.DISABLE_STATIC_ROUTE_SYNC, "true")
 	os.Setenv("PROMETHEUS_ENABLED", "false")
 	os.Setenv("PRIMARY_AKO_FLAG", "false")
 
