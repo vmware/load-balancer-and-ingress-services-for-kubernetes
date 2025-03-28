@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"regexp"
 	"sort"
 	"strconv"
@@ -290,7 +291,8 @@ func (rest *RestOperations) CheckAndPublishForRetry(err error, publishKey avicac
 			}
 		}
 	}
-	if strings.Contains(err.Error(), "Rest request error") || strings.Contains(err.Error(), "timed out waiting for rest response") {
+	var urlError *url.Error
+	if strings.Contains(err.Error(), "Rest request error") || strings.Contains(err.Error(), "timed out waiting for rest response") || errors.As(err, &urlError) {
 		utils.AviLog.Warnf("key: %s, msg: got error while executing rest request: %s, adding to slow retry queue", key, err.Error())
 		rest.PublishKeyToSlowRetryLayer(publishKey, key)
 		return true
