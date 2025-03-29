@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 	"sync"
@@ -30,6 +31,7 @@ import (
 	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/models"
 
+	"github.com/google/uuid"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -593,4 +595,12 @@ func (s *LockSet) Unlock(lockName string) {
 
 func GetLockSet() *LockSet {
 	return &lockSet
+}
+
+func Uuid4() string {
+	id, err := uuid.NewRandom()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return id.String()
 }
