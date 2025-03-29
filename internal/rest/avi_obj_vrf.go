@@ -17,8 +17,6 @@ package rest
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
-	"regexp"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -69,9 +67,8 @@ func (rest *RestOperations) AviVrfBuild(key string, vrfNode *nodes.AviVrfNode, u
 	aviStaticRoutes := vrf.StaticRoutes
 	mergedStaticRoutes := []*avimodels.StaticRoute{}
 	clusterName := lib.GetClusterName()
-	re := regexp.MustCompile(fmt.Sprintf(`%s\-[1-9]+`, clusterName))
 	for _, aviStaticRoute := range aviStaticRoutes {
-		if !re.MatchString(*aviStaticRoute.RouteID) {
+		if len(aviStaticRoute.Labels) == 0 || (*aviStaticRoute.Labels[0].Key == "clustername" && *aviStaticRoute.Labels[0].Value != clusterName) {
 			mergedStaticRoutes = append(mergedStaticRoutes, aviStaticRoute)
 		}
 	}
