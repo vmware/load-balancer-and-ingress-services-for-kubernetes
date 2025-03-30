@@ -320,7 +320,7 @@ func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32)
 		fqdns = append(fqdns, fqdn)
 	} else {
 		// Do not generate auto-fqdn for vipPerNS use case
-		if VIPPerNamespace() {
+		if VIPPerNamespace() && autoFQDN {
 			utils.AviLog.Warnf("key: %s, msg: Auto-FQDN is disabled for VIP PER NS mode.", key)
 		}
 		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(vsName, GetModelName(tenant, vsName))
