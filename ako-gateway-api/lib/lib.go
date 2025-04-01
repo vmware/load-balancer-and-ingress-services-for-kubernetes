@@ -152,7 +152,7 @@ func FindTargetPort(serviceName, ns string, svcPort int32, key string) intstr.In
 	return intstr.IntOrString{}
 }
 func IsListenerInvalid(gwStatus *gatewayv1.GatewayStatus, listenerIndex int) bool {
-	if len(gwStatus.Listeners) > int(listenerIndex) && gwStatus.Listeners[listenerIndex].Conditions[0].Type == string(gatewayv1.ListenerConditionAccepted) && gwStatus.Listeners[listenerIndex].Conditions[0].Status == "False" {
+	if len(gwStatus.Listeners) > int(listenerIndex) && len(gwStatus.Listeners[listenerIndex].Conditions) > 0 && gwStatus.Listeners[listenerIndex].Conditions[0].Type == string(gatewayv1.ListenerConditionAccepted) && gwStatus.Listeners[listenerIndex].Conditions[0].Status == "False" {
 		return true
 	}
 	return false

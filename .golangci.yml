@@ -2,7 +2,7 @@
 run:
   tests: true
   timeout: 10m
-  skip-dirs-use-default: true
+  issues.exclude-dirs-use-default: true
 
 linters-settings:
   goimports:
@@ -13,8 +13,7 @@ linters:
   enable:
     - misspell
     - gofmt
-    - deadcode
     - unused
     - staticcheck
     - goimports
-    - vet
+    - govet
