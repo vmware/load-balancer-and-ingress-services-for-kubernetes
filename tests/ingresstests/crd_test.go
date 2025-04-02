@@ -2053,6 +2053,12 @@ func TestHostRuleUseRegexMultiIngressNoPath(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	node := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0]
 
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[1].MatchCriteria == "REGEX_MATCH" || nodes[0].SniNodes[0].HttpPolicyRefs[0].HppMap[0].MatchCriteria == "REGEX_MATCH"
+	}, 10*time.Second).Should(gomega.Equal(true))
+
 	g.Expect(node.HttpPolicyRefs).To(gomega.HaveLen(1))
 	g.Expect(node.HttpPolicyRefs[0].RedirectPorts).To(gomega.HaveLen(1))
 	g.Expect(node.HttpPolicyRefs[0].RedirectPorts[0].Hosts).Should(gomega.ContainElements(fqdn))
@@ -2060,16 +2066,30 @@ func TestHostRuleUseRegexMultiIngressNoPath(t *testing.T) {
 	g.Expect(node.SniNodes).To(gomega.HaveLen(1))
 	g.Expect(node.SniNodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
 	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap).To(gomega.HaveLen(2))
-	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].MatchCriteria).Should(gomega.Equal("BEGINS_WITH"))
-	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].StringGroupRefs).To(gomega.BeNil())
-	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].PoolGroup).To(gomega.Equal(lib.GetEncodedSniPGPoolNameforRegex("cluster--default-foo.com-" + ingName)))
-	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[1].MatchCriteria).Should(gomega.Equal("REGEX_MATCH"))
-	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[1].MatchCase).Should(gomega.Equal("INSENSITIVE"))
-	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[1].StringGroupRefs).To(gomega.HaveLen(1))
-	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[1].PoolGroup).To(gomega.Equal(lib.GetEncodedSniPGPoolNameforRegex("cluster--default-foo.com_foo-" + ingressName2)))
+
+	hppMapRegexMatch := node.SniNodes[0].HttpPolicyRefs[0].HppMap[1]
+	hppMapBeginsWith := node.SniNodes[0].HttpPolicyRefs[0].HppMap[0]
+	if node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].MatchCriteria == "REGEX_MATCH" {
+		hppMapRegexMatch = node.SniNodes[0].HttpPolicyRefs[0].HppMap[0]
+		hppMapBeginsWith = node.SniNodes[0].HttpPolicyRefs[0].HppMap[1]
+	}
+
+	g.Expect(hppMapBeginsWith.MatchCriteria).Should(gomega.Equal("BEGINS_WITH"))
+	g.Expect(hppMapBeginsWith.StringGroupRefs).To(gomega.BeNil())
+	g.Expect(hppMapBeginsWith.PoolGroup).To(gomega.Equal(lib.GetEncodedSniPGPoolNameforRegex("cluster--default-foo.com-" + ingName)))
+	g.Expect(hppMapRegexMatch.MatchCriteria).Should(gomega.Equal("REGEX_MATCH"))
+	g.Expect(hppMapRegexMatch.MatchCase).Should(gomega.Equal("INSENSITIVE"))
+	g.Expect(hppMapRegexMatch.StringGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(hppMapRegexMatch.PoolGroup).To(gomega.Equal(lib.GetEncodedSniPGPoolNameforRegex("cluster--default-foo.com_foo-" + ingressName2)))
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
-	time.Sleep(2 * time.Second)
+
+	g.Eventually(func() bool {
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		node = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0]
+		return (node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].PoolGroup == "cluster--default-foo.com-"+ingName || node.SniNodes[0].HttpPolicyRefs[0].HppMap[1].PoolGroup == "cluster--default-foo.com-"+ingName) &&
+			(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].PoolGroup == "cluster--default-foo.com_foo-"+ingressName2 || node.SniNodes[0].HttpPolicyRefs[0].HppMap[1].PoolGroup == "cluster--default-foo.com_foo-"+ingressName2)
+	}, 10*time.Second).Should(gomega.Equal(true))
 
 	g.Expect(node.SniNodes).To(gomega.HaveLen(1))
 	g.Expect(node.SniNodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
@@ -2077,10 +2097,8 @@ func TestHostRuleUseRegexMultiIngressNoPath(t *testing.T) {
 	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap).To(gomega.HaveLen(2))
 	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].MatchCriteria).Should(gomega.Equal("BEGINS_WITH"))
 	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].StringGroupRefs).To(gomega.HaveLen(0))
-	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[0].PoolGroup).To(gomega.Equal("cluster--default-foo.com-" + ingName))
 	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[1].MatchCriteria).Should(gomega.Equal("BEGINS_WITH"))
 	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[1].StringGroupRefs).To(gomega.HaveLen(0))
-	g.Expect(node.SniNodes[0].HttpPolicyRefs[0].HppMap[1].PoolGroup).To(gomega.Equal("cluster--default-foo.com_foo-" + ingressName2))
 
 	// deleting the second created ingress
 	if err := KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingressName2, metav1.DeleteOptions{}); err != nil {
