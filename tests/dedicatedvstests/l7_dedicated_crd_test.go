@@ -1201,19 +1201,32 @@ func TestHostRuleUseRegexMultiIngressNoPath(t *testing.T) {
 
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com-L7-dedicated"}
 	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/hr-cluster--foo.com-L7-dedicated", true)
+
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return nodes[0].HttpPolicyRefs[0].HppMap[1].MatchCriteria == "REGEX_MATCH" || nodes[0].HttpPolicyRefs[0].HppMap[0].MatchCriteria == "REGEX_MATCH"
+	}, 10*time.Second).Should(gomega.Equal(true))
+
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	node := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0]
 
 	g.Expect(node.HttpPolicyRefs).To(gomega.HaveLen(2))
 	g.Expect(node.HttpPolicyRefs[0].RedirectPorts).To(gomega.BeNil())
 	g.Expect(node.HttpPolicyRefs[0].HppMap).To(gomega.HaveLen(2))
-	g.Expect(node.HttpPolicyRefs[0].HppMap[0].MatchCriteria).Should(gomega.Equal("BEGINS_WITH"))
-	g.Expect(node.HttpPolicyRefs[0].HppMap[0].StringGroupRefs).To(gomega.BeNil())
-	g.Expect(node.HttpPolicyRefs[0].HppMap[0].PoolGroup).To(gomega.Equal(lib.GetEncodedSniPGPoolNameforRegex("cluster--default-foo.com-" + ingressName + "-L7-dedicated")))
-	g.Expect(node.HttpPolicyRefs[0].HppMap[1].MatchCriteria).Should(gomega.Equal("REGEX_MATCH"))
-	g.Expect(node.HttpPolicyRefs[0].HppMap[1].MatchCase).Should(gomega.Equal("INSENSITIVE"))
-	g.Expect(node.HttpPolicyRefs[0].HppMap[1].StringGroupRefs).To(gomega.HaveLen(1))
-	g.Expect(node.HttpPolicyRefs[0].HppMap[1].PoolGroup).To(gomega.Equal(lib.GetEncodedSniPGPoolNameforRegex("cluster--default-foo.com_foo-" + ingressName2 + "-L7-dedicated")))
+	hppMapRegexMatch := node.HttpPolicyRefs[0].HppMap[1]
+	hppMapBeginsWith := node.HttpPolicyRefs[0].HppMap[0]
+	if node.HttpPolicyRefs[0].HppMap[0].MatchCriteria == "REGEX_MATCH" {
+		hppMapRegexMatch = node.HttpPolicyRefs[0].HppMap[0]
+		hppMapBeginsWith = node.HttpPolicyRefs[0].HppMap[1]
+	}
+	g.Expect(hppMapBeginsWith.MatchCriteria).Should(gomega.Equal("BEGINS_WITH"))
+	g.Expect(hppMapBeginsWith.StringGroupRefs).To(gomega.BeNil())
+	g.Expect(hppMapBeginsWith.PoolGroup).To(gomega.Equal(lib.GetEncodedSniPGPoolNameforRegex("cluster--default-foo.com-" + ingressName + "-L7-dedicated")))
+	g.Expect(hppMapRegexMatch.MatchCriteria).Should(gomega.Equal("REGEX_MATCH"))
+	g.Expect(hppMapRegexMatch.MatchCase).Should(gomega.Equal("INSENSITIVE"))
+	g.Expect(hppMapRegexMatch.StringGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(hppMapRegexMatch.PoolGroup).To(gomega.Equal(lib.GetEncodedSniPGPoolNameforRegex("cluster--default-foo.com_foo-" + ingressName2 + "-L7-dedicated")))
 	g.Expect(node.HttpPolicyRefs[1].HppMap).To(gomega.BeNil())
 	g.Expect(node.HttpPolicyRefs[1].RedirectPorts).To(gomega.HaveLen(1))
 	g.Expect(node.HttpPolicyRefs[1].RedirectPorts[0].Path).To(gomega.Equal(""))
@@ -1223,17 +1236,21 @@ func TestHostRuleUseRegexMultiIngressNoPath(t *testing.T) {
 	g.Expect(node.HttpPolicyRefs[1].RedirectPorts[0].Hosts[0]).To(gomega.Equal("foo.com"))
 
 	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
-	time.Sleep(2 * time.Second)
+
+	g.Eventually(func() bool {
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		node = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0]
+		return (node.HttpPolicyRefs[0].HppMap[0].PoolGroup == "cluster--default-foo.com-"+ingressName+"-L7-dedicated" || node.HttpPolicyRefs[0].HppMap[1].PoolGroup == "cluster--default-foo.com-"+ingressName+"-L7-dedicated") &&
+			(node.HttpPolicyRefs[0].HppMap[0].PoolGroup == "cluster--default-foo.com_foo-"+ingressName2+"-L7-dedicated" || node.HttpPolicyRefs[0].HppMap[1].PoolGroup == "cluster--default-foo.com_foo-"+ingressName2+"-L7-dedicated")
+	}, 10*time.Second).Should(gomega.Equal(true))
 
 	g.Expect(node.HttpPolicyRefs).To(gomega.HaveLen(2))
 	g.Expect(node.HttpPolicyRefs[0].RedirectPorts).To(gomega.BeNil())
 	g.Expect(node.HttpPolicyRefs[0].HppMap).To(gomega.HaveLen(2))
 	g.Expect(node.HttpPolicyRefs[0].HppMap[0].MatchCriteria).Should(gomega.Equal("BEGINS_WITH"))
 	g.Expect(node.HttpPolicyRefs[0].HppMap[0].StringGroupRefs).To(gomega.HaveLen(0))
-	g.Expect(node.HttpPolicyRefs[0].HppMap[0].PoolGroup).To(gomega.Equal("cluster--default-foo.com-" + ingressName + "-L7-dedicated"))
 	g.Expect(node.HttpPolicyRefs[0].HppMap[1].MatchCriteria).Should(gomega.Equal("BEGINS_WITH"))
 	g.Expect(node.HttpPolicyRefs[0].HppMap[1].StringGroupRefs).To(gomega.HaveLen(0))
-	g.Expect(node.HttpPolicyRefs[0].HppMap[1].PoolGroup).To(gomega.Equal("cluster--default-foo.com_foo-" + ingressName2 + "-L7-dedicated"))
 	g.Expect(node.HttpPolicyRefs[1].HppMap).To(gomega.BeNil())
 	g.Expect(node.HttpPolicyRefs[1].RedirectPorts).To(gomega.HaveLen(1))
 	g.Expect(node.HttpPolicyRefs[1].RedirectPorts[0].Path).To(gomega.Equal(""))
