@@ -384,7 +384,6 @@ func deleteObject(option UpdateOptions, key string, isVSDelete bool, retryNum ..
 	if exists {
 		if err := json.Unmarshal([]byte(vsAnnotations), &vsUUIDs); err != nil {
 			utils.AviLog.Warnf("key: %s, msg: Could not unmarshall vs annotations: %s", key, err)
-			return err
 		}
 	}
 
