@@ -15,7 +15,7 @@ type WafRuleLog struct {
 	Msg *string `json:"msg,omitempty"`
 
 	// The count of omitted match element logs in the current rule. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	OmittedMatchElements uint32 `json:"omitted_match_elements,omitempty"`
+	OmittedMatchElements *uint32 `json:"omitted_match_elements,omitempty"`
 
 	// Phase in which transaction matched the Rule - for instance, Request Header Phase. Field introduced in 17.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Phase *string `json:"phase,omitempty"`
@@ -24,7 +24,7 @@ type WafRuleLog struct {
 	RuleGroup *string `json:"rule_group,omitempty"`
 
 	// ID of the matching rule per ModSec language. Field introduced in 17.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	RuleID uint64 `json:"rule_id,omitempty"`
+	RuleID *uint64 `json:"rule_id,omitempty"`
 
 	// Name of the rule. Field introduced in 17.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	RuleName *string `json:"rule_name,omitempty"`

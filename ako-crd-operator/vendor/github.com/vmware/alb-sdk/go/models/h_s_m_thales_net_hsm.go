@@ -17,7 +17,7 @@ type HSMThalesNetHsm struct {
 	Keyhash *string `json:"keyhash"`
 
 	// Local module id of the netHSM device. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ModuleID uint32 `json:"module_id,omitempty"`
+	ModuleID *uint32 `json:"module_id,omitempty"`
 
 	// Priority class of the nethsm in an high availability setup. 1 is the highest priority and 100 is the lowest priority. Allowed values are 1-100. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true

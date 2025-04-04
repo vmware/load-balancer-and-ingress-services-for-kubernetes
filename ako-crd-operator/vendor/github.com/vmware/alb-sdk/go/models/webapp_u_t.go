@@ -15,7 +15,7 @@ type WebappUT struct {
 	// Protobuf versioning for config pbs. Field introduced in 21.1.5, 22.1.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
 	ConfigpbAttributes *ConfigPbAttributes `json:"configpb_attributes,omitempty"`
 
-	// default uint64 field. Field introduced in 30.1.2. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// default *uint64 field. Field introduced in 30.1.2. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	DefaultFirstInt *uint64 `json:"default_first_int,omitempty"`
 
 	// default *int64 field. Field introduced in 30.1.2. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.

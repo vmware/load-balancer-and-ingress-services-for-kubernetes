@@ -15,7 +15,7 @@ type VNICNetwork struct {
 	// Required: true
 	IP *IPAddrPrefix `json:"ip"`
 
-	//  Enum options - DHCP, STATIC, VIP, DOCKER_HOST. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	//  Enum options - DHCP, STATIC, VIP, DOCKER_HOST, MODE_MANUAL. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	Mode *string `json:"mode"`
 }

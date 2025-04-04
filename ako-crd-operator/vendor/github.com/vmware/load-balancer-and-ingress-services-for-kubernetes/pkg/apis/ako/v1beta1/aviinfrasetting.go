@@ -41,8 +41,7 @@ type AviInfraSettingSpec struct {
 }
 
 type AviInfraNSXSettings struct {
-	Project *string `json:"project,omitempty"`
-	T1LR    *string `json:"t1lr,omitempty"`
+	T1LR *string `json:"t1lr,omitempty"`
 }
 
 type AviInfraSettingNetwork struct {

@@ -18,5 +18,5 @@ type WafRuleMatchData struct {
 	MatchValue *string `json:"match_value,omitempty"`
 
 	// The starting index of the first character of match_value field with respect to original match value. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	MatchValueOffset uint64 `json:"match_value_offset,omitempty"`
+	MatchValueOffset *uint64 `json:"match_value_offset,omitempty"`
 }
