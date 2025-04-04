@@ -49,7 +49,7 @@ type DynamicDNSRecord struct {
 	Ns []*DNSNsRdata `json:"ns,omitempty"`
 
 	// Specifies the number of records returned by the DNS service.Enter 0 to return all records. Default is 0. Allowed values are 0-20. Special values are 0- Return all records. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	NumRecordsInResponse uint32 `json:"num_records_in_response,omitempty"`
+	NumRecordsInResponse *uint32 `json:"num_records_in_response,omitempty"`
 
 	// Service locator info in SRV record. Field introduced in 20.1.3. Maximum of 4 items allowed. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	ServiceLocators []*DNSSrvRdata `json:"service_locators,omitempty"`
@@ -58,7 +58,7 @@ type DynamicDNSRecord struct {
 	TenantRef *string `json:"tenant_ref,omitempty"`
 
 	// Time To Live for this DNS record. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	TTL uint32 `json:"ttl,omitempty"`
+	TTL *uint32 `json:"ttl,omitempty"`
 
 	// Text record. Field introduced in 20.1.3. Maximum of 4 items allowed. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	TxtRecords []*DNSTxtRdata `json:"txt_records,omitempty"`

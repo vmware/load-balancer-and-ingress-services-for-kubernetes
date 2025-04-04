@@ -48,7 +48,7 @@ type GslbSite struct {
 	Port *uint32 `json:"port,omitempty"`
 
 	// User can overide the individual GslbPoolMember ratio for all the VIPs/VS(es) of this site. If this field is not  configured then the GslbPoolMember ratio gets applied. . Allowed values are 1-20. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Ratio uint32 `json:"ratio,omitempty"`
+	Ratio *uint32 `json:"ratio,omitempty"`
 
 	// This modes applies to follower sites. When an active site is in suspend mode, the site does not receive any further federated objects. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SuspendMode *bool `json:"suspend_mode,omitempty"`

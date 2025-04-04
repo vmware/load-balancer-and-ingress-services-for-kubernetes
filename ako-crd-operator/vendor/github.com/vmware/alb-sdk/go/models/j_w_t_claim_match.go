@@ -12,7 +12,7 @@ type JWTClaimMatch struct {
 	BoolMatch *bool `json:"bool_match,omitempty"`
 
 	// Integer value against which the claim is matched. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	IntMatch uint32 `json:"int_match,omitempty"`
+	IntMatch *uint32 `json:"int_match,omitempty"`
 
 	// Specified Claim should be present in the JWT. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	// Required: true

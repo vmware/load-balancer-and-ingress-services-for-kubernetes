@@ -22,10 +22,10 @@ type UserAccountProfile struct {
 	CredentialsTimeoutThreshold *uint32 `json:"credentials_timeout_threshold,omitempty"`
 
 	// The configurable time window beyond which we need to pop all the login failure timestamps from the login_failure_timestamps. Special values are 0 - Do not reset login_failure_counts on the basis of time.. Field introduced in 22.1.1. Unit is MIN. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	LoginFailureCountExpiryWindow uint32 `json:"login_failure_count_expiry_window,omitempty"`
+	LoginFailureCountExpiryWindow *uint32 `json:"login_failure_count_expiry_window,omitempty"`
 
 	// Maximum number of concurrent sessions allowed. There are unlimited sessions by default. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxConcurrentSessions uint32 `json:"max_concurrent_sessions,omitempty"`
+	MaxConcurrentSessions *uint32 `json:"max_concurrent_sessions,omitempty"`
 
 	// Number of login attempts before lockout. Default is 3 attempts. Allowed values are 3-20. Special values are 0- Unlimited login attempts allowed.. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxLoginFailureCount *uint32 `json:"max_login_failure_count,omitempty"`

@@ -38,6 +38,9 @@ type EventDetails struct {
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AppSignatureEventData *AppSignatureEventData `json:"app_signature_event_data,omitempty"`
 
+	//  Field introduced in 22.1.6,30.1.2. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	AsyncPatchState *AsyncPatchState `json:"async_patch_state,omitempty"`
+
 	// Details for Attach IP status. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	AttachIPStatusDetails *AttachIPStatusEventDetails `json:"attach_ip_status_details,omitempty"`
 
@@ -153,6 +156,9 @@ type EventDetails struct {
 	ClusterServiceRestoredDetails *ClusterServiceRestoredEvent `json:"cluster_service_restored_details,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	ClustifyCheckDetails *ClustifyCheckEvent `json:"clustify_check_details,omitempty"`
+
+	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CntlrHostListDetails *VinfraCntlrHostUnreachableList `json:"cntlr_host_list_details,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
@@ -233,6 +239,9 @@ type EventDetails struct {
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DiscSummary *VinfraDiscSummaryDetails `json:"disc_summary,omitempty"`
 
+	// Log files exsiting on controller need to be cleanup. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	DiskCleanupEventDetails *LogMgrCleanupEventDetails `json:"disk_cleanup_event_details,omitempty"`
+
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DNSQueryError *DNSQueryError `json:"dns_query_error,omitempty"`
 
@@ -247,6 +256,9 @@ type EventDetails struct {
 
 	// False positive details. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	FalsePositiveDetails *FalsePositiveDetails `json:"false_positive_details,omitempty"`
+
+	// File object event. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	FileobjectDetails *FileObjectDetails `json:"fileobject_details,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	GcpCloudRouterInfo *GCPCloudRouterUpdate `json:"gcp_cloud_router_info,omitempty"`
@@ -596,8 +608,14 @@ type EventDetails struct {
 	// Azure cloud sync services event details. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SyncServicesInfo *CloudSyncServices `json:"sync_services_info,omitempty"`
 
+	// System Report event details. Field introduced in 22.1.6, 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	SystemReportEventDetails *SystemReport `json:"system_report_event_details,omitempty"`
+
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TencentInfo *TencentSetup `json:"tencent_info,omitempty"`
+
+	// Uber event details, for testing only. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	UberEventDetails *LogMgrUberEventDetails `json:"uber_event_details,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UnbindVsSeDetails *RmUnbindVsSeEventDetails `json:"unbind_vs_se_details,omitempty"`

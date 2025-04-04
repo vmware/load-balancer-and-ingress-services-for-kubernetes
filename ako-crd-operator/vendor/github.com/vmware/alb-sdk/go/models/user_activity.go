@@ -13,10 +13,10 @@ type UserActivity struct {
 	LastModified *string `json:"_last_modified,omitempty"`
 
 	// Number of concurrent user sessions open. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ConcurrentSessions uint32 `json:"concurrent_sessions,omitempty"`
+	ConcurrentSessions *uint32 `json:"concurrent_sessions,omitempty"`
 
 	// Number of failed login attempts before a successful login. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	FailedLoginAttempts uint32 `json:"failed_login_attempts,omitempty"`
+	FailedLoginAttempts *uint32 `json:"failed_login_attempts,omitempty"`
 
 	// IP of the machine the user was last logged in from. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LastLoginIP *string `json:"last_login_ip,omitempty"`

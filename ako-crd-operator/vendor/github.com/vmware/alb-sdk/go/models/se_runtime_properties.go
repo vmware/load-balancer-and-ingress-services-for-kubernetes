@@ -45,7 +45,7 @@ type SeRuntimeProperties struct {
 	DpHbTimeoutCount *uint32 `json:"dp_hb_timeout_count,omitempty"`
 
 	// Frequency of ARP requests sent by SE for each VIP to detect duplicate IP when it loses conectivity to controller. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DupipFrequency uint32 `json:"dupip_frequency,omitempty"`
+	DupipFrequency *uint32 `json:"dupip_frequency,omitempty"`
 
 	// Number of ARP responses received for the VIP after which SE decides that the VIP has been moved and disables the VIP. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DupipTimeoutCount *uint32 `json:"dupip_timeout_count,omitempty"`
@@ -60,7 +60,7 @@ type SeRuntimeProperties struct {
 	FlowTableBatchPushFrequency *uint32 `json:"flow_table_batch_push_frequency,omitempty"`
 
 	// Overrides the MTU value received via DHCP or some other means. Use this when the infrastructure advertises an MTU that is not supported by all devices in the network. For example, in AWS or when an overlay is used. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	GlobalMtu uint32 `json:"global_mtu,omitempty"`
+	GlobalMtu *uint32 `json:"global_mtu,omitempty"`
 
 	// Enable Javascript console logs on the client browser when collecting client insights. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- false), Basic edition(Allowed values- false), Enterprise with Cloud Services edition.
 	HTTPRumConsoleLog *bool `json:"http_rum_console_log,omitempty"`
@@ -117,7 +117,7 @@ type SeRuntimeProperties struct {
 	NgxFreeConnectionStack *bool `json:"ngx_free_connection_stack,omitempty"`
 
 	// Maximum memory in bytes allocated for persistence entries. Allowed values are 0-33554432. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	PersistenceMemMax uint32 `json:"persistence_mem_max,omitempty"`
+	PersistenceMemMax *uint32 `json:"persistence_mem_max,omitempty"`
 
 	// Enable punting of UDP packets from primary to other Service Engines. This applies to Virtual Services with Per-Packet Loadbalancing enabled. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ScaleoutUDPPerPkt *bool `json:"scaleout_udp_per_pkt,omitempty"`
@@ -183,7 +183,7 @@ type SeRuntimeProperties struct {
 	SeMetricsRtInterval *uint32 `json:"se_metrics_rt_interval,omitempty"`
 
 	// Deprecated in 21.1.3. Use config in ServiceEngineGroup instead. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SePacketBufferMax uint32 `json:"se_packet_buffer_max,omitempty"`
+	SePacketBufferMax *uint32 `json:"se_packet_buffer_max,omitempty"`
 
 	// Internal use only. If enabled, randomly packets are dropped. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeRandomTCPDrops *bool `json:"se_random_tcp_drops,omitempty"`

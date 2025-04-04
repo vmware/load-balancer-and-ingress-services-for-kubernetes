@@ -13,7 +13,7 @@ type SecureChannelAvailableLocalIps struct {
 	LastModified *string `json:"_last_modified,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	End uint32 `json:"end,omitempty"`
+	End *uint32 `json:"end,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FreeIps []int64 `json:"free_ips,omitempty,omitempty"`
@@ -23,7 +23,7 @@ type SecureChannelAvailableLocalIps struct {
 	Name *string `json:"name"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Start uint32 `json:"start,omitempty"`
+	Start *uint32 `json:"start,omitempty"`
 
 	// url
 	// Read Only: true
