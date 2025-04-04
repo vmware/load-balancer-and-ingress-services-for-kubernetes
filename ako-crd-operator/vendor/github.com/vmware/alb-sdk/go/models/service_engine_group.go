@@ -34,7 +34,7 @@ type ServiceEngineGroup struct {
 	AppCacheThreshold *uint32 `json:"app_cache_threshold,omitempty"`
 
 	// A percent value of total SE memory reserved for Application learning. This is an SE bootup property and requires SE restart. Allowed values are 0 - 10. Field introduced in 18.2.3. Unit is PERCENT. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	AppLearningMemoryPercent uint32 `json:"app_learning_memory_percent,omitempty"`
+	AppLearningMemoryPercent *uint32 `json:"app_learning_memory_percent,omitempty"`
 
 	// Amount of SE memory in GB until which shared memory is collected in core archive. Field introduced in 17.1.3. Unit is GB. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ArchiveShmLimit *uint32 `json:"archive_shm_limit,omitempty"`
@@ -205,19 +205,19 @@ type ServiceEngineGroup struct {
 	EnablePcapTxRing *bool `json:"enable_pcap_tx_ring,omitempty"`
 
 	// End local ephemeral port number for outbound connections. Field introduced in 17.2.13, 18.1.5, 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	EphemeralPortrangeEnd uint32 `json:"ephemeral_portrange_end,omitempty"`
+	EphemeralPortrangeEnd *uint32 `json:"ephemeral_portrange_end,omitempty"`
 
 	// Start local ephemeral port number for outbound connections. Field introduced in 17.2.13, 18.1.5, 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	EphemeralPortrangeStart uint32 `json:"ephemeral_portrange_start,omitempty"`
+	EphemeralPortrangeStart *uint32 `json:"ephemeral_portrange_start,omitempty"`
 
 	// Multiplier for extra config to support large VS/Pool config. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ExtraConfigMultiplier *float64 `json:"extra_config_multiplier,omitempty"`
 
 	// Extra config memory to support large Geo DB configuration. Field introduced in 17.1.1. Unit is MB. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ExtraSharedConfigMemory uint32 `json:"extra_shared_config_memory,omitempty"`
+	ExtraSharedConfigMemory *uint32 `json:"extra_shared_config_memory,omitempty"`
 
 	// Maximum number of flow table entries that have not completed TCP three-way handshake yet. Field introduced in 17.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	FlowTableNewSynMaxEntries uint32 `json:"flow_table_new_syn_max_entries,omitempty"`
+	FlowTableNewSynMaxEntries *uint32 `json:"flow_table_new_syn_max_entries,omitempty"`
 
 	// Number of entries in the free list. Field introduced in 17.2.10, 18.1.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FreeListSize *uint32 `json:"free_list_size,omitempty"`
@@ -370,7 +370,7 @@ type ServiceEngineGroup struct {
 	Markers []*RoleFilterMatchLabel `json:"markers,omitempty"`
 
 	// Maximum number of external health monitors that can run concurrently in a service engine. This helps control the CPU and memory use by external health monitors. Special values are 0- Value will be internally calculated based on cpu and memory. Field introduced in 18.2.7. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxConcurrentExternalHm uint32 `json:"max_concurrent_external_hm,omitempty"`
+	MaxConcurrentExternalHm *uint32 `json:"max_concurrent_external_hm,omitempty"`
 
 	// When CPU usage on an SE exceeds this threshold, Virtual Services hosted on this SE may be rebalanced to other SEs to reduce load. A new SE may be created as part of this process. Allowed values are 40-90. Unit is PERCENT. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxCPUUsage *int32 `json:"max_cpu_usage,omitempty"`
@@ -378,8 +378,11 @@ type ServiceEngineGroup struct {
 	// Max bytes that can be allocated in a single mempool. Field introduced in 18.1.5. Unit is MB. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxMemoryPerMempool *uint32 `json:"max_memory_per_mempool,omitempty"`
 
+	// Maximum number of HTTP session that will be created. Each session uses about 1kB in the key-value storage in shared memory. Setting this value too high can lead to exhaustion of shared memory and affect services. Allowed values are 1-2000000. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	MaxNumHTTPSessionsToStore *uint32 `json:"max_num_http_sessions_to_store,omitempty"`
+
 	// Configures the maximum number of se_dp processes that handles traffic. If not configured, defaults to the number of CPUs on the SE. If decreased, it will only take effect after SE reboot. Allowed values are 1-128. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 0), Basic edition(Allowed values- 0), Enterprise with Cloud Services edition.
-	MaxNumSeDps uint32 `json:"max_num_se_dps,omitempty"`
+	MaxNumSeDps *uint32 `json:"max_num_se_dps,omitempty"`
 
 	// Applicable to Azure platform only. Maximum number of public IPs per Azure LB. . Field introduced in 17.2.12, 18.1.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxPublicIpsPerLb *uint32 `json:"max_public_ips_per_lb,omitempty"`
@@ -432,6 +435,9 @@ type ServiceEngineGroup struct {
 	// Indicates the percent of memory reserved for connections. Allowed values are 0-100. Field introduced in 18.1.2. Unit is PERCENT. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MinimumConnectionMemory *uint32 `json:"minimum_connection_memory,omitempty"`
 
+	// This knob enables the Service Engine to process multicast traffic(For VMware Hypervisor). Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	MulticastEnable *bool `json:"multicast_enable,omitempty"`
+
 	// Number of threads to use for log streaming. Allowed values are 1-100. Field introduced in 17.2.12, 18.1.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NLogStreamingThreads *uint32 `json:"n_log_streaming_threads,omitempty"`
 
@@ -458,10 +464,10 @@ type ServiceEngineGroup struct {
 	NtpSyncFailEvent *bool `json:"ntp_sync_fail_event,omitempty"`
 
 	// Configures the interval at which SE synchronization status with NTP server(s) is verified. A value of zero disables SE NTP synchronization status validation. Allowed values are 120-900. Special values are 0- disable. Field introduced in 22.1.2. Unit is SEC. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
-	NtpSyncStatusInterval uint32 `json:"ntp_sync_status_interval,omitempty"`
+	NtpSyncStatusInterval *uint32 `json:"ntp_sync_status_interval,omitempty"`
 
 	// Number of dispatcher cores (0,1,2,4,8 or 16). If set to 0, then number of dispatcher cores is deduced automatically.Requires SE Reboot. Allowed values are 0,1,2,4,8,16. Field introduced in 17.2.12, 18.1.3, 18.2.1. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 0), Basic edition(Allowed values- 0), Enterprise with Cloud Services edition.
-	NumDispatcherCores uint32 `json:"num_dispatcher_cores,omitempty"`
+	NumDispatcherCores *uint32 `json:"num_dispatcher_cores,omitempty"`
 
 	// Number of queues to each dispatcher. Allowed values are 1-2. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	NumDispatcherQueues *uint32 `json:"num_dispatcher_queues,omitempty"`
@@ -485,7 +491,7 @@ type ServiceEngineGroup struct {
 	OpenstackMgmtNetworkUUID *string `json:"openstack_mgmt_network_uuid,omitempty"`
 
 	// Amount of extra memory to be reserved for use by the Operating System on a Service Engine. Unit is MB. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	OsReservedMemory uint32 `json:"os_reserved_memory,omitempty"`
+	OsReservedMemory *uint32 `json:"os_reserved_memory,omitempty"`
 
 	// Enable Path MTU Discovery feature for IPv4. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	PathMtuDiscoveryV4 *bool `json:"path_mtu_discovery_v4,omitempty"`
@@ -532,6 +538,9 @@ type ServiceEngineGroup struct {
 	// Select the SE bandwidth for the bandwidth license. Enum options - SE_BANDWIDTH_UNLIMITED, SE_BANDWIDTH_25M, SE_BANDWIDTH_200M, SE_BANDWIDTH_1000M, SE_BANDWIDTH_10000M. Field introduced in 17.2.5. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- SE_BANDWIDTH_UNLIMITED), Basic edition(Allowed values- SE_BANDWIDTH_UNLIMITED), Enterprise with Cloud Services edition.
 	SeBandwidthType *string `json:"se_bandwidth_type,omitempty"`
 
+	// Use to cap the size of debug ring min(se_debug_trace_sz, num_dispatcher_cores). Only applicable to > 8G systems.  Requires SE Reboot. Allowed values are 1,2,4,8,255. Field introduced in 22.1.6. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	SeDebugTraceSz *uint32 `json:"se_debug_trace_sz,omitempty"`
+
 	// Delay the cleanup of flowtable entry. To be used under surveillance of Avi Support. Field introduced in 20.1.2. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- true), Basic edition(Allowed values- true), Enterprise with Cloud Services edition.
 	SeDelayedFlowDelete *bool `json:"se_delayed_flow_delete,omitempty"`
 
@@ -551,7 +560,7 @@ type ServiceEngineGroup struct {
 	SeDpIsolation *bool `json:"se_dp_isolation,omitempty"`
 
 	// Number of CPUs for non se-dp tasks in SE datapath isolation mode. Translates Total cpus minus 'num_non_dp_cpus' for datapath use. It is recommended to reserve an even number of CPUs for hyper-threaded processors. Requires SE reboot. Allowed values are 1-8. Special values are 0- auto. Field introduced in 20.1.4. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	SeDpIsolationNumNonDpCpus uint32 `json:"se_dp_isolation_num_non_dp_cpus,omitempty"`
+	SeDpIsolationNumNonDpCpus *uint32 `json:"se_dp_isolation_num_non_dp_cpus,omitempty"`
 
 	// Internal buffer full indicator on the Service Engine beyond which the unfiltered logs are abandoned. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	SeDpLogNfEnqueuePercent *uint32 `json:"se_dp_log_nf_enqueue_percent,omitempty"`
@@ -563,7 +572,7 @@ type ServiceEngineGroup struct {
 	SeDpMaxHbVersion *uint32 `json:"se_dp_max_hb_version,omitempty"`
 
 	// Time (in seconds) service engine waits for after generating a Vnic transmit queue stall event before resetting theNIC. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SeDpVnicQueueStallEventSleep uint32 `json:"se_dp_vnic_queue_stall_event_sleep,omitempty"`
+	SeDpVnicQueueStallEventSleep *uint32 `json:"se_dp_vnic_queue_stall_event_sleep,omitempty"`
 
 	// Number of consecutive transmit failures to look for before generating a Vnic transmit queue stall event. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeDpVnicQueueStallThreshold *uint32 `json:"se_dp_vnic_queue_stall_threshold,omitempty"`
@@ -578,13 +587,13 @@ type ServiceEngineGroup struct {
 	SeDpVnicStallSeRestartWindow *uint32 `json:"se_dp_vnic_stall_se_restart_window,omitempty"`
 
 	// Determines if DPDK pool mode driver should be used or not   0  Automatically determine based on hypervisor/NIC type 1  Unconditionally use DPDK poll mode driver 2  Don't use DPDK poll mode driver.Requires SE Reboot. Allowed values are 0-2. Field introduced in 18.1.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SeDpdkPmd uint32 `json:"se_dpdk_pmd,omitempty"`
+	SeDpdkPmd *uint32 `json:"se_dpdk_pmd,omitempty"`
 
 	// Enable core dump on assert. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
 	SeDumpCoreOnAssert *bool `json:"se_dump_core_on_assert,omitempty"`
 
 	// Use this to emulate more/less cpus than is actually available. One datapath process is started for each core. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 0), Basic edition(Allowed values- 0), Enterprise with Cloud Services edition.
-	SeEmulatedCores uint32 `json:"se_emulated_cores,omitempty"`
+	SeEmulatedCores *uint32 `json:"se_emulated_cores,omitempty"`
 
 	// Flow probe retry count if no replies are received.Requires SE Reboot. Allowed values are 0-5. Field introduced in 18.1.4, 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeFlowProbeRetries *uint32 `json:"se_flow_probe_retries,omitempty"`
@@ -599,13 +608,13 @@ type ServiceEngineGroup struct {
 	SeHyperthreadedMode *string `json:"se_hyperthreaded_mode,omitempty"`
 
 	// Determines if SE-SE IPC messages are encapsulated in an IP header       0        Automatically determine based on hypervisor type    1        Use IP encap unconditionally    ~[0,1]   Don't use IP encapRequires SE Reboot. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	SeIPEncapIpc uint32 `json:"se_ip_encap_ipc,omitempty"`
+	SeIPEncapIpc *uint32 `json:"se_ip_encap_ipc,omitempty"`
 
 	// This knob controls the resource availability and burst size used between SE datapath and KNI. This helps in minimising packet drops when there is higher KNI traffic (non-VIP traffic from and to Linux). The factor takes the following values      0-default.     1-doubles the burst size and KNI resources.     2-quadruples the burst size and KNI resources. Allowed values are 0-2. Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SeKniBurstFactor uint32 `json:"se_kni_burst_factor,omitempty"`
+	SeKniBurstFactor *uint32 `json:"se_kni_burst_factor,omitempty"`
 
 	// Determines if SE-SE IPC messages use SE interface IP instead of VIP        0        Automatically determine based on hypervisor type    1        Use SE interface IP unconditionally    ~[0,1]   Don't use SE interface IPRequires SE Reboot. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	SeL3EncapIpc uint32 `json:"se_l3_encap_ipc,omitempty"`
+	SeL3EncapIpc *uint32 `json:"se_l3_encap_ipc,omitempty"`
 
 	// Internal flag that blocks dataplane until all application logs are flushed to log-agent process. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	SeLogBufferAppBlockingDequeue *bool `json:"se_log_buffer_app_blocking_dequeue,omitempty"`
@@ -623,19 +632,19 @@ type ServiceEngineGroup struct {
 	SeMpRingRetryCount *uint32 `json:"se_mp_ring_retry_count,omitempty"`
 
 	// MTU for the VNICs of SEs in the SE group. Allowed values are 512-9000. Field introduced in 18.2.8, 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SeMtu uint32 `json:"se_mtu,omitempty"`
+	SeMtu *uint32 `json:"se_mtu,omitempty"`
 
 	// Prefix to use for virtual machine name of Service Engines. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeNamePrefix *string `json:"se_name_prefix,omitempty"`
 
 	// Internal use only. Used to artificially reduce the available number of packet buffers. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
-	SePacketBufferMax uint32 `json:"se_packet_buffer_max,omitempty"`
+	SePacketBufferMax *uint32 `json:"se_packet_buffer_max,omitempty"`
 
 	// Enables lookahead mode of packet receive in PCAP mode. Introduced to overcome an issue with hv_netvsc driver. Lookahead mode attempts to ensure that application and kernel's view of the receive rings are consistent. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SePcapLookahead *bool `json:"se_pcap_lookahead,omitempty"`
 
 	// Max number of packets the pcap interface can hold and if the value is 0 the optimum value will be chosen. The optimum value will be chosen based on SE-memory, Cloud Type and Number of Interfaces.Requires SE Reboot. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SePcapPktCount uint32 `json:"se_pcap_pkt_count,omitempty"`
+	SePcapPktCount *uint32 `json:"se_pcap_pkt_count,omitempty"`
 
 	// Max size of each packet in the pcap interface. Requires SE Reboot. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SePcapPktSz *uint32 `json:"se_pcap_pkt_sz,omitempty"`
@@ -644,10 +653,10 @@ type ServiceEngineGroup struct {
 	SePcapQdiscBypass *bool `json:"se_pcap_qdisc_bypass,omitempty"`
 
 	// Frequency in seconds at which periodically a PCAP reinit check is triggered. May be used in conjunction with the configuration pcap_reinit_threshold. (Valid range   15 mins - 12 hours, 0 - disables). Allowed values are 900-43200. Special values are 0- disable. Field introduced in 17.2.13, 18.1.3, 18.2.1. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SePcapReinitFrequency uint32 `json:"se_pcap_reinit_frequency,omitempty"`
+	SePcapReinitFrequency *uint32 `json:"se_pcap_reinit_frequency,omitempty"`
 
 	// Threshold for input packet receive errors in PCAP mode exceeding which a PCAP reinit is triggered. If not set, an unconditional reinit is performed. This value is checked every pcap_reinit_frequency interval. Field introduced in 17.2.13, 18.1.3, 18.2.1. Unit is METRIC_COUNT. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SePcapReinitThreshold uint32 `json:"se_pcap_reinit_threshold,omitempty"`
+	SePcapReinitThreshold *uint32 `json:"se_pcap_reinit_threshold,omitempty"`
 
 	// TCP port on SE where echo service will be run. Field introduced in 17.2.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeProbePort *uint32 `json:"se_probe_port,omitempty"`
@@ -683,7 +692,7 @@ type ServiceEngineGroup struct {
 	SeTracertPortRange *PortRange `json:"se_tracert_port_range,omitempty"`
 
 	// Determines if Direct Secondary Return (DSR) from secondary SE is active or not  0  Automatically determine based on hypervisor type. 1  Enable tunnel mode - DSR is unconditionally disabled. 2  Disable tunnel mode - DSR is unconditionally enabled. Tunnel mode can be enabled or disabled at run-time. Allowed values are 0-2. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 0), Basic edition(Allowed values- 0), Enterprise with Cloud Services edition.
-	SeTunnelMode uint32 `json:"se_tunnel_mode,omitempty"`
+	SeTunnelMode *uint32 `json:"se_tunnel_mode,omitempty"`
 
 	// UDP Port for tunneled packets from secondary to primary SE in Docker bridge mode.Requires SE Reboot. Field introduced in 17.1.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeTunnelUDPPort *uint32 `json:"se_tunnel_udp_port,omitempty"`
@@ -695,13 +704,13 @@ type ServiceEngineGroup struct {
 	SeTxqThreshold *uint32 `json:"se_txq_threshold,omitempty"`
 
 	// Determines if SE-SE IPC messages are encapsulated in a UDP header  0  Automatically determine based on hypervisor type. 1  Use UDP encap unconditionally.Requires SE Reboot. Allowed values are 0-1. Field introduced in 17.1.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SeUDPEncapIpc uint32 `json:"se_udp_encap_ipc,omitempty"`
+	SeUDPEncapIpc *uint32 `json:"se_udp_encap_ipc,omitempty"`
 
 	// Determines if DPDK library should be used or not   0  Automatically determine based on hypervisor type 1  Use DPDK if PCAP is not enabled 2  Don't use DPDK. Allowed values are 0-2. Field introduced in 18.1.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SeUseDpdk uint32 `json:"se_use_dpdk,omitempty"`
+	SeUseDpdk *uint32 `json:"se_use_dpdk,omitempty"`
 
 	// Configure the frequency in milliseconds of software transmit spillover queue flush when enabled. This is necessary to flush any packets in the spillover queue in the absence of a packet transmit in the normal course of operation. Allowed values are 50-500. Special values are 0- disable. Field introduced in 20.1.1. Unit is MILLISECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SeVnicTxSwQueueFlushFrequency uint32 `json:"se_vnic_tx_sw_queue_flush_frequency,omitempty"`
+	SeVnicTxSwQueueFlushFrequency *uint32 `json:"se_vnic_tx_sw_queue_flush_frequency,omitempty"`
 
 	// Configure the size of software transmit spillover queue when enabled. Requires SE Reboot. Allowed values are 128-2048. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeVnicTxSwQueueSize *uint32 `json:"se_vnic_tx_sw_queue_size,omitempty"`
@@ -846,13 +855,13 @@ type ServiceEngineGroup struct {
 	VsScaleoutTimeout *uint32 `json:"vs_scaleout_timeout,omitempty"`
 
 	// Wait time for primary switchover ready notification after flows are completed. In certain deployments, there may be an additional delay to accept traffic. For example, for BGP, some time is needed for route advertisement. Allowed values are 0-300. Field introduced in 30.2.1. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	VsSePrimarySwitchoverAdditionalWaitTime uint32 `json:"vs_se_primary_switchover_additional_wait_time,omitempty"`
+	VsSePrimarySwitchoverAdditionalWaitTime *uint32 `json:"vs_se_primary_switchover_additional_wait_time,omitempty"`
 
 	// Wait time for sending scalein ready notification after flows are completed. In certain deployments, there may be an additional delay to accept traffic. For example, for BGP, some time is needed for route advertisement. Allowed values are 0-300. Field introduced in 30.2.1. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	VsSeScaleinAdditionalWaitTime uint32 `json:"vs_se_scalein_additional_wait_time,omitempty"`
+	VsSeScaleinAdditionalWaitTime *uint32 `json:"vs_se_scalein_additional_wait_time,omitempty"`
 
 	// Wait time for sending scaleout ready notification after Virtual Service is marked UP. In certain deployments, there may be an additional delay to accept traffic. For example, for BGP, some time is needed for route advertisement. Allowed values are 0-300. Field introduced in 18.1.5,18.2.1. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	VsSeScaleoutAdditionalWaitTime uint32 `json:"vs_se_scaleout_additional_wait_time,omitempty"`
+	VsSeScaleoutAdditionalWaitTime *uint32 `json:"vs_se_scaleout_additional_wait_time,omitempty"`
 
 	// Timeout in seconds for Service Engine to sendScaleout Ready notification of a Virtual Service. Allowed values are 0-90. Field introduced in 18.1.5,18.2.1. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VsSeScaleoutReadyTimeout *uint32 `json:"vs_se_scaleout_ready_timeout,omitempty"`

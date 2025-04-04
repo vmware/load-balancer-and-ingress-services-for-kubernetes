@@ -18,7 +18,7 @@ type HTTPRewriteLocHdrAction struct {
 	Path *URIParam `json:"path,omitempty"`
 
 	// Port to use in the redirected URI. Allowed values are 1-65535. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Port uint32 `json:"port,omitempty"`
+	Port *uint32 `json:"port,omitempty"`
 
 	// HTTP protocol type. Enum options - HTTP, HTTPS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true

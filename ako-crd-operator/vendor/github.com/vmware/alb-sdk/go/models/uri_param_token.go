@@ -9,10 +9,10 @@ package models
 type URIParamToken struct {
 
 	// Index of the ending token in the incoming URI. Allowed values are 0-65534. Special values are 65535 - end of string. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	EndIndex uint32 `json:"end_index,omitempty"`
+	EndIndex *uint32 `json:"end_index,omitempty"`
 
 	// Index of the starting token in the incoming URI. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	StartIndex uint32 `json:"start_index,omitempty"`
+	StartIndex *uint32 `json:"start_index,omitempty"`
 
 	// Constant *string to use as a token. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	StrValue *string `json:"str_value,omitempty"`

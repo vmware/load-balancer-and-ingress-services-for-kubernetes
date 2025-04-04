@@ -12,7 +12,7 @@ type DebugVirtualServiceCapture struct {
 	CaptureFileSize *CaptureFileSize `json:"capture_file_size,omitempty"`
 
 	// Number of minutes to capture packets. Use 0 to capture until manually stopped. Special values are 0 - infinite. Unit is MIN. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Duration uint32 `json:"duration,omitempty"`
+	Duration *uint32 `json:"duration,omitempty"`
 
 	// Enable SSL session key capture. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EnableSslSessionKeyCapture *bool `json:"enable_ssl_session_key_capture,omitempty"`
@@ -21,7 +21,7 @@ type DebugVirtualServiceCapture struct {
 	FileCount *uint32 `json:"file_count,omitempty"`
 
 	// Total number of packets to capture. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	NumPkts uint32 `json:"num_pkts,omitempty"`
+	NumPkts *uint32 `json:"num_pkts,omitempty"`
 
 	// Enable PcapNg for packet capture. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PcapNg *bool `json:"pcap_ng,omitempty"`

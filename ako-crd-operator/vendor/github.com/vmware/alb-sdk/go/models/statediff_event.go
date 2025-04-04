@@ -9,7 +9,7 @@ package models
 type StatediffEvent struct {
 
 	// Time taken to complete Statediff event in seconds. Field introduced in 21.1.3. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	Duration uint32 `json:"duration,omitempty"`
+	Duration *uint32 `json:"duration,omitempty"`
 
 	// Task end time. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	EndTime *string `json:"end_time,omitempty"`
