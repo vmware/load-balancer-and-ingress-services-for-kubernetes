@@ -27,7 +27,7 @@ type VirtualServiceRuntime struct {
 	IsDNSVs *bool `json:"is_dns_vs,omitempty"`
 
 	// Number of times keys have been rotated. Field introduced in 18.2.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	KeyRotationCount uint64 `json:"key_rotation_count,omitempty"`
+	KeyRotationCount *uint64 `json:"key_rotation_count,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LastChangedTime *TimeStamp `json:"last_changed_time,omitempty"`
@@ -81,7 +81,7 @@ type VirtualServiceRuntime struct {
 	UUID *string `json:"uuid,omitempty"`
 
 	// Version number of the SE List update. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Version uint64 `json:"version,omitempty"`
+	Version *uint64 `json:"version,omitempty"`
 
 	//  It is a reference to an object of type VirtualService. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VhChildVsRef []string `json:"vh_child_vs_ref,omitempty"`

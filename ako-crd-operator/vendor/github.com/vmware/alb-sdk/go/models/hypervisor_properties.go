@@ -13,8 +13,8 @@ type HypervisorProperties struct {
 	Htype *string `json:"htype"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxIpsPerNic uint32 `json:"max_ips_per_nic,omitempty"`
+	MaxIpsPerNic *uint32 `json:"max_ips_per_nic,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxNics uint32 `json:"max_nics,omitempty"`
+	MaxNics *uint32 `json:"max_nics,omitempty"`
 }

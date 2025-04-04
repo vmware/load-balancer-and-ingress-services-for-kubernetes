@@ -18,7 +18,7 @@ type PodToleration struct {
 	Operator *string `json:"operator,omitempty"`
 
 	// Pods that tolerate the taint with a specified toleration_seconds remain bound for the specified amount of time. Field introduced in 17.2.14, 18.1.5, 18.2.1. Unit is SECONDS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	TolerationSeconds uint32 `json:"toleration_seconds,omitempty"`
+	TolerationSeconds *uint32 `json:"toleration_seconds,omitempty"`
 
 	// Value to match. Field introduced in 17.2.14, 18.1.5, 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Value *string `json:"value,omitempty"`

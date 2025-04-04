@@ -71,7 +71,7 @@ type User struct {
 	UIProperty *string `json:"ui_property,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
-	UID uint32 `json:"uid,omitempty"`
+	UID *uint32 `json:"uid,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UnixCryptPassword *string `json:"unix_crypt_password,omitempty"`

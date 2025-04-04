@@ -24,22 +24,22 @@ type BgpPeer struct {
 	ConnectTimer *uint32 `json:"connect_timer,omitempty"`
 
 	// TTL for multihop ebgp Peer. Allowed values are 0-255. Field introduced in 17.1.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	EbgpMultihop uint32 `json:"ebgp_multihop,omitempty"`
+	EbgpMultihop *uint32 `json:"ebgp_multihop,omitempty"`
 
 	// Hold time for this Peer. Allowed values are 3-7200. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	HoldTime uint32 `json:"hold_time,omitempty"`
+	HoldTime *uint32 `json:"hold_time,omitempty"`
 
 	// Override the profile level local_as with the peer level remote_as. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	IbgpLocalAsOverride *bool `json:"ibgp_local_as_override,omitempty"`
 
 	// Keepalive interval for this Peer. Allowed values are 0-3600. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	KeepaliveInterval uint32 `json:"keepalive_interval,omitempty"`
+	KeepaliveInterval *uint32 `json:"keepalive_interval,omitempty"`
 
 	// Label used to enable learning and/or advertisement of routes to this peer. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Label *string `json:"label,omitempty"`
 
 	// Local AS to use for this ebgp peer. If specified, this will override the local AS configured at the VRF level. Allowed values are 1-4294967295. Field introduced in 17.1.6,17.2.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	LocalAs uint32 `json:"local_as,omitempty"`
+	LocalAs *uint32 `json:"local_as,omitempty"`
 
 	// Peer Autonomous System Md5 Digest Secret Key. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Md5Secret *string `json:"md5_secret,omitempty"`
@@ -54,7 +54,7 @@ type BgpPeer struct {
 	PeerIp6 *IPAddr `json:"peer_ip6,omitempty"`
 
 	// Peer Autonomous System ID. Allowed values are 1-4294967295. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	RemoteAs uint32 `json:"remote_as,omitempty"`
+	RemoteAs *uint32 `json:"remote_as,omitempty"`
 
 	// Shutdown the BGP peer. Field introduced in 17.2.4. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Shutdown *bool `json:"shutdown,omitempty"`

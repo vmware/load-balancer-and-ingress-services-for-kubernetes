@@ -67,7 +67,7 @@ spec:
                 maximum: 50
                 minimum: 1
                 type: integer
-              http:
+              http_monitor:
                 description: HTTP defines the HTTP monitor configuration.
                 properties:
                   auth_type:
@@ -80,14 +80,6 @@ spec:
                     description: ExactHttpRequest checks if the whole http request
                       should match.
                     type: boolean
-                  http_headers:
-                    description: HTTPHeaders is the list of headers to send.
-                    items:
-                      type: string
-                    type: array
-                  http_method:
-                    description: HTTPMethod is the HTTP method to use.
-                    type: string
                   http_request:
                     default: GET / HTTP/1.0
                     description: HTTPRequest is the HTTP request to send.
@@ -95,10 +87,6 @@ spec:
                     type: string
                   http_request_body:
                     description: HTTPRequestBody is the request body to send.
-                    type: string
-                  http_request_header_path:
-                    description: HTTPRequestHeaderPath is the path to use for headers.
-                    maxLength: 1024
                     type: string
                   http_response:
                     description: HTTPResponse is a keyword to match in the response
@@ -109,6 +97,13 @@ spec:
                     description: HTTPResponseCode is the list of expected HTTP response
                       codes.
                     items:
+                      enum:
+                      - HTTP_ANY
+                      - HTTP_1XX
+                      - HTTP_2XX
+                      - HTTP_3XX
+                      - HTTP_4XX
+                      - HTTP_5XX
                       type: string
                     minItems: 1
                     type: array
@@ -126,12 +121,6 @@ spec:
                     description: MaintenanceResponse is the body content to match
                       for maintenance response.
                     type: string
-                  response_size:
-                    description: ResponseSize is the expected size of the response.
-                    format: int32
-                    maximum: 16384
-                    minimum: 2048
-                    type: integer
                 type: object
               is_federated:
                 description: |-
@@ -147,6 +136,10 @@ spec:
                 maximum: 65535
                 minimum: 0
                 type: integer
+              name:
+                description: Name is name of the spec and optional. If not present
+                  will be inferred from Metadata
+                type: string
               receive_timeout:
                 default: 4
                 description: ReceiveTimeout is the timeout for receiving a ping response,
@@ -171,7 +164,7 @@ spec:
                 maximum: 50
                 minimum: 1
                 type: integer
-              tcp:
+              tcp_monitor:
                 description: TCP defines the TCP monitor configuration.
                 properties:
                   maintenance_response:
@@ -222,8 +215,12 @@ spec:
               status:
                 description: Status of the healthmonitor
                 type: string
+              uuid:
+                description: UUID is unique identifier of the health monitor object
+                type: string
             required:
             - error
+            - uuid
             type: object
         type: object
     served: true

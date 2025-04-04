@@ -33,7 +33,7 @@ type HealthMonitorHTTP struct {
 	MaintenanceResponse *string `json:"maintenance_response,omitempty"`
 
 	// Expected http/https response page size. Allowed values are 2048-16384. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ResponseSize uint32 `json:"response_size,omitempty"`
+	ResponseSize *uint32 `json:"response_size,omitempty"`
 
 	// SSL attributes for HTTPS health monitor. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SslAttributes *HealthMonitorSSlattributes `json:"ssl_attributes,omitempty"`

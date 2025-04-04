@@ -15,7 +15,7 @@ type SeVnicTxQueueStallEventDetails struct {
 	LinuxName *string `json:"linux_name,omitempty"`
 
 	// Queue number. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Queue uint32 `json:"queue,omitempty"`
+	Queue *uint32 `json:"queue,omitempty"`
 
 	// UUID of the SE responsible for this event. It is a reference to an object of type ServiceEngine. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeRef *string `json:"se_ref,omitempty"`

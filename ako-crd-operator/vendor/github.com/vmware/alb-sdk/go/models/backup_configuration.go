@@ -27,7 +27,7 @@ type BackupConfiguration struct {
 	// Prefix of the exported configuration file. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	BackupFilePrefix *string `json:"backup_file_prefix,omitempty"`
 
-	// Default passphrase for configuration export and periodic backup. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// Default passphrase to encrypt sensitive fields for configuration export and periodic backup. The same passphrase must be provided to import the configuration. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	BackupPassphrase *string `json:"backup_passphrase,omitempty"`
 
 	// Protobuf versioning for config pbs. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.

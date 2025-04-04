@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing image targets
-IMG ?= "ako-crd-controller:latest"
+IMG ?= "ako-crd-operator:latest"
 BUILD_ARG_GOLANG ?=
 BUILD_ARG_PHOTON ?=
 

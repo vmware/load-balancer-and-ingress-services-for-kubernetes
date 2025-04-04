@@ -9,7 +9,7 @@ package models
 type ParamInfo struct {
 
 	// Number of hits for a param. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ParamHits uint64 `json:"param_hits,omitempty"`
+	ParamHits *uint64 `json:"param_hits,omitempty"`
 
 	// Param name. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ParamKey *string `json:"param_key,omitempty"`

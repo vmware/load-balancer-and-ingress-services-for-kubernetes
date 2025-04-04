@@ -15,5 +15,5 @@ type SCServerStateInfo struct {
 	ServerIP *IPAddr `json:"server_ip,omitempty"`
 
 	//  Allowed values are 1-65535. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ServerPort uint32 `json:"server_port,omitempty"`
+	ServerPort *uint32 `json:"server_port,omitempty"`
 }

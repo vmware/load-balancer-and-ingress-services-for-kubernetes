@@ -44,6 +44,9 @@ type VipSeAssigned struct {
 	//  It is a reference to an object of type ServiceEngine. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Ref *string `json:"ref,omitempty"`
 
+	// VIP Route is revoked as pool went down. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	RouteRevokedPoolDown *bool `json:"route_revoked_pool_down,omitempty"`
+
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ScaleinInProgress *bool `json:"scalein_in_progress,omitempty"`
 
