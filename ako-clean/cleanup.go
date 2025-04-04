@@ -409,14 +409,16 @@ func cleanupPools() error {
 }
 
 func cleanupAppProfiles() error {
-	aviObjCache := avicache.SharedAviObjCache()
+	tenant := lib.GetAdminTenant()
+	aviClient := avicache.SharedAVIClients(tenant).AviClient[0]
+	err, appProfs := lib.ProxyEnabledAppProfileGet(aviClient)
+	if err != nil {
+		utils.AviLog.Warnf("Application profile Get returned err %v", err)
+		return err
+	}
 	appProfiles := make(map[string][]string)
-	for _, key := range aviObjCache.AppProfileCache.AviGetAllKeys() {
-		if _, ok := appProfiles[key.Namespace]; !ok {
-			appProfiles[key.Namespace] = []string{}
-		}
-		appProfCache, _ := aviObjCache.AppProfileCache.AviCacheGet(key)
-		appProfiles[key.Namespace] = append(appProfiles[key.Namespace], appProfCache.(*avicache.AviAppProfileCache).Uuid)
+	for _, appProfile := range appProfs {
+		appProfiles[tenant] = append(appProfiles[tenant], *appProfile.UUID)
 	}
 	return deleteAviResource("/api/applicationprofile", appProfiles)
 }

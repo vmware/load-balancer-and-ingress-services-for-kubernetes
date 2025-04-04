@@ -80,8 +80,10 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 			}
 			oldObj := old.(*advl4v1alpha1pre1.Gateway)
 			gw := new.(*advl4v1alpha1pre1.Gateway)
+			oldAnnotVal := oldObj.Annotations[lib.GwProxyProtocolEnableAnnotation]
+			newAnnotVal := gw.Annotations[lib.GwProxyProtocolEnableAnnotation]
 
-			if !reflect.DeepEqual(oldObj.Spec, gw.Spec) || gw.GetDeletionTimestamp() != nil {
+			if !reflect.DeepEqual(oldObj.Spec, gw.Spec) || gw.GetDeletionTimestamp() != nil || oldAnnotVal != newAnnotVal {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 				key := lib.Gateway + "/" + utils.ObjKey(gw)
 				utils.AviLog.Infof("key: %s, msg: UPDATE", key)
