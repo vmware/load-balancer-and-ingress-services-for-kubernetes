@@ -29,6 +29,7 @@ const (
 	SecretInformer                = "SecretInformer"
 	NodeInformer                  = "NodeInformer"
 	EndpointInformer              = "EndpointInformer"
+	EndpointSlicesInformer        = "EndpointSlicesInformer"
 	ConfigMapInformer             = "ConfigMapInformer"
 	MultiClusterIngressInformer   = "MultiClusterIngressInformer"
 	ServiceImportInformer         = "ServiceImportInformer"
@@ -44,6 +45,7 @@ const (
 	LoadBalancer                  = "LoadBalancer"
 	Pod                           = "Pod"
 	Endpoints                     = "Endpoints"
+	Endpointslices                = "Endpointslices"
 	Ingress                       = "Ingress"
 	IngressClass                  = "IngressClass"
 	OshiftRoute                   = "OshiftRoute"
@@ -79,6 +81,7 @@ const (
 	VS_TYPE_NORMAL                = "VS_TYPE_NORMAL"
 	VS_TYPE_VH_CHILD              = "VS_TYPE_VH_CHILD"
 	VS_TYPE_VH_ENHANCED           = "VS_TYPE_VH_ENHANCED"
+	GATEWAY_API                   = "GATEWAY_API_V2"
 	NodeObj                       = "Node"
 	GlobalVRF                     = "global"
 	VRF_CONTEXT                   = "VRF_CONTEXT"
@@ -95,11 +98,13 @@ const (
 	ENV_CTRL_CADATA               = "CTRL_CA_DATA"
 	POD_NAMESPACE                 = "POD_NAMESPACE"
 	VCF_CLUSTER                   = "VCF_CLUSTER"
+	VPC_MODE                      = "VPC_MODE"
 	MCI_ENABLED                   = "MCI_ENABLED"
 	USE_DEFAULT_SECRETS_ONLY      = "USE_DEFAULT_SECRETS_ONLY"
 	Namespace                     = "Namespace"
 	MaxAviVersion                 = "30.2.1"
-	NamespaceNetworkInfo          = "NamespaceNetworkInfos"
+	ControllerAPIHeader           = "userHeader"
+	ControllerAPIScheme           = "scheme"
 
 	RefreshAuthTokenInterval = 12  //hours
 	AuthTokenExpiry          = 240 //hours
@@ -115,4 +120,8 @@ const (
 	renewDeadline = 10 * time.Second
 	retryPeriod   = 2 * time.Second
 	leaseLockName = "ako-lease-lock"
+
+	// Constants used in Gateway context
+	WILDCARD         = "*"
+	FQDN_LABEL_REGEX = "([a-z0-9-]{1,})"
 )

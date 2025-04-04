@@ -23,20 +23,20 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
+	"github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/alb-sdk/go/session"
 )
 
 type AviRestClientPool struct {
-	// stores clients per tenant
-	AviClient map[string][]*clients.AviClient
+	AviClient []*clients.AviClient
 }
 
 var AviClientInstance *AviRestClientPool
 
 func NewAviRestClientPool(num uint32, api_ep, username,
-	password, authToken, controllerVersion, ctrlCAData, tenant string) (*AviRestClientPool, string, error) {
+	password, authToken, controllerVersion, ctrlCAData, tenant, protocol string, userHeaders map[string]string) (*AviRestClientPool, string, error) {
 	var clientPool AviRestClientPool
 	var wg sync.WaitGroup
 	var globalErr error
@@ -44,13 +44,18 @@ func NewAviRestClientPool(num uint32, api_ep, username,
 	rootPEMCerts := ctrlCAData
 	transport, isSecure := GetHTTPTransportWithCert(rootPEMCerts)
 	options := []func(*session.AviSession) error{
-		session.SetNoControllerStatusCheck,
+		session.DisableControllerStatusCheckOnFailure(true),
 		session.SetTransport(transport),
+		session.SetTimeout(120 * time.Second),
 		session.SetTenant(tenant),
+		session.SetUserHeader(userHeaders),
 	}
 
-	if !isSecure {
+	if !isSecure || protocol == "http" {
 		options = append(options, session.SetInsecure)
+	}
+	if protocol == "http" {
+		options = append(options, session.SetScheme("http"))
 	}
 
 	if authToken == "" {
@@ -60,7 +65,7 @@ func NewAviRestClientPool(num uint32, api_ep, username,
 		options = append(options, session.SetRefreshAuthTokenCallbackV2(GetAuthtokenFromCache))
 	}
 
-	clientPool.AviClient = make(map[string][]*clients.AviClient)
+	clientPool.AviClient = make([]*clients.AviClient, num)
 	for i := uint32(0); i < num; i++ {
 		wg.Add(1)
 		go func(i uint32) {
@@ -75,7 +80,7 @@ func NewAviRestClientPool(num uint32, api_ep, username,
 				globalErr = err
 				return
 			}
-			clientPool.AviClient[tenant] = append(clientPool.AviClient[tenant], aviClient)
+			clientPool.AviClient[i] = aviClient
 		}(i)
 	}
 
@@ -87,7 +92,7 @@ func NewAviRestClientPool(num uint32, api_ep, username,
 
 	// Get the controller version if it is not present in env variable.
 	if controllerVersion == "" {
-		version, err := clientPool.AviClient[tenant][0].AviSession.GetControllerVersion()
+		version, err := clientPool.AviClient[0].AviSession.GetControllerVersion()
 		if err != nil {
 			return &clientPool, controllerVersion, err
 		}
@@ -119,16 +124,16 @@ func (p *AviRestClientPool) AviRestOperate(c *clients.AviClient, rest_ops []*Res
 		SetVersion(c.AviSession)
 		switch op.Method {
 		case RestPost:
-			op.Err = c.AviSession.Post(op.Path, op.Obj, &op.Response)
+			op.Err = c.AviSession.Post(GetUriEncoded(op.Path), op.Obj, &op.Response)
 		case RestPut:
-			op.Err = c.AviSession.Put(op.Path, op.Obj, &op.Response)
+			op.Err = c.AviSession.Put(GetUriEncoded(op.Path), op.Obj, &op.Response)
 		case RestGet:
-			op.Err = c.AviSession.Get(op.Path, &op.Response)
+			op.Err = c.AviSession.Get(GetUriEncoded(op.Path), &op.Response)
 		case RestPatch:
-			op.Err = c.AviSession.Patch(op.Path, op.Obj, op.PatchOp,
+			op.Err = c.AviSession.Patch(GetUriEncoded(op.Path), op.Obj, op.PatchOp,
 				&op.Response)
 		case RestDelete:
-			op.Err = c.AviSession.Delete(op.Path)
+			op.Err = c.AviSession.Delete(GetUriEncoded(op.Path))
 		default:
 			AviLog.Errorf("Unknown RestOp %v", op.Method)
 			op.Err = fmt.Errorf("Unknown RestOp %v", op.Method)
@@ -219,7 +224,7 @@ func GetAuthTokenWithRetry(c *clients.AviClient, retryCount int, nextPage ...str
 	var robj interface{}
 	var err error
 	for retry := 0; retry < retryCount; retry++ {
-		err = c.AviSession.Get(tokenPath, &robj)
+		err = c.AviSession.Get(GetUriEncoded(tokenPath), &robj)
 		if err == nil {
 			return robj, nil
 		}
@@ -235,7 +240,7 @@ func CreateAuthTokenWithRetry(c *clients.AviClient, retryCount int) (interface{}
 	data := make(map[string]string)
 	data["hours"] = strconv.Itoa(AuthTokenExpiry)
 	for retry := 0; retry < retryCount; retry++ {
-		err = c.AviSession.Post(tokenPath, data, &robj)
+		err = c.AviSession.Post(GetUriEncoded(tokenPath), data, &robj)
 		if err == nil {
 			return robj, nil
 		}
@@ -248,7 +253,7 @@ func DeleteAuthTokenWithRetry(c *clients.AviClient, tokenID string, retryCount i
 	tokenPath := "api/user-token"
 	var err error
 	for retry := 0; retry < retryCount; retry++ {
-		err = c.AviSession.Delete(tokenPath + "/" + tokenID)
+		err = c.AviSession.Delete(GetUriEncoded(tokenPath + "/" + tokenID))
 		if err == nil {
 			return nil
 		}
@@ -261,7 +266,11 @@ func GetHTTPTransportWithCert(rootPEMCerts string) (*http.Transport, bool) {
 	var transport *http.Transport
 	var isSecure bool
 	if rootPEMCerts != "" {
-		caCertPool := x509.NewCertPool()
+		caCertPool, err := x509.SystemCertPool()
+		if err != nil {
+			AviLog.Warnf("Failed to get System Cert Pool, error: %s", err.Error())
+			caCertPool = x509.NewCertPool()
+		}
 		caCertPool.AppendCertsFromPEM([]byte(rootPEMCerts))
 
 		transport = &http.Transport{

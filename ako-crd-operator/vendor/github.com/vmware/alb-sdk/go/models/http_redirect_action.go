@@ -21,7 +21,7 @@ type HTTPRedirectAction struct {
 	Path *URIParam `json:"path,omitempty"`
 
 	// Port to which redirect the request. Allowed values are 1-65535. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Port uint32 `json:"port,omitempty"`
+	Port *uint32 `json:"port,omitempty"`
 
 	// Protocol type. Enum options - HTTP, HTTPS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true

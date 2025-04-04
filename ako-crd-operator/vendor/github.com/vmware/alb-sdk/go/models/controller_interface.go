@@ -29,10 +29,10 @@ type ControllerInterface struct {
 	// Mac address of interface. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	MacAddress *string `json:"mac_address,omitempty"`
 
-	// IPv4 address mode DHCP/STATIC. Enum options - DHCP, STATIC, VIP, DOCKER_HOST. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// IPv4 address mode DHCP/STATIC. Enum options - DHCP, STATIC, VIP, DOCKER_HOST, MODE_MANUAL. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Mode *string `json:"mode,omitempty"`
 
-	// IPv6 address mode STATIC. Enum options - DHCP, STATIC, VIP, DOCKER_HOST. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// IPv6 address mode STATIC. Enum options - DHCP, STATIC, VIP, DOCKER_HOST, MODE_MANUAL. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Mode6 *string `json:"mode6,omitempty"`
 
 	// Public IP of interface. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.

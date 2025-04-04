@@ -18,5 +18,5 @@ type WafApplicationSignatureAppVersion struct {
 
 	// The number of rules available for this application. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
 	// Read Only: true
-	NumberOfRules uint32 `json:"number_of_rules,omitempty"`
+	NumberOfRules *uint32 `json:"number_of_rules,omitempty"`
 }

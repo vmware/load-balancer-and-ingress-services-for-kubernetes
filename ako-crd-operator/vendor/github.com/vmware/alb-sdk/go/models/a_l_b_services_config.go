@@ -30,11 +30,15 @@ type ALBServicesConfig struct {
 	// Required: true
 	FeatureOptInStatus *PortalFeatureOptIn `json:"feature_opt_in_status"`
 
+	// Inventory Configurations for Pulse Cloud Services. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
+	// Required: true
+	InventoryConfig *InventoryConfiguration `json:"inventory_config"`
+
 	// Default values to be used for IP Reputation sync. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
 	IPReputationConfig *IPReputationConfig `json:"ip_reputation_config"`
 
-	// Mode helps log collection and upload. Enum options - MODE_UNKNOWN, SALESFORCE, SYSTEST, MYVMWARE. Field introduced in 20.1.2. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- SALESFORCE,MYVMWARE,SYSTEST), Basic edition(Allowed values- SALESFORCE,MYVMWARE,SYSTEST), Enterprise with Cloud Services edition.
+	// Mode helps log collection and upload. Enum options - MODE_UNKNOWN, SALESFORCE, SYSTEST, MYVMWARE, BROADCOM. Field introduced in 20.1.2. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- SALESFORCE,MYVMWARE,SYSTEST), Basic edition(Allowed values- SALESFORCE,MYVMWARE,SYSTEST), Enterprise with Cloud Services edition.
 	Mode *string `json:"mode,omitempty"`
 
 	// Name of the ALBServicesConfig object. Field introduced in 30.1.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
@@ -55,8 +59,7 @@ type ALBServicesConfig struct {
 	SessionConfig *PulseServicesSessionConfig `json:"session_config,omitempty"`
 
 	// Split proxy configuration to connect external Pulse Cloud Services. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	// Required: true
-	SplitProxyConfiguration *ProxyConfiguration `json:"split_proxy_configuration"`
+	SplitProxyConfiguration *ProxyConfiguration `json:"split_proxy_configuration,omitempty"`
 
 	// Tenant based configuration data. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
 	TenantConfig *PulseServicesTenantConfig `json:"tenant_config,omitempty"`

@@ -90,7 +90,7 @@ type OShiftK8SConfiguration struct {
 	NsIncludeAttributes []*MesosAttribute `json:"ns_include_attributes,omitempty"`
 
 	// Enables sharding of Routes and Ingresses to this number (if non zero) of virtual services in the admin tenant per SEGroup. Sharding is done by hashing on the namespace of the Ingress/Route object. This knob is valid only if shared_virtualservice_namespace flag is set. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	NumShards uint32 `json:"num_shards,omitempty"`
+	NumShards *uint32 `json:"num_shards,omitempty"`
 
 	// Override Service Ports with well known ports (80/443) for http/https Route/Ingress VirtualServices. Field introduced in 17.2.12,18.1.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	OverrideServicePorts *bool `json:"override_service_ports,omitempty"`

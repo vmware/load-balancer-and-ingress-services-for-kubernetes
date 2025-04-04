@@ -16,7 +16,7 @@ type HttpswitchingAction struct {
 	File *HTTPLocalFile `json:"file,omitempty"`
 
 	// User-defined HTTP status code to use when serving the local response. Use this to provide codes not available in the list within status_code. Allowed values are 200-599. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	OtherStatusCode uint32 `json:"other_status_code,omitempty"`
+	OtherStatusCode *uint32 `json:"other_status_code,omitempty"`
 
 	// UUID of the pool group to serve the request. It is a reference to an object of type PoolGroup. Allowed in Enterprise edition with any value, Basic, Enterprise with Cloud Services edition.
 	PoolGroupRef *string `json:"pool_group_ref,omitempty"`

@@ -9,7 +9,7 @@ package models
 type UpgradeEvent struct {
 
 	// Time taken to complete upgrade event in seconds. Field introduced in 18.2.6. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Duration uint32 `json:"duration,omitempty"`
+	Duration *uint32 `json:"duration,omitempty"`
 
 	// Task end time. Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EndTime *string `json:"end_time,omitempty"`
