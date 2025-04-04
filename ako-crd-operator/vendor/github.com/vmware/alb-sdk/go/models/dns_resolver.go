@@ -9,7 +9,7 @@ package models
 type DNSResolver struct {
 
 	// If configured, this value used for refreshing the DNS entries.Overrides both received_ttl and min_ttl. The entries are refreshed only on fixed_ttleven when received_ttl is less than fixed_ttl. Allowed values are 5-2147483647. Field introduced in 20.1.5. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	FixedTTL uint32 `json:"fixed_ttl,omitempty"`
+	FixedTTL *uint32 `json:"fixed_ttl,omitempty"`
 
 	// If configured, the min_ttl overrides the ttl from responses when ttl < min_ttl,effectively ttl = max(recieved_ttl, min_ttl). Allowed values are 5-2147483647. Field introduced in 20.1.5. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	MinTTL *uint32 `json:"min_ttl,omitempty"`

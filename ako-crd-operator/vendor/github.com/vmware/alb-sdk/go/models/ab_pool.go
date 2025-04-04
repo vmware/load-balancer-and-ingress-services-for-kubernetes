@@ -13,5 +13,5 @@ type AbPool struct {
 	PoolRef *string `json:"pool_ref"`
 
 	// Ratio of traffic diverted to the B pool, for A/B testing. Allowed values are 0-100. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Ratio uint32 `json:"ratio,omitempty"`
+	Ratio *uint32 `json:"ratio,omitempty"`
 }

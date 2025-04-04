@@ -55,11 +55,7 @@ func init() {
 func IsV4(addr string) bool {
 	ip := net.ParseIP(addr)
 	v4 := ip.To4()
-	if v4 == nil {
-		return false
-	} else {
-		return true
-	}
+	return v4 != nil
 }
 
 /*
@@ -185,6 +181,8 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 			informers.PodInformer = kubeInformerFactory.Core().V1().Pods()
 		case EndpointInformer:
 			informers.EpInformer = kubeInformerFactory.Core().V1().Endpoints()
+		case EndpointSlicesInformer:
+			informers.EpSlicesInformer = kubeInformerFactory.Discovery().V1().EndpointSlices()
 		case SecretInformer:
 			if akoNSBoundInformer {
 				informers.SecretInformer = akoNSInformerFactory.Core().V1().Secrets()
@@ -309,13 +307,32 @@ func HasElem(s interface{}, elem interface{}) bool {
 		for i := 0; i < arrV.Len(); i++ {
 			// Important - Panics if slice element points to an unexported struct field
 			// see https://golang.org/pkg/reflect/#Value.Interface
-			if arrV.Index(i).Interface() == elem {
+			if reflect.DeepEqual(arrV.Index(i).Interface(), elem) {
 				return true
 			}
 		}
 	}
 
 	return false
+}
+
+func HasElemWithName(s interface{}, elem interface{}) int {
+	arrV := reflect.ValueOf(s)
+
+	if arrV.Kind() == reflect.Slice {
+		for i := 0; i < arrV.Len(); i++ {
+			// Important - Panics if slice element points to an unexported struct field
+			// see https://golang.org/pkg/reflect/#Value.Interface
+			elemV := arrV.Index(i)
+			elemInterface := elemV.Interface()
+			elemName := reflect.Indirect(reflect.ValueOf(elemInterface)).FieldByName("Name")
+			if elemName.IsValid() && elemName.String() == reflect.Indirect(reflect.ValueOf(elem)).FieldByName("Name").String() {
+				return i
+			}
+		}
+	}
+
+	return -1
 }
 
 func ObjKey(obj interface{}) string {
@@ -455,13 +472,22 @@ func GetAdvancedL4() bool {
 	return false
 }
 
+// Wrapper function for AKO running in either VDS
+// or VCF (WCP with NSX).
+func IsWCP() bool {
+	if GetAdvancedL4() || IsVCFCluster() {
+		return true
+	}
+	return false
+}
+
 // GetAKONamespace returns the namespace of AKO pod.
-// In AdvancedL4 Mode this is vmware-system-ako
+// In WCP Mode this is vmware-system-ako
 // In all other cases this is the namespace in which the
 // statefulset runs.
 func GetAKONamespace() string {
 	akoNS := os.Getenv(POD_NAMESPACE)
-	if GetAdvancedL4() {
+	if IsWCP() {
 		akoNS = VMWARE_SYSTEM_AKO
 	}
 	return akoNS
@@ -625,4 +651,38 @@ func String(s *string) string {
 		return *s
 	}
 	return ""
+}
+
+func CheckSubdomainOverlapping(hostName1, hostName2 string) bool {
+	host1SubdomainList := strings.Split(hostName1, ".")
+	host2SubdomainList := strings.Split(hostName2, ".")
+
+	shortestListLen := len(host1SubdomainList)
+	if len(host2SubdomainList) < shortestListLen {
+		shortestListLen = len(host2SubdomainList)
+	}
+	index1 := len(host1SubdomainList) - 1
+	index2 := len(host2SubdomainList) - 1
+	for ; shortestListLen > 0; shortestListLen-- {
+		if host1SubdomainList[index1] != WILDCARD && host2SubdomainList[index2] != WILDCARD {
+			if host1SubdomainList[index1] != host2SubdomainList[index2] {
+				return false
+			}
+		}
+		index1 = index1 - 1
+		index2 = index2 - 1
+	}
+	return true
+}
+func GetUriEncoded(uri string) string {
+	newUri, err := url.Parse(uri)
+	if err != nil {
+		AviLog.Errorf("Error while parsing uri: %+v", err)
+	}
+	queryValues := newUri.Query()
+	if len(queryValues) == 0 {
+		return uri
+	}
+	newUri.RawQuery = queryValues.Encode()
+	return newUri.String()
 }

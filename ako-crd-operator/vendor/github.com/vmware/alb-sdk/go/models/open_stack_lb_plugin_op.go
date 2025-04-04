@@ -19,7 +19,7 @@ type OpenStackLbPluginOp struct {
 	Detail *string `json:"detail,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Elapsed uint32 `json:"elapsed,omitempty"`
+	Elapsed *uint32 `json:"elapsed,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true

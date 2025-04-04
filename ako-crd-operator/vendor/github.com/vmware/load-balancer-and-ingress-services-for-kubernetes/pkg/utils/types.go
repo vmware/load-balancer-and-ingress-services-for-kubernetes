@@ -23,6 +23,7 @@ import (
 	oshiftinformers "github.com/openshift/client-go/route/informers/externalversions/route/v1"
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	coreinformers "k8s.io/client-go/informers/core/v1"
+	discoveryinformers "k8s.io/client-go/informers/discovery/v1"
 	netinformers "k8s.io/client-go/informers/networking/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -75,6 +76,7 @@ type Informers struct {
 	ConfigMapInformer           coreinformers.ConfigMapInformer
 	ServiceInformer             coreinformers.ServiceInformer
 	EpInformer                  coreinformers.EndpointsInformer
+	EpSlicesInformer            discoveryinformers.EndpointSliceInformer
 	PodInformer                 coreinformers.PodInformer
 	NSInformer                  coreinformers.NamespaceInformer
 	SecretInformer              coreinformers.SecretInformer
@@ -116,6 +118,7 @@ type RestOp struct {
 	Model    string
 	Version  string
 	ObjName  string // Optional field - right only to be used for delete.
+	Caller   string // Optional field - used by Gateway in GatewayAPI implementation
 }
 
 type ServiceMetadataObj struct {
@@ -300,15 +303,12 @@ type WebSyncError struct {
 func (e *WebSyncError) Error() string         { return fmt.Sprintf("Error during %s: %v", e.Operation, e.Err) }
 func (e *SkipSyncError) Error() string        { return e.Msg }
 func (e *WebSyncError) GetWebAPIError() error { return e.Err }
+func (e *WebSyncError) Unwrap() error         { return e.Err }
 
 var CloudName string
 
 func SetCloudName(cloudName string) {
 	CloudName = cloudName
-}
-
-func GetCloudRef(tenant string) string {
-	return fmt.Sprintf("/api/cloud?tenant=%s&name=%s", tenant, CloudName)
 }
 
 func init() {

@@ -43,6 +43,9 @@ const (
 
 // HealthMonitorSpec defines the desired state of HealthMonitor
 type HealthMonitorSpec struct {
+	// Name is name of the spec and optional. If not present will be inferred from Metadata
+	// +kubebuilder:validation:Optional
+	Name string `json:"name"`
 	// SendInterval is the frequency, in seconds, that pings are sent.
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=3600
@@ -90,11 +93,11 @@ type HealthMonitorSpec struct {
 
 	// TCP defines the TCP monitor configuration.
 	// +optional
-	TCP *TCPMonitor `json:"tcp,omitempty"`
+	TCP *TCPMonitor `json:"tcp_monitor,omitempty"`
 
 	// HTTP defines the HTTP monitor configuration.
 	// +optional
-	HTTP *HTTPMonitor `json:"http,omitempty"`
+	HTTP *HTTPMonitor `json:"http_monitor,omitempty"`
 }
 
 // HealthMonitorInfo defines authentication information for HTTP/HTTPS monitors.
@@ -130,6 +133,18 @@ type TCPMonitor struct {
 	TcpHalfOpen bool `json:"tcp_half_open,omitempty"`
 }
 
+// +kubebuilder:validation:Enum=HTTP_ANY;HTTP_1XX;HTTP_2XX;HTTP_3XX;HTTP_4XX;HTTP_5XX
+type HTTPResponseCode string
+
+const (
+	HTTPAny HTTPResponseCode = "HTTP_ANY"
+	HTTP1XX                  = "HTTP_1XX"
+	HTTP2XX                  = "HTTP_2XX"
+	HTTP3XX                  = "HTTP_3XX"
+	HTTP4XX                  = "HTTP_4XX"
+	HTTP5XX                  = "HTTP_5XX"
+)
+
 // HTTPMonitor defines the HTTP monitor configuration.
 type HTTPMonitor struct {
 	// HTTPRequest is the HTTP request to send.
@@ -139,7 +154,7 @@ type HTTPMonitor struct {
 	HTTPRequest string `json:"http_request,omitempty"`
 	// HTTPResponseCode is the list of expected HTTP response codes.
 	// +kubebuilder:validation:MinItems=1
-	HTTPResponseCode []string `json:"http_response_code,omitempty"` // Use string array for enum values
+	HTTPResponseCode []HTTPResponseCode `json:"http_response_code,omitempty"` // Use string array for enum values
 	// HTTPResponse is a keyword to match in the response body.
 	// +optional
 	// +kubebuilder:validation:MaxLength=512
@@ -163,20 +178,6 @@ type HTTPMonitor struct {
 	// HTTPRequestBody is the request body to send.
 	// +optional
 	HTTPRequestBody string `json:"http_request_body,omitempty"`
-	// ResponseSize is the expected size of the response.
-	// +optional
-	// +kubebuilder:validation:Minimum=2048
-	// +kubebuilder:validation:Maximum=16384
-	ResponseSize uint32 `json:"response_size,omitempty"`
-	// HTTPHeaders is the list of headers to send.
-	HTTPHeaders []string `json:"http_headers,omitempty"`
-	// HTTPMethod is the HTTP method to use.
-	// +optional
-	HTTPMethod string `json:"http_method,omitempty"`
-	// HTTPRequestHeaderPath is the path to use for headers.
-	// +optional
-	// +kubebuilder:validation:MaxLength=1024
-	HTTPRequestHeaderPath string `json:"http_request_header_path,omitempty"`
 }
 
 // HealthMonitorStatus defines the observed state of HealthMonitor
@@ -185,6 +186,8 @@ type HealthMonitorStatus struct {
 	Status string `json:"status,omitempty"`
 	// Error if any error was encountered
 	Error string `json:"error"`
+	// UUID is unique identifier of the health monitor object
+	Uuid string `json:"uuid"`
 }
 
 // +genclient

@@ -15,7 +15,7 @@ type ScheduledScaling struct {
 	CronExpression *string `json:"cron_expression,omitempty"`
 
 	// Desired number of servers during scheduled intervals, it may cause scale-in or scale-out based on the value. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	DesiredCapacity uint32 `json:"desired_capacity,omitempty"`
+	DesiredCapacity *uint32 `json:"desired_capacity,omitempty"`
 
 	// Enables the scheduled autoscale. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Enable *bool `json:"enable,omitempty"`

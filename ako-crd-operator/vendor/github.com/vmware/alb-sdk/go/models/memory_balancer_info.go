@@ -21,13 +21,13 @@ type MemoryBalancerInfo struct {
 	DebugMessage *string `json:"debug_message,omitempty"`
 
 	// Limit on the memory (in KB) for the Process. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Limit uint32 `json:"limit,omitempty"`
+	Limit *uint32 `json:"limit,omitempty"`
 
 	// Amount of memory (in KB) used by the Process. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MemoryUsed uint32 `json:"memory_used,omitempty"`
+	MemoryUsed *uint32 `json:"memory_used,omitempty"`
 
 	// PID of the Process. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Pid uint32 `json:"pid,omitempty"`
+	Pid *uint32 `json:"pid,omitempty"`
 
 	// Name of the Process. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Process *string `json:"process,omitempty"`
@@ -37,6 +37,9 @@ type MemoryBalancerInfo struct {
 
 	// Current usage trend of the process. Enum options - UPWARD, DOWNWARD, NEUTRAL. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	ProcessTrend *string `json:"process_trend,omitempty"`
+
+	// Size of the task queue usage. Field introduced in 30.2.1, 31.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	TaskQueueLength *uint64 `json:"task_queue_length,omitempty"`
 
 	// Percent usage of the process limit. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	ThresholdPercent *float64 `json:"threshold_percent,omitempty"`

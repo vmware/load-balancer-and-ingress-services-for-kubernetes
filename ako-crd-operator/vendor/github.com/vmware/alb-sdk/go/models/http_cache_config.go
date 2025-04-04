@@ -30,7 +30,7 @@ type HTTPCacheConfig struct {
 	IgnoreRequestCacheControl *bool `json:"ignore_request_cache_control,omitempty"`
 
 	// Max size, in bytes, of the cache.  The default, zero, indicates auto configuration. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxCacheSize uint64 `json:"max_cache_size,omitempty"`
+	MaxCacheSize *uint64 `json:"max_cache_size,omitempty"`
 
 	// Maximum size of an object to store in the cache. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	MaxObjectSize *uint32 `json:"max_object_size,omitempty"`

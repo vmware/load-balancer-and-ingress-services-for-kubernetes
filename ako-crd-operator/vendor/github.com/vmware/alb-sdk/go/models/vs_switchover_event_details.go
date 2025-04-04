@@ -18,7 +18,7 @@ type VsSwitchoverEventDetails struct {
 	Ip6 *string `json:"ip6,omitempty"`
 
 	// Status of Event. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	RPCStatus uint64 `json:"rpc_status,omitempty"`
+	RPCStatus *uint64 `json:"rpc_status,omitempty"`
 
 	// List of ServiceEngine assigned to this Virtual Service. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	SeAssigned []*VipSeAssigned `json:"se_assigned,omitempty"`

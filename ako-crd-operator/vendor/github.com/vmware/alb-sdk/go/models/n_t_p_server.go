@@ -9,7 +9,7 @@ package models
 type NTPServer struct {
 
 	// Key number from the list of trusted keys used to authenticate this server. Allowed values are 1-65534. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	KeyNumber uint32 `json:"key_number,omitempty"`
+	KeyNumber *uint32 `json:"key_number,omitempty"`
 
 	// IP Address of the NTP Server. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
