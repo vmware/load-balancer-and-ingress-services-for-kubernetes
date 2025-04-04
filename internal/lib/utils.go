@@ -18,9 +18,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/google/uuid"
 
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -593,4 +596,12 @@ func (s *LockSet) Unlock(lockName string) {
 
 func GetLockSet() *LockSet {
 	return &lockSet
+}
+
+func Uuid4() string {
+	id, err := uuid.NewRandom()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return id.String()
 }

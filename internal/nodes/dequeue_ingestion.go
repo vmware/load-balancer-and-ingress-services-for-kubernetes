@@ -889,7 +889,7 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsy
 		utils.AviLog.Errorf("key: %s, msg: Error creating vrf graph: %v", key, err)
 		return
 	}
-
+	aviModelGraph.CheckAndDeduplicateRecords(key)
 	ok := saveAviModel(model_name, aviModelGraph, key)
 	if ok && !fullsync {
 		PublishKeyToRestLayer(model_name, key, sharedQueue)
