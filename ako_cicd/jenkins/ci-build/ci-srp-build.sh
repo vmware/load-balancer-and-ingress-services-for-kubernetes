@@ -16,7 +16,7 @@ fi
 echo "--- Start of Pre-Build Steps ---"
 
 # Setting GO related variables for VMware's GOPROXY artifactory
-go env -w GOPROXY=build-artifactory.eng.vmware.com/artifactory/srp-mds-go-remote
+go env -w GOPROXY=https://packages.vcfd.broadcom.net/artifactory/proxy-golang-remote
 go env -w GOSUMDB=off
 
 sudo go clean -modcache
