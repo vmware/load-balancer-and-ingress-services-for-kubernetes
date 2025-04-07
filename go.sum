@@ -512,8 +512,8 @@ github.com/urfave/cli v1.20.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijb
 github.com/vektah/gqlparser v1.1.2/go.mod h1:1ycwN7Ij5njmMkPPAOaRFY4rET2Enx7IkVv3vaXspKw=
 github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618 h1:ZLkxMxSr/YrYENjUJ8g6uB4rUQpZKBR3Olqf2DvuMFk=
 github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618/go.mod h1:afqpDk9He9v+/qWix0RRotm3RNyni4Lmc1y9geDCPuo=
-github.com/vmware/alb-sdk v0.0.0-20240619053936-3103500da639 h1:UaTxFP5LeiSOlLEyHC9kmYuzdZWmvYpPB7jevg+ASNw=
-github.com/vmware/alb-sdk v0.0.0-20240619053936-3103500da639/go.mod h1:fuRb4saDY/xy/UMeMvyKYmcplNknEL9ysaqYSw7reNE=
+github.com/vmware/alb-sdk v0.0.0-20250407104238-8f88209a8f1a h1:LwflvQ8MSQ5X1Zh8sD5NF8XE1OU7xjr00USw+GQjykk=
+github.com/vmware/alb-sdk v0.0.0-20250407104238-8f88209a8f1a/go.mod h1:fuRb4saDY/xy/UMeMvyKYmcplNknEL9ysaqYSw7reNE=
 github.com/xiang90/probing v0.0.0-20160813154853-07dd2e8dfe18/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=

@@ -18,7 +18,7 @@ require (
 	github.com/openshift/client-go v0.0.0-20201020082437-7737f16e53fc
 	github.com/prometheus/client_golang v1.17.0
 	github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
-	github.com/vmware/alb-sdk v0.0.0-20240619053936-3103500da639
+	github.com/vmware/alb-sdk v0.0.0-20250407104238-8f88209a8f1a
 	go.uber.org/zap v1.26.0
 	golang.org/x/crypto v0.31.0
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
