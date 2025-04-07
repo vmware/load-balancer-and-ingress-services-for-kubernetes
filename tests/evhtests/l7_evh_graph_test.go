@@ -2071,13 +2071,19 @@ func TestFQDNCountInL7Model(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	node := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()[0]
 
+	fqdnCount := 2
+	if lib.VIPPerNamespace() {
+		fqdnCount = 1
+	}
 	g.Expect(node.VSVIPRefs).To(gomega.HaveLen(1))
-	g.Expect(node.VSVIPRefs[0].FQDNs).To(gomega.HaveLen(2))
+	g.Expect(node.VSVIPRefs[0].FQDNs).To(gomega.HaveLen(fqdnCount))
 	for _, fqdn := range node.VSVIPRefs[0].FQDNs {
 		if fqdn == "foo.com" {
 			continue
 		}
-		g.Expect(fqdn).Should(gomega.ContainSubstring("Shared-L7"))
+		if !lib.VIPPerNamespace() {
+			g.Expect(fqdn).Should(gomega.ContainSubstring("Shared-L7"))
+		}
 	}
 
 	TearDownIngressForCacheSyncCheck(t, secretName, ingressName, svcName, modelName)
