@@ -605,6 +605,6 @@ func ProxyEnabledAppProfileCU(client *clients.AviClient) error {
 	if err != nil {
 		return err
 	}
-	utils.AviLog.Debugf("Proxy enabled application profile %s created/updated", name)
+	utils.AviLog.Infof("Proxy enabled application profile %s created/updated", name)
 	return nil
 }
