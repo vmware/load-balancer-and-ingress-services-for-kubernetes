@@ -17,7 +17,7 @@ echo "--- Start of Pre-Build Steps ---"
 
 # Setting GO related variables for Broadcom GOPROXY artifactory
 go env -w GOPROXY=https://packages.vcfd.broadcom.net/artifactory/proxy-golang-remote
-go env -w GOSUMDB=https://packages.vcfd.broadcom.net/artifactory/go-gosumdb-remote
+go env -w GOSUMDB=off
 
 go clean -modcache
 
