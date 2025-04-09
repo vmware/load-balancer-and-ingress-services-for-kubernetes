@@ -357,6 +357,7 @@ func (o *AviObjectGraph) GetAviVRF() []*AviVrfNode {
 	}
 	return aviVrf
 }
+
 func (o *AviObjectGraph) GetIstioNodes() (*AviPkiProfileNode, *AviTLSKeyCertNode) {
 	var pkiNode *AviPkiProfileNode
 	var sslNode *AviTLSKeyCertNode
