@@ -26,6 +26,7 @@ import (
 
 	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/models"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
@@ -568,17 +569,14 @@ func ProxyEnabledAppProfileGet(client *clients.AviClient) (error, []models.Appli
 func ProxyEnabledAppProfileCU(client *clients.AviClient) error {
 	name := GetProxyEnabledApplicationProfileName()
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", GetAdminTenant())
-	appType := AllowedL4ApplicationProfile
-	createBy := GetAKOUser()
-	ppe := true
 	tcpAppProfile := models.TCPApplicationProfile{
-		ProxyProtocolEnabled: &ppe,
+		ProxyProtocolEnabled: proto.Bool(true),
 	}
 	appProfile := models.ApplicationProfile{
-		Name:          &name,
-		TenantRef:     &tenant,
-		Type:          &appType,
-		CreatedBy:     &createBy,
+		Name:          proto.String(name),
+		TenantRef:     proto.String(tenant),
+		Type:          proto.String(AllowedL4ApplicationProfile),
+		CreatedBy:     proto.String(GetAKOUser()),
 		TCPAppProfile: &tcpAppProfile,
 	}
 	resp := models.ApplicationProfileAPIResponse{}
