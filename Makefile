@@ -4,6 +4,8 @@ GOBUILD=$(GOCMD) build -buildvcs=false
 GOCLEAN=$(GOCMD) clean
 GOGET=$(GOCMD) get
 GOTEST=$(GOCMD) test
+GOPROXY=https://packages.vcfd.broadcom.net/artifactory/proxy-golang-remote
+GOSUMDB=https://packages.vcfd.broadcom.net/artifactory/go-gosumdb-remote
 BINARY_NAME_AKO=ako
 BINARY_NAME_AKO_INFRA=ako-infra
 BINARY_NAME_AKO_GATEWAY_API=ako-gateway-api
@@ -79,6 +81,8 @@ pre-build: sync-crd-files
 .PHONY: build
 build: pre-build glob-vars
 		sudo docker run \
+                -e GOPROXY=$GOPROXY \
+		-e GOSUMDB=$GOSUMDB \
 		-w=/go/src/$(PACKAGE_PATH_AKO) \
 		-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 		$(GOBUILD) \
@@ -101,6 +105,8 @@ build-infra: pre-build glob-vars
 .PHONY: build-gateway-api
 build-gateway-api: glob-vars
 		sudo docker run \
+                -e GOPROXY=$GOPROXY \
+		-e GOSUMDB=$GOSUMDB \
 		-w=/go/src/$(PACKAGE_PATH_AKO) \
 		-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
 		$(GOBUILD) \
