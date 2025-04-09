@@ -15,9 +15,11 @@ fi
 
 echo "--- Start of Pre-Build Steps ---"
 
+sudo rm -rf /home/aviuser/.cache/go-build
+
 # Setting GO related variables for Broadcom GOPROXY artifactory
 go env -w GOPROXY=https://packages.vcfd.broadcom.net/artifactory/proxy-golang-remote
-go env -w GOSUMDB=off
+go env -w GOSUMDB=https://packages.vcfd.broadcom.net/artifactory/go-gosumdb-remote
 
 go clean -modcache
 
