@@ -717,6 +717,11 @@ func GetVrf() string {
 	return VRFContext
 }
 
+// One proxy enabled app profile per cluster
+func GetProxyEnabledApplicationProfileName() string {
+	return Encode(GetClusterName()+"-proxy-applicationprofile", ApplicationProfile)
+}
+
 func GetVPCMode() bool {
 	if vpcMode, _ := strconv.ParseBool(os.Getenv(utils.VPC_MODE)); vpcMode {
 		return true

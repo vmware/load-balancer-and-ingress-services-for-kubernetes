@@ -180,7 +180,7 @@ func TestAdvL4InformerError(t *testing.T) {
 	svcName := "svc-1"
 
 	advl4tests.SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	advl4tests.SetupGateway(t, gatewayName, ns, gwClassName)
+	advl4tests.SetupGateway(t, gatewayName, ns, gwClassName, false)
 
 	advl4tests.SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 

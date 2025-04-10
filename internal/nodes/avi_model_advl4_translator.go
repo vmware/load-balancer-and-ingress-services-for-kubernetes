@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -138,6 +139,12 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 
 	avi_vs_meta.PortProto = portProtocols
 	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
+	if proxyProtoEnb, ok := gw.GetAnnotations()[lib.GwProxyProtocolEnableAnnotation]; ok {
+		proxyProtocolEnabled, err := strconv.ParseBool(proxyProtoEnb)
+		if err == nil && proxyProtocolEnabled {
+			avi_vs_meta.ApplicationProfile = lib.GetProxyEnabledApplicationProfileName()
+		}
+	}
 
 	avi_vs_meta.NetworkProfile = getNetworkProfile(isSCTP, isTCP, isUDP)
 

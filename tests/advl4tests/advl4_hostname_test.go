@@ -130,7 +130,7 @@ func TestAdvL4BestCase(t *testing.T) {
 	svcName := "svc-1"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
@@ -183,7 +183,7 @@ func TestAdvL4WithInvalidLoadBalancerClass(t *testing.T) {
 	svcName := "svc-2"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 	SetupAdvLBServiceWithLoadBalancerClass(t, svcName, ns, gatewayName, ns, integrationtest.INVALID_LB_CLASS)
 
 	g.Eventually(func() string {
@@ -234,7 +234,7 @@ func TestAdvL4NamingConvention(t *testing.T) {
 	svcName := "svc-3"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
@@ -319,7 +319,7 @@ func TestAdvL4WrongControllerGWClass(t *testing.T) {
 	modelName := "admin/abc--default-" + gatewayName
 	svcName := "svc-5"
 
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
@@ -366,7 +366,7 @@ func TestAdvL4WrongClassMappingInGateway(t *testing.T) {
 	modelName := "admin/abc--default-" + gatewayName
 	svcName := "svc-6"
 
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
@@ -440,7 +440,7 @@ func TestAdvL4ProtocolChangeInService(t *testing.T) {
 	svcName := "svc-7"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
@@ -496,7 +496,7 @@ func TestAdvL4PortChangeInService(t *testing.T) {
 	svcName := "svc-8"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
@@ -551,7 +551,7 @@ func TestAdvL4LabelUpdatesInService(t *testing.T) {
 	svcName := "svc-9"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
@@ -606,7 +606,7 @@ func TestAdvL4LabelUpdatesInGateway(t *testing.T) {
 	svcName := "svc-10"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
@@ -663,7 +663,7 @@ func TestAdvL4GatewayListenerPortUpdate(t *testing.T) {
 	svcName := "svc-11"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
@@ -754,7 +754,7 @@ func TestAdvL4GatewayListenerProtocolUpdate(t *testing.T) {
 	svcName := "svc-12"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
@@ -845,8 +845,8 @@ func TestAdvL4MultiGatewayServiceUpdate(t *testing.T) {
 	svcName := "svc-13"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gateway1Name, ns, gwClassName)
-	SetupGateway(t, gateway2Name, ns, gwClassName)
+	SetupGateway(t, gateway1Name, ns, gwClassName, false)
+	SetupGateway(t, gateway2Name, ns, gwClassName, false)
 	SetupAdvLBService(t, svcName, ns, gateway1Name, ns)
 
 	g.Eventually(func() bool {
@@ -918,7 +918,7 @@ func TestAdvL4EndpointDeleteCreate(t *testing.T) {
 	svcName := "svc-15"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
 	// delete endpoints
@@ -976,7 +976,7 @@ func TestAdvL4MultiTenancyWithInfraSettting(t *testing.T) {
 	integrationtest.AnnotateNamespaceWithTenant(t, ns, "nonadmin")
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
@@ -1033,7 +1033,7 @@ func TestAdvL4MultiTenancyWithTenantAddition(t *testing.T) {
 	svcName := "svc-17"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
@@ -1117,7 +1117,7 @@ func TestAdvL4MultiTenancyWithTenantDeannotationInNS(t *testing.T) {
 	integrationtest.AnnotateNamespaceWithTenant(t, ns, "nonadmin")
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
@@ -1171,4 +1171,58 @@ func TestAdvL4MultiTenancyWithTenantDeannotationInNS(t *testing.T) {
 	TeardownAdvLBService(t, svcName, ns)
 	TeardownGateway(t, gatewayName, ns)
 	VerifyGatewayVSNodeDeletion(g, newModelName)
+}
+
+func TestAdvL4WithProxyEnabledAppProfile(t *testing.T) {
+	// create a gw object with proxy-enabled annotation
+	// graph layer VS should come up with correct app profile
+	// delete the gw object, graph layer object deletion
+	g := gomega.NewGomegaWithT(t)
+
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/abc--default-my-gateway"
+
+	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
+	SetupGateway(t, gatewayName, ns, gwClassName, true)
+
+	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+
+	g.Eventually(func() string {
+		gw, _ := AdvL4Client.NetworkingV1alpha1pre1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if len(gw.Status.Addresses) > 0 {
+			return gw.Status.Addresses[0].Value
+		}
+		return ""
+	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
+
+	g.Eventually(func() string {
+		svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), "svc", metav1.GetOptions{})
+		if len(svc.Status.LoadBalancer.Ingress) > 0 {
+			return svc.Status.LoadBalancer.Ingress[0].IP
+		}
+		return ""
+	}, 30*time.Second).Should(gomega.Equal("10.250.250.1"))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].Name).To(gomega.Equal("abc--default-my-gateway"))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8081)))
+	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Port).To(gomega.Equal(uint32(8081)))
+	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Protocol).To(gomega.Equal("TCP"))
+	g.Expect(nodes[0].ServiceMetadata.NamespaceServiceName[0]).To(gomega.Equal("default/svc"))
+	g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/my-gateway"))
+	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(3))
+	g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(lib.GetProxyEnabledApplicationProfileName()))
+
+	TeardownGatewayClass(t, gwClassName)
+	g.Eventually(func() int {
+		gw, _ := AdvL4Client.NetworkingV1alpha1pre1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		return len(gw.Status.Addresses)
+	}, 40*time.Second).Should(gomega.Equal(0))
+
+	TeardownAdvLBService(t, "svc", ns)
+	TeardownGateway(t, gatewayName, ns)
+	VerifyGatewayVSNodeDeletion(g, modelName)
 }

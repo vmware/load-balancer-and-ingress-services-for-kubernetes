@@ -77,7 +77,7 @@ func (gw FakeGateway) Gateway() *advl4v1alpha1pre1.Gateway {
 	return gateway
 }
 
-func SetupGateway(t *testing.T, gwname, namespace, gwclass string) {
+func SetupGateway(t *testing.T, gwname, namespace, gwclass string, proxyAnnotate bool) {
 	gateway := FakeGateway{
 		Name:      gwname,
 		Namespace: namespace,
@@ -94,6 +94,10 @@ func SetupGateway(t *testing.T, gwname, namespace, gwclass string) {
 	}
 
 	gwCreate := gateway.Gateway()
+	if proxyAnnotate {
+		ann := map[string]string{lib.GwProxyProtocolEnableAnnotation: "true"}
+		gwCreate.SetAnnotations(ann)
+	}
 	if _, err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().Gateways(namespace).Create(context.TODO(), gwCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Gateway: %v", err)
 	}
