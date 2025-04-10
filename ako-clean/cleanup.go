@@ -135,7 +135,7 @@ func setCloudName() error {
 		return err
 	}
 	if len(response.Results) == 0 {
-		return fmt.Errorf(SEGroupNotFoundError)
+		return fmt.Errorf("%s", SEGroupNotFoundError)
 	}
 	cloudName := strings.Split(*response.Results[0].CloudRef, "#")[1]
 	utils.SetCloudName(cloudName)

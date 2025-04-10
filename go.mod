@@ -1,6 +1,6 @@
 module github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
 
-go 1.23.0
+go 1.23.8
 
 toolchain go1.24.1
 
