@@ -288,6 +288,8 @@ AKO accepts the following HTTPRoute configuration for this release:
   3. HTTPRoute MUST specify atleat one hostname.
   4. HTTPRoute MUST contain at least one hostname match with parent Gateway.
   5. Filters nested inside BackendRefs are not supported i.e. `HTTPRoute-> spec-> rules-> backendRefs-> filters` are not supported whereas `HTTPRoute-> spec-> rules-> filters` is supported.
+  6. HTTPRoute `urlRewrite` filter currently supports only `replaceFullPath` as path value.
+  7. HTTPRoute with one or more invalid rules will get rejected.
 
 #### Resource Creation
 
