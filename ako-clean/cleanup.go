@@ -109,6 +109,7 @@ func (cfg *AKOCleanupConfig) Cleanup(ctx context.Context) error {
 		cleanupL4PolicySets,
 		cleanupPoolGroups,
 		cleanupPools,
+		cleanupAppProfiles,
 		func() error {
 			if VPCMode {
 				return nil
@@ -398,6 +399,21 @@ func cleanupPools() error {
 		pools[key.Namespace] = append(pools[key.Namespace], poolCache.(*avicache.AviPoolCache).Uuid)
 	}
 	return deleteAviResource("/api/pool", pools)
+}
+
+func cleanupAppProfiles() error {
+	tenant := lib.GetAdminTenant()
+	aviClient := avicache.SharedAVIClients(tenant).AviClient[0]
+	err, appProfs := lib.ProxyEnabledAppProfileGet(aviClient)
+	if err != nil {
+		utils.AviLog.Warnf("Application profile Get returned err %v", err)
+		return err
+	}
+	appProfiles := make(map[string][]string)
+	for _, appProfile := range appProfs {
+		appProfiles[tenant] = append(appProfiles[tenant], *appProfile.UUID)
+	}
+	return deleteAviResource("/api/applicationprofile", appProfiles)
 }
 
 /*

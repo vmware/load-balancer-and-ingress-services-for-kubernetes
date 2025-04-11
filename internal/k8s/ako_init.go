@@ -1264,6 +1264,17 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			}
 		}
 
+		// Proxy Enabled Application Profile GET/CREATE/UPDATE
+		aviClientPool := avicache.SharedAVIClients(lib.GetAdminTenant())
+		if aviClientPool == nil || len(aviClientPool.AviClient) == 0 {
+			return fmt.Errorf("avi Rest client initialization failed")
+		}
+		err = lib.ProxyEnabledAppProfileCU(aviClientPool.AviClient[0])
+		if err != nil {
+			utils.AviLog.Errorf("Proxy enabled application profile Get/Create/Update failed: %s", err)
+			return err
+		}
+
 		//Ingress Section
 		if utils.GetInformers().IngressInformer != nil {
 			for namespace := range acceptedNamespaces {
