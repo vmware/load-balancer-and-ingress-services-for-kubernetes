@@ -884,17 +884,24 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsy
 	}
 	aviModelGraph := aviModel.(*AviObjectGraph)
 	aviModelGraph.IsVrf = true
-	err = aviModelGraph.BuildVRFGraph(key, vrfcontext, nodename, deleteFlag)
-	if err != nil {
-		utils.AviLog.Errorf("key: %s, msg: Error creating vrf graph: %v", key, err)
-		return
-	}
-
+	aviModelGraph.processVrfGraphForNode(key, nodename, deleteFlag, fullsync)
 	ok := saveAviModel(model_name, aviModelGraph, key)
 	if ok && !fullsync {
 		PublishKeyToRestLayer(model_name, key, sharedQueue)
 	}
-
+}
+func (aviModelGraph *AviObjectGraph) processVrfGraphForNode(key string, nodename string, deleteFlag bool, fullsync bool) {
+	vrfcontext := lib.GetVrf()
+	aviModelGraph.Lock.Lock()
+	defer aviModelGraph.Lock.Unlock()
+	err := aviModelGraph.BuildVRFGraph(key, vrfcontext, nodename, deleteFlag)
+	if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: Error creating vrf graph: %v", key, err)
+		return
+	}
+	if !fullsync {
+		aviModelGraph.CheckAndDeduplicateRecords(key)
+	}
 }
 
 func PublishKeyToRestLayer(modelName string, key string, sharedQueue *utils.WorkerQueue) {
