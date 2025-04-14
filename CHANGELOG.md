@@ -504,3 +504,13 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
  - Fix: AKO is crashing when a HostRule object, with `analyticsPolicy.logAllHeaders` set, is applied to an Ingress.
  - Fix: AKO does not configure the **Error Page Profile** for an EVH parent shared virtual service, when `errorPageProfile` is set in a matching HostRule object.
+
+## AKO-1.13.2
+
+### Changed
+- AKO will not generate auto-fqdn for Route/Ingress when vipPerNamespace is set to `true` in AKO.
+
+### Fixed
+- Fix: AKO assigns IP to service type LB after 45 minutes.
+- Fix: AKO does not apply hostrule with Shared VS FQDN if there is no DNS present in the cloud.
+- Fix: When service type is changed from Loadbalancer to ClusterIP and reverted, AKO does not create the VirtualService.
