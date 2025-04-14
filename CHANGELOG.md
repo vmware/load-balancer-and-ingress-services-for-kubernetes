@@ -507,6 +507,9 @@ All notable changes to this project will be documented in this file. The format 
 
 ## AKO-1.13.2
 
+### Added
+- AKO now claims support for Kubernetes 1.32.
+
 ### Changed
 - AKO will not generate auto-fqdn for Route/Ingress when vipPerNamespace is set to `true` in AKO.
 
@@ -514,3 +517,4 @@ All notable changes to this project will be documented in this file. The format 
 - Fix: AKO assigns IP to service type LB after 45 minutes.
 - Fix: AKO does not apply hostrule with Shared VS FQDN if there is no DNS present in the cloud.
 - Fix: When service type is changed from Loadbalancer to ClusterIP and reverted, AKO does not create the VirtualService.
+- Fix: If the tenant name contains characters outside the range of (0-9/A-Z/a-z/-/_), AKO fails to create shared SNI parent VS VIPs.
