@@ -44,4 +44,12 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
  - Fix: AKO-Gateway does not create Virtual service if Gateway have multiple listeners with same host name but different port and single http route is attaching to it.
 
- 
+
+## AKO-Gateway-1.13.2
+
+### Added
+- Support Regular Expression in HTTPRoute Path, present in Matches section of HTTPRoute
+- Support `urlRewrite` filter in HTTPRoute with `replaceFullPath` as path value.
+
+### Fixed:
+- Fix: AKO creates label on SE group when GatewayAPI is enabled.
