@@ -40,7 +40,7 @@ The markers in the drawing are described below:
 
 <i>**Step 3**</i>: Find `AKO Operator` provided by VMware.
 
-<i>**Step 4**</i>: Click `install` and select the 1.12.2 version. The operator will be installed in `avi-system` namespace. The namespace will be created if it doesn't exist.
+<i>**Step 4**</i>: Click `install` and select the 1.12.3 version. The operator will be installed in `avi-system` namespace. The namespace will be created if it doesn't exist.
 
 <i>**Step 5**</i>: Verify installation by checking the pods in `avi-system` namespace.
 
@@ -85,7 +85,7 @@ The following table also lists the configurable fields in the `AKOConfig` object
 | **Parameter** | **Description** | **Default** |
 | --- | --- | --- |
 | `replicaCount` | Specify the number of replicas for AKO StatefulSet | 1 |
-| `imageRepository` | Specify docker-registry that has the ako image | projects.packages.broadcom.com/ako/ako:1.13.1 |
+| `imageRepository` | Specify docker-registry that has the ako image | projects.packages.broadcom.com/ako/ako:1.12.3 |
 | `imagePullPolicy` | Specify when and how to pull the ako image | IfNotPresent |
 | `imagePullSecrets` | ImagePullSecrets will add pull secrets to the statefulset for AKO. Required if using secure private container image registry for images. | `Empty List` |
 | `AKOSettings.clusterName` | Unique identifier for the running AKO instance. AKO identifies objects it created on Avi Controller using this param. | **required** |
@@ -128,8 +128,8 @@ The following table also lists the configurable fields in the `AKOConfig` object
 | `NetworkSettings.nsxtT1LR` | Specify the T1 router for data backend network, applicable only for NSX-T based deployments| `Empty string` |
 | `FeatureGates.gatewayAPI` | FeatureGates is to enable or disable experimental features. GatewayAPI feature gate enables/disables processing of Kubernetes Gateway API CRDs. | false |
 | `FeatureGates.enableEndpointSlice` | EnableEndpointSlice feature gate enables/disables processing of Kubernetes EndpointSlices instead of Endpoints. | true |
-| `GatewayAPI.Image.repository` | Specify docker-registry that has the ako-gateway-api image | projects.packages.broadcom.com/ako/ako-gateway-api:1.13.1 |
 | `FeatureGates.enablePrometheus` | FeatureGates is to enable or disable experimental features. EnablePrometheus enables/disables prometheus scraping for AKO container | false |
+| `GatewayAPI.Image.repository` | Specify docker-registry that has the ako-gateway-api image | projects.packages.broadcom.com/ako/ako-gateway-api:1.12.3 |
 | `GatewayAPI.Image.pullPolicy` | Specify when and how to pull the ako-gateway-api image | IfNotPresent |
 | `logFile` | LogFile is the name of the file where ako container will dump its logs | avi.log |
 | `akoGatewayLogFile` | AKOGatewayLogFile is the name of the file where ako-gateway-api container will dump its logs | avi-gw.log |
