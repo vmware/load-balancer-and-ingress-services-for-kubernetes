@@ -73,9 +73,9 @@ func (v *VPCHandler) createInfraSettingAndAnnotateNS(nsToVPCMap map[string]strin
 	processedInfraSettingCRSet := make(map[string]struct{})
 	for ns, vpc := range nsToVPCMap {
 		arr := strings.Split(vpc, "/vpcs/")
-		infraSettingName := strings.ReplaceAll(arr[len(arr)-1], "_", "-")
-		project := strings.Split(arr[0], "/projects/")[1]
-		tenant, err := getTenantForProject(project)
+		projectArr := strings.Split(arr[0], "/projects/")
+		infraSettingName := lib.GetAviInfraSettingName(projectArr[len(projectArr)-1] + arr[len(arr)-1])
+		tenant, err := getTenantForProject(projectArr[len(projectArr)-1])
 		if err != nil {
 			utils.AviLog.Warnf("failed to fetch admin tenant from Avi, error: %s", err.Error())
 			continue

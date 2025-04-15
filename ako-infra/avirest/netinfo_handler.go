@@ -153,13 +153,13 @@ func (t *T1LRNetworking) createInfraSettingAndAnnotateNS(nsLRMap map[string]stri
 
 	processedInfraSettingCRSet := make(map[string]struct{})
 	for ns, lr := range nsLRMap {
-		infraSettingName := getInfraSettingNameFromT1LR(lr)
+		arr := strings.Split(lr, "/")
+		infraSettingName := lib.GetAviInfraSettingName(arr[len(arr)-1])
 		netName := lib.GetVCFNetworkName()
 		if _, ok := cidrs[ns]; ok {
 			netName = lib.GetVCFNetworkNameWithNS(ns)
-			infraSettingName = infraSettingName + "-" + ns
+			infraSettingName = ns + "-" + infraSettingName
 		}
-		infraSettingName = strings.ReplaceAll(infraSettingName, "_", "-")
 		// multiple namespaces can have the same lr, and there will always be only 1 infrasetting per lr
 		// so no need to attempt Infrasetting creation
 		// just annotate the namespace with the infrasetting name
@@ -502,13 +502,4 @@ func (t *T1LRNetworking) NewLRLSFullSyncWorker() *utils.FullSyncThread {
 	worker.SyncFunction = t.SyncLSLRNetwork
 	worker.QuickSyncFunction = func(qSync bool) error { return nil }
 	return worker
-}
-
-func getInfraSettingNameFromT1LR(lr string) string {
-	arr := strings.Split(lr, "/")
-	infraSettingName := arr[len(arr)-1]
-	if strings.Contains(infraSettingName, ":") {
-		infraSettingName = strings.Split(infraSettingName, ":")[1]
-	}
-	return strings.Replace(infraSettingName, "_", "-", -1)
 }
