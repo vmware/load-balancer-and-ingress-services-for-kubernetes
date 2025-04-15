@@ -106,12 +106,24 @@ func Initialize() {
 	utils.AviLog.Infof("Successfully created kube client for ako-gateway-api")
 
 	akoControlConfig.SetEventRecorder(lib.AKOGatewayEventComponent, kubeClient, false)
-	pod, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).Get(context.TODO(), os.Getenv("POD_NAME"), metav1.GetOptions{})
-	if err != nil {
-		utils.AviLog.Warnf("Error getting AKO pod details, %s.", err.Error())
-	}
-	akoControlConfig.SaveAKOPodObjectMeta(pod)
 
+	// POD_NAME is not set in case of a WCP cluster
+	if os.Getenv("POD_NAME") == "" {
+		pods, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).List(context.TODO(), metav1.ListOptions{Limit: 1})
+		if err != nil {
+			utils.AviLog.Warnf("Error getting AKO pod details, %s.", err.Error())
+		} else {
+			for _, pod := range pods.Items {
+				akoControlConfig.SaveAKOPodObjectMeta(&pod)
+			}
+		}
+	} else {
+		pod, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).Get(context.TODO(), os.Getenv("POD_NAME"), metav1.GetOptions{})
+		if err != nil {
+			utils.AviLog.Warnf("Error getting AKO pod details, %s.", err.Error())
+		}
+		akoControlConfig.SaveAKOPodObjectMeta(pod)
+	}
 	registeredInformers, err := akogatewaylib.InformersToRegister(kubeClient)
 	if err != nil {
 		utils.AviLog.Fatalf("Failed to initialize informers: %v, shutting down AKO-Infra, going to reboot", err)
@@ -143,6 +155,11 @@ func Initialize() {
 		akoControlConfig.PodEventf(corev1.EventTypeWarning, lib.AKOShutdown, "Avi Controller Cluster state is not Active")
 		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO")
 	}
+
+	if utils.IsVCFCluster() {
+		k8s.SharedAviController().InitVCFHandlers(kubeClient, ctrlCh, stopCh)
+	}
+
 	err = c.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	if err != nil {
 		utils.AviLog.Errorf("Handle configmap error during reboot, shutting down AKO. Error is: %v", err)
