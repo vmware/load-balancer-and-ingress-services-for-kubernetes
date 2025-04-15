@@ -20,7 +20,7 @@ FROM ${ubi_src_repo}
 
 LABEL name="ako-operator"
 LABEL summary="An AKO operator to deploy AKO controller"
-LABEL version="v1.12.2"
+LABEL version="v1.12.3"
 LABEL release="1"
 LABEL description="Manage configmap, statefulset and other artifacts for deploying AKO controller"
 LABEL vendor="VMware"
