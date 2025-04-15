@@ -26,6 +26,8 @@ import (
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -62,7 +64,16 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 		},
 		Caller: utils.GATEWAY_API, // Always Populate this field to recognise caller at rest layer
 	}
+
+	infraSetting, err := lib.GetNamespaceAviInfraSetting(key, gateway.GetNamespace(), akogatewayapilib.AKOControlConfig().AviInfraSettingInformer())
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: failed to get AviInfraSetting, err: %s", key, err.Error())
+	}
+
 	t1LR := lib.GetT1LRPath()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
+		t1LR = *infraSetting.Spec.NSXSettings.T1LR
+	}
 	if t1LR != "" {
 		utils.AviLog.Infof("key: %s, msg: T1LR is %s.", key, t1LR)
 		parentVsNode.VrfContext = ""
@@ -74,12 +85,20 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 		parentVsNode.SSLKeyCertRefs = tlsNodes
 	}
 
-	vsvipNode := BuildVsVipNodeForGateway(gateway, parentVsNode.Name)
+	vsvipNode := BuildVsVipNodeForGateway(gateway, parentVsNode.Name, infraSetting)
 	parentVsNode.VSVIPRefs = []*nodes.AviVSVIPNode{vsvipNode}
 	parentVsNode.AviMarkers = utils.AviObjectMarkers{
 		GatewayName:      gateway.Name,
 		GatewayNamespace: gateway.Namespace,
 	}
+
+	buildWithInfraSettingForGateway(key, parentVsNode, vsvipNode, infraSetting)
+	if infraSetting != nil {
+		objects.InfraSettingL7Lister().UpdateIngRouteInfraSettingMappings(gateway.Namespace+"/"+gateway.Name, infraSetting.Name, "")
+	} else {
+		objects.InfraSettingL7Lister().RemoveIngRouteInfraSettingMappings(gateway.Namespace + "/" + gateway.Name)
+	}
+
 	return parentVsNode
 }
 
@@ -156,7 +175,7 @@ func TLSNodeFromSecret(secretObj *corev1.Secret, gatewayNamespace, gatewayName, 
 	return tlsNode
 }
 
-func BuildVsVipNodeForGateway(gateway *gatewayv1.Gateway, vsName string) *nodes.AviVSVIPNode {
+func BuildVsVipNodeForGateway(gateway *gatewayv1.Gateway, vsName string, infraSetting *v1beta1.AviInfraSetting) *nodes.AviVSVIPNode {
 	vsvipNode := &nodes.AviVSVIPNode{
 		Name:        lib.GetVsVipName(vsName),
 		Tenant:      lib.GetTenant(),
@@ -164,6 +183,9 @@ func BuildVsVipNodeForGateway(gateway *gatewayv1.Gateway, vsName string) *nodes.
 		VipNetworks: utils.GetVipNetworkList(),
 	}
 	t1LR := lib.GetT1LRPath()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
+		t1LR = *infraSetting.Spec.NSXSettings.T1LR
+	}
 	if t1LR != "" {
 		utils.AviLog.Infof("key: %s, msg: T1LR for vsvip node is: %s.", vsName, t1LR)
 		vsvipNode.VrfContext = ""
@@ -174,6 +196,15 @@ func BuildVsVipNodeForGateway(gateway *gatewayv1.Gateway, vsName string) *nodes.
 		ipAddr := gateway.Spec.Addresses[0].Value
 		if net.IsIPv4String(ipAddr) || net.IsIPv6String(ipAddr) {
 			vsvipNode.IPAddress = ipAddr
+		}
+	}
+
+	// This section is currently only applicable to NSX-T cloud in VPC mode.
+	// Allocate public VIP by default
+	vsvipNode.LBVipType = "PUBLIC"
+	if vipTypeKey, ok := gateway.Annotations[akogatewayapilib.LBVipTypeAnnotation]; ok {
+		if vipTypeVal, ok := akogatewayapilib.SupportedLBVipTypes[vipTypeKey]; ok {
+			vsvipNode.LBVipType = vipTypeVal
 		}
 	}
 	return vsvipNode
@@ -236,4 +267,20 @@ func AddTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gateway, 
 
 	utils.AviLog.Infof("key: %s, msg: Updated cert_refs in parentVS: %s", key, object.GetAviEvhVS()[0].Name)
 	object.GetAviEvhVS()[0].SSLKeyCertRefs = tlsNodes
+}
+
+// We are only supporting SE Group and T1LR fields in InfraSetting right now, support for other fields will be added on need basis
+func buildWithInfraSettingForGateway(key string, vs *nodes.AviEvhVsNode, vsvip *nodes.AviVSVIPNode, infraSetting *v1beta1.AviInfraSetting) {
+	if infraSetting != nil && infraSetting.Status.Status == lib.StatusAccepted {
+		if infraSetting.Spec.SeGroup.Name != "" {
+			// This assumes that the SeGroup has the appropriate labels configured
+			vs.ServiceEngineGroup = infraSetting.Spec.SeGroup.Name
+		}
+		if infraSetting.Spec.NSXSettings.T1LR != nil {
+			vsvip.T1Lr = *infraSetting.Spec.NSXSettings.T1LR
+			vsvip.VrfContext = ""
+			vs.VrfContext = ""
+		}
+		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VS and VSVip nodes %s", key, vs.Name)
+	}
 }

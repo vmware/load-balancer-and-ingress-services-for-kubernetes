@@ -1350,6 +1350,7 @@ type AviVSVIPNode struct {
 	SecurePassthroughNode   *AviVsNode
 	InsecurePassthroughNode *AviVsNode
 	T1Lr                    string
+	LBVipType               string
 }
 
 func (v *AviVSVIPNode) GetCheckSum() uint32 {

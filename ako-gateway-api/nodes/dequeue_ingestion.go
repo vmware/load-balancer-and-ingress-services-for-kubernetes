@@ -87,7 +87,42 @@ func DequeueIngestion(key string, fullsync bool) {
 		modelFound, modelIntf := objects.SharedAviGraphLister().Get(modelName)
 		// Seq: GW first and the secret created.
 		modelNil := !modelFound || modelIntf == nil
-		if objType == utils.Secret && modelNil {
+		if objType == utils.Secret {
+			if modelNil {
+				handleGateway(parentNs, parentName, fullsync, key)
+				modelFound, modelIntf = objects.SharedAviGraphLister().Get(modelName)
+				modelNil = !modelFound || modelIntf == nil
+				if modelNil {
+					utils.AviLog.Warnf("key: %s, msg: no model found: %s", key, modelName)
+					continue
+				}
+				// Fetch routes for a gateway
+				routeTypeNsNameList, found = GatewayToRoutes(parentNs, parentName, key)
+				if !found {
+					utils.AviLog.Errorf("key: %s, msg: got error while getting route objects for gateway %s/%s", key, parentNs, parentName)
+					continue
+				}
+				utils.AviLog.Infof("key: %s, msg: Routes for gateway %s/%s are: %v", key, parentNs, parentName, utils.Stringify(routeTypeNsNameList))
+			} else {
+				model := &AviObjectGraph{modelIntf.(*nodes.AviObjectGraph)}
+				vsToDelete := handleSecrets(parentNs, parentName, key, model)
+				if vsToDelete {
+					utils.AviLog.Warnf("key: %s, msg: No valid listener on Gateway %s/%s. Removing Parent VS from Controller", key, parentNs, parentName)
+					objects.SharedAviGraphLister().Save(modelName, nil)
+					if !fullsync {
+						sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+						nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
+						continue
+					}
+				}
+			}
+		}
+		if modelNil {
+			utils.AviLog.Warnf("key: %s, msg: no model found: %s", key, modelName)
+			continue
+		}
+
+		if objType == lib.AviInfraSetting {
 			handleGateway(parentNs, parentName, fullsync, key)
 			modelFound, modelIntf = objects.SharedAviGraphLister().Get(modelName)
 			modelNil = !modelFound || modelIntf == nil
@@ -101,23 +136,8 @@ func DequeueIngestion(key string, fullsync bool) {
 				utils.AviLog.Errorf("key: %s, msg: got error while getting route objects for gateway %s/%s", key, parentNs, parentName)
 				continue
 			}
-			utils.AviLog.Infof("key: %s, msg: Routes for gateway %s/%s are: %v", key, parentNs, parentName, utils.Stringify(routeTypeNsNameList))
-		} else if modelNil {
-			utils.AviLog.Warnf("key: %s, msg: no model found: %s", key, modelName)
-			continue
-		} else if objType == utils.Secret {
-			model := &AviObjectGraph{modelIntf.(*nodes.AviObjectGraph)}
-			vsToDelete := handleSecrets(parentNs, parentName, key, model)
-			if vsToDelete {
-				utils.AviLog.Warnf("key: %s, msg: No valid listener on Gateway %s/%s. Removing Parent VS from Controller", key, parentNs, parentName)
-				objects.SharedAviGraphLister().Save(modelName, nil)
-				if !fullsync {
-					sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-					nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
-					continue
-				}
-			}
 		}
+
 		model := &AviObjectGraph{modelIntf.(*nodes.AviObjectGraph)}
 		for _, routeTypeNsName := range routeTypeNsNameList {
 			objType, namespace, name := lib.ExtractTypeNameNamespace(routeTypeNsName)
