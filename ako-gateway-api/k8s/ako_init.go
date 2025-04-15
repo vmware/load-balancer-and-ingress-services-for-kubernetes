@@ -98,8 +98,7 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 	err := k8s.PopulateCache()
 	if err != nil {
 		c.DisableSync = true
-		utils.AviLog.Errorf("failed to populate cache, disabling sync")
-		lib.ShutdownApi()
+		utils.AviLog.Fatalf("failed to populate cache, disabling sync")
 	}
 
 	// Setup and start event handlers for objects.
@@ -109,6 +108,12 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
 	interval, err := strconv.ParseInt(fullSyncInterval, 10, 64)
 
+	if utils.IsWCP() {
+		// FULL_SYNC_INTERVAL is not defined in WCP Clusters, hardcoding to 300 seconds
+		err = nil
+		interval = 300
+	}
+
 	// Set up the workers but don't start draining them.
 	if err != nil {
 		utils.AviLog.Errorf("Cannot convert full sync interval value to integer, pls correct the value and restart AKO. Error: %s", err)
@@ -117,9 +122,7 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 		err = c.FullSyncK8s(false)
 		if err != nil {
 			// Something bad sync. We need to return and shutdown the API server
-			utils.AviLog.Errorf("Couldn't run full sync successfully on bootup, going to shutdown AKO")
-			lib.ShutdownApi()
-			return
+			utils.AviLog.Fatalf("Couldn't run full sync successfully on bootup, going to shutdown AKO")
 		}
 		if interval != 0 {
 			worker = utils.NewFullSyncThread(time.Duration(interval) * time.Second)
@@ -139,6 +142,7 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 
 	c.SetupEventHandlers(informers)
 	c.SetupGatewayApiEventHandlers(numWorkers)
+	c.SetupAviInfraSettingEventHandler(numWorkers)
 
 	if lib.DisableSync {
 		akogatewayapilib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigSet, "AKO is in disable sync state")
@@ -222,6 +226,31 @@ func (c *GatewayController) addIndexers() {
 				}
 				if gwClass.Spec.ControllerName == akogatewayapilib.GatewayController {
 					return []string{akogatewayapilib.GatewayController}, nil
+				}
+				return []string{}, nil
+			},
+			akogatewayapilib.AviInfraSettingGatewayClassIndex: func(obj interface{}) ([]string, error) {
+				gwClass, ok := obj.(*gatewayv1.GatewayClass)
+				if !ok {
+					return []string{}, nil
+				}
+				if gwClass.Spec.ParametersRef != nil {
+					infraSetting := string(gwClass.Spec.ParametersRef.Group) + "/" + string(gwClass.Spec.ParametersRef.Kind) + "/" + gwClass.Spec.ParametersRef.Name
+					return []string{infraSetting}, nil
+				}
+				return []string{}, nil
+			},
+		},
+	)
+	c.informers.NSInformer.Informer().AddIndexers(
+		cache.Indexers{
+			lib.AviSettingNamespaceIndex: func(obj interface{}) ([]string, error) {
+				ns, ok := obj.(*corev1.Namespace)
+				if !ok {
+					return []string{}, nil
+				}
+				if val, ok := ns.Annotations[lib.InfraSettingNameAnnotation]; ok && val != "" {
+					return []string{val}, nil
 				}
 				return []string{}, nil
 			},
@@ -480,7 +509,12 @@ func SyncFromStatusQueue(key interface{}, wg *sync.WaitGroup) error {
 }
 
 func (c *GatewayController) cleanupStaleVSes() {
-
+	aviClient := avicache.SharedAVIClients(lib.GetTenant()).AviClient[0]
+	tenants := make(map[string]struct{})
+	err := lib.GetAllTenants(aviClient, tenants)
+	if err != nil {
+		return
+	}
 	aviObjCache := avicache.SharedAviObjCache()
 
 	delModels, err := DeleteConfigFromConfigmap(c.informers.ClientSet)
@@ -500,16 +534,18 @@ func (c *GatewayController) cleanupStaleVSes() {
 		utils.AviLog.Errorf("AKO cluster name is invalid.")
 		return
 	}
-	utils.AviLog.Infof("Starting clean up of stale objects")
-	restlayer := rest.NewRestOperations(aviObjCache)
-	staleVSKey := lib.GetTenant() + "/" + lib.DummyVSForStaleData
-	restlayer.CleanupVS(staleVSKey, true)
-	staleCacheKey := avicache.NamespaceName{
-		Name:      lib.DummyVSForStaleData,
-		Namespace: lib.GetTenant(),
-	}
-	aviObjCache.VsCacheMeta.AviCacheDelete(staleCacheKey)
 
+	utils.AviLog.Infof("Starting clean up of stale objects")
+	for tenant := range tenants {
+		restlayer := rest.NewRestOperations(aviObjCache)
+		staleVSKey := tenant + "/" + lib.DummyVSForStaleData
+		restlayer.CleanupVS(staleVSKey, true)
+		staleCacheKey := avicache.NamespaceName{
+			Name:      lib.DummyVSForStaleData,
+			Namespace: tenant,
+		}
+		aviObjCache.VsCacheMeta.AviCacheDelete(staleCacheKey)
+	}
 	vsKeysPending := aviObjCache.VsCacheMeta.AviGetAllKeys()
 
 	if delModels {

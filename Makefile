@@ -126,6 +126,14 @@ build-local-infra: pre-build
 		-mod=vendor \
 		./cmd/infra-main
 
+.PHONY: build-local-gateway-api
+build-local-gateway-api: pre-build
+		$(GOBUILD) \
+		-o bin/$(BINARY_NAME_AKO_GATEWAY_API) \
+		-ldflags $(AKO_LDFLAGS) \
+		-mod=vendor \
+		./cmd/gateway-api
+
 .PHONY: clean
 clean:
 		$(GOCLEAN) -mod=vendor $(REL_PATH_AKO)
