@@ -43,7 +43,7 @@ var ctrlonce sync.Once
 type GatewayController struct {
 	worker_id   uint32
 	informers   *utils.Informers
-	workqueue   []workqueue.RateLimitingInterface
+	workqueue   []workqueue.RateLimitingInterface //nolint:staticcheck
 	DisableSync bool
 }
 
