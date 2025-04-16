@@ -11,8 +11,7 @@ minor_version=${version_numbers[1]}
 
 make build
 make BUILD_TAG=$version_tag docker
-# Commenting as we do not require to create operator docker image.
-# make BUILD_TAG=$version_tag ako-operator-docker
+make BUILD_TAG=$version_tag ako-operator-docker
 
 if [ "$minor_version" -ge "11" ]; then
     make BUILD_TAG=$version_tag build-gateway-api
