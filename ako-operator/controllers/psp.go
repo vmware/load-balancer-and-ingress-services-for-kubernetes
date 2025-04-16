@@ -14,22 +14,24 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+//nolint:unparam
 package controllers
 
 import (
 	"context"
 	"reflect"
 
-	"github.com/go-logr/logr"
+	logr "github.com/go-logr/logr"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator/api/v1alpha1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator/api/v1alpha1"
 )
 
 func createOrUpdatePodSecurityPolicy(ctx context.Context, ako akov1alpha1.AKOConfig, log logr.Logger, r *AKOConfigReconciler) error {
-	var oldPSP policyv1beta1.PodSecurityPolicy
+
+	var oldPSP policyv1beta1.PodSecurityPolicy //nolint:errcheck
 
 	if err := r.Get(ctx, getPSPName(), &oldPSP); err != nil {
 		log.V(0).Info("no pre-existing podsecuritypolicy with name", "name", PSPName)
