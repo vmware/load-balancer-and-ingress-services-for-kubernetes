@@ -66,7 +66,7 @@ type AviController struct {
 	//recorder        record.EventRecorder
 	informers        *utils.Informers
 	dynamicInformers *lib.DynamicInformers
-	workqueue        []workqueue.RateLimitingInterface
+	workqueue        []workqueue.RateLimitingInterface //nolint:staticcheck
 	DisableSync      bool
 	State            *State
 }
