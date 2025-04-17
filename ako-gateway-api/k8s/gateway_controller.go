@@ -97,6 +97,11 @@ func (c *GatewayController) Start(stopCh <-chan struct{}) {
 	go akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Informer().Run(stopCh)
 	informersList = append(informersList, akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Informer().HasSynced)
 
+	if lib.AKOControlConfig().AviInfraSettingEnabled() {
+		go lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().Run(stopCh)
+		informersList = append(informersList, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().HasSynced)
+	}
+
 	if !cache.WaitForCacheSync(stopCh, informersList...) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {

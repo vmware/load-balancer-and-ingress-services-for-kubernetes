@@ -394,7 +394,7 @@ func buildPoolNode(key, poolName, ingName, namespace, priorityLabel, hostname st
 	}
 	poolNode.AviMarkers = lib.PopulatePoolNodeMarkers(namespace, hostname, infraSettingName, serviceName, []string{ingName}, []string{obj.Path})
 
-	buildPoolWithInfraSetting(key, poolNode, infraSetting)
+	BuildPoolWithInfraSetting(key, poolNode, infraSetting)
 	if lib.IsIstioEnabled() {
 		poolNode.UpdatePoolNodeForIstio()
 	}
