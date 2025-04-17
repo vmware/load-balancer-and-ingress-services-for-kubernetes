@@ -138,6 +138,7 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 
 	c.SetupEventHandlers(informers)
 	c.SetupGatewayApiEventHandlers(numWorkers)
+	k8s.SharedAviController().SetupAKOCRDEventHandlers(numWorkers)
 
 	if lib.DisableSync {
 		akogatewayapilib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigSet, "AKO is in disable sync state")
@@ -221,6 +222,31 @@ func (c *GatewayController) addIndexers() {
 				}
 				if gwClass.Spec.ControllerName == akogatewayapilib.GatewayController {
 					return []string{akogatewayapilib.GatewayController}, nil
+				}
+				return []string{}, nil
+			},
+			akogatewayapilib.AviInfraSettingGatewayClassIndes: func(obj interface{}) ([]string, error) {
+				gwClass, ok := obj.(*gatewayv1.GatewayClass)
+				if !ok {
+					return []string{}, nil
+				}
+				if gwClass.Spec.ParametersRef != nil {
+					infraSetting := string(gwClass.Spec.ParametersRef.Group) + "/" + string(gwClass.Spec.ParametersRef.Kind) + "/" + gwClass.Spec.ParametersRef.Name
+					return []string{infraSetting}, nil
+				}
+				return []string{}, nil
+			},
+		},
+	)
+	c.informers.NSInformer.Informer().AddIndexers(
+		cache.Indexers{
+			lib.AviSettingNamespaceIndex: func(obj interface{}) ([]string, error) {
+				ns, ok := obj.(*corev1.Namespace)
+				if !ok {
+					return []string{}, nil
+				}
+				if val, ok := ns.Annotations[lib.InfraSettingNameAnnotation]; ok && val != "" {
+					return []string{val}, nil
 				}
 				return []string{}, nil
 			},

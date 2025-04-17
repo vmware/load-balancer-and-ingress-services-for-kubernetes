@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,6 +27,8 @@ import (
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -62,7 +65,16 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 		},
 		Caller: utils.GATEWAY_API, // Always Populate this field to recognise caller at rest layer
 	}
+
+	infraSetting, err := getAviInfraSettingForGateway(key, gateway)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: failed to get AviInfraSetting, err: %s", key, err.Error())
+	}
+
 	t1LR := lib.GetT1LRPath()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
+		t1LR = *infraSetting.Spec.NSXSettings.T1LR
+	}
 	if t1LR != "" {
 		utils.AviLog.Infof("key: %s, msg: T1LR is %s.", key, t1LR)
 		parentVsNode.VrfContext = ""
@@ -74,8 +86,15 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 		parentVsNode.SSLKeyCertRefs = tlsNodes
 	}
 
-	vsvipNode := BuildVsVipNodeForGateway(gateway, parentVsNode.Name)
+	vsvipNode := BuildVsVipNodeForGateway(gateway, parentVsNode.Name, infraSetting)
 	parentVsNode.VSVIPRefs = []*nodes.AviVSVIPNode{vsvipNode}
+
+	nodes.BuildWithInfraSettingForEvh(key, gateway.Namespace, parentVsNode, vsvipNode, infraSetting)
+	if infraSetting != nil {
+		objects.InfraSettingL7Lister().UpdateIngRouteInfraSettingMappings(gateway.Namespace+"/"+gateway.Name, infraSetting.Name, "")
+	} else {
+		objects.InfraSettingL7Lister().RemoveIngRouteInfraSettingMappings(gateway.Namespace + "/" + gateway.Name)
+	}
 
 	return parentVsNode
 }
@@ -153,7 +172,7 @@ func TLSNodeFromSecret(secretObj *corev1.Secret, gatewayNamespace, gatewayName, 
 	return tlsNode
 }
 
-func BuildVsVipNodeForGateway(gateway *gatewayv1.Gateway, vsName string) *nodes.AviVSVIPNode {
+func BuildVsVipNodeForGateway(gateway *gatewayv1.Gateway, vsName string, infraSetting *v1beta1.AviInfraSetting) *nodes.AviVSVIPNode {
 	vsvipNode := &nodes.AviVSVIPNode{
 		Name:        lib.GetVsVipName(vsName),
 		Tenant:      lib.GetTenant(),
@@ -161,6 +180,9 @@ func BuildVsVipNodeForGateway(gateway *gatewayv1.Gateway, vsName string) *nodes.
 		VipNetworks: utils.GetVipNetworkList(),
 	}
 	t1LR := lib.GetT1LRPath()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
+		t1LR = *infraSetting.Spec.NSXSettings.T1LR
+	}
 	if t1LR != "" {
 		utils.AviLog.Infof("key: %s, msg: T1LR for vsvip node is: %s.", vsName, t1LR)
 		vsvipNode.VrfContext = ""
@@ -233,4 +255,26 @@ func AddTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gateway, 
 
 	utils.AviLog.Infof("key: %s, msg: Updated cert_refs in parentVS: %s", key, object.GetAviEvhVS()[0].Name)
 	object.GetAviEvhVS()[0].SSLKeyCertRefs = tlsNodes
+}
+
+func getAviInfraSettingForGateway(key string, gateway *gatewayv1.Gateway) (*v1beta1.AviInfraSetting, error) {
+	gwClassName := gateway.Spec.GatewayClassName
+	gwClass, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Lister().Get(string(gwClassName))
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: failed to get Gateway Class %s, err: %s", key, gwClassName, err.Error())
+		return nil, err
+	}
+	if gwClass.Spec.ParametersRef != nil && gwClass.Spec.ParametersRef.Group == lib.AkoGroup && gwClass.Spec.ParametersRef.Kind == lib.AviInfraSetting {
+		infraSetting, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(gwClass.Spec.ParametersRef.Name)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via GatewayClass %s", key, err.Error())
+			return nil, err
+		}
+		if infraSetting.Status.Status != lib.StatusAccepted {
+			utils.AviLog.Warnf("key: %s, msg: Referred AviInfraSetting %s is invalid", key, infraSetting.Name)
+			return nil, fmt.Errorf("Referred AviInfraSetting %s is invalid", infraSetting.Name)
+		}
+		return infraSetting, nil
+	}
+	return lib.GetNamespaceAviInfraSetting(key, gateway.GetNamespace())
 }

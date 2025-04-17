@@ -34,6 +34,8 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+
+	v1beta1crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned"
 )
 
 var (
@@ -105,6 +107,13 @@ func Initialize() {
 
 	utils.AviLog.Infof("Successfully created kube client for ako-gateway-api")
 
+	v1beta1crdClient, err := v1beta1crd.NewForConfig(cfg)
+	if err != nil {
+		utils.AviLog.Fatalf("Error building AKO CRD v1beta1 clientset: %s", err.Error())
+	}
+	// Enabling only AviInfraSetting CR in GatewayAPI Controller
+	lib.AKOControlConfig().SetCRDClientsetAndEnableInfraSettingParam(v1beta1crdClient)
+
 	akoControlConfig.SetEventRecorder(lib.AKOGatewayEventComponent, kubeClient, false)
 
 	// POD_NAME is not set in case of a WCP cluster
@@ -139,6 +148,8 @@ func Initialize() {
 	stopCh := utils.SetupSignalHandler()
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
+
+	k8s.NewInfraSettingCRDInformer()
 
 	err = k8s.PopulateControllerProperties(kubeClient)
 	if err != nil {
