@@ -169,8 +169,9 @@ func TestAKOInfraAviInfraSettingCreationT1(t *testing.T) {
 		t.Fatalf("failed to create namespacenetworkinfos CR, error: %s", err.Error())
 	}
 
+	infraSettingName := lib.GetAviInfraSettingName("testGW")
 	g.Eventually(func() bool {
-		if infraSetting, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), "testGW", metav1.GetOptions{}); err != nil {
+		if infraSetting, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName, metav1.GetOptions{}); err != nil {
 			return false
 		} else {
 			return *infraSetting.Spec.NSXSettings.T1LR == "testGW" &&
@@ -183,7 +184,7 @@ func TestAKOInfraAviInfraSettingCreationT1(t *testing.T) {
 		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "default", metav1.GetOptions{}); err != nil {
 			return false
 		} else {
-			return ns.Annotations[lib.InfraSettingNameAnnotation] == "testGW"
+			return ns.Annotations[lib.InfraSettingNameAnnotation] == infraSettingName
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
 
@@ -193,7 +194,7 @@ func TestAKOInfraAviInfraSettingCreationT1(t *testing.T) {
 	}
 
 	g.Eventually(func() bool {
-		if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), "testGW", metav1.GetOptions{}); err != nil {
+		if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName, metav1.GetOptions{}); err != nil {
 			return false
 		}
 		return true
@@ -203,7 +204,7 @@ func TestAKOInfraAviInfraSettingCreationT1(t *testing.T) {
 		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "default", metav1.GetOptions{}); err != nil {
 			return false
 		} else {
-			return ns.Annotations[lib.InfraSettingNameAnnotation] != "testGW"
+			return ns.Annotations[lib.InfraSettingNameAnnotation] != infraSettingName
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
 
@@ -248,13 +249,14 @@ func TestAKOInfraAviInfraSettingCreationVPC(t *testing.T) {
 		t.Fatalf("failed to create namespacenetworkinfos CR, error: %s", err.Error())
 	}
 
+	infraSettingName := lib.GetAviInfraSettingName("test-project" + "testGW")
 	g.Eventually(func() bool {
-		if infraSetting, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), "testGW", metav1.GetOptions{}); err != nil {
+		if infraSetting, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName, metav1.GetOptions{}); err != nil {
 			return false
 		} else {
 			return *infraSetting.Spec.NSXSettings.T1LR == "/orgs/default/projects/test-project/vpcs/testGW" &&
 				len(infraSetting.Spec.Network.VipNetworks) == 0 &&
-				infraSetting.Spec.SeGroup.Name == lib.GetClusterID()
+				infraSetting.Spec.SeGroup.Name == "Default-Group"
 		}
 	}, 30*time.Second).Should(gomega.Equal(true))
 
@@ -262,7 +264,7 @@ func TestAKOInfraAviInfraSettingCreationVPC(t *testing.T) {
 		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "default", metav1.GetOptions{}); err != nil {
 			return false
 		} else {
-			return ns.Annotations[lib.InfraSettingNameAnnotation] == "testGW" &&
+			return ns.Annotations[lib.InfraSettingNameAnnotation] == infraSettingName &&
 				ns.Annotations[lib.TenantAnnotation] == "test-project"
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
@@ -273,7 +275,7 @@ func TestAKOInfraAviInfraSettingCreationVPC(t *testing.T) {
 	}
 
 	g.Eventually(func() bool {
-		if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), "testGW", metav1.GetOptions{}); err != nil {
+		if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName, metav1.GetOptions{}); err != nil {
 			return false
 		}
 		return true
@@ -283,7 +285,7 @@ func TestAKOInfraAviInfraSettingCreationVPC(t *testing.T) {
 		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "default", metav1.GetOptions{}); err != nil {
 			return false
 		} else {
-			return ns.Annotations[lib.InfraSettingNameAnnotation] != "testGW"
+			return ns.Annotations[lib.InfraSettingNameAnnotation] != infraSettingName
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
 
@@ -364,8 +366,10 @@ func TestAKOInfraMultiAviInfraSettingCreationT1(t *testing.T) {
 		t.Fatalf("failed to create namespacenetworkinfos CR, error: %s", err.Error())
 	}
 
+	infraSettingName1 := lib.GetAviInfraSettingName("testGW")
+	infraSettingName2 := "red-" + lib.GetAviInfraSettingName("testGW")
 	g.Eventually(func() bool {
-		if infraSetting, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), "testGW", metav1.GetOptions{}); err != nil {
+		if infraSetting, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName1, metav1.GetOptions{}); err != nil {
 			return false
 		} else {
 			return *infraSetting.Spec.NSXSettings.T1LR == "testGW" &&
@@ -375,7 +379,7 @@ func TestAKOInfraMultiAviInfraSettingCreationT1(t *testing.T) {
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() bool {
-		if infraSetting, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), "testGW-red", metav1.GetOptions{}); err != nil {
+		if infraSetting, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName2, metav1.GetOptions{}); err != nil {
 			return false
 		} else {
 			return *infraSetting.Spec.NSXSettings.T1LR == "testGW" &&
@@ -388,7 +392,7 @@ func TestAKOInfraMultiAviInfraSettingCreationT1(t *testing.T) {
 		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "default", metav1.GetOptions{}); err != nil {
 			return false
 		} else {
-			return ns.Annotations[lib.InfraSettingNameAnnotation] == "testGW"
+			return ns.Annotations[lib.InfraSettingNameAnnotation] == infraSettingName1
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
 
@@ -396,7 +400,7 @@ func TestAKOInfraMultiAviInfraSettingCreationT1(t *testing.T) {
 		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "red", metav1.GetOptions{}); err != nil {
 			return false
 		} else {
-			return ns.Annotations[lib.InfraSettingNameAnnotation] == "testGW-red"
+			return ns.Annotations[lib.InfraSettingNameAnnotation] == infraSettingName2
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
 
@@ -404,7 +408,7 @@ func TestAKOInfraMultiAviInfraSettingCreationT1(t *testing.T) {
 		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "red-ns", metav1.GetOptions{}); err != nil {
 			return false
 		} else {
-			return ns.Annotations[lib.InfraSettingNameAnnotation] == "testGW"
+			return ns.Annotations[lib.InfraSettingNameAnnotation] == infraSettingName1
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
 
@@ -424,14 +428,14 @@ func TestAKOInfraMultiAviInfraSettingCreationT1(t *testing.T) {
 	}
 
 	g.Eventually(func() bool {
-		if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), "testGW", metav1.GetOptions{}); err != nil {
+		if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName1, metav1.GetOptions{}); err != nil {
 			return false
 		}
 		return true
 	}, 10*time.Second).Should(gomega.Equal(false))
 
 	g.Eventually(func() bool {
-		if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), "testGW-red", metav1.GetOptions{}); err != nil {
+		if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName2, metav1.GetOptions{}); err != nil {
 			return false
 		}
 		return true
@@ -441,21 +445,21 @@ func TestAKOInfraMultiAviInfraSettingCreationT1(t *testing.T) {
 		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "default", metav1.GetOptions{}); err != nil {
 			return false
 		} else {
-			return ns.Annotations[lib.InfraSettingNameAnnotation] != "testGW"
+			return ns.Annotations[lib.InfraSettingNameAnnotation] != infraSettingName1
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
 	g.Eventually(func() bool {
 		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "red", metav1.GetOptions{}); err != nil {
 			return false
 		} else {
-			return ns.Annotations[lib.InfraSettingNameAnnotation] != "testGW-red"
+			return ns.Annotations[lib.InfraSettingNameAnnotation] != infraSettingName2
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
 	g.Eventually(func() bool {
 		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "red-ns", metav1.GetOptions{}); err != nil {
 			return false
 		} else {
-			return ns.Annotations[lib.InfraSettingNameAnnotation] != "testGW"
+			return ns.Annotations[lib.InfraSettingNameAnnotation] != infraSettingName1
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
 
@@ -526,23 +530,25 @@ func TestAKOInfraMultiAviInfraSettingCreationVPC(t *testing.T) {
 		t.Fatalf("failed to create namespacenetworkinfos CR, error: %s", err.Error())
 	}
 
+	infraSettingName1 := lib.GetAviInfraSettingName("test-project" + "testGW")
+	infraSettingName2 := lib.GetAviInfraSettingName("test-project" + "testGW-red")
 	g.Eventually(func() bool {
-		if infraSetting, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), "testGW", metav1.GetOptions{}); err != nil {
+		if infraSetting, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName1, metav1.GetOptions{}); err != nil {
 			return false
 		} else {
 			return *infraSetting.Spec.NSXSettings.T1LR == "/orgs/default/projects/test-project/vpcs/testGW" &&
 				len(infraSetting.Spec.Network.VipNetworks) == 0 &&
-				infraSetting.Spec.SeGroup.Name == lib.GetClusterID()
+				infraSetting.Spec.SeGroup.Name == "Default-Group"
 		}
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() bool {
-		if infraSetting, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), "testGW-red", metav1.GetOptions{}); err != nil {
+		if infraSetting, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName2, metav1.GetOptions{}); err != nil {
 			return false
 		} else {
 			return *infraSetting.Spec.NSXSettings.T1LR == "/orgs/default/projects/test-project/vpcs/testGW-red" &&
 				len(infraSetting.Spec.Network.VipNetworks) == 0 &&
-				infraSetting.Spec.SeGroup.Name == lib.GetClusterID()
+				infraSetting.Spec.SeGroup.Name == "Default-Group"
 		}
 	}, 30*time.Second).Should(gomega.Equal(true))
 
@@ -550,7 +556,7 @@ func TestAKOInfraMultiAviInfraSettingCreationVPC(t *testing.T) {
 		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "default", metav1.GetOptions{}); err != nil {
 			return false
 		} else {
-			return ns.Annotations[lib.InfraSettingNameAnnotation] == "testGW" &&
+			return ns.Annotations[lib.InfraSettingNameAnnotation] == infraSettingName1 &&
 				ns.Annotations[lib.TenantAnnotation] == "test-project"
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
@@ -559,7 +565,7 @@ func TestAKOInfraMultiAviInfraSettingCreationVPC(t *testing.T) {
 		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "red", metav1.GetOptions{}); err != nil {
 			return false
 		} else {
-			return ns.Annotations[lib.InfraSettingNameAnnotation] == "testGW-red" &&
+			return ns.Annotations[lib.InfraSettingNameAnnotation] == infraSettingName2 &&
 				ns.Annotations[lib.TenantAnnotation] == "test-project"
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
@@ -568,7 +574,7 @@ func TestAKOInfraMultiAviInfraSettingCreationVPC(t *testing.T) {
 		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "red-ns", metav1.GetOptions{}); err != nil {
 			return false
 		} else {
-			return ns.Annotations[lib.InfraSettingNameAnnotation] == "testGW" &&
+			return ns.Annotations[lib.InfraSettingNameAnnotation] == infraSettingName1 &&
 				ns.Annotations[lib.TenantAnnotation] == "test-project"
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
@@ -584,14 +590,14 @@ func TestAKOInfraMultiAviInfraSettingCreationVPC(t *testing.T) {
 	}
 
 	g.Eventually(func() bool {
-		if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), "testGW", metav1.GetOptions{}); err != nil {
+		if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName1, metav1.GetOptions{}); err != nil {
 			return false
 		}
 		return true
 	}, 10*time.Second).Should(gomega.Equal(false))
 
 	g.Eventually(func() bool {
-		if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), "testGW-red", metav1.GetOptions{}); err != nil {
+		if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName2, metav1.GetOptions{}); err != nil {
 			return false
 		}
 		return true
@@ -601,21 +607,21 @@ func TestAKOInfraMultiAviInfraSettingCreationVPC(t *testing.T) {
 		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "default", metav1.GetOptions{}); err != nil {
 			return false
 		} else {
-			return ns.Annotations[lib.InfraSettingNameAnnotation] != "testGW"
+			return ns.Annotations[lib.InfraSettingNameAnnotation] != infraSettingName1
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
 	g.Eventually(func() bool {
 		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "red", metav1.GetOptions{}); err != nil {
 			return false
 		} else {
-			return ns.Annotations[lib.InfraSettingNameAnnotation] != "testGW-red"
+			return ns.Annotations[lib.InfraSettingNameAnnotation] != infraSettingName2
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
 	g.Eventually(func() bool {
 		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "red-ns", metav1.GetOptions{}); err != nil {
 			return false
 		} else {
-			return ns.Annotations[lib.InfraSettingNameAnnotation] != "testGW"
+			return ns.Annotations[lib.InfraSettingNameAnnotation] != infraSettingName1
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
 

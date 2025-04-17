@@ -2227,3 +2227,8 @@ func init() {
 	}
 	SEGroupName = seGroupToUse
 }
+
+func GetAviInfraSettingName(projVpc string) string {
+	hash := sha1.Sum([]byte(projVpc))
+	return hex.EncodeToString(hash[:])
+}
