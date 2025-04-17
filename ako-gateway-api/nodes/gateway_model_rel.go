@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
+	v1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
@@ -96,6 +97,11 @@ var (
 		Type:        "Pod",
 		GetGateways: PodToGateway,
 		GetRoutes:   PodToHTTPRoute,
+	}
+	AviInfraSetting = GraphSchema{
+		Type:        lib.AviInfraSetting,
+		GetGateways: AviInfraSettingToGateway,
+		GetRoutes:   NoOperation,
 	}
 	SupportedGraphTypes = GraphDescriptor{
 		Gateway,
@@ -677,6 +683,8 @@ func validateReferredHTTPRoute(key, name, namespace string, allowedRoutesAll boo
 				matchNamespace = string(*parentRef.Namespace)
 			}
 			if (parentRef.Name == gatewayv1.ObjectName(name)) && (matchNamespace == namespace) {
+				// why call it for each parent?
+				// as a matter of fact, one should first validate the parent reference and only then validate the route spec
 				isValidHttprouteRules := validateHTTPRouteRules(key, httpRoute, httpRouteStatus)
 				if isValidHttprouteRules {
 					err := validateParentReference(key, httpRoute, httpRouteStatus, parentRefIndexFromSpec, &parentRefIndexInHttpRouteStatus, &indexInCache)
@@ -760,4 +768,50 @@ func httpRouteToGatewayOperation(hrObj *gatewayv1.HTTPRoute, key, gwName, gwName
 		statusIndex += 1
 	}
 	utils.AviLog.Debugf("key: %s, msg: Gateways retrieved %s", key, gwNsNameList)
+}
+
+func AviInfraSettingToGateway(namespace, name, key string) ([]string, bool) {
+	allGateways := make([]string, 0)
+	gwClasses, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Informer().GetIndexer().ByIndex(akogatewayapilib.AviInfraSettingGatewayClassIndes, lib.AkoGroup+"/"+lib.AviInfraSetting+"/"+name)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: failed to fetch Gateway classes for the AviInfraSetting %s, err: %s", key, name, err.Error())
+		return allGateways, false
+	}
+
+	for _, obj := range gwClasses {
+		if gwClass, ok := obj.(*v1.GatewayClass); ok {
+			if gateways, found := GatewayClassGetGw(name, gwClass.GetName(), key); found {
+				allGateways = append(allGateways, gateways...)
+			}
+		}
+	}
+
+	if nsGateways, found := infraSettingNSToGateways(namespace, name, key); found {
+		allGateways = append(allGateways, nsGateways...)
+	}
+
+	utils.AviLog.Infof("key: %s, msg: Gateways retrieved %s", key, allGateways)
+	return allGateways, true
+}
+
+func infraSettingNSToGateways(namespace, name, key string) ([]string, bool) {
+	allGateways := make([]string, 0)
+	namespaces, err := utils.GetInformers().NSInformer.Informer().GetIndexer().ByIndex(lib.AviSettingNamespaceIndex, name)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: failed to fetch Namespaces for the AviInfraSetting %s, err: %s", key, name, err.Error())
+		return []string{}, false
+	}
+	for _, obj := range namespaces {
+		if ns, ok := obj.(*corev1.Namespace); ok {
+			gateways, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(ns.GetName()).List(labels.Set(nil).AsSelector())
+			if err != nil {
+				utils.AviLog.Warnf("key: %s, msg: failed to fetch Gateways in the Namespace %s, err: %s", key, ns.GetName(), err.Error())
+				continue
+			}
+			for _, gw := range gateways {
+				allGateways = append(allGateways, gw.GetNamespace()+"/"+gw.GetName())
+			}
+		}
+	}
+	return allGateways, true
 }

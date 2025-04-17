@@ -437,7 +437,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		}
 		portPoolSet = append(portPoolSet, portPool)
 
-		buildPoolWithInfraSetting(key, poolNode, infraSetting)
+		BuildPoolWithInfraSetting(key, poolNode, infraSetting)
 		if lib.IsIstioEnabled() {
 			poolNode.UpdatePoolNodeForIstio()
 		}
@@ -698,7 +698,7 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 			portPool.Name = fmt.Sprintf("%s-%d", protocol, port)
 			portPoolSet = append(portPoolSet, portPool)
 
-			buildPoolWithInfraSetting(key, poolNode, infraSetting)
+			BuildPoolWithInfraSetting(key, poolNode, infraSetting)
 			if lib.IsIstioEnabled() {
 				poolNode.UpdatePoolNodeForIstio()
 			}

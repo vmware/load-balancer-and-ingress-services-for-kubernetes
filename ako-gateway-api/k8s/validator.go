@@ -51,6 +51,7 @@ func IsGatewayClassValid(key string, gatewayClass *gatewayv1.GatewayClass) bool 
 	return true
 }
 
+// Should this logic be moved to the graph layer?
 func IsValidGateway(key string, gateway *gatewayv1.Gateway) (bool, bool) {
 	spec := gateway.Spec
 	allowedRoutesAll := false
@@ -189,6 +190,7 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 	}
 
 	// hostname should not overlap with hostname of an existing gateway
+	// Current check is for gateways in the same namespace, change it to all namespaces, also we can use local store to save hostname to (gateway+ns) info
 	gatewayNsList, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(gateway.Namespace).List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Errorf("Unable to retrieve the gateways during validation: %s", err)

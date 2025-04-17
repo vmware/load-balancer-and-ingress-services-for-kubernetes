@@ -186,7 +186,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 				poolNode.Servers = servers
 			}
 		}
-		buildPoolWithInfraSetting(key, poolNode, infraSetting)
+		BuildPoolWithInfraSetting(key, poolNode, infraSetting)
 		poolNode.CalculateCheckSum()
 		tmpPoolList = append(tmpPoolList, poolNode)
 	}
