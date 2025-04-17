@@ -27,6 +27,7 @@ const (
 
 const (
 	GatewayClassGatewayControllerIndex = "GatewayClassGatewayController"
+	AviInfraSettingGatewayClassIndes   = "AviInfraSettingGatewayClass"
 	REGULAREXPRESSION                  = "RegularExpression"
 	EXACT                              = "Exact"
 	PATHPREFIX                         = "PathPrefix"

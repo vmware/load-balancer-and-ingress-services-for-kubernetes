@@ -35,6 +35,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -671,4 +672,24 @@ func Uuid4() string {
 		log.Fatal(err)
 	}
 	return id.String()
+}
+
+func GetNamespaceAviInfraSetting(key, ns string) (*v1beta1.AviInfraSetting, error) {
+	namespace, err := utils.GetInformers().NSInformer.Lister().Get(ns)
+	if err != nil {
+		return nil, err
+	}
+	infraSettingCRName, ok := namespace.GetAnnotations()[InfraSettingNameAnnotation]
+	if !ok {
+		return nil, nil
+	}
+	infraSetting, err := AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingCRName)
+	if err != nil {
+		return nil, err
+	}
+	if infraSetting != nil && infraSetting.Status.Status != StatusAccepted {
+		utils.AviLog.Warnf("key: %s, msg: Referred AviInfraSetting %s is invalid", key, infraSetting.Name)
+		return nil, fmt.Errorf("AviInfraSetting %s is invalid", infraSetting.Name)
+	}
+	return infraSetting, nil
 }
