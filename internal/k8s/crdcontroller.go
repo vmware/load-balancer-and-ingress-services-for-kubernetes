@@ -1000,21 +1000,27 @@ func checkRefOnController(key, refKey, refValue, tenant string) error {
 
 	// For public clouds, check using network UUID in AWS, normal network API for GCP, skip altogether for Azure.
 	// If reference key is network uuid , then check using UUID.
-	if (lib.IsPublicCloud() && refModelMap[refKey] == "network") || refKey == "NetworkUUID" {
-		if lib.UsesNetworkRef() || refKey == "NetworkUUID" {
-			var rest_response interface{}
-			utils.AviLog.Infof("Cloud is  %s, checking network ref using uuid", lib.GetCloudType())
-			uri := fmt.Sprintf("/api/%s/%s?cloud_uuid=%s", refModelMap[refKey], refValue, lib.GetCloudUUID())
-			err := lib.AviGet(clients.AviClient[aviClientLen], uri, &rest_response)
-			if err != nil {
-				utils.AviLog.Warnf("key: %s, msg: Get uri %v returned err %v", key, uri, err)
-				return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
-			} else if rest_response != nil {
-				utils.AviLog.Infof("Found %s %s on controller", refModelMap[refKey], refValue)
-				return nil
-			} else {
-				utils.AviLog.Warnf("key: %s, msg: No Objects found for refName: %s/%s", key, refModelMap[refKey], refValue)
-				return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
+	//
+	// During the portal-webapp migration from Python to Go, network views were not correctly ported. However, network APIs are now being routed through Go code,
+	// which is incorrect. The Avi Controller needs to be fixed.
+	// For now, disabling the subnet UUID validation for AWS to avoid impact on EKS deployments.
+	if lib.GetCloudType() != lib.CLOUD_AWS {
+		if (lib.IsPublicCloud() && refModelMap[refKey] == "network") || refKey == "NetworkUUID" {
+			if lib.UsesNetworkRef() || refKey == "NetworkUUID" {
+				var rest_response interface{}
+				utils.AviLog.Infof("Cloud is  %s, checking network ref using uuid", lib.GetCloudType())
+				uri := fmt.Sprintf("/api/%s/%s?cloud_uuid=%s", refModelMap[refKey], refValue, lib.GetCloudUUID())
+				err := lib.AviGet(clients.AviClient[aviClientLen], uri, &rest_response)
+				if err != nil {
+					utils.AviLog.Warnf("key: %s, msg: Get uri %v returned err %v", key, uri, err)
+					return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
+				} else if rest_response != nil {
+					utils.AviLog.Infof("Found %s %s on controller", refModelMap[refKey], refValue)
+					return nil
+				} else {
+					utils.AviLog.Warnf("key: %s, msg: No Objects found for refName: %s/%s", key, refModelMap[refKey], refValue)
+					return fmt.Errorf("%s \"%s\" not found on controller", refModelMap[refKey], refValue)
+				}
 			}
 		}
 	}
