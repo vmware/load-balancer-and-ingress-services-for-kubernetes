@@ -89,8 +89,6 @@ func Initialize() {
 
 	// Set the user with prefix
 	_ = lib.AKOControlConfig()
-	lib.SetAKOUser(akogatewaylib.Prefix)
-	lib.SetNamePrefix(akogatewaylib.Prefix)
 	//TODO handle leader logic, must not be used with HA
 	lib.AKOControlConfig().SetIsLeaderFlag(true)
 	lib.AKOControlConfig().SetEndpointSlicesEnabled(lib.GetEndpointSliceEnabled())
@@ -112,8 +110,8 @@ func Initialize() {
 	if err != nil {
 		utils.AviLog.Fatalf("Error building AKO CRD v1beta1 clientset: %s", err.Error())
 	}
-	// Enabling only AviInfraSetting CR in GatewayAPI Controller
-	lib.AKOControlConfig().SetCRDClientsetAndEnableInfraSettingParam(v1beta1crdClient)
+	// Enabling AviInfraSetting CR in GatewayAPI Controller
+	akogatewaylib.AKOControlConfig().SetV1Beta1CRDClientSetAndEnableAviInfraSettingParam(v1beta1crdClient)
 
 	akoControlConfig.SetEventRecorder(lib.AKOGatewayEventComponent, kubeClient, false)
 
@@ -150,7 +148,16 @@ func Initialize() {
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
 
-	k8s.NewInfraSettingCRDInformer()
+	akogatewayk8s.NewInfraSettingCRDInformer()
+
+	if utils.IsVCFCluster() {
+		// AKO will be primary by default in VCF deployments
+		lib.AKOControlConfig().SetAKOInstanceFlag(true)
+		k8s.SharedAviController().InitVCFHandlers(kubeClient, ctrlCh, stopCh)
+	}
+
+	lib.SetAKOUser(akogatewaylib.Prefix)
+	lib.SetNamePrefix(akogatewaylib.Prefix)
 
 	err = k8s.PopulateControllerProperties(kubeClient)
 	if err != nil {
@@ -166,10 +173,6 @@ func Initialize() {
 	if aviRestClientPool != nil && !avicache.IsAviClusterActive(aviRestClientPool.AviClient[0]) {
 		akoControlConfig.PodEventf(corev1.EventTypeWarning, lib.AKOShutdown, "Avi Controller Cluster state is not Active")
 		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO")
-	}
-
-	if utils.IsVCFCluster() {
-		k8s.SharedAviController().InitVCFHandlers(kubeClient, ctrlCh, stopCh)
 	}
 
 	err = c.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)

@@ -31,6 +31,7 @@ const (
 	REGULAREXPRESSION                  = "RegularExpression"
 	EXACT                              = "Exact"
 	PATHPREFIX                         = "PathPrefix"
+	EnablePrivateIPAnnotationKey       = "ako.vmware.com/EnablePrivateIP"
 )
 
 const (

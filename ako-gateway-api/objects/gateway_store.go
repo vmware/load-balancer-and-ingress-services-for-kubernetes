@@ -34,6 +34,7 @@ func GatewayApiLister() *GWLister {
 	gwonce.Do(func() {
 		gwLister = &GWLister{
 			gatewayClassStore:              objects.NewObjectMapStore(),
+			gatewayClassToVipTypeStore:     objects.NewObjectMapStore(),
 			gatewayToGatewayClassStore:     objects.NewObjectMapStore(),
 			gatewayClassToGatewayStore:     objects.NewObjectMapStore(),
 			gatewayToListenerStore:         objects.NewObjectMapStore(),
@@ -64,6 +65,9 @@ type GWLister struct {
 
 	//Gateways with AKO as controller
 	gatewayClassStore *objects.ObjectMapStore
+
+	// GatewayClass -> VIP Type
+	gatewayClassToVipTypeStore *objects.ObjectMapStore
 
 	//Namespace/Gateway -> GatewayClass
 	gatewayToGatewayClassStore *objects.ObjectMapStore
@@ -178,6 +182,22 @@ func (g *GWLister) DeleteGatewayClass(gwClass string) {
 	defer g.gwLock.Unlock()
 
 	g.gatewayClassStore.Delete(gwClass)
+}
+
+func (g *GWLister) IsGatewayClassVipTypePublic(gwClass string) bool {
+	found, vipType := g.gatewayClassToVipTypeStore.Get(gwClass)
+	if !found {
+		return true
+	}
+	return vipType.(bool)
+}
+
+func (g *GWLister) UpdateGatewayClassToVipType(gwClass string, vipType bool) {
+	g.gatewayClassToVipTypeStore.AddOrUpdate(gwClass, vipType)
+}
+
+func (g *GWLister) DeleteGatewayClassToVipType(gwClass string) {
+	g.gatewayClassToVipTypeStore.Delete(gwClass)
 }
 
 func (g *GWLister) GetGatewayClassToGateway(gwClass string) []string {

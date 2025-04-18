@@ -35,8 +35,14 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	v1beta1akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/informers/externalversions"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
+
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gatewayclasses;gatewayclasses/status,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways;gateways/status,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes;httproutes/status,verbs=get;list;watch;update;patch
 
 var controllerInstance *GatewayController
 var ctrlonce sync.Once
@@ -68,11 +74,19 @@ func (c *GatewayController) InitGatewayAPIInformers(cs gatewayclientset.Interfac
 	})
 }
 
+func NewInfraSettingCRDInformer() {
+	akoInformerFactory := v1beta1akoinformers.NewSharedInformerFactoryWithOptions(akogatewayapilib.AKOControlConfig().V1Beta1CRDClientSet(), time.Second*30)
+	aviSettingsInformer := akoInformerFactory.Ako().V1beta1().AviInfraSettings()
+	akogatewayapilib.AKOControlConfig().SetAviInfraSettingInformer(aviSettingsInformer)
+}
+
 func (c *GatewayController) Start(stopCh <-chan struct{}) {
 	go c.informers.ServiceInformer.Informer().Run(stopCh)
+	go c.informers.NSInformer.Informer().Run(stopCh)
 
 	informersList := []cache.InformerSynced{
 		c.informers.ServiceInformer.Informer().HasSynced,
+		c.informers.NSInformer.Informer().HasSynced,
 	}
 
 	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
@@ -98,9 +112,9 @@ func (c *GatewayController) Start(stopCh <-chan struct{}) {
 	go akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Informer().Run(stopCh)
 	informersList = append(informersList, akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Informer().HasSynced)
 
-	if lib.AKOControlConfig().AviInfraSettingEnabled() {
-		go lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().Run(stopCh)
-		informersList = append(informersList, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().HasSynced)
+	if akogatewayapilib.AKOControlConfig().AviInfraSettingEnabled() {
+		go akogatewayapilib.AKOControlConfig().AviInfraSettingInformer().Informer().Run(stopCh)
+		informersList = append(informersList, akogatewayapilib.AKOControlConfig().AviInfraSettingInformer().Informer().HasSynced)
 	}
 
 	if !cache.WaitForCacheSync(stopCh, informersList...) {
@@ -494,19 +508,14 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 		c.informers.SecretInformer.Informer().AddEventHandler(secretEventHandler)
 	}
 
-	if c.informers.NSInformer != nil {
-		namespaceEventHandler := addNamespaceAnnotationEventHandler(numWorkers, c)
-		c.informers.NSInformer.Informer().AddEventHandler(namespaceEventHandler)
-	}
-
+	namespaceEventHandler := addNamespaceAnnotationEventHandler(numWorkers, c)
+	c.informers.NSInformer.Informer().AddEventHandler(namespaceEventHandler)
 }
 
 func checkAviSecretUpdateAndShutdown(secret *corev1.Secret) bool {
 	if secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.AviSecret {
 		// if the secret is updated or deleted we shutdown API server
-		utils.AviLog.Warnf("Avi Secret object %s/%s updated/deleted, shutting down AKO", secret.Namespace, secret.Name)
-		lib.ShutdownApi()
-		return false
+		utils.AviLog.Fatalf("Avi Secret object %s/%s updated/deleted, shutting down AKO", secret.Namespace, secret.Name)
 	}
 	return true
 }
@@ -598,6 +607,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			if !IsGatewayClassValid(key, gwClass) {
 				return
 			}
+
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwClass))
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
@@ -719,6 +729,74 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 	informer.HTTPRouteInformer.Informer().AddEventHandler(httpRouteEventHandler)
 }
 
+func (c *GatewayController) SetupAviInfraSettingEventHandler(numWorkers uint32) {
+	utils.AviLog.Infof("Setting up AviInfraSetting CRD event handler")
+	if akogatewayapilib.AKOControlConfig().AviInfraSettingEnabled() {
+		aviInfraEventHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				aviInfra := obj.(*akov1beta1.AviInfraSetting)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviInfra))
+				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfra)
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
+
+				setVipNetworkAndNodeNetworkFromInfraSetting(key, aviInfra)
+
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+			},
+			UpdateFunc: func(old, new interface{}) {
+				if c.DisableSync {
+					return
+				}
+				oldObj := old.(*akov1beta1.AviInfraSetting)
+				aviInfra := new.(*akov1beta1.AviInfraSetting)
+				if isAviInfraUpdated(oldObj, aviInfra) {
+					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviInfra))
+					key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfra)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+
+					setVipNetworkAndNodeNetworkFromInfraSetting(key, aviInfra)
+
+					bkt := utils.Bkt(namespace, numWorkers)
+					c.workqueue[bkt].AddRateLimited(key)
+					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				aviinfra, ok := obj.(*akov1beta1.AviInfraSetting)
+				if !ok {
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					aviinfra, ok = tombstone.Obj.(*akov1beta1.AviInfraSetting)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not an AviInfraSetting: %#v", obj)
+						return
+					}
+				}
+				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviinfra)
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviinfra))
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+				objects.SharedResourceVerInstanceLister().Delete(key)
+				// no need to validate for delete handler
+				bkt := utils.Bkt(namespace, numWorkers)
+				c.workqueue[bkt].AddRateLimited(key)
+				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+			},
+		}
+		akogatewayapilib.AKOControlConfig().AviInfraSettingInformer().Informer().AddEventHandler(aviInfraEventHandler)
+	}
+}
+
 func IsGatewayUpdated(oldGateway, newGateway *gatewayv1.Gateway) bool {
 	if newGateway.GetDeletionTimestamp() != nil {
 		return true
@@ -735,6 +813,13 @@ func IsHTTPRouteUpdated(oldHTTPRoute, newHTTPRoute *gatewayv1.HTTPRoute) bool {
 	oldHash := utils.Hash(utils.Stringify(oldHTTPRoute.Spec))
 	newHash := utils.Hash(utils.Stringify(newHTTPRoute.Spec))
 	return oldHash != newHash
+}
+
+func isAviInfraUpdated(oldAviInfra, newAviInfra *akov1beta1.AviInfraSetting) bool {
+	oldSpecHash := utils.Hash(utils.Stringify(oldAviInfra.Spec) + oldAviInfra.Status.Status)
+	newSpecHash := utils.Hash(utils.Stringify(newAviInfra.Spec) + newAviInfra.Status.Status)
+
+	return oldSpecHash != newSpecHash
 }
 
 func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
@@ -773,7 +858,7 @@ func addGatewaysFromNamespaceToIngestionQueue(numWorkers uint32, c *GatewayContr
 	}
 
 	for _, gateway := range gateways {
-		key := lib.Gateway + "/" + gateway.Name
+		key := lib.Gateway + "/" + gateway.Namespace + "/" + gateway.Name
 		valid, _ := IsValidGateway(key, gateway)
 		if !valid {
 			return

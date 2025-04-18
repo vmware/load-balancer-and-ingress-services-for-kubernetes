@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -112,6 +113,7 @@ var (
 		EndpointSlices,
 		HTTPRoute,
 		Pod,
+		AviInfraSetting,
 	}
 )
 
@@ -257,12 +259,23 @@ func GatewayClassGetGw(namespace, name, key string) ([]string, bool) {
 	if isDelete {
 		gatewayList = akogatewayapiobjects.GatewayApiLister().GetGatewayClassToGateway(name)
 		akogatewayapiobjects.GatewayApiLister().DeleteGatewayClass(name)
+		akogatewayapiobjects.GatewayApiLister().DeleteGatewayClassToVipType(name)
 	} else {
 		isAKOController := akogatewayapilib.CheckGatewayClassController(controllerName)
 		if isAKOController {
 			utils.AviLog.Debugf("key: %s, msg: controller is AKO", key)
 		}
+		// Determine VIP type based on GW Class annotation
+		// To be used in NSX + VPC deployments
+		gwClassAllocPublicIP := true
+		if vipTypeValue, ok := gwClassObj.Annotations[akogatewayapilib.EnablePrivateIPAnnotationKey]; ok {
+			if vipType, err := strconv.ParseBool(vipTypeValue); err == nil && vipType {
+				gwClassAllocPublicIP = false
+			}
+		}
+
 		akogatewayapiobjects.GatewayApiLister().UpdateGatewayClass(name, isAKOController)
+		akogatewayapiobjects.GatewayApiLister().UpdateGatewayClassToVipType(name, gwClassAllocPublicIP)
 		gatewayList = akogatewayapiobjects.GatewayApiLister().GetGatewayClassToGateway(name)
 	}
 

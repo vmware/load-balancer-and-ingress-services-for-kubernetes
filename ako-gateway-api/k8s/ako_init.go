@@ -97,8 +97,7 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 	err := k8s.PopulateCache()
 	if err != nil {
 		c.DisableSync = true
-		utils.AviLog.Errorf("failed to populate cache, disabling sync")
-		lib.ShutdownApi()
+		utils.AviLog.Fatalf("failed to populate cache, disabling sync")
 	}
 
 	// Setup and start event handlers for objects.
@@ -108,6 +107,12 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
 	interval, err := strconv.ParseInt(fullSyncInterval, 10, 64)
 
+	if utils.IsWCP() {
+		// Set the error to nil
+		err = nil
+		interval = 300 // seconds, hardcoded for now.
+	}
+
 	// Set up the workers but don't start draining them.
 	if err != nil {
 		utils.AviLog.Errorf("Cannot convert full sync interval value to integer, pls correct the value and restart AKO. Error: %s", err)
@@ -116,9 +121,7 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 		err = c.FullSyncK8s(false)
 		if err != nil {
 			// Something bad sync. We need to return and shutdown the API server
-			utils.AviLog.Errorf("Couldn't run full sync successfully on bootup, going to shutdown AKO")
-			lib.ShutdownApi()
-			return
+			utils.AviLog.Fatalf("Couldn't run full sync successfully on bootup, going to shutdown AKO")
 		}
 		if interval != 0 {
 			worker = utils.NewFullSyncThread(time.Duration(interval) * time.Second)
@@ -138,7 +141,7 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 
 	c.SetupEventHandlers(informers)
 	c.SetupGatewayApiEventHandlers(numWorkers)
-	k8s.SharedAviController().SetupAKOCRDEventHandlers(numWorkers)
+	c.SetupAviInfraSettingEventHandler(numWorkers)
 
 	if lib.DisableSync {
 		akogatewayapilib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigSet, "AKO is in disable sync state")
