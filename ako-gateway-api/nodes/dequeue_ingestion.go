@@ -82,7 +82,11 @@ func DequeueIngestion(key string, fullsync bool) {
 	for _, gatewayNsName := range gatewayNsNameList {
 
 		parentNs, _, parentName := lib.ExtractTypeNameNamespace(gatewayNsName)
-		modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(parentNs, parentName))
+		tenant := objects.SharedNamespaceTenantLister().GetTenantInNamespace(gatewayNsName)
+		if tenant == "" {
+			tenant = lib.GetTenant()
+		}
+		modelName := lib.GetModelName(tenant, akogatewayapilib.GetGatewayParentName(parentNs, parentName))
 
 		modelFound, modelIntf := objects.SharedAviGraphLister().Get(modelName)
 		// Seq: GW first and the secret created.
@@ -196,7 +200,11 @@ func handleSecrets(gatewayNamespace string, gatewayName string, key string, obje
 func handleGateway(namespace, name string, fullsync bool, key string) {
 	utils.AviLog.Debugf("key: %s, msg: processing gateway: %s", key, name)
 
-	modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(namespace, name))
+	tenant := objects.SharedNamespaceTenantLister().GetTenantInNamespace(namespace + "/" + name)
+	if tenant == "" {
+		tenant = lib.GetTenant()
+	}
+	modelName := lib.GetModelName(tenant, akogatewayapilib.GetGatewayParentName(namespace, name))
 	modelFound, _ := objects.SharedAviGraphLister().Get(modelName)
 	if modelFound {
 		utils.AviLog.Debugf("key: %s, msg: found model: %s", key, modelName)
@@ -245,6 +253,12 @@ func handleGateway(namespace, name string, fullsync bool, key string) {
 	aviModelGraph := NewAviObjectGraph()
 	aviModelGraph.BuildGatewayVs(gatewayObj, key)
 
+	// Reload the tenant to handle the change in tenant annotation in a Namespace
+	tenant = objects.SharedNamespaceTenantLister().GetTenantInNamespace(namespace + "/" + name)
+	if tenant == "" {
+		tenant = lib.GetTenant()
+	}
+	modelName = lib.GetModelName(tenant, akogatewayapilib.GetGatewayParentName(namespace, name))
 	modelChanged := saveAviModel(modelName, aviModelGraph.AviObjectGraph, key)
 	if modelChanged && !fullsync {
 		sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
@@ -296,7 +310,7 @@ func (o *AviObjectGraph) ProcessRouteDeletion(key, parentNsName string, routeMod
 	}
 
 	updateHostname(key, parentNsName, parentNode[0])
-	modelName := lib.GetTenant() + "/" + parentNode[0].Name
+	modelName := parentNode[0].Tenant + "/" + parentNode[0].Name
 	ok := saveAviModel(modelName, o.AviObjectGraph, key)
 	if ok && len(o.AviObjectGraph.GetOrderedNodes()) != 0 && !fullsync {
 		sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)

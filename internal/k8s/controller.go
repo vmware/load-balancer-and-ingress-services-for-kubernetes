@@ -174,17 +174,6 @@ func isIngressUpdated(oldIngress, newIngress *networkingv1.Ingress) bool {
 	return false
 }
 
-func isNamespaceUpdated(oldNS, newNS *corev1.Namespace) bool {
-	if oldNS.ResourceVersion == newNS.ResourceVersion {
-		return false
-	}
-	oldLabelHash := utils.Hash(utils.Stringify(oldNS.Labels))
-	newLabelHash := utils.Hash(utils.Stringify(newNS.Labels))
-	oldTenant := oldNS.Annotations[lib.TenantAnnotation]
-	newTenant := newNS.Annotations[lib.TenantAnnotation]
-	return oldLabelHash != newLabelHash || oldTenant != newTenant
-}
-
 func AddKeyFromNSToIngstionQueue(numWorkers uint32, c *AviController, namespace string, key, msg string) {
 	bkt := utils.Bkt(namespace, numWorkers)
 	c.workqueue[bkt].AddRateLimited(key)
@@ -351,7 +340,7 @@ func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 			}
 			nsOld := old.(*corev1.Namespace)
 			nsCur := cur.(*corev1.Namespace)
-			if isNamespaceUpdated(nsOld, nsCur) {
+			if lib.IsNamespaceUpdated(nsOld, nsCur) {
 				oldNSAccepted := utils.CheckIfNamespaceAccepted(nsOld.GetName(), nsOld.Labels, false)
 				newNSAccepted := utils.CheckIfNamespaceAccepted(nsCur.GetName(), nsCur.Labels, false)
 
@@ -429,7 +418,7 @@ func AddNamespaceAnnotationEventHandler(numWorkers uint32, c *AviController) cac
 			}
 			nsOld := old.(*corev1.Namespace)
 			nsCur := cur.(*corev1.Namespace)
-			if isNamespaceUpdated(nsOld, nsCur) {
+			if lib.IsNamespaceUpdated(nsOld, nsCur) {
 				oldTenant := nsOld.Annotations[lib.TenantAnnotation]
 				newTenant := nsCur.Annotations[lib.TenantAnnotation]
 				if oldTenant != newTenant {
