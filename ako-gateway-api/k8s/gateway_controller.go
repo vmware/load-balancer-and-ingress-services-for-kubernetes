@@ -38,6 +38,10 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gatewayclasses;gatewayclasses/status,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways;gateways/status,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes;httproutes/status,verbs=get;list;watch;update;patch
+
 var controllerInstance *GatewayController
 var ctrlonce sync.Once
 
@@ -70,9 +74,11 @@ func (c *GatewayController) InitGatewayAPIInformers(cs gatewayclientset.Interfac
 
 func (c *GatewayController) Start(stopCh <-chan struct{}) {
 	go c.informers.ServiceInformer.Informer().Run(stopCh)
+	go c.informers.NSInformer.Informer().Run(stopCh)
 
 	informersList := []cache.InformerSynced{
 		c.informers.ServiceInformer.Informer().HasSynced,
+		c.informers.NSInformer.Informer().HasSynced,
 	}
 
 	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
@@ -504,9 +510,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 func checkAviSecretUpdateAndShutdown(secret *corev1.Secret) bool {
 	if secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.AviSecret {
 		// if the secret is updated or deleted we shutdown API server
-		utils.AviLog.Warnf("Avi Secret object %s/%s updated/deleted, shutting down AKO", secret.Namespace, secret.Name)
-		lib.ShutdownApi()
-		return false
+		utils.AviLog.Fatalf("Avi Secret object %s/%s updated/deleted, shutting down AKO", secret.Namespace, secret.Name)
 	}
 	return true
 }
