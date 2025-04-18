@@ -328,17 +328,27 @@ func TeardownGateway(t *testing.T, name, namespace string) {
 }
 
 type FakeGatewayClass struct {
-	Name           string
-	ControllerName string
+	Name             string
+	ControllerName   string
+	InfraSettingName string
 }
 
 func (gc *FakeGatewayClass) GatewayClassV1() *gatewayv1.GatewayClass {
+	var parameterRef *gatewayv1.ParametersReference
+	if gc.InfraSettingName != "" {
+		parameterRef = &gatewayv1.ParametersReference{
+			Group: "ako.vmware.com",
+			Kind:  "AviInfraSetting",
+			Name:  gc.InfraSettingName,
+		}
+	}
 	return &gatewayv1.GatewayClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: gc.Name,
 		},
 		Spec: gatewayv1.GatewayClassSpec{
 			ControllerName: gatewayv1.GatewayController(gc.ControllerName),
+			ParametersRef:  parameterRef,
 		},
 	}
 }
@@ -373,6 +383,16 @@ func SetupGatewayClass(t *testing.T, name, controllerName string) {
 	gc := &FakeGatewayClass{
 		Name:           name,
 		ControllerName: controllerName,
+	}
+	gc.Create(t)
+	time.Sleep(10 * time.Second)
+}
+
+func SetupGatewayClassWithInfraSetting(t *testing.T, name, controllerName, infraSettingName string) {
+	gc := &FakeGatewayClass{
+		Name:             name,
+		ControllerName:   controllerName,
+		InfraSettingName: infraSettingName,
 	}
 	gc.Create(t)
 	time.Sleep(10 * time.Second)

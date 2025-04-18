@@ -125,9 +125,9 @@ func DequeueIngestion(key string, fullsync bool) {
 			utils.AviLog.Warnf("key: %s, msg: no model found: %s", key, modelName)
 			continue
 		}
-		// In case of AviInfraSetting
+
 		if objType == lib.AviInfraSetting {
-			handleGateway(namespace, name, fullsync, key)
+			handleGateway(parentNs, parentName, fullsync, key)
 			modelFound, modelIntf = objects.SharedAviGraphLister().Get(modelName)
 			modelNil = !modelFound || modelIntf == nil
 			if modelNil {
@@ -253,7 +253,7 @@ func handleGateway(namespace, name string, fullsync bool, key string) {
 	aviModelGraph := NewAviObjectGraph()
 	aviModelGraph.BuildGatewayVs(gatewayObj, key)
 
-	// The tenant nees to be refreshed after processing the gateway
+	// Reload the tenant to handle the change in tenant annotation in a Namespace
 	tenant = objects.SharedNamespaceTenantLister().GetTenantInNamespace(namespace + "/" + name)
 	if tenant == "" {
 		tenant = lib.GetTenant()

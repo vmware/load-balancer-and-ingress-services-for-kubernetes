@@ -112,6 +112,7 @@ var (
 		EndpointSlices,
 		HTTPRoute,
 		Pod,
+		AviInfraSetting,
 	}
 )
 

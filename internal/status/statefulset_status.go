@@ -57,6 +57,9 @@ func ResetStatefulSetStatus() {
 }
 
 func (l *leader) ResetStatefulSetAnnotation(statusName string) {
+	if utils.IsWCP() {
+		return
+	}
 	ss, err := utils.GetInformers().ClientSet.AppsV1().StatefulSets(utils.GetAKONamespace()).Get(context.TODO(), lib.AKOStatefulSet, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error in getting ako statefulset: %v", err)
@@ -92,6 +95,9 @@ func (l *leader) ResetStatefulSetAnnotation(statusName string) {
 }
 
 func (l *leader) AddStatefulSetAnnotation(statusName string, reason string) {
+	if utils.IsWCP() {
+		return
+	}
 	ss, err := utils.GetInformers().ClientSet.AppsV1().StatefulSets(utils.GetAKONamespace()).Get(context.TODO(), lib.AKOStatefulSet, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error in getting ako statefulset: %v", err)
