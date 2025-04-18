@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+//nolint:unparam
 package controllers
 
 import (
@@ -237,12 +238,14 @@ func (r *AKOConfigReconciler) CleanupArtifacts(ctx context.Context, log logr.Log
 		} else {
 			objList[getSAName()] = &sa
 		}
+
 		var psp policyv1beta1.PodSecurityPolicy
 		if err := r.Get(ctx, getPSPName(), &psp); err != nil {
 			log.V(0).Info("error getting podsecuritypolicy", "error", err)
 		} else {
 			objList[getPSPName()] = &psp
 		}
+
 		var gwClass gatewayv1beta1.GatewayClass
 		if err := r.Get(ctx, getGWClassName(), &gwClass); err != nil {
 			log.V(0).Info("error getting gatewayclass", "error", err)
