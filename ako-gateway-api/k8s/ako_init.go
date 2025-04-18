@@ -131,7 +131,7 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 
 	}
 
-	c.cleanupStaleVSes()
+	k8s.SharedAviController().CleanupStaleVSes()
 
 	graphQueue.SyncFunc = SyncFromNodesLayer
 	graphQueue.Run(stopCh, graphWG)
