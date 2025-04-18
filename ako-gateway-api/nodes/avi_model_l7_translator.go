@@ -51,7 +51,7 @@ func (o *AviObjectGraph) AddDefaultHTTPPolicySet(key string) {
 	// if not found add it to last index
 
 	utils.AviLog.Debugf("key: %s msg: %s httpref not found. Adding", key, policyRefName)
-	defaultPolicyRef := &nodes.AviHttpPolicySetNode{Name: policyRefName, Tenant: lib.GetTenant()}
+	defaultPolicyRef := &nodes.AviHttpPolicySetNode{Name: policyRefName, Tenant: parentVS.Tenant}
 	defaultPolicyRef.RequestRules = []*models.HTTPRequestRule{
 		{
 			Name:   proto.String("default-backend-rule"),
@@ -110,7 +110,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	}
 	childNode.Name = childVSName
 	childNode.VHParentName = parentNode[0].Name
-	childNode.Tenant = lib.GetTenant()
+	childNode.Tenant = parentNode[0].Tenant
 	childNode.EVHParent = false
 
 	childNode.ServiceMetadata = lib.ServiceMetadataObj{
@@ -246,7 +246,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 	}
 	PG := &nodes.AviPoolGroupNode{
 		Name:   PGName,
-		Tenant: lib.GetTenant(),
+		Tenant: childVsNode.Tenant,
 	}
 	PG.AviMarkers = utils.AviObjectMarkers{
 		GatewayName:        parentName,
@@ -279,7 +279,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 		}
 		poolNode := &nodes.AviPoolNode{
 			Name:       poolName,
-			Tenant:     lib.GetTenant(),
+			Tenant:     childVsNode.Tenant,
 			Protocol:   listenerProtocol,
 			PortName:   akogatewayapilib.FindPortName(httpbackend.Backend.Name, httpbackend.Backend.Namespace, httpbackend.Backend.Port, key),
 			TargetPort: akogatewayapilib.FindTargetPort(httpbackend.Backend.Name, httpbackend.Backend.Namespace, httpbackend.Backend.Port, key),
@@ -448,7 +448,7 @@ func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNo
 		}
 	}
 	if policy == nil {
-		policy = &nodes.AviHttpPolicySetNode{Name: httpPSName, Tenant: lib.GetTenant()}
+		policy = &nodes.AviHttpPolicySetNode{Name: httpPSName, Tenant: vsNode.Tenant}
 		vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs, policy)
 		index = len(vsNode.HttpPolicyRefs) - 1
 	}

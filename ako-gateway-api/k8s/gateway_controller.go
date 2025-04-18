@@ -22,6 +22,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	discovery "k8s.io/api/discovery/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -515,6 +516,10 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 	}
 	c.SetupCRDEventHandlers(numWorkers)
 
+	if c.informers.NSInformer != nil {
+		namespaceEventHandler := addNamespaceAnnotationEventHandler(numWorkers, c)
+		c.informers.NSInformer.Informer().AddEventHandler(namespaceEventHandler)
+	}
 }
 
 func checkAviSecretUpdateAndShutdown(secret *corev1.Secret) bool {
@@ -826,4 +831,43 @@ func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
 		return configMap, true
 	}
 	return nil, false
+}
+
+func addNamespaceAnnotationEventHandler(numWorkers uint32, c *GatewayController) cache.ResourceEventHandler {
+	nsEventHandler := cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(old, cur interface{}) {
+			if c.DisableSync {
+				return
+			}
+			nsOld := old.(*corev1.Namespace)
+			nsCur := cur.(*corev1.Namespace)
+			if lib.IsNamespaceUpdated(nsOld, nsCur) {
+				oldTenant := nsOld.Annotations[lib.TenantAnnotation]
+				newTenant := nsCur.Annotations[lib.TenantAnnotation]
+				if oldTenant != newTenant {
+					addGatewaysFromNamespaceToIngestionQueue(numWorkers, c, nsCur.Name)
+				}
+			}
+		},
+	}
+	return nsEventHandler
+}
+
+func addGatewaysFromNamespaceToIngestionQueue(numWorkers uint32, c *GatewayController, namespace string) {
+	gateways, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Warnf("failed to list Gateways in the Namespace %s, err: %s", namespace, err.Error())
+		return
+	}
+
+	for _, gateway := range gateways {
+		key := lib.Gateway + "/" + gateway.Name
+		valid, _ := IsValidGateway(key, gateway)
+		if !valid {
+			return
+		}
+		bkt := utils.Bkt(gateway.Namespace, numWorkers)
+		c.workqueue[bkt].AddRateLimited(key)
+		utils.AviLog.Debugf("key: %s, msg: ADD for namespace: %s", key, namespace)
+	}
 }

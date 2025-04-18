@@ -717,3 +717,14 @@ func GetNamespaceAviInfraSetting(key, ns string, aviInfraSettingInformer v1beta1
 	}
 	return infraSetting, nil
 }
+
+func IsNamespaceUpdated(oldNS, newNS *corev1.Namespace) bool {
+	if oldNS.ResourceVersion == newNS.ResourceVersion {
+		return false
+	}
+	oldLabelHash := utils.Hash(utils.Stringify(oldNS.Labels))
+	newLabelHash := utils.Hash(utils.Stringify(newNS.Labels))
+	oldTenant := oldNS.Annotations[TenantAnnotation]
+	newTenant := newNS.Annotations[TenantAnnotation]
+	return oldLabelHash != newLabelHash || oldTenant != newTenant
+}
