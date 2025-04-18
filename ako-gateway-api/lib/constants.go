@@ -31,9 +31,15 @@ const (
 	REGULAREXPRESSION                  = "RegularExpression"
 	EXACT                              = "Exact"
 	PATHPREFIX                         = "PathPrefix"
+	LBVipTypeAnnotation                = "networking.vmware.com/lb-vip-type"
 )
 
 const (
 	AllowedRoutesNamespaceFromAll  = "All"
 	AllowedRoutesNamespaceFromSame = "Same"
 )
+
+var SupportedLBVipTypes = map[string]string{
+	"public":  "PUBLIC",
+	"private": "PRIVATE",
+}

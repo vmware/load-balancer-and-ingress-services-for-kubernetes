@@ -1189,7 +1189,7 @@ func checkForNetworkProfileTypeTCP(key, refValue string) (bool, error) {
 
 // addSeGroupLabel configures SEGroup with appropriate labels, during AviInfraSetting
 // creation/updates after ingestion
-func addSeGroupLabel(key, segName string) {
+func AddSeGroupLabel(key, segName string) {
 	// No need to configure labels if static route sync is disabled globally.
 	if lib.GetDisableStaticRoute() {
 		utils.AviLog.Infof("Skipping the check for SE group labels for SEG %s", segName)

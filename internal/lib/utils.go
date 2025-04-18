@@ -35,8 +35,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	v1beta1akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/informers/externalversions/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -674,7 +674,7 @@ func Uuid4() string {
 	return id.String()
 }
 
-func GetNamespaceAviInfraSetting(key, ns string) (*v1beta1.AviInfraSetting, error) {
+func GetNamespaceAviInfraSetting(key, ns string, aviInfraSettingInformer v1beta1akoinformer.AviInfraSettingInformer) (*akov1beta1.AviInfraSetting, error) {
 	namespace, err := utils.GetInformers().NSInformer.Lister().Get(ns)
 	if err != nil {
 		return nil, err
@@ -683,7 +683,7 @@ func GetNamespaceAviInfraSetting(key, ns string) (*v1beta1.AviInfraSetting, erro
 	if !ok {
 		return nil, nil
 	}
-	infraSetting, err := AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingCRName)
+	infraSetting, err := aviInfraSettingInformer.Lister().Get(infraSettingCRName)
 	if err != nil {
 		return nil, err
 	}

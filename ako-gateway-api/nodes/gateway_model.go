@@ -212,6 +212,16 @@ func BuildVsVipNodeForGateway(gateway *gatewayv1.Gateway, parentVsNode *nodes.Av
 			vsvipNode.IPAddress = ipAddr
 		}
 	}
+
+	// This section is only applicable to NSX-T cloud in VPC mode.
+	if vipTypeKey, ok := gateway.Annotations[akogatewayapilib.LBVipTypeAnnotation]; ok {
+		if vipTypeVal, ok := akogatewayapilib.SupportedLBVipTypes[vipTypeKey]; ok {
+			vsvipNode.LBVipType = vipTypeVal
+		}
+	} else {
+		// Allocate public VIP by default
+		vsvipNode.LBVipType = "PUBLIC"
+	}
 	return vsvipNode
 }
 
@@ -283,7 +293,7 @@ func getAviInfraSettingForGateway(key string, gateway *gatewayv1.Gateway) (*v1be
 		return nil, err
 	}
 	if gwClass.Spec.ParametersRef != nil && gwClass.Spec.ParametersRef.Group == lib.AkoGroup && gwClass.Spec.ParametersRef.Kind == lib.AviInfraSetting {
-		infraSetting, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(gwClass.Spec.ParametersRef.Name)
+		infraSetting, err := akogatewayapilib.AKOControlConfig().AviInfraSettingInformer().Lister().Get(gwClass.Spec.ParametersRef.Name)
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: Unable to get corresponding AviInfraSetting via GatewayClass %s", key, err.Error())
 			return nil, err
@@ -294,5 +304,5 @@ func getAviInfraSettingForGateway(key string, gateway *gatewayv1.Gateway) (*v1be
 		}
 		return infraSetting, nil
 	}
-	return lib.GetNamespaceAviInfraSetting(key, gateway.GetNamespace())
+	return lib.GetNamespaceAviInfraSetting(key, gateway.GetNamespace(), akogatewayapilib.AKOControlConfig().AviInfraSettingInformer())
 }

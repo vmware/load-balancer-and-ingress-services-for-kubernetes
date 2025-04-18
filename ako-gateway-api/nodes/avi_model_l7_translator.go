@@ -250,7 +250,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 		}
 
 		if found, infraSettingName := objects.InfraSettingL7Lister().GetIngRouteToInfraSetting(parentNsName); found {
-			if infraSetting, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingName); err != nil {
+			if infraSetting, err := akogatewayapilib.AKOControlConfig().AviInfraSettingInformer().Lister().Get(infraSettingName); err != nil {
 				utils.AviLog.Warnf("key: %s, msg: failed to retrieve AviInfraSetting %s, err: %s", key, infraSettingName, err.Error())
 			} else {
 				nodes.BuildPoolWithInfraSetting(key, poolNode, infraSetting)
