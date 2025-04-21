@@ -1,0 +1,36 @@
+{{- if .Values.rbac.enable }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  name: ako-crd-operator-manager-role
+rules:
+- apiGroups:
+  - ako.vmware.com
+  resources:
+  - healthmonitors
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ako.vmware.com
+  resources:
+  - healthmonitors/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ako.vmware.com
+  resources:
+  - healthmonitors/status
+  verbs:
+  - get
+  - patch
+  - update
+{{- end -}}
