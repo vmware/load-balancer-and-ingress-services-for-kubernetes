@@ -1,0 +1,239 @@
+{{- if .Values.crd.enable }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
+  annotations:
+    {{- if .Values.crd.keep }}
+    "helm.sh/resource-policy": keep
+    {{- end }}
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: healthmonitors.ako.vmware.com
+spec:
+  group: ako.vmware.com
+  names:
+    kind: HealthMonitor
+    listKind: HealthMonitorList
+    plural: healthmonitors
+    shortNames:
+    - hm
+    singular: healthmonitor
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: HealthMonitor is the Schema for the healthmonitors API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec defines the desired state of HealthMonitor
+            properties:
+              authentication:
+                description: Authentication defines the authentication information
+                  for HTTP/HTTPS monitors.
+                properties:
+                  password:
+                    description: Password for server authentication.
+                    maxLength: 128
+                    minLength: 1
+                    type: string
+                  username:
+                    description: Username for server authentication.
+                    maxLength: 128
+                    minLength: 1
+                    type: string
+                required:
+                - password
+                - username
+                type: object
+              failed_checks:
+                default: 2
+                description: FailedChecks is the number of failed pings before marking
+                  down.
+                format: int32
+                maximum: 50
+                minimum: 1
+                type: integer
+              http:
+                description: HTTP defines the HTTP monitor configuration.
+                properties:
+                  auth_type:
+                    description: AuthType is the type of authentication to use.
+                    enum:
+                    - Basic
+                    - NTLM
+                    type: string
+                  exact_http_request:
+                    description: ExactHttpRequest checks if the whole http request
+                      should match.
+                    type: boolean
+                  http_headers:
+                    description: HTTPHeaders is the list of headers to send.
+                    items:
+                      type: string
+                    type: array
+                  http_method:
+                    description: HTTPMethod is the HTTP method to use.
+                    type: string
+                  http_request:
+                    default: GET / HTTP/1.0
+                    description: HTTPRequest is the HTTP request to send.
+                    maxLength: 1024
+                    type: string
+                  http_request_body:
+                    description: HTTPRequestBody is the request body to send.
+                    type: string
+                  http_request_header_path:
+                    description: HTTPRequestHeaderPath is the path to use for headers.
+                    maxLength: 1024
+                    type: string
+                  http_response:
+                    description: HTTPResponse is a keyword to match in the response
+                      body.
+                    maxLength: 512
+                    type: string
+                  http_response_code:
+                    description: HTTPResponseCode is the list of expected HTTP response
+                      codes.
+                    items:
+                      type: string
+                    minItems: 1
+                    type: array
+                  maintenance_code:
+                    description: MaintenanceCode is the HTTP code for maintenance
+                      response.
+                    items:
+                      format: uint32
+                      maximum: 599
+                      minimum: 101
+                      type: integer
+                    maxItems: 4
+                    type: array
+                  maintenance_response:
+                    description: MaintenanceResponse is the body content to match
+                      for maintenance response.
+                    type: string
+                  response_size:
+                    description: ResponseSize is the expected size of the response.
+                    format: int32
+                    maximum: 16384
+                    minimum: 2048
+                    type: integer
+                type: object
+              is_federated:
+                description: |-
+                  IsFederated describes the object's replication scope. If the
+                  field is set to false, then the object is visible within
+                  the controller-cluster and its associated service-engines.
+                  If the field is set to true, then the object is replicated
+                  across the federation
+                type: boolean
+              monitor_port:
+                description: MonitorPort is the port to use for the health check.
+                format: int32
+                maximum: 65535
+                minimum: 0
+                type: integer
+              receive_timeout:
+                default: 4
+                description: ReceiveTimeout is the timeout for receiving a ping response,
+                  in seconds.
+                format: int32
+                maximum: 2400
+                minimum: 1
+                type: integer
+              send_interval:
+                default: 10
+                description: SendInterval is the frequency, in seconds, that pings
+                  are sent.
+                format: int32
+                maximum: 3600
+                minimum: 1
+                type: integer
+              successful_checks:
+                default: 2
+                description: SuccessfulChecks is the number of successful pings before
+                  marking up.
+                format: int32
+                maximum: 50
+                minimum: 1
+                type: integer
+              tcp:
+                description: TCP defines the TCP monitor configuration.
+                properties:
+                  maintenance_response:
+                    description: MaintenanceResponse is the response to send when
+                      in maintenance mode.
+                    maxLength: 512
+                    type: string
+                  tcp_half_open:
+                    description: TcpHalfOpen is a boolean to check if the tcp monitor
+                      is in half open mode
+                    type: boolean
+                  tcp_request:
+                    description: TcpRequest is the request to send for the TCP health
+                      check.
+                    maxLength: 1024
+                    type: string
+                  tcp_response:
+                    description: TcpResponse is the expected response for the TCP
+                      health check.
+                    maxLength: 512
+                    type: string
+                type: object
+                x-kubernetes-validations:
+                - message: tcp_request, tcp_response, and maintenance_response cannot
+                    be set when tcp_half_open is true
+                  rule: self.tcp_half_open == false || (self.tcp_request == '' &&
+                    self.tcp_response == '' && self.maintenance_response == '')
+              type:
+                description: Type is the type of health monitor.
+                enum:
+                - HEALTH_MONITOR_TCP
+                - HEALTH_MONITOR_PING
+                - HEALTH_MONITOR_HTTP
+                - HEALTH_MONITOR_HTTPS
+                type: string
+                x-kubernetes-validations:
+                - message: type is immutable
+                  rule: self == oldSelf
+            required:
+            - type
+            type: object
+          status:
+            description: Status defines the observed state of HealthMonitor
+            properties:
+              error:
+                description: Error if any error was encountered
+                type: string
+              status:
+                description: Status of the healthmonitor
+                type: string
+            required:
+            - error
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+{{- end -}}
