@@ -641,7 +641,6 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 			nsPublishKey := avicache.NamespaceName{Namespace: aviObjKey.Namespace, Name: publishKey}
 
 			if rest.restOperator.isRetryRequired(key, err) {
-				rest.RefreshCacheForPartialOperation(rest_ops, aviObjKey, aviclient, avimodel, key, isEvh, publishKey)
 				rest.PublishKeyToRetryLayer(nsPublishKey, key)
 				return false, processNextObj
 			}
