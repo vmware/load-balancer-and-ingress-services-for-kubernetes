@@ -150,3 +150,21 @@ persistentVolumeClaim: ""
 mountPath: "/log"
 logFile: "avi.log"
 akoGatewayLogFile: "avi-gw.log"
+
+# values for dependency chart ako-crd-operator
+ako-crd-operator:
+ # enabled by default
+ enabled: true
+
+ controllerManager:
+  container:
+   image:
+    repository: packages.broadcom.com/ako/ako-crd-operator
+    tag: latest
+   resources:
+    limits:
+     cpu: 256m
+     memory: 128Mi
+    requests:
+     cpu: 128m
+     memory: 64Mi
