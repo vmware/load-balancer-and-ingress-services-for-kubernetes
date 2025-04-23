@@ -1002,6 +1002,13 @@ func checkRefOnController(key, refKey, refValue, tenant string) error {
 	// If reference key is network uuid , then check using UUID.
 	if (lib.IsPublicCloud() && refModelMap[refKey] == "network") || refKey == "NetworkUUID" {
 		if lib.UsesNetworkRef() || refKey == "NetworkUUID" {
+			// During the portal-webapp migration from Python to Go, network views were not correctly ported. However, network APIs are now being routed through Go code,
+			// which is incorrect. The Avi Controller needs to be fixed.
+			// For now, disabling the subnet UUID validation for AWS to avoid impact on EKS deployments.
+			if lib.GetCloudType() == lib.CLOUD_AWS {
+				utils.AviLog.Infof("Cloud Type is AWS, skip validating references on controller")
+				return nil
+			}
 			var rest_response interface{}
 			utils.AviLog.Infof("Cloud is  %s, checking network ref using uuid", lib.GetCloudType())
 			uri := fmt.Sprintf("/api/%s/%s?cloud_uuid=%s", refModelMap[refKey], refValue, lib.GetCloudUUID())
