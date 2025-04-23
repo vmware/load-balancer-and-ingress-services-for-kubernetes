@@ -2433,6 +2433,7 @@ type FakeAviInfraSetting struct {
 	ShardSize      string
 	BGPPeerLabels  []string
 	T1LR           string
+	NodeNetworks   []string
 }
 
 func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1beta1.AviInfraSetting {
@@ -2458,6 +2459,12 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1beta1.AviInfraSe
 		})
 	}
 
+	for _, networkName := range infraSetting.NodeNetworks {
+		setting.Spec.Network.NodeNetworks = append(setting.Spec.Network.NodeNetworks, akov1beta1.AviInfraSettingNodeNetwork{
+			NetworkName: networkName,
+		})
+	}
+
 	if infraSetting.ShardSize != "" {
 		setting.Spec.L7Settings.ShardSize = infraSetting.ShardSize
 	}
@@ -2469,19 +2476,36 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1beta1.AviInfraSe
 	return setting
 }
 
-func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string) {
+func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string, accepted ...bool) {
 	setting := FakeAviInfraSetting{
 		Name:          infraSettingName,
 		SeGroupName:   "thisisaviref-" + infraSettingName + "-seGroup",
 		Networks:      []string{"thisisaviref-" + infraSettingName + "-networkName"},
+		NodeNetworks:  []string{"thisisaviref-" + infraSettingName + "-nodeNetworkName"},
 		EnableRhi:     true,
 		BGPPeerLabels: []string{"peer1", "peer2"},
 		ShardSize:     shardSize,
 		T1LR:          "avi-domain-c9:1234",
 	}
 	settingCreate := setting.AviInfraSetting()
+	if len(accepted) > 0 && accepted[0] {
+		settingCreate.Status.Status = lib.StatusAccepted
+	}
 	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding AviInfraSetting: %v", err)
+	}
+}
+
+func SetAviInfraSettingStatus(t *testing.T, infraSettingName, status string) {
+	infraSetting, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("error in retrieving AviInfraSetting: %v", err)
+	}
+	infraSetting.Status.Status = status
+	infraSetting.ResourceVersion = "2"
+	_, err = lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Update(context.TODO(), infraSetting, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating AviInfraSetting: %v", err)
 	}
 }
 
