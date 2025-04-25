@@ -2304,3 +2304,8 @@ func ValidServiceType(service *v1.Service) bool {
 		return false
 	}
 }
+
+func GetAviInfraSettingName(projVpc string) string {
+	hash := sha1.Sum([]byte(projVpc))
+	return hex.EncodeToString(hash[:])
+}
