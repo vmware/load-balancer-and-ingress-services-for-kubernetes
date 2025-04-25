@@ -187,6 +187,7 @@ const (
 	Namespace                                  = "Namespace"
 	VrfContextNotFoundError                    = "VrfContext not found"
 	NetworkNotFoundError                       = "Network object not found"
+	WCPAKOUserClusterName                      = "ako.vmware.com/ako-user-cluster-name"
 
 	// AKO Event constants
 	AKOEventComponent      = "avi-kubernetes-operator"

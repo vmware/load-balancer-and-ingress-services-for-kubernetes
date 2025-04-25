@@ -199,6 +199,13 @@ func (c *AviController) SetSEGroupCloudNameFromNSAnnotations() bool {
 		return false
 	}
 
+	clusterName, ok := annotations[lib.WCPAKOUserClusterName]
+	if !ok {
+		utils.AviLog.Warnf("Failed to get ako user name from annotation in namespace")
+		return false
+	}
+
+	lib.SetClusterName(clusterName)
 	lib.SetSEGName(seGroup)
 	utils.SetCloudName(cloudName)
 	utils.AviLog.Infof("Setting SEGroup %s, cloud %s for VS placement.", seGroup, cloudName)
