@@ -627,7 +627,7 @@ func (c *AviController) SetupIstioCRDEventHandlers(numWorkers uint32) {
 			}
 			oldObj := old.(*istiov1alpha3.VirtualService)
 			vs := new.(*istiov1alpha3.VirtualService)
-			if !reflect.DeepEqual(oldObj.Spec, vs.Spec) {
+			if !reflect.DeepEqual(oldObj.Spec, vs.Spec) { //nolint:govet
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(vs))
 				key := lib.IstioVirtualService + "/" + utils.ObjKey(vs)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
@@ -689,7 +689,7 @@ func (c *AviController) SetupIstioCRDEventHandlers(numWorkers uint32) {
 			}
 			oldObj := old.(*istiov1alpha3.DestinationRule)
 			dr := new.(*istiov1alpha3.DestinationRule)
-			if !reflect.DeepEqual(oldObj.Spec, dr.Spec) {
+			if !reflect.DeepEqual(oldObj.Spec, dr.Spec) { //nolint:govet
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(dr))
 				key := lib.IstioDestinationRule + "/" + utils.ObjKey(dr)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
@@ -751,7 +751,7 @@ func (c *AviController) SetupIstioCRDEventHandlers(numWorkers uint32) {
 			}
 			oldObj := old.(*istiov1alpha3.Gateway)
 			vs := new.(*istiov1alpha3.Gateway)
-			if !reflect.DeepEqual(oldObj.Spec, vs.Spec) {
+			if !reflect.DeepEqual(oldObj.Spec, vs.Spec) { //nolint:govet
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(vs))
 				key := lib.IstioGateway + "/" + utils.ObjKey(vs)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
