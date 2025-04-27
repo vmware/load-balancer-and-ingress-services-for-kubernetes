@@ -98,6 +98,7 @@ const (
 	ENV_CTRL_CADATA               = "CTRL_CA_DATA"
 	POD_NAMESPACE                 = "POD_NAMESPACE"
 	VCF_CLUSTER                   = "VCF_CLUSTER"
+	VPC_MODE                      = "VPC_MODE"
 	MCI_ENABLED                   = "MCI_ENABLED"
 	USE_DEFAULT_SECRETS_ONLY      = "USE_DEFAULT_SECRETS_ONLY"
 	Namespace                     = "Namespace"
