@@ -288,6 +288,12 @@ func (rest *RestOperations) CheckAndPublishForRetry(err error, publishKey avicac
 					rest.PublishKeyToSlowRetryLayer(publishKey, key)
 					return true
 				}
+			case 412:
+				if strings.Contains(*aviError.Message, lib.NeedToReloadObjectDataVsVip) {
+					utils.AviLog.Warnf("key: %s, msg: got 412 error while executing rest request, adding to fast retry queue", key)
+					rest.PublishKeyToRetryLayer(publishKey, key)
+					return true
+				}
 			}
 		}
 	}
