@@ -3461,6 +3461,23 @@ func validateAndConfigureSeGroup(client *clients.AviClient, returnErr *error) bo
 	return true
 }
 
+func refreshSeGroupDataAndCheckLabel(client *clients.AviClient, seGroup *models.ServiceEngineGroup) error {
+	uri := "/api/serviceenginegroup/" + *seGroup.UUID
+	response := models.ServiceEngineGroup{}
+	err := lib.AviGet(client, uri, &response)
+	if err != nil {
+		utils.AviLog.Warnf("ServiceEngineGroup Get uri %v returned err %v", uri, err)
+		return err
+	}
+	for _, label := range response.Labels {
+		if *label.Key == lib.ClusterNameLabelKey && label.Value != nil && *label.Value == *lib.GetLabels()[0].Value {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("Labels do not match with cluster name for SE group :%v. Expected Labels: %v", seGroup.Name, utils.Stringify(lib.GetLabels()))
+}
+
 // ConfigureSeGroupLabels configures labels on the SeGroup if not present already
 func ConfigureSeGroupLabels(client *clients.AviClient, seGroup *models.ServiceEngineGroup) error {
 
@@ -3478,6 +3495,19 @@ func ConfigureSeGroupLabels(client *clients.AviClient, seGroup *models.ServiceEn
 				client = SharedAVIClients(lib.GetAdminTenant()).AviClient[0]
 				err := lib.AviPut(client, uri, seGroup, response)
 				if err != nil {
+					utils.AviLog.Warnf("Setting labels on Service Engine Group :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
+					if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 412 {
+						err := refreshSeGroupDataAndCheckLabel(client, seGroup)
+						if err != nil {
+							return fmt.Errorf("Setting labels on Service Engine Group :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
+						}
+					} else {
+						return fmt.Errorf("Setting labels on Service Engine Group :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
+					}
+				}
+			} else if aviError.HttpStatusCode == 412 {
+				err := refreshSeGroupDataAndCheckLabel(client, seGroup)
+				if err != nil {
 					return fmt.Errorf("Setting labels on Service Engine Group :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
 				}
 
@@ -3489,12 +3519,12 @@ func ConfigureSeGroupLabels(client *clients.AviClient, seGroup *models.ServiceEn
 		return nil
 	}
 
-	segLabelEq := reflect.DeepEqual(labels, lib.GetLabels())
-	if !segLabelEq {
-		return fmt.Errorf("Labels does not match with cluster name for SE group :%v. Expected Labels: %v", segName, utils.Stringify(lib.GetLabels()))
+	for _, label := range seGroup.Labels {
+		if *label.Key == lib.ClusterNameLabelKey && *label.Value == *lib.GetLabels()[0].Value {
+			return nil
+		}
 	}
-
-	return nil
+	return fmt.Errorf("Labels do not match with cluster name for SE group :%v. Expected Labels: %v", segName, utils.Stringify(lib.GetLabels()))
 }
 
 // DeConfigureSeGroupLabels deconfigures labels on the SeGroup.
