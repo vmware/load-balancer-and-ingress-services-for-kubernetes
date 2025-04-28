@@ -141,6 +141,7 @@ const (
 	SyncStatusKey                              = "syncstatus"
 	NoFreeIPError                              = "No available free IPs"
 	ConfigDisallowedDuringUpgradeError         = "Configuration is disallowed during upgrade"
+	NeedToReloadObjectDataVsVip                = "Need to reload object data VsVip"
 	VSDataScriptNotFoundError                  = "VSDataScriptSet object not found"
 	VSVIPNotFoundError                         = "VsVip object not found"
 	DataScript                                 = "Vsdatascript"
