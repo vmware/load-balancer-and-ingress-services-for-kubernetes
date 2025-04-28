@@ -99,7 +99,7 @@ Users can also configure a user-preferred static IPv4 address in the Gateway Obj
 
 #### HTTPRoute
 
-The HTTPRoute object provides a way to route HTTP requests. The AKO models a child VS based on this object. AKO supports match requests based on the hostname, path, and header specified. The filters to specify additional processing of the requests will be added as policy in the child VS by the AKO. The filters of type `RequestHeaderModifier`, `RequestRedirect` and `ResponseHeaderModifier` are supported in the current release.
+The HTTPRoute object provides a way to route HTTP requests. The AKO models a child VS based on this object. AKO supports match requests based on the hostname, path, and header specified. The filters to specify additional processing of the requests will be added as policy in the child VS by the AKO. The filters of type `RequestHeaderModifier`, `RequestRedirect`, `UrlRewrite` and `ResponseHeaderModifier` are supported in the current release.
 
 A sample HTTPRoute object is shown below:
 
@@ -144,11 +144,11 @@ A sample HTTPRoute object is shown below:
         weight: 2
   ```
 
-The above HTTPRoute object gets translated to two child VSes in the AVI controller. One child VS with match criteria as the path begins with `/bar` and a single Pool Group with a single pool and another child VS with match criteria as path begins with `/foo`, a single Pool Group with two pools, and an HTTP Request policy to add `my-header` to the HTTP request forwarded to the backends.
+The above HTTPRoute object gets translated to two child virtual services in the Avi Load Balancer Controller. One child virtual service with match criteria as the path begins with `/bar` and a single Pool Group with a single pool and another child virtual service with match criteria as path begins with `/foo` and header with name as `magic` and value as `foo`, a single Pool Group with two pools and an HTTP Request policy to add `my-header` with value `foo` to the HTTP request forwarded to the back-ends.
 
-Hostnames are mandatory and can be prefixed with a wildcard.
+**NOTE:** Hostnames are mandatory and can be prefixed with a wildcard.
 
-AKO Gateway APIs does not support `filters` within `backendRefs`.
+**NOTE:** AKO Gateway APIs does not support `filters` within `backendRefs`.
 
 ### Gateway API Objects to AVI Controller Objects Mapping
 
@@ -158,14 +158,159 @@ In AKO Gateway API Implementation, Gateway objects corresponds to following AVI 
   2. `tls specification (certificate refs)` from each `Gateway Listener` will get added to the parent VS as `SSLKeyAndCertificateRef`. 
   3. Every `Secret` created corresponds to an `SSLKeyAndCertificate` object.
   4. `Addresses` in a Gateway specification gets added as static ip for `Vsvip` for parent VS.
-  5. Each `hostname` specified in a Gateway listener gets mapped to `DNS` in the `Vsvip` for the parent VS. If hostname in Gateway listener is `empty` or `*`, AKO GW will map empty `hostname` as `*`  hostname and then translate it to `*.subdomain` for each subdomain configured in AviController.
-  6. `hostname` specified in HTTPRoute gets mapped to `VHMatch` in the childVS.
-  7. Every `Rule` in `HTTPRoute` corresponds to an `EVH Child Virtual Service`, with `Match` translated to `VH match` and `Filters` translated to `HTTPPolicySet` configuration. If no matches are specified for a particular HTTPRoute rule, a childVS with path as `/` in `VHmatch` will be created and attached to the parentVS corresponding to that rule.
+  5. Each `hostname`, except `wild card hostnames`, specified in a Gateway listener is mapped to the `DNS` in the `Vsvip` of the parent VS.
+  6. Every `Rule` in `HTTPRoute` corresponds to an `EVH Child Virtual Service`, with `Match` translated to `VH match` and `Filters` translated to `HTTPPolicySet` configuration. If no matches are specified for a particular HTTPRoute rule, a childVS with path as `/` in `VHmatch` will be created and attached to the parentVS corresponding to that rule.
+  7. If `hostname` specified in httproute is a complete FQDN, it will be part of `VSVIP` dnsinfo. All `hostnames` mentioned in HTTPRoute will be part of `hostname` of `VHMatch` of Child VS.
   8. Each `backendRefs` specification (list of backends) in a `HTTPRoute Rule` will be added as a `Pool Group`.
   9. Each `backendRef` in a `HTTPRoute Rule` will be translated to a `Pool`.
   10. Every parentVS will have a default `HTTPPolicyset` attached to it which will return `404`, if no path matches a given HTTP request.     
 
-### Naming Conventions
+### HTTPRoute Filter Objects Mapping
+ 
+#### RequestHeaderModifier:
+
+HTTPRoute RequestHeaderModifier Filter in AKO Gateway API implementation is supported using `HTTP Request Rule -> Modify Header` action of `HTTPPolicySet`. Once, a `RequestHeaderModifier` fllter is found in a rule in an HTTPRoute, AKO will add an HTTPpolicyset with a HTTPRequestRule and action as `Modify Header` to the childVS corresponding to the rule with `Add/Remove/Replace Header` as specified in the crd. Whenever the traffic lands on that child VS, the Headers will be modified before being sent to the Backend Server.
+
+ A sample httproute with RequestHeaderModifier filter is shown below:
+
+  ```yaml
+  apiVersion: gateway.networking.k8s.io/v1
+  kind: HTTPRoute
+  metadata:
+    name: httproute-with-filter-header
+    namespace: test-httproute-ns
+  spec:
+    parentRefs:
+    - name: test-insecure-gateway
+      sectionName: http
+    hostnames:
+    - "products.avi.internal"
+    rules:
+    - matches:
+        - path:
+            value: "/foo"
+      backendRefs:
+      - name: app-http
+        port: 80
+      filters:
+      - type: RequestHeaderModifier
+        requestHeaderModifier:
+          add:
+          - name: request-header
+            value: test-request-header
+          remove:
+          - test-remove-header
+  ```
+
+For the above yaml, an HTTPPolicySet with a `HTTP Request Rule ` with action as `Modify Header` having `Add Header -> Header Name` as `request-header` and `Header Value` as `test-request-header` and `Remove Header -> Header Name` as `test-remove-header` will be added to the childVS corresponding to the rule. When the request comes for host and path `products.avi.internal/foo` , a header with name as `request-header` and value as `test-request-header` will be added to the request before it is being sent to the backend server. Also , if there is any header with name "test-remove-header" is present, it will be removed.
+
+#### RequestRedirect:
+
+HTTPRoute RequestHeaderModifier Filter in AKO Gateway API implementation is supported using `HTTP Request Rule -> Redirect` action of HTTPPolicySet. Currently we support only `hostname` and `statusCode` redirection. Once, a `RequestRedirect` fllter is found in a rule in an HTTPRoute, AKO will add an HTTPpolicyset with HTTPRequestRule and action as `Redirect` to the childVS corresponding to the rule. Whenever the traffic lands on that child VS, a response with the `redirect hostname` and `statusCode` as specified in the HTTPRoute RequestRedirect filter spec will be sent back.
+
+ A sample httproute with RequestRedirect filter is shown below:
+
+  ```yaml
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: insecure-http-route
+      namespace: test-httproute-ns
+    spec:
+      parentRefs:
+      - name: test-insecure-gateway
+        sectionName: http
+      hostnames:
+      - "products.avi.internal"
+      rules:
+      - matches:
+        - path:
+            value: "/foo"
+        filters:
+        - type: RequestRedirect
+          requestRedirect:
+            statusCode: 302
+            hostname: "apps.avi.internal"
+  ```
+
+For the above yaml, an HTTPPolicySet with a rule with action as `Redirect` with `Redirect-> Status Code` as `302` and `Redirect-> Host` as `apps.avi.internal` will be added to the childVS corresponding to the rule. When the request comes for host and path `products.avi.internal/foo` , redirect host will be set to `apps.avi.internal` and response code will be set to `302` before the response is sent back to the client.
+
+#### UrlRewrite:
+
+HTTPRoute RequestHeaderModifier Filter in AKO Gateway API implementation is supported using `HTTP Request Rule -> Rewrite URL` action of HTTPPolicySet. Currently we support only `hostname` and `path` rewrite. Once, a `urlRewrite` fllter is found in a rule in an HTTPRoute, AKO will add an HTTPpolicyset with HTTPRequestRule and action as `Rewrite URL` to the childVS corresponding to the rule. Whenever the traffic lands on that child VS, the path and the hostname will changed to the rewtite path and hostname specified in the HTTPRoute URLRewrite filter specification.
+
+ A sample httproute with UrlRewrite filter is shown below:
+
+  ```yaml
+  apiVersion: gateway.networking.k8s.io/v1
+  kind: HTTPRoute
+  metadata:
+    name: insecure-http-route
+    namespace: test-httproute-ns
+  spec:
+    parentRefs:
+    - name: test-insecure-gateway
+      sectionName: http
+    hostnames:
+    - "products.avi.internal"
+    rules:
+    - matches:
+      - path:
+         value: "/foo"
+      backendRefs:
+      - name: app-http
+        port: 80
+      filters:
+      - type: URLRewrite
+        urlRewrite:
+          hostname: rewrittenhostname.avi.internal
+          path:
+          type: ReplaceFullPath
+          replaceFullPath: /bar
+      - type: RequestHeaderModifier
+        requestHeaderModifier:
+          add:
+          - name: request-header
+            value: test-request-header
+  ```
+
+For the above yaml, an HTTPPolicySet with a rule with action as `Rewrite URL` with `Rewrite URL-> Host Header` as `rewrittenhostname.avi.internal` and `Rewrite URL-> Path` as `/bar` will be added to the childVS corresponding to the rule. When the request comes for host and path `products.avi.internal/foo` , host will be changed to `rewrittenhostname.avi.internal` and path will be changed to `/bar` before it is being sent to the backend server.
+
+#### ResponseHeaderModifier:
+HTTPRoute RequestHeaderModifier Filter in AKO Gateway API implementation is supported using `HTTP Response Rule -> Modify Header` action of HTTPPolicySet. Once, a `ResponseHeaderModifier` fllter is found in a rule in an HTTPRoute, AKO will add an HTTPpolicyset with a HTTPResponseRule and action as `Modify Header` to the childVS corresponding to the rule with `Add/Remove/Replace Header` as specified in the crd. Whenever the traffic lands on that child VS, the Headers will be modified before the response is being sent back to the client.
+
+A sample httproute with ResponseHeaderModifier filter is shown below:
+
+  ```yaml
+  apiVersion: gateway.networking.k8s.io/v1
+  kind: HTTPRoute
+  metadata:
+    name: httproute-with-filter-header
+    namespace: test-httproute-ns
+  spec:
+    parentRefs:
+    - name: test-insecure-gateway
+      sectionName: http
+    hostnames:
+    - "products.avi.internal"
+    rules:
+    - matches:
+        - path:
+          value: "/foo"
+      backendRefs:
+      - name: app-http
+        port: 80
+      filters:
+      - type: ResponseHeaderModifier
+        responseHeaderModifier:
+          add:
+          - name: response-header
+            value: test-response-header
+  ```
+
+For the above yaml, an HTTPPolicySet with a `HTTP Response Rule ` with action as `Modify Header` having `Add Header -> Header Name` as `response-header` and `Header Value` as `test-response-header` will be added to the childVS corresponding to the rule. When the request comes for host and path `products.avi.internal/foo` , a header with name as `request-header` and value as `test-request-header` will be added to the response before it is being sent back to the client.
+
+### Naming Conventions:
 
 AKO Gateway Implementation follows following naming convention:
 
@@ -183,6 +328,42 @@ In the current release, AKO Gateway will support following hostname combinations
   1. Wildcard prefixed hostname(like `*.avi.internal`) at Gateway listener and Non wildcard hostname(like `bar.avi.internal`) at HTTPRoute.
   2. Non-wildcard hotsname(like `bar.avi.internal`) at Gateway listener and wildcard prefixed hostname(like `*.avi.internal`) at HTTPRoute.
   3. Empty hotsname at Gateway listener(like `*`) and Non-wildcard and wildcard prefixed hostname(like `bar.avi.internal/*.avi.internal`) at HTTPRoute.
+
+### Support for Regular Expression in HTTPRoute path:
+
+AKO Gateway API supports `Regular Expression` in HTTPRoute Path, present in `Matches` section of `HTTPRoute`. For each `path` defined in HTTPRoute, AKO GatewayAPI adds that as `Path Match criteria` in `VHMatch` of the rule of Child VirtualService.
+When HTTPRoute contains `path` with type as `RegularExpression`, AKO Gateway will parse it and add it as `Path -> Criteria` as `Regex pattern matches` with `Enable Match Case` set to `true`.
+
+ A sample httproute with path as regular expression is shown below:
+
+  ```yaml
+  apiVersion: gateway.networking.k8s.io/v1
+  kind: HTTPRoute
+  metadata:
+    name: test-insecure-httproute
+    namespace: test-gateway-ns
+  spec:
+    hostnames:
+    - foo.avi.internal
+    parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: test-insecure-gateway
+      sectionName: http
+    rules:
+    - backendRefs:
+      - group: ""
+        kind: Service
+        name: app-http-service
+        port: 80
+        weight: 1
+      matches:
+      - path:
+          type: RegularExpression
+          value: /(v1/v2)/(*.)
+  ```
+
+  For Regex path mentioned in above HTTPRoute example, AKO Gateway will create `VHMatch path` with `Criteria` as `Regex pattern matches` and `Enable Match Case` set to `true`and path value (Regex) as `/(v1/v2)/(*.)`. 
 
 ### HTTP Traffic Splitting
 
@@ -276,7 +457,8 @@ AKO accepts the following Gateway configuration for this release:
   2. Gateway MUST NOT contain protocols other than HTTP or HTTPS.
   3. Gateway MUST NOT contain TLS modes other than `Terminate`.
   4. Two Gateways MUST NOT have listeners with same/overlapping hostname.
-  5. `Gateway-> listeners-> allowedRoutes-> namespaces-> from` with value `selector` and thus `Gateway-> listeners-> allowedRoutes-> namespaces-> selector` is not supported.
+  5. AKO does not support the `selector` option within the `from` field of the `allowedRoutes.namespaces` section in a Gateway listener. This means you cannot use label selectors to specify which namespaces are allowed for routes.
+  
   
 
 #### HTTPRoute Limitations
