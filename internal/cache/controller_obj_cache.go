@@ -3461,6 +3461,40 @@ func validateAndConfigureSeGroup(client *clients.AviClient, returnErr *error) bo
 	return true
 }
 
+func RefreshSeGroupDataAndCheckLabel(client *clients.AviClient, seGroup *models.ServiceEngineGroup) error {
+	segName := *seGroup.Name
+	uri := "/api/serviceenginegroup/?include_name&name=" + segName
+	result, err := lib.AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("ServiceEngineGroup Get uri %v returned err %v", uri, err)
+		return err
+	}
+
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal data, err: %v", err)
+		return err
+	}
+
+	if result.Count != 1 {
+		utils.AviLog.Errorf("ServiceEngineGroup not found for ServiceEngineGroup name: %s", segName)
+		return err
+	}
+
+	serviceEngineGroup := models.ServiceEngineGroup{}
+	if err = json.Unmarshal(elems[0], &serviceEngineGroup); err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal serviceenginegroup data, err: %v", err)
+		return err
+	}
+	segLabelEq := reflect.DeepEqual(seGroup.Labels, lib.GetLabels())
+	if !segLabelEq {
+		return fmt.Errorf("Labels does not match with cluster name for SE group :%v. Expected Labels: %v", segName, utils.Stringify(lib.GetLabels()))
+	}
+	return nil
+
+}
+
 // ConfigureSeGroupLabels configures labels on the SeGroup if not present already
 func ConfigureSeGroupLabels(client *clients.AviClient, seGroup *models.ServiceEngineGroup) error {
 
@@ -3477,6 +3511,18 @@ func ConfigureSeGroupLabels(client *clients.AviClient, seGroup *models.ServiceEn
 				utils.AviLog.Debugf("Switching to admin context from  %s", lib.GetTenant())
 				client = SharedAVIClients(lib.GetAdminTenant()).AviClient[0]
 				err := lib.AviPut(client, uri, seGroup, response)
+				if err != nil {
+					if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 412 {
+						err := RefreshSeGroupDataAndCheckLabel(client, seGroup)
+						if err != nil {
+							return fmt.Errorf("Setting labels on Service Engine Group :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
+						}
+					} else {
+						return fmt.Errorf("Setting labels on Service Engine Group :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
+					}
+				}
+			} else if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 412 {
+				err := RefreshSeGroupDataAndCheckLabel(client, seGroup)
 				if err != nil {
 					return fmt.Errorf("Setting labels on Service Engine Group :%v failed with error :%v. Expected Labels: %v", segName, err.Error(), utils.Stringify(lib.GetLabels()))
 				}

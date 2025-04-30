@@ -173,7 +173,7 @@ func AviPut(client *clients.AviClient, uri string, payload interface{}, response
 		}
 		CheckForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
-		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 400 {
+		if aviError, ok := err.(session.AviError); ok && (aviError.HttpStatusCode == 400 || aviError.HttpStatusCode == 412) {
 			return err
 		}
 		return AviPut(client, uri, payload, response, retry+1)
