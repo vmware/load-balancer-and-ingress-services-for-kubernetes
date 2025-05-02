@@ -2386,33 +2386,38 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 					for _, http_intf := range vs["http_policies"].([]interface{}) {
 						httpmap, ok := http_intf.(map[string]interface{})
 						if ok {
-							httpUuid := ExtractUUID(httpmap["http_policy_set_ref"].(string), "httppolicyset-.*.#")
-							httpName, foundhttp := c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
-							// If the httppol is not found in the cache, do an explicit get
-							if !foundhttp && !sharedVsOrL4 {
-								err = c.AviPopulateHttpPolicySetbyUUID(client, httpUuid)
-								// If still the httpName is not found. Log an error saying, this VS may not behave appropriately.
-								if err != nil {
-									utils.AviLog.Warnf("HTTPPolicySet not found in Avi for VS: %s for httpUUID: %s", vs["name"].(string), httpUuid)
-								} else {
-									httpName, foundhttp = c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
+							httpUuidStr, ok := httpmap["http_policy_set_ref"].(string)
+							if ok {
+								httpUuid := ExtractUUID(httpUuidStr, "httppolicyset-.*.#")
+								httpName, foundhttp := c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
+								// If the httppol is not found in the cache, do an explicit get
+								if !foundhttp && !sharedVsOrL4 {
+									err = c.AviPopulateHttpPolicySetbyUUID(client, httpUuid)
+									// If still the httpName is not found. Log an error saying, this VS may not behave appropriately.
+									if err != nil {
+										utils.AviLog.Warnf("HTTPPolicySet not found in Avi for VS: %s for httpUUID: %s", vs["name"].(string), httpUuid)
+									} else {
+										httpName, foundhttp = c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
+									}
 								}
-							}
-							if foundhttp {
-								httpKey := NamespaceName{Namespace: tenant, Name: httpName.(string)}
-								httpObj, _ := c.HTTPPolicyCache.AviCacheGet(httpKey)
-								for _, pgName := range httpObj.(*AviHTTPPolicyCache).PoolGroups {
-									// For each PG, formulate the key and then populate the pg collection cache
-									pgKey := NamespaceName{Namespace: tenant, Name: pgName}
-									poolgroupKeys = append(poolgroupKeys, pgKey)
-									pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName, tenant)
-									poolKeys = append(poolKeys, pgpoolKeys...)
+								if foundhttp {
+									httpKey := NamespaceName{Namespace: tenant, Name: httpName.(string)}
+									httpObj, _ := c.HTTPPolicyCache.AviCacheGet(httpKey)
+									for _, pgName := range httpObj.(*AviHTTPPolicyCache).PoolGroups {
+										// For each PG, formulate the key and then populate the pg collection cache
+										pgKey := NamespaceName{Namespace: tenant, Name: pgName}
+										poolgroupKeys = append(poolgroupKeys, pgKey)
+										pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName, tenant)
+										poolKeys = append(poolKeys, pgpoolKeys...)
+									}
+									for _, sgName := range httpObj.(*AviHTTPPolicyCache).StringGroupRefs {
+										sgKey := NamespaceName{Namespace: tenant, Name: sgName}
+										stringgroupKeys = append(stringgroupKeys, sgKey)
+									}
+									httpKeys = append(httpKeys, httpKey)
 								}
-								for _, sgName := range httpObj.(*AviHTTPPolicyCache).StringGroupRefs {
-									sgKey := NamespaceName{Namespace: tenant, Name: sgName}
-									stringgroupKeys = append(stringgroupKeys, sgKey)
-								}
-								httpKeys = append(httpKeys, httpKey)
+							} else {
+								utils.AviLog.Warnf("No httppolicyset UUID found in http_policy_set_ref for VS: %s", vs["name"].(string))
 							}
 						}
 					}
@@ -2697,24 +2702,28 @@ func (c *AviObjCache) AviObjOneVSCachePopulate(client *clients.AviClient, cloud 
 						// find the sslkey name from the ssl key cache
 						httpmap, ok := http_intf.(map[string]interface{})
 						if ok {
-							httpUuid := ExtractUUID(httpmap["http_policy_set_ref"].(string), "httppolicyset-.*.#")
-
-							httpName, foundhttp := c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
-							if foundhttp {
-								httpKey := NamespaceName{Namespace: tenant, Name: httpName.(string)}
-								httpObj, _ := c.HTTPPolicyCache.AviCacheGet(httpKey)
-								for _, pgName := range httpObj.(*AviHTTPPolicyCache).PoolGroups {
-									// For each PG, formulate the key and then populate the pg collection cache
-									pgKey := NamespaceName{Namespace: tenant, Name: pgName}
-									poolgroupKeys = append(poolgroupKeys, pgKey)
-									pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName, tenant)
-									poolKeys = append(poolKeys, pgpoolKeys...)
+							httpUuidStr, ok := httpmap["http_policy_set_ref"].(string)
+							if ok {
+								httpUuid := ExtractUUID(httpUuidStr, "httppolicyset-.*.#")
+								httpName, foundhttp := c.HTTPPolicyCache.AviCacheGetNameByUuid(httpUuid)
+								if foundhttp {
+									httpKey := NamespaceName{Namespace: tenant, Name: httpName.(string)}
+									httpObj, _ := c.HTTPPolicyCache.AviCacheGet(httpKey)
+									for _, pgName := range httpObj.(*AviHTTPPolicyCache).PoolGroups {
+										// For each PG, formulate the key and then populate the pg collection cache
+										pgKey := NamespaceName{Namespace: tenant, Name: pgName}
+										poolgroupKeys = append(poolgroupKeys, pgKey)
+										pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName, tenant)
+										poolKeys = append(poolKeys, pgpoolKeys...)
+									}
+									for _, sgName := range httpObj.(*AviHTTPPolicyCache).StringGroupRefs {
+										sgKey := NamespaceName{Namespace: tenant, Name: sgName}
+										stringgroupKeys = append(stringgroupKeys, sgKey)
+									}
+									httpKeys = append(httpKeys, httpKey)
 								}
-								for _, sgName := range httpObj.(*AviHTTPPolicyCache).StringGroupRefs {
-									sgKey := NamespaceName{Namespace: tenant, Name: sgName}
-									stringgroupKeys = append(stringgroupKeys, sgKey)
-								}
-								httpKeys = append(httpKeys, httpKey)
+							} else {
+								utils.AviLog.Warnf("No httppolicyset UUID found in http_policy_set_ref for VS: %s", vs["name"].(string))
 							}
 						}
 					}
