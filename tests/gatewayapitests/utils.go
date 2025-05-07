@@ -268,7 +268,7 @@ type Gateway struct {
 	*gatewayv1.Gateway
 }
 
-func (g *Gateway) GatewayV1(name, namespace, gatewayClass string, address []gatewayv1.GatewayAddress, listeners []gatewayv1.Listener) *gatewayv1.Gateway {
+func (g *Gateway) GatewayV1(name, namespace, gatewayClass string, address []gatewayv1.GatewaySpecAddress, listeners []gatewayv1.Listener) *gatewayv1.Gateway {
 	gateway := &gatewayv1.Gateway{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            name,
@@ -309,13 +309,13 @@ func (g *Gateway) Delete(t *testing.T) {
 	t.Logf("Deleted Gateway %s", g.Gateway.Name)
 }
 
-func SetupGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress []gatewayv1.GatewayAddress, listeners []gatewayv1.Listener) {
+func SetupGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress []gatewayv1.GatewaySpecAddress, listeners []gatewayv1.Listener) {
 	g := &Gateway{}
 	g.Gateway = g.GatewayV1(name, namespace, gatewayClass, ipAddress, listeners)
 	g.Create(t)
 }
 
-func UpdateGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress []gatewayv1.GatewayAddress, listeners []gatewayv1.Listener) {
+func UpdateGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress []gatewayv1.GatewaySpecAddress, listeners []gatewayv1.Listener) {
 	g := &Gateway{}
 	g.Gateway = g.GatewayV1(name, namespace, gatewayClass, ipAddress, listeners)
 	g.Update(t)

@@ -25,7 +25,6 @@ import (
 // +genclient
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:categories=gateway-api,shortName=gtw
-// +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Class",type=string,JSONPath=`.spec.gatewayClassName`
 // +kubebuilder:printcolumn:name="Address",type=string,JSONPath=`.status.addresses[*].value`
@@ -48,8 +47,8 @@ type GatewayList struct {
 // GatewaySpec defines the desired state of Gateway.
 //
 // Not all possible combinations of options specified in the Spec are
-// valid. Some invalid configurations can be caught synchronously via a
-// webhook, but there are many cases that will require asynchronous
+// valid. Some invalid configurations can be caught synchronously via CRD
+// validation, but there are many cases that will require asynchronous
 // signaling via the GatewayStatus block.
 // +k8s:deepcopy-gen=false
 type GatewaySpec = v1.GatewaySpec
@@ -134,7 +133,7 @@ type RouteGroupKind = v1.RouteGroupKind
 
 // GatewayAddress describes an address that can be bound to a Gateway.
 // +k8s:deepcopy-gen=false
-type GatewayAddress = v1.GatewayAddress
+type GatewaySpecAddress = v1.GatewaySpecAddress
 
 // GatewayStatus defines the observed state of Gateway.
 // +k8s:deepcopy-gen=false
