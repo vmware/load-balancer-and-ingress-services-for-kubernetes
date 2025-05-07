@@ -5,6 +5,8 @@ controllerManager:
     image:
       repository: packages.broadcom.com/ako/ako-crd-operator
       tag: latest
+      imagePullPolicy: IfNotPresent
+      pullSecrets: []
     args:
       - "--health-probe-bind-address=:8081"
     resources:
@@ -36,7 +38,7 @@ controllerManager:
     seccompProfile:
       type: RuntimeDefault
   terminationGracePeriodSeconds: 10
-  serviceAccountName: ako-crd-operator-controller-manager
+  serviceAccountName: ako-crd-operator
 
 # [CRDs]: To enable the CRDs
 crd:

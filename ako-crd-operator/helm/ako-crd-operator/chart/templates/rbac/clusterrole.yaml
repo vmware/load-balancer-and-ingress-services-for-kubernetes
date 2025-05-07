@@ -3,7 +3,7 @@ kind: ClusterRole
 metadata:
   labels:
     {{- include "chart.labels" . | nindent 4 }}
-  name: ako-crd-controller-role
+  name: ako-crd-operator-role
 rules:
   - apiGroups:
       - ako.vmware.com
