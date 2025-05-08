@@ -6,3 +6,5 @@ cover-*.out
 # IDE
 .idea
 .vscode
+*.lock
+*.tgz
