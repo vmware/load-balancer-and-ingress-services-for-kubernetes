@@ -1,0 +1,197 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: persistenceprofiles.ako.vmware.com
+spec:
+  group: ako.vmware.com
+  names:
+    kind: PersistenceProfile
+    listKind: PersistenceProfileList
+    plural: persistenceprofiles
+    shortNames:
+    - pp
+    singular: persistenceprofile
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: PersistenceProfile is the Schema for the persistenceprofiles
+          API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec defines the desired state of PersistenceProfile
+            properties:
+              appCookiePersistenceProfile:
+                description: AppCookiePersistenceProfile specifies the Application
+                  Cookie Persistence profile parameters.
+                properties:
+                  encryptionKey:
+                    description: EncryptionKey is the key to use for cookie encryption.
+                    maxLength: 1024
+                    type: string
+                  prstHdrName:
+                    description: PrstHdrName is the header or cookie name for application
+                      cookie persistence.
+                    maxLength: 128
+                    type: string
+                  timeout:
+                    default: 20
+                    description: Timeout is the length of time after a client's connections
+                      have closed before expiring the client's persistence to a server.
+                    format: int32
+                    maximum: 720
+                    minimum: 1
+                    type: integer
+                type: object
+                x-kubernetes-validations:
+                - message: appCookiePersistenceProfile can only be set when persistenceType
+                    is PERSISTENCE_TYPE_APP_COOKIE
+                  rule: self.persistenceType == 'PERSISTENCE_TYPE_APP_COOKIE'
+              description:
+                description: Description is a user-friendly description of the persistence
+                  profile.
+                type: string
+              hdrPersistenceProfile:
+                description: HdrPersistenceProfile specifies the custom HTTP Header
+                  Persistence profile parameters.
+                properties:
+                  prstHdrName:
+                    description: PrstHdrName is the header name for custom header
+                      persistence.
+                    maxLength: 128
+                    type: string
+                type: object
+                x-kubernetes-validations:
+                - message: hdrPersistenceProfile can only be set when persistenceType
+                    is PERSISTENCE_TYPE_CUSTOM_HTTP_HEADER
+                  rule: self.persistenceType == 'PERSISTPERSISTENCE_TYPE_CUSTOM_HTTP_HEADER'
+              httpCookiePersistenceProfile:
+                description: HTTPCookiePersistenceProfile specifies the HTTP Cookie
+                  Persistence profile parameters.
+                properties:
+                  alwaysSendCookie:
+                    default: false
+                    description: AlwaysSendCookie indicates if a persistence cookie
+                      should always be sent.
+                    type: boolean
+                  cookieName:
+                    description: CookieName is the HTTP cookie name for cookie persistence.
+                    maxLength: 128
+                    type: string
+                  httpOnly:
+                    default: false
+                    description: HTTPOnly sets the HttpOnly attribute in the cookie.
+                    type: boolean
+                  isPersistentCookie:
+                    default: false
+                    description: IsPersistentCookie indicates if the cookie is a persistent
+                      cookie.
+                    type: boolean
+                  timeout:
+                    description: Timeout is the maximum lifetime of any session cookie.
+                    format: int32
+                    maximum: 14400
+                    minimum: 0
+                    type: integer
+                type: object
+                x-kubernetes-validations:
+                - message: httpCookiePersistenceProfile can only be set when persistenceType
+                    is PERSISTENCE_TYPE_HTTP_COOKIE
+                  rule: self.persistenceType == 'PERSISTENCE_TYPE_HTTP_COOKIE'
+              ipPersistenceProfile:
+                description: IPPersistenceProfile specifies the Client IP Persistence
+                  profile parameters.
+                properties:
+                  ipMask:
+                    description: IPMask is the mask to be applied on client IP.
+                    format: int32
+                    maximum: 128
+                    minimum: 0
+                    type: integer
+                  ipPersistentTimeout:
+                    default: 5
+                    description: IPPersistentTimeout is the length of time after a
+                      client's connections have closed before expiring the client's
+                      persistence to a server.
+                    format: int32
+                    maximum: 720
+                    minimum: 1
+                    type: integer
+                type: object
+                x-kubernetes-validations:
+                - message: ipPersistenceProfile can only be set when persistenceType
+                    is PERSISTENCE_TYPE_CLIENT_IP_ADDRESS
+                  rule: self.persistenceType == 'PERSISTENCE_TYPE_CLIENT_IP_ADDRESS'
+              isFederated:
+                default: false
+                description: IsFederated describes the object's replication scope.
+                type: boolean
+              name:
+                description: Name is a user-friendly name for the persistence profile.
+                maxLength: 256
+                type: string
+              persistenceType:
+                default: PERSISTENCE_TYPE_CLIENT_IP_ADDRESS
+                description: PersistenceType is the method used to persist clients
+                  to the same server.
+                enum:
+                - PERSISTENCE_TYPE_CLIENT_IP_ADDRESS
+                - PERSISTENCE_TYPE_HTTP_COOKIE
+                - PERSISTENCE_TYPE_TLS
+                - PERSISTENCE_TYPE_CLIENT_IPV6_ADDRESS
+                - PERSISTENCE_TYPE_CUSTOM_HTTP_HEADER
+                - PERSISTENCE_TYPE_APP_COOKIE
+                type: string
+                x-kubernetes-validations:
+                - message: type is immutable
+                  rule: self == oldSelf
+              serverHmDownRecovery:
+                default: HM_DOWN_PICK_NEW_SERVER
+                description: ServerHmDownRecovery specifies behavior when a persistent
+                  server has been marked down by a health monitor.
+                enum:
+                - HM_DOWN_PICK_NEW_SERVER
+                - HM_DOWN_ABORT_CONNECTION
+                - HM_DOWN_CONTINUE_PERSISTENT_SERVER
+                type: string
+            required:
+            - name
+            type: object
+          status:
+            description: Status defines the observed state of PersistenceProfile
+            properties:
+              error:
+                description: Error if any error was encountered
+                type: string
+              status:
+                description: Status of the PersistenceProfile
+                type: string
+            required:
+            - error
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
