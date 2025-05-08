@@ -7,6 +7,7 @@ GOTEST=$(GOCMD) test
 BINARY_NAME_AKO=ako
 BINARY_NAME_AKO_INFRA=ako-infra
 BINARY_NAME_AKO_GATEWAY_API=ako-gateway-api
+BINARY_NAME_AKO_CRD_OPERATOR=ako-crd-operator
 PACKAGE_PATH_AKO=github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
 REL_PATH_AKO=$(PACKAGE_PATH_AKO)/cmd/ako-main
 REL_PATH_AKO_INFRA=$(PACKAGE_PATH_AKO)/cmd/infra-main
@@ -16,7 +17,6 @@ INFORMERS_PACKAGES := $(shell go list ./tests/... | grep informers)
 define GetSupportabilityMatrix
 $(shell node -p "require('./buildsettings.json').$(1)")
 endef
-
 AVI_MIN_VERSION:=$(call GetSupportabilityMatrix,avi.minVersion)
 AVI_MAX_VERSION:=$(call GetSupportabilityMatrix,avi.maxVersion)
 K8S_MIN_VERSION:=$(call GetSupportabilityMatrix,kubernetes.minVersion)
@@ -169,6 +169,23 @@ ako-operator-docker: glob-vars
 	--label "BUILD_TIME=$(BUILD_TIME)" \
 	$(BUILD_ARG_GOLANG) $(BUILD_ARG_UBI) \
 	-f Dockerfile.ako-operator .
+
+.PHONY: ako-crd-operator-build-all
+ako-crd-operator-build:
+	make -C ako-crd-operator all
+
+.PHONY: ako-crd-operator-docker-build
+ako-crd-operator-docker-build: glob-vars
+#	echo Main Makefile: BUILD_ARG_GOLANG=$(BUILD_ARG_GOLANG), BUILD_ARG_PHOTON=$(BUILD_ARG_PHOTON)
+#	export IMG=$(BINARY_NAME_AKO_CRD_OPERATOR):latest
+#	export BUILD_ARG_GOLANG=$(BUILD_ARG_GOLANG)
+#	export BUILD_ARG_PHOTON=$(BUILD_ARG_PHOTON)
+	make -C ako-crd-operator docker-build IMG="$(BINARY_NAME_AKO_CRD_OPERATOR):latest" \
+    BUILD_ARG_GOLANG="$(BUILD_ARG_GOLANG)" \
+    BUILD_ARG_PHOTON="$(BUILD_ARG_PHOTON)" \
+    BUILD_TAG="$(BUILD_TAG)" \
+    BUILD_TIME="$(BUILD_TIME)"
+
 
 .PHONY: ako-gateway-api-docker
 ako-gateway-api-docker: glob-vars
