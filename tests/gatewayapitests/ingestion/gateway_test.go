@@ -244,7 +244,7 @@ func TestGatewayInvalidAddress(t *testing.T) {
 	akogatewayapitests.AddGatewayListener(&gateway, "listener-example", 80, gatewayv1.HTTPProtocolType, false)
 	akogatewayapitests.SetListenerHostname(&gateway.Spec.Listeners[0], "foo.example.com")
 	hostnameType := gatewayv1.AddressType("Hostname")
-	gateway.Spec.Addresses = []gatewayv1.GatewayAddress{
+	gateway.Spec.Addresses = []gatewayv1.GatewaySpecAddress{
 		{
 			Type:  &hostnameType,
 			Value: "some.fqdn.address",
@@ -261,7 +261,7 @@ func TestGatewayInvalidAddress(t *testing.T) {
 
 	//update with IPv6
 	ipAddressType := gatewayv1.AddressType("IPAddress")
-	gateway.Spec.Addresses = []gatewayv1.GatewayAddress{
+	gateway.Spec.Addresses = []gatewayv1.GatewaySpecAddress{
 		{
 			Type: &ipAddressType,
 			//TODO replace with constant from utils
@@ -276,7 +276,7 @@ func TestGatewayInvalidAddress(t *testing.T) {
 	waitAndverify(t, "")
 
 	//update with IPv4
-	gateway.Spec.Addresses = []gatewayv1.GatewayAddress{
+	gateway.Spec.Addresses = []gatewayv1.GatewaySpecAddress{
 		{
 			Type: &ipAddressType,
 			//TODO replace with constant from utils

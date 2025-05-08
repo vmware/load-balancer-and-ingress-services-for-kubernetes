@@ -26,16 +26,20 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	gatewayv1alpha2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
+	gatewayv1alpha3 "sigs.k8s.io/gateway-api/apis/v1alpha3"
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+	experimentalv1alpha1 "sigs.k8s.io/gateway-api/apisx/v1alpha1"
 )
 
 var scheme = runtime.NewScheme()
 var codecs = serializer.NewCodecFactory(scheme)
 
 var localSchemeBuilder = runtime.SchemeBuilder{
-	gatewayv1alpha2.AddToScheme,
-	gatewayv1beta1.AddToScheme,
 	gatewayv1.AddToScheme,
+	gatewayv1alpha2.AddToScheme,
+	gatewayv1alpha3.AddToScheme,
+	gatewayv1beta1.AddToScheme,
+	experimentalv1alpha1.AddToScheme,
 }
 
 // AddToScheme adds all types of this clientset into the given scheme. This allows composition

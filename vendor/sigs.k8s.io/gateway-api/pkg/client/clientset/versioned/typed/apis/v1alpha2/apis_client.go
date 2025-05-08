@@ -19,20 +19,16 @@ limitations under the License.
 package v1alpha2
 
 import (
-	"net/http"
+	http "net/http"
 
 	rest "k8s.io/client-go/rest"
-	v1alpha2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
-	"sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/scheme"
+	apisv1alpha2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
+	scheme "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/scheme"
 )
 
 type GatewayV1alpha2Interface interface {
 	RESTClient() rest.Interface
-	BackendTLSPoliciesGetter
 	GRPCRoutesGetter
-	GatewaysGetter
-	GatewayClassesGetter
-	HTTPRoutesGetter
 	ReferenceGrantsGetter
 	TCPRoutesGetter
 	TLSRoutesGetter
@@ -44,24 +40,8 @@ type GatewayV1alpha2Client struct {
 	restClient rest.Interface
 }
 
-func (c *GatewayV1alpha2Client) BackendTLSPolicies(namespace string) BackendTLSPolicyInterface {
-	return newBackendTLSPolicies(c, namespace)
-}
-
 func (c *GatewayV1alpha2Client) GRPCRoutes(namespace string) GRPCRouteInterface {
 	return newGRPCRoutes(c, namespace)
-}
-
-func (c *GatewayV1alpha2Client) Gateways(namespace string) GatewayInterface {
-	return newGateways(c, namespace)
-}
-
-func (c *GatewayV1alpha2Client) GatewayClasses() GatewayClassInterface {
-	return newGatewayClasses(c)
-}
-
-func (c *GatewayV1alpha2Client) HTTPRoutes(namespace string) HTTPRouteInterface {
-	return newHTTPRoutes(c, namespace)
 }
 
 func (c *GatewayV1alpha2Client) ReferenceGrants(namespace string) ReferenceGrantInterface {
@@ -125,10 +105,10 @@ func New(c rest.Interface) *GatewayV1alpha2Client {
 }
 
 func setConfigDefaults(config *rest.Config) error {
-	gv := v1alpha2.SchemeGroupVersion
+	gv := apisv1alpha2.SchemeGroupVersion
 	config.GroupVersion = &gv
 	config.APIPath = "/apis"
-	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+	config.NegotiatedSerializer = rest.CodecFactoryForGeneratedClient(scheme.Scheme, scheme.Codecs).WithoutConversion()
 
 	if config.UserAgent == "" {
 		config.UserAgent = rest.DefaultKubernetesUserAgent()

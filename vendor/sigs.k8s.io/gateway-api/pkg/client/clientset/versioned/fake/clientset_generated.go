@@ -24,19 +24,28 @@ import (
 	"k8s.io/client-go/discovery"
 	fakediscovery "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/testing"
+	applyconfiguration "sigs.k8s.io/gateway-api/applyconfiguration"
 	clientset "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
 	gatewayv1 "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1"
 	fakegatewayv1 "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1/fake"
 	gatewayv1alpha2 "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1alpha2"
 	fakegatewayv1alpha2 "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1alpha2/fake"
+	gatewayv1alpha3 "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1alpha3"
+	fakegatewayv1alpha3 "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1alpha3/fake"
 	gatewayv1beta1 "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1beta1"
 	fakegatewayv1beta1 "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apis/v1beta1/fake"
+	experimentalv1alpha1 "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apisx/v1alpha1"
+	fakeexperimentalv1alpha1 "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/typed/apisx/v1alpha1/fake"
 )
 
 // NewSimpleClientset returns a clientset that will respond with the provided objects.
 // It's backed by a very simple object tracker that processes creates, updates and deletions as-is,
-// without applying any validations and/or defaults. It shouldn't be considered a replacement
+// without applying any field management, validations and/or defaults. It shouldn't be considered a replacement
 // for a real clientset and is mostly useful in simple unit tests.
+//
+// DEPRECATED: NewClientset replaces this with support for field management, which significantly improves
+// server side apply testing. NewClientset is only available when apply configurations are generated (e.g.
+// via --with-applyconfig).
 func NewSimpleClientset(objects ...runtime.Object) *Clientset {
 	o := testing.NewObjectTracker(scheme, codecs.UniversalDecoder())
 	for _, obj := range objects {
@@ -78,14 +87,56 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 	return c.tracker
 }
 
+// NewClientset returns a clientset that will respond with the provided objects.
+// It's backed by a very simple object tracker that processes creates, updates and deletions as-is,
+// without applying any validations and/or defaults. It shouldn't be considered a replacement
+// for a real clientset and is mostly useful in simple unit tests.
+func NewClientset(objects ...runtime.Object) *Clientset {
+	o := testing.NewFieldManagedObjectTracker(
+		scheme,
+		codecs.UniversalDecoder(),
+		applyconfiguration.NewTypeConverter(scheme),
+	)
+	for _, obj := range objects {
+		if err := o.Add(obj); err != nil {
+			panic(err)
+		}
+	}
+
+	cs := &Clientset{tracker: o}
+	cs.discovery = &fakediscovery.FakeDiscovery{Fake: &cs.Fake}
+	cs.AddReactor("*", "*", testing.ObjectReaction(o))
+	cs.AddWatchReactor("*", func(action testing.Action) (handled bool, ret watch.Interface, err error) {
+		gvr := action.GetResource()
+		ns := action.GetNamespace()
+		watch, err := o.Watch(gvr, ns)
+		if err != nil {
+			return false, nil, err
+		}
+		return true, watch, nil
+	})
+
+	return cs
+}
+
 var (
 	_ clientset.Interface = &Clientset{}
 	_ testing.FakeClient  = &Clientset{}
 )
 
+// GatewayV1 retrieves the GatewayV1Client
+func (c *Clientset) GatewayV1() gatewayv1.GatewayV1Interface {
+	return &fakegatewayv1.FakeGatewayV1{Fake: &c.Fake}
+}
+
 // GatewayV1alpha2 retrieves the GatewayV1alpha2Client
 func (c *Clientset) GatewayV1alpha2() gatewayv1alpha2.GatewayV1alpha2Interface {
 	return &fakegatewayv1alpha2.FakeGatewayV1alpha2{Fake: &c.Fake}
+}
+
+// GatewayV1alpha3 retrieves the GatewayV1alpha3Client
+func (c *Clientset) GatewayV1alpha3() gatewayv1alpha3.GatewayV1alpha3Interface {
+	return &fakegatewayv1alpha3.FakeGatewayV1alpha3{Fake: &c.Fake}
 }
 
 // GatewayV1beta1 retrieves the GatewayV1beta1Client
@@ -93,7 +144,7 @@ func (c *Clientset) GatewayV1beta1() gatewayv1beta1.GatewayV1beta1Interface {
 	return &fakegatewayv1beta1.FakeGatewayV1beta1{Fake: &c.Fake}
 }
 
-// GatewayV1 retrieves the GatewayV1Client
-func (c *Clientset) GatewayV1() gatewayv1.GatewayV1Interface {
-	return &fakegatewayv1.FakeGatewayV1{Fake: &c.Fake}
+// ExperimentalV1alpha1 retrieves the ExperimentalV1alpha1Client
+func (c *Clientset) ExperimentalV1alpha1() experimentalv1alpha1.ExperimentalV1alpha1Interface {
+	return &fakeexperimentalv1alpha1.FakeExperimentalV1alpha1{Fake: &c.Fake}
 }

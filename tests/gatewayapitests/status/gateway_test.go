@@ -627,7 +627,7 @@ func TestGatewayWithMoreThanOneAddress(t *testing.T) {
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	listeners := tests.GetListenersV1(ports, false, false)
 	fakeGateway := tests.Gateway{}
-	addresses := []gatewayv1.GatewayAddress{{Value: "10.10.10.1"}, {Value: "10.10.10.2"}}
+	addresses := []gatewayv1.GatewaySpecAddress{{Value: "10.10.10.1"}, {Value: "10.10.10.2"}}
 	fakeGateway.Gateway = fakeGateway.GatewayV1(gatewayName, DEFAULT_NAMESPACE, gatewayClassName, addresses, listeners)
 	fakeGateway.Create(t)
 
