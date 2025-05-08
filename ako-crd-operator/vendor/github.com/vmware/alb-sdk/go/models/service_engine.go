@@ -51,6 +51,9 @@ type ServiceEngine struct {
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Name *string `json:"name,omitempty"`
 
+	// If set to true, controller does not hotplugg the vNICs. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	NsxtNoHotplug *bool `json:"nsxt_no_hotplug,omitempty"`
+
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Resources *SeResources `json:"resources,omitempty"`
 

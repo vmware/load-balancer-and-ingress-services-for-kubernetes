@@ -9,7 +9,7 @@ package models
 type VirtualServiceResource struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Memory uint32 `json:"memory,omitempty"`
+	Memory *uint32 `json:"memory,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NumSe *int32 `json:"num_se,omitempty"`
@@ -18,5 +18,5 @@ type VirtualServiceResource struct {
 	NumStandbySe *int32 `json:"num_standby_se,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	NumVcpus uint32 `json:"num_vcpus,omitempty"`
+	NumVcpus *uint32 `json:"num_vcpus,omitempty"`
 }

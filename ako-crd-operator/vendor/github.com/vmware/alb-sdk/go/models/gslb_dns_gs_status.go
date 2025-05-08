@@ -12,7 +12,7 @@ type GslbDNSGsStatus struct {
 	LastChangedTime *TimeStamp `json:"last_changed_time,omitempty"`
 
 	// Counter to track the number of partial updates sent.  Once it reaches the partial updates threshold, a full update is sent. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	NumPartialUpdates uint32 `json:"num_partial_updates,omitempty"`
+	NumPartialUpdates *uint32 `json:"num_partial_updates,omitempty"`
 
 	// Threshold after which a full GS Status is sent. . Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PartialUpdateThreshold *uint32 `json:"partial_update_threshold,omitempty"`

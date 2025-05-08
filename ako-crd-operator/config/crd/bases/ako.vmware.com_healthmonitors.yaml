@@ -67,7 +67,7 @@ spec:
                 maximum: 50
                 minimum: 1
                 type: integer
-              http:
+              http_monitor:
                 description: HTTP defines the HTTP monitor configuration.
                 properties:
                   auth_type:
@@ -87,6 +87,10 @@ spec:
                     type: array
                   http_method:
                     description: HTTPMethod is the HTTP method to use.
+                    enum:
+                    - HTTP_METHOD_GET
+                    - HTTP_METHOD_POST
+                    - HTTP_METHOD_HEAD
                     type: string
                   http_request:
                     default: GET / HTTP/1.0
@@ -109,6 +113,13 @@ spec:
                     description: HTTPResponseCode is the list of expected HTTP response
                       codes.
                     items:
+                      enum:
+                      - HTTP_ANY
+                      - HTTP_1XX
+                      - HTTP_2XX
+                      - HTTP_3XX
+                      - HTTP_4XX
+                      - HTTP_5XX
                       type: string
                     minItems: 1
                     type: array
@@ -147,6 +158,10 @@ spec:
                 maximum: 65535
                 minimum: 0
                 type: integer
+              name:
+                description: Name is name of the spec and optional. If not present
+                  will be inferred from Metadata
+                type: string
               receive_timeout:
                 default: 4
                 description: ReceiveTimeout is the timeout for receiving a ping response,
@@ -171,7 +186,7 @@ spec:
                 maximum: 50
                 minimum: 1
                 type: integer
-              tcp:
+              tcp_monitor:
                 description: TCP defines the TCP monitor configuration.
                 properties:
                   maintenance_response:
@@ -222,8 +237,12 @@ spec:
               status:
                 description: Status of the healthmonitor
                 type: string
+              uuid:
+                description: UUID is unique identifier of the health monitor object
+                type: string
             required:
             - error
+            - uuid
             type: object
         type: object
     served: true

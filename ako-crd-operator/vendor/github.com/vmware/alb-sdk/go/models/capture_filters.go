@@ -15,10 +15,10 @@ type CaptureFilters struct {
 	CaptureIpc *CaptureIPC `json:"capture_ipc,omitempty"`
 
 	// Destination Port range filter. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DstPortEnd uint32 `json:"dst_port_end,omitempty"`
+	DstPortEnd *uint32 `json:"dst_port_end,omitempty"`
 
 	// Destination Port range filter. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	DstPortStart uint32 `json:"dst_port_start,omitempty"`
+	DstPortStart *uint32 `json:"dst_port_start,omitempty"`
 
 	// Ethernet Proto filter. Enum options - ETH_TYPE_IPV4. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EthProto *string `json:"eth_proto,omitempty"`
@@ -27,10 +27,10 @@ type CaptureFilters struct {
 	IPProto *string `json:"ip_proto,omitempty"`
 
 	// Source Port filter. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SrcPort uint32 `json:"src_port,omitempty"`
+	SrcPort *uint32 `json:"src_port,omitempty"`
 
 	// Source Port range end filter. If specified, the source port filter will be a range. The filter range will be between src_port and src_port_range_end. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	SrcPortRangeEnd uint32 `json:"src_port_range_end,omitempty"`
+	SrcPortRangeEnd *uint32 `json:"src_port_range_end,omitempty"`
 
 	// TCP ACK flag filter. Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TCPAck *bool `json:"tcp_ack,omitempty"`
