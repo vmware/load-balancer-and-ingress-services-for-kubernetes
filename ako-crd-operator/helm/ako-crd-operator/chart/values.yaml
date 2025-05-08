@@ -3,18 +3,18 @@ controllerManager:
   replicas: 1
   container:
     image:
-      repository: controller
+      repository: packages.broadcom.com/ako/ako-crd-operator
       tag: latest
+      imagePullPolicy: IfNotPresent
+      pullSecrets: []
     args:
-      - "--leader-elect"
-      - "--metrics-bind-address=:8443"
       - "--health-probe-bind-address=:8081"
     resources:
       limits:
-        cpu: 500m
+        cpu: 256m
         memory: 128Mi
       requests:
-        cpu: 10m
+        cpu: 128m
         memory: 64Mi
     livenessProbe:
       initialDelaySeconds: 15
@@ -38,11 +38,7 @@ controllerManager:
     seccompProfile:
       type: RuntimeDefault
   terminationGracePeriodSeconds: 10
-  serviceAccountName: ako-crd-operator-controller-manager
-
-# [RBAC]: To enable RBAC (Permissions) configurations
-rbac:
-  enable: true
+  serviceAccountName: ako-crd-operator
 
 # [CRDs]: To enable the CRDs
 crd:
@@ -53,24 +49,4 @@ crd:
   # Enabling this option adds the "helm.sh/resource-policy": keep
   # annotation to the CRD, ensuring it remains installed even when
   # the Helm release is uninstalled.
-  # NOTE: Removing the CRDs will also remove all cert-manager CR(s)
-  # (Certificates, Issuers, ...) due to garbage collection.
-  keep: true
-
-# [METRICS]: Set to true to generate manifests for exporting metrics.
-# To disable metrics export set false, and ensure that the
-# ControllerManager argument "--metrics-bind-address=:8443" is removed.
-metrics:
-  enable: true
-
-# [PROMETHEUS]: To enable a ServiceMonitor to export metrics to Prometheus set true
-prometheus:
-  enable: false
-
-# [CERT-MANAGER]: To enable cert-manager injection to webhooks set true
-certmanager:
-  enable: false
-
-# [NETWORK POLICIES]: To enable NetworkPolicies set true
-networkPolicy:
-  enable: false
+  keep: false
