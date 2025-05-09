@@ -1,6 +1,6 @@
 # Developer Guide
 
-Thank you for taking the time out to contribute to AKO!
+Thank you for taking the time out to contribute to AKO!fdsfd
 
 This guide will walk you through the process of making your first commit and how
 to effectively get it merged upstream.
