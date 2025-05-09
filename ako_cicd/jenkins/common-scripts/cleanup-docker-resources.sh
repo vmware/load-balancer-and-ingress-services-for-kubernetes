@@ -1,5 +1,7 @@
 #!/bin/bash -xe
 
+echo "cleanup script"
+
 # Force remove all containers - both running and stopped
 sudo docker ps -a -q | xargs -r sudo docker rm -f
 
