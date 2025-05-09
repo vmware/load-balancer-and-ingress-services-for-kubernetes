@@ -15,7 +15,7 @@ jobs:
     name: Golangci-lint
     strategy:
       matrix:
-        platform: [ ubuntu-latest ]
+        platform: [ ubuntu-20.04 ]
     runs-on: ${{ matrix.platform }}
     steps:
     - name: Set up Go 1.21
