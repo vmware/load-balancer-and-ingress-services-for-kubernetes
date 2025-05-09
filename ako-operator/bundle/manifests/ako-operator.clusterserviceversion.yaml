@@ -45,7 +45,7 @@ metadata:
             },
             "replicaCount": 1,
             "imagePullPolicy": "IfNotPresent",
-            "imageRepository": "projects.packages.broadcom.com/ako/ako@sha256:f29c56470dcedf67fc408bb5aca9d712c2c183fcd128fd7be38a58acd4cbc20f",
+            "imageRepository": "projects.packages.broadcom.com/ako/ako@sha256:2b926cbc7101c00b6684f3c6de65c137df9d8e06f0f7f753c90a0120682bac8d",
             "imagePullSecrets": [],
             "l4Settings": {
               "autoFQDN": "default",
@@ -102,7 +102,7 @@ metadata:
             },
             "gatewayAPI": {
               "image": {
-                "repository": "projects.packages.broadcom.com/ako/ako-gateway-api@sha256:2764478bd43444ae2666bd832b119fb8d3f67321f40b3564e6c37898412882d8",
+                "repository": "projects.packages.broadcom.com/ako/ako-gateway-api@sha256:99853b51a9aee33abdb58ce1fa088927228b66c4ab621efd044a6264185587aa",
                 "pullPolicy": "IfNotPresent"
               }
             },
@@ -115,8 +115,8 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.16.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     operatorframework.io/suggested-namespace: avi-system
-    containerImage: projects.packages.broadcom.com/ako/ako-operator@sha256:c75ef61068936b71980b337620ca7f2f8a48a6b590fe124f54fb4c846aa452a0
-  name: ako-operator.v1.12.2
+    containerImage: projects.packages.broadcom.com/ako/ako-operator@sha256:3fdf05fd15610f51289a5ca582d2f449e15ba9ecc3a00ed219f4aad491083f63
+  name: ako-operator.v1.12.3
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -590,7 +590,7 @@ spec:
               containers:
               - command:
                 - /ako-operator
-                image: projects.packages.broadcom.com/ako/ako-operator@sha256:c75ef61068936b71980b337620ca7f2f8a48a6b590fe124f54fb4c846aa452a0
+                image: projects.packages.broadcom.com/ako/ako-operator@sha256:3fdf05fd15610f51289a5ca582d2f449e15ba9ecc3a00ed219f4aad491083f63
                 name: ako-operator
                 resources:
                   limits:
@@ -643,11 +643,11 @@ spec:
     supported: false
   relatedImages:
   - name: ako-operator
-    image: projects.packages.broadcom.com/ako/ako-operator@sha256:c75ef61068936b71980b337620ca7f2f8a48a6b590fe124f54fb4c846aa452a0
+    image: projects.packages.broadcom.com/ako/ako-operator@sha256:3fdf05fd15610f51289a5ca582d2f449e15ba9ecc3a00ed219f4aad491083f63
   - name: ako
-    image: projects.packages.broadcom.com/ako/ako@sha256:f29c56470dcedf67fc408bb5aca9d712c2c183fcd128fd7be38a58acd4cbc20f
+    image: projects.packages.broadcom.com/ako/ako@sha256:2b926cbc7101c00b6684f3c6de65c137df9d8e06f0f7f753c90a0120682bac8d
   - name: ako-gateway-api
-    image: projects.packages.broadcom.com/ako/ako-gateway-api@sha256:2764478bd43444ae2666bd832b119fb8d3f67321f40b3564e6c37898412882d8
+    image: projects.packages.broadcom.com/ako/ako-gateway-api@sha256:99853b51a9aee33abdb58ce1fa088927228b66c4ab621efd044a6264185587aa
   keywords:
   - AKO
   - AKO Operator
@@ -656,15 +656,15 @@ spec:
   - GatewayAPI
   links:
   - name: AKO Operator
-    url: https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tree/release-1.12.2/ako-operator#readme
+    url: https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tree/release-1.12.3/ako-operator#readme
   - name: AKO Repository
     url: https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
   - name: AKO
-    url: https://docs.vmware.com/en/VMware-Avi-Load-Balancer/1.12/Avi-Kubernetes-Operator-Guide/GUID-57DED984-E10C-459B-BB7E-312C48A561CF.html
+    url: https://techdocs.broadcom.com/us/en/vmware-security-load-balancing/avi-load-balancer/avi-kubernetes-operator/1-12/avi-kubernetes-operator-guide-1-12.html
   maintainers:
   - email: aakash-kumar.dixit@broadcom.com
     name: Aakash Kumar Dixit
   maturity: stable
   provider:
     name: VMware
-  version: 1.12.2
+  version: 1.12.3
