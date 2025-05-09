@@ -4,7 +4,6 @@ controllerManager:
   container:
     image:
       repository: packages.broadcom.com/ako/ako-crd-operator
-      tag: latest
       imagePullPolicy: IfNotPresent
       pullSecrets: []
     args:
