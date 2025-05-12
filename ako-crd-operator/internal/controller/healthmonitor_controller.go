@@ -102,11 +102,11 @@ func (r *HealthMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alpha1.HealthMonitor) error {
 	if hm.Status.Uuid != "" {
 		if err := r.AviClient.HealthMonitor.Delete(hm.Status.Uuid); err != nil {
-			utils.AviLog.Error(err, "error deleting healthmonitor")
+			utils.AviLog.Errorf("error deleting healthmonitor: [%s/%s]: %s", hm.Namespace, hm.Name, err.Error())
 			return err
 		}
 	} else {
-		utils.AviLog.Warnf("error deleting healthmonitor. uuid not present. possibly avi healthmonitor object not created")
+		utils.AviLog.Warnf("error deleting healthmonitor: [%s/%s]. uuid not present. possibly avi healthmonitor object not created", hm.Namespace, hm.Name)
 	}
 	return nil
 }
@@ -117,42 +117,42 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 	if hm.Status.Uuid == "" {
 		resp, err := r.createHealthMonitor(ctx, hm)
 		if err != nil {
-			utils.AviLog.Error(err, "error creating healthmonitor")
+			utils.AviLog.Errorf("error creating healthmonitor: [%s/%s]: %s", hm.Namespace, hm.Name, err.Error())
 			return err
 		}
 		uuid, err := extractUUID(resp)
 		if err != nil {
-			utils.AviLog.Error(err, "error extracting UUID from healthmonitor")
+			utils.AviLog.Errorf("error extracting UUID from healthmonitor: [%s/%s]: %s", hm.Namespace, hm.Name, err.Error())
 		}
 		hm.Status.Uuid = uuid
 		if err := r.Status().Update(ctx, hm); err != nil {
-			utils.AviLog.Error(err, "unable to update healthmonitor status")
+			utils.AviLog.Errorf("unable to update healthmonitor status [%s/%s]: %s", hm.Namespace, hm.Name, err.Error())
 			return err
 		}
 	} else {
 		// this is a PUT Call
 		resp := map[string]interface{}{}
-		if err := r.AviClient.AviSession.Put(utils.GetUriEncoded("/api/healthmonitor/"+hm.Status.Uuid), hm.Spec, resp); err != nil {
-			utils.AviLog.Error(err, "error putting healthmonitor")
+		if err := r.AviClient.AviSession.Put(utils.GetUriEncoded("/api/healthmonitor/"+hm.Status.Uuid), hm.Spec, &resp); err != nil {
+			utils.AviLog.Errorf("error updating healthmonitor [%s/%s]: %s", hm.Namespace, hm.Name, err.Error())
 			return err
 		}
-		utils.AviLog.Infof("succesfully updated healthmonitor: %v", resp)
+		utils.AviLog.Infof("succesfully updated healthmonitor:[%s/%s]", hm.Namespace, hm.Name)
 	}
 	return nil
 }
 
+// createHealthMonitor will attempt to create a health monitor, if it already exists, it will return an object which contains the uuid
 func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hm *akov1alpha1.HealthMonitor) (map[string]interface{}, error) {
 	resp := map[string]interface{}{}
 	if err := r.AviClient.AviSession.Post(utils.GetUriEncoded("/api/healthmonitor"), hm.Spec, &resp); err != nil {
-		utils.AviLog.Error(err, "error posting healthmonitor")
+		utils.AviLog.Errorf("error posting healthmonitor: %s", err.Error())
 		if aviError, ok := err.(session.AviError); ok {
 			if aviError.HttpStatusCode == http.StatusConflict {
-				utils.AviLog.Infof("healthmonitor already exists. trying to get uuid: %v", resp)
-				err := r.AviClient.AviSession.Get(utils.GetUriEncoded(fmt.Sprintf("/api/healthmonitor?name=%s", hm.Name)), &resp)
+				utils.AviLog.Infof("healthmonitor [%s/%s] already exists. trying to get uuid", hm.Namespace, hm.Name)
+				err := r.AviClient.AviSession.Get(utils.GetUriEncoded(fmt.Sprintf("/api/healthmonitor?name=%s", hm.Name)), resp)
 				if err != nil {
 					return nil, err
 				}
-				utils.AviLog.Debugf("healthmonitor uuid: %v", resp)
 			} else {
 				return nil, err
 			}
@@ -160,11 +160,12 @@ func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hm *a
 			return nil, err
 		}
 	} else {
-		utils.AviLog.Infof("healthmonitor succesfully created: %v", resp)
+		utils.AviLog.Infof("healthmonitor [%s/%s] succesfully created", hm.Namespace, hm.Name)
 	}
 	return resp, nil
 }
 
+// extractUUID extracts the UUID from resp object
 func extractUUID(resp map[string]interface{}) (string, error) {
 	// Extract the results array
 	results, ok := resp["results"].([]interface{})
