@@ -24,6 +24,7 @@ LABEL version="v1.12.3"
 LABEL release="1"
 LABEL description="Manage configmap, statefulset and other artifacts for deploying AKO controller"
 LABEL vendor="VMware"
+LABEL maintainer="VMware"
 
 RUN yum -y update-minimal --security --sec-severity=Important --sec-severity=Critical
 
