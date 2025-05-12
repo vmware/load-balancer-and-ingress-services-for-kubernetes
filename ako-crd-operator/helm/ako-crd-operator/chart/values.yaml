@@ -39,14 +39,3 @@ controllerManager:
       type: RuntimeDefault
   terminationGracePeriodSeconds: 10
   serviceAccountName: ako-crd-operator
-
-# [CRDs]: To enable the CRDs
-crd:
-  # This option determines whether the CRDs are included
-  # in the installation process.
-  enable: true
-
-  # Enabling this option adds the "helm.sh/resource-policy": keep
-  # annotation to the CRD, ensuring it remains installed even when
-  # the Helm release is uninstalled.
-  keep: false
