@@ -33,15 +33,16 @@ const (
 )
 
 // HealthMonitorAuth defines the type of authentication for HTTP/HTTPS monitors.
-// +kubebuilder:validation:Enum=Basic;NTLM
+// +kubebuilder:validation:Enum=AUTH_BASIC;AUTH_NTLM
 type HealthMonitorAuth string
 
 const (
-	HealthMonitorBasicAuth HealthMonitorAuth = "Basic"
-	HealthMonitorNTLM      HealthMonitorAuth = "NTLM"
+	HealthMonitorBasicAuth HealthMonitorAuth = "AUTH_BASIC"
+	HealthMonitorNTLM      HealthMonitorAuth = "AUTH_NTLM"
 )
 
 // HealthMonitorSpec defines the desired state of HealthMonitor
+// +kubebuilder:validation:XValidation:rule="(!has(self.http_monitor.auth_type) || has(self.authentication.username) && has(self.authentication.password))",message="If auth_type is set, both username and password must be set in authentication"
 type HealthMonitorSpec struct {
 	// Name is name of the spec and optional. If not present will be inferred from Metadata
 	// +kubebuilder:validation:Optional
@@ -89,6 +90,7 @@ type HealthMonitorSpec struct {
 	// the controller-cluster and its associated service-engines.
 	// If the field is set to true, then the object is replicated
 	// across the federation
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="is_federated is immutable"
 	IsFederated bool `json:"is_federated,omitempty"`
 
 	// TCP defines the TCP monitor configuration.
@@ -111,8 +113,6 @@ type HealthMonitorInfo struct {
 	// +kubebuilder:validation:MaxLength=128
 	Password string `json:"password"`
 }
-
-// +kubebuilder:validation:XValidation:rule="self.tcp_half_open == false || (self.tcp_request == '' && self.tcp_response == '' && self.maintenance_response == '')",message="tcp_request, tcp_response, and maintenance_response cannot be set when tcp_half_open is true"
 
 // TCPMonitor defines the TCP monitor configuration.
 type TCPMonitor struct {
@@ -146,6 +146,7 @@ const (
 )
 
 // HTTPMonitor defines the HTTP monitor configuration.
+// +kubebuilder:validation:XValidation:rule="(has(self.auth_type) && (!has(self.exact_http_request) || !self.exact_http_request))",message="if auth_type is set, exact_http_request must be set to false"
 type HTTPMonitor struct {
 	// HTTPRequest is the HTTP request to send.
 	// +optional
