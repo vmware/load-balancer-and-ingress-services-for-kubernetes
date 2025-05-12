@@ -115,7 +115,7 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.16.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     operatorframework.io/suggested-namespace: avi-system
-    containerImage: projects.packages.broadcom.com/ako/ako-operator@sha256:3fdf05fd15610f51289a5ca582d2f449e15ba9ecc3a00ed219f4aad491083f63
+    containerImage: projects.packages.broadcom.com/ako/ako-operator@sha256:cfc30e3a06fd3afa54e6a0a10a3aac1604395a60f04b291fcbba61e3529b4876
   name: ako-operator.v1.12.3
   namespace: placeholder
 spec:
@@ -590,7 +590,7 @@ spec:
               containers:
               - command:
                 - /ako-operator
-                image: projects.packages.broadcom.com/ako/ako-operator@sha256:3fdf05fd15610f51289a5ca582d2f449e15ba9ecc3a00ed219f4aad491083f63
+                image: projects.packages.broadcom.com/ako/ako-operator@sha256:cfc30e3a06fd3afa54e6a0a10a3aac1604395a60f04b291fcbba61e3529b4876
                 name: ako-operator
                 resources:
                   limits:
@@ -643,7 +643,7 @@ spec:
     supported: false
   relatedImages:
   - name: ako-operator
-    image: projects.packages.broadcom.com/ako/ako-operator@sha256:3fdf05fd15610f51289a5ca582d2f449e15ba9ecc3a00ed219f4aad491083f63
+    image: projects.packages.broadcom.com/ako/ako-operator@sha256:cfc30e3a06fd3afa54e6a0a10a3aac1604395a60f04b291fcbba61e3529b4876
   - name: ako
     image: projects.packages.broadcom.com/ako/ako@sha256:2b926cbc7101c00b6684f3c6de65c137df9d8e06f0f7f753c90a0120682bac8d
   - name: ako-gateway-api
