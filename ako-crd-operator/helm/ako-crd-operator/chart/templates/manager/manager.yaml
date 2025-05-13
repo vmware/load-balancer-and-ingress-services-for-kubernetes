@@ -61,6 +61,14 @@ spec:
                 configMapKeyRef:
                   name: avi-k8s-config
                   key: clusterName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           livenessProbe:
             {{ toYaml .Values.controllerManager.container.livenessProbe | nindent 12 }}
           readinessProbe:
