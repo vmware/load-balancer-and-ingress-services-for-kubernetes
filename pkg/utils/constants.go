@@ -105,6 +105,7 @@ const (
 	MaxAviVersion                 = "30.2.1"
 	ControllerAPIHeader           = "userHeader"
 	ControllerAPIScheme           = "scheme"
+	XAviUserAgentHeader           = "X-Avi-UserAgent"
 
 	RefreshAuthTokenInterval = 12  //hours
 	AuthTokenExpiry          = 240 //hours
