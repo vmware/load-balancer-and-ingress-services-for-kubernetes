@@ -74,15 +74,13 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		utils.AviLog.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
-	os.Setenv(utils.POD_NAMESPACE, "avi-system")
-	os.Setenv(utils.ENV_CTRL_IPADDRESS, "100.65.0.149")
-
 	// event recorder
-
+	// TODO: crd-specific event recorders
 	eventRecorder := utils.NewEventRecorder("ako-crd-operator", kubeClient, false)
 	eventManager := event.NewEventManager(eventRecorder, &v1.Pod{})
 	// setup controller properties
@@ -90,16 +88,7 @@ func main() {
 	sessionManager.PopulateControllerProperties(ctx)
 	sessionManager.CreateAviClients(ctx, 1)
 	aviClients := sessionManager.GetAviClients()
-	//err = k8s.PopulateControllerProperties(kubeClient)
-	//if err != nil {
-	//	utils.AviLog.Warnf("Error while fetching secret for AKO bootstrap %s", err)
-	//	os.Exit(1)
-	//}
-	//
-	//aviRestClientPool := avicache.SharedAVIClients(os.Getenv("TENANT_NAME"))
-	//if aviRestClientPool == nil {
-	//	utils.AviLog.Fatalf("Avi client not initialized")
-	//}
+
 	hmReconciler := &controller.HealthMonitorReconciler{
 		Client:    mgr.GetClient(),
 		Scheme:    mgr.GetScheme(),

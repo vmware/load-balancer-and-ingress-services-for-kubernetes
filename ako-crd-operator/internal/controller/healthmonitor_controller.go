@@ -18,13 +18,14 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/session"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"net/http"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -56,7 +57,7 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	hm := &akov1alpha1.HealthMonitor{}
 	err := r.Client.Get(ctx, req.NamespacedName, hm)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if k8serror.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
 		utils.AviLog.Error(err, "Failed to get HealthMonitor: [%s/%s]", req.NamespacedName.Namespace, req.NamespacedName.Name)
@@ -66,7 +67,7 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		if !controllerutil.ContainsFinalizer(hm, constants.HealthMonitorFinalizer) {
 			controllerutil.AddFinalizer(hm, constants.HealthMonitorFinalizer)
 			if err := r.Update(ctx, hm); err != nil {
-				utils.AviLog.Error(err, "Failed to add finalizer) to HealthMonitor: [%s/%s]", req.NamespacedName.Namespace, req.NamespacedName.Name)
+				utils.AviLog.Error(err, "Failed to add finalizer to HealthMonitor: [%s/%s]", req.NamespacedName.Namespace, req.NamespacedName.Name)
 				return ctrl.Result{}, err
 			}
 		}
@@ -151,17 +152,25 @@ func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hm *a
 				utils.AviLog.Infof("healthmonitor [%s/%s] already exists. trying to get uuid", hm.Namespace, hm.Name)
 				err := r.AviClient.AviSession.Get(utils.GetUriEncoded(fmt.Sprintf("/api/healthmonitor?name=%s", hm.Name)), resp)
 				if err != nil {
+					utils.AviLog.Errorf("error getting uuid for healthmonitor [%s/%s]: %s", hm.Namespace, hm.Name, err.Error())
 					return nil, err
 				}
-			} else {
-				return nil, err
+				uuid, err := extractUUID(resp)
+				if err != nil {
+					utils.AviLog.Errorf("error extracting UUID from healthmonitor: [%s/%s]: %s", hm.Namespace, hm.Name, err.Error())
+					return nil, err
+				}
+				utils.AviLog.Infof("updating healthmonitor: [%s/%s]", hm.Namespace, hm.Name)
+				if err := r.AviClient.AviSession.Put(utils.GetUriEncoded("/api/healthmonitor/"+uuid), hm.Spec, &resp); err != nil {
+					utils.AviLog.Errorf("error updating healthmonitor [%s/%s]: %s", hm.Namespace, hm.Name, err.Error())
+					return nil, err
+				}
+				return resp, nil
 			}
-		} else {
-			return nil, err
 		}
-	} else {
-		utils.AviLog.Infof("healthmonitor [%s/%s] succesfully created", hm.Namespace, hm.Name)
+		return nil, err
 	}
+	utils.AviLog.Infof("healthmonitor [%s/%s] succesfully created", hm.Namespace, hm.Name)
 	return resp, nil
 }
 
@@ -170,24 +179,24 @@ func extractUUID(resp map[string]interface{}) (string, error) {
 	// Extract the results array
 	results, ok := resp["results"].([]interface{})
 	if !ok {
-		return "", fmt.Errorf("'results' not found or not an array")
+		return "", errors.New("'results' not found or not an array")
 	}
 
 	// Check if the results array is empty
 	if len(results) == 0 {
-		return "", fmt.Errorf("'results' array is empty")
+		return "", errors.New("'results' array is empty")
 	}
 
 	// Extract the first element from the results array (which is a map)
 	firstResult, ok := results[0].(map[string]interface{})
 	if !ok {
-		return "", fmt.Errorf("first element in 'results' is not a map")
+		return "", errors.New("first element in 'results' is not a map")
 	}
 
 	// Extract the UUID from the first result
 	uuid, ok := firstResult["uuid"].(string)
 	if !ok {
-		return "", fmt.Errorf("'uuid' not found or not a string")
+		return "", errors.New("'uuid' not found or not a string")
 	}
 	return uuid, nil
 }
