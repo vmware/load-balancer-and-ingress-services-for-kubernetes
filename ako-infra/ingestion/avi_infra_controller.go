@@ -101,7 +101,7 @@ func (a *AviControllerInfra) checkNSAnnotations(key string) (string, bool) {
 }
 
 func (a *AviControllerInfra) checkVirtualService() (string, error) {
-	uri := "/api/virtualservice?include_name=True&name.contains=kube-system-kube-apiserver-lb-svc&se_group_ref.name=" + lib.GetClusterID()
+	uri := "/api/virtualservice?include_name=True&name.contains=" + KubeAPIServerLBSvc + "&se_group_ref.name=" + lib.GetClusterID()
 	result, err := lib.AviGetCollectionRaw(a.AviRestClient, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
@@ -369,7 +369,7 @@ func fetchClustersInVC(vcenterServerUUID string, client *clients.AviClient, next
 	}
 	err := lib.AviPost(client, uri, payload, &response)
 	if err != nil {
-		utils.AviLog.Errorf("Faled to get NSXT Clusters, vcServer: %s, err: %s", vcenterServerUUID, err.Error())
+		utils.AviLog.Errorf("Failed to get NSXT Clusters, vcServer: %s, err: %s", vcenterServerUUID, err.Error())
 		return []string{}, err
 	}
 	res, _ := response.(map[string]interface{})
@@ -398,7 +398,7 @@ func getVCServerName(wcpClusters []string, vCenters map[string]string, client *c
 		}
 		if utils.InSlice(clusters, wcpClusters) {
 			if clustersFoundInVC {
-				utils.AviLog.Warnf("esx clusters with same MO IDs %v found in multiple vCenters", wcpClusters)
+				utils.AviLog.Warnf("esx clusters with same MOIDs %v found in multiple vCenters", wcpClusters)
 				return "", nil
 			}
 			vcServerName = vcName
@@ -603,7 +603,7 @@ func (a *AviControllerInfra) GetClusterNameToBeUsedInAKOUser(segExists bool) (st
 		// Include first 5 characters to add more uniqueness to cluster name
 		return clusterIDArr[0] + "-" + clusterIDArr[1][:5], nil
 	}
-	uri := "/api/virtualservice?name.contains=kube-system-kube-apiserver-lb-svc&se_group_ref.name=" + clusterID
+	uri := "/api/virtualservice?name.contains=" + KubeAPIServerLBSvc + "&se_group_ref.name=" + clusterID
 	result, err := lib.AviGetCollectionRaw(a.AviRestClient, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
