@@ -3,4 +3,4 @@ name: ako-crd-operator
 description: A Helm chart to distribute the project ako-crd-operator
 type: application
 version: 0.1.0
-appVersion: "0.1.0"
+appVersion: latest
