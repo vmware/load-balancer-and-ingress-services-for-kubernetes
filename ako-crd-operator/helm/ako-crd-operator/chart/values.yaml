@@ -3,7 +3,7 @@ controllerManager:
   replicas: 1
   container:
     image:
-      repository: packages.broadcom.com/ako/ako-crd-operator
+      repository: avi-buildops-docker-registry-02-lv.avilb.broadcom.net:8080/avi-buildops/ako/master/ako-crd-operator
       imagePullPolicy: IfNotPresent
       pullSecrets: []
     args:
