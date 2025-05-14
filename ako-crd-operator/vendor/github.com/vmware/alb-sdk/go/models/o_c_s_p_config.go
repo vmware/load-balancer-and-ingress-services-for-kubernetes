@@ -18,7 +18,7 @@ type OCSPConfig struct {
 	OcspReqInterval *uint32 `json:"ocsp_req_interval,omitempty"`
 
 	// Time in seconds that the system waits for a reply from the OCSP responder before dropping the connection. Field introduced in 20.1.1. Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	OcspRespTimeout uint32 `json:"ocsp_resp_timeout,omitempty"`
+	OcspRespTimeout *uint32 `json:"ocsp_resp_timeout,omitempty"`
 
 	// List of Responder URLs configured by user to do failover/override the AIA extension contained in the OCSP responder's SSL/TLS certificate. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ResponderURLLists []string `json:"responder_url_lists,omitempty"`

@@ -8,6 +8,9 @@ package models
 // swagger:model AppLearningParams
 type AppLearningParams struct {
 
+	// If this is set to true, WAF will only learn from clients which match the learn_from_bots specification. The settings learn_from_authenticated_requests and trusted_ip_groups always take precedence. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	EnableLearnFromBots *bool `json:"enable_learn_from_bots,omitempty"`
+
 	// Learn the params per URI path. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EnablePerURILearning *bool `json:"enable_per_uri_learning,omitempty"`
 

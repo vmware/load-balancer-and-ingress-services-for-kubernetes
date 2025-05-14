@@ -18,19 +18,19 @@ type ScaleStatus struct {
 	EndTimeStr *string `json:"end_time_str,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	NumSeAssigned uint32 `json:"num_se_assigned,omitempty"`
+	NumSeAssigned *uint32 `json:"num_se_assigned,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	NumSeRequested uint32 `json:"num_se_requested,omitempty"`
+	NumSeRequested *uint32 `json:"num_se_requested,omitempty"`
 
 	//  Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
-	PlacementReadFailCnt uint32 `json:"placement_read_fail_cnt,omitempty"`
+	PlacementReadFailCnt *uint32 `json:"placement_read_fail_cnt,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Reason []string `json:"reason,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ReasonCode uint64 `json:"reason_code,omitempty"`
+	ReasonCode *uint64 `json:"reason_code,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ReasonCodeString *string `json:"reason_code_string,omitempty"`

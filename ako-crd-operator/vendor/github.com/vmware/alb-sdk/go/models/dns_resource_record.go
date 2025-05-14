@@ -12,13 +12,13 @@ type DNSResourceRecord struct {
 	Addr6IPStr *string `json:"addr6_ip_str,omitempty"`
 
 	// IPv4 address of the requested FQDN. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	AddrIP uint32 `json:"addr_ip,omitempty"`
+	AddrIP *uint32 `json:"addr_ip,omitempty"`
 
 	// Canonical (real) name of the requested FQDN. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Cname *string `json:"cname,omitempty"`
 
 	// Class of the data in the resource record. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Dclass uint32 `json:"dclass,omitempty"`
+	Dclass *uint32 `json:"dclass,omitempty"`
 
 	// Geo Location of Member. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Location *GeoLocation `json:"location,omitempty"`
@@ -33,10 +33,10 @@ type DNSResourceRecord struct {
 	Nsname *string `json:"nsname,omitempty"`
 
 	// Service port. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Port uint32 `json:"port,omitempty"`
+	Port *uint32 `json:"port,omitempty"`
 
 	// The priority field identifies which mail server should be preferred. Field introduced in 18.2.9, 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Priority uint32 `json:"priority,omitempty"`
+	Priority *uint32 `json:"priority,omitempty"`
 
 	// Site controller cluster name - applicable only for Avi VS GSLB member. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SiteName *string `json:"site_name,omitempty"`

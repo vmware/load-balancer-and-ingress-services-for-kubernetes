@@ -25,7 +25,7 @@ type Image struct {
 	ControllerPatchRef *string `json:"controller_patch_ref,omitempty"`
 
 	// Time taken to upload the image in seconds. Field introduced in 21.1.3. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	Duration uint32 `json:"duration,omitempty"`
+	Duration *uint32 `json:"duration,omitempty"`
 
 	// Image upload end time. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	EndTime *string `json:"end_time,omitempty"`
@@ -47,7 +47,7 @@ type Image struct {
 	Name *string `json:"name"`
 
 	// Image upload progress which holds value between 0-100. Allowed values are 0-100. Field introduced in 21.1.3. Unit is PERCENT. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	Progress uint32 `json:"progress,omitempty"`
+	Progress *uint32 `json:"progress,omitempty"`
 
 	// SE package details. Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeInfo *PackageDetails `json:"se_info,omitempty"`

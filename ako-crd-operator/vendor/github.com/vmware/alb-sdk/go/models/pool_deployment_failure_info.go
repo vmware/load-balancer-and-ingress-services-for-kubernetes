@@ -15,7 +15,7 @@ type PoolDeploymentFailureInfo struct {
 	CurrInServicePoolRef *string `json:"curr_in_service_pool_ref,omitempty"`
 
 	// Operational traffic ratio for the pool. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Ratio uint32 `json:"ratio,omitempty"`
+	Ratio *uint32 `json:"ratio,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Results []*PGDeploymentRuleResult `json:"results,omitempty"`

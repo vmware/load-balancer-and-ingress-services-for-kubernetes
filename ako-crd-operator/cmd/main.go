@@ -17,11 +17,16 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 
-	"github.com/go-logr/logr"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/event"
+	session2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -53,13 +58,15 @@ func init() {
 
 // nolint:gocyclo
 func main() {
-
+	ctx := context.Background()
 	var probeAddr string
 
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 
-	ctrl.SetLogger(logr.New(&utils.AviLog))
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	ctrl.SetLogger(zap.New())
+
+	cfg := ctrl.GetConfigOrDie()
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
 	})
@@ -68,10 +75,26 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.HealthMonitorReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
+	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		utils.AviLog.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	}
+	// event recorder
+	// TODO: crd-specific event recorders
+	eventRecorder := utils.NewEventRecorder("ako-crd-operator", kubeClient, false)
+	eventManager := event.NewEventManager(eventRecorder, &v1.Pod{})
+	// setup controller properties
+	sessionManager := session2.NewSession(kubeClient, eventManager)
+	sessionManager.PopulateControllerProperties(ctx)
+	sessionManager.CreateAviClients(ctx, 1)
+	aviClients := sessionManager.GetAviClients()
+
+	hmReconciler := &controller.HealthMonitorReconciler{
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		AviClient: aviClients.AviClient[0],
+	}
+	if err = hmReconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HealthMonitor")
 		os.Exit(1)
 	}
