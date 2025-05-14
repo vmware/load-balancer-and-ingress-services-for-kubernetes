@@ -159,8 +159,7 @@ ako-crd-operator:
   controllerManager:
     container:
       image:
-        repository: packages.broadcom.com/ako/ako-crd-operator
-        tag: latest
+        repository: packages.broadcom.com/ako/ako-crd-operator        
         imagePullPolicy: IfNotPresent
         pullSecrets: []
       resources:
