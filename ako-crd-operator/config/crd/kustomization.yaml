@@ -3,6 +3,7 @@
 # It should be run by config/default
 resources:
 - bases/ako.vmware.com_healthmonitors.yaml
+- bases/ako.vmware.com_applicationprofiles.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:
