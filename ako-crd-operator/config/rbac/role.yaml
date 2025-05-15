@@ -7,6 +7,7 @@ rules:
 - apiGroups:
   - ako.vmware.com
   resources:
+  - applicationprofiles
   - healthmonitors
   verbs:
   - create
@@ -19,12 +20,14 @@ rules:
 - apiGroups:
   - ako.vmware.com
   resources:
+  - applicationprofiles/finalizers
   - healthmonitors/finalizers
   verbs:
   - update
 - apiGroups:
   - ako.vmware.com
   resources:
+  - applicationprofiles/status
   - healthmonitors/status
   verbs:
   - get
