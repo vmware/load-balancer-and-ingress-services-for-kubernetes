@@ -56,7 +56,6 @@ func Initialize() {
 
 	os.Setenv(lib.ENABLE_EVH, "true")
 	os.Setenv(lib.VIP_PER_NAMESPACE, "false")
-	os.Setenv("ISTIO_ENABLED", "false")
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("PASSTHROUGH_SHARD_SIZE", "LARGE")
 	os.Setenv(lib.DISABLE_STATIC_ROUTE_SYNC, "true")
