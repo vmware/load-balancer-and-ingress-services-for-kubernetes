@@ -1,0 +1,26 @@
+apiVersion: ako.vmware.com/v1alpha1
+kind: IpAddrGroup
+metadata:
+  labels:
+    app.kubernetes.io/name: ako-crd-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: ipaddrgroup-sample
+spec:
+  name: "my-ip-group"
+  ipaddrs:
+    - addr: "192.168.1.100"
+      type: V4
+    - addr: "192.168.1.101"
+      type: V4
+  range:
+    begin:
+      addr: "10.0.0.1"
+      type: V4
+    end:
+      addr: "10.0.0.10"
+      type: V4
+  prefixes:
+    - ip_addr:
+        addr: "2001:db8::"
+        type: V6
+      mask: 64
