@@ -116,6 +116,13 @@ metadata:
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     operatorframework.io/suggested-namespace: avi-system
     containerImage: projects.packages.broadcom.com/ako/ako-operator@sha256:cfc30e3a06fd3afa54e6a0a10a3aac1604395a60f04b291fcbba61e3529b4876
+    features.operators.openshift.io/disconnected: "true"
+    features.operators.openshift.io/fips-compliant: "false"
+    features.operators.openshift.io/proxy-aware: "false"
+    features.operators.openshift.io/tls-profiles: "false"
+    features.operators.openshift.io/token-auth-aws: "false"
+    features.operators.openshift.io/token-auth-azure: "false"
+    features.operators.openshift.io/token-auth-gcp: "false"
   name: ako-operator.v1.12.3
   namespace: placeholder
 spec:
