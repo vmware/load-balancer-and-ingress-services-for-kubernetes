@@ -1,0 +1,198 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: ipaddrgroups.ako.vmware.com
+spec:
+  group: ako.vmware.com
+  names:
+    kind: IpAddrGroup
+    listKind: IpAddrGroupList
+    plural: ipaddrgroups
+    singular: ipaddrgroup
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: IpAddrGroup is the Schema for the ipaddrgroups API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec defines the desired state of IpAddrGroup
+            properties:
+              addrs:
+                description: Configure IP address(es)
+                items:
+                  properties:
+                    addr:
+                      default: IpaddrDefault
+                      description: |-
+                        IP address
+                        IPv4/IPv6 Address format <x.x.x.x>/<x:x::x>";
+                        // +kubebuilder:validation:Key
+                      type: string
+                    type:
+                      type: string
+                  required:
+                  - addr
+                  - type
+                  type: object
+                type: array
+              country_codes:
+                description: Populate the IP address ranges from the geo database
+                  for this country
+                items:
+                  type: string
+                type: array
+              description:
+                type: string
+              ip_ports:
+                description: Configure (IP address, port) tuple(s)
+                items:
+                  properties:
+                    hostname:
+                      description: Hostname of server. One of IP address or hostname
+                        should be set.
+                      type: string
+                    ip:
+                      description: IP Address of host. One of IP address or hostname
+                        should be set.
+                      properties:
+                        addr:
+                          default: IpaddrDefault
+                          description: |-
+                            IP address
+                            IPv4/IPv6 Address format <x.x.x.x>/<x:x::x>";
+                            // +kubebuilder:validation:Key
+                          type: string
+                        type:
+                          type: string
+                      required:
+                      - addr
+                      - type
+                      type: object
+                    name:
+                      type: string
+                    port:
+                      description: Port number of server.
+                      format: int32
+                      maximum: 65535
+                      minimum: 1
+                      type: integer
+                  required:
+                  - port
+                  type: object
+                type: array
+              marathon_app_name:
+                description: Populate IP addresses from tasks of this Marathon app
+                type: string
+              marathon_service_port:
+                description: Task port associated with marathon service port. If Marathon
+                  app has multiple service ports, this is required. Else, the first
+                  task port is used
+                format: int32
+                type: integer
+              markers:
+                description: List of labels to be used for granular RBAC.
+                items:
+                  properties:
+                    key:
+                      description: |-
+                        Key for filter match.
+                        option (key) = "key";
+                      type: string
+                    values:
+                      description: 'Values for filter match. Multiple values will
+                        be evaluated as OR. Example: key = value1 OR key = value2.
+                        Behavior for match is key = * if this field is empty.'
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - key
+                  type: object
+                type: array
+              prefixes:
+                description: Configure IP address prefix(es)
+                items:
+                  properties:
+                    ip_addr:
+                      description: IPv4/IPv6 Prefix format <x.x.x.x/x>/<x:x::x/x>
+                      properties:
+                        addr:
+                          default: IpaddrDefault
+                          description: |-
+                            IP address
+                            IPv4/IPv6 Address format <x.x.x.x>/<x:x::x>";
+                            // +kubebuilder:validation:Key
+                          type: string
+                        type:
+                          type: string
+                      required:
+                      - addr
+                      - type
+                      type: object
+                    mask:
+                      format: int32
+                      type: integer
+                  required:
+                  - ip_addr
+                  - mask
+                  type: object
+                type: array
+              ranges:
+                description: Configure IP address range(s)
+                items:
+                  properties:
+                    begin:
+                      description: Starting IP address of the range
+                      type: string
+                    end:
+                      description: Ending IP address of the range
+                      type: string
+                  required:
+                  - begin
+                  - end
+                  type: object
+                type: array
+              tenant_uuid:
+                type: string
+            required:
+            - tenant_uuid
+            type: object
+          status:
+            description: Status defines the observed state of IpAddrGroup
+            properties:
+              error:
+                description: Error if any error was encountered
+                type: string
+              status:
+                description: Status of the application profile
+                type: string
+            required:
+            - error
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

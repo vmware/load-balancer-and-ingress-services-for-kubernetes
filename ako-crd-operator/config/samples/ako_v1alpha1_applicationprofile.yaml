@@ -1,0 +1,50 @@
+apiVersion: ako.vmware.com/v1alpha1
+kind: ApplicationProfile
+metadata:
+  labels:
+    app.kubernetes.io/name: ako-crd-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: applicationprofile-sample
+spec:
+  type: APPLICATION_PROFILE_TYPE_HTTP
+  http_profile:
+    xff_enabled: true
+    hsts_enabled: true
+    hsts_max_age: 365
+    compression_profile: {}
+    cache_config: {}
+    post_accept_timeout: 30000
+    client_header_timeout: 10000
+    client_body_timeout: 30000
+    keepalive_timeout: 30000
+    client_max_header_size: 12
+    client_max_request_size: 48
+    ssl_client_certificate_mode: SSL_CLIENT_CERTIFICATE_NONE
+    session_cookie_name: "albsessid"
+    session_cookie_samesite: "SAMESITE_LAX"
+    session_cookie_secure: true
+    session_cookie_httponly: true
+    session_establishment_timeout: 300
+    session_idle_timeout: 1800
+    session_maximum_timeout: 28800
+    ssl_sess_cache_timeout: 300
+    ssl_sess_cache_average_size: 1024
+    ssl_sess_cache_max_size: 4096
+    connection_multiplexing_enabled: true
+    http2_enabled: true
+    spdy_enabled: true
+    http2_direct: false
+    allow_chunked_encoding: true
+  preserve_client_ip: false
+  preserve_client_port: false
+  preserve_dest_ip_port: false
+  tenant_uuid: admin
+  app_service_type: APP_SERVICE_TYPE_HTTP
+  markers:
+    - key: "env"
+      values:
+        - "prod"
+        - "staging"
+  description: "Sample Application Profile"
+  configpb_attributes:
+    version: "1.0"
