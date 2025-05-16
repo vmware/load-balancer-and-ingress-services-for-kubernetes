@@ -882,7 +882,7 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, tenant, key st
 		vsVipNode.BGPPeerLabels = lib.GetGlobalBgpPeerLabels()
 	}
 
-	buildWithInfraSettingForEvh(key, routeIgrObj.GetNamespace(), avi_vs_meta, vsVipNode, infraSetting)
+	BuildWithInfraSettingForEvh(key, routeIgrObj.GetNamespace(), avi_vs_meta, vsVipNode, infraSetting)
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 
@@ -1019,7 +1019,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForEVH(vsNode []*AviEvhVsNode, childN
 			}
 		}
 
-		buildPoolWithInfraSetting(key, poolNode, infraSetting)
+		BuildPoolWithInfraSetting(key, poolNode, infraSetting)
 		if lib.IsIstioEnabled() {
 			poolNode.UpdatePoolNodeForIstio()
 		}
@@ -1108,7 +1108,7 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 		if len(vsNode) > 0 && found {
 			// if vsNode already exists, check for updates via AviInfraSetting
 			if infraSetting != nil {
-				buildWithInfraSettingForEvh(key, routeIgrObj.GetNamespace(), vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
+				BuildWithInfraSettingForEvh(key, routeIgrObj.GetNamespace(), vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 				if vsNode[0].IsSharedVS() {
 					for _, evh := range vsNode[0].EvhNodes {
 						if len(evh.GetVHDomainNames()) > 0 {
@@ -1485,7 +1485,7 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 		if found {
 			// if vsNode already exists, check for updates via AviInfraSetting
 			if infraSetting != nil {
-				buildWithInfraSettingForEvh(key, namespace, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
+				BuildWithInfraSettingForEvh(key, namespace, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 				if vsNode[0].IsSharedVS() {
 					for _, evh := range vsNode[0].EvhNodes {
 						if len(evh.GetVHDomainNames()) > 0 {
@@ -2290,7 +2290,7 @@ func DeleteStaleDataForModelChangeForEvh(routeIgrObj RouteIngressModel, namespac
 	}
 }
 
-func buildWithInfraSettingForEvh(key, namespace string, vs *AviEvhVsNode, vsvip *AviVSVIPNode, infraSetting *akov1beta1.AviInfraSetting) {
+func BuildWithInfraSettingForEvh(key, namespace string, vs *AviEvhVsNode, vsvip *AviVSVIPNode, infraSetting *akov1beta1.AviInfraSetting) {
 	if infraSetting != nil && infraSetting.Status.Status == lib.StatusAccepted {
 		if infraSetting.Spec.SeGroup.Name != "" {
 			// This assumes that the SeGroup has the appropriate labels configured
@@ -2336,6 +2336,7 @@ func buildWithInfraSettingForEvh(key, namespace string, vs *AviEvhVsNode, vsvip 
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 	}
 }
+
 func DeleteDedicatedEvhVSNode(vsNode *AviEvhVsNode, key string, hostsToRemove []string) {
 	vsNode.PoolGroupRefs = []*AviPoolGroupNode{}
 	vsNode.PoolRefs = []*AviPoolNode{}

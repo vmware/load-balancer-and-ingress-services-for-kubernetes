@@ -491,7 +491,7 @@ func (o *AviObjectGraph) BuildPolicyPGPoolsForSNI(vsNode []*AviVsNode, tlsNode *
 				}
 			}
 
-			buildPoolWithInfraSetting(key, poolNode, infraSetting)
+			BuildPoolWithInfraSetting(key, poolNode, infraSetting)
 
 			if lib.CheckObjectNameLength(poolNode.Name, lib.Pool) {
 				isPoolNameLenExceedAviLimit = true
@@ -758,14 +758,17 @@ func buildWithInfraSetting(key, namespace string, vs *AviVsNode, vsvip *AviVSVIP
 	}
 }
 
-func buildPoolWithInfraSetting(key string, pool *AviPoolNode, infraSetting *akov1beta1.AviInfraSetting) {
+func BuildPoolWithInfraSetting(key string, pool *AviPoolNode, infraSetting *akov1beta1.AviInfraSetting) {
 	if infraSetting != nil && infraSetting.Status.Status == lib.StatusAccepted {
 		if infraSetting.Spec.Network.NodeNetworks != nil && len(infraSetting.Spec.Network.NodeNetworks) > 0 {
 			pool.NetworkPlacementSettings = lib.GetNodeInfraNetworkList(infraSetting.Name)
 		} else {
 			pool.NetworkPlacementSettings = lib.GetNodeNetworkMap()
 		}
-
+		if infraSetting.Spec.NSXSettings.T1LR != nil {
+			pool.T1Lr = *infraSetting.Spec.NSXSettings.T1LR
+			pool.VrfContext = ""
+		}
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over PoolNode %s", key, pool.Name)
 	}
 }
