@@ -65,6 +65,7 @@ func SharedAVIClients(tenant string) *utils.AviRestClientPool {
 	}
 
 	userHeaders := utils.SharedCtrlProp().GetCtrlUserHeader()
+	userHeaders[utils.XAviUserAgentHeader] = "AKO"
 	apiScheme := utils.SharedCtrlProp().GetCtrlAPIScheme()
 
 	// Always create 9 clients irrespective of shard size
