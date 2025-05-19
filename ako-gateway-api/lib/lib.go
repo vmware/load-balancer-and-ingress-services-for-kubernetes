@@ -78,16 +78,11 @@ func GetPoolName(parentNs, parentName, routeNs, routeName, matchName, backendNs,
 func GetPoolGroupName(parentNs, parentName, routeNs, routeName, matchName string) string {
 	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName
 	if matchName != "" {
-		// TODO: Test it out
 		name = fmt.Sprintf("%s-%s", name, utils.Stringify(utils.Hash(matchName)))
 	}
 	return lib.Encode(name, lib.PG)
 }
 
-func GetHTTPRuleName(parentNs, parentName, routeNs, routeName, matchName string) string {
-	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-" + utils.Stringify(utils.Hash(matchName))
-	return lib.Encode(name, lib.HPPMAP)
-}
 func CheckGatewayClassController(controllerName string) bool {
 	return controllerName == lib.AviIngressController
 }

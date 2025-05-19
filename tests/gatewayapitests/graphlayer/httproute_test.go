@@ -586,7 +586,9 @@ func TestHTTPRouteWithValidConfig(t *testing.T) {
 		"foo-8080.com", "foo-8081.com"}))
 	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].EvhNodes[0].AviMarkers.GatewayName).To(gomega.Equal(gatewayName))
-	g.Expect(nodes[0].EvhNodes[0].AviMarkers.Namespace).To(gomega.Equal(namespace))
+	g.Expect(nodes[0].EvhNodes[0].AviMarkers.GatewayNamespace).To(gomega.Equal(namespace))
+	g.Expect(nodes[0].EvhNodes[0].AviMarkers.HTTPRouteName).To(gomega.Equal(httpRouteName))
+	g.Expect(nodes[0].EvhNodes[0].AviMarkers.HTTPRouteNamespace).To(gomega.Equal(namespace))
 	g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].EvhNodes[0].PoolRefs).To(gomega.HaveLen(1))
 
@@ -3295,5 +3297,131 @@ func TestHTTPRouteFilterWithUrlRewriteOnlyHostnameOrPath(t *testing.T) {
 	// delete httproute
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestHTTPRouteWithRouteRuleName(t *testing.T) {
+	gatewayClassName := "gateway-class-hr-31"
+	gatewayName := "gateway-hr-31"
+	httpRouteName := "httproute-31"
+	namespace := "default"
+	svcName := "avisvc-hr-31"
+	ports := []int32{8080, 8081}
+	ruleName := "rulename-port-8080"
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPorEPS(t, "default", svcName, false, false, "1.1.1")
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(namespace).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
+	hostnames := []gatewayv1.Hostname{"foo-8080.com", "foo-8081.com"}
+	rule1 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
+		[][]string{{svcName, namespace, "8080", "1"}}, nil)
+	rule2 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/bar"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add", "remove", "replace"}},
+		[][]string{{svcName, namespace, "8081", "1"}}, nil)
+	rule1.Name = (*gatewayv1.SectionName)(&ruleName)
+	rules := []gatewayv1.HTTPRouteRule{rule1, rule2}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			t.Logf("Couldn't get the HTTPRoute, err: %+v", err)
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil &&
+			apimeta.FindStatusCondition(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(DEFAULT_NAMESPACE, gatewayName))
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return false
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].VSVIPRefs[0].FQDNs) > 1 && len(nodes[0].EvhNodes[0].PoolGroupRefs) > 0
+
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(2))
+	g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].VSVIPRefs).To(gomega.HaveLen(1))
+
+	g.Expect(nodes[0].VSVIPRefs[0].FQDNs).To(gomega.Equal([]string{
+		"foo-8080.com", "foo-8081.com"}))
+	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(2))
+	g.Expect(nodes[0].EvhNodes[0].Name).To(gomega.Equal("ako-gw-cluster--79c80596b5e4aeb72b3ea5dcf831623412368b17"))
+	g.Expect(nodes[0].EvhNodes[0].AviMarkers.GatewayName).To(gomega.Equal(gatewayName))
+	g.Expect(nodes[0].EvhNodes[0].AviMarkers.GatewayNamespace).To(gomega.Equal(namespace))
+	g.Expect(nodes[0].EvhNodes[0].AviMarkers.HTTPRouteName).To(gomega.Equal(httpRouteName))
+	g.Expect(nodes[0].EvhNodes[0].AviMarkers.HTTPRouteNamespace).To(gomega.Equal(namespace))
+	g.Expect(nodes[0].EvhNodes[0].AviMarkers.HTTPRouteRuleName).To(gomega.Equal(ruleName))
+
+	g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].Name).To(gomega.Equal("ako-gw-cluster--79c80596b5e4aeb72b3ea5dcf831623412368b17"))
+	g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].AviMarkers.GatewayName).To(gomega.Equal(gatewayName))
+	g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].AviMarkers.GatewayNamespace).To(gomega.Equal(namespace))
+	g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].AviMarkers.HTTPRouteName).To(gomega.Equal(httpRouteName))
+	g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].AviMarkers.HTTPRouteNamespace).To(gomega.Equal(namespace))
+	g.Expect(nodes[0].EvhNodes[0].PoolGroupRefs[0].AviMarkers.HTTPRouteRuleName).To(gomega.Equal(ruleName))
+
+	g.Expect(nodes[0].EvhNodes[0].PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].Name).To(gomega.Equal("ako-gw-cluster--50036c244a7b7711b181d50d5ff1d7c8cc143d83"))
+	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].AviMarkers.GatewayName).To(gomega.Equal(gatewayName))
+	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].AviMarkers.GatewayNamespace).To(gomega.Equal(namespace))
+	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].AviMarkers.HTTPRouteName).To(gomega.Equal(httpRouteName))
+	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].AviMarkers.HTTPRouteNamespace).To(gomega.Equal(namespace))
+	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].AviMarkers.HTTPRouteRuleName).To(gomega.Equal(ruleName))
+	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].AviMarkers.BackendName).To(gomega.Equal(svcName))
+	g.Expect(nodes[0].EvhNodes[0].PoolRefs[0].AviMarkers.BackendNs).To(gomega.Equal(namespace))
+
+	g.Expect(nodes[0].EvhNodes[1].Name).To(gomega.Equal("ako-gw-cluster--20175aa4f7283a01de44b8bd0a39f0f2df07d44a"))
+	g.Expect(nodes[0].EvhNodes[1].AviMarkers.GatewayName).To(gomega.Equal(gatewayName))
+	g.Expect(nodes[0].EvhNodes[1].AviMarkers.GatewayNamespace).To(gomega.Equal(namespace))
+	g.Expect(nodes[0].EvhNodes[1].AviMarkers.HTTPRouteName).To(gomega.Equal(httpRouteName))
+	g.Expect(nodes[0].EvhNodes[1].AviMarkers.HTTPRouteNamespace).To(gomega.Equal(namespace))
+
+	g.Expect(nodes[0].EvhNodes[1].PoolGroupRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].EvhNodes[1].PoolGroupRefs[0].Name).To(gomega.Equal("ako-gw-cluster--20175aa4f7283a01de44b8bd0a39f0f2df07d44a"))
+	g.Expect(nodes[0].EvhNodes[1].PoolGroupRefs[0].AviMarkers.GatewayName).To(gomega.Equal(gatewayName))
+	g.Expect(nodes[0].EvhNodes[1].PoolGroupRefs[0].AviMarkers.GatewayNamespace).To(gomega.Equal(namespace))
+	g.Expect(nodes[0].EvhNodes[1].PoolGroupRefs[0].AviMarkers.HTTPRouteName).To(gomega.Equal(httpRouteName))
+	g.Expect(nodes[0].EvhNodes[1].PoolGroupRefs[0].AviMarkers.HTTPRouteNamespace).To(gomega.Equal(namespace))
+
+	g.Expect(nodes[0].EvhNodes[1].PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].EvhNodes[1].PoolRefs[0].Name).To(gomega.Equal("ako-gw-cluster--21618dd778e3c4fccaa3ae45ae085ecd39c19c22"))
+	g.Expect(nodes[0].EvhNodes[1].PoolRefs[0].AviMarkers.GatewayName).To(gomega.Equal(gatewayName))
+	g.Expect(nodes[0].EvhNodes[1].PoolRefs[0].AviMarkers.GatewayNamespace).To(gomega.Equal(namespace))
+	g.Expect(nodes[0].EvhNodes[1].PoolRefs[0].AviMarkers.HTTPRouteName).To(gomega.Equal(httpRouteName))
+	g.Expect(nodes[0].EvhNodes[1].PoolRefs[0].AviMarkers.HTTPRouteNamespace).To(gomega.Equal(namespace))
+	g.Expect(nodes[0].EvhNodes[1].PoolRefs[0].AviMarkers.BackendName).To(gomega.Equal(svcName))
+	g.Expect(nodes[0].EvhNodes[1].PoolRefs[0].AviMarkers.BackendNs).To(gomega.Equal(namespace))
+
+	integrationtest.DelSVC(t, namespace, svcName)
+	integrationtest.DelEPorEPS(t, namespace, svcName)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
+	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 }
