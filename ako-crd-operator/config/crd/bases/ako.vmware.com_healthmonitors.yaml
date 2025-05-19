@@ -68,7 +68,7 @@ spec:
                 minimum: 1
                 type: integer
               http_monitor:
-                description: HTTP defines the HTTP monitor configuration.
+                description: HTTPMonitor defines the HTTP monitor configuration.
                 properties:
                   auth_type:
                     description: AuthType is the type of authentication to use.
@@ -144,10 +144,6 @@ spec:
                 maximum: 65535
                 minimum: 0
                 type: integer
-              name:
-                description: Name is name of the spec and optional. If not present
-                  will be inferred from Metadata
-                type: string
               receive_timeout:
                 default: 4
                 description: ReceiveTimeout is the timeout for receiving a ping response,
