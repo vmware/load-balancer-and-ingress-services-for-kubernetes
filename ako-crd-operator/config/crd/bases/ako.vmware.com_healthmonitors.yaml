@@ -121,12 +121,18 @@ spec:
                     description: MaintenanceResponse is the body content to match
                       for maintenance response.
                     type: string
+                  response_size:
+                    description: ResponseSize is the expected size of the response.
+                    format: int32
+                    maximum: 16384
+                    minimum: 2048
+                    type: integer
                 type: object
                 x-kubernetes-validations:
                 - message: if auth_type is set, exact_http_request must be set to
                     false
                   rule: (has(self.auth_type) && (!has(self.exact_http_request) ||
-                    !self.exact_http_request))
+                    !self.exact_http_request))|| !(has(self.auth_type))
               is_federated:
                 description: |-
                   IsFederated describes the object's replication scope. If the

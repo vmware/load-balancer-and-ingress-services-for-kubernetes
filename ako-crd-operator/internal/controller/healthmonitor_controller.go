@@ -31,6 +31,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"strings"
 )
 
 // HealthMonitorReconciler reconciles a HealthMonitor object
@@ -41,8 +42,8 @@ type HealthMonitorReconciler struct {
 }
 
 type HealthMonitorRequest struct {
-	Name              string `json:"name"`
-	HealthMonitorSpec *akov1alpha1.HealthMonitorSpec
+	Name string `json:"name"`
+	akov1alpha1.HealthMonitorSpec
 
 	namespace string
 }
@@ -120,9 +121,9 @@ func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alp
 // TODO: Make this function generic
 func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *akov1alpha1.HealthMonitor) error {
 	hmReq := &HealthMonitorRequest{
-		Name:              hm.Name,
-		HealthMonitorSpec: &hm.Spec,
-		namespace:         hm.Namespace,
+		hm.Name,
+		hm.Spec,
+		hm.Namespace,
 	}
 	// this is a POST Call
 	if hm.Status.UUID == "" {
@@ -155,13 +156,12 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 // createHealthMonitor will attempt to create a health monitor, if it already exists, it will return an object which contains the uuid
 func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hmReq *HealthMonitorRequest) (map[string]interface{}, error) {
 	resp := map[string]interface{}{}
-
 	if err := r.AviClient.AviSession.Post(utils.GetUriEncoded(constants.HealthMonitorURL), hmReq, &resp); err != nil {
 		utils.AviLog.Errorf("error posting healthmonitor: %s", err.Error())
 		if aviError, ok := err.(session.AviError); ok {
-			if aviError.HttpStatusCode == http.StatusConflict {
+			if aviError.HttpStatusCode == http.StatusConflict && strings.Contains(aviError.Error(), "already exists") {
 				utils.AviLog.Infof("healthmonitor [%s/%s] already exists. trying to get uuid", hmReq.namespace, hmReq.Name)
-				err := r.AviClient.AviSession.Get(utils.GetUriEncoded(fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, hmReq.Name)), resp)
+				err := r.AviClient.AviSession.Get(utils.GetUriEncoded(fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, hmReq.Name)), &resp)
 				if err != nil {
 					utils.AviLog.Errorf("error getting healthmonitor [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
 					return nil, err

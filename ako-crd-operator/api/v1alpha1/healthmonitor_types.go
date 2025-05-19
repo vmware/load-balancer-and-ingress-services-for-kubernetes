@@ -143,7 +143,7 @@ const (
 )
 
 // HTTPMonitor defines the HTTP monitor configuration.
-// +kubebuilder:validation:XValidation:rule="(has(self.auth_type) && (!has(self.exact_http_request) || !self.exact_http_request))",message="if auth_type is set, exact_http_request must be set to false"
+// +kubebuilder:validation:XValidation:rule="(has(self.auth_type) && (!has(self.exact_http_request) || !self.exact_http_request))|| !(has(self.auth_type))",message="if auth_type is set, exact_http_request must be set to false"
 type HTTPMonitor struct {
 	// HTTPRequest is the HTTP request to send.
 	// +optional
@@ -176,6 +176,11 @@ type HTTPMonitor struct {
 	// HTTPRequestBody is the request body to send.
 	// +optional
 	HTTPRequestBody string `json:"http_request_body,omitempty"`
+	// ResponseSize is the expected size of the response.
+	// +optional
+	// +kubebuilder:validation:Minimum=2048
+	// +kubebuilder:validation:Maximum=16384
+	ResponseSize uint32 `json:"response_size,omitempty"`
 }
 
 // HealthMonitorStatus defines the observed state of HealthMonitor
