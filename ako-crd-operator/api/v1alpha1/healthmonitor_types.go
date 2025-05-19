@@ -44,9 +44,6 @@ const (
 // HealthMonitorSpec defines the desired state of HealthMonitor
 // +kubebuilder:validation:XValidation:rule="(!has(self.http_monitor.auth_type) || has(self.authentication.username) && has(self.authentication.password))",message="If auth_type is set, both username and password must be set in authentication"
 type HealthMonitorSpec struct {
-	// Name is name of the spec and optional. If not present will be inferred from Metadata
-	// +kubebuilder:validation:Optional
-	Name string `json:"name"`
 	// SendInterval is the frequency, in seconds, that pings are sent.
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=3600
@@ -97,9 +94,9 @@ type HealthMonitorSpec struct {
 	// +optional
 	TCP *TCPMonitor `json:"tcp_monitor,omitempty"`
 
-	// HTTP defines the HTTP monitor configuration.
+	// HTTPMonitor defines the HTTP monitor configuration.
 	// +optional
-	HTTP *HTTPMonitor `json:"http_monitor,omitempty"`
+	HTTPMonitor *HTTPMonitor `json:"http_monitor,omitempty"`
 }
 
 // HealthMonitorInfo defines authentication information for HTTP/HTTPS monitors.
@@ -188,7 +185,7 @@ type HealthMonitorStatus struct {
 	// Error if any error was encountered
 	Error string `json:"error"`
 	// UUID is unique identifier of the health monitor object
-	Uuid string `json:"uuid"`
+	UUID string `json:"uuid"`
 }
 
 // +genclient
