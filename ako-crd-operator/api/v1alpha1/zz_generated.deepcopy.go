@@ -137,8 +137,8 @@ func (in *HealthMonitorSpec) DeepCopyInto(out *HealthMonitorSpec) {
 		*out = new(TCPMonitor)
 		**out = **in
 	}
-	if in.HTTP != nil {
-		in, out := &in.HTTP, &out.HTTP
+	if in.HTTPMonitor != nil {
+		in, out := &in.HTTPMonitor, &out.HTTPMonitor
 		*out = new(HTTPMonitor)
 		(*in).DeepCopyInto(*out)
 	}

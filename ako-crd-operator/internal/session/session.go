@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	"sync"
 
 	"github.com/vmware/alb-sdk/go/session"
@@ -55,10 +56,10 @@ func (s *Session) CreateAviClients(ctx context.Context, numClient int) {
 	if ctrlUsername == "" || (ctrlPassword == "" && ctrlAuthToken == "") || ctrlIpAddress == "" {
 		var passwordLog, authTokenLog string
 		if ctrlPassword != "" {
-			passwordLog = "<sensitive>"
+			passwordLog = constants.Sensitive
 		}
 		if ctrlAuthToken != "" {
-			authTokenLog = "<sensitive>"
+			authTokenLog = constants.Sensitive
 		}
 		s.eventManager.PodEventf(
 			corev1.EventTypeWarning,
@@ -74,7 +75,7 @@ func (s *Session) CreateAviClients(ctx context.Context, numClient int) {
 	// TODO: inject interface of AviClient instead directly using AviRestClient
 	var aviRestClientPool *utils.AviRestClientPool
 
-	aviRestClientPool, _, err = utils.NewAviRestClientPool(
+	aviRestClientPool, s.controllerVersion, err = utils.NewAviRestClientPool(
 		uint32(numClient),
 		ctrlIpAddress,
 		ctrlUsername,
@@ -91,9 +92,9 @@ func (s *Session) CreateAviClients(ctx context.Context, numClient int) {
 	} else {
 		s.status = utils.AVIAPI_CONNECTED
 	}
-	// set the tenant and controller version in avisession obj
+	// set the controller version in avisession obj
 	for _, client := range aviRestClientPool.AviClient {
-		SetVersion := session.SetVersion("31.1.1")
+		SetVersion := session.SetVersion(s.controllerVersion)
 		SetVersion(client.AviSession)
 	}
 	s.aviClientPool = aviRestClientPool
