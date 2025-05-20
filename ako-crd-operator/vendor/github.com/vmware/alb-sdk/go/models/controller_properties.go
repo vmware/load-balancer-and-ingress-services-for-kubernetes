@@ -12,6 +12,9 @@ type ControllerProperties struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
+	// Enable to use event manager as source of eventsDisable to use log manager as source of events. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	AlertManagerUseEvms *bool `json:"alert_manager_use_evms,omitempty"`
+
 	// Allow non-admin tenants to update admin VrfContext and Network objects. Field introduced in 18.2.7, 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AllowAdminNetworkUpdates *bool `json:"allow_admin_network_updates,omitempty"`
 
@@ -34,7 +37,7 @@ type ControllerProperties struct {
 	AppviewxCompatMode *bool `json:"appviewx_compat_mode,omitempty"`
 
 	// Period for which asynchronous patch requests are queued. Allowed values are 30-120. Special values are 0 - Deactivated. Field introduced in 18.2.11, 20.1.3. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	AsyncPatchMergePeriod uint32 `json:"async_patch_merge_period,omitempty"`
+	AsyncPatchMergePeriod *uint32 `json:"async_patch_merge_period,omitempty"`
 
 	// Duration for which asynchronous patch requests should be kept, after being marked as SUCCESS or FAIL. Allowed values are 5-120. Field introduced in 18.2.11, 20.1.3. Unit is MIN. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	AsyncPatchRequestCleanupDuration *uint32 `json:"async_patch_request_cleanup_duration,omitempty"`
@@ -57,13 +60,13 @@ type ControllerProperties struct {
 	// Period for sessions cleanup job. Field introduced in 18.1.1. Unit is MIN. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CleanupSessionsTimeoutPeriod *uint32 `json:"cleanup_sessions_timeout_period,omitempty"`
 
-	// Time in minutes to wait between consecutive cloud discovery cycles. Allowed values are 1-1440. Field introduced in 30.2.1. Unit is MIN. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Time in minutes to wait between consecutive cloud discovery cycles. Allowed values are 1-1440. Field introduced in 22.1.5, 30.2.1. Unit is MIN. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	CloudDiscoveryInterval *uint32 `json:"cloud_discovery_interval,omitempty"`
 
 	// Enable/Disable periodic reconcile for all the clouds. Field introduced in 17.2.14,18.1.5,18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CloudReconcile *bool `json:"cloud_reconcile,omitempty"`
 
-	// Time in minutes to wait between consecutive cloud reconcile cycles. Allowed values are 1-1440. Field introduced in 30.2.1. Unit is MIN. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Time in minutes to wait between consecutive cloud reconcile cycles. Allowed values are 1-1440. Field introduced in 22.1.5, 30.2.1. Unit is MIN. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	CloudReconcileInterval *uint32 `json:"cloud_reconcile_interval,omitempty"`
 
 	// Period for cluster ip gratuitous arp job. Unit is MIN. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
@@ -103,7 +106,7 @@ type ControllerProperties struct {
 	DNSRefreshPeriod *uint32 `json:"dns_refresh_period,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Dummy uint32 `json:"dummy,omitempty"`
+	Dummy *uint32 `json:"dummy,omitempty"`
 
 	// Allow editing of system limits. Keep in mind that these system limits have been carefully selected based on rigorous testing in our testig environments. Modifying these limits could destabilize your cluster. Do this at your own risk!. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	EditSystemLimits *bool `json:"edit_system_limits,omitempty"`
@@ -120,6 +123,15 @@ type ControllerProperties struct {
 	// Enable printing of cached logs inside Resource Manager. Used for debugging purposes only. Field introduced in 20.1.6. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	EnableResmgrLogCachePrint *bool `json:"enable_resmgr_log_cache_print,omitempty"`
 
+	// Maximum number of goroutines for event manager process. Allowed values are 1-64. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	EventManagerMaxGoroutines *uint32 `json:"event_manager_max_goroutines,omitempty"`
+
+	// Maximum number of subscribers for event manager process. Allowed values are 1-6. Special values are 0 - Disabled. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	EventManagerMaxSubscribers *uint32 `json:"event_manager_max_subscribers,omitempty"`
+
+	// Log instances for event manager processing delay; recorded whenever event processing delay exceeds configured interval specified in seconds. Allowed values are 1-5. Special values are 0 - Disabled. Field introduced in 30.2.1. Unit is SEC. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	EventManagerProcessingTimeThreshold *uint32 `json:"event_manager_processing_time_threshold,omitempty"`
+
 	// False Positive learning configuration. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	FalsePositiveLearningConfig *FalsePositiveLearningConfig `json:"false_positive_learning_config,omitempty"`
 
@@ -132,8 +144,11 @@ type ControllerProperties struct {
 	// Period for file object cleanup job. Field introduced in 20.1.1. Unit is MIN. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FileObjectCleanupPeriod *uint32 `json:"file_object_cleanup_period,omitempty"`
 
-	// List of mapping for file reference and their absolute path . Field introduced in 30.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// List of mapping for file reference and their absolute path . Field deprecated in 30.2.1. Field introduced in 30.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	FileReferenceMappings []*FileReferenceMapping `json:"file_reference_mappings,omitempty"`
+
+	// This is the max number of file versions that will be retained for a file referenced by the local FileObject. Subsequent uploads of file will result in the file rotation of the older version and the latest version retained. Example  When a file Upload is done for the first time, there will be a v1 version. Subsequent uploads will get mapped to v1, v2 and v3 versions. On the fourth upload of the file, the v1 will be file rotated and v2, v3 and v4 will be retained. Allowed values are 1-5. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	FileobjectMaxFileVersions *uint32 `json:"fileobject_max_file_versions,omitempty"`
 
 	// Batch size for the vs_mgr to perform datastrorecleanup during a GSLB purge. Allowed values are 50-1200. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	GslbPurgeBatchSize *uint32 `json:"gslb_purge_batch_size,omitempty"`
@@ -166,13 +181,13 @@ type ControllerProperties struct {
 	PermissionScopedSharedAdminNetworks *bool `json:"permission_scoped_shared_admin_networks,omitempty"`
 
 	// Period for rotate app persistence keys job. Allowed values are 1-1051200. Special values are 0 - Disabled. Unit is MIN. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 0), Basic edition(Allowed values- 0), Enterprise with Cloud Services edition.
-	PersistenceKeyRotatePeriod uint32 `json:"persistence_key_rotate_period,omitempty"`
+	PersistenceKeyRotatePeriod *uint32 `json:"persistence_key_rotate_period,omitempty"`
 
 	// Burst limit on number of incoming requests. 0 to disable. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	PortalRequestBurstLimit uint32 `json:"portal_request_burst_limit,omitempty"`
+	PortalRequestBurstLimit *uint32 `json:"portal_request_burst_limit,omitempty"`
 
 	// Maximum average number of requests allowed per second. 0 to disable. Field introduced in 20.1.1. Unit is PER_SECOND. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	PortalRequestRateLimit uint32 `json:"portal_request_rate_limit,omitempty"`
+	PortalRequestRateLimit *uint32 `json:"portal_request_rate_limit,omitempty"`
 
 	// Token used for uploading tech-support to portal. Field introduced in 16.4.6,17.1.2. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PortalToken *string `json:"portal_token,omitempty"`
@@ -257,6 +272,12 @@ type ControllerProperties struct {
 
 	// Number of days for SSL Certificate expiry warning. Unit is DAYS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SslCertificateExpiryWarningDays []int64 `json:"ssl_certificate_expiry_warning_days,omitempty,omitempty"`
+
+	// Time in minutes to wait between cleanup of SystemReports. Allowed values are 15-300. Field introduced in 22.1.6, 30.2.1. Unit is MIN. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
+	SystemReportCleanupInterval *uint32 `json:"system_report_cleanup_interval,omitempty"`
+
+	// Number of SystemReports retained in the system. Once the number of system reports exceed this threshold, the oldest SystemReport will be removed and the latest one retained. i.e. the SystemReport will be rotated and the reports don't exceed the threshold. Allowed values are 5-50. Field introduced in 22.1.6, 30.2.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
+	SystemReportLimit *uint32 `json:"system_report_limit,omitempty"`
 
 	//  Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UnresponsiveSeReboot *uint32 `json:"unresponsive_se_reboot,omitempty"`

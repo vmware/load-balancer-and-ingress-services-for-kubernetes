@@ -36,7 +36,7 @@ type GslbPoolMemberRuntimeInfo struct {
 	IP *IPAddr `json:"ip,omitempty"`
 
 	// This is an internal field that conveys the IP address from the controller to service engine in binary format. . Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	IPValueToSe uint32 `json:"ip_value_to_se,omitempty"`
+	IPValueToSe *uint32 `json:"ip_value_to_se,omitempty"`
 
 	// This is an internal field that conveys the IPV6 address from the controller to service engine in binary format. . Field introduced in 18.2.8, 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	IPV6ValueToSe []int64 `json:"ipv6_value_to_se,omitempty,omitempty"`

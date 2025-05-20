@@ -30,7 +30,7 @@ type GslbServiceConfig struct {
 	IsFederated *bool `json:"is_federated,omitempty"`
 
 	// The minimum number of members to distribute traffic to. Allowed values are 1-65535. Special values are 0 - Disable. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	MinMembers uint32 `json:"min_members,omitempty"`
+	MinMembers *uint32 `json:"min_members,omitempty"`
 
 	// Name of the GSLB Service. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	// Required: true

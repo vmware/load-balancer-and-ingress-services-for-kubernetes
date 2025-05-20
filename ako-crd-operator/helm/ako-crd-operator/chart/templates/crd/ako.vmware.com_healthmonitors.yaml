@@ -1,14 +1,8 @@
-{{- if .Values.crd.enable }}
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  labels:
-    {{- include "chart.labels" . | nindent 4 }}
   annotations:
-    {{- if .Values.crd.keep }}
-    "helm.sh/resource-policy": keep
-    {{- end }}
     controller-gen.kubebuilder.io/version: v0.17.2
   name: healthmonitors.ako.vmware.com
 spec:
@@ -73,27 +67,19 @@ spec:
                 maximum: 50
                 minimum: 1
                 type: integer
-              http:
-                description: HTTP defines the HTTP monitor configuration.
+              http_monitor:
+                description: HTTPMonitor defines the HTTP monitor configuration.
                 properties:
                   auth_type:
                     description: AuthType is the type of authentication to use.
                     enum:
-                    - Basic
-                    - NTLM
+                    - AUTH_BASIC
+                    - AUTH_NTLM
                     type: string
                   exact_http_request:
                     description: ExactHttpRequest checks if the whole http request
                       should match.
                     type: boolean
-                  http_headers:
-                    description: HTTPHeaders is the list of headers to send.
-                    items:
-                      type: string
-                    type: array
-                  http_method:
-                    description: HTTPMethod is the HTTP method to use.
-                    type: string
                   http_request:
                     default: GET / HTTP/1.0
                     description: HTTPRequest is the HTTP request to send.
@@ -101,10 +87,6 @@ spec:
                     type: string
                   http_request_body:
                     description: HTTPRequestBody is the request body to send.
-                    type: string
-                  http_request_header_path:
-                    description: HTTPRequestHeaderPath is the path to use for headers.
-                    maxLength: 1024
                     type: string
                   http_response:
                     description: HTTPResponse is a keyword to match in the response
@@ -115,6 +97,13 @@ spec:
                     description: HTTPResponseCode is the list of expected HTTP response
                       codes.
                     items:
+                      enum:
+                      - HTTP_ANY
+                      - HTTP_1XX
+                      - HTTP_2XX
+                      - HTTP_3XX
+                      - HTTP_4XX
+                      - HTTP_5XX
                       type: string
                     minItems: 1
                     type: array
@@ -139,6 +128,11 @@ spec:
                     minimum: 2048
                     type: integer
                 type: object
+                x-kubernetes-validations:
+                - message: if auth_type is set, exact_http_request must be set to
+                    false
+                  rule: (has(self.auth_type) && (!has(self.exact_http_request) ||
+                    !self.exact_http_request))|| !(has(self.auth_type))
               is_federated:
                 description: |-
                   IsFederated describes the object's replication scope. If the
@@ -147,6 +141,9 @@ spec:
                   If the field is set to true, then the object is replicated
                   across the federation
                 type: boolean
+                x-kubernetes-validations:
+                - message: is_federated is immutable
+                  rule: self == oldSelf
               monitor_port:
                 description: MonitorPort is the port to use for the health check.
                 format: int32
@@ -177,7 +174,7 @@ spec:
                 maximum: 50
                 minimum: 1
                 type: integer
-              tcp:
+              tcp_monitor:
                 description: TCP defines the TCP monitor configuration.
                 properties:
                   maintenance_response:
@@ -200,11 +197,6 @@ spec:
                     maxLength: 512
                     type: string
                 type: object
-                x-kubernetes-validations:
-                - message: tcp_request, tcp_response, and maintenance_response cannot
-                    be set when tcp_half_open is true
-                  rule: self.tcp_half_open == false || (self.tcp_request == '' &&
-                    self.tcp_response == '' && self.maintenance_response == '')
               type:
                 description: Type is the type of health monitor.
                 enum:
@@ -219,6 +211,11 @@ spec:
             required:
             - type
             type: object
+            x-kubernetes-validations:
+            - message: If auth_type is set, both username and password must be set
+                in authentication
+              rule: (!has(self.http_monitor.auth_type) || has(self.authentication.username)
+                && has(self.authentication.password))
           status:
             description: Status defines the observed state of HealthMonitor
             properties:
@@ -228,12 +225,15 @@ spec:
               status:
                 description: Status of the healthmonitor
                 type: string
+              uuid:
+                description: UUID is unique identifier of the health monitor object
+                type: string
             required:
             - error
+            - uuid
             type: object
         type: object
     served: true
     storage: true
     subresources:
       status: {}
-{{- end -}}

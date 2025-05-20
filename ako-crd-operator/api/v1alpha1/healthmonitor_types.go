@@ -33,15 +33,16 @@ const (
 )
 
 // HealthMonitorAuth defines the type of authentication for HTTP/HTTPS monitors.
-// +kubebuilder:validation:Enum=Basic;NTLM
+// +kubebuilder:validation:Enum=AUTH_BASIC;AUTH_NTLM
 type HealthMonitorAuth string
 
 const (
-	HealthMonitorBasicAuth HealthMonitorAuth = "Basic"
-	HealthMonitorNTLM      HealthMonitorAuth = "NTLM"
+	HealthMonitorBasicAuth HealthMonitorAuth = "AUTH_BASIC"
+	HealthMonitorNTLM      HealthMonitorAuth = "AUTH_NTLM"
 )
 
 // HealthMonitorSpec defines the desired state of HealthMonitor
+// +kubebuilder:validation:XValidation:rule="(!has(self.http_monitor.auth_type) || has(self.authentication.username) && has(self.authentication.password))",message="If auth_type is set, both username and password must be set in authentication"
 type HealthMonitorSpec struct {
 	// SendInterval is the frequency, in seconds, that pings are sent.
 	// +kubebuilder:validation:Minimum=1
@@ -86,15 +87,16 @@ type HealthMonitorSpec struct {
 	// the controller-cluster and its associated service-engines.
 	// If the field is set to true, then the object is replicated
 	// across the federation
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="is_federated is immutable"
 	IsFederated bool `json:"is_federated,omitempty"`
 
 	// TCP defines the TCP monitor configuration.
 	// +optional
-	TCP *TCPMonitor `json:"tcp,omitempty"`
+	TCP *TCPMonitor `json:"tcp_monitor,omitempty"`
 
-	// HTTP defines the HTTP monitor configuration.
+	// HTTPMonitor defines the HTTP monitor configuration.
 	// +optional
-	HTTP *HTTPMonitor `json:"http,omitempty"`
+	HTTPMonitor *HTTPMonitor `json:"http_monitor,omitempty"`
 }
 
 // HealthMonitorInfo defines authentication information for HTTP/HTTPS monitors.
@@ -108,8 +110,6 @@ type HealthMonitorInfo struct {
 	// +kubebuilder:validation:MaxLength=128
 	Password string `json:"password"`
 }
-
-// +kubebuilder:validation:XValidation:rule="self.tcp_half_open == false || (self.tcp_request == '' && self.tcp_response == '' && self.maintenance_response == '')",message="tcp_request, tcp_response, and maintenance_response cannot be set when tcp_half_open is true"
 
 // TCPMonitor defines the TCP monitor configuration.
 type TCPMonitor struct {
@@ -130,7 +130,20 @@ type TCPMonitor struct {
 	TcpHalfOpen bool `json:"tcp_half_open,omitempty"`
 }
 
+// +kubebuilder:validation:Enum=HTTP_ANY;HTTP_1XX;HTTP_2XX;HTTP_3XX;HTTP_4XX;HTTP_5XX
+type HTTPResponseCode string
+
+const (
+	HTTPAny HTTPResponseCode = "HTTP_ANY"
+	HTTP1XX                  = "HTTP_1XX"
+	HTTP2XX                  = "HTTP_2XX"
+	HTTP3XX                  = "HTTP_3XX"
+	HTTP4XX                  = "HTTP_4XX"
+	HTTP5XX                  = "HTTP_5XX"
+)
+
 // HTTPMonitor defines the HTTP monitor configuration.
+// +kubebuilder:validation:XValidation:rule="(has(self.auth_type) && (!has(self.exact_http_request) || !self.exact_http_request))|| !(has(self.auth_type))",message="if auth_type is set, exact_http_request must be set to false"
 type HTTPMonitor struct {
 	// HTTPRequest is the HTTP request to send.
 	// +optional
@@ -139,7 +152,7 @@ type HTTPMonitor struct {
 	HTTPRequest string `json:"http_request,omitempty"`
 	// HTTPResponseCode is the list of expected HTTP response codes.
 	// +kubebuilder:validation:MinItems=1
-	HTTPResponseCode []string `json:"http_response_code,omitempty"` // Use string array for enum values
+	HTTPResponseCode []HTTPResponseCode `json:"http_response_code,omitempty"` // Use string array for enum values
 	// HTTPResponse is a keyword to match in the response body.
 	// +optional
 	// +kubebuilder:validation:MaxLength=512
@@ -168,15 +181,6 @@ type HTTPMonitor struct {
 	// +kubebuilder:validation:Minimum=2048
 	// +kubebuilder:validation:Maximum=16384
 	ResponseSize uint32 `json:"response_size,omitempty"`
-	// HTTPHeaders is the list of headers to send.
-	HTTPHeaders []string `json:"http_headers,omitempty"`
-	// HTTPMethod is the HTTP method to use.
-	// +optional
-	HTTPMethod string `json:"http_method,omitempty"`
-	// HTTPRequestHeaderPath is the path to use for headers.
-	// +optional
-	// +kubebuilder:validation:MaxLength=1024
-	HTTPRequestHeaderPath string `json:"http_request_header_path,omitempty"`
 }
 
 // HealthMonitorStatus defines the observed state of HealthMonitor
@@ -185,6 +189,8 @@ type HealthMonitorStatus struct {
 	Status string `json:"status,omitempty"`
 	// Error if any error was encountered
 	Error string `json:"error"`
+	// UUID is unique identifier of the health monitor object
+	UUID string `json:"uuid"`
 }
 
 // +genclient

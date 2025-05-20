@@ -8,7 +8,7 @@ package models
 // swagger:model CSRFRule
 type CSRFRule struct {
 
-	// CSRF Action to be applied for matched target. Enum options - VERIFY_CSRF_TOKEN, VERIFY_ORIGIN, VERIFY_CSRF_TOKEN_AND_ORIGIN, BYPASS_CSRF. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// CSRF Action to be applied for matched target. Enum options - VERIFY_CSRF_TOKEN, VERIFY_ORIGIN, VERIFY_ORIGIN_AND_CSRF_TOKEN, BYPASS_CSRF. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	Action *string `json:"action,omitempty"`
 
 	// Enable or deactivate the rule. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.

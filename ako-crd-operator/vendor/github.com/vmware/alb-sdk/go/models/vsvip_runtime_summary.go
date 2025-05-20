@@ -9,10 +9,10 @@ package models
 type VsvipRuntimeSummary struct {
 
 	//  Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	NumSeAssigned uint32 `json:"num_se_assigned,omitempty"`
+	NumSeAssigned *uint32 `json:"num_se_assigned,omitempty"`
 
 	//  Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	NumSeRequested uint32 `json:"num_se_requested,omitempty"`
+	NumSeRequested *uint32 `json:"num_se_requested,omitempty"`
 
 	//  Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	OperStatus *OperationalStatus `json:"oper_status,omitempty"`
