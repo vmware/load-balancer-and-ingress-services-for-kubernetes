@@ -25,8 +25,10 @@ import (
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	akogatewayapistatus "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/status"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -51,6 +53,7 @@ func IsGatewayClassValid(key string, gatewayClass *gatewayv1.GatewayClass) bool 
 	return true
 }
 
+// Should this logic be moved to the graph layer?
 func IsValidGateway(key string, gateway *gatewayv1.Gateway) (bool, bool) {
 	spec := gateway.Spec
 	allowedRoutesAll := false
@@ -189,6 +192,7 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 	}
 
 	// hostname should not overlap with hostname of an existing gateway
+	// Current check is for gateways in the same namespace, change it to all namespaces, also we can use local store to save hostname to (gateway+ns) info
 	gatewayNsList, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(gateway.Namespace).List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Errorf("Unable to retrieve the gateways during validation: %s", err)
@@ -438,4 +442,23 @@ func setGatewayCondition(gwStatus *gatewayv1.GatewayStatus, validListenerCount, 
 		Message("Gateway configuration is valid").
 		Status(metav1.ConditionTrue).
 		ObservedGeneration(observedGeneration).SetIn(&gwStatus.Conditions)
+}
+
+// This section has been taken from the existing AviInfraSetting validator
+func setVipNetworkAndNodeNetworkFromInfraSetting(key string, infraSetting *akov1beta1.AviInfraSetting) {
+	segMgmtNetworK := ""
+	if infraSetting.Spec.SeGroup.Name != "" {
+		k8s.AddSeGroupLabel(key, infraSetting.Spec.SeGroup.Name)
+		// Not required for NO access cloud
+		if lib.GetCloudType() == lib.CLOUD_VCENTER {
+			segMgmtNetworK = k8s.GetSEGManagementNetwork(infraSetting.Spec.SeGroup.Name)
+		}
+	}
+	if len(infraSetting.Spec.Network.VipNetworks) > 0 {
+		k8s.SetAviInfrasettingVIPNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.SeGroup.Name, infraSetting.Spec.Network.VipNetworks)
+	}
+
+	if len(infraSetting.Spec.Network.NodeNetworks) > 0 {
+		k8s.SetAviInfrasettingNodeNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.SeGroup.Name, infraSetting.Spec.Network.NodeNetworks)
+	}
 }

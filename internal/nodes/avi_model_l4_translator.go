@@ -240,7 +240,7 @@ func (o *AviObjectGraph) ConstructAviL4PolPoolNodes(svcObj *corev1.Service, vsNo
 		portPool := AviHostPathPortPoolPG{Port: uint32(filterPort), Pool: pool_ref, Protocol: portProto.Protocol}
 		portPoolSet = append(portPoolSet, portPool)
 
-		buildPoolWithInfraSetting(key, poolNode, infraSetting)
+		BuildPoolWithInfraSetting(key, poolNode, infraSetting)
 
 		if isSSLEnabled {
 			vsNode.DefaultPool = poolNode.Name
@@ -831,7 +831,7 @@ func getL4InfraSetting(key, namespace string, svc *corev1.Service, advl4GWClassN
 	}
 
 	//return namespace InfraSetting if global infraSetting is not present
-	return getNamespaceAviInfraSetting(key, namespace)
+	return lib.GetNamespaceAviInfraSetting(key, namespace, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer)
 }
 
 func getL4Rule(key string, svc *corev1.Service) (*akov1alpha2.L4Rule, error) {

@@ -268,7 +268,7 @@ type Gateway struct {
 	*gatewayv1.Gateway
 }
 
-func (g *Gateway) GatewayV1(name, namespace, gatewayClass string, address []gatewayv1.GatewaySpecAddress, listeners []gatewayv1.Listener) *gatewayv1.Gateway {
+func (g *Gateway) GatewayV1(name, namespace, gatewayClass string, address []gatewayv1.GatewaySpecAddress, listeners []gatewayv1.Listener, vipType ...string) *gatewayv1.Gateway {
 	gateway := &gatewayv1.Gateway{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            name,
@@ -282,6 +282,11 @@ func (g *Gateway) GatewayV1(name, namespace, gatewayClass string, address []gate
 	}
 
 	gateway.Spec.Listeners = listeners
+	if len(vipType) > 0 {
+		gateway.Annotations = map[string]string{
+			akogatewayapilib.LBVipTypeAnnotation: vipType[0],
+		}
+	}
 	return gateway
 }
 
@@ -315,9 +320,9 @@ func SetupGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress 
 	g.Create(t)
 }
 
-func UpdateGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress []gatewayv1.GatewaySpecAddress, listeners []gatewayv1.Listener) {
+func UpdateGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress []gatewayv1.GatewaySpecAddress, listeners []gatewayv1.Listener, vipType ...string) {
 	g := &Gateway{}
-	g.Gateway = g.GatewayV1(name, namespace, gatewayClass, ipAddress, listeners)
+	g.Gateway = g.GatewayV1(name, namespace, gatewayClass, ipAddress, listeners, vipType...)
 	g.Update(t)
 }
 
@@ -328,17 +333,27 @@ func TeardownGateway(t *testing.T, name, namespace string) {
 }
 
 type FakeGatewayClass struct {
-	Name           string
-	ControllerName string
+	Name             string
+	ControllerName   string
+	InfraSettingName string
 }
 
 func (gc *FakeGatewayClass) GatewayClassV1() *gatewayv1.GatewayClass {
+	var parameterRef *gatewayv1.ParametersReference
+	if gc.InfraSettingName != "" {
+		parameterRef = &gatewayv1.ParametersReference{
+			Group: "ako.vmware.com",
+			Kind:  "AviInfraSetting",
+			Name:  gc.InfraSettingName,
+		}
+	}
 	return &gatewayv1.GatewayClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: gc.Name,
 		},
 		Spec: gatewayv1.GatewayClassSpec{
 			ControllerName: gatewayv1.GatewayController(gc.ControllerName),
+			ParametersRef:  parameterRef,
 		},
 	}
 }
@@ -373,6 +388,16 @@ func SetupGatewayClass(t *testing.T, name, controllerName string) {
 	gc := &FakeGatewayClass{
 		Name:           name,
 		ControllerName: controllerName,
+	}
+	gc.Create(t)
+	time.Sleep(10 * time.Second)
+}
+
+func SetupGatewayClassWithInfraSetting(t *testing.T, name, controllerName, infraSettingName string) {
+	gc := &FakeGatewayClass{
+		Name:             name,
+		ControllerName:   controllerName,
+		InfraSettingName: infraSettingName,
 	}
 	gc.Create(t)
 	time.Sleep(10 * time.Second)
