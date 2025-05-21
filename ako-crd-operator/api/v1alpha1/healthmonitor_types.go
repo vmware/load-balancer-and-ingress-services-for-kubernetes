@@ -192,6 +192,8 @@ type HealthMonitorStatus struct {
 	Error string `json:"error"`
 	// UUID is unique identifier of the health monitor object
 	UUID string `json:"uuid"`
+	// ObservedGeneration is the observed generation by the operator
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 	// LastUpdated is the timestamp the object was last updated
 	LastUpdated *metav1.Time `json:"lastUpdated"`
 }

@@ -11,19 +11,18 @@ func NewCustomHMPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		// Only allow updates when there is generation change or the last updated time is outdated after T time
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			oldObj := e.ObjectOld.(*akov1alpha1.HealthMonitor)
 			newObj := e.ObjectNew.(*akov1alpha1.HealthMonitor)
 			// TODO: make time check configurable
-			return oldObj.GetGeneration() != newObj.GetGeneration() || (newObj.Status.LastUpdated != nil &&
+			return newObj.GetGeneration() != newObj.Status.ObservedGeneration || (newObj.Status.LastUpdated != nil &&
 				time.Now().Sub(newObj.Status.LastUpdated.Time) >= 5*time.Hour)
 
 		},
 
-		// Allow create events only if LastUpdated is nil
+		// Allow create events only if LastUpdated is nil or the object is outdated
 		// this will basically stop reconciliation on pod restart
 		CreateFunc: func(e event.CreateEvent) bool {
 			obj := e.Object.(*akov1alpha1.HealthMonitor)
-			return obj.Status.UUID == ""
+			return obj.Status.UUID == "" || obj.GetGeneration() != obj.Status.ObservedGeneration
 		},
 
 		// Allow delete events

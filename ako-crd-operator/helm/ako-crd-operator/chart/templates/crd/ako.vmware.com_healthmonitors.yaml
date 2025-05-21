@@ -150,6 +150,9 @@ spec:
                 maximum: 65535
                 minimum: 0
                 type: integer
+                x-kubernetes-validations:
+                - message: monitor port is immutable
+                  rule: self == oldSelf
               receive_timeout:
                 default: 4
                 description: ReceiveTimeout is the timeout for receiving a ping response,
@@ -226,6 +229,11 @@ spec:
                 description: LastUpdated is the timestamp the object was last updated
                 format: date-time
                 type: string
+              observedGeneration:
+                description: ObservedGeneration is the observed generation by the
+                  operator
+                format: int64
+                type: integer
               status:
                 description: Status of the healthmonitor
                 type: string
