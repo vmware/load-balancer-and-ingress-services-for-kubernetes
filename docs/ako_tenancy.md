@@ -22,12 +22,16 @@ Service Engines are isolated from `admin` tenant. A new `Default-Group` is creat
 ![Alt text](images/new_tenant.png?raw=true)
 * Create the [`ako-admin`](roles/ako-admin.json) and [`ako-tenant`](roles/ako-tenant.json) roles which gives appropriate privileges to the ako user in `admin` and `billing` tenant.
 ![Alt text](images/role_list.png?raw=true)
+* Create the [`ako-all-tenants-permission-controller`](roles/ako-all-tenants-permission-controller.json) role, which grants the AKO user read privilege for the controller for all tenants.
+![Alt text](images/ako-all-tenants-permission-controller.png?raw=true)
 * Create a new user for AKO in AVI under `Administration->Accounts->Tenants`
 ![Alt text](images/user_path.png?raw=true)
 * Click `create`
 ![Alt text](images/new_user.png?raw=true)
 * Assign [`ako-admin`](roles/ako-admin.json) and [`ako-tenant`](roles/ako-tenant.json) roles to admin and billing tenant respectively.
 ![Alt text](images/new_user_role.png?raw=true)
+* Assign the [`ako-all-tenants-permission-controller`](roles/ako-all-tenants-permission-controller.json) role to all tenants.
+![Alt text](images/all-tenants-role.png?raw=true)
 * In **AKO**, Set the `ControllerSettings.tenantName` to the tenant created in the earlier steps.
 * In **AKO**, Set the `avicredentials.username` and `avicredentials.password` to the user credentials created above.
 
@@ -66,3 +70,12 @@ metadata:
 ```
 
 With the above settings AKO will map the `n1` namespace to the `billing` tenant and all the objects will be created in that tenant .
+
+## Troubleshooting
+
+**Q: I've applied the `ako-tenant.json` role, but the controller UUID is not being populated. What should I do?**
+
+**A:** You need to assign the `ako-all-tenants-permission-controller.json` role to the "All Tenants" section in the Avi UI. This grants the AKO user the necessary read privileges for the controller across all tenants.
+
+To do this, navigate to `Administration -> Accounts -> Users` in the Avi UI, select the `ako-all-tenants-permission-controller` role, and ensure it's applied to the "All Tenants" section as shown below:
+![Assign ako-all-tenants-permission-controller to All Tenants](images/all-tenants-role.png?raw=true)
