@@ -222,6 +222,10 @@ spec:
               error:
                 description: Error if any error was encountered
                 type: string
+              lastUpdated:
+                description: LastUpdated is the timestamp the object was last updated
+                format: date-time
+                type: string
               status:
                 description: Status of the healthmonitor
                 type: string
@@ -230,6 +234,7 @@ spec:
                 type: string
             required:
             - error
+            - lastUpdated
             - uuid
             type: object
         type: object
