@@ -318,95 +318,33 @@ func fetchSEGroup(client *clients.AviClient, overrideUri ...lib.NextPage) (error
 	return nil, nil
 }
 
-func fetchVcenterServer(vCenters map[string]string, client *clients.AviClient, nextPage ...lib.NextPage) error {
+func fetchVcenterServer(client *clients.AviClient) (string, error) {
 	uri := "/api/vcenterserver?include_name&cloud_ref.name=" + utils.CloudName
-	if len(nextPage) > 0 {
-		uri = nextPage[0].NextURI
-	}
 	result, err := lib.AviGetCollectionRaw(client, uri)
 	if err != nil {
-		return err
+		return "", err
 	}
+
 	if result.Count == 0 {
-		return fmt.Errorf("vcenterServer object not found")
+		return "", fmt.Errorf("vcenterServer object not found")
 	}
+
+	if result.Count > 1 {
+		return "", fmt.Errorf("multiple vcenterServer objects found")
+	}
+
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
-		return err
-	}
-	for _, elem := range elems {
-		vc := models.VCenterServer{}
-		err = json.Unmarshal(elem, &vc)
-		if err != nil {
-			return err
-		}
-		vCenters[*vc.UUID] = *vc.Name
+		return "", err
 	}
 
-	if result.Next != "" {
-		next_uri := strings.Split(result.Next, "/api/vcenterserver")
-		if len(next_uri) > 1 {
-			overrideUri := "/api/vcenterserver" + next_uri[1]
-			nextPage := lib.NextPage{NextURI: overrideUri}
-			return fetchVcenterServer(vCenters, client, nextPage)
-		}
-	}
-
-	return nil
-}
-
-func fetchClustersInVC(vcenterServerUUID string, client *clients.AviClient, nextPage ...lib.NextPage) ([]string, error) {
-	clusters := []string{}
-	uri := "/api/nsxt/clusters"
-	if len(nextPage) > 0 {
-		uri = nextPage[0].NextURI
-	}
-	var response interface{}
-	payload := map[string]string{
-		"cloud_uuid":   lib.GetCloudUUID(),
-		"vcenter_uuid": vcenterServerUUID,
-	}
-	err := lib.AviPost(client, uri, payload, &response)
+	vc := models.VCenterServer{}
+	err = json.Unmarshal(elems[0], &vc)
 	if err != nil {
-		utils.AviLog.Errorf("Failed to get NSXT Clusters, vcServer: %s, err: %s", vcenterServerUUID, err.Error())
-		return []string{}, err
+		return "", err
 	}
-	res, _ := response.(map[string]interface{})
-	resNSXTClusters, _ := res["resource"].(map[string]interface{})
-	resClusters, _ := resNSXTClusters["nsxt_clusters"].([]interface{})
-	for _, cluster := range resClusters {
-		cl, _ := cluster.(map[string]interface{})
-		clusters = append(clusters, cl["vc_mobj_id"].(string))
-	}
-	return clusters, nil
-}
-
-func getVCServerName(wcpClusters []string, vCenters map[string]string, client *clients.AviClient) (string, error) {
-	if len(vCenters) == 1 {
-		for _, vcName := range vCenters {
-			return vcName, nil
-		}
-	}
-	vcServerName := ""
-	clustersFoundInVC := false
-	err := fmt.Errorf("vCenterServer not found corresponding to ESX clusters %v", wcpClusters)
-	for vcUUID, vcName := range vCenters {
-		clusters, err := fetchClustersInVC(vcUUID, client)
-		if err != nil {
-			continue
-		}
-		if utils.InSlice(clusters, wcpClusters) {
-			if clustersFoundInVC {
-				utils.AviLog.Warnf("esx clusters with same MOIDs %v found in multiple vCenters", wcpClusters)
-				return "", nil
-			}
-			vcServerName = vcName
-			clustersFoundInVC = true
-			err = nil
-		}
-	}
-	return vcServerName, err
+	return *vc.Name, nil
 }
 
 func updateSEGroup() {
@@ -443,18 +381,9 @@ func updateSEGroup() {
 		return
 	}
 	include := true
-	vCenters := make(map[string]string)
-	err = fetchVcenterServer(vCenters, client)
+	vcenterServerName, err := fetchVcenterServer(client)
 	if err != nil {
 		utils.AviLog.Warnf("Error during API call to fetch Vcenter Server Info, err: %s", err.Error())
-		return
-	}
-	vcenterServerName, err := getVCServerName(clusterIDs, vCenters, client)
-	if err != nil {
-		utils.AviLog.Errorf("failed to get vcenterserver name, err: %s", err.Error())
-		return
-	}
-	if vcenterServerName == "" {
 		return
 	}
 	vcRef := fmt.Sprintf("/api/vcenterserver/?name=%s", vcenterServerName)
@@ -497,36 +426,22 @@ func configureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGr
 	seGroup.Markers = markers
 	if len(seGroup.Vcenters) == 0 {
 		include := true
-		vCenters := make(map[string]string)
-		err := fetchVcenterServer(vCenters, client)
+		vcenterServerName, err := fetchVcenterServer(client)
 		if err != nil {
 			utils.AviLog.Warnf("Error during API call to fetch Vcenter Server Info, err: %s", err.Error())
 			return err
 		}
-		clusterIDs, err := lib.GetAvailabilityZonesCRData(lib.GetDynamicClientSet())
-		if err != nil {
-			utils.AviLog.Warnf("Failed to get Availability Zones for the supervisor cluster, err: %s", err.Error())
-			clusterIDs = []string{lib.GetClusterName()}
-		}
-		vcenterServerName, err := getVCServerName(clusterIDs, vCenters, client)
-		if err != nil {
-			utils.AviLog.Errorf("failed to get vcenterserver name, err: %s", err.Error())
-			return err
-		}
-		if vcenterServerName != "" {
-			vcRef := fmt.Sprintf("/api/vcenterserver/?name=%s", vcenterServerName)
-			clusterName := strings.Split(lib.GetClusterID(), ":")
-			seGroup.Vcenters = append(seGroup.Vcenters,
-				&models.PlacementScopeConfig{
-					VcenterRef: &vcRef,
-					NsxtClusters: &models.NsxtClusters{
-						ClusterIds: []string{clusterName[0]},
-						Include:    &include,
-					},
-				})
-		} else {
-			utils.AviLog.Infof("Skipping SE Group placement scope configuration, seGroup: %s", *seGroup.Name)
-		}
+
+		vcRef := fmt.Sprintf("/api/vcenterserver/?name=%s", vcenterServerName)
+		clusterName := strings.Split(lib.GetClusterID(), ":")
+		seGroup.Vcenters = append(seGroup.Vcenters,
+			&models.PlacementScopeConfig{
+				VcenterRef: &vcRef,
+				NsxtClusters: &models.NsxtClusters{
+					ClusterIds: []string{clusterName[0]},
+					Include:    &include,
+				},
+			})
 	}
 	response := models.ServiceEngineGroupAPIResponse{}
 	var uri string
