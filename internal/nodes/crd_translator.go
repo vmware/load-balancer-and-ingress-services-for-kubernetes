@@ -181,6 +181,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 
 		if hostrule.Spec.VirtualHost.AnalyticsPolicy != nil {
 			var infinite uint32 = 0 // Special value to set log duration as infinite
+			// defaults to 'infinite' if hostrule doesn't specify a duration
 			analyticsPolicy = &models.AnalyticsPolicy{
 				FullClientLogs: &models.FullClientLogs{
 					Duration: &infinite,
@@ -190,6 +191,11 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 			if hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs != nil {
 				analyticsPolicy.FullClientLogs.Enabled = hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Enabled
 				analyticsPolicy.FullClientLogs.Throttle = lib.GetThrottle(hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Throttle)
+
+				// only update duration if duration is actually specified in hr
+				if hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Duration != nil {
+					analyticsPolicy.FullClientLogs.Duration = hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Duration
+				}
 			}
 		}
 
