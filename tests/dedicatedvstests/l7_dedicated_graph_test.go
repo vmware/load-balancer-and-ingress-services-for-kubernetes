@@ -247,9 +247,13 @@ func CreateIngress(t *testing.T, ingTestObj IngressTestObject) {
 	integrationtest.PollForCompletion(t, ingTestObj.modelNames[0], 5)
 }
 
-func SetUpTestForIngressInNodePortMode(t *testing.T, svcName, model_Name string) {
+func SetUpTestForIngressInNodePortMode(t *testing.T, svcName, model_Name, externalTrafficPolicy string) {
 	objects.SharedAviGraphLister().Delete(model_Name)
-	integrationtest.CreateSVC(t, "default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeNodePort, false)
+	if externalTrafficPolicy == "" {
+		integrationtest.CreateSVC(t, "default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeNodePort, false)
+	} else {
+		integrationtest.CreateSvcWithExternalTrafficPolicy(t, "default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeNodePort, false, externalTrafficPolicy)
+	}
 }
 
 func TearDownTestForIngressInNodePortMode(t *testing.T, svcName, model_Name string) {
@@ -360,16 +364,17 @@ func TestPortsForInsecureDedicatedShard(t *testing.T) {
 func TestPlacementNetworkDedicatedNodePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
+	nodeName := "testNodeNP"
 	integrationtest.SetNodePortMode()
 	defer integrationtest.SetClusterIPMode()
 	nodeIP := "10.1.1.2"
-	integrationtest.CreateNode(t, "testNodeNP", nodeIP)
-	defer integrationtest.DeleteNode(t, "testNodeNP")
+	integrationtest.CreateNode(t, nodeName, nodeIP)
+	defer integrationtest.DeleteNode(t, nodeName)
 
 	modelName := "admin/cluster--foo.com-L7-dedicated"
 	ingressName := objNameMap.GenerateName("foo-with-targets")
 	svcName := objNameMap.GenerateName("avisvc")
-	SetUpTestForIngressInNodePortMode(t, svcName, modelName)
+	SetUpTestForIngressInNodePortMode(t, svcName, modelName, "")
 
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -398,6 +403,11 @@ func TestPlacementNetworkDedicatedNodePort(t *testing.T) {
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	// pool server is added for testNodeNP node even though endpointslice/endpoint does not exist
+	g.Eventually(func() int {
+		return len(nodes[0].PoolRefs[0].Servers)
+	}, 30*time.Second).Should(gomega.Equal(1))
+	g.Expect(*nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(nodeIP))
 	g.Expect((nodes[0].PoolRefs[0].NetworkPlacementSettings)).To(gomega.HaveLen(1))
 	_, ok := nodes[0].PoolRefs[0].NetworkPlacementSettings["net123"]
 	g.Expect(ok).To(gomega.Equal(true))
@@ -406,6 +416,71 @@ func TestPlacementNetworkDedicatedNodePort(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
+	VerifyIngressDeletion(t, g, aviModel, 0)
+	TearDownTestForIngressInNodePortMode(t, svcName, modelName)
+}
+
+// TestL7ModelDedicatedNodePortExternalTrafficPolicyLocal checks if pool servers are populated in model only for nodes that are running the app pod.
+func TestL7ModelDedicatedNodePortExternalTrafficPolicyLocal(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	nodeName := "testNodeNP"
+	integrationtest.SetNodePortMode()
+	defer integrationtest.SetClusterIPMode()
+	nodeIP := "10.1.1.2"
+	integrationtest.CreateNode(t, nodeName, nodeIP)
+	defer integrationtest.DeleteNode(t, nodeName)
+
+	modelName := "admin/cluster--foo.com-L7-dedicated"
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	SetUpTestForIngressInNodePortMode(t, svcName, modelName, "Local")
+
+	ingrFake := (integrationtest.FakeIngress{
+		Name:        ingressName,
+		Namespace:   "default",
+		DnsNames:    []string{"foo.com"},
+		Ips:         []string{"8.8.8.8"},
+		HostNames:   []string{"v1"},
+		ServiceName: svcName,
+	}).Ingress()
+
+	_, err := KubeClient.NetworkingV1().Ingresses("default").Create(context.TODO(), ingrFake, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Ingress: %v", err)
+	}
+	integrationtest.PollForCompletion(t, modelName, 5)
+
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes, ok := aviModel.(*avinodes.AviObjectGraph)
+		if !ok {
+			return 0
+		}
+		return len(nodes.GetAviVS())
+	}, 20*time.Second).Should(gomega.Equal(1))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	// No pool server is added as endpointslice/endpoint does not exist
+	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(0))
+	g.Expect((nodes[0].PoolRefs[0].NetworkPlacementSettings)).To(gomega.HaveLen(1))
+	_, ok := nodes[0].PoolRefs[0].NetworkPlacementSettings["net123"]
+	g.Expect(ok).To(gomega.Equal(true))
+
+	integrationtest.CreateEPorEPSNodeName(t, "default", svcName, false, false, "1.1.1", nodeName)
+	// After creating the endpointslice/endpoint, pool server should be added for testNodeNP node
+	g.Eventually(func() int {
+		return len(nodes[0].PoolRefs[0].Servers)
+	}, 30*time.Second).Should(gomega.Equal(1))
+	g.Expect(*nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(nodeIP))
+
+	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	integrationtest.DelEPorEPS(t, "default", svcName)
 	VerifyIngressDeletion(t, g, aviModel, 0)
 	TearDownTestForIngressInNodePortMode(t, svcName, modelName)
 }
