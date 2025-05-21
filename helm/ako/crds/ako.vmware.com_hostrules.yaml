@@ -122,9 +122,6 @@ spec:
                             - DISABLED
                             default: HIGH
                             type: string
-                          duration:
-                            type: integer
-                            default: 30
                         type: object
                       logAllHeaders:
                         type: boolean
@@ -276,7 +273,7 @@ spec:
                             type: string
                           duration:
                             type: integer
-                            default: 30
+                            default: 0
                         type: object
                       logAllHeaders:
                         type: boolean
