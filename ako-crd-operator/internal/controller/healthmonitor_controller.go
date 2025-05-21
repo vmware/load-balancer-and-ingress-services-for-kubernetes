@@ -24,14 +24,18 @@ import (
 	"github.com/vmware/alb-sdk/go/session"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
+	custompredicate "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/predicate"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"net/http"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
 	"strings"
+	"time"
 )
 
 // HealthMonitorReconciler reconciles a HealthMonitor object
@@ -78,6 +82,7 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 				utils.AviLog.Error(err, "Failed to add finalizer to HealthMonitor: [%s/%s]", req.NamespacedName.Namespace, req.NamespacedName.Name)
 				return ctrl.Result{}, err
 			}
+			return ctrl.Result{}, nil
 		}
 	} else {
 		// The object is being deleted
@@ -101,6 +106,7 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 func (r *HealthMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&akov1alpha1.HealthMonitor{}).
+		WithEventFilter(custompredicate.NewCustomHMPredicate()).
 		Named("healthmonitor").
 		Complete(r)
 }
@@ -137,10 +143,6 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 			utils.AviLog.Errorf("error extracting UUID from healthmonitor: [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
 		}
 		hm.Status.UUID = uuid
-		if err := r.Status().Update(ctx, hm); err != nil {
-			utils.AviLog.Errorf("unable to update healthmonitor status [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
-			return err
-		}
 	} else {
 		// this is a PUT Call
 		resp := map[string]interface{}{}
@@ -150,6 +152,14 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 		}
 		utils.AviLog.Infof("succesfully updated healthmonitor:[%s/%s]", hmReq.namespace, hmReq.Name)
 	}
+
+	hm.Status.LastUpdated = &metav1.Time{Time: time.Now()}
+	hm.Status.ObservedGeneration = hm.Generation
+	if err := r.Status().Update(ctx, hm); err != nil {
+		utils.AviLog.Errorf("unable to update healthmonitor status [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
+		return err
+	}
+
 	return nil
 }
 
@@ -181,7 +191,7 @@ func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hmReq
 		}
 		return nil, err
 	}
-	utils.AviLog.Infof("healthmonitor [%s/%s] succesfully created", hmReq.namespace, hmReq.Name)
+	utils.AviLog.Infof("healthmonitor [%s/%s] succesfully created: %v", hmReq.namespace, hmReq.Name, resp)
 	return resp, nil
 }
 
@@ -190,6 +200,10 @@ func extractUUID(resp map[string]interface{}) (string, error) {
 	// Extract the results array
 	results, ok := resp["results"].([]interface{})
 	if !ok {
+		// resp could be from POST call
+		if uuid, ok := resp["uuid"].(string); ok {
+			return uuid, nil
+		}
 		return "", errors.New("'results' not found or not an array")
 	}
 
