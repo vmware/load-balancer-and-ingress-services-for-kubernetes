@@ -20,6 +20,8 @@ import (
 	"context"
 	"flag"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/event"
 	session2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
@@ -66,7 +68,9 @@ func main() {
 	ctrl.SetLogger(zap.New())
 
 	cfg := ctrl.GetConfigOrDie()
+	syncPeriod := 2 * time.Minute
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+		Cache:                  cache.Options{SyncPeriod: &syncPeriod},
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
 	})

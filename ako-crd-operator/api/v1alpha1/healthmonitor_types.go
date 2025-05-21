@@ -76,6 +76,7 @@ type HealthMonitorSpec struct {
 	// MonitorPort is the port to use for the health check.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="monitor port is immutable"
 	MonitorPort int32 `json:"monitor_port,omitempty"`
 
 	// Authentication defines the authentication information for HTTP/HTTPS monitors.
@@ -191,6 +192,8 @@ type HealthMonitorStatus struct {
 	Error string `json:"error"`
 	// UUID is unique identifier of the health monitor object
 	UUID string `json:"uuid"`
+	// LastUpdated is the timestamp the object was last updated
+	LastUpdated *metav1.Time `json:"lastUpdated"`
 }
 
 // +genclient
