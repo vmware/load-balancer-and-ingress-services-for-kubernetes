@@ -12,9 +12,7 @@ metadata:
   name: {{ template "ako.name" . }}-{{ .Release.Namespace }}
   {{- end }}
   labels:
-    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
-    app.kubernetes.io/instance: {{ .Release.Name | quote }}
-    helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+    {{- include "ako.labels" . | nindent 4 }}
     {{- if .Values.isClusterService }}
     k8s-app: {{ .Chart.Name | quote }}
     kubernetes.io/cluster-service: "true"
