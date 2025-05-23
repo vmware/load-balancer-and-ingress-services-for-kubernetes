@@ -1076,17 +1076,18 @@ func GetClusterID() string {
 
 func GetClusterIDSplit() string {
 	clusterID := GetClusterID()
-	if clusterID != "" {
-		clusterName := strings.Split(clusterID, ":")
-		if len(clusterName) > 1 {
-			if GetVPCMode() {
-				// Include first 5 characters to add more uniqueness to cluster name
-				return clusterName[0] + "-" + clusterName[1][:5]
-			}
-			return clusterName[0]
+	clusterName := strings.Split(clusterID, ":")
+	if len(clusterName) > 1 {
+		if GetVPCMode() {
+			// Include first 5 characters to add more uniqueness to cluster name
+			return clusterName[0] + "-" + clusterName[1][:5]
 		}
+		return clusterName[0]
 	}
-	return ""
+	if len(clusterID) > 12 {
+		return clusterID[:12]
+	}
+	return clusterID
 }
 
 func IsClusterNameValid() (bool, error) {
