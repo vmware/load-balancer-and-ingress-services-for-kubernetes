@@ -210,15 +210,21 @@ type K8ValidNamespaces struct {
 }
 
 type AviObjectMarkers struct {
-	Namespace        string
-	Host             []string
-	InfrasettingName string
-	ServiceName      string
-	Path             []string
-	Port             string
-	Protocol         string
-	IngressName      []string
-	GatewayName      string
+	Namespace          string
+	Host               []string
+	InfrasettingName   string
+	ServiceName        string
+	Path               []string
+	Port               string
+	Protocol           string
+	IngressName        []string
+	GatewayName        string
+	GatewayNamespace   string
+	HTTPRouteName      string
+	HTTPRouteNamespace string
+	HTTPRouteRuleName  string
+	BackendName        string
+	BackendNs          string
 }
 
 /*

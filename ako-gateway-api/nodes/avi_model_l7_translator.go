@@ -96,8 +96,12 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 		utils.AviLog.Warnf("key: %s, msg: No hosts mapped to the route %s/%s/%s", key, routeModel.GetType(), routeModel.GetNamespace(), routeModel.GetName())
 		return
 	}
-
-	childVSName := akogatewayapilib.GetChildName(parentNs, parentName, routeModel.GetNamespace(), routeModel.GetName(), utils.Stringify(rule.Matches))
+	var childVSName string
+	if rule.Name == "" {
+		childVSName = akogatewayapilib.GetChildName(parentNs, parentName, routeModel.GetNamespace(), routeModel.GetName(), utils.Stringify(rule.Matches))
+	} else {
+		childVSName = akogatewayapilib.GetChildName(parentNs, parentName, routeModel.GetNamespace(), routeModel.GetName(), rule.Name)
+	}
 	childVSes[childVSName] = struct{}{}
 
 	childNode := parentNode[0].GetEvhNodeForName(childVSName)
@@ -117,9 +121,14 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	childNode.ServiceEngineGroup = lib.GetSEGName()
 	childNode.VrfContext = lib.GetVrf()
 	childNode.AviMarkers = utils.AviObjectMarkers{
-		GatewayName: parentName,
-		Namespace:   parentNs,
-		Host:        hosts,
+		GatewayName:        parentName,
+		GatewayNamespace:   parentNs,
+		HTTPRouteName:      routeModel.GetName(),
+		HTTPRouteNamespace: routeModel.GetNamespace(),
+		Host:               hosts,
+	}
+	if rule.Name != "" {
+		childNode.AviMarkers.HTTPRouteRuleName = rule.Name
 	}
 	updateHostname(key, parentNsName, parentNode[0])
 
@@ -188,19 +197,43 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 	}
 	//ListenerName/port/protocol/allowedRouteSpec
 	listenerProtocol := listeners[0].Protocol
-	PGName := akogatewayapilib.GetPoolGroupName(parentNs, parentName,
-		routeModel.GetNamespace(), routeModel.GetName(),
-		utils.Stringify(rule.Matches))
+	var PGName string
+	if rule.Name == "" {
+		PGName = akogatewayapilib.GetPoolGroupName(parentNs, parentName,
+			routeModel.GetNamespace(), routeModel.GetName(),
+			utils.Stringify(rule.Matches))
+	} else {
+		PGName = akogatewayapilib.GetPoolGroupName(parentNs, parentName,
+			routeModel.GetNamespace(), routeModel.GetName(),
+			rule.Name)
+	}
 	PG := &nodes.AviPoolGroupNode{
 		Name:   PGName,
 		Tenant: lib.GetTenant(),
 	}
+	PG.AviMarkers = utils.AviObjectMarkers{
+		GatewayName:        parentName,
+		GatewayNamespace:   parentNs,
+		HTTPRouteName:      routeModel.GetName(),
+		HTTPRouteNamespace: routeModel.GetNamespace(),
+	}
+	if rule.Name != "" {
+		PG.AviMarkers.HTTPRouteRuleName = rule.Name
+	}
 
 	for _, httpbackend := range rule.Backends {
-		poolName := akogatewayapilib.GetPoolName(parentNs, parentName,
-			routeModel.GetNamespace(), routeModel.GetName(),
-			utils.Stringify(rule.Matches),
-			httpbackend.Backend.Namespace, httpbackend.Backend.Name, strconv.Itoa(int(httpbackend.Backend.Port)))
+		var poolName string
+		if rule.Name == "" {
+			poolName = akogatewayapilib.GetPoolName(parentNs, parentName,
+				routeModel.GetNamespace(), routeModel.GetName(),
+				utils.Stringify(rule.Matches),
+				httpbackend.Backend.Namespace, httpbackend.Backend.Name, strconv.Itoa(int(httpbackend.Backend.Port)))
+		} else {
+			poolName = akogatewayapilib.GetPoolName(parentNs, parentName,
+				routeModel.GetNamespace(), routeModel.GetName(),
+				rule.Name,
+				httpbackend.Backend.Namespace, httpbackend.Backend.Name, strconv.Itoa(int(httpbackend.Backend.Port)))
+		}
 		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(httpbackend.Backend.Namespace).Get(httpbackend.Backend.Name)
 		if err != nil {
 			utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service", key)
@@ -218,6 +251,17 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 				NamespaceServiceName: []string{httpbackend.Backend.Namespace + "/" + httpbackend.Backend.Name},
 			},
 			VrfContext: lib.GetVrf(),
+		}
+		poolNode.AviMarkers = utils.AviObjectMarkers{
+			GatewayName:        parentName,
+			GatewayNamespace:   parentNs,
+			HTTPRouteName:      routeModel.GetName(),
+			HTTPRouteNamespace: routeModel.GetNamespace(),
+			BackendNs:          httpbackend.Backend.Namespace,
+			BackendName:        httpbackend.Backend.Name,
+		}
+		if rule.Name != "" {
+			poolNode.AviMarkers.HTTPRouteRuleName = rule.Name
 		}
 
 		if lib.IsIstioEnabled() {

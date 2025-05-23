@@ -76,7 +76,10 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 
 	vsvipNode := BuildVsVipNodeForGateway(gateway, parentVsNode.Name)
 	parentVsNode.VSVIPRefs = []*nodes.AviVSVIPNode{vsvipNode}
-
+	parentVsNode.AviMarkers = utils.AviObjectMarkers{
+		GatewayName:      gateway.Name,
+		GatewayNamespace: gateway.Namespace,
+	}
 	return parentVsNode
 }
 

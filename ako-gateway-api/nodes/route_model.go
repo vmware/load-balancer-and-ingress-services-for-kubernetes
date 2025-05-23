@@ -122,6 +122,7 @@ type HTTPBackend struct {
 }
 
 type Rule struct {
+	Name     string
 	Matches  []*Match
 	Filters  []*Filter
 	Backends []*HTTPBackend
@@ -219,7 +220,9 @@ func (hr *httpRoute) ParseRouteConfig(key string) *RouteConfig {
 			routeConfigRule.Matches = append(routeConfigRule.Matches, match)
 		}
 		sort.Sort((Matches)(routeConfigRule.Matches))
-
+		if rule.Name != nil {
+			routeConfigRule.Name = string(*rule.Name)
+		}
 		routeConfigRule.Filters = make([]*Filter, 0, len(rule.Filters))
 		for _, ruleFilter := range rule.Filters {
 			filter := &Filter{}
