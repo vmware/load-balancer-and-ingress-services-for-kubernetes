@@ -19,15 +19,13 @@ package main
 import (
 	"context"
 	"flag"
-	"os"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"time"
-
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/event"
 	session2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
+	"os"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -42,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
@@ -68,9 +67,8 @@ func main() {
 	ctrl.SetLogger(zap.New())
 
 	cfg := ctrl.GetConfigOrDie()
-	syncPeriod := 2 * time.Minute
+
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Cache:                  cache.Options{SyncPeriod: &syncPeriod},
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
 	})
@@ -93,10 +91,17 @@ func main() {
 	sessionManager.CreateAviClients(ctx, 1)
 	aviClients := sessionManager.GetAviClients()
 
+	cache := cache.NewCache(sessionManager)
+	if err := cache.PopulateCache(constants.HealthMonitorURL); err != nil {
+		setupLog.Error(err, "unable to populate cache")
+		os.Exit(1)
+	}
+
 	hmReconciler := &controller.HealthMonitorReconciler{
 		Client:    mgr.GetClient(),
 		Scheme:    mgr.GetScheme(),
 		AviClient: aviClients.AviClient[0],
+		Cache:     cache,
 	}
 	if err = hmReconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HealthMonitor")

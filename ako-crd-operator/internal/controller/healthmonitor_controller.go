@@ -23,8 +23,8 @@ import (
 	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/session"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
-	custompredicate "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/predicate"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,6 +33,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"strings"
 	"time"
@@ -43,6 +44,7 @@ type HealthMonitorReconciler struct {
 	client.Client
 	AviClient *clients.AviClient
 	Scheme    *runtime.Scheme
+	Cache     cache.CacheOperation
 }
 
 type HealthMonitorRequest struct {
@@ -106,7 +108,7 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 func (r *HealthMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&akov1alpha1.HealthMonitor{}).
-		WithEventFilter(custompredicate.NewCustomHMPredicate()).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Named("healthmonitor").
 		Complete(r)
 }
@@ -145,6 +147,21 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 		hm.Status.UUID = uuid
 	} else {
 		// this is a PUT Call
+		// check if no op by checking generation
+		if hm.GetGeneration() == hm.Status.ObservedGeneration {
+			// if no op from kubernetes side, check if op required from OOB changes by checking lastModified timestamp
+			if hm.Status.LastUpdated != nil {
+				dataMap, ok := r.Cache.GetObjectByUUID(hm.Status.UUID)
+				if ok {
+					utils.AviLog.Infof("%v, %v", dataMap.GetLastModifiedTimeStamp(), hm.Status.LastUpdated.Time)
+					if dataMap.GetLastModifiedTimeStamp().Before(hm.Status.LastUpdated.Time) {
+						utils.AviLog.Debugf("no op for healthmonitor [%s/%s]", hmReq.namespace, hmReq.Name)
+						return nil
+					}
+				}
+			}
+			utils.AviLog.Debugf("overwriting healthmonitor: [%s/%s]", hmReq.namespace, hmReq.Name)
+		}
 		resp := map[string]interface{}{}
 		if err := r.AviClient.AviSession.Put(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.HealthMonitorURL, hm.Status.UUID)), hmReq, &resp); err != nil {
 			utils.AviLog.Errorf("error updating healthmonitor [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
