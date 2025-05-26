@@ -6,10 +6,10 @@ metadata:
   labels:
     {{- include "ako.labels" . | nindent 4 }}
 spec:
-  {{ if gt .Values.replicaCount 2.0 }}
+  {{ if gt (int (.Values.replicaCount)) 2 }}
   {{ fail "ReplicaCount more than 2 is not supported." }}
   {{ end }}
-  {{ if and (gt .Values.replicaCount 1.0) (eq .Values.AKOSettings.primaryInstance false) }}
+  {{ if and (gt (int (.Values.replicaCount)) 1) (eq .Values.AKOSettings.primaryInstance false) }}
   {{ fail "ReplicaCount more than 1 is not supported for secondary AKO." }}
   {{ end }}
   replicas: {{ .Values.replicaCount }}
