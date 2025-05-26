@@ -77,5 +77,5 @@ With the above settings AKO will map the `n1` namespace to the `billing` tenant 
 
 **A:** You need to assign the `ako-all-tenants-permission-controller.json` role to the "All Tenants" section in the Avi UI. This grants the AKO user the necessary read privileges for the controller across all tenants.
 
-To do this, navigate to `Administration -> Accounts -> Users` in the Avi UI, select the `ako-all-tenants-permission-controller` role, and ensure it's applied to the "All Tenants" section as shown below:
+To do this, navigate to `Administration -> Accounts -> Users` in the Avi UI. Select the relevant user (e.g., the billing_ako_user in this case). Then, in the **Roles for all Tenants** section for that user, assign the `ako-all-tenants-permission-controller` role to "All Tenants" as shown below:
 ![Assign ako-all-tenants-permission-controller to All Tenants](images/all-tenants-role.png?raw=true)
