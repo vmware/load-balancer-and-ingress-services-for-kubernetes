@@ -34,7 +34,7 @@ func (d dataMap) GetLastModifiedTimeStamp() time.Time {
 		return time.Unix(0, 0)
 	}
 	timeInt, _ := strconv.ParseInt(timestamp.(string), 10, 64)
-	return time.UnixMicro(timeInt)
+	return time.UnixMicro(timeInt).UTC()
 }
 
 func (c *cache) PopulateCache(urls ...string) error {
