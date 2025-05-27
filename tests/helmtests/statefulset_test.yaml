@@ -51,3 +51,36 @@ tests:
           content:      
             name: LOG_FILE_NAME
             value: "gw-api-ut.log"
+  - it: StatefulSet should be able to accept replicacount as string value
+    set:
+      replicaCount: "1"
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.replicas
+          value: 1
+  - it: StatefulSet should be able to accept replicacount as integer value
+    set:
+      replicaCount: 1
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.replicas
+          value: 1
+  - it: StatefulSet should be able to accept replicacount as float value
+    set:
+      replicaCount: 1.0
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.replicas
+          value: 1
