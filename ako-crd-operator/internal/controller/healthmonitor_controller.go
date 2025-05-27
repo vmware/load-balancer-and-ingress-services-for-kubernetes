@@ -153,7 +153,6 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 			if hm.Status.LastUpdated != nil {
 				dataMap, ok := r.Cache.GetObjectByUUID(hm.Status.UUID)
 				if ok {
-					utils.AviLog.Infof("%v, %v", dataMap.GetLastModifiedTimeStamp(), hm.Status.LastUpdated.Time)
 					if dataMap.GetLastModifiedTimeStamp().Before(hm.Status.LastUpdated.Time) {
 						utils.AviLog.Debugf("no op for healthmonitor [%s/%s]", hmReq.namespace, hmReq.Name)
 						return nil
@@ -170,7 +169,7 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 		utils.AviLog.Infof("succesfully updated healthmonitor:[%s/%s]", hmReq.namespace, hmReq.Name)
 	}
 
-	hm.Status.LastUpdated = &metav1.Time{Time: time.Now()}
+	hm.Status.LastUpdated = &metav1.Time{Time: time.Now().UTC()}
 	hm.Status.ObservedGeneration = hm.Generation
 	if err := r.Status().Update(ctx, hm); err != nil {
 		utils.AviLog.Errorf("unable to update healthmonitor status [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
@@ -208,7 +207,7 @@ func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hmReq
 		}
 		return nil, err
 	}
-	utils.AviLog.Infof("healthmonitor [%s/%s] succesfully created: %v", hmReq.namespace, hmReq.Name, resp)
+	utils.AviLog.Infof("healthmonitor [%s/%s] succesfully created", hmReq.namespace, hmReq.Name)
 	return resp, nil
 }
 

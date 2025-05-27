@@ -91,9 +91,9 @@ func main() {
 	sessionManager.CreateAviClients(ctx, 1)
 	aviClients := sessionManager.GetAviClients()
 
-	cache := cache.NewCache(sessionManager)
-	if err := cache.PopulateCache(constants.HealthMonitorURL); err != nil {
-		setupLog.Error(err, "unable to populate cache")
+	cacheManager := cache.NewCache(sessionManager)
+	if err := cacheManager.PopulateCache(constants.HealthMonitorURL); err != nil {
+		setupLog.Error(err, "unable to populate cacheManager")
 		os.Exit(1)
 	}
 
@@ -101,7 +101,7 @@ func main() {
 		Client:    mgr.GetClient(),
 		Scheme:    mgr.GetScheme(),
 		AviClient: aviClients.AviClient[0],
-		Cache:     cache,
+		Cache:     cacheManager,
 	}
 	if err = hmReconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HealthMonitor")

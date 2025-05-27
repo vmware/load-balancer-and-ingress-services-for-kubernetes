@@ -62,6 +62,7 @@ func (c *cache) PopulateCache(urls ...string) error {
 				UUID, ok := data["uuid"].(string)
 				if !ok {
 					utils.AviLog.Warnf("unable to find uuid in object :[%v]", data)
+					continue
 				}
 				c.dataStore.Store(UUID, data)
 			}
