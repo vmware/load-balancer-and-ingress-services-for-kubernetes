@@ -7,7 +7,9 @@ rules:
 - apiGroups:
   - ako.vmware.com
   resources:
+  - applicationprofiles
   - healthmonitors
+  - ipaddrgroups
   verbs:
   - create
   - delete
@@ -19,13 +21,17 @@ rules:
 - apiGroups:
   - ako.vmware.com
   resources:
+  - applicationprofiles/finalizers
   - healthmonitors/finalizers
+  - ipaddrgroups/finalizers
   verbs:
   - update
 - apiGroups:
   - ako.vmware.com
   resources:
+  - applicationprofiles/status
   - healthmonitors/status
+  - ipaddrgroups/status
   verbs:
   - get
   - patch
