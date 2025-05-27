@@ -55,6 +55,7 @@ A sample L4Rule CRD looks like this:
     sslKeyAndCertificateRefs:
     - "Custom-L4-SSL-Key-Cert"
     sslProfileRef: Custom-L4-SSL-Profile
+    revokeVipRoute: true
 ```
 
 
@@ -220,6 +221,15 @@ The L4Rule CRD can be used to express datascript references. The datascript refe
 ```
 
 The datascripts can be used to apply custom scripts to data traffic. The order of evaluation of the datascripts is in the same order they appear in the CRD definition.
+
+#### Configure VIP Route Revocation
+The L4Rule CRD can be used to configure VIP Route revocation. When `revokeVipRoute` is set to true, the VIP route is revoked when the virtual service is marked down (OPER_DOWN) by health monitor, and similarly, it is added back when the virtual service is OPER_UP.
+
+```yaml
+    revokeVipRoute: true
+```
+
+**NOTE**: `revokeVipRoute` is only supported for NSXT clouds, otherwise the **L4Rule** will be *rejected*. `revokeVipRoute` is also not supported with `ako.vmware.com/enable-shared-vip` annotation. If such a combination is used, AKO will ignore the `revokeVipRoute` field.
 
 ### Configure Backend Properties
 
