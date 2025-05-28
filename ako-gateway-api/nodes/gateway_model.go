@@ -82,7 +82,7 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 		Caller: utils.GATEWAY_API, // Always Populate this field to recognise caller at rest layer
 	}
 
-	infraSetting, err := lib.GetNamespaceAviInfraSetting(key, gateway.GetNamespace(), akogatewayapilib.AKOControlConfig().AviInfraSettingInformer())
+	infraSetting, err := lib.GetNamespacedAviInfraSetting(key, gateway.GetNamespace(), akogatewayapilib.AKOControlConfig().AviInfraSettingInformer())
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: failed to get AviInfraSetting, err: %s", key, err.Error())
 	}
@@ -101,7 +101,7 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 		parentVsNode.SSLKeyCertRefs = tlsNodes
 	}
 
-	vsvipNode := BuildVsVipNodeForGateway(gateway, parentVsNode, infraSetting, key)
+	vsvipNode := BuildVsVipNodeForGateway(key, gateway, parentVsNode, infraSetting)
 	parentVsNode.VSVIPRefs = []*nodes.AviVSVIPNode{vsvipNode}
 	parentVsNode.AviMarkers = utils.AviObjectMarkers{
 		GatewayName:      gateway.Name,
@@ -110,9 +110,9 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 
 	buildWithInfraSettingForGateway(key, parentVsNode, vsvipNode, infraSetting)
 	if infraSetting != nil {
-		objects.InfraSettingL7Lister().UpdateIngRouteInfraSettingMappings(gateway.Namespace+"/"+gateway.Name, infraSetting.Name, "")
+		akogatewayapiobjects.GatewayApiLister().UpdateGatewayToAviInfraSettingMappings(gateway.Namespace+"/"+gateway.Name, infraSetting.Name)
 	} else {
-		objects.InfraSettingL7Lister().RemoveIngRouteInfraSettingMappings(gateway.Namespace + "/" + gateway.Name)
+		akogatewayapiobjects.GatewayApiLister().DeleteGatewayToAviInfraSettingMappings(gateway.Namespace + "/" + gateway.Name)
 	}
 	objects.SharedNamespaceTenantLister().UpdateNamespacedResourceToTenantStore(gateway.Namespace+"/"+gateway.Name, tenant)
 
@@ -192,7 +192,7 @@ func TLSNodeFromSecret(secretObj *corev1.Secret, parentVsNode *nodes.AviEvhVsNod
 	return tlsNode
 }
 
-func BuildVsVipNodeForGateway(gateway *gatewayv1.Gateway, parentVsNode *nodes.AviEvhVsNode, infraSetting *v1beta1.AviInfraSetting, key string) *nodes.AviVSVIPNode {
+func BuildVsVipNodeForGateway(key string, gateway *gatewayv1.Gateway, parentVsNode *nodes.AviEvhVsNode, infraSetting *v1beta1.AviInfraSetting) *nodes.AviVSVIPNode {
 	vsvipNode := &nodes.AviVSVIPNode{
 		Name:        lib.GetVsVipName(parentVsNode.Name),
 		Tenant:      parentVsNode.Tenant,

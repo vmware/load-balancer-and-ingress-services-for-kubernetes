@@ -698,7 +698,7 @@ func Uuid4() string {
 	return id.String()
 }
 
-func GetNamespaceAviInfraSetting(key, ns string, aviInfraSettingInformer v1beta1akoinformer.AviInfraSettingInformer) (*akov1beta1.AviInfraSetting, error) {
+func GetNamespacedAviInfraSetting(key, ns string, aviInfraSettingInformer v1beta1akoinformer.AviInfraSettingInformer) (*akov1beta1.AviInfraSetting, error) {
 	namespace, err := utils.GetInformers().NSInformer.Lister().Get(ns)
 	if err != nil {
 		return nil, err

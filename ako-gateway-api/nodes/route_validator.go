@@ -318,6 +318,20 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		return err
 	}
 
+	// If Gateway and HTTPRoute are in different namespace, validate that both namespaces are scoped to the same tenant
+	if httpRoute.Namespace != namespace {
+		if lib.GetTenantInNamespace(httpRoute.Namespace) != lib.GetTenantInNamespace(namespace) {
+			utils.AviLog.Errorf("key: %s, msg: Tenant mismatch between HTTPRoute %s and Parent Reference %s", key, httpRoute.GetName(), name)
+			err := fmt.Errorf("Tenant mismatch between HTTPRoute %s and Parent Reference %s", httpRoute.GetName(), name)
+			defaultCondition.
+				Reason(string(gatewayv1.RouteReasonPending)).
+				Message(err.Error()).
+				SetIn(&httpRouteStatus.Parents[*parentRefIndexInHttpRouteStatus].Conditions)
+			*parentRefIndexInHttpRouteStatus = *parentRefIndexInHttpRouteStatus + 1
+			return err
+		}
+	}
+
 	// Attach only when gateway configuration is valid
 	currentGatewayStatusCondition := gwStatus.Conditions[0]
 	if currentGatewayStatusCondition.Status != metav1.ConditionTrue {

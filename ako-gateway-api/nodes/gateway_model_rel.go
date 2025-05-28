@@ -25,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
-	v1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
@@ -802,26 +801,12 @@ func httpRouteToGatewayOperation(hrObj *gatewayv1.HTTPRoute, key, gwName, gwName
 
 func AviInfraSettingToGateway(namespace, name, key string) ([]string, bool) {
 	allGateways := make([]string, 0)
-	gwClasses, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayClassInformer.Informer().GetIndexer().ByIndex(akogatewayapilib.AviInfraSettingGatewayClassIndex, lib.AkoGroup+"/"+lib.AviInfraSetting+"/"+name)
-	if err != nil {
-		utils.AviLog.Warnf("key: %s, msg: failed to fetch Gateway classes for the AviInfraSetting %s, err: %s", key, name, err.Error())
-		return allGateways, false
-	}
-
-	for _, obj := range gwClasses {
-		if gwClass, ok := obj.(*v1.GatewayClass); ok {
-			if gateways, found := GatewayClassGetGw(name, gwClass.GetName(), key); found {
-				allGateways = append(allGateways, gateways...)
-			}
-		}
-	}
-
-	if nsGateways, found := infraSettingNSToGateways(namespace, name, key); found {
+	nsGateways, found := infraSettingNSToGateways(namespace, name, key)
+	if found {
 		allGateways = append(allGateways, nsGateways...)
 	}
-
 	utils.AviLog.Infof("key: %s, msg: Gateways retrieved %s", key, allGateways)
-	return allGateways, true
+	return allGateways, found
 }
 
 func infraSettingNSToGateways(namespace, name, key string) ([]string, bool) {

@@ -41,7 +41,7 @@ import (
 )
 
 // Used in VCF RBAC
-// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gatewayclasses;gatewayclasses/status,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gatewayclasses;gatewayclasses/status,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways;gateways/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes;httproutes/status,verbs=get;list;watch;update;patch
 
@@ -740,8 +740,8 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 }
 
 func (c *GatewayController) SetupAviInfraSettingEventHandler(numWorkers uint32) {
-	utils.AviLog.Infof("Setting up AviInfraSetting CRD event handler")
 	if akogatewayapilib.AKOControlConfig().AviInfraSettingEnabled() {
+		utils.AviLog.Infof("Setting up AviInfraSetting CRD event handler")
 		aviInfraEventHandler := cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				if c.DisableSync {
@@ -861,10 +861,10 @@ func addGatewaysFromNamespaceToIngestionQueue(numWorkers uint32, c *GatewayContr
 	}
 
 	for _, gateway := range gateways {
-		key := lib.Gateway + "/" + gateway.Name
+		key := lib.Gateway + "/" + utils.ObjKey(gateway)
 		valid, _ := IsValidGateway(key, gateway)
 		if !valid {
-			return
+			continue
 		}
 		bkt := utils.Bkt(gateway.Namespace, numWorkers)
 		c.workqueue[bkt].AddRateLimited(key)

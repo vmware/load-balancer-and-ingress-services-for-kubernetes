@@ -50,7 +50,7 @@ func setupHTTPRoute(t *testing.T, svcName1, svcName2, gatewayName, httpRouteName
 	tests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
 }
 
-func validateHTTPRouteWithInfraSetting(g *gomega.GomegaWithT, tenant, gatewayName, infraSettingName string) {
+func validateHTTPRouteWithT1LR(g *gomega.GomegaWithT, tenant, gatewayName, t1lr string) {
 	modelName := lib.GetModelName(tenant, akogatewayapilib.GetGatewayParentName(DEFAULT_NAMESPACE, gatewayName))
 	g.Eventually(func() int {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
@@ -68,39 +68,12 @@ func validateHTTPRouteWithInfraSetting(g *gomega.GomegaWithT, tenant, gatewayNam
 		g.Expect(childNode.PoolRefs).To(gomega.HaveLen(1))
 		g.Expect(childNode.PoolRefs[0].Tenant).Should(gomega.Equal("nonadmin"))
 		g.Expect(len(childNode.VHMatches)).To(gomega.Equal(2))
-		g.Expect(childNode.PoolRefs[0].T1Lr).Should(gomega.Equal("avi-domain-c9:1234"))
+		g.Expect(childNode.PoolRefs[0].T1Lr).Should(gomega.Equal(t1lr))
 	}
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	validateChildNode(nodes[0].EvhNodes[0]) // childNode1
-	validateChildNode(nodes[0].EvhNodes[1]) // childNode2
-}
-
-func validateHTTPRouteWithoutInfraSetting(g *gomega.GomegaWithT, tenant, gatewayName string) {
-	modelName := lib.GetModelName(tenant, akogatewayapilib.GetGatewayParentName(DEFAULT_NAMESPACE, gatewayName))
-	g.Eventually(func() int {
-		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		if !found {
-			return 0
-		}
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
-	}, 50*time.Second, 5*time.Second).Should(gomega.Equal(2))
-
-	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-	childNode1 := nodes[0].EvhNodes[0]
-	validateChildNode := func(childNode *avinodes.AviEvhVsNode) {
-		g.Expect(childNode1.Tenant).Should(gomega.Equal("nonadmin"))
-		g.Expect(childNode1.PoolGroupRefs).To(gomega.HaveLen(1))
-		g.Expect(childNode1.PoolGroupRefs[0].Tenant).Should(gomega.Equal("nonadmin"))
-		g.Expect(childNode1.PoolRefs).To(gomega.HaveLen(1))
-		g.Expect(childNode1.PoolRefs[0].Tenant).Should(gomega.Equal("nonadmin"))
-		g.Expect(len(childNode1.VHMatches)).To(gomega.Equal(2))
-		g.Expect(childNode1.PoolRefs[0].T1Lr).Should(gomega.Equal("test-t1lr"))
-	}
-	validateChildNode(childNode1)           // childNode1
 	validateChildNode(nodes[0].EvhNodes[1]) // childNode2
 }
 
@@ -141,7 +114,7 @@ func TestHTTPRouteWithInfraSetting(t *testing.T) {
 
 	setupHTTPRoute(t, svcName1, svcName2, gatewayName, httpRouteName)
 
-	validateHTTPRouteWithInfraSetting(g, "nonadmin", gatewayName, infraSettingName)
+	validateHTTPRouteWithT1LR(g, "nonadmin", gatewayName, "avi-domain-c9:1234")
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName1)
@@ -189,7 +162,7 @@ func TestHTTPRouteCreateInfraSetting(t *testing.T) {
 
 	setupHTTPRoute(t, svcName1, svcName2, gatewayName, httpRouteName)
 
-	validateHTTPRouteWithoutInfraSetting(g, "nonadmin", gatewayName)
+	validateHTTPRouteWithT1LR(g, "nonadmin", gatewayName, "test-t1lr")
 
 	integrationtest.SetupAviInfraSetting(t, infraSettingName, "", true)
 
@@ -249,7 +222,7 @@ func TestHTTPRouteUpdateInfraSettingStatusToAccepted(t *testing.T) {
 
 	setupHTTPRoute(t, svcName1, svcName2, gatewayName, httpRouteName)
 
-	validateHTTPRouteWithoutInfraSetting(g, "nonadmin", gatewayName)
+	validateHTTPRouteWithT1LR(g, "nonadmin", gatewayName, "test-t1lr")
 
 	integrationtest.SetAviInfraSettingStatus(t, infraSettingName, lib.StatusAccepted)
 
@@ -308,7 +281,7 @@ func TestHTTPRouteUpdateInfraSettingStatusToRejected(t *testing.T) {
 
 	setupHTTPRoute(t, svcName1, svcName2, gatewayName, httpRouteName)
 
-	validateHTTPRouteWithInfraSetting(g, "nonadmin", gatewayName, infraSettingName)
+	validateHTTPRouteWithT1LR(g, "nonadmin", gatewayName, "avi-domain-c9:1234")
 
 	integrationtest.SetAviInfraSettingStatus(t, infraSettingName, lib.StatusRejected)
 
@@ -367,7 +340,7 @@ func TestHTTPRouteDeleteInfraSetting(t *testing.T) {
 
 	setupHTTPRoute(t, svcName1, svcName2, gatewayName, httpRouteName)
 
-	validateHTTPRouteWithInfraSetting(g, "nonadmin", gatewayName, infraSettingName)
+	validateHTTPRouteWithT1LR(g, "nonadmin", gatewayName, "avi-domain-c9:1234")
 
 	integrationtest.TeardownAviInfraSetting(t, infraSettingName)
 
