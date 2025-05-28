@@ -929,7 +929,7 @@ func getL4InfraSetting(key, namespace string, svc *corev1.Service, advl4GWClassN
 	}
 
 	//return namespace InfraSetting if global infraSetting is not present
-	return lib.GetNamespaceAviInfraSetting(key, namespace, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer)
+	return lib.GetNamespacedAviInfraSetting(key, namespace, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer)
 }
 
 func getL4Rule(key string, svc *corev1.Service) (*akov1alpha2.L4Rule, error) {
