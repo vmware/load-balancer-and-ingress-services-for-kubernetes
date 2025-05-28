@@ -20,11 +20,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/session"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/logger"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,6 +47,7 @@ type HealthMonitorReconciler struct {
 	AviClient *clients.AviClient
 	Scheme    *runtime.Scheme
 	Cache     cache.CacheOperation
+	Logger    *logger.Logger
 }
 
 type HealthMonitorRequest struct {
@@ -68,20 +71,24 @@ type HealthMonitorRequest struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.2/pkg/reconcile
 func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	log := r.Logger.WithValues("name", req.Name, "namespace", req.Namespace, "traceID", uuid.New().String())
+	ctx = logger.WithContext(ctx, log)
+
+	log.Infof("reconciling healthmonitor")
 	hm := &akov1alpha1.HealthMonitor{}
 	err := r.Client.Get(ctx, req.NamespacedName, hm)
 	if err != nil {
 		if k8serror.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		utils.AviLog.Error(err, "Failed to get HealthMonitor: [%s/%s]", req.NamespacedName.Namespace, req.NamespacedName.Name)
+		log.Error(err, "Failed to get HealthMonitor")
 		return ctrl.Result{}, err
 	}
 	if hm.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(hm, constants.HealthMonitorFinalizer) {
 			controllerutil.AddFinalizer(hm, constants.HealthMonitorFinalizer)
 			if err := r.Update(ctx, hm); err != nil {
-				utils.AviLog.Error(err, "Failed to add finalizer to HealthMonitor: [%s/%s]", req.NamespacedName.Namespace, req.NamespacedName.Name)
+				utils.AviLog.Error(err, "Failed to add finalizer to HealthMonitor")
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{}, nil
@@ -128,6 +135,7 @@ func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alp
 
 // TODO: Make this function generic
 func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *akov1alpha1.HealthMonitor) error {
+	log := logger.FromContext(ctx)
 	hmReq := &HealthMonitorRequest{
 		hm.Name,
 		hm.Spec,
@@ -137,12 +145,13 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 	if hm.Status.UUID == "" {
 		resp, err := r.createHealthMonitor(ctx, hmReq)
 		if err != nil {
-			utils.AviLog.Errorf("error creating healthmonitor: [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
+			log.Errorf("error creating healthmonitor: %s", err.Error())
 			return err
 		}
 		uuid, err := extractUUID(resp)
 		if err != nil {
-			utils.AviLog.Errorf("error extracting UUID from healthmonitor: [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
+			log.Errorf("error extracting UUID from healthmonitor: %s", err.Error())
+			return err
 		}
 		hm.Status.UUID = uuid
 	} else {
@@ -154,19 +163,19 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 				dataMap, ok := r.Cache.GetObjectByUUID(hm.Status.UUID)
 				if ok {
 					if dataMap.GetLastModifiedTimeStamp().Before(hm.Status.LastUpdated.Time) {
-						utils.AviLog.Debugf("no op for healthmonitor [%s/%s]", hmReq.namespace, hmReq.Name)
+						log.Debug("no op for healthmonitor")
 						return nil
 					}
 				}
 			}
-			utils.AviLog.Debugf("overwriting healthmonitor: [%s/%s]", hmReq.namespace, hmReq.Name)
+			log.Debug("overwriting healthmonitor:")
 		}
 		resp := map[string]interface{}{}
 		if err := r.AviClient.AviSession.Put(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.HealthMonitorURL, hm.Status.UUID)), hmReq, &resp); err != nil {
 			utils.AviLog.Errorf("error updating healthmonitor [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
 			return err
 		}
-		utils.AviLog.Infof("succesfully updated healthmonitor:[%s/%s]", hmReq.namespace, hmReq.Name)
+		log.Info("succesfully updated healthmonitor")
 	}
 
 	hm.Status.LastUpdated = &metav1.Time{Time: time.Now().UTC()}
