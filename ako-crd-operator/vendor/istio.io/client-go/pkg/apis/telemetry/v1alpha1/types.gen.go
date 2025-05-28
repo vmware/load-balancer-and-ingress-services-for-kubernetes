@@ -22,101 +22,12 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// please upgrade the proto package
+//
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// Telemetry defines how the telemetry is generated for workloads within a mesh.
-//
-// For mesh level configuration, put the resource in root configuration namespace for
-// your Istio installation *without* a workload selector.
-//
-// For any namespace, including the root configuration namespace, it is only valid
-// to have a single workload selector-less Telemetry resource.
-//
-// For resources with a workload selector, it is only valid to have one resource selecting
-// any given workload.
-//
-// Telemetry configuration will use a "shallow merge" semantic for configuration override
-// for each telemetry type (Tracing, Metrics, AccessLogging). For example, Tracing configuration
-// will support overrides of the fields `providers`, `random_sampling_percentage`, `disable_span_reporting`,
-// and `custom_tags` at each level in the configuration hierarchy, with missing values filled in
-// from parent resources. However, when specified, fields like `custom_tags` will
-// fully replace any values provided by parent configuration.
-//
-// The hierarchy of Telemetry configuration is as follows:
-// 1. Workload-specific configuration
-// 1. Namespace-specific configuration
-// 1. Root namespace configuration
-//
-// WARNING: Support for Telemetry policies is under active development and is *not*
-// stable or supported by Istio at this time.
-//
-// Examples:
-//
-// Policy to enable random sampling for 10% of traffic:
-// ```yaml
-// apiVersion: telemetry.istio.io/v1alpha1
-// kind: Telemetry
-// metadata:
-//   name: mesh-default
-//   namespace: istio-system
-// spec:
-//   tracing:
-//   - randomSamplingPercentage: 10.00
-// ```
-//
-// Policy to disable trace reporting for the "foo" workload (note: tracing
-// context will still be propagated):
-// ```yaml
-// apiVersion: telemetry.istio.io/v1alpha1
-// kind: Telemetry
-// metadata:
-//   name: foo-tracing
-//   namespace: bar
-// spec:
-//   selector:
-//     labels:
-//       service.istio.io/canonical-name: foo
-//   tracing:
-//   - disableSpanReporting: true
-// ```
-//
-// Policy to select the alternate zipkin provider for trace reporting:
-// ```yaml
-// apiVersion: telemetry.istio.io/v1alpha1
-// kind: Telemetry
-// metadata:
-//   name: foo-tracing-alternate
-//   namespace: baz
-// spec:
-//   selector:
-//     labels:
-//       service.istio.io/canonical-name: foo
-//   tracing:
-//   - providers:
-//     - name: "zipkin-alternate"
-//     randomSamplingPercentage: 10.00
-// ```
-//
-// Policy to add a custom tag from a literal value:
-// ```yaml
-// apiVersion: telemetry.istio.io/v1alpha1
-// kind: Telemetry
-// metadata:
-//   name: mesh-default
-//   namespace: istio-system
-// spec:
-//   tracing:
-//   - randomSamplingPercentage: 10.00
-//     customTags:
-//       my_new_foo_tag:
-//         literal:
-//           value: "foo"
-// ```
-//
 // <!-- crd generation tags
 // +cue-gen:Telemetry:groupName:telemetry.istio.io
-// +cue-gen:Telemetry:version:v1alpha1
+// +cue-gen:Telemetry:versions:v1alpha1,v1
 // +cue-gen:Telemetry:storageVersion
 // +cue-gen:Telemetry:annotations:helm.sh/resource-policy=keep
 // +cue-gen:Telemetry:labels:app=istio-pilot,chart=istio,istio=telemetry,heritage=Tiller,release=istio
@@ -124,10 +35,12 @@ import (
 // +cue-gen:Telemetry:scope:Namespaced
 // +cue-gen:Telemetry:resource:categories=istio-io,telemetry-istio-io,shortNames=telemetry,plural=telemetries
 // +cue-gen:Telemetry:preserveUnknownFields:false
-// +cue-gen:Telemetry:printerColumn:name=Age,type=date,JSONPath=.metadata.creationTimestamp,description="CreationTimestamp is a timestamp
-// representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations.
-// Clients may not set this value. It is represented in RFC3339 form and is in UTC.
-// Populated by the system. Read-only. Null for lists. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata"
+// +cue-gen:Telemetry:printerColumn:name=Age,type=date,JSONPath=.metadata.creationTimestamp,description="CreationTimestamp
+// is a timestamp representing the server time when this object was created. It
+// is not guaranteed to be set in happens-before order across separate
+// operations. Clients may not set this value. It is represented in RFC3339 form
+// and is in UTC. Populated by the system. Read-only. Null for lists. More info:
+// https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata"
 // -->
 //
 // <!-- go code generation tags
@@ -136,6 +49,7 @@ import (
 // +genclient
 // +k8s:deepcopy-gen=true
 // -->
+// +kubebuilder:validation:XValidation:message="only one of targetRefs or selector can be set",rule="oneof(self.selector, self.targetRef, self.targetRefs)"
 type Telemetry struct {
 	v1.TypeMeta `json:",inline"`
 	// +optional
@@ -155,5 +69,5 @@ type TelemetryList struct {
 	v1.TypeMeta `json:",inline"`
 	// +optional
 	v1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
-	Items       []Telemetry `json:"items" protobuf:"bytes,2,rep,name=items"`
+	Items       []*Telemetry `json:"items" protobuf:"bytes,2,rep,name=items"`
 }

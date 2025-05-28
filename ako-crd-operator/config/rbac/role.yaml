@@ -8,6 +8,7 @@ rules:
   - ako.vmware.com
   resources:
   - healthmonitors
+  - persistenceprofiles
   verbs:
   - create
   - delete
@@ -20,12 +21,14 @@ rules:
   - ako.vmware.com
   resources:
   - healthmonitors/finalizers
+  - persistenceprofiles/finalizers
   verbs:
   - update
 - apiGroups:
   - ako.vmware.com
   resources:
   - healthmonitors/status
+  - persistenceprofiles/status
   verbs:
   - get
   - patch

@@ -21,12 +21,13 @@ import (
 	"flag"
 	"os"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/event"
-	session2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/event"
+	session2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -96,6 +97,13 @@ func main() {
 	}
 	if err = hmReconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HealthMonitor")
+		os.Exit(1)
+	}
+	if err := (&controller.PersistenceProfileReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "PersistenceProfile")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
