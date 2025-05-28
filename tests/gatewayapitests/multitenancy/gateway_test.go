@@ -25,6 +25,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	gatewayfake "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/fake"
@@ -51,6 +53,8 @@ func TestMain(m *testing.M) {
 	tests.KubeClient = k8sfake.NewSimpleClientset()
 	tests.GatewayClient = gatewayfake.NewSimpleClientset()
 	integrationtest.KubeClient = tests.KubeClient
+	testData := tests.GetL7RuleFakeData()
+	tests.DynamicClient = dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), tests.GvrToKind, &testData)
 
 	// Sets the environment variables
 	os.Setenv("CLUSTER_NAME", "cluster")
@@ -94,7 +98,7 @@ func TestMain(m *testing.M) {
 	akoApi := integrationtest.InitializeFakeAKOAPIServer()
 	defer akoApi.ShutDown()
 
-	tests.NewAviFakeClientInstance(tests.KubeClient)
+	tests.NewAviFakeClientInstance(tests.KubeClient, true)
 	defer integrationtest.AviFakeClientInstance.Close()
 
 	ctrl = akogatewayapik8s.SharedGatewayController()
@@ -120,7 +124,7 @@ func TestMain(m *testing.M) {
 
 	integrationtest.AddConfigMap(tests.KubeClient)
 	integrationtest.AddDefaultNamespace()
-	go ctrl.InitController(k8s.K8sinformers{Cs: tests.KubeClient}, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
+	go ctrl.InitController(k8s.K8sinformers{Cs: tests.KubeClient, DynamicClient: tests.DynamicClient}, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
 }
 
@@ -459,7 +463,7 @@ func TestGatewayWithVipTypeAnnotation(t *testing.T) {
 	g.Expect(*nodes[0].HttpPolicyRefs[0].RequestRules[0].SwitchingAction.StatusCode).To(gomega.Equal("HTTP_LOCAL_RESPONSE_STATUS_CODE_404"))
 	g.Expect(nodes[0].HttpPolicyRefs[0].Tenant).Should(gomega.Equal("nonadmin"))
 
-	// Nehative case of updating annotation to a non whitelisted value
+	// Negative case of updating annotation to a non whitelisted value
 	tests.UpdateGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners, "project")
 	g.Consistently(func() bool {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)

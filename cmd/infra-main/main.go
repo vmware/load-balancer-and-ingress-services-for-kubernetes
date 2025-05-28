@@ -144,7 +144,7 @@ func InitializeAKOInfra() {
 	if !lib.GetVPCMode() {
 		a.SetupSEGroup(aviCloud)
 		c.AddAvailabilityZoneCREventHandler(stopCh)
-	} else {
+	} else if lib.IsGatewayAPICapabilityEnabled() {
 		gwApiClient, err := gatewayclientset.NewForConfig(cfg)
 		if err != nil {
 			utils.AviLog.Fatalf("Error building gateway-api clientset: %s", err.Error())

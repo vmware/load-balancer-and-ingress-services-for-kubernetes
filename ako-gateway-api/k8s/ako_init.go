@@ -122,7 +122,7 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 		err = c.FullSyncK8s(false)
 		if err != nil {
 			// Something bad sync. We need to return and shutdown the API server
-			utils.AviLog.Fatalf("Couldn't run full sync successfully on bootup, going to shutdown AKO")
+			utils.AviLog.Fatalf("Couldn't run full sync successfully on bootup, going to shutdown AKO GatewayAPI container")
 		}
 		if interval != 0 {
 			worker = utils.NewFullSyncThread(time.Duration(interval) * time.Second)
@@ -226,17 +226,6 @@ func (c *GatewayController) addIndexers() {
 				}
 				if gwClass.Spec.ControllerName == akogatewayapilib.GatewayController {
 					return []string{akogatewayapilib.GatewayController}, nil
-				}
-				return []string{}, nil
-			},
-			akogatewayapilib.AviInfraSettingGatewayClassIndex: func(obj interface{}) ([]string, error) {
-				gwClass, ok := obj.(*gatewayv1.GatewayClass)
-				if !ok {
-					return []string{}, nil
-				}
-				if gwClass.Spec.ParametersRef != nil {
-					infraSetting := string(gwClass.Spec.ParametersRef.Group) + "/" + string(gwClass.Spec.ParametersRef.Kind) + "/" + gwClass.Spec.ParametersRef.Name
-					return []string{infraSetting}, nil
 				}
 				return []string{}, nil
 			},
