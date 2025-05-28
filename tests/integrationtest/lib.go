@@ -2284,7 +2284,6 @@ type FakeAviInfraSetting struct {
 	ShardSize      string
 	BGPPeerLabels  []string
 	T1LR           string
-	NodeNetworks   []string
 }
 
 func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1beta1.AviInfraSetting {
@@ -2310,12 +2309,6 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1beta1.AviInfraSe
 		})
 	}
 
-	for _, networkName := range infraSetting.NodeNetworks {
-		setting.Spec.Network.NodeNetworks = append(setting.Spec.Network.NodeNetworks, akov1beta1.AviInfraSettingNodeNetwork{
-			NetworkName: networkName,
-		})
-	}
-
 	if infraSetting.ShardSize != "" {
 		setting.Spec.L7Settings.ShardSize = infraSetting.ShardSize
 	}
@@ -2332,7 +2325,6 @@ func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string, acce
 		Name:          infraSettingName,
 		SeGroupName:   "thisisaviref-" + infraSettingName + "-seGroup",
 		Networks:      []string{"thisisaviref-" + infraSettingName + "-networkName"},
-		NodeNetworks:  []string{"thisisaviref-" + infraSettingName + "-nodeNetworkName"},
 		EnableRhi:     true,
 		BGPPeerLabels: []string{"peer1", "peer2"},
 		ShardSize:     shardSize,
