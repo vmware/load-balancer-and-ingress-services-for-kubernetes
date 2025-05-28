@@ -19,123 +19,32 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned/typed/ako/v1alpha2"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeL7Rules implements L7RuleInterface
-type FakeL7Rules struct {
+// fakeL7Rules implements L7RuleInterface
+type fakeL7Rules struct {
+	*gentype.FakeClientWithList[*v1alpha2.L7Rule, *v1alpha2.L7RuleList]
 	Fake *FakeAkoV1alpha2
-	ns   string
 }
 
-var l7rulesResource = v1alpha2.SchemeGroupVersion.WithResource("l7rules")
-
-var l7rulesKind = v1alpha2.SchemeGroupVersion.WithKind("L7Rule")
-
-// Get takes name of the l7Rule, and returns the corresponding l7Rule object, and an error if there is any.
-func (c *FakeL7Rules) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha2.L7Rule, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(l7rulesResource, c.ns, name), &v1alpha2.L7Rule{})
-
-	if obj == nil {
-		return nil, err
+func newFakeL7Rules(fake *FakeAkoV1alpha2, namespace string) akov1alpha2.L7RuleInterface {
+	return &fakeL7Rules{
+		gentype.NewFakeClientWithList[*v1alpha2.L7Rule, *v1alpha2.L7RuleList](
+			fake.Fake,
+			namespace,
+			v1alpha2.SchemeGroupVersion.WithResource("l7rules"),
+			v1alpha2.SchemeGroupVersion.WithKind("L7Rule"),
+			func() *v1alpha2.L7Rule { return &v1alpha2.L7Rule{} },
+			func() *v1alpha2.L7RuleList { return &v1alpha2.L7RuleList{} },
+			func(dst, src *v1alpha2.L7RuleList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha2.L7RuleList) []*v1alpha2.L7Rule { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1alpha2.L7RuleList, items []*v1alpha2.L7Rule) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha2.L7Rule), err
-}
-
-// List takes label and field selectors, and returns the list of L7Rules that match those selectors.
-func (c *FakeL7Rules) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha2.L7RuleList, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewListAction(l7rulesResource, l7rulesKind, c.ns, opts), &v1alpha2.L7RuleList{})
-
-	if obj == nil {
-		return nil, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha2.L7RuleList{ListMeta: obj.(*v1alpha2.L7RuleList).ListMeta}
-	for _, item := range obj.(*v1alpha2.L7RuleList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested l7Rules.
-func (c *FakeL7Rules) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(l7rulesResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a l7Rule and creates it.  Returns the server's representation of the l7Rule, and an error, if there is any.
-func (c *FakeL7Rules) Create(ctx context.Context, l7Rule *v1alpha2.L7Rule, opts v1.CreateOptions) (result *v1alpha2.L7Rule, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(l7rulesResource, c.ns, l7Rule), &v1alpha2.L7Rule{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha2.L7Rule), err
-}
-
-// Update takes the representation of a l7Rule and updates it. Returns the server's representation of the l7Rule, and an error, if there is any.
-func (c *FakeL7Rules) Update(ctx context.Context, l7Rule *v1alpha2.L7Rule, opts v1.UpdateOptions) (result *v1alpha2.L7Rule, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(l7rulesResource, c.ns, l7Rule), &v1alpha2.L7Rule{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha2.L7Rule), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeL7Rules) UpdateStatus(ctx context.Context, l7Rule *v1alpha2.L7Rule, opts v1.UpdateOptions) (*v1alpha2.L7Rule, error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(l7rulesResource, "status", c.ns, l7Rule), &v1alpha2.L7Rule{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha2.L7Rule), err
-}
-
-// Delete takes name of the l7Rule and deletes it. Returns an error if one occurs.
-func (c *FakeL7Rules) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(l7rulesResource, c.ns, name, opts), &v1alpha2.L7Rule{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeL7Rules) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(l7rulesResource, c.ns, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha2.L7RuleList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched l7Rule.
-func (c *FakeL7Rules) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha2.L7Rule, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(l7rulesResource, c.ns, name, pt, data, subresources...), &v1alpha2.L7Rule{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha2.L7Rule), err
 }

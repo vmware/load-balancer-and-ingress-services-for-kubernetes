@@ -19,15 +19,14 @@ limitations under the License.
 package v1alpha2
 
 import (
-	"context"
-	"time"
+	context "context"
 
-	v1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
+	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	scheme "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	rest "k8s.io/client-go/rest"
+	gentype "k8s.io/client-go/gentype"
 )
 
 // L4RulesGetter has a method to return a L4RuleInterface.
@@ -38,158 +37,34 @@ type L4RulesGetter interface {
 
 // L4RuleInterface has methods to work with L4Rule resources.
 type L4RuleInterface interface {
-	Create(ctx context.Context, l4Rule *v1alpha2.L4Rule, opts v1.CreateOptions) (*v1alpha2.L4Rule, error)
-	Update(ctx context.Context, l4Rule *v1alpha2.L4Rule, opts v1.UpdateOptions) (*v1alpha2.L4Rule, error)
-	UpdateStatus(ctx context.Context, l4Rule *v1alpha2.L4Rule, opts v1.UpdateOptions) (*v1alpha2.L4Rule, error)
+	Create(ctx context.Context, l4Rule *akov1alpha2.L4Rule, opts v1.CreateOptions) (*akov1alpha2.L4Rule, error)
+	Update(ctx context.Context, l4Rule *akov1alpha2.L4Rule, opts v1.UpdateOptions) (*akov1alpha2.L4Rule, error)
+	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+	UpdateStatus(ctx context.Context, l4Rule *akov1alpha2.L4Rule, opts v1.UpdateOptions) (*akov1alpha2.L4Rule, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha2.L4Rule, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha2.L4RuleList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*akov1alpha2.L4Rule, error)
+	List(ctx context.Context, opts v1.ListOptions) (*akov1alpha2.L4RuleList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha2.L4Rule, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *akov1alpha2.L4Rule, err error)
 	L4RuleExpansion
 }
 
 // l4Rules implements L4RuleInterface
 type l4Rules struct {
-	client rest.Interface
-	ns     string
+	*gentype.ClientWithList[*akov1alpha2.L4Rule, *akov1alpha2.L4RuleList]
 }
 
 // newL4Rules returns a L4Rules
 func newL4Rules(c *AkoV1alpha2Client, namespace string) *l4Rules {
 	return &l4Rules{
-		client: c.RESTClient(),
-		ns:     namespace,
+		gentype.NewClientWithList[*akov1alpha2.L4Rule, *akov1alpha2.L4RuleList](
+			"l4rules",
+			c.RESTClient(),
+			scheme.ParameterCodec,
+			namespace,
+			func() *akov1alpha2.L4Rule { return &akov1alpha2.L4Rule{} },
+			func() *akov1alpha2.L4RuleList { return &akov1alpha2.L4RuleList{} },
+		),
 	}
-}
-
-// Get takes name of the l4Rule, and returns the corresponding l4Rule object, and an error if there is any.
-func (c *l4Rules) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha2.L4Rule, err error) {
-	result = &v1alpha2.L4Rule{}
-	err = c.client.Get().
-		Namespace(c.ns).
-		Resource("l4rules").
-		Name(name).
-		VersionedParams(&options, scheme.ParameterCodec).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// List takes label and field selectors, and returns the list of L4Rules that match those selectors.
-func (c *l4Rules) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha2.L4RuleList, err error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	result = &v1alpha2.L4RuleList{}
-	err = c.client.Get().
-		Namespace(c.ns).
-		Resource("l4rules").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Watch returns a watch.Interface that watches the requested l4Rules.
-func (c *l4Rules) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	opts.Watch = true
-	return c.client.Get().
-		Namespace(c.ns).
-		Resource("l4rules").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Watch(ctx)
-}
-
-// Create takes the representation of a l4Rule and creates it.  Returns the server's representation of the l4Rule, and an error, if there is any.
-func (c *l4Rules) Create(ctx context.Context, l4Rule *v1alpha2.L4Rule, opts v1.CreateOptions) (result *v1alpha2.L4Rule, err error) {
-	result = &v1alpha2.L4Rule{}
-	err = c.client.Post().
-		Namespace(c.ns).
-		Resource("l4rules").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(l4Rule).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Update takes the representation of a l4Rule and updates it. Returns the server's representation of the l4Rule, and an error, if there is any.
-func (c *l4Rules) Update(ctx context.Context, l4Rule *v1alpha2.L4Rule, opts v1.UpdateOptions) (result *v1alpha2.L4Rule, err error) {
-	result = &v1alpha2.L4Rule{}
-	err = c.client.Put().
-		Namespace(c.ns).
-		Resource("l4rules").
-		Name(l4Rule.Name).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(l4Rule).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *l4Rules) UpdateStatus(ctx context.Context, l4Rule *v1alpha2.L4Rule, opts v1.UpdateOptions) (result *v1alpha2.L4Rule, err error) {
-	result = &v1alpha2.L4Rule{}
-	err = c.client.Put().
-		Namespace(c.ns).
-		Resource("l4rules").
-		Name(l4Rule.Name).
-		SubResource("status").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(l4Rule).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Delete takes name of the l4Rule and deletes it. Returns an error if one occurs.
-func (c *l4Rules) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	return c.client.Delete().
-		Namespace(c.ns).
-		Resource("l4rules").
-		Name(name).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *l4Rules) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	var timeout time.Duration
-	if listOpts.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
-	}
-	return c.client.Delete().
-		Namespace(c.ns).
-		Resource("l4rules").
-		VersionedParams(&listOpts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// Patch applies the patch and returns the patched l4Rule.
-func (c *l4Rules) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha2.L4Rule, err error) {
-	result = &v1alpha2.L4Rule{}
-	err = c.client.Patch(pt).
-		Namespace(c.ns).
-		Resource("l4rules").
-		Name(name).
-		SubResource(subresources...).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(data).
-		Do(ctx).
-		Into(result)
-	return
 }
