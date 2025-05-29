@@ -118,6 +118,77 @@ func TestSinglePortL4SvcNodePort(t *testing.T) {
 	TearDownTestForSvcLB(t, g, svcName)
 }
 
+// TestSinglePortL4SvcNodePortExternalTrafficPolicyLocal tests L4 service with single port and externalTrafficPolicy set as Local
+func TestSinglePortL4SvcNodePortExternalTrafficPolicyLocal(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	svcName := objNameMap.GenerateName(SINGLEPORTSVC)
+	modelName := MODEL_REDNS_PREFIX + svcName
+	nodeName := "testNode1"
+	nodeName2 := "testNode2"
+	SetNodePortMode()
+	defer SetClusterIPMode()
+	nodeIP := "10.1.1.2"
+	nodeIP2 := "10.1.1.3"
+	nodePort := int32(31030)
+	CreateNode(t, nodeName, nodeIP)
+	defer DeleteNode(t, nodeName)
+	CreateNode(t, nodeName2, nodeIP2)
+	defer DeleteNode(t, nodeName2)
+
+	// first create LB service with externalTrafficPolicy not set as Local
+	SetUpTestForSvcLB(t, svcName)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, svcName)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+
+	// Check for the pools
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PoolRefs[0].Port).To(gomega.Equal(nodePort))
+	// pool server count is 2 since there are two nodes and externalTrafficPolicy is not set as Local
+	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(2))
+	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&nodeIP))
+	g.Expect(nodes[0].PoolRefs[0].Servers[1].Ip.Addr).To(gomega.Equal(&nodeIP2))
+	g.Expect(len(nodes[0].PoolRefs[0].NetworkPlacementSettings)).To(gomega.Equal(1))
+	_, ok := nodes[0].PoolRefs[0].NetworkPlacementSettings["net123"]
+	g.Expect(ok).To(gomega.Equal(true))
+	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
+
+	TearDownTestForSvcLB(t, g, svcName)
+
+	// create LB service with externalTrafficPolicy set as Local
+	SetUpTestForSvcLBWithExternalTrafficPolicy(t, svcName, nodeName, "Local")
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 10*time.Second).Should(gomega.Equal(true))
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, svcName)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+
+	// Check for the pools
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PoolRefs[0].Port).To(gomega.Equal(nodePort))
+	// pool server count is 1 even though 2 nodes exist since there is only one endpoint created for testNode1 and externalTrafficPolicy is set as Local
+	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&nodeIP))
+	g.Expect(len(nodes[0].PoolRefs[0].NetworkPlacementSettings)).To(gomega.Equal(1))
+	_, ok = nodes[0].PoolRefs[0].NetworkPlacementSettings["net123"]
+	g.Expect(ok).To(gomega.Equal(true))
+	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
+	TearDownTestForSvcLB(t, g, svcName)
+}
+
 func TestSinglePortL4SvcSkipNodePort(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	svcName := objNameMap.GenerateName(SINGLEPORTSVC)

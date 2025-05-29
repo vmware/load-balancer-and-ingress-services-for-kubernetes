@@ -56,6 +56,18 @@ func SetUpTestForSvcLB(t *testing.T, svcName string) {
 	PollForCompletion(t, modelName, 5)
 }
 
+func SetUpTestForSvcLBWithExternalTrafficPolicy(t *testing.T, svcName, nodeName, externalTrafficPolicy string) {
+	modelName := MODEL_REDNS_PREFIX + svcName
+	objects.SharedAviGraphLister().Delete(modelName)
+	if externalTrafficPolicy == "" {
+		CreateSVC(t, NAMESPACE, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false)
+	} else {
+		CreateSvcWithExternalTrafficPolicy(t, NAMESPACE, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, externalTrafficPolicy)
+	}
+	CreateEPorEPSNodeName(t, NAMESPACE, svcName, false, false, "1.1.1", nodeName)
+	PollForCompletion(t, modelName, 5)
+}
+
 func SetUpTestForSvcLBWithLBClass(t *testing.T, LBClass, svcName string) {
 	modelName := MODEL_REDNS_PREFIX + svcName
 	objects.SharedAviGraphLister().Delete(modelName)
