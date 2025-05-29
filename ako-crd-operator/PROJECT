@@ -19,4 +19,13 @@ resources:
   kind: HealthMonitor
   path: github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: vmware.com
+  group: ako
+  kind: PersistenceProfile
+  path: github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1
+  version: v1alpha1
 version: "3"

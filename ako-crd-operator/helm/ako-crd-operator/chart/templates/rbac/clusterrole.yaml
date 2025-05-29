@@ -11,6 +11,9 @@ rules:
       - healthmonitors
       - healthmonitors/status
       - healthmonitors/finalizers
+      - persistenceprofiles
+      - persistenceprofiles/status
+      - persistenceprofiles/finalizers
     verbs:
       - '*'
   - apiGroups:

@@ -1,0 +1,9 @@
+apiVersion: ako.vmware.com/v1alpha1
+kind: PersistenceProfile
+metadata:
+  labels:
+    app.kubernetes.io/name: ako-crd-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: persistenceprofile-sample
+spec:
+  # TODO(user): Add fields here

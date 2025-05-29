@@ -19,22 +19,22 @@ package main
 import (
 	"context"
 	"flag"
+	"os"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/event"
 	session2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -88,11 +88,11 @@ func main() {
 	// setup controller properties
 	sessionManager := session2.NewSession(kubeClient, eventManager)
 	sessionManager.PopulateControllerProperties(ctx)
-	sessionManager.CreateAviClients(ctx, 1)
+	sessionManager.CreateAviClients(ctx, 2)
 	aviClients := sessionManager.GetAviClients()
 
 	cacheManager := cache.NewCache(sessionManager)
-	if err := cacheManager.PopulateCache(constants.HealthMonitorURL); err != nil {
+	if err := cacheManager.PopulateCache(constants.HealthMonitorURL, constants.PersistenceProfileURL); err != nil {
 		setupLog.Error(err, "unable to populate cacheManager")
 		os.Exit(1)
 	}
@@ -105,6 +105,15 @@ func main() {
 	}
 	if err = hmReconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HealthMonitor")
+		os.Exit(1)
+	}
+	if err := (&controller.PersistenceProfileReconciler{
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		AviClient: aviClients.AviClient[1],
+		Cache:     cacheManager,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "PersistenceProfile")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
