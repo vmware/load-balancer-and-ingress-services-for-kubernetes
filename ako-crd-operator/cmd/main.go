@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/go-logr/zapr"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/event"
 	session2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
@@ -26,8 +27,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"os"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -64,7 +63,7 @@ func main() {
 
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 
-	ctrl.SetLogger(zap.New())
+	ctrl.SetLogger(zapr.NewLogger(utils.AviLog.Sugar.Desugar().Named("runtime")))
 
 	cfg := ctrl.GetConfigOrDie()
 
@@ -102,7 +101,9 @@ func main() {
 		Scheme:    mgr.GetScheme(),
 		AviClient: aviClients.AviClient[0],
 		Cache:     cacheManager,
+		Logger:    utils.AviLog.WithName("healthmonitor"),
 	}
+
 	if err = hmReconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HealthMonitor")
 		os.Exit(1)

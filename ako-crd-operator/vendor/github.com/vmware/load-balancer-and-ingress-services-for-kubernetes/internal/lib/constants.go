@@ -141,6 +141,7 @@ const (
 	SyncStatusKey                              = "syncstatus"
 	NoFreeIPError                              = "No available free IPs"
 	ConfigDisallowedDuringUpgradeError         = "Configuration is disallowed during upgrade"
+	NeedToReloadObjectDataVsVip                = "Need to reload object data VsVip"
 	VSDataScriptNotFoundError                  = "VSDataScriptSet object not found"
 	VSVIPNotFoundError                         = "VsVip object not found"
 	DataScript                                 = "Vsdatascript"
@@ -167,6 +168,7 @@ const (
 	PriorityLabel                              = "PriorityLabel"
 	SSLKeyCert                                 = "SSLKeyandCertificate"
 	PKIProfile                                 = "PKI Profile"
+	ApplicationProfile                         = "ApplicationProfile"
 	PassthroughPG                              = "Passthrough PG"
 	Passthroughpool                            = "Passthrough pool"
 	PassthroughVS                              = "Passthrough VirtualService"
@@ -274,6 +276,7 @@ const (
 	CalicoIPv6AddressAnnotation      = "projectcalico.org/IPv6Address"
 	AntreaTransportAddressAnnotation = "node.antrea.io/transport-addresses"
 	TenantAnnotation                 = "ako.vmware.com/tenant-name"
+	GwProxyProtocolEnableAnnotation  = "iaas.vmware.com/proxy-protocol-enabled"
 
 	// Specifies command used in namespace event handler
 	NsFilterAdd                    = "ADD"

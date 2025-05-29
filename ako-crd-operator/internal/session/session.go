@@ -38,7 +38,7 @@ func (s *Session) PopulateControllerProperties(ctx context.Context) error {
 	var err error
 	s.ctrlProperties, err = lib.GetControllerPropertiesFromSecret(s.k8sClient)
 	if err != nil {
-		utils.AviLog.Error(err, "unable to populate controller properties")
+		utils.AviLog.Error("unable to populate controller properties")
 		return err
 	}
 	return nil
