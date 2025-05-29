@@ -88,11 +88,11 @@ func main() {
 	// setup controller properties
 	sessionManager := session2.NewSession(kubeClient, eventManager)
 	sessionManager.PopulateControllerProperties(ctx)
-	sessionManager.CreateAviClients(ctx, 1)
+	sessionManager.CreateAviClients(ctx, 2)
 	aviClients := sessionManager.GetAviClients()
 
 	cacheManager := cache.NewCache(sessionManager)
-	if err := cacheManager.PopulateCache(constants.HealthMonitorURL); err != nil {
+	if err := cacheManager.PopulateCache(constants.HealthMonitorURL, constants.PersistenceProfileURL); err != nil {
 		setupLog.Error(err, "unable to populate cacheManager")
 		os.Exit(1)
 	}
@@ -108,8 +108,10 @@ func main() {
 		os.Exit(1)
 	}
 	if err := (&controller.PersistenceProfileReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		AviClient: aviClients.AviClient[1],
+		Cache:     cacheManager,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PersistenceProfile")
 		os.Exit(1)

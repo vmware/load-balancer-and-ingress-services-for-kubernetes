@@ -53,44 +53,37 @@ const (
 )
 
 // PersistenceProfileSpec defines the desired state of PersistenceProfile
+// +kubebuilder:validation:XValidation:rule="((self.persistence_type == 'PERSISTENCE_TYPE_CLIENT_IP_ADDRESS' || self.persistence_type == 'PERSISTENCE_TYPE_CLIENT_IPV6_ADDRESS') && has(self.ip_persistence_profile) && !has(self.hdr_persistence_profile) && !has(self.app_cookie_persistence_profile) && !has(self.http_cookie_persistence_profile)) || (self.persistence_type == 'PERSISTENCE_TYPE_CUSTOM_HTTP_HEADER' && has(self.hdr_persistence_profile) && !has(self.ip_persistence_profile) && !has(self.app_cookie_persistence_profile) && !has(self.http_cookie_persistence_profile)) || (self.persistence_type == 'PERSISTENCE_TYPE_APP_COOKIE' && has(self.app_cookie_persistence_profile) && !has(self.ip_persistence_profile) && !has(self.hdr_persistence_profile) && !has(self.http_cookie_persistence_profile)) || (self.persistence_type == 'PERSISTENCE_TYPE_HTTP_COOKIE' && has(self.http_cookie_persistence_profile) && !has(self.ip_persistence_profile) && !has(self.hdr_persistence_profile) && !has(self.app_cookie_persistence_profile)) || (self.persistence_type == 'PERSISTENCE_TYPE_TLS' && !has(self.ip_persistence_profile) && !has(self.hdr_persistence_profile) && !has(self.app_cookie_persistence_profile) && !has(self.http_cookie_persistence_profile))", message="Invalid profile configuration for persistence_type. When persistence_type is CLIENT_IP_ADDRESS, CLIENT_IPV6_ADDRESS, CUSTOM_HTTP_HEADER, APP_COOKIE, or HTTP_COOKIE, its corresponding profile field (e.g. ipPersistenceProfile) must be set and other profile fields must be absent. For types like TLS, none of these specific profile fields should be set."
 type PersistenceProfileSpec struct {
-	// Name is a user-friendly name for the persistence profile.
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:MaxLength=256
-	Name string `json:"name"`
 
 	// ServerHmDownRecovery specifies behavior when a persistent server has been marked down by a health monitor.
 	// +kubebuilder:default:=HM_DOWN_PICK_NEW_SERVER
-	ServerHmDownRecovery ServerHmDownRecovery `json:"serverHmDownRecovery,omitempty"`
+	ServerHmDownRecovery ServerHmDownRecovery `json:"server_hm_down_recovery,omitempty"`
 
 	// PersistenceType is the method used to persist clients to the same server.
 	// +kubebuilder:default:=PERSISTENCE_TYPE_CLIENT_IP_ADDRESS
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="type is immutable"
-	PersistenceType PersistenceType `json:"persistenceType,omitempty"`
+	PersistenceType PersistenceType `json:"persistence_type,omitempty"`
 
 	// IPPersistenceProfile specifies the Client IP Persistence profile parameters.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self.persistenceType == 'PERSISTENCE_TYPE_CLIENT_IP_ADDRESS'",message="ipPersistenceProfile can only be set when persistenceType is PERSISTENCE_TYPE_CLIENT_IP_ADDRESS"
-	IPPersistenceProfile *IPPersistenceProfile `json:"ipPersistenceProfile,omitempty"`
+	IPPersistenceProfile *IPPersistenceProfile `json:"ip_persistence_profile,omitempty"`
 
 	// HdrPersistenceProfile specifies the custom HTTP Header Persistence profile parameters.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self.persistenceType == 'PERSISTPERSISTENCE_TYPE_CUSTOM_HTTP_HEADER'",message="hdrPersistenceProfile can only be set when persistenceType is PERSISTENCE_TYPE_CUSTOM_HTTP_HEADER"
-	HdrPersistenceProfile *HdrPersistenceProfile `json:"hdrPersistenceProfile,omitempty"`
+	HdrPersistenceProfile *HdrPersistenceProfile `json:"hdr_persistence_profile,omitempty"`
 
 	// AppCookiePersistenceProfile specifies the Application Cookie Persistence profile parameters.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self.persistenceType == 'PERSISTENCE_TYPE_APP_COOKIE'",message="appCookiePersistenceProfile can only be set when persistenceType is PERSISTENCE_TYPE_APP_COOKIE"
-	AppCookiePersistenceProfile *AppCookiePersistenceProfile `json:"appCookiePersistenceProfile,omitempty"`
+	AppCookiePersistenceProfile *AppCookiePersistenceProfile `json:"app_cookie_persistence_profile,omitempty"`
 
 	// HTTPCookiePersistenceProfile specifies the HTTP Cookie Persistence profile parameters.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self.persistenceType == 'PERSISTENCE_TYPE_HTTP_COOKIE'",message="httpCookiePersistenceProfile can only be set when persistenceType is PERSISTENCE_TYPE_HTTP_COOKIE"
-	HTTPCookiePersistenceProfile *HTTPCookiePersistenceProfile `json:"httpCookiePersistenceProfile,omitempty"`
+	HTTPCookiePersistenceProfile *HTTPCookiePersistenceProfile `json:"http_cookie_persistence_profile,omitempty"`
 
 	// IsFederated describes the object's replication scope.
 	// +kubebuilder:default:=false
-	IsFederated bool `json:"isFederated,omitempty"`
+	IsFederated bool `json:"is_federated,omitempty"`
 
 	// Description is a user-friendly description of the persistence profile.
 	// +optional
@@ -103,26 +96,26 @@ type IPPersistenceProfile struct {
 	// +kubebuilder:default:=5
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=720
-	IPPersistentTimeout int32 `json:"ipPersistentTimeout,omitempty"`
+	IPPersistentTimeout int32 `json:"ip_persistent_timeout,omitempty"`
 
 	// IPMask is the mask to be applied on client IP.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=128
-	IPMask int32 `json:"ipMask,omitempty"`
+	IPMask int32 `json:"ip_mask,omitempty"`
 }
 
 // HdrPersistenceProfile specifies the custom HTTP Header Persistence profile parameters.
 type HdrPersistenceProfile struct {
 	// PrstHdrName is the header name for custom header persistence.
 	// +kubebuilder:validation:MaxLength=128
-	PrstHdrName string `json:"prstHdrName,omitempty"`
+	PrstHdrName string `json:"prst_hdr_name,omitempty"`
 }
 
 // AppCookiePersistenceProfile specifies the Application Cookie Persistence profile parameters.
 type AppCookiePersistenceProfile struct {
 	// PrstHdrName is the header or cookie name for application cookie persistence.
 	// +kubebuilder:validation:MaxLength=128
-	PrstHdrName string `json:"prstHdrName,omitempty"`
+	PrstHdrName string `json:"prst_hdr_name,omitempty"`
 
 	// Timeout is the length of time after a client's connections have closed before expiring the client's persistence to a server.
 	// +kubebuilder:default:=20
@@ -132,14 +125,14 @@ type AppCookiePersistenceProfile struct {
 
 	// EncryptionKey is the key to use for cookie encryption.
 	// +kubebuilder:validation:MaxLength=1024
-	EncryptionKey string `json:"encryptionKey,omitempty"`
+	EncryptionKey string `json:"encryption_key,omitempty"`
 }
 
 // HTTPCookiePersistenceProfile specifies the HTTP Cookie Persistence profile parameters.
 type HTTPCookiePersistenceProfile struct {
 	// CookieName is the HTTP cookie name for cookie persistence.
 	// +kubebuilder:validation:MaxLength=128
-	CookieName string `json:"cookieName,omitempty"`
+	CookieName string `json:"cookie_name,omitempty"`
 
 	// Timeout is the maximum lifetime of any session cookie.
 	// +kubebuilder:validation:Minimum=0
@@ -148,15 +141,15 @@ type HTTPCookiePersistenceProfile struct {
 
 	// AlwaysSendCookie indicates if a persistence cookie should always be sent.
 	// +kubebuilder:default:=false
-	AlwaysSendCookie bool `json:"alwaysSendCookie,omitempty"`
+	AlwaysSendCookie bool `json:"always_send_cookie,omitempty"`
 
 	// HTTPOnly sets the HttpOnly attribute in the cookie.
 	// +kubebuilder:default:=false
-	HTTPOnly bool `json:"httpOnly,omitempty"`
+	HTTPOnly bool `json:"http_only,omitempty"`
 
 	// IsPersistentCookie indicates if the cookie is a persistent cookie.
 	// +kubebuilder:default:=false
-	IsPersistentCookie bool `json:"isPersistentCookie,omitempty"`
+	IsPersistentCookie bool `json:"is_persistent_cookie,omitempty"`
 }
 
 // PersistenceProfileStatus defines the observed state of PersistenceProfile
