@@ -26,7 +26,6 @@ import (
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/logger"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,7 +46,7 @@ type HealthMonitorReconciler struct {
 	AviClient *clients.AviClient
 	Scheme    *runtime.Scheme
 	Cache     cache.CacheOperation
-	Logger    *logger.Logger
+	Logger    *utils.AviLogger
 }
 
 type HealthMonitorRequest struct {
@@ -72,23 +71,23 @@ type HealthMonitorRequest struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.2/pkg/reconcile
 func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Logger.WithValues("name", req.Name, "namespace", req.Namespace, "traceID", uuid.New().String())
-	ctx = logger.WithContext(ctx, log)
+	ctx = utils.LoggerWithContext(ctx, log)
 
-	log.Infof("reconciling healthmonitor")
+	log.Info("Reconciling HealthMonitor")
 	hm := &akov1alpha1.HealthMonitor{}
 	err := r.Client.Get(ctx, req.NamespacedName, hm)
 	if err != nil {
 		if k8serror.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		log.Error(err, "Failed to get HealthMonitor")
+		log.Error("Failed to get HealthMonitor")
 		return ctrl.Result{}, err
 	}
 	if hm.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(hm, constants.HealthMonitorFinalizer) {
 			controllerutil.AddFinalizer(hm, constants.HealthMonitorFinalizer)
 			if err := r.Update(ctx, hm); err != nil {
-				utils.AviLog.Error(err, "Failed to add finalizer to HealthMonitor")
+				utils.AviLog.Error("Failed to add finalizer to HealthMonitor")
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{}, nil
@@ -108,6 +107,7 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if err := r.ReconcileIfRequired(ctx, hm); err != nil {
 		return ctrl.Result{}, err
 	}
+	utils.AviLog.Info("Reconcile HealthMonitor successfully")
 	return ctrl.Result{}, nil
 }
 
@@ -135,7 +135,7 @@ func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alp
 
 // TODO: Make this function generic
 func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *akov1alpha1.HealthMonitor) error {
-	log := logger.FromContext(ctx)
+	log := utils.LoggerFromContext(ctx)
 	hmReq := &HealthMonitorRequest{
 		hm.Name,
 		hm.Spec,

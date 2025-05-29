@@ -22,7 +22,6 @@ import (
 	"github.com/go-logr/zapr"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/event"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/logger"
 	session2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	v1 "k8s.io/api/core/v1"
@@ -64,8 +63,7 @@ func main() {
 
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 
-	zapLogger := logger.NewLogger()
-	ctrl.SetLogger(zapr.NewLogger(zapLogger.InnerLogger.Desugar().Named("runtime")))
+	ctrl.SetLogger(zapr.NewLogger(utils.AviLog.Sugar.Desugar().Named("runtime")))
 
 	cfg := ctrl.GetConfigOrDie()
 
@@ -103,7 +101,7 @@ func main() {
 		Scheme:    mgr.GetScheme(),
 		AviClient: aviClients.AviClient[0],
 		Cache:     cacheManager,
-		Logger:    zapLogger.WithName("healthmonitor"),
+		Logger:    utils.AviLog.WithName("healthmonitor"),
 	}
 
 	if err = hmReconciler.SetupWithManager(mgr); err != nil {
