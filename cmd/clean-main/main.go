@@ -18,7 +18,6 @@ var (
 	password                          = ""
 	albCtrlCert                       = ""
 	clusterID                         = ""
-	supervisorID                      = ""
 	useEnvoy                          = false
 	ExitCodeRequiredArgsMissing       = 1
 	ExitCodeCleanupALBResourcesFailed = 2
@@ -31,11 +30,10 @@ func main() {
 	flag.StringVar(&password, "password", "", "NSX ALB Controller authentication password")
 	flag.StringVar(&albCtrlCert, "cacert", "", "NSX ALB Controller authentication certificate")
 	flag.StringVar(&clusterID, "cluster-id", "", "AKO cluster ID")
-	flag.StringVar(&supervisorID, "supervisor-id", "", "Supervisor ID")
 	flag.BoolVar(&useEnvoy, "use-envoy", false, "Use Envoy sidecar proxy in VCSA")
 	flag.Parse()
 
-	cfg := akoclean.NewAKOCleanupConfig(ctrlIP, username, password, authToken, albCtrlCert, clusterID, supervisorID, useEnvoy)
+	cfg := akoclean.NewAKOCleanupConfig(ctrlIP, username, password, authToken, albCtrlCert, clusterID, useEnvoy)
 
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancelFunc()
