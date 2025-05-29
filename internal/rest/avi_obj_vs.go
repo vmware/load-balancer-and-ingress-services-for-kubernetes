@@ -98,6 +98,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			ErrorPageProfileRef:   &vs_meta.ErrorPageProfileRef,
 			Enabled:               vs_meta.Enabled,
 			ServiceMetadata:       &svc_mdata,
+			RevokeVipRoute:        vs_meta.RevokeVipRoute,
 		}
 
 		if vs_meta.ApplicationProfileRef != nil {

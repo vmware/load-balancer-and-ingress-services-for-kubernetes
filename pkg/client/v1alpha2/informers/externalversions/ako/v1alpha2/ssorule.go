@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha2
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
+	apisakov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	versioned "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned"
 	internalinterfaces "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/informers/externalversions/internalinterfaces"
-	v1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/listers/ako/v1alpha2"
+	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/listers/ako/v1alpha2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // SSORules.
 type SSORuleInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha2.SSORuleLister
+	Lister() akov1alpha2.SSORuleLister
 }
 
 type sSORuleInformer struct {
@@ -71,7 +71,7 @@ func NewFilteredSSORuleInformer(client versioned.Interface, namespace string, re
 				return client.AkoV1alpha2().SSORules(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&akov1alpha2.SSORule{},
+		&apisakov1alpha2.SSORule{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +82,9 @@ func (f *sSORuleInformer) defaultInformer(client versioned.Interface, resyncPeri
 }
 
 func (f *sSORuleInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&akov1alpha2.SSORule{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisakov1alpha2.SSORule{}, f.defaultInformer)
 }
 
-func (f *sSORuleInformer) Lister() v1alpha2.SSORuleLister {
-	return v1alpha2.NewSSORuleLister(f.Informer().GetIndexer())
+func (f *sSORuleInformer) Lister() akov1alpha2.SSORuleLister {
+	return akov1alpha2.NewSSORuleLister(f.Informer().GetIndexer())
 }

@@ -38,7 +38,7 @@ export GO111MODULE GOFLAGS GOPATH
 mkdir -p "$GOPATH/src/github.com/vmware"
 ln -s "${SCRIPT_ROOT}" "$GOPATH/src/${AKO_PACKAGE}"
 
-readonly OUTPUT_PKG="${AKO_PACKAGE}/pkg/client/${AKOCRD_VERSION}"
+readonly OUTPUT_PKG="pkg/client/${AKOCRD_VERSION}"
 readonly FQ_APIS="${AKO_PACKAGE}/pkg/apis/ako/${AKOCRD_VERSION}"
 readonly APIS_PKG=AKO_PACKAGE
 readonly CLIENTSET_NAME=versioned
@@ -53,8 +53,8 @@ readonly COMMON_FLAGS="${VERIFY_FLAG:-} --go-header-file ${SCRIPT_ROOT}/hack/boi
 
 echo "Generating deepcopy funcs"
 go run k8s.io/code-generator/cmd/deepcopy-gen \
-        --input-dirs "${FQ_APIS}" \
-        -O zz_generated.deepcopy \
+        "${FQ_APIS}" \
+        --output-file zz_generated.deepcopy.go \
         --bounding-dirs "${APIS_PKG}" \
         ${COMMON_FLAGS}
 
@@ -63,25 +63,28 @@ go run k8s.io/code-generator/cmd/client-gen \
         --clientset-name "${CLIENTSET_NAME}" \
         --input-base "" \
         --input "${FQ_APIS}" \
-        --output-package "${OUTPUT_PKG}/${CLIENTSET_PKG_NAME}" \
+        --output-dir "${OUTPUT_PKG}/${CLIENTSET_PKG_NAME}" \
+        --output-pkg "${AKO_PACKAGE}/${OUTPUT_PKG}/${CLIENTSET_PKG_NAME}" \
         ${COMMON_FLAGS}
 
 echo "Generating listers at ${OUTPUT_PKG}/listers"
 go run k8s.io/code-generator/cmd/lister-gen \
-        --input-dirs "${FQ_APIS}" \
-        --output-package "${OUTPUT_PKG}/listers" \
+        "${FQ_APIS}" \
+        --output-dir "${OUTPUT_PKG}/listers" \
+        --output-pkg "${AKO_PACKAGE}/${OUTPUT_PKG}/listers" \
         ${COMMON_FLAGS}
 
 echo "Generating informers at ${OUTPUT_PKG}/informers"
 go run k8s.io/code-generator/cmd/informer-gen \
-         --input-dirs "${FQ_APIS}" \
-         --versioned-clientset-package "${OUTPUT_PKG}/${CLIENTSET_PKG_NAME}/${CLIENTSET_NAME}" \
-         --listers-package "${OUTPUT_PKG}/listers" \
-         --output-package "${OUTPUT_PKG}/informers" \
+        "${FQ_APIS}" \
+         --versioned-clientset-package "${AKO_PACKAGE}/${OUTPUT_PKG}/${CLIENTSET_PKG_NAME}/${CLIENTSET_NAME}" \
+         --listers-package "${AKO_PACKAGE}/${OUTPUT_PKG}/listers" \
+         --output-dir "${OUTPUT_PKG}/informers" \
+         --output-pkg "${AKO_PACKAGE}/${OUTPUT_PKG}/informers" \
          ${COMMON_FLAGS}
 
 echo "Generating register at ${FQ_APIS}"
 go run k8s.io/code-generator/cmd/register-gen \
-        --input-dirs "${FQ_APIS}" \
-        --output-package "${FQ_APIS}" \
+        "${FQ_APIS}" \
+        --output-file "register.go" \
         ${COMMON_FLAGS}

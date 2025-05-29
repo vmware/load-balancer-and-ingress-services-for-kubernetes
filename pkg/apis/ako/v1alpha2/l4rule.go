@@ -34,6 +34,7 @@ type L4RuleSpec struct {
 	SslKeyAndCertificateRefs []string             `json:"sslKeyAndCertificateRefs,omitempty"`
 	SslProfileRef            *string              `json:"sslProfileRef,omitempty"`
 	VsDatascriptRefs         []string             `json:"vsDatascriptRefs,omitempty"`
+	RevokeVipRoute 			 *bool 				  `json:"revokeVipRoute,omitempty"`
 }
 
 type L4RuleStatus struct {

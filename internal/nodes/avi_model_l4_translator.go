@@ -144,7 +144,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 
 	// Copy the VS properties from L4Rule object
 	if l4Rule, err := getL4Rule(key, svcObj); err == nil {
-		buildWithL4Rule(key, avi_vs_meta, l4Rule)
+		buildWithL4Rule(key, avi_vs_meta, l4Rule, false)
 	}
 
 	if lib.HasSpecLoadBalancerIP(svcObj) {
@@ -988,7 +988,7 @@ func getL4Rule(key string, svc *corev1.Service) (*akov1alpha2.L4Rule, error) {
 	return l4Rule, nil
 }
 
-func buildWithL4Rule(key string, vs *AviVsNode, l4Rule *akov1alpha2.L4Rule) {
+func buildWithL4Rule(key string, vs *AviVsNode, l4Rule *akov1alpha2.L4Rule, isSharedVip bool) {
 
 	if l4Rule == nil {
 		return
@@ -1004,6 +1004,14 @@ func buildWithL4Rule(key string, vs *AviVsNode, l4Rule *akov1alpha2.L4Rule) {
 		return
 	}
 	copier.Copy(vs, &l4Rule.Spec)
+
+	// omit revokeVipRoute if shared vip is also enabled
+	revokeVipRoute := vs.RevokeVipRoute
+	if isSharedVip && revokeVipRoute != nil && *revokeVipRoute {
+		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, lib.InvalidConfiguration, "RevokeVipRoute cannot be used with Shared VIP. VIP Route won't be revoked.")
+		vs.RevokeVipRoute = nil
+	}
+
 	if isSSLEnabled && *l4Rule.Spec.ApplicationProfileRef == utils.DEFAULT_L4_APP_PROFILE {
 		defaultAppProfile := utils.DEFAULT_L4_SSL_APP_PROFILE
 		vs.ApplicationProfileRef = &defaultAppProfile

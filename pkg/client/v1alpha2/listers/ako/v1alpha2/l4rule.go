@@ -19,10 +19,10 @@ limitations under the License.
 package v1alpha2
 
 import (
-	v1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/tools/cache"
+	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // L4RuleLister helps list L4Rules.
@@ -30,7 +30,7 @@ import (
 type L4RuleLister interface {
 	// List lists all L4Rules in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha2.L4Rule, err error)
+	List(selector labels.Selector) (ret []*akov1alpha2.L4Rule, err error)
 	// L4Rules returns an object that can list and get L4Rules.
 	L4Rules(namespace string) L4RuleNamespaceLister
 	L4RuleListerExpansion
@@ -38,25 +38,17 @@ type L4RuleLister interface {
 
 // l4RuleLister implements the L4RuleLister interface.
 type l4RuleLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*akov1alpha2.L4Rule]
 }
 
 // NewL4RuleLister returns a new L4RuleLister.
 func NewL4RuleLister(indexer cache.Indexer) L4RuleLister {
-	return &l4RuleLister{indexer: indexer}
-}
-
-// List lists all L4Rules in the indexer.
-func (s *l4RuleLister) List(selector labels.Selector) (ret []*v1alpha2.L4Rule, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha2.L4Rule))
-	})
-	return ret, err
+	return &l4RuleLister{listers.New[*akov1alpha2.L4Rule](indexer, akov1alpha2.Resource("l4rule"))}
 }
 
 // L4Rules returns an object that can list and get L4Rules.
 func (s *l4RuleLister) L4Rules(namespace string) L4RuleNamespaceLister {
-	return l4RuleNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return l4RuleNamespaceLister{listers.NewNamespaced[*akov1alpha2.L4Rule](s.ResourceIndexer, namespace)}
 }
 
 // L4RuleNamespaceLister helps list and get L4Rules.
@@ -64,36 +56,15 @@ func (s *l4RuleLister) L4Rules(namespace string) L4RuleNamespaceLister {
 type L4RuleNamespaceLister interface {
 	// List lists all L4Rules in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha2.L4Rule, err error)
+	List(selector labels.Selector) (ret []*akov1alpha2.L4Rule, err error)
 	// Get retrieves the L4Rule from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha2.L4Rule, error)
+	Get(name string) (*akov1alpha2.L4Rule, error)
 	L4RuleNamespaceListerExpansion
 }
 
 // l4RuleNamespaceLister implements the L4RuleNamespaceLister
 // interface.
 type l4RuleNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all L4Rules in the indexer for a given namespace.
-func (s l4RuleNamespaceLister) List(selector labels.Selector) (ret []*v1alpha2.L4Rule, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha2.L4Rule))
-	})
-	return ret, err
-}
-
-// Get retrieves the L4Rule from the indexer for a given namespace and name.
-func (s l4RuleNamespaceLister) Get(name string) (*v1alpha2.L4Rule, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha2.Resource("l4rule"), name)
-	}
-	return obj.(*v1alpha2.L4Rule), nil
+	listers.ResourceIndexer[*akov1alpha2.L4Rule]
 }
