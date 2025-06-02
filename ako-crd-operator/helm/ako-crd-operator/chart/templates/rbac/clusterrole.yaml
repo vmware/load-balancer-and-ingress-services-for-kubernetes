@@ -14,6 +14,14 @@ rules:
     verbs:
       - '*'
   - apiGroups:
+      - ako.vmware.com
+    resources:
+      - applicationprofiles
+      - applicationprofiles/status
+      - applicationprofiles/finalizers
+    verbs:
+      - '*'
+  - apiGroups:
       - ""
     resources:
       - configmaps
