@@ -29,15 +29,15 @@ type FakeAkoV1beta1 struct {
 }
 
 func (c *FakeAkoV1beta1) AviInfraSettings() v1beta1.AviInfraSettingInterface {
-	return &FakeAviInfraSettings{c}
+	return newFakeAviInfraSettings(c)
 }
 
 func (c *FakeAkoV1beta1) HTTPRules(namespace string) v1beta1.HTTPRuleInterface {
-	return &FakeHTTPRules{c, namespace}
+	return newFakeHTTPRules(c, namespace)
 }
 
 func (c *FakeAkoV1beta1) HostRules(namespace string) v1beta1.HostRuleInterface {
-	return &FakeHostRules{c, namespace}
+	return newFakeHostRules(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate
