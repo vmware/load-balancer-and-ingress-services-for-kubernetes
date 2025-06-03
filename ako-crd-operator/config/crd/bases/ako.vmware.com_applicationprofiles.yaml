@@ -40,339 +40,39 @@ spec:
           spec:
             description: Spec defines the desired state of ApplicationProfile
             properties:
-              app_service_type:
-                description: AppServiceType specifies app service type for an application.
-                enum:
-                - APP_SERVICE_TYPE_L7_HORIZON
-                - APP_SERVICE_TYPE_L4_BLAST
-                - APP_SERVICE_TYPE_L4_PCOIP
-                - APP_SERVICE_TYPE_L4_FTP
-                type: string
-                x-kubernetes-validations:
-                - message: app_service_type is immutable
-                  rule: self == oldSelf
-              description:
-                description: Description is a description of the application profile.
-                type: string
               http_profile:
                 description: HTTPProfile specifies the HTTP application proxy profile
                   parameters.
                 properties:
-                  allow_dots_in_header_name:
-                    default: false
-                    description: 'Allow use of dot (.) in HTTP header names, for instance
-                      Header.app.special: PickAppVersionX.'
-                    type: boolean
-                  cache_config:
-                    description: HTTP Caching config to use with this HTTP Profile.
-                    properties:
-                      age_header:
-                        default: true
-                        description: Add an Age header to content served from cache,
-                          which indicates to the client the number of seconds the
-                          object has been in the cache.
-                        type: boolean
-                      aggressive:
-                        default: false
-                        description: Enable/disable caching objects without Cache-Control
-                          headers
-                        type: boolean
-                      date_header:
-                        default: true
-                        description: If a Date header was not added by the server,
-                          add a Date header to the object served from cache. This
-                          indicates to the client when the object was originally sent
-                          by the server to the cache.
-                        type: boolean
-                      default_expire:
-                        default: 600
-                        description: Default expiration time of cache objects received
-                          from the server without a Cache-Control expiration header.
-                          This value may be overwritten by the Heuristic Expire setting.
-                        format: int32
-                        type: integer
-                      enabled:
-                        default: false
-                        description: Enable/disable HTTP object caching. When enabling
-                          caching for the first time, SE Group app_cache_percent must
-                          be set to allocate shared memory required for caching (A
-                          service engine restart is needed after setting/resetting
-                          the SE group value).
-                        type: boolean
-                      heuristic_expire:
-                        default: false
-                        description: If a response object from the server does not
-                          include the Cache-Control header, but does include a Last-Modified
-                          header, the system will use this time to calculate the Cache-Control
-                          expiration. If unable to solicit an Last-Modified header,
-                          then the system will fall back to the Cache Expire Time
-                          value.
-                        type: boolean
-                      ignore_request_cache_control:
-                        default: false
-                        description: Ignore client's cache control headers when fetching
-                          or storing from and to the cache.
-                        type: boolean
-                      max_cache_size:
-                        default: 0
-                        description: Max size, in bytes, of the cache. The default,
-                          zero, indicates auto configuration.
-                        format: int64
-                        type: integer
-                      max_object_size:
-                        default: 4194304
-                        description: Maximum size of an object to store in the cache.
-                        format: int32
-                        type: integer
-                      mime_types_block_group_uuids:
-                        description: Blocklist string group of non-cacheable mime
-                          types
-                        items:
-                          type: string
-                        type: array
-                      mime_types_block_lists:
-                        description: Blocklist of non-cacheable mime types
-                        items:
-                          type: string
-                        type: array
-                      mime_types_group_uuids:
-                        description: Allowlist string group of cacheable mime types.
-                          If both Cacheable Mime Types string list and string group
-                          are empty, this defaults to */*
-                        items:
-                          type: string
-                        type: array
-                      mime_types_list:
-                        description: Allowlist of cacheable mime types. If both Cacheable
-                          Mime Types string list and string group are empty, this
-                          defaults to */*
-                        items:
-                          type: string
-                        type: array
-                      min_object_size:
-                        default: 100
-                        description: Minimum size of an object to store in the cache.
-                        format: int32
-                        type: integer
-                      query_cacheable:
-                        default: false
-                        description: Allow caching of objects whose URI included a
-                          query argument. When disabled, these objects are not cached.
-                          When enabled, the request must match the URI query to be
-                          considered a hit.
-                        type: boolean
-                      uri_non_cacheable:
-                        description: Non-cacheable URI configuration with match criteria.
-                        properties:
-                          match_case:
-                            default: INSENSITIVE
-                            description: |-
-                              Case sensitivity to use for the matching
-                              Match case
-                            enum:
-                            - SENSITIVE
-                            - INSENSITIVE
-                            type: string
-                          match_criteria:
-                            allOf:
-                            - enum:
-                              - BEGINS_WITH
-                              - DOES_NOT_BEGIN_WITH
-                              - CONTAINS
-                              - DOES_NOT_CONTAIN
-                              - ENDS_WITH
-                              - DOES_NOT_END_WITH
-                              - EQUALS
-                              - DOES_NOT_EQUAL
-                              - REGEX_MATCH
-                              - REGEX_DOES_NOT_MATCH
-                            - enum:
-                              - BEGINS_WITH
-                              - DOES_NOT_BEGIN_WITH
-                              - CONTAINS
-                              - DOES_NOT_CONTAIN
-                              - ENDS_WITH
-                              - DOES_NOT_END_WITH
-                              - EQUALS
-                              - DOES_NOT_EQUAL
-                            default: CONTAINS
-                            description: Criterion to use for matching the path in
-                              the HTTP request URI.
-                            type: string
-                          match_decoded_string:
-                            default: true
-                            description: Match against the decoded URI path.
-                            type: boolean
-                          match_str:
-                            description: |-
-                              String values
-                              Implicit Path Group
-                            items:
-                              type: string
-                            type: array
-                          string_group_uuids:
-                            description: |-
-                              UUID of the string group(s)
-                              User-created named Path Group
-                            items:
-                              type: string
-                            type: array
-                        required:
-                        - match_criteria
-                        type: object
-                      xcache_header:
-                        default: true
-                        description: Add an X-Cache header to content served from
-                          cache, which indicates to the client that the object was
-                          served from an intermediate cache.
-                        type: boolean
-                    type: object
                   client_body_timeout:
-                    default: 30000
                     description: |-
                       The maximum length of time allowed between consecutive read operations for a client request body. The value '0' specifies no timeout. This setting generally impacts the length of time allowed for a client to send a POST.
-                      (units) = MILLISECONDS
+                      (units) = MILLISECONDS,
                     format: int32
                     maximum: 100000000
                     minimum: 0
                     type: integer
-                  client_header_timeout:
-                    default: 10000
-                    description: |-
-                      The maximum length of time allowed for a client to transmit an entire request header. This helps mitigate various forms of SlowLoris attacks.
-                      (units) = MILLISECONDS
-                    format: int32
-                    maximum: 100000000
-                    minimum: 10
-                    type: integer
                   client_max_body_size:
-                    default: 0
                     description: |-
-                      Maximum size for the client request body. This limits the size of the client data that can be uploaded/posted as part of a single HTTP Request. Default 0 => Unlimited.
-                      (units) = KB,
-                    format: int64
-                    type: integer
-                  client_max_header_size:
-                    default: 12
-                    description: |-
-                      Maximum size in Kbytes of a single HTTP header in the client request.
+                      Maximum size for the client request body.  This limits the size of the client data that can be uploaded/posted as part of a single HTTP Request.  Default 0 => Unlimited."
                       (units) = KB,
                     format: int32
-                    maximum: 64
-                    minimum: 1
-                    type: integer
-                  client_max_request_size:
-                    default: 48
-                    description: |-
-                      Maximum size in Kbytes of all the client HTTP request headers. This value can be overriden by client_max_header_size if that is larger.
-                      (units) = KB,
-                    format: int32
-                    maximum: 256
-                    minimum: 1
                     type: integer
                   close_server_side_connection_on_error:
-                    default: false
                     description: Close server-side connection when an error response
                       is received.
                     type: boolean
-                  collect_client_tls_fingerprint:
-                    default: false
-                    description: If enabled, the client's TLS fingerprint will be
-                      collected and included in the Application Log. For Virtual Services
-                      with Bot Detection enabled, TLS fingerprints are always computed
-                      if 'use_tls_fingerprint' is enabled in the Bot Detection Policy's
-                      User-Agent detection component.
-                    type: boolean
                   connection_multiplexing_enabled:
-                    default: true
                     description: Allows HTTP requests, not just TCP connections, to
                       be load balanced across servers. Proxied TCP connections to
                       servers may be reused by multiple clients to improve performance.
                       Not compatible with Preserve Client IP.
                     type: boolean
-                  detect_ntlm_app:
-                    default: true
-                    description: Detect NTLM apps based on the HTTP Response from
-                      the server. Once detected, connection multiplexing will be disabled
-                      for that connection.
-                    type: boolean
-                  disable_keepalive_posts_msie6:
-                    default: true
-                    description: Disable keep-alive client side connections for older
-                      browsers based off MS Internet Explorer 6.0 (MSIE6). For some
-                      applications, this might break NTLM authentication for older
-                      clients based off MSIE6. For such applications, set this option
-                      to false to allow keep-alive connections.
-                    type: boolean
-                  disable_sni_hostname_check:
-                    default: false
-                    description: Disable strict check between TLS servername and HTTP
-                      Host name
-                    type: boolean
                   enable_chunk_merge:
-                    default: true
                     description: Enable chunk body merge for chunked transfer encoding
                       response.
                     type: boolean
-                  enable_fire_and_forget:
-                    default: false
-                    description: Enable support for fire and forget feature. If enabled,
-                      request from client is forwarded to server even if client prematurely
-                      closes the connection
-                    type: boolean
-                  enable_request_body_buffering:
-                    default: false
-                    description: Enable request body buffering for POST requests.
-                      If enabled, max buffer size is set to lower of 32M or the value
-                      (non-zero) configured in client_max_body_size.
-                    type: boolean
-                  enable_request_body_metrics:
-                    default: false
-                    description: Enable HTTP request body metrics. If enabled, requests
-                      from clients are parsed and relevant statistics about them are
-                      gathered. Currently, it processes HTTP POST requests with Content-Type
-                      application/x-www-form-urlencoded or multipart/form-data, and
-                      adds the number of detected parameters to the l7_client.http_params_count.
-                      This is an experimental feature and it may have performance
-                      impact. Use it when detailed information about the number of
-                      HTTP POST parameters is needed, e.g. for WAF sizing.
-                    type: boolean
-                  fwd_close_hdr_for_bound_connections:
-                    default: true
-                    description: 'Forward the Connection: Close header coming from
-                      backend server to the client if connection-switching is enabled,
-                      i.e. front-end and backend connections are bound together'
-                    type: boolean
-                  hsts_enabled:
-                    default: false
-                    description: Inserts HTTP Strict-Transport-Security header in
-                      the HTTPS response. HSTS can help mitigate man-in-the-middle
-                      attacks by telling browsers that support HSTS that they should
-                      only access this site via HTTPS.
-                    type: boolean
-                  hsts_max_age:
-                    default: 365
-                    description: Number of days for which the client should regard
-                      this virtual service as a known HSTS host.
-                    format: int64
-                    maximum: 10000
-                    minimum: 0
-                    type: integer
-                  hsts_subdomains_enabled:
-                    default: true
-                    description: Insert the 'includeSubdomains' directive in the HTTP
-                      Strict-Transport-Security header. Adding the includeSubdomains
-                      directive signals the User-Agent that the HSTS Policy applies
-                      to this HSTS Host as well as any subdomains of the host's domain
-                      name.
-                    type: boolean
-                  http_to_https:
-                    default: false
-                    description: Client requests received via HTTP will be redirected
-                      to HTTPS.
-                    type: boolean
                   http_upstream_buffer_size:
-                    default: 0
                     description: |-
                       Size of HTTP buffer in kB.
                       (units) = KB,
@@ -381,115 +81,21 @@ spec:
                     maximum: 256
                     minimum: 0
                     type: integer
-                  http2_enabled:
-                    description: Enable HTTP2 for traffic from clients to the virtual
-                      service.
-                    type: boolean
-                  http2_profile:
-                    description: Specifies the HTTP/2 specific application profile
-                      parameters.
-                    properties:
-                      enable_http2_server_push:
-                        default: false
-                        description: Enables automatic conversion of preload links
-                          specified in the "Link" response header fields into Server
-                          push requests.
-                        type: boolean
-                      http2_initial_window_size:
-                        default: 64
-                        description: |-
-                          The initial flow control window size in KB for HTTP/2 streams.
-                          (units) = KB,
-                        format: int32
-                        maximum: 32768
-                        minimum: 64
-                        type: integer
-                      max_http2_concurrent_pushes_per_connection:
-                        default: 10
-                        description: Maximum number of concurrent push streams over
-                          a client side HTTP/2 connection.
-                        format: int32
-                        maximum: 256
-                        minimum: 1
-                        type: integer
-                      max_http2_concurrent_streams_per_connection:
-                        default: 128
-                        description: Maximum number of concurrent streams over a client
-                          side HTTP/2 connection.
-                        format: int32
-                        maximum: 256
-                        minimum: 1
-                        type: integer
-                      max_http2_control_frames_per_connection:
-                        default: 1000
-                        description: |-
-                          Maximum number of control frames that client can send over an HTTP/2 connection. '0' means unlimited.
-                          (special_values) = "{\"0\": \"Unlimited control frames on a client side HTTP/2 connection\"}",
-                        format: int32
-                        maximum: 10000
-                        minimum: 0
-                        type: integer
-                      max_http2_empty_data_frames_per_connection:
-                        default: 1000
-                        description: |-
-                          Maximum number of empty data frames that client can send over an HTTP/2 connection. '0' means unlimited.
-                          (special_values) = "{\"0\": \"Unlimited empty data frames over a client side HTTP/2 connection\"}",
-                        format: int32
-                        maximum: 10000
-                        minimum: 0
-                        type: integer
-                      max_http2_header_field_size:
-                        default: 4096
-                        description: |-
-                          Maximum size in bytes of the compressed request header field. The limit applies equally to both name and value.
-                          (units) = BYTES,
-                        format: int32
-                        maximum: 8192
-                        minimum: 1
-                        type: integer
-                      max_http2_queued_frames_to_client_per_connection:
-                        default: 1000
-                        description: |-
-                          Maximum number of frames that can be queued waiting to be sent over a client side HTTP/2 connection at any given time. '0' means unlimited.
-                          (special_values) = "{\"0\": \"Unlimited frames can be queued on a client side HTTP/2 connection\"}",
-                        format: int32
-                        maximum: 10000
-                        minimum: 0
-                        type: integer
-                      max_http2_requests_per_connection:
-                        default: 1000
-                        description: |-
-                          Maximum number of requests over a client side HTTP/2 connection.
-                          (special_values) = "{\"0\": \"Unlimited requests on a client side HTTP/2 connection\"}",
-                        format: int32
-                        maximum: 10000
-                        minimum: 0
-                        type: integer
-                    type: object
-                  httponly_enabled:
-                    default: false
-                    description: Mark HTTP cookies as HTTPonly. This helps mitigate
-                      cross site scripting attacks as browsers will not allow these
-                      cookies to be read by third parties, such as javascript.
-                    type: boolean
                   keepalive_header:
-                    default: false
                     description: Send HTTP 'Keep-Alive' header to the client. By default,
                       the timeout specified in the 'Keep-Alive Timeout' field will
                       be used unless the 'Use App Keepalive Timeout' flag is set,
                       in which case the timeout sent by the application will be honored.
                     type: boolean
                   keepalive_timeout:
-                    default: 30000
                     description: |-
-                      The max idle time allowed between HTTP requests over a Keep-alive connection.
-                      (units) = MILLISECONDS
+                      "The max idle time allowed between HTTP requests over a Keep-alive connection."
+                      (units) = MILLISECONDS,
                     format: int32
                     maximum: 100000000
                     minimum: 10
                     type: integer
                   max_header_count:
-                    default: 256
                     description: |-
                       Maximum number of headers allowed in HTTP request and response.
                       (special_values) =  "{\"0\": \"unlimited headers in request and response\"}",
@@ -498,7 +104,6 @@ spec:
                     minimum: 0
                     type: integer
                   max_keepalive_requests:
-                    default: 100
                     description: |-
                       The max number of HTTP requests that can be sent over a Keep-Alive connection. '0' means unlimited.
                       (special_values) = "{\"0\": \"Unlimited requests on a connection\"}",
@@ -506,171 +111,15 @@ spec:
                     maximum: 1000000
                     minimum: 0
                     type: integer
-                  max_response_headers_size:
-                    default: 48
-                    description: |-
-                      Maximum size in Kbytes of all the HTTP response headers.
-                      (units) = KB,
-                    format: int32
-                    maximum: 256
-                    minimum: 1
-                    type: integer
-                  pass_through_x_accel_headers:
-                    default: false
-                    description: Pass through X-ACCEL headers.
-                    type: boolean
-                  pki_profile_uuid:
-                    description: Select the PKI profile to be associated with the
-                      Virtual Service. This profile defines the Certificate Authority
-                      and Revocation List.
-                    type: string
-                  post_accept_timeout:
-                    default: 30000
-                    description: |-
-                      The max allowed length of time between a client establishing a TCP connection and Avi receives the first byte of the client's HTTP request.
-                      (units) = MILLISECONDS,
-                    format: int32
-                    maximum: 100000000
-                    minimum: 10
-                    type: integer
                   reset_conn_http_on_ssl_port:
-                    default: false
                     description: If enabled, an HTTP request on an SSL port will result
                       in connection close instead of a 400 response.
                     type: boolean
-                  respond_with_100_continue:
-                    default: true
-                    description: 'Avi will respond with 100-Continue response if Expect:
-                      100-Continue header received from client'
-                    type: boolean
-                  secure_cookie_enabled:
-                    default: false
-                    description: Mark server cookies with the 'Secure' attribute.
-                      Client browsers will not send a cookie marked as secure over
-                      an unencrypted connection. If Avi is terminating SSL from clients
-                      and passing it as HTTP to the server, the server may return
-                      cookies without the secure flag set.
-                    type: boolean
-                  server_side_redirect_to_https:
-                    default: false
-                    description: When terminating client SSL sessions at Avi, servers
-                      may incorrectly send redirect to clients as HTTP. This option
-                      will rewrite the server's redirect responses for this virtual
-                      service from HTTP to HTTPS.
-                    type: boolean
-                  session_config:
-                    description: HTTP session configuration.
-                    properties:
-                      session_cookie_httponly:
-                        default: true
-                        description: If set, HTTP session cookie will use 'HttpOnly'
-                          attribute.
-                        type: boolean
-                      session_cookie_name:
-                        default: albsessid
-                        description: HTTP session cookie name to use.
-                        maxLength: 64
-                        pattern: ^[A-Za-z_]+$
-                        type: string
-                      session_cookie_samesite:
-                        default: SAMESITE_LAX
-                        description: HTTP session cookie SameSite attribute.
-                        enum:
-                        - SAMESITE_NONE
-                        - SAMESITE_LAX
-                        - SAMESITE_STRICT
-                        type: string
-                      session_cookie_secure:
-                        default: true
-                        description: If set, HTTP session cookie will use 'Secure'
-                          attribute.
-                        type: boolean
-                      session_establishment_timeout:
-                        default: 300
-                        description: |-
-                          Maximum allowed time between creating a session and the client coming back. Value in seconds.
-                          Units=SEC
-                        format: int32
-                        maximum: 3600
-                        minimum: 120
-                        type: integer
-                      session_idle_timeout:
-                        default: 1800
-                        description: |-
-                          Maximum allowed time to expire the session after establishment on client inactivity. Value in seconds.
-                          Units=SEC
-                        format: int32
-                        maximum: 604800
-                        minimum: 120
-                        type: integer
-                      session_maximum_timeout:
-                        default: 28800
-                        description: Maximum allowed time to expire the session, even
-                          if it is still active. Value in seconds.
-                        format: int32
-                        maximum: 604800
-                        minimum: 120
-                        type: integer
-                    type: object
-                  ssl_client_certificate_action:
-                    description: Set of match/action rules that govern what happens
-                      when the client certificate request is enabled
-                    properties:
-                      close_connection:
-                        default: false
-                        type: boolean
-                      headers:
-                        items:
-                          properties:
-                            request_header:
-                              description: If this header exists, reset the connection.
-                                If the ssl variable is specified, add a header with
-                                this value"
-                              type: string
-                            request_header_value:
-                              description: '"Set the request header with the value
-                                as indicated by this SSL variable. Eg. send the whole
-                                certificate in PEM format"'
-                              enum:
-                              - HTTP_POLICY_VAR_CLIENT_IP
-                              - HTTP_POLICY_VAR_VS_PORT
-                              - HTTP_POLICY_VAR_VS_IP
-                              - HTTP_POLICY_VAR_HTTP_HDR
-                              - HTTP_POLICY_VAR_SSL_CLIENT_FINGERPRINT
-                              - HTTP_POLICY_VAR_SSL_CLIENT_SERIAL
-                              - HTTP_POLICY_VAR_SSL_CLIENT_ISSUER
-                              - HTTP_POLICY_VAR_SSL_CLIENT_SUBJECT
-                              - HTTP_POLICY_VAR_SSL_CLIENT_RAW
-                              - HTTP_POLICY_VAR_SSL_PROTOCOL
-                              - HTTP_POLICY_VAR_SSL_SERVER_NAME
-                              - HTTP_POLICY_VAR_USER_NAME
-                              - HTTP_POLICY_VAR_SSL_CIPHER
-                              - HTTP_POLICY_VAR_REQUEST_ID
-                              - HTTP_POLICY_VAR_SSL_CLIENT_VERSION
-                              - HTTP_POLICY_VAR_SSL_CLIENT_SIGALG
-                              - HTTP_POLICY_VAR_SSL_CLIENT_NOTVALIDBEFORE
-                              - HTTP_POLICY_VAR_SSL_CLIENT_NOTVALIDAFTER
-                              - HTTP_POLICY_VAR_SSL_CLIENT_ESCAPED
-                              - HTTP_POLICY_VAR_SOURCE_IP
-                              type: string
-                          type: object
-                        type: array
-                    type: object
-                  ssl_client_certificate_mode:
-                    default: SSL_CLIENT_CERTIFICATE_NONE
-                    description: Specifies whether the client side verification is
-                      set to none, request or require.
-                    enum:
-                    - SSL_CLIENT_CERTIFICATE_NONE
-                    - SSL_CLIENT_CERTIFICATE_REQUEST
-                    - SSL_CLIENT_CERTIFICATE_REQUIRE
-                    type: string
                   true_client_ip:
                     description: Detect client IP from user specified header at the
                       configured index in the specified direction.
                     properties:
                       direction:
-                        default: LEFT
                         description: Denotes the end from which to count the IPs in
                           the specified header value.
                         enum:
@@ -678,8 +127,6 @@ spec:
                         - RIGHT
                         type: string
                       headers:
-                        default:
-                        - X-Forwarded-For
                         description: HTTP Headers to derive client IP from. If none
                           specified and use_true_client_ip is set to true, it will
                           use X-Forwarded-For header, if present.
@@ -687,8 +134,11 @@ spec:
                           type: string
                         maxItems: 1
                         type: array
+                        x-kubernetes-validations:
+                        - message: Each header name must be at most 128 characters
+                            long.
+                          rule: self.all(header, size(header) <= 128)
                       index_in_header:
-                        default: 1
                         description: Position in the configured direction, in the
                           specified header's value, to be used to set true client
                           IP. If the value is greater than the number of IP addresses
@@ -700,24 +150,13 @@ spec:
                         type: integer
                     type: object
                   use_app_keepalive_timeout:
-                    default: false
                     description: Use 'Keep-Alive' header timeout sent by application
                       instead of sending the HTTP Keep-Alive Timeout.
                     type: boolean
                   use_true_client_ip:
-                    default: false
                     description: Detect client IP from user specified header.
                     type: boolean
-                  websockets_enabled:
-                    default: true
-                    description: Enable Websockets proxy for traffic from clients
-                      to the virtual service. Connections to this VS start in HTTP
-                      mode. If the client requests an Upgrade to Websockets, and the
-                      server responds back with success, then the connection is upgraded
-                      to WebSockets mode.
-                    type: boolean
                   x_forwarded_proto_enabled:
-                    default: false
                     description: Insert an X-Forwarded-Proto header in the request
                       sent to the server. When the client connects via SSL, Avi terminates
                       the SSL, and then forwards the requests to the servers via HTTP,
@@ -725,19 +164,16 @@ spec:
                       header. In this example, the value will be 'https'.
                     type: boolean
                   xff_alternate_name:
-                    default: X-Forwarded-For
                     description: Provide a custom name for the X-Forwarded-For header
                       sent to the servers.
                     type: string
                   xff_enabled:
-                    default: true
                     description: The client's original IP address is inserted into
                       an HTTP request header sent to the server. Servers may use this
                       address for logging or other purposes, rather than Avi's source
                       NAT address used in the Avi to server IP connection.
                     type: boolean
                   xff_update:
-                    default: REPLACE_XFF_HEADERS
                     description: Configure how incoming X-Forwarded-For headers from
                       the client are handled.
                     enum:
@@ -746,45 +182,23 @@ spec:
                     - ADD_NEW_XFF_HEADER
                     type: string
                 type: object
-              markers:
-                description: List of labels to be used for granular RBAC.
-                items:
-                  properties:
-                    key:
-                      description: |-
-                        Key for filter match.
-                        option (key) = "key";
-                      type: string
-                    values:
-                      description: 'Values for filter match. Multiple values will
-                        be evaluated as OR. Example: key = value1 OR key = value2.
-                        Behavior for match is key = * if this field is empty.'
-                      items:
-                        type: string
-                      type: array
-                  required:
-                  - key
-                  type: object
-                type: array
-              preserve_client_ip:
-                default: false
-                description: PreserveClientIP specifies if client IP needs to be preserved
-                  for backend connection. Not compatible with Connection Multiplexing.
-                type: boolean
-              preserve_client_port:
-                description: PreserveClientPort specifies if we need to preserve client
-                  port while preserving client IP for backend connections.
-                type: boolean
-              preserve_dest_ip_port:
-                default: false
-                description: PreserveDestIpPort specifies if destination IP and port
-                  needs to be preserved for backend connection.
-                type: boolean
+                x-kubernetes-validations:
+                - message: true_client_ip can only be configured if use_true_client_ip
+                    is true
+                  rule: ((!self.use_true_client_ip) && !has(self.true_client_ip))||
+                    (self.use_true_client_ip && has(self.true_client_ip))
+                - message: xff_alternate_name and xff_update can only be configured
+                    if xff_enabled is true
+                  rule: self.xff_enabled || (!has(self.xff_alternate_name) && !has(self.xff_update))
+                - message: if xff_update is APPEND_TO_THE_XFF_HEADER, xff_alternate_name
+                    must be an empty string.
+                  rule: '!(has(self.xff_update) && self.xff_update == ''APPEND_TO_THE_XFF_HEADER''
+                    && has(self.xff_alternate_name))'
               type:
                 description: Type specifies which application layer proxy is enabled
                   for the virtual service.
                 enum:
-                - ApplicationProfileHTTP
+                - APPLICATION_PROFILE_TYPE_HTTP
                 type: string
                 x-kubernetes-validations:
                 - message: applicatio_profile_type is immutable
@@ -795,14 +209,82 @@ spec:
           status:
             description: Status defines the observed state of ApplicationProfile
             properties:
-              error:
-                description: Error if any error was encountered
+              backendObjectName:
+                description: BackendObjectName is the name of the backend object
                 type: string
-              status:
-                description: Status of the application profile
+              conditions:
+                description: Conditions is the list of conditions for the application
+                  profile
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              lastUpdated:
+                description: LastUpdated is the timestamp the object was last updated
+                format: date-time
+                type: string
+              observedGeneration:
+                description: ObservedGeneration is the observed generation by the
+                  operator
+                format: int64
+                type: integer
+              uuid:
+                description: UUID is unique identifier of the application profile
+                  object
                 type: string
             required:
-            - error
+            - uuid
             type: object
         type: object
     served: true
