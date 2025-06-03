@@ -35,6 +35,11 @@ spec:
             - /manager
           image: {{ .Values.controllerManager.container.image.repository }}:{{ .Chart.AppVersion }}
           imagePullPolicy: {{ .Values.controllerManager.container.image.imagePullPolicy }}
+          {{ if .Values.controllerManager.persistentVolumeClaim }}
+          volumeMounts:
+            - mountPath: {{ .Values.controllerManager.container.mountPath }}
+              name: ako-crd-operator-pv-storage
+          {{ end }}
           env:
             - name: CTRL_IPADDRESS
               valueFrom:
@@ -69,6 +74,14 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            {{ if .Values.controllerManager.persistentVolumeClaim }}
+            - name: USE_PVC
+              value: "true"
+            {{ end }}
+            - name: LOG_FILE_PATH
+              value: {{ .Values.controllerManager.container.mountPath }}
+            - name: LOG_FILE_NAME
+              value: {{ .Values.controllerManager.container.logFile }}
           livenessProbe:
             {{ toYaml .Values.controllerManager.container.livenessProbe | nindent 12 }}
           readinessProbe:
@@ -83,3 +96,9 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.controllerManager.terminationGracePeriodSeconds }}
       imagePullSecrets:
         {{ toYaml .Values.controllerManager.container.image.pullSecrets | nindent 8 }}
+      {{ if .Values.controllerManager.persistentVolumeClaim }}
+      volumes:
+        - name: ako-crd-operator-pv-storage
+          persistentVolumeClaim:
+            claimName: {{ .Values.controllerManager.persistentVolumeClaim }}
+      {{ end }}

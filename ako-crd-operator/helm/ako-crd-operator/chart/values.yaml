@@ -32,6 +32,9 @@ controllerManager:
       capabilities:
         drop:
           - "ALL"
+    mountPath: "/log"
+    logFile: "ako-crd-operator.log"
+  persistentVolumeClaim: ""
   securityContext:
     runAsNonRoot: true
     seccompProfile:
