@@ -27,7 +27,6 @@ var (
 	SEGroupNotFoundError = "SEGroup does not exist"
 	Referer              = "Referer"
 	VPCMode              = false
-	RetryWithClusterID   = true
 )
 
 type aviControllerConfig struct {
@@ -40,12 +39,11 @@ type aviControllerConfig struct {
 
 type AKOCleanupConfig struct {
 	aviControllerConfig
-	clusterID    string
-	supervisorID string
-	useEnvoy     bool
+	clusterID string
+	useEnvoy  bool
 }
 
-func NewAKOCleanupConfig(host, user, password, authToken, caCert, clusterID, supervisorID string, useEnvoy bool) *AKOCleanupConfig {
+func NewAKOCleanupConfig(host, user, password, authToken, caCert, clusterID string, useEnvoy bool) *AKOCleanupConfig {
 	return &AKOCleanupConfig{
 		aviControllerConfig: aviControllerConfig{
 			host:      host,
@@ -54,9 +52,8 @@ func NewAKOCleanupConfig(host, user, password, authToken, caCert, clusterID, sup
 			authToken: authToken,
 			caCert:    caCert,
 		},
-		clusterID:    clusterID,
-		supervisorID: supervisorID,
-		useEnvoy:     useEnvoy,
+		clusterID: clusterID,
+		useEnvoy:  useEnvoy,
 	}
 }
 
@@ -70,6 +67,9 @@ func (cfg *AKOCleanupConfig) Cleanup(ctx context.Context) error {
 	akoControlConfig := lib.AKOControlConfig()
 	akoControlConfig.SetAKOInstanceFlag(true)
 	akoControlConfig.SetIsLeaderFlag(true)
+	lib.SetClusterID(cfg.clusterID)
+	lib.SetNamePrefix("")
+	lib.SetAKOUser(lib.AKOPrefix)
 
 	referer := "https://" + cfg.host
 	if cfg.useEnvoy {
@@ -90,22 +90,6 @@ func (cfg *AKOCleanupConfig) Cleanup(ctx context.Context) error {
 	}
 
 	avirest.InfraAviClientInstance(aviRestClientPool.AviClient[0])
-
-	err = cfg.cleanup(ctx, cfg.supervisorID)
-	if err != nil {
-		return err
-	}
-	// This flag would be set to False in case a VS exists tagged with Supervisor ID
-	if RetryWithClusterID {
-		return cfg.cleanup(ctx, cfg.clusterID)
-	}
-	return nil
-}
-
-func (cfg *AKOCleanupConfig) cleanup(ctx context.Context, clusterID string) error {
-	lib.SetClusterID(clusterID)
-	lib.SetNamePrefix("")
-	lib.SetAKOUser(lib.AKOPrefix)
 
 	ops := []func() error{
 		setCloudName,
@@ -146,7 +130,7 @@ func (cfg *AKOCleanupConfig) cleanup(ctx context.Context, clusterID string) erro
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			err := op()
+			err = op()
 			if err != nil {
 				if strings.Contains(err.Error(), SEGroupNotFoundError) {
 					return nil
@@ -157,6 +141,7 @@ func (cfg *AKOCleanupConfig) cleanup(ctx context.Context, clusterID string) erro
 	}
 	return nil
 }
+
 func getCloudInVPCMode() (string, error) {
 	uri := "/api/cloud/"
 	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
@@ -224,8 +209,8 @@ func (cfg *AKOCleanupConfig) validate() error {
 	if cfg.password == "" && cfg.authToken == "" {
 		return fmt.Errorf("invalid config: one of password or authtoken is required")
 	}
-	if cfg.clusterID == "" && cfg.supervisorID == "" {
-		return fmt.Errorf("invalid config: one of cluster-id or supervisor-id is required")
+	if cfg.clusterID == "" {
+		return fmt.Errorf("invalid config: cluster-id is required")
 	}
 	return nil
 }
@@ -328,8 +313,6 @@ func cleanupVirtualServices() error {
 		} else {
 			otherVS[key.Namespace] = append(otherVS[key.Namespace], vsUuid)
 		}
-		// If a VS exists with Supervisor ID, do not retry Cleanup with Cluster ID
-		RetryWithClusterID = false
 	}
 
 	err := deleteAviResource("/api/virtualservice", otherVS)
