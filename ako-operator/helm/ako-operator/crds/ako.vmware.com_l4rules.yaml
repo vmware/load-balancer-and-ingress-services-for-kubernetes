@@ -240,14 +240,6 @@ spec:
                 items:
                   type: string
                 type: array
-              revokeVipRoute:
-                description: Revoke the advertisement of Virtual Service via the
-                 cloud if it is marked down by health monitor. Supported for NSXT
-                 clouds only. This setting takes effect for future Virtual Service
-                 flaps. To advertise current VSes that are down, please disable
-                 and re-enable the Virtual Service.
-                type: boolean
-                default: false
             type: object
           status:
             properties:

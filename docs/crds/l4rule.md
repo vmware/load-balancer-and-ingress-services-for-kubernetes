@@ -229,7 +229,7 @@ The L4Rule CRD can be used to configure VIP Route revocation. When `revokeVipRou
     revokeVipRoute: true
 ```
 
-**NOTE**: `revokeVipRoute` is only supported for NSXT clouds, otherwise the **L4Rule** will be *rejected*. `revokeVipRoute` is also not supported with `ako.vmware.com/enable-shared-vip` annotation. If such a combination is used, AKO will ignore the `revokeVipRoute` field.
+**NOTE**: `revokeVipRoute` is only supported for NSX-T clouds, otherwise the **L4Rule** will be *rejected*. `revokeVipRoute` is also not supported with `ako.vmware.com/enable-shared-vip` annotation. If such a combination is used, AKO will ignore the `revokeVipRoute` field.
 
 ### Configure Backend Properties
 
