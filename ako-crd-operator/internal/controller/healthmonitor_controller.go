@@ -20,16 +20,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/session"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
+	controllerutils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"net/http"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -99,6 +101,12 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, nil
 	}
 	if err := r.ReconcileIfRequired(ctx, hm); err != nil {
+		// Check if the error is retryable
+		if !controllerutils.IsRetryableError(err) {
+			// Update status with non-retryable error condition and don't return error (to avoid requeue)
+			controllerutils.UpdateStatusWithNonRetryableError(ctx, r, hm, err, "HealthMonitor")
+			return ctrl.Result{}, nil
+		}
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
@@ -117,6 +125,11 @@ func (r *HealthMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alpha1.HealthMonitor) error {
 	if hm.Status.UUID != "" {
 		if err := r.AviClient.HealthMonitor.Delete(hm.Status.UUID); err != nil {
+			// Handle 404 as success case - object doesn't exist, which is the desired state for delete
+			if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 404 {
+				utils.AviLog.Infof("HealthMonitor [%s/%s] not found on Avi Controller (404), treating as successful deletion", hm.Namespace, hm.Name)
+				return nil
+			}
 			utils.AviLog.Errorf("error deleting healthmonitor: [%s/%s]: %s", hm.Namespace, hm.Name, err.Error())
 			return err
 		}
@@ -145,6 +158,13 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 			utils.AviLog.Errorf("error extracting UUID from healthmonitor: [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
 		}
 		hm.Status.UUID = uuid
+		hm.Status.Conditions = controllerutils.SetCondition(hm.Status.Conditions, metav1.Condition{
+			Type:               "Ready",
+			Status:             metav1.ConditionTrue,
+			LastTransitionTime: metav1.Now(),
+			Reason:             "Created",
+			Message:            "HealthMonitor created successfully on Avi Controller",
+		})
 	} else {
 		// this is a PUT Call
 		// check if no op by checking generation
@@ -166,6 +186,13 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 			utils.AviLog.Errorf("error updating healthmonitor [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
 			return err
 		}
+		hm.Status.Conditions = controllerutils.SetCondition(hm.Status.Conditions, metav1.Condition{
+			Type:               "Ready",
+			Status:             metav1.ConditionTrue,
+			LastTransitionTime: metav1.Now(),
+			Reason:             "Updated",
+			Message:            "HealthMonitor updated successfully on Avi Controller",
+		})
 		utils.AviLog.Infof("succesfully updated healthmonitor:[%s/%s]", hmReq.namespace, hmReq.Name)
 	}
 
