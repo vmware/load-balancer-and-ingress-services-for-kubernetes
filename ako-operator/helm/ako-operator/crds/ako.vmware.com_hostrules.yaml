@@ -205,10 +205,6 @@ spec:
                           type: string
                         type: array
                     type: object
-                  networkSecurityPolicy:
-                    type: string
-                  l7Rule:
-                    type: string
                   gslb:
                     properties:
                       fqdn:
@@ -296,10 +292,6 @@ spec:
                     items:
                       type: string
                     type: array
-                  useRegex:
-                    type: boolean
-                  applicationRootPath:
-                    type: string
                 required:
                 - fqdn
                 type: object

@@ -150,8 +150,6 @@ spec:
                       required:
                       - type
                       type: object
-                    enableHTTP2:
-                      type: boolean                  
                   required:
                   - target
                   type: object
