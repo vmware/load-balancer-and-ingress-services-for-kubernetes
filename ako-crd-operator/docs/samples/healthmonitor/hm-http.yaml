@@ -1,0 +1,25 @@
+apiVersion: ako.vmware.com/v1alpha1
+kind: HealthMonitor
+metadata:
+  name: example-http-healthmonitor
+  namespace: default
+spec:
+  type: HEALTH_MONITOR_HTTP
+  failed_checks: 3
+  successful_checks: 2
+  receive_timeout: 5
+  send_interval: 15
+  monitor_port: 80
+  http_monitor:
+    http_request: GET /health HTTP/1.1
+    http_response_code:
+      - "HTTP_1XX"
+      - "HTTP_2XX"
+    http_response: "OK"
+    exact_http_request: true
+    maintenance_code:
+      - 503
+      - 500
+    maintenance_response: "Maintenance"
+    response_size: 2049
+  is_federated: false

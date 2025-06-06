@@ -1,0 +1,13 @@
+apiVersion: ako.vmware.com/v1alpha1
+kind: HealthMonitor
+metadata:
+  name: example-ping-healthmonitor
+  namespace: default
+spec:
+  type: HEALTH_MONITOR_PING
+  failed_checks: 3
+  successful_checks: 2
+  receive_timeout: 5
+  send_interval: 10
+  monitor_port: 80
+  is_federated: false
