@@ -28,18 +28,19 @@ var crdonce sync.Once
 func SharedCRDLister() *CRDLister {
 	crdonce.Do(func() {
 		CRDinstance = &CRDLister{
-			FqdnHostRuleCache:      NewObjectMapStore(),
-			HostRuleFQDNCache:      NewObjectMapStore(),
-			FqdnHTTPRulesCache:     NewObjectMapStore(),
-			HTTPRuleFqdnCache:      NewObjectMapStore(),
-			FqdnToGSFQDNCache:      NewObjectMapStore(),
-			FqdnSharedVSModelCache: NewObjectMapStore(),
-			SharedVSModelFqdnCache: NewObjectMapStore(),
-			FqdnFqdnTypeCache:      NewObjectMapStore(),
-			FQDNToAliasesCache:     NewObjectMapStore(),
-			FqdnSSORuleCache:       NewObjectMapStore(),
-			SSORuleFQDNCache:       NewObjectMapStore(),
-			L7RuleHostRuleCache:    NewObjectMapStore(),
+			FqdnHostRuleCache:          NewObjectMapStore(),
+			HostRuleFQDNCache:          NewObjectMapStore(),
+			FqdnHTTPRulesCache:         NewObjectMapStore(),
+			HTTPRuleFqdnCache:          NewObjectMapStore(),
+			FqdnToGSFQDNCache:          NewObjectMapStore(),
+			FqdnSharedVSModelCache:     NewObjectMapStore(),
+			SharedVSModelFqdnCache:     NewObjectMapStore(),
+			FqdnFqdnTypeCache:          NewObjectMapStore(),
+			FQDNToAliasesCache:         NewObjectMapStore(),
+			FqdnSSORuleCache:           NewObjectMapStore(),
+			SSORuleFQDNCache:           NewObjectMapStore(),
+			L7RuleHostRuleCache:        NewObjectMapStore(),
+			AppProfileCRDToL7RuleCache: NewObjectMapStore(),
 		}
 	})
 	return CRDinstance
@@ -88,6 +89,9 @@ type CRDLister struct {
 
 	// L7CRD : HostruleCRD
 	L7RuleHostRuleCache *ObjectMapStore
+
+	// AppProfileCRD : L7Rule CRD
+	AppProfileCRDToL7RuleCache *ObjectMapStore
 }
 
 // FqdnHostRuleCache
@@ -390,4 +394,31 @@ func (c *CRDLister) UpdateL7RuleToHostRuleMapping(l7Rule string, hostRule string
 	_, hostRules := c.GetL7RuleToHostRuleMapping(l7Rule)
 	hostRules[hostRule] = true
 	c.L7RuleHostRuleCache.AddOrUpdate(l7Rule, hostRules)
+}
+
+// AppProfile CRD
+func (c *CRDLister) GetAppProfileCRDToL7RuleMapping(appProfileCRD string) (bool, map[string]bool) {
+	found, L7Rules := c.AppProfileCRDToL7RuleCache.Get(appProfileCRD)
+	if !found {
+		return false, make(map[string]bool)
+	}
+	return true, L7Rules.(map[string]bool)
+}
+
+func (c *CRDLister) DeleteAppProfileCRDToL7RuleMapping(appProfileCRD string, l7Rule string) {
+	c.NSLock.Lock()
+	defer c.NSLock.Unlock()
+	found, l7Rules := c.GetAppProfileCRDToL7RuleMapping(appProfileCRD)
+	if found {
+		delete(l7Rules, l7Rule)
+		c.AppProfileCRDToL7RuleCache.AddOrUpdate(appProfileCRD, l7Rules)
+	}
+}
+
+func (c *CRDLister) UpdateAppProfileCRDToL7RuleMapping(appProfileCRD string, l7Rule string) {
+	c.NSLock.Lock()
+	defer c.NSLock.Unlock()
+	_, l7Rules := c.GetAppProfileCRDToL7RuleMapping(appProfileCRD)
+	l7Rules[l7Rule] = true
+	c.AppProfileCRDToL7RuleCache.AddOrUpdate(appProfileCRD, l7Rules)
 }

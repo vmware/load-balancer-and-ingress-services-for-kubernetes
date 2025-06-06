@@ -29,6 +29,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -86,6 +87,12 @@ var (
 		Version:  "v1alpha1",
 		Resource: "vpcnetworkconfigurations",
 	}
+
+	ApplicationProfileGVR = schema.GroupVersionResource{
+		Group:    "ako.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "applicationprofiles",
+	}
 )
 
 type BootstrapCRData struct {
@@ -94,8 +101,11 @@ type BootstrapCRData struct {
 
 // NewDynamicClientSet initializes dynamic client set instance
 func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
-	// do not instantiate the dynamic client set if the CNI being used is NOT calico
-	if !utils.IsVCFCluster() && GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI && GetCNIPlugin() != CILIUM_CNI {
+	// do not instantiate the dynamic client set
+	// 1. if the CNI being used is NOT calico or OpenShift or Cilium and
+	// 2. if GatewayAPI is NOT and
+	// 3. if it is NOT VCF cluster
+	if !utils.IsGatewayAPIEnabled() && !utils.IsVCFCluster() && GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI && GetCNIPlugin() != CILIUM_CNI {
 		return nil, nil
 	}
 
@@ -136,6 +146,7 @@ type DynamicInformers struct {
 	AvailabilityZoneInformer informers.GenericInformer
 
 	VPCNetworkConfigurationInformer informers.GenericInformer
+	ApplicationProfileInformer      informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
@@ -159,6 +170,10 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 		informers.VCFClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
 		informers.AvailabilityZoneInformer = f.ForResource(AvailabilityZoneVR)
 		informers.VPCNetworkConfigurationInformer = f.ForResource(VPCNetworkConfigurationGVR)
+	}
+
+	if utils.IsGatewayAPIEnabled() {
+		informers.ApplicationProfileInformer = f.ForResource(ApplicationProfileGVR)
 	}
 
 	dynamicInformerInstance = informers
@@ -231,6 +246,36 @@ func GetNetworkInfoCRData() (map[string]string, map[string]string, map[string]ma
 	}
 
 	return lrlsMap, nsLRMap, cidrs
+}
+
+// Can be made generic
+func ValidateApplicationProfileCRD(name, namespace string) error {
+	clientSet := GetDynamicClientSet()
+	if clientSet == nil {
+		return errors.New("error in fetching Application Profile CRD object")
+	}
+	appProfObj, err := clientSet.Resource(ApplicationProfileGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return fmt.Errorf("error: Application Profile CRD %s/%s not found", namespace, name)
+		}
+		return err
+	}
+	statusJSON, found, err := unstructured.NestedMap(appProfObj.UnstructuredContent(), "status")
+	if err != nil || !found {
+		utils.AviLog.Warnf("key:%s/%s, msg:ApplicationProfile CRD status not found: %+v", namespace, name, err)
+		return err
+	}
+	status, ok := statusJSON["status"]
+	uuid := statusJSON["uuid"]
+	if !ok || status.(string) == "" || uuid.(string) == "" {
+		return fmt.Errorf("error: Application Profile CRD %s/%s is not processed", namespace, name)
+	}
+	if status.(string) != StatusAccepted {
+		return fmt.Errorf("error: Application Profile CRD %s/%s is not accepted", namespace, name)
+	}
+
+	return nil
 }
 
 func GetAvailabilityZonesCRData(clientSet dynamic.Interface) ([]string, error) {

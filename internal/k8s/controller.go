@@ -1748,15 +1748,20 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 			go lib.AKOControlConfig().CRDInformers().L4RuleInformer.Informer().Run(stopCh)
 			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().L4RuleInformer.Informer().HasSynced)
 		}
-
+		// TODO: Un-used code removal
 		if utils.IsMultiClusterIngressEnabled() {
 			go c.informers.MultiClusterIngressInformer.Informer().Run(stopCh)
 			informersList = append(informersList, c.informers.MultiClusterIngressInformer.Informer().HasSynced)
 			go c.informers.ServiceImportInformer.Informer().Run(stopCh)
 			informersList = append(informersList, c.informers.ServiceImportInformer.Informer().HasSynced)
 		}
-	}
 
+	}
+	if utils.IsGatewayAPIEnabled() {
+		go c.dynamicInformers.ApplicationProfileInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.dynamicInformers.ApplicationProfileInformer.Informer().HasSynced)
+
+	}
 	if !cache.WaitForCacheSync(stopCh, informersList...) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
