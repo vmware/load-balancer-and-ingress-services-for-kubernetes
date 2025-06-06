@@ -1,13 +1,15 @@
 module github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator
 
-go 1.23.0
+go 1.23.8
+
+toolchain go1.24.3
 
 godebug default=go1.23
 
 require (
 	github.com/onsi/ginkgo/v2 v2.23.3
 	github.com/onsi/gomega v1.37.0
-	github.com/vmware/alb-sdk v0.0.0-20240619053936-3103500da639
+	github.com/vmware/alb-sdk v0.0.0-20250407104238-8f88209a8f1a
 	github.com/vmware/load-balancer-and-ingress-services-for-kubernetes v0.1.0
 	k8s.io/api v0.32.3
 	k8s.io/apimachinery v0.32.3
@@ -20,7 +22,6 @@ replace github.com/vmware/load-balancer-and-ingress-services-for-kubernetes => .
 require (
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
@@ -43,10 +44,8 @@ require (
 	github.com/google/pprof v0.0.0-20250317173921-a4b03ec1a45e // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
-	github.com/jinzhu/copier v0.3.5 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/jupp0r/go-priority-queue v0.0.0-20160601094913-ab1073853bde // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -73,14 +72,14 @@ require (
 	golang.org/x/time v0.11.0 // indirect
 	golang.org/x/tools v0.31.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20241209162323-e6fa225c2576 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	istio.io/api v0.0.0-20210512213424-c42041d3366d // indirect
-	istio.io/client-go v1.10.0 // indirect
-	istio.io/gogo-genproto v0.0.0-20210113155706-4daf5697332f // indirect
+	istio.io/api v1.25.2-0.20250410212420-84c271001f68 // indirect
+	istio.io/client-go v1.25.2 // indirect
 	k8s.io/apiextensions-apiserver v0.32.3 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff // indirect
