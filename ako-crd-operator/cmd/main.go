@@ -19,13 +19,14 @@ package main
 import (
 	"context"
 	"flag"
+	"os"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/event"
 	session2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -98,10 +99,11 @@ func main() {
 	}
 
 	hmReconciler := &controller.HealthMonitorReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		AviClient: aviClients.AviClient[0],
-		Cache:     cacheManager,
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		AviClient:     aviClients.AviClient[0],
+		Cache:         cacheManager,
+		EventRecorder: mgr.GetEventRecorderFor("healthmonitor-controller"),
 	}
 	if err = hmReconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HealthMonitor")

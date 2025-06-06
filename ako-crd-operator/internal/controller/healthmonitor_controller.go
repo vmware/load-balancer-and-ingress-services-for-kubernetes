@@ -20,16 +20,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/session"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"net/http"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -42,9 +45,10 @@ import (
 // HealthMonitorReconciler reconciles a HealthMonitor object
 type HealthMonitorReconciler struct {
 	client.Client
-	AviClient *clients.AviClient
-	Scheme    *runtime.Scheme
-	Cache     cache.CacheOperation
+	AviClient     *clients.AviClient
+	Scheme        *runtime.Scheme
+	Cache         cache.CacheOperation
+	EventRecorder record.EventRecorder
 }
 
 type HealthMonitorRequest struct {
@@ -96,6 +100,7 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			return ctrl.Result{}, err
 		}
 		utils.AviLog.Infof("succesfully deleted healthmonitor:[%s/%s]", hm.Namespace, hm.Name)
+		r.EventRecorder.Event(hm, corev1.EventTypeNormal, "Deleted", "HealthMonitor deleted successfully from Avi Controller")
 		return ctrl.Result{}, nil
 	}
 	if err := r.ReconcileIfRequired(ctx, hm); err != nil {
@@ -118,10 +123,12 @@ func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alp
 	if hm.Status.UUID != "" {
 		if err := r.AviClient.HealthMonitor.Delete(hm.Status.UUID); err != nil {
 			utils.AviLog.Errorf("error deleting healthmonitor: [%s/%s]: %s", hm.Namespace, hm.Name, err.Error())
+			r.EventRecorder.Event(hm, corev1.EventTypeWarning, "DeletionFailed", fmt.Sprintf("Failed to delete HealthMonitor from Avi Controller: %v", err))
 			return err
 		}
 	} else {
 		utils.AviLog.Warnf("error deleting healthmonitor: [%s/%s]. uuid not present. possibly avi healthmonitor object not created", hm.Namespace, hm.Name)
+		r.EventRecorder.Event(hm, corev1.EventTypeWarning, "DeletionSkipped", "UUID not present, HealthMonitor may not have been created on Avi Controller")
 	}
 	return nil
 }
@@ -138,13 +145,17 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 		resp, err := r.createHealthMonitor(ctx, hmReq)
 		if err != nil {
 			utils.AviLog.Errorf("error creating healthmonitor: [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
+			r.EventRecorder.Event(hm, corev1.EventTypeWarning, "CreationFailed", fmt.Sprintf("Failed to create HealthMonitor on Avi Controller: %v", err))
 			return err
 		}
 		uuid, err := extractUUID(resp)
 		if err != nil {
 			utils.AviLog.Errorf("error extracting UUID from healthmonitor: [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
+			r.EventRecorder.Event(hm, corev1.EventTypeWarning, "UUIDExtractionFailed", fmt.Sprintf("Failed to extract UUID: %v", err))
+			return err
 		}
 		hm.Status.UUID = uuid
+		r.EventRecorder.Event(hm, corev1.EventTypeNormal, "Created", "HealthMonitor created successfully on Avi Controller")
 	} else {
 		// this is a PUT Call
 		// check if no op by checking generation
@@ -164,15 +175,18 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 		resp := map[string]interface{}{}
 		if err := r.AviClient.AviSession.Put(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.HealthMonitorURL, hm.Status.UUID)), hmReq, &resp); err != nil {
 			utils.AviLog.Errorf("error updating healthmonitor [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
+			r.EventRecorder.Event(hm, corev1.EventTypeWarning, "UpdateFailed", fmt.Sprintf("Failed to update HealthMonitor on Avi Controller: %v", err))
 			return err
 		}
 		utils.AviLog.Infof("succesfully updated healthmonitor:[%s/%s]", hmReq.namespace, hmReq.Name)
+		r.EventRecorder.Event(hm, corev1.EventTypeNormal, "Updated", "HealthMonitor updated successfully on Avi Controller")
 	}
 
 	hm.Status.LastUpdated = &metav1.Time{Time: time.Now().UTC()}
 	hm.Status.ObservedGeneration = hm.Generation
 	if err := r.Status().Update(ctx, hm); err != nil {
 		utils.AviLog.Errorf("unable to update healthmonitor status [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
+		r.EventRecorder.Event(hm, corev1.EventTypeWarning, "StatusUpdateFailed", fmt.Sprintf("Failed to update HealthMonitor status: %v", err))
 		return err
 	}
 
