@@ -1,0 +1,18 @@
+apiVersion: ako.vmware.com/v1alpha1
+kind: HealthMonitor
+metadata:
+  name: example-tcp-healthmonitor
+  namespace: default
+spec:
+  type: HEALTH_MONITOR_TCP
+  failed_checks: 3
+  successful_checks: 2
+  receive_timeout: 5
+  send_interval: 15
+  monitor_port: 80
+  tcp_monitor:
+    tcp_request: GET /health HTTP/1.1
+    tcp_response: "OK"
+    maintenance_response: "Maintenance"
+    tcp_half
+  is_federated: false
