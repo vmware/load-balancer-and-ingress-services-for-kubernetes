@@ -21,19 +21,18 @@ import (
 )
 
 const (
-	CRDGroup                   = "ako.vmware.com"
-	CRDVersion                 = "apiextensions.k8s.io/v1"
-	Version                    = "v1alpha1"
 	hostruleCRDLocation        = "/var/crds/ako.vmware.com_hostrules.yaml"
 	httpruleCRDLocation        = "/var/crds/ako.vmware.com_httprules.yaml"
 	aviinfrasettingCRDLocation = "/var/crds/ako.vmware.com_aviinfrasettings.yaml"
 	l4ruleCRDLocation          = "/var/crds/ako.vmware.com_l4rules.yaml"
 	ssoruleCRDLocation         = "/var/crds/ako.vmware.com_ssorules.yaml"
+	l7ruleCRDLocation          = "/var/crds/ako_vmware.com_l7rules.yaml"
 	hostRuleFullCRDName        = "hostrules.ako.vmware.com"
 	httpRuleFullCRDName        = "httprules.ako.vmware.com"
 	aviInfraSettingFullCRDName = "aviinfrasettings.ako.vmware.com"
 	l4RuleFullCRDName          = "l4rules.ako.vmware.com"
 	ssoRuleFullCRDName         = "ssorules.ako.vmware.com"
+	l7RuleFullCRDName          = "l7rules.ako.vmware.com"
 )
 
 var (
@@ -42,11 +41,13 @@ var (
 	aviinfrasettingCRD  *apiextensionv1.CustomResourceDefinition
 	l4ruleCRD           *apiextensionv1.CustomResourceDefinition
 	ssoruleCRD          *apiextensionv1.CustomResourceDefinition
+	l7ruleCRD           *apiextensionv1.CustomResourceDefinition
 	hostruleOnce        sync.Once
 	httpruleOnce        sync.Once
 	aviinfrasettingOnce sync.Once
 	l4ruleOnce          sync.Once
 	ssoruleOnce         sync.Once
+	l7ruleOnce          sync.Once
 )
 
 func readCRDFromManifest(crdLocation string, log logr.Logger) (*apiextensionv1.CustomResourceDefinition, error) {
@@ -269,6 +270,45 @@ func createSSORuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.Lo
 	return err
 }
 
+func createL7RuleCRD(clientset *apiextension.ApiextensionsV1Client, log logr.Logger) error {
+	var err error
+	l7ruleOnce.Do(func() {
+		l7ruleCRD, err = readCRDFromManifest(l7ruleCRDLocation, log)
+	})
+	if err != nil {
+		return err
+	} else if l7ruleCRD == nil {
+		return errors.New(fmt.Sprintf("Failure while reading %s CRD manifest", l7RuleFullCRDName))
+	}
+
+	existingl7rule, err := clientset.CustomResourceDefinitions().Get(context.TODO(), l7RuleFullCRDName, v1.GetOptions{})
+	if err == nil && existingl7rule != nil {
+		if l7ruleCRD.GetResourceVersion() == existingl7rule.GetResourceVersion() {
+			log.Info(fmt.Sprintf("no updates required for %s CRD", l7RuleFullCRDName))
+		} else {
+			l7ruleCRD.SetResourceVersion(existingl7rule.GetResourceVersion())
+			_, err = clientset.CustomResourceDefinitions().Update(context.TODO(), l7ruleCRD, v1.UpdateOptions{})
+			if err != nil {
+				log.Error(err, fmt.Sprintf("Error while updating %s CRD", l7RuleFullCRDName))
+				return err
+			} else {
+				log.Info(fmt.Sprintf("successfully updated %s CRD", l7RuleFullCRDName))
+			}
+		}
+		return nil
+	}
+
+	_, err = clientset.CustomResourceDefinitions().Create(context.TODO(), l7ruleCRD, v1.CreateOptions{})
+	if err == nil {
+		log.Info(fmt.Sprintf("%s CRD created", l7RuleFullCRDName))
+		return nil
+	} else if apierrors.IsAlreadyExists(err) {
+		log.Info(fmt.Sprintf("%s CRD already exists", l7RuleFullCRDName))
+		return nil
+	}
+	return err
+}
+
 func createCRDs(cfg *rest.Config, log logr.Logger) error {
 	kubeClient, _ := apiextension.NewForConfig(cfg)
 
@@ -292,6 +332,10 @@ func createCRDs(cfg *rest.Config, log logr.Logger) error {
 	if err != nil {
 		return err
 	}
+	err = createL7RuleCRD(kubeClient, log)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -306,7 +350,7 @@ func deleteCRDs(cfg *rest.Config, log logr.Logger) error {
 			}
 			log.Info(fmt.Sprintf("%s crd deleted successfully", crdFullName))
 		}
-	}(hostRuleFullCRDName, httpRuleFullCRDName, aviInfraSettingFullCRDName, l4RuleFullCRDName, ssoRuleFullCRDName)
+	}(hostRuleFullCRDName, httpRuleFullCRDName, aviInfraSettingFullCRDName, l4RuleFullCRDName, ssoRuleFullCRDName, l7RuleFullCRDName)
 	if err != nil {
 		return err
 	}

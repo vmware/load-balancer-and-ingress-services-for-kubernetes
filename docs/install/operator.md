@@ -15,7 +15,7 @@ and other artifacts.
 
 This is one of the ways to install the AKO controller. So, most of the pre-requisites that apply for installation of standalone AKO are also applicable for the AKO operator as well.
 
-* <i>**Step 1**</i>: Configure an Avi Controller with a [vCenter cloud](https://avinetworks.com/docs/18.2/installing-avi-vantage-for-vmware-vcenter/) or any other preferred cloud. The Avi Controller should be versioned 18.2.10 / 20.1.2 or later.
+* <i>**Step 1**</i>: Configure an Avi Controller with a [vCenter cloud](https://docs.vmware.com/en/VMware-NSX-Advanced-Load-Balancer/22.1/Installation_Guide/GUID-829B599B-BDBE-4881-83E4-5C693584EB6A.html) or any other preferred cloud. The Avi Controller should be versioned 22.1.3 or later.
 * <i>**Step 2**</i>:
   * Make sure a PG network is part of the NS IPAM configured in the vCenter
 * <i>**Step 3**</i>: If your POD CIDRs are not routable:
@@ -30,7 +30,7 @@ The markers in the drawing are described below:
     5. The pod responds and the request is sent back to the client.
   * Create a Service Engine Group dedicated to a Kubernetes cluster.
 * <i>**Step 3.1**</i>: If your POD CIDRs are routable then you can skip step 2. Ensure that you skip static route syncing in this case using the `disableStaticRouteSync` flag in the `values.yaml` of your helm chart.
-* <i>**Step 4:**</i> Openshift 4.10+.
+* <i>**Step 4:**</i> Openshift 4.12+.
 
 ### Install on Openshift cluster from OperatorHub using Openshift Container Platform Web Console
 
@@ -40,7 +40,7 @@ The markers in the drawing are described below:
 
 <i>**Step 3**</i>: Find `AKO Operator` provided by VMware.
 
-<i>**Step 4**</i>: Click `install` and select the 1.11.1 version. The operator will be installed in `avi-system` namespace. The namespace will be created if it doesn't exist.
+<i>**Step 4**</i>: Click `install` and select the 1.12.3 version. The operator will be installed in `avi-system` namespace. The namespace will be created if it doesn't exist.
 
 <i>**Step 5**</i>: Verify installation by checking the pods in `avi-system` namespace.
 
@@ -53,7 +53,7 @@ The following table lists the configurable fields in the `AKOConfig` object and 
 | **Parameter** | **Description** | **Default** |
 | --- | --- | --- |
 | `replicaCount` | Specify the number of replicas for AKO StatefulSet | 1 |
-| `imageRepository` | Specify docker-registry that has the ako image | projects.packages.broadcom.com/ako/ako:1.13.1 |
+| `imageRepository` | Specify docker-registry that has the ako image | projects.packages.broadcom.com/ako/ako:1.12.3 |
 | `imagePullPolicy` | Specify when and how to pull the ako image | IfNotPresent |
 | `imagePullSecrets` | ImagePullSecrets will add pull secrets to the statefulset for AKO. Required if using secure private container image registry for images. | `Empty List` |
 | `AKOSettings.clusterName` | Unique identifier for the running AKO instance. AKO identifies objects it created on Avi Controller using this param. | **required** |
@@ -78,6 +78,7 @@ The following table lists the configurable fields in the `AKOConfig` object and 
 | `ControllerSettings.cloudName` | Name of the cloud managed in Avi | Default-Cloud |
 | `ControllerSettings.tenantName` | Name of the tenant where all the AKO objects will be created in AVI. | admin |
 | `ControllerSettings.serviceEngineGroupName` | Name of the Service Engine Group | Default-Group |
+| `ControllerSettings.vrfName` | Name of the VRFContext. All Avi objects will be under this VRF. Applicable only in Vcenter Cloud. | `Empty string` |
 | `L7Settings.shardVSSize` | Shard VS size enum values: LARGE, MEDIUM, SMALL | LARGE |
 | `L7Settings.defaultIngController` | AKO is the default ingress controller | true |
 | `L7Settings.serviceType` | enum NodePort|ClusterIP|NodePortLocal | ClusterIP |
@@ -85,6 +86,7 @@ The following table lists the configurable fields in the `AKOConfig` object and 
 | `L7Settings.noPGForSNI`  | Skip using Pool Groups for SNI children | false |
 | `L4Settings.defaultDomain` | Specify a default sub-domain for L4 LB services | First domainname found in cloud's dnsprofile |
 | `L4Settings.autoFQDN`  | Specify the layer 4 FQDN format | default |
+| `L4Settings.defaultLBController` | defaultLBController enables ako to check if it is the default LoadBalancer controller. | true |
 | `NetworkSettings.subnetIP` | Subnet IP of the data network | **DEPRECATED** |
 | `NetworkSettings.subnetPrefix` | Subnet Prefix of the data network | **DEPRECATED** |
 | `NetworkSettings.nodeNetworkList` | List of Network Names/UUIDs and corresponding CIDR mappings for the K8s nodes. | `Empty List` |
@@ -93,7 +95,8 @@ The following table lists the configurable fields in the `AKOConfig` object and 
 | `NetworkSettings.bgpPeerLabels` | Select BGP peers using bgpPeerLabels, for selective VsVip advertisement. | `Empty List` |
 | `NetworkSettings.nsxtT1LR` | Specify the T1 router for data backend network, applicable only for NSX-T based deployments| `Empty string` |
 | `FeatureGates.gatewayAPI` | FeatureGates is to enable or disable experimental features. GatewayAPI feature gate enables/disables processing of Kubernetes Gateway API CRDs. | false |
-| `GatewayAPI.Image.repository` | Specify docker-registry that has the ako-gateway-api image | projects.packages.broadcom.com/ako/ako-gateway-api:1.13.1 |
+| `FeatureGates.enablePrometheus` | FeatureGates is to enable or disable experimental features. EnablePrometheus enables/disables prometheus scraping for AKO container | false |
+| `GatewayAPI.Image.repository` | Specify docker-registry that has the ako-gateway-api image | projects.packages.broadcom.com/ako/ako-gateway-api:1.12.3 |
 | `GatewayAPI.Image.pullPolicy` | Specify when and how to pull the ako-gateway-api image | IfNotPresent |
 | `logFile` | LogFile is the name of the file where ako container will dump its logs | avi.log |
 | `akoGatewayLogFile` | AKOGatewayLogFile is the name of the file where ako-gateway-api container will dump its logs | avi-gw.log |
@@ -111,6 +114,8 @@ AKO Operator will also create the following list of CRDs to be used by AKO Contr
 3. HTTPRule
 4. L4Rule
 5. SSORule
+6. AviInfraSetting
+7. L7Rule
 
 ### Uninstall on Openshift cluster from OperatorHub using Openshift Container Platform Web Console
 

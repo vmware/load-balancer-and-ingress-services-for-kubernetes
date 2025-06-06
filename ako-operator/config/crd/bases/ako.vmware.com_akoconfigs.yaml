@@ -150,10 +150,18 @@ spec:
                     description: TenantsPerCluster if set to true, AKO will map each
                       k8s cluster uniquely to a tenant in Avi
                     type: boolean
+                  vrfName:
+                    description: VRFName is the name of the VRFContext. All Avi objects
+                      will be under this VRF. Applicable only in Vcenter Cloud.
+                    type: string
                 type: object
               featureGates:
                 description: FeatureGates is to enable or disable experimental features
                 properties:
+                  enablePrometheus:
+                    description: EnablePrometheus enables/disables prometheus scraping
+                      for AKO container
+                    type: boolean
                   gatewayAPI:
                     description: GatewayAPI enables/disables processing of Kubernetes
                       Gateway API CRDs
@@ -202,6 +210,10 @@ spec:
                   defaultDomain:
                     description: DefaultDomain is the default domain
                     type: string
+                  defaultLBController:
+                    description: DefaultLBController enables ako to check if it is
+                      the default LoadBalancer controller.
+                    type: boolean
                 type: object
               l7Settings:
                 description: L7Settings defines the L7 configuration for the AKO controller
@@ -281,8 +293,9 @@ spec:
                       type: object
                     type: array
                   nsxtT1LR:
-                    description: T1 Logical Segment mapping for backend network. Only
-                      applies to NSX-T cloud.
+                    description: 'NsxtT1LR is the unique ID (not display name) of
+                      the T1 Logical Router for Service Engine connectivity. Only
+                      applies to NSX-T cloud. For eg : nsxtT1LR: "/infra/tier-1s/avi-t1".'
                     type: string
                   vipNetworkList:
                     description: VipNetworkList holds the names and subnet information

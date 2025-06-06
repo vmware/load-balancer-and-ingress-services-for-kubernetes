@@ -370,6 +370,33 @@ var sfJson = `
 							{
 								"name": "LOG_FILE_NAME",
 								"value": "ako.log"
+							},
+							{
+								"name": "VRF_NAME",
+								"valueFrom": {
+									"configMapKeyRef": {
+										"key": "vrfName",
+										"name": "avi-k8s-config"
+									}
+								}
+							},
+							{
+								"name": "DEFAULT_LB_CONTROLLER",
+								"valueFrom": {
+									"configMapKeyRef": {
+										"key": "defaultLBController",
+										"name": "avi-k8s-config"
+									}
+								}
+							},
+							{
+								"name": "PROMETHEUS_ENABLED",
+								"valueFrom": {
+									"configMapKeyRef": {
+										"key": "enablePrometheus",
+										"name": "avi-k8s-config"
+									}
+								}
 							}
 						],
 						"image": "test-repo",
@@ -397,11 +424,6 @@ var sfJson = `
 							"timeoutSeconds": 1
 						},
 						"name": "ako",
-						"ports": [{
-							"containerPort": 80,
-							"name": "http",
-							"protocol": "TCP"
-						}],
 						"resources": {
 							"limits": {
 								"cpu": "350m",
@@ -513,6 +535,60 @@ var sfJson = `
 							{
 								"name": "LOG_FILE_NAME",
 								"value": "avi-gw.log"
+							},
+							{
+								"name": "CNI_PLUGIN",
+								"valueFrom": {
+									"configMapKeyRef": {
+										"key": "cniPlugin",
+										"name": "avi-k8s-config"
+									}
+								}
+							},
+							{
+								"name": "NODE_NETWORK_LIST",
+								"valueFrom": {
+									"configMapKeyRef": {
+										"key": "nodeNetworkList",
+										"name": "avi-k8s-config"
+									}
+								}
+							},
+							{
+								"name": "VIP_NETWORK_LIST",
+								"valueFrom": {
+									"configMapKeyRef": {
+										"key": "vipNetworkList",
+										"name": "avi-k8s-config"
+									}
+								}
+							},
+							{
+								"name": "BGP_PEER_LABELS",
+								"valueFrom": {
+									"configMapKeyRef": {
+										"key": "bgpPeerLabels",
+										"name": "avi-k8s-config"
+									}
+								}
+							},
+							{
+								"name": "ENABLE_RHI",
+								"valueFrom": {
+									"configMapKeyRef": {
+										"key": "enableRHI",
+										"name": "avi-k8s-config"
+									}
+								}
+							},
+							{
+								"name": "SERVICE_TYPE",
+								"valueFrom": {
+									"configMapKeyRef": {
+										"key": "serviceType",
+										"name": "avi-k8s-config"
+									}
+								}
 							}
 						],
 						"image": "test-repo-gateway-api",
@@ -581,7 +657,6 @@ func buildStatefulSetAndVerify(existingSf appsv1.StatefulSet, akoConfig akov1alp
 		g.Expect(err).To(gomega.Not(gomega.BeNil()))
 		return appsv1.StatefulSet{}
 	}
-
 	g.Expect(err).To(gomega.BeNil())
 	g.Expect(isSfUpdateRequired(existingSf, newSf)).To(gomega.Equal(update))
 	return newSf
