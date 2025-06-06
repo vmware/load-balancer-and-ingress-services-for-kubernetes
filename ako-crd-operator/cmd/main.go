@@ -93,7 +93,11 @@ func main() {
 
 	cacheManager := cache.NewCache(sessionManager)
 	if err := cacheManager.PopulateCache(constants.HealthMonitorURL); err != nil {
-		setupLog.Error(err, "unable to populate cacheManager")
+		setupLog.Error(err, "unable to populate cacheManager for health monitor")
+		os.Exit(1)
+	}
+	if err := cacheManager.PopulateCache(constants.ApplicationProfileURL); err != nil {
+		setupLog.Error(err, "unable to populate cacheManager for application profile")
 		os.Exit(1)
 	}
 
@@ -110,6 +114,8 @@ func main() {
 	if err = (&controller.ApplicationProfileReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+		AviClient: aviClients.AviClient[0],
+		Cache:     cacheManager,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ApplicationProfile")
 		os.Exit(1)
