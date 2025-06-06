@@ -320,6 +320,11 @@ func (in *L4RuleSpec) DeepCopyInto(out *L4RuleSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.RevokeVipRoute != nil {
+		in, out := &in.RevokeVipRoute, &out.RevokeVipRoute
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

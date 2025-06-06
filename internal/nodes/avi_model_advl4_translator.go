@@ -581,7 +581,7 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 
 		// Copy the VS properties from L4Rule object
 		if l4Rule, err := getL4Rule(key, serviceObject); err == nil {
-			buildWithL4Rule(key, avi_vs_meta, l4Rule)
+			buildWithL4Rule(key, avi_vs_meta, l4Rule, true)
 
 			// Copy the LoadBalancerIP if configured in L4Rule CRD.
 			if avi_vs_meta.LoadBalancerIP != nil {

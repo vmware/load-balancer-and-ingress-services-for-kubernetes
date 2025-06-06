@@ -449,6 +449,7 @@ type AviVsNodeCommonFields struct {
 	VsDatascriptRefs         []string
 	WafPolicyRef             *string
 	SslKeyAndCertificateRefs []string // refs to avi sslkeyandcertificate objs
+	RevokeVipRoute           *bool
 }
 
 // Implementing AviVsEvhSniModel

@@ -19,10 +19,10 @@ limitations under the License.
 package v1alpha2
 
 import (
-	"net/http"
+	http "net/http"
 
-	v1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned/scheme"
+	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
+	scheme "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 
@@ -95,10 +95,10 @@ func New(c rest.Interface) *AkoV1alpha2Client {
 }
 
 func setConfigDefaults(config *rest.Config) error {
-	gv := v1alpha2.SchemeGroupVersion
+	gv := akov1alpha2.SchemeGroupVersion
 	config.GroupVersion = &gv
 	config.APIPath = "/apis"
-	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+	config.NegotiatedSerializer = rest.CodecFactoryForGeneratedClient(scheme.Scheme, scheme.Codecs).WithoutConversion()
 
 	if config.UserAgent == "" {
 		config.UserAgent = rest.DefaultKubernetesUserAgent()
