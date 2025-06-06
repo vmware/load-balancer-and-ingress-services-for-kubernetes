@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/go-logr/zapr"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/event"
 	session2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
@@ -26,7 +27,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"os"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -47,7 +47,7 @@ import (
 
 var (
 	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	setupLog = utils.AviLog.WithName("setup")
 )
 
 func init() {
@@ -59,12 +59,12 @@ func init() {
 
 // nolint:gocyclo
 func main() {
-	ctx := context.Background()
+	ctx := utils.LoggerWithContext(context.Background(), setupLog)
 	var probeAddr string
 
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 
-	ctrl.SetLogger(zap.New())
+	ctrl.SetLogger(zapr.NewLogger(utils.AviLog.Sugar.Desugar().Named("runtime")))
 
 	cfg := ctrl.GetConfigOrDie()
 
@@ -73,13 +73,12 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
+		setupLog.Fatalf("unable to start manager. error: %s", err.Error())
 	}
 
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		utils.AviLog.Fatalf("Error building kubernetes clientset: %s", err.Error())
+		setupLog.Fatalf("Error building kubernetes clientset. error: %s", err.Error())
 	}
 	// event recorder
 	// TODO: crd-specific event recorders
@@ -87,25 +86,28 @@ func main() {
 	eventManager := event.NewEventManager(eventRecorder, &v1.Pod{})
 	// setup controller properties
 	sessionManager := session2.NewSession(kubeClient, eventManager)
-	sessionManager.PopulateControllerProperties(ctx)
+	if err := sessionManager.PopulateControllerProperties(ctx); err != nil {
+		setupLog.Fatalf("Error populating controller properties. error: %s", err.Error())
+	}
+
 	sessionManager.CreateAviClients(ctx, 1)
 	aviClients := sessionManager.GetAviClients()
 
 	cacheManager := cache.NewCache(sessionManager)
-	if err := cacheManager.PopulateCache(constants.HealthMonitorURL); err != nil {
-		setupLog.Error(err, "unable to populate cacheManager")
-		os.Exit(1)
+	if err := cacheManager.PopulateCache(ctx, constants.HealthMonitorURL); err != nil {
+		setupLog.Fatalf("unable to populate cacheManager. error: %s", err.Error())
 	}
-
+	utils.AviLog.SetLevel(GetEnvOrDefault("LOG_LEVEL", "INFO"))
 	hmReconciler := &controller.HealthMonitorReconciler{
 		Client:    mgr.GetClient(),
 		Scheme:    mgr.GetScheme(),
 		AviClient: aviClients.AviClient[0],
 		Cache:     cacheManager,
+		Logger:    utils.AviLog.WithName("healthmonitor"),
 	}
+
 	if err = hmReconciler.SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "HealthMonitor")
-		os.Exit(1)
+		setupLog.Fatalf("unable to create controller [HealthMonitor]. error: %s", err.Error())
 	}
 	if err = (&controller.ApplicationProfileReconciler{
 		Client: mgr.GetClient(),
@@ -117,17 +119,25 @@ func main() {
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
-		os.Exit(1)
+		setupLog.Fatalf("unable to set up health check. error: %s", err.Error())
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
-		os.Exit(1)
+		setupLog.Fatalf("unable to set up ready check. error: %s", err.Error())
 	}
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
+		setupLog.Fatalf("problem running manager. error: %s", err.Error())
 	}
+}
+
+// GetEnvOrDefault retrieves the value of the environment variable named by the key.
+// If the variable is not present or its value is empty, it returns the
+// defaultValue.
+func GetEnvOrDefault(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
 }

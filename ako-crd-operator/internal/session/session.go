@@ -38,7 +38,6 @@ func (s *Session) PopulateControllerProperties(ctx context.Context) error {
 	var err error
 	s.ctrlProperties, err = lib.GetControllerPropertiesFromSecret(s.k8sClient)
 	if err != nil {
-		utils.AviLog.Error(err, "unable to populate controller properties")
 		return err
 	}
 	return nil
@@ -47,6 +46,8 @@ func (s *Session) PopulateControllerProperties(ctx context.Context) error {
 func (s *Session) CreateAviClients(ctx context.Context, numClient int) {
 	s.sync.Lock()
 	defer s.sync.Unlock()
+
+	log := utils.LoggerFromContext(ctx)
 
 	ctrlUsername := s.ctrlProperties[utils.ENV_CTRL_USERNAME]
 	ctrlPassword := s.ctrlProperties[utils.ENV_CTRL_PASSWORD]
@@ -67,9 +68,9 @@ func (s *Session) CreateAviClients(ctx context.Context, numClient int) {
 			ctrlUsername, passwordLog, authTokenLog, ctrlIpAddress,
 		)
 		if ctrlIpAddress == "" {
-			utils.AviLog.Fatalf("Avi Controller information missing (username: %s, password: %s, authToken: %s, controller: %s). Update the controller IP in ConfigMap : avi-k8s-config", ctrlUsername, passwordLog, authTokenLog, ctrlIpAddress)
+			log.Fatalf("Avi Controller information missing (username: %s, password: %s, authToken: %s, controller: %s). Update the controller IP in ConfigMap : avi-k8s-config", ctrlUsername, passwordLog, authTokenLog, ctrlIpAddress)
 		}
-		utils.AviLog.Fatalf("Avi Controller information missing (username: %s, password: %s, authToken: %s, controller: %s). Update them in avi-secret.", ctrlUsername, passwordLog, authTokenLog, ctrlIpAddress)
+		log.Fatalf("Avi Controller information missing (username: %s, password: %s, authToken: %s, controller: %s). Update them in avi-secret.", ctrlUsername, passwordLog, authTokenLog, ctrlIpAddress)
 	}
 	var err error
 	// TODO: inject interface of AviClient instead directly using AviRestClient

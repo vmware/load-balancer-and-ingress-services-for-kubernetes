@@ -172,7 +172,7 @@ func (c *VCFK8sController) handleNamespaceDelete() {
 func (c *VCFK8sController) getWorkloadNamespaceCount() (int, error) {
 	nsList, err := c.informers.NSInformer.Lister().List(labels.Set(nil).AsSelector())
 	if err != nil {
-		utils.AviLog.Error(nil, err.Error())
+		utils.AviLog.Error(err.Error())
 		return 0, err
 	}
 	count := 0
