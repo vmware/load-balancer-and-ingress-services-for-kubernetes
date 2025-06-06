@@ -54,6 +54,7 @@ func GatewayApiLister() *GWLister {
 			podToServiceStore:              objects.NewObjectMapStore(),
 			gatewayToStatus:                objects.NewObjectMapStore(),
 			routeToStatus:                  objects.NewObjectMapStore(),
+			gatewayToInfraSetting:          objects.NewObjectMapStore(),
 		}
 	})
 	return gwLister
@@ -127,6 +128,9 @@ type GWLister struct {
 
 	// routeType/routeNs/routeName -> route Status
 	routeToStatus *objects.ObjectMapStore
+
+	// namespace/gateway -> infrasetting
+	gatewayToInfraSetting *objects.ObjectMapStore
 }
 
 type GatewayRouteKind struct {
@@ -1001,4 +1005,21 @@ func (g *GWLister) DeletePodsToService(podNsName string) {
 	defer g.gwLock.Unlock()
 
 	g.podToServiceStore.Delete(podNsName)
+}
+
+// Gateway <-> AviInfraSetting
+
+func (g *GWLister) GetGatewayToAviInfraSetting(gwNsName string) (bool, string) {
+	if found, obj := g.gatewayToInfraSetting.Get(gwNsName); found {
+		return true, obj.(string)
+	}
+	return false, ""
+}
+
+func (g *GWLister) UpdateGatewayToAviInfraSettingMappings(gwNsName, aviInfraSetting string) {
+	g.gatewayToInfraSetting.AddOrUpdate(gwNsName, aviInfraSetting)
+}
+
+func (g *GWLister) DeleteGatewayToAviInfraSettingMappings(gwNsName string) bool {
+	return g.gatewayToInfraSetting.Delete(gwNsName)
 }
