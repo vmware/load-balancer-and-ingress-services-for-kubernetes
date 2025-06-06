@@ -93,6 +93,122 @@ spec:
               trafficCloneProfileRef:
                 description: Server network or list of servers for cloning traffic.
                 type: string
+              analyticsProfile:
+                description: AnalyticsProfile allows to set the threshold for client experince depending upon application type.
+                properties:
+                  kind:
+                    default: AviRef
+                    description: Defines type of AnalyticsProfile object
+                    enum:
+                    - AviRef
+                    type: string
+                  name:
+                    description: Name of AnalyticsProfile object
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
+              applicationProfile:
+                description: Application profiles determine the behaviour of virtual services, based on application type.
+                properties:
+                  kind:
+                    default: AviRef
+                    description: Defines where ApplicationProfile object is created
+                    enum:
+                    - AviRef
+                    - CRD
+                    type: string
+                  name:
+                    description: Name of ApplicationProfile object
+                    type: string
+                  namespace:
+                    description: Namespace of ApplicationProfile object. This is applicable when kind is CRD
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
+              wafPolicy:
+                description: Defines specific set of protections for the application. 
+                properties:
+                  kind:
+                    default: AviRef
+                    description: Defines where WafPolicy object is created
+                    enum:
+                    - AviRef
+                    type: string
+                  name:
+                    description: Name of WafPolicy object
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
+              icapProfile:
+                description: ICAP profile can be used for transporting HTTP traffic to 3rd party services for processes such as content sanitization and antivirus scanning.
+                properties:
+                  kind:
+                    default: AviRef
+                    description: Defines where ICAP profile object is created
+                    enum:
+                    - AviRef
+                    type: string
+                  name:
+                    description: Name of ICAP profile object
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
+              errorPageProfile:
+                description: ErrorPage profile is used send custom error page to the client on specific error condition.
+                properties:
+                  kind:
+                    default: AviRef
+                    description: Defines where ErrorPage profile object is created
+                    enum:
+                    - AviRef
+                    type: string
+                  name:
+                    description: Name of ErrorPage profile object
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
+              analyticsPolicy:
+                properties:
+                  fullClientLogs:
+                    properties:
+                      enabled:
+                        type: boolean
+                        default: false
+                      throttle:
+                        enum:
+                        - LOW
+                        - MEDIUM
+                        - HIGH
+                        - DISABLED
+                        default: HIGH
+                        type: string
+                      duration:
+                        type: integer
+                        default: 0
+                    type: object
+                  logAllHeaders:
+                    type: boolean
+                    default: false
+                type: object
+              httpPolicy:
+                properties:
+                  overwrite:
+                    type: boolean
+                  policySets:
+                    items:
+                      type: string
+                    type: array
+                type: object
             type: object
           status:
             properties:

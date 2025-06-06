@@ -58,3 +58,5 @@ data:
   enablePrometheus: {{ default "false" .Values.featureGates.EnablePrometheus | quote }}
   enableEndpointSlice: {{ default "false" .Values.featureGates.EnableEndpointSlice | quote }} 
   fqdnReusePolicy: {{ default "InterNamespaceAllowed" .Values.L7Settings.fqdnReusePolicy | quote}}
+  gatewayAPIEnabled: {{ default "false" .Values.featureGates.GatewayAPI | quote}}
+

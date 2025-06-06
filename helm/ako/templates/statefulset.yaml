@@ -93,6 +93,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: cniPlugin
+          - name: GATEWAYAPI_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: gatewayAPIEnabled
           - name: ISTIO_ENABLED
             valueFrom:
               configMapKeyRef:
