@@ -463,6 +463,13 @@ func IsVCFCluster() bool {
 	return false
 }
 
+func IsGatewayAPIEnabled() bool {
+	if ok, _ := strconv.ParseBool(os.Getenv("GATEWAYAPI_ENABLED")); ok {
+		return ok
+	}
+	return false
+}
+
 // This utility returns a true/false depending on whether
 // the user requires advanced L4 functionality
 func GetAdvancedL4() bool {
