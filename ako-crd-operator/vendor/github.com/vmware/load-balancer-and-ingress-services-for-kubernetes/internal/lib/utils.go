@@ -18,9 +18,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/google/uuid"
 
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -29,6 +32,7 @@ import (
 
 	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/models"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
@@ -593,4 +597,78 @@ func (s *LockSet) Unlock(lockName string) {
 
 func GetLockSet() *LockSet {
 	return &lockSet
+}
+
+func ProxyEnabledAppProfileGet(client *clients.AviClient) (error, []models.ApplicationProfile) {
+	var appProfs []models.ApplicationProfile
+	uri := fmt.Sprintf("/api/applicationprofile/?name=%s", GetProxyEnabledApplicationProfileName())
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Application profile Get uri %v returned err %v", uri, err)
+		return err, appProfs
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal application profile result, err: %v", err)
+		return err, appProfs
+	}
+	for i := 0; i < len(elems); i++ {
+		appProf := models.ApplicationProfile{}
+		if err = json.Unmarshal(elems[i], &appProf); err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal application profile data, err: %v", err)
+			return err, appProfs
+		}
+		appProfs = append(appProfs, appProf)
+	}
+	return nil, appProfs
+}
+
+func ProxyEnabledAppProfileCU(client *clients.AviClient) error {
+	name := GetProxyEnabledApplicationProfileName()
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", GetAdminTenant())
+	tcpAppProfile := models.TCPApplicationProfile{
+		ProxyProtocolEnabled: proto.Bool(true),
+	}
+	appProfile := models.ApplicationProfile{
+		Name:          proto.String(name),
+		TenantRef:     proto.String(tenant),
+		Type:          proto.String(AllowedL4ApplicationProfile),
+		CreatedBy:     proto.String(GetAKOUser()),
+		TCPAppProfile: &tcpAppProfile,
+	}
+	resp := models.ApplicationProfileAPIResponse{}
+	err, appProfs := ProxyEnabledAppProfileGet(client)
+	if err == nil && len(appProfs) == 1 {
+		appProf := appProfs[0]
+		if appProf.TCPAppProfile != nil &&
+			appProf.TCPAppProfile.ProxyProtocolEnabled != nil &&
+			*appProf.TCPAppProfile.ProxyProtocolEnabled {
+			utils.AviLog.Debugf("Proxy enabled application profile %s present", name)
+			return nil
+		}
+		uri := fmt.Sprintf("/api/applicationprofile/%s", *appProf.UUID)
+		err = AviPut(client, uri, appProfile, resp)
+	} else {
+		if len(appProfs) > 1 {
+			return fmt.Errorf("More than one app profile with name %s found", name)
+		}
+		if len(appProfs) == 0 {
+			uri := "/api/applicationprofile"
+			err = AviPost(client, uri, appProfile, resp)
+		}
+	}
+	if err != nil {
+		return err
+	}
+	utils.AviLog.Infof("Proxy enabled application profile %s created/updated", name)
+	return nil
+}
+
+func Uuid4() string {
+	id, err := uuid.NewRandom()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return id.String()
 }
