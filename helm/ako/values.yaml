@@ -170,3 +170,6 @@ ako-crd-operator:
         requests:
           cpu: 128m
           memory: 64Mi
+      mountPath: "/log"
+      logFile: "ako-crd-operator.log"
+    persistentVolumeClaim: "local-path"

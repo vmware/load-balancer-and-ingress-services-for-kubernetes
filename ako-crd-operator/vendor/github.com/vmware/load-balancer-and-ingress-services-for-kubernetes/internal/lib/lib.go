@@ -291,7 +291,8 @@ func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32)
 	if GetL4FqdnFormat() == AutoFQDNDisabled {
 		autoFQDN = false
 	}
-	if subDomains != nil && autoFQDN {
+
+	if subDomains != nil && autoFQDN && !VIPPerNamespace() {
 		//Replace all non valid dns label characters with - in tenant name
 		tenantNameWithValidChars := nonDnsLabelRegex.ReplaceAllString(tenant, "-")
 		// honour defaultSubDomain from values.yaml if specified
@@ -308,15 +309,21 @@ func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32)
 		}
 		if GetL4FqdnFormat() == AutoFQDNDefault {
 			// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
+			// TODO: check label length for vsName, tenantName so that it doesn't exceed 63 characters.
 			fqdn = vsName + "." + tenantNameWithValidChars + "." + subdomain
 		} else if GetL4FqdnFormat() == AutoFQDNFlat {
 			// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
+			// TODO: check label length for vsName-tenantName so that it doesn't exceed 63 characters.
 			fqdn = vsName + "-" + tenantNameWithValidChars + "." + subdomain
 		}
 		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(fqdn, GetModelName(tenant, vsName))
 		utils.AviLog.Infof("key: %s, msg: Configured the shared VS with default fqdn as: %s", key, fqdn)
 		fqdns = append(fqdns, fqdn)
 	} else {
+		// Do not generate auto-fqdn for vipPerNS use case
+		if VIPPerNamespace() && autoFQDN {
+			utils.AviLog.Warnf("key: %s, msg: Auto-FQDN is disabled for VIP PER NS mode.", key)
+		}
 		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(vsName, GetModelName(tenant, vsName))
 	}
 	return fqdns, fqdn
@@ -708,6 +715,11 @@ func GetVrf() string {
 		return utils.GlobalVRF
 	}
 	return VRFContext
+}
+
+// One proxy enabled app profile per cluster
+func GetProxyEnabledApplicationProfileName() string {
+	return Encode(GetClusterName()+"-proxy-applicationprofile", ApplicationProfile)
 }
 
 func GetVPCMode() bool {
@@ -1488,14 +1500,15 @@ func SSLKeyCertChecksum(sslName, certificate, cacert string, ingestionMarkers ut
 	return checksum
 }
 
-func L4PolicyChecksum(ports []int64, protocols []string, ingestionMarkers utils.AviObjectMarkers, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
+func L4PolicyChecksum(ports []int64, protocols []string, pools []string, ingestionMarkers utils.AviObjectMarkers, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
 	var portsInt []int
 	for _, port := range ports {
 		portsInt = append(portsInt, int(port))
 	}
 	sort.Ints(portsInt)
 	sort.Strings(protocols)
-	checksum := utils.Hash(utils.Stringify(portsInt)) + utils.Hash(utils.Stringify(protocols))
+	sort.Strings(pools)
+	checksum := utils.Hash(utils.Stringify(portsInt)) + utils.Hash(utils.Stringify(protocols)) + utils.Hash(utils.Stringify(pools))
 	if populateCache {
 		if markers != nil {
 			checksum += ObjectLabelChecksum(markers)
@@ -1973,7 +1986,7 @@ func GetControllerPropertiesFromSecret(cs kubernetes.Interface) (map[string]stri
 	ctrlProps := make(map[string]string)
 	aviSecret, err := cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), AviSecret, metav1.GetOptions{})
 	if err != nil {
-		utils.AviLog.Error(err, err.Error())
+		utils.AviLog.Error(err.Error())
 		return ctrlProps, err
 	}
 	ctrlProps[utils.ENV_CTRL_USERNAME] = string(aviSecret.Data["username"])
@@ -2291,4 +2304,9 @@ func ValidServiceType(service *v1.Service) bool {
 	default:
 		return false
 	}
+}
+
+func GetAviInfraSettingName(projVpc string) string {
+	hash := sha1.Sum([]byte(projVpc))
+	return hex.EncodeToString(hash[:])
 }
