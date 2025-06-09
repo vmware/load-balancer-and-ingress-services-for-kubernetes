@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"encoding/json"
 	avisession "github.com/vmware/alb-sdk/go/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
@@ -16,8 +17,8 @@ type cache struct {
 }
 
 type CacheOperation interface {
-	PopulateCache(...string) error
-	GetObjectByUUID(string) (dataMap, bool)
+	PopulateCache(context.Context, ...string) error
+	GetObjectByUUID(context.Context, string) (dataMap, bool)
 }
 
 func NewCache(session *session.Session) CacheOperation {
@@ -37,7 +38,8 @@ func (d dataMap) GetLastModifiedTimeStamp() time.Time {
 	return time.UnixMicro(timeInt).UTC()
 }
 
-func (c *cache) PopulateCache(urls ...string) error {
+func (c *cache) PopulateCache(ctx context.Context, urls ...string) error {
+	log := utils.LoggerFromContext(ctx)
 	setTenant := avisession.SetTenant("*")
 	aviSession := c.session.GetAviClients().AviClient[0].AviSession
 	_ = setTenant(aviSession)
@@ -61,26 +63,27 @@ func (c *cache) PopulateCache(urls ...string) error {
 			for _, data := range dataList {
 				UUID, ok := data["uuid"].(string)
 				if !ok {
-					utils.AviLog.Warnf("unable to find uuid in object :[%v]", data)
+					log.Warnf("unable to find uuid in object :[%v]", data)
 					continue
 				}
 				c.dataStore.Store(UUID, data)
 			}
 		}
 	}
-	utils.AviLog.Infof("populated cache successfully for urls: [%v]", urls)
+	log.Infof("populated cache successfully for urls: [%v]", urls)
 	return nil
 }
 
-func (c *cache) GetObjectByUUID(UUID string) (dataMap, bool) {
+func (c *cache) GetObjectByUUID(ctx context.Context, UUID string) (dataMap, bool) {
+	log := utils.LoggerFromContext(ctx)
 	data, ok := c.dataStore.Load(UUID)
 	if !ok {
-		utils.AviLog.Warnf("UUID: [%s] not found in cache", UUID)
+		log.Warnf("UUID: [%s] not found in cache", UUID)
 		return nil, false
 	}
 	dataMap, ok := data.(map[string]interface{})
 	if !ok {
-		utils.AviLog.Warnf("dataMap not type of map interface. type: %T", data)
+		log.Warnf("dataMap not type of map interface. type: %T", data)
 		return nil, false
 	}
 	return dataMap, true

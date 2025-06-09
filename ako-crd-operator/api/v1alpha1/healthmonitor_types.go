@@ -42,7 +42,7 @@ const (
 )
 
 // HealthMonitorSpec defines the desired state of HealthMonitor
-// +kubebuilder:validation:XValidation:rule="(!has(self.http_monitor.auth_type) || has(self.authentication.username) && has(self.authentication.password))",message="If auth_type is set, both username and password must be set in authentication"
+// +kubebuilder:validation:XValidation:rule="(!has(self.http_monitor) || !has(self.http_monitor.auth_type) || has(self.authentication.username) && has(self.authentication.password))",message="If auth_type is set, both username and password must be set in authentication"
 type HealthMonitorSpec struct {
 	// SendInterval is the frequency, in seconds, that pings are sent.
 	// +kubebuilder:validation:Minimum=1
@@ -113,6 +113,7 @@ type HealthMonitorInfo struct {
 }
 
 // TCPMonitor defines the TCP monitor configuration.
+// +kubebuilder:validation:XValidation:rule="!has(self.tcp_half_open) || !self.tcp_half_open || (!has(self.tcp_request) && !has(self.tcp_response) && !has(self.maintenance_response))",message="If tcp_half_open is true, tcp_request, tcp_response, and maintenance_response must not be set"
 type TCPMonitor struct {
 	// TcpRequest is the request to send for the TCP health check.
 	// +optional

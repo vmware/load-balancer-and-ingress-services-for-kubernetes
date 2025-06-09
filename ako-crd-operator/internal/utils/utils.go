@@ -67,6 +67,7 @@ func IsRetryableError(err error) bool {
 
 // UpdateStatusWithNonRetryableError updates the resource status with failure condition
 func UpdateStatusWithNonRetryableError(ctx context.Context, statusUpdater StatusUpdater, resource ResourceWithStatus, err error, resourceType string) {
+	log := utils.LoggerFromContext(ctx)
 	condition := metav1.Condition{
 		Type:               "Ready",
 		Status:             metav1.ConditionFalse,
@@ -110,7 +111,7 @@ func UpdateStatusWithNonRetryableError(ctx context.Context, statusUpdater Status
 	resource.SetObservedGeneration(resource.GetGeneration())
 
 	if err := statusUpdater.Status().Update(ctx, resource); err != nil {
-		utils.AviLog.Errorf("Failed to update %s status with non-retryable error [%s/%s]: %s", resourceType, resource.GetNamespace(), resource.GetName(), err.Error())
+		log.Errorf("Failed to update %s status with non-retryable error: %s", resourceType, err.Error())
 	}
 }
 

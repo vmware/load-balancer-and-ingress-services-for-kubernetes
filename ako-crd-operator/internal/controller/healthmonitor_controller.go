@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/session"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
@@ -47,6 +48,7 @@ type HealthMonitorReconciler struct {
 	AviClient *clients.AviClient
 	Scheme    *runtime.Scheme
 	Cache     cache.CacheOperation
+	Logger    *utils.AviLogger
 }
 
 type HealthMonitorRequest struct {
@@ -70,20 +72,25 @@ type HealthMonitorRequest struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.2/pkg/reconcile
 func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	log := r.Logger.WithValues("name", req.Name, "namespace", req.Namespace, "traceID", uuid.New().String())
+	ctx = utils.LoggerWithContext(ctx, log)
+
+	log.Debug("Reconciling HealthMonitor")
+	defer log.Debug("Reconciled HealthMonitor")
 	hm := &akov1alpha1.HealthMonitor{}
 	err := r.Client.Get(ctx, req.NamespacedName, hm)
 	if err != nil {
 		if k8serror.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		utils.AviLog.Error(err, "Failed to get HealthMonitor: [%s/%s]", req.NamespacedName.Namespace, req.NamespacedName.Name)
+		log.Error("Failed to get HealthMonitor")
 		return ctrl.Result{}, err
 	}
 	if hm.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(hm, constants.HealthMonitorFinalizer) {
 			controllerutil.AddFinalizer(hm, constants.HealthMonitorFinalizer)
 			if err := r.Update(ctx, hm); err != nil {
-				utils.AviLog.Error(err, "Failed to add finalizer to HealthMonitor: [%s/%s]", req.NamespacedName.Namespace, req.NamespacedName.Name)
+				log.Error("Failed to add finalizer to HealthMonitor")
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{}, nil
@@ -97,7 +104,7 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		if err := r.Update(ctx, hm); err != nil {
 			return ctrl.Result{}, err
 		}
-		utils.AviLog.Infof("succesfully deleted healthmonitor:[%s/%s]", hm.Namespace, hm.Name)
+		log.Info("succesfully deleted healthmonitor")
 		return ctrl.Result{}, nil
 	}
 	if err := r.ReconcileIfRequired(ctx, hm); err != nil {
@@ -123,24 +130,26 @@ func (r *HealthMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alpha1.HealthMonitor) error {
+	log := utils.LoggerFromContext(ctx)
 	if hm.Status.UUID != "" {
 		if err := r.AviClient.HealthMonitor.Delete(hm.Status.UUID); err != nil {
 			// Handle 404 as success case - object doesn't exist, which is the desired state for delete
 			if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 404 {
-				utils.AviLog.Infof("HealthMonitor [%s/%s] not found on Avi Controller (404), treating as successful deletion", hm.Namespace, hm.Name)
+				log.Info("HealthMonitor not found on Avi Controller (404), treating as successful deletion")
 				return nil
 			}
-			utils.AviLog.Errorf("error deleting healthmonitor: [%s/%s]: %s", hm.Namespace, hm.Name, err.Error())
+			log.Errorf("error deleting healthmonitor: %s", err.Error())
 			return err
 		}
 	} else {
-		utils.AviLog.Warnf("error deleting healthmonitor: [%s/%s]. uuid not present. possibly avi healthmonitor object not created", hm.Namespace, hm.Name)
+		log.Warn("error deleting healthmonitor. uuid not present. possibly avi healthmonitor object not created")
 	}
 	return nil
 }
 
 // TODO: Make this function generic
 func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *akov1alpha1.HealthMonitor) error {
+	log := utils.LoggerFromContext(ctx)
 	hmReq := &HealthMonitorRequest{
 		hm.Name,
 		hm.Spec,
@@ -150,12 +159,13 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 	if hm.Status.UUID == "" {
 		resp, err := r.createHealthMonitor(ctx, hmReq)
 		if err != nil {
-			utils.AviLog.Errorf("error creating healthmonitor: [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
+			log.Errorf("error creating healthmonitor: %s", err.Error())
 			return err
 		}
 		uuid, err := extractUUID(resp)
 		if err != nil {
-			utils.AviLog.Errorf("error extracting UUID from healthmonitor: [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
+			log.Errorf("error extracting UUID from healthmonitor: %s", err.Error())
+			return err
 		}
 		hm.Status.UUID = uuid
 		hm.Status.Conditions = controllerutils.SetCondition(hm.Status.Conditions, metav1.Condition{
@@ -171,19 +181,19 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 		if hm.GetGeneration() == hm.Status.ObservedGeneration {
 			// if no op from kubernetes side, check if op required from OOB changes by checking lastModified timestamp
 			if hm.Status.LastUpdated != nil {
-				dataMap, ok := r.Cache.GetObjectByUUID(hm.Status.UUID)
+				dataMap, ok := r.Cache.GetObjectByUUID(ctx, hm.Status.UUID)
 				if ok {
 					if dataMap.GetLastModifiedTimeStamp().Before(hm.Status.LastUpdated.Time) {
-						utils.AviLog.Debugf("no op for healthmonitor [%s/%s]", hmReq.namespace, hmReq.Name)
+						log.Debug("no op for healthmonitor")
 						return nil
 					}
 				}
 			}
-			utils.AviLog.Debugf("overwriting healthmonitor: [%s/%s]", hmReq.namespace, hmReq.Name)
+			log.Debug("overwriting healthmonitor")
 		}
 		resp := map[string]interface{}{}
 		if err := r.AviClient.AviSession.Put(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.HealthMonitorURL, hm.Status.UUID)), hmReq, &resp); err != nil {
-			utils.AviLog.Errorf("error updating healthmonitor [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
+			log.Errorf("error updating healthmonitor: %s", err.Error())
 			return err
 		}
 		hm.Status.Conditions = controllerutils.SetCondition(hm.Status.Conditions, metav1.Condition{
@@ -193,40 +203,40 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 			Reason:             "Updated",
 			Message:            "HealthMonitor updated successfully on Avi Controller",
 		})
-		utils.AviLog.Infof("succesfully updated healthmonitor:[%s/%s]", hmReq.namespace, hmReq.Name)
+		log.Info("succesfully updated healthmonitor")
 	}
 
 	hm.Status.LastUpdated = &metav1.Time{Time: time.Now().UTC()}
 	hm.Status.ObservedGeneration = hm.Generation
 	if err := r.Status().Update(ctx, hm); err != nil {
-		utils.AviLog.Errorf("unable to update healthmonitor status [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
+		log.Errorf("unable to update healthmonitor status: %s", err.Error())
 		return err
 	}
-
 	return nil
 }
 
 // createHealthMonitor will attempt to create a health monitor, if it already exists, it will return an object which contains the uuid
 func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hmReq *HealthMonitorRequest) (map[string]interface{}, error) {
+	log := utils.LoggerFromContext(ctx)
 	resp := map[string]interface{}{}
 	if err := r.AviClient.AviSession.Post(utils.GetUriEncoded(constants.HealthMonitorURL), hmReq, &resp); err != nil {
-		utils.AviLog.Errorf("error posting healthmonitor: %s", err.Error())
+		log.Errorf("error posting healthmonitor: %s", err.Error())
 		if aviError, ok := err.(session.AviError); ok {
 			if aviError.HttpStatusCode == http.StatusConflict && strings.Contains(aviError.Error(), "already exists") {
-				utils.AviLog.Infof("healthmonitor [%s/%s] already exists. trying to get uuid", hmReq.namespace, hmReq.Name)
+				log.Info("healthmonitor already exists. trying to get uuid")
 				err := r.AviClient.AviSession.Get(utils.GetUriEncoded(fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, hmReq.Name)), &resp)
 				if err != nil {
-					utils.AviLog.Errorf("error getting healthmonitor [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
+					log.Errorf("error getting healthmonitor: %s", err.Error())
 					return nil, err
 				}
 				uuid, err := extractUUID(resp)
 				if err != nil {
-					utils.AviLog.Errorf("error extracting UUID from healthmonitor: [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
+					log.Errorf("error extracting UUID from healthmonitor: %s", err.Error())
 					return nil, err
 				}
-				utils.AviLog.Infof("updating healthmonitor: [%s/%s]", hmReq.namespace, hmReq.Name)
+				log.Info("updating healthmonitor")
 				if err := r.AviClient.AviSession.Put(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.HealthMonitorURL, uuid)), hmReq, &resp); err != nil {
-					utils.AviLog.Errorf("error updating healthmonitor [%s/%s]: %s", hmReq.namespace, hmReq.Name, err.Error())
+					log.Errorf("error updating healthmonitor: %s", err.Error())
 					return nil, err
 				}
 				return resp, nil
@@ -234,7 +244,7 @@ func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hmReq
 		}
 		return nil, err
 	}
-	utils.AviLog.Infof("healthmonitor [%s/%s] succesfully created", hmReq.namespace, hmReq.Name)
+	log.Info("healthmonitor succesfully created")
 	return resp, nil
 }
 
