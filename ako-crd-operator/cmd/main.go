@@ -19,6 +19,8 @@ package main
 import (
 	"context"
 	"flag"
+	"os"
+
 	"github.com/go-logr/zapr"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/event"
@@ -26,7 +28,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -99,11 +100,12 @@ func main() {
 	}
 	utils.AviLog.SetLevel(GetEnvOrDefault("LOG_LEVEL", "INFO"))
 	hmReconciler := &controller.HealthMonitorReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		AviClient: aviClients.AviClient[0],
-		Cache:     cacheManager,
-		Logger:    utils.AviLog.WithName("healthmonitor"),
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		AviClient:     aviClients.AviClient[0],
+		Cache:         cacheManager,
+		EventRecorder: mgr.GetEventRecorderFor("healthmonitor-controller"),
+		Logger:        utils.AviLog.WithName("healthmonitor"),
 	}
 
 	if err = hmReconciler.SetupWithManager(mgr); err != nil {
@@ -113,8 +115,7 @@ func main() {
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "ApplicationProfile")
-		os.Exit(1)
+		setupLog.Fatalf("unable to create controller [ApplicationProfile]. error: %s", err.Error())
 	}
 	// +kubebuilder:scaffold:builder
 
