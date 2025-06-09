@@ -100,11 +100,12 @@ func main() {
 	}
 	utils.AviLog.SetLevel(GetEnvOrDefault("LOG_LEVEL", "INFO"))
 	hmReconciler := &controller.HealthMonitorReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		AviClient: aviClients.AviClient[0],
-		Cache:     cacheManager,
-		Logger:    utils.AviLog.WithName("healthmonitor"),
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		AviClient:     aviClients.AviClient[0],
+		Cache:         cacheManager,
+		EventRecorder: mgr.GetEventRecorderFor("healthmonitor-controller"),
+		Logger:        utils.AviLog.WithName("healthmonitor"),
 	}
 
 	if err = hmReconciler.SetupWithManager(mgr); err != nil {
