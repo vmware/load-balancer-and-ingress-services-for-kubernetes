@@ -199,6 +199,8 @@ type HealthMonitorStatus struct {
 	// Conditions is the list of conditions for the health monitor
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	// BackendObjectName is the name of the backend object
+	BackendObjectName string `json:"backendObjectName,omitempty"`
 }
 
 // +genclient

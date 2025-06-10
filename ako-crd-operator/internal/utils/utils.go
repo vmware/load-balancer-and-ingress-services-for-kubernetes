@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/vmware/alb-sdk/go/models"
 	"github.com/vmware/alb-sdk/go/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -138,4 +139,33 @@ func SetCondition(conditions []metav1.Condition, newCondition metav1.Condition) 
 	}
 	// Add new condition
 	return append(conditions, newCondition)
+}
+
+// createMarkers creates markers for the health monitor with cluster name and namespace
+func CreateMarkers(clusterName, namespace string) []*models.RoleFilterMatchLabel {
+	markers := []*models.RoleFilterMatchLabel{}
+
+	// Add cluster name marker
+
+	if clusterName != "" {
+		clusterNameKey := "clustername"
+		clusterMarker := &models.RoleFilterMatchLabel{
+			Key:    &clusterNameKey,
+			Values: []string{clusterName},
+		}
+		markers = append(markers, clusterMarker)
+	}
+
+	// Add namespace marker
+
+	if namespace != "" {
+		namespaceKey := "namespace"
+		namespaceMarker := &models.RoleFilterMatchLabel{
+			Key:    &namespaceKey,
+			Values: []string{namespace},
+		}
+		markers = append(markers, namespaceMarker)
+	}
+
+	return markers
 }

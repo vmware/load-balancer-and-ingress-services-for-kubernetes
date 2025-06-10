@@ -93,12 +93,13 @@ func main() {
 
 	sessionManager.CreateAviClients(ctx, 1)
 	aviClients := sessionManager.GetAviClients()
-
-	cacheManager := cache.NewCache(sessionManager)
+	clusterName := os.Getenv("CLUSTER_NAME")
+	cacheManager := cache.NewCache(sessionManager, clusterName)
 	if err := cacheManager.PopulateCache(ctx, constants.HealthMonitorURL); err != nil {
 		setupLog.Fatalf("unable to populate cacheManager. error: %s", err.Error())
 	}
 	utils.AviLog.SetLevel(GetEnvOrDefault("LOG_LEVEL", "INFO"))
+
 	hmReconciler := &controller.HealthMonitorReconciler{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
@@ -106,6 +107,7 @@ func main() {
 		Cache:         cacheManager,
 		EventRecorder: mgr.GetEventRecorderFor("healthmonitor-controller"),
 		Logger:        utils.AviLog.WithName("healthmonitor"),
+		ClusterName:   clusterName,
 	}
 
 	if err = hmReconciler.SetupWithManager(mgr); err != nil {

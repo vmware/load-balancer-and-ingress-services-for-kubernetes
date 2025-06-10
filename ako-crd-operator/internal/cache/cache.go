@@ -3,17 +3,19 @@ package cache
 import (
 	"context"
 	"encoding/json"
-	avisession "github.com/vmware/alb-sdk/go/session"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"strconv"
 	"sync"
 	"time"
+
+	avisession "github.com/vmware/alb-sdk/go/session"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 type cache struct {
-	dataStore sync.Map
-	session   *session.Session
+	dataStore   sync.Map
+	session     *session.Session
+	clusterName string
 }
 
 type CacheOperation interface {
@@ -21,10 +23,12 @@ type CacheOperation interface {
 	GetObjectByUUID(context.Context, string) (dataMap, bool)
 }
 
-func NewCache(session *session.Session) CacheOperation {
+func NewCache(session *session.Session, clusterName string) CacheOperation {
 	return &cache{
-		dataStore: sync.Map{},
-		session:   session}
+		dataStore:   sync.Map{},
+		session:     session,
+		clusterName: clusterName,
+	}
 }
 
 type dataMap map[string]interface{}
@@ -47,7 +51,13 @@ func (c *cache) PopulateCache(ctx context.Context, urls ...string) error {
 	setDefaultTenant := avisession.SetTenant("admin")
 	defer setDefaultTenant(aviSession)
 
-	params := avisession.SetParams(map[string]string{"fields": "_last_modified,uuid", "page_size": "100"})
+	params := avisession.SetParams(map[string]string{
+		"fields":      "_last_modified,uuid",
+		"page_size":   "100",
+		"label_key":   "clustername",
+		"label_value": c.clusterName,
+	},
+	)
 	for _, url := range urls {
 		for url != "" {
 			dataList := []map[string]interface{}{}

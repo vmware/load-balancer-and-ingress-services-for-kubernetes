@@ -227,6 +227,9 @@ spec:
           status:
             description: Status defines the observed state of HealthMonitor
             properties:
+              backendObjectName:
+                description: BackendObjectName is the name of the backend object
+                type: string
               conditions:
                 description: Conditions is the list of conditions for the health monitor
                 items:
