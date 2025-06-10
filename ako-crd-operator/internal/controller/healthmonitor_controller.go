@@ -31,7 +31,7 @@ import (
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
-	ctrlutils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
+	controllerutils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
@@ -112,6 +112,12 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, nil
 	}
 	if err := r.ReconcileIfRequired(ctx, hm); err != nil {
+		// Check if the error is retryable
+		if !controllerutils.IsRetryableError(err) {
+			// Update status with non-retryable error condition and don't return error (to avoid requeue)
+			controllerutils.UpdateStatusWithNonRetryableError(ctx, r, hm, err, "HealthMonitor")
+			return ctrl.Result{}, nil
+		}
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
@@ -131,7 +137,12 @@ func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alp
 	log := utils.LoggerFromContext(ctx)
 	if hm.Status.UUID != "" {
 		if err := r.AviClient.HealthMonitor.Delete(hm.Status.UUID); err != nil {
-			log.Errorf("error deleting healthmonitor:%s", err.Error())
+			// Handle 404 as success case - object doesn't exist, which is the desired state for delete
+			if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 404 {
+				log.Info("HealthMonitor not found on Avi Controller (404), treating as successful deletion")
+				return nil
+			}
+			log.Errorf("error deleting healthmonitor: %s", err.Error())
 			r.EventRecorder.Event(hm, corev1.EventTypeWarning, "DeletionFailed", fmt.Sprintf("Failed to delete HealthMonitor from Avi Controller: %v", err))
 			return err
 		}
@@ -149,7 +160,7 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 	hmReq := &HealthMonitorRequest{
 		Name:              fmt.Sprintf("%s-%s-%s", r.ClusterName, hm.Namespace, hm.Name),
 		HealthMonitorSpec: hm.Spec,
-		Markers:           ctrlutils.CreateMarkers(r.ClusterName, hm.Namespace),
+		Markers:           controllerutils.CreateMarkers(r.ClusterName, hm.Namespace),
 	}
 
 	// this is a POST Call
@@ -167,6 +178,13 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 			return err
 		}
 		hm.Status.UUID = uuid
+		hm.Status.Conditions = controllerutils.SetCondition(hm.Status.Conditions, metav1.Condition{
+			Type:               "Ready",
+			Status:             metav1.ConditionTrue,
+			LastTransitionTime: metav1.Now(),
+			Reason:             "Created",
+			Message:            "HealthMonitor created successfully on Avi Controller",
+		})
 		r.EventRecorder.Event(hm, corev1.EventTypeNormal, "Created", "HealthMonitor created successfully on Avi Controller")
 	} else {
 		// this is a PUT Call
@@ -190,6 +208,13 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 			r.EventRecorder.Event(hm, corev1.EventTypeWarning, "UpdateFailed", fmt.Sprintf("Failed to update HealthMonitor on Avi Controller: %v", err))
 			return err
 		}
+		hm.Status.Conditions = controllerutils.SetCondition(hm.Status.Conditions, metav1.Condition{
+			Type:               "Ready",
+			Status:             metav1.ConditionTrue,
+			LastTransitionTime: metav1.Now(),
+			Reason:             "Updated",
+			Message:            "HealthMonitor updated successfully on Avi Controller",
+		})
 		r.EventRecorder.Event(hm, corev1.EventTypeNormal, "Updated", "HealthMonitor updated successfully on Avi Controller")
 		log.Info("succesfully updated healthmonitor")
 	}

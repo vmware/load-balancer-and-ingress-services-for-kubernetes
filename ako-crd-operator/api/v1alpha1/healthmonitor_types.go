@@ -188,11 +188,17 @@ type HTTPMonitor struct {
 // HealthMonitorStatus defines the observed state of HealthMonitor
 type HealthMonitorStatus struct {
 	// UUID is unique identifier of the health monitor object
-	UUID string `json:"uuid"`
+	// +optional
+	UUID string `json:"uuid,omitempty"`
 	// ObservedGeneration is the observed generation by the operator
+	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 	// LastUpdated is the timestamp the object was last updated
-	LastUpdated *metav1.Time `json:"lastUpdated"`
+	// +optional
+	LastUpdated *metav1.Time `json:"lastUpdated,omitempty"`
+	// Conditions is the list of conditions for the health monitor
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 	// BackendObjectName is the name of the backend object
 	BackendObjectName string `json:"backendObjectName,omitempty"`
 }
@@ -229,4 +235,26 @@ type HealthMonitorList struct {
 
 func init() {
 	SchemeBuilder.Register(&HealthMonitor{}, &HealthMonitorList{})
+}
+
+// Methods to implement ResourceWithStatus interface
+
+// SetConditions sets the conditions in the status
+func (hm *HealthMonitor) SetConditions(conditions []metav1.Condition) {
+	hm.Status.Conditions = conditions
+}
+
+// GetConditions returns the conditions from the status
+func (hm *HealthMonitor) GetConditions() []metav1.Condition {
+	return hm.Status.Conditions
+}
+
+// SetObservedGeneration sets the observed generation in the status
+func (hm *HealthMonitor) SetObservedGeneration(generation int64) {
+	hm.Status.ObservedGeneration = generation
+}
+
+// SetLastUpdated sets the last updated timestamp in the status
+func (hm *HealthMonitor) SetLastUpdated(time *metav1.Time) {
+	hm.Status.LastUpdated = time
 }
