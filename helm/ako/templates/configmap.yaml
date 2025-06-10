@@ -3,6 +3,8 @@ kind: ConfigMap
 metadata:
   name: avi-k8s-config
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ako.labels" . | nindent 4 }}
 data:
   primaryInstance: {{ .Values.AKOSettings.primaryInstance | quote }}
   controllerIP: {{ .Values.ControllerSettings.controllerHost | quote }}
@@ -56,5 +58,5 @@ data:
   istioEnabled: {{ .Values.AKOSettings.istioEnabled | quote }}
   useDefaultSecretsOnly: {{ .Values.AKOSettings.useDefaultSecretsOnly | quote }}
   enablePrometheus: {{ default "false" .Values.featureGates.EnablePrometheus | quote }}
-  enableEndpointSlice: {{ default "false" .Values.featureGates.EnableEndpointSlice | quote }} 
+  enableEndpointSlice: {{ default "false" .Values.featureGates.EnableEndpointSlice | quote }}
   fqdnReusePolicy: {{ default "InterNamespaceAllowed" .Values.L7Settings.fqdnReusePolicy | quote}}
