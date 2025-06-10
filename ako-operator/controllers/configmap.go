@@ -290,6 +290,8 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 	}
 	cm.Data[UseDefaultSecretsOnly] = useDefaultSecretsOnly
 
+	cm.Data[VPCMode] = strconv.FormatBool(ako.Spec.AKOSettings.VPCMode)
+
 	return cm, nil
 }
 

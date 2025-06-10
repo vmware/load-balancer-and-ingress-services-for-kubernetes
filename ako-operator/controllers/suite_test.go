@@ -214,7 +214,11 @@ func TestConfigmap(t *testing.T) {
 
 	t.Log("updating useDefaultSecretsOnly and verifying")
 	akoConfig.Spec.AKOSettings.UseDefaultSecretsOnly = true
-	buildConfigMapAndVerify(cmBlockedNamespaceList, akoConfig, true, false, t)
+	cmUseDefaultSecretsOnly := buildConfigMapAndVerify(cmBlockedNamespaceList, akoConfig, true, false, t)
+
+	t.Log("updating vpcMode and verifying")
+	akoConfig.Spec.AKOSettings.VPCMode = true
+	buildConfigMapAndVerify(cmUseDefaultSecretsOnly, akoConfig, true, false, t)
 }
 
 func TestStatefulset(t *testing.T) {

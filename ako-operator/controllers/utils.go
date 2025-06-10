@@ -69,6 +69,7 @@ const (
 	IPFamily               = "ipFamily"
 	EnableMCI              = "enableMCI"
 	UseDefaultSecretsOnly  = "useDefaultSecretsOnly"
+	VPCMode                = "vpcMode"
 )
 
 var ConfigMapEnvVars = map[string]string{
@@ -106,6 +107,7 @@ var ConfigMapEnvVars = map[string]string{
 	"BLOCKED_NS_LIST":            BlockedNamespaceList,
 	"VIP_PER_NAMESPACE":          VipPerNamespace,
 	"USE_DEFAULT_SECRETS_ONLY":   UseDefaultSecretsOnly,
+	"VPC_MODE":                   VPCMode,
 }
 
 var ConfigMapEnvVarsGateway = map[string]string{

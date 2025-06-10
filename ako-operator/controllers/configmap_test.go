@@ -73,7 +73,8 @@ var cmJson = `
 		"ipFamily": "V4",
 		"istioEnabled": "false",
 		"blockedNamespaceList": "[]",
-		"useDefaultSecretsOnly": "false"
+		"useDefaultSecretsOnly": "false",
+		"vpcMode": "false"
 	}
 }
 `
