@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-logr/logr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
@@ -46,11 +45,6 @@ type AviLogger struct {
 	logger *zap.Logger // Sugar is obtained from this logger
 	// Sugaring a Logger is quite inexpensive, so it's reasonable for a single application to use both Loggers and SugaredLoggers, converting between them on the boundaries of performance-sensitive code.
 	atom zap.AtomicLevel
-}
-
-// Init implements logr.LogSink.
-func (*AviLogger) Init(info logr.RuntimeInfo) {
-	// Not used
 }
 
 func (aviLogger *AviLogger) Infof(template string, args ...interface{}) {
@@ -98,13 +92,6 @@ func (aviLogger *AviLogger) SetLevel(l string) {
 	aviLogger.atom.SetLevel(LogLevelMap[l])
 }
 
-//	func (aviLogger AviLogger) Enabled(level int) bool {
-//		return aviLogger.Sugar != nil
-//	}
-//
-//	func (aviLogger AviLogger) V(level int) logr.LogSink {
-//		return aviLogger
-//	}
 func (aviLogger *AviLogger) WithValues(keysAndValues ...interface{}) *AviLogger {
 	return &AviLogger{Sugar: aviLogger.Sugar.With(keysAndValues...)}
 }
