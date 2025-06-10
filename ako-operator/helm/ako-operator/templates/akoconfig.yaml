@@ -33,6 +33,7 @@ spec:
     istioEnabled: {{ .Values.AKOSettings.istioEnabled }}
     ipFamily: {{ .Values.AKOSettings.ipFamily | quote}}
     useDefaultSecretsOnly: {{ .Values.AKOSettings.useDefaultSecretsOnly }}
+    vpcMode: {{ .Values.AKOSettings.vpcMode }}
 {{- with .Values.AKOSettings.blockedNamespaceList }}
     blockedNamespaceList:
 {{- toYaml . | nindent 4 }}

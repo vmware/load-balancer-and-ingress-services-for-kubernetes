@@ -3762,8 +3762,13 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 	// 1. Prioritize user input vipetworkList, skip marker based selection if provided.
 	// 2. If not provided, check for markers in ipam's usable networks.
 	// 3. If marker based usable network is not available, keep vipNetworkList empty.
-	// 4. vipNetworkList can be empty only in WCP usecases, for all others, mark invalid configuration.
-	var ret_err error
+	// 4. vipNetworkList can be empty only in WCP and VPC_MODE usecases, for all others, mark invalid configuration.
+
+	if lib.GetVPCMode() {
+		utils.SetVipNetworkList([]akov1beta1.AviInfraSettingVipNetwork{})
+		return true, nil
+	}
+
 	// 1. User input
 	if vipList, err := lib.GetVipNetworkListEnv(); err != nil {
 		return false, fmt.Errorf("error in getting VIP network %s, shutting down AKO", err)
@@ -3775,9 +3780,11 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 			if lib.GetCloudType() == lib.CLOUD_VCENTER {
 				segMgmtNetwork = GetCMSEGManagementNetwork(client)
 			}
-			vipListUpdated, ret_err = PopulateVipNetworkwithUUID(segMgmtNetwork, client, vipList)
+
+			var err error
+			vipListUpdated, err = PopulateVipNetworkwithUUID(segMgmtNetwork, client, vipList)
 			if len(vipListUpdated) == 0 {
-				return false, ret_err
+				return false, err
 			}
 		}
 		utils.SetVipNetworkList(vipListUpdated)
