@@ -19,10 +19,10 @@ limitations under the License.
 package v1beta1
 
 import (
-	v1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/tools/cache"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // HTTPRuleLister helps list HTTPRules.
@@ -30,7 +30,7 @@ import (
 type HTTPRuleLister interface {
 	// List lists all HTTPRules in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1beta1.HTTPRule, err error)
+	List(selector labels.Selector) (ret []*akov1beta1.HTTPRule, err error)
 	// HTTPRules returns an object that can list and get HTTPRules.
 	HTTPRules(namespace string) HTTPRuleNamespaceLister
 	HTTPRuleListerExpansion
@@ -38,25 +38,17 @@ type HTTPRuleLister interface {
 
 // hTTPRuleLister implements the HTTPRuleLister interface.
 type hTTPRuleLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*akov1beta1.HTTPRule]
 }
 
 // NewHTTPRuleLister returns a new HTTPRuleLister.
 func NewHTTPRuleLister(indexer cache.Indexer) HTTPRuleLister {
-	return &hTTPRuleLister{indexer: indexer}
-}
-
-// List lists all HTTPRules in the indexer.
-func (s *hTTPRuleLister) List(selector labels.Selector) (ret []*v1beta1.HTTPRule, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1beta1.HTTPRule))
-	})
-	return ret, err
+	return &hTTPRuleLister{listers.New[*akov1beta1.HTTPRule](indexer, akov1beta1.Resource("httprule"))}
 }
 
 // HTTPRules returns an object that can list and get HTTPRules.
 func (s *hTTPRuleLister) HTTPRules(namespace string) HTTPRuleNamespaceLister {
-	return hTTPRuleNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return hTTPRuleNamespaceLister{listers.NewNamespaced[*akov1beta1.HTTPRule](s.ResourceIndexer, namespace)}
 }
 
 // HTTPRuleNamespaceLister helps list and get HTTPRules.
@@ -64,36 +56,15 @@ func (s *hTTPRuleLister) HTTPRules(namespace string) HTTPRuleNamespaceLister {
 type HTTPRuleNamespaceLister interface {
 	// List lists all HTTPRules in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1beta1.HTTPRule, err error)
+	List(selector labels.Selector) (ret []*akov1beta1.HTTPRule, err error)
 	// Get retrieves the HTTPRule from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1beta1.HTTPRule, error)
+	Get(name string) (*akov1beta1.HTTPRule, error)
 	HTTPRuleNamespaceListerExpansion
 }
 
 // hTTPRuleNamespaceLister implements the HTTPRuleNamespaceLister
 // interface.
 type hTTPRuleNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all HTTPRules in the indexer for a given namespace.
-func (s hTTPRuleNamespaceLister) List(selector labels.Selector) (ret []*v1beta1.HTTPRule, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1beta1.HTTPRule))
-	})
-	return ret, err
-}
-
-// Get retrieves the HTTPRule from the indexer for a given namespace and name.
-func (s hTTPRuleNamespaceLister) Get(name string) (*v1beta1.HTTPRule, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1beta1.Resource("httprule"), name)
-	}
-	return obj.(*v1beta1.HTTPRule), nil
+	listers.ResourceIndexer[*akov1beta1.HTTPRule]
 }

@@ -159,4 +159,8 @@ type HostRuleAnalyticsPolicy struct {
 type FullClientLogs struct {
 	Enabled  *bool  `json:"enabled,omitempty"`
 	Throttle string `json:"throttle,omitempty"`
+
+	// How long should the system capture Non-significant logs, measured in minutes.
+	// Set to 0 for infinite. Special values are 0 - infinite. Unit is MIN.
+	Duration *uint32 `json:"duration,omitempty"`
 }
