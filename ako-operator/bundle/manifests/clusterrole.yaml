@@ -41,7 +41,7 @@ rules:
   resources: ["routes", "routes/status"]
   verbs: ["create", "delete", "get", "watch", "list", "patch", "update"]
 - apiGroups: ["ako.vmware.com"]
-  resources: ["hostrules", "hostrules/status", "hostrules/finalizers", "httprules", "httprules/status", "httprules/finalizers", "aviinfrasettings", "aviinfrasettings/status", "aviinfrasettings/finalizers", "l4rules", "l4rules/status", "l4rules/finalizers", "ssorules", "ssorules/status", "ssorules/finalizers"]
+  resources: ["hostrules", "hostrules/status", "hostrules/finalizers", "httprules", "httprules/status", "httprules/finalizers", "aviinfrasettings", "aviinfrasettings/status", "aviinfrasettings/finalizers", "l4rules", "l4rules/status", "l4rules/finalizers", "ssorules", "ssorules/status", "ssorules/finalizers", "l7rules", "l7rules/status", "l7rules/finalizers"]
   verbs: ["create", "delete", "get", "watch", "list", "patch", "update"]
 - apiGroups: ["apiextensions.k8s.io"]
   resources: ["customresourcedefinitions", "customresourcedefinitions/status", "customresourcedefinitions/finalizers"]

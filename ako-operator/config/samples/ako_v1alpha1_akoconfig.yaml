@@ -6,7 +6,7 @@ metadata:
   name: ako-sample
   namespace: avi-system
 spec:
-  imageRepository: projects.packages.broadcom.com/ako/ako:1.11.1
+  imageRepository: projects.packages.broadcom.com/ako/ako:1.12.3
   imagePullPolicy: "IfNotPresent"
   imagePullSecrets: []
   replicaCount: 1 # Defines the number of replicas for AKO Statefulset
@@ -71,6 +71,7 @@ spec:
   l4Settings:
     defaultDomain: "" # If multiple sub-domains are configured in the cloud, use this knob to set the default sub-domain to use for L4 VSes.
     autoFQDN: "default" # ENUM: default(<svc>.<ns>.<subdomain>), flat (<svc>-<ns>.<subdomain>), "disabled" If the value is disabled then the FQDN generation is disabled.
+    defaultLBController: true # DefaultLBController enables ako to check if it is the default LoadBalancer controller.
 
 
   controllerSettings:
@@ -79,6 +80,7 @@ spec:
     cloudName: "Default-Cloud" # The configured cloud name on the Avi controller.
     controllerIP: "" # IP address or Hostname of Avi Controller
     tenantName: "admin" # Name of the tenant where all the AKO objects will be created in AVI.
+    vrfName: "" # Name of the VRFContext. All Avi objects will be under this VRF. Applicable only in Vcenter Cloud.
 
 
   nodePortSelector: # only applicable if servicetype is nodePort
@@ -101,8 +103,9 @@ spec:
   logFile: "avi.log"
   featureGates:
     gatewayAPI: true
+    enablePrometheus: false # EnablePrometheus enables/disables prometheus scraping for AKO container
   gatewayAPI:
     image:
-      repository: "projects.packages.broadcom.com/ako/ako-gateway-api:1.11.1"
+      repository: "projects.packages.broadcom.com/ako/ako-gateway-api:1.12.3"
       pullPolicy: "IfNotPresent"
   akoGatewayLogFile: "avi-gw.log"
