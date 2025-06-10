@@ -187,16 +187,14 @@ type HTTPMonitor struct {
 
 // HealthMonitorStatus defines the observed state of HealthMonitor
 type HealthMonitorStatus struct {
-	// Status of the healthmonitor
-	Status string `json:"status,omitempty"`
-	// Error if any error was encountered
-	Error string `json:"error"`
 	// UUID is unique identifier of the health monitor object
 	UUID string `json:"uuid"`
 	// ObservedGeneration is the observed generation by the operator
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 	// LastUpdated is the timestamp the object was last updated
 	LastUpdated *metav1.Time `json:"lastUpdated"`
+	// BackendObjectName is the name of the backend object
+	BackendObjectName string `json:"backendObjectName,omitempty"`
 }
 
 // +genclient

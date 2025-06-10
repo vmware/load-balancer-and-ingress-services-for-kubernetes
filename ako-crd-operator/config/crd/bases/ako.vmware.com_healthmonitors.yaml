@@ -227,8 +227,8 @@ spec:
           status:
             description: Status defines the observed state of HealthMonitor
             properties:
-              error:
-                description: Error if any error was encountered
+              backendObjectName:
+                description: BackendObjectName is the name of the backend object
                 type: string
               lastUpdated:
                 description: LastUpdated is the timestamp the object was last updated
@@ -239,14 +239,10 @@ spec:
                   operator
                 format: int64
                 type: integer
-              status:
-                description: Status of the healthmonitor
-                type: string
               uuid:
                 description: UUID is unique identifier of the health monitor object
                 type: string
             required:
-            - error
             - lastUpdated
             - uuid
             type: object

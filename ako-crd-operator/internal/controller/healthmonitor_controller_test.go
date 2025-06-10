@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"os"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -28,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
+	ctrlutils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
 )
 
 var _ = Describe("HealthMonitor Controller", func() {
@@ -79,6 +81,69 @@ var _ = Describe("HealthMonitor Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
 			// Example: If you expect a certain status condition after reconciliation, verify it here.
+		})
+	})
+
+	Context("When creating markers", func() {
+		It("should create markers with cluster name and namespace", func() {
+			// Set environment variable for cluster name
+			originalClusterName := os.Getenv("CLUSTER_NAME")
+			defer os.Setenv("CLUSTER_NAME", originalClusterName)
+			os.Setenv("CLUSTER_NAME", "test-cluster")
+
+			markers := ctrlutils.CreateMarkers(originalClusterName, "test-namespace")
+
+			Expect(markers).To(HaveLen(2))
+
+			// Check cluster name marker
+			found := false
+			for _, marker := range markers {
+				if *marker.Key == "clustername" {
+					Expect(marker.Values).To(Equal([]string{"test-cluster"}))
+					found = true
+					break
+				}
+			}
+			Expect(found).To(BeTrue(), "clustername marker should be present")
+
+			// Check namespace marker
+			found = false
+			for _, marker := range markers {
+				if *marker.Key == "namespace" {
+					Expect(marker.Values).To(Equal([]string{"test-namespace"}))
+					found = true
+					break
+				}
+			}
+			Expect(found).To(BeTrue(), "namespace marker should be present")
+		})
+
+		It("should handle missing cluster name environment variable", func() {
+			// Unset environment variable for cluster name
+			originalClusterName := os.Getenv("CLUSTER_NAME")
+			defer os.Setenv("CLUSTER_NAME", originalClusterName)
+			os.Unsetenv("CLUSTER_NAME")
+
+			markers := ctrlutils.CreateMarkers("", "test-namespace")
+
+			// Should only have namespace marker since cluster name is not set
+			Expect(markers).To(HaveLen(1))
+			Expect(*markers[0].Key).To(Equal("namespace"))
+			Expect(markers[0].Values).To(Equal([]string{"test-namespace"}))
+		})
+
+		It("should handle empty namespace", func() {
+			// Set environment variable for cluster name
+			originalClusterName := os.Getenv("CLUSTER_NAME")
+			defer os.Setenv("CLUSTER_NAME", originalClusterName)
+			os.Setenv("CLUSTER_NAME", "test-cluster")
+
+			markers := ctrlutils.CreateMarkers("", "")
+
+			// Should only have cluster name marker since namespace is empty
+			Expect(markers).To(HaveLen(1))
+			Expect(*markers[0].Key).To(Equal("clustername"))
+			Expect(markers[0].Values).To(Equal([]string{"test-cluster"}))
 		})
 	})
 })

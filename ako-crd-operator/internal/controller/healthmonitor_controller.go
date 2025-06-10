@@ -21,13 +21,17 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/alb-sdk/go/models"
 	"github.com/vmware/alb-sdk/go/session"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
+	ctrlutils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
@@ -38,9 +42,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-
-	"strings"
-	"time"
 )
 
 // HealthMonitorReconciler reconciles a HealthMonitor object
@@ -51,13 +52,13 @@ type HealthMonitorReconciler struct {
 	Cache         cache.CacheOperation
 	EventRecorder record.EventRecorder
 	Logger        *utils.AviLogger
+	ClusterName   string
 }
 
 type HealthMonitorRequest struct {
 	Name string `json:"name"`
 	akov1alpha1.HealthMonitorSpec
-
-	namespace string
+	Markers []*models.RoleFilterMatchLabel `json:"markers,omitempty"`
 }
 
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=healthmonitors,verbs=get;list;watch;create;update;patch;delete
@@ -144,11 +145,13 @@ func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alp
 // TODO: Make this function generic
 func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *akov1alpha1.HealthMonitor) error {
 	log := utils.LoggerFromContext(ctx)
+
 	hmReq := &HealthMonitorRequest{
-		hm.Name,
-		hm.Spec,
-		hm.Namespace,
+		Name:              fmt.Sprintf("%s-%s-%s", r.ClusterName, hm.Namespace, hm.Name),
+		HealthMonitorSpec: hm.Spec,
+		Markers:           ctrlutils.CreateMarkers(r.ClusterName, hm.Namespace),
 	}
+
 	// this is a POST Call
 	if hm.Status.UUID == "" {
 		resp, err := r.createHealthMonitor(ctx, hmReq)
@@ -190,7 +193,7 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 		r.EventRecorder.Event(hm, corev1.EventTypeNormal, "Updated", "HealthMonitor updated successfully on Avi Controller")
 		log.Info("succesfully updated healthmonitor")
 	}
-
+	hm.Status.BackendObjectName = hmReq.Name
 	hm.Status.LastUpdated = &metav1.Time{Time: time.Now().UTC()}
 	hm.Status.ObservedGeneration = hm.Generation
 	if err := r.Status().Update(ctx, hm); err != nil {
