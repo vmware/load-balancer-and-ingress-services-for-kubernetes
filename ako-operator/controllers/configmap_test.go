@@ -74,6 +74,7 @@ var cmJson = `
 		"istioEnabled": "false",
 		"blockedNamespaceList": "[]",
 		"useDefaultSecretsOnly": "false",
+		"vpcMode": "false",
 		"defaultLBController": "true",
 		"vrfName": "",
 		"enablePrometheus": "false"

@@ -55,6 +55,7 @@ data:
   ipFamily: {{ .Values.AKOSettings.ipFamily | quote }}
   istioEnabled: {{ .Values.AKOSettings.istioEnabled | quote }}
   useDefaultSecretsOnly: {{ .Values.AKOSettings.useDefaultSecretsOnly | quote }}
+  vpcMode: {{ .Values.AKOSettings.vpcMode | quote }}
   enablePrometheus: {{ default "false" .Values.featureGates.EnablePrometheus | quote }}
   enableEndpointSlice: {{ default "false" .Values.featureGates.EnableEndpointSlice | quote }} 
   fqdnReusePolicy: {{ default "InterNamespaceAllowed" .Values.L7Settings.fqdnReusePolicy | quote}}
