@@ -14,18 +14,21 @@ import (
 
 // properties used for naming the dependent artifacts
 const (
-	StatefulSetName    = "ako"
-	ServiceAccountName = "ako-sa"
-	ServiceName        = "ako"
-	ConfigMapName      = "avi-k8s-config"
-	AviSystemNS        = "avi-system"
-	AKOCR              = "ako-cr"
-	CRBName            = "ako-crb"
-	AKOServiceAccount  = "ako-sa"
-	PSPName            = "ako"
-	AviSecretName      = "avi-secret"
-	GWClassName        = "avi-lb"
-	GWClassController  = "ako.vmware.com/avi-lb"
+	StatefulSetName            = "ako"
+	ServiceAccountName         = "ako-sa"
+	ServiceName                = "ako"
+	ConfigMapName              = "avi-k8s-config"
+	AviSystemNS                = "avi-system"
+	AKOCR                      = "ako-cr"
+	CRBName                    = "ako-crb"
+	AKOServiceAccount          = "ako-sa"
+	PSPName                    = "ako"
+	AviSecretName              = "avi-secret"
+	GWClassName                = "avi-lb"
+	GWClassController          = "ako.vmware.com/avi-lb"
+	PrometheusScrapeAnnotation = "prometheus.io/scrape"
+	PrometheusPortAnnotation   = "prometheus.io/port"
+	PrometheusPathAnnotation   = "prometheus.io/path"
 )
 
 // below properties are applicable to a configmap object for AKO controller
@@ -70,6 +73,9 @@ const (
 	EnableMCI              = "enableMCI"
 	UseDefaultSecretsOnly  = "useDefaultSecretsOnly"
 	VPCMode                = "vpcMode"
+	DefaultLBController    = "defaultLBController"
+	VRFName                = "vrfName"
+	EnablePrometheus       = "enablePrometheus"
 )
 
 var ConfigMapEnvVars = map[string]string{
@@ -108,6 +114,9 @@ var ConfigMapEnvVars = map[string]string{
 	"VIP_PER_NAMESPACE":          VipPerNamespace,
 	"USE_DEFAULT_SECRETS_ONLY":   UseDefaultSecretsOnly,
 	"VPC_MODE":                   VPCMode,
+	"VRF_NAME":                   VRFName,
+	"DEFAULT_LB_CONTROLLER":      DefaultLBController,
+	"PROMETHEUS_ENABLED":         EnablePrometheus,
 }
 
 var ConfigMapEnvVarsGateway = map[string]string{
@@ -119,6 +128,14 @@ var ConfigMapEnvVarsGateway = map[string]string{
 	"SEG_NAME":           ServiceEngineGroupName,
 	"TENANT_NAME":        TenantName,
 	"PRIMARY_AKO_FLAG":   PrimaryInstance,
+	"CNI_PLUGIN":         CniPlugin,
+	"ENABLE_RHI":         EnableRHI,
+	"NODE_NETWORK_LIST":  NodeNetworkList,
+	"BGP_PEER_LABELS":    BgpPeerLabels,
+	"VIP_NETWORK_LIST":   VipNetworkList,
+	"SERVICE_TYPE":       ServiceType,
+	"NODE_KEY":           NodeKey,
+	"NODE_VALUE":         NodeValue,
 }
 
 func getSFNamespacedName() types.NamespacedName {
@@ -225,7 +242,7 @@ func isSfUpdateRequired(existingSf appsv1.StatefulSet, newSf appsv1.StatefulSet)
 		if !isEnvListEqual(existingEnv, newEnv) {
 			return true
 		}
-		if !reflect.DeepEqual(akoContainer.Ports, newAKOContainer.Ports) {
+		if len(akoContainer.Ports) != len(newAKOContainer.Ports) || (len(akoContainer.Ports) != 0 && !reflect.DeepEqual(akoContainer.Ports, newAKOContainer.Ports)) {
 			return true
 		}
 		if !reflect.DeepEqual(akoContainer.Resources, newAKOContainer.Resources) {
@@ -335,6 +352,12 @@ func getEnvVars(ako akov1alpha1.AKOConfig, aviSecret v1.Secret) []v1.EnvVar {
 func getEnvVarsForGateway(ako akov1alpha1.AKOConfig) []v1.EnvVar {
 	envVars := []v1.EnvVar{}
 	for k, v := range ConfigMapEnvVarsGateway {
+		if k == "NODE_KEY" || k == "NODE_VALUE" {
+			// see if this is present in the ako spec
+			if string(ako.Spec.L7Settings.ServiceType) != "NodePort" {
+				continue
+			}
+		}
 		envVar := v1.EnvVar{
 			Name: k,
 			ValueFrom: &v1.EnvVarSource{

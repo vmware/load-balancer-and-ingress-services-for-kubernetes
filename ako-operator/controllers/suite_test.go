@@ -84,8 +84,9 @@ func getTestDefaultAKOConfig() akov1alpha1.AKOConfig {
 		},
 
 		L4Settings: akov1alpha1.L4Settings{
-			DefaultDomain: "test.com",
-			AutoFQDN:      "default",
+			DefaultDomain:       "test.com",
+			AutoFQDN:            "default",
+			DefaultLBController: true,
 		},
 
 		ControllerSettings: akov1alpha1.ControllerSettings{
@@ -94,6 +95,7 @@ func getTestDefaultAKOConfig() akov1alpha1.AKOConfig {
 			CloudName:              "test-cloud",
 			ControllerIP:           "10.10.10.11",
 			TenantName:             "admin",
+			VRFName:                "",
 		},
 
 		NodePortSelector: akov1alpha1.NodePortSelector{
@@ -123,7 +125,10 @@ func getTestDefaultAKOConfig() akov1alpha1.AKOConfig {
 			},
 		},
 		AKOGatewayLogFile: "avi-gw.log",
-		FeatureGates:      akov1alpha1.FeatureGates{GatewayAPI: true},
+		FeatureGates: akov1alpha1.FeatureGates{
+			GatewayAPI:       true,
+			EnablePrometheus: false,
+		},
 		GatewayAPI: akov1alpha1.GatewayAPI{
 			Image: akov1alpha1.Image{
 				PullPolicy: "Always",
@@ -218,7 +223,19 @@ func TestConfigmap(t *testing.T) {
 
 	t.Log("updating vpcMode and verifying")
 	akoConfig.Spec.AKOSettings.VPCMode = true
-	buildConfigMapAndVerify(cmUseDefaultSecretsOnly, akoConfig, true, false, t)
+  cmVPCMode := buildConfigMapAndVerify(cmUseDefaultSecretsOnly, akoConfig, true, false, t)
+
+	t.Log("updating defaultLBController and verifying")
+	akoConfig.Spec.L4Settings.DefaultLBController = false
+	cmDefaultLBController := buildConfigMapAndVerify(cmVPCMode, akoConfig, true, false, t)
+
+	t.Log("updating vrfName and verifying")
+	akoConfig.Spec.ControllerSettings.VRFName = "test-vrf"
+	cmVRFName := buildConfigMapAndVerify(cmDefaultLBController, akoConfig, true, false, t)
+
+	t.Log("updating EnablePrometheus and verifying")
+	akoConfig.Spec.FeatureGates.EnablePrometheus = true
+	buildConfigMapAndVerify(cmVRFName, akoConfig, true, false, t)
 }
 
 func TestStatefulset(t *testing.T) {
@@ -271,4 +288,12 @@ func TestStatefulset(t *testing.T) {
 	t.Log("verifying the removal of ako-gateway-api container from ako sts")
 	lenContainers := len(sfFeatureGate.Spec.Template.Spec.Containers)
 	g.Expect(lenContainers).To(gomega.Equal(1))
+
+	t.Log("updating enablePrometheus feature gate to true and verifying statefulset update")
+	lenPorts := len(sfFeatureGate.Spec.Template.Spec.Containers[0].Ports)
+	g.Expect(lenPorts).To(gomega.Equal(0))
+	akoConfig.Spec.FeatureGates.EnablePrometheus = true
+	sfEnablePrometheus := buildStatefulSetAndVerify(sfFeatureGate, akoConfig, true, false, t)
+	lenPorts = len(sfEnablePrometheus.Spec.Template.Spec.Containers[0].Ports)
+	g.Expect(lenPorts).To(gomega.Equal(1))
 }

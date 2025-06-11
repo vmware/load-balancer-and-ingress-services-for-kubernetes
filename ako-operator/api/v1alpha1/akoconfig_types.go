@@ -105,7 +105,8 @@ type NetworkSettings struct {
 	NodeNetworkList []NodeNetwork `json:"nodeNetworkList,omitempty"`
 	// EnableRHI is a cluster wide setting for BGP peering
 	EnableRHI bool `json:"enableRHI,omitempty"`
-	// T1 Logical Segment mapping for backend network. Only applies to NSX-T cloud.
+	// NsxtT1LR is the unique ID (not display name) of the T1 Logical Router for Service Engine connectivity. Only applies to NSX-T cloud.
+	// For eg : nsxtT1LR: "/infra/tier-1s/avi-t1".
 	NsxtT1LR string `json:"nsxtT1LR,omitempty"`
 	// BGPPeerLabels enable selection of BGP peers, for selective VsVip advertisement.
 	BGPPeerLabels []string `json:"bgpPeerLabels,omitempty"`
@@ -139,6 +140,8 @@ type L4Settings struct {
 	DefaultDomain string `json:"defaultDomain,omitempty"`
 	//Specifies the FQDN pattern - default, flat or disabled
 	AutoFQDN string `json:"autoFQDN,omitempty"`
+	// DefaultLBController enables ako to check if it is the default LoadBalancer controller.
+	DefaultLBController bool `json:"defaultLBController,omitempty"`
 }
 
 // ControllerSettings defines the Avi Controller parameters
@@ -156,6 +159,8 @@ type ControllerSettings struct {
 	TenantsPerCluster bool `json:"tenantsPerCluster,omitempty"`
 	// TenantName is the name of the tenant where all AKO objects will be created in Avi.
 	TenantName string `json:"tenantName,omitempty"`
+	// VRFName is the name of the VRFContext. All Avi objects will be under this VRF. Applicable only in Vcenter Cloud.
+	VRFName string `json:"vrfName,omitempty"`
 }
 
 // NodePortSelector defines the node port settings, to be used only if the serviceTYpe is selected
@@ -195,6 +200,8 @@ type ImagePullSecret struct {
 type FeatureGates struct {
 	// GatewayAPI enables/disables processing of Kubernetes Gateway API CRDs
 	GatewayAPI bool `json:"gatewayAPI,omitempty"`
+	// EnablePrometheus enables/disables prometheus scraping for AKO container
+	EnablePrometheus bool `json:"enablePrometheus,omitempty"`
 }
 
 // GatewayAPI defines settings for AKO Gateway API container

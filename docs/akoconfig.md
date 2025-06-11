@@ -11,7 +11,7 @@ metadata:
   namespace: avi-system
 spec:
   replicaCount: 1
-  imageRepository: projects.packages.broadcom.com/ako/ako:1.13.1
+  imageRepository: projects.packages.broadcom.com/ako/ako:1.12.3
   imagePullPolicy: "IfNotPresent"
   imagePullSecrets:
     - name: regcred
@@ -57,6 +57,7 @@ spec:
   l4Settings:
     defaultDomain: ""
     autoFQDN: "default"
+    defaultLBController: true
 
   controllerSettings:
     serviceEngineGroupName: "Default-Group"
@@ -64,6 +65,7 @@ spec:
     cloudName: "Default-Cloud"
     controllerIP: ""
     tenantName: "admin"
+    vrfName: ""
 
   nodePortSelector:
     key: ""
@@ -85,9 +87,10 @@ spec:
   logFile: "avi.log"
   featureGates:
     gatewayAPI: true
+    enablePrometheus: false
   gatewayAPI:
     image:
-      repository: "projects.packages.broadcom.com/ako/ako-gateway-api:1.13.1"
+      repository: "projects.packages.broadcom.com/ako/ako-gateway-api:1.12.3"
       pullPolicy: "IfNotPresent"
   akoGatewayLogFile: "avi-gw.log"
   ```
@@ -134,6 +137,7 @@ spec:
   - `l4Settings`: Settings for L4 Virtual Services
     * `advancedL4`: Knob to control the settings for the services API usage. Defaults to `false`.
     * `defaultDomain`: If multiple sub-domains are configured in the cloud, use this knob to set the default sub-domain to use for L4 Virtual Services.
+    * `defaultLBController`: DefaultLBController enables ako to check if it is the default LoadBalancer controller. Set to `true` if AKO controller is the default LoadBalancer controller on the cluster.
   - `controllerSettings`: Settings for the AVI Controller
     * `serviceEngineGroupName`: Name of the service engine group.
     * `controllerVersion`: The controller API version.
@@ -151,8 +155,9 @@ spec:
   - `mountPath`: Mount path for the logs.
   - `logFile`: Log file name where the AKO controller will add it's logs.
   - `featureGates`: FeatureGates is to enable or disable experimental features.
-    * `gatewayAPI`: GatewayAPI enables/disables processing of Kubernetes Gateway API CRDs.
     * `enableEndpointSlice`: Enables/Disables processing of EndpointSlices instead of Endpoints.
+    * `gatewayAPI`: GatewayAPI enables/disables processing of Kubernetes Gateway API CRDs. Defaults to `false`.
+    * `enablePrometheus`: EnablePrometheus enables/disables prometheus scraping for AKO container. Defaults to `false`.
   - `gatewayAPI`: GatewayAPI defines settings for AKO Gateway API container. These settings will only be used if **gatewayAPI** feature gate is enabled.
     * `image`: Image defines image related settings for AKO Gateway API container.
   - `akoGatewayLogFile`: AKOGatewayLogFile is the name of the file where ako-gateway-api container will dump its logs. This setting will only be used if **gatewayAPI** feature gate is enabled.
