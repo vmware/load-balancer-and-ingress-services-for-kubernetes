@@ -8,9 +8,11 @@ godebug default=go1.23
 
 require (
 	github.com/go-logr/zapr v1.3.0
+	github.com/golang/mock v1.3.1
 	github.com/google/uuid v1.6.0
 	github.com/onsi/ginkgo/v2 v2.23.3
 	github.com/onsi/gomega v1.37.0
+	github.com/stretchr/testify v1.10.0
 	github.com/vmware/alb-sdk v0.0.0-20250407104238-8f88209a8f1a
 	github.com/vmware/load-balancer-and-ingress-services-for-kubernetes v0.1.0
 	k8s.io/api v0.32.3
@@ -54,6 +56,7 @@ require (
 	github.com/openshift/api v0.0.0-20201019163320-c6a5ec25f267 // indirect
 	github.com/openshift/client-go v0.0.0-20201020082437-7737f16e53fc // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.21.1 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.63.0 // indirect

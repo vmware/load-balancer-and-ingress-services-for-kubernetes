@@ -103,7 +103,7 @@ func main() {
 	hmReconciler := &controller.HealthMonitorReconciler{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
-		AviClient:     aviClients.AviClient[0],
+		AviClient:     session2.NewAviSessionClient(aviClients.AviClient[0]),
 		Cache:         cacheManager,
 		EventRecorder: mgr.GetEventRecorderFor("healthmonitor-controller"),
 		Logger:        utils.AviLog.WithName("healthmonitor"),
