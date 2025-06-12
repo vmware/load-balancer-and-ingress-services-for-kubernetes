@@ -92,25 +92,25 @@ type HTTPApplicationProfile struct {
 	// Insert an X-Forwarded-Proto header in the request sent to the server. When the client connects via SSL, Avi terminates the SSL, and then forwards the requests to the servers via HTTP, so the servers can determine the original protocol via this header. In this example, the value will be 'https'.
 	// +optional
 	XForwardedProtoEnabled bool `json:"x_forwarded_proto_enabled,omitempty"`
-    // The maximum length of time allowed between consecutive read operations for a client request body. The value '0' specifies no timeout. This setting generally impacts the length of time allowed for a client to send a POST.
+	// The maximum length of time allowed between consecutive read operations for a client request body. The value '0' specifies no timeout. This setting generally impacts the length of time allowed for a client to send a POST.
 	// +optional
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100000000
 	// (units) = MILLISECONDS,
-	ClientBodyTimeout      uint32 `json:"client_body_timeout,omitempty"`
-    //"The max idle time allowed between HTTP requests over a Keep-alive connection."
+	ClientBodyTimeout uint32 `json:"client_body_timeout,omitempty"`
+	//"The max idle time allowed between HTTP requests over a Keep-alive connection."
 	// +optional
 	// +kubebuilder:validation:Minimum=10
 	// +kubebuilder:validation:Maximum=100000000
 	// (units) = MILLISECONDS,
-	KeepaliveTimeout       uint32 `json:"keepalive_timeout,omitempty"`
+	KeepaliveTimeout uint32 `json:"keepalive_timeout,omitempty"`
 	// Use 'Keep-Alive' header timeout sent by application instead of sending the HTTP Keep-Alive Timeout.
 	// +optional
 	UseAppKeepaliveTimeout bool `json:"use_app_keepalive_timeout,omitempty"`
-    // Maximum size for the client request body.  This limits the size of the client data that can be uploaded/posted as part of a single HTTP Request.  Default 0 => Unlimited."
+	// Maximum size for the client request body.  This limits the size of the client data that can be uploaded/posted as part of a single HTTP Request.  Default 0 => Unlimited."
 	// +optional
 	// (units) = KB,
-	ClientMaxBodySize      uint32 `json:"client_max_body_size,omitempty"`
+	ClientMaxBodySize uint32 `json:"client_max_body_size,omitempty"`
 	// Send HTTP 'Keep-Alive' header to the client. By default, the timeout specified in the 'Keep-Alive Timeout' field will be used unless the 'Use App Keepalive Timeout' flag is set, in which case the timeout sent by the application will be honored.
 	// +optional
 	KeepaliveHeader bool `json:"keepalive_header,omitempty"`
@@ -232,4 +232,3 @@ func (ap *ApplicationProfile) SetObservedGeneration(generation int64) {
 func (ap *ApplicationProfile) SetLastUpdated(time *metav1.Time) {
 	ap.Status.LastUpdated = time
 }
-

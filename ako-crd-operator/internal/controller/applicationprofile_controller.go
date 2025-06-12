@@ -48,12 +48,12 @@ import (
 // ApplicationProfileReconciler reconciles a ApplicationProfile object
 type ApplicationProfileReconciler struct {
 	client.Client
-	AviClient *clients.AviClient
-	Scheme *runtime.Scheme
-	Cache     cache.CacheOperation
-	Logger *utils.AviLogger
+	AviClient     *clients.AviClient
+	Scheme        *runtime.Scheme
+	Cache         cache.CacheOperation
+	Logger        *utils.AviLogger
 	EventRecorder record.EventRecorder
-	ClusterName string
+	ClusterName   string
 }
 
 type ApplicationProfileRequest struct {
@@ -61,6 +61,7 @@ type ApplicationProfileRequest struct {
 	akov1alpha1.ApplicationProfileSpec
 	Markers []*models.RoleFilterMatchLabel `json:"markers,omitempty"`
 }
+
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=applicationprofiles,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=applicationprofiles/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=applicationprofiles/finalizers,verbs=update
@@ -119,7 +120,7 @@ func (r *ApplicationProfileReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 		return ctrl.Result{}, err
 	}
-	
+
 	return ctrl.Result{}, nil
 }
 
@@ -158,9 +159,9 @@ func (r *ApplicationProfileReconciler) DeleteObject(ctx context.Context, ap *ako
 func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, ap *akov1alpha1.ApplicationProfile) error {
 	log := utils.LoggerFromContext(ctx)
 	apReq := &ApplicationProfileRequest{
-		Name:              fmt.Sprintf("%s-%s-%s", r.ClusterName, ap.Namespace, ap.Name),
+		Name:                   fmt.Sprintf("%s-%s-%s", r.ClusterName, ap.Namespace, ap.Name),
 		ApplicationProfileSpec: ap.Spec,
-		Markers:           controllerutils.CreateMarkers(r.ClusterName, ap.Namespace),
+		Markers:                controllerutils.CreateMarkers(r.ClusterName, ap.Namespace),
 	}
 	// this is a POST Call
 	if ap.Status.UUID == "" {
@@ -229,7 +230,7 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 }
 
 // createApplicationProfile will attempt to create a application profile, if it already exists, it will return an object which contains the uuid
-func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Context,apReq *ApplicationProfileRequest) (map[string]interface{}, error) {
+func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Context, apReq *ApplicationProfileRequest) (map[string]interface{}, error) {
 	log := utils.LoggerFromContext(ctx)
 	resp := map[string]interface{}{}
 	if err := r.AviClient.AviSession.Post(utils.GetUriEncoded(constants.ApplicationProfileURL), apReq, &resp); err != nil {
@@ -250,7 +251,6 @@ func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Cont
 				log.Info("updating application profile")
 				if err := r.AviClient.AviSession.Put(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.ApplicationProfileURL, uuid)), apReq, &resp); err != nil {
 					log.Errorf("error updating application profile", err.Error())
-					err.Error()
 					return nil, err
 				}
 				return resp, nil
