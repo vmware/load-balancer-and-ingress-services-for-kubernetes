@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	cache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/cache"
+	types "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/types"
 )
 
 // MockCacheOperation is a mock of CacheOperation interface.
@@ -36,10 +36,10 @@ func (m *MockCacheOperation) EXPECT() *MockCacheOperationMockRecorder {
 }
 
 // GetObjectByUUID mocks base method.
-func (m *MockCacheOperation) GetObjectByUUID(arg0 context.Context, arg1 string) (cache.DataMap, bool) {
+func (m *MockCacheOperation) GetObjectByUUID(arg0 context.Context, arg1 string) (types.DataMap, bool) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetObjectByUUID", arg0, arg1)
-	ret0, _ := ret[0].(cache.DataMap)
+	ret0, _ := ret[0].(types.DataMap)
 	ret1, _ := ret[1].(bool)
 	return ret0, ret1
 }

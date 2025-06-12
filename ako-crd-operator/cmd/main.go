@@ -94,7 +94,11 @@ func main() {
 	sessionManager.CreateAviClients(ctx, 1)
 	aviClients := sessionManager.GetAviClients()
 	clusterName := os.Getenv("CLUSTER_NAME")
-	cacheManager := cache.NewCache(sessionManager, clusterName)
+
+	cacheManager := cache.NewCache(
+		session2.NewAviSessionClient(aviClients.AviClient[0]),
+		clusterName)
+
 	if err := cacheManager.PopulateCache(ctx, constants.HealthMonitorURL); err != nil {
 		setupLog.Fatalf("unable to populate cacheManager. error: %s", err.Error())
 	}

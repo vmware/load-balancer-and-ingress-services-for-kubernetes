@@ -8,6 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	session "github.com/vmware/alb-sdk/go/session"
 )
 
 // MockAviClientInterface is a mock of AviClientInterface interface.
@@ -61,6 +62,26 @@ func (mr *MockAviClientInterfaceMockRecorder) AviSessionGet(url, response interf
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AviSessionGet", reflect.TypeOf((*MockAviClientInterface)(nil).AviSessionGet), url, response)
 }
 
+// AviSessionGetCollectionRaw mocks base method.
+func (m *MockAviClientInterface) AviSessionGetCollectionRaw(url string, params ...session.ApiOptionsParams) (session.AviCollectionResult, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{url}
+	for _, a := range params {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "AviSessionGetCollectionRaw", varargs...)
+	ret0, _ := ret[0].(session.AviCollectionResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AviSessionGetCollectionRaw indicates an expected call of AviSessionGetCollectionRaw.
+func (mr *MockAviClientInterfaceMockRecorder) AviSessionGetCollectionRaw(url interface{}, params ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]interface{}{url}, params...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AviSessionGetCollectionRaw", reflect.TypeOf((*MockAviClientInterface)(nil).AviSessionGetCollectionRaw), varargs...)
+}
+
 // AviSessionPost mocks base method.
 func (m *MockAviClientInterface) AviSessionPost(url string, request, response interface{}) error {
 	m.ctrl.T.Helper()
@@ -87,4 +108,18 @@ func (m *MockAviClientInterface) AviSessionPut(url string, request, response int
 func (mr *MockAviClientInterfaceMockRecorder) AviSessionPut(url, request, response interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AviSessionPut", reflect.TypeOf((*MockAviClientInterface)(nil).AviSessionPut), url, request, response)
+}
+
+// GetAviSession mocks base method.
+func (m *MockAviClientInterface) GetAviSession() *session.AviSession {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAviSession")
+	ret0, _ := ret[0].(*session.AviSession)
+	return ret0
+}
+
+// GetAviSession indicates an expected call of GetAviSession.
+func (mr *MockAviClientInterfaceMockRecorder) GetAviSession() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAviSession", reflect.TypeOf((*MockAviClientInterface)(nil).GetAviSession))
 }
