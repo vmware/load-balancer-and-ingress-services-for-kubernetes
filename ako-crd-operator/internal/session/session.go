@@ -2,8 +2,9 @@ package session
 
 import (
 	"context"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	"sync"
+
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 
 	"github.com/vmware/alb-sdk/go/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/event"
@@ -13,24 +14,47 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+//go:generate mockgen -source=session.go -destination=../../test/mock/session_mock.go -package=mock
+type AviRestClientPoolFactory interface {
+	NewAviRestClientPool(numClients int, ctrlIpAddress, ctrlUsername, ctrlPassword, ctrlAuthToken, controllerVersion, ctrlCAData string, tenant string, protocol string, userHeaders map[string]string) (*utils.AviRestClientPool, string, error)
+}
+
+type AviRestClientPoolFactoryImpl struct{}
+
+func (f *AviRestClientPoolFactoryImpl) NewAviRestClientPool(numClients int,
+	ctrlIpAddress,
+	ctrlUsername,
+	ctrlPassword,
+	ctrlAuthToken,
+	controllerVersion,
+	ctrlCAData string,
+	tenant string,
+	protocol string,
+	userHeaders map[string]string) (*utils.AviRestClientPool, string, error) {
+
+	return utils.NewAviRestClientPool(uint32(numClients), ctrlIpAddress, ctrlUsername, ctrlPassword, ctrlAuthToken, controllerVersion, ctrlCAData, tenant, protocol, userHeaders)
+}
+
 type Session struct {
-	sync              *sync.Mutex
-	aviClientPool     *utils.AviRestClientPool
-	ctrlProperties    map[string]string
-	tenant            string
-	k8sClient         kubernetes.Interface
-	eventManager      *event.EventManager
-	status            string
-	controllerVersion string
+	sync                     *sync.Mutex
+	aviClientPool            *utils.AviRestClientPool
+	aviRestClientPoolFactory AviRestClientPoolFactory
+	ctrlProperties           map[string]string
+	tenant                   string
+	k8sClient                kubernetes.Interface
+	eventManager             *event.EventManager
+	status                   string
+	controllerVersion        string
 }
 
 func NewSession(k8sClient kubernetes.Interface, eventManager *event.EventManager) *Session {
 	return &Session{
-		sync:           &sync.Mutex{},
-		ctrlProperties: make(map[string]string),
-		k8sClient:      k8sClient,
-		status:         utils.AVIAPI_INITIATING,
-		eventManager:   eventManager,
+		sync:                     &sync.Mutex{},
+		aviRestClientPoolFactory: &AviRestClientPoolFactoryImpl{},
+		ctrlProperties:           make(map[string]string),
+		k8sClient:                k8sClient,
+		status:                   utils.AVIAPI_INITIATING,
+		eventManager:             eventManager,
 	}
 }
 
@@ -76,8 +100,8 @@ func (s *Session) CreateAviClients(ctx context.Context, numClient int) {
 	// TODO: inject interface of AviClient instead directly using AviRestClient
 	var aviRestClientPool *utils.AviRestClientPool
 
-	aviRestClientPool, s.controllerVersion, err = utils.NewAviRestClientPool(
-		uint32(numClient),
+	aviRestClientPool, s.controllerVersion, err = s.aviRestClientPoolFactory.NewAviRestClientPool(
+		numClient,
 		ctrlIpAddress,
 		ctrlUsername,
 		ctrlPassword,
@@ -92,11 +116,13 @@ func (s *Session) CreateAviClients(ctx context.Context, numClient int) {
 		s.status = utils.AVIAPI_DISCONNECTED
 	} else {
 		s.status = utils.AVIAPI_CONNECTED
-	}
-	// set the controller version in avisession obj
-	for _, client := range aviRestClientPool.AviClient {
-		SetVersion := session.SetVersion(s.controllerVersion)
-		SetVersion(client.AviSession)
+		// set the controller version in avisession obj
+		if aviRestClientPool != nil && aviRestClientPool.AviClient != nil {
+			for _, client := range aviRestClientPool.AviClient {
+				SetVersion := session.SetVersion(s.controllerVersion)
+				SetVersion(client.AviSession)
+			}
+		}
 	}
 	s.aviClientPool = aviRestClientPool
 }

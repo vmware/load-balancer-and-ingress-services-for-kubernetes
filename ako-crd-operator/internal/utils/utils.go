@@ -72,7 +72,7 @@ func UpdateStatusWithNonRetryableError(ctx context.Context, statusUpdater Status
 	condition := metav1.Condition{
 		Type:               "Ready",
 		Status:             metav1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
+		LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
 		Reason:             "ConfigurationError",
 		Message:            fmt.Sprintf("Non-retryable error: %s", err.Error()),
 	}
