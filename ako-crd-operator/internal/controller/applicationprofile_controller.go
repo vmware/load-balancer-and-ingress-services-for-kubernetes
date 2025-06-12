@@ -19,21 +19,48 @@ package controller
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
 
+	"github.com/google/uuid"
+
+	"github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/alb-sdk/go/models"
+	"github.com/vmware/alb-sdk/go/session"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/cache"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
+	controllerutils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
+	k8serror "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
-
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 // ApplicationProfileReconciler reconciles a ApplicationProfile object
 type ApplicationProfileReconciler struct {
 	client.Client
+	AviClient *clients.AviClient
 	Scheme *runtime.Scheme
+	Cache     cache.CacheOperation
+	Logger *utils.AviLogger
+	EventRecorder record.EventRecorder
+	ClusterName string
 }
 
+type ApplicationProfileRequest struct {
+	Name string `json:"name"`
+	akov1alpha1.ApplicationProfileSpec
+	Markers []*models.RoleFilterMatchLabel `json:"markers,omitempty"`
+}
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=applicationprofiles,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=applicationprofiles/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=applicationprofiles/finalizers,verbs=update
@@ -48,10 +75,51 @@ type ApplicationProfileReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.20.4/pkg/reconcile
 func (r *ApplicationProfileReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = logf.FromContext(ctx)
-
-	// TODO(user): your logic here
-
+	log := r.Logger.WithValues("name", req.Name, "namespace", req.Namespace, "traceID", uuid.New().String())
+	ctx = utils.LoggerWithContext(ctx, log)
+	log.Debug("Reconciling ApplicationProfile")
+	defer log.Debug("Reconciled ApplicationProfile")
+	ap := &akov1alpha1.ApplicationProfile{}
+	err := r.Client.Get(ctx, req.NamespacedName, ap)
+	if err != nil {
+		if k8serror.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		log.Error("Failed to get ApplicationProfile")
+		return ctrl.Result{}, err
+	}
+	if ap.ObjectMeta.DeletionTimestamp.IsZero() {
+		if !controllerutil.ContainsFinalizer(ap, constants.ApplicationProfileFinalizer) {
+			controllerutil.AddFinalizer(ap, constants.ApplicationProfileFinalizer)
+			if err := r.Update(ctx, ap); err != nil {
+				log.Error("Failed to add finalizer to ApplicationProfile")
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{}, nil
+		}
+	} else {
+		// The object is being deleted
+		if err := r.DeleteObject(ctx, ap); err != nil {
+			return ctrl.Result{}, err
+		}
+		controllerutil.RemoveFinalizer(ap, constants.ApplicationProfileFinalizer)
+		if err := r.Update(ctx, ap); err != nil {
+			return ctrl.Result{}, err
+		}
+		r.EventRecorder.Event(ap, corev1.EventTypeNormal, "Deleted", "ApplicationProfile deleted successfully from Avi Controller")
+		log.Info("succesfully deleted applicationprofile")
+		return ctrl.Result{}, nil
+	}
+	if err := r.ReconcileIfRequired(ctx, ap); err != nil {
+		// Check if the error is retryable
+		if !controllerutils.IsRetryableError(err) {
+			// Update status with non-retryable error condition and don't return error (to avoid requeue)
+			controllerutils.UpdateStatusWithNonRetryableError(ctx, r, ap, err, "ApplicationProfile")
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
+	
 	return ctrl.Result{}, nil
 }
 
@@ -59,6 +127,137 @@ func (r *ApplicationProfileReconciler) Reconcile(ctx context.Context, req ctrl.R
 func (r *ApplicationProfileReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&akov1alpha1.ApplicationProfile{}).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Named("applicationprofile").
 		Complete(r)
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *ApplicationProfileReconciler) DeleteObject(ctx context.Context, ap *akov1alpha1.ApplicationProfile) error {
+	log := utils.LoggerFromContext(ctx)
+	if ap.Status.UUID != "" {
+		if err := r.AviClient.ApplicationProfile.Delete(ap.Status.UUID); err != nil {
+
+			// Handle 404 as success case - object doesn't exist, which is the desired state for delete
+			if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 404 {
+				log.Info("ApplicationProfile not found on Avi Controller (404), treating as successful deletion")
+				return nil
+			}
+			log.Errorf("error deleting application profile: %s", err.Error())
+			r.EventRecorder.Event(ap, corev1.EventTypeWarning, "DeletionFailed", fmt.Sprintf("Failed to delete ApplicationProfile from Avi Controller: %v", err))
+			return err
+		}
+	} else {
+		r.EventRecorder.Event(ap, corev1.EventTypeWarning, "DeletionSkipped", "UUID not present, ApplicationProfile may not have been created on Avi Controller")
+		log.Warn("error deleting application profile. uuid not present. possibly avi application profile object not created")
+	}
+	return nil
+}
+
+// TODO: Make this function generic
+func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, ap *akov1alpha1.ApplicationProfile) error {
+	log := utils.LoggerFromContext(ctx)
+	apReq := &ApplicationProfileRequest{
+		Name:              fmt.Sprintf("%s-%s-%s", r.ClusterName, ap.Namespace, ap.Name),
+		ApplicationProfileSpec: ap.Spec,
+		Markers:           controllerutils.CreateMarkers(r.ClusterName, ap.Namespace),
+	}
+	// this is a POST Call
+	if ap.Status.UUID == "" {
+		resp, err := r.createApplicationProfile(ctx, apReq)
+		if err != nil {
+			r.EventRecorder.Event(ap, corev1.EventTypeWarning, "CreationFailed", fmt.Sprintf("Failed to create ApplicationProfile on Avi Controller: %v", err))
+			log.Errorf("error creating application profile: %s", err.Error())
+			return err
+		}
+		uuid, err := extractUUID(resp)
+		if err != nil {
+			r.EventRecorder.Event(ap, corev1.EventTypeWarning, "UUIDExtractionFailed", fmt.Sprintf("Failed to extract UUID: %v", err))
+			log.Errorf("error extracting UUID from application profile: %s", err.Error())
+			return err
+		}
+		ap.Status.UUID = uuid
+		r.EventRecorder.Event(ap, corev1.EventTypeNormal, "Created", "ApplicationProfile created successfully on Avi Controller")
+		ap.Status.Conditions = controllerutils.SetCondition(ap.Status.Conditions, metav1.Condition{
+			Type:               "Ready",
+			Status:             metav1.ConditionTrue,
+			LastTransitionTime: metav1.Now(),
+			Reason:             "Created",
+			Message:            "ApplicationProfile created successfully on Avi Controller",
+		})
+	} else {
+		// this is a PUT Call
+		// check if no op by checking generation
+		if ap.GetGeneration() == ap.Status.ObservedGeneration {
+			// if no op from kubernetes side, check if op required from OOB changes by checking lastModified timestamp
+			if ap.Status.LastUpdated != nil {
+				dataMap, ok := r.Cache.GetObjectByUUID(ctx, ap.Status.UUID)
+				if ok {
+					if dataMap.GetLastModifiedTimeStamp().Before(ap.Status.LastUpdated.Time) {
+						log.Debug("no op for application profile")
+						return nil
+					}
+				}
+			}
+			log.Debugf("overwriting applicationprofile")
+		}
+		resp := map[string]interface{}{}
+		if err := r.AviClient.AviSession.Put(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.ApplicationProfileURL, ap.Status.UUID)), apReq, &resp); err != nil {
+			log.Errorf("error updating application profile %s", err.Error())
+			r.EventRecorder.Event(ap, corev1.EventTypeWarning, "UpdateFailed", fmt.Sprintf("Failed to update ApplicationProfile on Avi Controller: %v", err))
+			return err
+		}
+		ap.Status.Conditions = controllerutils.SetCondition(ap.Status.Conditions, metav1.Condition{
+			Type:               "Ready",
+			Status:             metav1.ConditionTrue,
+			LastTransitionTime: metav1.Now(),
+			Reason:             "Updated",
+			Message:            "ApplicationProfile updated successfully on Avi Controller",
+		})
+		r.EventRecorder.Event(ap, corev1.EventTypeNormal, "Updated", "ApplicationProfile updated successfully on Avi Controller")
+		log.Info("succesfully updated application profile")
+	}
+	ap.Status.BackendObjectName = apReq.Name
+	ap.Status.LastUpdated = &metav1.Time{Time: time.Now().UTC()}
+	ap.Status.ObservedGeneration = ap.Generation
+	if err := r.Status().Update(ctx, ap); err != nil {
+		r.EventRecorder.Event(ap, corev1.EventTypeWarning, "StatusUpdateFailed", fmt.Sprintf("Failed to update ApplicationProfile status: %v", err))
+		log.Errorf("unable to update application profile status %s", err.Error())
+		return err
+	}
+	return nil
+}
+
+// createApplicationProfile will attempt to create a application profile, if it already exists, it will return an object which contains the uuid
+func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Context,apReq *ApplicationProfileRequest) (map[string]interface{}, error) {
+	log := utils.LoggerFromContext(ctx)
+	resp := map[string]interface{}{}
+	if err := r.AviClient.AviSession.Post(utils.GetUriEncoded(constants.ApplicationProfileURL), apReq, &resp); err != nil {
+		log.Errorf("error posting application profile: %s", err.Error())
+		if aviError, ok := err.(session.AviError); ok {
+			if aviError.HttpStatusCode == http.StatusConflict && strings.Contains(aviError.Error(), "already exists") {
+				log.Info("application profile already exists. trying to get uuid")
+				err := r.AviClient.AviSession.Get(utils.GetUriEncoded(fmt.Sprintf("%s?name=%s", constants.ApplicationProfileURL, apReq.Name)), &resp)
+				if err != nil {
+					log.Errorf("error getting application profile %s", err.Error())
+					return nil, err
+				}
+				uuid, err := extractUUID(resp)
+				if err != nil {
+					log.Errorf("error extracting UUID from application profile: %s", err.Error())
+					return nil, err
+				}
+				log.Info("updating application profile")
+				if err := r.AviClient.AviSession.Put(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.ApplicationProfileURL, uuid)), apReq, &resp); err != nil {
+					log.Errorf("error updating application profile", err.Error())
+					err.Error()
+					return nil, err
+				}
+				return resp, nil
+			}
+		}
+		return nil, err
+	}
+	log.Info("Application profile successfully created")
+	return resp, nil
 }
