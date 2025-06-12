@@ -39,7 +39,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 )
@@ -532,7 +531,6 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				oldObj := old.(*akov1alpha2.L7Rule)
 				l7Rule := new.(*akov1alpha2.L7Rule)
 				if isL7RuleUpdated(oldObj, l7Rule) {
-					updateAppProfileCRDToL7RuleMapping(oldObj, l7Rule)
 					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(l7Rule))
 					key := lib.L7Rule + "/" + utils.ObjKey(l7Rule)
 					if err := c.GetValidator().ValidateL7RuleObj(key, l7Rule); err != nil {
@@ -596,170 +594,6 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			},
 		}
 		informer.L7RuleInformer.Informer().AddEventHandler(l7RuleEventHandler)
-	}
-
-	if utils.IsGatewayAPIEnabled() {
-		// Responsible for updating/validating L7Rule. No key will be injected
-		// Evenutal consistency as sequence of updates for appProfile handled by different
-		// containers.
-		appProfileCRDEventHandler := cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				if c.DisableSync {
-					return
-				}
-				_, ok := obj.(*unstructured.Unstructured)
-				if !ok {
-					utils.AviLog.Warn("Error in converting object to ApplicationProfile CRD object")
-					return
-				}
-				// fetch name and namespace of appprofile crd
-				namespace, name := getNamespaceName(obj)
-				if namespace == "" || name == "" {
-					return
-				}
-				isProcessed, _ := isObjectProcessed(obj, namespace, name)
-				if !isProcessed {
-					return
-				}
-
-				c.handleL7Objects(namespace, name)
-			},
-			UpdateFunc: func(old, new interface{}) {
-				if c.DisableSync {
-					return
-				}
-				namespace, name := getNamespaceName(old)
-				if namespace == "" || name == "" {
-					return
-				}
-				oldUUIDPresent, oldStatus := isObjectProcessed(old, namespace, name)
-				newUUIDPresent, newStatus := isObjectProcessed(new, namespace, name)
-				if !oldUUIDPresent && !newUUIDPresent {
-					utils.AviLog.Warnf("key:%s/%s, msg: ApplicationProfile CRD is not processed by AKO CRD operator", namespace, name)
-					return
-				}
-				// if status is not changed, do not process
-				if oldStatus != newStatus {
-					c.handleL7Objects(namespace, name)
-				}
-			},
-			DeleteFunc: func(obj interface{}) {
-				if c.DisableSync {
-					return
-				}
-				// we don't need to delete AppProfiletoL7 mapping here as
-				// object deletion doesn't imply it has taken out from L7Rule CRD
-				appProfile, ok := obj.(*unstructured.Unstructured)
-				if !ok {
-					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-					if !ok {
-						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
-						return
-					}
-					appProfile, ok = tombstone.Obj.(*unstructured.Unstructured)
-					if !ok {
-						utils.AviLog.Errorf("Tombstone contained object that is not an ApplicationProfile CRD: %#v", obj)
-						return
-					}
-				}
-				name := appProfile.GetName()
-				namespace := appProfile.GetNamespace()
-
-				statusJSON, found, err := unstructured.NestedMap(appProfile.UnstructuredContent(), "status")
-				if err != nil || !found {
-					utils.AviLog.Warnf("key:%s/%s, msg:ApplicationProfile CRD status not found: %+v", namespace, name, err)
-					return
-				}
-				// fetch uuid present in status
-				uuid, ok := statusJSON["uuid"]
-				if !ok || uuid == "" {
-					utils.AviLog.Warnf("key:%s/%s, msg: ApplicationProfile CRD is not processed by AKO CRD operator", namespace, name)
-					return
-				}
-				c.handleL7Objects(namespace, name)
-			},
-		}
-		c.dynamicInformers.ApplicationProfileInformer.Informer().AddEventHandler(appProfileCRDEventHandler)
-	}
-}
-
-func getNamespaceName(obj interface{}) (string, string) {
-	oldObj := obj.(*unstructured.Unstructured)
-	name := oldObj.GetName()
-	namespace := oldObj.GetNamespace()
-	return namespace, name
-}
-
-func isObjectProcessed(obj interface{}, namespace, name string) (bool, string) {
-	oldObj := obj.(*unstructured.Unstructured)
-	statusJSON, found, err := unstructured.NestedMap(oldObj.UnstructuredContent(), "status")
-	if err != nil || !found {
-		utils.AviLog.Warnf("key:%s/%s, msg:ApplicationProfile CRD status not found: %+v", namespace, name, err)
-		return false, ""
-	}
-	// fetch uuid present in status
-	uuid, ok := statusJSON["uuid"]
-	if !ok || uuid == "" {
-		utils.AviLog.Warnf("key:%s/%s, msg: ApplicationProfile CRD is not processed by AKO CRD operator", namespace, name)
-		return false, ""
-	}
-	// fetch the status
-	status, ok := statusJSON["status"]
-	if !ok || status == "" {
-		utils.AviLog.Warnf("key:%s/%s, msg: ApplicationProfile CRD status not found", namespace, name)
-		return false, ""
-	}
-	return true, status.(string)
-}
-
-func (c *AviController) handleL7Objects(namespace, name string) {
-	// fetch l7 rules associated with AppProfile CRD
-	ok, l7Rules := objects.SharedCRDLister().GetAppProfileCRDToL7RuleMapping(namespace + "/" + name)
-	key := lib.AppProfileCRD + "/" + namespace + "/" + name
-	if ok {
-		// validate l7Rule objects now -> namespace/name
-		for l7r := range l7Rules {
-			namespace, name, _ = cache.SplitMetaNamespaceKey(l7r)
-			// fetch l7Rule
-			l7Rule, err := lib.AKOControlConfig().CRDInformers().L7RuleInformer.Lister().L7Rules(namespace).Get(name)
-			if err != nil {
-				utils.AviLog.Warnf("key: %s, msg: error while fetching L7Rule %s/%s for ApplicationProfile. msg: %v", key, namespace, name, err)
-				continue
-			}
-			if err := c.GetValidator().ValidateL7RuleObj(key, l7Rule); err != nil {
-				utils.AviLog.Warnf("key: %s, msg:Error retrieved during validation of L7Rule: %v", key, err)
-			}
-		}
-	} else {
-		utils.AviLog.Warnf("key: %s, msg: no L7Rule associated with AppProfile CRD", key)
-	}
-}
-
-func updateAppProfileCRDToL7RuleMapping(oldObj, newObj *akov1alpha2.L7Rule) {
-	oldObjSpec := oldObj.Spec
-	newObjSpec := newObj.Spec
-	if reflect.DeepEqual(oldObjSpec, newObjSpec) {
-		return
-	}
-	if oldObjSpec.ApplicationProfile != nil {
-		if oldObjSpec.ApplicationProfile.Kind == nil || *oldObjSpec.ApplicationProfile.Kind == lib.AVI_REF {
-			// no mapping, return
-			return
-		}
-		oldName := *oldObjSpec.ApplicationProfile.Name
-		oldNamespce := oldObj.Namespace
-
-		if oldObjSpec.ApplicationProfile.Namespace != nil {
-			oldNamespce = *oldObjSpec.ApplicationProfile.Namespace
-		}
-		//remove the mapping irrespective the values are same as ValidateL7Rule will add it back
-		l7RuleNamespace := newObj.Namespace
-		l7RuleName := newObj.Name
-
-		appProfCrd := oldNamespce + "/" + oldName
-		l7Rule := l7RuleNamespace + "/" + l7RuleName
-		objects.SharedCRDLister().DeleteAppProfileCRDToL7RuleMapping(appProfCrd, l7Rule)
-
 	}
 }
 

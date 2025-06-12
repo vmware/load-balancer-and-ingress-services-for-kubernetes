@@ -94,7 +94,7 @@ spec:
                 description: Server network or list of servers for cloning traffic.
                 type: string
               analyticsProfile:
-                description: AnalyticsProfile allows to set the threshold for client experince depending upon application type.
+                description: AnalyticsProfile allows to set the threshold for client experience depending upon application type.
                 properties:
                   kind:
                     default: AviRef
@@ -117,13 +117,9 @@ spec:
                     description: Defines where ApplicationProfile object is created
                     enum:
                     - AviRef
-                    - CRD
                     type: string
                   name:
                     description: Name of ApplicationProfile object
-                    type: string
-                  namespace:
-                    description: Namespace of ApplicationProfile object. This is applicable when kind is CRD
                     type: string
                 required:
                 - kind

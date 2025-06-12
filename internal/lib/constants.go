@@ -33,7 +33,6 @@ const (
 	OVERLAY_TRANSPORT_ZONE    = "OVERLAY"
 	IP_FAMILY                 = "IP_FAMILY"
 	AVI_REF                   = "AviRef"
-	AVI_CRD                   = "CRD"
 
 	AVI_INGRESS_CLASS                          = "avi"
 	NETWORK_NAME                               = "NETWORK_NAME"
@@ -98,7 +97,6 @@ const (
 	SSORule                                    = "SSORule"
 	L4Rule                                     = "L4Rule"
 	L7Rule                                     = "L7Rule"
-	AppProfileCRD                              = "ApplicationProfileCRD"
 	IstioVirtualService                        = "IstioVirtualService"
 	IstioDestinationRule                       = "DestinationRule"
 	IstioGateway                               = "IstioGateway"

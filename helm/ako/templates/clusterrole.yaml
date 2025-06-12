@@ -61,9 +61,6 @@ rules:
   - apiGroups: ["gateway.networking.k8s.io"]
     resources: ["gatewayclasses", "gatewayclasses/status","gateways","gateways/status","httproutes","httproutes/status"]
     verbs: ["get","watch","list","patch","update"]
-  - apiGroups: ["ako.vmware.com"]
-    resources: ["applicationprofiles","applicationprofiles/status"]
-    verbs: ["get","watch","list"]
 {{- end }}
 {{- if eq .Values.featureGates.EnableEndpointSlice true }}
   - apiGroups: ["discovery.k8s.io"]

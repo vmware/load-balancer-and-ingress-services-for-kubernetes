@@ -115,5 +115,4 @@ type Service struct {
 type KindNameNamespace struct {
 	Kind *string `json:"kind,omitempty"`
 	Name *string `json:"name,omitempty"`
-	Namespace *string `json:"namespace,omitempty"`
 }
