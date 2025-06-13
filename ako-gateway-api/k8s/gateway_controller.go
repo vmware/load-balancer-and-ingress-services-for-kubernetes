@@ -41,18 +41,20 @@ var controllerInstance *GatewayController
 var ctrlonce sync.Once
 
 type GatewayController struct {
-	worker_id   uint32
-	informers   *utils.Informers
-	workqueue   []workqueue.RateLimitingInterface //nolint:staticcheck
-	DisableSync bool
+	worker_id        uint32
+	informers        *utils.Informers
+	dynamicInformers *akogatewayapilib.DynamicInformers
+	workqueue        []workqueue.RateLimitingInterface //nolint:staticcheck
+	DisableSync      bool
 }
 
 func SharedGatewayController() *GatewayController {
 	ctrlonce.Do(func() {
 		controllerInstance = &GatewayController{
-			worker_id:   (uint32(1) << utils.NumWorkersIngestion) - 1,
-			informers:   utils.GetInformers(),
-			DisableSync: true,
+			worker_id:        (uint32(1) << utils.NumWorkersIngestion) - 1,
+			informers:        utils.GetInformers(),
+			dynamicInformers: akogatewayapilib.GetDynamicInformers(),
+			DisableSync:      true,
 		}
 	})
 	return controllerInstance
@@ -97,6 +99,10 @@ func (c *GatewayController) Start(stopCh <-chan struct{}) {
 	go akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Informer().Run(stopCh)
 	informersList = append(informersList, akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Informer().HasSynced)
 
+	if !utils.IsWCP() {
+		go c.dynamicInformers.L7CRDInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.dynamicInformers.L7CRDInformer.Informer().HasSynced)
+	}
 	if !cache.WaitForCacheSync(stopCh, informersList...) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
@@ -487,6 +493,7 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 	if c.informers.SecretInformer != nil {
 		c.informers.SecretInformer.Informer().AddEventHandler(secretEventHandler)
 	}
+	c.SetupCRDEventHandlers(numWorkers)
 
 }
 
