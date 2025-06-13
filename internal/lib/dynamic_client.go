@@ -94,7 +94,9 @@ type BootstrapCRData struct {
 
 // NewDynamicClientSet initializes dynamic client set instance
 func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
-	// do not instantiate the dynamic client set if the CNI being used is NOT calico
+	// do not instantiate the dynamic client set
+	// 1. if the CNI being used is NOT calico or OpenShift or Cilium and
+	// 2. if it is NOT VCF cluster
 	if !utils.IsVCFCluster() && GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI && GetCNIPlugin() != CILIUM_CNI {
 		return nil, nil
 	}

@@ -111,3 +111,8 @@ type Service struct {
 	Port      *uint32 `json:"port"`
 	Protocol  *string `json:"protocol"`
 }
+
+type KindNameNamespace struct {
+	Kind *string `json:"kind,omitempty"`
+	Name *string `json:"name,omitempty"`
+}

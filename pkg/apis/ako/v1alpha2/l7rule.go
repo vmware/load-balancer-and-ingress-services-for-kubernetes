@@ -20,18 +20,40 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type L7RuleHTTPPolicy struct {
+	PolicySets []*string `json:"policySets,omitempty"`
+	Overwrite  *bool     `json:"overwrite,omitempty"`
+}
+type FullClientLogsL7 struct {
+	Enabled  *bool  `json:"enabled,omitempty"`
+	Throttle string `json:"throttle,omitempty"`
+	Duration *uint32 `json:"duration,omitempty"`
+}
+
+
+type L7RuleAnalyticsPolicy struct {
+	FullClientLogs *FullClientLogsL7 `json:"fullClientLogs,omitempty"`
+	LogAllHeaders  *bool           `json:"logAllHeaders,omitempty"`
+}
 type L7RuleSpec struct {
-	AllowInvalidClientCert        *bool              `json:"allowInvalidClientCert,omitempty"`
-	BotPolicyRef                  *string            `json:"botPolicyRef,omitempty"`
-	CloseClientConnOnConfigUpdate *bool              `json:"closeClientConnOnConfigUpdate,omitempty"`
-	HostNameXlate                 *string            `json:"hostNameXlate,omitempty"`
-	IgnPoolNetReach               *bool              `json:"ignPoolNetReach,omitempty"`
-	MinPoolsUp                    *uint32            `json:"minPoolsUp,omitempty"`
-	PerformanceLimits             *PerformanceLimits `json:"performanceLimits,omitempty"`
-	RemoveListeningPortOnVsDown   *bool              `json:"removeListeningPortOnVsDown,omitempty"`
-	SecurityPolicyRef             *string            `json:"securityPolicyRef,omitempty"`
-	SslSessCacheAvgSize           *uint32            `json:"sslSessCacheAvgSize,omitempty"`
-	TrafficCloneProfileRef        *string            `json:"trafficCloneProfileRef,omitempty"`
+	AllowInvalidClientCert        *bool              		`json:"allowInvalidClientCert,omitempty"`
+	BotPolicyRef                  *string            		`json:"botPolicyRef,omitempty"`
+	CloseClientConnOnConfigUpdate *bool              		`json:"closeClientConnOnConfigUpdate,omitempty"`
+	HostNameXlate                 *string            		`json:"hostNameXlate,omitempty"`
+	IgnPoolNetReach               *bool              		`json:"ignPoolNetReach,omitempty"`
+	MinPoolsUp                    *uint32            		`json:"minPoolsUp,omitempty"`
+	PerformanceLimits             *PerformanceLimits 		`json:"performanceLimits,omitempty"`
+	RemoveListeningPortOnVsDown   *bool              		`json:"removeListeningPortOnVsDown,omitempty"`
+	SecurityPolicyRef             *string            		`json:"securityPolicyRef,omitempty"`
+	SslSessCacheAvgSize           *uint32            		`json:"sslSessCacheAvgSize,omitempty"`
+	TrafficCloneProfileRef        *string            		`json:"trafficCloneProfileRef,omitempty"`
+	AnalyticsProfile              *KindNameNamespace		`json:"analyticsProfile,omitempty"`
+	ApplicationProfile            *KindNameNamespace		`json:"applicationProfile,omitempty"`
+	WafPolicy                     *KindNameNamespace		`json:"wafPolicy,omitempty"`
+	IcapProfile                   *KindNameNamespace		`json:"icapProfile,omitempty"`
+	ErrorPageProfile              *KindNameNamespace		`json:"errorPageProfile,omitempty"`
+	HTTPPolicy                    *L7RuleHTTPPolicy			`json:"httpPolicy,omitempty"`
+	AnalyticsPolicy               *L7RuleAnalyticsPolicy		`json:"analyticsPolicy,omitempty"`
 }
 
 type L7RuleStatus struct {

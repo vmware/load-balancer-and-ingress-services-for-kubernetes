@@ -595,7 +595,6 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 		}
 		informer.L7RuleInformer.Informer().AddEventHandler(l7RuleEventHandler)
 	}
-	return
 }
 
 // SetupIstioCRDEventHandlers handles setting up of Istio CRD event handlers
