@@ -110,7 +110,7 @@ spec:
                 - name
                 type: object
               applicationProfile:
-                description: Application profiles determine the behaviour of virtual services, based on application type.
+                description: Application profile determines the behaviour of virtual services, based on application type.
                 properties:
                   kind:
                     default: AviRef
@@ -158,7 +158,7 @@ spec:
                 - name
                 type: object
               errorPageProfile:
-                description: ErrorPage profile is used send custom error page to the client on specific error condition.
+                description: ErrorPage profile is used to send custom error page to the client on specific error condition.
                 properties:
                   kind:
                     default: AviRef
