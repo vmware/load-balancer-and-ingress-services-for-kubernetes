@@ -1748,13 +1748,14 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 			go lib.AKOControlConfig().CRDInformers().L4RuleInformer.Informer().Run(stopCh)
 			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().L4RuleInformer.Informer().HasSynced)
 		}
-
+		// TODO: Un-used code removal
 		if utils.IsMultiClusterIngressEnabled() {
 			go c.informers.MultiClusterIngressInformer.Informer().Run(stopCh)
 			informersList = append(informersList, c.informers.MultiClusterIngressInformer.Informer().HasSynced)
 			go c.informers.ServiceImportInformer.Informer().Run(stopCh)
 			informersList = append(informersList, c.informers.ServiceImportInformer.Informer().HasSynced)
 		}
+
 	}
 
 	if !cache.WaitForCacheSync(stopCh, informersList...) {
