@@ -40,6 +40,10 @@ spec:
             - mountPath: {{ .Values.controllerManager.container.mountPath }}
               name: ako-crd-operator-pv-storage
           {{ end }}
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh","/var/pre_stop_hook.sh"]
           env:
             - name: CTRL_IPADDRESS
               valueFrom:
