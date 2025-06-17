@@ -16,15 +16,19 @@ set -e
 function zip_old_files() {
 	if [ $USE_PVC ]
 	then
-	cd $LOG_FILE_PATH
+	cd $LOG_FILE_PATH	
 	old_pods_gz_file=$LOG_FILE_PATH/old_logs.tar.gz
 	if [ ! -f "$old_pods_gz_file" ]
 	then
 		tar -czf $old_pods_gz_file $POD_NAME*.log*
  	else
-		tar -rzf $old_pods_gz_file $POD_NAME*.log*
-        fi
-	rm -rf $POD_NAME*.log*
+        mkdir temp_dir
+		tar -xzf $old_pods_gz_file -C temp_dir
+		cp $POD_NAME*.log* temp_dir
+		tar -czf $old_pods_gz_file -C temp_dir .
+        rm -rf temp_dir
+        fi		
     fi
+	rm -rf $POD_NAME*.log*
 }
 zip_old_files
