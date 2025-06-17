@@ -3,27 +3,27 @@ package cache
 import (
 	"context"
 	"encoding/json"
-	"strconv"
 	"sync"
-	"time"
 
 	avisession "github.com/vmware/alb-sdk/go/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/types"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
+//go:generate mockgen -source=cache.go -destination=../../test/mock/cache_mock.go -package=mock
 type cache struct {
 	dataStore   sync.Map
-	session     *session.Session
+	session     session.AviClientInterface
 	clusterName string
 }
 
 type CacheOperation interface {
 	PopulateCache(context.Context, ...string) error
-	GetObjectByUUID(context.Context, string) (dataMap, bool)
+	GetObjectByUUID(context.Context, string) (types.DataMap, bool)
 }
 
-func NewCache(session *session.Session, clusterName string) CacheOperation {
+func NewCache(session session.AviClientInterface, clusterName string) CacheOperation {
 	return &cache{
 		dataStore:   sync.Map{},
 		session:     session,
@@ -31,21 +31,10 @@ func NewCache(session *session.Session, clusterName string) CacheOperation {
 	}
 }
 
-type dataMap map[string]interface{}
-
-func (d dataMap) GetLastModifiedTimeStamp() time.Time {
-	timestamp, ok := d["_last_modified"]
-	if !ok {
-		return time.Unix(0, 0)
-	}
-	timeInt, _ := strconv.ParseInt(timestamp.(string), 10, 64)
-	return time.UnixMicro(timeInt).UTC()
-}
-
 func (c *cache) PopulateCache(ctx context.Context, urls ...string) error {
 	log := utils.LoggerFromContext(ctx)
 	setTenant := avisession.SetTenant("*")
-	aviSession := c.session.GetAviClients().AviClient[0].AviSession
+	aviSession := c.session.GetAviSession()
 	_ = setTenant(aviSession)
 	// TODO: get from env variable
 	setDefaultTenant := avisession.SetTenant("admin")
@@ -62,7 +51,7 @@ func (c *cache) PopulateCache(ctx context.Context, urls ...string) error {
 		for url != "" {
 			dataList := []map[string]interface{}{}
 			// TODO: use ako-crd-operator session object interface instead directly accessing
-			result, err := c.session.GetAviClients().AviClient[0].AviSession.GetCollectionRaw(url, params)
+			result, err := c.session.AviSessionGetCollectionRaw(url, params)
 			url = result.Next
 			if err != nil {
 				return err
@@ -76,6 +65,7 @@ func (c *cache) PopulateCache(ctx context.Context, urls ...string) error {
 					log.Warnf("unable to find uuid in object :[%v]", data)
 					continue
 				}
+				log.Infof("populating cache for url: [%s] with uuid: [%s]", url, UUID)
 				c.dataStore.Store(UUID, data)
 			}
 		}
@@ -84,7 +74,7 @@ func (c *cache) PopulateCache(ctx context.Context, urls ...string) error {
 	return nil
 }
 
-func (c *cache) GetObjectByUUID(ctx context.Context, UUID string) (dataMap, bool) {
+func (c *cache) GetObjectByUUID(ctx context.Context, UUID string) (types.DataMap, bool) {
 	log := utils.LoggerFromContext(ctx)
 	data, ok := c.dataStore.Load(UUID)
 	if !ok {

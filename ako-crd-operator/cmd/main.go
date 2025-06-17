@@ -94,7 +94,11 @@ func main() {
 	sessionManager.CreateAviClients(ctx, 2)
 	aviClients := sessionManager.GetAviClients()
 	clusterName := os.Getenv("CLUSTER_NAME")
-	cacheManager := cache.NewCache(sessionManager, clusterName)
+
+	cacheManager := cache.NewCache(
+		session2.NewAviSessionClient(aviClients.AviClient[0]),
+		clusterName)
+
 	if err := cacheManager.PopulateCache(ctx, constants.HealthMonitorURL, constants.ApplicationProfileURL); err != nil {
 		setupLog.Fatalf("unable to populate cacheManager. error: %s", err.Error())
 	}
@@ -103,7 +107,7 @@ func main() {
 	hmReconciler := &controller.HealthMonitorReconciler{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
-		AviClient:     aviClients.AviClient[0],
+		AviClient:     session2.NewAviSessionClient(aviClients.AviClient[0]),
 		Cache:         cacheManager,
 		EventRecorder: mgr.GetEventRecorderFor("healthmonitor-controller"),
 		Logger:        utils.AviLog.WithName("healthmonitor"),
@@ -114,10 +118,10 @@ func main() {
 		setupLog.Fatalf("unable to create controller [HealthMonitor]. error: %s", err.Error())
 	}
 	if err = (&controller.ApplicationProfileReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-		AviClient: aviClients.AviClient[1],
-		Cache:     cacheManager,
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		AviClient:     session2.NewAviSessionClient(aviClients.AviClient[1]),
+		Cache:         cacheManager,
 		EventRecorder: mgr.GetEventRecorderFor("applicationprofile-controller"),
 		Logger:        utils.AviLog.WithName("applicationprofile"),
 		ClusterName:   clusterName,
