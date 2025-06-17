@@ -120,7 +120,7 @@ func main() {
 	if err = (&controller.ApplicationProfileReconciler{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
-		AviClient:     aviClients.AviClient[1],
+		AviClient:     session2.NewAviSessionClient(aviClients.AviClient[1]),
 		Cache:         cacheManager,
 		EventRecorder: mgr.GetEventRecorderFor("applicationprofile-controller"),
 		Logger:        utils.AviLog.WithName("applicationprofile"),

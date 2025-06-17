@@ -165,7 +165,7 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 
 	// this is a POST Call
 	if hm.Status.UUID == "" {
-		resp, err := r.createHealthMonitor(ctx, hmReq)
+		resp, err := r.createHealthMonitor(ctx, hmReq, hm)
 		if err != nil {
 			r.EventRecorder.Event(hm, corev1.EventTypeWarning, "CreationFailed", fmt.Sprintf("Failed to create HealthMonitor on Avi Controller: %v", err))
 			log.Errorf("error creating healthmonitor: %s", err.Error())
@@ -178,13 +178,6 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 			return err
 		}
 		hm.Status.UUID = uuid
-		hm.Status.Conditions = controllerutils.SetCondition(hm.Status.Conditions, metav1.Condition{
-			Type:               "Ready",
-			Status:             metav1.ConditionTrue,
-			LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
-			Reason:             "Created",
-			Message:            "HealthMonitor created successfully on Avi Controller",
-		})
 		r.EventRecorder.Event(hm, corev1.EventTypeNormal, "Created", "HealthMonitor created successfully on Avi Controller")
 	} else {
 		// this is a PUT Call
@@ -231,7 +224,7 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 }
 
 // createHealthMonitor will attempt to create a health monitor, if it already exists, it will return an object which contains the uuid
-func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hmReq *HealthMonitorRequest) (map[string]interface{}, error) {
+func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hmReq *HealthMonitorRequest, hm *akov1alpha1.HealthMonitor) (map[string]interface{}, error) {
 	log := utils.LoggerFromContext(ctx)
 	resp := map[string]interface{}{}
 	if err := r.AviClient.AviSessionPost(utils.GetUriEncoded(constants.HealthMonitorURL), hmReq, &resp); err != nil {
@@ -254,11 +247,25 @@ func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hmReq
 					log.Errorf("error updating healthmonitor: %s", err.Error())
 					return nil, err
 				}
+				hm.Status.Conditions = controllerutils.SetCondition(hm.Status.Conditions, metav1.Condition{
+					Type:               "Ready",
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
+					Reason:             "Updated",
+					Message:            "HealthMonitor updated successfully on Avi Controller",
+				})
 				return resp, nil
 			}
 		}
 		return nil, err
 	}
+	hm.Status.Conditions = controllerutils.SetCondition(hm.Status.Conditions, metav1.Condition{
+		Type:               "Ready",
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
+		Reason:             "Created",
+		Message:            "HealthMonitor created successfully on Avi Controller",
+	})
 	log.Info("healthmonitor succesfully created")
 	return resp, nil
 }

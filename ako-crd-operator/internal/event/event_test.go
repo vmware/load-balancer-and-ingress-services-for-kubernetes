@@ -18,7 +18,6 @@ func TestNewEventManager(t *testing.T) {
 		name          string
 		eventRecorder *utils.EventRecorder
 		podMeta       *v1.Pod
-		expectNil     bool
 	}{
 		{
 			name:          "valid event recorder and pod",
@@ -29,7 +28,6 @@ func TestNewEventManager(t *testing.T) {
 					Namespace: "default",
 				},
 			},
-			expectNil: false,
 		},
 		{
 			name:          "nil event recorder",
@@ -40,45 +38,36 @@ func TestNewEventManager(t *testing.T) {
 					Namespace: "default",
 				},
 			},
-			expectNil: false,
 		},
 		{
 			name:          "nil pod metadata",
 			eventRecorder: &utils.EventRecorder{Fake: true},
 			podMeta:       nil,
-			expectNil:     false,
 		},
 		{
 			name:          "both nil",
 			eventRecorder: nil,
 			podMeta:       nil,
-			expectNil:     false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			eventManager := NewEventManager(tt.eventRecorder, tt.podMeta)
-
-			if tt.expectNil {
-				assert.Nil(t, eventManager)
-			} else {
-				assert.NotNil(t, eventManager)
-				assert.Equal(t, tt.eventRecorder, eventManager.eventRecorder)
-				assert.Equal(t, tt.podMeta, eventManager.podMeta)
-			}
+			assert.NotNil(t, eventManager)
+			assert.Equal(t, tt.eventRecorder, eventManager.eventRecorder)
+			assert.Equal(t, tt.podMeta, eventManager.podMeta)
 		})
 	}
 }
 
 func TestEventManager_PodEventf(t *testing.T) {
 	tests := []struct {
-		name        string
-		eventType   string
-		reason      string
-		message     string
-		formatArgs  []string
-		expectPanic bool
+		name       string
+		eventType  string
+		reason     string
+		message    string
+		formatArgs []string
 	}{
 		{
 			name:       "normal event",
@@ -129,16 +118,11 @@ func TestEventManager_PodEventf(t *testing.T) {
 			}
 			eventManager := NewEventManager(eventRecorder, pod)
 
-			if tt.expectPanic {
-				assert.Panics(t, func() {
-					eventManager.PodEventf(tt.eventType, tt.reason, tt.message, tt.formatArgs...)
-				})
-			} else {
-				// Test that the method doesn't panic and completes successfully
-				assert.NotPanics(t, func() {
-					eventManager.PodEventf(tt.eventType, tt.reason, tt.message, tt.formatArgs...)
-				})
-			}
+			// Test that the method doesn't panic and completes successfully
+			assert.NotPanics(t, func() {
+				eventManager.PodEventf(tt.eventType, tt.reason, tt.message, tt.formatArgs...)
+			})
+
 		})
 	}
 }
@@ -176,7 +160,6 @@ func TestEventManager_Eventf(t *testing.T) {
 		reason            string
 		message           string
 		formatArgs        []string
-		expectPanic       bool
 	}{
 		{
 			name: "healthmonitor object",
@@ -265,16 +248,11 @@ func TestEventManager_Eventf(t *testing.T) {
 			}
 			eventManager := NewEventManager(eventRecorder, pod)
 
-			if tt.expectPanic {
-				assert.Panics(t, func() {
-					eventManager.Eventf(tt.runtimeObjectMeta, tt.eventType, tt.reason, tt.message, tt.formatArgs...)
-				})
-			} else {
-				// Test that the method doesn't panic and completes successfully
-				assert.NotPanics(t, func() {
-					eventManager.Eventf(tt.runtimeObjectMeta, tt.eventType, tt.reason, tt.message, tt.formatArgs...)
-				})
-			}
+			// Test that the method doesn't panic and completes successfully
+			assert.NotPanics(t, func() {
+				eventManager.Eventf(tt.runtimeObjectMeta, tt.eventType, tt.reason, tt.message, tt.formatArgs...)
+			})
+
 		})
 	}
 }

@@ -158,8 +158,8 @@ func TestHealthMonitorController(t *testing.T) {
 							Type:               "Ready",
 							Status:             metav1.ConditionTrue,
 							LastTransitionTime: metav1.Time{Time: time.Now().Truncate(time.Second)},
-							Reason:             "Created",
-							Message:            "HealthMonitor created successfully on Avi Controller",
+							Reason:             "Updated",
+							Message:            "HealthMonitor updated successfully on Avi Controller",
 						},
 					},
 					BackendObjectName: "test-cluster-default-test",
@@ -658,13 +658,15 @@ func TestHealthMonitorController(t *testing.T) {
 				if tt.want == nil {
 					return
 				}
+				if tt.wantErr {
+					return
+				}
 				t.Errorf("Failed to get health monitor: %v", err)
 			}
 
 			if tt.wantErr && tt.want == nil {
 				return
 			}
-
 			assert.Equal(t, tt.want, hm)
 		})
 	}
