@@ -19,6 +19,7 @@ FROM ${photon_src_repo}
 WORKDIR /
 COPY --from=build /workspace/manager .
 COPY ./scripts/pre_stop_hook.sh /var/pre_stop_hook.sh
+RUN chmod +x /var/pre_stop_hook.sh
 USER 65532:65532
 
 ENTRYPOINT ["/manager"]

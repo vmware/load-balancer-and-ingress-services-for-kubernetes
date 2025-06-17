@@ -108,6 +108,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
 	sudo docker build \
+	--platform linux/amd64 \
     -t ${IMG} \
     --label "BUILD_TAG=${BUILD_TAG}" \
     --label "BUILD_TIME=${BUILD_TIME}" \
