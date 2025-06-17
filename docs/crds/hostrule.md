@@ -47,6 +47,7 @@ A sample HostRule CRD looks like this:
           fullClientLogs:
             enabled: true
             throttle: HIGH
+            duration: 30
           logAllHeaders: true
         tcpSettings:
           listeners:
@@ -226,11 +227,12 @@ The HostRule CRD can be used to configure analytics policies such as enable/disa
           fullClientLogs:
             enabled: true
             throttle: HIGH
+            duration: 30
           logAllHeaders: true
 
 The `throttle` will be in effect only when `enabled` is set to `true`. The possible values of `throttle` are DISABLED (0), LOW (50), MEDIUM (30) and HIGH (10).
 
-The AKO sets the duration of logging the non-significant logs to infinity by default. It is the responsibility of the user to disable the non-significant logs when it is no longer required.
+AKO sets the duration of logging the non-significant logs to infinity by default. `duration` field can be used to modify the duration for which the system should capture non-significant logs, measured in minutes.
 
 #### Configure TCP Settings
 

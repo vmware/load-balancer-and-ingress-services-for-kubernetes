@@ -821,10 +821,14 @@ func TestHostruleAnalyticsPolicyUpdate(t *testing.T) {
 		if len(nodes[0].SniNodes) == 1 && nodes[0].SniNodes[0].AnalyticsPolicy != nil &&
 			nodes[0].SniNodes[0].AnalyticsPolicy.FullClientLogs != nil &&
 			nodes[0].SniNodes[0].AnalyticsPolicy.FullClientLogs.Enabled != nil {
-			return *nodes[0].SniNodes[0].AnalyticsPolicy.AllHeaders && *nodes[0].SniNodes[0].AnalyticsPolicy.FullClientLogs.Enabled
+			return *nodes[0].SniNodes[0].AnalyticsPolicy.AllHeaders &&
+				*nodes[0].SniNodes[0].AnalyticsPolicy.FullClientLogs.Enabled
 		}
 		return false
 	}, 10*time.Second).Should(gomega.Equal(true))
+
+	// default Duration value should be set to 0 i.e infinite since field isn't present in hr
+	g.Expect(*nodes[0].SniNodes[0].AnalyticsPolicy.FullClientLogs.Duration).To(gomega.Equal(uint32(0)))
 
 	// Update host rule with AnalyticsPolicy - with all fields
 	hrUpdate = integrationtest.FakeHostRule{
@@ -832,11 +836,14 @@ func TestHostruleAnalyticsPolicyUpdate(t *testing.T) {
 		Namespace: "default",
 		Fqdn:      "foo.com",
 	}.HostRule()
+
 	enabled = true
+	duration := uint32(10)
 	analyticsPolicy = &v1beta1.HostRuleAnalyticsPolicy{
 		FullClientLogs: &v1beta1.FullClientLogs{
 			Enabled:  &enabled,
 			Throttle: "LOW",
+			Duration: &duration,
 		},
 		LogAllHeaders: &enabled,
 	}
@@ -864,6 +871,7 @@ func TestHostruleAnalyticsPolicyUpdate(t *testing.T) {
 
 	g.Expect(*nodes[0].SniNodes[0].AnalyticsPolicy.AllHeaders).To(gomega.BeTrue())
 	g.Expect(*nodes[0].SniNodes[0].AnalyticsPolicy.FullClientLogs.Enabled).To(gomega.BeTrue())
+	g.Expect(*nodes[0].SniNodes[0].AnalyticsPolicy.FullClientLogs.Duration).To(gomega.Equal(uint32(10)))
 
 	// Remove the analyticPolicy and check whether values are removed from VS
 	hrUpdate.Spec.VirtualHost.AnalyticsPolicy = nil
