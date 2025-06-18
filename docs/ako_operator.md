@@ -40,7 +40,7 @@ The markers in the drawing are described below:
 
 <i>**Step 3**</i>: Find `AKO Operator` provided by VMware.
 
-<i>**Step 4**</i>: Click `install` and select the 1.12.3 version. The operator will be installed in `avi-system` namespace. The namespace will be created if it doesn't exist.
+<i>**Step 4**</i>: Click `install` and select the 1.13.2 version. The operator will be installed in `avi-system` namespace. The namespace will be created if it doesn't exist.
 
 <i>**Step 5**</i>: Verify installation by checking the pods in `avi-system` namespace.
 
@@ -53,6 +53,20 @@ The markers in the drawing are described below:
 5. SSORule
 6. AviInfraSetting
 7. L7Rule
+
+### Upgrade on Openshift cluster from OperatorHub using Openshift Container Platform Web Console
+
+<i>**Step 1**</i>: Login to the Openshift Container Platform web console of your Openshift cluster.
+
+<i>**Step 2**</i>: Navigate in the web console to the **Operators** → **Installed Operators** page.
+
+<i>**Step 3**</i>: Find `AKO Operator` provided by VMware By Broadcom.
+
+<i>**Step 4**</i>: Check the `Status` column for any available updates. Click on the `upgrade available` link if displayed, review the install plan and approve it. The AKO Operator will be upgraded to the available version.
+
+**Note :** The above steps are only required if the `Update Approval` is selected as `Manual` at the time of installation. If it was selected as `Automatic`, then the operator will be upgraded automatically as soon as the ugrade is available.
+
+For details on how to upgrade AKOConfig custom resource (if applicable), please see [this](akoconfig.md#Upgrading-the-AKOConfig-custom-resource).
 
 ### Uninstall on Openshift cluster from OperatorHub using Openshift Container Platform Web Console
 
@@ -85,7 +99,7 @@ The following table also lists the configurable fields in the `AKOConfig` object
 | **Parameter** | **Description** | **Default** |
 | --- | --- | --- |
 | `replicaCount` | Specify the number of replicas for AKO StatefulSet | 1 |
-| `imageRepository` | Specify docker-registry that has the ako image | projects.packages.broadcom.com/ako/ako:1.12.3 |
+| `imageRepository` | Specify docker-registry that has the ako image | projects.packages.broadcom.com/ako/ako:1.13.2 |
 | `imagePullPolicy` | Specify when and how to pull the ako image | IfNotPresent |
 | `imagePullSecrets` | ImagePullSecrets will add pull secrets to the statefulset for AKO. Required if using secure private container image registry for images. | `Empty List` |
 | `AKOSettings.clusterName` | Unique identifier for the running AKO instance. AKO identifies objects it created on Avi Controller using this param. | **required** |
@@ -116,7 +130,8 @@ The following table also lists the configurable fields in the `AKOConfig` object
 | `L7Settings.serviceType` | enum NodePort|ClusterIP|NodePortLocal | ClusterIP |
 | `L7Settings.passthroughShardSize` | Control the passthrough virtualservice numbers using this ENUM. ENUMs: LARGE, MEDIUM, SMALL | SMALL |
 | `L7Settings.noPGForSNI`  | Skip using Pool Groups for SNI children | false |
-| `L4Settings.defaultDomain` | Specify a default sub-domain for L4 LB services | First domainname found in cloud's dnsprofile |
+| `L7Settings.fqdnReusePolicy` | This flag can be used to control whether AKO allows cross-namespace usage of FQDNs | InterNamespaceAllowed |
+| `L4Settings.defaultDomain` | If multiple sub-domains are configured in the cloud, use this knob to set the default sub-domain to use for L4 VSes. This flag will be deprecated in a future release; use networkSettings.defaultDomain instead. If both networkSettings.defaultDomain and l4Settings.defaultDomain are set, then networkSettings.defaultDomain will be used. | First domainname found in cloud's dnsprofile |
 | `L4Settings.autoFQDN`  | Specify the layer 4 FQDN format | default |
 | `L4Settings.defaultLBController` | defaultLBController enables ako to check if it is the default LoadBalancer controller. | true |
 | `NetworkSettings.subnetIP` | Subnet IP of the data network | **DEPRECATED** |
@@ -126,10 +141,11 @@ The following table also lists the configurable fields in the `AKOConfig` object
 | `NetworkSettings.enableRHI` | Publish route information to BGP peers | false |
 | `NetworkSettings.bgpPeerLabels` | Select BGP peers using bgpPeerLabels, for selective VsVip advertisement. | `Empty List` |
 | `NetworkSettings.nsxtT1LR` | Specify the T1 router for data backend network, applicable only for NSX-T based deployments| `Empty string` |
+| `NetworkSettings.defaultDomain` | The defaultDomain flag has two use cases. For L4 VSes, if multiple sub-domains are configured in the cloud, this flag can be used to set the default sub-domain to use for the VS. This flag should be used instead of L4Settings.defaultDomain, as it will be deprecated in a future release. If both NetworkSettings.defaultDomain and L4Settings.defaultDomain are set, then NetworkSettings.defaultDomain will be used. For L7 VSes(created from OpenShift Routes), if spec.subdomain field is specified instead of spec.host field for an OpenShift route, then the default domain specified is appended to the spec.subdomain to form the FQDN for the VS. The defaultDomain should be configured as a sub-domain in Avi cloud. | `Empty string` |
 | `FeatureGates.gatewayAPI` | FeatureGates is to enable or disable experimental features. GatewayAPI feature gate enables/disables processing of Kubernetes Gateway API CRDs. | false |
 | `FeatureGates.enableEndpointSlice` | EnableEndpointSlice feature gate enables/disables processing of Kubernetes EndpointSlices instead of Endpoints. | true |
 | `FeatureGates.enablePrometheus` | FeatureGates is to enable or disable experimental features. EnablePrometheus enables/disables prometheus scraping for AKO container | false |
-| `GatewayAPI.Image.repository` | Specify docker-registry that has the ako-gateway-api image | projects.packages.broadcom.com/ako/ako-gateway-api:1.12.3 |
+| `GatewayAPI.Image.repository` | Specify docker-registry that has the ako-gateway-api image | projects.packages.broadcom.com/ako/ako-gateway-api:1.13.2 |
 | `GatewayAPI.Image.pullPolicy` | Specify when and how to pull the ako-gateway-api image | IfNotPresent |
 | `logFile` | LogFile is the name of the file where ako container will dump its logs | avi.log |
 | `akoGatewayLogFile` | AKOGatewayLogFile is the name of the file where ako-gateway-api container will dump its logs | avi-gw.log |
@@ -147,7 +163,7 @@ The following table also lists the configurable fields in the `AKOConfig` object
 
 If the AKO operator was installed on Openshift cluster from OperatorHub, then to install the AKO controller, add an `AKOConfig` object to the `avi-system` namespace.
 
-A sample of akoconfig is present [here](config/samples/ako_v1alpha1_akoconfig.yaml). Edit this file according to your setup.
+A sample of akoconfig is present [here](config/samples/ako_v1beta1_akoconfig.yaml). Edit this file according to your setup.
 
 ```
 kubectl create -f config/samples/ako_v1alpha1_akoconfig.yaml
@@ -186,6 +202,10 @@ Or, if using the Openshift client, use
     oc edit akoconfig -n avi-system ako-config
 
 **Note** that if the user edits the AKO controller's configmap/statefulset out-of-band, the changes will be overwritten by the AKO operator.
+
+#### Upgrading the AKO Controller
+
+The AKO Controller can be upgraded by upgrading the AKOConfig custom resource. For details on how to upgrade AKOConfig custom resource (if applicable), please see [this](akoconfig.md#Upgrading-the-AKOConfig-custom-resource).
 
 #### Removing the AKO Controller
 
