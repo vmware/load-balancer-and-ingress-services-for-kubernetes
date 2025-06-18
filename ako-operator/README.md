@@ -12,7 +12,7 @@ AKO operator takes care of deploying, managing and removing AKO from OpenShift c
 
 <i>**Step 3**</i>: Find `AKO Operator` provided by VMware.
 
-<i>**Step 4**</i>: Click `install` and select the 1.12.3 version. The operator will be installed in `avi-system` namespace. The namespace will be created if it doesn't exist.
+<i>**Step 4**</i>: Click `install` and select the 1.13.2 version. The operator will be installed in `avi-system` namespace. The namespace will be created if it doesn't exist.
 
 <i>**Step 5**</i>: Verify installation by checking the pods in `avi-system` namespace.
 
@@ -22,7 +22,7 @@ AKO operator takes care of deploying, managing and removing AKO from OpenShift c
 
 AKO Operator manages the AKO Controller. To deploy and manage the controller, it takes in a custom resource object called `AKOConfig`. Please go through the [description](../docs/akoconfig.md#AKOConfig-Custom-Resource) to understand the different fields of this object.
 
-#### Create a secret with Avi Controller details 
+#### Create a secret with Avi Controller details
 
 Create a secret named `avi-secret` in the `avi-system` namespace. Edit [secret.yaml](config/secrets/secret.yaml) with the credentials of Avi Controller in base64 encoding. 
 ```
@@ -37,7 +37,7 @@ oc apply -f config/secrets/secret.yaml
 #### Deploying the AKO Controller
 If the AKO operator was installed on OpenShift cluster from OperatorHub, then to install the AKO controller, add an `AKOConfig` object to the `avi-system` namespace.
 
-A sample of akoconfig is present [here](config/samples/ako_v1alpha1_akoconfig.yaml). Edit this file according to your setup.
+A sample of akoconfig is present [here](config/samples/ako_v1beta1_akoconfig.yaml). Edit this file according to your setup.
 
 ```
 kubectl create -f config/samples/ako_v1alpha1_akoconfig.yaml
@@ -98,5 +98,21 @@ If this happens edit akoconfig using `kubectl edit akoconfig -n avi-system ako-c
 ### Versioning
 | **Operator version** | **Supported AKO Version** |
 | --------- | ----------- |
-| 1.11.1 | 1.11.1 |
 | 1.12.3 | 1.12.3 |
+| 1.13.2 | 1.13.2 |
+
+## License
+
+Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
