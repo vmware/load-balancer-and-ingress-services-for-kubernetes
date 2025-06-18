@@ -168,7 +168,7 @@ ako-operator-docker: glob-vars
 	--label "BUILD_TAG=$(BUILD_TAG)" \
 	--label "BUILD_TIME=$(BUILD_TIME)" \
 	$(BUILD_ARG_GOLANG) $(BUILD_ARG_UBI) \
-	-f Dockerfile.ako-operator .
+	-f ako-operator/Dockerfile .
 
 .PHONY: ako-crd-operator-build-all
 ako-crd-operator-build:

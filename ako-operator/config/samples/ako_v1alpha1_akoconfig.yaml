@@ -3,10 +3,13 @@ kind: AKOConfig
 metadata:
   finalizers:
   - ako.vmware.com/cleanup
-  name: ako-sample
+  labels:
+    app.kubernetes.io/name: ako-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: akoconfig-sample
   namespace: avi-system
 spec:
-  imageRepository: projects.packages.broadcom.com/ako/ako:1.12.3
+  imageRepository: projects.packages.broadcom.com/ako/ako:1.13.2
   imagePullPolicy: "IfNotPresent"
   imagePullSecrets: []
   replicaCount: 1 # Defines the number of replicas for AKO Statefulset
@@ -42,23 +45,24 @@ spec:
   networkSettings:
     ## This list of network and cidrs are used in pool placement network for vcenter cloud.
     ## Node Network details are not needed when in nodeport mode / static routes are disabled / non vcenter clouds.
-    nodeNetworkList: []
-    # nodeNetworkList:
-    #   - networkName: "network-name"
-    #     cidrs:
-    #       - 10.0.0.1/24
-    #       - 11.0.0.1/24
+    nodeNetworkList:
+      - networkName: ""
+        cidrs:
+          - ""
+    #     - 11.0.0.1/24
+    # nodeNetworkList: []
     enableRHI: false # This is a cluster wide setting for BGP peering.
     nsxtT1LR: "" # T1 Logical Segment mapping for backend network. Only applies to NSX-T cloud.
     bgpPeerLabels: [] # Select BGP peers using bgpPeerLabels, for selective VsVip advertisement.
     # bgpPeerLabels:
     #   - peer1
     #   - peer2
-    vipNetworkList: [] # Network information of the VIP network. Multiple networks allowed only for AWS Cloud.
-    # vipNetworkList:
-    #  - networkName: net1
-    #    cidr: 100.1.1.0/24
-    #    v6cidr: 2002::1234:abcd:ffff:c0a8:101/64 # Setting this will enable the VS networks to use ipv6
+    # Network information of the VIP network. Multiple networks allowed only for AWS Cloud.
+    vipNetworkList:
+     - networkName: ""
+       cidr: ""
+       v6cidr: "" # Setting this will enable the VS networks to use ipv6
+    # vipNetworkList: []
 
   l7Settings:
     defaultIngController: true
@@ -95,9 +99,6 @@ spec:
       cpu: "200m"
       memory: "300Mi"
 
-  rbac:
-    pspEnable: false
-
   pvc: ""
   mountPath: "/log"
   logFile: "avi.log"
@@ -106,6 +107,6 @@ spec:
     enablePrometheus: false # EnablePrometheus enables/disables prometheus scraping for AKO container
   gatewayAPI:
     image:
-      repository: "projects.packages.broadcom.com/ako/ako-gateway-api:1.12.3"
+      repository: "projects.packages.broadcom.com/ako/ako-gateway-api:1.13.2"
       pullPolicy: "IfNotPresent"
   akoGatewayLogFile: "avi-gw.log"
