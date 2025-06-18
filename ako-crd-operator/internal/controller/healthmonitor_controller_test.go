@@ -563,6 +563,49 @@ func TestHealthMonitorController(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "error: delete fails with 403 error (referenced by other objects)",
+			hm: &akov1alpha1.HealthMonitor{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test",
+					Finalizers:        []string{"healthmonitor.ako.vmware.com/finalizer"},
+					DeletionTimestamp: &metav1.Time{Time: time.Now().Truncate(time.Second)},
+					ResourceVersion:   "1000",
+				},
+				Status: akov1alpha1.HealthMonitorStatus{
+					UUID: "123",
+				},
+			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				mockAviClient.EXPECT().AviSessionDelete(constants.HealthMonitorURL+"/123", gomock.Any(), gomock.Any()).Return(session.AviError{
+					HttpStatusCode: 403,
+					AviResult: session.AviResult{
+						Message: &[]string{"Cannot delete, object is referred by: ['Pool custom-pool', 'VirtualService custom-vs']"}[0],
+					},
+				}).AnyTimes()
+			},
+			want: &akov1alpha1.HealthMonitor{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test",
+					Finalizers:        []string{"healthmonitor.ako.vmware.com/finalizer"},
+					DeletionTimestamp: &metav1.Time{Time: time.Now().Truncate(time.Second)},
+					ResourceVersion:   "1001",
+				},
+				Status: akov1alpha1.HealthMonitorStatus{
+					UUID: "123",
+					Conditions: []metav1.Condition{
+						{
+							Type:               "Delete",
+							Status:             metav1.ConditionFalse,
+							LastTransitionTime: metav1.Time{Time: time.Now().Truncate(time.Second)},
+							Reason:             "DeletionSkipped",
+							Message:            "Cannot delete, object is referred by: ['Pool custom-pool', 'VirtualService custom-vs']",
+						},
+					},
+				},
+			},
+			wantErr: false, // 403 doesn't cause requeue, it sets condition and waits
+		},
+		{
 			name: "error: non-retryable error (status update without requeue)",
 			hm: &akov1alpha1.HealthMonitor{
 				ObjectMeta: metav1.ObjectMeta{

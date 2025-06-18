@@ -602,3 +602,44 @@ func TestResourceWithStatusInterface(t *testing.T) {
 	ap.SetLastUpdated(now)
 	assert.Equal(t, now, ap.Status.LastUpdated)
 }
+
+func TestParseAviErrorMessage(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "error message with array and obj_name",
+			input:    `map[error:Cannot delete, object is referred by: [''IcapProfile custom-icap-profile'',    ''Pool custom-icap-pool1'', ''PoolGroup custom-icap-pg''] obj_name:my-cluster2-default-example-ping-healthmonitor]`,
+			expected: "Cannot delete, object is referred by: [''IcapProfile custom-icap-profile'',    ''Pool custom-icap-pool1'', ''PoolGroup custom-icap-pg''",
+		},
+		{
+			name:     "simple error message with obj_name",
+			input:    `map[error:Resource not found obj_name:test-resource]`,
+			expected: "Resource not found",
+		},
+		{
+			name:     "error message without obj_name",
+			input:    `map[error:Invalid configuration]`,
+			expected: "Invalid configuration",
+		},
+		{
+			name:     "non-map format returns original",
+			input:    `This is just a regular error message`,
+			expected: "This is just a regular error message",
+		},
+		{
+			name:     "map without error key returns original",
+			input:    `map[status:failed obj_name:test-object]`,
+			expected: "map[status:failed obj_name:test-object]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAviErrorMessage(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

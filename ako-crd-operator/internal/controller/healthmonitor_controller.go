@@ -100,15 +100,21 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	} else {
 		// The object is being deleted
-		if err := r.DeleteObject(ctx, hm); err != nil {
+		removeFinalizer := false
+		if err, removeFinalizer = r.DeleteObject(ctx, hm); err != nil {
 			return ctrl.Result{}, err
 		}
-		controllerutil.RemoveFinalizer(hm, constants.HealthMonitorFinalizer)
+		if removeFinalizer {
+			controllerutil.RemoveFinalizer(hm, constants.HealthMonitorFinalizer)
+		} else {
+			if err := r.Status().Update(ctx, hm); err != nil {
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{RequeueAfter: 5 * time.Minute}, nil
+		}
 		if err := r.Update(ctx, hm); err != nil {
 			return ctrl.Result{}, err
 		}
-		r.EventRecorder.Event(hm, corev1.EventTypeNormal, "Deleted", "HealthMonitor deleted successfully from Avi Controller")
-		log.Info("succesfully deleted healthmonitor")
 		return ctrl.Result{}, nil
 	}
 	if err := r.ReconcileIfRequired(ctx, hm); err != nil {
@@ -133,24 +139,40 @@ func (r *HealthMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alpha1.HealthMonitor) error {
+func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alpha1.HealthMonitor) (error, bool) {
 	log := utils.LoggerFromContext(ctx)
 	if hm.Status.UUID != "" {
 		if err := r.AviClient.AviSessionDelete(fmt.Sprintf("%s/%s", constants.HealthMonitorURL, hm.Status.UUID), nil, nil); err != nil {
 			// Handle 404 as success case - object doesn't exist, which is the desired state for delete
-			if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 404 {
-				log.Info("HealthMonitor not found on Avi Controller (404), treating as successful deletion")
-				return nil
+			if aviError, ok := err.(session.AviError); ok {
+				switch aviError.HttpStatusCode {
+				case 404:
+					log.Info("HealthMonitor not found on Avi Controller (404), treating as successful deletion")
+					return nil, true
+				case 403:
+					log.Errorf("HealthMonitor is being reffered by other objects, cannot be deleted. %s", aviError.Error())
+					r.EventRecorder.Event(hm, corev1.EventTypeWarning, "DeletionSkipped", aviError.Error())
+					hm.Status.Conditions = controllerutils.SetCondition(hm.Status.Conditions, metav1.Condition{
+						Type:               "Delete",
+						Status:             metav1.ConditionFalse,
+						LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
+						Reason:             "DeletionSkipped",
+						Message:            controllerutils.ParseAviErrorMessage(*aviError.Message),
+					})
+					return nil, false
+				}
 			}
 			log.Errorf("error deleting healthmonitor: %s", err.Error())
 			r.EventRecorder.Event(hm, corev1.EventTypeWarning, "DeletionFailed", fmt.Sprintf("Failed to delete HealthMonitor from Avi Controller: %v", err))
-			return err
+			return err, false
 		}
 	} else {
 		r.EventRecorder.Event(hm, corev1.EventTypeWarning, "DeletionSkipped", "UUID not present, HealthMonitor may not have been created on Avi Controller")
 		log.Warn("error deleting healthmonitor. uuid not present. possibly avi healthmonitor object not created")
 	}
-	return nil
+	r.EventRecorder.Event(hm, corev1.EventTypeNormal, "Deleted", "HealthMonitor deleted successfully from Avi Controller")
+	log.Info("succesfully deleted healthmonitor")
+	return nil, true
 }
 
 // TODO: Make this function generic
