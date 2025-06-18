@@ -110,7 +110,7 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			if err := r.Status().Update(ctx, hm); err != nil {
 				return ctrl.Result{}, err
 			}
-			return ctrl.Result{RequeueAfter: 5 * time.Minute}, nil
+			return ctrl.Result{RequeueAfter: constants.RequeueInterval}, nil
 		}
 		if err := r.Update(ctx, hm); err != nil {
 			return ctrl.Result{}, err

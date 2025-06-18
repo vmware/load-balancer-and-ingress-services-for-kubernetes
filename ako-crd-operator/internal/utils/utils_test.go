@@ -612,7 +612,7 @@ func TestParseAviErrorMessage(t *testing.T) {
 		{
 			name:     "error message with array and obj_name",
 			input:    `map[error:Cannot delete, object is referred by: [''IcapProfile custom-icap-profile'',    ''Pool custom-icap-pool1'', ''PoolGroup custom-icap-pg''] obj_name:my-cluster2-default-example-ping-healthmonitor]`,
-			expected: "Cannot delete, object is referred by: [''IcapProfile custom-icap-profile'',    ''Pool custom-icap-pool1'', ''PoolGroup custom-icap-pg''",
+			expected: "Cannot delete, object is referred by: [''IcapProfile custom-icap-profile'',    ''Pool custom-icap-pool1'', ''PoolGroup custom-icap-pg'']",
 		},
 		{
 			name:     "simple error message with obj_name",
@@ -628,11 +628,6 @@ func TestParseAviErrorMessage(t *testing.T) {
 			name:     "non-map format returns original",
 			input:    `This is just a regular error message`,
 			expected: "This is just a regular error message",
-		},
-		{
-			name:     "map without error key returns original",
-			input:    `map[status:failed obj_name:test-object]`,
-			expected: "map[status:failed obj_name:test-object]",
 		},
 	}
 

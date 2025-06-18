@@ -175,10 +175,11 @@ func CreateMarkers(clusterName, namespace string) []*models.RoleFilterMatchLabel
 // ParseAviErrorMessage parses the error message from ALB SDK
 // ALB SDK returns error message in string format: `map[... error: ...]`
 func ParseAviErrorMessage(input string) string {
-	re := regexp.MustCompile(`map\[.*error:([^]]*?)(?:\s+obj_name:.*?)?\]`)
+	re := regexp.MustCompile(`map\[.*error:(.*?)(?:\s+obj_name:.*?)?\]$`)
 	match := re.FindStringSubmatch(input)
 	if len(match) >= 2 {
-		return strings.TrimSpace(match[1])
+		errorMsg := strings.TrimSpace(match[1])
+		return errorMsg
 	}
 	return input
 }
