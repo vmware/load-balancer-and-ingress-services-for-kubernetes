@@ -25,7 +25,7 @@ import (
 // with "Core" support:
 //
 // * Gateway (Gateway conformance profile)
-// * Service (Mesh conformance profile, experimental, ClusterIP Services only)
+// * Service (Mesh conformance profile, ClusterIP Services only)
 //
 // This API may be extended in the future to support additional kinds of parent
 // resources.
@@ -49,7 +49,7 @@ type ParentReference struct {
 	// There are two kinds of parent resources with "Core" support:
 	//
 	// * Gateway (Gateway conformance profile)
-	// * Service (Mesh conformance profile, experimental, ClusterIP Services only)
+	// * Service (Mesh conformance profile, ClusterIP Services only)
 	//
 	// Support for other resources is Implementation-Specific.
 	//
@@ -91,14 +91,12 @@ type ParentReference struct {
 	// SectionName is the name of a section within the target resource. In the
 	// following resources, SectionName is interpreted as the following:
 	//
-	// * Gateway: Listener Name. When both Port (experimental) and SectionName
+	// * Gateway: Listener name. When both Port (experimental) and SectionName
 	// are specified, the name and port of the selected listener must match
 	// both specified values.
-	// * Service: Port Name. When both Port (experimental) and SectionName
+	// * Service: Port name. When both Port (experimental) and SectionName
 	// are specified, the name and port of the selected listener must match
-	// both specified values. Note that attaching Routes to Services as Parents
-	// is part of experimental Mesh support and is not supported for any other
-	// purpose.
+	// both specified values.
 	//
 	// Implementations MAY choose to support attaching Routes to other resources.
 	// If that is the case, they MUST clearly document how SectionName is
@@ -150,7 +148,6 @@ type ParentReference struct {
 	// Support: Extended
 	//
 	// +optional
-	// <gateway:experimental>
 	Port *PortNumber `json:"port,omitempty"`
 }
 
@@ -171,9 +168,8 @@ type CommonRouteSpec struct {
 	// There are two kinds of parent resources with "Core" support:
 	//
 	// * Gateway (Gateway conformance profile)
-	// <gateway:experimental:description>
-	// * Service (Mesh conformance profile, experimental, ClusterIP Services only)
-	// </gateway:experimental:description>
+	// * Service (Mesh conformance profile, ClusterIP Services only)
+	//
 	// This API may be extended in the future to support additional kinds of parent
 	// resources.
 	//
@@ -473,7 +469,7 @@ type RouteParentStatus struct {
 	// There are a number of cases where the "Accepted" condition may not be set
 	// due to lack of controller visibility, that includes when:
 	//
-	// * The Route refers to a non-existent parent.
+	// * The Route refers to a nonexistent parent.
 	// * The Route is of a type that the controller does not support.
 	// * The Route is in a namespace the controller does not have access to.
 	//
@@ -539,6 +535,19 @@ type Hostname string
 // +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
 type PreciseHostname string
 
+// AbsoluteURI represents a Uniform Resource Identifier (URI) as defined by RFC3986.
+
+// The AbsoluteURI MUST NOT be a relative URI, and it MUST follow the URI syntax and
+// encoding rules specified in RFC3986.  The AbsoluteURI MUST include both a
+// scheme (e.g., "http" or "spiffe") and a scheme-specific-part.  URIs that
+// include an authority MUST include a fully qualified domain name or
+// IP address as the host.
+// <gateway:util:excludeFromCRD> The below regex is taken from the regex section in RFC 3986 with a slight modification to enforce a full URI and not relative. </gateway:util:excludeFromCRD>
+// +kubebuilder:validation:MinLength=1
+// +kubebuilder:validation:MaxLength=253
+// +kubebuilder:validation:Pattern=`^(([^:/?#]+):)(//([^/?#]*))([^?#]*)(\?([^#]*))?(#(.*))?`
+type AbsoluteURI string
+
 // Group refers to a Kubernetes Group. It must either be an empty string or a
 // RFC 1123 subdomain.
 //
@@ -576,7 +585,7 @@ type Group string
 type Kind string
 
 // ObjectName refers to the name of a Kubernetes object.
-// Object names can have a variety of forms, including RFC1123 subdomains,
+// Object names can have a variety of forms, including RFC 1123 subdomains,
 // RFC 1123 labels, or RFC 1035 labels.
 //
 // +kubebuilder:validation:MinLength=1
@@ -606,11 +615,22 @@ type Namespace string
 
 // SectionName is the name of a section in a Kubernetes resource.
 //
+// In the following resources, SectionName is interpreted as the following:
+//
+// * Gateway: Listener name
+// * HTTPRoute: HTTPRouteRule name
+// * Service: Port name
+//
+// Section names can have a variety of forms, including RFC 1123 subdomains,
+// RFC 1123 labels, or RFC 1035 labels.
+//
 // This validation is based off of the corresponding Kubernetes validation:
 // https://github.com/kubernetes/apimachinery/blob/02cfb53916346d085a6c6c7c66f882e3c6b0eca6/pkg/util/validation/validation.go#L208
 //
 // Valid values include:
 //
+// * "example"
+// * "foo-example"
 // * "example.com"
 // * "foo.example.com"
 //
@@ -655,11 +675,11 @@ type GatewayController string
 // Invalid values include:
 //
 // * example~ - "~" is an invalid character
-// * example.com. - can not start or end with "."
+// * example.com. - cannot start or end with "."
 //
 // +kubebuilder:validation:MinLength=1
 // +kubebuilder:validation:MaxLength=253
-// +kubebuilder:validation:Pattern=`^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]/?)*$`
+// +kubebuilder:validation:Pattern=`^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?([A-Za-z0-9][-A-Za-z0-9_.]{0,61})?[A-Za-z0-9]$`
 type AnnotationKey string
 
 // AnnotationValue is the value of an annotation in Gateway API. This is used
@@ -670,6 +690,45 @@ type AnnotationKey string
 // +kubebuilder:validation:MinLength=0
 // +kubebuilder:validation:MaxLength=4096
 type AnnotationValue string
+
+// LabelKey is the key of a label in the Gateway API. This is used for validation
+// of maps such as Gateway infrastructure labels. This matches the Kubernetes
+// "qualified name" validation that is used for labels.
+//
+// Valid values include:
+//
+// * example
+// * example.com
+// * example.com/path
+// * example.com/path.html
+//
+// Invalid values include:
+//
+// * example~ - "~" is an invalid character
+// * example.com. - cannot start or end with "."
+//
+// +kubebuilder:validation:MinLength=1
+// +kubebuilder:validation:MaxLength=253
+// +kubebuilder:validation:Pattern=`^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?([A-Za-z0-9][-A-Za-z0-9_.]{0,61})?[A-Za-z0-9]$`
+type LabelKey string
+
+// LabelValue is the value of a label in the Gateway API. This is used for validation
+// of maps such as Gateway infrastructure labels. This matches the Kubernetes
+// label validation rules:
+// * must be 63 characters or less (can be empty),
+// * unless empty, must begin and end with an alphanumeric character ([a-z0-9A-Z]),
+// * could contain dashes (-), underscores (_), dots (.), and alphanumerics between.
+//
+// Valid values include:
+//
+// * MyValue
+// * my.name
+// * 123-my-value
+//
+// +kubebuilder:validation:MinLength=0
+// +kubebuilder:validation:MaxLength=63
+// +kubebuilder:validation:Pattern=`^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$`
+type LabelValue string
 
 // AddressType defines how a network address is represented as a text string.
 // This may take two possible forms:
@@ -705,6 +764,11 @@ type HeaderName string
 // +kubebuilder:validation:Pattern=`^([0-9]{1,5}(h|m|s|ms)){1,4}$`
 type Duration string
 
+// TrueField is a boolean value that can only be set to true
+//
+// +kubebuilder:validation:Enum=true
+type TrueField bool
+
 const (
 	// A textual representation of a numeric IP address. IPv4
 	// addresses must be in dotted-decimal form. IPv6 addresses
@@ -712,7 +776,7 @@ const (
 	// (see [RFC 5952](https://tools.ietf.org/html/rfc5952)).
 	//
 	// This type is intended for specific addresses. Address ranges are not
-	// supported (e.g. you can not use a CIDR range like 127.0.0.0/24 as an
+	// supported (e.g. you cannot use a CIDR range like 127.0.0.0/24 as an
 	// IPAddress).
 	//
 	// Support: Extended
@@ -736,3 +800,128 @@ const (
 	// Support: Implementation-specific
 	NamedAddressType AddressType = "NamedAddress"
 )
+
+// SessionPersistence defines the desired state of SessionPersistence.
+// +kubebuilder:validation:XValidation:message="AbsoluteTimeout must be specified when cookie lifetimeType is Permanent",rule="!has(self.cookieConfig) || !has(self.cookieConfig.lifetimeType) || self.cookieConfig.lifetimeType != 'Permanent' || has(self.absoluteTimeout)"
+type SessionPersistence struct {
+	// SessionName defines the name of the persistent session token
+	// which may be reflected in the cookie or the header. Users
+	// should avoid reusing session names to prevent unintended
+	// consequences, such as rejection or unpredictable behavior.
+	//
+	// Support: Implementation-specific
+	//
+	// +optional
+	// +kubebuilder:validation:MaxLength=128
+	SessionName *string `json:"sessionName,omitempty"`
+
+	// AbsoluteTimeout defines the absolute timeout of the persistent
+	// session. Once the AbsoluteTimeout duration has elapsed, the
+	// session becomes invalid.
+	//
+	// Support: Extended
+	//
+	// +optional
+	AbsoluteTimeout *Duration `json:"absoluteTimeout,omitempty"`
+
+	// IdleTimeout defines the idle timeout of the persistent session.
+	// Once the session has been idle for more than the specified
+	// IdleTimeout duration, the session becomes invalid.
+	//
+	// Support: Extended
+	//
+	// +optional
+	IdleTimeout *Duration `json:"idleTimeout,omitempty"`
+
+	// Type defines the type of session persistence such as through
+	// the use a header or cookie. Defaults to cookie based session
+	// persistence.
+	//
+	// Support: Core for "Cookie" type
+	//
+	// Support: Extended for "Header" type
+	//
+	// +optional
+	// +kubebuilder:default=Cookie
+	Type *SessionPersistenceType `json:"type,omitempty"`
+
+	// CookieConfig provides configuration settings that are specific
+	// to cookie-based session persistence.
+	//
+	// Support: Core
+	//
+	// +optional
+	CookieConfig *CookieConfig `json:"cookieConfig,omitempty"`
+}
+
+// +kubebuilder:validation:Enum=Cookie;Header
+type SessionPersistenceType string
+
+const (
+	// CookieBasedSessionPersistence specifies cookie-based session
+	// persistence.
+	//
+	// Support: Core
+	CookieBasedSessionPersistence SessionPersistenceType = "Cookie"
+
+	// HeaderBasedSessionPersistence specifies header-based session
+	// persistence.
+	//
+	// Support: Extended
+	HeaderBasedSessionPersistence SessionPersistenceType = "Header"
+)
+
+// CookieConfig defines the configuration for cookie-based session persistence.
+type CookieConfig struct {
+	// LifetimeType specifies whether the cookie has a permanent or
+	// session-based lifetime. A permanent cookie persists until its
+	// specified expiry time, defined by the Expires or Max-Age cookie
+	// attributes, while a session cookie is deleted when the current
+	// session ends.
+	//
+	// When set to "Permanent", AbsoluteTimeout indicates the
+	// cookie's lifetime via the Expires or Max-Age cookie attributes
+	// and is required.
+	//
+	// When set to "Session", AbsoluteTimeout indicates the
+	// absolute lifetime of the cookie tracked by the gateway and
+	// is optional.
+	//
+	// Defaults to "Session".
+	//
+	// Support: Core for "Session" type
+	//
+	// Support: Extended for "Permanent" type
+	//
+	// +optional
+	// +kubebuilder:default=Session
+	LifetimeType *CookieLifetimeType `json:"lifetimeType,omitempty"`
+}
+
+// +kubebuilder:validation:Enum=Permanent;Session
+type CookieLifetimeType string
+
+const (
+	// SessionCookieLifetimeType specifies the type for a session
+	// cookie.
+	//
+	// Support: Core
+	SessionCookieLifetimeType CookieLifetimeType = "Session"
+
+	// PermanentCookieLifetimeType specifies the type for a permanent
+	// cookie.
+	//
+	// Support: Extended
+	PermanentCookieLifetimeType CookieLifetimeType = "Permanent"
+)
+
+// +kubebuilder:validation:XValidation:message="numerator must be less than or equal to denominator",rule="self.numerator <= self.denominator"
+type Fraction struct {
+	// +kubebuilder:validation:Minimum=0
+	Numerator int32 `json:"numerator"`
+
+	// +optional
+	// +kubebuilder:default=100
+	// +kubebuilder:validation:Minimum=1
+	Denominator *int32 `json:"denominator,omitempty"`
+}
