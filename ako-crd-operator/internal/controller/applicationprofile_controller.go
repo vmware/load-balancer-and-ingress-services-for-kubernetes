@@ -165,7 +165,7 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 	}
 	// this is a POST Call
 	if ap.Status.UUID == "" {
-		resp, err := r.createApplicationProfile(ctx, apReq)
+		resp, err := r.createApplicationProfile(ctx, apReq, ap)
 		if err != nil {
 			r.EventRecorder.Event(ap, corev1.EventTypeWarning, "CreationFailed", fmt.Sprintf("Failed to create ApplicationProfile on Avi Controller: %v", err))
 			log.Errorf("error creating application profile: %s", err.Error())
@@ -179,13 +179,6 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 		}
 		ap.Status.UUID = uuid
 		r.EventRecorder.Event(ap, corev1.EventTypeNormal, "Created", "ApplicationProfile created successfully on Avi Controller")
-		ap.Status.Conditions = controllerutils.SetCondition(ap.Status.Conditions, metav1.Condition{
-			Type:               "Ready",
-			Status:             metav1.ConditionTrue,
-			LastTransitionTime: metav1.Now(),
-			Reason:             "Created",
-			Message:            "ApplicationProfile created successfully on Avi Controller",
-		})
 	} else {
 		// this is a PUT Call
 		// check if no op by checking generation
@@ -211,7 +204,7 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 		ap.Status.Conditions = controllerutils.SetCondition(ap.Status.Conditions, metav1.Condition{
 			Type:               "Ready",
 			Status:             metav1.ConditionTrue,
-			LastTransitionTime: metav1.Now(),
+			LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
 			Reason:             "Updated",
 			Message:            "ApplicationProfile updated successfully on Avi Controller",
 		})
@@ -219,7 +212,8 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 		log.Info("succesfully updated application profile")
 	}
 	ap.Status.BackendObjectName = apReq.Name
-	ap.Status.LastUpdated = &metav1.Time{Time: time.Now().UTC()}
+	lastUpdated := metav1.Time{Time: time.Now().UTC()}
+	ap.Status.LastUpdated = &lastUpdated
 	ap.Status.ObservedGeneration = ap.Generation
 	if err := r.Status().Update(ctx, ap); err != nil {
 		r.EventRecorder.Event(ap, corev1.EventTypeWarning, "StatusUpdateFailed", fmt.Sprintf("Failed to update ApplicationProfile status: %v", err))
@@ -230,7 +224,7 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 }
 
 // createApplicationProfile will attempt to create a application profile, if it already exists, it will return an object which contains the uuid
-func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Context, apReq *ApplicationProfileRequest) (map[string]interface{}, error) {
+func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Context, apReq *ApplicationProfileRequest, ap *akov1alpha1.ApplicationProfile ) (map[string]interface{}, error) {
 	log := utils.LoggerFromContext(ctx)
 	resp := map[string]interface{}{}
 	if err := r.AviClient.AviSessionPost(utils.GetUriEncoded(constants.ApplicationProfileURL), apReq, &resp); err != nil {
@@ -253,11 +247,25 @@ func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Cont
 					log.Errorf("error updating application profile", err.Error())
 					return nil, err
 				}
+				ap.Status.Conditions = controllerutils.SetCondition(ap.Status.Conditions, metav1.Condition{
+					Type:               "Ready",
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
+					Reason:             "Updated",
+					Message:            "ApplicationProfile updated successfully on Avi Controller",
+				})
 				return resp, nil
 			}
 		}
 		return nil, err
 	}
+	ap.Status.Conditions = controllerutils.SetCondition(ap.Status.Conditions, metav1.Condition{
+		Type:               "Ready",
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
+		Reason:             "Created",
+		Message:            "ApplicationProfile created successfully on Avi Controller",
+	})
 	log.Info("Application profile successfully created")
 	return resp, nil
 }
