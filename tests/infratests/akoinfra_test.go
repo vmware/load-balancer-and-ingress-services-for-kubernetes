@@ -125,7 +125,7 @@ func TestMain(m *testing.M) {
 	lib.RunAviInfraSettingInformer(stopCh)
 	c.AddSecretEventHandler(stopCh)
 
-	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName, lib.GetClusterName())
+	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName)
 	c.AddNamespaceEventHandler(stopCh)
 
 	os.Exit(m.Run())
