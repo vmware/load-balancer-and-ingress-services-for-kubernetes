@@ -42,7 +42,7 @@ const (
 )
 
 // HealthMonitorSpec defines the desired state of HealthMonitor
-// +kubebuilder:validation:XValidation:rule="(!has(self.http_monitor) || !has(self.http_monitor.auth_type) || has(self.authentication.username) && has(self.authentication.password))",message="If auth_type is set, both username and password must be set in authentication"
+// +kubebuilder:validation:XValidation:rule="(!has(self.http_monitor) || !has(self.http_monitor.auth_type) || has(self.authentication.secret_ref))",message="If auth_type is set, secret_ref must be set in authentication"
 type HealthMonitorSpec struct {
 	// SendInterval is the frequency, in seconds, that pings are sent.
 	// +kubebuilder:validation:Minimum=1
@@ -102,14 +102,8 @@ type HealthMonitorSpec struct {
 
 // HealthMonitorInfo defines authentication information for HTTP/HTTPS monitors.
 type HealthMonitorInfo struct {
-	// Username for server authentication.
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=128
-	Username string `json:"username"`
-	// Password for server authentication.
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=128
-	Password string `json:"password"`
+	// SecretRef is the reference to the secret containing the username and password.
+	SecretRef string `json:"secret_ref,omitempty"`
 }
 
 // TCPMonitor defines the TCP monitor configuration.
@@ -201,6 +195,9 @@ type HealthMonitorStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 	// BackendObjectName is the name of the backend object
 	BackendObjectName string `json:"backendObjectName,omitempty"`
+	// DependencySum is the checksum of all the dependencies for the health monitor
+	// +optional
+	DependencySum uint32 `json:"dependencySum,omitempty"`
 }
 
 // +genclient

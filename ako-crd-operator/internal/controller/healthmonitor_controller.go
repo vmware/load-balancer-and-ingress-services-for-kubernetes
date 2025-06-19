@@ -30,18 +30,24 @@ import (
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
+	akoerrors "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/errors"
 	avisession "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	controllerutils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // HealthMonitorReconciler reconciles a HealthMonitor object
@@ -58,12 +64,19 @@ type HealthMonitorReconciler struct {
 type HealthMonitorRequest struct {
 	Name string `json:"name"`
 	akov1alpha1.HealthMonitorSpec
-	Markers []*models.RoleFilterMatchLabel `json:"markers,omitempty"`
+	Markers         []*models.RoleFilterMatchLabel `json:"markers,omitempty"`
+	AuthCredentials *HealthMonitorAuthRequest      `json:"authentication,omitempty"`
+}
+
+type HealthMonitorAuthRequest struct {
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
 }
 
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=healthmonitors,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=healthmonitors/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=healthmonitors/finalizers,verbs=update
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -125,10 +138,60 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *HealthMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	secretRefField := ".spec.authentication.secret_ref"
+
+	// Create an index on the secretRef field. This allows to quickly look up
+	// HealthMonitors that reference a given secret.
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &akov1alpha1.HealthMonitor{}, secretRefField, func(obj client.Object) []string {
+		hm := obj.(*akov1alpha1.HealthMonitor)
+		if hm.Spec.Authentication == nil || hm.Spec.Authentication.SecretRef == "" {
+			return nil
+		}
+		return []string{hm.Spec.Authentication.SecretRef}
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&akov1alpha1.HealthMonitor{}).
-		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		For(&akov1alpha1.HealthMonitor{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Named("healthmonitor").
+		// Watch for changes to Secrets and enqueue reconcile requests for the HealthMonitors that reference them.
+		Watches(
+			&corev1.Secret{},
+			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
+				secret := obj.(*corev1.Secret)
+				hmList := &akov1alpha1.HealthMonitorList{}
+
+				// Use the index to find all HealthMonitors that reference this secret.
+				err := r.List(ctx, hmList, &client.ListOptions{
+					FieldSelector: fields.OneTermEqualSelector(secretRefField, secret.Name),
+					Namespace:     secret.Namespace,
+				})
+				if err != nil {
+					r.Logger.Errorf("failed to list HealthMonitors for secret %s/%s: %v", secret.Namespace, secret.Name, err)
+					return []reconcile.Request{}
+				}
+
+				requests := make([]reconcile.Request, 0, len(hmList.Items))
+				for _, item := range hmList.Items {
+					requests = append(requests, reconcile.Request{
+						NamespacedName: types.NamespacedName{
+							Name:      item.Name,
+							Namespace: item.Namespace,
+						},
+					})
+				}
+				return requests
+			}),
+			// Use a predicate to only watch for secrets of the correct type.
+			builder.WithPredicates(predicate.NewPredicateFuncs(func(obj client.Object) bool {
+				secret, ok := obj.(*corev1.Secret)
+				if !ok {
+					return false
+				}
+				return secret.Type == constants.HealthMonitorSecretType
+			})),
+		).
 		Complete(r)
 }
 
@@ -163,6 +226,14 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 		Markers:           controllerutils.CreateMarkers(r.ClusterName, hm.Namespace),
 	}
 
+	reconcile, dependencyChecksum, err := r.resolveRefsAndCheckDependencies(ctx, hm.Namespace, hm, hmReq)
+	if err != nil {
+		log.Errorf("error resolving refs: %s", err.Error())
+		hm.Status.DependencySum = 0
+		r.EventRecorder.Event(hm, corev1.EventTypeWarning, "RefResolutionFailed", fmt.Sprintf("Failed to resolve refs: %v", err))
+		return err
+	}
+
 	// this is a POST Call
 	if hm.Status.UUID == "" {
 		resp, err := r.createHealthMonitor(ctx, hmReq, hm)
@@ -181,8 +252,8 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 		r.EventRecorder.Event(hm, corev1.EventTypeNormal, "Created", "HealthMonitor created successfully on Avi Controller")
 	} else {
 		// this is a PUT Call
-		// check if no op by checking generation
-		if hm.GetGeneration() == hm.Status.ObservedGeneration {
+		// check if no op by checking generation and checksums
+		if !reconcile {
 			// if no op from kubernetes side, check if op required from OOB changes by checking lastModified timestamp
 			if hm.Status.LastUpdated != nil {
 				dataMap, ok := r.Cache.GetObjectByUUID(ctx, hm.Status.UUID)
@@ -211,6 +282,7 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 		r.EventRecorder.Event(hm, corev1.EventTypeNormal, "Updated", "HealthMonitor updated successfully on Avi Controller")
 		log.Info("succesfully updated healthmonitor")
 	}
+	hm.Status.DependencySum = dependencyChecksum
 	hm.Status.BackendObjectName = hmReq.Name
 	lastUpdated := metav1.Time{Time: time.Now().UTC()}
 	hm.Status.LastUpdated = &lastUpdated
@@ -299,4 +371,90 @@ func extractUUID(resp map[string]interface{}) (string, error) {
 		return "", errors.New("'uuid' not found or not a string")
 	}
 	return uuid, nil
+}
+
+func (r *HealthMonitorReconciler) resolveRefsAndCheckDependencies(ctx context.Context, namespace string, hm *akov1alpha1.HealthMonitor, hmReq *HealthMonitorRequest) (bool, uint32, error) {
+	reconcile := false
+	secretResourceVersion, err := r.resolveSecret(ctx, namespace, hm, hmReq)
+	if err != nil {
+		return reconcile, 0, err
+	}
+	dependencyChecksum := generateChecksum(secretResourceVersion)
+	if hm.GetGeneration() != hm.Status.ObservedGeneration || hm.Status.DependencySum != dependencyChecksum {
+		reconcile = true
+	}
+	return reconcile, dependencyChecksum, nil
+}
+
+func generateChecksum(checkSumFields ...string) uint32 {
+	checksumString := []string{}
+	for _, checksum := range checkSumFields {
+		if checksum == "" {
+			continue
+		}
+		checksumString = append(checksumString, checksum)
+	}
+	if len(checksumString) == 0 {
+		return 0
+	}
+	return utils.Hash(strings.Join(checksumString, ":"))
+}
+
+func (r *HealthMonitorReconciler) resolveSecret(ctx context.Context, namespace string, hm *akov1alpha1.HealthMonitor, hmReq *HealthMonitorRequest) (string, error) {
+	log := utils.LoggerFromContext(ctx)
+	if hmReq.Authentication == nil || hmReq.Authentication.SecretRef == "" {
+		return "", nil
+	}
+
+	secret := &corev1.Secret{}
+	if err := r.Client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: hmReq.Authentication.SecretRef}, secret); err != nil {
+		log.Errorf("error getting secret: %s", err.Error())
+		return "", akoerrors.AKOCRDOperatorError{
+			HttpStatusCode: http.StatusBadRequest,
+			Reason:         "UnresolvedRef",
+			Message:        fmt.Sprintf("Secret %s not found", hmReq.Authentication.SecretRef),
+		}
+	}
+	if secret.Type != constants.HealthMonitorSecretType {
+		log.Errorf("secret is not of %s type", constants.HealthMonitorSecretType)
+		return "", akoerrors.AKOCRDOperatorError{
+			HttpStatusCode: http.StatusBadRequest,
+			Reason:         "ConfigurationError",
+			Message:        fmt.Sprintf("Secret %s is not of type %s", hmReq.Authentication.SecretRef, constants.HealthMonitorSecretType),
+		}
+	}
+
+	if secret.Data == nil {
+		log.Errorf("secret data is nil")
+		return "", akoerrors.AKOCRDOperatorError{
+			HttpStatusCode: http.StatusBadRequest,
+			Reason:         "ConfigurationError",
+			Message:        fmt.Sprintf("Secret data is nil in secret %s", hmReq.Authentication.SecretRef),
+		}
+	}
+	username, ok := secret.Data["username"]
+	if !ok {
+		log.Errorf("username not found in secret")
+		return "", akoerrors.AKOCRDOperatorError{
+			HttpStatusCode: http.StatusBadRequest,
+			Reason:         "ConfigurationError",
+			Message:        fmt.Sprintf("Username not found in secret %s", hmReq.Authentication.SecretRef),
+		}
+	}
+	password, ok := secret.Data["password"]
+	if !ok {
+		log.Errorf("password not found in secret")
+		return "", akoerrors.AKOCRDOperatorError{
+			HttpStatusCode: http.StatusBadRequest,
+			Reason:         "ConfigurationError",
+			Message:        fmt.Sprintf("Password not found in secret %s", hmReq.Authentication.SecretRef),
+		}
+	}
+	hmReq.AuthCredentials = &HealthMonitorAuthRequest{
+		Username: string(username),
+		Password: string(password),
+	}
+	// explicitly set authentication with secretRef to nil to avoid sending it to the controller
+	hmReq.Authentication = nil
+	return secret.ResourceVersion, nil
 }

@@ -45,19 +45,10 @@ spec:
                 description: Authentication defines the authentication information
                   for HTTP/HTTPS monitors.
                 properties:
-                  password:
-                    description: Password for server authentication.
-                    maxLength: 128
-                    minLength: 1
+                  secret_ref:
+                    description: SecretRef is the reference to the secret containing
+                      the username and password.
                     type: string
-                  username:
-                    description: Username for server authentication.
-                    maxLength: 128
-                    minLength: 1
-                    type: string
-                required:
-                - password
-                - username
                 type: object
               failed_checks:
                 default: 2
@@ -220,10 +211,9 @@ spec:
             - type
             type: object
             x-kubernetes-validations:
-            - message: If auth_type is set, both username and password must be set
-                in authentication
+            - message: If auth_type is set, secret_ref must be set in authentication
               rule: (!has(self.http_monitor) || !has(self.http_monitor.auth_type)
-                || has(self.authentication.username) && has(self.authentication.password))
+                || has(self.authentication.secret_ref))
           status:
             description: Status defines the observed state of HealthMonitor
             properties:
@@ -287,6 +277,11 @@ spec:
                   - type
                   type: object
                 type: array
+              dependencySum:
+                description: DependencySum is the checksum of all the dependencies
+                  for the health monitor
+                format: int32
+                type: integer
               lastUpdated:
                 description: LastUpdated is the timestamp the object was last updated
                 format: date-time
