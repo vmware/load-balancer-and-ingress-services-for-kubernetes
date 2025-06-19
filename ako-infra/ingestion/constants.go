@@ -18,5 +18,4 @@ const (
 	AVI_ENTERPRISE                 = "ENTERPRISE"
 	VSphereClusterIDLabelKey       = "vSphereClusterID"
 	AviEnterpriseWithCloudServices = "ENTERPRISE_WITH_CLOUD_SERVICES"
-	KubeAPIServerLBSvc             = "kube-system-kube-apiserver-lb-svc"
 )

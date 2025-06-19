@@ -644,16 +644,3 @@ func GetUriEncoded(uri string) string {
 	newUri.RawQuery = queryValues.Encode()
 	return newUri.String()
 }
-
-func InSlice(supSlice []string, subSlice []string) bool {
-	m := make(map[string]struct{})
-	for _, s := range supSlice {
-		m[s] = struct{}{}
-	}
-	for _, s := range subSlice {
-		if _, ok := m[s]; !ok {
-			return false
-		}
-	}
-	return true
-}
