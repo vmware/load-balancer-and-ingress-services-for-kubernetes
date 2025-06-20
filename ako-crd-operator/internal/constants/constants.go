@@ -6,4 +6,5 @@ const (
 	Sensitive                   = "<sensitive>"
 	ApplicationProfileFinalizer = "applicationprofile.ako.vmware.com/finalizer"
 	ApplicationProfileURL       = "/api/applicationprofile"
+	HealthMonitorSecretType     = "ako.vmware.com/healthmonitor"
 )
