@@ -15,6 +15,9 @@ fi
 
 echo "--- Start of Pre-Build Steps ---"
 
+export PATH=$PATH:/usr/local/go/bin
+go version
+
 # Setting GO related variables for Broadcom GOPROXY artifactory
 go env -w GOPROXY=https://packages.vcfd.broadcom.net/artifactory/proxy-golang-remote
 go env -w GOSUMDB=https://packages.vcfd.broadcom.net/artifactory/go-gosumdb-remote
