@@ -335,6 +335,11 @@ func fetchVcenterServer(client *clients.AviClient) (string, error) {
 	if result.Count == 0 {
 		return "", fmt.Errorf("vcenterServer object not found")
 	}
+	if result.Count > 1 {
+		utils.AviLog.Warnf("%d vcenterServer objects found in Avi Cloud %s, expected 1, skipping placement scope configuration", result.Count, utils.CloudName)
+		return "", nil
+	}
+
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
@@ -387,6 +392,9 @@ func updateSEGroup() {
 		utils.AviLog.Warnf("Error during API call to fetch Vcenter Server Info, err: %s", err.Error())
 		return
 	}
+	if vcenterServerName == "" {
+		return
+	}
 	vcRef := fmt.Sprintf("/api/vcenterserver/?name=%s", vcenterServerName)
 	if len(seGroup.Vcenters) == 0 {
 		seGroup.Vcenters = []*models.PlacementScopeConfig{
@@ -432,12 +440,20 @@ func configureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGr
 			utils.AviLog.Warnf("Error during API call to fetch Vcenter Server Info, err: %s", err.Error())
 			return err
 		}
+		if vcenterServerName == "" {
+			return nil
+		}
+		clusterIDs, err := lib.GetAvailabilityZonesCRData(lib.GetDynamicClientSet())
+		if err != nil {
+			utils.AviLog.Warnf("Failed to get Availability Zones for the supervisor cluster, err: %s", err.Error())
+			return err
+		}
 		vcRef := fmt.Sprintf("/api/vcenterserver/?name=%s", vcenterServerName)
 		seGroup.Vcenters = append(seGroup.Vcenters,
 			&models.PlacementScopeConfig{
 				VcenterRef: &vcRef,
 				NsxtClusters: &models.NsxtClusters{
-					ClusterIds: []string{lib.GetClusterName()},
+					ClusterIds: clusterIDs,
 					Include:    &include,
 				},
 			})
