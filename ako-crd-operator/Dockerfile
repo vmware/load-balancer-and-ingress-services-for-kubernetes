@@ -1,7 +1,7 @@
 # Build the manager binary
 ARG golang_src_repo=golang:latest
 ARG photon_src_repo=photon:latest
-FROM ${golang_src_repo} as build
+FROM --platform=${BUILDPLATFORM} ${golang_src_repo} as build
 
 WORKDIR /workspace
 COPY . /workspace/
