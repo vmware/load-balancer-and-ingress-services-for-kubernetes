@@ -3738,21 +3738,21 @@ func checkAndSetCloudType(client *clients.AviClient, returnErr *error) bool {
 		return false
 	}
 
-	// If an NSX-T cloud is configured without a T1LR param, we will disable sync.
-	if vType == lib.CLOUD_NSXT && lib.GetNSXTTransportZone() == lib.OVERLAY_TRANSPORT_ZONE {
-		if lib.GetT1LRPath() == "" {
+	if vType == lib.CLOUD_NSXT {
+		transportZoneType := *cloud.NsxtConfiguration.DataNetworkConfig.TzType
+		// If an NSX-T cloud is configured without a T1LR param, we will disable sync.
+		if lib.GetT1LRPath() == "" && !utils.IsWCP() && transportZoneType == lib.OVERLAY_TRANSPORT_ZONE {
 			*returnErr = fmt.Errorf("Cloud is configured as NSX-T with overlay transport zone but the T1 LR mapping is not provided")
 			return false
+		} else if lib.GetT1LRPath() != "" && transportZoneType == lib.VLAN_TRANSPORT_ZONE {
+			*returnErr = fmt.Errorf("Cloud configured as NSX-T with VLAN transport zone but the T1 LR mapping is provided")
+			return false
 		}
-	} else if lib.GetT1LRPath() != "" && vType != lib.CLOUD_NSXT {
+	} else if lib.GetT1LRPath() != "" {
 		// If the cloud type is not NSX-T and yet the T1 LR is set then too disable sync
 		*returnErr = fmt.Errorf("Cloud is not configured as NSX-T but the T1 LR mapping is provided")
 		return false
-	} else if lib.GetT1LRPath() != "" && vType == lib.CLOUD_NSXT && lib.GetNSXTTransportZone() == lib.VLAN_TRANSPORT_ZONE {
-		*returnErr = fmt.Errorf("Cloud configured as NSX-T with VLAN transport zone but the T1 LR mapping is  provided")
-		return false
 	}
-
 	return true
 }
 
@@ -3763,11 +3763,6 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 	// 2. If not provided, check for markers in ipam's usable networks.
 	// 3. If marker based usable network is not available, keep vipNetworkList empty.
 	// 4. vipNetworkList can be empty only in WCP and VPC_MODE usecases, for all others, mark invalid configuration.
-
-	if lib.GetVPCMode() {
-		utils.SetVipNetworkList([]akov1beta1.AviInfraSettingVipNetwork{})
-		return true, nil
-	}
 
 	// 1. User input
 	if vipList, err := lib.GetVipNetworkListEnv(); err != nil {
@@ -3843,7 +3838,7 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 	}
 
 	// 4. Empty VipNetworkList
-	if utils.IsWCP() && markerNetworkFound == "" {
+	if (utils.IsWCP() && markerNetworkFound == "") || (lib.GetCloudType() == lib.CLOUD_NSXT && lib.GetVPCMode()) {
 		utils.SetVipNetworkList([]akov1beta1.AviInfraSettingVipNetwork{})
 		return true, nil
 	}

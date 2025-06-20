@@ -76,8 +76,6 @@ type AKOSettings struct {
 	IPFamily string `json:"ipFamily,omitempty"`
 	// UseDefaultSecretsOnly flag if set to true, AKO will only handle default secrets from the namespace where AKO is installed. This flag is applicable only to Openshift clusters.
 	UseDefaultSecretsOnly bool `json:"useDefaultSecretsOnly,omitempty"`
-	// VPCMode enables AKO to operate in VPC mode. This flag is only applicable to NSX-T.
-	VPCMode bool `json:"vpcMode,omitempty"`
 }
 
 type NodeNetwork struct {

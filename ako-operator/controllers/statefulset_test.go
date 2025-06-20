@@ -364,15 +364,6 @@ var sfJson = `
 								}
 							},
 							{
-								"name": "VPC_MODE",
-								"valueFrom": {
-									"configMapKeyRef": {
-										"key": "vpcMode",
-										"name": "avi-k8s-config"
-									}
-								}
-							},
-							{
 								"name": "LOG_FILE_PATH",
 								"value": "/log"
 							},
