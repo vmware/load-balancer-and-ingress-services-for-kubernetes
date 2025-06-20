@@ -72,7 +72,6 @@ const (
 	IPFamily               = "ipFamily"
 	EnableMCI              = "enableMCI"
 	UseDefaultSecretsOnly  = "useDefaultSecretsOnly"
-	VPCMode                = "vpcMode"
 	DefaultLBController    = "defaultLBController"
 	VRFName                = "vrfName"
 	EnablePrometheus       = "enablePrometheus"
