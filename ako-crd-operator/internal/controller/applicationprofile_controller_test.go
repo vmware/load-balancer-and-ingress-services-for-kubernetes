@@ -563,6 +563,49 @@ func TestApplicationProfileController(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "error: delete fails with 403 error (referenced by other objects)",
+			ap: &akov1alpha1.ApplicationProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test",
+					Finalizers:        []string{"applicationprofile.ako.vmware.com/finalizer"},
+					DeletionTimestamp: &metav1.Time{Time: time.Now().Truncate(time.Second)},
+					ResourceVersion:   "1000",
+				},
+				Status: akov1alpha1.ApplicationProfileStatus{
+					UUID: "123",
+				},
+			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				mockAviClient.EXPECT().AviSessionDelete(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any()).Return(session.AviError{
+					HttpStatusCode: 403,
+					AviResult: session.AviResult{
+						Message: &[]string{"Cannot delete, object is referred by: ['VirtualService custom-vs', 'Pool custom-pool']"}[0],
+					},
+				}).AnyTimes()
+			},
+			want: &akov1alpha1.ApplicationProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test",
+					Finalizers:        []string{"applicationprofile.ako.vmware.com/finalizer"},
+					DeletionTimestamp: &metav1.Time{Time: time.Now().Truncate(time.Second)},
+					ResourceVersion:   "1001",
+				},
+				Status: akov1alpha1.ApplicationProfileStatus{
+					UUID: "123",
+					Conditions: []metav1.Condition{
+						{
+							Type:               "Deleted",
+							Status:             metav1.ConditionFalse,
+							LastTransitionTime: metav1.Time{Time: time.Now().Truncate(time.Second)},
+							Reason:             "DeletionSkipped",
+							Message:            "Cannot delete, object is referred by: ['VirtualService custom-vs', 'Pool custom-pool']",
+						},
+					},
+				},
+			},
+			wantErr: false, // 403 doesn't cause requeue, it sets condition and waits
+		},
+		{
 			name: "error: non-retryable error (status update without requeue)",
 			ap: &akov1alpha1.ApplicationProfile{
 				ObjectMeta: metav1.ObjectMeta{
@@ -786,7 +829,7 @@ func TestApplicationProfileControllerKubernetesError(t *testing.T) {
 			setup: func() (*fake.ClientBuilder, ctrl.Request) {
 				scheme := runtime.NewScheme()
 				_ = akov1alpha1.AddToScheme(scheme)
-			    ap := &akov1alpha1.ApplicationProfile{
+				ap := &akov1alpha1.ApplicationProfile{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:       "test",
 						Namespace:  "default",

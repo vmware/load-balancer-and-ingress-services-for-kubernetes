@@ -153,7 +153,7 @@ func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alp
 					log.Errorf("HealthMonitor is being reffered by other objects, cannot be deleted. %s", aviError.Error())
 					r.EventRecorder.Event(hm, corev1.EventTypeWarning, "DeletionSkipped", aviError.Error())
 					hm.Status.Conditions = controllerutils.SetCondition(hm.Status.Conditions, metav1.Condition{
-						Type:               "Delete",
+						Type:               "Deleted",
 						Status:             metav1.ConditionFalse,
 						LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
 						Reason:             "DeletionSkipped",

@@ -157,7 +157,7 @@ func (r *ApplicationProfileReconciler) DeleteObject(ctx context.Context, ap *ako
 					log.Errorf("ApplicationProfile is being referred by other objects, cannot be deleted. %s", aviError.Error())
 					r.EventRecorder.Event(ap, corev1.EventTypeWarning, "DeletionSkipped", aviError.Error())
 					ap.Status.Conditions = controllerutils.SetCondition(ap.Status.Conditions, metav1.Condition{
-						Type:               "Delete",
+						Type:               "Deleted",
 						Status:             metav1.ConditionFalse,
 						LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
 						Reason:             "DeletionSkipped",
@@ -246,7 +246,7 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 }
 
 // createApplicationProfile will attempt to create a application profile, if it already exists, it will return an object which contains the uuid
-func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Context, apReq *ApplicationProfileRequest, ap *akov1alpha1.ApplicationProfile ) (map[string]interface{}, error) {
+func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Context, apReq *ApplicationProfileRequest, ap *akov1alpha1.ApplicationProfile) (map[string]interface{}, error) {
 	log := utils.LoggerFromContext(ctx)
 	resp := map[string]interface{}{}
 	if err := r.AviClient.AviSessionPost(utils.GetUriEncoded(constants.ApplicationProfileURL), apReq, &resp); err != nil {

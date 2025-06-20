@@ -594,7 +594,7 @@ func TestHealthMonitorController(t *testing.T) {
 					UUID: "123",
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Delete",
+							Type:               "Deleted",
 							Status:             metav1.ConditionFalse,
 							LastTransitionTime: metav1.Time{Time: time.Now().Truncate(time.Second)},
 							Reason:             "DeletionSkipped",
