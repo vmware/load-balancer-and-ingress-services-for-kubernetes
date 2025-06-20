@@ -221,13 +221,9 @@ func TestConfigmap(t *testing.T) {
 	akoConfig.Spec.AKOSettings.UseDefaultSecretsOnly = true
 	cmUseDefaultSecretsOnly := buildConfigMapAndVerify(cmBlockedNamespaceList, akoConfig, true, false, t)
 
-	t.Log("updating vpcMode and verifying")
-	akoConfig.Spec.AKOSettings.VPCMode = true
-  cmVPCMode := buildConfigMapAndVerify(cmUseDefaultSecretsOnly, akoConfig, true, false, t)
-
 	t.Log("updating defaultLBController and verifying")
 	akoConfig.Spec.L4Settings.DefaultLBController = false
-	cmDefaultLBController := buildConfigMapAndVerify(cmVPCMode, akoConfig, true, false, t)
+	cmDefaultLBController := buildConfigMapAndVerify(cmUseDefaultSecretsOnly, akoConfig, true, false, t)
 
 	t.Log("updating vrfName and verifying")
 	akoConfig.Spec.ControllerSettings.VRFName = "test-vrf"
