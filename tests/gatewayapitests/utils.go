@@ -28,6 +28,10 @@ import (
 	"github.com/onsi/gomega"
 	"google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
+
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	gatewayfake "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/fake"
@@ -40,7 +44,24 @@ import (
 
 var KubeClient *k8sfake.Clientset
 var GatewayClient *gatewayfake.Clientset
+var DynamicClient *dynamicfake.FakeDynamicClient
+var GvrToKind = map[schema.GroupVersionResource]string{
+	akogatewayapilib.L7CRDGVR: "l7rulesList",
+}
+var testData unstructured.Unstructured
 
+func GetL7RuleFakeData() unstructured.Unstructured {
+	testData.SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "ako.vmware.com",
+		"kind":       "l7rules",
+		"metadata": map[string]interface{}{
+			"name":      "testL7Rule",
+			"namespace": "default",
+		},
+		"spec": map[string]interface{}{},
+	})
+	return testData
+}
 func NewAviFakeClientInstance(kubeclient *k8sfake.Clientset, skipCachePopulation ...bool) {
 	if integrationtest.AviFakeClientInstance == nil {
 		integrationtest.AviFakeClientInstance = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

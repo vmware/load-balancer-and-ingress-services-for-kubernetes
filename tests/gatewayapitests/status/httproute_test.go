@@ -1089,7 +1089,7 @@ func TestHTTPRouteWithInvalidBackendKind(t *testing.T) {
 			Type:    string(gatewayv1.RouteConditionResolvedRefs),
 			Reason:  string(gatewayv1.RouteReasonInvalidKind),
 			Status:  metav1.ConditionFalse,
-			Message: "BackendRef avisvc has invalid kind InvalidKind.",
+			Message: "backendRef avisvc has invalid kind InvalidKind",
 		},
 		}
 		conditionMap[fmt.Sprintf("%s-%d", gatewayName, port)] = conditions
@@ -1166,7 +1166,7 @@ func TestHTTPRouteWithValidAndInvalidBackendKind(t *testing.T) {
 			Type:    string(gatewayv1.RouteConditionResolvedRefs),
 			Reason:  string(gatewayv1.RouteReasonInvalidKind),
 			Status:  metav1.ConditionFalse,
-			Message: "BackendRef avisvc has invalid kind InvalidKind.",
+			Message: "backendRef avisvc has invalid kind InvalidKind",
 		},
 		}
 		conditionMap[fmt.Sprintf("%s-%d", gatewayName, port)] = conditions

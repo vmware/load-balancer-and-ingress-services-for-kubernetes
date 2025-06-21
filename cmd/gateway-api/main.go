@@ -98,6 +98,11 @@ func Initialize() {
 	}
 	akoControlConfig.SetGatewayAPIClientset(gwApiClient)
 
+	dynamicClient, err := akogatewaylib.NewDynamicClientSet(cfg)
+	if err != nil {
+		utils.AviLog.Warnf("Error while creating dynamic client %v", err)
+	}
+
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		utils.AviLog.Fatalf("Error building kubernetes clientset: %s", err.Error())
@@ -120,8 +125,8 @@ func Initialize() {
 	informersArg := make(map[string]interface{})
 
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
-
-	informers := k8s.K8sinformers{Cs: kubeClient}
+	akogatewaylib.NewDynamicInformers(dynamicClient, false)
+	informers := k8s.K8sinformers{Cs: kubeClient, DynamicClient: dynamicClient}
 	c := akogatewayk8s.SharedGatewayController()
 	c.InitGatewayAPIInformers(gwApiClient)
 	stopCh := utils.SetupSignalHandler()

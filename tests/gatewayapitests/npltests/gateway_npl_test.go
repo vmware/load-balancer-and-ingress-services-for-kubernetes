@@ -25,6 +25,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	gatewayfake "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/fake"
@@ -48,10 +50,11 @@ const (
 )
 
 func TestMain(m *testing.M) {
-
 	tests.KubeClient = k8sfake.NewSimpleClientset()
 	tests.GatewayClient = gatewayfake.NewSimpleClientset()
 	integrationtest.KubeClient = tests.KubeClient
+	testData := tests.GetL7RuleFakeData()
+	tests.DynamicClient = dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), tests.GvrToKind, &testData)
 
 	// Sets the environment variables
 	os.Setenv("CLUSTER_NAME", "cluster")
@@ -71,6 +74,8 @@ func TestMain(m *testing.M) {
 	lib.AKOControlConfig().SetIsLeaderFlag(true)
 	akoControlConfig := akogatewayapilib.AKOControlConfig()
 	akoControlConfig.SetEventRecorder(lib.AKOGatewayEventComponent, tests.KubeClient, true)
+	akogatewayapilib.SetDynamicClientSet(tests.DynamicClient)
+	akogatewayapilib.NewDynamicInformers(tests.DynamicClient, false)
 	registeredInformers := []string{
 		utils.ServiceInformer,
 		utils.SecretInformer,
@@ -114,7 +119,7 @@ func TestMain(m *testing.M) {
 	waitGroupMap["status"] = wgStatus
 
 	integrationtest.AddConfigMap(tests.KubeClient)
-	go ctrl.InitController(k8s.K8sinformers{Cs: tests.KubeClient}, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
+	go ctrl.InitController(k8s.K8sinformers{Cs: tests.KubeClient, DynamicClient: tests.DynamicClient}, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
 
 }

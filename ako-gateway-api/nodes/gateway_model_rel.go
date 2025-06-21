@@ -345,6 +345,7 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 	}
 
 	var svcNsNameList []string
+	var l7RuleNsNameList []string
 	for _, rule := range hrObj.Spec.Rules {
 		for _, backendRef := range rule.BackendRefs {
 			ns := namespace
@@ -353,6 +354,18 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 			}
 			svcNsName := ns + "/" + string(backendRef.Name)
 			svcNsNameList = append(svcNsNameList, svcNsName)
+		}
+		for _, filter := range rule.Filters {
+			// Do we need to check first condition??
+			if filter.Type == gatewayv1.HTTPRouteFilterExtensionRef && filter.ExtensionRef != nil {
+				if filter.ExtensionRef.Kind == lib.L7Rule {
+					l7RuleNsName := namespace + "/" + string(filter.ExtensionRef.Name)
+					if !utils.HasElem(l7RuleNsNameList, l7RuleNsName) {
+						l7RuleNsNameList = append(l7RuleNsNameList, l7RuleNsName)
+					}
+				}
+			}
+
 		}
 	}
 
@@ -364,6 +377,24 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 				akogatewayapiobjects.GatewayApiLister().DeleteRouteToServiceMappings(routeTypeNsName, svcNsName, key)
 			}
 		}
+	}
+
+	// Delete old entries from HTTPRoute->L7RuleMapping & L7Rule-->HTTPRoute
+	routeNSName := namespace + "/" + name
+	found, oldL7RuleNSNameList := akogatewayapiobjects.GatewayApiLister().GetHTTPRouteToL7RuleMapping(routeNSName)
+	if found {
+		for l7RuleNsName := range oldL7RuleNSNameList {
+			if !utils.HasElem(l7RuleNsNameList, l7RuleNsName) {
+				akogatewayapiobjects.GatewayApiLister().DeleteHTTPRouteToL7RuleMapping(routeNSName, l7RuleNsName)
+				akogatewayapiobjects.GatewayApiLister().DeleteL7RuleToHTTPRouteMapping(l7RuleNsName, routeNSName)
+			}
+		}
+	}
+
+	// update with new entries for HTTPRoute->L7 Rule and L7Rule to HTTPRoute
+	for _, l7RuleNsName := range l7RuleNsNameList {
+		akogatewayapiobjects.GatewayApiLister().UpdateHTTPRouteToL7RuleMapping(routeNSName, l7RuleNsName)
+		akogatewayapiobjects.GatewayApiLister().UpdateL7RuleToHTTPRouteMapping(l7RuleNsName, routeNSName)
 	}
 
 	found, oldGateways := akogatewayapiobjects.GatewayApiLister().GetRouteToGateway(routeTypeNsName)
