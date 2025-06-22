@@ -3723,14 +3723,6 @@ func checkAndSetCloudType(client *clients.AviClient, returnErr *error) bool {
 		return false
 	}
 
-	// if the cloud's ipamprovider profile is set, check in the ipam
-	// whether any of the usable networks have a label set. The marker based approach is not valid
-	// for public clouds.
-	if ipamCheck, err := checkIPAMForUsableNetworkLabels(client, cloud.IPAMProviderRef); !ipamCheck {
-		*returnErr = err
-		return false
-	}
-
 	if vType == lib.CLOUD_NSXT {
 		transportZoneType := *cloud.NsxtConfiguration.DataNetworkConfig.TzType
 		// If an NSX-T cloud is configured without a T1LR param, we will disable sync.
@@ -3745,7 +3737,19 @@ func checkAndSetCloudType(client *clients.AviClient, returnErr *error) bool {
 		// If the cloud type is not NSX-T and yet the T1 LR is set then too disable sync
 		*returnErr = fmt.Errorf("Cloud is not configured as NSX-T but the T1 LR mapping is provided")
 		return false
+	} else if lib.GetVPCMode() {
+		*returnErr = fmt.Errorf("Cloud is not configured as NSX-T but VPC mode is enabled")
+		return false
 	}
+
+	// if the cloud's ipamprovider profile is set, check in the ipam
+	// whether any of the usable networks have a label set. The marker based approach is not valid
+	// for public clouds.
+	if ipamCheck, err := checkIPAMForUsableNetworkLabels(client, cloud.IPAMProviderRef); !ipamCheck {
+		*returnErr = err
+		return false
+	}
+
 	return true
 }
 
@@ -3831,7 +3835,7 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 	}
 
 	// 4. Empty VipNetworkList
-	if (utils.IsWCP() && markerNetworkFound == "") || (lib.GetCloudType() == lib.CLOUD_NSXT && lib.GetVPCMode()) {
+	if utils.IsWCP() && markerNetworkFound == "" {
 		utils.SetVipNetworkList([]akov1beta1.AviInfraSettingVipNetwork{})
 		return true, nil
 	}
