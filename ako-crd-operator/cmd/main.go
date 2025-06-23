@@ -22,12 +22,13 @@ import (
 	"os"
 
 	"github.com/go-logr/zapr"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/event"
-	session2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/event"
+	session2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -91,7 +92,7 @@ func main() {
 		setupLog.Fatalf("Error populating controller properties. error: %s", err.Error())
 	}
 
-	sessionManager.CreateAviClients(ctx, 2)
+	sessionManager.CreateAviClients(ctx, 3)
 	aviClients := sessionManager.GetAviClients()
 	clusterName := os.Getenv("CLUSTER_NAME")
 
@@ -127,6 +128,17 @@ func main() {
 		ClusterName:   clusterName,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Fatalf("unable to create controller [ApplicationProfile]. error: %s", err.Error())
+	}
+	if err := (&controller.RouteBackendExtensionReconciler{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		AviClient:     session2.NewAviSessionClient(aviClients.AviClient[2]),
+		Cache:         cacheManager,
+		EventRecorder: mgr.GetEventRecorderFor("routebackendextension-controller"),
+		Logger:        utils.AviLog.WithName("routebackendextension"),
+		ClusterName:   clusterName,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Fatalf("unable to create controller [RouteBackendExtension]. error: %s", err.Error())
 	}
 	// +kubebuilder:scaffold:builder
 
