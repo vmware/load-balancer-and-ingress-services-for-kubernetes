@@ -100,10 +100,18 @@ func (r *ApplicationProfileReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 	} else {
 		// The object is being deleted
-		if err := r.DeleteObject(ctx, ap); err != nil {
+		removeFinalizer := false
+		if err, removeFinalizer = r.DeleteObject(ctx, ap); err != nil {
 			return ctrl.Result{}, err
 		}
-		controllerutil.RemoveFinalizer(ap, constants.ApplicationProfileFinalizer)
+		if removeFinalizer {
+			controllerutil.RemoveFinalizer(ap, constants.ApplicationProfileFinalizer)
+		} else {
+			if err := r.Status().Update(ctx, ap); err != nil {
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{RequeueAfter: constants.RequeueInterval}, nil
+		}
 		if err := r.Update(ctx, ap); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -133,26 +141,40 @@ func (r *ApplicationProfileReconciler) SetupWithManager(mgr ctrl.Manager) error 
 		Complete(r)
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *ApplicationProfileReconciler) DeleteObject(ctx context.Context, ap *akov1alpha1.ApplicationProfile) error {
+// DeleteObject deletes the ApplicationProfile from Avi Controller and returns (error, bool)
+// The boolean indicates whether the finalizer should be removed (true) or kept (false)
+func (r *ApplicationProfileReconciler) DeleteObject(ctx context.Context, ap *akov1alpha1.ApplicationProfile) (error, bool) {
 	log := utils.LoggerFromContext(ctx)
 	if ap.Status.UUID != "" {
 		if err := r.AviClient.AviSessionDelete(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.ApplicationProfileURL, ap.Status.UUID)), nil, nil); err != nil {
-
 			// Handle 404 as success case - object doesn't exist, which is the desired state for delete
-			if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 404 {
-				log.Info("ApplicationProfile not found on Avi Controller (404), treating as successful deletion")
-				return nil
+			if aviError, ok := err.(session.AviError); ok {
+				switch aviError.HttpStatusCode {
+				case 404:
+					log.Info("ApplicationProfile not found on Avi Controller (404), treating as successful deletion")
+					return nil, true
+				case 403:
+					log.Errorf("ApplicationProfile is being referred by other objects, cannot be deleted. %s", aviError.Error())
+					r.EventRecorder.Event(ap, corev1.EventTypeWarning, "DeletionSkipped", aviError.Error())
+					ap.Status.Conditions = controllerutils.SetCondition(ap.Status.Conditions, metav1.Condition{
+						Type:               "Deleted",
+						Status:             metav1.ConditionFalse,
+						LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
+						Reason:             "DeletionSkipped",
+						Message:            controllerutils.ParseAviErrorMessage(*aviError.Message),
+					})
+					return nil, false
+				}
 			}
 			log.Errorf("error deleting application profile: %s", err.Error())
 			r.EventRecorder.Event(ap, corev1.EventTypeWarning, "DeletionFailed", fmt.Sprintf("Failed to delete ApplicationProfile from Avi Controller: %v", err))
-			return err
+			return err, false
 		}
 	} else {
 		r.EventRecorder.Event(ap, corev1.EventTypeWarning, "DeletionSkipped", "UUID not present, ApplicationProfile may not have been created on Avi Controller")
 		log.Warn("error deleting application profile. uuid not present. possibly avi application profile object not created")
 	}
-	return nil
+	return nil, true
 }
 
 // TODO: Make this function generic
@@ -165,7 +187,7 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 	}
 	// this is a POST Call
 	if ap.Status.UUID == "" {
-		resp, err := r.createApplicationProfile(ctx, apReq)
+		resp, err := r.createApplicationProfile(ctx, apReq, ap)
 		if err != nil {
 			r.EventRecorder.Event(ap, corev1.EventTypeWarning, "CreationFailed", fmt.Sprintf("Failed to create ApplicationProfile on Avi Controller: %v", err))
 			log.Errorf("error creating application profile: %s", err.Error())
@@ -179,13 +201,6 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 		}
 		ap.Status.UUID = uuid
 		r.EventRecorder.Event(ap, corev1.EventTypeNormal, "Created", "ApplicationProfile created successfully on Avi Controller")
-		ap.Status.Conditions = controllerutils.SetCondition(ap.Status.Conditions, metav1.Condition{
-			Type:               "Ready",
-			Status:             metav1.ConditionTrue,
-			LastTransitionTime: metav1.Now(),
-			Reason:             "Created",
-			Message:            "ApplicationProfile created successfully on Avi Controller",
-		})
 	} else {
 		// this is a PUT Call
 		// check if no op by checking generation
@@ -211,7 +226,7 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 		ap.Status.Conditions = controllerutils.SetCondition(ap.Status.Conditions, metav1.Condition{
 			Type:               "Ready",
 			Status:             metav1.ConditionTrue,
-			LastTransitionTime: metav1.Now(),
+			LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
 			Reason:             "Updated",
 			Message:            "ApplicationProfile updated successfully on Avi Controller",
 		})
@@ -219,7 +234,8 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 		log.Info("succesfully updated application profile")
 	}
 	ap.Status.BackendObjectName = apReq.Name
-	ap.Status.LastUpdated = &metav1.Time{Time: time.Now().UTC()}
+	lastUpdated := metav1.Time{Time: time.Now().UTC()}
+	ap.Status.LastUpdated = &lastUpdated
 	ap.Status.ObservedGeneration = ap.Generation
 	if err := r.Status().Update(ctx, ap); err != nil {
 		r.EventRecorder.Event(ap, corev1.EventTypeWarning, "StatusUpdateFailed", fmt.Sprintf("Failed to update ApplicationProfile status: %v", err))
@@ -230,7 +246,7 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 }
 
 // createApplicationProfile will attempt to create a application profile, if it already exists, it will return an object which contains the uuid
-func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Context, apReq *ApplicationProfileRequest) (map[string]interface{}, error) {
+func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Context, apReq *ApplicationProfileRequest, ap *akov1alpha1.ApplicationProfile) (map[string]interface{}, error) {
 	log := utils.LoggerFromContext(ctx)
 	resp := map[string]interface{}{}
 	if err := r.AviClient.AviSessionPost(utils.GetUriEncoded(constants.ApplicationProfileURL), apReq, &resp); err != nil {
@@ -253,11 +269,25 @@ func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Cont
 					log.Errorf("error updating application profile", err.Error())
 					return nil, err
 				}
+				ap.Status.Conditions = controllerutils.SetCondition(ap.Status.Conditions, metav1.Condition{
+					Type:               "Ready",
+					Status:             metav1.ConditionTrue,
+					LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
+					Reason:             "Updated",
+					Message:            "ApplicationProfile updated successfully on Avi Controller",
+				})
 				return resp, nil
 			}
 		}
 		return nil, err
 	}
+	ap.Status.Conditions = controllerutils.SetCondition(ap.Status.Conditions, metav1.Condition{
+		Type:               "Ready",
+		Status:             metav1.ConditionTrue,
+		LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
+		Reason:             "Created",
+		Message:            "ApplicationProfile created successfully on Avi Controller",
+	})
 	log.Info("Application profile successfully created")
 	return resp, nil
 }
