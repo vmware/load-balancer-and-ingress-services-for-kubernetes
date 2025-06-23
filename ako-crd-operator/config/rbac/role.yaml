@@ -17,6 +17,7 @@ rules:
   resources:
   - applicationprofiles
   - healthmonitors
+  - routebackendextensions
   verbs:
   - create
   - delete
@@ -30,6 +31,7 @@ rules:
   resources:
   - applicationprofiles/finalizers
   - healthmonitors/finalizers
+  - routebackendextensions/finalizers
   verbs:
   - update
 - apiGroups:
@@ -37,6 +39,7 @@ rules:
   resources:
   - applicationprofiles/status
   - healthmonitors/status
+  - routebackendextensions/status
   verbs:
   - get
   - patch

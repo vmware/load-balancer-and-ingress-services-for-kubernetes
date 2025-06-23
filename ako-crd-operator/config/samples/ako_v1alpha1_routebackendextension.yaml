@@ -1,0 +1,12 @@
+apiVersion: ako.vmware.com/v1alpha1
+kind: RouteBackendExtension
+metadata:
+  labels:
+    app.kubernetes.io/name: ako-crd-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: routebackendextension-sample
+spec:
+  lbAlgorithm: LB_ALGORITHM_LEAST_CONNECTIONS
+  healthMonitor:
+  - kind: "AVIREF"
+    name: "healthmonitor-sample"
