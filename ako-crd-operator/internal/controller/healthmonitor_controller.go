@@ -142,19 +142,63 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return ctrl.Result{}, nil
 }
 
+// healthMonitorSecretRefIndexer extracts secret references from HealthMonitor objects for efficient lookups
+func healthMonitorSecretRefIndexer(obj client.Object) []string {
+	hm := obj.(*akov1alpha1.HealthMonitor)
+	if hm.Spec.Authentication == nil || hm.Spec.Authentication.SecretRef == "" {
+		return nil
+	}
+	return []string{hm.Spec.Authentication.SecretRef}
+}
+
+// healthMonitorSecretHandler finds all HealthMonitors that reference a given secret and creates reconcile requests for them
+func (r *HealthMonitorReconciler) healthMonitorSecretHandler(secretRefField string) func(context.Context, client.Object) []reconcile.Request {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
+		secret := obj.(*corev1.Secret)
+		hmList := &akov1alpha1.HealthMonitorList{}
+
+		// Use the index to find all HealthMonitors that reference this secret.
+		err := r.List(ctx, hmList, &client.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector(secretRefField, secret.Name),
+			Namespace:     secret.Namespace,
+		})
+		if err != nil {
+			r.Logger.Errorf("failed to list HealthMonitors for secret %s/%s: %v", secret.Namespace, secret.Name, err)
+			return []reconcile.Request{}
+		}
+
+		requests := make([]reconcile.Request, 0, len(hmList.Items))
+		for _, item := range hmList.Items {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      item.Name,
+					Namespace: item.Namespace,
+				},
+			})
+		}
+		return requests
+	}
+}
+
+// healthMonitorSecretPredicate ensures only secrets of the correct type are watched by the controller
+func healthMonitorSecretPredicate(obj client.Object) bool {
+	if obj == nil {
+		return false
+	}
+	secret, ok := obj.(*corev1.Secret)
+	if !ok {
+		return false
+	}
+	return secret.Type == constants.HealthMonitorSecretType
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *HealthMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	secretRefField := ".spec.authentication.secret_ref"
 
 	// Create an index on the secretRef field. This allows to quickly look up
 	// HealthMonitors that reference a given secret.
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &akov1alpha1.HealthMonitor{}, secretRefField, func(obj client.Object) []string {
-		hm := obj.(*akov1alpha1.HealthMonitor)
-		if hm.Spec.Authentication == nil || hm.Spec.Authentication.SecretRef == "" {
-			return nil
-		}
-		return []string{hm.Spec.Authentication.SecretRef}
-	}); err != nil {
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &akov1alpha1.HealthMonitor{}, secretRefField, healthMonitorSecretRefIndexer); err != nil {
 		return err
 	}
 
@@ -164,39 +208,9 @@ func (r *HealthMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		// Watch for changes to Secrets and enqueue reconcile requests for the HealthMonitors that reference them.
 		Watches(
 			&corev1.Secret{},
-			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
-				secret := obj.(*corev1.Secret)
-				hmList := &akov1alpha1.HealthMonitorList{}
-
-				// Use the index to find all HealthMonitors that reference this secret.
-				err := r.List(ctx, hmList, &client.ListOptions{
-					FieldSelector: fields.OneTermEqualSelector(secretRefField, secret.Name),
-					Namespace:     secret.Namespace,
-				})
-				if err != nil {
-					r.Logger.Errorf("failed to list HealthMonitors for secret %s/%s: %v", secret.Namespace, secret.Name, err)
-					return []reconcile.Request{}
-				}
-
-				requests := make([]reconcile.Request, 0, len(hmList.Items))
-				for _, item := range hmList.Items {
-					requests = append(requests, reconcile.Request{
-						NamespacedName: types.NamespacedName{
-							Name:      item.Name,
-							Namespace: item.Namespace,
-						},
-					})
-				}
-				return requests
-			}),
+			handler.EnqueueRequestsFromMapFunc(r.healthMonitorSecretHandler(secretRefField)),
 			// Use a predicate to only watch for secrets of the correct type.
-			builder.WithPredicates(predicate.NewPredicateFuncs(func(obj client.Object) bool {
-				secret, ok := obj.(*corev1.Secret)
-				if !ok {
-					return false
-				}
-				return secret.Type == constants.HealthMonitorSecretType
-			})),
+			builder.WithPredicates(predicate.NewPredicateFuncs(healthMonitorSecretPredicate)),
 		).
 		Complete(r)
 }

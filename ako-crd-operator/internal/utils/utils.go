@@ -124,6 +124,7 @@ func UpdateStatusWithNonRetryableError(ctx context.Context, statusUpdater Status
 	// Add or update the condition
 	conditions := SetCondition(resource.GetConditions(), condition)
 	resource.SetConditions(conditions)
+	resource.SetObservedGeneration(resource.GetGeneration())
 	resource.SetLastUpdated(&metav1.Time{Time: time.Now().UTC()})
 
 	if err := statusUpdater.Status().Update(ctx, resource); err != nil {
