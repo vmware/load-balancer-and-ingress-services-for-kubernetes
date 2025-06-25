@@ -102,6 +102,7 @@ type HealthMonitorSpec struct {
 
 // HealthMonitorInfo defines authentication information for HTTP/HTTPS monitors.
 type HealthMonitorInfo struct {
+	// +kubebuilder:validation:Required
 	// SecretRef is the reference to the secret containing the username and password.
 	SecretRef string `json:"secret_ref,omitempty"`
 }

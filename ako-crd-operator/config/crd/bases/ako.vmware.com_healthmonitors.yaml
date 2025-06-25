@@ -49,6 +49,8 @@ spec:
                     description: SecretRef is the reference to the secret containing
                       the username and password.
                     type: string
+                required:
+                - secret_ref
                 type: object
               failed_checks:
                 default: 2
