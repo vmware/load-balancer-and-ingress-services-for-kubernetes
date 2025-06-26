@@ -215,6 +215,7 @@ const (
 	FQDNReusePolicyStrict                      = "strict"
 	FQDNReusePolicyOpen                        = "internamespaceallowed"
 	DefaultPSName                              = "default-backend"
+	ConcurrentUpdateError                      = "the object has been modified"
 
 	// AKO Event constants
 	AKOEventComponent        = "avi-kubernetes-operator"

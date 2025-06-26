@@ -451,7 +451,16 @@ func removeInfraSettingAnnotationFromNamespace(namespace string, infraSettingNam
 	return nil
 }
 
-func AnnotateNamespaceWithInfraSetting(namespace, infraSettingName string) error {
+func AnnotateNamespaceWithInfraSetting(namespace, infraSettingName string, retryCounter ...int) error {
+	retry := 0
+	if len(retryCounter) > 0 {
+		retry = retryCounter[0]
+	}
+	if retry > 2 {
+		err := fmt.Errorf("maximum limit reached for retrying Infrasetting annotation on the Namespace, infraSetting: %s, namespace: %s", infraSettingName, namespace)
+		utils.AviLog.Errorf(err.Error())
+		return err
+	}
 	nsObj, err := utils.GetInformers().NSInformer.Lister().Get(namespace)
 	if err != nil {
 		utils.AviLog.Warnf("Failed to GET the namespace details, namespace: %s, error :%s", namespace, err.Error())
@@ -467,13 +476,25 @@ func AnnotateNamespaceWithInfraSetting(namespace, infraSettingName string) error
 	_, err = utils.GetInformers().ClientSet.CoreV1().Namespaces().Update(context.TODO(), nsObj, metav1.UpdateOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error occurred while Updating namespace: %s", err.Error())
+		if strings.Contains(err.Error(), ConcurrentUpdateError) {
+			return AnnotateNamespaceWithInfraSetting(namespace, infraSettingName, retry+1)
+		}
 		return err
 	}
 	utils.AviLog.Infof("Annotated Namespace %s with AviInfraSetting %s", namespace, infraSettingName)
 	return nil
 }
 
-func AnnotateNamespaceWithTenant(namespace, tenant string) error {
+func AnnotateNamespaceWithTenant(namespace, tenant string, retryCounter ...int) error {
+	retry := 0
+	if len(retryCounter) > 0 {
+		retry = retryCounter[0]
+	}
+	if retry > 2 {
+		err := fmt.Errorf("maximum limit reached for retrying Tenant annotation on the Namespace, tenant: %s, namespace: %s", tenant, namespace)
+		utils.AviLog.Errorf(err.Error())
+		return err
+	}
 	nsObj, err := utils.GetInformers().NSInformer.Lister().Get(namespace)
 	if err != nil {
 		utils.AviLog.Warnf("Failed to GET the namespace details, namespace: %s, error :%s", namespace, err.Error())
@@ -489,6 +510,9 @@ func AnnotateNamespaceWithTenant(namespace, tenant string) error {
 	_, err = utils.GetInformers().ClientSet.CoreV1().Namespaces().Update(context.TODO(), nsObj, metav1.UpdateOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error occurred while Updating namespace: %s", err.Error())
+		if strings.Contains(err.Error(), ConcurrentUpdateError) {
+			return AnnotateNamespaceWithTenant(namespace, tenant, retry+1)
+		}
 		return err
 	}
 	utils.AviLog.Infof("Annotated Namespace %s with tenant %s", namespace, tenant)
