@@ -134,7 +134,6 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 
 	// create vhmatch from the match
 	o.BuildVHMatch(key, parentNsName, routeTypeNsName, childNode, rule, hosts)
-
 	if len(childNode.VHMatches) == 0 {
 		utils.AviLog.Warnf("key: %s, msg: No valid domain name added for child virtual service", key)
 		o.ProcessRouteDeletion(key, parentNsName, routeModel, fullsync)
@@ -146,7 +145,8 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 
 	// create the httppolicyset if the filter is present
 	o.BuildHTTPPolicySet(key, childNode, routeModel, rule, 0, childVSName)
-
+	// Apply Extension Ref
+	o.ApplyRuleExtensionRefs(key, childNode, routeModel, rule)
 	foundEvhModel := nodes.FindAndReplaceEvhInModel(childNode, parentNode, key)
 	if !foundEvhModel {
 		parentNode[0].EvhNodes = append(parentNode[0].EvhNodes, childNode)
@@ -182,6 +182,43 @@ func updateHostname(key, parentNsName string, parentNode *nodes.AviEvhVsNode) {
 	parentNode.VSVIPRefs[0].FQDNs = uniqueHostnames
 }
 
+func (o *AviObjectGraph) ApplyRuleExtensionRefs(key string, childNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
+	if rule != nil && rule.Filters != nil {
+		isFilterAppProfSet := false
+		for _, filter := range rule.Filters {
+			if filter.ExtensionRef != nil {
+				// validations are already done.
+				// Here we need to just apply Extension refs
+				// Priortity: Individual ako-crd-oprator CRD have higher priority over
+				// same kind of the object present in AKO defined CRD
+				if filter.ExtensionRef.Kind == lib.ApplicationProfile {
+					// TODO: Accepted / rejected transition has to be handled.(should be done as part of event handling)
+					childNode.ApplicationProfileRef = proto.String(fmt.Sprintf("/api/applicationprofile?name=%s", filter.ExtensionRef.Name))
+					isFilterAppProfSet = true
+				} else if filter.ExtensionRef.Kind == lib.L7Rule {
+					err := akogatewayapilib.ParseL7CRD(key, routeModel.GetNamespace(), filter.ExtensionRef.Name, childNode, isFilterAppProfSet)
+					if err != nil {
+						resetChildNodeFields(key, err, childNode, isFilterAppProfSet)
+					}
+				}
+			}
+		}
+	}
+}
+func resetChildNodeFields(key string, err error, childNode *nodes.AviEvhVsNode, isFilterAppProfSet bool) {
+	utils.AviLog.Warnf("key: %s, msg: Error while parsing extension ref: %s. Resetting child VS %s fields", key, err.Error(), childNode.Name)
+	generatedFields := childNode.GetGeneratedFields()
+	generatedFields.ConvertL7RuleFieldsToNil()
+	childNode.SetAnalyticsPolicy(nil)
+	childNode.SetAnalyticsProfileRef(nil)
+	if !isFilterAppProfSet {
+		childNode.SetAppProfileRef(nil)
+	}
+	childNode.SetErrorPageProfileRef("")
+	childNode.SetICAPProfileRefs([]string{})
+	childNode.SetWafPolicyRef(nil)
+	childNode.SetHttpPolicySetRefs([]string{})
+}
 func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
 	//reset pool, poolgroupreferences
 	childVsNode.PoolGroupRefs = nil
@@ -376,6 +413,20 @@ func (o *AviObjectGraph) BuildVHMatch(key string, parentNsName string, routeType
 func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule, index int, httpPSName string) {
 
 	if len(rule.Filters) == 0 {
+		vsNode.HttpPolicyRefs = nil
+		return
+	}
+	// go through filters
+	var otherFiltersPresent bool
+
+	for _, filter := range rule.Filters {
+		if filter.RedirectFilter != nil || filter.UrlRewriteFilter != nil || filter.ResponseFilter != nil || filter.RequestFilter != nil {
+			otherFiltersPresent = true
+			break
+		}
+	}
+	if !otherFiltersPresent {
+		// do not require HTTPPolicy ref if above filters are not present
 		vsNode.HttpPolicyRefs = nil
 		return
 	}

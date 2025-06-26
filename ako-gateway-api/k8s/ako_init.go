@@ -53,6 +53,7 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 	informersArg := make(map[string]interface{})
 
 	c.informers = utils.NewInformers(utils.KubeClientIntf{ClientSet: informers.Cs}, registeredInformers, informersArg)
+	c.dynamicInformers = akogatewayapilib.NewDynamicInformers(informers.DynamicClient, false)
 
 	var ingestionWG *sync.WaitGroup
 	var graphWG *sync.WaitGroup
