@@ -214,19 +214,7 @@ func TestConfigmap(t *testing.T) {
 
 	t.Log("updating useDefaultSecretsOnly and verifying")
 	akoConfig.Spec.AKOSettings.UseDefaultSecretsOnly = true
-	cmUseDefaultSecretsOnly := buildConfigMapAndVerify(cmBlockedNamespaceList, akoConfig, true, false, t)
-
-	t.Log("updating defaultLBController and verifying")
-	akoConfig.Spec.L4Settings.DefaultLBController = false
-	cmDefaultLBController := buildConfigMapAndVerify(cmUseDefaultSecretsOnly, akoConfig, true, false, t)
-
-	t.Log("updating vrfName and verifying")
-	akoConfig.Spec.ControllerSettings.VRFName = "test-vrf"
-	cmVRFName := buildConfigMapAndVerify(cmDefaultLBController, akoConfig, true, false, t)
-
-	t.Log("updating EnablePrometheus and verifying")
-	akoConfig.Spec.FeatureGates.EnablePrometheus = true
-	buildConfigMapAndVerify(cmVRFName, akoConfig, true, false, t)
+	buildConfigMapAndVerify(cmBlockedNamespaceList, akoConfig, true, false, t)
 }
 
 func TestStatefulset(t *testing.T) {

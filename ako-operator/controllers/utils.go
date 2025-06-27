@@ -69,9 +69,6 @@ const (
 	IPFamily               = "ipFamily"
 	EnableMCI              = "enableMCI"
 	UseDefaultSecretsOnly  = "useDefaultSecretsOnly"
-	DefaultLBController    = "defaultLBController"
-	VRFName                = "vrfName"
-	EnablePrometheus       = "enablePrometheus"
 )
 
 var ConfigMapEnvVars = map[string]string{
@@ -109,9 +106,6 @@ var ConfigMapEnvVars = map[string]string{
 	"BLOCKED_NS_LIST":            BlockedNamespaceList,
 	"VIP_PER_NAMESPACE":          VipPerNamespace,
 	"USE_DEFAULT_SECRETS_ONLY":   UseDefaultSecretsOnly,
-	"VRF_NAME":                   VRFName,
-	"DEFAULT_LB_CONTROLLER":      DefaultLBController,
-	"PROMETHEUS_ENABLED":         EnablePrometheus,
 }
 
 var ConfigMapEnvVarsGateway = map[string]string{
