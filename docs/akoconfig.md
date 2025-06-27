@@ -35,6 +35,7 @@ spec:
     ipFamily: ""
     blockedNamespaceList: []
     useDefaultSecretsOnly: false
+    vpcMode: false
 
   networkSettings:
     nodeNetworkList: []
@@ -117,6 +118,7 @@ spec:
     * `ipFamily`: IPFamily specifies IP family to be used. This flag can take values `V4` or `V6` (default `V4`). This is for the backend pools to use ipv6 or ipv4. For frontside VS, use v6cidr
     * `blockedNamespaceList`: This is the list of system namespaces from which AKO will not listen any Kubernetes or Openshift object event.
     * `useDefaultSecretsOnly`: If this flag is set to true, AKO will only handle default secrets from the namespace where AKO is installed. This flag is applicable only to Openshift clusters.
+    * `vpcMode`: VPCMode enables AKO to operate in VPC mode. This flag is only applicable to NSX-T.
   - `networkSettings`: Data network setting
     * `nodeNetworkList`: This list of Network Names/UUIDs and Cidrs are used in pool placement network for vcenter cloud. Either networkName or networkUUID should be specified. If duplicate networks are present for the network name, networkUUID should be used for appropriate network. Node Network details are not needed when in nodeport mode / static routes are disabled / non vcenter clouds.
     * `enableRHI`: This is a cluster wide setting for BGP peering.
