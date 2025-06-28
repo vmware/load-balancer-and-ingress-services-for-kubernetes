@@ -1,0 +1,116 @@
+apiVersion: ako.vmware.com/v1beta1
+kind: AKOConfig
+metadata:
+  finalizers:
+  - ako.vmware.com/cleanup
+  labels:
+    app.kubernetes.io/name: ako-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: akoconfig-sample
+  namespace: avi-system
+spec:
+  imageRepository: projects.packages.broadcom.com/ako/ako:1.13.2
+  imagePullPolicy: "IfNotPresent"
+  imagePullSecrets: []
+  replicaCount: 1 # Defines the number of replicas for AKO Statefulset
+  akoSettings:
+    enableEvents: true # Enables/disables Event broadcasting via AKO
+    logLevel: "WARN" # enum: INFO|DEBUG|WARN|ERROR
+    fullSyncFrequency: "1800" # This frequency controls how often AKO polls the Avi controller to update itself with cloud configurations.
+    apiServerPort: 8080 # Internal port for AKO's API server for the liveness probe of the AKO pod default=8080
+    deleteConfig: false # Has to be set to true in configmap if user wants to delete AKO created objects from AVI 
+    disableStaticRouteSync: false # If the POD networks are reachable from the Avi SE, set this knob to true.
+    clusterName: "my-cluster" # A unique identifier for the kubernetes cluster, that helps distinguish the objects for this cluster in the avi controller. // MUST-EDIT
+    cniPlugin: "" # Set the string if your CNI is openshift or ovn-kubernetes. enum: openshift|ovn-kubernetes
+    enableEVH: false # This enables the Enhanced Virtual Hosting Model in Avi Controller for the Virtual Services
+    layer7Only: false # If this flag is switched on, then AKO will only do layer 7 loadbalancing.
+    # NamespaceSelector contains label key and value used for namespacemigration
+    # Same label has to be present on namespace/s which needs migration/sync to AKO
+    namespaceSelector:
+      labelKey: ""
+      labelValue: ""
+    servicesAPI: false # Flag that enables AKO in services API mode: https://kubernetes-sigs.github.io/service-apis/. Currently implemented only for L4. This flag uses the upstream GA APIs which are not backward compatible 
+                      # with the advancedL4 APIs which uses a fork and a version of v1alpha1pre1 
+    vipPerNamespace: false # Enabling this flag would tell AKO to create Parent VS per Namespace in EVH mode
+    istioEnabled: false # This flag needs to be enabled when AKO is be to brought up in an Istio environment
+    # This is the list of system namespaces from which AKO will not listen any Kubernetes or Openshift object event.
+    blockedNamespaceList: []
+    # blockedNamespaceList:
+    #   - kube-system
+    #   - kube-public
+    ipFamily: "" # This flag can take values V4 or V6 (default V4). This is for the backend pools to use ipv6 or ipv4. For frontside VS, use v6cidr
+    useDefaultSecretsOnly: false # If this flag is set to true, AKO will only handle default secrets from the namespace where AKO is installed. This flag is applicable only to Openshift clusters.
+
+
+  networkSettings:
+    ## This list of network and cidrs are used in pool placement network for vcenter cloud.
+    ## Node Network details are not needed when in nodeport mode / static routes are disabled / non vcenter clouds.
+    nodeNetworkList:
+      - networkName: ""
+        cidrs:
+          - ""
+    #     - 11.0.0.1/24
+    # nodeNetworkList: []
+    enableRHI: false # This is a cluster wide setting for BGP peering.
+    nsxtT1LR: "" # T1 Logical Segment mapping for backend network. Only applies to NSX-T cloud.
+    bgpPeerLabels: [] # Select BGP peers using bgpPeerLabels, for selective VsVip advertisement.
+    # bgpPeerLabels:
+    #   - peer1
+    #   - peer2
+    # Network information of the VIP network. Multiple networks allowed only for AWS Cloud.
+    vipNetworkList:
+     - networkName: ""
+       cidr: ""
+       v6cidr: "" # Setting this will enable the VS networks to use ipv6
+    # vipNetworkList: []
+    defaultDomain: ""
+
+  l7Settings:
+    defaultIngController: true
+    noPGForSNI: false # Switching this knob to true, will get rid of poolgroups from SNI VSes. Do not use this flag, if you don't want http caching. This will be deprecated once the controller support caching on PGs.
+    serviceType: ClusterIP # enum NodePort|ClusterIP|NodePortLocal
+    shardVSSize: "LARGE" # Use this to control the layer 7 VS numbers. This applies to both secure/insecure VSes but does not apply for passthrough. ENUMs: LARGE, MEDIUM, SMALL, DEDICATED
+    passthroughShardSize: "SMALL" # Control the passthrough virtualservice numbers using this ENUM. ENUMs: LARGE, MEDIUM, SMALL
+    fqdnReusePolicy: "InterNamespaceAllowed" # Can be used control whether AKO allows cross-namespace usage of FQDNs.
+
+
+  l4Settings:
+    defaultDomain: "" # If multiple sub-domains are configured in the cloud, use this knob to set the default sub-domain to use for L4 VSes.
+    autoFQDN: "default" # ENUM: default(<svc>.<ns>.<subdomain>), flat (<svc>-<ns>.<subdomain>), "disabled" If the value is disabled then the FQDN generation is disabled.
+    defaultLBController: true # DefaultLBController enables ako to check if it is the default LoadBalancer controller.
+
+
+  controllerSettings:
+    serviceEngineGroupName: "Default-Group" # Name of the ServiceEngine Group.
+    controllerVersion: "" # The controller API version
+    cloudName: "Default-Cloud" # The configured cloud name on the Avi controller.
+    controllerIP: "" # IP address or Hostname of Avi Controller
+    tenantName: "admin" # Name of the tenant where all the AKO objects will be created in AVI.
+    vrfName: "" # Name of the VRFContext. All Avi objects will be under this VRF. Applicable only in Vcenter Cloud.
+
+
+  nodePortSelector: # only applicable if servicetype is nodePort
+    key: ""
+    value: ""
+
+  resources:
+    limits:
+      cpu: "350m"
+      memory: "400Mi"
+    requests:
+      cpu: "200m"
+      memory: "300Mi"
+
+  pvc: ""
+  mountPath: "/log"
+  logFile: "avi.log"
+  featureGates:
+    gatewayAPI: true
+    enablePrometheus: false # EnablePrometheus enables/disables prometheus scraping for AKO container
+    enableEndpointSlice: true # EnableEndpointSlice enables/disables processing of EndpointSlices instead of Endpoints in AKO. This field defaults to true if not set.
+  gatewayAPI:
+    image:
+      repository: "projects.packages.broadcom.com/ako/ako-gateway-api:1.13.2"
+      pullPolicy: "IfNotPresent"
+  akoGatewayLogFile: "avi-gw.log"
+
