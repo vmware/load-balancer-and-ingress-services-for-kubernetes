@@ -203,7 +203,7 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 		return
 	}
 	if vrfCacheObj.CloudConfigCksum == aviVrfNode.CloudConfigCksum {
-		utils.AviLog.Debugf("key: %s, msg: checksum for vrf %s has not changed, skipping", key, vrfName)
+		utils.AviLog.Infof("key: %s, msg: checksum for vrf %s has not changed, skipping", key, vrfName)
 		if lib.StaticRouteSyncChan != nil {
 			close(lib.StaticRouteSyncChan)
 			lib.StaticRouteSyncChan = nil
@@ -213,7 +213,7 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 	var restOps []*utils.RestOp
 	restOp := rest.AviVrfBuild(key, aviVrfNode, vrfCacheObj.Uuid)
 	if restOp == nil {
-		utils.AviLog.Debugf("key: %s, no rest operation for vrf %s", key, vrfName)
+		utils.AviLog.Infof("key: %s, no rest operation for vrf %s", key, vrfName)
 		if lib.StaticRouteSyncChan != nil {
 			close(lib.StaticRouteSyncChan)
 			lib.StaticRouteSyncChan = nil
