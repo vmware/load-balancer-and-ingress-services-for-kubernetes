@@ -151,7 +151,7 @@ func (o *AviObjectGraph) BuildVRFGraph(key, vrfName, nodeName string, deleteFlag
 			// update case
 			// Assumption: updated routes (values) for given node will not overlap with other nodes
 			// So only updating existing routes of that node.
-			utils.AviLog.Debugf("key: %s, StaticRoutes before updation/deletion: [%v]", key, utils.Stringify(aviVrfNode.StaticRoutes))
+			utils.AviLog.Infof("key: %s, StaticRoutes before updation/deletion: [%v]", key, utils.Stringify(aviVrfNode.StaticRoutes))
 			lenNewNodeRoutes := len(nodeRoutes)
 			diff := lenNewNodeRoutes - nodeStaticRouteDetails.Count
 
@@ -168,19 +168,19 @@ func (o *AviObjectGraph) BuildVRFGraph(key, vrfName, nodeName string, deleteFlag
 				//delete all the routes of this node
 				processNodeStaticRouteAndNodeDeletion(nodeName, aviVrfNode)
 			}
-			utils.AviLog.Debugf("key: %s, StaticRoutes after updation/deletion: [%v]", key, utils.Stringify(aviVrfNode.StaticRoutes))
+			utils.AviLog.Infof("key: %s, StaticRoutes after updation/deletion: [%v]", key, utils.Stringify(aviVrfNode.StaticRoutes))
 		}
 	} else {
 		//delete flag is turned on and node is deleted
-		utils.AviLog.Debugf("key: %s, StaticRoutes before deletion: [%v]", key, utils.Stringify(aviVrfNode.StaticRoutes))
+		utils.AviLog.Infof("key: %s, StaticRoutes before deletion: [%v]", key, utils.Stringify(aviVrfNode.StaticRoutes))
 		aviVrfNode.StaticRoutes = GetStaticRoutesForOtherNodes(aviVrfNode, nodeStaticRouteDetails.RouteIDPrefix)
 		processNodeStaticRouteAndNodeDeletion(nodeName, aviVrfNode)
-		utils.AviLog.Debugf("key: %s, StaticRoutes after deletion: [%v]", key, utils.Stringify(aviVrfNode.StaticRoutes))
+		utils.AviLog.Infof("key: %s, StaticRoutes after deletion: [%v]", key, utils.Stringify(aviVrfNode.StaticRoutes))
 	}
 	aviVrfNode.CalculateCheckSum()
 	utils.AviLog.Infof("key: %s, Added vrf node %s", key, vrfName)
 	utils.AviLog.Infof("key: %s, Number of static routes %v", key, len(aviVrfNode.StaticRoutes))
-	utils.AviLog.Debugf("key: %s, vrf node: [%v]", key, utils.Stringify(aviVrfNode))
+	utils.AviLog.Infof("key: %s, vrf node: [%v]", key, utils.Stringify(aviVrfNode))
 	return nil
 }
 func processNodeStaticRouteAndNodeDeletion(nodeName string, aviVrfNode *AviVrfNode) {
