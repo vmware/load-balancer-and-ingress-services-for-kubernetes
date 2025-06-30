@@ -121,6 +121,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 				vpcArr := strings.Split(vsvip_meta.T1Lr, "/")
 				vipNetwork := fmt.Sprintf("%s_AVISEPARATOR_%s_AVISEPARATOR_PUBLIC", vsvip_meta.Tenant, vpcArr[len(vpcArr)-1])
 				vip.SubnetUUID = &vipNetwork
+				vsvip.Vip = []*avimodels.Vip{vip}
 			} else {
 				// Set the IPAM network subnet for all clouds except AWS and Azure
 				if len(vsvip_meta.VipNetworks) != 0 {

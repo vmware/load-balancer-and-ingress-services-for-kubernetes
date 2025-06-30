@@ -842,7 +842,7 @@ func GetNodeInfraNetworkList(name string) map[string]NodeNetworkMap {
 
 func GetVipNetworkListEnv() ([]akov1beta1.AviInfraSettingVipNetwork, error) {
 	var vipNetworkList []akov1beta1.AviInfraSettingVipNetwork
-	if utils.IsWCP() {
+	if utils.IsWCP() || GetVPCMode() {
 		// do not return error in case of WCP deployments.
 		return vipNetworkList, nil
 	}

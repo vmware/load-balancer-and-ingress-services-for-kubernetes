@@ -3730,26 +3730,30 @@ func checkAndSetCloudType(client *clients.AviClient, returnErr *error) bool {
 		return false
 	}
 
+	if vType == lib.CLOUD_NSXT {
+		transportZoneType := *cloud.NsxtConfiguration.DataNetworkConfig.TzType
+		// If an NSX-T cloud is configured without a T1LR param, we will disable sync.
+		if lib.GetT1LRPath() == "" && !utils.IsWCP() && transportZoneType == lib.OVERLAY_TRANSPORT_ZONE {
+			*returnErr = fmt.Errorf("Cloud is configured as NSX-T with overlay transport zone but the T1 LR mapping is not provided")
+			return false
+		} else if lib.GetT1LRPath() != "" && transportZoneType == lib.VLAN_TRANSPORT_ZONE {
+			*returnErr = fmt.Errorf("Cloud configured as NSX-T with VLAN transport zone but the T1 LR mapping is provided")
+			return false
+		}
+	} else if lib.GetT1LRPath() != "" {
+		// If the cloud type is not NSX-T and yet the T1 LR is set then too disable sync
+		*returnErr = fmt.Errorf("Cloud is not configured as NSX-T but the T1 LR mapping is provided")
+		return false
+	} else if lib.GetVPCMode() {
+		*returnErr = fmt.Errorf("Cloud is not configured as NSX-T but VPC mode is enabled")
+		return false
+	}
+
 	// if the cloud's ipamprovider profile is set, check in the ipam
 	// whether any of the usable networks have a label set. The marker based approach is not valid
 	// for public clouds.
 	if ipamCheck, err := checkIPAMForUsableNetworkLabels(client, cloud.IPAMProviderRef); !ipamCheck {
 		*returnErr = err
-		return false
-	}
-
-	// If an NSX-T cloud is configured without a T1LR param, we will disable sync.
-	if vType == lib.CLOUD_NSXT && lib.GetNSXTTransportZone() == lib.OVERLAY_TRANSPORT_ZONE {
-		if lib.GetT1LRPath() == "" {
-			*returnErr = fmt.Errorf("Cloud is configured as NSX-T with overlay transport zone but the T1 LR mapping is not provided")
-			return false
-		}
-	} else if lib.GetT1LRPath() != "" && vType != lib.CLOUD_NSXT {
-		// If the cloud type is not NSX-T and yet the T1 LR is set then too disable sync
-		*returnErr = fmt.Errorf("Cloud is not configured as NSX-T but the T1 LR mapping is provided")
-		return false
-	} else if lib.GetT1LRPath() != "" && vType == lib.CLOUD_NSXT && lib.GetNSXTTransportZone() == lib.VLAN_TRANSPORT_ZONE {
-		*returnErr = fmt.Errorf("Cloud configured as NSX-T with VLAN transport zone but the T1 LR mapping is  provided")
 		return false
 	}
 
@@ -3762,8 +3766,8 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 	// 1. Prioritize user input vipetworkList, skip marker based selection if provided.
 	// 2. If not provided, check for markers in ipam's usable networks.
 	// 3. If marker based usable network is not available, keep vipNetworkList empty.
-	// 4. vipNetworkList can be empty only in WCP usecases, for all others, mark invalid configuration.
-	var ret_err error
+	// 4. vipNetworkList can be empty only in WCP and VPC_MODE usecases, for all others, mark invalid configuration.
+
 	// 1. User input
 	if vipList, err := lib.GetVipNetworkListEnv(); err != nil {
 		return false, fmt.Errorf("error in getting VIP network %s, shutting down AKO", err)
@@ -3775,9 +3779,11 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 			if lib.GetCloudType() == lib.CLOUD_VCENTER {
 				segMgmtNetwork = GetCMSEGManagementNetwork(client)
 			}
-			vipListUpdated, ret_err = PopulateVipNetworkwithUUID(segMgmtNetwork, client, vipList)
+
+			var err error
+			vipListUpdated, err = PopulateVipNetworkwithUUID(segMgmtNetwork, client, vipList)
 			if len(vipListUpdated) == 0 {
-				return false, ret_err
+				return false, err
 			}
 		}
 		utils.SetVipNetworkList(vipListUpdated)
