@@ -99,7 +99,8 @@ func (s *Session) CreateAviClients(ctx context.Context, numClient int) {
 	var err error
 	// TODO: inject interface of AviClient instead directly using AviRestClient
 	var aviRestClientPool *utils.AviRestClientPool
-
+	s.tenant = lib.GetTenant()
+	log.Infof("Tenant is: %s", s.tenant)
 	aviRestClientPool, s.controllerVersion, err = s.aviRestClientPoolFactory.NewAviRestClientPool(
 		numClient,
 		ctrlIpAddress,

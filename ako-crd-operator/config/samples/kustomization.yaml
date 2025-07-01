@@ -2,4 +2,5 @@
 resources:
 - ako_v1alpha1_healthmonitor.yaml
 - ako_v1alpha1_applicationprofile.yaml
+- ako_v1alpha1_routebackendextension.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
