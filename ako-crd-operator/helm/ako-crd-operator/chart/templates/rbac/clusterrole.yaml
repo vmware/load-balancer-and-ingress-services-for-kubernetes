@@ -11,6 +11,8 @@ rules:
       - healthmonitors
       - healthmonitors/status
       - healthmonitors/finalizers
+      - routebackendextensions
+      - routebackendextensions/status
     verbs:
       - '*'
   - apiGroups:

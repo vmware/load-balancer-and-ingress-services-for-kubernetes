@@ -26,6 +26,7 @@ import (
 	"github.com/vmware/alb-sdk/go/models"
 	"github.com/vmware/alb-sdk/go/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/errors"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -63,7 +64,12 @@ func IsRetryableError(err error) bool {
 			return true
 		}
 	}
-	// For non-aviError types (network issues, timeouts, etc), retry
+
+	if strings.Contains(err.Error(), constants.NoObject) {
+		// non retryable
+		return false
+	}
+	// For non-AviError types (network issues, timeouts, etc.), retry
 	return true
 }
 

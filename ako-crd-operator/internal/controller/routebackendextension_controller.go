@@ -19,15 +19,23 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
+	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	"github.com/google/uuid"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
+	controllerutils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/cache"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	avisession "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
@@ -57,10 +65,37 @@ type RouteBackendExtensionReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
 func (r *RouteBackendExtensionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = logf.FromContext(ctx)
+	log := r.Logger.WithValues("name", req.Name, "namespace", req.Namespace, "traceID", uuid.New().String())
+	ctx = utils.LoggerWithContext(ctx, log)
+	log.Debug("Reconciling RouteBackendExtension CRD")
+	defer log.Debug("Reconciled RouteBackendExtension CRD")
+	rbe := &akov1alpha1.RouteBackendExtension{}
+	err := r.Client.Get(ctx, req.NamespacedName, rbe)
+	if err != nil {
+		if k8serror.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		log.Error("Failed to get RouteBackendExtension CRD")
+		return ctrl.Result{}, err
+	}
 
-	// TODO(user): your logic here
-
+	if !rbe.DeletionTimestamp.IsZero() {
+		// The object is being deleted
+		r.EventRecorder.Event(rbe, corev1.EventTypeNormal, "Deleted", "RouteBackendExtension CRD deleted successfully from Avi Controller")
+		log.Info("Succesfully deleted RouteBackendExtension CRD")
+		return ctrl.Result{}, nil
+	}
+	// create or update - validate the object
+	// When this CRD will have other crd object, this logic will change
+	if err := r.ValidatedObject(ctx, rbe); err != nil {
+		// Check if the error is retryable
+		if controllerutils.IsRetryableError(err) {
+			// For 404 also, we are not retrying. So user has to update the object again to trigger
+			// processing.
+			// other way to retry for certain number of times for each object and then stop
+			return ctrl.Result{RequeueAfter: constants.RequeueInterval}, err
+		}
+	}
 	return ctrl.Result{}, nil
 }
 
@@ -68,6 +103,38 @@ func (r *RouteBackendExtensionReconciler) Reconcile(ctx context.Context, req ctr
 func (r *RouteBackendExtensionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&akov1alpha1.RouteBackendExtension{}).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Named("routebackendextension").
 		Complete(r)
+}
+func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, rbe *akov1alpha1.RouteBackendExtension) error {
+	log := utils.LoggerFromContext(ctx)
+	log.Info("Validating RouteBackendExtension CRD")
+	resp := map[string]interface{}{}
+	for _, hm := range rbe.Spec.HealthMonitor {
+		// Check HM Present or not
+		uri := fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, hm.Name)
+		err := r.AviClient.AviSessionGet(utils.GetUriEncoded(uri), &resp)
+		if err != nil {
+			// This log message will change in multitenancy
+			log.Errorf("error in getting healthmonitor: %s from tenant %s. Err: %s", hm.Name, lib.GetTenant(), err.Error())
+			r.SetStatus(rbe, err.Error(), constants.REJECTED)
+			return err
+		} else if resp == nil || resp["count"].(float64) == float64(0) {
+			log.Errorf("error in getting healthmonitor: : %s from tenant %s. Count: %f", hm.Name, lib.GetTenant(), resp["count"].(float64))
+			err = fmt.Errorf("error in getting healthmonitor: %s from tenant %s. Object not found", hm.Name, lib.GetTenant())
+			r.SetStatus(rbe, err.Error(), constants.REJECTED)
+			return err
+		}
+	}
+	r.SetStatus(rbe, "", constants.ACCEPTED)
+	log.Info("Accepted. Validated RouteBackendExtension CRD")
+	return nil
+}
+
+func (r *RouteBackendExtensionReconciler) SetStatus(rbe *akov1alpha1.RouteBackendExtension, error string, status string) {
+	rbe.SetRouteBackendExtensionCotroller(constants.AKOCRDController)
+	rbe.Status.Error = error
+	rbe.Status.Status = status
+	r.Status().Update(context.Background(), rbe)
 }
