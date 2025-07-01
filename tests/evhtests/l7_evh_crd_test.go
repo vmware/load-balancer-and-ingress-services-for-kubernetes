@@ -47,15 +47,14 @@ import (
 )
 
 var (
-	KubeClient           *k8sfake.Clientset
-	CRDClient            *crdfake.Clientset
-	v1alpha2CRDClient    *v1alpha2crdfake.Clientset
-	v1beta1CRDClient     *v1beta1crdfake.Clientset
-	ctrl                 *k8s.AviController
-	akoApiServer         *api.FakeApiServer
-	keyChan              chan string
-	endpointSliceEnabled bool
-	objNameMap           integrationtest.ObjectNameMap
+	KubeClient        *k8sfake.Clientset
+	CRDClient         *crdfake.Clientset
+	v1alpha2CRDClient *v1alpha2crdfake.Clientset
+	v1beta1CRDClient  *v1beta1crdfake.Clientset
+	ctrl              *k8s.AviController
+	akoApiServer      *api.FakeApiServer
+	keyChan           chan string
+	objNameMap        integrationtest.ObjectNameMap
 )
 
 var isVipPerNS = flag.String("isVipPerNS", "false", "is vip per namespace enabled")
@@ -93,8 +92,6 @@ func TestMain(m *testing.M) {
 	os.Setenv("POD_NAME", "ako-0")
 
 	akoControlConfig := lib.AKOControlConfig()
-	endpointSliceEnabled = lib.GetEndpointSliceEnabled()
-	akoControlConfig.SetEndpointSlicesEnabled(endpointSliceEnabled)
 
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
@@ -124,11 +121,9 @@ func TestMain(m *testing.M) {
 		utils.NodeInformer,
 		utils.ConfigMapInformer,
 	}
-	if akoControlConfig.GetEndpointSlicesEnabled() {
-		registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
-	} else {
-		registeredInformers = append(registeredInformers, utils.EndpointInformer)
-	}
+
+	registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
+
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
 	k8s.NewCRDInformers()
@@ -220,7 +215,7 @@ func SetUpTestForIngress(t *testing.T, svcName string, modelNames ...string) {
 		objects.SharedAviGraphLister().Delete(model)
 	}
 	integrationtest.CreateSVC(t, "default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, "default", svcName, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, "default", svcName, false, false, "1.1.1")
 }
 
 func TearDownTestForIngress(t *testing.T, svcName string, modelNames ...string) {
@@ -228,7 +223,7 @@ func TearDownTestForIngress(t *testing.T, svcName string, modelNames ...string) 
 	//	objects.SharedAviGraphLister().Delete(model)
 	//}
 	integrationtest.DelSVC(t, "default", svcName)
-	integrationtest.DelEPorEPS(t, "default", svcName)
+	integrationtest.DelEPS(t, "default", svcName)
 }
 
 func SetUpIngressForCacheSyncCheck(t *testing.T, ingTestObj IngressTestObject) {

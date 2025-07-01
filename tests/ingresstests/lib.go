@@ -28,7 +28,7 @@ func SetUpTestForIngress(t *testing.T, svcName string, modelNames ...string) {
 		objects.SharedAviGraphLister().Delete(model)
 	}
 	integrationtest.CreateSVC(t, "default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, "default", svcName, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, "default", svcName, false, false, "1.1.1")
 }
 
 func TearDownTestForIngress(t *testing.T, svcName string, modelNames ...string) {
@@ -36,5 +36,5 @@ func TearDownTestForIngress(t *testing.T, svcName string, modelNames ...string) 
 		objects.SharedAviGraphLister().Delete(model)
 	}
 	integrationtest.DelSVC(t, "default", svcName)
-	integrationtest.DelEPorEPS(t, "default", svcName)
+	integrationtest.DelEPS(t, "default", svcName)
 }

@@ -34,14 +34,14 @@ import (
 func SetUpTestForSvcLB(t *testing.T) {
 	objects.SharedAviGraphLister().Delete(integrationtest.SINGLEPORTMODEL)
 	integrationtest.CreateSVC(t, integrationtest.NAMESPACE, integrationtest.SINGLEPORTSVC, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false)
-	integrationtest.CreateEP(t, integrationtest.NAMESPACE, integrationtest.SINGLEPORTSVC, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, integrationtest.NAMESPACE, integrationtest.SINGLEPORTSVC, false, false, "1.1.1")
 	integrationtest.PollForCompletion(t, integrationtest.SINGLEPORTMODEL, 5)
 }
 
 func TearDownTestForSvcLB(t *testing.T, g *gomega.GomegaWithT) {
 	objects.SharedAviGraphLister().Delete(integrationtest.SINGLEPORTMODEL)
 	integrationtest.DelSVC(t, integrationtest.NAMESPACE, integrationtest.SINGLEPORTSVC)
-	integrationtest.DelEP(t, integrationtest.NAMESPACE, integrationtest.SINGLEPORTSVC)
+	integrationtest.DelEPS(t, integrationtest.NAMESPACE, integrationtest.SINGLEPORTSVC)
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: integrationtest.AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", integrationtest.SINGLEPORTSVC, integrationtest.NAMESPACE)}
 	g.Eventually(func() bool {
