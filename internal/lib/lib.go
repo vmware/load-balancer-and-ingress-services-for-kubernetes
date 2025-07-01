@@ -880,14 +880,6 @@ func GetGlobalBgpPeerLabels() []string {
 	return bgpPeerLabels
 }
 
-func GetEndpointSliceEnabled() bool {
-	flag, err := strconv.ParseBool(os.Getenv("ENDPOINTSLICES_ENABLED"))
-	if err != nil {
-		flag = false
-	}
-	return flag
-}
-
 func GetGlobalBlockedNSList() []string {
 	var blockedNs []string
 	blockedNSStr := os.Getenv(BLOCKED_NS_LIST)
@@ -1414,13 +1406,10 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 		utils.ConfigMapInformer,
 		utils.NSInformer,
 	}
-	if AKOControlConfig().GetEndpointSlicesEnabled() {
-		allInformers = append(allInformers, utils.EndpointSlicesInformer)
-	} else if GetServiceType() != NodePortLocal {
-		allInformers = append(allInformers, utils.EndpointInformer)
-	}
 	if GetServiceType() == NodePortLocal {
 		allInformers = append(allInformers, utils.PodInformer)
+	} else {
+		allInformers = append(allInformers, utils.EndpointSlicesInformer)
 	}
 
 	// Watch over Ingresses for AKO deployment in WCP with NSX.

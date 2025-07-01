@@ -105,7 +105,7 @@ func TestMain(m *testing.M) {
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
-		utils.EndpointInformer,
+		utils.EndpointSlicesInformer,
 		utils.IngressInformer,
 		utils.IngressClassInformer,
 		utils.SecretInformer,
@@ -239,7 +239,7 @@ func TestMultiTenancyWithNSAviInfraSettingForIngress(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.DeleteSecret(secretName, ns)
-	ingresstests.TearDownTestForIngress(t, modelName, settingModelName)
+	ingresstests.TearDownTestForIngress(t, svcName, modelName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
 	waitAndVerify(t, ingClassName)
 	verifyPoolDeletionFromVsNode(g, modelName)
@@ -329,7 +329,7 @@ func TestMultiTenancyWithIngressClassAviInfraSetting(t *testing.T) {
 	integrationtest.RemoveAnnotateAKONamespaceWithInfraSetting(t, ns)
 	integrationtest.TeardownAviInfraSetting(t, nsSettingName)
 	integrationtest.TeardownAviInfraSetting(t, settingName)
-	ingresstests.TearDownTestForIngress(t, modelName, settingModelName)
+	ingresstests.TearDownTestForIngress(t, svcName, modelName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
 	waitAndVerify(t, ingClassName)
 	verifyPoolDeletionFromVsNode(g, modelName)
@@ -445,7 +445,7 @@ func TestMultiTenancyWithInfraSettingAdditionForIngress(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.DeleteSecret(secretName, ns)
-	ingresstests.TearDownTestForIngress(t, modelName, settingModelName)
+	ingresstests.TearDownTestForIngress(t, svcName, modelName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
 	waitAndVerify(t, ingClassName)
 	verifyPoolDeletionFromVsNode(g, modelName)
@@ -558,7 +558,7 @@ func TestMultiTenancyWithTenantDeannotationInNSForIngress(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.DeleteSecret(secretName, ns)
-	ingresstests.TearDownTestForIngress(t, modelName, settingModelName)
+	ingresstests.TearDownTestForIngress(t, svcName, modelName)
 	integrationtest.TeardownIngressClass(t, ingClassName)
 	waitAndVerify(t, ingClassName)
 	integrationtest.TeardownAviInfraSetting(t, settingName)
