@@ -32,10 +32,10 @@ import (
 
 func setupHTTPRoute(t *testing.T, svcName1, svcName2, gatewayName, httpRouteName string) {
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName1, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
+	integrationtest.CreateEPS(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName2, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
+	integrationtest.CreateEPS(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
 
 	parentRefs := tests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, []int32{8080, 6443})
 	rule1 := tests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
@@ -117,9 +117,9 @@ func TestHTTPRouteWithInfraSetting(t *testing.T) {
 	validateHTTPRouteWithT1LR(g, "nonadmin", gatewayName, "avi-domain-c9:1234")
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
-	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
-	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName2)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName2)
 	tests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
 	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	tests.TeardownGatewayClass(t, gatewayClassName)
@@ -174,9 +174,9 @@ func TestHTTPRouteCreateInfraSetting(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
-	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
-	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName2)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName2)
 	tests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
 	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	tests.TeardownGatewayClass(t, gatewayClassName)
@@ -234,9 +234,9 @@ func TestHTTPRouteUpdateInfraSettingStatusToAccepted(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
-	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
-	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName2)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName2)
 	tests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
 	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	tests.TeardownGatewayClass(t, gatewayClassName)
@@ -293,9 +293,9 @@ func TestHTTPRouteUpdateInfraSettingStatusToRejected(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
-	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
-	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName2)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName2)
 	tests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
 	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	tests.TeardownGatewayClass(t, gatewayClassName)
@@ -352,9 +352,9 @@ func TestHTTPRouteDeleteInfraSetting(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
-	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
-	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName2)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName2)
 	tests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
 	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	tests.TeardownGatewayClass(t, gatewayClassName)

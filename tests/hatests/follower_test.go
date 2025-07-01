@@ -82,7 +82,7 @@ func TestMain(m *testing.M) {
 	informersArg[utils.INFORMERS_OPENSHIFT_CLIENT] = OshiftClient
 	registeredInformers := []string{
 		utils.ServiceInformer,
-		utils.EndpointInformer,
+		utils.EndpointSlicesInformer,
 		utils.IngressInformer,
 		utils.IngressClassInformer,
 		utils.RouteInformer,

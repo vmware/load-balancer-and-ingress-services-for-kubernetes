@@ -127,7 +127,6 @@ The following table also lists the configurable fields in the `AKOConfig` object
 | `NetworkSettings.bgpPeerLabels` | Select BGP peers using bgpPeerLabels, for selective VsVip advertisement. | `Empty List` |
 | `NetworkSettings.nsxtT1LR` | Specify the T1 router for data backend network, applicable only for NSX-T based deployments| `Empty string` |
 | `FeatureGates.gatewayAPI` | FeatureGates is to enable or disable experimental features. GatewayAPI feature gate enables/disables processing of Kubernetes Gateway API CRDs. | false |
-| `FeatureGates.enableEndpointSlice` | EnableEndpointSlice feature gate enables/disables processing of Kubernetes EndpointSlices instead of Endpoints. | true |
 | `FeatureGates.enablePrometheus` | FeatureGates is to enable or disable experimental features. EnablePrometheus enables/disables prometheus scraping for AKO container | false |
 | `GatewayAPI.Image.repository` | Specify docker-registry that has the ako-gateway-api image | projects.packages.broadcom.com/ako/ako-gateway-api:1.12.3 |
 | `GatewayAPI.Image.pullPolicy` | Specify when and how to pull the ako-gateway-api image | IfNotPresent |

@@ -162,7 +162,7 @@ func TestL7ModelInNodePortExternalTrafficPolicyLocal(t *testing.T) {
 	_, ok := nodes[0].PoolRefs[0].NetworkPlacementSettings["net123"]
 	g.Expect(ok).To(gomega.Equal(true))
 
-	integrationtest.CreateEPorEPSNodeName(t, "default", svcName, false, false, "1.1.1", nodeName)
+	integrationtest.CreateEPSNodeName(t, "default", svcName, false, false, "1.1.1", nodeName)
 	// After creating the endpointslice/endpoint, pool server should be added for testNodeNP node
 	g.Eventually(func() int {
 		return len(nodes[0].PoolRefs[0].Servers)
@@ -173,7 +173,7 @@ func TestL7ModelInNodePortExternalTrafficPolicyLocal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-	integrationtest.DelEPorEPS(t, "default", svcName)
+	integrationtest.DelEPS(t, "default", svcName)
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
 	TearDownTestForIngressInNodePortMode(t, svcName, modelName)
@@ -205,20 +205,7 @@ func TestMultiIngressToSameClusterIPSvcInNodePort(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	epExample := &corev1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "default",
-			Name:      svcName,
-		},
-		Subsets: []corev1.EndpointSubset{{
-			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}},
-			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
-		}},
-	}
-	_, err = KubeClient.CoreV1().Endpoints("default").Create(context.TODO(), epExample, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in creating Endpoint: %v", err)
-	}
+	integrationtest.CreateEPS(t, "default", svcName, false, false, "1.2.3.4")
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:        ingName,
 		Namespace:   "default",
@@ -274,10 +261,7 @@ func TestMultiIngressToSameClusterIPSvcInNodePort(t *testing.T) {
 	}
 	//====== VERIFICATION OF SERVICE DELETE
 	// Now we have cleared the layer 2 queue for both the models. Let's delete the service.
-	err = KubeClient.CoreV1().Endpoints("default").Delete(context.TODO(), svcName, metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the Endpoint %v", err)
-	}
+	integrationtest.DelEPS(t, "default", svcName)
 	err = KubeClient.CoreV1().Services("default").Delete(context.TODO(), svcName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Service %v", err)
@@ -297,10 +281,7 @@ func TestMultiIngressToSameClusterIPSvcInNodePort(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find model on service delete: %v", err)
 	}
-	_, err = KubeClient.CoreV1().Endpoints("default").Create(context.TODO(), epExample, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in creating Endpoint: %v", err)
-	}
+	integrationtest.CreateEPS(t, "default", svcName, false, false, "1.1.1")
 	//====== VERIFICATION OF ONE INGRESS DELETE
 	// Now let's delete one ingress and expect the update for that.
 	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingName, metav1.DeleteOptions{})
@@ -343,10 +324,7 @@ func TestMultiIngressToSameClusterIPSvcInNodePort(t *testing.T) {
 		t.Fatalf("Could not find model on service ADD: %v", err)
 	}
 
-	err = KubeClient.CoreV1().Endpoints("default").Delete(context.TODO(), svcName, metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the Endpoint %v", err)
-	}
+	integrationtest.DelEPS(t, "default", svcName)
 
 	err = KubeClient.CoreV1().Services("default").Delete(context.TODO(), svcName, metav1.DeleteOptions{})
 	if err != nil {

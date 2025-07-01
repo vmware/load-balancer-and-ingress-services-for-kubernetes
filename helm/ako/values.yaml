@@ -6,7 +6,6 @@
 featureGates:
   GatewayAPI: false # Enables/disables processing of Kubernetes Gateway API CRDs.
   EnablePrometheus: false # Enable/Disable prometheus scraping for AKO container
-  EnableEndpointSlice: true #Enable/Disable endpoint slices in AKO (kubernetes version GA >= 1.21)
 
 replicaCount: 1
 

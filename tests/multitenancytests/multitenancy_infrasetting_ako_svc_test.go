@@ -23,7 +23,7 @@ func tearDownTestForSvcLB(t *testing.T, g *gomega.GomegaWithT, tenant, svcName s
 	modelName := tenant + "/" + "cluster--red-ns-" + svcName
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.DelSVC(t, "red-ns", svcName)
-	integrationtest.DelEP(t, "red-ns", svcName)
+	integrationtest.DelEPS(t, "red-ns", svcName)
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: tenant, Name: "cluster--red-ns-" + svcName}
 	g.Eventually(func() bool {
@@ -56,7 +56,7 @@ func TestMultiTenancyWithNSAviInfraSetting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in creating Service: %v", err)
 	}
-	integrationtest.CreateEP(t, ns, svcName, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, ns, svcName, false, false, "1.1.1")
 	integrationtest.PollForCompletion(t, modelName, 5)
 
 	g.Eventually(func() bool {
@@ -101,7 +101,7 @@ func TestMultiTenancyWithSvcAnnotatedAviInfraSetting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in creating Service: %v", err)
 	}
-	integrationtest.CreateEP(t, ns, svcName, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, ns, svcName, false, false, "1.1.1")
 	integrationtest.PollForCompletion(t, modelName, 5)
 
 	g.Eventually(func() bool {
@@ -142,7 +142,7 @@ func TestMultiTenancyWithInfraSettingAddition(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in creating Service: %v", err)
 	}
-	integrationtest.CreateEP(t, ns, svcName, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, ns, svcName, false, false, "1.1.1")
 	integrationtest.PollForCompletion(t, modelName, 5)
 
 	netList := utils.GetVipNetworkList()
@@ -213,7 +213,7 @@ func TestMultiTenancyWithTenantDeannotationInNS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in creating Service: %v", err)
 	}
-	integrationtest.CreateEP(t, ns, svcName, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, ns, svcName, false, false, "1.1.1")
 	integrationtest.PollForCompletion(t, modelName, 5)
 
 	g.Eventually(func() bool {

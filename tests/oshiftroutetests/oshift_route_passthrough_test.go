@@ -399,7 +399,7 @@ func TestPassthroughRouteWithAlternateBackends(t *testing.T) {
 	SetUpTestForRoute(t, DefaultPassthroughModel)
 
 	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, "default", "absvc2", false, false, "3.3.3")
+	integrationtest.CreateEPS(t, "default", "absvc2", false, false, "3.3.3")
 
 	routeExample := FakeRoute{Path: "/foo"}.PassthroughABRoute()
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyRedirect
@@ -447,7 +447,7 @@ func TestPassthroughRouteWithAlternateBackends(t *testing.T) {
 	TearDownTestForRoute(t, DefaultPassthroughModel)
 
 	integrationtest.DelSVC(t, "default", "absvc2")
-	integrationtest.DelEPorEPS(t, "default", "absvc2")
+	integrationtest.DelEPS(t, "default", "absvc2")
 }
 
 func TestPassthroughRouteRemoveAlternateBackends(t *testing.T) {

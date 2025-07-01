@@ -74,7 +74,7 @@ func TestMain(m *testing.M) {
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
-		utils.EndpointInformer,
+		utils.EndpointSlicesInformer,
 		utils.IngressInformer,
 		utils.IngressClassInformer,
 		utils.SecretInformer,
@@ -137,7 +137,7 @@ func SetupNamespaceSync(key, value string) {
 
 func UpdateIngress(t *testing.T, modelName, namespace string) {
 	integrationtest.CreateSVC(t, namespace, "avisvc1", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, namespace, "avisvc1", false, false, "2.2.2")
+	integrationtest.CreateEPS(t, namespace, "avisvc1", false, false, "2.2.2")
 	integrationtest.PollForCompletion(t, modelName, 5)
 	ingressObject := (integrationtest.FakeIngress{
 		Name:        "foo-with-targets",
@@ -158,7 +158,7 @@ func SetupIngress(t *testing.T, modelName, namespace string, withSecret, tlsIngr
 
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.CreateSVC(t, namespace, "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, namespace, "avisvc", false, false, "1.1.1")
+	integrationtest.CreateEPS(t, namespace, "avisvc", false, false, "1.1.1")
 	integrationtest.PollForCompletion(t, modelName, 5)
 
 	ingressObject := (integrationtest.FakeIngress{
@@ -196,7 +196,7 @@ func TearDownTestForIngressNamespace(t *testing.T, modelName, namespace string, 
 
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.DelSVC(t, namespace, "avisvc")
-	integrationtest.DelEP(t, namespace, "avisvc")
+	integrationtest.DelEPS(t, namespace, "avisvc")
 	integrationtest.DeleteNamespace(namespace)
 	integrationtest.PollForCompletion(t, modelName, 10)
 }

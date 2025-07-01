@@ -187,24 +187,21 @@ LABEL:
 }
 
 func (c *GatewayController) addIndexers() {
-
-	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
-		c.informers.EpSlicesInformer.Informer().AddIndexers(
-			cache.Indexers{
-				discovery.LabelServiceName: func(obj interface{}) ([]string, error) {
-					eps, ok := obj.(*discovery.EndpointSlice)
-					if !ok {
-						utils.AviLog.Debugf("Error indexing epslice object by service name")
-						return []string{}, nil
-					}
-					if val, ok := eps.Labels[discovery.LabelServiceName]; ok && val != "" {
-						return []string{eps.Namespace + "/" + val}, nil
-					}
+	c.informers.EpSlicesInformer.Informer().AddIndexers(
+		cache.Indexers{
+			discovery.LabelServiceName: func(obj interface{}) ([]string, error) {
+				eps, ok := obj.(*discovery.EndpointSlice)
+				if !ok {
+					utils.AviLog.Debugf("Error indexing epslice object by service name")
 					return []string{}, nil
-				},
+				}
+				if val, ok := eps.Labels[discovery.LabelServiceName]; ok && val != "" {
+					return []string{eps.Namespace + "/" + val}, nil
+				}
+				return []string{}, nil
 			},
-		)
-	}
+		},
+	)
 	gwinformer := akogatewayapilib.AKOControlConfig().GatewayApiInformers()
 	gwinformer.GatewayInformer.Informer().AddIndexers(
 		cache.Indexers{

@@ -66,7 +66,7 @@ func TestMain(m *testing.M) {
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
-		utils.EndpointInformer,
+		utils.EndpointSlicesInformer,
 		utils.SecretInformer,
 		utils.NSInformer,
 		utils.ConfigMapInformer,
@@ -141,7 +141,7 @@ func RestartController(stopCh, ctrlCh chan struct{}) {
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
-		utils.EndpointInformer,
+		utils.EndpointSlicesInformer,
 		utils.SecretInformer,
 		utils.NSInformer,
 		utils.ConfigMapInformer,

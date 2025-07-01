@@ -61,6 +61,7 @@ var ctrlonce sync.Once
 // +kubebuilder:rbac:groups=topology.tanzu.vmware.com,resources=availabilityzones,verbs=get;list;watch
 // +kubebuilder:rbac:groups=crd.nsx.vmware.com,resources=vpcnetworkconfigurations,verbs=get;list;watch
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=aviinfrasettings;aviinfrasettings/status,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch
 
 type AviController struct {
 	worker_id uint32
@@ -746,75 +747,6 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 	mcpQueue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
 	c.workqueue = mcpQueue.Workqueue
 	numWorkers := mcpQueue.NumWorkers
-	var epEventHandler cache.ResourceEventHandlerFuncs
-	if lib.GetServiceType() != lib.NodePortLocal {
-		epEventHandler = cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				if c.DisableSync {
-					return
-				}
-				ep := obj.(*corev1.Endpoints)
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
-				key := utils.Endpoints + "/" + utils.ObjKey(ep)
-				if lib.IsNamespaceBlocked(namespace) {
-					utils.AviLog.Debugf("key: %s, msg: Endpoint Add event: Namespace: %s didn't qualify filter", key, namespace)
-					return
-				}
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-				utils.AviLog.Debugf("key: %s, msg: ADD", key)
-			},
-			DeleteFunc: func(obj interface{}) {
-				if c.DisableSync {
-					return
-				}
-				ep, ok := obj.(*corev1.Endpoints)
-				if !ok {
-					// endpoints was deleted but its final state is unrecorded.
-					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-					if !ok {
-						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
-						return
-					}
-					ep, ok = tombstone.Obj.(*corev1.Endpoints)
-					if !ok {
-						utils.AviLog.Errorf("Tombstone contained object that is not an Endpoints: %#v", obj)
-						return
-					}
-				}
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
-				key := utils.Endpoints + "/" + utils.ObjKey(ep)
-				if lib.IsNamespaceBlocked(namespace) {
-					utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
-					return
-				}
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-			},
-			UpdateFunc: func(old, cur interface{}) {
-				if c.DisableSync {
-					return
-				}
-				oep := old.(*corev1.Endpoints)
-				cep := cur.(*corev1.Endpoints)
-				if !reflect.DeepEqual(cep.Subsets, oep.Subsets) {
-					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(cep))
-					key := utils.Endpoints + "/" + utils.ObjKey(cep)
-					if lib.IsNamespaceBlocked(namespace) {
-						utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
-						return
-					}
-					bkt := utils.Bkt(namespace, numWorkers)
-					c.workqueue[bkt].AddRateLimited(key)
-					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-				}
-			},
-		}
-	}
 	// Add EPSInformer
 	epsEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
@@ -897,12 +829,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 			}
 		},
 	}
-	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
-		c.informers.EpSlicesInformer.Informer().AddEventHandler(epsEventHandler)
-	} else if lib.GetServiceType() != lib.NodePortLocal {
-		c.informers.EpInformer.Informer().AddEventHandler(epEventHandler)
-	}
-
+	c.informers.EpSlicesInformer.Informer().AddEventHandler(epsEventHandler)
 	svcEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -1630,22 +1557,19 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 		c.informers.ServiceInformer.Informer().HasSynced,
 		c.informers.NSInformer.Informer().HasSynced,
 	}
-	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
-		go c.informers.EpSlicesInformer.Informer().Run(stopCh)
-		informersList = append(informersList, c.informers.EpSlicesInformer.Informer().HasSynced)
-	} else if lib.GetServiceType() != lib.NodePortLocal {
-		go c.informers.EpInformer.Informer().Run(stopCh)
-		informersList = append(informersList, c.informers.EpInformer.Informer().HasSynced)
-	}
+
 	if !lib.AviSecretInitialized {
 		go c.informers.SecretInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.informers.SecretInformer.Informer().HasSynced)
 	}
-
 	if lib.GetServiceType() == lib.NodePortLocal {
 		go c.informers.PodInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.informers.PodInformer.Informer().HasSynced)
 	}
+
+	go c.informers.EpSlicesInformer.Informer().Run(stopCh)
+	informersList = append(informersList, c.informers.EpSlicesInformer.Informer().HasSynced)
+
 	if lib.GetCNIPlugin() == lib.CALICO_CNI {
 		go c.dynamicInformers.CalicoBlockAffinityInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.dynamicInformers.CalicoBlockAffinityInformer.Informer().HasSynced)
