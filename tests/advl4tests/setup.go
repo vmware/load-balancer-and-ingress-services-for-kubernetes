@@ -162,7 +162,7 @@ func SetupAdvLBService(t *testing.T, svcname, namespace, gwname, gwnamespace str
 	if _, err := KubeClient.CoreV1().Services(namespace).Create(context.TODO(), svcCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	integrationtest.CreateEP(t, namespace, svcname, false, true, "1.1.1")
+	integrationtest.CreateEPS(t, namespace, svcname, false, true, "1.1.1")
 }
 
 func SetupAdvLBServiceWithLoadBalancerClass(t *testing.T, svcname, namespace, gwname, gwnamespace, LBClass string) {
@@ -183,14 +183,14 @@ func SetupAdvLBServiceWithLoadBalancerClass(t *testing.T, svcname, namespace, gw
 	if _, err := KubeClient.CoreV1().Services(namespace).Create(context.TODO(), svcCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	integrationtest.CreateEP(t, namespace, svcname, false, true, "1.1.1")
+	integrationtest.CreateEPS(t, namespace, svcname, false, true, "1.1.1")
 }
 
 func TeardownAdvLBService(t *testing.T, svcname, namespace string) {
 	if err := KubeClient.CoreV1().Services(namespace).Delete(context.TODO(), svcname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting AdvLB Service: %v", err)
 	}
-	integrationtest.DelEP(t, namespace, svcname)
+	integrationtest.DelEPS(t, namespace, svcname)
 }
 
 func VerifyGatewayVSNodeDeletion(g *gomega.WithT, modelName string) {

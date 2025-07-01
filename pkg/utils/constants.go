@@ -28,7 +28,6 @@ const (
 	PodInformer                   = "PodInformer"
 	SecretInformer                = "SecretInformer"
 	NodeInformer                  = "NodeInformer"
-	EndpointInformer              = "EndpointInformer"
 	EndpointSlicesInformer        = "EndpointSlicesInformer"
 	ConfigMapInformer             = "ConfigMapInformer"
 	MultiClusterIngressInformer   = "MultiClusterIngressInformer"

@@ -21,7 +21,7 @@ import (
 
 func tearDownTestForIngress(t *testing.T, svcname string) {
 	integrationtest.DelSVC(t, "default", svcname)
-	integrationtest.DelEPorEPS(t, "default", svcname)
+	integrationtest.DelEPS(t, "default", svcname)
 }
 
 func verifyEvhNodeDeletionFromVsNode(g *gomega.WithT, modelName string, parentVSKey, evhVsKey cache.NamespaceName) {
