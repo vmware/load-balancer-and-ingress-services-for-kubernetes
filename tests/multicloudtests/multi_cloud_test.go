@@ -54,7 +54,7 @@ var keyChan chan string
 var ctrl *k8s.AviController
 var RegisteredInformers = []string{
 	utils.ServiceInformer,
-	utils.EndpointInformer,
+	utils.EndpointSlicesInformer,
 	utils.IngressInformer,
 	utils.IngressClassInformer,
 	utils.SecretInformer,

@@ -68,7 +68,7 @@ func TestMain(m *testing.M) {
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
-		utils.EndpointInformer,
+		utils.EndpointSlicesInformer,
 		utils.SecretInformer,
 		utils.NSInformer,
 		utils.ConfigMapInformer,
@@ -922,7 +922,7 @@ func TestAdvL4EndpointDeleteCreate(t *testing.T) {
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
 	// delete endpoints
-	integrationtest.DelEP(t, ns, svcName)
+	integrationtest.DelEPS(t, ns, svcName)
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -937,7 +937,7 @@ func TestAdvL4EndpointDeleteCreate(t *testing.T) {
 
 	// create new endpoints
 	newIP := "2.2.2"
-	integrationtest.CreateEP(t, ns, svcName, false, true, newIP)
+	integrationtest.CreateEPS(t, ns, svcName, false, true, newIP)
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()

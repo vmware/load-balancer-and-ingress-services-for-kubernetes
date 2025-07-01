@@ -48,7 +48,8 @@ func TestL7Model(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	ingresstests.SetUpTestForIngress(t, modelName)
+	svcName := "avisvc"
+	ingresstests.SetUpTestForIngress(t, svcName, modelName)
 
 	integrationtest.PollForCompletion(t, modelName, 5)
 	found, _ := objects.SharedAviGraphLister().Get(modelName)
@@ -93,7 +94,7 @@ func TestL7Model(t *testing.T) {
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	ingresstests.TearDownTestForIngress(t, modelName)
+	ingresstests.TearDownTestForIngress(t, svcName, modelName)
 }
 
 func TestRoute(t *testing.T) {

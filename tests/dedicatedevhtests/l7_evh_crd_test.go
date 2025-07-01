@@ -52,7 +52,6 @@ var v1alpha2CRDClient *v1alpha2crdfake.Clientset
 var ctrl *k8s.AviController
 var akoApiServer *api.FakeApiServer
 var keyChan chan string
-var endpointSliceEnabled bool
 var isVipPerNS = flag.String("isVipPerNS", "false", "is vip per namespace enabled")
 
 func setVipPerNS(vipPerNS string) {
@@ -89,8 +88,6 @@ func TestMain(m *testing.M) {
 	os.Setenv("POD_NAME", "ako-0")
 
 	akoControlConfig := lib.AKOControlConfig()
-	endpointSliceEnabled = lib.GetEndpointSliceEnabled()
-	akoControlConfig.SetEndpointSlicesEnabled(endpointSliceEnabled)
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
 	v1beta1CRDClient = v1beta1crdfake.NewSimpleClientset()
@@ -116,11 +113,9 @@ func TestMain(m *testing.M) {
 		utils.NodeInformer,
 		utils.ConfigMapInformer,
 	}
-	if akoControlConfig.GetEndpointSlicesEnabled() {
-		registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
-	} else {
-		registeredInformers = append(registeredInformers, utils.EndpointInformer)
-	}
+
+	registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
+
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
 	k8s.NewCRDInformers()
@@ -178,7 +173,7 @@ func SetUpTestForIngress(t *testing.T, modelNames ...string) {
 		objects.SharedAviGraphLister().Delete(model)
 	}
 	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, "default", "avisvc", false, false, "1.1.1")
+	integrationtest.CreateEPS(t, "default", "avisvc", false, false, "1.1.1")
 }
 
 func TearDownTestForIngress(t *testing.T, modelNames ...string) {
@@ -186,7 +181,7 @@ func TearDownTestForIngress(t *testing.T, modelNames ...string) {
 	// 	objects.SharedAviGraphLister().Delete(model)
 	// }
 	integrationtest.DelSVC(t, "default", "avisvc")
-	integrationtest.DelEPorEPS(t, "default", "avisvc")
+	integrationtest.DelEPS(t, "default", "avisvc")
 }
 
 func SetUpIngressForCacheSyncCheck(t *testing.T, tlsIngress, withSecret bool, modelNames ...string) {
@@ -1946,7 +1941,7 @@ func TestFQDNRestrictDedicatedSecureEVH(t *testing.T) {
 	modelNameBar, _ := GetDedicatedModel("bar.com", "red")
 	integrationtest.AddDefaultNamespace("red")
 	integrationtest.CreateSVC(t, "red", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, "red", "avisvc", false, false, "1.1.1")
+	integrationtest.CreateEPS(t, "red", "avisvc", false, false, "1.1.1")
 	integrationtest.AddSecret(secretName, "red", "tlsCert", "tlsKey")
 	integrationtest.PollForCompletion(t, modelNameBar, 5)
 

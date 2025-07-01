@@ -31,18 +31,14 @@ import (
 
 func InformersToRegister(kclient *kubernetes.Clientset) ([]string, error) {
 	// Initialize the following informers in all AKO deployments. Provide AKO the ability to watch over
-	// Services, Endpoints, Secrets, ConfigMaps.
+	// Services, EndpointSlices, Secrets, ConfigMaps.
 	allInformers := []string{
 		utils.ServiceInformer,
 		utils.SecretInformer,
 		utils.ConfigMapInformer,
+		utils.EndpointSlicesInformer,
 	}
 
-	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
-		allInformers = append(allInformers, utils.EndpointSlicesInformer)
-	} else if lib.GetServiceType() != lib.NodePortLocal {
-		allInformers = append(allInformers, utils.EndpointInformer)
-	}
 	if lib.GetServiceType() == lib.NodePortLocal {
 		allInformers = append(allInformers, utils.PodInformer)
 	}
