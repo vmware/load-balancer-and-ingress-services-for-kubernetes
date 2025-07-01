@@ -97,18 +97,19 @@ type RouteBackendExtensionSpec struct {
 
 // RouteBackendExtensionStatus defines the observed state of RouteBackendExtension.
 type RouteBackendExtensionStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Field is populated by AKO CRD operator as ako-crd-operator
 	// +optional
 	Controller string `json:"controller,omitempty"`
-	// Conditions is the list of conditions for the RouteBackendExtension
-	// +optional
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	Error      string `json:"error,omitempty"`
+	Status     string `json:"status,omitempty"`
 }
 
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:path=routebackendextension,scope=Namespaced
 // +kubebuilder:subresource:status
-
+// +kubebuilder:resource:path=routebackendextensions,shortName=rbe,singular=routebackendextension,scope=Namespaced
 // RouteBackendExtension is the Schema for the routebackendextensions API.
 type RouteBackendExtension struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -129,13 +130,6 @@ type RouteBackendExtensionList struct {
 
 func init() {
 	SchemeBuilder.Register(&RouteBackendExtension{}, &RouteBackendExtensionList{})
-}
-func (rb *RouteBackendExtension) SetConditions(conditions []metav1.Condition) {
-	rb.Status.Conditions = conditions
-}
-
-func (rb *RouteBackendExtension) GetConditions() []metav1.Condition {
-	return rb.Status.Conditions
 }
 
 func (rb *RouteBackendExtension) SetRouteBackendExtensionCotroller(controller string) {
