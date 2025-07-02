@@ -30,6 +30,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 func (o *AviObjectGraph) AddDefaultHTTPPolicySet(key string) {
@@ -219,6 +220,38 @@ func resetChildNodeFields(key string, err error, childNode *nodes.AviEvhVsNode, 
 	childNode.SetWafPolicyRef(nil)
 	childNode.SetHttpPolicySetRefs([]string{})
 }
+
+func getHealthMonitorRefsFromBackendFilter(key string, namespace string, backend *HTTPBackend) []string {
+	healthMonitorRefsSet := sets.NewString()
+	if backend == nil || backend.Filters == nil || len(backend.Filters) == 0 {
+		return healthMonitorRefsSet.List()
+	}
+	for _, filter := range backend.Filters {
+		if filter.ExtensionRef != nil {
+			if filter.ExtensionRef.Kind == akogatewayapilib.HealthMonitorKind {
+				obj, err := akogatewayapilib.GetDynamicInformers().HealthMonitorInformer.Lister().ByNamespace(namespace).Get(filter.ExtensionRef.Name)
+				if err != nil {
+					utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s will not be processed by gateway-container. err: %s", key, namespace, filter.ExtensionRef.Name, err)
+					continue
+				}
+				unstructuredObj := obj.(*unstructured.Unstructured)
+				status, found, err := unstructured.NestedMap(unstructuredObj.UnstructuredContent(), "status")
+				if err != nil || !found {
+					utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s status not found. err: %s", key, namespace, filter.ExtensionRef.Name, err)
+					continue
+				}
+				uuid, ok := status["uuid"]
+				if !ok {
+					utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s uuid not found. err: %s", key, namespace, filter.ExtensionRef.Name, err)
+					continue
+				}
+				healthMonitorRefsSet.Insert(uuid.(string))
+			}
+		}
+	}
+	return healthMonitorRefsSet.List()
+}
+
 func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
 	//reset pool, poolgroupreferences
 	childVsNode.PoolGroupRefs = nil
@@ -289,6 +322,8 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 			},
 			VrfContext: lib.GetVrf(),
 		}
+		healthMonitorRefs := getHealthMonitorRefsFromBackendFilter(key, routeModel.GetNamespace(), httpbackend)
+		poolNode.HealthMonitorRefs = healthMonitorRefs
 		poolNode.AviMarkers = utils.AviObjectMarkers{
 			GatewayName:        parentName,
 			GatewayNamespace:   parentNs,

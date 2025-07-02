@@ -104,6 +104,149 @@ func (c *GatewayController) SetupCRDEventHandlers(numWorkers uint32) {
 		}
 		c.dynamicInformers.L7CRDInformer.Informer().AddEventHandler(L7CRDEventHandler)
 	}
+	healthMonitorEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			healthMonitorObj, ok := obj.(*unstructured.Unstructured)
+			if !ok {
+				utils.AviLog.Warn("Error in converting object to HealthMonitor object")
+				return
+			}
+
+			namespace, name := healthMonitorObj.GetNamespace(), healthMonitorObj.GetName()
+			if namespace == "" || name == "" {
+				return
+			}
+
+			key := akogatewayapilib.HealthMonitorKind + "/" + namespace + "/" + name
+			processed, _, err := akogatewayapilib.IsHealthMonitorProcessed(key, namespace, name, healthMonitorObj)
+			if err != nil {
+				utils.AviLog.Warnf("key: %s, msg: error: Error processing HealthMonitor. err: %s", key, err)
+				return
+			}
+			if !processed {
+				utils.AviLog.Warnf("key: %s, msg: HealthMonitor is not processed by ako-crd-operator. err: %s", key, err)
+				return
+			}
+			c.processHTTPRoutesForHealthMonitor(key, namespace, name, numWorkers)
+		},
+		DeleteFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			healthMonitorObj, ok := obj.(*unstructured.Unstructured)
+			if !ok {
+				// healthMonitorObj was deleted but its final state is unrecorded.
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+					return
+				}
+				healthMonitorObj, ok = tombstone.Obj.(*unstructured.Unstructured)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not a HealthMonitor: %#v", obj)
+					return
+				}
+			}
+
+			namespace, name := healthMonitorObj.GetNamespace(), healthMonitorObj.GetName()
+			if namespace == "" || name == "" {
+				return
+			}
+			key := akogatewayapilib.HealthMonitorKind + "/" + namespace + "/" + name
+			processed, _, err := akogatewayapilib.IsHealthMonitorProcessed(key, namespace, name, healthMonitorObj)
+			if err != nil {
+				utils.AviLog.Warnf("key: %s, msg: error: Error processing HealthMonitor. err: %s", key, err)
+				return
+			}
+			if !processed {
+				utils.AviLog.Warnf("key: %s, msg: HealthMonitor is not processed by ako-crd-operator. err: %s", key, err)
+				return
+			}
+			// process HTTP Route to remove HealthMonitor mappings
+			c.processHTTPRoutesForHealthMonitor(key, namespace, name, numWorkers)
+		},
+		UpdateFunc: func(oldObj, curObj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			oldHealthMonitorObj, ok := oldObj.(*unstructured.Unstructured)
+			if !ok {
+				utils.AviLog.Warn("Error in converting object to HealthMonitor object")
+				return
+			}
+
+			curHealthMonitorObj, ok := curObj.(*unstructured.Unstructured)
+			if !ok {
+				utils.AviLog.Warn("Error in converting object to HealthMonitor object")
+				return
+			}
+			namespace, name := oldHealthMonitorObj.GetNamespace(), oldHealthMonitorObj.GetName()
+			if namespace == "" || name == "" {
+				return
+			}
+
+			namespace, name = curHealthMonitorObj.GetNamespace(), curHealthMonitorObj.GetName()
+			if namespace == "" || name == "" {
+				return
+			}
+
+			key := akogatewayapilib.HealthMonitorKind + "/" + namespace + "/" + name
+			processedOldObj, _, _ := akogatewayapilib.IsHealthMonitorProcessed(key, namespace, name, oldHealthMonitorObj)
+			processedCurObj, _, _ := akogatewayapilib.IsHealthMonitorProcessed(key, namespace, name, curHealthMonitorObj)
+
+			if !processedOldObj && !processedCurObj {
+				utils.AviLog.Debugf("key: %s/%s, msg: HealthMonitor is not processed.", namespace, name)
+				return
+			}
+
+			c.processHTTPRoutesForHealthMonitor(key, namespace, name, numWorkers)
+		},
+	}
+	c.dynamicInformers.HealthMonitorInformer.Informer().AddEventHandler(healthMonitorEventHandler)
+}
+
+func (c *GatewayController) processHTTPRoutesForHealthMonitor(key, namespace, name string, numWorkers uint32) {
+	utils.AviLog.Debugf("key: %s, msg: Fetchting HTTPRoute associated with HealthMonitor %s/%s", key, namespace, name)
+	hmNameNS := namespace + "/" + name
+	ok, httpRoutes := akogatewayapiobjects.GatewayApiLister().GetHealthMonitorToHTTPRoutesMapping(hmNameNS)
+	if !ok {
+		utils.AviLog.Debugf("key: %s, msg: No HTTPRoute associated with HealthMonitor", key)
+		return
+	}
+	for httpRoute := range httpRoutes {
+		utils.AviLog.Debugf("key: %s, Processing HTTPRoute %s", key, httpRoute)
+		httpRouteNamespace, httpRouteName, _ := cache.SplitMetaNamespaceKey(httpRoute)
+		// Get HTTPRoute-->Healthmonitor mapping
+		_, healthMonitorNSNameList := akogatewayapiobjects.GatewayApiLister().GetHTTPRouteToHealthMonitorMapping(httpRoute)
+		_, ok := healthMonitorNSNameList[hmNameNS]
+		if !ok {
+			// delete mapping for HealthMonitor--->HTTPRoute
+			akogatewayapiobjects.GatewayApiLister().DeleteHealthMonitorToHTTPRoutesMapping(hmNameNS, httpRoute)
+			continue
+		}
+
+		// fetch httpRoute
+		httpRouteObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(httpRouteNamespace).Get(httpRouteName)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				// delete mapping for HealthMonitor--->HTTPRoute
+				akogatewayapiobjects.GatewayApiLister().DeleteHealthMonitorToHTTPRoutesMapping(hmNameNS, httpRoute)
+			}
+			utils.AviLog.Warnf("key: %s, msg: Error while fetching HTTPRoute object. Error: %+v ", key, err)
+			continue
+		}
+
+		if !IsHTTPRouteConfigValid(key, httpRouteObj) {
+			continue
+		}
+		bkt := utils.Bkt(httpRouteNamespace, numWorkers)
+		httpRouteKey := lib.HTTPRoute + "/" + httpRouteNamespace + "/" + httpRouteName
+		utils.AviLog.Debugf("key: %s, msg: HTTPRoute add: %s", key, httpRouteKey)
+		c.workqueue[bkt].AddRateLimited(httpRouteKey)
+	}
 }
 
 func getNamespaceName(obj interface{}) (string, string) {

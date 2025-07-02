@@ -47,6 +47,11 @@ var (
 		Version:  "v1alpha2",
 		Resource: "l7rules",
 	}
+	HealthMonitorGVR = schema.GroupVersionResource{
+		Group:    "ako.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "healthmonitors",
+	}
 )
 
 // NewDynamicClientSet initializes dynamic client set instance
@@ -79,7 +84,8 @@ func GetDynamicClientSet() dynamic.Interface {
 
 // DynamicInformers holds third party generic informers
 type DynamicInformers struct {
-	L7CRDInformer informers.GenericInformer
+	L7CRDInformer         informers.GenericInformer
+	HealthMonitorInformer informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
@@ -91,6 +97,7 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 	if !utils.IsWCP() {
 		informers.L7CRDInformer = f.ForResource(L7CRDGVR)
 	}
+	informers.HealthMonitorInformer = f.ForResource(HealthMonitorGVR)
 	dynamicInformerInstance = informers
 	return dynamicInformerInstance
 }
@@ -102,6 +109,43 @@ func GetDynamicInformers() *DynamicInformers {
 		return nil
 	}
 	return dynamicInformerInstance
+}
+
+func IsHealthMonitorProcessed(key, namespace, name string, obj ...*unstructured.Unstructured) (bool, bool, error) {
+	clientSet := GetDynamicClientSet()
+	if clientSet == nil {
+		return false, false, fmt.Errorf("key: %s, msg:error in fetching HealthMonitor object", key)
+	}
+	var object *unstructured.Unstructured
+	var err error
+	if len(obj) == 0 {
+		object, err = clientSet.Resource(HealthMonitorGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				return false, false, fmt.Errorf("key: %s, msg: error: HealthMonitor %s/%s not found", key, namespace, name)
+			}
+			return false, false, err
+		}
+	} else {
+		object = obj[0]
+	}
+
+	statusJSON, found, err := unstructured.NestedMap(object.UnstructuredContent(), "status")
+	if err != nil || !found {
+		utils.AviLog.Warnf("key:%s/%s, msg:HealthMonitor status not found: %+v", namespace, name, err)
+		return false, false, err
+	}
+	conditions, ok := statusJSON["conditions"]
+	if !ok || conditions.([]interface{}) == nil || len(conditions.([]interface{})) == 0 {
+		return false, false, fmt.Errorf("key: %s, msg: error: HealthMonitor %s/%s is not processed by AKO main container", key, namespace, name)
+	}
+	for _, condition := range conditions.([]interface{}) {
+		conditionMap, ok := condition.(map[string]interface{})
+		if ok && conditionMap["type"] == "Ready" {
+			return true, conditionMap["status"] == "True", nil
+		}
+	}
+	return false, false, nil
 }
 
 func ParseL7CRD(key, namespace, name string, vsNode nodes.AviVsEvhSniModel, isFilterAppProfSet bool) error {

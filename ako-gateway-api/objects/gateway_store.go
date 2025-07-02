@@ -56,6 +56,8 @@ func GatewayApiLister() *GWLister {
 			routeToStatus:                  objects.NewObjectMapStore(),
 			l7RuleToHTTPRouteCache:         objects.NewObjectMapStore(),
 			httpRouteToL7RuleCache:         objects.NewObjectMapStore(),
+			healthMonitorToHTTPRouteCache:  objects.NewObjectMapStore(),
+			httpRouteToHealthMonitorCache:  objects.NewObjectMapStore(),
 		}
 	})
 	return gwLister
@@ -135,6 +137,12 @@ type GWLister struct {
 
 	// HTTPRoute --> L7Rule
 	httpRouteToL7RuleCache *objects.ObjectMapStore
+
+	// HealthMonitor --> HTTPRoute
+	healthMonitorToHTTPRouteCache *objects.ObjectMapStore
+
+	// HTTPRoute --> HealthMonitor
+	httpRouteToHealthMonitorCache *objects.ObjectMapStore
 }
 
 type GatewayRouteKind struct {
@@ -1078,4 +1086,57 @@ func (g *GWLister) UpdateHTTPRouteToL7RuleMapping(httpRouteName string, l7Rule s
 	l7Rules[l7Rule] = true
 	g.httpRouteToL7RuleCache.AddOrUpdate(httpRouteName, l7Rules)
 
+}
+
+func (g *GWLister) GetHealthMonitorToHTTPRoutesMapping(healthMonitorName string) (bool, map[string]struct{}) {
+	found, httpRoutes := g.healthMonitorToHTTPRouteCache.Get(healthMonitorName)
+	if !found {
+		return false, make(map[string]struct{})
+	}
+	return true, httpRoutes.(map[string]struct{})
+}
+
+func (g *GWLister) UpdateHealthMonitorToHTTPRoutesMapping(healthMonitorName string, httpRoute string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	_, httpRoutes := g.GetHealthMonitorToHTTPRoutesMapping(healthMonitorName)
+	httpRoutes[httpRoute] = struct{}{}
+
+	g.healthMonitorToHTTPRouteCache.AddOrUpdate(healthMonitorName, httpRoutes)
+}
+
+func (g *GWLister) DeleteHealthMonitorToHTTPRoutesMapping(healthMonitorName string, httpRoute string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	found, httpRoutes := g.GetHealthMonitorToHTTPRoutesMapping(healthMonitorName)
+	if found {
+		delete(httpRoutes, httpRoute)
+		g.healthMonitorToHTTPRouteCache.AddOrUpdate(healthMonitorName, httpRoutes)
+	}
+}
+
+func (g *GWLister) GetHTTPRouteToHealthMonitorMapping(httpRouteName string) (bool, map[string]struct{}) {
+	found, healthMonitors := g.httpRouteToHealthMonitorCache.Get(httpRouteName)
+	if !found {
+		return false, make(map[string]struct{})
+	}
+	return true, healthMonitors.(map[string]struct{})
+}
+
+func (g *GWLister) UpdateHTTPRouteToHealthMonitorMapping(httpRouteName string, healthMonitor string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	_, healthMonitors := g.GetHTTPRouteToHealthMonitorMapping(httpRouteName)
+	healthMonitors[healthMonitor] = struct{}{}
+	g.httpRouteToHealthMonitorCache.AddOrUpdate(httpRouteName, healthMonitors)
+}
+
+func (g *GWLister) DeleteHTTPRouteToHealthMonitorMapping(httpRouteName string, healthMonitor string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	found, healthMonitors := g.GetHTTPRouteToHealthMonitorMapping(httpRouteName)
+	if found {
+		delete(healthMonitors, healthMonitor)
+		g.httpRouteToHealthMonitorCache.AddOrUpdate(httpRouteName, healthMonitors)
+	}
 }

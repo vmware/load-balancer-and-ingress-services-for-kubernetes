@@ -357,7 +357,7 @@ func (hr *httpRoute) ParseRouteConfig(key string) *RouteConfig {
 					httpBackend.Filters = append(httpBackend.Filters, httpBackendFilter)
 				}
 			}
-			isValidBackend, resolvedRefConditionforBackend := validateBackendReference(key, *backend, httpBackend.Filters)
+			isValidBackend, resolvedRefConditionforBackend := validateBackendReference(key, *backend, httpBackend.Filters, hr.namespace)
 			if isValidBackend {
 				routeConfigRule.Backends = append(routeConfigRule.Backends, httpBackend)
 				if !hasInvalidBackend {
