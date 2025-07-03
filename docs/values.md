@@ -110,6 +110,12 @@ Default value is `V4`.
 This flag provides the ability to restrict the secret handling to default secrets present in the namespace where the AKO is installed. This flag is applicable only to Openshift clusters.
 Default value is `false`.
 
+### AKOSettings.vpcMode
+
+Use this flag to enable AKO to operate in VPC mode. In VPC mode, data networks will be configured automatically unlike the non-VPC mode where the data networks and their respective IPAM are user-configured.
+
+This feature is currently supported only in NSX-T cloud. It is disabled by default. Set the flag to `true` to enable the flag.
+
 ### NetworkSettings.nodeNetworkList
 
 The `nodeNetworkList` lists the Networks (specified using either `networkName` or `networkUUID`) and Node CIDR's where the k8s Nodes are created. This is only used in vCenter cloud and only when disableStaticRouteSync is set to false.
