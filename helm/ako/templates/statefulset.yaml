@@ -43,6 +43,7 @@ spec:
       serviceAccountName: ako-sa
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{ if or .Values.persistentVolumeClaim .Values.VKSSettings.enabled }}
       volumes:
       {{ if .Values.persistentVolumeClaim }}
       - name: ako-pv-storage
@@ -55,11 +56,12 @@ spec:
           secretName: {{ .Values.VKSSettings.webhook.tls.secretName }}
           defaultMode: 420
       {{ end }}
+      {{ end }}
       imagePullSecrets:
         {{- toYaml .Values.image.pullSecrets | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
-          {{ if or .Values.persistentVolumeClaim .Values.AKOSettings.istioEnabled .Values.VKSSettings.enabled }}
+          {{ if or .Values.persistentVolumeClaim .Values.AKOSettings.istioEnabled }}
           volumeMounts:
             {{ if .Values.persistentVolumeClaim}}
             - mountPath: {{ .Values.mountPath }}
@@ -69,27 +71,15 @@ spec:
             - mountPath: /etc/istio-output-certs/
               name: istio-certs
             {{ end }}
-            {{ if .Values.VKSSettings.enabled }}
-            - name: webhook-certs
-              mountPath: {{ .Values.VKSSettings.webhook.certDir }}
-              readOnly: true
-            {{ end }}
           {{ end }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{ if or .Values.featureGates.EnablePrometheus .Values.VKSSettings.enabled }}
-          ports:
           {{ if .Values.featureGates.EnablePrometheus }}
+          ports:
           - containerPort:  {{ default "8080" .Values.AKOSettings.apiServerPort }}
             name: prometheus-port
-          {{ end }}
-          {{ if .Values.VKSSettings.enabled }}
-          - containerPort: {{ .Values.VKSSettings.webhook.port }}
-            name: webhook
-            protocol: TCP
-          {{ end }}
           {{ end }}
           lifecycle:
             preStop:
@@ -311,14 +301,6 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: fqdnReusePolicy
-          {{ if .Values.VKSSettings.enabled }}
-          - name: VKS_WEBHOOK_ENABLED
-            value: "true"
-          - name: VKS_WEBHOOK_PORT
-            value: "{{ .Values.VKSSettings.webhook.port }}"
-          - name: VKS_WEBHOOK_CERT_DIR
-            value: {{ .Values.VKSSettings.webhook.certDir }}
-          {{ end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:
@@ -458,6 +440,73 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
         {{ end }}
         {{ if .Values.VKSSettings.enabled }}
+        - name: ako-infra
+          volumeMounts:
+          - name: webhook-certs
+            mountPath: /etc/webhook/certs
+            readOnly: true
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.VKSSettings.infraImage.repository }}:{{ .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.VKSSettings.infraImage.pullPolicy }}
+          env:
+          - name: CTRL_IPADDRESS
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: controllerIP
+          - name: CTRL_VERSION
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: controllerVersion
+          - name: CLOUD_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: cloudName
+          - name: TENANT_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: tenantName
+          - name: CLUSTER_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: clusterName
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: VKS_WEBHOOK_ENABLED
+            value: "true"
+          - name: VKS_WEBHOOK_PORT
+            value: "{{ .Values.VKSSettings.webhook.port }}"
+          ports:
+          - containerPort: {{ .Values.VKSSettings.webhook.port }}
+            name: webhook
+            protocol: TCP
+          resources:
+            {{- toYaml .Values.VKSSettings.infraResources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.VKSSettings.webhook.port }}
+              scheme: HTTPS
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.VKSSettings.webhook.port }}
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 5
         - name: vmci-relay
           image: "{{ .Values.VKSSettings.vmciProxy.image.repository }}:{{ .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.VKSSettings.vmciProxy.image.pullPolicy }}

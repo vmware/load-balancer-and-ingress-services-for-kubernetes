@@ -146,19 +146,11 @@ VKSSettings:
   # VKS admission webhook for automatic cluster labeling (mandatory for VKS)
   webhook:
     port: 9443 # Port for webhook server
-    certDir: "/etc/webhook/certs" # Directory containing TLS certificates
     
-    # TLS certificate configuration
+    # TLS certificate configuration (auto-managed for VKS)
     tls:
-      # If true, generates self-signed certificates (for development)
-      # In production, provide your own certificates via secret
-      selfSigned: false
-      # Secret name containing tls.crt and tls.key
-      secretName: "ako-webhook-certs"
-      # Certificate Authority bundle for webhook validation
-      caCertBundle: "" # Base64 encoded CA certificate
-  
-    # VMCI proxy for guest cluster to Avi Controller connectivity (mandatory for VKS)
+      secretName: "vks-webhook-certs" # Secret containing auto-generated certificates
+
   vmciProxy:
     image:
       repository: "vmware/vmci-relay" # VMCI proxy container image

@@ -21,7 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	admissionv1 "k8s.io/api/admission/v1"
@@ -59,7 +59,7 @@ func NewVKSClusterWebhook(client kubernetes.Interface) *VKSClusterWebhook {
 func (w *VKSClusterWebhook) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 
-	body, err := ioutil.ReadAll(req.Body)
+	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		utils.AviLog.Errorf("VKS webhook: failed to read request body: %v", err)
 		http.Error(rw, "failed to read request body", http.StatusBadRequest)

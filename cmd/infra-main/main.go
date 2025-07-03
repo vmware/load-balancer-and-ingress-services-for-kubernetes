@@ -16,9 +16,12 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/ingestion"
@@ -190,62 +193,128 @@ func InitializeAKOInfra() {
 		utils.AviLog.Warnf("Avi Controller IP not available - VKS dependency generation may be delayed")
 	}
 
-	// Start VKS Cluster Watcher for event-driven processing
+	// Initialize VKS Webhook Server FIRST for admission control
+	// This provides proactive cluster labeling and must start before the cluster watcher
+	// to prevent race conditions where clusters are created before webhook is ready
+	vksWebhookEnabled := os.Getenv("VKS_WEBHOOK_ENABLED") == "true"
+	if vksWebhookEnabled {
+		vksWebhookPort := os.Getenv("VKS_WEBHOOK_PORT")
+		if vksWebhookPort == "" {
+			vksWebhookPort = "9443" // Default webhook port
+		}
+		vksWebhookCertDir := "/etc/webhook/certs" // Standard webhook cert directory
+
+		// Initialize certificate manager for webhook TLS
+		certManager := webhooks.NewVKSWebhookCertificateManager(
+			kubeClient,
+			utils.GetAKONamespace(),
+			"vks-webhook-certs",
+			"ako-webhook-service",
+			vksWebhookCertDir,
+			"vks-cluster-webhook-config",
+		)
+
+		// Ensure certificates are ready
+		if err := certManager.EnsureCertificates(context.TODO()); err != nil {
+			utils.AviLog.Errorf("Failed to ensure webhook certificates: %v", err.Error())
+		} else {
+			utils.AviLog.Infof("VKS webhook certificates ready")
+
+			// Start certificate rotation in background
+			go certManager.StartCertificateRotation(context.TODO(), 24*time.Hour)
+
+			// Initialize webhook server
+			vksWebhook := webhooks.NewVKSClusterWebhook(kubeClient)
+
+			// Start webhook server
+			go func() {
+				if err := startVKSWebhookServer(vksWebhook, vksWebhookPort, vksWebhookCertDir, stopCh); err != nil {
+					utils.AviLog.Errorf("VKS webhook server failed: %v", err.Error())
+				}
+			}()
+
+			utils.AviLog.Infof("Started VKS webhook server on port %s", vksWebhookPort)
+		}
+	} else {
+		utils.AviLog.Infof("VKS webhook disabled - using cluster watcher for reactive processing")
+	}
+
+	// Start VKS Cluster Watcher AFTER webhook for event-driven processing
+	// This handles existing clusters and provides backup for any missed webhook events
 	if err := vksClusterWatcher.Start(stopCh); err != nil {
 		utils.AviLog.Errorf("Failed to start VKS cluster watcher: %v", err.Error())
-		// Don't fail startup - reconciliation loop will still work
+		// Don't fail startup - webhook will handle new clusters
 	} else {
 		utils.AviLog.Infof("Successfully started VKS cluster watcher")
 	}
 
-	// Initialize VKS admission webhook certificate management
-	// This is only needed when VKS webhook is enabled
-	vksWebhookEnabled := os.Getenv("VKS_WEBHOOK_ENABLED")
-	if vksWebhookEnabled == "true" {
-		utils.AviLog.Infof("VKS webhook enabled, initializing certificate management")
-
-		// VKS webhook certificate management
-		namespace := utils.GetAKONamespace()
-		secretName := os.Getenv("VKS_WEBHOOK_SECRET_NAME")
-		if secretName == "" {
-			secretName = "ako-webhook-certs"
-		}
-		serviceName := os.Getenv("VKS_WEBHOOK_SERVICE_NAME")
-		if serviceName == "" {
-			serviceName = "ako-vks-webhook-service"
-		}
-		certDir := os.Getenv("VKS_WEBHOOK_CERT_DIR")
-		if certDir == "" {
-			certDir = "/etc/webhook/certs"
-		}
-		webhookConfigName := os.Getenv("VKS_WEBHOOK_CONFIG_NAME")
-		if webhookConfigName == "" {
-			webhookConfigName = "ako-vks-cluster-webhook"
-		}
-
-		// Initialize the certificate manager
-		certManager := webhooks.NewVKSWebhookCertificateManager(
-			kubeClient, namespace, secretName, serviceName, certDir, webhookConfigName)
-
-		// Ensure certificates are ready before starting webhook
-		if err := certManager.EnsureCertificates(context.TODO()); err != nil {
-			utils.AviLog.Errorf("Failed to ensure VKS webhook certificates: %v", err.Error())
-			// Don't fail startup - webhook will be disabled
-		} else {
-			utils.AviLog.Infof("VKS webhook certificates ready")
-			// Start certificate rotation in background
-			certManager.StartCertificateRotation(context.TODO(), 24*time.Hour)
-		}
-
-		utils.AviLog.Infof("VKS webhook certificate management initialized")
+	// Start VKS dependency manager reconciler
+	// This handles periodic reconciliation and resource watching automatically
+	if err := vksDependencyManager.StartReconciler(context.TODO()); err != nil {
+		utils.AviLog.Errorf("Failed to start VKS dependency manager reconciler: %v", err.Error())
+	} else {
+		utils.AviLog.Infof("Successfully started VKS dependency manager reconciler")
 	}
 
-	worker := c.InitFullSyncWorker()
-	go worker.Run()
-
+	utils.AviLog.Infof("AKO-Infra initialization complete")
 	<-stopCh
-	worker.Shutdown()
-	close(ctrlCh)
+}
+
+// startVKSWebhookServer starts the VKS webhook HTTP server with TLS
+func startVKSWebhookServer(webhook *webhooks.VKSClusterWebhook, port, certDir string, stopCh <-chan struct{}) error {
+	// Set up TLS configuration
+	certPath := filepath.Join(certDir, "tls.crt")
+	keyPath := filepath.Join(certDir, "tls.key")
+
+	// Load TLS certificate
+	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		return fmt.Errorf("failed to load TLS certificate: %w", err)
+	}
+
+	// Create TLS configuration
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
+	}
+
+	// Create HTTP server
+	mux := http.NewServeMux()
+	mux.Handle("/mutate-cluster-x-k8s-io-v1beta1-cluster", webhook)
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	})
+
+	server := &http.Server{
+		Addr:      ":" + port,
+		Handler:   mux,
+		TLSConfig: tlsConfig,
+	}
+
+	// Start server in goroutine
+	go func() {
+		utils.AviLog.Infof("Starting VKS webhook server on port %s", port)
+		if err := server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
+			utils.AviLog.Errorf("VKS webhook server error: %v", err)
+		}
+	}()
+
+	// Wait for shutdown signal
+	<-stopCh
+	utils.AviLog.Infof("Shutting down VKS webhook server")
+
+	// Graceful shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		utils.AviLog.Errorf("VKS webhook server shutdown error: %v", err)
+		return err
+	}
+
+	utils.AviLog.Infof("VKS webhook server stopped")
+	return nil
 }
 
 // getVCenterURLFromConfig retrieves vCenter URL from wcp-cluster-config ConfigMap

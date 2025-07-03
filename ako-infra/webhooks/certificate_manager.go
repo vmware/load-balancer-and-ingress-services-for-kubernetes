@@ -81,7 +81,7 @@ func NewVKSWebhookCertificateManager(client kubernetes.Interface, namespace, sec
 
 // EnsureCertificates ensures valid certificates exist, creating or rotating them as needed
 func (m *VKSWebhookCertificateManager) EnsureCertificates(ctx context.Context) error {
-	utils.AviLog.Infof("VKS webhook certificate manager: ensuring certificates for service %s", m.serviceName)
+	utils.AviLog.Infof("VKS webhook: ensuring certificates for service %s", m.serviceName)
 
 	// Check if certificates need generation or rotation
 	needsGeneration, err := m.needsCertificateGeneration(ctx)
@@ -90,7 +90,7 @@ func (m *VKSWebhookCertificateManager) EnsureCertificates(ctx context.Context) e
 	}
 
 	if needsGeneration {
-		utils.AviLog.Infof("VKS webhook certificate manager: generating new certificates")
+		utils.AviLog.Infof("VKS webhook: generating new certificates")
 		if err := m.generateCertificates(ctx); err != nil {
 			return fmt.Errorf("failed to generate certificates: %w", err)
 		}
@@ -106,7 +106,7 @@ func (m *VKSWebhookCertificateManager) EnsureCertificates(ctx context.Context) e
 		return fmt.Errorf("failed to update webhook configuration: %w", err)
 	}
 
-	utils.AviLog.Infof("VKS webhook certificate manager: certificates ready")
+	utils.AviLog.Infof("VKS webhook: certificates ready")
 	return nil
 }
 
@@ -118,16 +118,16 @@ func (m *VKSWebhookCertificateManager) StartCertificateRotation(ctx context.Cont
 		for {
 			select {
 			case <-ctx.Done():
-				utils.AviLog.Infof("VKS webhook certificate manager: stopping certificate rotation")
+				utils.AviLog.Infof("VKS webhook: stopping certificate rotation")
 				return
 			case <-ticker.C:
 				if err := m.EnsureCertificates(ctx); err != nil {
-					utils.AviLog.Errorf("VKS webhook certificate manager: failed to rotate certificates: %v", err)
+					utils.AviLog.Errorf("VKS webhook: failed to rotate certificates: %v", err)
 				}
 			}
 		}
 	}()
-	utils.AviLog.Infof("VKS webhook certificate manager: started certificate rotation with interval %v", rotationInterval)
+	utils.AviLog.Infof("VKS webhook: started certificate rotation with interval %v", rotationInterval)
 }
 
 // needsCertificateGeneration checks if certificates need to be generated or rotated
@@ -136,7 +136,7 @@ func (m *VKSWebhookCertificateManager) needsCertificateGeneration(ctx context.Co
 	secret, err := m.client.CoreV1().Secrets(m.namespace).Get(ctx, m.secretName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			utils.AviLog.Infof("VKS webhook certificate manager: secret %s not found, will generate certificates", m.secretName)
+			utils.AviLog.Infof("VKS webhook: secret %s not found, will generate certificates", m.secretName)
 			return true, nil
 		}
 		return false, err
@@ -146,7 +146,7 @@ func (m *VKSWebhookCertificateManager) needsCertificateGeneration(ctx context.Co
 	requiredKeys := []string{CACertKey, CAKeyKey, ServerCertKey, ServerKeyKey}
 	for _, key := range requiredKeys {
 		if _, exists := secret.Data[key]; !exists {
-			utils.AviLog.Infof("VKS webhook certificate manager: secret missing key %s, will regenerate certificates", key)
+			utils.AviLog.Infof("VKS webhook: secret missing key %s, will regenerate certificates", key)
 			return true, nil
 		}
 	}
@@ -155,24 +155,24 @@ func (m *VKSWebhookCertificateManager) needsCertificateGeneration(ctx context.Co
 	serverCertPEM := secret.Data[ServerCertKey]
 	block, _ := pem.Decode(serverCertPEM)
 	if block == nil {
-		utils.AviLog.Infof("VKS webhook certificate manager: invalid server certificate PEM, will regenerate")
+		utils.AviLog.Infof("VKS webhook: invalid server certificate PEM, will regenerate")
 		return true, nil
 	}
 
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		utils.AviLog.Infof("VKS webhook certificate manager: failed to parse server certificate, will regenerate: %v", err)
+		utils.AviLog.Infof("VKS webhook: failed to parse server certificate, will regenerate: %v", err)
 		return true, nil
 	}
 
 	// Check if certificate is expiring soon
 	timeUntilExpiry := time.Until(cert.NotAfter)
 	if timeUntilExpiry < CertRotationThreshold*24*time.Hour {
-		utils.AviLog.Infof("VKS webhook certificate manager: certificate expires in %v, will rotate", timeUntilExpiry)
+		utils.AviLog.Infof("VKS webhook: certificate expires in %v, will rotate", timeUntilExpiry)
 		return true, nil
 	}
 
-	utils.AviLog.Infof("VKS webhook certificate manager: certificates are valid for %v more", timeUntilExpiry)
+	utils.AviLog.Infof("VKS webhook: certificates are valid for %v more", timeUntilExpiry)
 	return false, nil
 }
 
@@ -237,12 +237,12 @@ func (m *VKSWebhookCertificateManager) generateCertificates(ctx context.Context)
 			if err != nil {
 				return fmt.Errorf("failed to create certificate secret: %w", err)
 			}
-			utils.AviLog.Infof("VKS webhook certificate manager: created certificate secret %s", m.secretName)
+			utils.AviLog.Infof("VKS webhook: created certificate secret %s", m.secretName)
 		} else {
 			return fmt.Errorf("failed to update certificate secret: %w", err)
 		}
 	} else {
-		utils.AviLog.Infof("VKS webhook certificate manager: updated certificate secret %s", m.secretName)
+		utils.AviLog.Infof("VKS webhook: updated certificate secret %s", m.secretName)
 	}
 
 	return nil
@@ -339,7 +339,7 @@ func (m *VKSWebhookCertificateManager) writeCertificatesToFileSystem(ctx context
 		return fmt.Errorf("failed to write server private key: %w", err)
 	}
 
-	utils.AviLog.Infof("VKS webhook certificate manager: wrote certificates to %s", m.certDir)
+	utils.AviLog.Infof("VKS webhook: wrote certificates to %s", m.certDir)
 	return nil
 }
 
@@ -361,7 +361,7 @@ func (m *VKSWebhookCertificateManager) updateWebhookConfiguration(ctx context.Co
 	webhookConfig, err := m.client.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(ctx, m.webhookConfig, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			utils.AviLog.Infof("VKS webhook certificate manager: webhook configuration %s not found, skipping CA bundle update", m.webhookConfig)
+			utils.AviLog.Infof("VKS webhook: webhook configuration %s not found, skipping CA bundle update", m.webhookConfig)
 			return nil
 		}
 		return fmt.Errorf("failed to get webhook configuration: %w", err)
@@ -381,9 +381,9 @@ func (m *VKSWebhookCertificateManager) updateWebhookConfiguration(ctx context.Co
 		if err != nil {
 			return fmt.Errorf("failed to update webhook configuration: %w", err)
 		}
-		utils.AviLog.Infof("VKS webhook certificate manager: updated CA bundle in webhook configuration %s", m.webhookConfig)
+		utils.AviLog.Infof("VKS webhook: updated CA bundle in webhook configuration %s", m.webhookConfig)
 	} else {
-		utils.AviLog.Infof("VKS webhook certificate manager: CA bundle already up to date in webhook configuration %s", m.webhookConfig)
+		utils.AviLog.Infof("VKS webhook: CA bundle already up to date in webhook configuration %s", m.webhookConfig)
 	}
 
 	return nil
@@ -454,7 +454,7 @@ func (m *VKSWebhookCertificateManager) ValidateCertificates(ctx context.Context)
 		return fmt.Errorf("certificate does not contain expected DNS name %s, found: %v", expectedDNS, x509Cert.DNSNames)
 	}
 
-	utils.AviLog.Infof("VKS webhook certificate manager: certificates validated successfully")
+	utils.AviLog.Infof("VKS webhook: certificates validated successfully")
 	return nil
 }
 
