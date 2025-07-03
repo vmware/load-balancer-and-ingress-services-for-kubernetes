@@ -142,7 +142,10 @@ func IsHealthMonitorProcessed(key, namespace, name string, obj ...*unstructured.
 	for _, condition := range conditions.([]interface{}) {
 		conditionMap, ok := condition.(map[string]interface{})
 		if ok && conditionMap["type"] == "Ready" {
-			return true, conditionMap["status"] == "True", nil
+			if conditionMap["status"] == "True" {
+				return true, true, nil
+			}
+			return true, false, nil
 		}
 	}
 	return false, false, nil

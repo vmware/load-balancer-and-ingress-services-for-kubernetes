@@ -165,12 +165,26 @@ func validatedBackendRefExtensions(backendFilters []*Filter, routeConditionResol
 			}
 			extensionRefType[kind] = struct{}{}
 			if kind == akogatewayapilib.HealthMonitorKind {
-				_, ready, err := akogatewayapilib.IsHealthMonitorProcessed(key, backend.Namespace, filter.ExtensionRef.Name)
-				if err != nil || !ready {
-					utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor CRD %s/%s will not be processed by gateway-container. err: %s", key, backend.Namespace, backend.Name, err)
+				if filter.ExtensionRef.Name != "" {
+					_, ready, err := akogatewayapilib.IsHealthMonitorProcessed(key, backend.Namespace, string(filter.ExtensionRef.Name))
+					if err != nil || !ready {
+						var errMsg string
+						if err != nil {
+							errMsg = err.Error()
+						} else {
+							errMsg = "HealthMonitor is not ready"
+						}
+						utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s will not be processed by gateway-container. err: %s", key, backend.Namespace, string(filter.ExtensionRef.Name), errMsg)
+						routeConditionResolvedRef.
+							Reason(string(gatewayv1.RouteReasonBackendNotFound)).
+							Message(errMsg)
+						return false, routeConditionResolvedRef
+					}
+				} else {
+					utils.AviLog.Warnf("key: %s, msg: HealthMonitor ExtensionRef has empty name", key)
 					routeConditionResolvedRef.
 						Reason(string(gatewayv1.RouteReasonBackendNotFound)).
-						Message(err.Error())
+						Message("HealthMonitor ExtensionRef has empty name")
 					return false, routeConditionResolvedRef
 				}
 			}

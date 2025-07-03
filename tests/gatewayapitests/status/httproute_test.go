@@ -1315,3 +1315,259 @@ func TestHTTPRouteFilterWithUnsupportedUrlRewritePathType(t *testing.T) {
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 }
+
+func TestHTTPRouteStatusWithHealthMonitorLifecycle(t *testing.T) {
+	gatewayClassName := "gateway-class-hm-lifecycle"
+	gatewayName := "gateway-hm-lifecycle"
+	httpRouteName := "httproute-hm-lifecycle"
+	healthMonitorName := "hm-lifecycle"
+	namespace := "default"
+	svcName := "avisvc-hm-lifecycle"
+	ports := []int32{8080}
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	integrationtest.CreateSVC(t, namespace, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPorEPS(t, namespace, svcName, false, false, "1.1.1")
+
+	listeners := akogatewayapitests.GetListenersV1(ports, true, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(namespace).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Create HTTPRoute with reference to non-existent HealthMonitor
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
+	hostnames := []gatewayv1.Hostname{"foo-hm-lifecycle.com"}
+	rules := []gatewayv1.HTTPRouteRule{
+		akogatewayapitests.GetHTTPRouteRuleWithHealthMonitorFilters(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+			map[string][]string{"RequestHeaderModifier": {"add"}},
+			[][]string{{svcName, namespace, "8080", "1"}}, []string{healthMonitorName}),
+	}
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+
+	// HTTPRoute should have unresolved refs condition due to non-existent HealthMonitor
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			t.Logf("Couldn't get the HTTPRoute, err: %+v", err)
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionFalse &&
+			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound)
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Verify error message mentions HealthMonitor
+	httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+	if err != nil || httpRoute == nil {
+		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
+	}
+	condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+	g.Expect(condition.Message).To(gomega.ContainSubstring("HealthMonitor"))
+	g.Expect(condition.Message).To(gomega.ContainSubstring(healthMonitorName))
+
+	// Create HealthMonitor with Ready=False status
+	akogatewayapitests.CreateHealthMonitorCRD(t, healthMonitorName, namespace, "thisisaviref-hm-lifecycle")
+	akogatewayapitests.UpdateHealthMonitorStatus(t, healthMonitorName, namespace, false, "ValidationError", "HealthMonitor configuration is invalid")
+
+	// HTTPRoute should still have unresolved refs condition due to unready HealthMonitor
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionFalse &&
+			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound)
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Update HealthMonitor to Ready=True
+	akogatewayapitests.UpdateHealthMonitorStatus(t, healthMonitorName, namespace, true, "Accepted", "HealthMonitor has been successfully processed")
+
+	// HTTPRoute should now have resolved refs condition
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionTrue
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Test status transition from Ready=True to Ready=False
+	akogatewayapitests.UpdateHealthMonitorStatus(t, healthMonitorName, namespace, false, "ValidationError", "HealthMonitor configuration became invalid")
+
+	// HTTPRoute should now have unresolved refs condition
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionFalse &&
+			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound)
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Transition back to Ready=True
+	akogatewayapitests.UpdateHealthMonitorStatus(t, healthMonitorName, namespace, true, "Accepted", "HealthMonitor has been successfully processed again")
+
+	// HTTPRoute should have resolved refs condition again
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionTrue
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	//Test HealthMonitor deletion
+	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName, namespace)
+
+	// HTTPRoute should now have unresolved refs condition due to deleted HealthMonitor
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionFalse &&
+			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound)
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Verify the condition message mentions the HealthMonitor
+	httpRoute, err = akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+	if err != nil || httpRoute == nil {
+		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
+	}
+	condition = apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+	g.Expect(condition.Message).To(gomega.ContainSubstring("HealthMonitor"))
+	g.Expect(condition.Message).To(gomega.ContainSubstring(healthMonitorName))
+
+	// Recreate HealthMonitor to verify HTTPRoute status recovers
+	akogatewayapitests.CreateHealthMonitorCRD(t, healthMonitorName, namespace, "thisisaviref-hm-lifecycle-recreated")
+	akogatewayapitests.UpdateHealthMonitorStatus(t, healthMonitorName, namespace, true, "Accepted", "HealthMonitor has been successfully processed")
+
+	// HTTPRoute should have resolved refs condition again
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionTrue
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Cleanup
+	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName, namespace)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
+	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestHTTPRouteStatusWithCrossNamespaceHealthMonitorDifferentTenant(t *testing.T) {
+	gatewayClassName := "gateway-class-hm-status-04"
+	gatewayName := "gateway-hm-status-04"
+	httpRouteName := "httproute-hm-status-04"
+	healthMonitorName := "hm-status-04-cross-ns"
+	namespace := "default"
+	healthMonitorNamespace := "hm-namespace-04"
+	svcName := "avisvc-hm-status-04"
+	ports := []int32{8080}
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	integrationtest.CreateSVC(t, namespace, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPorEPS(t, namespace, svcName, false, false, "1.1.1")
+
+	// Create the HealthMonitor namespace and annotate it with a different tenant
+	integrationtest.AddNamespace(t, healthMonitorNamespace, map[string]string{})
+	integrationtest.AnnotateNamespaceWithTenant(t, healthMonitorNamespace, "tenant-01")
+
+	listeners := akogatewayapitests.GetListenersV1(ports, true, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(namespace).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Create HealthMonitor CRD in different namespace with different tenant
+	akogatewayapitests.CreateHealthMonitorCRDWithStatus(t, healthMonitorName, healthMonitorNamespace, "thisisaviref-hm-status-04", true, "Accepted", "HealthMonitor has been successfully processed")
+
+	// Create HTTPRoute with reference to HealthMonitor in different namespace
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
+	hostnames := []gatewayv1.Hostname{"foo-hm-status-04.com"}
+
+	// Create rule with cross-namespace HealthMonitor reference
+	rule := akogatewayapitests.GetHTTPRouteRuleWithHealthMonitorFilters(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add"}},
+		[][]string{{svcName, healthMonitorNamespace, "8080", "1"}}, []string{healthMonitorName})
+
+	rules := []gatewayv1.HTTPRouteRule{rule}
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+
+	// HTTPRoute should have unresolved refs condition due to cross-namespace access with different tenant
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			t.Logf("Couldn't get the HTTPRoute, err: %+v", err)
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		// Should have unresolved refs condition due to tenant isolation
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionFalse &&
+			condition.Reason == string(gatewayv1.RouteReasonRefNotPermitted)
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Verify the condition message mentions tenant isolation
+	httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+	if err != nil || httpRoute == nil {
+		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
+	}
+	condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+	g.Expect(condition.Message).To(gomega.ContainSubstring("tenant"))
+
+	// Cleanup
+	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName, healthMonitorNamespace)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
+	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
