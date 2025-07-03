@@ -139,6 +139,39 @@ rbac:
   pspEnable: false
 
 # If username and either password or authtoken are not specified, avi-secret will not be created. AKO will assume that the avi-secret already exists and will reference it. The Avi Controller credentials, including certificateAuthorityData, will be read from the existing avi-secret.
+### This section outlines VKS-specific settings for AKO integration
+VKSSettings:
+  enabled: false # Enable/disable VKS integration features (cluster watching, add-on management)
+  
+  # VKS admission webhook for automatic cluster labeling (mandatory for VKS)
+  webhook:
+    port: 9443 # Port for webhook server
+    certDir: "/etc/webhook/certs" # Directory containing TLS certificates
+    
+    # TLS certificate configuration
+    tls:
+      # If true, generates self-signed certificates (for development)
+      # In production, provide your own certificates via secret
+      selfSigned: false
+      # Secret name containing tls.crt and tls.key
+      secretName: "ako-webhook-certs"
+      # Certificate Authority bundle for webhook validation
+      caCertBundle: "" # Base64 encoded CA certificate
+  
+    # VMCI proxy for guest cluster to Avi Controller connectivity (mandatory for VKS)
+  vmciProxy:
+    image:
+      repository: "vmware/vmci-relay" # VMCI proxy container image
+      pullPolicy: IfNotPresent
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+
+
 avicredentials:
   username:
   password:

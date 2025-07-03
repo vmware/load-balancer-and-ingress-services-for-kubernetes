@@ -1,0 +1,18 @@
+{{- if .Values.VKSSettings.enabled }}
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: ako-vks-crb
+  labels:
+    app.kubernetes.io/name: ako
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: vks-integration
+subjects:
+- kind: ServiceAccount
+  name: ako-sa
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: ako-vks-cr
+  apiGroup: rbac.authorization.k8s.io
+{{- end }} 

@@ -43,35 +43,53 @@ spec:
       serviceAccountName: ako-sa
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      {{ if .Values.persistentVolumeClaim }}
       volumes:
+      {{ if .Values.persistentVolumeClaim }}
       - name: ako-pv-storage
         persistentVolumeClaim:
           claimName: {{ .Values.persistentVolumeClaim }}
+      {{ end }}
+      {{ if .Values.VKSSettings.enabled }}
+      - name: webhook-certs
+        secret:
+          secretName: {{ .Values.VKSSettings.webhook.tls.secretName }}
+          defaultMode: 420
       {{ end }}
       imagePullSecrets:
         {{- toYaml .Values.image.pullSecrets | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
-          {{ if or .Values.persistentVolumeClaim .Values.AKOSettings.istioEnabled }}
+          {{ if or .Values.persistentVolumeClaim .Values.AKOSettings.istioEnabled .Values.VKSSettings.enabled }}
           volumeMounts:
             {{ if .Values.persistentVolumeClaim}}
-          - mountPath: {{ .Values.mountPath }}
-            name: ako-pv-storage
+            - mountPath: {{ .Values.mountPath }}
+              name: ako-pv-storage
             {{ end }}
             {{ if .Values.AKOSettings.istioEnabled }}
-          - mountPath: /etc/istio-output-certs/
-            name: istio-certs
+            - mountPath: /etc/istio-output-certs/
+              name: istio-certs
+            {{ end }}
+            {{ if .Values.VKSSettings.enabled }}
+            - name: webhook-certs
+              mountPath: {{ .Values.VKSSettings.webhook.certDir }}
+              readOnly: true
             {{ end }}
           {{ end }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{ if .Values.featureGates.EnablePrometheus }}
+          {{ if or .Values.featureGates.EnablePrometheus .Values.VKSSettings.enabled }}
           ports:
+          {{ if .Values.featureGates.EnablePrometheus }}
           - containerPort:  {{ default "8080" .Values.AKOSettings.apiServerPort }}
             name: prometheus-port
+          {{ end }}
+          {{ if .Values.VKSSettings.enabled }}
+          - containerPort: {{ .Values.VKSSettings.webhook.port }}
+            name: webhook
+            protocol: TCP
+          {{ end }}
           {{ end }}
           lifecycle:
             preStop:
@@ -293,6 +311,14 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: fqdnReusePolicy
+          {{ if .Values.VKSSettings.enabled }}
+          - name: VKS_WEBHOOK_ENABLED
+            value: "true"
+          - name: VKS_WEBHOOK_PORT
+            value: "{{ .Values.VKSSettings.webhook.port }}"
+          - name: VKS_WEBHOOK_CERT_DIR
+            value: {{ .Values.VKSSettings.webhook.certDir }}
+          {{ end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:
@@ -430,6 +456,30 @@ spec:
                 key: istioEnabled
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+        {{ end }}
+        {{ if .Values.VKSSettings.enabled }}
+        - name: vmci-relay
+          image: "{{ .Values.VKSSettings.vmciProxy.image.repository }}:{{ .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.VKSSettings.vmciProxy.image.pullPolicy }}
+          command: ["/vmci-relay"]
+          args:
+          - "--port-config"
+          - "tcp:4000:avi-controller-mgmt"
+          - "--sync-hosts-file"
+          - "true"
+          env:
+          - name: VMCI_PROXY_TARGET_SERVICE
+            value: "avi-controller-mgmt"
+          - name: VMCI_PROXY_HOST_PORT
+            value: "4000"
+          ports:
+          - containerPort: 4000
+            name: vmci-proxy
+            protocol: TCP
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.VKSSettings.vmciProxy.resources | nindent 12 }}
         {{ end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

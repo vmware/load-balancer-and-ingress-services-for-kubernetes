@@ -19,8 +19,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/ingestion"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/webhooks"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	v1beta1crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned"
@@ -148,12 +150,132 @@ func InitializeAKOInfra() {
 	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName)
 	c.AddNetworkInfoEventHandler(stopCh)
 
+	// Initialize VKS Dependency Manager with AddonInstall integration
+	// This manages both cluster dependencies and the global AddonInstall resource
+	vksDependencyManager := ingestion.NewVKSDependencyManager(kubeClient, dynamicClient)
+	if err := vksDependencyManager.EnsureGlobalAddonInstall(context.TODO()); err != nil {
+		utils.AviLog.Warnf("Failed to ensure VKS global AddonInstall resource: %v", err.Error())
+		// Don't fail startup - this is not critical for non-VKS environments
+	} else {
+		utils.AviLog.Infof("Successfully ensured VKS global AddonInstall resource")
+	}
+
+	// Initialize VKS Cluster Watcher for event-driven dependency management
+	// This watches cluster events and triggers dependency creation/deletion
+	vksClusterWatcher := ingestion.NewVKSClusterWatcher(kubeClient, dynamicClient)
+
+	// Initialize Avi Controller connection for both dependency manager and cluster watcher
+	// This should be done after cloud and SEG setup is complete
+	aviHost := lib.GetControllerIP()
+	aviVersion := lib.GetControllerVersion()
+	aviCloudName := *aviCloud.Name // Extract name from Cloud object
+	aviTenant := lib.GetTenant()
+	aviVrf := lib.GetVrf()
+
+	if aviHost != "" {
+		vksDependencyManager.InitializeAviControllerConnection(aviHost, aviVersion, aviCloudName, aviTenant, aviVrf)
+
+		// Initialize VKS Management Service integration with vCenter URL
+		// This enables VMCI proxy support for guest cluster connectivity
+		vCenterURL := getVCenterURLFromConfig(kubeClient)
+		if vCenterURL != "" {
+			vksDependencyManager.InitializeVKSManagementService(vCenterURL)
+			utils.AviLog.Infof("Initialized VKS Management Service integration with vCenter: %s", vCenterURL)
+		} else {
+			utils.AviLog.Warnf("vCenter URL not available - VKS Management Service integration disabled")
+		}
+
+		utils.AviLog.Infof("Initialized VKS components with Avi Controller: %s", aviHost)
+	} else {
+		utils.AviLog.Warnf("Avi Controller IP not available - VKS dependency generation may be delayed")
+	}
+
+	// Start VKS Cluster Watcher for event-driven processing
+	if err := vksClusterWatcher.Start(stopCh); err != nil {
+		utils.AviLog.Errorf("Failed to start VKS cluster watcher: %v", err.Error())
+		// Don't fail startup - reconciliation loop will still work
+	} else {
+		utils.AviLog.Infof("Successfully started VKS cluster watcher")
+	}
+
+	// Initialize VKS admission webhook certificate management
+	// This is only needed when VKS webhook is enabled
+	vksWebhookEnabled := os.Getenv("VKS_WEBHOOK_ENABLED")
+	if vksWebhookEnabled == "true" {
+		utils.AviLog.Infof("VKS webhook enabled, initializing certificate management")
+
+		// VKS webhook certificate management
+		namespace := utils.GetAKONamespace()
+		secretName := os.Getenv("VKS_WEBHOOK_SECRET_NAME")
+		if secretName == "" {
+			secretName = "ako-webhook-certs"
+		}
+		serviceName := os.Getenv("VKS_WEBHOOK_SERVICE_NAME")
+		if serviceName == "" {
+			serviceName = "ako-vks-webhook-service"
+		}
+		certDir := os.Getenv("VKS_WEBHOOK_CERT_DIR")
+		if certDir == "" {
+			certDir = "/etc/webhook/certs"
+		}
+		webhookConfigName := os.Getenv("VKS_WEBHOOK_CONFIG_NAME")
+		if webhookConfigName == "" {
+			webhookConfigName = "ako-vks-cluster-webhook"
+		}
+
+		// Initialize the certificate manager
+		certManager := webhooks.NewVKSWebhookCertificateManager(
+			kubeClient, namespace, secretName, serviceName, certDir, webhookConfigName)
+
+		// Ensure certificates are ready before starting webhook
+		if err := certManager.EnsureCertificates(context.TODO()); err != nil {
+			utils.AviLog.Errorf("Failed to ensure VKS webhook certificates: %v", err.Error())
+			// Don't fail startup - webhook will be disabled
+		} else {
+			utils.AviLog.Infof("VKS webhook certificates ready")
+			// Start certificate rotation in background
+			certManager.StartCertificateRotation(context.TODO(), 24*time.Hour)
+		}
+
+		utils.AviLog.Infof("VKS webhook certificate management initialized")
+	}
+
 	worker := c.InitFullSyncWorker()
 	go worker.Run()
 
 	<-stopCh
 	worker.Shutdown()
 	close(ctrlCh)
+}
+
+// getVCenterURLFromConfig retrieves vCenter URL from wcp-cluster-config ConfigMap
+func getVCenterURLFromConfig(kubeClient kubernetes.Interface) string {
+	// Try to get vCenter URL from wcp-cluster-config ConfigMap in vmware-system-capw namespace
+	configMap, err := kubeClient.CoreV1().ConfigMaps("vmware-system-capw").Get(context.TODO(), "wcp-cluster-config", metav1.GetOptions{})
+	if err != nil {
+		utils.AviLog.Debugf("Failed to get wcp-cluster-config ConfigMap: %v", err)
+		return ""
+	}
+
+	// Look for vCenter URL in the ConfigMap data
+	if vcenterURL, exists := configMap.Data["vcenter-server"]; exists && vcenterURL != "" {
+		utils.AviLog.Infof("Found vCenter URL in wcp-cluster-config: %s", vcenterURL)
+		return vcenterURL
+	}
+
+	// Also check for alternative key names that might contain vCenter URL
+	if vcenterURL, exists := configMap.Data["vcenter-url"]; exists && vcenterURL != "" {
+		utils.AviLog.Infof("Found vCenter URL in wcp-cluster-config: %s", vcenterURL)
+		return vcenterURL
+	}
+
+	if vcenterURL, exists := configMap.Data["vcenter_url"]; exists && vcenterURL != "" {
+		utils.AviLog.Infof("Found vCenter URL in wcp-cluster-config: %s", vcenterURL)
+		return vcenterURL
+	}
+
+	utils.AviLog.Debugf("vCenter URL not found in wcp-cluster-config ConfigMap")
+	return ""
 }
 
 func init() {

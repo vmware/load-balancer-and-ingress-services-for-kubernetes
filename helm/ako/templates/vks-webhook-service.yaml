@@ -1,0 +1,19 @@
+{{- if .Values.VKSSettings.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: ako-vks-webhook-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ako.labels" . | nindent 4 }}
+    component: vks-webhook
+spec:
+  type: ClusterIP
+  ports:
+  - name: webhook
+    port: 443
+    targetPort: {{ .Values.VKSSettings.webhook.port }}
+    protocol: TCP
+  selector:
+    {{- include "ako.selectorLabels" . | nindent 4 }}
+{{- end }} 

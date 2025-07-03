@@ -58,3 +58,8 @@ data:
   enablePrometheus: {{ default "false" .Values.featureGates.EnablePrometheus | quote }}
   enableEndpointSlice: {{ default "false" .Values.featureGates.EnableEndpointSlice | quote }} 
   fqdnReusePolicy: {{ default "InterNamespaceAllowed" .Values.L7Settings.fqdnReusePolicy | quote}}
+  {{ if .Values.VKSSettings.enabled }}
+  vksWebhookEnabled: "true"
+  vksWebhookPort: {{ .Values.VKSSettings.webhook.port | quote }}
+  vksWebhookCertDir: {{ .Values.VKSSettings.webhook.certDir | quote }}
+  {{ end }}

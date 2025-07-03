@@ -1,0 +1,35 @@
+{{- if .Values.VKSSettings.enabled }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: ako-vks-cluster-webhook
+  labels:
+    {{- include "ako.labels" . | nindent 4 }}
+    component: vks-webhook
+webhooks:
+- name: vks-cluster-labeling.ako.vmware.com
+  clientConfig:
+    service:
+      name: ako-vks-webhook-service
+      namespace: {{ .Release.Namespace }}
+      path: "/mutate-cluster"
+    {{- if .Values.VKSSettings.webhook.tls.caCertBundle }}
+    caBundle: {{ .Values.VKSSettings.webhook.tls.caCertBundle }}
+    {{- else }}
+    # CA bundle will be automatically populated by certificate manager
+    caBundle: ""
+    {{- end }}
+  rules:
+  - operations: ["CREATE"]
+    apiGroups: ["cluster.x-k8s.io"]
+    apiVersions: ["v1beta1"]
+    resources: ["clusters"]
+  admissionReviewVersions: ["v1", "v1beta1"]
+  sideEffects: None
+  failurePolicy: "Fail" # Always fail on webhook errors - cluster labeling is critical for VKS
+  namespaceSelector:
+    matchExpressions:
+    - key: name
+      operator: NotIn
+      values: ["kube-system", "kube-public", "kube-node-lease"]
+{{- end }} 
