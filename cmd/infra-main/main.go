@@ -215,13 +215,10 @@ func InitializeAKOInfra() {
 		)
 
 		// Ensure certificates are ready
-		if err := certManager.EnsureCertificates(context.TODO()); err != nil {
+		if err := certManager.EnsureCertificatesOnStartup(context.TODO()); err != nil {
 			utils.AviLog.Errorf("Failed to ensure webhook certificates: %v", err.Error())
 		} else {
 			utils.AviLog.Infof("VKS webhook certificates ready")
-
-			// Start certificate rotation in background
-			go certManager.StartCertificateRotation(context.TODO(), 24*time.Hour)
 
 			// Initialize webhook server
 			vksWebhook := webhooks.NewVKSClusterWebhook(kubeClient)

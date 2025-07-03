@@ -42,10 +42,8 @@ import (
 )
 
 const (
-	// Certificate validity periods
-	CACertValidityDays     = 365 * 10 // 10 years for CA
-	ServerCertValidityDays = 365      // 1 year for server cert
-	CertRotationThreshold  = 30       // Rotate when less than 30 days remaining
+	// Certificate validity period - both CA and server certs regenerated together
+	CertValidityDays = 365 * 10 // 10 years for all certificates
 
 	// Certificate key sizes
 	RSAKeySize = 2048
@@ -79,21 +77,14 @@ func NewVKSWebhookCertificateManager(client kubernetes.Interface, namespace, sec
 	}
 }
 
-// EnsureCertificates ensures valid certificates exist, creating or rotating them as needed
-func (m *VKSWebhookCertificateManager) EnsureCertificates(ctx context.Context) error {
-	utils.AviLog.Infof("VKS webhook: ensuring certificates for service %s", m.serviceName)
+// EnsureCertificatesOnStartup generates fresh certificates on every pod startup
+// This eliminates the need for background rotation and ensures certificates are always fresh
+func (m *VKSWebhookCertificateManager) EnsureCertificatesOnStartup(ctx context.Context) error {
+	utils.AviLog.Infof("VKS webhook: generating fresh certificates on startup for service %s", m.serviceName)
 
-	// Check if certificates need generation or rotation
-	needsGeneration, err := m.needsCertificateGeneration(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to check certificate status: %w", err)
-	}
-
-	if needsGeneration {
-		utils.AviLog.Infof("VKS webhook: generating new certificates")
-		if err := m.generateCertificates(ctx); err != nil {
-			return fmt.Errorf("failed to generate certificates: %w", err)
-		}
+	// Always generate new certificates on startup
+	if err := m.generateCertificates(ctx); err != nil {
+		return fmt.Errorf("failed to generate certificates: %w", err)
 	}
 
 	// Write certificates to filesystem
@@ -106,74 +97,8 @@ func (m *VKSWebhookCertificateManager) EnsureCertificates(ctx context.Context) e
 		return fmt.Errorf("failed to update webhook configuration: %w", err)
 	}
 
-	utils.AviLog.Infof("VKS webhook: certificates ready")
+	utils.AviLog.Infof("VKS webhook: fresh certificates generated and ready")
 	return nil
-}
-
-// StartCertificateRotation starts a background goroutine for certificate rotation
-func (m *VKSWebhookCertificateManager) StartCertificateRotation(ctx context.Context, rotationInterval time.Duration) {
-	ticker := time.NewTicker(rotationInterval)
-	go func() {
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				utils.AviLog.Infof("VKS webhook: stopping certificate rotation")
-				return
-			case <-ticker.C:
-				if err := m.EnsureCertificates(ctx); err != nil {
-					utils.AviLog.Errorf("VKS webhook: failed to rotate certificates: %v", err)
-				}
-			}
-		}
-	}()
-	utils.AviLog.Infof("VKS webhook: started certificate rotation with interval %v", rotationInterval)
-}
-
-// needsCertificateGeneration checks if certificates need to be generated or rotated
-func (m *VKSWebhookCertificateManager) needsCertificateGeneration(ctx context.Context) (bool, error) {
-	// Check if secret exists
-	secret, err := m.client.CoreV1().Secrets(m.namespace).Get(ctx, m.secretName, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			utils.AviLog.Infof("VKS webhook: secret %s not found, will generate certificates", m.secretName)
-			return true, nil
-		}
-		return false, err
-	}
-
-	// Check if secret has all required keys
-	requiredKeys := []string{CACertKey, CAKeyKey, ServerCertKey, ServerKeyKey}
-	for _, key := range requiredKeys {
-		if _, exists := secret.Data[key]; !exists {
-			utils.AviLog.Infof("VKS webhook: secret missing key %s, will regenerate certificates", key)
-			return true, nil
-		}
-	}
-
-	// Check certificate validity
-	serverCertPEM := secret.Data[ServerCertKey]
-	block, _ := pem.Decode(serverCertPEM)
-	if block == nil {
-		utils.AviLog.Infof("VKS webhook: invalid server certificate PEM, will regenerate")
-		return true, nil
-	}
-
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		utils.AviLog.Infof("VKS webhook: failed to parse server certificate, will regenerate: %v", err)
-		return true, nil
-	}
-
-	// Check if certificate is expiring soon
-	timeUntilExpiry := time.Until(cert.NotAfter)
-	if timeUntilExpiry < CertRotationThreshold*24*time.Hour {
-		utils.AviLog.Infof("VKS webhook: certificate expires in %v, will rotate", timeUntilExpiry)
-		return true, nil
-	}
-
-	utils.AviLog.Infof("VKS webhook: certificates are valid for %v more", timeUntilExpiry)
-	return false, nil
 }
 
 // generateCertificates generates a new CA and server certificate
@@ -254,10 +179,10 @@ func (m *VKSWebhookCertificateManager) generateCACertificate(caKey *rsa.PrivateK
 		SerialNumber: big.NewInt(1),
 		Subject: pkix.Name{
 			CommonName:   "VKS Webhook CA",
-			Organization: []string{"VMware"},
+			Organization: []string{"Broadcom"},
 		},
 		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(0, 0, CACertValidityDays),
+		NotAfter:              time.Now().AddDate(0, 0, CertValidityDays),
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
@@ -291,10 +216,10 @@ func (m *VKSWebhookCertificateManager) generateServerCertificate(serverKey *rsa.
 		SerialNumber: big.NewInt(2),
 		Subject: pkix.Name{
 			CommonName:   fmt.Sprintf("%s.%s.svc", m.serviceName, m.namespace),
-			Organization: []string{"VMware"},
+			Organization: []string{"Broadcom"},
 		},
 		NotBefore:   time.Now(),
-		NotAfter:    time.Now().AddDate(0, 0, ServerCertValidityDays),
+		NotAfter:    time.Now().AddDate(0, 0, CertValidityDays),
 		KeyUsage:    x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		DNSNames:    dnsNames,
