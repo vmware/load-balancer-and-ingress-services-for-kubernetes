@@ -296,7 +296,7 @@ func NewAviRestClientWithToken(api_ep, username, authToken, cadata string) *clie
 		session.DisableControllerStatusCheckOnFailure(true),
 		session.SetTransport(transport),
 		session.SetAuthToken(authToken),
-		session.SetTimeout(120 * time.Second),
+		session.SetTimeout(time.Duration(300) * time.Second),
 	}
 	if !isSecure {
 		options = append(options, session.SetInsecure)
