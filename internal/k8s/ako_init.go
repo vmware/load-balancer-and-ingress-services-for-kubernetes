@@ -95,14 +95,13 @@ func (c *AviController) CleanupStaleVSes() {
 		status.NewStatusPublisher().ResetStatefulSetAnnotation(status.ObjectDeletionStatus)
 	}
 
+	if _, err := lib.IsClusterNameValid(); err != nil {
+		utils.AviLog.Errorf("AKO cluster name is invalid.")
+		return
+	}
+
 	for tenant := range tenants {
-
 		// Delete Stale objects by deleting model for dummy VS
-		if _, err := lib.IsClusterNameValid(); err != nil {
-			utils.AviLog.Errorf("AKO cluster name is invalid.")
-			return
-		}
-
 		utils.AviLog.Infof("Starting clean up of stale objects")
 		restlayer := rest.NewRestOperations(aviObjCache)
 		staleVSKey := tenant + "/" + lib.DummyVSForStaleData
