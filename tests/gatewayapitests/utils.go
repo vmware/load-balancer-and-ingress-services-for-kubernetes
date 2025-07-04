@@ -829,7 +829,7 @@ func GetHTTPRouteRuleWithHealthMonitorFilters(pathType string, paths []string, h
 	// 		}
 	// 	}
 	// }
-	for i, _ := range rule.BackendRefs {
+	for i := range rule.BackendRefs {
 		for _, healthMonitor := range healthMonitors {
 			filter := gatewayv1.HTTPRouteFilter{
 				Type: gatewayv1.HTTPRouteFilterExtensionRef,
