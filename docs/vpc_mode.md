@@ -1,31 +1,33 @@
 # AKO in VPC Mode for NSX-T Cloud
 
-This feature allows AKO to operate in VPC mode with NSX-T Cloud. 
+This feature allows AKO to operate in NSX VPC based environments.
 
 ## Overview
 
-In the VPC mode, data networks will be configured automatically unlike the non-VPC mode where the data networks and their respective IPAM are user-configured. When in VPC mode, NSX provisions the subnet, IPAM, and DHCP automatically to simplify the overall consumption and configuration.
+NSX Virtual Private Cloud (VPC) is an abstraction to simplify the consumption of NSX-T Data Center networking and security services. It provides a tenant-centric view of the NSX-T Data Center and provisions the subnet, IPAM, and DHCP automatically to simplify the overall consumption and configuration.
 
-Because NSX-T manages the data networks in VPC Mode, you do not need to specify `networkSettings.vipNetworkList` in `values.yaml`. AKO will automatically place Virtual IPs (VIPs) on the public subnet available within the specified VPC.
+When running in VPC mode, AKO will configure VIP networks automatically unlike the non-VPC mode where the VIP networks and their respective IPAM are user-configured. This eliminates the need to configure `networkSettings.vipNetworkList` in `values.yaml`. AKO will always place Virtual IPs (VIPs) from the Public IP Address Pool available within the specified VPC.
 
 
 ### Configuration
 
-To enable VPC Mode, you would need to enable it in `values.yaml`. Set the `vpcMode` flag to `true`.
+#### Steps to enable VPC Mode in AKO
+
+1. You need to set the `vpcMode` flag to `true` in `values.yaml`.
 
 ```yaml
 akoSettings:
   vpcMode: true
 ```
 
-Additionally, you must configure the `NetworkSettings.nsxtT1LR` with the path of the NSX-T VPC in the format `/orgs/<ord-id>/projects/<project-id>/vpcs/<vpc-id>` in `values.yaml`. AKO uses this information to populate the virtualservice's and pool's T1Lr attribute.
+2. Additionally, you must configure the `NetworkSettings.nsxtT1LR` with the path of the NSX-T VPC in the format `/orgs/<ord-id>/projects/<project-id>/vpcs/<vpc-id>` in `values.yaml`. AKO uses this information to populate the virtualservice's and pool's T1Lr attribute.
 
 ```yaml
 NetworkSettings:
   nsxtT1LR: "/orgs/<ord-id>/projects/<project-id>/vpcs/<vpc-id>"
 ```
 
-Optionally, you may disable `NetworkSettings.vipNetworkList` in `values.yaml`.
+3. You also need to disable `NetworkSettings.vipNetworkList` in `values.yaml`.
 
 ```yaml
 NetworkSettings:

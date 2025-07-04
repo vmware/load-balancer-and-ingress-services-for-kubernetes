@@ -112,9 +112,9 @@ Default value is `false`.
 
 ### AKOSettings.vpcMode
 
-Use this flag to enable AKO to operate in VPC mode. In VPC mode, data networks will be configured automatically unlike the non-VPC mode where the data networks and their respective IPAM are user-configured.
+Use this flag to enable AKO to operate in NSX VPC based environments. In VPC mode, VIP networks will be configured automatically unlike the non-VPC mode where the VIP networks and their respective IPAM are user-configured.
 
-This feature is currently supported only in NSX-T cloud. It is disabled by default. Set the flag to `true` to enable the flag.
+This feature is currently supported only in NSX-T cloud. It is disabled by default. Set the flag to `true` to enable the feature.
 
 ### NetworkSettings.nodeNetworkList
 
