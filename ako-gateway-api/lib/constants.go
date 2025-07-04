@@ -19,6 +19,7 @@ const (
 	GatewayController = "ako.vmware.com/avi-lb"
 	CoreGroup         = "v1"
 	GatewayGroup      = "gateway.networking.k8s.io"
+	HealthMonitorKind = "HealthMonitor"
 )
 
 const (
