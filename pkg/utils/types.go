@@ -75,7 +75,6 @@ type KubeClientIntf struct {
 type Informers struct {
 	ConfigMapInformer           coreinformers.ConfigMapInformer
 	ServiceInformer             coreinformers.ServiceInformer
-	EpInformer                  coreinformers.EndpointsInformer
 	EpSlicesInformer            discoveryinformers.EndpointSliceInformer
 	PodInformer                 coreinformers.PodInformer
 	NSInformer                  coreinformers.NamespaceInformer
