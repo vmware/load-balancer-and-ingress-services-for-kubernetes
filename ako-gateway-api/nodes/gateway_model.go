@@ -279,6 +279,10 @@ func AddTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gateway, 
 			}
 		}
 		if foundMatchingCertRef {
+			pp := nodes.AviPortHostProtocol{Port: int32(listener.Port), Protocol: string(listener.Protocol), EnableSSL: true}
+			if !utils.HasElem(object.GetAviEvhVS()[0].PortProto, pp) {
+				object.GetAviEvhVS()[0].PortProto = append(object.GetAviEvhVS()[0].PortProto, pp)
+			}
 			break
 		}
 	}
