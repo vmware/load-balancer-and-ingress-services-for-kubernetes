@@ -55,7 +55,7 @@ var (
 	RouteBackendExtensionCRDGVR = schema.GroupVersionResource{
 		Group:    "ako.vmware.com",
 		Version:  "v1alpha1",
-		Resource: "routebackendextension",
+		Resource: "routebackendextensions",
 	}
 )
 
