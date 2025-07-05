@@ -33,31 +33,33 @@ var gwonce sync.Once
 func GatewayApiLister() *GWLister {
 	gwonce.Do(func() {
 		gwLister = &GWLister{
-			gatewayClassStore:              objects.NewObjectMapStore(),
-			gatewayToGatewayClassStore:     objects.NewObjectMapStore(),
-			gatewayClassToGatewayStore:     objects.NewObjectMapStore(),
-			gatewayToListenerStore:         objects.NewObjectMapStore(),
-			routeToGateway:                 objects.NewObjectMapStore(),
-			routeToGatewayListener:         objects.NewObjectMapStore(),
-			gatewayToRoute:                 objects.NewObjectMapStore(),
-			serviceToGateway:               objects.NewObjectMapStore(),
-			gatewayToService:               objects.NewObjectMapStore(),
-			serviceToRoute:                 objects.NewObjectMapStore(),
-			routeToService:                 objects.NewObjectMapStore(),
-			secretToGateway:                objects.NewObjectMapStore(),
-			gatewayToSecret:                objects.NewObjectMapStore(),
-			routeToChildVS:                 objects.NewObjectMapStore(),
-			gatewayToHostnameStore:         objects.NewObjectMapStore(),
-			gatewayListenerToHostnameStore: objects.NewObjectMapStore(),
-			gatewayRouteToHostnameStore:    objects.NewObjectMapStore(),
-			gatewayRouteToHTTPSPGPoolStore: objects.NewObjectMapStore(),
-			podToServiceStore:              objects.NewObjectMapStore(),
-			gatewayToStatus:                objects.NewObjectMapStore(),
-			routeToStatus:                  objects.NewObjectMapStore(),
-			l7RuleToHTTPRouteCache:         objects.NewObjectMapStore(),
-			httpRouteToL7RuleCache:         objects.NewObjectMapStore(),
-			healthMonitorToHTTPRouteCache:  objects.NewObjectMapStore(),
-			httpRouteToHealthMonitorCache:  objects.NewObjectMapStore(),
+			gatewayClassStore:                     objects.NewObjectMapStore(),
+			gatewayToGatewayClassStore:            objects.NewObjectMapStore(),
+			gatewayClassToGatewayStore:            objects.NewObjectMapStore(),
+			gatewayToListenerStore:                objects.NewObjectMapStore(),
+			routeToGateway:                        objects.NewObjectMapStore(),
+			routeToGatewayListener:                objects.NewObjectMapStore(),
+			gatewayToRoute:                        objects.NewObjectMapStore(),
+			serviceToGateway:                      objects.NewObjectMapStore(),
+			gatewayToService:                      objects.NewObjectMapStore(),
+			serviceToRoute:                        objects.NewObjectMapStore(),
+			routeToService:                        objects.NewObjectMapStore(),
+			secretToGateway:                       objects.NewObjectMapStore(),
+			gatewayToSecret:                       objects.NewObjectMapStore(),
+			routeToChildVS:                        objects.NewObjectMapStore(),
+			gatewayToHostnameStore:                objects.NewObjectMapStore(),
+			gatewayListenerToHostnameStore:        objects.NewObjectMapStore(),
+			gatewayRouteToHostnameStore:           objects.NewObjectMapStore(),
+			gatewayRouteToHTTPSPGPoolStore:        objects.NewObjectMapStore(),
+			podToServiceStore:                     objects.NewObjectMapStore(),
+			gatewayToStatus:                       objects.NewObjectMapStore(),
+			routeToStatus:                         objects.NewObjectMapStore(),
+			l7RuleToHTTPRouteCache:                objects.NewObjectMapStore(),
+			httpRouteToL7RuleCache:                objects.NewObjectMapStore(),
+			healthMonitorToHTTPRouteCache:         objects.NewObjectMapStore(),
+			httpRouteToHealthMonitorCache:         objects.NewObjectMapStore(),
+			routeBackendExtensionToHTTPRouteCache: objects.NewObjectMapStore(),
+			httpRouteToRouteBackendExtensionCache: objects.NewObjectMapStore(),
 		}
 	})
 	return gwLister
@@ -143,6 +145,12 @@ type GWLister struct {
 
 	// HTTPRoute --> HealthMonitor
 	httpRouteToHealthMonitorCache *objects.ObjectMapStore
+
+	// RouteBackendExtension -> HTTPRoute
+	routeBackendExtensionToHTTPRouteCache *objects.ObjectMapStore
+
+	// HTTPRoute --> RouteBackendExtension
+	httpRouteToRouteBackendExtensionCache *objects.ObjectMapStore
 }
 
 type GatewayRouteKind struct {
@@ -1139,4 +1147,59 @@ func (g *GWLister) DeleteHTTPRouteToHealthMonitorMapping(httpRouteName string, h
 		delete(healthMonitors, healthMonitor)
 		g.httpRouteToHealthMonitorCache.AddOrUpdate(httpRouteName, healthMonitors)
 	}
+}
+
+// RouteBackendExtension CRD (Name: Namespace+"/"+ name)
+func (g *GWLister) GetRouteBackendExtensionToHTTPRouteMapping(routeBackendExtensionName string) (bool, map[string]bool) {
+	found, httpRoutes := g.routeBackendExtensionToHTTPRouteCache.Get(routeBackendExtensionName)
+	if !found {
+		return false, make(map[string]bool)
+	}
+	return true, httpRoutes.(map[string]bool)
+}
+
+func (g *GWLister) DeleteRouteBackendExtensionToHTTPRouteMapping(routeBackendExtensionName string, httpRoute string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	found, httpRoutes := g.GetRouteBackendExtensionToHTTPRouteMapping(routeBackendExtensionName)
+	if found {
+		delete(httpRoutes, httpRoute)
+		g.routeBackendExtensionToHTTPRouteCache.AddOrUpdate(routeBackendExtensionName, httpRoutes)
+	}
+}
+
+func (g *GWLister) UpdateRouteBackendExtensionToHTTPRouteMapping(routeBackendExtensionName string, httpRoute string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	_, httpRoutes := g.GetRouteBackendExtensionToHTTPRouteMapping(routeBackendExtensionName)
+	httpRoutes[httpRoute] = true
+	g.routeBackendExtensionToHTTPRouteCache.AddOrUpdate(routeBackendExtensionName, httpRoutes)
+}
+
+// HTTPRoute to RouteBackendExtension (Name: Namespace+"/"+name)
+func (g *GWLister) GetHTTPRouteToRouteBackendExtensionMapping(httpRouteName string) (bool, map[string]bool) {
+	found, routeBackendExtensions := g.httpRouteToRouteBackendExtensionCache.Get(httpRouteName)
+	if !found {
+		return false, make(map[string]bool)
+	}
+	return true, routeBackendExtensions.(map[string]bool)
+}
+
+func (g *GWLister) DeleteHTTPRouteToRouteBackendExtensionMapping(httpRouteName string, routeBackendExtension string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	found, routeBackendExtensions := g.GetHTTPRouteToRouteBackendExtensionMapping(httpRouteName)
+	if found {
+		delete(routeBackendExtensions, routeBackendExtension)
+		g.httpRouteToRouteBackendExtensionCache.AddOrUpdate(httpRouteName, routeBackendExtensions)
+	}
+}
+
+func (g *GWLister) UpdateHTTPRouteToRouteBackendExtensionMapping(httpRouteName string, routeBackendExtension string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	_, routeBackendExtensions := g.GetHTTPRouteToRouteBackendExtensionMapping(httpRouteName)
+	routeBackendExtensions[routeBackendExtension] = true
+	g.httpRouteToRouteBackendExtensionCache.AddOrUpdate(httpRouteName, routeBackendExtensions)
+
 }

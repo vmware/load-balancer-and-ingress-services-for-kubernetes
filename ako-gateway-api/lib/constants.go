@@ -15,11 +15,13 @@
 package lib
 
 const (
-	Prefix            = "ako-gw-"
-	GatewayController = "ako.vmware.com/avi-lb"
-	CoreGroup         = "v1"
-	GatewayGroup      = "gateway.networking.k8s.io"
-	HealthMonitorKind = "HealthMonitor"
+	Prefix                    = "ako-gw-"
+	GatewayController         = "ako.vmware.com/avi-lb"
+	CoreGroup                 = "v1"
+	GatewayGroup              = "gateway.networking.k8s.io"
+	HealthMonitorKind         = "HealthMonitor"
+	RouteBackendExtensionKind = "RouteBackendExtension"
+	AKOCRDController          = "AKOCRDController"
 )
 
 const (

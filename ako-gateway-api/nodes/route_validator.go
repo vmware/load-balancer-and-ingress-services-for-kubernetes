@@ -173,6 +173,15 @@ func validatedBackendRefExtensions(backendFilters []*Filter, routeConditionResol
 						Message(err.Error())
 					return false, routeConditionResolvedRef
 				}
+			} else if kind == akogatewayapilib.RouteBackendExtensionKind {
+				_, status, err := akogatewayapilib.IsRouteBackendExtensionProcessed(key, backend.Namespace, filter.ExtensionRef.Name)
+				if err != nil || status != "Accepted" {
+					utils.AviLog.Warnf("key: %s, msg: RouteBackendExtension CR object %s/%s will not be processed by gateway-container, status: %s, err: %s", key, backend.Namespace, backend.Name, status, err.Error())
+					routeConditionResolvedRef.
+						Reason(string(gatewayv1.RouteReasonBackendNotFound)).
+						Message(err.Error())
+					return false, routeConditionResolvedRef
+				}
 			}
 		}
 	}
