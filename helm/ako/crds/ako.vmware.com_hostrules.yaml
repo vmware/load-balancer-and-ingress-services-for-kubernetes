@@ -271,6 +271,9 @@ spec:
                             - DISABLED
                             default: HIGH
                             type: string
+                          duration:
+                            type: integer
+                            default: 0
                         type: object
                       logAllHeaders:
                         type: boolean

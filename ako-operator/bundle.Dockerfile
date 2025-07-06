@@ -16,7 +16,7 @@ LABEL operatorframework.io/suggested-namespace: avi-system
 LABEL operators.operatorframework.io.test.mediatype.v1=scorecard+v1
 LABEL operators.operatorframework.io.test.config.v1=tests/scorecard/
 
-LABEL com.redhat.openshift.versions="v4.10-v4.13"
+LABEL com.redhat.openshift.versions="v4.12-v4.15"
 LABEL com.redhat.delivery.operator.bundle=true
 LABEL com.redhat.delivery.backport=true
 

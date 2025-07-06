@@ -22,6 +22,8 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	gatewayfake "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/fake"
@@ -88,8 +90,12 @@ func setupQueue(stopCh <-chan struct{}) {
 }
 
 func TestMain(m *testing.M) {
+	testData := akogatewayapitests.GetL7RuleFakeData()
 	akogatewayapitests.KubeClient = k8sfake.NewSimpleClientset()
 	akogatewayapitests.GatewayClient = gatewayfake.NewSimpleClientset()
+	//akogatewayapitests.DynamicClient = dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
+	akogatewayapitests.DynamicClient = dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), akogatewayapitests.GvrToKind, &testData)
+
 	integrationtest.KubeClient = akogatewayapitests.KubeClient
 
 	os.Setenv("CLUSTER_NAME", "cluster")
@@ -106,6 +112,8 @@ func TestMain(m *testing.M) {
 	lib.AKOControlConfig().SetEndpointSlicesEnabled(endpointSliceEnabled)
 	akoControlConfig := akogatewayapilib.AKOControlConfig()
 	akoControlConfig.SetEventRecorder(lib.AKOGatewayEventComponent, akogatewayapitests.KubeClient, true)
+	akogatewayapilib.SetDynamicClientSet(akogatewayapitests.DynamicClient)
+	akogatewayapilib.NewDynamicInformers(akogatewayapitests.DynamicClient, false)
 	registeredInformers := []string{
 		utils.ServiceInformer,
 		utils.SecretInformer,
@@ -131,7 +139,7 @@ func TestMain(m *testing.M) {
 
 	ctrl.DisableSync = false
 	setupQueue(stopCh)
-	ctrl.SetupEventHandlers(k8s.K8sinformers{Cs: akogatewayapitests.KubeClient})
+	ctrl.SetupEventHandlers(k8s.K8sinformers{Cs: akogatewayapitests.KubeClient, DynamicClient: akogatewayapitests.DynamicClient})
 	numWorkers := uint32(1)
 	ctrl.SetupGatewayApiEventHandlers(numWorkers)
 	os.Exit(m.Run())

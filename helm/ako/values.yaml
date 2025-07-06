@@ -52,6 +52,7 @@ AKOSettings:
   ipFamily: "" # This flag can take values V4 or V6 (default V4). This is for the backend pools to use ipv6 or ipv4. For frontside VS, use v6cidr
   useDefaultSecretsOnly: "false" # If this flag is set to true, AKO will only handle default secrets from the namespace where AKO is installed.
                                  # This flag is applicable only to Openshift clusters.
+  vpcMode: false # VPCMode enables AKO to operate in VPC mode. This flag is only applicable to NSX-T.
 
 ### This section outlines the network settings for virtualservices. 
 NetworkSettings:

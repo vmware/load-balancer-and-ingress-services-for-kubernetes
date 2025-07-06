@@ -100,12 +100,18 @@ type HTTPUrlRewriteFilter struct {
 	path     *gatewayv1.HTTPPathModifier
 }
 
+type ExtensionRefFilter struct {
+	Group string
+	Kind  string
+	Name  string
+}
 type Filter struct {
 	Type             string
 	RequestFilter    *HeaderFilter
 	ResponseFilter   *HeaderFilter
 	RedirectFilter   *RedirectFilter
 	UrlRewriteFilter *HTTPUrlRewriteFilter
+	ExtensionRef     *ExtensionRefFilter
 }
 
 type Backend struct {
@@ -311,6 +317,13 @@ func (hr *httpRoute) ParseRouteConfig(key string) *RouteConfig {
 
 				}
 			}
+			// ExtensionRef filters
+			if ruleFilter.ExtensionRef != nil {
+				filter.ExtensionRef = &ExtensionRefFilter{}
+				filter.ExtensionRef.Group = string(ruleFilter.ExtensionRef.Group)
+				filter.ExtensionRef.Kind = string(ruleFilter.ExtensionRef.Kind)
+				filter.ExtensionRef.Name = string(ruleFilter.ExtensionRef.Name)
+			}
 			routeConfigRule.Filters = append(routeConfigRule.Filters, filter)
 		}
 		hasInvalidBackend := false
@@ -335,7 +348,20 @@ func (hr *httpRoute) ParseRouteConfig(key string) *RouteConfig {
 				backend.Weight = *ruleBackend.Weight
 			}
 			httpBackend.Backend = backend
-			isValidBackend, resolvedRefConditionforBackend := validateBackendReference(key, *backend)
+			httpBackend.Filters = make([]*Filter, 0, len(ruleBackend.Filters))
+			for _, filter := range ruleBackend.Filters {
+				// only extension ref filters suported in backend
+				if filter.ExtensionRef != nil {
+					httpBackendFilter := &Filter{}
+					httpBackendFilter.Type = string(filter.Type)
+					httpBackendFilter.ExtensionRef = &ExtensionRefFilter{}
+					httpBackendFilter.ExtensionRef.Group = string(filter.ExtensionRef.Group)
+					httpBackendFilter.ExtensionRef.Kind = string(filter.ExtensionRef.Kind)
+					httpBackendFilter.ExtensionRef.Name = string(filter.ExtensionRef.Name)
+					httpBackend.Filters = append(httpBackend.Filters, httpBackendFilter)
+				}
+			}
+			isValidBackend, resolvedRefConditionforBackend := validateBackendReference(key, *backend, httpBackend.Filters)
 			if isValidBackend {
 				routeConfigRule.Backends = append(routeConfigRule.Backends, httpBackend)
 				if !hasInvalidBackend {

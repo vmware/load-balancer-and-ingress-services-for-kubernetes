@@ -32,6 +32,15 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
+var SupportedExtensionRefKindsOnHTTPRouteRule = map[string]string{
+	"L7Rule":             "L7Rule",
+	"ApplicationProfile": "ApplicationProfile",
+}
+var SupportedExtensionRefKindsOnHTTPRouteBackendRef = map[string]string{
+	"RouteBackendExtension": "RouteBackendExtension",
+	"HealthMonitor":         "HealthMonitor",
+}
+
 func isRegexMatch(stringWithWildCard string, stringToBeMatched string, key string) bool {
 	// replace the wildcard character with a regex
 	replacedHostname := strings.Replace(stringWithWildCard, utils.WILDCARD, utils.FQDN_LABEL_REGEX, 1)
@@ -77,20 +86,23 @@ func IsHTTPRouteValid(key string, obj *gatewayv1.HTTPRoute) bool {
 	return true
 }
 
-func validateBackendReference(key string, backend Backend) (bool, akogatewayapistatus.Condition) {
+func validateBackendReference(key string, backend Backend, backendFilters []*Filter) (bool, akogatewayapistatus.Condition) {
 	routeConditionResolvedRef := akogatewayapistatus.NewCondition().
 		Type(string(gatewayv1.RouteConditionResolvedRefs)).
 		Status(metav1.ConditionFalse)
 	if backend.Kind != "" && backend.Kind != "Service" {
 		utils.AviLog.Errorf("key: %s, msg: BackendRef %s has invalid kind %s.", key, backend.Name, backend.Kind)
-		err := fmt.Errorf("BackendRef %s has invalid kind %s.", backend.Name, backend.Kind)
+		err := fmt.Errorf("backendRef %s has invalid kind %s", backend.Name, backend.Kind)
 		routeConditionResolvedRef.
 			Reason(string(gatewayv1.RouteReasonInvalidKind)).
 			Message(err.Error())
 		return false, routeConditionResolvedRef
 	}
-	//TODO: other backendRef related conditions should go here
 
+	flag, routeConditionResolvedRef := validatedBackendRefExtensions(backendFilters, routeConditionResolvedRef, key, backend)
+	if !flag {
+		return false, routeConditionResolvedRef
+	}
 	// Valid route case
 	routeConditionResolvedRef.
 		Status(metav1.ConditionTrue).
@@ -98,55 +110,94 @@ func validateBackendReference(key string, backend Backend) (bool, akogatewayapis
 	return true, routeConditionResolvedRef
 }
 
+func validatedBackendRefExtensions(backendFilters []*Filter, routeConditionResolvedRef akogatewayapistatus.Condition, key string, backend Backend) (bool, akogatewayapistatus.Condition) {
+	extensionRefType := make(map[string]struct{})
+	for _, filter := range backendFilters {
+		// Current support only ExtensionRef
+		if filter == nil {
+			continue
+		}
+		if filter.Type != string(gatewayv1.HTTPRouteFilterExtensionRef) {
+			utils.AviLog.Errorf("key: %s, msg: BackendRef %s has unsupported Filter Type %s", key, backend.Name, filter.Type)
+			err := fmt.Errorf("backendRef %s has unsupported Filter Type %s", backend.Name, filter.Type)
+			routeConditionResolvedRef.
+				Reason(string(gatewayv1.RouteReasonUnsupportedValue)).
+				Message(err.Error())
+			return false, routeConditionResolvedRef
+		}
+		if filter.ExtensionRef != nil {
+			if string(filter.ExtensionRef.Group) != lib.AkoGroup {
+				utils.AviLog.Warnf("key: %s, msg: Extension Ref is not handled by AKO. Group of extension filter %s != %s ", key, filter.ExtensionRef.Group, lib.AkoGroup)
+				continue
+			}
+			// Allow only one instance of each kind.
+			// If user wants to define multiple instances of that kind, use an instnace of AKO defined CRD
+			kind := string(filter.ExtensionRef.Kind)
+			if _, ok := SupportedExtensionRefKindsOnHTTPRouteBackendRef[kind]; !ok {
+				utils.AviLog.Warnf("key: %s, msg: AKO does not support a kind: %s on HTTPRoute-Rule-BackendRef", key, kind)
+				routeConditionResolvedRef.
+					Reason(string(gatewayv1.RouteReasonUnsupportedValue)).
+					Message(fmt.Sprintf("Unsupported kind %s defined on HTTPRoute-Rule-BackendRef", kind))
+				return false, routeConditionResolvedRef
+			}
+			if _, ok := extensionRefType[kind]; ok {
+				utils.AviLog.Warnf("key: %s, msg: multiple entries for a kind %s. AKO handles only one object of each kind in ExtensionRef", key, kind)
+				routeConditionResolvedRef.
+					Reason(string(gatewayv1.RouteReasonIncompatibleFilters)).
+					Message("MultipleExtensionRef of same kind defined on HTTPRoute-Rule-BackendRef")
+				return false, routeConditionResolvedRef
+			}
+			extensionRefType[kind] = struct{}{}
+		}
+	}
+	return true, routeConditionResolvedRef
+}
+
+// Current behaviour: Any invalid Rule, that HTTPRoute object is not processed.
+// TODO: Need to modify this behaviour by keeping map of rule to valid/invalid for a given route.
 func validateHTTPRouteRules(key string, httpRoute *gatewayv1.HTTPRoute, httpRouteStatus *gatewayv1.HTTPRouteStatus) bool {
-
 	//Validate Filters
-
-	//Validate URL Rewrite Filter
+	//Validate URL Rewrite Filter, ExtensionRef
 	if httpRoute.Spec.Rules != nil {
 		for _, rule := range httpRoute.Spec.Rules {
+			extensionRefType := make(map[string]struct{})
 			for _, filter := range rule.Filters {
 				if filter.Type == gatewayv1.HTTPRouteFilterURLRewrite && filter.URLRewrite != nil && filter.URLRewrite.Path != nil && filter.URLRewrite.Path.Type != gatewayv1.FullPathHTTPPathModifier {
-					for parentRefIndexFromSpec := range httpRoute.Spec.ParentRefs {
-
-						// creates the Parent status only when the AKO is the gateway controller
-						name := string(httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].Name)
-						namespace := httpRoute.Namespace
-						if httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].Namespace != nil {
-							namespace = string(*httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].Namespace)
-						}
-						obj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).Get(name)
-						if err != nil {
-							utils.AviLog.Errorf("key: %s, msg: unable to get the gateway object. err: %s", key, err)
-							return false
-						}
-						gateway := obj.DeepCopy()
-
-						gwClass := string(gateway.Spec.GatewayClassName)
-						_, isAKOCtrl := akogatewayapiobjects.GatewayApiLister().IsGatewayClassControllerAKO(gwClass)
-						if !isAKOCtrl {
-							utils.AviLog.Warnf("key: %s, msg: controller for the parent reference %s of HTTPRoute object %s is not ako", key, name, httpRoute.Name)
-							continue
-						}
-
-						httpRouteStatus.Parents = append(httpRouteStatus.Parents, gatewayv1.RouteParentStatus{})
-						httpRouteStatus.Parents[parentRefIndexFromSpec].ControllerName = akogatewayapilib.GatewayController
-						httpRouteStatus.Parents[parentRefIndexFromSpec].ParentRef.Name = gatewayv1.ObjectName(name)
-						httpRouteStatus.Parents[parentRefIndexFromSpec].ParentRef.Namespace = (*gatewayv1.Namespace)(&namespace)
-						if httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].SectionName != nil {
-							httpRouteStatus.Parents[parentRefIndexFromSpec].ParentRef.SectionName = httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].SectionName
-						}
-						routeConditionAccepted := akogatewayapistatus.NewCondition().
-							Type(string(gatewayv1.RouteConditionAccepted)).
-							Status(metav1.ConditionFalse).
-							ObservedGeneration(httpRoute.ObjectMeta.Generation).
-							Reason(string(gatewayv1.RouteReasonUnsupportedValue)).
-							Message("HTTPUrlRewrite PathType has Unsupported value")
-						routeConditionAccepted.SetIn(&httpRouteStatus.Parents[parentRefIndexFromSpec].Conditions)
-					}
+					setRouteConditionInHTTPRouteStatus(key,
+						string(gatewayv1.RouteReasonUnsupportedValue),
+						"HTTPUrlRewrite PathType has Unsupported value",
+						httpRoute, httpRouteStatus)
 					utils.AviLog.Errorf("key: %s, msg: HTTPUrlRewrite PathType has Unsupported value %s.", key, filter.URLRewrite.Path.Type)
 					return false
-
+				} else if filter.Type == gatewayv1.HTTPRouteFilterExtensionRef && filter.ExtensionRef != nil {
+					// can convert to function
+					// Allows only ako.vmware.com
+					if string(filter.ExtensionRef.Group) != lib.AkoGroup {
+						utils.AviLog.Warnf("key: %s, msg: Extension Ref is not handled by AKO. Group of extension filter %s != %s ", key, filter.ExtensionRef.Group, lib.AkoGroup)
+						continue
+					}
+					// Allow only one instance of each kind.
+					// If user wants to define multiple instances of that kind, use an instnace of AKO defined CRD
+					kind := string(filter.ExtensionRef.Kind)
+					if _, ok := SupportedExtensionRefKindsOnHTTPRouteRule[kind]; !ok {
+						utils.AviLog.Warnf("key: %s, msg: AKO does not support a kind: %s on HTTPRoute-Rule", key, kind)
+						// set the status
+						setRouteConditionInHTTPRouteStatus(key,
+							string(gatewayv1.RouteReasonUnsupportedValue),
+							fmt.Sprintf("Unsupported kind %s defined on HTTPRoute-Rule", kind),
+							httpRoute, httpRouteStatus)
+						return false
+					}
+					if _, ok := extensionRefType[kind]; ok {
+						utils.AviLog.Warnf("key: %s, msg: multiple entries for a kind %s. AKO handles only one object of each kind in ExtensionRef", key, kind)
+						// set the status
+						setRouteConditionInHTTPRouteStatus(key,
+							string(gatewayv1.RouteReasonIncompatibleFilters),
+							"MultipleExtensionRef of same kind defined on HTTPRoute-Rule",
+							httpRoute, httpRouteStatus)
+						return false
+					}
+					extensionRefType[kind] = struct{}{}
 				}
 			}
 			if rule.SessionPersistence != nil {
@@ -161,8 +212,46 @@ func validateHTTPRouteRules(key string, httpRoute *gatewayv1.HTTPRoute, httpRout
 			}
 		}
 	}
-
 	return true
+}
+
+func setRouteConditionInHTTPRouteStatus(key, reason, msg string, httpRoute *gatewayv1.HTTPRoute, httpRouteStatus *gatewayv1.HTTPRouteStatus) {
+	for parentRefIndexFromSpec := range httpRoute.Spec.ParentRefs {
+		// creates the Parent status only when the AKO is the gateway controller
+		name := string(httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].Name)
+		namespace := httpRoute.Namespace
+		if httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].Namespace != nil {
+			namespace = string(*httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].Namespace)
+		}
+		obj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).Get(name)
+		if err != nil {
+			utils.AviLog.Errorf("key: %s, msg: unable to get the gateway object. err: %s", key, err)
+			return
+		}
+		gateway := obj.DeepCopy()
+
+		gwClass := string(gateway.Spec.GatewayClassName)
+		_, isAKOCtrl := akogatewayapiobjects.GatewayApiLister().IsGatewayClassControllerAKO(gwClass)
+		if !isAKOCtrl {
+			utils.AviLog.Warnf("key: %s, msg: controller for the parent reference %s of HTTPRoute object %s is not ako", key, name, httpRoute.Name)
+			continue
+		}
+
+		httpRouteStatus.Parents = append(httpRouteStatus.Parents, gatewayv1.RouteParentStatus{})
+		httpRouteStatus.Parents[parentRefIndexFromSpec].ControllerName = akogatewayapilib.GatewayController
+		httpRouteStatus.Parents[parentRefIndexFromSpec].ParentRef.Name = gatewayv1.ObjectName(name)
+		httpRouteStatus.Parents[parentRefIndexFromSpec].ParentRef.Namespace = (*gatewayv1.Namespace)(&namespace)
+		if httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].SectionName != nil {
+			httpRouteStatus.Parents[parentRefIndexFromSpec].ParentRef.SectionName = httpRoute.Spec.ParentRefs[parentRefIndexFromSpec].SectionName
+		}
+		routeConditionAccepted := akogatewayapistatus.NewCondition().
+			Type(string(gatewayv1.RouteConditionAccepted)).
+			Status(metav1.ConditionFalse).
+			ObservedGeneration(httpRoute.ObjectMeta.Generation).
+			Reason(reason).
+			Message(msg)
+		routeConditionAccepted.SetIn(&httpRouteStatus.Parents[parentRefIndexFromSpec].Conditions)
+	}
 }
 
 func setResolvedRefConditionInHTTPRouteStatus(key string, routeConditionResolvedRef akogatewayapistatus.Condition, routeTypeNamespaceName string) {

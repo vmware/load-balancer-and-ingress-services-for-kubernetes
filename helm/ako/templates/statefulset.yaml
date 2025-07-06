@@ -278,6 +278,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: useDefaultSecretsOnly
+          - name: VPC_MODE
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: vpcMode
           - name: PROMETHEUS_ENABLED
             valueFrom:
               configMapKeyRef:

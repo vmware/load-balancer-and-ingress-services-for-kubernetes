@@ -32,6 +32,7 @@ const (
 	VLAN_TRANSPORT_ZONE       = "VLAN"
 	OVERLAY_TRANSPORT_ZONE    = "OVERLAY"
 	IP_FAMILY                 = "IP_FAMILY"
+	AVI_REF                   = "AviRef"
 
 	AVI_INGRESS_CLASS                          = "avi"
 	NETWORK_NAME                               = "NETWORK_NAME"
@@ -215,6 +216,7 @@ const (
 	FQDNReusePolicyStrict                      = "strict"
 	FQDNReusePolicyOpen                        = "internamespaceallowed"
 	DefaultPSName                              = "default-backend"
+	ConcurrentUpdateError                      = "the object has been modified"
 
 	// AKO Event constants
 	AKOEventComponent        = "avi-kubernetes-operator"

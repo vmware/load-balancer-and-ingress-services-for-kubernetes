@@ -737,6 +737,7 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 // pushing to ingestion
 func (l *leader) ValidateL7RuleObj(key string, l7Rule *akov1alpha2.L7Rule) error {
 	l7RuleSpec := l7Rule.Spec
+
 	refData := make(map[string]string)
 	if l7RuleSpec.BotPolicyRef != nil {
 		refData[*l7RuleSpec.BotPolicyRef] = "BotPolicy"
@@ -748,6 +749,42 @@ func (l *leader) ValidateL7RuleObj(key string, l7Rule *akov1alpha2.L7Rule) error
 
 	if l7RuleSpec.TrafficCloneProfileRef != nil {
 		refData[*l7RuleSpec.TrafficCloneProfileRef] = "TrafficCloneProfile"
+	}
+	// Analytics Profile
+	if l7RuleSpec.AnalyticsProfile != nil {
+		if *l7RuleSpec.AnalyticsProfile.Kind == lib.AVI_REF {
+			refData[*l7RuleSpec.AnalyticsProfile.Name] = "AnalyticsProfile"
+		}
+	}
+	// Waf Policy
+	if l7RuleSpec.WafPolicy != nil {
+		if *l7RuleSpec.WafPolicy.Kind == lib.AVI_REF {
+			refData[*l7RuleSpec.WafPolicy.Name] = "WafPolicy"
+		}
+	}
+	// IcapProfile
+	if l7RuleSpec.IcapProfile != nil {
+		if *l7RuleSpec.IcapProfile.Kind == lib.AVI_REF {
+			refData[*l7RuleSpec.IcapProfile.Name] = "ICAPProfile"
+		}
+	}
+	// ErrorPageProfile
+	if l7RuleSpec.ErrorPageProfile != nil {
+		if *l7RuleSpec.ErrorPageProfile.Kind == lib.AVI_REF {
+			refData[*l7RuleSpec.ErrorPageProfile.Name] = "ErrorPageProfile"
+		}
+	}
+	// ApplicationProfile - same check
+	if l7RuleSpec.ApplicationProfile != nil {
+		if *l7RuleSpec.ApplicationProfile.Kind == lib.AVI_REF {
+			refData[*l7RuleSpec.ApplicationProfile.Name] = "AppProfile"
+		}
+	}
+
+	if l7RuleSpec.HTTPPolicy != nil {
+		for _, policyName := range l7RuleSpec.HTTPPolicy.PolicySets {
+			refData[*policyName] = "HttpPolicySet"
+		}
 	}
 	tenant := lib.GetTenantInNamespace(l7Rule.Namespace)
 

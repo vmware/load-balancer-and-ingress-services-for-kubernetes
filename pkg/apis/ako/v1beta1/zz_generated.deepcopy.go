@@ -301,6 +301,11 @@ func (in *FullClientLogs) DeepCopyInto(out *FullClientLogs) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.Duration != nil {
+		in, out := &in.Duration, &out.Duration
+		*out = new(uint32)
+		**out = **in
+	}
 	return
 }
 

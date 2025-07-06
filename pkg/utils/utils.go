@@ -17,6 +17,7 @@ package utils
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"hash/fnv"
 	"math/rand"
 	"net"
@@ -296,6 +297,8 @@ func ExtractNamespaceObjectName(key string) (string, string) {
 	segments := strings.Split(key, "/")
 	if len(segments) == 2 {
 		return segments[0], segments[1]
+	} else if len(segments) == 3 {
+		return segments[0], fmt.Sprintf("%s/%s", segments[1], segments[2])
 	}
 	return "", ""
 }
