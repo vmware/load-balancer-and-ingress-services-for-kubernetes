@@ -182,7 +182,7 @@ func (c *GatewayController) SetupCRDEventHandlers(numWorkers uint32) {
 				isCurObjProcessed, _, _ := akogatewayapilib.IsRouteBackendExtensionProcessed(key, namespace, name, curObj)
 
 				if !isOldObjProcessed && !isCurObjProcessed {
-					utils.AviLog.Warnf("key: %s, msg: RouteBackendExtension is not processed.", key, namespace, name)
+					utils.AviLog.Warnf("key: %s, msg: RouteBackendExtension is not processed", key)
 					return
 				}
 
@@ -435,7 +435,7 @@ func (c *GatewayController) processHTTPRoutes(key, namespace, name string, numWo
 					// delete mapping for RouteBackendExtension--->HTTPRoute
 					akogatewayapiobjects.GatewayApiLister().DeleteRouteBackendExtensionToHTTPRouteMapping(routeBackendExtensionNSName, httpRoute)
 				}
-				utils.AviLog.Warnf("key: %s, msg: Error while fetching HTTPRoute object. Error: %+v ", key, err)
+				utils.AviLog.Warnf("key: %s, msg: Error while fetching HTTPRoute object : %+v ", key, err)
 				continue
 			}
 

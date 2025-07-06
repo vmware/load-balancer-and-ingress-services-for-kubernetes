@@ -161,12 +161,12 @@ func IsRouteBackendExtensionProcessed(key, namespace, name string, objects ...*u
 	if len(objects) == 0 {
 		clientSet := GetDynamicClientSet()
 		if clientSet == nil {
-			return false, "", fmt.Errorf("key: %s, msg: error in fetching RouteBackendExtension object", key)
+			return false, "", fmt.Errorf("Error in fetching RouteBackendExtension object %s/%s", namespace, name)
 		}
 		object, err = clientSet.Resource(RouteBackendExtensionCRDGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
-				return false, "", fmt.Errorf("key: %s, msg: RouteBackendExtension %s/%s not found", key, namespace, name)
+				return false, "", fmt.Errorf("RouteBackendExtension object %s/%s not found", namespace, name)
 			}
 			return false, "", err
 		}
@@ -175,14 +175,14 @@ func IsRouteBackendExtensionProcessed(key, namespace, name string, objects ...*u
 	}
 	statusJSON, found, err := unstructured.NestedMap(object.UnstructuredContent(), "status")
 	if err != nil || !found {
-		utils.AviLog.Warnf("key: %s, msg: error in fetching RouteBackendExtension CR object %s/%s status : %+v", key, namespace, name, err)
-		return false, "", fmt.Errorf("key: %s, msg: error in fetching RouteBackendExtension CR object %s/%s status", key, namespace, name)
+		utils.AviLog.Warnf("key: %s, msg: error in fetching status for RouteBackendExtension %s/%s : %+v", key, namespace, name, err)
+		return false, "", fmt.Errorf("Error in fetching status for RouteBackendExtension %s/%s", namespace, name)
 	}
 	// fetch the status
 	status, ok := statusJSON["status"]
 	if !ok || status == "" {
-		utils.AviLog.Warnf("key:%s, msg: RouteBackendExtension CR object %s/%s status not found", key, namespace, name)
-		return false, "", fmt.Errorf("key: %s, msg: RouteBackendExtension CR object %s/%s status not found", key, namespace, name)
+		utils.AviLog.Warnf("key:%s, msg: status for RouteBackendExtension %s/%s not found", key, namespace, name)
+		return false, "", fmt.Errorf("Status for RouteBackendExtension %s/%s not found", namespace, name)
 	}
 	return true, status.(string), nil
 }
@@ -338,7 +338,7 @@ func ParseRouteBackendExtensionCR(key, namespace, name string, poolNode *nodes.A
 	}
 	status, ok := statusJSON["status"]
 	if !ok || status.(string) == "" {
-		return fmt.Errorf("key:%s, msg: error: RouteBackendExtension CR %s/%s is not processed by AKO main container", key, namespace, name)
+		return fmt.Errorf("key:%s, msg: error: RouteBackendExtension CR %s/%s has an invalid status field", key, namespace, name)
 	}
 	if status.(string) != lib.StatusAccepted {
 		return fmt.Errorf("key: %s, msg: error: RouteBackendExtension CR %s/%s is not accepted", key, namespace, name)
