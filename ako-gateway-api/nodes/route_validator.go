@@ -175,11 +175,17 @@ func validatedBackendRefExtensions(backendFilters []*Filter, routeConditionResol
 				}
 			} else if kind == akogatewayapilib.RouteBackendExtensionKind {
 				_, status, err := akogatewayapilib.IsRouteBackendExtensionProcessed(key, backend.Namespace, filter.ExtensionRef.Name)
-				if err != nil || status != "Accepted" {
+				if err != nil {
 					utils.AviLog.Warnf("key: %s, msg: RouteBackendExtension object %s/%s will not be processed by gateway-container, status: %s, err: %+v", key, backend.Namespace, filter.ExtensionRef.Name, status, err)
 					routeConditionResolvedRef.
 						Reason(string(gatewayv1.RouteReasonBackendNotFound)).
 						Message(err.Error())
+					return false, routeConditionResolvedRef
+				} else if status != "Accepted" {
+					utils.AviLog.Warnf("key: %s, msg: RouteBackendExtension object %s/%s will not be processed by gateway-container, status: %s", key, backend.Namespace, filter.ExtensionRef.Name, status)
+					routeConditionResolvedRef.
+						Reason(string(gatewayv1.RouteReasonBackendNotFound)).
+						Message(fmt.Sprintf("RouteBackendExtension object %s/%s is in Rejected state", backend.Namespace, filter.ExtensionRef.Name))
 					return false, routeConditionResolvedRef
 				}
 			}
