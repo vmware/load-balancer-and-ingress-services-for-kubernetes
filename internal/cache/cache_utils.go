@@ -38,6 +38,7 @@ type AviPoolCache struct {
 	CloudConfigCksum     string
 	ServiceMetadataObj   lib.ServiceMetadataObj
 	PkiProfileCollection NamespaceName
+	PersistenceProfile   NamespaceName
 	LastModified         string
 	InvalidData          bool
 	HasReference         bool
@@ -307,6 +308,16 @@ type AviPkiProfileCache struct {
 	HasReference     bool
 }
 
+type AviPersistenceProfileCache struct {
+	Name             string
+	Tenant           string
+	Uuid             string
+	CloudConfigCksum uint32
+	LastModified     string
+	Type             string // Added to store persistence_type for easier debugging/validation
+	InvalidData      bool   // Added for consistency
+}
+
 type NextPage struct {
 	NextURI    string
 	Collection interface{}
@@ -535,6 +546,12 @@ func (c *AviCache) AviCacheGetNameByUuid(uuid string) (interface{}, bool) {
 				utils.AviLog.Warnf("Got nil value in cache for stringgroup key %v", reflect.ValueOf(key))
 			} else if value.(*AviStringGroupCache).Uuid == uuid {
 				return value.(*AviStringGroupCache).Name, true
+			}
+		case *AviPersistenceProfileCache:
+			if value.(*AviPersistenceProfileCache) == nil {
+				utils.AviLog.Warnf("Got nil value in cache for persistence profile key %v", reflect.ValueOf(key))
+			} else if value.(*AviPersistenceProfileCache).Uuid == uuid {
+				return value.(*AviPersistenceProfileCache).Name, true
 			}
 		}
 	}

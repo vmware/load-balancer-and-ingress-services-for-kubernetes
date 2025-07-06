@@ -1520,6 +1520,32 @@ func L4PolicyChecksum(ports []int64, protocols []string, pools []string, ingesti
 	return checksum
 }
 
+func HTTPCookiePersistenceProfileChecksum(cookieName string, timeout *int32, isPersistentCookie *bool) uint32 {
+	checksum := utils.Hash(cookieName)
+	if timeout != nil {
+		checksum += utils.Hash(utils.Stringify(*timeout))
+	}
+	if isPersistentCookie != nil {
+		checksum += utils.Hash(utils.Stringify(*isPersistentCookie))
+	}
+	return checksum
+}
+
+func PersistenceProfileChecksum(name, persistenceType string, ingestionMarkers utils.AviObjectMarkers, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
+	var checksum uint32 = 0
+
+	checksum += utils.Hash(name)
+	checksum += utils.Hash(persistenceType)
+	if populateCache {
+		if markers != nil {
+			checksum += ObjectLabelChecksum(markers)
+		}
+		return checksum
+	}
+	checksum += GetMarkersChecksum(ingestionMarkers)
+	return checksum
+}
+
 func IsNodePortMode() bool {
 	nodePortType := os.Getenv(SERVICE_TYPE)
 	if nodePortType == NODE_PORT {

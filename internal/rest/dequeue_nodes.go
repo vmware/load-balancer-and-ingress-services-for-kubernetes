@@ -828,6 +828,8 @@ func (rest *RestOperations) PopulateOneCache(rest_op *utils.RestOp, aviObjKey av
 			rest.AviVsVipCacheAdd(rest_op, aviObjKey, key)
 		} else if rest_op.Model == "StringGroup" {
 			rest.AviStringGroupCacheAdd(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "ApplicationPersistenceProfile" {
+			rest.AviPersistenceProfileCacheAdd(rest_op, aviObjKey, key)
 		}
 
 	} else if (rest_op.Err == nil || aviErr.HttpStatusCode == 404) &&
@@ -853,6 +855,8 @@ func (rest *RestOperations) PopulateOneCache(rest_op *utils.RestOp, aviObjKey av
 			rest.AviDSCacheDel(rest_op, aviObjKey, key)
 		} else if rest_op.Model == "StringGroup" {
 			rest.AviStringGroupCacheDel(rest_op, aviObjKey, key)
+		} else if rest_op.Model == "ApplicationPersistenceProfile" {
+			rest.AviPersistenceProfileCacheDel(rest_op, aviObjKey, key)
 		}
 	}
 }
@@ -1199,9 +1203,12 @@ func ExtractStatusCode(word string) string {
 
 func (rest *RestOperations) PoolDelete(pools_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
 	utils.AviLog.Debugf("key: %s, msg: about to delete the pools %s", key, utils.Stringify(pools_to_delete))
+	var appPersProfilesToDelete []avicache.NamespaceName
+	poolsBeingDeletedSet := make(map[avicache.NamespaceName]struct{})
 	for _, del_pool := range pools_to_delete {
-		// fetch trhe pool uuid from cache
+		// fetch the pool uuid from cache
 		pool_key := avicache.NamespaceName{Namespace: namespace, Name: del_pool.Name}
+		poolsBeingDeletedSet[pool_key] = struct{}{}
 		pool_cache, ok := rest.cache.PoolCache.AviCacheGet(pool_key)
 		if ok {
 			pool_cache_obj, _ := pool_cache.(*avicache.AviPoolCache)
@@ -1213,8 +1220,24 @@ func (rest *RestOperations) PoolDelete(pools_to_delete []avicache.NamespaceName,
 			if pkiProfile.Name != "" {
 				rest_ops = rest.PkiProfileDelete([]avicache.NamespaceName{pkiProfile}, namespace, rest_ops, key)
 			}
+			persistProfile := pool_cache_obj.PersistenceProfile
+			if persistProfile.Name != "" {
+				if !utils.HasElem(appPersProfilesToDelete, persistProfile) {
+					appPersProfilesToDelete = append(appPersProfilesToDelete, persistProfile)
+				}
+			}
 		}
 	}
+	if len(appPersProfilesToDelete) > 0 {
+		var profilesToActuallyDelete []avicache.NamespaceName
+		for _, profileKey := range appPersProfilesToDelete {
+			if !rest.isAppPersProfileInUse(profileKey, poolsBeingDeletedSet, key) {
+				profilesToActuallyDelete = append(profilesToActuallyDelete, profileKey)
+			}
+		}
+		rest_ops = rest.ApplicationPersistenceProfileDelete(profilesToActuallyDelete, namespace, rest_ops, key)
+	}
+
 	return rest_ops
 }
 
@@ -1285,14 +1308,84 @@ func (rest *RestOperations) DSDelete(ds_to_delete []avicache.NamespaceName, name
 	return rest_ops
 }
 
+func (rest *RestOperations) GetAppPersProfilesToDelete(vs_cache_obj *avicache.AviVsCache, app_pers_profiles_in_model map[string]*nodes.AviApplicationPersistenceProfileNode) []avicache.NamespaceName {
+	var app_pers_profiles_to_delete []avicache.NamespaceName
+	if vs_cache_obj != nil {
+		// Get all app persistence profiles from the cache for this VS
+		for _, poolKey := range vs_cache_obj.PoolKeyCollection {
+			if poolCache, ok := rest.cache.PoolCache.AviCacheGet(poolKey); ok {
+				if poolCacheObj, found := poolCache.(*avicache.AviPoolCache); found {
+					if poolCacheObj.PersistenceProfile.Name != "" {
+						// Add to list if not present
+						if !utils.HasElem(app_pers_profiles_to_delete, poolCacheObj.PersistenceProfile) {
+							app_pers_profiles_to_delete = append(app_pers_profiles_to_delete, poolCacheObj.PersistenceProfile)
+						}
+					}
+				}
+			}
+		}
+
+		// remove profiles that are still in use from the delete list
+		for _, app_pers_profile_node := range app_pers_profiles_in_model {
+			app_pers_profiles_to_delete = avicache.RemoveNamespaceName(app_pers_profiles_to_delete,
+				avicache.NamespaceName{Name: app_pers_profile_node.Name, Namespace: app_pers_profile_node.Tenant})
+		}
+	}
+	return app_pers_profiles_to_delete
+}
+
+func (rest *RestOperations) isAppPersProfileInUse(profileKey avicache.NamespaceName, poolsBeingDeletedSet map[avicache.NamespaceName]struct{}, key string) bool {
+
+	namespace, name := utils.ExtractNamespaceObjectName(key)
+	vsKey := avicache.NamespaceName{Namespace: namespace, Name: name}
+	vs_cache_obj := rest.getVsCacheObj(vsKey, key)
+	if vs_cache_obj != nil {
+		allPoolKeys := vs_cache_obj.PoolKeyCollection
+		utils.AviLog.Debugf("all pool keys : %s", utils.Stringify(allPoolKeys))
+		for _, poolKey := range allPoolKeys {
+			utils.AviLog.Infof(" %s : pool ", poolKey.Name)
+			if _, isBeingDeleted := poolsBeingDeletedSet[poolKey]; isBeingDeleted {
+				utils.AviLog.Infof(" %s : pool is being deleted ", poolKey.Name)
+				continue
+			}
+
+			if poolCache, ok := rest.cache.PoolCache.AviCacheGet(poolKey); ok {
+				if poolCacheObj, found := poolCache.(*avicache.AviPoolCache); found {
+					utils.AviLog.Infof(" %s : pool is in cache with persistence profile %s/%s", poolKey.Name, poolCacheObj.PersistenceProfile.Namespace, poolCacheObj.PersistenceProfile.Name)
+					if poolCacheObj.PersistenceProfile.Name == profileKey.Name && poolCacheObj.PersistenceProfile.Namespace == profileKey.Namespace {
+						utils.AviLog.Infof("ApplicationPersistenceProfile %s is still in use by pool %s", profileKey.Name, poolKey.Name)
+						return true
+					}
+				}
+			} else {
+				utils.AviLog.Infof(" %s : pool is not in cache", poolKey.Name)
+			}
+		}
+	} else {
+		utils.AviLog.Infof(" vs cache is nil: %s", vsKey.Name)
+	}
+	return false
+}
+
 func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj *avicache.AviVsCache, namespace string, rest_ops []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp) {
 	var cache_pool_nodes []avicache.NamespaceName
 	var pool_pkiprofile_delete []avicache.NamespaceName
+	var app_pers_profiles_to_delete []avicache.NamespaceName
 	if vs_cache_obj != nil {
 		cache_pool_nodes = make([]avicache.NamespaceName, len(vs_cache_obj.PoolKeyCollection))
 		copy(cache_pool_nodes, vs_cache_obj.PoolKeyCollection)
 		utils.AviLog.Debugf("key: %s, msg: the cached pools are: %v", key, utils.Stringify(cache_pool_nodes))
-
+		// Collect all unique app persistence profiles from the model
+		app_pers_profiles_in_model := make(map[string]*nodes.AviApplicationPersistenceProfileNode)
+		for _, pool := range pool_nodes {
+			if pool.ApplicationPersistenceProfile != nil {
+				app_pers_profiles_in_model[pool.ApplicationPersistenceProfile.Name] = pool.ApplicationPersistenceProfile
+			}
+		}
+		// Process unique app persistence profiles for CU
+		for _, app_pers_profile_node := range app_pers_profiles_in_model {
+			_, rest_ops = rest.ApplicationPersistenceProfileCU(app_pers_profile_node, app_pers_profile_node.Tenant, rest_ops, key)
+		}
 		for _, pool := range pool_nodes {
 			// check in the pool cache to see if this pool exists in AVI
 			pool_key := avicache.NamespaceName{Namespace: namespace, Name: pool.Name}
@@ -1332,9 +1425,21 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 				rest_ops = rest.PkiProfileDelete(pool_pkiprofile_delete, namespace, rest_ops, key)
 			}
 		}
+		app_pers_profiles_to_delete = rest.GetAppPersProfilesToDelete(vs_cache_obj, app_pers_profiles_in_model)
 
 	} else {
 		// Everything is a POST call
+		// Collect all unique app persistence profiles from the model
+		app_pers_profiles_in_model := make(map[string]*nodes.AviApplicationPersistenceProfileNode)
+		for _, pool := range pool_nodes {
+			if pool.ApplicationPersistenceProfile != nil {
+				app_pers_profiles_in_model[pool.ApplicationPersistenceProfile.Name] = pool.ApplicationPersistenceProfile
+			}
+		}
+		// Process unique app persistence profiles for CU
+		for _, app_pers_profile_node := range app_pers_profiles_in_model {
+			_, rest_ops = rest.ApplicationPersistenceProfileCU(app_pers_profile_node, app_pers_profile_node.Tenant, rest_ops, key)
+		}
 		for _, pool := range pool_nodes {
 			_, rest_ops = rest.PkiProfileCU(pool.PkiProfile, nil, namespace, rest_ops, key)
 
@@ -1346,6 +1451,9 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 		}
 
 	}
+	// Final cleanup for any profiles marked for deletion from the cache object but not processed in the loop
+	rest_ops = rest.ApplicationPersistenceProfileDelete(app_pers_profiles_to_delete, namespace, rest_ops, key)
+
 	utils.AviLog.Debugf("key: %s, msg: the POOLS rest_op is %s", key, utils.Stringify(rest_ops))
 	utils.AviLog.Debugf("key: %s, msg: the POOLs to be deleted are: %s", key, cache_pool_nodes)
 	return cache_pool_nodes, rest_ops
@@ -1856,6 +1964,46 @@ func (rest *RestOperations) SSLKeyCertDelete(ssl_to_delete []avicache.NamespaceN
 	return rest_ops
 }
 
+// ApplicationPersistenceProfileCU handles Create/Update for ApplicationPersistenceProfile
+func (rest *RestOperations) ApplicationPersistenceProfileCU(appPersProfileNode *nodes.AviApplicationPersistenceProfileNode, poolTenant string, restOps []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp) {
+	if appPersProfileNode == nil {
+		return nil, restOps
+	}
+
+	appPersProfileKey := avicache.NamespaceName{Namespace: poolTenant, Name: appPersProfileNode.Name}
+	appPersCache, found := rest.cache.AppPersProfileCache.AviCacheGet(appPersProfileKey)
+
+	var appPersCacheObj *avicache.AviPersistenceProfileCache
+	if found {
+		appPersCacheObj, _ = appPersCache.(*avicache.AviPersistenceProfileCache)
+	}
+
+	if appPersCacheObj != nil && appPersCacheObj.CloudConfigCksum == appPersProfileNode.GetCheckSum() {
+		utils.AviLog.Debugf("key: %s, msg: checksums are same for PersistenceProfile %s, not doing anything", key, appPersProfileNode.Name)
+	} else {
+		utils.AviLog.Debugf("key: %s, msg: checksums are different for PersistenceProfile %s, operation: %s", key, appPersProfileNode.Name, utils.RestPost) // Default to POST, build will adjust to PUT if cache_obj is passed
+		restOp := rest.AviPersistenceProfileBuild(appPersProfileNode, appPersCacheObj)
+		if restOp != nil {
+			restOps = append(restOps, restOp)
+		}
+	}
+	return nil, restOps
+}
+
+func (rest *RestOperations) ApplicationPersistenceProfileDelete(appPersProfileDelete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
+	utils.AviLog.Debugf("key: %s, msg: about to delete ApplicationPersistenceProfiles %s", key, utils.Stringify(appPersProfileDelete))
+	for _, delAppPersProfile := range appPersProfileDelete {
+		appPersProfileKey := avicache.NamespaceName{Namespace: namespace, Name: delAppPersProfile.Name}
+		appPersCache, ok := rest.cache.AppPersProfileCache.AviCacheGet(appPersProfileKey)
+		if ok {
+			appPersCacheObj, _ := appPersCache.(*avicache.AviPersistenceProfileCache)
+			restOp := rest.AviPersistenceProfileDel(appPersCacheObj.Uuid, namespace)
+			restOp.ObjName = delAppPersProfile.Name
+			rest_ops = append(rest_ops, restOp)
+		}
+	}
+	return rest_ops
+}
 func (rest *RestOperations) PkiProfileCU(pki_node *nodes.AviPkiProfileNode, pool_cache_obj *avicache.AviPoolCache, namespace string, rest_ops []*utils.RestOp, key string) ([]avicache.NamespaceName, []*utils.RestOp) {
 	// Default is POST
 	var cache_pki_nodes []avicache.NamespaceName

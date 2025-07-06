@@ -165,6 +165,7 @@ const (
 	StringGroupNode                            = "StringGroupNode"
 	VIP                                        = "VS VIP"
 	PG                                         = "Poolgroup"
+	ApplicationPersistenceProfile              = "PersistenceProfile"
 	PriorityLabel                              = "PriorityLabel"
 	SSLKeyCert                                 = "SSLKeyandCertificate"
 	PKIProfile                                 = "PKI Profile"
