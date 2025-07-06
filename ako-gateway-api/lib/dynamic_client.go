@@ -181,8 +181,19 @@ func IsRouteBackendExtensionProcessed(key, namespace, name string, objects ...*u
 	// fetch the status
 	status, ok := statusJSON["status"]
 	if !ok || status == "" {
-		utils.AviLog.Warnf("key:%s, msg: status for RouteBackendExtension %s/%s not found", key, namespace, name)
+		utils.AviLog.Warnf("key: %s, msg: status for RouteBackendExtension %s/%s not found", key, namespace, name)
 		return false, "", fmt.Errorf("Status for RouteBackendExtension %s/%s not found", namespace, name)
+	}
+	controller, found, err := unstructured.NestedString(statusJSON, "controller")
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: RouteBackendExtension CR %s/%s controller status not found: %+v", key, namespace, name, err)
+		return false, status.(string), fmt.Errorf("RouteBackendExtension CR %s/%s controller status not found", namespace, name)
+	}
+	if !found || controller == "" {
+		return false, status.(string), fmt.Errorf("RouteBackendExtension CR %s/%s is not processed by AKO CRD Operator", namespace, name)
+	}
+	if controller != AKOCRDController {
+		return false, status.(string), fmt.Errorf("RouteBackendExtension CR %s/%s is not handled by AKO CRD Operator", namespace, name)
 	}
 	return true, status.(string), nil
 }
@@ -322,42 +333,42 @@ func getFieldValueFromSpec(specJSON map[string]interface{}, fieldName string) *s
 func ParseRouteBackendExtensionCR(key, namespace, name string, poolNode *nodes.AviPoolNode, isFilterHMSet bool) error {
 	clientSet := GetDynamicClientSet()
 	if clientSet == nil {
-		return fmt.Errorf("key: %s, msg: error in getting clientset before fetching RouteBackendExtension CR object", key)
+		return fmt.Errorf("Error in getting clientset before fetching RouteBackendExtension CR object")
 	}
 	obj, err := clientSet.Resource(RouteBackendExtensionCRDGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			return fmt.Errorf("key: %s, msg: error: RouteBackendExtension CR %s/%s not found", key, namespace, name)
+			return fmt.Errorf("RouteBackendExtension CR %s/%s not found", namespace, name)
 		}
 		return err
 	}
 	statusJSON, found, err := unstructured.NestedMap(obj.UnstructuredContent(), "status")
 	if err != nil || !found {
-		utils.AviLog.Warnf("key:%s/%s, msg: RouteBackendExtension CR status not found: %+v", namespace, name, err)
-		return err
+		utils.AviLog.Warnf("key: %s, msg: Status not found for RouteBackendExtension CR %s/%s, err: %+v", key, namespace, name, err)
+		return fmt.Errorf("Status not found for RouteBackendExtension CR %s/%s", namespace, name)
 	}
 	status, ok := statusJSON["status"]
 	if !ok || status.(string) == "" {
-		return fmt.Errorf("key:%s, msg: error: RouteBackendExtension CR %s/%s has an invalid status field", key, namespace, name)
+		return fmt.Errorf("RouteBackendExtension CR %s/%s has an invalid status field", namespace, name)
 	}
 	if status.(string) != lib.StatusAccepted {
-		return fmt.Errorf("key: %s, msg: error: RouteBackendExtension CR %s/%s is not accepted", key, namespace, name)
+		return fmt.Errorf("RouteBackendExtension CR %s/%s is not accepted", namespace, name)
 	}
 	controller, found, err := unstructured.NestedString(statusJSON, "controller")
 	if err != nil {
-		utils.AviLog.Warnf("key:%s/%s, msg: RouteBackendExtension CR controller status not found: %+v", namespace, name, err)
-		return err
+		utils.AviLog.Warnf("key: %s, msg: RouteBackendExtension CR %s/%s controller status not found: %+v", key, namespace, name, err)
+		return fmt.Errorf("RouteBackendExtension CR %s/%s controller status not found", namespace, name)
 	}
 	if !found || controller == "" {
-		return fmt.Errorf("key:%s, msg: error: RouteBackendExtension CR %s/%s is not processed by AKO CRD Operator", key, namespace, name)
+		return fmt.Errorf("RouteBackendExtension CR %s/%s is not processed by AKO CRD Operator", namespace, name)
 	}
 	if controller != AKOCRDController {
-		return fmt.Errorf("key:%s, msg: error: RouteBackendExtension CR %s/%s is not handled by AKO CRD Operator", key, namespace, name)
+		return fmt.Errorf("RouteBackendExtension CR %s/%s is not handled by AKO CRD Operator", namespace, name)
 	}
 	specJSON, found, err := unstructured.NestedMap(obj.UnstructuredContent(), "spec")
 	if err != nil || !found {
-		utils.AviLog.Warnf("key:%s/%s, msg: RouteBackendExtension CR spec not found: %+v", namespace, name, err)
-		return err
+		utils.AviLog.Warnf("key: %s, msg: RouteBackendExtension CR %s/%s spec not found: %+v", key, namespace, name, err)
+		return fmt.Errorf("RouteBackendExtension CR %s/%s spec not found", namespace, name)
 	}
 
 	if lbAlgo, found, err := unstructured.NestedString(specJSON, "lbAlgorithm"); err == nil && found {
