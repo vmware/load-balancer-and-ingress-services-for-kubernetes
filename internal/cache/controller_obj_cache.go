@@ -3842,7 +3842,7 @@ func checkIPAMForUsableNetworkLabels(client *clients.AviClient, ipamRefUri *stri
 	}
 
 	// 4. Empty VipNetworkList
-	if utils.IsWCP() && markerNetworkFound == "" {
+	if (utils.IsWCP() && markerNetworkFound == "") || lib.GetVPCMode() {
 		utils.SetVipNetworkList([]akov1beta1.AviInfraSettingVipNetwork{})
 		return true, nil
 	}
