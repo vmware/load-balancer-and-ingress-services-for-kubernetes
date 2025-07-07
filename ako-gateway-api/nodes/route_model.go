@@ -128,10 +128,10 @@ type HTTPBackend struct {
 }
 
 type Rule struct {
-	Name     string
-	Matches  []*Match
-	Filters  []*Filter
-	Backends []*HTTPBackend
+	Name               string
+	Matches            []*Match
+	Filters            []*Filter
+	Backends           []*HTTPBackend
 	SessionPersistence *gatewayv1.SessionPersistence
 }
 

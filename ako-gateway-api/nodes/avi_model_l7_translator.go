@@ -247,19 +247,12 @@ func (o *AviObjectGraph) BuildApplicationPersistenceProfile(key string, rule *Ru
 		if sp.CookieConfig != nil && sp.CookieConfig.LifetimeType != nil {
 			if *sp.CookieConfig.LifetimeType == gatewayv1.PermanentCookieLifetimeType {
 				httpCookiePersistenceProfileNode.IsPersistentCookie = proto.Bool(true)
-				if sp.AbsoluteTimeout == nil {
-					// This case should ideally be caught by Gateway API CRD validation.
-					// If AbsoluteTimeout is required for PermanentCookieLifetimeType and is not set,
-					// Avi's default for timeout (0 - infinite) will apply if parseGatewayDurationToMinutes returns 0.
-					utils.AviLog.Warnf("key: %s, msg: Cookie LifetimeType is Permanent but AbsoluteTimeout is not set for profile . Check Gateway API spec compliance.", key)
-				}
 			} else { // SessionCookieLifetimeType or nil (defaults to Session)
 				httpCookiePersistenceProfileNode.IsPersistentCookie = proto.Bool(false)
 			}
 		} else { // Default LifetimeType is Session
 			httpCookiePersistenceProfileNode.IsPersistentCookie = proto.Bool(false)
 		}
-
 		persistProfileNode.HTTPCookiePersistenceProfile = httpCookiePersistenceProfileNode
 
 	default:
@@ -270,7 +263,7 @@ func (o *AviObjectGraph) BuildApplicationPersistenceProfile(key string, rule *Ru
 	if rule.Name == "" {
 		appPersistProfileName = akogatewayapilib.GetPersistenceProfileName(parentNs, parentName,
 			routeModel.GetNamespace(), routeModel.GetName(),
-			utils.Stringify(rule.SessionPersistence), persistProfileNode.PersistenceType)
+			utils.Stringify(rule.SessionPersistence)+utils.Stringify(rule.Matches), persistProfileNode.PersistenceType)
 	} else {
 		appPersistProfileName = akogatewayapilib.GetPersistenceProfileName(parentNs, parentName,
 			routeModel.GetNamespace(), routeModel.GetName(),

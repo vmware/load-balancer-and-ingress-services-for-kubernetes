@@ -419,7 +419,7 @@ func (rest *RestOperations) RestOperation(vsName string, namespace string, avimo
 	rest_ops = rest.L4PolicyDelete(l4pol_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.DSDelete(ds_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.PoolGroupDelete(pgs_to_delete, namespace, rest_ops, key)
-	rest_ops = rest.PoolDelete(pools_to_delete, namespace, rest_ops, key)
+	rest_ops = rest.PoolDelete(pools_to_delete, namespace, rest_ops, nil, key)
 	if success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, false); !success {
 		return
 	}
@@ -556,7 +556,7 @@ func (rest *RestOperations) DeleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 		rest_ops = rest.StringGroupDelete(vs_cache_obj.StringGroupKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.L4PolicyDelete(vs_cache_obj.L4PolicyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(vs_cache_obj.PGKeyCollection, namespace, rest_ops, key)
-		rest_ops = rest.PoolDelete(vs_cache_obj.PoolKeyCollection, namespace, rest_ops, key)
+		rest_ops = rest.PoolDelete(vs_cache_obj.PoolKeyCollection, namespace, rest_ops, nil, key)
 		success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, nil, key, false)
 		if success {
 			vsKeysPending := rest.cache.VsCacheMeta.AviGetAllKeys()
@@ -595,7 +595,7 @@ func (rest *RestOperations) deleteSniVs(vsKey avicache.NamespaceName, vs_cache_o
 		rest_ops = rest.SSLKeyCertDelete(vs_cache_obj.SSLKeyCertCollection, namespace, rest_ops, key)
 		rest_ops = rest.HTTPPolicyDelete(vs_cache_obj.HTTPKeyCollection, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(vs_cache_obj.PGKeyCollection, namespace, rest_ops, key)
-		rest_ops = rest.PoolDelete(vs_cache_obj.PoolKeyCollection, namespace, rest_ops, key)
+		rest_ops = rest.PoolDelete(vs_cache_obj.PoolKeyCollection, namespace, rest_ops, nil, key)
 		rest_ops = rest.StringGroupDelete(vs_cache_obj.StringGroupKeyCollection, namespace, rest_ops, key)
 		success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, false)
 		return success
@@ -1201,7 +1201,7 @@ func ExtractStatusCode(word string) string {
 	return ""
 }
 
-func (rest *RestOperations) PoolDelete(pools_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
+func (rest *RestOperations) PoolDelete(pools_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, childvs_cache_obj *avicache.AviVsCache, key string) []*utils.RestOp {
 	utils.AviLog.Debugf("key: %s, msg: about to delete the pools %s", key, utils.Stringify(pools_to_delete))
 	var appPersProfilesToDelete []avicache.NamespaceName
 	poolsBeingDeletedSet := make(map[avicache.NamespaceName]struct{})
@@ -1231,7 +1231,7 @@ func (rest *RestOperations) PoolDelete(pools_to_delete []avicache.NamespaceName,
 	if len(appPersProfilesToDelete) > 0 {
 		var profilesToActuallyDelete []avicache.NamespaceName
 		for _, profileKey := range appPersProfilesToDelete {
-			if !rest.isAppPersProfileInUse(profileKey, poolsBeingDeletedSet, key) {
+			if !rest.isPersistenceProfileInUse(profileKey, poolsBeingDeletedSet, childvs_cache_obj, key) {
 				profilesToActuallyDelete = append(profilesToActuallyDelete, profileKey)
 			}
 		}
@@ -1308,7 +1308,7 @@ func (rest *RestOperations) DSDelete(ds_to_delete []avicache.NamespaceName, name
 	return rest_ops
 }
 
-func (rest *RestOperations) GetAppPersProfilesToDelete(vs_cache_obj *avicache.AviVsCache, app_pers_profiles_in_model map[string]*nodes.AviApplicationPersistenceProfileNode) []avicache.NamespaceName {
+func (rest *RestOperations) GetPersistenceProfilesToDelete(vs_cache_obj *avicache.AviVsCache, app_pers_profiles_in_model map[string]*nodes.AviApplicationPersistenceProfileNode) []avicache.NamespaceName {
 	var app_pers_profiles_to_delete []avicache.NamespaceName
 	if vs_cache_obj != nil {
 		// Get all app persistence profiles from the cache for this VS
@@ -1334,35 +1334,30 @@ func (rest *RestOperations) GetAppPersProfilesToDelete(vs_cache_obj *avicache.Av
 	return app_pers_profiles_to_delete
 }
 
-func (rest *RestOperations) isAppPersProfileInUse(profileKey avicache.NamespaceName, poolsBeingDeletedSet map[avicache.NamespaceName]struct{}, key string) bool {
-
-	namespace, name := utils.ExtractNamespaceObjectName(key)
-	vsKey := avicache.NamespaceName{Namespace: namespace, Name: name}
-	vs_cache_obj := rest.getVsCacheObj(vsKey, key)
-	if vs_cache_obj != nil {
-		allPoolKeys := vs_cache_obj.PoolKeyCollection
-		utils.AviLog.Debugf("all pool keys : %s", utils.Stringify(allPoolKeys))
-		for _, poolKey := range allPoolKeys {
-			utils.AviLog.Infof(" %s : pool ", poolKey.Name)
-			if _, isBeingDeleted := poolsBeingDeletedSet[poolKey]; isBeingDeleted {
-				utils.AviLog.Infof(" %s : pool is being deleted ", poolKey.Name)
-				continue
-			}
-
-			if poolCache, ok := rest.cache.PoolCache.AviCacheGet(poolKey); ok {
-				if poolCacheObj, found := poolCache.(*avicache.AviPoolCache); found {
-					utils.AviLog.Infof(" %s : pool is in cache with persistence profile %s/%s", poolKey.Name, poolCacheObj.PersistenceProfile.Namespace, poolCacheObj.PersistenceProfile.Name)
-					if poolCacheObj.PersistenceProfile.Name == profileKey.Name && poolCacheObj.PersistenceProfile.Namespace == profileKey.Namespace {
-						utils.AviLog.Infof("ApplicationPersistenceProfile %s is still in use by pool %s", profileKey.Name, poolKey.Name)
-						return true
-					}
-				}
-			} else {
-				utils.AviLog.Infof(" %s : pool is not in cache", poolKey.Name)
-			}
+func (rest *RestOperations) isPersistenceProfileInUse(profileKey avicache.NamespaceName, poolsBeingDeletedSet map[avicache.NamespaceName]struct{}, childCacheObject *avicache.AviVsCache, key string) bool {
+	var allPoolKeys []avicache.NamespaceName
+	if childCacheObject == nil {
+		namespace, name := utils.ExtractNamespaceObjectName(key)
+		vsKey := avicache.NamespaceName{Namespace: namespace, Name: name}
+		vs_cache_obj := rest.getVsCacheObj(vsKey, key)
+		if vs_cache_obj != nil {
+			allPoolKeys = vs_cache_obj.PoolKeyCollection
 		}
 	} else {
-		utils.AviLog.Infof(" vs cache is nil: %s", vsKey.Name)
+		allPoolKeys = childCacheObject.PoolKeyCollection
+	}
+	for _, poolKey := range allPoolKeys {
+		if _, isBeingDeleted := poolsBeingDeletedSet[poolKey]; isBeingDeleted {
+			continue
+		}
+		if poolCache, ok := rest.cache.PoolCache.AviCacheGet(poolKey); ok {
+			if poolCacheObj, found := poolCache.(*avicache.AviPoolCache); found {
+				if poolCacheObj.PersistenceProfile.Name == profileKey.Name && poolCacheObj.PersistenceProfile.Namespace == profileKey.Namespace {
+					utils.AviLog.Infof("ApplicationPersistenceProfile %s is still in use by pool %s", profileKey.Name, poolKey.Name)
+					return true
+				}
+			}
+		}
 	}
 	return false
 }
@@ -1425,7 +1420,7 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 				rest_ops = rest.PkiProfileDelete(pool_pkiprofile_delete, namespace, rest_ops, key)
 			}
 		}
-		app_pers_profiles_to_delete = rest.GetAppPersProfilesToDelete(vs_cache_obj, app_pers_profiles_in_model)
+		app_pers_profiles_to_delete = rest.GetPersistenceProfilesToDelete(vs_cache_obj, app_pers_profiles_in_model)
 
 	} else {
 		// Everything is a POST call
@@ -1556,7 +1551,7 @@ func (rest *RestOperations) SNINodeCU(sni_node *nodes.AviVsNode, vs_cache_obj *a
 		rest_ops = rest.HTTPPolicyDelete(http_policies_to_delete, namespace, rest_ops, key)
 		rest_ops = rest.StringGroupDelete(string_groups_to_delete, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(sni_pgs_to_delete, namespace, rest_ops, key)
-		rest_ops = rest.PoolDelete(sni_pools_to_delete, namespace, rest_ops, key)
+		rest_ops = rest.PoolDelete(sni_pools_to_delete, namespace, rest_ops, nil, key)
 		utils.AviLog.Debugf("key: %s, msg: the SNI VSes to be deleted are: %s", key, cache_sni_nodes)
 	} else {
 		utils.AviLog.Debugf("key: %s, msg: sni child %s not found in cache and SNI parent also does not exist in cache", key, sni_node.Name)

@@ -102,7 +102,7 @@ func (c *AviObjCache) AviRefreshObjectCache(client []*clients.AviClient, cloud s
 		c.PopulateVsVipDataToCache(client[7], cloud)
 	}()
 	c.PopulatePkiProfilesToCache(client[0])
-	c.PopulateAppPersistenceProfileToCache(client[9], cloud) // Using client[0] assuming it's available
+	c.PopulateAppPersistenceProfileToCache(client[9], cloud)
 	c.PopulatePoolsToCache(client[1], cloud)
 	c.PopulatePgDataToCache(client[2], cloud)
 	c.PopulateStringGroupDataToCache(client[8], cloud)
@@ -1280,7 +1280,7 @@ func (c *AviObjCache) AviPopulateOnePoolCache(client *clients.AviClient,
 			persistenceProfileUuid := ExtractUUID(*pool.ApplicationPersistenceProfileRef, "applicationpersistenceprofile-.*.#")
 			persistenceProfileName, foundPersistenceProfile := c.AppPersProfileCache.AviCacheGetNameByUuid(persistenceProfileUuid)
 			if foundPersistenceProfile {
-				pkiKey = NamespaceName{Namespace: tenant, Name: persistenceProfileName.(string)}
+				persistenceKey = NamespaceName{Namespace: tenant, Name: persistenceProfileName.(string)}
 			}
 		}
 
@@ -2243,10 +2243,10 @@ func (c *AviObjCache) PopulateAppPersistenceProfileToCache(client *clients.AviCl
 			if ok {
 				if oldPersistenceData.InvalidData {
 					appPersProfileData[i].InvalidData = true
-					utils.AviLog.Infof("Invalid cache data for pki: %s", k)
+					utils.AviLog.Infof("Invalid cache data for persistence profile: %s", k)
 				}
 			} else {
-				utils.AviLog.Infof("Wrong data type for pki: %s in cache", k)
+				utils.AviLog.Infof("Wrong data type for persistence profile: %s in cache", k)
 			}
 		}
 		utils.AviLog.Infof("Adding key to persistence profile cache :%s value :%s", k, persistenceCacheObj.Uuid)

@@ -1533,7 +1533,6 @@ func HTTPCookiePersistenceProfileChecksum(cookieName string, timeout *int32, isP
 
 func PersistenceProfileChecksum(name, persistenceType string, ingestionMarkers utils.AviObjectMarkers, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
 	var checksum uint32 = 0
-
 	checksum += utils.Hash(name)
 	checksum += utils.Hash(persistenceType)
 	if populateCache {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 VMware, Inc.
+ * Copyright 2024-2025 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
+
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
@@ -155,8 +156,6 @@ func (rest *RestOperations) AviPersistenceProfileCacheAdd(restOp *utils.RestOp, 
 			appPersProfileModel = restOp.Obj.(avimodels.ApplicationPersistenceProfile)
 		default:
 			utils.AviLog.Warnf("key: %s, msg: Unknown object type for ApplicationPersistenceProfile %v", key, restOp.Obj)
-			// Attempt to build a minimal profile for checksum if possible, or skip.
-			// For now, we'll use a generic checksum or skip if essential fields are missing.
 		}
 
 		appPersCacheObj := avicache.AviPersistenceProfileCache{
@@ -210,7 +209,7 @@ func (rest *RestOperations) AviPersistenceProfileCacheDel(restOp *utils.RestOp, 
 		poolCache, ok := rest.cache.PoolCache.AviCacheGet(poolKey)
 		if ok {
 			if poolCacheObj, found := poolCache.(*avicache.AviPoolCache); found {
-				poolCacheObj.PkiProfileCollection = avicache.NamespaceName{}
+				poolCacheObj.PersistenceProfile = avicache.NamespaceName{}
 			}
 		}
 	}

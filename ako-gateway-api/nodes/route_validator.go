@@ -202,7 +202,7 @@ func validateHTTPRouteRules(key string, httpRoute *gatewayv1.HTTPRoute, httpRout
 			}
 			if rule.SessionPersistence != nil {
 				if rule.SessionPersistence.Type != nil && *rule.SessionPersistence.Type == gatewayv1.HeaderBasedSessionPersistence {
-					utils.AviLog.Errorf("key: %s, msg: Header Based session Persistence Name is not supported ", key)
+					utils.AviLog.Errorf("key: %s, msg: Header based session persistence type is not supported ", key)
 					return false
 				}
 				if rule.SessionPersistence.SessionName == nil || *rule.SessionPersistence.SessionName == "" {
