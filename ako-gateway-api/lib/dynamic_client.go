@@ -137,7 +137,7 @@ func IsHealthMonitorProcessed(key, namespace, name string, obj ...*unstructured.
 	}
 	conditions, ok := statusJSON["conditions"]
 	if !ok || conditions.([]interface{}) == nil || len(conditions.([]interface{})) == 0 {
-		return false, false, fmt.Errorf("key: %s, msg: error: HealthMonitor %s/%s is not processed by AKO main container", key, namespace, name)
+		return false, false, fmt.Errorf("key: %s, msg: error: HealthMonitor %s/%s is not processed by AKO CRD Operator", key, namespace, name)
 	}
 	for _, condition := range conditions.([]interface{}) {
 		conditionMap, ok := condition.(map[string]interface{})

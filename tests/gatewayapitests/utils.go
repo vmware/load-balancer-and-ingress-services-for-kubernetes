@@ -808,27 +808,6 @@ func DeleteHealthMonitorCRD(t *testing.T, name, namespace string) {
 func GetHTTPRouteRuleWithHealthMonitorFilters(pathType string, paths []string, headers []string, filters map[string][]string, backends [][]string, healthMonitors []string) gatewayv1.HTTPRouteRule {
 	rule := GetHTTPRouteRuleV1(pathType, paths, headers, filters, backends, nil)
 
-	// // Add HealthMonitor ExtensionRef filters to backends
-	// if len(healthMonitors) > 0 && len(rule.BackendRefs) > 0 {
-	// 	for i, hmName := range healthMonitors {
-	// 		if i < len(rule.BackendRefs) {
-	// 			if rule.BackendRefs[i].Filters == nil {
-	// 				rule.BackendRefs[i].Filters = []gatewayv1.HTTPRouteFilter{}
-	// 			}
-
-	// 			// Add HealthMonitor as ExtensionRef filter
-	// 			hmFilter := gatewayv1.HTTPRouteFilter{
-	// 				Type: gatewayv1.HTTPRouteFilterExtensionRef,
-	// 				ExtensionRef: &gatewayv1.LocalObjectReference{
-	// 					Group: gatewayv1.Group("ako.vmware.com"),
-	// 					Kind:  gatewayv1.Kind("HealthMonitor"),
-	// 					Name:  gatewayv1.ObjectName(hmName),
-	// 				},
-	// 			}
-	// 			rule.BackendRefs[i].Filters = append(rule.BackendRefs[i].Filters, hmFilter)
-	// 		}
-	// 	}
-	// }
 	for i := range rule.BackendRefs {
 		for _, healthMonitor := range healthMonitors {
 			filter := gatewayv1.HTTPRouteFilter{
