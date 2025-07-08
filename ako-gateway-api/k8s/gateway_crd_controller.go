@@ -209,7 +209,7 @@ func (c *GatewayController) SetupCRDEventHandlers(numWorkers uint32) {
 }
 
 func (c *GatewayController) processHTTPRoutesForHealthMonitor(key, namespace, name string, numWorkers uint32) {
-	utils.AviLog.Debugf("key: %s, msg: Fetchting HTTPRoute associated with HealthMonitor %s/%s", key, namespace, name)
+	utils.AviLog.Debugf("key: %s, msg: Fetching HTTPRoute associated with HealthMonitor %s/%s", key, namespace, name)
 	hmNameNS := namespace + "/" + name
 	ok, httpRoutes := akogatewayapiobjects.GatewayApiLister().GetHealthMonitorToHTTPRoutesMapping(hmNameNS)
 	if !ok {

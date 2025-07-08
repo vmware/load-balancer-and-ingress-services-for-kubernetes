@@ -833,6 +833,17 @@ func (g *GWLister) DeleteRouteFromStore(routeTypeNsName string, key string) {
 	// delete the httproutekey
 	g.httpRouteToL7RuleCache.Delete(httpRouteNSName)
 
+	// delete Route entries from HealthMonitorHTTPRoute mapping
+	if found, healthMonitorList := g.GetHTTPRouteToHealthMonitorMapping(httpRouteNSName); found {
+		for healthMonitor := range healthMonitorList {
+			if found, _ := g.GetHealthMonitorToHTTPRoutesMapping(healthMonitor); found {
+				g.DeleteHealthMonitorToHTTPRoutesMapping(healthMonitor, httpRouteNSName)
+			}
+		}
+	}
+	// delete the httproutekey
+	g.httpRouteToHealthMonitorCache.Delete(httpRouteNSName)
+
 	//delete route to service
 	found, svcList := g.routeToService.Get(routeTypeNsName)
 	if found {
