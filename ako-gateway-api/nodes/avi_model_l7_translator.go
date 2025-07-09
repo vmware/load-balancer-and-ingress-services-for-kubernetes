@@ -80,6 +80,10 @@ func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, pare
 		if rule.Matches == nil {
 			continue
 		}
+		if httpRouteConfig.IsRejected {
+			utils.AviLog.Infof("key: %s, msg: route %s is rejected, continue", key, routeModel.GetName())
+			continue
+		}
 		o.BuildChildVS(key, routeModel, parentNsName, rule, childVSes, fullsync)
 	}
 }

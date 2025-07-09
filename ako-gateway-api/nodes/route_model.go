@@ -135,8 +135,9 @@ type Rule struct {
 }
 
 type RouteConfig struct {
-	Rules []*Rule
-	Hosts []string
+	Rules      []*Rule
+	Hosts      []string
+	IsRejected bool
 }
 
 type httpRoute struct {
@@ -369,6 +370,7 @@ func (hr *httpRoute) ParseRouteConfig(key string) *RouteConfig {
 			}
 		}
 		routeConfig.Rules = append(routeConfig.Rules, routeConfigRule)
+		routeConfig.IsRejected = hasInvalidBackend
 	}
 	hr.routeConfig = routeConfig
 	setResolvedRefConditionInHTTPRouteStatus(key, resolvedRefCondition, lib.HTTPRoute+"/"+hr.GetNamespace()+"/"+hr.GetName())

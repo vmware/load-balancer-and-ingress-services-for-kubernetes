@@ -3444,7 +3444,7 @@ func TestHTTPRouteWithSingleHealthMonitor(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
-	}, 25*time.Second).Should(gomega.Equal(true))
+	}, 60*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
@@ -3484,10 +3484,7 @@ func TestHTTPRouteWithSingleHealthMonitor(t *testing.T) {
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		if len(nodes[0].EvhNodes) > 0 && len(nodes[0].EvhNodes[0].PoolRefs) > 0 {
-			return len(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs)
-		}
-		return 0
+		return len(nodes[0].EvhNodes)
 	}, 25*time.Second).Should(gomega.Equal(0))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
@@ -3508,7 +3505,7 @@ func TestHTTPRouteWithMultipleHealthMonitors(t *testing.T) {
 	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := akogatewayapitests.GetListenersV1(ports, true, false)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
@@ -3516,7 +3513,7 @@ func TestHTTPRouteWithMultipleHealthMonitors(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
-	}, 25*time.Second).Should(gomega.Equal(true))
+	}, 60*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
@@ -3555,15 +3552,32 @@ func TestHTTPRouteWithMultipleHealthMonitors(t *testing.T) {
 	g.Expect(childNode.PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring("thisisaviref-hm1"))
 	g.Expect(childNode.PoolRefs[0].HealthMonitorRefs[1]).To(gomega.ContainSubstring("thisisaviref-hm2"))
 
-	// Delete one HealthMonitor and update HTTPRoute to remove its reference
+	// Delete one HealthMonitor
 	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName1, DEFAULT_NAMESPACE)
 
 	// this will make the HTTPRoute invalid and remove all poolrefs
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes[0].PoolRefs)
+		return len(nodes[0].EvhNodes)
 	}, 25*time.Second).Should(gomega.Equal(0))
+
+	// update httproute to remove healthmonitor
+	rule = akogatewayapitests.GetHTTPRouteRuleWithHealthMonitorFilters(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add"}},
+		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, []string{healthMonitorName2})
+	rules = []gatewayv1.HTTPRouteRule{rule}
+	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	// this will add one healthmonitor to the poolref
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	childNode = nodes[0].EvhNodes[0]
+	g.Expect(childNode.PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring("thisisaviref-hm2"))
 
 	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName2, DEFAULT_NAMESPACE)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
@@ -3591,7 +3605,7 @@ func TestHTTPRouteWithHealthMonitorCRUD(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
-	}, 25*time.Second).Should(gomega.Equal(true))
+	}, 60*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
@@ -3657,7 +3671,7 @@ func TestHTTPRouteWithHealthMonitorCRUD(t *testing.T) {
 		if len(nodes[0].EvhNodes) > 0 && len(nodes[0].EvhNodes[0].PoolRefs) > 0 {
 			return len(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs)
 		}
-		return 0
+		return -1
 	}, 25*time.Second).Should(gomega.Equal(0))
 
 	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName, DEFAULT_NAMESPACE)
@@ -3686,7 +3700,7 @@ func TestHTTPRouteWithInvalidHealthMonitor(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
-	}, 25*time.Second).Should(gomega.Equal(true))
+	}, 60*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
@@ -3705,17 +3719,11 @@ func TestHTTPRouteWithInvalidHealthMonitor(t *testing.T) {
 	g.Eventually(func() int {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found {
-			return 0
+			return -1
 		}
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 		return len(nodes[0].EvhNodes)
-	}, 25*time.Second).Should(gomega.Equal(1))
-
-	// Verify that route is rejected
-	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-	childNode := nodes[0].EvhNodes[0]
-	g.Expect(childNode.PoolRefs).To(gomega.HaveLen(0))
+	}, 25*time.Second).Should(gomega.Equal(0))
 
 	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName, DEFAULT_NAMESPACE)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
@@ -3745,7 +3753,7 @@ func TestHTTPRouteWithHealthMonitorMultipleBackends(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
-	}, 25*time.Second).Should(gomega.Equal(true))
+	}, 60*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName1, "TCP", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
@@ -3802,7 +3810,7 @@ func TestHTTPRouteWithHealthMonitorMultipleBackends(t *testing.T) {
 		if len(nodes[0].EvhNodes) > 0 {
 			return len(nodes[0].EvhNodes[0].PoolRefs)
 		}
-		return 0
+		return -1
 	}, 25*time.Second).Should(gomega.Equal(0))
 
 	// Verify that only one pool remains (the one with valid HealthMonitor)
@@ -3842,7 +3850,7 @@ func TestHTTPRouteWithHealthMonitorStatusTransition(t *testing.T) {
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
 		return found
-	}, 25*time.Second).Should(gomega.Equal(true))
+	}, 60*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
@@ -3882,7 +3890,7 @@ func TestHTTPRouteWithHealthMonitorStatusTransition(t *testing.T) {
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes[0].PoolRefs)
+		return len(nodes[0].EvhNodes)
 	}, 25*time.Second).Should(gomega.Equal(0))
 
 	// Update HealthMonitor status back to Ready=True

@@ -1374,7 +1374,7 @@ func TestHTTPRouteStatusWithHealthMonitorLifecycle(t *testing.T) {
 		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
 	}
 	condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
-	g.Expect(condition.Message).To(gomega.ContainSubstring("HealthMonitor"))
+	g.Expect(condition.Message).To(gomega.ContainSubstring("healthMonitor default/hm-lifecycle not found"))
 	g.Expect(condition.Message).To(gomega.ContainSubstring(healthMonitorName))
 
 	// Create HealthMonitor with Ready=False status
@@ -1467,7 +1467,7 @@ func TestHTTPRouteStatusWithHealthMonitorLifecycle(t *testing.T) {
 		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
 	}
 	condition = apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
-	g.Expect(condition.Message).To(gomega.ContainSubstring("HealthMonitor"))
+	g.Expect(condition.Message).To(gomega.ContainSubstring("healthMonitor default/hm-lifecycle not found"))
 	g.Expect(condition.Message).To(gomega.ContainSubstring(healthMonitorName))
 
 	// Recreate HealthMonitor to verify HTTPRoute status recovers
@@ -1563,7 +1563,7 @@ func TestHTTPRouteStatusWithCrossNamespaceHealthMonitorDifferentTenant(t *testin
 		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
 	}
 	condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
-	g.Expect(condition.Message).To(gomega.ContainSubstring("tenant"))
+	g.Expect(condition.Message).To(gomega.ContainSubstring("tenant tenant-01 is not equal to HTTPRoute tenant admin"))
 
 	// Cleanup
 	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName, healthMonitorNamespace)

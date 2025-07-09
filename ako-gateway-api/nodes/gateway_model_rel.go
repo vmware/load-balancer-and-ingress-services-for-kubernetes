@@ -290,10 +290,15 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 		if httpRouteStatus.Parents[statusIndex].ParentRef.Name != parentRef.Name {
 			continue
 		}
-		if httpRouteStatus.Parents[statusIndex].Conditions[0].Type == string(gatewayv1.RouteConditionAccepted) && httpRouteStatus.Parents[statusIndex].Conditions[0].Status == metav1.ConditionFalse {
-			statusIndex += 1
-			continue
+		for _, condition := range httpRouteStatus.Parents[statusIndex].Conditions {
+			if (condition.Type == string(gatewayv1.RouteConditionAccepted) ||
+				condition.Type == string(gatewayv1.RouteConditionResolvedRefs)) &&
+				condition.Status == metav1.ConditionFalse {
+				statusIndex += 1
+				continue
+			}
 		}
+
 		ns := namespace
 		if parentRef.Namespace != nil {
 			ns = string(*parentRef.Namespace)

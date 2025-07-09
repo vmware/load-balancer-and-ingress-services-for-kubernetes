@@ -114,7 +114,7 @@ func GetDynamicInformers() *DynamicInformers {
 func IsHealthMonitorProcessed(key, namespace, name string, obj ...*unstructured.Unstructured) (bool, bool, error) {
 	clientSet := GetDynamicClientSet()
 	if clientSet == nil {
-		return false, false, fmt.Errorf("key: %s, msg:error in fetching HealthMonitor object", key)
+		return false, false, fmt.Errorf("internal error in fetching HealthMonitor %s/%s object", namespace, name)
 	}
 	var object *unstructured.Unstructured
 	var err error
@@ -122,7 +122,7 @@ func IsHealthMonitorProcessed(key, namespace, name string, obj ...*unstructured.
 		object, err = clientSet.Resource(HealthMonitorGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			if k8serrors.IsNotFound(err) {
-				return false, false, fmt.Errorf("key: %s, msg: error: HealthMonitor %s/%s not found", key, namespace, name)
+				return false, false, fmt.Errorf("healthMonitor %s/%s not found", namespace, name)
 			}
 			return false, false, err
 		}
@@ -137,7 +137,7 @@ func IsHealthMonitorProcessed(key, namespace, name string, obj ...*unstructured.
 	}
 	conditions, ok := statusJSON["conditions"]
 	if !ok || conditions.([]interface{}) == nil || len(conditions.([]interface{})) == 0 {
-		return false, false, fmt.Errorf("key: %s, msg: error: HealthMonitor %s/%s is not processed by AKO CRD Operator", key, namespace, name)
+		return false, false, fmt.Errorf("healthMonitor %s/%s is not processed by AKO CRD Operator", namespace, name)
 	}
 	for _, condition := range conditions.([]interface{}) {
 		conditionMap, ok := condition.(map[string]interface{})
