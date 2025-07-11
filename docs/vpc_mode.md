@@ -33,3 +33,5 @@ NetworkSettings:
 NetworkSettings:
   vipNetworkList: []
 ```
+
+**KNOWN ISSUE**: The Gateway API doesn't support VPC mode. Gateway API will require both IPAM and `vipNetworkList` configured for VIP allocation, even when AKO is operating with `vpcMode` enabled.
