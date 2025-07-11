@@ -22,10 +22,10 @@ import (
 
 	"github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
@@ -219,6 +219,56 @@ func resetChildNodeFields(key string, err error, childNode *nodes.AviEvhVsNode, 
 	childNode.SetWafPolicyRef(nil)
 	childNode.SetHttpPolicySetRefs([]string{})
 }
+
+func resetPoolNodeFields(key string, err error, poolNode *nodes.AviPoolNode, isFilterHMSet bool) {
+	utils.AviLog.Warnf("key: %s, msg: Error while parsing extension ref: %s. Resetting pool %s fields", key, err.Error(), poolNode.Name)
+	poolNode.LbAlgorithm = nil
+	poolNode.LbAlgorithmHash = nil
+	poolNode.LbAlgorithmConsistentHashHdr = nil
+	if !isFilterHMSet {
+		poolNode.HealthMonitorRefs = nil
+	}
+}
+
+func buildPoolWithBackendExtensionRefs(key string, poolNode *nodes.AviPoolNode, namespace string, backend *HTTPBackend) {
+	healthMonitorRefsSet := sets.NewString()
+	if backend == nil || backend.Filters == nil || len(backend.Filters) == 0 {
+		return
+	}
+	for _, filter := range backend.Filters {
+		if filter.ExtensionRef != nil {
+			if filter.ExtensionRef.Kind == akogatewayapilib.HealthMonitorKind {
+				obj, err := akogatewayapilib.GetDynamicInformers().HealthMonitorInformer.Lister().ByNamespace(namespace).Get(filter.ExtensionRef.Name)
+				if err != nil {
+					utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s will not be processed by gateway-container. err: %s", key, namespace, filter.ExtensionRef.Name, err)
+					continue
+				}
+				unstructuredObj := obj.(*unstructured.Unstructured)
+				status, found, err := unstructured.NestedMap(unstructuredObj.UnstructuredContent(), "status")
+				if err != nil || !found {
+					utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s status not found. err: %s", key, namespace, filter.ExtensionRef.Name, err)
+					continue
+				}
+				uuid, ok := status["uuid"]
+				if !ok {
+					utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s uuid not found. err: %s", key, namespace, filter.ExtensionRef.Name, err)
+					continue
+				}
+				healthMonitorRefsSet.Insert(uuid.(string))
+			} else if filter.ExtensionRef.Kind == akogatewayapilib.RouteBackendExtensionKind {
+				isFilterHMSet := healthMonitorRefsSet.Len() > 0
+				err := akogatewayapilib.ParseRouteBackendExtensionCR(key, namespace, filter.ExtensionRef.Name, poolNode, isFilterHMSet)
+				if err != nil {
+					resetPoolNodeFields(key, err, poolNode, isFilterHMSet)
+				}
+			}
+		}
+	}
+	if healthMonitorRefsSet.Len() > 0 {
+		poolNode.HealthMonitorRefs = healthMonitorRefsSet.List()
+	}
+}
+
 func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
 	//reset pool, poolgroupreferences
 	childVsNode.PoolGroupRefs = nil
@@ -329,6 +379,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 				poolNode.Servers = servers
 			}
 		}
+		buildPoolWithBackendExtensionRefs(key, poolNode, routeModel.GetNamespace(), httpbackend)
 		if childVsNode.CheckPoolNChecksum(poolNode.Name, poolNode.GetCheckSum()) {
 			// Replace the poolNode.
 			childVsNode.ReplaceEvhPoolInEVHNode(poolNode, key)
@@ -347,7 +398,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 func (o *AviObjectGraph) BuildVHMatch(key string, parentNsName string, routeTypeNsName string, vsNode *nodes.AviEvhVsNode, rule *Rule, hosts []string) {
 	var vhMatches []*models.VHMatch
 
-	listeners := objects.GatewayApiLister().GetRouteToGatewayListener(routeTypeNsName, parentNsName)
+	listeners := akogatewayapiobjects.GatewayApiLister().GetRouteToGatewayListener(routeTypeNsName, parentNsName)
 
 	for _, host := range hosts {
 		hostname := host

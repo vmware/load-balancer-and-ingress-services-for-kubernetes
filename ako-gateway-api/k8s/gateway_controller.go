@@ -71,6 +71,7 @@ func (c *GatewayController) InitGatewayAPIInformers(cs gatewayclientset.Interfac
 
 func (c *GatewayController) Start(stopCh <-chan struct{}) {
 	go c.informers.ServiceInformer.Informer().Run(stopCh)
+	go c.informers.NSInformer.Informer().Run(stopCh)
 
 	informersList := []cache.InformerSynced{
 		c.informers.ServiceInformer.Informer().HasSynced,
@@ -99,9 +100,14 @@ func (c *GatewayController) Start(stopCh <-chan struct{}) {
 	go akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Informer().Run(stopCh)
 	informersList = append(informersList, akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Informer().HasSynced)
 
+	go c.dynamicInformers.HealthMonitorInformer.Informer().Run(stopCh)
+	informersList = append(informersList, c.dynamicInformers.HealthMonitorInformer.Informer().HasSynced)
+
 	if !utils.IsWCP() {
 		go c.dynamicInformers.L7CRDInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.dynamicInformers.L7CRDInformer.Informer().HasSynced)
+		go c.dynamicInformers.RouteBackendExtensionCRDInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.dynamicInformers.RouteBackendExtensionCRDInformer.Informer().HasSynced)
 	}
 	if !cache.WaitForCacheSync(stopCh, informersList...) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
