@@ -38,7 +38,7 @@ spec:
         {{ end }}
       {{ end }}
       labels:
-        {{- include "ako.selectorLabels" . | nindent 8 }}
+        {{- include "ako.labels" . | nindent 8 }}
     spec:
       serviceAccountName: ako-sa
       securityContext:
