@@ -524,3 +524,6 @@ All notable changes to this project will be documented in this file. The format 
 ### Added
 - AKO now claims support for Kubernetes 1.33.
 - Support for enabling VPC mode in ako with NSX-T Cloud
+
+### Known Issues
+ - Gateway API doesn't support VPC mode and will require both IPAM and `NetworkSettings.vipNetworkList` configured for VIP allocation.
