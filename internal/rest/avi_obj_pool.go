@@ -127,6 +127,10 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		pkiProfileName := "/api/pkiprofile?name=" + pool_meta.PkiProfile.Name
 		pool.PkiProfileRef = &pkiProfileName
 	}
+	if pool_meta.ApplicationPersistenceProfile != nil {
+		appPersProfileName := "/api/applicationpersistenceprofile?name=" + pool_meta.ApplicationPersistenceProfile.Name
+		pool.ApplicationPersistenceProfileRef = &appPersProfileName
+	}
 
 	// there are defaults set by the Avi controller internally
 	if pool_meta.LbAlgorithm != nil {
@@ -295,6 +299,14 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 			}
 		}
 
+		var persistentProfileKey avicache.NamespaceName
+		if appPersProfileRef, ok := resp["application_persistence_profile_ref"]; ok && appPersProfileRef != "" {
+			persistentProfileUuid := avicache.ExtractUUID(appPersProfileRef.(string), "applicationpersistenceprofile-.*.#")
+			persistentProfileName, foundPersistentProfile := rest.cache.AppPersProfileCache.AviCacheGetNameByUuid(persistentProfileUuid)
+			if foundPersistentProfile {
+				persistentProfileKey = avicache.NamespaceName{Namespace: lib.GetTenant(), Name: persistentProfileName.(string)}
+			}
+		}
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		oldCacheServiceMetadataCRD := lib.CRDMetadata{}
 		if poolCache, ok := rest.cache.PoolCache.AviCacheGet(k); ok {
@@ -310,6 +322,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 			CloudConfigCksum:     cksum,
 			ServiceMetadataObj:   svc_mdata_obj,
 			PkiProfileCollection: pkiKey,
+			PersistenceProfile:   persistentProfileKey,
 			LastModified:         lastModifiedStr,
 		}
 		if lastModifiedStr == "" {

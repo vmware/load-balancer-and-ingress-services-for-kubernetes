@@ -73,7 +73,7 @@ func SharedAVIClients(tenant string) *utils.AviRestClientPool {
 	var aviRestClientPool *utils.AviRestClientPool
 	ctrlVersion := lib.AKOControlConfig().ControllerVersion()
 	aviRestClientPool, currentControllerVersion, err = utils.NewAviRestClientPool(
-		9,
+		10,
 		ctrlIpAddress,
 		ctrlUsername,
 		ctrlPassword,
