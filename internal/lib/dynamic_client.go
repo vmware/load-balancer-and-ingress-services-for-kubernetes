@@ -86,6 +86,12 @@ var (
 		Version:  "v1alpha1",
 		Resource: "vpcnetworkconfigurations",
 	}
+
+	SupervisorCapabilityGVR = schema.GroupVersionResource{
+		Group:    "iaas.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "capabilities",
+	}
 )
 
 type BootstrapCRData struct {
@@ -521,4 +527,32 @@ func GetVPCs() (map[string]string, error) {
 		}
 	}
 	return nsToVPCMap, nil
+}
+
+func IsGatewayAPICapabilityEnabled() bool {
+	clientSet := GetDynamicClientSet()
+	crList, err := clientSet.Resource(SupervisorCapabilityGVR).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		utils.AviLog.Errorf("Error getting SupervisorCapability CR %v", err)
+		return false
+	}
+	if len(crList.Items) == 0 {
+		utils.AviLog.Errorf("No SupervisorCapability CRs found.")
+		return false
+	}
+	for _, obj := range crList.Items {
+		status := obj.Object["status"].(map[string]interface{})
+		supervisorCapabilities, ok := status["supervisor"].(map[string]interface{})
+		if !ok {
+			utils.AviLog.Errorf("supervisor capability not found in the CR %+v", obj)
+			continue
+		}
+		gatewayAPISupportInSupervisor, ok := supervisorCapabilities["supports_gatewayapi_in_supervisor"].(map[string]interface{})
+		if !ok {
+			utils.AviLog.Errorf("supports_gatewayapi_in_supervisor not found in the CR %+v", obj)
+			continue
+		}
+		return gatewayAPISupportInSupervisor["activated"].(bool)
+	}
+	return false
 }

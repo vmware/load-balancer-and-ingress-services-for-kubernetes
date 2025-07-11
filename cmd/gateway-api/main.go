@@ -34,6 +34,8 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+
+	v1beta1crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned"
 )
 
 var (
@@ -86,8 +88,6 @@ func Initialize() {
 
 	// Set the user with prefix
 	_ = lib.AKOControlConfig()
-	lib.SetAKOUser(akogatewaylib.Prefix)
-	lib.SetNamePrefix(akogatewaylib.Prefix)
 	//TODO handle leader logic, must not be used with HA
 	lib.AKOControlConfig().SetIsLeaderFlag(true)
 	lib.AKOControlConfig().SetEndpointSlicesEnabled(lib.GetEndpointSliceEnabled())
@@ -110,13 +110,32 @@ func Initialize() {
 
 	utils.AviLog.Infof("Successfully created kube client for ako-gateway-api")
 
-	akoControlConfig.SetEventRecorder(lib.AKOGatewayEventComponent, kubeClient, false)
-	pod, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).Get(context.TODO(), os.Getenv("POD_NAME"), metav1.GetOptions{})
+	v1beta1crdClient, err := v1beta1crd.NewForConfig(cfg)
 	if err != nil {
-		utils.AviLog.Warnf("Error getting AKO pod details, %s.", err.Error())
+		utils.AviLog.Fatalf("Error building AKO CRD v1beta1 clientset: %s", err.Error())
 	}
-	akoControlConfig.SaveAKOPodObjectMeta(pod)
+	// Enabling AviInfraSetting CR in GatewayAPI Controller
+	akogatewaylib.AKOControlConfig().SetV1Beta1CRDClientSetAndEnableAviInfraSettingParam(v1beta1crdClient)
 
+	akoControlConfig.SetEventRecorder(lib.AKOGatewayEventComponent, kubeClient, false)
+
+	// POD_NAME is not set in case of a WCP cluster
+	if os.Getenv("POD_NAME") == "" {
+		pods, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).List(context.TODO(), metav1.ListOptions{Limit: 1})
+		if err != nil {
+			utils.AviLog.Warnf("Error getting AKO pod details, %s.", err.Error())
+		} else {
+			for _, pod := range pods.Items {
+				akoControlConfig.SaveAKOPodObjectMeta(&pod)
+			}
+		}
+	} else {
+		pod, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).Get(context.TODO(), os.Getenv("POD_NAME"), metav1.GetOptions{})
+		if err != nil {
+			utils.AviLog.Warnf("Error getting AKO pod details, %s.", err.Error())
+		}
+		akoControlConfig.SaveAKOPodObjectMeta(pod)
+	}
 	registeredInformers, err := akogatewaylib.InformersToRegister(kubeClient)
 	if err != nil {
 		utils.AviLog.Fatalf("Failed to initialize informers: %v, shutting down AKO-Infra, going to reboot", err)
@@ -133,6 +152,17 @@ func Initialize() {
 	ctrlCh := make(chan struct{})
 	quickSyncCh := make(chan struct{})
 
+	akogatewayk8s.NewInfraSettingCRDInformer()
+
+	if utils.IsVCFCluster() {
+		// AKO will be primary by default in VCF deployments
+		lib.AKOControlConfig().SetAKOInstanceFlag(true)
+		k8s.SharedAviController().InitVCFHandlers(kubeClient, ctrlCh, stopCh)
+	}
+
+	lib.SetAKOUser(akogatewaylib.Prefix)
+	lib.SetNamePrefix(akogatewaylib.Prefix)
+
 	err = k8s.PopulateControllerProperties(kubeClient)
 	if err != nil {
 		utils.AviLog.Warnf("Error while fetching secret for AKO bootstrap %s", err)
@@ -148,6 +178,11 @@ func Initialize() {
 		akoControlConfig.PodEventf(corev1.EventTypeWarning, lib.AKOShutdown, "Avi Controller Cluster state is not Active")
 		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO")
 	}
+
+	if utils.IsVCFCluster() {
+		k8s.SharedAviController().InitVCFHandlers(kubeClient, ctrlCh, stopCh)
+	}
+
 	err = c.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	if err != nil {
 		utils.AviLog.Errorf("Handle configmap error during reboot, shutting down AKO. Error is: %v", err)

@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 
+	akogatewaylib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/ingestion"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -31,6 +32,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	gatewayclientset "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
 )
 
 var (
@@ -142,6 +144,16 @@ func InitializeAKOInfra() {
 	if !lib.GetVPCMode() {
 		a.SetupSEGroup(aviCloud)
 		c.AddAvailabilityZoneCREventHandler(stopCh)
+	} else if lib.IsGatewayAPICapabilityEnabled() {
+		gwApiClient, err := gatewayclientset.NewForConfig(cfg)
+		if err != nil {
+			utils.AviLog.Fatalf("Error building gateway-api clientset: %s", err.Error())
+		}
+		akogatewaylib.AKOControlConfig().SetGatewayAPIClientset(gwApiClient)
+		err = akogatewaylib.CreateVCFGatewayClass()
+		if err != nil {
+			utils.AviLog.Fatalf("Error creating gateway class: %s", err.Error())
+		}
 	}
 	c.AddNamespaceEventHandler(stopCh)
 	c.Sync()

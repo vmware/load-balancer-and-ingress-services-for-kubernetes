@@ -120,7 +120,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 			} else if lib.GetCloudType() == lib.CLOUD_NSXT && lib.GetVPCMode() {
 				vpcArr := strings.Split(vsvip_meta.T1Lr, "/vpcs/")
 				projectArr := strings.Split(vpcArr[0], "/projects/")
-				vipNetwork := fmt.Sprintf("%s_AVISEPARATOR_%s_AVISEPARATOR_PUBLIC", projectArr[len(projectArr)-1], vpcArr[len(vpcArr)-1])
+				vipNetwork := fmt.Sprintf("%s_AVISEPARATOR_%s_AVISEPARATOR_%s", projectArr[len(projectArr)-1], vpcArr[len(vpcArr)-1], vsvip_meta.LBVipType)
 				vip.SubnetUUID = &vipNetwork
 				vsvip.Vip = []*avimodels.Vip{vip}
 			} else {
@@ -200,7 +200,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		} else if lib.GetCloudType() == lib.CLOUD_NSXT && lib.GetVPCMode() {
 			vpcArr := strings.Split(vsvip_meta.T1Lr, "/vpcs/")
 			projectArr := strings.Split(vpcArr[0], "/projects/")
-			vipNetwork := fmt.Sprintf("%s_AVISEPARATOR_%s_AVISEPARATOR_PUBLIC", projectArr[len(projectArr)-1], vpcArr[len(vpcArr)-1])
+			vipNetwork := fmt.Sprintf("%s_AVISEPARATOR_%s_AVISEPARATOR_%s", projectArr[len(projectArr)-1], vpcArr[len(vpcArr)-1], vsvip_meta.LBVipType)
 			vip.SubnetUUID = &vipNetwork
 		} else {
 			// Set the IPAM network subnet for all clouds except AWS and Azure
