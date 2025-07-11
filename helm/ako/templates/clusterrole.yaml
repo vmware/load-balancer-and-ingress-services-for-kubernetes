@@ -55,16 +55,14 @@ rules:
   - apiGroups: ["cilium.io"]
     resources: ["ciliumnodes"]
     verbs: ["get","watch","list"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
+    verbs: ["get","watch","list"]
 {{- if eq .Values.featureGates.GatewayAPI true }}
   - apiGroups: ["gateway.networking.k8s.io"]
     resources: ["gatewayclasses", "gatewayclasses/status","gateways","gateways/status","httproutes","httproutes/status"]
     verbs: ["get","watch","list","patch","update"]
 {{- end }}
-{{- if eq .Values.featureGates.EnableEndpointSlice true }}
-  - apiGroups: ["discovery.k8s.io"]
-    resources: ["endpointslices"]
-    verbs: ["get","watch","list"]
-{{- end }} 
 {{- if .Values.rbac.pspEnable }}
   - apiGroups: ["policy", "extensions"]
     resources: ["podsecuritypolicies"]

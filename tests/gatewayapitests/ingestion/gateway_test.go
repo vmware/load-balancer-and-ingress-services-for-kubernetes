@@ -38,7 +38,6 @@ import (
 )
 
 var keyChan chan string
-var endpointSliceEnabled bool
 
 const (
 	DEFAULT_NAMESPACE = "default"
@@ -108,8 +107,6 @@ func TestMain(m *testing.M) {
 	_ = lib.AKOControlConfig()
 	lib.SetAKOUser(akogatewayapilib.Prefix)
 	lib.SetNamePrefix(akogatewayapilib.Prefix)
-	endpointSliceEnabled = lib.GetEndpointSliceEnabled()
-	lib.AKOControlConfig().SetEndpointSlicesEnabled(endpointSliceEnabled)
 	akoControlConfig := akogatewayapilib.AKOControlConfig()
 	akoControlConfig.SetEventRecorder(lib.AKOGatewayEventComponent, akogatewayapitests.KubeClient, true)
 	akogatewayapilib.SetDynamicClientSet(akogatewayapitests.DynamicClient)
@@ -119,11 +116,9 @@ func TestMain(m *testing.M) {
 		utils.SecretInformer,
 		utils.NSInformer,
 	}
-	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
-		registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
-	} else {
-		registeredInformers = append(registeredInformers, utils.EndpointInformer)
-	}
+
+	registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
+
 	args := make(map[string]interface{})
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: akogatewayapitests.KubeClient}, registeredInformers, args)
 	akoApi := integrationtest.InitializeFakeAKOAPIServer()

@@ -340,7 +340,7 @@ func TestAviInfraSettingForLBSvcWithInvalidLBClass(t *testing.T) {
 
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.CreateSVCWithValidOrInvalidLBClass(t, ns, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, integrationtest.INVALID_LB_CLASS)
-	integrationtest.CreateEPorEPS(t, ns, svcName, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, ns, svcName, false, false, "1.1.1")
 	integrationtest.PollForCompletion(t, modelName, 5)
 
 	g.Eventually(func() bool {
@@ -375,7 +375,7 @@ func TestAviInfraSettingForLBSvcWithInvalidLBClass(t *testing.T) {
 
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.DelSVC(t, ns, svcName)
-	integrationtest.DelEPorEPS(t, ns, svcName)
+	integrationtest.DelEPS(t, ns, svcName)
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: fmt.Sprintf("cluster--%s-%s", ns, svcName)}
 	g.Eventually(func() bool {
