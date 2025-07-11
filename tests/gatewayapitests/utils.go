@@ -46,7 +46,8 @@ var KubeClient *k8sfake.Clientset
 var GatewayClient *gatewayfake.Clientset
 var DynamicClient *dynamicfake.FakeDynamicClient
 var GvrToKind = map[schema.GroupVersionResource]string{
-	akogatewayapilib.L7CRDGVR: "l7rulesList",
+	akogatewayapilib.L7CRDGVR:         "l7rulesList",
+	akogatewayapilib.HealthMonitorGVR: "healthmonitorsList",
 }
 var testData unstructured.Unstructured
 
@@ -743,4 +744,114 @@ func ValidateHTTPRouteStatus(t *testing.T, actualStatus, expectedStatus *gateway
 		g.Expect(actualRouteParentStatus.ParentRef).To(gomega.Equal(expectedRouteParentStatus.ParentRef))
 		ValidateConditions(t, actualRouteParentStatus.Conditions, expectedRouteParentStatus.Conditions)
 	}
+}
+
+func CreateHealthMonitorCRD(t *testing.T, name, namespace, uuid string) {
+	CreateHealthMonitorCRDWithStatus(t, name, namespace, uuid, true, "Accepted", "HealthMonitor has been successfully processed")
+}
+
+func CreateHealthMonitorCRDWithStatus(t *testing.T, name, namespace, uuid string, ready bool, reason, message string) {
+	status := "True"
+	if !ready {
+		status = "False"
+	}
+
+	healthMonitor := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "ako.vmware.com/v1alpha1",
+			"kind":       "HealthMonitor",
+			"metadata": map[string]interface{}{
+				"name":      name,
+				"namespace": namespace,
+			},
+			"spec": map[string]interface{}{
+				"type": "HTTP",
+				"httpMonitor": map[string]interface{}{
+					"requestHeader": "GET /health HTTP/1.1",
+					"responseCode":  []interface{}{"HTTP_2XX", "HTTP_3XX"},
+				},
+			},
+			"status": map[string]interface{}{
+				"conditions": []interface{}{
+					map[string]interface{}{
+						"type":    "Ready",
+						"status":  status,
+						"reason":  reason,
+						"message": message,
+					},
+				},
+			},
+		},
+	}
+
+	// Only add uuid to status if it's provided (for ready HealthMonitors)
+	if ready && uuid != "" {
+		statusObj := healthMonitor.Object["status"].(map[string]interface{})
+		statusObj["uuid"] = uuid
+	}
+
+	_, err := DynamicClient.Resource(akogatewayapilib.HealthMonitorGVR).Namespace(namespace).Create(context.TODO(), healthMonitor, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in creating HealthMonitor: %v", err)
+	}
+	t.Logf("Created HealthMonitor %s/%s with Ready=%v", namespace, name, ready)
+}
+
+func DeleteHealthMonitorCRD(t *testing.T, name, namespace string) {
+	err := DynamicClient.Resource(akogatewayapilib.HealthMonitorGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("error in deleting HealthMonitor: %v", err)
+	}
+	t.Logf("Deleted HealthMonitor %s/%s", namespace, name)
+}
+
+func GetHTTPRouteRuleWithHealthMonitorFilters(pathType string, paths []string, headers []string, filters map[string][]string, backends [][]string, healthMonitors []string) gatewayv1.HTTPRouteRule {
+	rule := GetHTTPRouteRuleV1(pathType, paths, headers, filters, backends, nil)
+
+	for i := range rule.BackendRefs {
+		for _, healthMonitor := range healthMonitors {
+			filter := gatewayv1.HTTPRouteFilter{
+				Type: gatewayv1.HTTPRouteFilterExtensionRef,
+				ExtensionRef: &gatewayv1.LocalObjectReference{
+					Group: gatewayv1.Group("ako.vmware.com"),
+					Kind:  gatewayv1.Kind("HealthMonitor"),
+					Name:  gatewayv1.ObjectName(healthMonitor),
+				},
+			}
+			rule.BackendRefs[i].Filters = append(rule.BackendRefs[i].Filters, filter)
+		}
+	}
+	return rule
+}
+
+func UpdateHealthMonitorStatus(t *testing.T, name, namespace string, ready bool, reason, message string) {
+	healthMonitor, err := DynamicClient.Resource(akogatewayapilib.HealthMonitorGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("error in getting HealthMonitor: %v", err)
+	}
+
+	// Update the status condition
+	status := "True"
+	if !ready {
+		status = "False"
+	}
+
+	conditions := []interface{}{
+		map[string]interface{}{
+			"type":    "Ready",
+			"status":  status,
+			"reason":  reason,
+			"message": message,
+		},
+	}
+
+	// Update the status section
+	statusObj := healthMonitor.Object["status"].(map[string]interface{})
+	statusObj["conditions"] = conditions
+
+	_, err = DynamicClient.Resource(akogatewayapilib.HealthMonitorGVR).Namespace(namespace).UpdateStatus(context.TODO(), healthMonitor, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating HealthMonitor status: %v", err)
+	}
+	t.Logf("Updated HealthMonitor %s/%s status to Ready=%v", namespace, name, ready)
 }
