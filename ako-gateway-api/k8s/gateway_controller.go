@@ -109,6 +109,10 @@ func (c *GatewayController) Start(stopCh <-chan struct{}) {
 		go c.dynamicInformers.RouteBackendExtensionCRDInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.dynamicInformers.RouteBackendExtensionCRDInformer.Informer().HasSynced)
 	}
+
+	go c.dynamicInformers.AppProfileCRDInformer.Informer().Run(stopCh)
+	informersList = append(informersList, c.dynamicInformers.AppProfileCRDInformer.Informer().HasSynced)
+
 	if !cache.WaitForCacheSync(stopCh, informersList...) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {

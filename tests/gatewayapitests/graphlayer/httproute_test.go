@@ -4004,6 +4004,7 @@ func TestHTTPRouteWithRouteBackendExtension(t *testing.T) {
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
 	g := gomega.NewGomegaWithT(t)
 
 	g.Eventually(func() bool {
@@ -4721,4 +4722,135 @@ func TestHTTPRouteStatusWithRouteBackendExtensionStatusTransition(t *testing.T) 
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+// new changes
+func verifyApplicationProfileRef(g *gomega.GomegaWithT, modelName, appProfileRef string, childVSAbsent bool) {
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return false
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		// in case of non-ready app profiles, child vs is to be deleted
+		if childVSAbsent {
+			return len(nodes[0].EvhNodes) == 0
+		}
+
+		if len(nodes[0].EvhNodes) == 1 {
+			childVS := nodes[0].EvhNodes[0]
+			if childVS.ApplicationProfileRef == nil {
+				return false
+			}
+			return *childVS.ApplicationProfileRef == appProfileRef
+		}
+		return false
+
+	}, 25*time.Second).Should(gomega.Equal(true))
+}
+
+func TestHTTPRouteWithAppProfileExtensionRef(t *testing.T) {
+	gatewayName := "gateway-hr-32"
+	gatewayClassName := "gateway-class-hr-32"
+	httpRouteName := "http-route-hr-32"
+	svcName := "avisvc-hr-32"
+	ports := []int32{8080}
+	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
+	defaultHTTPAppProfile := "/api/applicationprofile/?name=System-HTTP"
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
+
+	// initial setup with no application profile ref
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{},
+		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
+	rules := []gatewayv1.HTTPRouteRule{rule}
+	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	// if no application profile ref is provided,
+	// the default "System-HTTP" profile should be used.
+	verifyApplicationProfileRef(g, modelName, defaultHTTPAppProfile, false)
+
+	// check if invalid app profile is correctly handled post update
+	rule = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{"ExtensionRef": {"test-app-profile"}},
+		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
+	rules = []gatewayv1.HTTPRouteRule{rule}
+	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	// if an invalid application profile ref is provided,
+	// the child vs should be absent
+	verifyApplicationProfileRef(g, modelName, "", true)
+
+	// create the previous "test-app-profile" app profile and check if
+	// http route was actually processed with child vs correctly getting
+	// application profile ref applied
+	akogatewayapitests.CreateApplicationProfileCRD(t, "test-app-profile", &akogatewayapitests.FakeApplicationProfileStatus{
+		Status: "True",
+	})
+	// should be updated correctly with prefix <cluster-name>-<namespace>
+	verifyApplicationProfileRef(g, modelName, "/api/applicationprofile/?name=cluster-default-test-app-profile", false)
+
+	// delete the app profile ref and check if the child vs is removed
+	akogatewayapitests.DeleteApplicationProfileCRD(t, "test-app-profile")
+	verifyApplicationProfileRef(g, modelName, "", true)
+
+	// Delete the existing httproute and create a new one with existing app prof ref
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+
+	akogatewayapitests.CreateApplicationProfileCRD(t, "test-app-profile-2", &akogatewayapitests.FakeApplicationProfileStatus{
+		Status: "True",
+	})
+
+	rule = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{"ExtensionRef": {"test-app-profile-2"}},
+		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
+	rules = []gatewayv1.HTTPRouteRule{rule}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	// should be updated correctly
+	verifyApplicationProfileRef(g, modelName, "/api/applicationprofile/?name=cluster-default-test-app-profile-2", false)
+
+	// update the application profile to change condition status to "False"
+	// and verify if existing application profile wasn't changed
+	akogatewayapitests.UpdateApplicationProfileCRD(t, "test-app-profile-2", &akogatewayapitests.FakeApplicationProfileStatus{
+		Status: "False",
+	})
+	verifyApplicationProfileRef(g, modelName, "", true)
+
+	// create a new application profile crd and update the http route ref to it
+	// and it should update correctly
+	akogatewayapitests.CreateApplicationProfileCRD(t, "test-app-profile-3", &akogatewayapitests.FakeApplicationProfileStatus{
+		Status: "True",
+	})
+	rule = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{"ExtensionRef": {"test-app-profile-3"}},
+		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
+	rules = []gatewayv1.HTTPRouteRule{rule}
+	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	verifyApplicationProfileRef(g, modelName, "/api/applicationprofile/?name=cluster-default-test-app-profile-3", false)
+
+	// cleanup
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
+	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName)
+	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+	akogatewayapitests.DeleteApplicationProfileCRD(t, "test-app-profile-2")
+	akogatewayapitests.DeleteApplicationProfileCRD(t, "test-app-profile-3")
 }

@@ -25,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
@@ -1963,4 +1964,145 @@ func TestHTTPRouteStatusWithCrossNamespaceRouteBackendExtensionDifferentTenant(t
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
 	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestHTTPRouteWithAppProfileExtensionRef(t *testing.T) {
+	gatewayClassName := "gateway-class-hr-20"
+	gatewayName := "gateway-hr-20"
+	httpRouteName := "httproute-20"
+	namespace := "default"
+	svcName := "avisvc-hr-20"
+	ports := []int32{8080}
+	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(namespace).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// setup an http route with a non existing app profile ref
+	// verify if condition is updated to "ConditionFalse"
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{"ExtensionRef": {"test-app-profile-1"}},
+		[][]string{{svcName, "default", "8080", "1"}}, nil)
+	rules := []gatewayv1.HTTPRouteRule{rule}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+
+	condition := metav1.Condition{
+		Type:    string(gatewayv1.RouteConditionResolvedRefs),
+		Reason:  string(gatewayv1.RouteReasonUnsupportedValue),
+		Status:  metav1.ConditionFalse,
+		Message: "ApplicationProfile Ref test-app-profile-1 is invalid",
+	}
+	verifyHTTPRouteStatus(t, g, httpRouteName, gatewayName, namespace, ports, &condition)
+
+	// create the previously referred invalid app profile and
+	// verify if the http route gets programmed successfully with correct status
+	akogatewayapitests.CreateApplicationProfileCRD(t, "test-app-profile-1", &akogatewayapitests.FakeApplicationProfileStatus{
+		Status: "True",
+	})
+	g.Eventually(func() bool {
+		appProfile := akogatewayapitests.GetApplicationProfileCRD(t, "test-app-profile-1")
+		statusJSON, found, err := unstructured.NestedMap(appProfile.UnstructuredContent(), "status")
+		return appProfile != nil && found && err == nil && statusJSON["backendObjectName"] != ""
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	condition = metav1.Condition{
+		Type:    string(gatewayv1.RouteConditionResolvedRefs),
+		Reason:  string(gatewayv1.RouteConditionResolvedRefs),
+		Status:  metav1.ConditionTrue,
+		Message: "",
+	}
+	verifyHTTPRouteStatus(t, g, httpRouteName, gatewayName, namespace, ports, &condition)
+
+	// create a new app profile and update http route to it
+	// verify if the status remains "True"
+	akogatewayapitests.CreateApplicationProfileCRD(t, "test-app-profile-2", &akogatewayapitests.FakeApplicationProfileStatus{
+		Status: "True",
+	})
+	g.Eventually(func() bool {
+		appProfile := akogatewayapitests.GetApplicationProfileCRD(t, "test-app-profile-2")
+		statusJSON, found, err := unstructured.NestedMap(appProfile.UnstructuredContent(), "status")
+		return appProfile != nil && found && err == nil && statusJSON["backendObjectName"] != ""
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// update the http route
+	rule = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{"ExtensionRef": {"test-app-profile-2"}},
+		[][]string{{svcName, "default", "8080", "1"}}, nil)
+	rules = []gatewayv1.HTTPRouteRule{rule}
+	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+
+	condition = metav1.Condition{
+		Type:    string(gatewayv1.RouteConditionResolvedRefs),
+		Reason:  string(gatewayv1.RouteConditionResolvedRefs),
+		Status:  metav1.ConditionTrue,
+		Message: "",
+	}
+	verifyHTTPRouteStatus(t, g, httpRouteName, gatewayName, namespace, ports, &condition)
+
+	// change the application profile status to "False" and
+	// expect the status to change to "ConditionFalse"
+	akogatewayapitests.UpdateApplicationProfileCRD(t, "test-app-profile-2", &akogatewayapitests.FakeApplicationProfileStatus{
+		Status: "False",
+	})
+	condition = metav1.Condition{
+		Type:    string(gatewayv1.RouteConditionResolvedRefs),
+		Reason:  string(gatewayv1.RouteReasonUnsupportedValue),
+		Status:  metav1.ConditionFalse,
+		Message: "ApplicationProfile Ref test-app-profile-2 is not ready",
+	}
+	verifyHTTPRouteStatus(t, g, httpRouteName, gatewayName, namespace, ports, &condition)
+
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
+	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+	akogatewayapitests.DeleteApplicationProfileCRD(t, "test-app-profile-1")
+	akogatewayapitests.DeleteApplicationProfileCRD(t, "test-app-profile-2")
+}
+
+func verifyHTTPRouteStatus(t *testing.T, g *gomega.GomegaWithT, httpRouteName, gatewayName, namespace string, ports []int32, condition *metav1.Condition) {
+	g.Eventually(func() bool {
+		hr, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || hr == nil {
+			t.Logf("Couldn't get the HTTPRoute, err: %+v", err)
+			return false
+		}
+		if len(hr.Status.Parents) == 0 || hr.Status.Parents[0].Conditions == nil || len(hr.Status.Parents[0].Conditions) == 1 {
+			return false
+		}
+		return hr.Status.Parents[0].Conditions[1].Reason == condition.Reason
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	conditionMap := make(map[string][]metav1.Condition)
+	conditions := []metav1.Condition{
+		{
+			Type:    string(gatewayv1.RouteConditionAccepted),
+			Reason:  string(gatewayv1.RouteReasonAccepted),
+			Status:  metav1.ConditionTrue,
+			Message: "Parent reference is valid",
+		},
+	}
+	if condition != nil {
+		conditions = append(conditions, *condition)
+	}
+	conditionMap[fmt.Sprintf("%s-%d", gatewayName, 8080)] = conditions
+
+	expectedRouteStatus := akogatewayapitests.GetRouteStatusV1([]string{gatewayName}, namespace, ports, conditionMap)
+	hr, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+	if err != nil || hr == nil {
+		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
+	}
+	akogatewayapitests.ValidateHTTPRouteStatus(t, &hr.Status, &gatewayv1.HTTPRouteStatus{RouteStatus: *expectedRouteStatus})
 }
