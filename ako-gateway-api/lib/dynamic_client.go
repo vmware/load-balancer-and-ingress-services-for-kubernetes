@@ -52,6 +52,11 @@ var (
 		Version:  "v1alpha1",
 		Resource: "healthmonitors",
 	}
+	RouteBackendExtensionCRDGVR = schema.GroupVersionResource{
+		Group:    "ako.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "routebackendextensions",
+	}
 )
 
 // NewDynamicClientSet initializes dynamic client set instance
@@ -84,8 +89,9 @@ func GetDynamicClientSet() dynamic.Interface {
 
 // DynamicInformers holds third party generic informers
 type DynamicInformers struct {
-	L7CRDInformer         informers.GenericInformer
-	HealthMonitorInformer informers.GenericInformer
+	L7CRDInformer                    informers.GenericInformer
+	HealthMonitorInformer            informers.GenericInformer
+	RouteBackendExtensionCRDInformer informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
@@ -96,6 +102,7 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 	// not applicable in wcp context
 	if !utils.IsWCP() {
 		informers.L7CRDInformer = f.ForResource(L7CRDGVR)
+		informers.RouteBackendExtensionCRDInformer = f.ForResource(RouteBackendExtensionCRDGVR)
 	}
 	informers.HealthMonitorInformer = f.ForResource(HealthMonitorGVR)
 	dynamicInformerInstance = informers
@@ -149,6 +156,49 @@ func IsHealthMonitorProcessed(key, namespace, name string, obj ...*unstructured.
 		}
 	}
 	return false, false, nil
+}
+
+func IsRouteBackendExtensionProcessed(key, namespace, name string, objects ...*unstructured.Unstructured) (bool, string, error) {
+	var object *unstructured.Unstructured
+	var err error
+	if len(objects) == 0 {
+		clientSet := GetDynamicClientSet()
+		if clientSet == nil {
+			return false, "", fmt.Errorf("Error in fetching RouteBackendExtension object %s/%s", namespace, name)
+		}
+		object, err = clientSet.Resource(RouteBackendExtensionCRDGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				return false, "", fmt.Errorf("RouteBackendExtension object %s/%s not found", namespace, name)
+			}
+			return false, "", err
+		}
+	} else {
+		object = objects[0]
+	}
+	statusJSON, found, err := unstructured.NestedMap(object.UnstructuredContent(), "status")
+	if err != nil || !found {
+		utils.AviLog.Warnf("key: %s, msg: error in fetching status for RouteBackendExtension %s/%s : %+v", key, namespace, name, err)
+		return false, "", fmt.Errorf("Error in fetching status for RouteBackendExtension %s/%s", namespace, name)
+	}
+	// fetch the status
+	status, ok := statusJSON["status"]
+	if !ok || status == "" {
+		utils.AviLog.Warnf("key: %s, msg: status for RouteBackendExtension %s/%s not found", key, namespace, name)
+		return false, "", fmt.Errorf("Status for RouteBackendExtension %s/%s not found", namespace, name)
+	}
+	controller, found, err := unstructured.NestedString(statusJSON, "controller")
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: RouteBackendExtension CR %s/%s controller status not found: %+v", key, namespace, name, err)
+		return false, status.(string), fmt.Errorf("RouteBackendExtension CR %s/%s controller status not found", namespace, name)
+	}
+	if !found || controller == "" {
+		return false, status.(string), fmt.Errorf("RouteBackendExtension CR %s/%s is not processed by AKO CRD Operator", namespace, name)
+	}
+	if controller != AKOCRDController {
+		return false, status.(string), fmt.Errorf("RouteBackendExtension CR %s/%s is not handled by AKO CRD Operator", namespace, name)
+	}
+	return true, status.(string), nil
 }
 
 func ParseL7CRD(key, namespace, name string, vsNode nodes.AviVsEvhSniModel, isFilterAppProfSet bool) error {
@@ -281,4 +331,72 @@ func getFieldValueFromSpec(specJSON map[string]interface{}, fieldName string) *s
 		return vsField
 	}
 	return value
+}
+
+func ParseRouteBackendExtensionCR(key, namespace, name string, poolNode *nodes.AviPoolNode, isFilterHMSet bool) error {
+	clientSet := GetDynamicClientSet()
+	if clientSet == nil {
+		return fmt.Errorf("Error in getting clientset before fetching RouteBackendExtension CR object")
+	}
+	obj, err := clientSet.Resource(RouteBackendExtensionCRDGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return fmt.Errorf("RouteBackendExtension CR %s/%s not found", namespace, name)
+		}
+		return err
+	}
+	statusJSON, found, err := unstructured.NestedMap(obj.UnstructuredContent(), "status")
+	if err != nil || !found {
+		utils.AviLog.Warnf("key: %s, msg: Status not found for RouteBackendExtension CR %s/%s, err: %+v", key, namespace, name, err)
+		return fmt.Errorf("Status not found for RouteBackendExtension CR %s/%s", namespace, name)
+	}
+	status, ok := statusJSON["status"]
+	if !ok || status.(string) == "" {
+		return fmt.Errorf("RouteBackendExtension CR %s/%s has an invalid status field", namespace, name)
+	}
+	if status.(string) != lib.StatusAccepted {
+		return fmt.Errorf("RouteBackendExtension CR %s/%s is not accepted", namespace, name)
+	}
+	controller, found, err := unstructured.NestedString(statusJSON, "controller")
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: RouteBackendExtension CR %s/%s controller status not found: %+v", key, namespace, name, err)
+		return fmt.Errorf("RouteBackendExtension CR %s/%s controller status not found", namespace, name)
+	}
+	if !found || controller == "" {
+		return fmt.Errorf("RouteBackendExtension CR %s/%s is not processed by AKO CRD Operator", namespace, name)
+	}
+	if controller != AKOCRDController {
+		return fmt.Errorf("RouteBackendExtension CR %s/%s is not handled by AKO CRD Operator", namespace, name)
+	}
+	specJSON, found, err := unstructured.NestedMap(obj.UnstructuredContent(), "spec")
+	if err != nil || !found {
+		utils.AviLog.Warnf("key: %s, msg: RouteBackendExtension CR %s/%s spec not found: %+v", key, namespace, name, err)
+		return fmt.Errorf("RouteBackendExtension CR %s/%s spec not found", namespace, name)
+	}
+
+	if lbAlgo, found, err := unstructured.NestedString(specJSON, "lbAlgorithm"); err == nil && found {
+		poolNode.LbAlgorithm = &lbAlgo
+	}
+	if lbAlgoHash, found, err := unstructured.NestedString(specJSON, "lbAlgorithmHash"); err == nil && found {
+		poolNode.LbAlgorithmHash = &lbAlgoHash
+	}
+	if lbAlgoHashHdr, found, err := unstructured.NestedString(specJSON, "lbAlgorithmConsistentHashHdr"); err == nil && found {
+		poolNode.LbAlgorithmConsistentHashHdr = &lbAlgoHashHdr
+	}
+
+	if !isFilterHMSet {
+		hms, found, err := unstructured.NestedSlice(specJSON, "healthMonitor")
+		if err == nil && found {
+			for _, hm := range hms {
+				if hmMap, ok := hm.(map[string]interface{}); ok {
+					hmName, found, err := unstructured.NestedString(hmMap, "name")
+					if err == nil && found {
+						hmRef := proto.String(fmt.Sprintf("/api/healthmonitor?name=%s", hmName))
+						poolNode.HealthMonitorRefs = append(poolNode.HealthMonitorRefs, *hmRef)
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
