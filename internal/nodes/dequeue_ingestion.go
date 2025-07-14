@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -104,7 +104,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	// if we get update for object of type k8s node, create vrf graph
 	// if in NodePort Mode we update pool servers
 	if objType == utils.NodeObj {
-		utils.AviLog.Debugf("key: %s, msg: processing node obj", key)
+		utils.AviLog.Infof("key: %s, msg: processing node obj", key)
 		processNodeObj(key, name, sharedQueue, fullsync)
 
 		if lib.IsNodePortMode() && !fullsync {
@@ -852,14 +852,14 @@ func saveAviModel(modelName string, aviGraph *AviObjectGraph, key string) bool {
 }
 
 func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsync bool) {
-	utils.AviLog.Debugf("key: %s, Got node Object %s", key, nodename)
+	utils.AviLog.Infof("key: %s, Got node Object %s", key, nodename)
 	nodeObj, err := utils.GetInformers().NodeInformer.Lister().Get(nodename)
 	var deleteFlag bool
 	if err == nil {
-		utils.AviLog.Debugf("key: %s, Node Object %v", key, nodeObj)
+		utils.AviLog.Infof("key: %s, Node Object %v", key, nodeObj)
 		objects.SharedNodeLister().AddOrUpdate(nodename, nodeObj)
 	} else if k8serrors.IsNotFound(err) {
-		utils.AviLog.Debugf("key: %s, msg: Node Deleted", key)
+		utils.AviLog.Infof("key: %s, msg: Node Deleted", key)
 		objects.SharedNodeLister().Delete(nodename)
 		deleteFlag = true
 	} else {

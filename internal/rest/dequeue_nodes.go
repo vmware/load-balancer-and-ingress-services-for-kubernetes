@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -203,7 +203,7 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 		return
 	}
 	if vrfCacheObj.CloudConfigCksum == aviVrfNode.CloudConfigCksum {
-		utils.AviLog.Debugf("key: %s, msg: checksum for vrf %s has not changed, skipping", key, vrfName)
+		utils.AviLog.Infof("key: %s, msg: checksum for vrf %s has not changed, skipping", key, vrfName)
 		if lib.StaticRouteSyncChan != nil {
 			close(lib.StaticRouteSyncChan)
 			lib.StaticRouteSyncChan = nil
@@ -213,7 +213,7 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 	var restOps []*utils.RestOp
 	restOp := rest.AviVrfBuild(key, aviVrfNode, vrfCacheObj.Uuid)
 	if restOp == nil {
-		utils.AviLog.Debugf("key: %s, no rest operation for vrf %s", key, vrfName)
+		utils.AviLog.Infof("key: %s, no rest operation for vrf %s", key, vrfName)
 		if lib.StaticRouteSyncChan != nil {
 			close(lib.StaticRouteSyncChan)
 			lib.StaticRouteSyncChan = nil
@@ -1053,6 +1053,18 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 					rest_op.ObjName = PKIprofile
 				}
 				rest.AviPkiProfileCacheDel(rest_op, aviObjKey, key)
+			case "ApplicationPersistenceProfile":
+				var ApplicationPersistenceProfile string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					ApplicationPersistenceProfile = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.ApplicationPersistenceProfile).Name
+				case avimodels.ApplicationPersistenceProfile:
+					ApplicationPersistenceProfile = *rest_op.Obj.(avimodels.ApplicationPersistenceProfile).Name
+				}
+				if ApplicationPersistenceProfile != "" {
+					rest_op.ObjName = ApplicationPersistenceProfile
+				}
+				rest.AviPersistenceProfileCacheDel(rest_op, aviObjKey, key)
 			case "VirtualService":
 				rest.AviVsCacheDel(rest_op, aviObjKey, key)
 			case "VSDataScriptSet":
@@ -1147,6 +1159,15 @@ func (rest *RestOperations) RefreshCacheForRetryLayer(parentVsKey string, aviObj
 					PKIprofile = *rest_op.Obj.(avimodels.PKIprofile).Name
 				}
 				aviObjCache.AviPopulateOnePKICache(c, utils.CloudName, PKIprofile)
+			case "ApplicationPersistenceProfile":
+				var PersistenceProfile string
+				switch rest_op.Obj.(type) {
+				case utils.AviRestObjMacro:
+					PersistenceProfile = *rest_op.Obj.(utils.AviRestObjMacro).Data.(avimodels.ApplicationPersistenceProfile).Name
+				case avimodels.ApplicationPersistenceProfile:
+					PersistenceProfile = *rest_op.Obj.(avimodels.ApplicationPersistenceProfile).Name
+				}
+				aviObjCache.AviPopulateOnePersistenceProfileCache(c, PersistenceProfile)
 			case "VirtualService":
 				aviObjCache.AviObjOneVSCachePopulate(c, utils.CloudName, aviObjKey.Name, aviObjKey.Namespace)
 				vsObjMeta, ok := rest.cache.VsCacheMeta.AviCacheGet(aviObjKey)

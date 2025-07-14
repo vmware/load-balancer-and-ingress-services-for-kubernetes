@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -167,6 +167,7 @@ const (
 	VIP                                        = "VS VIP"
 	PG                                         = "Poolgroup"
 	ApplicationPersistenceProfile              = "PersistenceProfile"
+	ApplicationPersistenceProfileNode          = "ApplicationPersistenceProfileNode"
 	PriorityLabel                              = "PriorityLabel"
 	SSLKeyCert                                 = "SSLKeyandCertificate"
 	PKIProfile                                 = "PKI Profile"

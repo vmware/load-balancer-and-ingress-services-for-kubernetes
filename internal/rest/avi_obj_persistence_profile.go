@@ -1,6 +1,5 @@
 /*
- * Copyright 2024-2025 VMware, Inc.
- * All Rights Reserved.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
 * You may obtain a copy of the License at
@@ -20,6 +19,7 @@ import (
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
@@ -167,11 +167,7 @@ func (rest *RestOperations) AviPersistenceProfileCacheAdd(restOp *utils.RestOp, 
 		if appPersProfileModel.PersistenceType != nil {
 			appPersCacheObj.Type = *appPersProfileModel.PersistenceType
 		}
-		emptyIngestionMarkers := utils.AviObjectMarkers{}
-		chksum := lib.PersistenceProfileChecksum(name, *appPersProfileModel.PersistenceType, emptyIngestionMarkers, appPersProfileModel.Markers, true)
-		if appPersProfileModel.HTTPCookiePersistenceProfile != nil {
-			chksum += lib.HTTPCookiePersistenceProfileChecksum(*appPersProfileModel.HTTPCookiePersistenceProfile.CookieName, appPersProfileModel.HTTPCookiePersistenceProfile.Timeout, appPersProfileModel.HTTPCookiePersistenceProfile.IsPersistentCookie)
-		}
+		chksum := cache.CalculatePersistenProfileChecksum(appPersProfileModel)
 		appPersCacheObj.CloudConfigCksum = chksum
 
 		if lastModifiedStr == "" {

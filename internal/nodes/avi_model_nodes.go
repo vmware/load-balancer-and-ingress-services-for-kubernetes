@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -1351,6 +1351,7 @@ type AviVSVIPNode struct {
 	SecurePassthroughNode   *AviVsNode
 	InsecurePassthroughNode *AviVsNode
 	T1Lr                    string
+	LBVipType               string
 }
 
 func (v *AviVSVIPNode) GetCheckSum() uint32 {
@@ -1600,7 +1601,7 @@ type HTTPCookiePersistenceProfileNode struct {
 }
 
 func (v *AviApplicationPersistenceProfileNode) GetNodeType() string {
-	return "ApplicationPersistenceProfileNode"
+	return lib.ApplicationPersistenceProfileNode
 }
 
 func (v *AviApplicationPersistenceProfileNode) CopyNode() AviModelNode {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -56,6 +56,7 @@ var ctrlonce sync.Once
 // +kubebuilder:rbac:groups=core,resources=services;services/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=core,resources=endpoints,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;
 // +kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=topology.tanzu.vmware.com,resources=availabilityzones,verbs=get;list;watch
 // +kubebuilder:rbac:groups=crd.nsx.vmware.com,resources=vpcnetworkconfigurations,verbs=get;list;watch
@@ -171,17 +172,6 @@ func isIngressUpdated(oldIngress, newIngress *networkingv1.Ingress) bool {
 	}
 
 	return false
-}
-
-func isNamespaceUpdated(oldNS, newNS *corev1.Namespace) bool {
-	if oldNS.ResourceVersion == newNS.ResourceVersion {
-		return false
-	}
-	oldLabelHash := utils.Hash(utils.Stringify(oldNS.Labels))
-	newLabelHash := utils.Hash(utils.Stringify(newNS.Labels))
-	oldTenant := oldNS.Annotations[lib.TenantAnnotation]
-	newTenant := newNS.Annotations[lib.TenantAnnotation]
-	return oldLabelHash != newLabelHash || oldTenant != newTenant
 }
 
 func AddKeyFromNSToIngstionQueue(numWorkers uint32, c *AviController, namespace string, key, msg string) {
@@ -350,7 +340,7 @@ func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 			}
 			nsOld := old.(*corev1.Namespace)
 			nsCur := cur.(*corev1.Namespace)
-			if isNamespaceUpdated(nsOld, nsCur) {
+			if lib.IsNamespaceUpdated(nsOld, nsCur) {
 				oldNSAccepted := utils.CheckIfNamespaceAccepted(nsOld.GetName(), nsOld.Labels, false)
 				newNSAccepted := utils.CheckIfNamespaceAccepted(nsCur.GetName(), nsCur.Labels, false)
 
@@ -428,7 +418,7 @@ func AddNamespaceAnnotationEventHandler(numWorkers uint32, c *AviController) cac
 			}
 			nsOld := old.(*corev1.Namespace)
 			nsCur := cur.(*corev1.Namespace)
-			if isNamespaceUpdated(nsOld, nsCur) {
+			if lib.IsNamespaceUpdated(nsOld, nsCur) {
 				oldTenant := nsOld.Annotations[lib.TenantAnnotation]
 				newTenant := nsCur.Annotations[lib.TenantAnnotation]
 				if oldTenant != newTenant {

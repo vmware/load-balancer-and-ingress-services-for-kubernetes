@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -2469,7 +2469,7 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1beta1.AviInfraSe
 	return setting
 }
 
-func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string) {
+func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string, accepted ...bool) {
 	setting := FakeAviInfraSetting{
 		Name:          infraSettingName,
 		SeGroupName:   "thisisaviref-" + infraSettingName + "-seGroup",
@@ -2480,8 +2480,24 @@ func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string) {
 		T1LR:          "avi-domain-c9:1234",
 	}
 	settingCreate := setting.AviInfraSetting()
+	if len(accepted) > 0 && accepted[0] {
+		settingCreate.Status.Status = lib.StatusAccepted
+	}
 	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding AviInfraSetting: %v", err)
+	}
+}
+
+func SetAviInfraSettingStatus(t *testing.T, infraSettingName, status string) {
+	infraSetting, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("error in retrieving AviInfraSetting: %v", err)
+	}
+	infraSetting.Status.Status = status
+	infraSetting.ResourceVersion = "2"
+	_, err = lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Update(context.TODO(), infraSetting, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating AviInfraSetting: %v", err)
 	}
 }
 

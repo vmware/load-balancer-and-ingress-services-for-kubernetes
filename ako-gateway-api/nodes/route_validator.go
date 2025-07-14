@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -326,6 +326,20 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 			SetIn(&httpRouteStatus.Parents[*parentRefIndexInHttpRouteStatus].Conditions)
 		*parentRefIndexInHttpRouteStatus = *parentRefIndexInHttpRouteStatus + 1
 		return err
+	}
+
+	// If Gateway and HTTPRoute are in different namespace, validate that both namespaces are scoped to the same tenant
+	if httpRoute.Namespace != namespace {
+		if lib.GetTenantInNamespace(httpRoute.Namespace) != lib.GetTenantInNamespace(namespace) {
+			utils.AviLog.Errorf("key: %s, msg: Tenant mismatch between HTTPRoute %s and Parent Reference %s", key, httpRoute.GetName(), name)
+			err := fmt.Errorf("Tenant mismatch between HTTPRoute %s and Parent Reference %s", httpRoute.GetName(), name)
+			defaultCondition.
+				Reason(string(gatewayv1.RouteReasonPending)).
+				Message(err.Error()).
+				SetIn(&httpRouteStatus.Parents[*parentRefIndexInHttpRouteStatus].Conditions)
+			*parentRefIndexInHttpRouteStatus = *parentRefIndexInHttpRouteStatus + 1
+			return err
+		}
 	}
 
 	// Attach only when gateway configuration is valid

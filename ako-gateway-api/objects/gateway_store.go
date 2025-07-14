@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -56,6 +56,7 @@ func GatewayApiLister() *GWLister {
 			routeToStatus:                  objects.NewObjectMapStore(),
 			l7RuleToHTTPRouteCache:         objects.NewObjectMapStore(),
 			httpRouteToL7RuleCache:         objects.NewObjectMapStore(),
+			gatewayToInfraSetting:          objects.NewObjectMapStore(),
 		}
 	})
 	return gwLister
@@ -135,6 +136,8 @@ type GWLister struct {
 
 	// HTTPRoute --> L7Rule
 	httpRouteToL7RuleCache *objects.ObjectMapStore
+	// namespace/gateway -> infrasetting
+	gatewayToInfraSetting *objects.ObjectMapStore
 }
 
 type GatewayRouteKind struct {
@@ -1077,5 +1080,20 @@ func (g *GWLister) UpdateHTTPRouteToL7RuleMapping(httpRouteName string, l7Rule s
 	_, l7Rules := g.GetHTTPRouteToL7RuleMapping(httpRouteName)
 	l7Rules[l7Rule] = true
 	g.httpRouteToL7RuleCache.AddOrUpdate(httpRouteName, l7Rules)
+}
 
+// Gateway <-> AviInfraSetting
+func (g *GWLister) GetGatewayToAviInfraSetting(gwNsName string) (bool, string) {
+	if found, obj := g.gatewayToInfraSetting.Get(gwNsName); found {
+		return true, obj.(string)
+	}
+	return false, ""
+}
+
+func (g *GWLister) UpdateGatewayToAviInfraSettingMappings(gwNsName, aviInfraSetting string) {
+	g.gatewayToInfraSetting.AddOrUpdate(gwNsName, aviInfraSetting)
+}
+
+func (g *GWLister) DeleteGatewayToAviInfraSettingMappings(gwNsName string) bool {
+	return g.gatewayToInfraSetting.Delete(gwNsName)
 }

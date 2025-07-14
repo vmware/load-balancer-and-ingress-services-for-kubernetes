@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
@@ -54,7 +53,7 @@ func (o *AviObjectGraph) AddDefaultHTTPPolicySet(key string) {
 	// if not found add it to last index
 
 	utils.AviLog.Debugf("key: %s msg: %s httpref not found. Adding", key, policyRefName)
-	defaultPolicyRef := &nodes.AviHttpPolicySetNode{Name: policyRefName, Tenant: lib.GetTenant()}
+	defaultPolicyRef := &nodes.AviHttpPolicySetNode{Name: policyRefName, Tenant: parentVS.Tenant}
 	defaultPolicyRef.RequestRules = []*models.HTTPRequestRule{
 		{
 			Name:   proto.String("default-backend-rule"),
@@ -113,7 +112,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	}
 	childNode.Name = childVSName
 	childNode.VHParentName = parentNode[0].Name
-	childNode.Tenant = lib.GetTenant()
+	childNode.Tenant = parentNode[0].Tenant
 	childNode.EVHParent = false
 
 	childNode.ServiceMetadata = lib.ServiceMetadataObj{
@@ -187,33 +186,31 @@ func updateHostname(key, parentNsName string, parentNode *nodes.AviEvhVsNode) {
 
 // parseGatewayDurationToMinutes converts Gateway API Duration string to minutes (int32).
 // Returns nil if duration is nil.
-// Returns 0 (Avi's representation for infinite) if parsing fails or duration is < 1 minute.
+// Returns 0 (Avi's representation for infinite) if parsing fails
+// Returns 1 if duration is positive but < 1 minute
 // Avi specific: Timeout for HTTPCookiePersistenceProfile: Allowed values are 1-14400. Special values are 0- No Timeout.
 func parseGatewayDurationToMinutes(key string, gwDuration *gatewayv1.Duration) *int32 {
 	if gwDuration == nil {
 		return nil
 	}
+	zeroTimeout := int32(0)
 	d, err := time.ParseDuration(string(*gwDuration))
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: failed to parse duration string '%s': %v. Defaulting to Avi's infinite timeout.", key, *gwDuration, err)
-		zeroTimeout := int32(0)
 		return &zeroTimeout
 	}
 
 	if d < 0 {
 		utils.AviLog.Warnf("key: %s, msg: negative duration '%s' is not supported. Defaulting to Avi's infinite timeout.", key, *gwDuration)
-		zeroTimeout := int32(0)
 		return &zeroTimeout
 	}
 
 	minutes := int32(d.Minutes())
-	// If duration is positive but less than 1 minute, Avi cannot represent it precisely as it takes minutes.
-	// Gateway API "0s" means disable, but for SessionPersistence.AbsoluteTimeout, it's not explicitly defined.
-	// Avi's 0 for timeout means infinite.
+	// If duration is positive but less than 1 minute, Avi cannot represent it precisely as it takes minutes so we will translate it to 1 minute
 	if d > 0 && minutes == 0 {
-		utils.AviLog.Warnf("key: %s, msg: duration %s is positive but less than 1 minute. Avi's minimum granularity for persistence timeout is 1 minute. Defaulting to Avi's infinite timeout (0 minutes).", key, *gwDuration)
-		zeroTimeout := int32(0)
-		return &zeroTimeout
+		utils.AviLog.Warnf("key: %s, msg: duration %s is positive but less than 1 minute. Avi's minimum granularity for persistence timeout is 1 minute. Defaulting to Avi's 1 minute).", key, *gwDuration)
+		oneTimeout := int32(1)
+		return &oneTimeout
 	}
 	// Avi's timeout range is 1-14400 minutes, or 0 for infinite.
 	if minutes > 14400 {
@@ -228,7 +225,6 @@ func parseGatewayDurationToMinutes(key string, gwDuration *gatewayv1.Duration) *
 func (o *AviObjectGraph) BuildApplicationPersistenceProfile(key string, rule *Rule, routeModel RouteModel, parentNs, parentName string, markers utils.AviObjectMarkers) *nodes.AviApplicationPersistenceProfileNode {
 	sp := rule.SessionPersistence
 	persistProfileNode := &nodes.AviApplicationPersistenceProfileNode{
-		Tenant:     lib.GetTenant(),
 		AviMarkers: markers,
 	}
 
@@ -244,26 +240,23 @@ func (o *AviObjectGraph) BuildApplicationPersistenceProfile(key string, rule *Ru
 			CookieName: *sp.SessionName,
 		}
 		httpCookiePersistenceProfileNode.Timeout = parseGatewayDurationToMinutes(key, sp.AbsoluteTimeout)
-		if sp.CookieConfig != nil && sp.CookieConfig.LifetimeType != nil {
-			if *sp.CookieConfig.LifetimeType == gatewayv1.PermanentCookieLifetimeType {
-				httpCookiePersistenceProfileNode.IsPersistentCookie = proto.Bool(true)
-			} else { // SessionCookieLifetimeType or nil (defaults to Session)
-				httpCookiePersistenceProfileNode.IsPersistentCookie = proto.Bool(false)
-			}
+		if sp.CookieConfig != nil && sp.CookieConfig.LifetimeType != nil &&
+			*sp.CookieConfig.LifetimeType == gatewayv1.PermanentCookieLifetimeType {
+			httpCookiePersistenceProfileNode.IsPersistentCookie = proto.Bool(true)
 		} else { // Default LifetimeType is Session
 			httpCookiePersistenceProfileNode.IsPersistentCookie = proto.Bool(false)
 		}
 		persistProfileNode.HTTPCookiePersistenceProfile = httpCookiePersistenceProfileNode
 
 	default:
-		utils.AviLog.Errorf("key: %s, msg: unsupported session persistence type: %s for rule %s in route %s/%s. No persistence profile will be applied.", key, persistenceType, routeModel.GetNamespace(), routeModel.GetName())
+		utils.AviLog.Errorf("key: %s, msg: unsupported session persistence type: %s in route %s/%s. No persistence profile will be applied.", key, persistenceType, routeModel.GetNamespace(), routeModel.GetName())
 		return nil
 	}
 	var appPersistProfileName string
 	if rule.Name == "" {
 		appPersistProfileName = akogatewayapilib.GetPersistenceProfileName(parentNs, parentName,
 			routeModel.GetNamespace(), routeModel.GetName(),
-			utils.Stringify(rule.SessionPersistence)+utils.Stringify(rule.Matches), persistProfileNode.PersistenceType)
+			utils.Stringify(rule.Matches), persistProfileNode.PersistenceType)
 	} else {
 		appPersistProfileName = akogatewayapilib.GetPersistenceProfileName(parentNs, parentName,
 			routeModel.GetNamespace(), routeModel.GetName(),
@@ -337,7 +330,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 	}
 	PG := &nodes.AviPoolGroupNode{
 		Name:   PGName,
-		Tenant: lib.GetTenant(),
+		Tenant: childVsNode.Tenant,
 	}
 	PG.AviMarkers = utils.AviObjectMarkers{
 		GatewayName:        parentName,
@@ -351,6 +344,9 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 	var persistenceProfile *nodes.AviApplicationPersistenceProfileNode
 	if rule.SessionPersistence != nil {
 		persistenceProfile = o.BuildApplicationPersistenceProfile(key, rule, routeModel, parentNs, parentName, PG.AviMarkers)
+		if persistenceProfile != nil {
+			persistenceProfile.Tenant = childVsNode.Tenant
+		}
 	}
 	for _, httpbackend := range rule.Backends {
 		var poolName string
@@ -373,7 +369,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 		}
 		poolNode := &nodes.AviPoolNode{
 			Name:       poolName,
-			Tenant:     lib.GetTenant(),
+			Tenant:     childVsNode.Tenant,
 			Protocol:   listenerProtocol,
 			PortName:   akogatewayapilib.FindPortName(httpbackend.Backend.Name, httpbackend.Backend.Namespace, httpbackend.Backend.Port, key),
 			TargetPort: akogatewayapilib.FindTargetPort(httpbackend.Backend.Name, httpbackend.Backend.Namespace, httpbackend.Backend.Port, key),
@@ -403,6 +399,14 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 		}
 
 		t1LR := lib.GetT1LRPath()
+		if found, infraSettingName := akogatewayapiobjects.GatewayApiLister().GetGatewayToAviInfraSetting(parentNsName); found {
+			if infraSetting, err := akogatewayapilib.AKOControlConfig().AviInfraSettingInformer().Lister().Get(infraSettingName); err != nil {
+				utils.AviLog.Warnf("key: %s, msg: failed to retrieve AviInfraSetting %s, err: %s", key, infraSettingName, err.Error())
+			} else if infraSetting != nil && infraSetting.Status.Status == lib.StatusAccepted && infraSetting.Spec.NSXSettings.T1LR != nil {
+				t1LR = *infraSetting.Spec.NSXSettings.T1LR
+			}
+		}
+
 		if t1LR != "" {
 			poolNode.T1Lr = t1LR
 			poolNode.VrfContext = ""
@@ -444,7 +448,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 func (o *AviObjectGraph) BuildVHMatch(key string, parentNsName string, routeTypeNsName string, vsNode *nodes.AviEvhVsNode, rule *Rule, hosts []string) {
 	var vhMatches []*models.VHMatch
 
-	listeners := objects.GatewayApiLister().GetRouteToGatewayListener(routeTypeNsName, parentNsName)
+	listeners := akogatewayapiobjects.GatewayApiLister().GetRouteToGatewayListener(routeTypeNsName, parentNsName)
 
 	for _, host := range hosts {
 		hostname := host
@@ -537,7 +541,7 @@ func (o *AviObjectGraph) BuildHTTPPolicySet(key string, vsNode *nodes.AviEvhVsNo
 		}
 	}
 	if policy == nil {
-		policy = &nodes.AviHttpPolicySetNode{Name: httpPSName, Tenant: lib.GetTenant()}
+		policy = &nodes.AviHttpPolicySetNode{Name: httpPSName, Tenant: vsNode.Tenant}
 		vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs, policy)
 		index = len(vsNode.HttpPolicyRefs) - 1
 	}

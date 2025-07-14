@@ -126,6 +126,14 @@ build-local-infra: pre-build
 		-mod=vendor \
 		./cmd/infra-main
 
+.PHONY: build-local-gateway-api
+build-local-gateway-api: pre-build
+		$(GOBUILD) \
+		-o bin/$(BINARY_NAME_AKO_GATEWAY_API) \
+		-ldflags $(AKO_LDFLAGS) \
+		-mod=vendor \
+		./cmd/gateway-api
+
 .PHONY: clean
 clean:
 		$(GOCLEAN) -mod=vendor $(REL_PATH_AKO)
@@ -428,6 +436,25 @@ gatewayapi_npltests:
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/npltests -failfast -timeout 0 \
 	-coverprofile cover-23.out -coverpkg=./ako-gateway-api/...  > gatewayapi_npltests.log 2>&1 && echo "gatewayapi_npltests passed") || (echo "gatewayapi_npltests failed" && cat gatewayapi_npltests.log && exit 1)
 
+.PHONY: gatewayapi_infrasettingtests
+gatewayapi_infrasettingtests:
+	@> gatewayapi_infrasettingtests.log
+	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/crd -failfast -timeout 0 \
+	-coverprofile cover-24.out -coverpkg=./ako-gateway-api/...  > gatewayapi_infrasettingtests.log 2>&1 && echo "gatewayapi_infrasettingtests passed") || (echo "gatewayapi_infrasettingtests failed" && cat gatewayapi_infrasettingtests.log && exit 1)
+
+.PHONY: gatewayapi_multitenancytests
+gatewayapi_multitenancytests:
+	@> gatewayapi_multitenancytests.log
+	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/multitenancy -failfast -timeout 0 \
+	-coverprofile cover-25.out -coverpkg=./ako-gateway-api/...  > gatewayapi_multitenancytests.log 2>&1 && echo "gatewayapi_multitenancytests passed") || (echo "gatewayapi_multitenancytests failed" && cat gatewayapi_multitenancytests.log && exit 1)
 
 .PHONY: multitenancytests
 multitenancytests:
@@ -450,7 +477,7 @@ urltests:
 .PHONY: gatewayapi_tests
 gatewayapi_tests:
 	@> gatewayapi_tests.log
-	(make -j 4 --output-sync=target gatewayapi_ingestiontests gatewayapi_graphlayertests gatewayapi_statustests gatewayapi_npltests ENDPOINTSLICES_ENABLED="true" > gatewayapi_tests.log 2>&1 && echo "gatewayapi_tests passed") || (echo "gatewayapi_tests failed" && cat gatewayapi_tests.log && exit 1)
+	(make -j 4 --output-sync=target gatewayapi_ingestiontests gatewayapi_graphlayertests gatewayapi_statustests gatewayapi_npltests gatewayapi_infrasettingtests gatewayapi_multitenancytests ENDPOINTSLICES_ENABLED="true" > gatewayapi_tests.log 2>&1 && echo "gatewayapi_tests passed") || (echo "gatewayapi_tests failed" && cat gatewayapi_tests.log && exit 1)
 
 .PHONY: informers_tests
 informers_tests:
@@ -471,7 +498,8 @@ int_test:
 	namespacesynctests servicesapitests npltests misc \
 	dedicatedvstests hatests calicotests ciliumtests \
 	helmtests infratests urltests multitenancytests gatewayapi_ingestiontests gatewayapi_graphlayertests \
-	gatewayapi_statustests gatewayapi_npltests informers_tests ENDPOINTSLICES_ENABLED="true" > int_test.log 2>&1 \
+	gatewayapi_statustests gatewayapi_npltests gatewayapi_infrasettingtests gatewayapi_multitenancytests \
+	informers_tests ENDPOINTSLICES_ENABLED="true" > int_test.log 2>&1 \
 	&& echo "int_test succeeded" && buffer -i int_test.log -u 1000 -z 1k) \
 	|| (echo "int_test failed" && (buffer -i int_test.log -u 2000 -z 1b || \
 	echo "Dumping the whole log failed; here are the last 100 lines" && tail -n100 int_test.log ) && exit 1)
