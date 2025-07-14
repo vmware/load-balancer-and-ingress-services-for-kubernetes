@@ -191,6 +191,8 @@ func (hr *httpRoute) ParseRouteConfig(key string) *RouteConfig {
 	}
 	var resolvedRefCondition akogatewayapistatus.Condition
 	routeConfig.Rules = make([]*Rule, 0, len(hr.spec.Rules))
+	isRouteRejected := false
+ruleLoop:
 	for _, rule := range hr.spec.Rules {
 		routeConfigRule := &Rule{}
 		routeConfigRule.Matches = make([]*Match, 0, len(rule.Matches))
@@ -367,11 +369,14 @@ func (hr *httpRoute) ParseRouteConfig(key string) *RouteConfig {
 			} else {
 				hasInvalidBackend = true
 				resolvedRefCondition = resolvedRefConditionforBackend
+				isRouteRejected = true
+				break ruleLoop
 			}
 		}
 		routeConfig.Rules = append(routeConfig.Rules, routeConfigRule)
-		routeConfig.IsRejected = hasInvalidBackend
+
 	}
+	routeConfig.IsRejected = isRouteRejected
 	hr.routeConfig = routeConfig
 	setResolvedRefConditionInHTTPRouteStatus(key, resolvedRefCondition, lib.HTTPRoute+"/"+hr.GetNamespace()+"/"+hr.GetName())
 	return hr.routeConfig

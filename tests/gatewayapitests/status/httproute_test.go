@@ -1375,7 +1375,6 @@ func TestHTTPRouteStatusWithHealthMonitorLifecycle(t *testing.T) {
 	}
 	condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
 	g.Expect(condition.Message).To(gomega.ContainSubstring("healthMonitor default/hm-lifecycle not found"))
-	g.Expect(condition.Message).To(gomega.ContainSubstring(healthMonitorName))
 
 	// Create HealthMonitor with Ready=False status
 	akogatewayapitests.CreateHealthMonitorCRD(t, healthMonitorName, namespace, "thisisaviref-hm-lifecycle")
@@ -1468,7 +1467,6 @@ func TestHTTPRouteStatusWithHealthMonitorLifecycle(t *testing.T) {
 	}
 	condition = apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
 	g.Expect(condition.Message).To(gomega.ContainSubstring("healthMonitor default/hm-lifecycle not found"))
-	g.Expect(condition.Message).To(gomega.ContainSubstring(healthMonitorName))
 
 	// Recreate HealthMonitor to verify HTTPRoute status recovers
 	akogatewayapitests.CreateHealthMonitorCRD(t, healthMonitorName, namespace, "thisisaviref-hm-lifecycle-recreated")

@@ -283,6 +283,7 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 	gatewayToListenersMap := make(map[string][]akogatewayapiobjects.GatewayListenerStore)
 	statusIndex := 0
 	httpRouteStatus := akogatewayapiobjects.GatewayApiLister().GetRouteToRouteStatusMapping(routeTypeNsName)
+outerLoop:
 	for _, parentRef := range hrObj.Spec.ParentRefs {
 		if statusIndex >= len(httpRouteStatus.Parents) {
 			break
@@ -295,7 +296,7 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 				condition.Type == string(gatewayv1.RouteConditionResolvedRefs)) &&
 				condition.Status == metav1.ConditionFalse {
 				statusIndex += 1
-				continue
+				break outerLoop
 			}
 		}
 

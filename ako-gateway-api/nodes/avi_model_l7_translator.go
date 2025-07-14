@@ -81,8 +81,8 @@ func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, pare
 			continue
 		}
 		if httpRouteConfig.IsRejected {
-			utils.AviLog.Infof("key: %s, msg: route %s is rejected, continue", key, routeModel.GetName())
-			continue
+			utils.AviLog.Warnf("key: %s, msg: route %s is rejected", key, routeModel.GetName())
+			return
 		}
 		o.BuildChildVS(key, routeModel, parentNsName, rule, childVSes, fullsync)
 	}
