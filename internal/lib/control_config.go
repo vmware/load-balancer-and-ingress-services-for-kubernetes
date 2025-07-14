@@ -163,9 +163,6 @@ type akoControlConfig struct {
 	//Prometheus enabled or not
 	isPrometheusEnabled bool
 
-	//endpointSlices Enabled
-	isEndpointSlicesEnabled bool
-
 	//fqdnReusePolicy is set to Strict/InterNamespaceAllowed according to whether AKO allows FQDN sharing across namespaces
 	fqdnReusePolicy string
 }
@@ -211,13 +208,6 @@ func (c *akoControlConfig) SetAKOPrometheusFlag(flag bool) {
 
 func (c *akoControlConfig) GetAKOAKOPrometheusFlag() bool {
 	return c.isPrometheusEnabled
-}
-
-func (c *akoControlConfig) SetEndpointSlicesEnabled(flag bool) {
-	c.isEndpointSlicesEnabled = flag
-}
-func (c *akoControlConfig) GetEndpointSlicesEnabled() bool {
-	return c.isEndpointSlicesEnabled
 }
 
 func (c *akoControlConfig) SetAKOBlockedNSList(nsList []string) {

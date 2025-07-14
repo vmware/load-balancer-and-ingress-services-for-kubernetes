@@ -161,7 +161,7 @@ func TestRouteNodePortExternalTrafficPolicyLocal(t *testing.T) {
 	g.Expect(*pgmember.PoolRef).To(gomega.Equal("/api/pool?name=cluster--foo.com_foo-default-foo-avisvc"))
 	g.Expect(*pgmember.PriorityLabel).To(gomega.Equal("foo.com/foo"))
 
-	integrationtest.CreateEPorEPSNodeName(t, "default", "avisvc", false, false, "1.1.1", nodeName)
+	integrationtest.CreateEPSNodeName(t, "default", "avisvc", false, false, "1.1.1", nodeName)
 	// After creating the endpointslice/endpoint, pool server should be added for testNodeNP node
 	g.Eventually(func() int {
 		pool = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs[0]
@@ -169,7 +169,7 @@ func TestRouteNodePortExternalTrafficPolicyLocal(t *testing.T) {
 	}, 30*time.Second).Should(gomega.Equal(1))
 
 	VerifyRouteDeletion(t, g, aviModel, 0)
-	integrationtest.DelEPorEPS(t, "default", "avisvc")
+	integrationtest.DelEPS(t, "default", "avisvc")
 	TearDownTestForRouteInNodePort(t, defaultModelName)
 }
 
@@ -257,7 +257,7 @@ func TestRouteScaleEndpointInNodePort(t *testing.T) {
 	aviModel := ValidateModelCommon(t, g)
 	pool := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs[0]
 
-	integrationtest.ScaleCreateEPorEPS(t, "default", "avisvc")
+	integrationtest.ScaleCreateEPS(t, "default", "avisvc")
 	g.Eventually(func() int {
 		pool = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].PoolRefs[0]
 		return len(pool.Servers)
