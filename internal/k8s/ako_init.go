@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -95,14 +95,13 @@ func (c *AviController) CleanupStaleVSes() {
 		status.NewStatusPublisher().ResetStatefulSetAnnotation(status.ObjectDeletionStatus)
 	}
 
+	if _, err := lib.IsClusterNameValid(); err != nil {
+		utils.AviLog.Errorf("AKO cluster name is invalid.")
+		return
+	}
+
 	for tenant := range tenants {
-
 		// Delete Stale objects by deleting model for dummy VS
-		if _, err := lib.IsClusterNameValid(); err != nil {
-			utils.AviLog.Errorf("AKO cluster name is invalid.")
-			return
-		}
-
 		utils.AviLog.Infof("Starting clean up of stale objects")
 		restlayer := rest.NewRestOperations(aviObjCache)
 		staleVSKey := tenant + "/" + lib.DummyVSForStaleData

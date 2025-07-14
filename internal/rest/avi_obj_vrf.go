@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -67,6 +67,8 @@ func (rest *RestOperations) AviVrfBuild(key string, vrfNode *nodes.AviVrfNode, u
 	aviStaticRoutes := vrf.StaticRoutes
 	mergedStaticRoutes := []*avimodels.StaticRoute{}
 	clusterName := lib.GetClusterName()
+	utils.AviLog.Infof("key: %s, VRF object in controller %s", key, aviStaticRoutes)
+	utils.AviLog.Infof("key: %s, VRF object in ako cache %s", key, nodeStaticRoutes)
 	for _, aviStaticRoute := range aviStaticRoutes {
 		if len(aviStaticRoute.Labels) == 0 || (*aviStaticRoute.Labels[0].Key == "clustername" && *aviStaticRoute.Labels[0].Value != clusterName) {
 			mergedStaticRoutes = append(mergedStaticRoutes, aviStaticRoute)
@@ -84,6 +86,8 @@ func (rest *RestOperations) AviVrfBuild(key string, vrfNode *nodes.AviVrfNode, u
 		//In case of Openstack cloud, use tenant vrf
 		opTenant = lib.GetTenant()
 	}
+
+	utils.AviLog.Infof("key: %s, VRF object to be sent for update to controller %s", key, vrf.StaticRoutes)
 
 	rest_op := utils.RestOp{
 		Path:    path,
@@ -146,7 +150,7 @@ func (rest *RestOperations) AviVrfCacheAdd(restOp *utils.RestOp, vrfKey avicache
 			}
 			staticRoutes = lib.StaticRoutesIntfToObj(staticRoutesIntf)
 			if len(staticRoutes) == 0 {
-				utils.AviLog.Debugf("key: %s, no static routes found for vrf %s", key, vrfName)
+				utils.AviLog.Infof("key: %s, no static routes found for vrf %s", key, vrfName)
 			}
 		}
 		checksum = lib.VrfChecksum(name, staticRoutes)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -929,7 +929,7 @@ func getL4InfraSetting(key, namespace string, svc *corev1.Service, advl4GWClassN
 	}
 
 	//return namespace InfraSetting if global infraSetting is not present
-	return getNamespaceAviInfraSetting(key, namespace)
+	return lib.GetNamespacedAviInfraSetting(key, namespace, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer)
 }
 
 func getL4Rule(key string, svc *corev1.Service) (*akov1alpha2.L4Rule, error) {

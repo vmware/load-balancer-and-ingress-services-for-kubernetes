@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -57,6 +57,10 @@ func ResetStatefulSetStatus() {
 }
 
 func (l *leader) ResetStatefulSetAnnotation(statusName string) {
+	// AKO is not deployed as a stateful set in WCP clusters
+	if utils.IsWCP() {
+		return
+	}
 	ss, err := utils.GetInformers().ClientSet.AppsV1().StatefulSets(utils.GetAKONamespace()).Get(context.TODO(), lib.AKOStatefulSet, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error in getting ako statefulset: %v", err)
@@ -92,6 +96,10 @@ func (l *leader) ResetStatefulSetAnnotation(statusName string) {
 }
 
 func (l *leader) AddStatefulSetAnnotation(statusName string, reason string) {
+	// AKO is not deployed as a stateful set in WCP clusters
+	if utils.IsWCP() {
+		return
+	}
 	ss, err := utils.GetInformers().ClientSet.AppsV1().StatefulSets(utils.GetAKONamespace()).Get(context.TODO(), lib.AKOStatefulSet, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error in getting ako statefulset: %v", err)

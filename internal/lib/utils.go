@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	v1beta1akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/informers/externalversions/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -695,4 +696,35 @@ func Uuid4() string {
 		log.Fatal(err)
 	}
 	return id.String()
+}
+
+func GetNamespacedAviInfraSetting(key, ns string, aviInfraSettingInformer v1beta1akoinformer.AviInfraSettingInformer) (*akov1beta1.AviInfraSetting, error) {
+	namespace, err := utils.GetInformers().NSInformer.Lister().Get(ns)
+	if err != nil {
+		return nil, err
+	}
+	infraSettingCRName, ok := namespace.GetAnnotations()[InfraSettingNameAnnotation]
+	if !ok {
+		return nil, nil
+	}
+	infraSetting, err := aviInfraSettingInformer.Lister().Get(infraSettingCRName)
+	if err != nil {
+		return nil, err
+	}
+	if infraSetting != nil && infraSetting.Status.Status != StatusAccepted {
+		utils.AviLog.Warnf("key: %s, msg: Referred AviInfraSetting %s is invalid", key, infraSetting.Name)
+		return nil, fmt.Errorf("AviInfraSetting %s is invalid", infraSetting.Name)
+	}
+	return infraSetting, nil
+}
+
+func IsNamespaceUpdated(oldNS, newNS *corev1.Namespace) bool {
+	if oldNS.ResourceVersion == newNS.ResourceVersion {
+		return false
+	}
+	oldLabelHash := utils.Hash(utils.Stringify(oldNS.Labels))
+	newLabelHash := utils.Hash(utils.Stringify(newNS.Labels))
+	oldTenant := oldNS.Annotations[TenantAnnotation]
+	newTenant := newNS.Annotations[TenantAnnotation]
+	return oldLabelHash != newLabelHash || oldTenant != newTenant
 }

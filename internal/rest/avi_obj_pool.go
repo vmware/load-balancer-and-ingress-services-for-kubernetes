@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -295,7 +295,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 			pkiUuid := avicache.ExtractUUID(pkiprof.(string), "pkiprofile-.*.#")
 			pkiName, foundPki := rest.cache.PKIProfileCache.AviCacheGetNameByUuid(pkiUuid)
 			if foundPki {
-				pkiKey = avicache.NamespaceName{Namespace: lib.GetTenant(), Name: pkiName.(string)}
+				pkiKey = avicache.NamespaceName{Namespace: rest_op.Tenant, Name: pkiName.(string)}
 			}
 		}
 
@@ -304,7 +304,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 			persistentProfileUuid := avicache.ExtractUUID(appPersProfileRef.(string), "applicationpersistenceprofile-.*.#")
 			persistentProfileName, foundPersistentProfile := rest.cache.AppPersProfileCache.AviCacheGetNameByUuid(persistentProfileUuid)
 			if foundPersistentProfile {
-				persistentProfileKey = avicache.NamespaceName{Namespace: lib.GetTenant(), Name: persistentProfileName.(string)}
+				persistentProfileKey = avicache.NamespaceName{Namespace: rest_op.Tenant, Name: persistentProfileName.(string)}
 			}
 		}
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}

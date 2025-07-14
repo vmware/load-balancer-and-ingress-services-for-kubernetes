@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -73,7 +73,7 @@ func SharedAVIClients(tenant string) *utils.AviRestClientPool {
 	var aviRestClientPool *utils.AviRestClientPool
 	ctrlVersion := lib.AKOControlConfig().ControllerVersion()
 	aviRestClientPool, currentControllerVersion, err = utils.NewAviRestClientPool(
-		10,
+		9,
 		ctrlIpAddress,
 		ctrlUsername,
 		ctrlPassword,

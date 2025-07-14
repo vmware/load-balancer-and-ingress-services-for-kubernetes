@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -51,6 +51,7 @@ func IsGatewayClassValid(key string, gatewayClass *gatewayv1.GatewayClass) bool 
 	return true
 }
 
+// TODO: Evaluate if this validation should be moved to the graph layer
 func IsValidGateway(key string, gateway *gatewayv1.Gateway) (bool, bool) {
 	spec := gateway.Spec
 	allowedRoutesAll := false
@@ -189,6 +190,7 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 	}
 
 	// hostname should not overlap with hostname of an existing gateway
+	// TODO: Current check is for gateways in the same namespace, it should be changed to all namespaces
 	gatewayNsList, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(gateway.Namespace).List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Errorf("Unable to retrieve the gateways during validation: %s", err)

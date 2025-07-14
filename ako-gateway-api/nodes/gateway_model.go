@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@ import (
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -48,10 +50,27 @@ func (o *AviObjectGraph) BuildGatewayVs(gateway *gatewayv1.Gateway, key string) 
 }
 
 func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key string) *nodes.AviEvhVsNode {
+	tenant := lib.GetTenantInNamespace(gateway.Namespace)
 	vsName := akogatewayapilib.GetGatewayParentName(gateway.Namespace, gateway.Name)
+
+	oldTenant := objects.SharedNamespaceTenantLister().GetTenantInNamespace(gateway.Namespace + "/" + gateway.Name)
+	if oldTenant == "" {
+		oldTenant = lib.GetTenant()
+	}
+	// Cleanup resources in the old tenant in case of tenant change
+	if tenant != oldTenant {
+		oldModelName := lib.GetModelName(oldTenant, vsName)
+		found, _ := objects.SharedAviGraphLister().Get(oldModelName)
+		if found {
+			utils.AviLog.Infof("key: %s, msg: Deleting old model data, model: %s", key, oldModelName)
+			objects.SharedAviGraphLister().Save(oldModelName, nil)
+			nodes.PublishKeyToRestLayer(oldModelName, key, utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer))
+		}
+	}
+
 	parentVsNode := &nodes.AviEvhVsNode{
 		Name:               vsName,
-		Tenant:             lib.GetTenant(),
+		Tenant:             tenant,
 		ServiceEngineGroup: lib.GetSEGName(),
 		ApplicationProfile: utils.DEFAULT_L7_APP_PROFILE,
 		NetworkProfile:     utils.DEFAULT_TCP_NW_PROFILE,
@@ -62,24 +81,41 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 		},
 		Caller: utils.GATEWAY_API, // Always Populate this field to recognise caller at rest layer
 	}
+
+	infraSetting, err := lib.GetNamespacedAviInfraSetting(key, gateway.GetNamespace(), akogatewayapilib.AKOControlConfig().AviInfraSettingInformer())
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: failed to get AviInfraSetting, err: %s", key, err.Error())
+	}
 	t1LR := lib.GetT1LRPath()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
+		t1LR = *infraSetting.Spec.NSXSettings.T1LR
+	}
 	if t1LR != "" {
 		utils.AviLog.Infof("key: %s, msg: T1LR is %s.", key, t1LR)
 		parentVsNode.VrfContext = ""
 	}
 	parentVsNode.PortProto = BuildPortProtocols(gateway, key)
 
-	tlsNodes := BuildTLSNodesForGateway(gateway, key)
+	tlsNodes := BuildTLSNodesForGateway(gateway, parentVsNode, key)
 	if len(tlsNodes) > 0 {
 		parentVsNode.SSLKeyCertRefs = tlsNodes
 	}
 
-	vsvipNode := BuildVsVipNodeForGateway(gateway, parentVsNode.Name)
+	vsvipNode := BuildVsVipNodeForGateway(key, gateway, parentVsNode, infraSetting)
 	parentVsNode.VSVIPRefs = []*nodes.AviVSVIPNode{vsvipNode}
 	parentVsNode.AviMarkers = utils.AviObjectMarkers{
 		GatewayName:      gateway.Name,
 		GatewayNamespace: gateway.Namespace,
 	}
+
+	buildWithInfraSettingForGateway(key, parentVsNode, vsvipNode, infraSetting)
+	if infraSetting != nil {
+		akogatewayapiobjects.GatewayApiLister().UpdateGatewayToAviInfraSettingMappings(gateway.Namespace+"/"+gateway.Name, infraSetting.Name)
+	} else {
+		akogatewayapiobjects.GatewayApiLister().DeleteGatewayToAviInfraSettingMappings(gateway.Namespace + "/" + gateway.Name)
+	}
+	objects.SharedNamespaceTenantLister().UpdateNamespacedResourceToTenantStore(gateway.Namespace+"/"+gateway.Name, tenant)
+
 	return parentVsNode
 }
 
@@ -103,7 +139,7 @@ func BuildPortProtocols(gateway *gatewayv1.Gateway, key string) []nodes.AviPortH
 	return portProtocols
 }
 
-func BuildTLSNodesForGateway(gateway *gatewayv1.Gateway, key string) []*nodes.AviTLSKeyCertNode {
+func BuildTLSNodesForGateway(gateway *gatewayv1.Gateway, parentVsNode *nodes.AviEvhVsNode, key string) []*nodes.AviTLSKeyCertNode {
 	var tlsNodes []*nodes.AviTLSKeyCertNode
 	var ns, name string
 	cs := utils.GetInformers().ClientSet
@@ -126,7 +162,7 @@ func BuildTLSNodesForGateway(gateway *gatewayv1.Gateway, key string) []*nodes.Av
 					utils.AviLog.Warnf("key: %s, msg: secret %s has been deleted, err: %s", key, name, err)
 					continue
 				}
-				tlsNode := TLSNodeFromSecret(secretObj, gateway.Namespace, gateway.Name, ns, name, key)
+				tlsNode := TLSNodeFromSecret(secretObj, parentVsNode, gateway.Namespace, gateway.Name, ns, name, key)
 				if !utils.HasElem(tlsNodes, tlsNode) {
 					tlsNodes = append(tlsNodes, tlsNode)
 				}
@@ -136,7 +172,7 @@ func BuildTLSNodesForGateway(gateway *gatewayv1.Gateway, key string) []*nodes.Av
 	return tlsNodes
 }
 
-func TLSNodeFromSecret(secretObj *corev1.Secret, gatewayNamespace, gatewayName, certificateNamespace, certName, key string) *nodes.AviTLSKeyCertNode {
+func TLSNodeFromSecret(secretObj *corev1.Secret, parentVsNode *nodes.AviEvhVsNode, gatewayNamespace, gatewayName, certificateNamespace, certName, key string) *nodes.AviTLSKeyCertNode {
 	keycertMap := secretObj.Data
 	tlscert, ok := keycertMap[utils.K8S_TLS_SECRET_CERT]
 	if !ok {
@@ -148,7 +184,7 @@ func TLSNodeFromSecret(secretObj *corev1.Secret, gatewayNamespace, gatewayName, 
 	}
 	tlsNode := &nodes.AviTLSKeyCertNode{
 		Name:   akogatewayapilib.GetTLSKeyCertNodeName(gatewayNamespace, gatewayName, certificateNamespace, certName),
-		Tenant: lib.GetTenant(),
+		Tenant: parentVsNode.Tenant,
 		Type:   lib.CertTypeVS,
 		Key:    tlskey,
 		Cert:   tlscert,
@@ -156,16 +192,19 @@ func TLSNodeFromSecret(secretObj *corev1.Secret, gatewayNamespace, gatewayName, 
 	return tlsNode
 }
 
-func BuildVsVipNodeForGateway(gateway *gatewayv1.Gateway, vsName string) *nodes.AviVSVIPNode {
+func BuildVsVipNodeForGateway(key string, gateway *gatewayv1.Gateway, parentVsNode *nodes.AviEvhVsNode, infraSetting *v1beta1.AviInfraSetting) *nodes.AviVSVIPNode {
 	vsvipNode := &nodes.AviVSVIPNode{
-		Name:        lib.GetVsVipName(vsName),
-		Tenant:      lib.GetTenant(),
+		Name:        lib.GetVsVipName(parentVsNode.Name),
+		Tenant:      parentVsNode.Tenant,
 		VrfContext:  lib.GetVrf(),
 		VipNetworks: utils.GetVipNetworkList(),
 	}
 	t1LR := lib.GetT1LRPath()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
+		t1LR = *infraSetting.Spec.NSXSettings.T1LR
+	}
 	if t1LR != "" {
-		utils.AviLog.Infof("key: %s, msg: T1LR for vsvip node is: %s.", vsName, t1LR)
+		utils.AviLog.Infof("key: %s, msg: T1LR for vsvip node is: %s.", key, t1LR)
 		vsvipNode.VrfContext = ""
 		vsvipNode.T1Lr = t1LR
 	}
@@ -174,6 +213,15 @@ func BuildVsVipNodeForGateway(gateway *gatewayv1.Gateway, vsName string) *nodes.
 		ipAddr := gateway.Spec.Addresses[0].Value
 		if net.IsIPv4String(ipAddr) || net.IsIPv6String(ipAddr) {
 			vsvipNode.IPAddress = ipAddr
+		}
+	}
+
+	// This section is currently only applicable to NSX-T cloud in VPC mode.
+	// Allocate public VIP by default
+	vsvipNode.LBVipType = "PUBLIC"
+	if vipTypeKey, ok := gateway.Annotations[akogatewayapilib.LBVipTypeAnnotation]; ok {
+		if vipTypeVal, ok := akogatewayapilib.SupportedLBVipTypes[vipTypeKey]; ok {
+			vsvipNode.LBVipType = vipTypeVal
 		}
 	}
 	return vsvipNode
@@ -202,7 +250,8 @@ func DeleteTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gatewa
 
 func AddTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gateway, secretObj *corev1.Secret) {
 	_, certNamespace, secretName := lib.ExtractTypeNameNamespace(key)
-	tlsNodes := object.GetAviEvhVS()[0].SSLKeyCertRefs
+	parentVSNode := object.GetAviEvhVS()[0]
+	tlsNodes := parentVSNode.SSLKeyCertRefs
 	gwStatus := akogatewayapiobjects.GatewayApiLister().GetGatewayToGatewayStatusMapping(gateway.Namespace + "/" + gateway.Name)
 	foundMatchingCertRef := false
 	for i, listener := range gateway.Spec.Listeners {
@@ -217,7 +266,7 @@ func AddTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gateway, 
 					listenerCertRefNamespace = string(*certRef.Namespace)
 				}
 				if name == secretName && listenerCertRefNamespace == certNamespace {
-					tlsNode := TLSNodeFromSecret(secretObj, gateway.Namespace, gateway.Name, certNamespace, secretName, key)
+					tlsNode := TLSNodeFromSecret(secretObj, parentVSNode, gateway.Namespace, gateway.Name, certNamespace, secretName, key)
 					indexOfTLSNode := utils.HasElemWithName(tlsNodes, tlsNode)
 					if indexOfTLSNode == -1 {
 						tlsNodes = append(tlsNodes, tlsNode)
@@ -236,4 +285,20 @@ func AddTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gateway, 
 
 	utils.AviLog.Infof("key: %s, msg: Updated cert_refs in parentVS: %s", key, object.GetAviEvhVS()[0].Name)
 	object.GetAviEvhVS()[0].SSLKeyCertRefs = tlsNodes
+}
+
+// We are only supporting SE Group and T1LR fields in InfraSetting right now, support for other fields will be added on need basis
+func buildWithInfraSettingForGateway(key string, vs *nodes.AviEvhVsNode, vsvip *nodes.AviVSVIPNode, infraSetting *v1beta1.AviInfraSetting) {
+	if infraSetting != nil && infraSetting.Status.Status == lib.StatusAccepted {
+		if infraSetting.Spec.SeGroup.Name != "" {
+			// This assumes that the SeGroup has the appropriate labels configured
+			vs.ServiceEngineGroup = infraSetting.Spec.SeGroup.Name
+		}
+		if infraSetting.Spec.NSXSettings.T1LR != nil {
+			vsvip.T1Lr = *infraSetting.Spec.NSXSettings.T1LR
+			vsvip.VrfContext = ""
+			vs.VrfContext = ""
+		}
+		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VS and VSVip nodes %s", key, vs.Name)
+	}
 }
