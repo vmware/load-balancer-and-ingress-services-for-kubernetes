@@ -84,8 +84,8 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
 			utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Gateway %s", key, err.Error())
-			return nil
 		}
+		infraSetting = nil
 	}
 
 	tenant := lib.GetTenantInNamespace(namespace)
@@ -228,8 +228,8 @@ func (o *AviObjectGraph) ConstructSvcApiL4VsNode(gatewayName, namespace, key str
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
 			utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Gateway %s", key, err.Error())
-			return nil
 		}
+		infraSetting = nil
 	}
 	tenant := lib.GetTenantInNamespace(namespace)
 
@@ -340,8 +340,8 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
 			utils.AviLog.Warnf("key: %s, msg: Error while fetching infrasetting for Gateway %s", key, err.Error())
-			return
 		}
+		infraSetting = nil
 	}
 
 	t1lr := lib.GetT1LRPath()
