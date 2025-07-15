@@ -3991,3 +3991,168 @@ func TestHTTPRouteWithHealthMonitorStatusTransition(t *testing.T) {
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 }
+
+func TestHTTPRouteWithRouteBackendExtension(t *testing.T) {
+	gatewayName := "gateway-rbe-01"
+	gatewayClassName := "gateway-class-rbe-01"
+	httpRouteName := "http-route-rbe-01"
+	svcName := "avisvc-rbe-01"
+	routeBackendExtensionName := "rbe-01"
+	ports := []int32{8080}
+	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+	g := gomega.NewGomegaWithT(t)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
+
+	// Create RouteBackendExtension CR
+	rbe := akogatewayapitests.GetFakeDefaultRBEObj(routeBackendExtensionName, DEFAULT_NAMESPACE, "thisisaviref-hm1")
+	rbe.CreateRouteBackendExtensionCRWithStatus(t)
+
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
+	rule := akogatewayapitests.GetHTTPRouteRuleWithRouteBackendExtensionFilters(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add"}},
+		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, []string{routeBackendExtensionName})
+
+	rules := []gatewayv1.HTTPRouteRule{rule}
+	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	// Verify HealthMonitor is present in graph layer
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	childNode := nodes[0].EvhNodes[0]
+	g.Expect(childNode.PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode.PoolRefs[0].HealthMonitorRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode.PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring("thisisaviref-hm1"))
+	g.Expect(*childNode.PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_ROUND_ROBIN"))
+
+	// Delete routeBackendExtension and verify it's removed from graph layer
+	akogatewayapitests.DeleteRouteBackendExtensionCR(t, routeBackendExtensionName, DEFAULT_NAMESPACE)
+
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 60*time.Second).Should(gomega.Equal(0))
+
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
+	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestHTTPRouteWithRouteBackendExtensionsMultipleRules(t *testing.T) {
+	gatewayName := "gateway-rbe-02"
+	gatewayClassName := "gateway-class-rbe-02"
+	httpRouteName := "http-route-rbe-02"
+	svcName1 := "avisvc-rbe-02a"
+	svcName2 := "avisvc-rbe-02b"
+	routeBackendExtensionName1 := "rbe-02a"
+	routeBackendExtensionName2 := "rbe-02b"
+	ports := []int32{8080}
+	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 60*time.Second).Should(gomega.Equal(true))
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName1, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName2, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.4")
+
+	// Create RouteBackendExtension CRs
+	rbe1 := akogatewayapitests.GetFakeDefaultRBEObj(routeBackendExtensionName1, DEFAULT_NAMESPACE, "thisisaviref-hm1")
+	rbe1.CreateRouteBackendExtensionCRWithStatus(t)
+	rbe2 := akogatewayapitests.GetFakeDefaultRBEObj(routeBackendExtensionName2, DEFAULT_NAMESPACE, "thisisaviref-hm2")
+	// modifying the default object
+	rbe2.LBAlgorithm = "LB_ALGORITHM_CONSISTENT_HASH"
+	rbe2.LBAlgorithmHash = "LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER"
+	rbe2.LBAlgorithmConsistentHashHdr = "test-header"
+	rbe2.CreateRouteBackendExtensionCRWithStatus(t)
+
+	// Create HTTPRoute with two rules, each having different backends and RouteBackendExtensions
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
+	rule1 := akogatewayapitests.GetHTTPRouteRuleWithRouteBackendExtensionFilters(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add"}},
+		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, []string{routeBackendExtensionName1})
+	rule2 := akogatewayapitests.GetHTTPRouteRuleWithRouteBackendExtensionFilters(integrationtest.PATHPREFIX, []string{"/bar"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add"}},
+		[][]string{{svcName2, DEFAULT_NAMESPACE, "8080", "1"}}, []string{routeBackendExtensionName2})
+
+	rules := []gatewayv1.HTTPRouteRule{rule1, rule2}
+	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(2))
+
+	// Verify both pools have their respective HealthMonitors
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+
+	childNode1 := nodes[0].EvhNodes[0]
+	g.Expect(childNode1.PoolRefs).To(gomega.HaveLen(1))
+
+	childNode2 := nodes[0].EvhNodes[1]
+	g.Expect(childNode2.PoolRefs).To(gomega.HaveLen(1))
+
+	g.Expect(childNode1.PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring("thisisaviref-hm1"))
+	g.Expect(*childNode1.PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_ROUND_ROBIN"))
+
+	g.Expect(childNode2.PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring("thisisaviref-hm2"))
+	g.Expect(*childNode2.PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH"))
+
+	// Delete routeBackendExtension and verify it's removed from graph layer
+	akogatewayapitests.DeleteRouteBackendExtensionCR(t, routeBackendExtensionName1, DEFAULT_NAMESPACE)
+
+	// Wait for the model to be updated after HealthMonitor deletion
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(0))
+
+	// Clean up
+	akogatewayapitests.DeleteRouteBackendExtensionCR(t, routeBackendExtensionName2, DEFAULT_NAMESPACE)
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
+	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName2)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
