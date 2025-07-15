@@ -46,8 +46,9 @@ var KubeClient *k8sfake.Clientset
 var GatewayClient *gatewayfake.Clientset
 var DynamicClient *dynamicfake.FakeDynamicClient
 var GvrToKind = map[schema.GroupVersionResource]string{
-	akogatewayapilib.L7CRDGVR:         "l7rulesList",
-	akogatewayapilib.HealthMonitorGVR: "healthmonitorsList",
+	akogatewayapilib.L7CRDGVR:                    "l7rulesList",
+	akogatewayapilib.HealthMonitorGVR:            "healthmonitorsList",
+	akogatewayapilib.RouteBackendExtensionCRDGVR: "routebackendextensionsList",
 }
 var testData unstructured.Unstructured
 
@@ -805,6 +806,7 @@ func DeleteHealthMonitorCRD(t *testing.T, name, namespace string) {
 	t.Logf("Deleted HealthMonitor %s/%s", namespace, name)
 }
 
+// TO DO : Replace with a generic function GetHTTPRouteRuleWithExtensionRef which can generate a rule with any backendRef filter
 func GetHTTPRouteRuleWithHealthMonitorFilters(pathType string, paths []string, headers []string, filters map[string][]string, backends [][]string, healthMonitors []string) gatewayv1.HTTPRouteRule {
 	rule := GetHTTPRouteRuleV1(pathType, paths, headers, filters, backends, nil)
 
@@ -854,4 +856,132 @@ func UpdateHealthMonitorStatus(t *testing.T, name, namespace string, ready bool,
 		t.Fatalf("error in updating HealthMonitor status: %v", err)
 	}
 	t.Logf("Updated HealthMonitor %s/%s status to Ready=%v", namespace, name, ready)
+}
+
+// TO DO : Replace with a generic function GetHTTPRouteRuleWithExtensionRef which can generate a rule with any backendRef filter
+func GetHTTPRouteRuleWithRouteBackendExtensionAndHMFilters(pathType string, paths []string, headers []string, filters map[string][]string, backends [][]string, routeBackendExtensions []string, healthMonitors ...string) gatewayv1.HTTPRouteRule {
+	rule := GetHTTPRouteRuleV1(pathType, paths, headers, filters, backends, nil)
+
+	for i := range rule.BackendRefs {
+		for _, routeBackendExtension := range routeBackendExtensions {
+			filter := gatewayv1.HTTPRouteFilter{
+				Type: gatewayv1.HTTPRouteFilterExtensionRef,
+				ExtensionRef: &gatewayv1.LocalObjectReference{
+					Group: gatewayv1.Group("ako.vmware.com"),
+					Kind:  gatewayv1.Kind("RouteBackendExtension"),
+					Name:  gatewayv1.ObjectName(routeBackendExtension),
+				},
+			}
+			rule.BackendRefs[i].Filters = append(rule.BackendRefs[i].Filters, filter)
+		}
+		for _, healthMonitor := range healthMonitors {
+			filter := gatewayv1.HTTPRouteFilter{
+				Type: gatewayv1.HTTPRouteFilterExtensionRef,
+				ExtensionRef: &gatewayv1.LocalObjectReference{
+					Group: gatewayv1.Group("ako.vmware.com"),
+					Kind:  gatewayv1.Kind("HealthMonitor"),
+					Name:  gatewayv1.ObjectName(healthMonitor),
+				},
+			}
+			rule.BackendRefs[i].Filters = append(rule.BackendRefs[i].Filters, filter)
+		}
+	}
+	return rule
+}
+
+type FakeRouteBackendExtensionHM struct {
+	Kind string
+	Name string
+}
+
+type FakeRouteBackendExtension struct {
+	Name                         string
+	Namespace                    string
+	LBAlgorithm                  string
+	LBAlgorithmHash              string
+	LBAlgorithmConsistentHashHdr string
+	Hm                           []FakeRouteBackendExtensionHM
+	Status                       string
+	Controller                   string
+}
+
+// GetFakeDefaultRBEObj returns a fake RBE object that will be frequently used for testing.
+// The returned object can be modified in the caller to make specific modifications as required by a test
+func GetFakeDefaultRBEObj(name, namespace string, healthMonitorNames ...string) *FakeRouteBackendExtension {
+	var hms []FakeRouteBackendExtensionHM
+	for _, hmName := range healthMonitorNames {
+		hms = append(hms, FakeRouteBackendExtensionHM{Kind: "AVIREF", Name: hmName})
+	}
+	rbe := FakeRouteBackendExtension{
+		Name:        name,
+		Namespace:   namespace,
+		Hm:          hms,
+		LBAlgorithm: "LB_ALGORITHM_ROUND_ROBIN",
+		Status:      "Accepted",
+		Controller:  akogatewayapilib.AKOCRDController,
+	}
+	return &rbe
+}
+
+func (rbe *FakeRouteBackendExtension) CreateRouteBackendExtensionCRWithStatus(t *testing.T) {
+	hms := make([]interface{}, len(rbe.Hm))
+	for _, hm := range rbe.Hm {
+		hms = append(hms, map[string]interface{}{
+			"kind": hm.Kind,
+			"name": hm.Name,
+		})
+
+	}
+	routeBackendExtension := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "ako.vmware.com/v1alpha1",
+			"kind":       "RouteBackendExtension",
+			"metadata": map[string]interface{}{
+				"name":      rbe.Name,
+				"namespace": rbe.Namespace,
+			},
+			"spec": map[string]interface{}{
+				"lbAlgorithm":                  rbe.LBAlgorithm,
+				"lbAlgorithmHash":              rbe.LBAlgorithmHash,
+				"lbAlgorithmConsistentHashHdr": rbe.LBAlgorithmConsistentHashHdr,
+				"healthMonitor":                hms,
+			},
+			"status": map[string]interface{}{
+				"controller": rbe.Controller,
+				"status":     rbe.Status,
+			},
+		},
+	}
+
+	_, err := DynamicClient.Resource(akogatewayapilib.RouteBackendExtensionCRDGVR).Namespace(rbe.Namespace).Create(context.TODO(), routeBackendExtension, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in creating RouteBackendExtension: %v", err)
+	}
+	t.Logf("Created RouteBackendExtension %s/%s with status=%s", rbe.Namespace, rbe.Name, rbe.Status)
+}
+
+func (rbe *FakeRouteBackendExtension) DeleteRouteBackendExtensionCR(t *testing.T) {
+	err := DynamicClient.Resource(akogatewayapilib.RouteBackendExtensionCRDGVR).Namespace(rbe.Namespace).Delete(context.TODO(), rbe.Name, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("error in deleting RouteBackendExtension: %v", err)
+	}
+	t.Logf("Deleted RouteBackendExtension %s/%s", rbe.Namespace, rbe.Name)
+}
+
+func (rbe *FakeRouteBackendExtension) UpdateRouteBackendExtensionStatus(t *testing.T) {
+	routeBackendExtension, err := DynamicClient.Resource(akogatewayapilib.RouteBackendExtensionCRDGVR).Namespace(rbe.Namespace).Get(context.TODO(), rbe.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("error in getting RouteBackendExtension: %v", err)
+	}
+
+	// Update the status section
+	statusObj := routeBackendExtension.Object["status"].(map[string]interface{})
+	statusObj["status"] = rbe.Status
+	statusObj["controller"] = rbe.Controller
+
+	_, err = DynamicClient.Resource(akogatewayapilib.RouteBackendExtensionCRDGVR).Namespace(rbe.Namespace).UpdateStatus(context.TODO(), routeBackendExtension, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating RouteBackendExtension status: %v", err)
+	}
+	t.Logf("Updated RouteBackendExtension %s/%s status to Status=%s, Controller=%s", rbe.Namespace, rbe.Name, rbe.Status, rbe.Controller)
 }

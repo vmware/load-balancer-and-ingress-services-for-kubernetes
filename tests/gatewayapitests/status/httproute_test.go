@@ -17,6 +17,7 @@ package status
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akogatewayapitests "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/gatewayapitests"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
@@ -1565,6 +1567,399 @@ func TestHTTPRouteStatusWithCrossNamespaceHealthMonitorDifferentTenant(t *testin
 
 	// Cleanup
 	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName, healthMonitorNamespace)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
+	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestHTTPRouteMultpleRouteBackendExtensionSingleBackend(t *testing.T) {
+	gatewayName := "gateway-rbe-01"
+	gatewayClassName := "gateway-class-rbe-01"
+	httpRouteName := "http-route-rbe-01"
+	svcName := "avisvc-rbe-01"
+	routeBackendExtensionName1 := "rbe-01a"
+	routeBackendExtensionName2 := "rbe-01b"
+
+	ports := []int32{8080}
+	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 60*time.Second).Should(gomega.Equal(true))
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
+
+	// Create RouteBackendExtension CRs
+	rbe1 := akogatewayapitests.GetFakeDefaultRBEObj(routeBackendExtensionName1, DEFAULT_NAMESPACE, "thisisaviref-hm1")
+	rbe1.CreateRouteBackendExtensionCRWithStatus(t)
+	rbe2 := akogatewayapitests.GetFakeDefaultRBEObj(routeBackendExtensionName2, DEFAULT_NAMESPACE, "thisisaviref-hm2")
+	rbe2.CreateRouteBackendExtensionCRWithStatus(t)
+
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
+
+	// Create HTTPRoute with single rule, with single backend that specifies multiple routeBackendExtensions
+	rule := akogatewayapitests.GetHTTPRouteRuleWithRouteBackendExtensionAndHMFilters(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add"}},
+		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, []string{routeBackendExtensionName1, routeBackendExtensionName2})
+
+	rules := []gatewayv1.HTTPRouteRule{rule}
+	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return -1
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(0))
+
+	// HTTPRoute should have unresolved refs condition due to non-existent RouteBackendExtension
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(DEFAULT_NAMESPACE).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			t.Logf("Couldn't get the HTTPRoute, err: %+v", err)
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionFalse &&
+			condition.Reason == string(gatewayv1.RouteReasonIncompatibleFilters)
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Verify error message mentions MultipleExtensionRef of same kind defined
+	httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(DEFAULT_NAMESPACE).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+	if err != nil || httpRoute == nil {
+		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
+	}
+	condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+	g.Expect(condition.Message).To(gomega.ContainSubstring("MultipleExtensionRef of same kind defined on HTTPRoute-Rule-BackendRef"))
+
+	// Delete routeBackendExtension and verify it's removed from graph layer
+	rbe1.DeleteRouteBackendExtensionCR(t)
+	rbe2.DeleteRouteBackendExtensionCR(t)
+
+	// Wait for the model to be updated after RouteBackendExtension deletion
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(0))
+
+	// Clean up
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
+	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestHTTPRouteStatusWithRouteBackendExtensionLifecycle(t *testing.T) {
+	gatewayClassName := "gateway-class-rbe-lifecycle"
+	gatewayName := "gateway-rbe-lifecycle"
+	httpRouteName := "httproute-rbe-lifecycle"
+	routeBackendExtensionName := "rbe-lifecycle"
+	namespace := "default"
+	svcName := "avisvc-rbe-lifecycle"
+	ports := []int32{8080}
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	integrationtest.CreateSVC(t, namespace, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPorEPS(t, namespace, svcName, false, false, "1.1.1")
+
+	listeners := akogatewayapitests.GetListenersV1(ports, true, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(namespace).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Create HTTPRoute with reference to non-existent RouteBackendExtension
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
+	hostnames := []gatewayv1.Hostname{"foo-hm-lifecycle.com"}
+	rules := []gatewayv1.HTTPRouteRule{
+		akogatewayapitests.GetHTTPRouteRuleWithRouteBackendExtensionAndHMFilters(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+			map[string][]string{"RequestHeaderModifier": {"add"}},
+			[][]string{{svcName, namespace, "8080", "1"}}, []string{routeBackendExtensionName}),
+	}
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+
+	// HTTPRoute should have unresolved refs condition due to non-existent RouteBackendExtensionName
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			t.Logf("Couldn't get the HTTPRoute, err: %+v", err)
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionFalse &&
+			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound)
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Verify error message mentions RouteBackendExtension
+	httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+	if err != nil || httpRoute == nil {
+		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
+	}
+	condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+	g.Expect(condition.Message).To(gomega.ContainSubstring("RouteBackendExtension object default/rbe-lifecycle not found"))
+
+	// Create RouteBackendExtension CR with status as rejected
+	rbe := akogatewayapitests.GetFakeDefaultRBEObj(routeBackendExtensionName, DEFAULT_NAMESPACE, "thisisaviref-hm1")
+	rbe.Status = "Rejected"
+	rbe.CreateRouteBackendExtensionCRWithStatus(t)
+
+	// HTTPRoute should still have unresolved refs condition due to rejected RouteBackendExtension
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionFalse &&
+			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound) && strings.Contains(condition.Message, "RouteBackendExtension object default/rbe-lifecycle is not in Accepted state")
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Update RouteBackendExtension status to Accepted
+	rbe.Status = "Accepted"
+	rbe.UpdateRouteBackendExtensionStatus(t)
+
+	// HTTPRoute should now have resolved refs condition
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionTrue
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Test status transition from status accepted to rejected
+	rbe.Status = "Rejected"
+	rbe.UpdateRouteBackendExtensionStatus(t)
+
+	// HTTPRoute should now have unresolved refs condition
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionFalse &&
+			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound)
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Transition back to status accepted
+	rbe.Status = "Accepted"
+	rbe.UpdateRouteBackendExtensionStatus(t)
+
+	// HTTPRoute should have resolved refs condition again
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionTrue
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	//Test RouteBackendExtension deletion
+	rbe.DeleteRouteBackendExtensionCR(t)
+
+	// HTTPRoute should now have unresolved refs condition due to deleted RouteBackendExtension
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionFalse &&
+			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound)
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Verify the condition message mentions the RouteBackendExtension
+	httpRoute, err = akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+	if err != nil || httpRoute == nil {
+		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
+	}
+	condition = apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+	g.Expect(condition.Message).To(gomega.ContainSubstring("RouteBackendExtension object default/rbe-lifecycle not found"))
+
+	// Recreate RouteBackendExtension to verify HTTPRoute status recovers
+	rbe.CreateRouteBackendExtensionCRWithStatus(t)
+
+	// HTTPRoute should have resolved refs condition again
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionTrue
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Transition status controller from valid AKOCRDController to invalid controller
+	rbe.Controller = "Invalid-Controller"
+	rbe.UpdateRouteBackendExtensionStatus(t)
+
+	// HTTPRoute should now have unresolved refs condition
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionFalse &&
+			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound)
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Verify error message mentions RouteBackendExtension
+	httpRoute, err = akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+	if err != nil || httpRoute == nil {
+		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
+	}
+	condition = apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+	g.Expect(condition.Message).To(gomega.ContainSubstring("RouteBackendExtension CR default/rbe-lifecycle is not handled by AKO CRD Operator"))
+
+	// Transition status controller back to valid AKOCRDController
+	rbe.Controller = "AKOCRDController"
+	rbe.UpdateRouteBackendExtensionStatus(t)
+
+	// HTTPRoute should have resolved refs condition again
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionTrue
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Cleanup
+	rbe.DeleteRouteBackendExtensionCR(t)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
+	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestHTTPRouteStatusWithCrossNamespaceRouteBackendExtensionDifferentTenant(t *testing.T) {
+	gatewayClassName := "gateway-class-rbe-status-02"
+	gatewayName := "gateway-rbe-status-02"
+	httpRouteName := "httproute-rbe-status-02"
+	routeBackendExtensionName := "rbe-status-02-cross-ns"
+	namespace := "default"
+	routeBackendExtensionNamespace := "rbe-namespace-02"
+	svcName := "avisvc-rbe-status-02"
+	ports := []int32{8080}
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	integrationtest.CreateSVC(t, namespace, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPorEPS(t, namespace, svcName, false, false, "1.1.1")
+
+	// Create the RouteBackendExtension namespace and annotate it with a different tenant
+	integrationtest.AddNamespace(t, routeBackendExtensionNamespace, map[string]string{})
+	integrationtest.AnnotateNamespaceWithTenant(t, routeBackendExtensionNamespace, "tenant-01")
+
+	listeners := akogatewayapitests.GetListenersV1(ports, true, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(namespace).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Create RouteBackendExtension CR in different namespace with different tenant
+	rbe := akogatewayapitests.GetFakeDefaultRBEObj(routeBackendExtensionName, routeBackendExtensionNamespace, "thisisaviref-rbe-status-02")
+	rbe.CreateRouteBackendExtensionCRWithStatus(t)
+
+	// Create HTTPRoute with reference to RouteBackendExtension in different namespace
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
+	hostnames := []gatewayv1.Hostname{"foo-rbe-status-02.com"}
+
+	// Create rule with cross-namespace RouteBackendExtension reference
+	rule := akogatewayapitests.GetHTTPRouteRuleWithRouteBackendExtensionAndHMFilters(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add"}},
+		[][]string{{svcName, routeBackendExtensionNamespace, "8080", "1"}}, []string{routeBackendExtensionName})
+	rules := []gatewayv1.HTTPRouteRule{rule}
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+
+	// HTTPRoute should have unresolved refs condition due to cross-namespace access with different tenant
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			t.Logf("Couldn't get the HTTPRoute, err: %+v", err)
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		// Should have unresolved refs condition due to tenant isolation
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionFalse &&
+			condition.Reason == string(gatewayv1.RouteReasonRefNotPermitted)
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Verify the condition message mentions tenant isolation
+	httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+	if err != nil || httpRoute == nil {
+		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
+	}
+	condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+	g.Expect(condition.Message).To(gomega.ContainSubstring("tenant tenant-01 is not equal to HTTPRoute tenant admin"))
+
+	// Cleanup
+	rbe.DeleteRouteBackendExtensionCR(t)
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
 	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)

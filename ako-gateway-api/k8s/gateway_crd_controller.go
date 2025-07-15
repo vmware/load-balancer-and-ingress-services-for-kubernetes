@@ -146,7 +146,7 @@ func (c *GatewayController) SetupCRDEventHandlers(numWorkers uint32) {
 						return
 					}
 				}
-				// fetch name and namespace of appprofile crd
+				// fetch name and namespace of RouteBackendExtension crd
 				namespace, name := getNamespaceName(object)
 				if namespace == "" || name == "" {
 					return
