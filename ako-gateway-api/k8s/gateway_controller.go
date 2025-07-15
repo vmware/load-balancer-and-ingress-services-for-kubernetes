@@ -748,12 +748,10 @@ func (c *GatewayController) SetupAviInfraSettingEventHandler(numWorkers uint32) 
 					return
 				}
 				aviInfra := obj.(*akov1beta1.AviInfraSetting)
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviInfra))
 				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfra)
 				utils.AviLog.Debugf("key: %s, msg: ADD", key)
 
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
+				addGatewayMappedToInfrasettingToIngestionQueue(numWorkers, c, utils.ObjKey(aviInfra))
 			},
 			UpdateFunc: func(old, new interface{}) {
 				if c.DisableSync {
@@ -762,36 +760,32 @@ func (c *GatewayController) SetupAviInfraSettingEventHandler(numWorkers uint32) 
 				oldObj := old.(*akov1beta1.AviInfraSetting)
 				aviInfra := new.(*akov1beta1.AviInfraSetting)
 				if isAviInfraUpdated(oldObj, aviInfra) {
-					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviInfra))
 					key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfra)
 					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
 
-					bkt := utils.Bkt(namespace, numWorkers)
-					c.workqueue[bkt].AddRateLimited(key)
+					addGatewayMappedToInfrasettingToIngestionQueue(numWorkers, c, utils.ObjKey(aviInfra))
 				}
 			},
 			DeleteFunc: func(obj interface{}) {
 				if c.DisableSync {
 					return
 				}
-				aviinfra, ok := obj.(*akov1beta1.AviInfraSetting)
+				aviInfra, ok := obj.(*akov1beta1.AviInfraSetting)
 				if !ok {
 					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 					if !ok {
 						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
 						return
 					}
-					aviinfra, ok = tombstone.Obj.(*akov1beta1.AviInfraSetting)
+					aviInfra, ok = tombstone.Obj.(*akov1beta1.AviInfraSetting)
 					if !ok {
 						utils.AviLog.Errorf("Tombstone contained object that is not an AviInfraSetting: %#v", obj)
 						return
 					}
 				}
-				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviinfra)
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(aviinfra))
+				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfra)
 				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
+				addGatewayMappedToInfrasettingToIngestionQueue(numWorkers, c, utils.ObjKey(aviInfra))
 			},
 		}
 		akogatewayapilib.AKOControlConfig().AviInfraSettingInformer().Informer().AddEventHandler(aviInfraEventHandler)
@@ -845,7 +839,9 @@ func addNamespaceAnnotationEventHandler(numWorkers uint32, c *GatewayController)
 				oldTenant := nsOld.Annotations[lib.TenantAnnotation]
 				newTenant := nsCur.Annotations[lib.TenantAnnotation]
 				if oldTenant != newTenant {
-					addGatewaysFromNamespaceToIngestionQueue(numWorkers, c, nsCur.Name)
+					key := utils.Namespace + "/" + nsCur.Name
+					utils.AviLog.Debugf("key: Namespace/%s, msg: UPDATE", key)
+					addGatewaysFromNamespaceToIngestionQueue(key, numWorkers, c)
 				}
 			}
 		},
@@ -853,7 +849,8 @@ func addNamespaceAnnotationEventHandler(numWorkers uint32, c *GatewayController)
 	return nsEventHandler
 }
 
-func addGatewaysFromNamespaceToIngestionQueue(numWorkers uint32, c *GatewayController, namespace string) {
+func addGatewaysFromNamespaceToIngestionQueue(key string, numWorkers uint32, c *GatewayController) {
+	_, _, namespace := lib.ExtractTypeNameNamespace(key)
 	gateways, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Warnf("failed to list Gateways in the Namespace %s, err: %s", namespace, err.Error())
@@ -868,6 +865,20 @@ func addGatewaysFromNamespaceToIngestionQueue(numWorkers uint32, c *GatewayContr
 		}
 		bkt := utils.Bkt(gateway.Namespace, numWorkers)
 		c.workqueue[bkt].AddRateLimited(key)
-		utils.AviLog.Debugf("key: %s, msg: ADD for namespace: %s", key, namespace)
+		utils.AviLog.Debugf("key: %s, msg: ADD for Gateway", key)
+	}
+}
+
+func addGatewayMappedToInfrasettingToIngestionQueue(numWorkers uint32, c *GatewayController, name string) {
+	namespaces, err := utils.GetInformers().NSInformer.Informer().GetIndexer().ByIndex(lib.AviSettingNamespaceIndex, name)
+	if err != nil {
+		utils.AviLog.Warnf("failed to fetch Namespaces for the AviInfraSetting %s, err: %s", name, err.Error())
+		return
+	}
+	for _, obj := range namespaces {
+		if ns, ok := obj.(*corev1.Namespace); ok {
+			key := utils.Namespace + "/" + ns.Name
+			addGatewaysFromNamespaceToIngestionQueue(key, numWorkers, c)
+		}
 	}
 }
