@@ -127,13 +127,8 @@ func DequeueIngestion(key string, fullsync bool) {
 		}
 
 		if objType == lib.AviInfraSetting {
-			handleGateway(parentNs, parentName, fullsync, key)
-			modelFound, modelIntf = objects.SharedAviGraphLister().Get(modelName)
-			modelNil = !modelFound || modelIntf == nil
-			if modelNil {
-				utils.AviLog.Warnf("key: %s, msg: no model found: %s", key, modelName)
-				continue
-			}
+			model := &AviObjectGraph{modelIntf.(*nodes.AviObjectGraph)}
+			handleAviInfraSetting(key, parentNs, parentName, model)
 			// Fetch routes for a gateway
 			routeTypeNsNameList, found = GatewayToRoutes(parentNs, parentName, key)
 			if !found {
