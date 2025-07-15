@@ -302,3 +302,31 @@ func buildWithInfraSettingForGateway(key string, vs *nodes.AviEvhVsNode, vsvip *
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VS and VSVip nodes %s", key, vs.Name)
 	}
 }
+
+func handleAviInfraSetting(key, parentNS, parentName string, node *AviObjectGraph) {
+	vsNode := node.GetAviEvhVS()[0]
+	vsvip := vsNode.VSVIPRefs[0]
+
+	infraSetting, err := lib.GetNamespacedAviInfraSetting(key, parentNS, akogatewayapilib.AKOControlConfig().AviInfraSettingInformer())
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: failed to get AviInfraSetting, err: %s", key, err.Error())
+	}
+	t1LR := lib.GetT1LRPath()
+	if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
+		t1LR = *infraSetting.Spec.NSXSettings.T1LR
+	}
+	if t1LR != "" {
+		utils.AviLog.Infof("key: %s, msg: T1LR is %s.", key, t1LR)
+		vsvip.T1Lr = t1LR
+		vsvip.VrfContext = ""
+		vsNode.VrfContext = ""
+	}
+	vsNode.ServiceEngineGroup = lib.GetSEGName()
+
+	buildWithInfraSettingForGateway(key, vsNode, vsvip, infraSetting)
+	if infraSetting != nil {
+		akogatewayapiobjects.GatewayApiLister().UpdateGatewayToAviInfraSettingMappings(parentNS+"/"+parentName, infraSetting.Name)
+	} else {
+		akogatewayapiobjects.GatewayApiLister().DeleteGatewayToAviInfraSettingMappings(parentNS + "/" + parentName)
+	}
+}
