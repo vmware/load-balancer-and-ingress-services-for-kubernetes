@@ -36,6 +36,7 @@ func InformersToRegister(kclient *kubernetes.Clientset) ([]string, error) {
 		utils.ServiceInformer,
 		utils.SecretInformer,
 		utils.ConfigMapInformer,
+		utils.NSInformer,
 	}
 
 	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
