@@ -86,7 +86,7 @@ func IsHTTPRouteValid(key string, obj *gatewayv1.HTTPRoute) bool {
 	return true
 }
 
-func validateBackendReference(key string, backend Backend, backendFilters []*Filter) (bool, akogatewayapistatus.Condition) {
+func validateBackendReference(key string, backend Backend, backendFilters []*Filter, httpRouteNamespace string) (bool, akogatewayapistatus.Condition) {
 	routeConditionResolvedRef := akogatewayapistatus.NewCondition().
 		Type(string(gatewayv1.RouteConditionResolvedRefs)).
 		Status(metav1.ConditionFalse)
@@ -95,6 +95,19 @@ func validateBackendReference(key string, backend Backend, backendFilters []*Fil
 		err := fmt.Errorf("backendRef %s has invalid kind %s", backend.Name, backend.Kind)
 		routeConditionResolvedRef.
 			Reason(string(gatewayv1.RouteReasonInvalidKind)).
+			Message(err.Error())
+		return false, routeConditionResolvedRef
+	}
+	backendRefTenant := lib.GetTenantInNamespace(backend.Namespace)
+	httpRouteTenant := lib.GetTenantInNamespace(httpRouteNamespace)
+
+	// check if tenant of namespace of backend is same as tenant of namespace of HTTPRoute
+	if backendRefTenant != httpRouteTenant {
+		utils.AviLog.Errorf("key: %s, msg: BackendRef %s tenant %s is not equal to HTTPRoute tenant %s", key, backend.Name, backendRefTenant, httpRouteTenant)
+		err := fmt.Errorf("backendRef %s tenant %s is not equal to HTTPRoute tenant %s", backend.Name, backendRefTenant, httpRouteTenant)
+		// using RouteReasonRefNotPermitted for now, may change when reference grant is supported
+		routeConditionResolvedRef.
+			Reason(string(gatewayv1.RouteReasonRefNotPermitted)).
 			Message(err.Error())
 		return false, routeConditionResolvedRef
 	}
@@ -141,13 +154,40 @@ func validatedBackendRefExtensions(backendFilters []*Filter, routeConditionResol
 				return false, routeConditionResolvedRef
 			}
 			if _, ok := extensionRefType[kind]; ok {
-				utils.AviLog.Warnf("key: %s, msg: multiple entries for a kind %s. AKO handles only one object of each kind in ExtensionRef", key, kind)
-				routeConditionResolvedRef.
-					Reason(string(gatewayv1.RouteReasonIncompatibleFilters)).
-					Message("MultipleExtensionRef of same kind defined on HTTPRoute-Rule-BackendRef")
-				return false, routeConditionResolvedRef
+				// support multiple entries only if kind is HealthMonitor
+				if kind != akogatewayapilib.HealthMonitorKind {
+					utils.AviLog.Warnf("key: %s, msg: multiple entries for a kind %s. AKO handles only one object of each kind in ExtensionRef", key, kind)
+					routeConditionResolvedRef.
+						Reason(string(gatewayv1.RouteReasonIncompatibleFilters)).
+						Message("MultipleExtensionRef of same kind defined on HTTPRoute-Rule-BackendRef")
+					return false, routeConditionResolvedRef
+				}
 			}
 			extensionRefType[kind] = struct{}{}
+			if kind == akogatewayapilib.HealthMonitorKind {
+				if filter.ExtensionRef.Name != "" {
+					_, ready, err := akogatewayapilib.IsHealthMonitorProcessed(key, backend.Namespace, string(filter.ExtensionRef.Name))
+					if err != nil || !ready {
+						var errMsg string
+						if err != nil {
+							errMsg = err.Error()
+						} else {
+							errMsg = "HealthMonitor is not ready"
+						}
+						utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s will not be processed by gateway-container. err: %s", key, backend.Namespace, string(filter.ExtensionRef.Name), errMsg)
+						routeConditionResolvedRef.
+							Reason(string(gatewayv1.RouteReasonBackendNotFound)).
+							Message(errMsg)
+						return false, routeConditionResolvedRef
+					}
+				} else {
+					utils.AviLog.Warnf("key: %s, msg: HealthMonitor ExtensionRef has empty name", key)
+					routeConditionResolvedRef.
+						Reason(string(gatewayv1.RouteReasonBackendNotFound)).
+						Message("HealthMonitor ExtensionRef has empty name")
+					return false, routeConditionResolvedRef
+				}
+			}
 		}
 	}
 	return true, routeConditionResolvedRef

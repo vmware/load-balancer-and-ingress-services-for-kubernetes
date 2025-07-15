@@ -277,6 +277,7 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 	gatewayToListenersMap := make(map[string][]akogatewayapiobjects.GatewayListenerStore)
 	statusIndex := 0
 	httpRouteStatus := akogatewayapiobjects.GatewayApiLister().GetRouteToRouteStatusMapping(routeTypeNsName)
+outerLoop:
 	for _, parentRef := range hrObj.Spec.ParentRefs {
 		if statusIndex >= len(httpRouteStatus.Parents) {
 			break
@@ -284,10 +285,15 @@ func HTTPRouteToGateway(namespace, name, key string) ([]string, bool) {
 		if httpRouteStatus.Parents[statusIndex].ParentRef.Name != parentRef.Name {
 			continue
 		}
-		if httpRouteStatus.Parents[statusIndex].Conditions[0].Type == string(gatewayv1.RouteConditionAccepted) && httpRouteStatus.Parents[statusIndex].Conditions[0].Status == metav1.ConditionFalse {
-			statusIndex += 1
-			continue
+		for _, condition := range httpRouteStatus.Parents[statusIndex].Conditions {
+			if (condition.Type == string(gatewayv1.RouteConditionAccepted) ||
+				condition.Type == string(gatewayv1.RouteConditionResolvedRefs)) &&
+				condition.Status == metav1.ConditionFalse {
+				statusIndex += 1
+				break outerLoop
+			}
 		}
+
 		ns := namespace
 		if parentRef.Namespace != nil {
 			ns = string(*parentRef.Namespace)
@@ -340,6 +346,8 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 
 	var svcNsNameList []string
 	var l7RuleNsNameList []string
+
+	var healthMonitorNsNameList []string
 	for _, rule := range hrObj.Spec.Rules {
 		for _, backendRef := range rule.BackendRefs {
 			ns := namespace
@@ -348,6 +356,14 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 			}
 			svcNsName := ns + "/" + string(backendRef.Name)
 			svcNsNameList = append(svcNsNameList, svcNsName)
+			for _, filter := range backendRef.Filters {
+				if filter.Type == gatewayv1.HTTPRouteFilterExtensionRef && filter.ExtensionRef != nil {
+					if filter.ExtensionRef.Kind == akogatewayapilib.HealthMonitorKind {
+						healthMonitorNsName := namespace + "/" + string(filter.ExtensionRef.Name)
+						healthMonitorNsNameList = append(healthMonitorNsNameList, healthMonitorNsName)
+					}
+				}
+			}
 		}
 		for _, filter := range rule.Filters {
 			// Do we need to check first condition??
@@ -362,6 +378,23 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 
 		}
 	}
+	routeNSName := namespace + "/" + name
+	// Delete old entries from HTTPRoute->HealthMonitor Mapping & HealthMonitor-->HTTPRoute
+	found, oldHealthMonitorNSNameList := akogatewayapiobjects.GatewayApiLister().GetHTTPRouteToHealthMonitorMapping(routeNSName)
+	if found {
+		for healthMonitorNsName := range oldHealthMonitorNSNameList {
+			if !utils.HasElem(healthMonitorNsNameList, healthMonitorNsName) {
+				akogatewayapiobjects.GatewayApiLister().DeleteHTTPRouteToHealthMonitorMapping(routeNSName, healthMonitorNsName)
+				akogatewayapiobjects.GatewayApiLister().DeleteHealthMonitorToHTTPRoutesMapping(healthMonitorNsName, routeNSName)
+			}
+		}
+	}
+
+	// update with new entries for HTTPRoute->HealthMonitor and HealthMonitor-->HTTPRoute
+	for _, healthMonitorNsName := range healthMonitorNsNameList {
+		akogatewayapiobjects.GatewayApiLister().UpdateHTTPRouteToHealthMonitorMapping(routeNSName, healthMonitorNsName)
+		akogatewayapiobjects.GatewayApiLister().UpdateHealthMonitorToHTTPRoutesMapping(healthMonitorNsName, routeNSName)
+	}
 
 	// deletes the services, which are removed, from the gateway <-> service and route <-> service mappings
 	found, oldSvcs := akogatewayapiobjects.GatewayApiLister().GetRouteToService(routeTypeNsName)
@@ -374,7 +407,6 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 	}
 
 	// Delete old entries from HTTPRoute->L7RuleMapping & L7Rule-->HTTPRoute
-	routeNSName := namespace + "/" + name
 	found, oldL7RuleNSNameList := akogatewayapiobjects.GatewayApiLister().GetHTTPRouteToL7RuleMapping(routeNSName)
 	if found {
 		for l7RuleNsName := range oldL7RuleNSNameList {
