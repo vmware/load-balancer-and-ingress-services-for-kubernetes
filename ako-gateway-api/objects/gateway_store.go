@@ -66,7 +66,7 @@ func GatewayApiLister() *GWLister {
 type GWLister struct {
 	gwLock sync.RWMutex
 
-	//Gateways with AKO as controller
+	//GatewayClass with AKO as controller
 	gatewayClassStore *objects.ObjectMapStore
 
 	//Namespace/Gateway -> GatewayClass
@@ -159,14 +159,6 @@ type GatewayListenerStore struct {
 	AllowedRouteTypes []GatewayRouteKind
 }
 
-// This struct is used to store HTTPPS, PG, Pool associated with Parent VS (HTTPRoute that is mapped to parent VS)
-
-type HTTPPSPGPool struct {
-	HTTPPS    []string
-	PoolGroup []string
-	Pool      []string
-}
-
 func (g *GWLister) IsGatewayClassControllerAKO(gwClass string) (bool, bool) {
 	g.gwLock.RLock()
 	defer g.gwLock.RUnlock()
@@ -178,7 +170,7 @@ func (g *GWLister) IsGatewayClassControllerAKO(gwClass string) (bool, bool) {
 	return false, false
 }
 
-func (g *GWLister) UpdateGatewayClass(gwClass string, isAkoCtrl bool) {
+func (g *GWLister) UpdateGatewayClassToGateway(gwClass string, isAkoCtrl bool) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 
@@ -392,7 +384,7 @@ func (g *GWLister) GetServiceToGateway(svcNsName string) (bool, []string) {
 	return false, []string{}
 }
 
-func (g *GWLister) UpdateGatewayServiceMappings(gwNsName, svcNsName string) {
+func (g *GWLister) UpdateGatewayToServiceMappings(gwNsName, svcNsName string) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 
@@ -418,7 +410,7 @@ func (g *GWLister) UpdateGatewayServiceMappings(gwNsName, svcNsName string) {
 	}
 }
 
-func (g *GWLister) DeleteGatewayServiceMappings(gwNsName string, svcNsName string) {
+func (g *GWLister) DeleteGatewayToServiceMappings(gwNsName string, svcNsName string) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 
@@ -485,7 +477,7 @@ func (g *GWLister) GetServiceToRoute(svcNsName string) (bool, []string) {
 	return false, []string{}
 }
 
-func (g *GWLister) UpdateRouteServiceMappings(routeTypeNsName, svcNsName, key string) {
+func (g *GWLister) UpdateRouteToServiceMappings(routeTypeNsName, svcNsName, key string) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 
@@ -578,7 +570,7 @@ func (g *GWLister) DeleteRouteToGatewayMappings(routeTypeNsName, gwNsName string
 		}
 	}
 
-	// delete route to gateway mapping
+	// delete route to gateway mappings
 	if found, gwNsNameList := g.routeToGateway.Get(routeTypeNsName); found {
 		gwNsNameListObj := gwNsNameList.([]string)
 		gwNsNameListObj = utils.Remove(gwNsNameListObj, gwNsName)
@@ -749,14 +741,7 @@ func (g *GWLister) GetRouteToChildVS(routeTypeNsName string) (bool, []string) {
 	return false, []string{}
 }
 
-func (g *GWLister) DeleteRouteToChildVS(routeTypeNsName string) {
-	g.gwLock.Lock()
-	defer g.gwLock.Unlock()
-
-	g.routeToChildVS.Delete(routeTypeNsName)
-}
-
-func (g *GWLister) UpdateRouteChildVSMappings(routeTypeNsName, childVS string) {
+func (g *GWLister) UpdateRouteToChildVSMappings(routeTypeNsName, childVS string) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 
@@ -772,7 +757,7 @@ func (g *GWLister) UpdateRouteChildVSMappings(routeTypeNsName, childVS string) {
 	}
 }
 
-func (g *GWLister) DeleteRouteChildVSMappings(routeTypeNsName, childVS string) {
+func (g *GWLister) DeleteRouteToChildVSMappings(routeTypeNsName, childVS string) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 
@@ -915,42 +900,6 @@ func (g *GWLister) DeleteRouteFromStore(routeTypeNsName string, key string) {
 	}
 }
 
-func (g *GWLister) DeleteRouteServiceMappings(routeTypeNsName string) {
-	g.gwLock.Lock()
-	defer g.gwLock.Unlock()
-
-	if found, svcNsNameList := g.routeToService.Get(routeTypeNsName); found {
-		for _, svcNsName := range svcNsNameList.([]string) {
-			if found, routeTypeNsNameList := g.serviceToRoute.Get(svcNsName); found {
-				routeTypeNsNameListObj := routeTypeNsNameList.([]string)
-				routeTypeNsNameListObj = utils.Remove(routeTypeNsNameListObj, routeTypeNsName)
-				if len(routeTypeNsNameListObj) == 0 {
-					g.serviceToRoute.Delete(svcNsName)
-				} else {
-					g.serviceToRoute.AddOrUpdate(svcNsName, routeTypeNsNameListObj)
-				}
-			}
-		}
-
-		if found, gwNsNameList := g.routeToGateway.Get(routeTypeNsName); found {
-			for _, gwNsName := range gwNsNameList.([]string) {
-				if found, gwSvcNsNameList := g.gatewayToService.Get(gwNsName); found {
-					gwSvcNsNameListObj := gwSvcNsNameList.([]string)
-					for _, svcNsName := range svcNsNameList.([]string) {
-						gwSvcNsNameListObj = utils.Remove(gwSvcNsNameListObj, svcNsName)
-					}
-					if len(gwSvcNsNameListObj) == 0 {
-						g.gatewayToService.Delete(gwNsName)
-					} else {
-						g.gatewayToService.AddOrUpdate(gwNsName, gwSvcNsNameListObj)
-					}
-				}
-			}
-		}
-		g.routeToService.Delete(routeTypeNsName)
-	}
-}
-
 //=====All gateway/route <-> hostname go here.
 
 func (g *GWLister) GetGatewayListenerToHostname(gwListenerNsName string) string {
@@ -984,36 +933,6 @@ func (g *GWLister) GetGatewayRouteToHostname(gwRouteNsName string) (bool, []stri
 		return true, hostnames.([]string)
 	}
 	return false, []string{}
-}
-
-// == All GW+route to HTTPS, PG , pool mapping
-// Redundant functions. Might be useful in future.
-func (g *GWLister) UpdateGatewayRouteToHTTPPSPGPool(gwRouteNsName string, httpPSPGPool HTTPPSPGPool) {
-	g.gwLock.Lock()
-	defer g.gwLock.Unlock()
-	var localHTTPPSPGPool HTTPPSPGPool
-	localHTTPPSPGPool.HTTPPS = append(localHTTPPSPGPool.HTTPPS, httpPSPGPool.HTTPPS...)
-	localHTTPPSPGPool.PoolGroup = append(localHTTPPSPGPool.PoolGroup, httpPSPGPool.PoolGroup...)
-	localHTTPPSPGPool.Pool = append(localHTTPPSPGPool.Pool, httpPSPGPool.Pool...)
-	g.gatewayRouteToHTTPSPGPoolStore.AddOrUpdate(gwRouteNsName, localHTTPPSPGPool)
-
-}
-
-func (g *GWLister) GetGatewayRouteToHTTPSPGPool(gwRouteNsName string) (bool, HTTPPSPGPool) {
-	g.gwLock.RLock()
-	defer g.gwLock.RUnlock()
-
-	found, hostnames := g.gatewayRouteToHTTPSPGPoolStore.Get(gwRouteNsName)
-	if found {
-		return true, hostnames.(HTTPPSPGPool)
-	}
-	return false, HTTPPSPGPool{}
-}
-
-func (g *GWLister) DeleteGatewayRouteToHTTPSPGPool(gwRouteNsName string) {
-	g.gwLock.RLock()
-	defer g.gwLock.RUnlock()
-	g.gatewayRouteToHTTPSPGPoolStore.Delete(gwRouteNsName)
 }
 
 //Pods <-> Service
@@ -1194,5 +1113,85 @@ func (g *GWLister) DeleteHTTPRouteToHealthMonitorMapping(httpRouteName string, h
 		healthMonitorsObj := healthMonitors.(map[string]struct{})
 		delete(healthMonitorsObj, healthMonitor)
 		g.httpRouteToHealthMonitorCache.AddOrUpdate(httpRouteName, healthMonitorsObj)
+	}
+}
+
+func (g *GWLister) UpdateRouteInStore(routeNSName string, routeTypeNsName string, key string, healthMonitorNsNameList, svcNsNameList, l7RuleNsNameList, gwNsNameList []string) {
+	// Delete old entries from HTTPRoute->HealthMonitor Mapping & HealthMonitor-->HTTPRoute
+	found, oldHealthMonitorNSNameList := g.GetHTTPRouteToHealthMonitorMapping(routeNSName)
+	if found {
+		for healthMonitorNsName := range oldHealthMonitorNSNameList {
+			if !utils.HasElem(healthMonitorNsNameList, healthMonitorNsName) {
+				g.DeleteHTTPRouteToHealthMonitorMapping(routeNSName, healthMonitorNsName)
+				g.DeleteHealthMonitorToHTTPRoutesMapping(healthMonitorNsName, routeNSName)
+			}
+		}
+	}
+
+	// update with new entries for HTTPRoute->HealthMonitor and HealthMonitor-->HTTPRoute
+	for _, healthMonitorNsName := range healthMonitorNsNameList {
+		g.UpdateHTTPRouteToHealthMonitorMapping(routeNSName, healthMonitorNsName)
+		g.UpdateHealthMonitorToHTTPRoutesMapping(healthMonitorNsName, routeNSName)
+	}
+
+	// Delete old entries from HTTPRoute->L7RuleMapping & L7Rule-->HTTPRoute
+	found, oldL7RuleNSNameList := g.GetHTTPRouteToL7RuleMapping(routeNSName)
+	if found {
+		for l7RuleNsName := range oldL7RuleNSNameList {
+			if !utils.HasElem(l7RuleNsNameList, l7RuleNsName) {
+				g.DeleteHTTPRouteToL7RuleMapping(routeNSName, l7RuleNsName)
+				g.DeleteL7RuleToHTTPRouteMapping(l7RuleNsName, routeNSName)
+			}
+		}
+	}
+
+	// update with new entries for HTTPRoute->L7 Rule and L7Rule to HTTPRoute
+	for _, l7RuleNsName := range l7RuleNsNameList {
+		g.UpdateHTTPRouteToL7RuleMapping(routeNSName, l7RuleNsName)
+		g.UpdateL7RuleToHTTPRouteMapping(l7RuleNsName, routeNSName)
+	}
+
+	found, oldGateways := g.GetRouteToGateway(routeTypeNsName)
+	if found {
+		for _, gwNsName := range oldGateways {
+			if !utils.HasElem(gwNsNameList, gwNsName) {
+				g.DeleteRouteToGatewayMappings(routeTypeNsName, gwNsName)
+			}
+		}
+	}
+
+	// deletes the services, which are removed, route <-> service mappings
+	found, oldSvcs := g.GetRouteToService(routeTypeNsName)
+	if found {
+		for _, svcNsName := range oldSvcs {
+			if !utils.HasElem(svcNsNameList, svcNsName) {
+				g.DeleteRouteToServiceMappings(routeTypeNsName, svcNsName, key)
+			}
+		}
+	}
+
+	// updates route <-> service mappings with new services
+	for _, svcNsName := range svcNsNameList {
+		g.UpdateRouteToServiceMappings(routeTypeNsName, svcNsName, key)
+	}
+
+	// deletes the services, which are removed from gateway <-> service mappings
+	for _, gwNsName := range oldGateways {
+		if utils.HasElem(gwNsNameList, gwNsName) {
+			continue
+		}
+		for _, svcNsName := range oldSvcs {
+			if utils.HasElem(svcNsNameList, svcNsName) {
+				continue
+			}
+			g.DeleteGatewayToServiceMappings(gwNsName, svcNsName)
+		}
+	}
+
+	// updates gateway <-> service mappings with new services
+	for _, gwNsName := range gwNsNameList {
+		for _, svcNsName := range svcNsNameList {
+			g.UpdateGatewayToServiceMappings(gwNsName, svcNsName)
+		}
 	}
 }

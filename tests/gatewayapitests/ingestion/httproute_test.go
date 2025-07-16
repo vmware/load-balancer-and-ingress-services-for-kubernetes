@@ -33,7 +33,7 @@ func TestHTTPRouteCUD(t *testing.T) {
 	ports := []int32{8080, 8081}
 	key := "HTTPRoute" + "/" + namespace + "/" + httpRouteName
 	gwkey := "Gateway/" + DEFAULT_NAMESPACE + "/" + gatewayName
-	akogatewayapiobjects.GatewayApiLister().UpdateGatewayClass(gatewayClassName, true)
+	akogatewayapiobjects.GatewayApiLister().UpdateGatewayClassToGateway(gatewayClassName, true)
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	t.Logf("Created GatewayClass %s", gatewayClassName)
@@ -70,7 +70,7 @@ func TestHTTPRouteHostnameInvalid(t *testing.T) {
 	namespace := "default"
 	ports := []int32{8080}
 	key := "HTTPRoute" + "/" + namespace + "/" + httpRouteName
-	akogatewayapiobjects.GatewayApiLister().UpdateGatewayClass(gatewayClassName, true)
+	akogatewayapiobjects.GatewayApiLister().UpdateGatewayClassToGateway(gatewayClassName, true)
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	t.Logf("Created GatewayClass %s", gatewayClassName)
@@ -109,7 +109,7 @@ func TestHTTPRouteGatewayNotPresent(t *testing.T) {
 	namespace := "default"
 	ports := []int32{8080, 8081}
 	key := "HTTPRoute" + "/" + namespace + "/" + httpRouteName
-	akogatewayapiobjects.GatewayApiLister().UpdateGatewayClass(gatewayClassName, true)
+	akogatewayapiobjects.GatewayApiLister().UpdateGatewayClassToGateway(gatewayClassName, true)
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	t.Logf("Created GatewayClass %s", gatewayClassName)
@@ -149,7 +149,7 @@ func TestHTTPRouteGatewayWithEmptyHostnameInGateway(t *testing.T) {
 	key := "HTTPRoute" + "/" + namespace + "/" + httpRouteName
 
 	// gatewayclass
-	akogatewayapiobjects.GatewayApiLister().UpdateGatewayClass(gatewayClassName, true)
+	akogatewayapiobjects.GatewayApiLister().UpdateGatewayClassToGateway(gatewayClassName, true)
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	t.Logf("Created GatewayClass %s", gatewayClassName)
 	waitAndverify(t, gwClassKey)
@@ -186,7 +186,7 @@ func TestHTTPRouteGatewayWithEmptyHostnameInHTTPRoute(t *testing.T) {
 	key := "HTTPRoute" + "/" + namespace + "/" + httpRouteName
 
 	// gatewayclass
-	akogatewayapiobjects.GatewayApiLister().UpdateGatewayClass(gatewayClassName, true)
+	akogatewayapiobjects.GatewayApiLister().UpdateGatewayClassToGateway(gatewayClassName, true)
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	t.Logf("Created GatewayClass %s", gatewayClassName)
 	waitAndverify(t, gwClassKey)
@@ -224,7 +224,7 @@ func TestHTTPRouteGatewayWithEmptyHostname(t *testing.T) {
 	key := "HTTPRoute" + "/" + namespace + "/" + httpRouteName
 
 	// gatewayclass
-	akogatewayapiobjects.GatewayApiLister().UpdateGatewayClass(gatewayClassName, true)
+	akogatewayapiobjects.GatewayApiLister().UpdateGatewayClassToGateway(gatewayClassName, true)
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	t.Logf("Created GatewayClass %s", gatewayClassName)
 	waitAndverify(t, gwClassKey)
@@ -262,7 +262,7 @@ func TestHTTPRouteGatewayWithRegexPath(t *testing.T) {
 	key := "HTTPRoute" + "/" + namespace + "/" + httpRouteName
 
 	// gatewayclass
-	akogatewayapiobjects.GatewayApiLister().UpdateGatewayClass(gatewayClassName, true)
+	akogatewayapiobjects.GatewayApiLister().UpdateGatewayClassToGateway(gatewayClassName, true)
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	t.Logf("Created GatewayClass %s", gatewayClassName)
 	waitAndverify(t, gwClassKey)
@@ -302,7 +302,7 @@ func TestHTTPRouteFilterWithUrlRewrite(t *testing.T) {
 	key := "HTTPRoute" + "/" + namespace + "/" + httpRouteName
 
 	// gatewayclass
-	akogatewayapiobjects.GatewayApiLister().UpdateGatewayClass(gatewayClassName, true)
+	akogatewayapiobjects.GatewayApiLister().UpdateGatewayClassToGateway(gatewayClassName, true)
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	t.Logf("Created GatewayClass %s", gatewayClassName)
 	waitAndverify(t, gwClassKey)

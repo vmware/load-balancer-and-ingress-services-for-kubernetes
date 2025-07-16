@@ -256,7 +256,7 @@ func GatewayClassGetGw(namespace, name, key string) ([]string, bool) {
 		if isAKOController {
 			utils.AviLog.Debugf("key: %s, msg: controller is AKO", key)
 		}
-		akogatewayapiobjects.GatewayApiLister().UpdateGatewayClass(name, isAKOController)
+		akogatewayapiobjects.GatewayApiLister().UpdateGatewayClassToGateway(name, isAKOController)
 		gatewayList = akogatewayapiobjects.GatewayApiLister().GetGatewayClassToGateway(name)
 	}
 
@@ -385,83 +385,7 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 		}
 	}
 	routeNSName := namespace + "/" + name
-	// Delete old entries from HTTPRoute->HealthMonitor Mapping & HealthMonitor-->HTTPRoute
-	found, oldHealthMonitorNSNameList := akogatewayapiobjects.GatewayApiLister().GetHTTPRouteToHealthMonitorMapping(routeNSName)
-	if found {
-		for healthMonitorNsName := range oldHealthMonitorNSNameList {
-			if !utils.HasElem(healthMonitorNsNameList, healthMonitorNsName) {
-				akogatewayapiobjects.GatewayApiLister().DeleteHTTPRouteToHealthMonitorMapping(routeNSName, healthMonitorNsName)
-				akogatewayapiobjects.GatewayApiLister().DeleteHealthMonitorToHTTPRoutesMapping(healthMonitorNsName, routeNSName)
-			}
-		}
-	}
-
-	// update with new entries for HTTPRoute->HealthMonitor and HealthMonitor-->HTTPRoute
-	for _, healthMonitorNsName := range healthMonitorNsNameList {
-		akogatewayapiobjects.GatewayApiLister().UpdateHTTPRouteToHealthMonitorMapping(routeNSName, healthMonitorNsName)
-		akogatewayapiobjects.GatewayApiLister().UpdateHealthMonitorToHTTPRoutesMapping(healthMonitorNsName, routeNSName)
-	}
-
-	// deletes the services, which are removed, from the gateway <-> service and route <-> service mappings
-	found, oldSvcs := akogatewayapiobjects.GatewayApiLister().GetRouteToService(routeTypeNsName)
-	if found {
-		for _, svcNsName := range oldSvcs {
-			if !utils.HasElem(svcNsNameList, svcNsName) {
-				akogatewayapiobjects.GatewayApiLister().DeleteRouteToServiceMappings(routeTypeNsName, svcNsName, key)
-			}
-		}
-	}
-
-	// Delete old entries from HTTPRoute->L7RuleMapping & L7Rule-->HTTPRoute
-	found, oldL7RuleNSNameList := akogatewayapiobjects.GatewayApiLister().GetHTTPRouteToL7RuleMapping(routeNSName)
-	if found {
-		for l7RuleNsName := range oldL7RuleNSNameList {
-			if !utils.HasElem(l7RuleNsNameList, l7RuleNsName) {
-				akogatewayapiobjects.GatewayApiLister().DeleteHTTPRouteToL7RuleMapping(routeNSName, l7RuleNsName)
-				akogatewayapiobjects.GatewayApiLister().DeleteL7RuleToHTTPRouteMapping(l7RuleNsName, routeNSName)
-			}
-		}
-	}
-
-	// update with new entries for HTTPRoute->L7 Rule and L7Rule to HTTPRoute
-	for _, l7RuleNsName := range l7RuleNsNameList {
-		akogatewayapiobjects.GatewayApiLister().UpdateHTTPRouteToL7RuleMapping(routeNSName, l7RuleNsName)
-		akogatewayapiobjects.GatewayApiLister().UpdateL7RuleToHTTPRouteMapping(l7RuleNsName, routeNSName)
-	}
-
-	found, oldGateways := akogatewayapiobjects.GatewayApiLister().GetRouteToGateway(routeTypeNsName)
-	if found {
-		for _, gwNsName := range oldGateways {
-			if !utils.HasElem(gwNsNameList, gwNsName) {
-				akogatewayapiobjects.GatewayApiLister().DeleteRouteToGatewayMappings(routeTypeNsName, gwNsName)
-			}
-		}
-	}
-
-	// updates route <-> service mappings with new services
-	for _, svcNsName := range svcNsNameList {
-		akogatewayapiobjects.GatewayApiLister().UpdateRouteServiceMappings(routeTypeNsName, svcNsName, key)
-	}
-
-	// updates gateway <-> service mappings with new services
-	for _, gwNsName := range gwNsNameList {
-		for _, svcNsName := range svcNsNameList {
-			akogatewayapiobjects.GatewayApiLister().UpdateGatewayServiceMappings(gwNsName, svcNsName)
-		}
-	}
-
-	for _, gwNsName := range oldGateways {
-		if utils.HasElem(gwNsNameList, gwNsName) {
-			continue
-		}
-		for _, svcNsName := range oldSvcs {
-			if utils.HasElem(svcNsNameList, svcNsName) {
-				continue
-			}
-			akogatewayapiobjects.GatewayApiLister().DeleteGatewayServiceMappings(gwNsName, svcNsName)
-		}
-	}
-
+	akogatewayapiobjects.GatewayApiLister().UpdateRouteInStore(routeNSName, routeTypeNsName, key, healthMonitorNsNameList, svcNsNameList, l7RuleNsNameList, gwNsNameList)
 	utils.AviLog.Debugf("key: %s, msg: HTTPRoutes retrieved %s", key, []string{routeTypeNsName})
 	return []string{routeTypeNsName}, true
 }
