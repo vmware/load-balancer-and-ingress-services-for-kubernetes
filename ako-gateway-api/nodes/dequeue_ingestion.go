@@ -270,7 +270,7 @@ func (o *AviObjectGraph) ProcessRouteDeletion(key, parentNsName string, routeMod
 		for _, childVSName := range childVSNames {
 			removed := nodes.RemoveEvhInModel(childVSName, parentNode, key)
 			if removed {
-				akogatewayapiobjects.GatewayApiLister().DeleteRouteChildVSMappings(routeTypeNsName, childVSName)
+				akogatewayapiobjects.GatewayApiLister().DeleteRouteToChildVSMappings(routeTypeNsName, childVSName)
 			}
 		}
 	}
@@ -296,7 +296,7 @@ func (o *AviObjectGraph) DeleteStaleChildVSes(key string, routeModel RouteModel,
 			utils.AviLog.Infof("key: %s, msg: child VS retrieved for deletion %v", key, childVSName)
 			removed := nodes.RemoveEvhInModel(childVSName, parentNode, key)
 			if removed {
-				akogatewayapiobjects.GatewayApiLister().DeleteRouteChildVSMappings(routeModel.GetType()+"/"+routeModel.GetNamespace()+"/"+routeModel.GetName(), childVSName)
+				akogatewayapiobjects.GatewayApiLister().DeleteRouteToChildVSMappings(routeModel.GetType()+"/"+routeModel.GetNamespace()+"/"+routeModel.GetName(), childVSName)
 			}
 		}
 	}
