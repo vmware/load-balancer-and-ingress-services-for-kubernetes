@@ -48,6 +48,7 @@ var DynamicClient *dynamicfake.FakeDynamicClient
 var GvrToKind = map[schema.GroupVersionResource]string{
 	akogatewayapilib.L7CRDGVR:         "l7rulesList",
 	akogatewayapilib.HealthMonitorGVR: "healthmonitorsList",
+	akogatewayapilib.APPPROFILECRDGVR: "applicationProfileList",
 }
 var testData unstructured.Unstructured
 
@@ -540,7 +541,7 @@ func GetHTTPHeaderFilterV1(actions []string) *gatewayv1.HTTPHeaderFilter {
 func GetHTTPRouteFilterV1(filterType string, actions []string) gatewayv1.HTTPRouteFilter {
 	routeFilter := gatewayv1.HTTPRouteFilter{}
 	routeFilter.Type = gatewayv1.HTTPRouteFilterType(filterType)
-	switch filterType {
+	switch routeFilter.Type {
 	case "RequestHeaderModifier":
 		routeFilter.RequestHeaderModifier = GetHTTPHeaderFilterV1(actions)
 	case "ResponseHeaderModifier":
@@ -562,7 +563,16 @@ func GetHTTPRouteFilterV1(filterType string, actions []string) gatewayv1.HTTPRou
 				ReplaceFullPath: &replaceFullPath,
 			},
 		}
+	case gatewayv1.HTTPRouteFilterExtensionRef:
+		if len(actions) > 0 {
+			routeFilter.ExtensionRef = &gatewayv1.LocalObjectReference{
+				Group: "ako.vmware.com",
+				Kind:  "ApplicationProfile",
+				Name:  gatewayv1.ObjectName(actions[0]),
+			}
+		}
 	}
+
 	return routeFilter
 }
 
@@ -854,4 +864,73 @@ func UpdateHealthMonitorStatus(t *testing.T, name, namespace string, ready bool,
 		t.Fatalf("error in updating HealthMonitor status: %v", err)
 	}
 	t.Logf("Updated HealthMonitor %s/%s status to Ready=%v", namespace, name, ready)
+}
+
+type FakeApplicationProfileStatus struct {
+	Status  string
+	Reason  string
+	Message string
+}
+
+func GetFakeApplicationProfile(name string, status *FakeApplicationProfileStatus) unstructured.Unstructured {
+	appProfile := unstructured.Unstructured{}
+
+	ob := map[string]interface{}{
+		"apiVersion": "ako.vmware.com/v1alpha1",
+		"kind":       "ApplicationProfile",
+		"metadata": map[string]interface{}{
+			"name":      name,
+			"namespace": "default",
+		},
+		"spec": map[string]interface{}{
+			"type": "APPLICATION_PROFILE_TYPE_HTTP",
+		},
+	}
+	if status != nil {
+		ob["status"] = map[string]interface{}{
+			"backendObjectName": name,
+			"conditions": []interface{}{
+				map[string]interface{}{
+					"type":    "Ready",
+					"status":  status.Status,
+					"reason":  status.Reason,
+					"message": status.Message,
+				},
+			},
+		}
+	}
+
+	appProfile.SetUnstructuredContent(ob)
+	return appProfile
+}
+
+func CreateApplicationProfileCRD(t *testing.T, name string, status *FakeApplicationProfileStatus) {
+	appProfile := GetFakeApplicationProfile(name, status)
+	_, err := DynamicClient.Resource(akogatewayapilib.APPPROFILECRDGVR).Namespace("default").Create(context.TODO(), &appProfile, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in creating ApplicationProfile CRD: %v", err)
+	}
+}
+
+func DeleteApplicationProfileCRD(t *testing.T, name string) {
+	err := DynamicClient.Resource(akogatewayapilib.APPPROFILECRDGVR).Namespace("default").Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("error in deleting ApplicationProfile CRD: %v", err)
+	}
+}
+
+func GetApplicationProfileCRD(t *testing.T, name string) *unstructured.Unstructured {
+	crd, err := DynamicClient.Resource(akogatewayapilib.APPPROFILECRDGVR).Namespace("default").Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("error in getting ApplicationProfile CRD: %v", err)
+	}
+	return crd
+}
+
+func UpdateApplicationProfileCRD(t *testing.T, name string, status *FakeApplicationProfileStatus) {
+	appProfile := GetFakeApplicationProfile(name, status)
+	_, err := DynamicClient.Resource(akogatewayapilib.APPPROFILECRDGVR).Namespace("default").Update(context.TODO(), &appProfile, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating ApplicationProfile CRD: %v", err)
+	}
 }

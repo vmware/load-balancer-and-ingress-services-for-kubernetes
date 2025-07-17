@@ -52,6 +52,11 @@ var (
 		Version:  "v1alpha1",
 		Resource: "healthmonitors",
 	}
+	APPPROFILECRDGVR = schema.GroupVersionResource{
+		Group:    "ako.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "applicationprofiles",
+	}
 )
 
 // NewDynamicClientSet initializes dynamic client set instance
@@ -86,6 +91,7 @@ func GetDynamicClientSet() dynamic.Interface {
 type DynamicInformers struct {
 	L7CRDInformer         informers.GenericInformer
 	HealthMonitorInformer informers.GenericInformer
+	AppProfileCRDInformer informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
@@ -98,6 +104,8 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 		informers.L7CRDInformer = f.ForResource(L7CRDGVR)
 	}
 	informers.HealthMonitorInformer = f.ForResource(HealthMonitorGVR)
+	informers.AppProfileCRDInformer = f.ForResource(APPPROFILECRDGVR)
+
 	dynamicInformerInstance = informers
 	return dynamicInformerInstance
 }
@@ -281,4 +289,60 @@ func getFieldValueFromSpec(specJSON map[string]interface{}, fieldName string) *s
 		return vsField
 	}
 	return value
+}
+
+// IsApplicationProfileValid checks if the ApplicationProfile CRD is valid as well as ready and processed by AKO CRD Operator.
+func IsApplicationProfileValid(namespace, name string) (bool, bool) {
+	clientSet := GetDynamicClientSet()
+	obj, err := clientSet.Resource(APPPROFILECRDGVR).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			utils.AviLog.Warnf("key:%s/%s, msg: ApplicationProfile CRD status not found: %+v", namespace, name, err)
+		}
+		return false, false
+	}
+
+	return true, IsApplicationProfileProcessed(obj, namespace, name)
+}
+
+// IsApplicationProfileProcessed checks if the ApplicationProfile CRD is processed by AKO CRD operator.
+// It returns true if the ApplicationProfile's backendname is updated and status is "Ready", false otherwise.
+// It also returns the status of the ApplicationProfile.
+func IsApplicationProfileProcessed(obj interface{}, namespace, name string) bool {
+	oldObj := obj.(*unstructured.Unstructured)
+	statusJSON, found, err := unstructured.NestedMap(oldObj.UnstructuredContent(), "status")
+	if err != nil || !found {
+		utils.AviLog.Warnf("key:%s/%s, msg: ApplicationProfile CRD status not found: %+v", namespace, name, err)
+		return false
+	}
+
+	// fetch the backendObjectName
+	backendObjectName, ok := statusJSON["backendObjectName"]
+	if !ok || backendObjectName == "" {
+		utils.AviLog.Warnf("key:%s/%s, msg: ApplicationProfile CRD backendObjectName not found", namespace, name)
+		return false
+	}
+
+	conditions, ok := statusJSON["conditions"].([]interface{})
+	if !ok || len(conditions) == 0 {
+		utils.AviLog.Warnf("key:%s/%s, msg: ApplicationProfile CRD conditions not found", namespace, name)
+		return false
+	}
+
+	for _, c := range conditions {
+		condition := c.(map[string]interface{})
+		statusReady := condition["status"].(string) == string(metav1.ConditionTrue)
+		conditionReady := condition["type"].(string) == "Ready"
+		conditionReason := condition["reason"].(string)
+
+		// Deletion when app profile object is already reffered to by a VS causes condition
+		// with Reason "DeletionSkipped" raised i.e App Profile is still intact and processed.
+		isProcessed := (statusReady && conditionReady) || conditionReason == "DeletionSkipped"
+		if !isProcessed {
+			utils.AviLog.Warnf("key:%s/%s, msg: ApplicationProfile CRD is not ready", namespace, name)
+			return false
+		}
+	}
+
+	return true
 }

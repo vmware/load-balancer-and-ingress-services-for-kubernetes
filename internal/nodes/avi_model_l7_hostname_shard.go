@@ -252,6 +252,7 @@ func (o *AviObjectGraph) BuildPoolPGPolicyForDedicatedVS(vsNode []*AviVsNode, na
 }
 
 func (o *AviObjectGraph) BuildL7VSGraphHostNameShard(vsName, hostname string, routeIgrObj RouteIngressModel, pathsvc []IngressHostPathSvc, gslbHostHeader string, insecureEdgeTermAllow bool, key string) {
+	// panic(vsName)
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	// We create pools and attach servers to them here. Pools are created with a priorty label of host/path
