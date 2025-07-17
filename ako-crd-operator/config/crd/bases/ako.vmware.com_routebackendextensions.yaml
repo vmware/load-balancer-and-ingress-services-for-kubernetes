@@ -53,7 +53,7 @@ spec:
                       type: string
                     name:
                       description: Defines the name of HealthMonitor object. HealthMonitor
-                        object should be the same namespace as that of RouteBackendExtension
+                        object should be in the same namespace as that of RouteBackendExtension
                         object
                       type: string
                   required:
@@ -83,6 +83,7 @@ spec:
                   This field should be specified only when lbAlgorithm is LB_ALGORITHM_CONSISTENT_HASH and lbAlgorithmHash is LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER.
                 type: string
               lbAlgorithmHash:
+                default: LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS
                 description: Criteria used as a key for determining the hash between
                   the client and server
                 enum:
@@ -96,11 +97,11 @@ spec:
             type: object
             x-kubernetes-validations:
             - message: lbAlgorithmHash must be set if and only if lbAlgorithm is LB_ALGORITHM_CONSISTENT_HASH
-              rule: (self.lbAlgorithm == 'LB_ALGORITHM_CONSISTENT_HASH') == has(self.lbAlgorithmHash)
+              rule: (self.lbAlgorithm == 'LB_ALGORITHM_CONSISTENT_HASH') && has(self.lbAlgorithmHash)
             - message: lbAlgorithmConsistentHashHdr must be set if and only if lbAlgorithmHash
                 is LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER
               rule: '!has(self.lbAlgorithmHash) || (self.lbAlgorithmHash == ''LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER'')
-                == has(self.lbAlgorithmConsistentHashHdr)'
+                && has(self.lbAlgorithmConsistentHashHdr)'
           status:
             description: RouteBackendExtensionStatus defines the observed state of
               RouteBackendExtension.
