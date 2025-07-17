@@ -857,7 +857,7 @@ func UpdateHealthMonitorStatus(t *testing.T, name, namespace string, ready bool,
 	t.Logf("Updated HealthMonitor %s/%s status to Ready=%v", namespace, name, ready)
 }
 
-func GetHTTPRouteRuleWithRouteBackendExtensionFilters(pathType string, paths []string, headers []string, filters map[string][]string, backends [][]string, routeBackendExtensions []string) gatewayv1.HTTPRouteRule {
+func GetHTTPRouteRuleWithRouteBackendExtensionAndHMFilters(pathType string, paths []string, headers []string, filters map[string][]string, backends [][]string, routeBackendExtensions []string, healthMonitors ...string) gatewayv1.HTTPRouteRule {
 	rule := GetHTTPRouteRuleV1(pathType, paths, headers, filters, backends, nil)
 
 	for i := range rule.BackendRefs {
@@ -868,6 +868,17 @@ func GetHTTPRouteRuleWithRouteBackendExtensionFilters(pathType string, paths []s
 					Group: gatewayv1.Group("ako.vmware.com"),
 					Kind:  gatewayv1.Kind("RouteBackendExtension"),
 					Name:  gatewayv1.ObjectName(routeBackendExtension),
+				},
+			}
+			rule.BackendRefs[i].Filters = append(rule.BackendRefs[i].Filters, filter)
+		}
+		for _, healthMonitor := range healthMonitors {
+			filter := gatewayv1.HTTPRouteFilter{
+				Type: gatewayv1.HTTPRouteFilterExtensionRef,
+				ExtensionRef: &gatewayv1.LocalObjectReference{
+					Group: gatewayv1.Group("ako.vmware.com"),
+					Kind:  gatewayv1.Kind("HealthMonitor"),
+					Name:  gatewayv1.ObjectName(healthMonitor),
 				},
 			}
 			rule.BackendRefs[i].Filters = append(rule.BackendRefs[i].Filters, filter)
@@ -910,15 +921,7 @@ func GetFakeDefaultRBEObj(name, namespace string, healthMonitorNames ...string) 
 	return &rbe
 }
 
-/*func CreateRouteBackendExtensionCR(t *testing.T, name, namespace, uuid string) {
-	CreateRouteBackendExtensionCRWithStatus(t, name, namespace, uuid, true, "Accepted", "HealthMonitor has been successfully processed")
-}*/
-
 func (rbe *FakeRouteBackendExtension) CreateRouteBackendExtensionCRWithStatus(t *testing.T) {
-	/*status := "True"
-	if !ready {
-		status = "False"\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\.
-	}*/
 	hms := make([]interface{}, len(rbe.Hm))
 	for _, hm := range rbe.Hm {
 		hms = append(hms, map[string]interface{}{
@@ -947,12 +950,6 @@ func (rbe *FakeRouteBackendExtension) CreateRouteBackendExtensionCRWithStatus(t 
 			},
 		},
 	}
-
-	// Only add uuid to status if it's provided (for ready HealthMonitors)
-	/*if ready && uuid != "" {
-		statusObj := healthMonitor.Object["status"].(map[string]interface{})
-		statusObj["uuid"] = uuid
-	}*/
 
 	_, err := DynamicClient.Resource(akogatewayapilib.RouteBackendExtensionCRDGVR).Namespace(rbe.Namespace).Create(context.TODO(), routeBackendExtension, metav1.CreateOptions{})
 	if err != nil {
