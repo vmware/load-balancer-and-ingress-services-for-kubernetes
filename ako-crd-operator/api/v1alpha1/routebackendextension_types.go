@@ -37,7 +37,7 @@ type BackendHealthMonitor struct {
 	// +kubebuilder:validation:Enum=AVIREF
 	// +required
 	Kind HealthMonitorKind `json:"kind,omitempty"`
-	// Defines the name of HealthMonitor object. HealthMonitor object should be the same namespace as that of RouteBackendExtension object
+	// Defines the name of HealthMonitor object. HealthMonitor object should be in the same namespace as that of RouteBackendExtension object
 	// +required
 	Name string `json:"name,omitempty"`
 }
@@ -74,8 +74,8 @@ const (
 )
 
 // RouteBackendExtensionSpec defines the desired state of RouteBackendExtension
-// +kubebuilder:validation:XValidation:rule="(self.lbAlgorithm == 'LB_ALGORITHM_CONSISTENT_HASH') == has(self.lbAlgorithmHash)",message="lbAlgorithmHash must be set if and only if lbAlgorithm is LB_ALGORITHM_CONSISTENT_HASH"
-// +kubebuilder:validation:XValidation:rule="!has(self.lbAlgorithmHash) || (self.lbAlgorithmHash == 'LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER') == has(self.lbAlgorithmConsistentHashHdr)",message="lbAlgorithmConsistentHashHdr must be set if and only if lbAlgorithmHash is LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER"
+// +kubebuilder:validation:XValidation:rule="(self.lbAlgorithm == 'LB_ALGORITHM_CONSISTENT_HASH') && has(self.lbAlgorithmHash)",message="lbAlgorithmHash must be set if and only if lbAlgorithm is LB_ALGORITHM_CONSISTENT_HASH"
+// +kubebuilder:validation:XValidation:rule="!has(self.lbAlgorithmHash) || (self.lbAlgorithmHash == 'LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER') && has(self.lbAlgorithmConsistentHashHdr)",message="lbAlgorithmConsistentHashHdr must be set if and only if lbAlgorithmHash is LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER"
 
 type RouteBackendExtensionSpec struct {
 	// Defines LB algorithm on Pool
@@ -132,6 +132,6 @@ func init() {
 	SchemeBuilder.Register(&RouteBackendExtension{}, &RouteBackendExtensionList{})
 }
 
-func (rb *RouteBackendExtension) SetRouteBackendExtensionCotroller(controller string) {
+func (rb *RouteBackendExtension) SetRouteBackendExtensionController(controller string) {
 	rb.Status.Controller = controller
 }

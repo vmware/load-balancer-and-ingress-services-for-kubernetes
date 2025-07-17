@@ -31,7 +31,6 @@ rules:
   resources:
   - applicationprofiles/finalizers
   - healthmonitors/finalizers
-  - routebackendextensions/finalizers
   verbs:
   - update
 - apiGroups:

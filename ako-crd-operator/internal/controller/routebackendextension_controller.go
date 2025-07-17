@@ -53,7 +53,6 @@ type RouteBackendExtensionReconciler struct {
 
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=routebackendextensions,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=routebackendextensions/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=ako.vmware.com,resources=routebackendextensions/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -90,7 +89,7 @@ func (r *RouteBackendExtensionReconciler) Reconcile(ctx context.Context, req ctr
 	if err := r.ValidatedObject(ctx, rbe); err != nil {
 		// Check if the error is retryable
 		if controllerutils.IsRetryableError(err) {
-			// For 404 also, we are not retrying. So user has to update the object again to trigger
+			// For 404(object not found) also, we are not retrying. So user has to update the object again to trigger
 			// processing.
 			// other way to retry for certain number of times for each object and then stop
 			return ctrl.Result{RequeueAfter: constants.RequeueInterval}, err
@@ -133,7 +132,7 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 }
 
 func (r *RouteBackendExtensionReconciler) SetStatus(rbe *akov1alpha1.RouteBackendExtension, error string, status string) {
-	rbe.SetRouteBackendExtensionCotroller(constants.AKOCRDController)
+	rbe.SetRouteBackendExtensionController(constants.AKOCRDController)
 	rbe.Status.Error = error
 	rbe.Status.Status = status
 	r.Status().Update(context.Background(), rbe)
