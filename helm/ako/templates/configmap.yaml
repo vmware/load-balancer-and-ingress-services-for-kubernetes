@@ -1,3 +1,4 @@
+{{- if not .Values.VKSSettings.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -58,3 +59,4 @@ data:
   enablePrometheus: {{ default "false" .Values.featureGates.EnablePrometheus | quote }}
   enableEndpointSlice: {{ default "false" .Values.featureGates.EnableEndpointSlice | quote }} 
   fqdnReusePolicy: {{ default "InterNamespaceAllowed" .Values.L7Settings.fqdnReusePolicy | quote}}
+{{- end }}
