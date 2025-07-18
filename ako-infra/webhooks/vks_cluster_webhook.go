@@ -266,7 +266,3 @@ func escapeJSONPointer(s string) string {
 	}
 	return result
 }
-
-// Note: VKS webhook server functionality is now integrated into the main AKO container
-// through Helm chart configuration. The webhook logic above can be reused by
-// embedding it into the main AKO HTTP server when VKS integration is enabled.
