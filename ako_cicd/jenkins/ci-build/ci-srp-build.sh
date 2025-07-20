@@ -15,11 +15,14 @@ fi
 
 echo "--- Start of Pre-Build Steps ---"
 
-# Setting GO related variables for VMware's GOPROXY artifactory
-go env -w GOPROXY=build-artifactory.eng.vmware.com/artifactory/srp-mds-go-remote
-go env -w GOSUMDB=off
+export PATH=$PATH:/usr/local/go/bin
+go version
 
-sudo go clean -modcache
+# Setting GO related variables for Broadcom GOPROXY artifactory
+go env -w GOPROXY=https://packages.vcfd.broadcom.net/artifactory/proxy-golang-remote
+go env -w GOSUMDB=https://packages.vcfd.broadcom.net/artifactory/go-gosumdb-remote
+
+go clean -modcache
 
 echo "--- End of Pre-Build Steps ---"
 
@@ -27,9 +30,6 @@ echo "--- Start of Build Steps ---"
 
 go mod download
 
-# Setting GO related variables to default values
-go env -w GOPROXY=https://proxy.golang.org,direct
-go env -w GOSUMDB=sum.golang.org
 echo "--- End of Build Steps ---"
 
 cd $WORKSPACE

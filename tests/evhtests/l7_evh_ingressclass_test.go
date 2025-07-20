@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -1505,14 +1505,19 @@ func TestFQDNsCountForAviInfraSettingWithLargeShardSize(t *testing.T) {
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	node := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()[0]
-
+	fqdnCount := 2
+	if lib.VIPPerNamespace() {
+		fqdnCount = 1
+	}
 	g.Expect(node.VSVIPRefs).To(gomega.HaveLen(1))
-	g.Expect(node.VSVIPRefs[0].FQDNs).To(gomega.HaveLen(2))
+	g.Expect(node.VSVIPRefs[0].FQDNs).To(gomega.HaveLen(fqdnCount))
 	for _, fqdn := range node.VSVIPRefs[0].FQDNs {
 		if fqdn == "foo.com" {
 			continue
 		}
-		g.Expect(fqdn).Should(gomega.ContainSubstring("Shared-L7-EVH"))
+		if !lib.VIPPerNamespace() {
+			g.Expect(fqdn).Should(gomega.ContainSubstring("Shared-L7-EVH"))
+		}
 	}
 	integrationtest.TeardownAviInfraSetting(t, settingName)
 	integrationtest.TeardownIngressClass(t, ingClassName)

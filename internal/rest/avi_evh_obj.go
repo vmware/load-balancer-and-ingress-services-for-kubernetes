@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -361,7 +361,7 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		} else {
 			utils.AviLog.Warnf("key: %s, msg: unable to set the vsvip reference")
 		}
-		tenant := fmt.Sprintf("/api/tenant/?name=%s", vs_meta.Tenant)
+		tenant := fmt.Sprintf("/api/tenant/?name=%s", lib.GetEscapedValue(vs_meta.Tenant))
 		vs.TenantRef = &tenant
 
 		if vs_meta.EVHParent {

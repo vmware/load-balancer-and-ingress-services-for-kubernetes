@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -53,6 +53,18 @@ func SetUpTestForSvcLB(t *testing.T, svcName string) {
 	objects.SharedAviGraphLister().Delete(modelName)
 	CreateSVC(t, NAMESPACE, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false)
 	CreateEPorEPS(t, NAMESPACE, svcName, false, false, "1.1.1")
+	PollForCompletion(t, modelName, 5)
+}
+
+func SetUpTestForSvcLBWithExternalTrafficPolicy(t *testing.T, svcName, nodeName, externalTrafficPolicy string) {
+	modelName := MODEL_REDNS_PREFIX + svcName
+	objects.SharedAviGraphLister().Delete(modelName)
+	if externalTrafficPolicy == "" {
+		CreateSVC(t, NAMESPACE, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false)
+	} else {
+		CreateSvcWithExternalTrafficPolicy(t, NAMESPACE, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, externalTrafficPolicy)
+	}
+	CreateEPorEPSNodeName(t, NAMESPACE, svcName, false, false, "1.1.1", nodeName)
 	PollForCompletion(t, modelName, 5)
 }
 
@@ -1244,6 +1256,168 @@ func TestSharedVIPSvcWithTCPUDPProtocols(t *testing.T) {
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 	g.Expect(nodes).To(gomega.HaveLen(1))
 	VerfiyL4Node(nodes[0], g, "TCP", "UDP")
+	TearDownTestForSharedVIPSvcLB(t, g)
+}
+
+func TestSharedVIPSvcTransitionSingle(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := MODEL_REDNS_PREFIX + SHAREDVIPKEY
+
+	SetUpTestForSharedVIPSvcLB(t, corev1.ProtocolTCP, corev1.ProtocolUDP)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	VerfiyL4Node(nodes[0], g, "TCP", "UDP")
+
+	// Initiating transition for one shared vip LB svc to type ClusterIP so the corresponfing pool and l4policyset should be deleted
+	svcObj := ConstructService(NAMESPACE, SHAREDVIPSVC01, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, make(map[string]string), "")
+	svcObj.ResourceVersion = "2"
+	svcObj.Annotations = map[string]string{lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+
+	g.Eventually(func() int {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return len(nodes[0].PoolRefs)
+		}
+		return -1
+	}, 30*time.Second).Should(gomega.Equal(1))
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SHAREDVIPKEY)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto[0].Protocol).To(gomega.Equal("UDP"))
+	g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.SYSTEM_UDP_FAST_PATH))
+
+	// Initiating transition for same shared vip ClusterIP svc back to LB so the corresponfing pool and l4policyset should be re-created
+	svcObj = ConstructService(NAMESPACE, SHAREDVIPSVC01, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string), "")
+	svcObj.ResourceVersion = "3"
+	svcObj.Annotations = map[string]string{lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+
+	g.Eventually(func() int {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return len(nodes[0].PoolRefs)
+		}
+		return -1
+	}, 30*time.Second).Should(gomega.Equal(2))
+	VerfiyL4Node(nodes[0], g, "TCP", "UDP")
+
+	TearDownTestForSharedVIPSvcLB(t, g)
+}
+
+func TestSharedVIPSvcTransitionAll(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := MODEL_REDNS_PREFIX + SHAREDVIPKEY
+
+	SetUpTestForSharedVIPSvcLB(t, corev1.ProtocolTCP, corev1.ProtocolUDP)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	VerfiyL4Node(nodes[0], g, "TCP", "UDP")
+
+	// Initiating transition for one shared vip LB svc to type ClusterIP so the corresponfing pool and l4policyset should be deleted
+	svcObj := ConstructService(NAMESPACE, SHAREDVIPSVC01, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, make(map[string]string), "")
+	svcObj.ResourceVersion = "2"
+	svcObj.Annotations = map[string]string{lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+
+	g.Eventually(func() int {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return len(nodes[0].PoolRefs)
+		}
+		return -1
+	}, 30*time.Second).Should(gomega.Equal(1))
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SHAREDVIPKEY)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto[0].Protocol).To(gomega.Equal("UDP"))
+	g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.SYSTEM_UDP_FAST_PATH))
+
+	// Initiating transition for second shared vip LB svc to type ClusterIP so now the vs and all other configs should be deleted
+	svcObj = ConstructService(NAMESPACE, SHAREDVIPSVC02, corev1.ProtocolUDP, corev1.ServiceTypeClusterIP, false, make(map[string]string), "")
+	svcObj.ResourceVersion = "2"
+	svcObj.Annotations = map[string]string{lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, SHAREDVIPKEY)}
+	g.Eventually(func() bool {
+		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		return found
+	}, 15*time.Second).Should(gomega.Equal(false))
+
+	// Initiating transition for first shared vip ClusterIP svc back to LB so the corresponfing pool and l4policyset should be re-created
+	svcObj = ConstructService(NAMESPACE, SHAREDVIPSVC01, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string), "")
+	svcObj.ResourceVersion = "3"
+	svcObj.Annotations = map[string]string{lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	// adding sleep of 2 seconds for vs node to get added to model
+	time.Sleep(2 * time.Second)
+	g.Eventually(func() int {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return len(nodes[0].PoolRefs)
+		}
+		return -1
+	}, 30*time.Second).Should(gomega.Equal(1))
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SHAREDVIPKEY)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto[0].Protocol).To(gomega.Equal("TCP"))
+	g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.TCP_NW_FAST_PATH))
+
+	// Initiating transition for second shared vip ClusterIP svc back to LB so the corresponfing pool and l4policyset should be re-created
+	svcObj = ConstructService(NAMESPACE, SHAREDVIPSVC02, corev1.ProtocolUDP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string), "")
+	svcObj.ResourceVersion = "3"
+	svcObj.Annotations = map[string]string{lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	g.Eventually(func() int {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return len(nodes[0].PoolRefs)
+		}
+		return -1
+	}, 30*time.Second).Should(gomega.Equal(2))
+	VerfiyL4Node(nodes[0], g, "TCP", "UDP")
+
 	TearDownTestForSharedVIPSvcLB(t, g)
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -104,7 +104,7 @@ func parseOptionsFromMetadata(options []UpdateOptions, bulk bool) ([]string, []U
 
 func (l *leader) DeleteGatewayStatusAddress(svcMetadataObj lib.ServiceMetadataObj, key string) error {
 	gwNSName := strings.Split(svcMetadataObj.Gateway, "/")
-	if lib.IsWCP() {
+	if utils.IsWCP() {
 		gw, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: there was a problem in resetting the gateway address status: %s", key, err)

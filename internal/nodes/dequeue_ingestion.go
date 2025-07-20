@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -20,15 +20,18 @@ import (
 	"strconv"
 	"strings"
 
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	v1alpha1 "sigs.k8s.io/service-apis/apis/v1alpha1"
+
+	"github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
+
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	akoErrors "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/errors"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-
-	"k8s.io/apimachinery/pkg/api/errors"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 func DequeueIngestion(key string, fullsync bool) {
@@ -101,7 +104,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	// if we get update for object of type k8s node, create vrf graph
 	// if in NodePort Mode we update pool servers
 	if objType == utils.NodeObj {
-		utils.AviLog.Debugf("key: %s, msg: processing node obj", key)
+		utils.AviLog.Infof("key: %s, msg: processing node obj", key)
 		processNodeObj(key, name, sharedQueue, fullsync)
 
 		if lib.IsNodePortMode() && !fullsync {
@@ -138,12 +141,11 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 
 	if objType == utils.Service {
-		objects.SharedClusterIpLister().Save(namespace+"/"+name, name)
 		found, _ := objects.SharedlbLister().Get(namespace + "/" + name)
-		// This service is found in the LB list - this means it's a transition from LB to clusterIP or NodePort.
 		if found {
+			// This service is found in the LB list - this means it's a transition from LB to clusterIP or NodePort.
 			objects.SharedlbLister().Delete(namespace + "/" + name)
-			utils.AviLog.Infof("key: %s, msg: service transitioned from type loadbalancer to ClusterIP or NodePort, will delete model", name)
+			utils.AviLog.Infof("key: %s, msg: service %s transitioned from type loadbalancer to ClusterIP or NodePort, will delete model", key, name)
 			tenant := objects.SharedNamespaceTenantLister().GetTenantInNamespace(namespace + "/" + name)
 			if tenant == "" {
 				tenant = lib.GetTenant()
@@ -154,6 +156,15 @@ func DequeueIngestion(key string, fullsync bool) {
 				PublishKeyToRestLayer(model_name, key, sharedQueue)
 			}
 		}
+		serviceNamespaceName := namespace + "/" + name
+		found, oldKey := objects.SharedlbLister().GetServiceToSharedVipKey(serviceNamespaceName)
+		if found {
+			// This service is found in the Shared vip LB list - this means it's a transition from Shared vip LB to clusterIP or NodePort.
+			objects.SharedlbLister().RemoveSharedVipKeyServiceMappings(serviceNamespaceName)
+			utils.AviLog.Infof("key: %s, msg: service %s transitioned from type Shared vip loadbalancer to ClusterIP or NodePort, will remove service from shared vip object, oldkey: %s", key, name, oldKey)
+			handleL4SharedVipService(oldKey, key, fullsync)
+		}
+		objects.SharedClusterIpLister().Save(namespace+"/"+name, name)
 	}
 
 	if routeFound {
@@ -161,7 +172,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 
 	// Push Services from InfraSetting updates. Valid for annotation based approach.
-	if objType == lib.AviInfraSetting && !lib.UseServicesAPI() && !lib.IsWCP() {
+	if objType == lib.AviInfraSetting && !lib.UseServicesAPI() && !utils.IsWCP() {
 		svcNames, svcFound := schema.GetParentServices(name, namespace, key)
 		if svcFound && utils.CheckIfNamespaceAccepted(namespace) {
 			for _, svcNSNameKey := range svcNames {
@@ -202,7 +213,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		}
 	}
 
-	if !ingressFound && !lib.IsWCP() && !mciFound {
+	if !ingressFound && !utils.IsWCP() && !mciFound {
 		// If ingress is not found, let's do the other checks.
 		if objType == lib.SharedVipServiceKey {
 			sharedVipKeys, keysFound := schema.GetParentServices(name, namespace, key)
@@ -247,9 +258,9 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 
 	// handle the services APIs
-	if (lib.IsWCP() && objType == utils.L4LBService) ||
+	if (utils.IsWCP() && objType == utils.L4LBService) ||
 		(lib.UseServicesAPI() && (objType == utils.Service || objType == utils.L4LBService)) ||
-		((lib.IsWCP() || lib.UseServicesAPI()) && (objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints || objType == utils.Endpointslices || objType == lib.AviInfraSetting)) {
+		((utils.IsWCP() || lib.UseServicesAPI()) && (objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints || objType == utils.Endpointslices || objType == lib.AviInfraSetting)) {
 		if !valid && objType == utils.L4LBService {
 			// Required for advl4 schemas.
 			schema, _ = ConfigDescriptor().GetByType(utils.Service)
@@ -289,7 +300,7 @@ func DequeueIngestion(key string, fullsync bool) {
 			}
 		}
 	}
-	if objType == utils.Namespace && lib.IsWCP() && isNamespaceDeleted(name) {
+	if objType == utils.Namespace && utils.IsWCP() && isNamespaceDeleted(name) {
 		cache := avicache.SharedAviObjCache()
 		vsKeys := cache.VsCacheMeta.AviCacheGetAllParentVSKeys()
 		suffix := fmt.Sprintf("NS-%s", name)
@@ -396,19 +407,38 @@ func handleHostRuleForSharedVS(key string, fullsync bool) {
 					continue
 				} else {
 					vsNode = nodes[0]
+					if found, fqdn := objects.SharedCRDLister().GetSharedVSModelFQDNMapping(modelName); found {
+						BuildL7HostRule(fqdn, key, vsNode)
+						for _, evh := range nodes[0].EvhNodes {
+							// setting child node portProto with same value as parent node so that redirect rules are added for all front-end ports if app-root is set
+							evh.SetPortProtocols(vsNode.GetPortProtocols())
+							// invoking BuildL7HostRule for all child nodes so that we can rebuild with app-root if hostrule for parent vs has updated the listener ports
+							BuildL7HostRule(evh.GetVHDomainNames()[0], key, evh)
+						}
+						ok := saveAviModel(modelName, aviModelObject, key)
+						if ok && len(aviModelObject.GetOrderedNodes()) != 0 && !fullsync {
+							PublishKeyToRestLayer(modelName, key, sharedQueue)
+						}
+					}
 				}
 			} else {
 				if nodes := aviModelObject.GetAviVS(); len(nodes) == 0 {
 					continue
 				} else {
 					vsNode = nodes[0]
-				}
-			}
-			if found, fqdn := objects.SharedCRDLister().GetSharedVSModelFQDNMapping(modelName); found {
-				BuildL7HostRule(fqdn, key, vsNode)
-				ok := saveAviModel(modelName, aviModelObject, key)
-				if ok && len(aviModelObject.GetOrderedNodes()) != 0 && !fullsync {
-					PublishKeyToRestLayer(modelName, key, sharedQueue)
+					if found, fqdn := objects.SharedCRDLister().GetSharedVSModelFQDNMapping(modelName); found {
+						BuildL7HostRule(fqdn, key, vsNode)
+						for _, sni := range nodes[0].SniNodes {
+							// setting child node portProto with same value as parent node so that redirect rules are added for all front-end ports if app-root is set
+							sni.SetPortProtocols(vsNode.GetPortProtocols())
+							// invoking BuildL7HostRule for all child nodes so that we can rebuild with app-root if hostrule for parent vs has updated the listener ports
+							BuildL7HostRule(sni.GetVHDomainNames()[0], key, sni)
+						}
+						ok := saveAviModel(modelName, aviModelObject, key)
+						if ok && len(aviModelObject.GetOrderedNodes()) != 0 && !fullsync {
+							PublishKeyToRestLayer(modelName, key, sharedQueue)
+						}
+					}
 				}
 			}
 		}
@@ -422,8 +452,8 @@ func handlePod(key, namespace, podName string, fullsync bool) {
 	podKey := namespace + "/" + podName
 	pod, err := utils.GetInformers().PodInformer.Lister().Pods(namespace).Get(podName)
 	if err != nil {
-		if !errors.IsNotFound(err) {
-			utils.AviLog.Infof("key: %s, got error while getting pod: %v", key, err)
+		if !k8serrors.IsNotFound(err) {
+			utils.AviLog.Warnf("key: %s, got error while getting pod: %v", key, err)
 			return
 		}
 
@@ -484,9 +514,12 @@ func handleLBSvcUpdateForPod(key string, lbSvcs []string, fullsync bool) {
 func isGatewayDelete(gatewayKey, key string) bool {
 	// parse the gateway name and namespace
 	namespace, _, gwName := lib.ExtractTypeNameNamespace(gatewayKey)
-	if lib.IsWCP() {
-		gateway, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
-		if err != nil && errors.IsNotFound(err) {
+	var err error
+	if utils.IsWCP() {
+		var gateway *v1alpha1pre1.Gateway
+		gateway, err = lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		if err != nil && k8serrors.IsNotFound(err) {
+			utils.AviLog.Warnf("key: %s, msg: gateway %s not found", key, gwName)
 			return true
 		}
 
@@ -495,21 +528,15 @@ func isGatewayDelete(gatewayKey, key string) bool {
 			utils.AviLog.Infof("key: %s, msg: deletionTimestamp set on gateway, will be deleting VS", key)
 			return true
 		}
-
-		// Check if the gateway has a valid gateway class
 		err = validateGatewayForClass(key, gateway)
-		if err != nil {
-			utils.AviLog.Infof("key: %s, msg: Valid GatewayClass for gateway %s not found", key, gateway)
-			return true
-		}
 	} else if lib.UseServicesAPI() {
 		// If namespace is not accepted, return true to delete model
 		if !utils.CheckIfNamespaceAccepted(namespace) {
 			return true
 		}
-
-		gateway, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
-		if err != nil && errors.IsNotFound(err) {
+		var gateway *v1alpha1.Gateway
+		gateway, err = lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		if err != nil && k8serrors.IsNotFound(err) {
 			return true
 		}
 
@@ -518,12 +545,18 @@ func isGatewayDelete(gatewayKey, key string) bool {
 			utils.AviLog.Infof("key: %s, deletionTimestamp set on gateway, will be deleting VS", key)
 			return true
 		}
-
-		// Check if the gateway has a valid gateway class
 		err = validateSvcApiGatewayForClass(key, gateway)
-		if err != nil {
-			utils.AviLog.Infof("key: %s, msg: Valid GatewayClass for gateway %s not found", key, gateway)
+	}
+	if err != nil {
+		switch err.(type) {
+		case *akoErrors.AkoError:
+			utils.AviLog.Warnf("key: %s, msg: Valid GatewayClass for gateway %s not found", key, gwName)
 			return true
+		case k8serrors.APIStatus:
+			if k8serrors.IsNotFound(err) {
+				utils.AviLog.Warnf("key: %s, msg: GatewayClass for gateway %s not found", key, gwName)
+				return true
+			}
 		}
 	}
 	found, _ := objects.ServiceGWLister().GetGWListeners(namespace + "/" + gwName)
@@ -573,8 +606,7 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 	_, namespace, name := lib.ExtractTypeNameNamespace(key)
-	tenant := lib.GetTenantInNamespace(namespace)
-	modelName := lib.GetModelName(tenant, lib.Encode(lib.GetNamePrefix()+strings.ReplaceAll(namespacedVipKey, "/", "-"), lib.ADVANCED_L4))
+	modelName := lib.GetModelName(lib.GetTenant(), lib.Encode(lib.GetNamePrefix()+strings.ReplaceAll(namespacedVipKey, "/", "-"), lib.ADVANCED_L4))
 
 	found, serviceNSNames := objects.SharedlbLister().GetSharedVipKeyToServices(namespacedVipKey)
 	isShareVipKeyDelete := !found || len(serviceNSNames) == 0
@@ -674,6 +706,17 @@ func handleL4SharedVipService(namespacedVipKey, key string, fullsync bool) {
 		if ok && len(aviModelGraph.GetOrderedNodes()) != 0 && !fullsync {
 			PublishKeyToRestLayer(modelName, key, sharedQueue)
 		}
+		found, _ := objects.SharedClusterIpLister().Get(namespace + "/" + name)
+		if found {
+			// This is transition from ClusterIP or NodePort to service of type shared vip LB svc
+			utils.AviLog.Infof("key: %s, msg: transition case from ClusterIP or NodePort to service of type Shared vip Loadbalancer", key)
+			objects.SharedClusterIpLister().Delete(namespace + "/" + name)
+			affectedIngs, _ := SvcToIng(name, namespace, key)
+			for _, ingress := range affectedIngs {
+				utils.AviLog.Infof("key: %s, msg: Ingress affected as part of transition: %s", key, ingress)
+				HostNameShardAndPublish(utils.Ingress, ingress, namespace, key, fullsync, sharedQueue)
+			}
+		}
 	}
 }
 
@@ -722,11 +765,12 @@ func handleL4Service(key string, fullsync bool) {
 
 		found, _ := objects.SharedClusterIpLister().Get(namespace + "/" + name)
 		if found {
-			// This is transition from clusterIP to service of type LB
+			// This is transition from ClusterIP or NodePort to service of type LB
+			utils.AviLog.Infof("key: %s, msg: transition case from ClusterIP or NodePort to service of type Loadbalancer", key)
 			objects.SharedClusterIpLister().Delete(namespace + "/" + name)
 			affectedIngs, _ := SvcToIng(name, namespace, key)
 			for _, ingress := range affectedIngs {
-				utils.AviLog.Infof("key: %s, msg: transition case from ClusterIP to service of type Loadbalancer: %s", key, ingress)
+				utils.AviLog.Infof("key: %s, msg: Ingress affected as part of transition: %s", key, ingress)
 				HostNameShardAndPublish(utils.Ingress, ingress, namespace, key, fullsync, sharedQueue)
 			}
 		}
@@ -808,14 +852,14 @@ func saveAviModel(modelName string, aviGraph *AviObjectGraph, key string) bool {
 }
 
 func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsync bool) {
-	utils.AviLog.Debugf("key: %s, Got node Object %s", key, nodename)
+	utils.AviLog.Infof("key: %s, Got node Object %s", key, nodename)
 	nodeObj, err := utils.GetInformers().NodeInformer.Lister().Get(nodename)
 	var deleteFlag bool
 	if err == nil {
-		utils.AviLog.Debugf("key: %s, Node Object %v", key, nodeObj)
+		utils.AviLog.Infof("key: %s, Node Object %v", key, nodeObj)
 		objects.SharedNodeLister().AddOrUpdate(nodename, nodeObj)
-	} else if errors.IsNotFound(err) {
-		utils.AviLog.Debugf("key: %s, msg: Node Deleted", key)
+	} else if k8serrors.IsNotFound(err) {
+		utils.AviLog.Infof("key: %s, msg: Node Deleted", key)
 		objects.SharedNodeLister().Delete(nodename)
 		deleteFlag = true
 	} else {
@@ -840,9 +884,9 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsy
 	}
 	aviModelGraph := aviModel.(*AviObjectGraph)
 	aviModelGraph.IsVrf = true
-	err = aviModelGraph.BuildVRFGraph(key, vrfcontext, nodename, deleteFlag)
+	err = aviModelGraph.processVrfGraphForNode(key, nodename, deleteFlag, fullsync)
 	if err != nil {
-		utils.AviLog.Errorf("key: %s, msg: Error creating vrf graph: %v", key, err)
+		utils.AviLog.Errorf("key: %s, msg: Error processing vrf graph for node: %v", key, err)
 		return
 	}
 
@@ -850,7 +894,20 @@ func processNodeObj(key, nodename string, sharedQueue *utils.WorkerQueue, fullsy
 	if ok && !fullsync {
 		PublishKeyToRestLayer(model_name, key, sharedQueue)
 	}
-
+}
+func (aviModelGraph *AviObjectGraph) processVrfGraphForNode(key string, nodename string, deleteFlag bool, fullsync bool) error {
+	vrfcontext := lib.GetVrf()
+	aviModelGraph.Lock.Lock()
+	defer aviModelGraph.Lock.Unlock()
+	err := aviModelGraph.BuildVRFGraph(key, vrfcontext, nodename, deleteFlag)
+	if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: Error creating vrf graph: %v", key, err)
+		return err
+	}
+	if !fullsync {
+		aviModelGraph.CheckAndDeduplicateRecords(key)
+	}
+	return nil
 }
 
 func PublishKeyToRestLayer(modelName string, key string, sharedQueue *utils.WorkerQueue) {
@@ -865,8 +922,10 @@ func isServiceDelete(svcName string, namespace string, key string) bool {
 	svc, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(svcName)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: could not retrieve the object for service: %s", key, err)
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			return true
+		} else {
+			return false
 		}
 	}
 

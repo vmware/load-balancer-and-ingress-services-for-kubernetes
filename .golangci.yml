@@ -2,19 +2,20 @@
 run:
   tests: true
   timeout: 10m
-  skip-dirs-use-default: true
+  issues.exclude-dirs-use-default: true
 
 linters-settings:
   goimports:
     local-prefixes: github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
+  staticcheck:
+    checks: ["all", "-SA1019"]
 
 linters:
   disable-all: true
   enable:
     - misspell
     - gofmt
-    - deadcode
     - unused
     - staticcheck
     - goimports
-    - vet
+    - govet

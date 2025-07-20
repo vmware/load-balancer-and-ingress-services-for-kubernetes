@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -97,6 +97,11 @@ var (
 		GetGateways: PodToGateway,
 		GetRoutes:   PodToHTTPRoute,
 	}
+	AviInfraSetting = GraphSchema{
+		Type:        lib.AviInfraSetting,
+		GetGateways: AviInfraSettingToGateway,
+		GetRoutes:   NoOperation,
+	}
 	SupportedGraphTypes = GraphDescriptor{
 		Gateway,
 		GatewayClass,
@@ -106,6 +111,7 @@ var (
 		EndpointSlices,
 		HTTPRoute,
 		Pod,
+		AviInfraSetting,
 	}
 )
 
@@ -345,6 +351,7 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 	}
 
 	var svcNsNameList []string
+	var l7RuleNsNameList []string
 	for _, rule := range hrObj.Spec.Rules {
 		for _, backendRef := range rule.BackendRefs {
 			ns := namespace
@@ -353,6 +360,18 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 			}
 			svcNsName := ns + "/" + string(backendRef.Name)
 			svcNsNameList = append(svcNsNameList, svcNsName)
+		}
+		for _, filter := range rule.Filters {
+			// Do we need to check first condition??
+			if filter.Type == gatewayv1.HTTPRouteFilterExtensionRef && filter.ExtensionRef != nil {
+				if filter.ExtensionRef.Kind == lib.L7Rule {
+					l7RuleNsName := namespace + "/" + string(filter.ExtensionRef.Name)
+					if !utils.HasElem(l7RuleNsNameList, l7RuleNsName) {
+						l7RuleNsNameList = append(l7RuleNsNameList, l7RuleNsName)
+					}
+				}
+			}
+
 		}
 	}
 
@@ -364,6 +383,24 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 				akogatewayapiobjects.GatewayApiLister().DeleteRouteToServiceMappings(routeTypeNsName, svcNsName, key)
 			}
 		}
+	}
+
+	// Delete old entries from HTTPRoute->L7RuleMapping & L7Rule-->HTTPRoute
+	routeNSName := namespace + "/" + name
+	found, oldL7RuleNSNameList := akogatewayapiobjects.GatewayApiLister().GetHTTPRouteToL7RuleMapping(routeNSName)
+	if found {
+		for l7RuleNsName := range oldL7RuleNSNameList {
+			if !utils.HasElem(l7RuleNsNameList, l7RuleNsName) {
+				akogatewayapiobjects.GatewayApiLister().DeleteHTTPRouteToL7RuleMapping(routeNSName, l7RuleNsName)
+				akogatewayapiobjects.GatewayApiLister().DeleteL7RuleToHTTPRouteMapping(l7RuleNsName, routeNSName)
+			}
+		}
+	}
+
+	// update with new entries for HTTPRoute->L7 Rule and L7Rule to HTTPRoute
+	for _, l7RuleNsName := range l7RuleNsNameList {
+		akogatewayapiobjects.GatewayApiLister().UpdateHTTPRouteToL7RuleMapping(routeNSName, l7RuleNsName)
+		akogatewayapiobjects.GatewayApiLister().UpdateL7RuleToHTTPRouteMapping(l7RuleNsName, routeNSName)
 	}
 
 	found, oldGateways := akogatewayapiobjects.GatewayApiLister().GetRouteToGateway(routeTypeNsName)
@@ -677,12 +714,18 @@ func validateReferredHTTPRoute(key, name, namespace string, allowedRoutesAll boo
 				matchNamespace = string(*parentRef.Namespace)
 			}
 			if (parentRef.Name == gatewayv1.ObjectName(name)) && (matchNamespace == namespace) {
-				err := validateParentReference(key, httpRoute, httpRouteStatus, parentRefIndexFromSpec, &parentRefIndexInHttpRouteStatus, &indexInCache)
-				if err != nil {
-					parentRefName := parentRef.Name
-					utils.AviLog.Warnf("key: %s, msg: Parent Reference %s of HTTPRoute object %s is not valid, err: %v", key, parentRefName, httpRoute.Name, err)
+				isValidHttprouteRules := validateHTTPRouteRules(key, httpRoute, httpRouteStatus)
+				if isValidHttprouteRules {
+					err := validateParentReference(key, httpRoute, httpRouteStatus, parentRefIndexFromSpec, &parentRefIndexInHttpRouteStatus, &indexInCache)
+					if err != nil {
+						parentRefName := parentRef.Name
+						utils.AviLog.Warnf("key: %s, msg: Parent Reference %s of HTTPRoute object %s is not valid, err: %v", key, parentRefName, httpRoute.Name, err)
+					} else {
+						appendRoute = true
+					}
 				} else {
-					appendRoute = true
+					utils.AviLog.Warnf("key: %s, msg: HTTPUrlRewrite PathType has Unsupported value.", key)
+					appendRoute = false
 				}
 			} else {
 				gwName := parentRef.Name
@@ -754,4 +797,36 @@ func httpRouteToGatewayOperation(hrObj *gatewayv1.HTTPRoute, key, gwName, gwName
 		statusIndex += 1
 	}
 	utils.AviLog.Debugf("key: %s, msg: Gateways retrieved %s", key, gwNsNameList)
+}
+
+func AviInfraSettingToGateway(namespace, name, key string) ([]string, bool) {
+	allGateways := make([]string, 0)
+	nsGateways, found := infraSettingNSToGateways(namespace, name, key)
+	if found {
+		allGateways = append(allGateways, nsGateways...)
+	}
+	utils.AviLog.Infof("key: %s, msg: Gateways retrieved %s", key, allGateways)
+	return allGateways, found
+}
+
+func infraSettingNSToGateways(namespace, name, key string) ([]string, bool) {
+	allGateways := make([]string, 0)
+	namespaces, err := utils.GetInformers().NSInformer.Informer().GetIndexer().ByIndex(lib.AviSettingNamespaceIndex, name)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: failed to fetch Namespaces for the AviInfraSetting %s, err: %s", key, name, err.Error())
+		return []string{}, false
+	}
+	for _, obj := range namespaces {
+		if ns, ok := obj.(*corev1.Namespace); ok {
+			gateways, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(ns.GetName()).List(labels.Set(nil).AsSelector())
+			if err != nil {
+				utils.AviLog.Warnf("key: %s, msg: failed to fetch Gateways in the Namespace %s, err: %s", key, ns.GetName(), err.Error())
+				continue
+			}
+			for _, gw := range gateways {
+				allGateways = append(allGateways, gw.GetNamespace()+"/"+gw.GetName())
+			}
+		}
+	}
+	return allGateways, true
 }

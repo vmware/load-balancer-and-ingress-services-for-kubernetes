@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -632,7 +632,21 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 			// if vsNode already exists, check for updates via AviInfraSetting
 			if infraSetting != nil {
 				buildWithInfraSetting(key, namespace, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
+				if vsNode[0].IsSharedVS() {
+					for _, sni := range vsNode[0].SniNodes {
+						if len(sni.GetVHDomainNames()) > 0 {
+							sni.SetPortProtocols(vsNode[0].GetPortProtocols())
+							BuildOnlyRegexAppRoot(sni.GetVHDomainNames()[0], key, sni)
+						}
+					}
+				}
 			}
+		}
+		// For dedicated vs we always need to reprocess app-root since we are not building app-root for the portProto that is added as part of same BuildL7HostRule call.
+		// This is because for non-dedicated mode, we need the portProto from the parent vs node so it is ready by the time we apply app-root settings to child vs.
+		// Where as for dedicated vs, hostrule tcp listener ports will override the existing portProto for the same vs node and later aviinfrasetting may update the listener ports as well.
+		if vsNode[0].IsDedicatedVS() {
+			BuildOnlyRegexAppRoot(sniHost, key, vsNode[0])
 		}
 		// Only add this node to the list of models if the checksum has changed.
 		modelChanged := saveAviModel(model_name, modelGraph, key)
@@ -745,6 +759,8 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 			}
 			o.BuildPolicyRedirectForVS(vsNode, sniHosts, namespace, infraSettingName, sniHost, key)
 		}
+		// setting child node portProto with same value as parent node so that redirect rules are added for all front-end ports if app-root is set
+		sniNode.SetPortProtocols(vsNode[0].PortProto)
 		BuildL7HostRule(sniHost, key, sniNode)
 
 		// Compare and remove the deleted aliases from the FQDN list

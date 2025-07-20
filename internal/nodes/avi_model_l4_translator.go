@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -144,7 +144,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 
 	// Copy the VS properties from L4Rule object
 	if l4Rule, err := getL4Rule(key, svcObj); err == nil {
-		buildWithL4Rule(key, avi_vs_meta, l4Rule)
+		buildWithL4Rule(key, avi_vs_meta, l4Rule, false)
 	}
 
 	if lib.HasSpecLoadBalancerIP(svcObj) {
@@ -451,14 +451,23 @@ func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName st
 				}
 
 			}
+			node4Found := true
+			node6Found := true
+			if svcObj.Spec.ExternalTrafficPolicy == v1.ServiceExternalTrafficPolicyLocal {
+				node4Found, node6Found = checkIfEndpointExistsForNode(key, ns, serviceName, poolNode, node)
+				if !node4Found && !node6Found {
+					utils.AviLog.Infof("key: %s, msg: no valid endpointslice/endpoint found for node %s, skipping addition of pool server", key, node.Name)
+					continue
+				}
+			}
 			nodeIP, nodeIP6 := lib.GetIPFromNode(node)
 			var atype string
 			var serverIP avimodels.IPAddr
-			if v4enabled && v4Family && nodeIP != "" {
+			if v4enabled && v4Family && nodeIP != "" && node4Found {
 				v4ServerCount++
 				atype = "V4"
 				serverIP = avimodels.IPAddr{Type: &atype, Addr: &nodeIP}
-			} else if v6enabled && v6Family && nodeIP6 != "" {
+			} else if v6enabled && v6Family && nodeIP6 != "" && node6Found {
 				v6ServerCount++
 				atype = "V6"
 				serverIP = avimodels.IPAddr{Type: &atype, Addr: &nodeIP6}
@@ -483,6 +492,95 @@ func PopulateServersForNodePort(poolNode *AviPoolNode, ns string, serviceName st
 	}
 
 	return poolMeta
+}
+
+func checkIfEndpointExistsForNode(key, ns, serviceName string, poolNode *AviPoolNode, node *v1.Node) (bool, bool) {
+	node4Found := false
+	node6Found := false
+	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
+		epSliceIntList, err := utils.GetInformers().EpSlicesInformer.Informer().GetIndexer().ByIndex(discovery.LabelServiceName, ns+"/"+serviceName)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: error while retrieving endpointsice: %s", key, err)
+			return node4Found, node6Found
+		}
+		for _, epSliceInt := range epSliceIntList {
+			epSlice, isEpSliceClass := epSliceInt.(*discovery.EndpointSlice)
+			if !isEpSliceClass {
+				// not an epslice. continue
+				utils.AviLog.Warnf("key: %s, msg: invalid endpointslice object", key)
+				continue
+			}
+			// select epslice containing target port
+			found := false
+			for _, port := range epSlice.Ports {
+				if (port.Port != nil && poolNode.TargetPort.IntVal == *port.Port) ||
+					(port.Name != nil && poolNode.PortName == *port.Name) {
+					found = true
+					break
+				}
+			}
+			if !found && poolNode.TargetPort.IntVal == 0 && poolNode.PortName == "" && len(epSliceIntList) == 1 && len(epSlice.Ports) == 1 {
+				found = true
+			}
+			if !found {
+				utils.AviLog.Warnf("key: %s, msg: endpointslice does not match the target port of the pool node", key)
+				continue
+			}
+			utils.AviLog.Infof("key: %s, msg: found port match for target port %v", key, poolNode.TargetPort.IntValue())
+			// check if node is present in endopoints
+			for _, ep := range epSlice.Endpoints {
+				if ep.NodeName != nil && *ep.NodeName == node.Name {
+					if epSlice.AddressType == discovery.AddressTypeIPv4 {
+						node4Found = true
+					} else if epSlice.AddressType == discovery.AddressTypeIPv6 {
+						node6Found = true
+					}
+					break
+				}
+			}
+			if node4Found && node6Found {
+				break
+			}
+		}
+	} else {
+		epObj, err := utils.GetInformers().EpInformer.Lister().Endpoints(ns).Get(serviceName)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: error while retrieving endpoints: %s", key, err)
+			return node4Found, node6Found
+		}
+		for _, ss := range epObj.Subsets {
+			port_match := false
+			for _, epp := range ss.Ports {
+				if poolNode.PortName == epp.Name || int32(poolNode.TargetPort.IntValue()) == epp.Port {
+					port_match = true
+					break
+				}
+			}
+			if !port_match && poolNode.TargetPort.IntVal == 0 && poolNode.PortName == "" && len(ss.Ports) == 1 && len(epObj.Subsets) == 1 {
+				port_match = true
+			}
+			if !port_match {
+				utils.AviLog.Warnf("key: %s, msg: no valid endpoint subset found that matches the target port of the pool node", key)
+				continue
+			}
+			utils.AviLog.Infof("key: %s, msg: found port match for target port %v", key, poolNode.TargetPort.IntValue())
+			// check if node is present in addresses
+			for _, addr := range ss.Addresses {
+				if addr.NodeName != nil && *addr.NodeName == node.Name {
+					if utils.IsV4(addr.IP) {
+						node4Found = true
+					} else if k8net.IsIPv6String(addr.IP) {
+						node6Found = true
+					}
+					break
+				}
+			}
+			if node4Found && node6Found {
+				break
+			}
+		}
+	}
+	return node4Found, node6Found
 }
 
 // an endpoint can be unique on four constraints
@@ -831,7 +929,7 @@ func getL4InfraSetting(key, namespace string, svc *corev1.Service, advl4GWClassN
 	}
 
 	//return namespace InfraSetting if global infraSetting is not present
-	return getNamespaceAviInfraSetting(key, namespace)
+	return lib.GetNamespacedAviInfraSetting(key, namespace, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer)
 }
 
 func getL4Rule(key string, svc *corev1.Service) (*akov1alpha2.L4Rule, error) {
@@ -890,7 +988,7 @@ func getL4Rule(key string, svc *corev1.Service) (*akov1alpha2.L4Rule, error) {
 	return l4Rule, nil
 }
 
-func buildWithL4Rule(key string, vs *AviVsNode, l4Rule *akov1alpha2.L4Rule) {
+func buildWithL4Rule(key string, vs *AviVsNode, l4Rule *akov1alpha2.L4Rule, isSharedVip bool) {
 
 	if l4Rule == nil {
 		return
@@ -906,6 +1004,14 @@ func buildWithL4Rule(key string, vs *AviVsNode, l4Rule *akov1alpha2.L4Rule) {
 		return
 	}
 	copier.Copy(vs, &l4Rule.Spec)
+
+	// omit revokeVipRoute if shared vip is also enabled
+	revokeVipRoute := vs.RevokeVipRoute
+	if isSharedVip && revokeVipRoute != nil && *revokeVipRoute {
+		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, lib.InvalidConfiguration, "RevokeVipRoute cannot be used with Shared VIP. VIP Route won't be revoked.")
+		vs.RevokeVipRoute = nil
+	}
+
 	if isSSLEnabled && *l4Rule.Spec.ApplicationProfileRef == utils.DEFAULT_L4_APP_PROFILE {
 		defaultAppProfile := utils.DEFAULT_L4_SSL_APP_PROFILE
 		vs.ApplicationProfileRef = &defaultAppProfile

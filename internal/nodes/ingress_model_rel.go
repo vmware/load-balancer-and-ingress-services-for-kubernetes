@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
 package nodes
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -25,6 +24,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	akoErrors "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/errors"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -279,7 +279,7 @@ func EPToGateway(epName string, namespace string, key string) ([]string, bool) {
 func GatewayChanges(gwName string, namespace string, key string) ([]string, bool) {
 	var allGateways []string
 	allGateways = append(allGateways, namespace+"/"+gwName)
-	if lib.IsWCP() {
+	if utils.IsWCP() {
 		gateway, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
 		if err != nil && k8serrors.IsNotFound(err) {
 			// Remove all the Gateway to Services mapping.
@@ -1002,7 +1002,7 @@ func ParseL4ServiceForGateway(svc *corev1.Service, key string) (string, []string
 	}
 
 	var gwNameLabel, gwNamespaceLabel string
-	if lib.IsWCP() {
+	if utils.IsWCP() {
 		gwNameLabel = lib.GatewayNameLabelKey
 		gwNamespaceLabel = lib.GatewayNamespaceLabelKey
 	} else if lib.UseServicesAPI() {
@@ -1065,14 +1065,14 @@ func validateGatewayForClass(key string, gateway *advl4v1alpha1pre1.Gateway) err
 		if !nameOk || !nsOk ||
 			(nameOk && gwName != gateway.Name) ||
 			(nsOk && gwNamespace != gateway.Namespace) {
-			return errors.New("Incorrect gateway matchLabels configuration")
+			return akoErrors.NewAkoError("Incorrect gateway matchLabels configuration")
 		}
 	}
 
 	// Additional check to see if the gatewayclass is a valid avi gateway class or not.
 	if gwClassObj.Spec.Controller != lib.AviGatewayController {
 		// Return an error since this is not our object.
-		return errors.New("Unexpected controller")
+		return akoErrors.NewAkoError("Unexpected controller")
 	}
 
 	return nil
@@ -1092,14 +1092,14 @@ func validateSvcApiGatewayForClass(key string, gateway *svcapiv1alpha1.Gateway) 
 		if !nameOk || !nsOk ||
 			(nameOk && gwName != gateway.Name) ||
 			(nsOk && gwNamespace != gateway.Namespace) {
-			return errors.New("Incorrect gateway matchLabels configuration")
+			return akoErrors.NewAkoError("Incorrect gateway matchLabels configuration")
 		}
 	}
 
 	// Additional check to see if the gatewayclass is a valid avi gateway class or not.
 	if gwClassObj.Spec.Controller != lib.SvcApiAviGatewayController {
 		// Return an error since this is not our object.
-		return errors.New("Unexpected controller")
+		return akoErrors.NewAkoError("Unexpected controller")
 	}
 
 	return nil

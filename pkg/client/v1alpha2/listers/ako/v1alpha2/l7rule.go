@@ -19,10 +19,10 @@ limitations under the License.
 package v1alpha2
 
 import (
-	v1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/tools/cache"
+	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // L7RuleLister helps list L7Rules.
@@ -30,7 +30,7 @@ import (
 type L7RuleLister interface {
 	// List lists all L7Rules in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha2.L7Rule, err error)
+	List(selector labels.Selector) (ret []*akov1alpha2.L7Rule, err error)
 	// L7Rules returns an object that can list and get L7Rules.
 	L7Rules(namespace string) L7RuleNamespaceLister
 	L7RuleListerExpansion
@@ -38,25 +38,17 @@ type L7RuleLister interface {
 
 // l7RuleLister implements the L7RuleLister interface.
 type l7RuleLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*akov1alpha2.L7Rule]
 }
 
 // NewL7RuleLister returns a new L7RuleLister.
 func NewL7RuleLister(indexer cache.Indexer) L7RuleLister {
-	return &l7RuleLister{indexer: indexer}
-}
-
-// List lists all L7Rules in the indexer.
-func (s *l7RuleLister) List(selector labels.Selector) (ret []*v1alpha2.L7Rule, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha2.L7Rule))
-	})
-	return ret, err
+	return &l7RuleLister{listers.New[*akov1alpha2.L7Rule](indexer, akov1alpha2.Resource("l7rule"))}
 }
 
 // L7Rules returns an object that can list and get L7Rules.
 func (s *l7RuleLister) L7Rules(namespace string) L7RuleNamespaceLister {
-	return l7RuleNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return l7RuleNamespaceLister{listers.NewNamespaced[*akov1alpha2.L7Rule](s.ResourceIndexer, namespace)}
 }
 
 // L7RuleNamespaceLister helps list and get L7Rules.
@@ -64,36 +56,15 @@ func (s *l7RuleLister) L7Rules(namespace string) L7RuleNamespaceLister {
 type L7RuleNamespaceLister interface {
 	// List lists all L7Rules in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha2.L7Rule, err error)
+	List(selector labels.Selector) (ret []*akov1alpha2.L7Rule, err error)
 	// Get retrieves the L7Rule from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha2.L7Rule, error)
+	Get(name string) (*akov1alpha2.L7Rule, error)
 	L7RuleNamespaceListerExpansion
 }
 
 // l7RuleNamespaceLister implements the L7RuleNamespaceLister
 // interface.
 type l7RuleNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all L7Rules in the indexer for a given namespace.
-func (s l7RuleNamespaceLister) List(selector labels.Selector) (ret []*v1alpha2.L7Rule, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha2.L7Rule))
-	})
-	return ret, err
-}
-
-// Get retrieves the L7Rule from the indexer for a given namespace and name.
-func (s l7RuleNamespaceLister) Get(name string) (*v1alpha2.L7Rule, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha2.Resource("l7rule"), name)
-	}
-	return obj.(*v1alpha2.L7Rule), nil
+	listers.ResourceIndexer[*akov1alpha2.L7Rule]
 }

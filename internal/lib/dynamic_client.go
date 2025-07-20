@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -86,6 +86,12 @@ var (
 		Version:  "v1alpha1",
 		Resource: "vpcnetworkconfigurations",
 	}
+
+	SupervisorCapabilityGVR = schema.GroupVersionResource{
+		Group:    "iaas.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "capabilities",
+	}
 )
 
 type BootstrapCRData struct {
@@ -94,7 +100,9 @@ type BootstrapCRData struct {
 
 // NewDynamicClientSet initializes dynamic client set instance
 func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
-	// do not instantiate the dynamic client set if the CNI being used is NOT calico
+	// do not instantiate the dynamic client set
+	// 1. if the CNI being used is NOT calico or OpenShift or Cilium and
+	// 2. if it is NOT VCF cluster
 	if !utils.IsVCFCluster() && GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI && GetCNIPlugin() != CILIUM_CNI {
 		return nil, nil
 	}
@@ -176,19 +184,19 @@ func GetDynamicInformers() *DynamicInformers {
 
 func GetNetworkInfoCRData() (map[string]string, map[string]string, map[string]map[string]struct{}) {
 	clientSet := GetDynamicClientSet()
-	lslrMap := make(map[string]string)
+	lrlsMap := make(map[string]string)
 	nsLRMap := make(map[string]string)
 	cidrs := make(map[string]map[string]struct{})
 
 	crList, err := clientSet.Resource(NetworkInfoGVR).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		utils.AviLog.Errorf("Error getting Networkinfo CR %v", err)
-		return lslrMap, nsLRMap, cidrs
+		return lrlsMap, nsLRMap, cidrs
 	}
 
 	if len(crList.Items) == 0 {
 		utils.AviLog.Infof("No Networkinfo CRs found.")
-		return lslrMap, nsLRMap, cidrs
+		return lrlsMap, nsLRMap, cidrs
 	}
 
 	if cidrIntf, clusterNetworkCIDRFound := GetClusterNetworkInfoCRData(clientSet); clusterNetworkCIDRFound {
@@ -207,15 +215,15 @@ func GetNetworkInfoCRData() (map[string]string, map[string]string, map[string]ma
 		spec := obj.Object["topology"].(map[string]interface{})
 		lr, ok := spec["gatewayPath"].(string)
 		if !ok {
-			utils.AviLog.Infof("lr not found in networkinfo object")
+			utils.AviLog.Infof("lr not found in networkinfo object, name: %s, namespace: %s", obj.GetName(), ns)
 			continue
 		}
 		ls, ok := spec["aviSegmentPath"].(string)
 		if !ok {
-			utils.AviLog.Infof("ls not found in networkinfo object")
+			utils.AviLog.Infof("ls not found in networkinfo object, name: %s, namespace: %s", obj.GetName(), ns)
 			continue
 		}
-		lslrMap[ls] = lr
+		lrlsMap[lr] = ls
 		nsLRMap[ns] = lr
 		cidrIntf, ok := spec["ingressCIDRs"].([]interface{})
 		if !ok {
@@ -230,7 +238,7 @@ func GetNetworkInfoCRData() (map[string]string, map[string]string, map[string]ma
 		}
 	}
 
-	return lslrMap, nsLRMap, cidrs
+	return lrlsMap, nsLRMap, cidrs
 }
 
 func GetAvailabilityZonesCRData(clientSet dynamic.Interface) ([]string, error) {
@@ -519,4 +527,32 @@ func GetVPCs() (map[string]string, error) {
 		}
 	}
 	return nsToVPCMap, nil
+}
+
+func IsGatewayAPICapabilityEnabled() bool {
+	clientSet := GetDynamicClientSet()
+	crList, err := clientSet.Resource(SupervisorCapabilityGVR).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		utils.AviLog.Errorf("Error getting SupervisorCapability CR %v", err)
+		return false
+	}
+	if len(crList.Items) == 0 {
+		utils.AviLog.Errorf("No SupervisorCapability CRs found.")
+		return false
+	}
+	for _, obj := range crList.Items {
+		status := obj.Object["status"].(map[string]interface{})
+		supervisorCapabilities, ok := status["supervisor"].(map[string]interface{})
+		if !ok {
+			utils.AviLog.Errorf("supervisor capability not found in the CR %+v", obj)
+			continue
+		}
+		gatewayAPISupportInSupervisor, ok := supervisorCapabilities["supports_gatewayapi_in_supervisor"].(map[string]interface{})
+		if !ok {
+			utils.AviLog.Errorf("supports_gatewayapi_in_supervisor not found in the CR %+v", obj)
+			continue
+		}
+		return gatewayAPISupportInSupervisor["activated"].(bool)
+	}
+	return false
 }

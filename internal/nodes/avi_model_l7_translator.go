@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -134,7 +134,11 @@ func (o *AviObjectGraph) ConstructAviL7VsNode(vsName, tenant, key string, routeI
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 	//Apply hostrule on shared Vs fqdn
-	if avi_vs_meta.SharedVS && configuredSharedVSFqdn != "" {
+	if avi_vs_meta.SharedVS {
+		if configuredSharedVSFqdn == "" {
+			// in case no dns profile present
+			configuredSharedVSFqdn = vsName
+		}
 		BuildL7HostRule(configuredSharedVSFqdn, key, avi_vs_meta)
 	}
 }

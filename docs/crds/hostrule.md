@@ -47,6 +47,7 @@ A sample HostRule CRD looks like this:
           fullClientLogs:
             enabled: true
             throttle: HIGH
+            duration: 30
           logAllHeaders: true
         tcpSettings:
           listeners:
@@ -208,6 +209,8 @@ This additional FQDN inherits all the properties of the root FQDN specified unde
 Use this flag if you would want traffic with a GSLB FQDN to get routed to a site local FQDN. For example, in the above CRD, the client request from a GSLB
 DNS will arrive with the host header as foo.com to the VIP hosting foo.region1.com in region1. This CRD property would ensure that the request is routed appropriately to the backend service of `foo.region1.com`
 
+**Note**: In **SNI** mode, if GSLB FQDN is specified for an insecure hostname (defined in an Ingress or an OpenShift route) or a secure hostname defined in an OpenShift route with **insecureEdgeTerminationPolicy** set to **Allow**, then we can define GSLB FQDN only for a limited number of such hostnames per shared parent VS. This is because when GSLB FQDN is specified, one httppolicyset is added to the parent shared VS for each above-category host, but a virtual service has a limitation on the number of httppolicyset that can be associated with it depending upon the license. Say, for an Enterprise license, the limit is sixteen (16). So, if a SMALL shard size is used in AKO configuration and AKO creates only one shared parent VS, GSLB FQDN will be configured only for the first sixteen above-category hostnames processed. This limitation will be fixed in a future release.
+
 This knob is currently only supported with the SNI model and not with Enhanced Virtual Hosting model.
 
 The `includeAliases` is used by AMKO. Whenever a GSLB FQDN is provided and the `useCustomGlobalFqdn` is set to true in AMKO, a GSLB Service is created for the GSLB FQDN instead of the local FQDN(hostname). [Refer this](https://github.com/vmware/global-load-balancing-services-for-kubernetes/blob/master/docs/local_and_global_fqdn.md)
@@ -224,11 +227,12 @@ The HostRule CRD can be used to configure analytics policies such as enable/disa
           fullClientLogs:
             enabled: true
             throttle: HIGH
+            duration: 30
           logAllHeaders: true
 
 The `throttle` will be in effect only when `enabled` is set to `true`. The possible values of `throttle` are DISABLED (0), LOW (50), MEDIUM (30) and HIGH (10).
 
-The AKO sets the duration of logging the non-significant logs to infinity by default. It is the responsibility of the user to disable the non-significant logs when it is no longer required.
+AKO sets the duration of logging the non-significant logs to infinity by default. `duration` field can be used to modify the duration for which the system should capture non-significant logs, measured in minutes.
 
 #### Configure TCP Settings
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -886,7 +886,11 @@ func (o *AviObjectGraph) ConstructAviL7SharedVsNodeForEvh(vsName, tenant, key st
 
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 
-	if avi_vs_meta.SharedVS && configuredSharedVSFqdn != "" {
+	if avi_vs_meta.SharedVS {
+		if configuredSharedVSFqdn == "" {
+			// in case of dns profile not present
+			configuredSharedVSFqdn = vsName
+		}
 		BuildL7HostRule(configuredSharedVSFqdn, key, avi_vs_meta)
 	}
 }
@@ -1105,7 +1109,21 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 			// if vsNode already exists, check for updates via AviInfraSetting
 			if infraSetting != nil {
 				buildWithInfraSettingForEvh(key, routeIgrObj.GetNamespace(), vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
+				if vsNode[0].IsSharedVS() {
+					for _, evh := range vsNode[0].EvhNodes {
+						if len(evh.GetVHDomainNames()) > 0 {
+							evh.SetPortProtocols(vsNode[0].GetPortProtocols())
+							BuildOnlyRegexAppRoot(evh.GetVHDomainNames()[0], key, evh)
+						}
+					}
+				}
 			}
+		}
+		// For dedicated vs we always need to reprocess app-root since we are not building app-root for the portProto that is added as part of same BuildL7HostRule call.
+		// This is because for non-dedicated mode, we need the portProto from the parent vs node so it is ready by the time we apply app-root settings to child vs.
+		// Where as for dedicated vs, hostrule tcp listener ports will override the existing portProto for the same vs node and later aviinfrasetting may update the listener ports as well.
+		if vsNode[0].IsDedicatedVS() {
+			BuildOnlyRegexAppRoot(host, key, vsNode[0])
 		}
 		changedModel := saveAviModel(modelName, modelGraph, key)
 		if !utils.HasElem(modelList, modelName) && changedModel {
@@ -1216,6 +1234,8 @@ func (o *AviObjectGraph) BuildModelGraphForInsecureEVH(routeIgrObj RouteIngressM
 			vsNode[0].EvhNodes = append(vsNode[0].EvhNodes, evhNode)
 		}
 	}
+	// setting child node portProto with same value as parent node so that redirect rules are added for all front-end ports if app-root is set
+	evhNode.SetPortProtocols(vsNode[0].PortProto)
 	// build host rule for insecure ingress in evh
 	BuildL7HostRule(host, key, evhNode)
 	// build SSORule for insecure ingress in evh
@@ -1393,10 +1413,7 @@ func ProcessSecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parsedI
 		locEvhHostMap := evhNodeHostName(routeIgrObj, tlssetting, routeIgrObj.GetName(), routeIgrObj.GetNamespace(), key, fullsync, sharedQueue, modelList)
 		for host, newPathSvc := range locEvhHostMap {
 			// Remove this entry from storedHosts. First check if the host exists in the stored map or not.
-			flag := EnqueueIng(key, routeIgrObj.GetNamespace(), host, routeIgrObj.GetName())
-			if !flag {
-				continue
-			}
+
 			// Remove this entry from storedHosts. First check if the host exists in the stored map or not.
 			hostData, found := Storedhosts[host]
 			if found && hostData.InsecurePolicy == lib.PolicyAllow {
@@ -1432,8 +1449,10 @@ func ProcessSecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parsedI
 func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingName, namespace, key string, fullsync bool, sharedQueue *utils.WorkerQueue, modelList *[]string) map[string][]IngressHostPathSvc {
 	hostPathSvcMap := make(map[string][]IngressHostPathSvc)
 	infraSetting := routeIgrObj.GetAviInfraSetting()
-
 	for host, paths := range tlssetting.Hosts {
+		if !EnqueueIng(key, namespace, host, ingName) {
+			continue
+		}
 		var hosts []string
 		hostPathSvcMap[host] = paths.ingressHPSvc
 
@@ -1467,7 +1486,21 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 			// if vsNode already exists, check for updates via AviInfraSetting
 			if infraSetting != nil {
 				buildWithInfraSettingForEvh(key, namespace, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
+				if vsNode[0].IsSharedVS() {
+					for _, evh := range vsNode[0].EvhNodes {
+						if len(evh.GetVHDomainNames()) > 0 {
+							evh.SetPortProtocols(vsNode[0].GetPortProtocols())
+							BuildOnlyRegexAppRoot(evh.GetVHDomainNames()[0], key, evh)
+						}
+					}
+				}
 			}
+		}
+		// For dedicated vs we always need to reprocess app-root since we are not building app-root for the portProto that is added as part of same BuildL7HostRule call.
+		// This is because for non-dedicated mode, we need the portProto from the parent vs node so it is ready by the time we apply app-root settings to child vs.
+		// Where as for dedicated vs, hostrule tcp listener ports will override the existing portProto for the same vs node and later aviinfrasetting may update the listener ports as well.
+		if vsNode[0].IsDedicatedVS() {
+			BuildOnlyRegexAppRoot(host, key, vsNode[0])
 		}
 
 		// Only add this node to the list of models if the checksum has changed.
@@ -1599,6 +1632,8 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			//Add drop rule to block traffic on 80
 			o.BuildHTTPSecurityPolicyForVSForEvh(evhNode, hosts, namespace, ingName, key, infraSettingName)
 		}
+		// setting child node portProto with same value as parent node so that redirect rules are added for all front-end ports if app-root is set
+		evhNode.SetPortProtocols(vsNode[0].PortProto)
 		// Enable host rule
 		BuildL7HostRule(host, key, evhNode)
 		// build SSORule for secure ingress in evh
@@ -1770,20 +1805,27 @@ func DeleteStaleDataForEvh(routeIgrObj RouteIngressModel, key string, modelList 
 		}
 		// Delete the pool corresponding to this host
 		isPassthroughVS := false
+		deleteVS := false
 		if hostData.SecurePolicy == lib.PolicyEdgeTerm {
-			aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, removeFqdn, removeRedir, removeRouteIngData, true, false)
+			deleteVS = aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, removeFqdn, removeRedir, removeRouteIngData, true, false)
 		} else if hostData.SecurePolicy == lib.PolicyPass {
 			isPassthroughVS = true
 			aviModel.(*AviObjectGraph).DeleteObjectsForPassthroughHost(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, infraSettingName, key, true, true, true)
 		}
 		if hostData.InsecurePolicy != lib.PolicyNone {
 			if isPassthroughVS {
-				aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, false)
+				deleteVS = aviModel.(*AviObjectGraph).DeletePoolForHostname(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, true, true, false)
 			} else {
-				aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, removeFqdn, removeRedir, removeRouteIngData, false, false)
+				deleteVS = aviModel.(*AviObjectGraph).DeletePoolForHostnameForEvh(shardVsName.Name, host, routeIgrObj, hostData.PathSvc, key, infraSettingName, removeFqdn, removeRedir, removeRouteIngData, false, false)
 			}
 		}
-		changedModel := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
+		changedModel := false
+		if deleteVS {
+			changedModel = true
+			objects.SharedAviGraphLister().Save(modelName, nil)
+		} else {
+			changedModel = saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
+		}
 		if !utils.HasElem(modelList, modelName) && changedModel {
 			*modelList = append(*modelList, modelName)
 		}
@@ -2288,6 +2330,8 @@ func buildWithInfraSettingForEvh(key, namespace string, vs *AviEvhVsNode, vsvip 
 		}
 		if infraSetting.Spec.NSXSettings.T1LR != nil {
 			vsvip.T1Lr = *infraSetting.Spec.NSXSettings.T1LR
+			vsvip.VrfContext = ""
+			vs.VrfContext = ""
 		}
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VSNode %s", key, vs.Name)
 	}

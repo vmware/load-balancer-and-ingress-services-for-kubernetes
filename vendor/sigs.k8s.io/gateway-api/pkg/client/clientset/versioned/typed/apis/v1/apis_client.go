@@ -19,15 +19,16 @@ limitations under the License.
 package v1
 
 import (
-	"net/http"
+	http "net/http"
 
 	rest "k8s.io/client-go/rest"
-	v1 "sigs.k8s.io/gateway-api/apis/v1"
-	"sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/scheme"
+	apisv1 "sigs.k8s.io/gateway-api/apis/v1"
+	scheme "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/scheme"
 )
 
 type GatewayV1Interface interface {
 	RESTClient() rest.Interface
+	GRPCRoutesGetter
 	GatewaysGetter
 	GatewayClassesGetter
 	HTTPRoutesGetter
@@ -36,6 +37,10 @@ type GatewayV1Interface interface {
 // GatewayV1Client is used to interact with features provided by the gateway.networking.k8s.io group.
 type GatewayV1Client struct {
 	restClient rest.Interface
+}
+
+func (c *GatewayV1Client) GRPCRoutes(namespace string) GRPCRouteInterface {
+	return newGRPCRoutes(c, namespace)
 }
 
 func (c *GatewayV1Client) Gateways(namespace string) GatewayInterface {
@@ -95,10 +100,10 @@ func New(c rest.Interface) *GatewayV1Client {
 }
 
 func setConfigDefaults(config *rest.Config) error {
-	gv := v1.SchemeGroupVersion
+	gv := apisv1.SchemeGroupVersion
 	config.GroupVersion = &gv
 	config.APIPath = "/apis"
-	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+	config.NegotiatedSerializer = rest.CodecFactoryForGeneratedClient(scheme.Scheme, scheme.Codecs).WithoutConversion()
 
 	if config.UserAgent == "" {
 		config.UserAgent = rest.DefaultKubernetesUserAgent()

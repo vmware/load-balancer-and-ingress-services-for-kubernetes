@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -80,8 +80,10 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 			}
 			oldObj := old.(*advl4v1alpha1pre1.Gateway)
 			gw := new.(*advl4v1alpha1pre1.Gateway)
+			oldAnnotVal := oldObj.Annotations[lib.GwProxyProtocolEnableAnnotation]
+			newAnnotVal := gw.Annotations[lib.GwProxyProtocolEnableAnnotation]
 
-			if !reflect.DeepEqual(oldObj.Spec, gw.Spec) || gw.GetDeletionTimestamp() != nil {
+			if !reflect.DeepEqual(oldObj.Spec, gw.Spec) || gw.GetDeletionTimestamp() != nil || oldAnnotVal != newAnnotVal {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 				key := lib.Gateway + "/" + utils.ObjKey(gw)
 				utils.AviLog.Infof("key: %s, msg: UPDATE", key)
@@ -185,17 +187,17 @@ func (c *AviController) SetupNamespaceEventHandler(numWorkers uint32) {
 		UpdateFunc: func(old, cur interface{}) {
 			nsOld := old.(*corev1.Namespace)
 			nsCur := cur.(*corev1.Namespace)
-			if isNamespaceUpdated(nsOld, nsCur) {
-				oldTenant := nsOld.Annotations[lib.TenantAnnotation]
-				newTenant := nsCur.Annotations[lib.TenantAnnotation]
-				if oldTenant != newTenant {
-					if utils.GetInformers().IngressInformer != nil {
-						utils.AviLog.Debugf("Adding ingresses for namespaces: %s", nsCur.GetName())
-						AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
-					}
-					utils.AviLog.Debugf("Adding Gateways for namespaces: %s", nsCur.GetName())
-					AddGatewaysFromNSToIngestionQueueWCP(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
+			oldTenant := nsOld.Annotations[lib.TenantAnnotation]
+			newTenant := nsCur.Annotations[lib.TenantAnnotation]
+			oldInfraSetting := nsOld.Annotations[lib.InfraSettingNameAnnotation]
+			newInfraSetting := nsCur.Annotations[lib.InfraSettingNameAnnotation]
+			if oldTenant != newTenant || oldInfraSetting != newInfraSetting {
+				if utils.GetInformers().IngressInformer != nil {
+					utils.AviLog.Debugf("Adding ingresses for namespaces: %s", nsCur.GetName())
+					AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
 				}
+				utils.AviLog.Debugf("Adding Gateways for namespaces: %s", nsCur.GetName())
+				AddGatewaysFromNSToIngestionQueueWCP(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
 			}
 			objKey := utils.ObjKey(nsCur)
 			if objKey == "" {

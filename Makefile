@@ -13,6 +13,7 @@ REL_PATH_AKO_INFRA=$(PACKAGE_PATH_AKO)/cmd/infra-main
 REL_PATH_AKO_GATEWAY_API=$(PACKAGE_PATH_AKO)/cmd/gateway-api
 AKO_OPERATOR_IMAGE=ako-operator
 ENDPOINTSLICES_ENABLED?="false"
+INFORMERS_PACKAGES := $(shell go list ./tests/... | grep informers)
 define GetSupportabilityMatrix
 $(shell node -p "require('./buildsettings.json').$(1)")
 endef
@@ -124,6 +125,14 @@ build-local-infra: pre-build
 		-ldflags $(AKO_LDFLAGS) \
 		-mod=vendor \
 		./cmd/infra-main
+
+.PHONY: build-local-gateway-api
+build-local-gateway-api: pre-build
+		$(GOBUILD) \
+		-o bin/$(BINARY_NAME_AKO_GATEWAY_API) \
+		-ldflags $(AKO_LDFLAGS) \
+		-mod=vendor \
+		./cmd/gateway-api
 
 .PHONY: clean
 clean:
@@ -385,7 +394,7 @@ helmtests:
 	-u root:root \
 	-v $(PWD)/helm/ako:/apps \
 	-v $(PWD)/tests/helmtests:/apps/tests \
-	avi-buildops-docker-registry-02.avilb.broadcom.net:5000/avi-buildops/helmunittest/helm-unittest:3.11.1-0.3.0 . > helmtests.log 2>&1 && echo "helmtests passed") || (echo "helmtests failed" && cat helmtests.log && exit 1)
+	avi-buildops-docker-registry-02-lv.avilb.broadcom.net:8080/avi-buildops/helmunittest/helm-unittest:3.11.1-0.3.0 . > helmtests.log 2>&1 && echo "helmtests passed") || (echo "helmtests failed" && cat helmtests.log && exit 1)
 
 .PHONY: gatewayapi_ingestiontests
 gatewayapi_ingestiontests:
@@ -427,6 +436,25 @@ gatewayapi_npltests:
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/npltests -failfast -timeout 0 \
 	-coverprofile cover-23.out -coverpkg=./ako-gateway-api/...  > gatewayapi_npltests.log 2>&1 && echo "gatewayapi_npltests passed") || (echo "gatewayapi_npltests failed" && cat gatewayapi_npltests.log && exit 1)
 
+.PHONY: gatewayapi_infrasettingtests
+gatewayapi_infrasettingtests:
+	@> gatewayapi_infrasettingtests.log
+	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/crd -failfast -timeout 0 \
+	-coverprofile cover-24.out -coverpkg=./ako-gateway-api/...  > gatewayapi_infrasettingtests.log 2>&1 && echo "gatewayapi_infrasettingtests passed") || (echo "gatewayapi_infrasettingtests failed" && cat gatewayapi_infrasettingtests.log && exit 1)
+
+.PHONY: gatewayapi_multitenancytests
+gatewayapi_multitenancytests:
+	@> gatewayapi_multitenancytests.log
+	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/gatewayapitests/multitenancy -failfast -timeout 0 \
+	-coverprofile cover-25.out -coverpkg=./ako-gateway-api/...  > gatewayapi_multitenancytests.log 2>&1 && echo "gatewayapi_multitenancytests passed") || (echo "gatewayapi_multitenancytests failed" && cat gatewayapi_multitenancytests.log && exit 1)
 
 .PHONY: multitenancytests
 multitenancytests:
@@ -449,7 +477,17 @@ urltests:
 .PHONY: gatewayapi_tests
 gatewayapi_tests:
 	@> gatewayapi_tests.log
-	(make -j 4 --output-sync=target gatewayapi_ingestiontests gatewayapi_graphlayertests gatewayapi_statustests gatewayapi_npltests ENDPOINTSLICES_ENABLED="true" > gatewayapi_tests.log 2>&1 && echo "gatewayapi_tests passed") || (echo "gatewayapi_tests failed" && cat gatewayapi_tests.log && exit 1)
+	(make -j 4 --output-sync=target gatewayapi_ingestiontests gatewayapi_graphlayertests gatewayapi_statustests gatewayapi_npltests gatewayapi_infrasettingtests gatewayapi_multitenancytests ENDPOINTSLICES_ENABLED="true" > gatewayapi_tests.log 2>&1 && echo "gatewayapi_tests passed") || (echo "gatewayapi_tests failed" && cat gatewayapi_tests.log && exit 1)
+
+.PHONY: informers_tests
+informers_tests:
+	@> informers_tests.log
+	(sudo docker run \
+	-e ENDPOINTSLICES_ENABLED=$(ENDPOINTSLICES_ENABLED) \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
+	$(GOTEST) -v -mod=vendor $(INFORMERS_PACKAGES)  -failfast -timeout 0 \
+	-coverprofile cover-26.out -coverpkg=./... > informers_tests.log 2>&1 && echo "informers_tests passed") || (echo "informers_tests failed" && cat informers_tests.log && exit 1)
 
 .PHONY: int_test
 int_test:
@@ -460,7 +498,8 @@ int_test:
 	namespacesynctests servicesapitests npltests misc \
 	dedicatedvstests hatests calicotests ciliumtests \
 	helmtests infratests urltests multitenancytests gatewayapi_ingestiontests gatewayapi_graphlayertests \
-	gatewayapi_statustests gatewayapi_npltests ENDPOINTSLICES_ENABLED="true" > int_test.log 2>&1 \
+	gatewayapi_statustests gatewayapi_npltests gatewayapi_infrasettingtests gatewayapi_multitenancytests \
+	informers_tests ENDPOINTSLICES_ENABLED="true" > int_test.log 2>&1 \
 	&& echo "int_test succeeded" && buffer -i int_test.log -u 1000 -z 1k) \
 	|| (echo "int_test failed" && (buffer -i int_test.log -u 2000 -z 1b || \
 	echo "Dumping the whole log failed; here are the last 100 lines" && tail -n100 int_test.log ) && exit 1)
@@ -490,7 +529,7 @@ fmt:
 
 .golangci-bin:
 	@echo "Installing Golangci-lint"
-	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $@ v1.55.2
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $@ v1.64.7
 
 .PHONY: golangci
 golangci: .golangci-bin

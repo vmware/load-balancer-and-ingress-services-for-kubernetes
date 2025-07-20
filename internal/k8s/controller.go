@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -19,13 +19,6 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-
-	routev1 "github.com/openshift/api/route/v1"
-	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	discovery "k8s.io/api/discovery/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -37,6 +30,14 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+
+	routev1 "github.com/openshift/api/route/v1"
+	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
+
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 var controllerInstance *AviController
@@ -55,6 +56,7 @@ var ctrlonce sync.Once
 // +kubebuilder:rbac:groups=core,resources=services;services/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=core,resources=endpoints,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;
 // +kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=topology.tanzu.vmware.com,resources=availabilityzones,verbs=get;list;watch
 // +kubebuilder:rbac:groups=crd.nsx.vmware.com,resources=vpcnetworkconfigurations,verbs=get;list;watch
@@ -65,7 +67,7 @@ type AviController struct {
 	//recorder        record.EventRecorder
 	informers        *utils.Informers
 	dynamicInformers *lib.DynamicInformers
-	workqueue        []workqueue.RateLimitingInterface
+	workqueue        []workqueue.RateLimitingInterface //nolint:staticcheck
 	DisableSync      bool
 	State            *State
 }
@@ -172,17 +174,6 @@ func isIngressUpdated(oldIngress, newIngress *networkingv1.Ingress) bool {
 	return false
 }
 
-func isNamespaceUpdated(oldNS, newNS *corev1.Namespace) bool {
-	if oldNS.ResourceVersion == newNS.ResourceVersion {
-		return false
-	}
-	oldLabelHash := utils.Hash(utils.Stringify(oldNS.Labels))
-	newLabelHash := utils.Hash(utils.Stringify(newNS.Labels))
-	oldTenant := oldNS.Annotations[lib.TenantAnnotation]
-	newTenant := newNS.Annotations[lib.TenantAnnotation]
-	return oldLabelHash != newLabelHash || oldTenant != newTenant
-}
-
 func AddKeyFromNSToIngstionQueue(numWorkers uint32, c *AviController, namespace string, key, msg string) {
 	bkt := utils.Bkt(namespace, numWorkers)
 	c.workqueue[bkt].AddRateLimited(key)
@@ -244,8 +235,14 @@ func AddServicesFromNSToIngestionQueue(numWorkers uint32, c *AviController, name
 		//Add L4 and Cluster API services to queue
 		if isSvcLb && !lib.GetLayer7Only() {
 			key = utils.L4LBService + "/" + utils.ObjKey(svcObj)
+			if !lib.ValidateSvcforClass(key, svcObj) && svcObj.Annotations[lib.SharedVipSvcLBAnnotation] == "" {
+				continue
+			}
 			if lib.UseServicesAPI() {
 				checkSvcForSvcApiGatewayPortConflict(svcObj, key)
+			}
+			if svcObj.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
+				key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svcObj)
 			}
 		} else {
 			key = utils.Service + "/" + utils.ObjKey(svcObj)
@@ -343,7 +340,7 @@ func AddNamespaceEventHandler(numWorkers uint32, c *AviController) cache.Resourc
 			}
 			nsOld := old.(*corev1.Namespace)
 			nsCur := cur.(*corev1.Namespace)
-			if isNamespaceUpdated(nsOld, nsCur) {
+			if lib.IsNamespaceUpdated(nsOld, nsCur) {
 				oldNSAccepted := utils.CheckIfNamespaceAccepted(nsOld.GetName(), nsOld.Labels, false)
 				newNSAccepted := utils.CheckIfNamespaceAccepted(nsCur.GetName(), nsCur.Labels, false)
 
@@ -421,7 +418,7 @@ func AddNamespaceAnnotationEventHandler(numWorkers uint32, c *AviController) cac
 			}
 			nsOld := old.(*corev1.Namespace)
 			nsCur := cur.(*corev1.Namespace)
-			if isNamespaceUpdated(nsOld, nsCur) {
+			if lib.IsNamespaceUpdated(nsOld, nsCur) {
 				oldTenant := nsOld.Annotations[lib.TenantAnnotation]
 				newTenant := nsCur.Annotations[lib.TenantAnnotation]
 				if oldTenant != newTenant {
@@ -932,7 +929,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					utils.AviLog.Debugf("key: %s, msg: L4 Service add event: Namespace: %s didn't qualify filter. Not adding service.", key, namespace)
 					return
 				}
-				if lib.IsWCP() {
+				if utils.IsWCP() {
 					checkSvcForGatewayPortConflict(svc, key)
 				}
 				if svc.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
@@ -941,7 +938,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
 				}
 			} else {
-				if lib.IsNamespaceBlocked(namespace) || lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
+				if lib.IsNamespaceBlocked(namespace) || utils.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 					return
 				}
 				if lib.UseServicesAPI() {
@@ -1001,7 +998,7 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
 				}
 			} else {
-				if lib.IsNamespaceBlocked(namespace) || lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
+				if lib.IsNamespaceBlocked(namespace) || utils.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 					return
 				}
 				key = utils.Service + "/" + utils.ObjKey(svc)
@@ -1037,14 +1034,14 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 						utils.AviLog.Debugf("key: %s, msg: L4 Service update event: Namespace: %s didn't qualify filter. Not updating service.", key, namespace)
 						return
 					}
-					if lib.IsWCP() {
+					if utils.IsWCP() {
 						checkSvcForGatewayPortConflict(svc, key)
 					}
 					if svc.Annotations[lib.SharedVipSvcLBAnnotation] != "" {
 						key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svc)
 					}
 				} else {
-					if lib.IsNamespaceBlocked(namespace) || lib.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
+					if lib.IsNamespaceBlocked(namespace) || utils.GetAdvancedL4() || !utils.CheckIfNamespaceAccepted(namespace) {
 						return
 					}
 					if lib.UseServicesAPI() {
@@ -1296,11 +1293,11 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 		c.informers.NSInformer.Informer().AddEventHandler(nsEventHandler)
 	}
 
-	if lib.IsWCP() {
+	if utils.IsWCP() {
 		// servicesAPI handlers GW/GWClass
 		c.SetupAdvL4EventHandlers(numWorkers)
 		c.SetupNamespaceEventHandler(numWorkers)
-		if lib.GetAdvancedL4() {
+		if utils.GetAdvancedL4() {
 			return
 		}
 	}
@@ -1675,7 +1672,7 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 	}
 
 	// Disable all informers if we are in advancedL4 mode. We expect to only provide L4 load balancing capability for this feature.
-	if lib.IsWCP() {
+	if utils.IsWCP() {
 		go lib.AKOControlConfig().AdvL4Informers().GatewayClassInformer.Informer().Run(stopCh)
 		informersList = append(informersList, lib.AKOControlConfig().AdvL4Informers().GatewayClassInformer.Informer().HasSynced)
 		go lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Informer().Run(stopCh)
@@ -1741,13 +1738,14 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 			go lib.AKOControlConfig().CRDInformers().L4RuleInformer.Informer().Run(stopCh)
 			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().L4RuleInformer.Informer().HasSynced)
 		}
-
+		// TODO: Un-used code removal
 		if utils.IsMultiClusterIngressEnabled() {
 			go c.informers.MultiClusterIngressInformer.Informer().Run(stopCh)
 			informersList = append(informersList, c.informers.MultiClusterIngressInformer.Informer().HasSynced)
 			go c.informers.ServiceImportInformer.Informer().Run(stopCh)
 			informersList = append(informersList, c.informers.ServiceImportInformer.Informer().HasSynced)
 		}
+
 	}
 
 	if !cache.WaitForCacheSync(stopCh, informersList...) {

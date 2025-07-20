@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -59,7 +59,7 @@ func SharedWorkQueue(queueParams ...*WorkerQueue) *WorkQueueWrapper {
 // Common utils like processing worker queue, that is common for all objects.
 type WorkerQueue struct {
 	NumWorkers    uint32
-	Workqueue     []workqueue.RateLimitingInterface
+	Workqueue     []workqueue.RateLimitingInterface //nolint:staticcheck
 	WorkqueueName string
 	workerIdMutex sync.Mutex
 	workerId      uint32
@@ -69,7 +69,7 @@ type WorkerQueue struct {
 
 func NewWorkQueue(num_workers uint32, workerQueueName string, slowSyncTime ...int) *WorkerQueue {
 	queue := &WorkerQueue{}
-	queue.Workqueue = make([]workqueue.RateLimitingInterface, num_workers)
+	queue.Workqueue = make([]workqueue.RateLimitingInterface, num_workers) //nolint:staticcheck
 	queue.workerId = (uint32(1) << num_workers) - 1
 	queue.NumWorkers = num_workers
 	queue.WorkqueueName = workerQueueName
@@ -77,7 +77,7 @@ func NewWorkQueue(num_workers uint32, workerQueueName string, slowSyncTime ...in
 		queue.SlowSyncTime = slowSyncTime[0]
 	}
 	for i := uint32(0); i < num_workers; i++ {
-		queue.Workqueue[i] = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), fmt.Sprintf("avi-%s", workerQueueName))
+		queue.Workqueue[i] = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), fmt.Sprintf("avi-%s", workerQueueName)) //nolint:staticcheck
 	}
 	return queue
 }

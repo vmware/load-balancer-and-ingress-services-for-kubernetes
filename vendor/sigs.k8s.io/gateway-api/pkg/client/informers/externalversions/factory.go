@@ -29,6 +29,7 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 	versioned "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
 	apis "sigs.k8s.io/gateway-api/pkg/client/informers/externalversions/apis"
+	apisx "sigs.k8s.io/gateway-api/pkg/client/informers/externalversions/apisx"
 	internalinterfaces "sigs.k8s.io/gateway-api/pkg/client/informers/externalversions/internalinterfaces"
 )
 
@@ -42,6 +43,7 @@ type sharedInformerFactory struct {
 	lock             sync.Mutex
 	defaultResync    time.Duration
 	customResync     map[reflect.Type]time.Duration
+	transform        cache.TransformFunc
 
 	informers map[reflect.Type]cache.SharedIndexInformer
 	// startedInformers is used for tracking which informers have been started.
@@ -76,6 +78,14 @@ func WithTweakListOptions(tweakListOptions internalinterfaces.TweakListOptionsFu
 func WithNamespace(namespace string) SharedInformerOption {
 	return func(factory *sharedInformerFactory) *sharedInformerFactory {
 		factory.namespace = namespace
+		return factory
+	}
+}
+
+// WithTransform sets a transform on all informers.
+func WithTransform(transform cache.TransformFunc) SharedInformerOption {
+	return func(factory *sharedInformerFactory) *sharedInformerFactory {
+		factory.transform = transform
 		return factory
 	}
 }
@@ -184,6 +194,7 @@ func (f *sharedInformerFactory) InformerFor(obj runtime.Object, newFunc internal
 	}
 
 	informer = newFunc(f.client, resyncPeriod)
+	informer.SetTransform(f.transform)
 	f.informers[informerType] = informer
 
 	return informer
@@ -218,6 +229,7 @@ type SharedInformerFactory interface {
 
 	// Start initializes all requested informers. They are handled in goroutines
 	// which run until the stop channel gets closed.
+	// Warning: Start does not block. When run in a go-routine, it will race with a later WaitForCacheSync.
 	Start(stopCh <-chan struct{})
 
 	// Shutdown marks a factory as shutting down. At that point no new
@@ -244,8 +256,13 @@ type SharedInformerFactory interface {
 	InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer
 
 	Gateway() apis.Interface
+	Experimental() apisx.Interface
 }
 
 func (f *sharedInformerFactory) Gateway() apis.Interface {
 	return apis.New(f, f.namespace, f.tweakListOptions)
+}
+
+func (f *sharedInformerFactory) Experimental() apisx.Interface {
+	return apisx.New(f, f.namespace, f.tweakListOptions)
 }

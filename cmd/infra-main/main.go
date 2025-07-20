@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -20,16 +20,19 @@ import (
 	"fmt"
 	"os"
 
+	akogatewaylib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/ingestion"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	v1beta1crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	gatewayclientset "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
 )
 
 var (
@@ -112,6 +115,7 @@ func InitializeAKOInfra() {
 
 	transportZone := c.HandleVCF(stopCh, ctrlCh)
 	lib.VCFInitialized = true
+	lib.SetAKOUser(lib.AKOPrefix)
 
 	// Checking/Setting up Avi pre-reqs
 	a := ingestion.NewAviControllerInfra(kubeClient)
@@ -132,8 +136,25 @@ func InitializeAKOInfra() {
 	c.InitNetworkingHandler()
 	lib.RunAviInfraSettingInformer(stopCh)
 	c.AddSecretEventHandler(stopCh)
-	a.SetupSEGroup(transportZone)
-	c.AddAvailabilityZoneCREventHandler(stopCh)
+	aviCloud, err := a.DeriveCloudMappedToTZ(transportZone)
+	if err != nil {
+		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "CloudMatchingTZNotFound", err.Error())
+		utils.AviLog.Fatalf("Failed to derive cloud, err: %s", err.Error())
+	}
+	if !lib.GetVPCMode() {
+		a.SetupSEGroup(aviCloud)
+		c.AddAvailabilityZoneCREventHandler(stopCh)
+	} else if lib.IsGatewayAPICapabilityEnabled() {
+		gwApiClient, err := gatewayclientset.NewForConfig(cfg)
+		if err != nil {
+			utils.AviLog.Fatalf("Error building gateway-api clientset: %s", err.Error())
+		}
+		akogatewaylib.AKOControlConfig().SetGatewayAPIClientset(gwApiClient)
+		err = akogatewaylib.CreateVCFGatewayClass()
+		if err != nil {
+			utils.AviLog.Fatalf("Error creating gateway class: %s", err.Error())
+		}
+	}
 	c.AddNamespaceEventHandler(stopCh)
 	c.Sync()
 	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName)

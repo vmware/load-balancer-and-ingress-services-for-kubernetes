@@ -19,123 +19,32 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned/typed/ako/v1alpha2"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeSSORules implements SSORuleInterface
-type FakeSSORules struct {
+// fakeSSORules implements SSORuleInterface
+type fakeSSORules struct {
+	*gentype.FakeClientWithList[*v1alpha2.SSORule, *v1alpha2.SSORuleList]
 	Fake *FakeAkoV1alpha2
-	ns   string
 }
 
-var ssorulesResource = v1alpha2.SchemeGroupVersion.WithResource("ssorules")
-
-var ssorulesKind = v1alpha2.SchemeGroupVersion.WithKind("SSORule")
-
-// Get takes name of the sSORule, and returns the corresponding sSORule object, and an error if there is any.
-func (c *FakeSSORules) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha2.SSORule, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(ssorulesResource, c.ns, name), &v1alpha2.SSORule{})
-
-	if obj == nil {
-		return nil, err
+func newFakeSSORules(fake *FakeAkoV1alpha2, namespace string) akov1alpha2.SSORuleInterface {
+	return &fakeSSORules{
+		gentype.NewFakeClientWithList[*v1alpha2.SSORule, *v1alpha2.SSORuleList](
+			fake.Fake,
+			namespace,
+			v1alpha2.SchemeGroupVersion.WithResource("ssorules"),
+			v1alpha2.SchemeGroupVersion.WithKind("SSORule"),
+			func() *v1alpha2.SSORule { return &v1alpha2.SSORule{} },
+			func() *v1alpha2.SSORuleList { return &v1alpha2.SSORuleList{} },
+			func(dst, src *v1alpha2.SSORuleList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha2.SSORuleList) []*v1alpha2.SSORule { return gentype.ToPointerSlice(list.Items) },
+			func(list *v1alpha2.SSORuleList, items []*v1alpha2.SSORule) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha2.SSORule), err
-}
-
-// List takes label and field selectors, and returns the list of SSORules that match those selectors.
-func (c *FakeSSORules) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha2.SSORuleList, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewListAction(ssorulesResource, ssorulesKind, c.ns, opts), &v1alpha2.SSORuleList{})
-
-	if obj == nil {
-		return nil, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha2.SSORuleList{ListMeta: obj.(*v1alpha2.SSORuleList).ListMeta}
-	for _, item := range obj.(*v1alpha2.SSORuleList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested sSORules.
-func (c *FakeSSORules) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(ssorulesResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a sSORule and creates it.  Returns the server's representation of the sSORule, and an error, if there is any.
-func (c *FakeSSORules) Create(ctx context.Context, sSORule *v1alpha2.SSORule, opts v1.CreateOptions) (result *v1alpha2.SSORule, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(ssorulesResource, c.ns, sSORule), &v1alpha2.SSORule{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha2.SSORule), err
-}
-
-// Update takes the representation of a sSORule and updates it. Returns the server's representation of the sSORule, and an error, if there is any.
-func (c *FakeSSORules) Update(ctx context.Context, sSORule *v1alpha2.SSORule, opts v1.UpdateOptions) (result *v1alpha2.SSORule, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(ssorulesResource, c.ns, sSORule), &v1alpha2.SSORule{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha2.SSORule), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeSSORules) UpdateStatus(ctx context.Context, sSORule *v1alpha2.SSORule, opts v1.UpdateOptions) (*v1alpha2.SSORule, error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(ssorulesResource, "status", c.ns, sSORule), &v1alpha2.SSORule{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha2.SSORule), err
-}
-
-// Delete takes name of the sSORule and deletes it. Returns an error if one occurs.
-func (c *FakeSSORules) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(ssorulesResource, c.ns, name, opts), &v1alpha2.SSORule{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeSSORules) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(ssorulesResource, c.ns, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha2.SSORuleList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched sSORule.
-func (c *FakeSSORules) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha2.SSORule, err error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(ssorulesResource, c.ns, name, pt, data, subresources...), &v1alpha2.SSORule{})
-
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*v1alpha2.SSORule), err
 }

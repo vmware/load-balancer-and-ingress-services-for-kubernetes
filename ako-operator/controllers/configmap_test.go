@@ -1,5 +1,5 @@
 /*
-Copyright 2020 VMware, Inc.
+Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
 All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -73,7 +73,10 @@ var cmJson = `
 		"ipFamily": "V4",
 		"istioEnabled": "false",
 		"blockedNamespaceList": "[]",
-		"useDefaultSecretsOnly": "false"
+		"useDefaultSecretsOnly": "false",
+		"defaultLBController": "true",
+		"vrfName": "",
+		"enablePrometheus": "false"
 	}
 }
 `

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ const (
 	VLAN_TRANSPORT_ZONE       = "VLAN"
 	OVERLAY_TRANSPORT_ZONE    = "OVERLAY"
 	IP_FAMILY                 = "IP_FAMILY"
+	AVI_REF                   = "AviRef"
 
 	AVI_INGRESS_CLASS                          = "avi"
 	NETWORK_NAME                               = "NETWORK_NAME"
@@ -141,6 +142,7 @@ const (
 	SyncStatusKey                              = "syncstatus"
 	NoFreeIPError                              = "No available free IPs"
 	ConfigDisallowedDuringUpgradeError         = "Configuration is disallowed during upgrade"
+	NeedToReloadObjectDataVsVip                = "Need to reload object data VsVip"
 	VSDataScriptNotFoundError                  = "VSDataScriptSet object not found"
 	VSVIPNotFoundError                         = "VsVip object not found"
 	DataScript                                 = "Vsdatascript"
@@ -167,6 +169,7 @@ const (
 	PriorityLabel                              = "PriorityLabel"
 	SSLKeyCert                                 = "SSLKeyandCertificate"
 	PKIProfile                                 = "PKI Profile"
+	ApplicationProfile                         = "ApplicationProfile"
 	PassthroughPG                              = "Passthrough PG"
 	Passthroughpool                            = "Passthrough pool"
 	PassthroughVS                              = "Passthrough VirtualService"
@@ -212,6 +215,7 @@ const (
 	FQDNReusePolicyStrict                      = "strict"
 	FQDNReusePolicyOpen                        = "internamespaceallowed"
 	DefaultPSName                              = "default-backend"
+	ConcurrentUpdateError                      = "the object has been modified"
 
 	// AKO Event constants
 	AKOEventComponent        = "avi-kubernetes-operator"
@@ -274,6 +278,7 @@ const (
 	CalicoIPv6AddressAnnotation      = "projectcalico.org/IPv6Address"
 	AntreaTransportAddressAnnotation = "node.antrea.io/transport-addresses"
 	TenantAnnotation                 = "ako.vmware.com/tenant-name"
+	GwProxyProtocolEnableAnnotation  = "iaas.vmware.com/proxy-protocol-enabled"
 
 	// Specifies command used in namespace event handler
 	NsFilterAdd                    = "ADD"

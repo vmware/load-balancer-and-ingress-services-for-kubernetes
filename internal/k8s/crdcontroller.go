@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -595,7 +595,6 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 		}
 		informer.L7RuleInformer.Informer().AddEventHandler(l7RuleEventHandler)
 	}
-	return
 }
 
 // SetupIstioCRDEventHandlers handles setting up of Istio CRD event handlers
@@ -627,7 +626,7 @@ func (c *AviController) SetupIstioCRDEventHandlers(numWorkers uint32) {
 			}
 			oldObj := old.(*istiov1alpha3.VirtualService)
 			vs := new.(*istiov1alpha3.VirtualService)
-			if !reflect.DeepEqual(oldObj.Spec, vs.Spec) {
+			if !reflect.DeepEqual(oldObj.Spec, vs.Spec) { //nolint:govet
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(vs))
 				key := lib.IstioVirtualService + "/" + utils.ObjKey(vs)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
@@ -689,7 +688,7 @@ func (c *AviController) SetupIstioCRDEventHandlers(numWorkers uint32) {
 			}
 			oldObj := old.(*istiov1alpha3.DestinationRule)
 			dr := new.(*istiov1alpha3.DestinationRule)
-			if !reflect.DeepEqual(oldObj.Spec, dr.Spec) {
+			if !reflect.DeepEqual(oldObj.Spec, dr.Spec) { //nolint:govet
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(dr))
 				key := lib.IstioDestinationRule + "/" + utils.ObjKey(dr)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
@@ -751,7 +750,7 @@ func (c *AviController) SetupIstioCRDEventHandlers(numWorkers uint32) {
 			}
 			oldObj := old.(*istiov1alpha3.Gateway)
 			vs := new.(*istiov1alpha3.Gateway)
-			if !reflect.DeepEqual(oldObj.Spec, vs.Spec) {
+			if !reflect.DeepEqual(oldObj.Spec, vs.Spec) { //nolint:govet
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(vs))
 				key := lib.IstioGateway + "/" + utils.ObjKey(vs)
 				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
@@ -1002,6 +1001,14 @@ func checkRefOnController(key, refKey, refValue, tenant string) error {
 	// If reference key is network uuid , then check using UUID.
 	if (lib.IsPublicCloud() && refModelMap[refKey] == "network") || refKey == "NetworkUUID" {
 		if lib.UsesNetworkRef() || refKey == "NetworkUUID" {
+			// During the portal-webapp migration from Python to Go, network views were not correctly ported. However, network APIs are now being routed through Go code,
+			// which is incorrect. The Avi Controller needs to be fixed.
+			// For now, subnet UUID validation is disabled for AWS and Azure clouds to avoid impact on EKS and AKS deployments.
+			cloudType := lib.GetCloudType()
+			if cloudType == lib.CLOUD_AWS || cloudType == lib.CLOUD_AZURE {
+				utils.AviLog.Infof("Cloud Type is %q, skip validating references on controller", cloudType)
+				return nil
+			}
 			var rest_response interface{}
 			utils.AviLog.Infof("Cloud is  %s, checking network ref using uuid", lib.GetCloudType())
 			uri := fmt.Sprintf("/api/%s/%s?cloud_uuid=%s", refModelMap[refKey], refValue, lib.GetCloudUUID())

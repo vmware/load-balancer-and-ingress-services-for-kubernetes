@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -57,6 +57,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("POD_NAME", "ako-0")
 	os.Setenv("DEFAULT_DOMAIN", "com")
+	os.Setenv("AUTO_L4_FQDN", "default")
 
 	akoControlConfig := lib.AKOControlConfig()
 	endpointSliceEnabled = lib.GetEndpointSliceEnabled()

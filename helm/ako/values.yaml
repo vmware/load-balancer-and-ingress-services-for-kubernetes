@@ -52,6 +52,7 @@ AKOSettings:
   ipFamily: "" # This flag can take values V4 or V6 (default V4). This is for the backend pools to use ipv6 or ipv4. For frontside VS, use v6cidr
   useDefaultSecretsOnly: "false" # If this flag is set to true, AKO will only handle default secrets from the namespace where AKO is installed.
                                  # This flag is applicable only to Openshift clusters.
+  vpcMode: false # VPCMode enables AKO to operate in VPC mode. This flag is only applicable to NSX-T.
 
 ### This section outlines the network settings for virtualservices. 
 NetworkSettings:
@@ -88,6 +89,7 @@ NetworkSettings:
   # For L4 VSes, if multiple sub-domains are configured in the cloud, this flag can be used to set the default sub-domain to use for the VS. This flag should be used instead of L4Settings.defaultDomain, as it will be deprecated in a future release.
   # If both NetworkSettings.defaultDomain and L4Settings.defaultDomain are set, then NetworkSettings.defaultDomain will be used.
   # For L7 VSes(created from OpenShift Routes), if spec.subdomain field is specified instead of spec.host field for an OpenShift route, then the default domain specified is appended to the spec.subdomain to form the FQDN for the VS.
+  # The defaultDomain should be configured as a sub-domain in Avi cloud.
   defaultDomain: ""
   # defaultDomain: "avi.internal"
 

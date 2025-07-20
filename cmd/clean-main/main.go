@@ -29,7 +29,7 @@ func main() {
 	flag.StringVar(&authToken, "token", "", "NSX ALB Controller authentication token")
 	flag.StringVar(&password, "password", "", "NSX ALB Controller authentication password")
 	flag.StringVar(&albCtrlCert, "cacert", "", "NSX ALB Controller authentication certificate")
-	flag.StringVar(&clusterID, "cluster-id", "", "AKO cluster name")
+	flag.StringVar(&clusterID, "cluster-id", "", "AKO cluster ID")
 	flag.BoolVar(&useEnvoy, "use-envoy", false, "Use Envoy sidecar proxy in VCSA")
 	flag.Parse()
 

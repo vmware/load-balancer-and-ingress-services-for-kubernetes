@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/fatih/structs"
@@ -1241,6 +1242,111 @@ func TestSharedVIPSvcWithL4Rule(t *testing.T) {
 	TeardownL4Rule(t, L4RuleName, NAMESPACE)
 }
 
+func TestSharedVIPSvcWithL4RuleTransition(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := MODEL_REDNS_PREFIX + SHAREDVIPKEY
+	L4RuleName := objNameMap.GenerateName("test-l4rule")
+
+	SetUpTestForSharedVIPSvcLB(t, corev1.ProtocolTCP, corev1.ProtocolUDP)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	VerfiyL4Node(nodes[0], g, "TCP", "UDP")
+
+	l4Rule := &akov1alpha2.L4Rule{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:       NAMESPACE,
+			Name:            L4RuleName,
+			ResourceVersion: "1",
+		},
+		Spec: akov1alpha2.L4RuleSpec{
+			ApplicationProfileRef: proto.String("thisisaviref-l4-appprofile"),
+		}}
+
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Create(context.TODO(), l4Rule, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding L4Rule: %v", err)
+	}
+
+	svcObj := ConstructService(NAMESPACE, SHAREDVIPSVC01, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string), "")
+	svcObj.ResourceVersion = "2"
+	svcObj.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName, lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+
+	svcObj = ConstructService(NAMESPACE, SHAREDVIPSVC02, corev1.ProtocolUDP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string), "")
+	svcObj.ResourceVersion = "2"
+	svcObj.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName, lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			if nodes[0].AviVsNodeCommonFields.ApplicationProfileRef != nil {
+				return strings.Contains(*nodes[0].AviVsNodeCommonFields.ApplicationProfileRef, "thisisaviref-l4-appprofile")
+			}
+		}
+		return false
+	}, 30*time.Second).Should(gomega.Equal(true))
+	VerfiyL4Node(nodes[0], g, "TCP", "UDP")
+
+	// Initiating transition for one shared vip LB svc to type ClusterIP so the corresponfing pool and l4policyset should be deleted
+	svcObj = ConstructService(NAMESPACE, SHAREDVIPSVC01, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, make(map[string]string), "")
+	svcObj.ResourceVersion = "3"
+	svcObj.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName, lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+
+	g.Eventually(func() int {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return len(nodes[0].PoolRefs)
+		}
+		return -1
+	}, 30*time.Second).Should(gomega.Equal(1))
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SHAREDVIPKEY)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto[0].Protocol).To(gomega.Equal("UDP"))
+	g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.SYSTEM_UDP_FAST_PATH))
+	g.Expect(*nodes[0].AviVsNodeCommonFields.ApplicationProfileRef).To(gomega.ContainSubstring("thisisaviref-l4-appprofile"))
+
+	// Initiating transition for same shared vip ClusterIP svc back to LB so the corresponfing pool and l4policyset should be re-created
+	svcObj = ConstructService(NAMESPACE, SHAREDVIPSVC01, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, make(map[string]string), "")
+	svcObj.ResourceVersion = "4"
+	svcObj.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName, lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+
+	g.Eventually(func() int {
+		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found {
+			nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+			return len(nodes[0].PoolRefs)
+		}
+		return -1
+	}, 30*time.Second).Should(gomega.Equal(2))
+	VerfiyL4Node(nodes[0], g, "TCP", "UDP")
+	g.Expect(*nodes[0].AviVsNodeCommonFields.ApplicationProfileRef).To(gomega.ContainSubstring("thisisaviref-l4-appprofile"))
+
+	TearDownTestForSharedVIPSvcLB(t, g)
+}
+
 func TestCreateDeleteL4RuleSSLCustomValues(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
@@ -1964,4 +2070,165 @@ func TestCreateDeleteL4RuleInOtherNS(t *testing.T) {
 
 	TearDownTestForSvcLB(t, g, svcName)
 	TeardownL4Rule(t, L4RuleName, "default")
+}
+
+// validates L4Rule RevokeVipRoute's behaviour w.r.t. ako.vmware.com/enable-shared-vip
+// 1. checks that L4Rule is accepted with revokeviproute present if cloud is NSX-T
+// 2. checks that revokeviproute and enable-shared-vip combination results in
+// revokeviproute being omitted out from vsnode.
+// 3. checks that on removing enable-shared-vip annotation from svc1 and sv2 results in
+// two different vsnodes getting created with each having revokeviproute set back
+// in vsnode with its definied value (true) in l4rule.
+func TestSharedVIPSvcWithRevokeVipRoute(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	// L4Rule with revokeviproute field is only supported in nsx-t
+	lib.SetCloudType(lib.CLOUD_NSXT)
+
+	L4RuleName := objNameMap.GenerateName("test-rvr-l4rule")
+	ports := []int{8080}
+	modelName := MODEL_REDNS_PREFIX + SHAREDVIPKEY
+
+	SetUpTestForSharedVIPSvcLB(t, corev1.ProtocolTCP, corev1.ProtocolTCP)
+	// initial validation
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SHAREDVIPKEY)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+
+	// Check for the pools
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(2))
+	addresses := map[string]struct{}{
+		"1.1.1.1": {},
+		"2.1.1.1": {},
+	}
+	for _, poolRef := range nodes[0].PoolRefs {
+		ipAddr := poolRef.Servers[0].Ip.Addr
+		delete(addresses, *ipAddr)
+	}
+	g.Expect(addresses).To(gomega.HaveLen(0))
+
+	// Create the L4Rule with "RevokeVipRoute"
+	l4Rule := FakeL4Rule{
+		Name:      L4RuleName,
+		Namespace: NAMESPACE,
+		Ports:     ports,
+	}
+	obj := l4Rule.L4Rule()
+	obj.Spec.RevokeVipRoute = proto.Bool(true)
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Create(context.TODO(), obj, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding L4Rule: %v", err)
+	}
+	// validate if L4Rule is accepted
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	// Apply the L4Rule to first Service
+	svcObj01 := (FakeService{
+		Name:         SHAREDVIPSVC01,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+	svcObj01.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName, lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
+	svcObj01.ResourceVersion = "2"
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj01, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	// Apply the L4Rule to second Service
+	svcObj02 := (FakeService{
+		Name:         SHAREDVIPSVC02,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+	svcObj02.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName, lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY}
+	svcObj02.ResourceVersion = "2"
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj02, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	// validate that revokeviproute is indeed not applied to the vsnode.
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found || aviModel == nil {
+			return false
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+
+		return g.Expect(nodes).To(gomega.HaveLen(1)) &&
+			g.Expect(nodes[0].AviVsNodeCommonFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].AviVsNodeGeneratedFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolCommonFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolGeneratedFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].RevokeVipRoute).To(gomega.BeZero())
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// *no shared vip* case
+	// remove "enable-shared-vip" annotation from both the services
+	svcObj01.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName}
+	svcObj01.ResourceVersion = "3"
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj01, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	svcObj02.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName}
+	svcObj02.ResourceVersion = "3"
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj02, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	// validate both that two nodes are created, with different modelnames for each
+	// rather than 1 with shared vip (model name changes once shared vip annotation is removed)
+	// also validate RevokeVipRoute is applied as per L4Rule
+
+	// check for shared-vip-svc-01
+	g.Eventually(func() bool {
+		modelNameSvc1 := MODEL_REDNS_PREFIX + SHAREDVIPSVC01
+		found, aviModel := objects.SharedAviGraphLister().Get(modelNameSvc1)
+		if !found || aviModel == nil {
+			return false
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return g.Expect(nodes).To(gomega.HaveLen(1)) &&
+			g.Expect(nodes[0].AviVsNodeCommonFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].AviVsNodeGeneratedFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolCommonFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolGeneratedFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].RevokeVipRoute).ToNot(gomega.BeNil()) &&
+			g.Expect(*nodes[0].RevokeVipRoute).To(gomega.BeTrue())
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// check for shared-vip-svc-02
+	g.Eventually(func() bool {
+		modelNameSvc2 := MODEL_REDNS_PREFIX + SHAREDVIPSVC02
+		found, aviModel := objects.SharedAviGraphLister().Get(modelNameSvc2)
+		if !found || aviModel == nil {
+			return false
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return g.Expect(nodes).To(gomega.HaveLen(1)) &&
+			g.Expect(nodes[0].AviVsNodeCommonFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].AviVsNodeGeneratedFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolCommonFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolGeneratedFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].RevokeVipRoute).ToNot(gomega.BeNil()) &&
+			g.Expect(*nodes[0].RevokeVipRoute).To(gomega.BeTrue())
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	TearDownTestForSharedVIPSvcLB(t, g)
+	TeardownL4Rule(t, L4RuleName, NAMESPACE)
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 	name := pg_meta.Name
 	cksum := pg_meta.CloudConfigCksum
 	cksumString := strconv.Itoa(int(cksum))
-	tenant := fmt.Sprintf("/api/tenant/?name=%s", pg_meta.Tenant)
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", lib.GetEscapedValue(pg_meta.Tenant))
 	members := rest.SanitizePGMembers(pg_meta.Members, key)
 	cr := lib.AKOUser
 	cloudRef := fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)

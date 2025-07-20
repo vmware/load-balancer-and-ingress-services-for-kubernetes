@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -11,28 +11,82 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-
 package nodes
 
 import (
 	"errors"
-	"math"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/vmware/alb-sdk/go/models"
 	v1 "k8s.io/api/core/v1"
 )
 
+func GetStaticRoutesForOtherNodes(aviVrfNode *AviVrfNode, routeId string) []*models.StaticRoute {
+	var staticRouteCopy []*models.StaticRoute
+	nodePrefix := lib.GetClusterName() + "-" + routeId
+	for i := 0; i < len(aviVrfNode.StaticRoutes); i++ {
+		if routeId == "" || !strings.HasPrefix(*aviVrfNode.StaticRoutes[i].RouteID, nodePrefix) {
+			staticRouteCopy = append(staticRouteCopy, aviVrfNode.StaticRoutes[i])
+		}
+	}
+	return staticRouteCopy
+}
+
+func (o *AviObjectGraph) CheckAndDeduplicateRecords(key string) {
+	aviVrfNodes := o.GetAviVRF()
+	if len(aviVrfNodes) == 0 {
+		return
+	}
+	// Each AKO should have single VRF node as it deals with single cluster only.
+	aviVrfNode := aviVrfNodes[0]
+
+	podCidrNextHopMap := make(map[string]string)
+	hasDuplicateRecords := false
+	// Check if duplicate records for staticroutes exist
+	for i := 0; i < len(aviVrfNode.StaticRoutes); i++ {
+		_, ok := podCidrNextHopMap[*aviVrfNode.StaticRoutes[i].Prefix.IPAddr.Addr]
+		if ok {
+			utils.AviLog.Warnf("key: %s, VRFContext has duplicate records.", key)
+			hasDuplicateRecords = true
+			break
+		} else {
+			podCidrNextHopMap[*aviVrfNode.StaticRoutes[i].Prefix.IPAddr.Addr] = *aviVrfNode.StaticRoutes[i].NextHop.Addr
+		}
+	}
+	if !hasDuplicateRecords {
+		return
+	}
+
+	utils.AviLog.Infof("key: %s, Starting deduplication of records in VRFContext", key)
+
+	// Clean VRFCache
+	aviVrfNode.Nodes = nil
+	aviVrfNode.StaticRoutes = nil
+	aviVrfNode.NodeStaticRoutes = nil
+
+	// send sorted list of nodes from here.
+	allNodes := objects.SharedNodeLister().CopyAllObjects()
+	var nodeNames []string
+	for k := range allNodes {
+		nodeNames = append(nodeNames, k)
+	}
+	sort.Strings(nodeNames)
+	for _, nodeKey := range nodeNames {
+		o.BuildVRFGraph(key, aviVrfNode.Name, nodeKey, false)
+	}
+
+	utils.AviLog.Infof("key: %s, Deduplication of records in VRFContext finished", key)
+}
+
 // BuildVRFGraph : build vrf graph from k8s nodes
 func (o *AviObjectGraph) BuildVRFGraph(key, vrfName, nodeName string, deleteFlag bool) error {
-	o.Lock.Lock()
-	defer o.Lock.Unlock()
 	//fetch vrf Node
 	aviVrfNodes := o.GetAviVRF()
 	if len(aviVrfNodes) == 0 {
@@ -45,10 +99,8 @@ func (o *AviObjectGraph) BuildVRFGraph(key, vrfName, nodeName string, deleteFlag
 	// Each AKO should have single VRF node as it deals with single cluster only.
 	aviVrfNode := aviVrfNodes[0]
 
-	routeid := 1
 	if len(aviVrfNode.StaticRoutes) == 0 {
 		aviVrfNode.NodeStaticRoutes = make(map[string]StaticRouteDetails)
-		aviVrfNode.NodeIds = make(map[int]struct{})
 	}
 	var nodeRoutes []*models.StaticRoute
 	// For new node addition (coming from ingestion layer), nodes static routes will be attahced at the end
@@ -60,19 +112,22 @@ func (o *AviObjectGraph) BuildVRFGraph(key, vrfName, nodeName string, deleteFlag
 		node, err := utils.GetInformers().NodeInformer.Lister().Get(nodeName)
 		if err != nil {
 			utils.AviLog.Errorf("key: %s, Error in fetching node details: %s: %v", key, nodeName, err)
+			aviVrfNode.StaticRoutes = GetStaticRoutesForOtherNodes(aviVrfNode, nodeStaticRouteDetails.RouteIDPrefix)
+			processNodeStaticRouteAndNodeDeletion(nodeName, aviVrfNode)
 			return err
 		}
+		var routeIdPrefix string
 		if ok {
-			routeid = nodeStaticRouteDetails.routeID
+			routeIdPrefix = nodeStaticRouteDetails.RouteIDPrefix
 		} else {
-			//O(n) for each node. But it will re-use previous index. So used instead of always incrementing index.
-			routeid = findFreeRouteId(aviVrfNode.NodeIds)
+			routeIdPrefix = lib.Uuid4()
 		}
-		aviVrfNode.NodeIds[routeid] = struct{}{}
-		nodeRoutes, err = o.addRouteForNode(node, vrfName, routeid, aviVrfNode.NodeIds)
+
+		nodeRoutes, err = o.addRouteForNode(node, vrfName, routeIdPrefix)
 		if err != nil {
 			utils.AviLog.Errorf("key: %s, Error Adding vrf for node %s: %v", key, nodeName, err)
-			delete(aviVrfNode.NodeIds, routeid)
+			aviVrfNode.StaticRoutes = GetStaticRoutesForOtherNodes(aviVrfNode, routeIdPrefix)
+			processNodeStaticRouteAndNodeDeletion(nodeName, aviVrfNode)
 			return err
 		}
 		if !ok {
@@ -81,93 +136,72 @@ func (o *AviObjectGraph) BuildVRFGraph(key, vrfName, nodeName string, deleteFlag
 				// node is not present and no overlapping of cidr, append at last
 				aviVrfNode.StaticRoutes = append(aviVrfNode.StaticRoutes, nodeRoutes...)
 				nodeStaticRoute := StaticRouteDetails{}
-				// start index shows at what index of StaticRoutes, nodes routes start (index based zero)
-				nodeStaticRoute.StartIndex = routeid - 1
 				nodeStaticRoute.Count = len(nodeRoutes)
-				nodeStaticRoute.routeID = routeid
+				nodeStaticRoute.RouteIDPrefix = routeIdPrefix
 				aviVrfNode.NodeStaticRoutes[nodeName] = nodeStaticRoute
 				aviVrfNode.Nodes = append(aviVrfNode.Nodes, nodeName)
 			} else {
 				if len(nodeRoutes) == 0 {
-					delete(aviVrfNode.NodeIds, routeid)
+					//delete all the routes and details of this node
+					aviVrfNode.StaticRoutes = GetStaticRoutesForOtherNodes(aviVrfNode, routeIdPrefix)
+					processNodeStaticRouteAndNodeDeletion(nodeName, aviVrfNode)
 				}
 			}
 		} else {
 			// update case
-			// Assumption: updated routes (values) for given node will not overlap with other nodes.
+			// Assumption: updated routes (values) for given node will not overlap with other nodes
 			// So only updating existing routes of that node.
-			utils.AviLog.Debugf("key: %s, StaticRoutes before updation/deletion: [%v]", key, utils.Stringify(aviVrfNode.StaticRoutes))
-			startIndex := nodeStaticRouteDetails.StartIndex
+			utils.AviLog.Infof("key: %s, StaticRoutes before updation/deletion: [%v]", key, utils.Stringify(aviVrfNode.StaticRoutes))
 			lenNewNodeRoutes := len(nodeRoutes)
 			diff := lenNewNodeRoutes - nodeStaticRouteDetails.Count
 
-			var staticRouteCopy []*models.StaticRoute
-			copyTill := int(math.Min(float64(startIndex), float64(len(aviVrfNode.StaticRoutes))))
-			staticRouteCopy = append(staticRouteCopy, aviVrfNode.StaticRoutes[:copyTill]...)
-
+			staticRouteCopy := GetStaticRoutesForOtherNodes(aviVrfNode, routeIdPrefix)
 			staticRouteCopy = append(staticRouteCopy, nodeRoutes...)
-
-			copyFrom := int(math.Min(float64(startIndex+nodeStaticRouteDetails.Count), float64(len(aviVrfNode.StaticRoutes))))
-			staticRouteCopy = append(staticRouteCopy, aviVrfNode.StaticRoutes[copyFrom:]...)
-
 			aviVrfNode.StaticRoutes = staticRouteCopy
 
 			//if diff is 0, there is no change in number of routes previously exist and newly created.
 			if diff != 0 {
-				updateNodeStaticRoutes(aviVrfNode, deleteFlag, nodeName, lenNewNodeRoutes, diff)
+				//update all the routes of this node
+				updateNodeStaticRoutes(aviVrfNode, deleteFlag, nodeName, lenNewNodeRoutes)
 			}
 			if lenNewNodeRoutes == 0 {
-				processNodeStaticRouteAndNodeIdDeletion(nodeName, aviVrfNode)
+				//delete all the routes of this node
+				processNodeStaticRouteAndNodeDeletion(nodeName, aviVrfNode)
 			}
-			utils.AviLog.Debugf("key: %s, StaticRoutes after updation/deletion: [%v]", key, utils.Stringify(aviVrfNode.StaticRoutes))
+			utils.AviLog.Infof("key: %s, StaticRoutes after updation/deletion: [%v]", key, utils.Stringify(aviVrfNode.StaticRoutes))
 		}
 	} else {
-		//delete case
-		utils.AviLog.Debugf("key: %s, StaticRoutes before deletion: [%v]", key, utils.Stringify(aviVrfNode.StaticRoutes))
-		startIndex := nodeStaticRouteDetails.StartIndex
-		count := nodeStaticRouteDetails.Count
-		var staticRouteCopy []*models.StaticRoute
-		updateNodeStaticRoutes(aviVrfNode, deleteFlag, nodeName, 0, -count)
-
-		copyTill := int(math.Min(float64(startIndex), float64(len(aviVrfNode.StaticRoutes))))
-		staticRouteCopy = append(staticRouteCopy, aviVrfNode.StaticRoutes[:copyTill]...)
-
-		copyFrom := int(math.Min(float64(startIndex+nodeStaticRouteDetails.Count), float64(len(aviVrfNode.StaticRoutes))))
-		staticRouteCopy = append(staticRouteCopy, aviVrfNode.StaticRoutes[copyFrom:]...)
-
-		aviVrfNode.StaticRoutes = staticRouteCopy
-		processNodeStaticRouteAndNodeIdDeletion(nodeName, aviVrfNode)
-		utils.AviLog.Debugf("key: %s, StaticRoutes after deletion: [%v]", key, utils.Stringify(aviVrfNode.StaticRoutes))
+		//delete flag is turned on and node is deleted
+		utils.AviLog.Infof("key: %s, StaticRoutes before deletion: [%v]", key, utils.Stringify(aviVrfNode.StaticRoutes))
+		aviVrfNode.StaticRoutes = GetStaticRoutesForOtherNodes(aviVrfNode, nodeStaticRouteDetails.RouteIDPrefix)
+		processNodeStaticRouteAndNodeDeletion(nodeName, aviVrfNode)
+		utils.AviLog.Infof("key: %s, StaticRoutes after deletion: [%v]", key, utils.Stringify(aviVrfNode.StaticRoutes))
 	}
 	aviVrfNode.CalculateCheckSum()
 	utils.AviLog.Infof("key: %s, Added vrf node %s", key, vrfName)
 	utils.AviLog.Infof("key: %s, Number of static routes %v", key, len(aviVrfNode.StaticRoutes))
-	utils.AviLog.Debugf("key: %s, vrf node: [%v]", key, utils.Stringify(aviVrfNode))
+	utils.AviLog.Infof("key: %s, vrf node: [%v]", key, utils.Stringify(aviVrfNode))
 	return nil
 }
-func processNodeStaticRouteAndNodeIdDeletion(nodeName string, aviVrfNode *AviVrfNode) {
+func processNodeStaticRouteAndNodeDeletion(nodeName string, aviVrfNode *AviVrfNode) {
 	delete(aviVrfNode.NodeStaticRoutes, nodeName)
-	for nodeId := len(aviVrfNode.NodeIds); nodeId > len(aviVrfNode.StaticRoutes); nodeId-- {
-		delete(aviVrfNode.NodeIds, nodeId)
-	}
-}
-func findFreeRouteId(routeIdList map[int]struct{}) int {
-	for i := 1; i < math.MaxInt32; i++ {
-		if _, ok := routeIdList[i]; !ok {
-			return i
+	nodesCopy := []string{}
+	for _, node := range aviVrfNode.Nodes {
+		if node != nodeName {
+			nodesCopy = append(nodesCopy, node)
 		}
 	}
-	return -1
+	aviVrfNode.Nodes = nodesCopy
 }
-func updateNodeStaticRoutes(aviVrfNode *AviVrfNode, isDelete bool, nodeName string, lenNewNodeRoutes, diff int) {
+
+func updateNodeStaticRoutes(aviVrfNode *AviVrfNode, isDelete bool, nodeNameToUpdate string, lenNewNodeRoutes int) {
 	//get index of nodename in node array
 	indexOfNodeUnderUpdation := -1
 
 	for i := 0; i < len(aviVrfNode.Nodes); i++ {
-		if aviVrfNode.Nodes[i] == nodeName {
+		if aviVrfNode.Nodes[i] == nodeNameToUpdate {
 			indexOfNodeUnderUpdation = i
 			if !isDelete {
-				nodeNameToUpdate := aviVrfNode.Nodes[indexOfNodeUnderUpdation]
 				nodeDetails := aviVrfNode.NodeStaticRoutes[nodeNameToUpdate]
 				nodeDetails.Count = lenNewNodeRoutes
 				aviVrfNode.NodeStaticRoutes[nodeNameToUpdate] = nodeDetails
@@ -176,32 +210,6 @@ func updateNodeStaticRoutes(aviVrfNode *AviVrfNode, isDelete bool, nodeName stri
 		}
 	}
 	if indexOfNodeUnderUpdation != -1 {
-		clusterName := lib.GetClusterName()
-		//Change nodemap entries till index
-		for nodeIndex := len(aviVrfNode.Nodes) - 1; nodeIndex > indexOfNodeUnderUpdation; nodeIndex-- {
-			nodeNameToUpdate := aviVrfNode.Nodes[nodeIndex]
-			nodeDetails := aviVrfNode.NodeStaticRoutes[nodeNameToUpdate]
-			oldStartIndex := nodeDetails.StartIndex
-			nodeDetails.StartIndex = nodeDetails.StartIndex + diff
-			nodeDetails.routeID = nodeDetails.StartIndex + 1
-			aviVrfNode.NodeStaticRoutes[nodeNameToUpdate] = nodeDetails
-			newRouteId := nodeDetails.routeID
-			var tempStartIndex int
-			if isDelete {
-				tempStartIndex = oldStartIndex
-			} else {
-				tempStartIndex = nodeDetails.StartIndex
-			}
-			for staticRouteIndex := tempStartIndex; staticRouteIndex < nodeDetails.Count+tempStartIndex; staticRouteIndex++ {
-				newRouteName := clusterName + "-" + strconv.Itoa(newRouteId)
-				if staticRouteIndex > (len(aviVrfNode.StaticRoutes)-1) || staticRouteIndex < 0 {
-					utils.AviLog.Warnf("Some StaticRoutes could not be updated.")
-					continue
-				}
-				aviVrfNode.StaticRoutes[staticRouteIndex].RouteID = &newRouteName
-				newRouteId++
-			}
-		}
 		// lenNewNodeRoutes will be zero if Node exists without any PodCidr/BloackAffinity attached to it.
 		if isDelete || lenNewNodeRoutes == 0 {
 			// now remove nodename from Nodes list
@@ -226,7 +234,7 @@ func findRoutePrefix(nodeRoutes, aviRoutes []*models.StaticRoute, key string) bo
 	return false
 }
 
-func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid int, routeIdList map[int]struct{}) ([]*models.StaticRoute, error) {
+func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeIdPrefix string) ([]*models.StaticRoute, error) {
 	var nodeIP, nodeIP6 string
 	var nodeRoutes []*models.StaticRoute
 
@@ -243,7 +251,7 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 		utils.AviLog.Errorf("Error in fetching Pod CIDR for %v: %s", node.ObjectMeta.Name, err.Error())
 		return nil, errors.New("podcidr not found")
 	}
-	for _, podCIDR := range podCIDRs {
+	for index, podCIDR := range podCIDRs {
 		podCIDRAndMask := strings.Split(podCIDR, "/")
 		if len(podCIDRAndMask) != 2 {
 			utils.AviLog.Errorf("Error in splitting Pod CIDR for %v", node.ObjectMeta.Name)
@@ -273,7 +281,7 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 			continue
 		}
 		mask32 := int32(mask)
-		routeIDString := clusterName + "-" + strconv.Itoa(routeid)
+		routeIDString := clusterName + "-" + routeIdPrefix + "-" + strconv.Itoa(index)
 		nodeRoute := models.StaticRoute{
 			RouteID: &routeIDString,
 			Prefix: &models.IPAddrPrefix{
@@ -291,8 +299,6 @@ func (o *AviObjectGraph) addRouteForNode(node *v1.Node, vrfName string, routeid 
 		}
 
 		nodeRoutes = append(nodeRoutes, &nodeRoute)
-		routeIdList[routeid] = struct{}{}
-		routeid++
 	}
 	return nodeRoutes, nil
 }

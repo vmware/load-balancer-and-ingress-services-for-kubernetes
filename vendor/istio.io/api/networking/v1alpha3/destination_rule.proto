@@ -17,7 +17,7 @@ import "google/api/field_behavior.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/wrappers.proto";
 import "networking/v1alpha3/virtual_service.proto";
-import "gogoproto/gogo.proto";
+import "type/v1beta1/selector.proto";
 
 // $schema: istio.networking.v1alpha3.DestinationRule
 // $title: Destination Rule
@@ -32,10 +32,8 @@ import "gogoproto/gogo.proto";
 // balancing pool. For example, a simple load balancing policy for the
 // ratings service would look as follows:
 //
-// {{<tabset category-name="example">}}
-// {{<tab name="v1alpha3" category-value="v1alpha3">}}
 // ```yaml
-// apiVersion: networking.istio.io/v1alpha3
+// apiVersion: networking.istio.io/v1
 // kind: DestinationRule
 // metadata:
 //   name: bookinfo-ratings
@@ -43,24 +41,8 @@ import "gogoproto/gogo.proto";
 //   host: ratings.prod.svc.cluster.local
 //   trafficPolicy:
 //     loadBalancer:
-//       simple: LEAST_CONN
+//       simple: LEAST_REQUEST
 // ```
-// {{</tab>}}
-//
-// {{<tab name="v1beta1" category-value="v1beta1">}}
-// ```yaml
-// apiVersion: networking.istio.io/v1beta1
-// kind: DestinationRule
-// metadata:
-//   name: bookinfo-ratings
-// spec:
-//   host: ratings.prod.svc.cluster.local
-//   trafficPolicy:
-//     loadBalancer:
-//       simple: LEAST_CONN
-// ```
-// {{</tab>}}
-// {{</tabset>}}
 //
 // Version specific policies can be specified by defining a named
 // `subset` and overriding the settings specified at the service level. The
@@ -68,10 +50,8 @@ import "gogoproto/gogo.proto";
 // going to a subset named testversion that is composed of endpoints (e.g.,
 // pods) with labels (version:v3).
 //
-// {{<tabset category-name="example">}}
-// {{<tab name="v1alpha3" category-value="v1alpha3">}}
 // ```yaml
-// apiVersion: networking.istio.io/v1alpha3
+// apiVersion: networking.istio.io/v1
 // kind: DestinationRule
 // metadata:
 //   name: bookinfo-ratings
@@ -79,7 +59,7 @@ import "gogoproto/gogo.proto";
 //   host: ratings.prod.svc.cluster.local
 //   trafficPolicy:
 //     loadBalancer:
-//       simple: LEAST_CONN
+//       simple: LEAST_REQUEST
 //   subsets:
 //   - name: testversion
 //     labels:
@@ -88,29 +68,6 @@ import "gogoproto/gogo.proto";
 //       loadBalancer:
 //         simple: ROUND_ROBIN
 // ```
-// {{</tab>}}
-//
-// {{<tab name="v1beta1" category-value="v1beta1">}}
-// ```yaml
-// apiVersion: networking.istio.io/v1beta1
-// kind: DestinationRule
-// metadata:
-//   name: bookinfo-ratings
-// spec:
-//   host: ratings.prod.svc.cluster.local
-//   trafficPolicy:
-//     loadBalancer:
-//       simple: LEAST_CONN
-//   subsets:
-//   - name: testversion
-//     labels:
-//       version: v3
-//     trafficPolicy:
-//       loadBalancer:
-//         simple: ROUND_ROBIN
-// ```
-// {{</tab>}}
-// {{</tabset>}}
 //
 // **Note:** Policies specified for subsets will not take effect until
 // a route rule explicitly sends traffic to this subset.
@@ -120,10 +77,8 @@ import "gogoproto/gogo.proto";
 // traffic to port 80, while uses a round robin load balancing setting for
 // traffic to the port 9080.
 //
-// {{<tabset category-name="example">}}
-// {{<tab name="v1alpha3" category-value="v1alpha3">}}
 // ```yaml
-// apiVersion: networking.istio.io/v1alpha3
+// apiVersion: networking.istio.io/v1
 // kind: DestinationRule
 // metadata:
 //   name: bookinfo-ratings-port
@@ -134,36 +89,37 @@ import "gogoproto/gogo.proto";
 //     - port:
 //         number: 80
 //       loadBalancer:
-//         simple: LEAST_CONN
+//         simple: LEAST_REQUEST
 //     - port:
 //         number: 9080
 //       loadBalancer:
 //         simple: ROUND_ROBIN
 // ```
-// {{</tab>}}
 //
-// {{<tab name="v1beta1" category-value="v1beta1">}}
+// Destination Rules can be customized to specific workloads as well.
+// The following example shows how a destination rule can be applied to a
+// specific workload using the workloadSelector configuration.
+//
 // ```yaml
-// apiVersion: networking.istio.io/v1beta1
+// apiVersion: networking.istio.io/v1
 // kind: DestinationRule
 // metadata:
-//   name: bookinfo-ratings-port
+//   name: configure-client-mtls-dr-with-workloadselector
 // spec:
-//   host: ratings.prod.svc.cluster.local
-//   trafficPolicy: # Apply to all ports
+//   host: example.com
+//   workloadSelector:
+//     matchLabels:
+//       app: ratings
+//   trafficPolicy:
+//     loadBalancer:
+//       simple: ROUND_ROBIN
 //     portLevelSettings:
 //     - port:
-//         number: 80
-//       loadBalancer:
-//         simple: LEAST_CONN
-//     - port:
-//         number: 9080
-//       loadBalancer:
-//         simple: ROUND_ROBIN
+//         number: 31443
+//       tls:
+//         credentialName: client-credential
+//         mode: MUTUAL
 // ```
-// {{</tab>}}
-// {{</tabset>}}
-//
 package istio.networking.v1alpha3;
 
 option go_package = "istio.io/api/networking/v1alpha3";
@@ -173,16 +129,15 @@ option go_package = "istio.io/api/networking/v1alpha3";
 //
 // <!-- crd generation tags
 // +cue-gen:DestinationRule:groupName:networking.istio.io
-// +cue-gen:DestinationRule:version:v1alpha3
-// +cue-gen:DestinationRule:storageVersion
+// +cue-gen:DestinationRule:versions:v1beta1,v1alpha3,v1
 // +cue-gen:DestinationRule:annotations:helm.sh/resource-policy=keep
 // +cue-gen:DestinationRule:labels:app=istio-pilot,chart=istio,heritage=Tiller,release=istio
 // +cue-gen:DestinationRule:subresource:status
 // +cue-gen:DestinationRule:scope:Namespaced
 // +cue-gen:DestinationRule:resource:categories=istio-io,networking-istio-io,shortNames=dr
 // +cue-gen:DestinationRule:printerColumn:name=Host,type=string,JSONPath=.spec.host,description="The name of a service from the service registry"
-// +cue-gen:DestinationRule:printerColumn:name=Age,type=date,JSONPath=.metadata.creationTimestamp,description="CreationTimestamp is a timestamp 
-// representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. 
+// +cue-gen:DestinationRule:printerColumn:name=Age,type=date,JSONPath=.metadata.creationTimestamp,description="CreationTimestamp is a timestamp
+// representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations.
 // Clients may not set this value. It is represented in RFC3339 form and is in UTC.
 // Populated by the system. Read-only. Null for lists. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata"
 // +cue-gen:DestinationRule:preserveUnknownFields:false
@@ -206,9 +161,9 @@ message DestinationRule {
   // the short name based on the namespace of the rule, not the service. A
   // rule in the "default" namespace containing a host "reviews" will be
   // interpreted as "reviews.default.svc.cluster.local", irrespective of
-  // the actual namespace associated with the reviews service. _To avoid
+  // the actual namespace associated with the reviews service. To avoid
   // potential misconfigurations, it is recommended to always use fully
-  // qualified domain names over short names._
+  // qualified domain names over short names.
   //
   // Note that the host field applies to both HTTP and TCP services.
   string host = 1 [(google.api.field_behavior) = REQUIRED];
@@ -236,6 +191,16 @@ message DestinationRule {
   // the destination rule is declared in. Similarly, the value "*" is reserved and
   // defines an export to all namespaces.
   repeated string export_to = 4;
+  //
+  // Criteria used to select the specific set of pods/VMs on which this
+  // `DestinationRule` configuration should be applied. If specified, the `DestinationRule`
+  // configuration will be applied only to the workload instances matching the workload selector
+  // label in the same namespace. Workload selectors do not apply across namespace boundaries.
+  // If omitted, the `DestinationRule` falls back to its default behavior.
+  // For example, if specific sidecars need to have egress TLS settings for services outside
+  // of the mesh, instead of every sidecar in the mesh needing to have the
+  // configuration (which is the default behaviour), a workload selector can be specified.
+  istio.type.v1beta1.WorkloadSelector workload_selector = 5;
 }
 
 // Traffic policies to apply for a specific destination, across all
@@ -278,7 +243,48 @@ message TrafficPolicy {
   // settings specified at the destination-level will not be inherited when
   // overridden by port-level settings, i.e. default values will be applied
   // to fields omitted in port-level traffic policies.
+  // +kubebuilder:validation:MaxItems=4096
   repeated PortTrafficPolicy port_level_settings = 5;
+
+  message TunnelSettings {
+    // Specifies which protocol to use for tunneling the downstream connection.
+    // Supported protocols are:
+    //   * CONNECT - uses HTTP CONNECT;
+    //   * POST - uses HTTP POST.
+    //
+    // CONNECT is used by default if not specified.
+    //
+    // HTTP version for upstream requests is determined by the service protocol defined for the proxy.
+    string protocol = 1;
+
+    // Specifies a host to which the downstream connection is tunneled.
+    // Target host must be an FQDN or IP address.
+    string target_host = 2 [(google.api.field_behavior) = REQUIRED];
+
+    // Specifies a port to which the downstream connection is tunneled.
+    uint32 target_port = 3 [(google.api.field_behavior) = REQUIRED];
+  }
+
+  // Configuration of tunneling TCP over other transport or application layers
+  // for the host configured in the DestinationRule.
+  // Tunnel settings can be applied to TCP or TLS routes and can't be applied to HTTP routes.
+  TunnelSettings tunnel = 6;
+
+  message ProxyProtocol {
+    enum VERSION {
+      // ⁣PROXY protocol version 1. Human readable format.
+      V1 = 0;
+
+      // ⁣PROXY protocol version 2. Binary format.
+      V2 = 1;
+    };
+    // The PROXY protocol version to use. See https://www.haproxy.org/download/2.1/doc/proxy-protocol.txt for details.
+    // By default it is `V1`.
+    VERSION version = 1;
+  }
+
+  // The upstream PROXY protocol settings.
+  ProxyProtocol proxy_protocol = 7;
 }
 
 // A subset of endpoints of a service. Subsets can be used for scenarios
@@ -290,10 +296,8 @@ message TrafficPolicy {
 // subset named testversion that is composed of endpoints (e.g., pods) with
 // labels (version:v3).
 //
-// {{<tabset category-name="example">}}
-// {{<tab name="v1alpha3" category-value="v1alpha3">}}
 // ```yaml
-// apiVersion: networking.istio.io/v1alpha3
+// apiVersion: networking.istio.io/v1
 // kind: DestinationRule
 // metadata:
 //   name: bookinfo-ratings
@@ -301,7 +305,7 @@ message TrafficPolicy {
 //   host: ratings.prod.svc.cluster.local
 //   trafficPolicy:
 //     loadBalancer:
-//       simple: LEAST_CONN
+//       simple: LEAST_REQUEST
 //   subsets:
 //   - name: testversion
 //     labels:
@@ -310,29 +314,6 @@ message TrafficPolicy {
 //       loadBalancer:
 //         simple: ROUND_ROBIN
 // ```
-// {{</tab>}}
-//
-// {{<tab name="v1beta1" category-value="v1beta1">}}
-// ```yaml
-// apiVersion: networking.istio.io/v1beta1
-// kind: DestinationRule
-// metadata:
-//   name: bookinfo-ratings
-// spec:
-//   host: ratings.prod.svc.cluster.local
-//   trafficPolicy:
-//     loadBalancer:
-//       simple: LEAST_CONN
-//   subsets:
-//   - name: testversion
-//     labels:
-//       version: v3
-//     trafficPolicy:
-//       loadBalancer:
-//         simple: ROUND_ROBIN
-// ```
-// {{</tab>}}
-// {{</tabset>}}
 //
 // **Note:** Policies specified for subsets will not take effect until
 // a route rule explicitly sends traffic to this subset.
@@ -366,10 +347,8 @@ message Subset {
 // For example, the following rule uses a round robin load balancing policy
 // for all traffic going to the ratings service.
 //
-// {{<tabset category-name="example">}}
-// {{<tab name="v1alpha3" category-value="v1alpha3">}}
 // ```yaml
-// apiVersion: networking.istio.io/v1alpha3
+// apiVersion: networking.istio.io/v1
 // kind: DestinationRule
 // metadata:
 //   name: bookinfo-ratings
@@ -379,73 +358,36 @@ message Subset {
 //     loadBalancer:
 //       simple: ROUND_ROBIN
 // ```
-// {{</tab>}}
-//
-// {{<tab name="v1beta1" category-value="v1beta1">}}
-// ```yaml
-// apiVersion: networking.istio.io/v1beta1
-// kind: DestinationRule
-// metadata:
-//   name: bookinfo-ratings
-// spec:
-//   host: ratings.prod.svc.cluster.local
-//   trafficPolicy:
-//     loadBalancer:
-//       simple: ROUND_ROBIN
-// ```
-// {{</tab>}}
-// {{</tabset>}}
 //
 // The following example sets up sticky sessions for the ratings service
 // hashing-based load balancer for the same ratings service using the
 // the User cookie as the hash key.
 //
-// {{<tabset category-name="example">}}
-// {{<tab name="v1alpha3" category-value="v1alpha3">}}
 // ```yaml
-//  apiVersion: networking.istio.io/v1alpha3
-//  kind: DestinationRule
-//  metadata:
-//    name: bookinfo-ratings
-//  spec:
-//    host: ratings.prod.svc.cluster.local
-//    trafficPolicy:
-//      loadBalancer:
-//        consistentHash:
-//          httpCookie:
-//            name: user
-//            ttl: 0s
+// apiVersion: networking.istio.io/v1
+// kind: DestinationRule
+// metadata:
+//   name: bookinfo-ratings
+// spec:
+//   host: ratings.prod.svc.cluster.local
+//   trafficPolicy:
+//     loadBalancer:
+//       consistentHash:
+//         httpCookie:
+//           name: user
+//           ttl: 0s
 // ```
-// {{</tab>}}
-//
-// {{<tab name="v1beta1" category-value="v1beta1">}}
-// ```yaml
-//  apiVersion: networking.istio.io/v1beta1
-//  kind: DestinationRule
-//  metadata:
-//    name: bookinfo-ratings
-//  spec:
-//    host: ratings.prod.svc.cluster.local
-//    trafficPolicy:
-//      loadBalancer:
-//        consistentHash:
-//          httpCookie:
-//            name: user
-//            ttl: 0s
-// ```
-// {{</tab>}}
-// {{</tabset>}}
 //
 message LoadBalancerSettings {
+  // +kubebuilder:validation:XValidation:message="only one of warmupDurationSecs or warmup can be set",rule="oneof(self.warmupDurationSecs, self.warmup)"
   // Standard load balancing algorithms that require no tuning.
   enum SimpleLB {
-    // Round Robin policy. Default
-    ROUND_ROBIN = 0;
+    // No load balancing algorithm has been specified by the user. Istio
+    // will select an appropriate default.
+    UNSPECIFIED = 0;
 
-    // The least request load balancer uses an O(1) algorithm which selects
-    // two random healthy hosts and picks the host which has fewer active
-    // requests.
-    LEAST_CONN = 1;
+    // Deprecated. Use LEAST_REQUEST instead.
+    LEAST_CONN = 1 [deprecated=true];
 
     // The random load balancer selects a random healthy host. The random
     // load balancer generally performs better than round robin if no health
@@ -458,25 +400,67 @@ message LoadBalancerSettings {
     // advanced use cases. Refer to Original Destination load balancer in
     // Envoy for further details.
     PASSTHROUGH = 3;
+
+    // A basic round robin load balancing policy. This is generally unsafe
+    // for many scenarios (e.g. when endpoint weighting is used) as it can
+    // overburden endpoints. In general, prefer to use LEAST_REQUEST as a
+    // drop-in replacement for ROUND_ROBIN.
+    ROUND_ROBIN = 4;
+
+    // The least request load balancer spreads load across endpoints, favoring
+    // endpoints with the least outstanding requests. This is generally safer
+    // and outperforms ROUND_ROBIN in nearly all cases. Prefer to use
+    // LEAST_REQUEST as a drop-in replacement for ROUND_ROBIN.
+    LEAST_REQUEST = 5;
   };
 
   // Consistent Hash-based load balancing can be used to provide soft
   // session affinity based on HTTP headers, cookies or other
-  // properties. This load balancing policy is applicable only for HTTP
-  // connections. The affinity to a particular destination host will be
+  // properties. The affinity to a particular destination host may be
   // lost when one or more hosts are added/removed from the destination
   // service.
+  //
+  // Note: consistent hashing is less reliable at maintaining affinity than common
+  // "sticky sessions" implementations, which often encode a specific destination in
+  // a cookie, ensuring affinity is maintained as long as the backend remains.
+  // With consistent hash, the guarantees are weaker; any host addition or removal can
+  // break affinity for `1/backends` requests.
+  //
+  // Warning: consistent hashing depends on each proxy having a consistent view of endpoints.
+  // This is not the case when locality load balancing is enabled. Locality load balancing
+  // and consistent hash will only work together when all proxies are in the same locality,
+  // or a high level load balancer handles locality affinity.
   message ConsistentHashLB {
+
+    message RingHash {
+      // The minimum number of virtual nodes to use for the hash
+      // ring. Defaults to 1024. Larger ring sizes result in more granular
+      // load distributions. If the number of hosts in the load balancing
+      // pool is larger than the ring size, each host will be assigned a
+      // single virtual node.
+      uint64 minimum_ring_size = 1;
+    };
+
+    message MagLev {
+      // The table size for Maglev hashing. This helps in controlling the
+      // disruption when the backend hosts change.
+      // Increasing the table size reduces the amount of disruption.
+      // The table size must be prime number less than 5000011.
+      // If it is not specified, the default is 65537.
+      uint64 table_size = 1;
+    };
     // Describes a HTTP cookie that will be used as the hash key for the
-    // Consistent Hash load balancer. If the cookie is not present, it will
-    // be generated.
+    // Consistent Hash load balancer.
     message HTTPCookie {
       // Name of the cookie.
       string name = 1 [(google.api.field_behavior) = REQUIRED];
       // Path to set for the cookie.
       string path = 2;
-      // Lifetime of the cookie.
-      google.protobuf.Duration ttl = 3 [(google.api.field_behavior) = REQUIRED];
+      // Lifetime of the cookie. If specified, a cookie with the TTL will be
+      // generated if the cookie is not present. If the TTL is present and zero, 
+      // the generated cookie will be a session cookie.
+      // +protoc-gen-crd:duration-validation:none
+      google.protobuf.Duration ttl = 3;
     };
 
     // The hash key to use.
@@ -488,18 +472,27 @@ message LoadBalancerSettings {
       HTTPCookie http_cookie = 2;
 
       // Hash based on the source IP address.
+      // This is applicable for both TCP and HTTP connections.
       bool use_source_ip = 3;
 
       // Hash based on a specific HTTP query parameter.
       string http_query_parameter_name = 5;
     };
 
-    // The minimum number of virtual nodes to use for the hash
-    // ring. Defaults to 1024. Larger ring sizes result in more granular
-    // load distributions. If the number of hosts in the load balancing
-    // pool is larger than the ring size, each host will be assigned a
-    // single virtual node.
-    uint64 minimum_ring_size = 4;
+        // The hash algorithm to use.
+        // Please refer to https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#ring-hash
+        // and https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/load_balancers#maglev for
+        // considerations on choosing an algorithm.
+        // Defaults to RingHash if not specified.
+        oneof hash_algorithm {
+          // The ring/modulo hash load balancer implements consistent hashing to backend hosts.
+          RingHash ring_hash = 6;
+          // The Maglev load balancer implements consistent hashing to backend hosts.
+          MagLev maglev = 7;
+        };
+
+    // Deprecated. Use RingHash instead.
+    uint64 minimum_ring_size = 4 [deprecated=true];
   };
 
   // (-- TODO: Enable Subset load balancing after moving to v2 API Also
@@ -512,11 +505,40 @@ message LoadBalancerSettings {
     ConsistentHashLB consistent_hash = 2;
   }
 
-  // Locality load balancer settings, this will override mesh wide settings in entirety, meaning no merging would be performed
+  // Locality load balancer settings, this will override mesh-wide settings in entirety, meaning no merging would be performed
   // between this object and the object one in MeshConfig
   LocalityLoadBalancerSetting locality_lb_setting = 3;
+
+  // Deprecated: use `warmup` instead.
+  google.protobuf.Duration warmup_duration_secs = 4;
+
+  // Represents the warmup configuration of Service. If set, the newly created endpoint of service
+  // remains in warmup mode starting from its creation time for the duration of this window and
+  // Istio progressively increases amount of traffic for that endpoint instead of sending proportional amount of traffic.
+  // This should be enabled for services that require warm up time to serve full production load with reasonable latency.
+  // Please note that this is most effective when few new endpoints come up like scale event in Kubernetes. When all the
+  // endpoints are relatively new like new deployment, this is not very effective as all endpoints end up getting same
+  // amount of requests.
+  // Currently this is only supported for ROUND_ROBIN and LEAST_REQUEST load balancers.
+  WarmupConfiguration warmup = 5;
 }
 
+message WarmupConfiguration {
+  // Duration of warmup mode
+  google.protobuf.Duration duration = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // Configures the minimum percentage of origin weight
+  // If unspecified, defaults to 10
+  // +kubebuilder:validation:Maximum=100
+  // +kubebuilder:validation:Minimum=0
+  google.protobuf.DoubleValue minimum_percent = 2;
+
+  // This parameter controls the speed of traffic increase over the warmup duration. Defaults to 1.0, so that endpoints would
+  // get linearly increasing amount of traffic. When increasing the value for this parameter,
+  // the speed of traffic ramp-up increases non-linearly.
+  // +kubebuilder:validation:Minimum=1
+  google.protobuf.DoubleValue aggression = 3;
+}
 // Connection pool settings for an upstream host. The settings apply to
 // each individual host in the upstream service.  See Envoy's [circuit
 // breaker](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/circuit_breaking)
@@ -526,10 +548,8 @@ message LoadBalancerSettings {
 // For example, the following rule sets a limit of 100 connections to redis
 // service called myredissrv with a connect timeout of 30ms
 //
-// {{<tabset category-name="example">}}
-// {{<tab name="v1alpha3" category-value="v1alpha3">}}
 // ```yaml
-// apiVersion: networking.istio.io/v1alpha3
+// apiVersion: networking.istio.io/v1
 // kind: DestinationRule
 // metadata:
 //   name: bookinfo-redis
@@ -544,27 +564,6 @@ message LoadBalancerSettings {
 //           time: 7200s
 //           interval: 75s
 // ```
-// {{</tab>}}
-//
-// {{<tab name="v1beta1" category-value="v1beta1">}}
-// ```yaml
-// apiVersion: networking.istio.io/v1beta1
-// kind: DestinationRule
-// metadata:
-//   name: bookinfo-redis
-// spec:
-//   host: myredissrv.prod.svc.cluster.local
-//   trafficPolicy:
-//     connectionPool:
-//       tcp:
-//         maxConnections: 100
-//         connectTimeout: 30ms
-//         tcpKeepalive:
-//           time: 7200s
-//           interval: 75s
-// ```
-// {{</tab>}}
-// {{</tabset>}}
 //
 message ConnectionPoolSettings {
   // Settings common to both HTTP and TCP upstream connections.
@@ -591,19 +590,40 @@ message ConnectionPoolSettings {
     int32 max_connections = 1;
 
     // TCP connection timeout. format:
-    // 1h/1m/1s/1ms. MUST BE >=1ms. Default is 10s.
+    // 1h/1m/1s/1ms. MUST be >=1ms. Default is 10s.
     google.protobuf.Duration connect_timeout = 2;
 
     // If set then set SO_KEEPALIVE on the socket to enable TCP Keepalives.
     TcpKeepalive tcp_keepalive = 3;
+
+    // The maximum duration of a connection. The duration is defined as the period since a connection
+    // was established. If not set, there is no max duration. When `maxConnectionDuration`
+    // is reached the connection will be closed. Duration must be at least 1ms.
+    google.protobuf.Duration max_connection_duration = 4;
+
+    // The idle timeout for TCP connections.
+    // The idle timeout is defined as the period in which there are no bytes sent or received on either
+    // the upstream or downstream connection.
+    // If not set, the default idle timeout is 1 hour. If set to 0s, the timeout will be disabled.
+    // Idle timeout is not configured per each cluster individually when weighted destinations are used,
+    // because idleTimeout is a property of a listener, not a cluster. In that case, idleTimeout
+    // specified in a destination rule for the first weighted route is configured in the listener,
+    // which means also for all weighted routes.
+    // +protoc-gen-crd:duration-validation:none
+    google.protobuf.Duration idle_timeout = 5;
   };
 
   // Settings applicable to HTTP1.1/HTTP2/GRPC connections.
   message HTTPSettings {
-    // Maximum number of pending HTTP requests to a destination. Default 2^32-1.
+    // Maximum number of requests that will be queued while waiting for
+    // a ready connection pool connection. Default 2^32-1.
+    // Refer to https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/circuit_breaking
+    // under which conditions a new connection is created for HTTP2.
+    // Please note that this is applicable to both HTTP/1.1 and HTTP2.
     int32 http1_max_pending_requests = 1;
 
-    // Maximum number of requests to a backend. Default 2^32-1.
+    // Maximum number of active requests to a destination. Default 2^32-1.
+    // Please note that this is applicable to both HTTP/1.1 and HTTP2.
     int32 http2_max_requests = 2;
 
     // Maximum number of requests per connection to a backend. Setting this
@@ -615,13 +635,13 @@ message ConnectionPoolSettings {
     // cluster at a given time. Defaults to 2^32-1.
     int32 max_retries = 4;
 
-    // The idle timeout for upstream connection pool connections. The idle timeout 
+    // The idle timeout for upstream connection pool connections. The idle timeout
     // is defined as the period in which there are no active requests.
-    // If not set, the default is 1 hour. When the idle timeout is reached, 
-    // the connection will be closed. If the connection is an HTTP/2 
-    // connection a drain sequence will occur prior to closing the connection. 
-    // Note that request based timeouts mean that HTTP/2 PINGs will not 
-    // keep the connection alive. Applies to both HTTP1.1 and HTTP2 connections. 
+    // If not set, the default is 1 hour. When the idle timeout is reached,
+    // the connection will be closed. If the connection is an HTTP/2
+    // connection a drain sequence will occur prior to closing the connection.
+    // Note that request based timeouts mean that HTTP/2 PINGs will not
+    // keep the connection alive. Applies to both HTTP1.1 and HTTP2 connections.
     google.protobuf.Duration idle_timeout = 5;
 
     // Policy for upgrading http1.1 connections to http2.
@@ -639,9 +659,13 @@ message ConnectionPoolSettings {
     H2UpgradePolicy h2_upgrade_policy = 6;
 
     // If set to true, client protocol will be preserved while initiating connection to backend.
-    // Note that when this is set to true, h2_upgrade_policy will be ineffective i.e. the client
+    // Note that when this is set to true, `h2UpgradePolicy` will be ineffective i.e. the client
     // connections will not be upgraded to http2.
     bool use_client_protocol = 7;
+
+    // The maximum number of concurrent streams allowed for a peer on one HTTP/2 connection.
+    // Defaults to 2^31-1. 
+    int32 max_concurrent_streams = 8;
   };
 
   // Settings common to both HTTP and TCP upstream connections.
@@ -666,10 +690,8 @@ message ConnectionPoolSettings {
 // hosts to be scanned every 5 mins so that any host that fails 7 consecutive
 // times with a 502, 503, or 504 error code will be ejected for 15 minutes.
 //
-// {{<tabset category-name="example">}}
-// {{<tab name="v1alpha3" category-value="v1alpha3">}}
 // ```yaml
-// apiVersion: networking.istio.io/v1alpha3
+// apiVersion: networking.istio.io/v1
 // kind: DestinationRule
 // metadata:
 //   name: reviews-cb-policy
@@ -687,30 +709,6 @@ message ConnectionPoolSettings {
 //       interval: 5m
 //       baseEjectionTime: 15m
 // ```
-// {{</tab>}}
-//
-// {{<tab name="v1beta1" category-value="v1beta1">}}
-// ```yaml
-// apiVersion: networking.istio.io/v1beta1
-// kind: DestinationRule
-// metadata:
-//   name: reviews-cb-policy
-// spec:
-//   host: reviews.prod.svc.cluster.local
-//   trafficPolicy:
-//     connectionPool:
-//       tcp:
-//         maxConnections: 100
-//       http:
-//         http2MaxRequests: 1000
-//         maxRequestsPerConnection: 10
-//     outlierDetection:
-//       consecutive5xxErrors: 7
-//       interval: 5m
-//       baseEjectionTime: 15m
-// ```
-// {{</tab>}}
-// {{</tabset>}}
 //
 message OutlierDetection {
   // Number of errors before a host is ejected from the connection
@@ -721,6 +719,21 @@ message OutlierDetection {
   // $hide_from_docs
   int32 consecutive_errors = 1 [deprecated=true];
 
+  // Determines whether to distinguish local origin failures from external errors. If set to true
+  // `consecutiveLocalOriginFailures` is taken into account for outlier detection calculations.
+  // This should be used when you want to derive the outlier detection status based on the errors
+  // seen locally such as failure to connect, timeout while connecting etc. rather than the status code
+  // returned by upstream service. This is especially useful when the upstream service explicitly returns
+  // a 5xx for some requests and you want to ignore those responses from upstream service while determining
+  // the outlier detection status of a host.
+  // Defaults to false.
+  bool split_external_local_origin_errors = 8;
+
+  // The number of consecutive locally originated failures before ejection
+  // occurs. Defaults to 5. Parameter takes effect only when `splitExternalLocalOriginErrors`
+  // is set to true.
+  google.protobuf.UInt32Value consecutive_local_origin_failures = 9;
+
   // Number of gateway errors before a host is ejected from the connection pool.
   // When the upstream host is accessed over HTTP, a 502, 503, or 504 return
   // code qualifies as a gateway error. When the upstream host is accessed over
@@ -728,11 +741,11 @@ message OutlierDetection {
   // events qualify as a gateway error.
   // This feature is disabled by default or when set to the value 0.
   //
-  // Note that consecutive_gateway_errors and consecutive_5xx_errors can be
+  // Note that `consecutiveGatewayErrors` and `consecutive5xxErrors` can be
   // used separately or together. Because the errors counted by
-  // consecutive_gateway_errors are also included in consecutive_5xx_errors,
-  // if the value of consecutive_gateway_errors is greater than or equal to
-  // the value of consecutive_5xx_errors, consecutive_gateway_errors will have
+  // `consecutiveGatewayErrors` are also included in `consecutive5xxErrors`,
+  // if the value of `consecutiveGatewayErrors` is greater than or equal to
+  // the value of `consecutive5xxErrors`, `consecutiveGatewayErrors` will have
   // no effect.
   google.protobuf.UInt32Value consecutive_gateway_errors = 6;
 
@@ -742,23 +755,23 @@ message OutlierDetection {
   // 5xx error.
   // This feature defaults to 5 but can be disabled by setting the value to 0.
   //
-  // Note that consecutive_gateway_errors and consecutive_5xx_errors can be
+  // Note that `consecutiveGatewayErrors` and `consecutive5xxErrors` can be
   // used separately or together. Because the errors counted by
-  // consecutive_gateway_errors are also included in consecutive_5xx_errors,
-  // if the value of consecutive_gateway_errors is greater than or equal to
-  // the value of consecutive_5xx_errors, consecutive_gateway_errors will have
+  // `consecutiveGatewayErrors` are also included in `consecutive5xxErrors`,
+  // if the value of `consecutiveGatewayErrors` is greater than or equal to
+  // the value of `consecutive5xxErrors`, `consecutiveGatewayErrors` will have
   // no effect.
   google.protobuf.UInt32Value consecutive_5xx_errors = 7;
 
   // Time interval between ejection sweep analysis. format:
-  // 1h/1m/1s/1ms. MUST BE >=1ms. Default is 10s.
+  // 1h/1m/1s/1ms. MUST be >=1ms. Default is 10s.
   google.protobuf.Duration interval = 2;
 
   // Minimum ejection duration. A host will remain ejected for a period
   // equal to the product of minimum ejection duration and the number of
   // times the host has been ejected. This technique allows the system to
   // automatically increase the ejection period for unhealthy upstream
-  // servers. format: 1h/1m/1s/1ms. MUST BE >=1ms. Default is 30s.
+  // servers. format: 1h/1m/1s/1ms. MUST be >=1ms. Default is 30s.
   google.protobuf.Duration base_ejection_time = 3;
 
   // Maximum % of hosts in the load balancing pool for the upstream
@@ -766,7 +779,7 @@ message OutlierDetection {
   int32 max_ejection_percent = 4;
 
   // Outlier detection will be enabled as long as the associated load balancing
-  // pool has at least min_health_percent hosts in healthy mode. When the
+  // pool has at least `minHealthPercent` hosts in healthy mode. When the
   // percentage of healthy hosts in the load balancing pool drops below this
   // threshold, outlier detection will be disabled and the proxy will load balance
   // across all hosts in the pool (healthy and unhealthy). The threshold can be
@@ -776,16 +789,14 @@ message OutlierDetection {
 }
 
 // SSL/TLS related settings for upstream connections. See Envoy's [TLS
-// context](https://www.envoyproxy.io/docs/envoy/latest/api-v2/api/v2/auth/cert.proto.html)
+// context](https://www.envoyproxy.io/docs/envoy/latest/api-v3/extensions/transport_sockets/tls/v3/common.proto.html#common-tls-configuration)
 // for more details. These settings are common to both HTTP and TCP upstreams.
 //
 // For example, the following rule configures a client to use mutual TLS
 // for connections to upstream database cluster.
 //
-// {{<tabset category-name="example">}}
-// {{<tab name="v1alpha3" category-value="v1alpha3">}}
 // ```yaml
-// apiVersion: networking.istio.io/v1alpha3
+// apiVersion: networking.istio.io/v1
 // kind: DestinationRule
 // metadata:
 //   name: db-mtls
@@ -798,33 +809,12 @@ message OutlierDetection {
 //       privateKey: /etc/certs/client_private_key.pem
 //       caCertificates: /etc/certs/rootcacerts.pem
 // ```
-// {{</tab>}}
-//
-// {{<tab name="v1beta1" category-value="v1beta1">}}
-// ```yaml
-// apiVersion: networking.istio.io/v1beta1
-// kind: DestinationRule
-// metadata:
-//   name: db-mtls
-// spec:
-//   host: mydbserver.prod.svc.cluster.local
-//   trafficPolicy:
-//     tls:
-//       mode: MUTUAL
-//       clientCertificate: /etc/certs/myclientcert.pem
-//       privateKey: /etc/certs/client_private_key.pem
-//       caCertificates: /etc/certs/rootcacerts.pem
-// ```
-// {{</tab>}}
-// {{</tabset>}}
 //
 // The following rule configures a client to use TLS when talking to a
 // foreign service whose domain matches *.foo.com.
 //
-// {{<tabset category-name="example">}}
-// {{<tab name="v1alpha3" category-value="v1alpha3">}}
 // ```yaml
-// apiVersion: networking.istio.io/v1alpha3
+// apiVersion: networking.istio.io/v1
 // kind: DestinationRule
 // metadata:
 //   name: tls-foo
@@ -834,30 +824,12 @@ message OutlierDetection {
 //     tls:
 //       mode: SIMPLE
 // ```
-// {{</tab>}}
-//
-// {{<tab name="v1beta1" category-value="v1beta1">}}
-// ```yaml
-// apiVersion: networking.istio.io/v1beta1
-// kind: DestinationRule
-// metadata:
-//   name: tls-foo
-// spec:
-//   host: "*.foo.com"
-//   trafficPolicy:
-//     tls:
-//       mode: SIMPLE
-// ```
-// {{</tab>}}
-// {{</tabset>}}
 //
 // The following rule configures a client to use Istio mutual TLS when talking
 // to rating services.
 //
-// {{<tabset category-name="example">}}
-// {{<tab name="v1alpha3" category-value="v1alpha3">}}
 // ```yaml
-// apiVersion: networking.istio.io/v1alpha3
+// apiVersion: networking.istio.io/v1
 // kind: DestinationRule
 // metadata:
 //   name: ratings-istio-mtls
@@ -867,22 +839,6 @@ message OutlierDetection {
 //     tls:
 //       mode: ISTIO_MUTUAL
 // ```
-// {{</tab>}}
-//
-// {{<tab name="v1beta1" category-value="v1beta1">}}
-// ```yaml
-// apiVersion: networking.istio.io/v1beta1
-// kind: DestinationRule
-// metadata:
-//   name: ratings-istio-mtls
-// spec:
-//   host: ratings.prod.svc.cluster.local
-//   trafficPolicy:
-//     tls:
-//       mode: ISTIO_MUTUAL
-// ```
-// {{</tab>}}
-// {{</tabset>}}
 //
 message ClientTLSSettings {
   // TLS connection mode
@@ -907,7 +863,7 @@ message ClientTLSSettings {
 
   // Indicates whether connections to this port should be secured
   // using TLS. The value of this field determines how TLS is enforced.
-  TLSmode mode = 1 [(google.api.field_behavior) = REQUIRED];
+  TLSmode mode = 1;
 
   // REQUIRED if mode is `MUTUAL`. The path to the file holding the
   // client-side TLS certificate to use.
@@ -921,34 +877,58 @@ message ClientTLSSettings {
 
   // OPTIONAL: The path to the file containing certificate authority
   // certificates to use in verifying a presented server certificate. If
-  // omitted, the proxy will not verify the server's certificate.
+  // omitted, the proxy will verify the server's certificate using
+  // the OS CA certificates.
   // Should be empty if mode is `ISTIO_MUTUAL`.
   string ca_certificates = 4;
 
   // The name of the secret that holds the TLS certs for the
-  // client including the CA certificates. Secret must exist in the
-  // same namespace with the proxy using the certificates.
-  // The secret (of type `generic`)should contain the
-  // following keys and values: `key: <privateKey>`,
-  // `cert: <serverCert>`, `cacert: <CACertificate>`.
-  // Secret of type tls for client certificates along with
-  // ca.crt key for CA certificates is also supported.
+  // client including the CA certificates. This secret must exist in
+  // the namespace of the proxy using the certificates.
+  // An Opaque secret should contain the following keys and values:
+  // `key: <privateKey>`, `cert: <clientCert>`, `cacert: <CACertificate>`,
+  // `crl: <certificateRevocationList>`
+  // Here CACertificate is used to verify the server certificate.
+  // For mutual TLS, `cacert: <CACertificate>` can be provided in the
+  // same secret or a separate secret named `<secret>-cacert`.
+  // A TLS secret for client certificates with an additional
+  // `ca.crt` key for CA certificates and `ca.crl` key for
+  // certificate revocation list(CRL) is also supported.
   // Only one of client certificates and CA certificate
   // or credentialName can be specified.
   //
-  // **NOTE:** This field is currently applicable only at gateways.
-  // Sidecars will continue to use the certificate paths.
+  // **NOTE:** This field is applicable at sidecars only if
+  // `DestinationRule` has a `workloadSelector` specified.
+  // Otherwise the field will be applicable only at gateways, and
+  // sidecars will continue to use the certificate paths.
   string credential_name = 7;
 
   // A list of alternate names to verify the subject identity in the
   // certificate. If specified, the proxy will verify that the server
   // certificate's subject alt name matches one of the specified values.
-  // If specified, this list overrides the value of subject_alt_names
-  // from the ServiceEntry.
+  // If specified, this list overrides the value of `subjectAltNames`
+  // from the `ServiceEntry`. If unspecified, automatic validation of upstream
+  // presented certificate for new upstream connections will be done based on the
+  // downstream HTTP host/authority header.
   repeated string subject_alt_names = 5;
 
   // SNI string to present to the server during TLS handshake.
+  // If unspecified, SNI will be automatically set based on downstream HTTP
+  // host/authority header for SIMPLE and MUTUAL TLS modes.
   string sni = 6;
+
+  // `insecureSkipVerify` specifies whether the proxy should skip verifying the
+  // CA signature and SAN for the server certificate corresponding to the host.
+  // The default value of this field is false.
+  google.protobuf.BoolValue insecure_skip_verify = 8;
+
+  // OPTIONAL: The path to the file containing the certificate revocation list (CRL)
+  // to use in verifying a presented server certificate. `CRL` is a list of certificates
+  // that have been revoked by the CA (Certificate Authority) before their scheduled expiration date.
+  // If specified, the proxy will verify if the presented certificate is part of the revoked list of certificates.
+  // If omitted, the proxy will not verify the certificate against the `crl`. Note that if `credentialName` is set,
+  // `CRL` cannot be specified using `caCrl`, rather it has to be specified inside the credential.
+  string ca_crl = 9;
 }
 
 // Locality-weighted load balancing allows administrators to control the
@@ -959,13 +939,13 @@ message ClientTLSSettings {
 // [Locality Weight](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/locality_weight)
 // The following example shows how to setup locality weights mesh-wide.
 //
-// Given a mesh with workloads and their service deployed to "us-west/zone1/*"
-// and "us-west/zone2/*". This example specifies that when traffic accessing a
-// service originates from workloads in "us-west/zone1/*", 80% of the traffic
-// will be sent to endpoints in "us-west/zone1/*", i.e the same zone, and the
-// remaining 20% will go to endpoints in "us-west/zone2/*". This setup is
+// Given a mesh with workloads and their service deployed to "us-west/zone1/\*"
+// and "us-west/zone2/\*". This example specifies that when traffic accessing a
+// service originates from workloads in "us-west/zone1/\*", 80% of the traffic
+// will be sent to endpoints in "us-west/zone1/\*", i.e the same zone, and the
+// remaining 20% will go to endpoints in "us-west/zone2/\*". This setup is
 // intended to favor routing traffic to endpoints in the same locality.
-// A similar setting is specified for traffic originating in "us-west/zone2/*".
+// A similar setting is specified for traffic originating in "us-west/zone2/\*".
 //
 // ```yaml
 //   distribute:
@@ -997,7 +977,6 @@ message ClientTLSSettings {
 //    - from: us-west
 //      to: us-east
 // ```
-// Locality load balancing settings.
 message LocalityLoadBalancerSetting{
     // Describes how traffic originating in the 'from' zone or sub-zone is
     // distributed over a set of 'to' zones. Syntax for specifying a zone is
@@ -1035,19 +1014,81 @@ message LocalityLoadBalancerSetting{
         string to = 2;
     };
 
-    // Optional: only one of distribute or failover can be set.
+    // Optional: only one of distribute, failover or failoverPriority can be set.
     // Explicitly specify loadbalancing weight across different zones and geographical locations.
     // Refer to [Locality weighted load balancing](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/upstream/load_balancing/locality_weight)
     // If empty, the locality weight is set according to the endpoints number within it.
     repeated Distribute distribute = 1;
 
-    // Optional: only failover or distribute can be set.
+    // Optional: only one of distribute, failover or failoverPriority can be set.
     // Explicitly specify the region traffic will land on when endpoints in local region becomes unhealthy.
     // Should be used together with OutlierDetection to detect unhealthy endpoints.
     // Note: if no OutlierDetection specified, this will not take effect.
     repeated Failover failover = 2;
 
-    // enable locality load balancing, this is DestinationRule-level and will override mesh wide settings in entirety.
-    // e.g. true means that turn on locality load balancing for this DestinationRule no matter what mesh wide settings is.
+    // failoverPriority is an ordered list of labels used to sort endpoints to do priority based load balancing.
+    // This is to support traffic failover across different groups of endpoints.
+    // Two kinds of labels can be specified:
+    // - Specify only label keys `[key1, key2, key3]`, istio would compare the label values of client with endpoints.
+    //   Suppose there are total N label keys `[key1, key2, key3, ...keyN]` specified:
+    //
+    //   1. Endpoints matching all N labels with the client proxy have priority P(0) i.e. the highest priority.
+    //   2. Endpoints matching the first N-1 labels with the client proxy have priority P(1) i.e. second highest priority.
+    //   3. By extension of this logic, endpoints matching only the first label with the client proxy has priority P(N-1) i.e. second lowest priority.
+    //   4. All the other endpoints have priority P(N) i.e. lowest priority.
+    //
+    // - Specify labels with key and value `[key1=value1, key2=value2, key3=value3]`, istio would compare the labels with endpoints.
+    //   Suppose there are total N labels `[key1=value1, key2=value2, key3=value3, ...keyN=valueN]` specified:
+    //
+    //   1. Endpoints matching all N labels have priority P(0) i.e. the highest priority.
+    //   2. Endpoints matching the first N-1 labels have priority P(1) i.e. second highest priority.
+    //   3. By extension of this logic, endpoints matching only the first label has priority P(N-1) i.e. second lowest priority.
+    //   4. All the other endpoints have priority P(N) i.e. lowest priority.
+    //
+    // Note: For a label to be considered for match, the previous labels must match, i.e. nth label would be considered matched only if first n-1 labels match.
+    //
+    // It can be any label specified on both client and server workloads.
+    // The following labels which have special semantic meaning are also supported:
+    //
+    //   - `topology.istio.io/network` is used to match the network metadata of an endpoint, which can be specified by pod/namespace label `topology.istio.io/network`, sidecar env `ISTIO_META_NETWORK` or MeshNetworks.
+    //   - `topology.istio.io/cluster` is used to match the clusterID of an endpoint, which can be specified by pod label `topology.istio.io/cluster` or pod env `ISTIO_META_CLUSTER_ID`.
+    //   - `topology.kubernetes.io/region` is used to match the region metadata of an endpoint, which maps to Kubernetes node label `topology.kubernetes.io/region` or the deprecated label `failure-domain.beta.kubernetes.io/region`.
+    //   - `topology.kubernetes.io/zone` is used to match the zone metadata of an endpoint, which maps to Kubernetes node label `topology.kubernetes.io/zone` or the deprecated label `failure-domain.beta.kubernetes.io/zone`.
+    //   - `topology.istio.io/subzone` is used to match the subzone metadata of an endpoint, which maps to Istio node label `topology.istio.io/subzone`.
+    //   - `kubernetes.io/hostname` is used to match the current node of an endpoint, which maps to Kubernetes node label `kubernetes.io/hostname`.
+    //
+    // The below topology config indicates the following priority levels:
+    //
+    // ```yaml
+    // failoverPriority:
+    // - "topology.istio.io/network"
+    // - "topology.kubernetes.io/region"
+    // - "topology.kubernetes.io/zone"
+    // - "topology.istio.io/subzone"
+    // ```
+    //
+    // 1. endpoints match same [network, region, zone, subzone] label with the client proxy have the highest priority.
+    // 2. endpoints have same [network, region, zone] label but different [subzone] label with the client proxy have the second highest priority.
+    // 3. endpoints have same [network, region] label but different [zone] label with the client proxy have the third highest priority.
+    // 4. endpoints have same [network] but different [region] labels with the client proxy have the fourth highest priority.
+    // 5. all the other endpoints have the same lowest priority.
+    //
+    // Suppose a service associated endpoints reside in multi clusters, the below example represents:
+    // 1. endpoints in `clusterA` and has `version=v1` label have P(0) priority.
+    // 2. endpoints not in `clusterA` but has `version=v1` label have P(1) priority.
+    // 2. all the other endpoints have P(2) priority.
+    //
+    // ```yaml
+    // failoverPriority:
+    // - "version=v1"
+    // - "topology.istio.io/cluster=clusterA"
+    // ```
+    //
+    // Optional: only one of distribute, failover or failoverPriority can be set.
+    // And it should be used together with `OutlierDetection` to detect unhealthy endpoints, otherwise has no effect.
+    repeated string failover_priority = 4;
+
+    // Enable locality load balancing. This is DestinationRule-level and will override mesh-wide settings in entirety.
+    // e.g. true means that turn on locality load balancing for this DestinationRule no matter what mesh-wide settings is.
     google.protobuf.BoolValue enabled = 3;
 }

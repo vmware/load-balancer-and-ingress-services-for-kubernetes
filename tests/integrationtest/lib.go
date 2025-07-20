@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -81,6 +81,8 @@ const (
 	letterBytes         = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	DefaultRouteCert    = "router-certs-default"
 	DEFAULT_NAMESPACE   = "default"
+	PATHPREFIX          = "PathPrefix"
+	REGULAREXPRESSION   = "RegularExpression"
 )
 
 var KubeClient *k8sfake.Clientset
@@ -297,6 +299,7 @@ type FakeIngress struct {
 	annotations  map[string]string
 	ServiceName  string
 	TlsSecretDNS map[string][]string
+	NoPath       bool
 }
 
 func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
@@ -344,17 +347,30 @@ func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
 							}}}}}}},
 			)
 		} else {
-			ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
-				Host: dnsName,
-				IngressRuleValue: networking.IngressRuleValue{
-					HTTP: &networking.HTTPIngressRuleValue{
-						Paths: []networking.HTTPIngressPath{{
-							Path: path,
-							Backend: networking.IngressBackend{Service: &networking.IngressServiceBackend{
-								Name: ing.ServiceName,
-								Port: networking.ServiceBackendPort{Number: 8080},
-							}}}}}}},
-			)
+			if ing.NoPath {
+				ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
+					Host: dnsName,
+					IngressRuleValue: networking.IngressRuleValue{
+						HTTP: &networking.HTTPIngressRuleValue{
+							Paths: []networking.HTTPIngressPath{{
+								Backend: networking.IngressBackend{Service: &networking.IngressServiceBackend{
+									Name: ing.ServiceName,
+									Port: networking.ServiceBackendPort{Number: 8080},
+								}}}}}}},
+				)
+			} else {
+				ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
+					Host: dnsName,
+					IngressRuleValue: networking.IngressRuleValue{
+						HTTP: &networking.HTTPIngressRuleValue{
+							Paths: []networking.HTTPIngressPath{{
+								Path: path,
+								Backend: networking.IngressBackend{Service: &networking.IngressServiceBackend{
+									Name: ing.ServiceName,
+									Port: networking.ServiceBackendPort{Number: 8080},
+								}}}}}}},
+				)
+			}
 		}
 	}
 	for secret, hosts := range ing.TlsSecretDNS {
@@ -905,6 +921,18 @@ func CreateServiceWithSelectors(t *testing.T, ns string, Name string, protocol c
 	}
 }
 
+func CreateSvcWithExternalTrafficPolicy(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, externalTrafficPolicy string, multiProtocol ...corev1.Protocol) {
+	selectors := make(map[string]string)
+	svcExample := ConstructService(ns, Name, protocol, Type, multiPort, selectors, "", multiProtocol...)
+	if externalTrafficPolicy == "Local" {
+		svcExample.Spec.ExternalTrafficPolicy = corev1.ServiceExternalTrafficPolicyTypeLocal
+	}
+	_, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svcExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+}
+
 func UpdateSVC(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool) {
 	selectors := make(map[string]string)
 	UpdateServiceWithSelectors(t, ns, Name, protocol, Type, multiPort, selectors)
@@ -1042,6 +1070,83 @@ func CreateEPorEPS(t *testing.T, ns string, Name string, multiPort bool, multiAd
 	}
 	time.Sleep(2 * time.Second)
 }
+
+// CreateEPorEPS creates endpoint or endpoint slices based on env with Node name added
+func CreateEPorEPSNodeName(t *testing.T, ns string, Name string, multiPort bool, multiAddress bool, addressPrefix string, nodeName string, multiProtocol ...corev1.Protocol) {
+	if !lib.AKOControlConfig().GetEndpointSlicesEnabled() {
+		CreateEPNodeName(t, ns, Name, multiPort, multiAddress, addressPrefix, nodeName, multiProtocol...)
+		return
+	}
+	addressType := discovery.AddressTypeIPv4
+
+	if addressPrefix == "" {
+		addressPrefix = "1.1.1"
+	}
+	if strings.Contains(addressPrefix, "::") {
+		addressType = discovery.AddressTypeIPv6
+	}
+	//var endpoints discovery.EndpointSlice
+	numPorts, numAddresses := 1, 1
+	if multiPort {
+		numPorts = 3
+	}
+	if len(multiProtocol) != 0 {
+		numPorts = len(multiProtocol)
+	}
+	if multiAddress {
+		numAddresses = 3
+	}
+	svcName := Name
+
+	// // create separate endpoint slice if multiProtocol
+
+	// // mPort := 8080 + i
+	startIndex := 0
+	for i := 0; i < numPorts; i++ {
+		var endpoints []discovery.Endpoint
+		for j := 0; j < numAddresses; j++ {
+			if strings.Contains(addressPrefix, "::") {
+				endpoints = append(endpoints, discovery.Endpoint{
+					Addresses: []string{fmt.Sprintf("%s%d", addressPrefix, j+startIndex+1)},
+					NodeName:  &nodeName,
+				})
+			} else {
+				endpoints = append(endpoints, discovery.Endpoint{Addresses: []string{fmt.Sprintf("%s.%d", addressPrefix, j+startIndex+1)}, NodeName: &nodeName})
+			}
+			startIndex++
+		}
+		numAddresses--
+		protocol := corev1.ProtocolTCP
+		if len(multiProtocol) != 0 {
+			protocol = multiProtocol[i]
+		}
+		mPort := int32(8080 + i)
+		portName := fmt.Sprintf("foo%d", i)
+		ports := []discovery.EndpointPort{{
+			Protocol: &protocol,
+			Port:     &mPort,
+			Name:     &portName,
+		}}
+		tempName := Name + "-" + randStringBytesRmndr(5)
+		epExample := &discovery.EndpointSlice{
+			AddressType: addressType,
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: ns,
+				Name:      tempName,
+				Labels:    map[string]string{discovery.LabelServiceName: svcName},
+			},
+			Endpoints: endpoints,
+			Ports:     ports,
+		}
+		_, err := KubeClient.DiscoveryV1().EndpointSlices(ns).Create(context.TODO(), epExample, metav1.CreateOptions{})
+		if err != nil {
+			t.Fatalf("error in creating Endpoint: %v", err)
+		}
+
+	}
+	time.Sleep(2 * time.Second)
+}
+
 func randStringBytesRmndr(n int) string {
 	b := make([]byte, n)
 	for i := range b {
@@ -1107,6 +1212,66 @@ func CreateEP(t *testing.T, ns string, Name string, multiPort bool, multiAddress
 				epAddresses = append(epAddresses, corev1.EndpointAddress{IP: fmt.Sprintf("%s%d", addressPrefix, addressStartIndex+j+1)})
 			} else {
 				epAddresses = append(epAddresses, corev1.EndpointAddress{IP: fmt.Sprintf("%s.%d", addressPrefix, addressStartIndex+j+1)})
+			}
+		}
+		numAddresses = numAddresses - 1
+		addressStart = addressStart + numAddresses
+		endpointSubsets = append(endpointSubsets, corev1.EndpointSubset{
+			Addresses: epAddresses,
+			Ports: []corev1.EndpointPort{{
+				Name:     fmt.Sprintf("foo%d", i),
+				Port:     int32(mPort),
+				Protocol: protocol,
+			}},
+		})
+	}
+
+	epExample := &corev1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{Namespace: ns, Name: Name},
+		Subsets:    endpointSubsets,
+	}
+	_, err := KubeClient.CoreV1().Endpoints(ns).Create(context.TODO(), epExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in creating Endpoint: %v", err)
+	}
+	time.Sleep(2 * time.Second)
+}
+
+func CreateEPNodeName(t *testing.T, ns string, Name string, multiPort bool, multiAddress bool, addressPrefix string, nodeName string, multiProtocol ...corev1.Protocol) {
+	if addressPrefix == "" {
+		addressPrefix = "1.1.1"
+	}
+	var endpointSubsets []corev1.EndpointSubset
+	numPorts, numAddresses, addressStart := 1, 1, 0
+	if multiPort {
+		numPorts = 3
+	}
+	if len(multiProtocol) != 0 {
+		numPorts = len(multiProtocol)
+	}
+	if multiAddress {
+		numAddresses, addressStart = 3, 0
+	}
+
+	for i := 0; i < numPorts; i++ {
+		protocol := corev1.ProtocolTCP
+		if len(multiProtocol) != 0 {
+			protocol = multiProtocol[i]
+		}
+		mPort := 8080 + i
+
+		var addressStartIndex int
+		if !multiPort && !multiAddress {
+			numAddresses, addressStart = 1, 0
+		} else {
+			addressStartIndex = addressStart + i
+		}
+		var epAddresses []corev1.EndpointAddress
+		for j := 0; j < numAddresses; j++ {
+			if strings.Contains(addressPrefix, "::") {
+				epAddresses = append(epAddresses, corev1.EndpointAddress{IP: fmt.Sprintf("%s%d", addressPrefix, addressStartIndex+j+1), NodeName: &nodeName})
+			} else {
+				epAddresses = append(epAddresses, corev1.EndpointAddress{IP: fmt.Sprintf("%s.%d", addressPrefix, addressStartIndex+j+1), NodeName: &nodeName})
 			}
 		}
 		numAddresses = numAddresses - 1
@@ -1230,7 +1395,7 @@ func GetShardVSNumber(s string) string {
 	return vsNumber
 }
 
-const defaultMockFilePath = "../avimockobjects"
+var DefaultMockFilePath = "../avimockobjects"
 
 var AviFakeClientInstance *httptest.Server
 var FakeServerMiddleware InjectFault
@@ -1286,7 +1451,7 @@ func NewAviFakeClientInstance(kubeclient *k8sfake.Clientset, skipCachePopulation
 }
 
 func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...string) {
-	mockFilePath := defaultMockFilePath
+	mockFilePath := DefaultMockFilePath
 	if len(args) > 0 {
 		mockFilePath = args[0]
 	}
@@ -1514,6 +1679,8 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_AZURE"))
 		} else if strings.HasSuffix(r.URL.RawQuery, "CLOUD_AWS") {
 			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_AWS"))
+		} else if strings.HasSuffix(r.URL.RawQuery, "CLOUD_NSXT1") {
+			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_NSXT1"))
 		} else if strings.HasSuffix(r.URL.RawQuery, "CLOUD_NSXT") {
 			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_NSXT"))
 		} else {
@@ -1566,6 +1733,8 @@ func FeedMockCollectionData(w http.ResponseWriter, r *http.Request, mockFilePath
 				filePath = fmt.Sprintf("%s/crd_network_ipam2.json", mockFilePath)
 			} else if strings.Contains(r.URL.RawQuery, "multivip-network3") {
 				filePath = fmt.Sprintf("%s/crd_network_ipam3.json", mockFilePath)
+			} else if strings.Contains(r.URL.RawQuery, "kube-apiserver-lb-svc") {
+				filePath = fmt.Sprintf("%s/kube-apiserver-lb-svc-vs_mock.json", mockFilePath)
 			} else {
 				filePath = fmt.Sprintf("%s/%s_mock.json", mockFilePath, splitURL[1])
 			}
@@ -1609,11 +1778,17 @@ func (ing FakeIngress) UpdateIngress() (*networking.Ingress, error) {
 	return updatedIngress, err
 }
 
+type ListenerPorts struct {
+	Port      int
+	EnableSSL bool
+}
+
 // HostRule/HTTPRule lib functions
 type FakeHostRule struct {
 	Name                  string
 	Namespace             string
 	Fqdn                  string
+	FqdnType              string
 	SslKeyCertificate     string
 	SslProfile            string
 	WafPolicy             string
@@ -1629,10 +1804,16 @@ type FakeHostRule struct {
 	L7Rule                string
 	UseRegex              bool
 	ApplicationRootPath   string
+	ListenerPorts         []ListenerPorts
+	LoadBalancerIP        string
 }
 
 func (hr FakeHostRule) HostRule() *akov1beta1.HostRule {
 	enable := true
+	fqdnType := hr.FqdnType
+	if fqdnType == "" {
+		fqdnType = "Exact"
+	}
 	hostrule := &akov1beta1.HostRule{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: hr.Namespace,
@@ -1640,7 +1821,8 @@ func (hr FakeHostRule) HostRule() *akov1beta1.HostRule {
 		},
 		Spec: akov1beta1.HostRuleSpec{
 			VirtualHost: akov1beta1.HostRuleVirtualHost{
-				Fqdn: hr.Fqdn,
+				Fqdn:     hr.Fqdn,
+				FqdnType: akov1beta1.FqdnType(fqdnType),
 				TLS: akov1beta1.HostRuleTLS{
 					SSLKeyCertificate: akov1beta1.HostRuleSSLKeyCertificate{
 						Name: hr.SslKeyCertificate,
@@ -1670,7 +1852,29 @@ func (hr FakeHostRule) HostRule() *akov1beta1.HostRule {
 			},
 		},
 	}
-
+	var tcpSettings *akov1beta1.HostRuleTCPSettings
+	var listenerPorts []akov1beta1.HostRuleTCPListeners
+	for _, listenerPortHr := range hr.ListenerPorts {
+		listener := akov1beta1.HostRuleTCPListeners{
+			Port:      listenerPortHr.Port,
+			EnableSSL: listenerPortHr.EnableSSL,
+		}
+		listenerPorts = append(listenerPorts, listener)
+	}
+	if len(listenerPorts) > 0 && hr.LoadBalancerIP != "" {
+		tcpSettings = &akov1beta1.HostRuleTCPSettings{
+			Listeners:      listenerPorts,
+			LoadBalancerIP: hr.LoadBalancerIP}
+	} else if len(listenerPorts) > 0 {
+		tcpSettings = &akov1beta1.HostRuleTCPSettings{
+			Listeners: listenerPorts}
+	} else if hr.LoadBalancerIP != "" {
+		tcpSettings = &akov1beta1.HostRuleTCPSettings{
+			LoadBalancerIP: hr.LoadBalancerIP}
+	}
+	if tcpSettings != nil {
+		hostrule.Spec.VirtualHost.TCPSettings = tcpSettings
+	}
 	return hostrule
 }
 
@@ -2265,7 +2469,7 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1beta1.AviInfraSe
 	return setting
 }
 
-func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string) {
+func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string, accepted ...bool) {
 	setting := FakeAviInfraSetting{
 		Name:          infraSettingName,
 		SeGroupName:   "thisisaviref-" + infraSettingName + "-seGroup",
@@ -2276,8 +2480,24 @@ func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string) {
 		T1LR:          "avi-domain-c9:1234",
 	}
 	settingCreate := setting.AviInfraSetting()
+	if len(accepted) > 0 && accepted[0] {
+		settingCreate.Status.Status = lib.StatusAccepted
+	}
 	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding AviInfraSetting: %v", err)
+	}
+}
+
+func SetAviInfraSettingStatus(t *testing.T, infraSettingName, status string) {
+	infraSetting, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("error in retrieving AviInfraSetting: %v", err)
+	}
+	infraSetting.Status.Status = status
+	infraSetting.ResourceVersion = "2"
+	_, err = lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Update(context.TODO(), infraSetting, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating AviInfraSetting: %v", err)
 	}
 }
 
@@ -2578,4 +2798,16 @@ func (o *ObjectNameMap) GetName(s string) string {
 		o.nameMap[s] = 1
 	}
 	return s + "-" + strconv.Itoa(o.nameMap[s])
+}
+func SetEmptyDomainList() {
+	// Inject middleware with empty dns list for dns api call
+	AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		url := r.URL.EscapedPath()
+		if r.Method == "GET" && strings.Contains(url, "/api/ipamdnsproviderprofiledomainlist") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"domains": []}`))
+			return
+		}
+		NormalControllerServer(w, r)
+	})
 }

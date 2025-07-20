@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -54,6 +54,9 @@ func GatewayApiLister() *GWLister {
 			podToServiceStore:              objects.NewObjectMapStore(),
 			gatewayToStatus:                objects.NewObjectMapStore(),
 			routeToStatus:                  objects.NewObjectMapStore(),
+			l7RuleToHTTPRouteCache:         objects.NewObjectMapStore(),
+			httpRouteToL7RuleCache:         objects.NewObjectMapStore(),
+			gatewayToInfraSetting:          objects.NewObjectMapStore(),
 		}
 	})
 	return gwLister
@@ -127,6 +130,14 @@ type GWLister struct {
 
 	// routeType/routeNs/routeName -> route Status
 	routeToStatus *objects.ObjectMapStore
+
+	// L7Rule -> HTTPRoute
+	l7RuleToHTTPRouteCache *objects.ObjectMapStore
+
+	// HTTPRoute --> L7Rule
+	httpRouteToL7RuleCache *objects.ObjectMapStore
+	// namespace/gateway -> infrasetting
+	gatewayToInfraSetting *objects.ObjectMapStore
 }
 
 type GatewayRouteKind struct {
@@ -803,6 +814,20 @@ func (g *GWLister) DeleteRouteFromStore(routeTypeNsName string, key string) {
 	}
 	g.routeToGateway.Delete(routeTypeNsName)
 
+	// delete Route entries from L7RuleHTTPRoute mapping
+	// Fetch routenamespace/name from routeTypeNsName
+	_, httpRouteNSName := utils.ExtractNamespaceObjectName(routeTypeNsName)
+
+	if found, l7RuleList := g.GetHTTPRouteToL7RuleMapping(httpRouteNSName); found {
+		for l7Rule := range l7RuleList {
+			if found, _ := g.GetL7RuleToHTTPRouteMapping(l7Rule); found {
+				g.DeleteL7RuleToHTTPRouteMapping(l7Rule, httpRouteNSName)
+			}
+		}
+	}
+	// delete the httproutekey
+	g.httpRouteToL7RuleCache.Delete(httpRouteNSName)
+
 	//delete route to service
 	found, svcList := g.routeToService.Get(routeTypeNsName)
 	if found {
@@ -1001,4 +1026,74 @@ func (g *GWLister) DeletePodsToService(podNsName string) {
 	defer g.gwLock.Unlock()
 
 	g.podToServiceStore.Delete(podNsName)
+}
+
+// L7Rule CRD (Name: Namespace+"/"+ name)
+func (g *GWLister) GetL7RuleToHTTPRouteMapping(l7RuleName string) (bool, map[string]bool) {
+	found, httpRoutes := g.l7RuleToHTTPRouteCache.Get(l7RuleName)
+	if !found {
+		return false, make(map[string]bool)
+	}
+	return true, httpRoutes.(map[string]bool)
+}
+
+func (g *GWLister) DeleteL7RuleToHTTPRouteMapping(l7RuleName string, httpRoute string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	found, httpRoutes := g.GetL7RuleToHTTPRouteMapping(l7RuleName)
+	if found {
+		delete(httpRoutes, httpRoute)
+		g.l7RuleToHTTPRouteCache.AddOrUpdate(l7RuleName, httpRoutes)
+	}
+}
+
+func (g *GWLister) UpdateL7RuleToHTTPRouteMapping(l7RuleName string, httpRoute string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	_, httpRoutes := g.GetL7RuleToHTTPRouteMapping(l7RuleName)
+	httpRoutes[httpRoute] = true
+	g.l7RuleToHTTPRouteCache.AddOrUpdate(l7RuleName, httpRoutes)
+}
+
+// HTTPRoute to L7 Rule (Name: Namespace+"/"+name)
+func (g *GWLister) GetHTTPRouteToL7RuleMapping(httpRouteName string) (bool, map[string]bool) {
+	found, l7Rules := g.httpRouteToL7RuleCache.Get(httpRouteName)
+	if !found {
+		return false, make(map[string]bool)
+	}
+	return true, l7Rules.(map[string]bool)
+}
+
+func (g *GWLister) DeleteHTTPRouteToL7RuleMapping(httpRouteName string, l7Rule string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	found, l7Rules := g.GetHTTPRouteToL7RuleMapping(httpRouteName)
+	if found {
+		delete(l7Rules, l7Rule)
+		g.httpRouteToL7RuleCache.AddOrUpdate(httpRouteName, l7Rules)
+	}
+}
+
+func (g *GWLister) UpdateHTTPRouteToL7RuleMapping(httpRouteName string, l7Rule string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	_, l7Rules := g.GetHTTPRouteToL7RuleMapping(httpRouteName)
+	l7Rules[l7Rule] = true
+	g.httpRouteToL7RuleCache.AddOrUpdate(httpRouteName, l7Rules)
+}
+
+// Gateway <-> AviInfraSetting
+func (g *GWLister) GetGatewayToAviInfraSetting(gwNsName string) (bool, string) {
+	if found, obj := g.gatewayToInfraSetting.Get(gwNsName); found {
+		return true, obj.(string)
+	}
+	return false, ""
+}
+
+func (g *GWLister) UpdateGatewayToAviInfraSettingMappings(gwNsName, aviInfraSetting string) {
+	g.gatewayToInfraSetting.AddOrUpdate(gwNsName, aviInfraSetting)
+}
+
+func (g *GWLister) DeleteGatewayToAviInfraSettingMappings(gwNsName string) bool {
+	return g.gatewayToInfraSetting.Delete(gwNsName)
 }

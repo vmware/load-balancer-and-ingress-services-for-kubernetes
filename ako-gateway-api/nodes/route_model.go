@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package nodes
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/util/sets"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -94,11 +95,23 @@ type RedirectFilter struct {
 	StatusCode int32
 }
 
+type HTTPUrlRewriteFilter struct {
+	hostname string
+	path     *gatewayv1.HTTPPathModifier
+}
+
+type ExtensionRefFilter struct {
+	Group string
+	Kind  string
+	Name  string
+}
 type Filter struct {
-	Type           string
-	RequestFilter  *HeaderFilter
-	ResponseFilter *HeaderFilter
-	RedirectFilter *RedirectFilter
+	Type             string
+	RequestFilter    *HeaderFilter
+	ResponseFilter   *HeaderFilter
+	RedirectFilter   *RedirectFilter
+	UrlRewriteFilter *HTTPUrlRewriteFilter
+	ExtensionRef     *ExtensionRefFilter
 }
 
 type Backend struct {
@@ -115,6 +128,7 @@ type HTTPBackend struct {
 }
 
 type Rule struct {
+	Name     string
 	Matches  []*Match
 	Filters  []*Filter
 	Backends []*HTTPBackend
@@ -212,7 +226,9 @@ func (hr *httpRoute) ParseRouteConfig(key string) *RouteConfig {
 			routeConfigRule.Matches = append(routeConfigRule.Matches, match)
 		}
 		sort.Sort((Matches)(routeConfigRule.Matches))
-
+		if rule.Name != nil {
+			routeConfigRule.Name = string(*rule.Name)
+		}
 		routeConfigRule.Filters = make([]*Filter, 0, len(rule.Filters))
 		for _, ruleFilter := range rule.Filters {
 			filter := &Filter{}
@@ -282,6 +298,28 @@ func (hr *httpRoute) ParseRouteConfig(key string) *RouteConfig {
 					filter.RedirectFilter.StatusCode = int32(*ruleFilter.RequestRedirect.StatusCode)
 				}
 			}
+
+			// URL rewrite filter
+			if ruleFilter.URLRewrite != nil {
+				filter.UrlRewriteFilter = &HTTPUrlRewriteFilter{}
+				if ruleFilter.URLRewrite.Hostname != nil {
+					filter.UrlRewriteFilter.hostname = string(*ruleFilter.URLRewrite.Hostname)
+				}
+				if ruleFilter.URLRewrite.Path != nil {
+					filter.UrlRewriteFilter.path = ruleFilter.URLRewrite.Path.DeepCopy()
+					if strings.HasPrefix(*filter.UrlRewriteFilter.path.ReplaceFullPath, "/") {
+						*filter.UrlRewriteFilter.path.ReplaceFullPath = (*filter.UrlRewriteFilter.path.ReplaceFullPath)[1:]
+					}
+
+				}
+			}
+			// ExtensionRef filters
+			if ruleFilter.ExtensionRef != nil {
+				filter.ExtensionRef = &ExtensionRefFilter{}
+				filter.ExtensionRef.Group = string(ruleFilter.ExtensionRef.Group)
+				filter.ExtensionRef.Kind = string(ruleFilter.ExtensionRef.Kind)
+				filter.ExtensionRef.Name = string(ruleFilter.ExtensionRef.Name)
+			}
 			routeConfigRule.Filters = append(routeConfigRule.Filters, filter)
 		}
 		hasInvalidBackend := false
@@ -306,7 +344,20 @@ func (hr *httpRoute) ParseRouteConfig(key string) *RouteConfig {
 				backend.Weight = *ruleBackend.Weight
 			}
 			httpBackend.Backend = backend
-			isValidBackend, resolvedRefConditionforBackend := validateBackendReference(key, *backend, hr)
+			httpBackend.Filters = make([]*Filter, 0, len(ruleBackend.Filters))
+			for _, filter := range ruleBackend.Filters {
+				// only extension ref filters suported in backend
+				if filter.ExtensionRef != nil {
+					httpBackendFilter := &Filter{}
+					httpBackendFilter.Type = string(filter.Type)
+					httpBackendFilter.ExtensionRef = &ExtensionRefFilter{}
+					httpBackendFilter.ExtensionRef.Group = string(filter.ExtensionRef.Group)
+					httpBackendFilter.ExtensionRef.Kind = string(filter.ExtensionRef.Kind)
+					httpBackendFilter.ExtensionRef.Name = string(filter.ExtensionRef.Name)
+					httpBackend.Filters = append(httpBackend.Filters, httpBackendFilter)
+				}
+			}
+			isValidBackend, resolvedRefConditionforBackend := validateBackendReference(key, *backend, httpBackend.Filters)
 			if isValidBackend {
 				routeConfigRule.Backends = append(routeConfigRule.Backends, httpBackend)
 				if !hasInvalidBackend {

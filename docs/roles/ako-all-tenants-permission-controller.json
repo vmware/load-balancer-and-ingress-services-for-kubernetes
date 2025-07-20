@@ -1,0 +1,9 @@
+{
+    "name": "ako-all-tenants-permission-controller",
+    "privileges": [
+    {
+        "type": "READ_ACCESS",
+        "resource": "PERMISSION_CONTROLLER"
+    }
+    ]
+}

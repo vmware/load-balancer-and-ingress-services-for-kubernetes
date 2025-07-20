@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -253,7 +253,7 @@ func getL7IngressInfraSetting(key string, ingClassName string, namespace string)
 	if ingClassName == "" {
 		if defaultIngressClass, found := lib.IsAviLBDefaultIngressClass(); !found {
 			//No ingress class is found, return namespace specific infra setting CR
-			return getNamespaceAviInfraSetting(key, namespace)
+			return lib.GetNamespacedAviInfraSetting(key, namespace, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer)
 		} else {
 			ingClassName = defaultIngressClass
 		}
@@ -278,7 +278,7 @@ func getL7IngressInfraSetting(key string, ingClassName string, namespace string)
 		}
 	}
 
-	return getNamespaceAviInfraSetting(key, namespace)
+	return lib.GetNamespacedAviInfraSetting(key, namespace, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer)
 }
 
 func getL7RouteInfraSetting(key string, routeAnnotations map[string]string, namespace string) (*akov1beta1.AviInfraSetting, error) {
@@ -298,7 +298,7 @@ func getL7RouteInfraSetting(key string, routeAnnotations map[string]string, name
 	}
 
 	if infraSetting == nil {
-		return getNamespaceAviInfraSetting(key, namespace)
+		return lib.GetNamespacedAviInfraSetting(key, namespace, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer)
 	}
 
 	return infraSetting, nil

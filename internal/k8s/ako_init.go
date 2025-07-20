@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -52,35 +52,21 @@ import (
 )
 
 func PopulateCache() error {
-	tenants := map[string]struct{}{
-		lib.GetTenant(): {},
-	}
 	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
 	if aviRestClientPool == nil || len(aviRestClientPool.AviClient) == 0 {
 		return fmt.Errorf("avi Rest client initialization failed")
 	}
-	err := lib.GetAllTenants(aviRestClientPool.AviClient[0], tenants)
+
+	aviObjCache := avicache.SharedAviObjCache()
+	// Randomly pickup a client.
+	_, _, err := aviObjCache.AviObjCachePopulate(aviRestClientPool.AviClient, lib.AKOControlConfig().ControllerVersion(), utils.CloudName)
 	if err != nil {
+		utils.AviLog.Warnf("failed to populate avi cache with error: %v", err.Error())
 		return err
 	}
 
-	for tenant := range tenants {
-		aviRestClientPool := avicache.SharedAVIClients(tenant)
-		aviObjCache := avicache.SharedAviObjCache()
-		// Randomly pickup a client.
-		if aviRestClientPool != nil && len(aviRestClientPool.AviClient) > 0 {
-			_, _, err := aviObjCache.AviObjCachePopulate(aviRestClientPool.AviClient, lib.AKOControlConfig().ControllerVersion(), utils.CloudName, tenant)
-			if err != nil {
-				utils.AviLog.Warnf("failed to populate avi cache with error: %v", err.Error())
-				return err
-			}
-		}
-	}
-	aviRestClientPool = avicache.SharedAVIClients(lib.GetTenant())
-	if aviRestClientPool != nil && len(aviRestClientPool.AviClient) > 0 {
-		if err := avicache.SetControllerClusterUUID(aviRestClientPool); err != nil {
-			utils.AviLog.Warnf("Failed to set the controller cluster uuid with error: %v", err)
-		}
+	if err = avicache.SetControllerClusterUUID(aviRestClientPool); err != nil {
+		utils.AviLog.Warnf("Failed to set the controller cluster uuid with error: %v", err)
 	}
 	return nil
 }
@@ -109,14 +95,13 @@ func (c *AviController) CleanupStaleVSes() {
 		status.NewStatusPublisher().ResetStatefulSetAnnotation(status.ObjectDeletionStatus)
 	}
 
+	if _, err := lib.IsClusterNameValid(); err != nil {
+		utils.AviLog.Errorf("AKO cluster name is invalid.")
+		return
+	}
+
 	for tenant := range tenants {
-
 		// Delete Stale objects by deleting model for dummy VS
-		if _, err := lib.IsClusterNameValid(); err != nil {
-			utils.AviLog.Errorf("AKO cluster name is invalid.")
-			return
-		}
-
 		utils.AviLog.Infof("Starting clean up of stale objects")
 		restlayer := rest.NewRestOperations(aviObjCache)
 		staleVSKey := tenant + "/" + lib.DummyVSForStaleData
@@ -210,20 +195,24 @@ func (c *AviController) SetSEGroupCloudNameFromNSAnnotations() bool {
 
 	var ok bool
 	annotations := nsObj.GetAnnotations()
-	seGroup, ok = annotations[lib.WCPSEGroup]
-	if !ok {
-		utils.AviLog.Warnf("Failed to get SEGroup from annotation in namespace")
-		return false
-	}
-
 	cloudName, ok = annotations[lib.WCPCloud]
 	if !ok {
 		utils.AviLog.Warnf("Failed to get cloud name from annotation in namespace")
 		return false
 	}
-
-	lib.SetSEGName(seGroup)
 	utils.SetCloudName(cloudName)
+
+	if lib.GetVPCMode() {
+		utils.AviLog.Infof("Setting cloud %s for VS placement.", cloudName)
+		return true
+	}
+
+	seGroup, ok = annotations[lib.WCPSEGroup]
+	if !ok {
+		utils.AviLog.Warnf("Failed to get SEGroup from annotation in namespace")
+		return false
+	}
+	lib.SetSEGName(seGroup)
 	utils.AviLog.Infof("Setting SEGroup %s, cloud %s for VS placement.", seGroup, cloudName)
 	return true
 }
@@ -485,7 +474,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	if lib.GetNamespaceToSync() != "" {
 		informersArg[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
 	}
-	if !utils.IsVCFCluster() && lib.GetAdvancedL4() {
+	if !utils.IsVCFCluster() && utils.GetAdvancedL4() {
 		informersArg[utils.INFORMERS_ADVANCED_L4] = true
 	}
 	c.informers = utils.NewInformers(utils.KubeClientIntf{ClientSet: informers.Cs}, registeredInformers, informersArg)
@@ -542,7 +531,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
 	interval, err := strconv.ParseInt(fullSyncInterval, 10, 64)
 
-	if lib.IsWCP() {
+	if utils.IsWCP() {
 		// Set the error to nil
 		err = nil
 		interval = 300 // seconds, hardcoded for now.
@@ -571,7 +560,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	if lib.IsWCP() {
+	if utils.IsWCP() {
 		c.OnStartedLeading()
 	} else {
 		// Leader election happens after populating controller cache and fullsynck8s.
@@ -635,7 +624,7 @@ LABEL:
 	}
 
 	cancel()
-	if !lib.IsWCP() {
+	if !utils.IsWCP() {
 		// Cancel the Leader election goroutines
 		<-ctx.Done()
 	}
@@ -809,7 +798,7 @@ func (c *AviController) FullSync() {
 	// Randomly pickup a client.
 	if len(aviRestClientPool.AviClient) > 0 {
 		aviObjCache.AviClusterStatusPopulate(aviRestClientPool.AviClient[0])
-		if !lib.IsWCP() {
+		if !utils.IsWCP() {
 			aviObjCache.AviCacheRefresh(aviRestClientPool.AviClient[0], utils.CloudName)
 		} else {
 			// In this case we just sync the Gateway status to the LB status
@@ -902,7 +891,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 	}
 
 	// Re-order informer loading. all crds- then objects depends upon it.
-	if !lib.IsWCP() {
+	if !utils.IsWCP() {
 		l7RuleObjs, err := lib.AKOControlConfig().CRDInformers().L7RuleInformer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the L7Rules during full sync: %s", err)
@@ -1035,7 +1024,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svcObj)
 				}
 			} else {
-				if lib.IsWCP() {
+				if utils.IsWCP() {
 					continue
 				}
 				key = utils.Service + "/" + utils.ObjKey(svcObj)
@@ -1077,7 +1066,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 		}
 	}
 
-	if !lib.IsWCP() {
+	if !utils.IsWCP() {
 		// IngressClass Section
 		if utils.GetInformers().IngressClassInformer != nil {
 			ingClassObjs, err := utils.GetInformers().IngressClassInformer.Lister().List(labels.Set(nil).AsSelector())
@@ -1272,6 +1261,17 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				nodes.DequeueIngestion(key, true)
 			}
+		}
+
+		// Proxy Enabled Application Profile GET/CREATE/UPDATE
+		aviClientPool := avicache.SharedAVIClients(lib.GetAdminTenant())
+		if aviClientPool == nil || len(aviClientPool.AviClient) == 0 {
+			return fmt.Errorf("avi Rest client initialization failed")
+		}
+		err = lib.ProxyEnabledAppProfileCU(aviClientPool.AviClient[0])
+		if err != nil {
+			utils.AviLog.Errorf("Proxy enabled application profile Get/Create/Update failed: %s", err)
+			return err
 		}
 
 		//Ingress Section

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -22,6 +22,8 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	gatewayfake "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/fake"
@@ -88,8 +90,12 @@ func setupQueue(stopCh <-chan struct{}) {
 }
 
 func TestMain(m *testing.M) {
+	testData := akogatewayapitests.GetL7RuleFakeData()
 	akogatewayapitests.KubeClient = k8sfake.NewSimpleClientset()
 	akogatewayapitests.GatewayClient = gatewayfake.NewSimpleClientset()
+	//akogatewayapitests.DynamicClient = dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
+	akogatewayapitests.DynamicClient = dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), akogatewayapitests.GvrToKind, &testData)
+
 	integrationtest.KubeClient = akogatewayapitests.KubeClient
 
 	os.Setenv("CLUSTER_NAME", "cluster")
@@ -106,6 +112,8 @@ func TestMain(m *testing.M) {
 	lib.AKOControlConfig().SetEndpointSlicesEnabled(endpointSliceEnabled)
 	akoControlConfig := akogatewayapilib.AKOControlConfig()
 	akoControlConfig.SetEventRecorder(lib.AKOGatewayEventComponent, akogatewayapitests.KubeClient, true)
+	akogatewayapilib.SetDynamicClientSet(akogatewayapitests.DynamicClient)
+	akogatewayapilib.NewDynamicInformers(akogatewayapitests.DynamicClient, false)
 	registeredInformers := []string{
 		utils.ServiceInformer,
 		utils.SecretInformer,
@@ -131,7 +139,7 @@ func TestMain(m *testing.M) {
 
 	ctrl.DisableSync = false
 	setupQueue(stopCh)
-	ctrl.SetupEventHandlers(k8s.K8sinformers{Cs: akogatewayapitests.KubeClient})
+	ctrl.SetupEventHandlers(k8s.K8sinformers{Cs: akogatewayapitests.KubeClient, DynamicClient: akogatewayapitests.DynamicClient})
 	numWorkers := uint32(1)
 	ctrl.SetupGatewayApiEventHandlers(numWorkers)
 	os.Exit(m.Run())
@@ -244,7 +252,7 @@ func TestGatewayInvalidAddress(t *testing.T) {
 	akogatewayapitests.AddGatewayListener(&gateway, "listener-example", 80, gatewayv1.HTTPProtocolType, false)
 	akogatewayapitests.SetListenerHostname(&gateway.Spec.Listeners[0], "foo.example.com")
 	hostnameType := gatewayv1.AddressType("Hostname")
-	gateway.Spec.Addresses = []gatewayv1.GatewayAddress{
+	gateway.Spec.Addresses = []gatewayv1.GatewaySpecAddress{
 		{
 			Type:  &hostnameType,
 			Value: "some.fqdn.address",
@@ -261,7 +269,7 @@ func TestGatewayInvalidAddress(t *testing.T) {
 
 	//update with IPv6
 	ipAddressType := gatewayv1.AddressType("IPAddress")
-	gateway.Spec.Addresses = []gatewayv1.GatewayAddress{
+	gateway.Spec.Addresses = []gatewayv1.GatewaySpecAddress{
 		{
 			Type: &ipAddressType,
 			//TODO replace with constant from utils
@@ -276,7 +284,7 @@ func TestGatewayInvalidAddress(t *testing.T) {
 	waitAndverify(t, "")
 
 	//update with IPv4
-	gateway.Spec.Addresses = []gatewayv1.GatewayAddress{
+	gateway.Spec.Addresses = []gatewayv1.GatewaySpecAddress{
 		{
 			Type: &ipAddressType,
 			//TODO replace with constant from utils

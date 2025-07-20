@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -18,9 +18,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/google/uuid"
 
 	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -29,9 +32,11 @@ import (
 
 	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/models"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	v1beta1akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/informers/externalversions/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -333,7 +338,7 @@ func CheckAndShortenLabelToFollowRFC1035(svcName string, svcNamespace string) (s
 }
 
 func isInfraSettingUpdateRequired(infraSettingCR *akov1beta1.AviInfraSetting, network, t1lr string) bool {
-	if infraSettingCR.Spec.NSXSettings.T1LR != nil && *infraSettingCR.Spec.NSXSettings.T1LR != t1lr {
+	if infraSettingCR.Spec.NSXSettings.T1LR == nil || *infraSettingCR.Spec.NSXSettings.T1LR != t1lr {
 		return true
 	}
 	infraNetwork := ""
@@ -346,7 +351,7 @@ func isInfraSettingUpdateRequired(infraSettingCR *akov1beta1.AviInfraSetting, ne
 	return false
 }
 
-func CreateOrUpdateAviInfraSetting(name, network, t1lr string) (*akov1beta1.AviInfraSetting, error) {
+func CreateOrUpdateAviInfraSetting(name, network, t1lr, seGroup string) (*akov1beta1.AviInfraSetting, error) {
 	infraSettingCR, err := AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(name)
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
@@ -361,36 +366,40 @@ func CreateOrUpdateAviInfraSetting(name, network, t1lr string) (*akov1beta1.AviI
 		if !updateRequired {
 			return infraSettingCR, nil
 		}
-	}
-	infraSettingCR = &akov1beta1.AviInfraSetting{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Spec: akov1beta1.AviInfraSettingSpec{
-			L7Settings: akov1beta1.AviInfraL7Settings{
-				ShardSize: "SMALL",
+	} else {
+		infraSettingCR = &akov1beta1.AviInfraSetting{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
 			},
-			NSXSettings: akov1beta1.AviInfraNSXSettings{
-				T1LR: &t1lr,
-			},
-			SeGroup: akov1beta1.AviInfraSettingSeGroup{
-				Name: GetClusterID(),
-			},
-		},
-	}
-	if network != "" {
-		infraSettingCR.Spec.Network = akov1beta1.AviInfraSettingNetwork{
-			VipNetworks: []akov1beta1.AviInfraSettingVipNetwork{
-				{
-					NetworkName: network,
+			Spec: akov1beta1.AviInfraSettingSpec{
+				L7Settings: akov1beta1.AviInfraL7Settings{
+					ShardSize: "SMALL",
+				},
+				SeGroup: akov1beta1.AviInfraSettingSeGroup{
+					Name: seGroup,
 				},
 			},
 		}
 	}
 
+	infraSettingCR.Spec.NSXSettings = akov1beta1.AviInfraNSXSettings{
+		T1LR: &t1lr,
+	}
+
+	infraSettingCR.Spec.Network = akov1beta1.AviInfraSettingNetwork{}
+	if network != "" {
+		infraSettingCR.Spec.Network.VipNetworks = []akov1beta1.AviInfraSettingVipNetwork{
+			{
+				NetworkName: network,
+			},
+		}
+	}
+
 	if updateRequired {
+		utils.AviLog.Infof("VRF/Network mismatch, updating AviInfraSetting CR, name: %s", name)
 		return AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Update(context.TODO(), infraSettingCR, metav1.UpdateOptions{})
 	}
+	utils.AviLog.Infof("Creating AviInfraSetting CR, name: %s", name)
 	return AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Create(context.TODO(), infraSettingCR, metav1.CreateOptions{})
 }
 
@@ -443,7 +452,16 @@ func removeInfraSettingAnnotationFromNamespace(namespace string, infraSettingNam
 	return nil
 }
 
-func AnnotateNamespaceWithInfraSetting(namespace, infraSettingName string) error {
+func AnnotateNamespaceWithInfraSetting(namespace, infraSettingName string, retryCounter ...int) error {
+	retry := 0
+	if len(retryCounter) > 0 {
+		retry = retryCounter[0]
+	}
+	if retry > 2 {
+		err := fmt.Errorf("maximum limit reached for retrying Infrasetting annotation on the Namespace, infraSetting: %s, namespace: %s", infraSettingName, namespace)
+		utils.AviLog.Errorf(err.Error())
+		return err
+	}
 	nsObj, err := utils.GetInformers().NSInformer.Lister().Get(namespace)
 	if err != nil {
 		utils.AviLog.Warnf("Failed to GET the namespace details, namespace: %s, error :%s", namespace, err.Error())
@@ -459,13 +477,25 @@ func AnnotateNamespaceWithInfraSetting(namespace, infraSettingName string) error
 	_, err = utils.GetInformers().ClientSet.CoreV1().Namespaces().Update(context.TODO(), nsObj, metav1.UpdateOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error occurred while Updating namespace: %s", err.Error())
+		if strings.Contains(err.Error(), ConcurrentUpdateError) {
+			return AnnotateNamespaceWithInfraSetting(namespace, infraSettingName, retry+1)
+		}
 		return err
 	}
 	utils.AviLog.Infof("Annotated Namespace %s with AviInfraSetting %s", namespace, infraSettingName)
 	return nil
 }
 
-func AnnotateNamespaceWithTenant(namespace, tenant string) error {
+func AnnotateNamespaceWithTenant(namespace, tenant string, retryCounter ...int) error {
+	retry := 0
+	if len(retryCounter) > 0 {
+		retry = retryCounter[0]
+	}
+	if retry > 2 {
+		err := fmt.Errorf("maximum limit reached for retrying Tenant annotation on the Namespace, tenant: %s, namespace: %s", tenant, namespace)
+		utils.AviLog.Errorf(err.Error())
+		return err
+	}
 	nsObj, err := utils.GetInformers().NSInformer.Lister().Get(namespace)
 	if err != nil {
 		utils.AviLog.Warnf("Failed to GET the namespace details, namespace: %s, error :%s", namespace, err.Error())
@@ -481,6 +511,9 @@ func AnnotateNamespaceWithTenant(namespace, tenant string) error {
 	_, err = utils.GetInformers().ClientSet.CoreV1().Namespaces().Update(context.TODO(), nsObj, metav1.UpdateOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error occurred while Updating namespace: %s", err.Error())
+		if strings.Contains(err.Error(), ConcurrentUpdateError) {
+			return AnnotateNamespaceWithTenant(namespace, tenant, retry+1)
+		}
 		return err
 	}
 	utils.AviLog.Infof("Annotated Namespace %s with tenant %s", namespace, tenant)
@@ -509,8 +542,11 @@ func GetTenantInNamespace(namespace string) string {
 	return tenant
 }
 
-func GetAllTenants(c *clients.AviClient, tenants map[string]struct{}, nextPage ...string) error {
+func GetAllTenants(c *clients.AviClient, tenants map[string]struct{}, nextPage ...NextPage) error {
 	uri := "/api/tenant"
+	if len(nextPage) == 1 {
+		uri = nextPage[0].NextURI
+	}
 	result, err := AviGetCollectionRaw(c, uri)
 	if err != nil {
 		return err
@@ -533,7 +569,8 @@ func GetAllTenants(c *clients.AviClient, tenants map[string]struct{}, nextPage .
 	if result.Next != "" {
 		next_uri := strings.Split(result.Next, "/api/tenant")
 		if len(next_uri) > 1 {
-			nextPage := "/api/tenant" + next_uri[1]
+			overrideURI := "/api/tenant" + next_uri[1]
+			nextPage := NextPage{NextURI: overrideURI}
 			err = GetAllTenants(c, tenants, nextPage)
 			if err != nil {
 				return err
@@ -585,4 +622,109 @@ func (s *LockSet) Unlock(lockName string) {
 
 func GetLockSet() *LockSet {
 	return &lockSet
+}
+
+func ProxyEnabledAppProfileGet(client *clients.AviClient) (error, []models.ApplicationProfile) {
+	var appProfs []models.ApplicationProfile
+	uri := fmt.Sprintf("/api/applicationprofile/?name=%s", GetProxyEnabledApplicationProfileName())
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Application profile Get uri %v returned err %v", uri, err)
+		return err, appProfs
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal application profile result, err: %v", err)
+		return err, appProfs
+	}
+	for i := 0; i < len(elems); i++ {
+		appProf := models.ApplicationProfile{}
+		if err = json.Unmarshal(elems[i], &appProf); err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal application profile data, err: %v", err)
+			return err, appProfs
+		}
+		appProfs = append(appProfs, appProf)
+	}
+	return nil, appProfs
+}
+
+func ProxyEnabledAppProfileCU(client *clients.AviClient) error {
+	name := GetProxyEnabledApplicationProfileName()
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", GetAdminTenant())
+	tcpAppProfile := models.TCPApplicationProfile{
+		ProxyProtocolEnabled: proto.Bool(true),
+	}
+	appProfile := models.ApplicationProfile{
+		Name:          proto.String(name),
+		TenantRef:     proto.String(tenant),
+		Type:          proto.String(AllowedL4ApplicationProfile),
+		CreatedBy:     proto.String(GetAKOUser()),
+		TCPAppProfile: &tcpAppProfile,
+	}
+	resp := models.ApplicationProfileAPIResponse{}
+	err, appProfs := ProxyEnabledAppProfileGet(client)
+	if err == nil && len(appProfs) == 1 {
+		appProf := appProfs[0]
+		if appProf.TCPAppProfile != nil &&
+			appProf.TCPAppProfile.ProxyProtocolEnabled != nil &&
+			*appProf.TCPAppProfile.ProxyProtocolEnabled {
+			utils.AviLog.Debugf("Proxy enabled application profile %s present", name)
+			return nil
+		}
+		uri := fmt.Sprintf("/api/applicationprofile/%s", *appProf.UUID)
+		err = AviPut(client, uri, appProfile, resp)
+	} else {
+		if len(appProfs) > 1 {
+			return fmt.Errorf("More than one app profile with name %s found", name)
+		}
+		if len(appProfs) == 0 {
+			uri := "/api/applicationprofile"
+			err = AviPost(client, uri, appProfile, resp)
+		}
+	}
+	if err != nil {
+		return err
+	}
+	utils.AviLog.Infof("Proxy enabled application profile %s created/updated", name)
+	return nil
+}
+
+func Uuid4() string {
+	id, err := uuid.NewRandom()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return id.String()
+}
+
+func GetNamespacedAviInfraSetting(key, ns string, aviInfraSettingInformer v1beta1akoinformer.AviInfraSettingInformer) (*akov1beta1.AviInfraSetting, error) {
+	namespace, err := utils.GetInformers().NSInformer.Lister().Get(ns)
+	if err != nil {
+		return nil, err
+	}
+	infraSettingCRName, ok := namespace.GetAnnotations()[InfraSettingNameAnnotation]
+	if !ok {
+		return nil, nil
+	}
+	infraSetting, err := aviInfraSettingInformer.Lister().Get(infraSettingCRName)
+	if err != nil {
+		return nil, err
+	}
+	if infraSetting != nil && infraSetting.Status.Status != StatusAccepted {
+		utils.AviLog.Warnf("key: %s, msg: Referred AviInfraSetting %s is invalid", key, infraSetting.Name)
+		return nil, fmt.Errorf("AviInfraSetting %s is invalid", infraSetting.Name)
+	}
+	return infraSetting, nil
+}
+
+func IsNamespaceUpdated(oldNS, newNS *corev1.Namespace) bool {
+	if oldNS.ResourceVersion == newNS.ResourceVersion {
+		return false
+	}
+	oldLabelHash := utils.Hash(utils.Stringify(oldNS.Labels))
+	newLabelHash := utils.Hash(utils.Stringify(newNS.Labels))
+	oldTenant := oldNS.Annotations[TenantAnnotation]
+	newTenant := newNS.Annotations[TenantAnnotation]
+	return oldLabelHash != newLabelHash || oldTenant != newTenant
 }

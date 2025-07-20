@@ -1,5 +1,5 @@
 /*
-Copyright 2020 VMware, Inc.
+Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
 All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -289,6 +289,19 @@ func BuildConfigMap(ako akov1alpha1.AKOConfig) (corev1.ConfigMap, error) {
 		useDefaultSecretsOnly = "true"
 	}
 	cm.Data[UseDefaultSecretsOnly] = useDefaultSecretsOnly
+	cm.Data[VRFName] = ako.Spec.ControllerSettings.VRFName
+
+	defaultLBController := "true"
+	if !ako.Spec.L4Settings.DefaultLBController {
+		defaultLBController = "false"
+	}
+	cm.Data[DefaultLBController] = defaultLBController
+
+	enablePrometheus := "false"
+	if ako.Spec.FeatureGates.EnablePrometheus {
+		enablePrometheus = "true"
+	}
+	cm.Data[EnablePrometheus] = enablePrometheus
 
 	return cm, nil
 }

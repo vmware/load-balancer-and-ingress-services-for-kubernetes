@@ -2,12 +2,15 @@
 
 set -xe
 
-export GOLANG_SRC_REPO=${PVT_DOCKER_REGISTRY}/dockerhub-proxy-cache/library/golang:latest
-export PHOTON_SRC_REPO=${PVT_DOCKER_REGISTRY}/dockerhub-proxy-cache/library/photon:5.0
+export GOLANG_SRC_REPO=avi-alb-docker-virtual.packages.vcfd.broadcom.net/golang:latest
+export PHOTON_SRC_REPO=avi-alb-docker-virtual.packages.vcfd.broadcom.net/photon:5.0
 
 branch_version=$($WORKSPACE/hack/jenkins/get_branch_version.sh)
 version_numbers=(${branch_version//./ })
 minor_version=${version_numbers[1]}
+
+export PATH=$PATH:/usr/local/go/bin
+go version
 
 make build
 make BUILD_TAG=$version_tag docker

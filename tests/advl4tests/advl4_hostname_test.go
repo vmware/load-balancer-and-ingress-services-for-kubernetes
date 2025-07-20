@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,6 +21,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -28,24 +34,10 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
 	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 	advl4fake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned/fake"
-
-	"github.com/onsi/gomega"
-	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
-
-var KubeClient *k8sfake.Clientset
-var AdvL4Client *advl4fake.Clientset
-var CRDClient *crdfake.Clientset
-var V1beta1CRDClient *v1beta1crdfake.Clientset
-var ctrl *k8s.AviController
 
 func TestMain(m *testing.M) {
 	os.Setenv("CLUSTER_ID", "abc:cluster")
@@ -127,176 +119,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// Gateway/GatewayClass lib functions
-type FakeGateway struct {
-	Name      string
-	Namespace string
-	GWClass   string
-	IPAddress string
-	Listeners []FakeGWListener
-}
-
-type FakeGWListener struct {
-	Port     int32
-	Protocol string
-	Labels   map[string]string
-}
-
-func (gw FakeGateway) Gateway() *advl4v1alpha1pre1.Gateway {
-	var fakeListeners []advl4v1alpha1pre1.Listener
-	for _, listener := range gw.Listeners {
-		fakeListeners = append(fakeListeners, advl4v1alpha1pre1.Listener{
-			Port:     listener.Port,
-			Protocol: advl4v1alpha1pre1.ProtocolType(listener.Protocol),
-			Routes: advl4v1alpha1pre1.RouteBindingSelector{
-				Resource: "services",
-				RouteSelector: metav1.LabelSelector{
-					MatchLabels: listener.Labels,
-				},
-			},
-		})
-	}
-
-	gateway := &advl4v1alpha1pre1.Gateway{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: gw.Namespace,
-			Name:      gw.Name,
-		},
-		Spec: advl4v1alpha1pre1.GatewaySpec{
-			Class:     gw.GWClass,
-			Listeners: fakeListeners,
-		},
-	}
-
-	if gw.IPAddress != "" {
-		gateway.Spec.Addresses = []advl4v1alpha1pre1.GatewayAddress{{
-			Type:  advl4v1alpha1pre1.IPAddressType,
-			Value: gw.IPAddress,
-		}}
-	}
-
-	return gateway
-}
-
-func SetupGateway(t *testing.T, gwname, namespace, gwclass string) {
-	gateway := FakeGateway{
-		Name:      gwname,
-		Namespace: namespace,
-		GWClass:   gwclass,
-		Listeners: []FakeGWListener{{
-			Port:     int32(8081),
-			Protocol: "TCP",
-			Labels: map[string]string{
-				lib.GatewayNameLabelKey:      gwname,
-				lib.GatewayNamespaceLabelKey: namespace,
-				lib.GatewayTypeLabelKey:      "direct",
-			},
-		}},
-	}
-
-	gwCreate := gateway.Gateway()
-	if _, err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().Gateways(namespace).Create(context.TODO(), gwCreate, metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error in adding Gateway: %v", err)
-	}
-}
-
-func TeardownGateway(t *testing.T, gwname, namespace string) {
-	if err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().Gateways(namespace).Delete(context.TODO(), gwname, metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("error in deleting Gateway: %v", err)
-	}
-}
-
-type FakeGWClass struct {
-	Name       string
-	Controller string
-}
-
-func (gwclass FakeGWClass) GatewayClass() *advl4v1alpha1pre1.GatewayClass {
-	gatewayclass := &advl4v1alpha1pre1.GatewayClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: gwclass.Name,
-		},
-		Spec: advl4v1alpha1pre1.GatewayClassSpec{
-			Controller: gwclass.Controller,
-		},
-	}
-
-	return gatewayclass
-}
-
-func SetupGatewayClass(t *testing.T, gwclassName, controller string) {
-	gatewayclass := FakeGWClass{
-		Name:       gwclassName,
-		Controller: controller,
-	}
-
-	gwClassCreate := gatewayclass.GatewayClass()
-	if _, err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().GatewayClasses().Create(context.TODO(), gwClassCreate, metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error in adding GatewayClass: %v", err)
-	}
-}
-
-func TeardownGatewayClass(t *testing.T, gwClassName string) {
-	if err := lib.AKOControlConfig().AdvL4Clientset().NetworkingV1alpha1pre1().GatewayClasses().Delete(context.TODO(), gwClassName, metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("error in deleting GatewayClass: %v", err)
-	}
-}
-
-func SetupAdvLBService(t *testing.T, svcname, namespace, gwname, gwnamespace string) {
-	svc := integrationtest.FakeService{
-		Name:      svcname,
-		Namespace: namespace,
-		Labels: map[string]string{
-			lib.GatewayNameLabelKey:      gwname,
-			lib.GatewayNamespaceLabelKey: gwnamespace,
-			lib.GatewayTypeLabelKey:      "direct",
-		},
-		Type:         corev1.ServiceTypeLoadBalancer,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8081, TargetPort: intstr.FromInt(8081)}},
-	}
-
-	svcCreate := svc.Service()
-	if _, err := KubeClient.CoreV1().Services(namespace).Create(context.TODO(), svcCreate, metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
-	integrationtest.CreateEP(t, namespace, svcname, false, true, "1.1.1")
-}
-
-func SetupAdvLBServiceWithLoadBalancerClass(t *testing.T, svcname, namespace, gwname, gwnamespace string, LBClass string) {
-	svc := integrationtest.FakeService{
-		Name:      svcname,
-		Namespace: namespace,
-		Labels: map[string]string{
-			lib.GatewayNameLabelKey:      gwname,
-			lib.GatewayNamespaceLabelKey: gwnamespace,
-			lib.GatewayTypeLabelKey:      "direct",
-		},
-		Type:              corev1.ServiceTypeLoadBalancer,
-		ServicePorts:      []integrationtest.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8081, TargetPort: intstr.FromInt(8081)}},
-		LoadBalancerClass: LBClass,
-	}
-
-	svcCreate := svc.Service()
-	if _, err := KubeClient.CoreV1().Services(namespace).Create(context.TODO(), svcCreate, metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
-	integrationtest.CreateEP(t, namespace, svcname, false, true, "1.1.1")
-}
-
-func TeardownAdvLBService(t *testing.T, svcname, namespace string) {
-	if err := KubeClient.CoreV1().Services(namespace).Delete(context.TODO(), svcname, metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("error in deleting AdvLB Service: %v", err)
-	}
-	integrationtest.DelEP(t, namespace, svcname)
-}
-
-func VerifyGatewayVSNodeDeletion(g *gomega.WithT, modelName string) {
-	g.Eventually(func() interface{} {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		return aviModel
-	}, 30*time.Second).Should(gomega.BeNil())
-}
-
 func TestAdvL4BestCase(t *testing.T) {
 	// create gwclass, create gw, create 1svc
 	// check graph VsNode vals, check IP status
@@ -308,7 +130,7 @@ func TestAdvL4BestCase(t *testing.T) {
 	svcName := "svc-1"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
@@ -361,7 +183,7 @@ func TestAdvL4WithInvalidLoadBalancerClass(t *testing.T) {
 	svcName := "svc-2"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 	SetupAdvLBServiceWithLoadBalancerClass(t, svcName, ns, gatewayName, ns, integrationtest.INVALID_LB_CLASS)
 
 	g.Eventually(func() string {
@@ -412,7 +234,7 @@ func TestAdvL4NamingConvention(t *testing.T) {
 	svcName := "svc-3"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
@@ -497,7 +319,7 @@ func TestAdvL4WrongControllerGWClass(t *testing.T) {
 	modelName := "admin/abc--default-" + gatewayName
 	svcName := "svc-5"
 
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
@@ -544,7 +366,7 @@ func TestAdvL4WrongClassMappingInGateway(t *testing.T) {
 	modelName := "admin/abc--default-" + gatewayName
 	svcName := "svc-6"
 
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
@@ -618,7 +440,7 @@ func TestAdvL4ProtocolChangeInService(t *testing.T) {
 	svcName := "svc-7"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
@@ -674,7 +496,7 @@ func TestAdvL4PortChangeInService(t *testing.T) {
 	svcName := "svc-8"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
@@ -729,7 +551,7 @@ func TestAdvL4LabelUpdatesInService(t *testing.T) {
 	svcName := "svc-9"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
@@ -784,7 +606,7 @@ func TestAdvL4LabelUpdatesInGateway(t *testing.T) {
 	svcName := "svc-10"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
@@ -841,7 +663,7 @@ func TestAdvL4GatewayListenerPortUpdate(t *testing.T) {
 	svcName := "svc-11"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
@@ -932,7 +754,7 @@ func TestAdvL4GatewayListenerProtocolUpdate(t *testing.T) {
 	svcName := "svc-12"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
@@ -1023,8 +845,8 @@ func TestAdvL4MultiGatewayServiceUpdate(t *testing.T) {
 	svcName := "svc-13"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gateway1Name, ns, gwClassName)
-	SetupGateway(t, gateway2Name, ns, gwClassName)
+	SetupGateway(t, gateway1Name, ns, gwClassName, false)
+	SetupGateway(t, gateway2Name, ns, gwClassName, false)
 	SetupAdvLBService(t, svcName, ns, gateway1Name, ns)
 
 	g.Eventually(func() bool {
@@ -1096,7 +918,7 @@ func TestAdvL4EndpointDeleteCreate(t *testing.T) {
 	svcName := "svc-15"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
 	// delete endpoints
@@ -1154,7 +976,7 @@ func TestAdvL4MultiTenancyWithInfraSettting(t *testing.T) {
 	integrationtest.AnnotateNamespaceWithTenant(t, ns, "nonadmin")
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
@@ -1211,7 +1033,7 @@ func TestAdvL4MultiTenancyWithTenantAddition(t *testing.T) {
 	svcName := "svc-17"
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
@@ -1295,7 +1117,7 @@ func TestAdvL4MultiTenancyWithTenantDeannotationInNS(t *testing.T) {
 	integrationtest.AnnotateNamespaceWithTenant(t, ns, "nonadmin")
 
 	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
-	SetupGateway(t, gatewayName, ns, gwClassName)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
 
 	SetupAdvLBService(t, svcName, ns, gatewayName, ns)
 
@@ -1349,4 +1171,58 @@ func TestAdvL4MultiTenancyWithTenantDeannotationInNS(t *testing.T) {
 	TeardownAdvLBService(t, svcName, ns)
 	TeardownGateway(t, gatewayName, ns)
 	VerifyGatewayVSNodeDeletion(g, newModelName)
+}
+
+func TestAdvL4WithProxyEnabledAppProfile(t *testing.T) {
+	// create a gw object with proxy-enabled annotation
+	// graph layer VS should come up with correct app profile
+	// delete the gw object, graph layer object deletion
+	g := gomega.NewGomegaWithT(t)
+
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/abc--default-my-gateway"
+
+	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
+	SetupGateway(t, gatewayName, ns, gwClassName, true)
+
+	SetupAdvLBService(t, "svc", ns, gatewayName, ns)
+
+	g.Eventually(func() string {
+		gw, _ := AdvL4Client.NetworkingV1alpha1pre1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if len(gw.Status.Addresses) > 0 {
+			return gw.Status.Addresses[0].Value
+		}
+		return ""
+	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
+
+	g.Eventually(func() string {
+		svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), "svc", metav1.GetOptions{})
+		if len(svc.Status.LoadBalancer.Ingress) > 0 {
+			return svc.Status.LoadBalancer.Ingress[0].IP
+		}
+		return ""
+	}, 30*time.Second).Should(gomega.Equal("10.250.250.1"))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].Name).To(gomega.Equal("abc--default-my-gateway"))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8081)))
+	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Port).To(gomega.Equal(uint32(8081)))
+	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Protocol).To(gomega.Equal("TCP"))
+	g.Expect(nodes[0].ServiceMetadata.NamespaceServiceName[0]).To(gomega.Equal("default/svc"))
+	g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/my-gateway"))
+	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(3))
+	g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(lib.GetProxyEnabledApplicationProfileName()))
+
+	TeardownGatewayClass(t, gwClassName)
+	g.Eventually(func() int {
+		gw, _ := AdvL4Client.NetworkingV1alpha1pre1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		return len(gw.Status.Addresses)
+	}, 40*time.Second).Should(gomega.Equal(0))
+
+	TeardownAdvLBService(t, "svc", ns)
+	TeardownGateway(t, gatewayName, ns)
+	VerifyGatewayVSNodeDeletion(g, modelName)
 }

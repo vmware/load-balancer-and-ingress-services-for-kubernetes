@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vmware/alb-sdk/go/models"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -17,6 +19,8 @@ import (
 
 type VPCHandler struct {
 }
+
+var defaultProject string
 
 func (v *VPCHandler) AddNetworkInfoEventHandler(stopCh <-chan struct{}) {
 	vpcNetworkConfigEventHandler := cache.ResourceEventHandlerFuncs{
@@ -69,27 +73,32 @@ func (v *VPCHandler) createInfraSettingAndAnnotateNS(nsToVPCMap map[string]strin
 	processedInfraSettingCRSet := make(map[string]struct{})
 	for ns, vpc := range nsToVPCMap {
 		arr := strings.Split(vpc, "/vpcs/")
-		infraSettingName := strings.ReplaceAll(arr[len(arr)-1], "_", "-")
-		project := strings.Split(arr[0], "/projects/")[1]
+		projectArr := strings.Split(arr[0], "/projects/")
+		infraSettingName := lib.GetAviInfraSettingName(projectArr[len(projectArr)-1] + arr[len(arr)-1])
+		tenant, err := getTenantForProject(projectArr[len(projectArr)-1])
+		if err != nil {
+			utils.AviLog.Warnf("failed to fetch admin tenant from Avi, error: %s", err.Error())
+			continue
+		}
 		// multiple namespaces can use the same vpc, and there will always be only 1 infrasetting per vpc
 		// so no need to attempt Infrasetting creation
 		// just annotate the namespace with the infrasetting and tenant info
 		if _, ok := processedInfraSettingCRSet[infraSettingName]; ok {
 			lib.AnnotateNamespaceWithInfraSetting(ns, infraSettingName)
-			lib.AnnotateNamespaceWithTenant(ns, project)
+			lib.AnnotateNamespaceWithTenant(ns, tenant)
 			continue
 		}
 
 		processedInfraSettingCRSet[infraSettingName] = struct{}{}
 		delete(staleInfraSettingCRSet, infraSettingName)
 
-		_, err := lib.CreateOrUpdateAviInfraSetting(infraSettingName, "", vpc)
+		_, err = lib.CreateOrUpdateAviInfraSetting(infraSettingName, "", vpc, "Default-Group")
 		if err != nil {
 			utils.AviLog.Errorf("failed to create aviInfraSetting, name: %s, error: %s", infraSettingName, err.Error())
 			continue
 		}
 		lib.AnnotateNamespaceWithInfraSetting(ns, infraSettingName)
-		lib.AnnotateNamespaceWithTenant(ns, project)
+		lib.AnnotateNamespaceWithTenant(ns, tenant)
 	}
 
 	for infraSettingName := range staleInfraSettingCRSet {
@@ -107,4 +116,26 @@ func (v *VPCHandler) NewLRLSFullSyncWorker() *utils.FullSyncThread {
 	worker.SyncFunction = v.SyncLSLRNetwork
 	worker.QuickSyncFunction = func(qSync bool) error { return nil }
 	return worker
+}
+
+func getTenantForProject(project string) (string, error) {
+	if defaultProject == "" {
+		c := InfraAviClientInstance()
+		uri := "api/tenant/admin"
+		response := models.Tenant{}
+		err := lib.AviGet(c, uri, &response)
+		if err != nil {
+			return "", err
+		}
+		for _, attr := range response.Attrs {
+			if *attr.Key == "path" {
+				projectSlice := strings.Split(*attr.Value, "/projects/")
+				defaultProject = projectSlice[len(projectSlice)-1]
+			}
+		}
+	}
+	if project == defaultProject {
+		return "admin", nil
+	}
+	return project, nil
 }

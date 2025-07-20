@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -191,18 +191,22 @@ func EnqueueIng(key, namespace, hostName, ingName string) bool {
 	if lib.AKOControlConfig().GetAKOFQDNReusePolicy() != lib.FQDNReusePolicyStrict {
 		return true
 	}
+	return !hostnameExistInDifferentNamespace(key, hostName, namespace)
+}
+
+func hostnameExistInDifferentNamespace(key, hostName, namespace string) bool {
 	found, ingressHostMap := SharedHostNameLister().Get(hostName)
 	if found {
 		ingresses := ingressHostMap.GetIngressesForHostName()
-		if len(ingresses) > 0 {
-			nsIngressname := strings.Split(ingresses[0], "/")
-			if len(nsIngressname) > 0 {
-				if nsIngressname[0] != namespace {
+		for _, ingress := range ingresses {
+			nsIngressName := strings.Split(ingress, "/")
+			if len(nsIngressName) > 0 {
+				if nsIngressName[0] != namespace {
 					utils.AviLog.Debugf("key: %s, msg: Host %s already claimed. Not processing ingress.", key, hostName)
-					return false
+					return true
 				}
 			}
 		}
 	}
-	return true
+	return false
 }

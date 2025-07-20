@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -159,4 +159,8 @@ type HostRuleAnalyticsPolicy struct {
 type FullClientLogs struct {
 	Enabled  *bool  `json:"enabled,omitempty"`
 	Throttle string `json:"throttle,omitempty"`
+
+	// How long should the system capture Non-significant logs, measured in minutes.
+	// Set to 0 for infinite. Special values are 0 - infinite. Unit is MIN.
+	Duration *uint32 `json:"duration,omitempty"`
 }

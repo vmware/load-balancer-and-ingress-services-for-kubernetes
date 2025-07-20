@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -98,12 +98,14 @@ const (
 	ENV_CTRL_CADATA               = "CTRL_CA_DATA"
 	POD_NAMESPACE                 = "POD_NAMESPACE"
 	VCF_CLUSTER                   = "VCF_CLUSTER"
+	VPC_MODE                      = "VPC_MODE"
 	MCI_ENABLED                   = "MCI_ENABLED"
 	USE_DEFAULT_SECRETS_ONLY      = "USE_DEFAULT_SECRETS_ONLY"
 	Namespace                     = "Namespace"
 	MaxAviVersion                 = "30.2.1"
 	ControllerAPIHeader           = "userHeader"
 	ControllerAPIScheme           = "scheme"
+	XAviUserAgentHeader           = "X-Avi-UserAgent"
 
 	RefreshAuthTokenInterval = 12  //hours
 	AuthTokenExpiry          = 240 //hours

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
 package nodes
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -38,7 +37,7 @@ type Validator struct {
 
 func NewNodesValidator() *Validator {
 	validator := &Validator{}
-	if !lib.IsWCP() {
+	if !utils.IsWCP() {
 		validator.subDomains = GetDefaultSubDomain()
 	}
 	return validator
@@ -664,24 +663,4 @@ func (v *Validator) ParseHostPathForMultiClusterIngress(ns string, ingName strin
 	ingressConfig.IngressHostMap = hostMap
 	utils.AviLog.Infof("key: %s, msg: host path config from multi-cluster ingress: %+v", key, utils.Stringify(ingressConfig))
 	return ingressConfig
-}
-
-func getNamespaceAviInfraSetting(key, ns string) (*v1beta1.AviInfraSetting, error) {
-	namespace, err := utils.GetInformers().NSInformer.Lister().Get(ns)
-	if err != nil {
-		return nil, err
-	}
-	infraSettingCRName, ok := namespace.GetAnnotations()[lib.InfraSettingNameAnnotation]
-	if !ok {
-		return nil, nil
-	}
-	infraSetting, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingCRName)
-	if err != nil {
-		return nil, err
-	}
-	if infraSetting != nil && infraSetting.Status.Status != lib.StatusAccepted {
-		utils.AviLog.Warnf("key: %s, msg: Referred AviInfraSetting %s is invalid", key, infraSetting.Name)
-		return nil, fmt.Errorf("AviInfraSetting %s is invalid", infraSetting.Name)
-	}
-	return infraSetting, nil
 }

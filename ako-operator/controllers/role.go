@@ -1,5 +1,5 @@
 /*
-Copyright 2020 VMware, Inc.
+Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
 All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -139,7 +139,7 @@ func BuildClusterrole(ako akov1alpha1.AKOConfig, r *AKOConfigReconciler, log log
 			},
 			{
 				APIGroups: []string{"ako.vmware.com"},
-				Resources: []string{"hostrules", "hostrules/status", "httprules", "httprules/status", "aviinfrasettings", "aviinfrasettings/status", "l4rules", "l4rules/status", "ssorules", "ssorules/status"},
+				Resources: []string{"hostrules", "hostrules/status", "httprules", "httprules/status", "aviinfrasettings", "aviinfrasettings/status", "l4rules", "l4rules/status", "ssorules", "ssorules/status", "l7rules", "l7rules/status"},
 				Verbs:     []string{"get", "watch", "list", "patch", "update"},
 			},
 			{

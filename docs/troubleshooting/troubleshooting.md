@@ -89,6 +89,24 @@ Check connectivity between AKO Pod and Avi controller.
 
   Refer the [document](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.25/#securitycontext-v1-core) to select the best suitable configuration.
 
+#### Static routes not getting populated in vrfcontext
+
+#### Possible Reasons/Solutions
+
+  Reboot all ako pods by setting replica count to 0 and then reverting replica count back in ako statefuleset using following steps:
+
+    1. Edit `ako` sts in `avi-system` namespace using following command and set `replicas: 0` :
+    
+        kubectl edit sts ako -n avi-system
+  
+        Save and exit.
+
+    2. Edit `ako` sts in `avi-system` namespace using following command and set `replicas: replica-count-before-edit` :
+    
+        kubectl edit sts ako -n avi-system
+  
+        Save and exit.
+
 ## Log Collection
 
 For every log collection, also collect the following information:

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ func (rest *RestOperations) AviL4PSBuild(hps_meta *nodes.AviL4PolicyNode, cache_
 		return nil
 	}
 	name := hps_meta.Name
-	tenant := fmt.Sprintf("/api/tenant/?name=%s", hps_meta.Tenant)
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", lib.GetEscapedValue(hps_meta.Tenant))
 	cr := lib.AKOUser
 
 	hps := avimodels.L4PolicySet{
@@ -217,7 +217,7 @@ func (rest *RestOperations) AviL4PolicyCacheAdd(rest_op *utils.RestOp, vsKey avi
 		}
 		emptyIngestionMarkers := utils.AviObjectMarkers{}
 		//This is fetching data from response send at avi controller.
-		cksum := lib.L4PolicyChecksum(ports, protocols, emptyIngestionMarkers, l4policyset.Markers, true)
+		cksum := lib.L4PolicyChecksum(ports, protocols, pools, emptyIngestionMarkers, l4policyset.Markers, true)
 		l4_cache_obj := avicache.AviL4PolicyCache{Name: name, Tenant: rest_op.Tenant,
 			Uuid:             uuid,
 			LastModified:     lastModifiedStr,

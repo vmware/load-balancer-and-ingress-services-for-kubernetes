@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -58,7 +58,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		return nil, nil
 	}
 	name := vsvip_meta.Name
-	tenant := fmt.Sprintf("/api/tenant/?name=%s", vsvip_meta.Tenant)
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", lib.GetEscapedValue(vsvip_meta.Tenant))
 	cloudRef := fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)
 	var dns_info_arr []*avimodels.DNSInfo
 	var path string
@@ -118,9 +118,11 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 				vsvip.Vip = []*avimodels.Vip{}
 				vsvip.Vip = append(vsvip.Vip, vips...)
 			} else if lib.GetCloudType() == lib.CLOUD_NSXT && lib.GetVPCMode() {
-				vpcArr := strings.Split(vsvip_meta.T1Lr, "/")
-				vipNetwork := fmt.Sprintf("%s_AVISEPARATOR_%s_AVISEPARATOR_PUBLIC", vsvip_meta.Tenant, vpcArr[len(vpcArr)-1])
+				vpcArr := strings.Split(vsvip_meta.T1Lr, "/vpcs/")
+				projectArr := strings.Split(vpcArr[0], "/projects/")
+				vipNetwork := fmt.Sprintf("%s_AVISEPARATOR_%s_AVISEPARATOR_%s", projectArr[len(projectArr)-1], vpcArr[len(vpcArr)-1], vsvip_meta.LBVipType)
 				vip.SubnetUUID = &vipNetwork
+				vsvip.Vip = []*avimodels.Vip{vip}
 			} else {
 				// Set the IPAM network subnet for all clouds except AWS and Azure
 				if len(vsvip_meta.VipNetworks) != 0 {
@@ -196,8 +198,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		if lib.IsPublicCloud() && lib.GetCloudType() != lib.CLOUD_GCP {
 			vips = networkNamesToVips(vsvip_meta.VipNetworks, vsvip_meta.EnablePublicIP)
 		} else if lib.GetCloudType() == lib.CLOUD_NSXT && lib.GetVPCMode() {
-			vpcArr := strings.Split(vsvip_meta.T1Lr, "/")
-			vipNetwork := fmt.Sprintf("%s_AVISEPARATOR_%s_AVISEPARATOR_PUBLIC", vsvip_meta.Tenant, vpcArr[len(vpcArr)-1])
+			vpcArr := strings.Split(vsvip_meta.T1Lr, "/vpcs/")
+			projectArr := strings.Split(vpcArr[0], "/projects/")
+			vipNetwork := fmt.Sprintf("%s_AVISEPARATOR_%s_AVISEPARATOR_%s", projectArr[len(projectArr)-1], vpcArr[len(vpcArr)-1], vsvip_meta.LBVipType)
 			vip.SubnetUUID = &vipNetwork
 		} else {
 			// Set the IPAM network subnet for all clouds except AWS and Azure
@@ -226,7 +229,7 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 						ip6PrefixSlice = strings.Split(vipNetwork.V6Cidr, "/")
 						mask6, _ = strconv.Atoi(ip6PrefixSlice[1])
 					}
-					if (lib.IsPublicCloud() && lib.GetCloudType() == lib.CLOUD_GCP) || (!lib.IsWCP()) {
+					if (lib.IsPublicCloud() && lib.GetCloudType() == lib.CLOUD_GCP) || (!utils.IsWCP()) {
 						if vipNetwork.Cidr != "" {
 							vip.IPAMNetworkSubnet.Subnet = &avimodels.IPAddrPrefix{
 								IPAddr: &avimodels.IPAddr{Type: &ipType, Addr: &ipPrefixSlice[0]},
@@ -434,7 +437,7 @@ func (rest *RestOperations) AviVsVipCacheAdd(rest_op *utils.RestOp, vsKey avicac
 			vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 			if found && vs_cache_obj.ServiceMetadataObj.Gateway != "" {
 				gwNSName := strings.Split(vs_cache_obj.ServiceMetadataObj.Gateway, "/")
-				if lib.IsWCP() {
+				if utils.IsWCP() {
 					gw, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(gwNSName[0]).Get(gwNSName[1])
 					if err != nil {
 						utils.AviLog.Warnf("key: %s, msg: Gateway object not found, skippig status update %v", key, err)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -601,10 +601,7 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 	if l4RuleSpec.LoadBalancerIP != nil &&
 		net.ParseIP(*l4RuleSpec.LoadBalancerIP) == nil {
 		err := fmt.Errorf("loadBalancerIP %s is not valid", *l4RuleSpec.LoadBalancerIP)
-		status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
-			Status: lib.StatusRejected,
-			Error:  err.Error(),
-		})
+		rejectL4Rule(key, l4Rule, err)
 		return err
 	}
 
@@ -624,19 +621,13 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 		}
 		isL4SSL, err := checkForL4SSLAppProfile(key, *l4RuleSpec.ApplicationProfileRef)
 		if err != nil {
-			status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
-				Status: lib.StatusRejected,
-				Error:  err.Error(),
-			})
+			rejectL4Rule(key, l4Rule, err)
 			return err
 		}
 		if isL4SSL {
 			if !isSSLEnabled {
 				sslErr := fmt.Errorf("SSL is not enabled in l4rule listener Spec but App Profile %s is of type SSL", *l4RuleSpec.ApplicationProfileRef)
-				status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
-					Status: lib.StatusRejected,
-					Error:  sslErr.Error(),
-				})
+				rejectL4Rule(key, l4Rule, sslErr)
 				return sslErr
 			}
 			if l4RuleSpec.SslProfileRef != nil {
@@ -648,10 +639,7 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 			if l4RuleSpec.NetworkProfileRef != nil {
 				isNetworkProfileTypeTCP, err = checkForNetworkProfileTypeTCP(key, *l4RuleSpec.NetworkProfileRef)
 				if err != nil {
-					status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
-						Status: lib.StatusRejected,
-						Error:  err.Error(),
-					})
+					rejectL4Rule(key, l4Rule, err)
 					return err
 				}
 			}
@@ -659,27 +647,18 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 			if *l4RuleSpec.ApplicationProfileRef != utils.DEFAULT_L4_APP_PROFILE {
 				if isSSLEnabled {
 					sslErr := fmt.Errorf("SSL is enabled in l4rule listener Spec but App Profile %s is not of type SSL", *l4RuleSpec.ApplicationProfileRef)
-					status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
-						Status: lib.StatusRejected,
-						Error:  sslErr.Error(),
-					})
+					rejectL4Rule(key, l4Rule, sslErr)
 					return sslErr
 				}
 			}
 			if l4RuleSpec.SslProfileRef != nil {
 				sslProfileErr := fmt.Errorf("App Profile %s is not of type SSL but SslProfileRef is set", *l4RuleSpec.ApplicationProfileRef)
-				status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
-					Status: lib.StatusRejected,
-					Error:  sslProfileErr.Error(),
-				})
+				rejectL4Rule(key, l4Rule, sslProfileErr)
 				return sslProfileErr
 			}
 			if len(l4RuleSpec.SslKeyAndCertificateRefs) != 0 {
 				sslKeyCertErr := fmt.Errorf("App Profile %s is not of type SSL but SslKeyAndCertificateRefs are set", *l4RuleSpec.ApplicationProfileRef)
-				status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
-					Status: lib.StatusRejected,
-					Error:  sslKeyCertErr.Error(),
-				})
+				rejectL4Rule(key, l4Rule, sslKeyCertErr)
 				return sslKeyCertErr
 			}
 		}
@@ -724,20 +703,21 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 		}
 
 		if err := validateLBAlgorithm(backendProperties); err != nil {
-			status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
-				Status: lib.StatusRejected,
-				Error:  err.Error(),
-			})
+			rejectL4Rule(key, l4Rule, err)
 			return err
 		}
 	}
 	tenant := lib.GetTenantInNamespace(l4Rule.Namespace)
 	if err := checkRefsOnController(key, refData, tenant); err != nil {
-		status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
-			Status: lib.StatusRejected,
-			Error:  err.Error(),
-		})
+		rejectL4Rule(key, l4Rule, err)
 		return err
+	}
+
+	revokeVipRoute := l4Rule.Spec.RevokeVipRoute
+	if lib.GetCloudType() != lib.CLOUD_NSXT && revokeVipRoute != nil && *revokeVipRoute {
+		revokeVipRouteErr := fmt.Errorf("RevokeVipRoute is only supported in NSX-T Cloud")
+		rejectL4Rule(key, l4Rule, revokeVipRouteErr)
+		return revokeVipRouteErr
 	}
 
 	// No need to update status of l4rule object as accepted since it was accepted before.
@@ -757,6 +737,7 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 // pushing to ingestion
 func (l *leader) ValidateL7RuleObj(key string, l7Rule *akov1alpha2.L7Rule) error {
 	l7RuleSpec := l7Rule.Spec
+
 	refData := make(map[string]string)
 	if l7RuleSpec.BotPolicyRef != nil {
 		refData[*l7RuleSpec.BotPolicyRef] = "BotPolicy"
@@ -768,6 +749,42 @@ func (l *leader) ValidateL7RuleObj(key string, l7Rule *akov1alpha2.L7Rule) error
 
 	if l7RuleSpec.TrafficCloneProfileRef != nil {
 		refData[*l7RuleSpec.TrafficCloneProfileRef] = "TrafficCloneProfile"
+	}
+	// Analytics Profile
+	if l7RuleSpec.AnalyticsProfile != nil {
+		if *l7RuleSpec.AnalyticsProfile.Kind == lib.AVI_REF {
+			refData[*l7RuleSpec.AnalyticsProfile.Name] = "AnalyticsProfile"
+		}
+	}
+	// Waf Policy
+	if l7RuleSpec.WafPolicy != nil {
+		if *l7RuleSpec.WafPolicy.Kind == lib.AVI_REF {
+			refData[*l7RuleSpec.WafPolicy.Name] = "WafPolicy"
+		}
+	}
+	// IcapProfile
+	if l7RuleSpec.IcapProfile != nil {
+		if *l7RuleSpec.IcapProfile.Kind == lib.AVI_REF {
+			refData[*l7RuleSpec.IcapProfile.Name] = "ICAPProfile"
+		}
+	}
+	// ErrorPageProfile
+	if l7RuleSpec.ErrorPageProfile != nil {
+		if *l7RuleSpec.ErrorPageProfile.Kind == lib.AVI_REF {
+			refData[*l7RuleSpec.ErrorPageProfile.Name] = "ErrorPageProfile"
+		}
+	}
+	// ApplicationProfile - same check
+	if l7RuleSpec.ApplicationProfile != nil {
+		if *l7RuleSpec.ApplicationProfile.Kind == lib.AVI_REF {
+			refData[*l7RuleSpec.ApplicationProfile.Name] = "AppProfile"
+		}
+	}
+
+	if l7RuleSpec.HTTPPolicy != nil {
+		for _, policyName := range l7RuleSpec.HTTPPolicy.PolicySets {
+			refData[*policyName] = "HttpPolicySet"
+		}
 	}
 	tenant := lib.GetTenantInNamespace(l7Rule.Namespace)
 
@@ -873,4 +890,12 @@ func (l *follower) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) err
 func (f *follower) ValidateL7RuleObj(key string, l7Rule *akov1alpha2.L7Rule) error {
 	utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating L7Rule object", key)
 	return nil
+}
+
+// rejectL4Rule updates the status of L4Rule CR to "rejected" and adds error message
+func rejectL4Rule(key string, l4Rule *akov1alpha2.L4Rule, err error) {
+	status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
+		Status: lib.StatusRejected,
+		Error:  err.Error(),
+	})
 }

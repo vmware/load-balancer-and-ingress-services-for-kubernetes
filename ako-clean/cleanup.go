@@ -2,6 +2,8 @@ package akoclean
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -22,14 +24,9 @@ var (
 	SidecarProxyEndpoint = "localhost:1080"
 	UseExternalCert      = "external-cert"
 	ServerCertHeader     = "x-vmware-server-tls-cert"
-	AviMinVersion        = "30.1.1"
-	NamePrefix           = ""
-	AKOuser              = ""
-	AdminTenant          = "admin"
-	Cloud                = ""
-	SEGroupUUID          = ""
 	SEGroupNotFoundError = "SEGroup does not exist"
 	Referer              = "Referer"
+	VPCMode              = false
 )
 
 type aviControllerConfig struct {
@@ -65,20 +62,20 @@ func (cfg *AKOCleanupConfig) Cleanup(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	os.Setenv(utils.VCF_CLUSTER, "true")
 
+	akoControlConfig := lib.AKOControlConfig()
+	akoControlConfig.SetAKOInstanceFlag(true)
+	akoControlConfig.SetIsLeaderFlag(true)
 	lib.SetClusterID(cfg.clusterID)
+	lib.SetNamePrefix("")
+	lib.SetAKOUser(lib.AKOPrefix)
+
 	referer := "https://" + cfg.host
 	if cfg.useEnvoy {
 		cfg.host = fmt.Sprintf("%s/%s/http1/%s/443", SidecarProxyEndpoint, UseExternalCert, cfg.host)
 	}
 	lib.SetControllerIP(cfg.host)
-	os.Setenv(utils.VCF_CLUSTER, "true")
-	akoControlConfig := lib.AKOControlConfig()
-	akoControlConfig.SetAKOInstanceFlag(true)
-	lib.SetNamePrefix("")
-	lib.SetAKOUser(lib.AKOPrefix)
-	akoControlConfig.SetIsLeaderFlag(true)
-
 	populateControllerProperties(cfg, referer)
 
 	var aviRestClientPool *utils.AviRestClientPool
@@ -96,6 +93,14 @@ func (cfg *AKOCleanupConfig) Cleanup(ctx context.Context) error {
 
 	ops := []func() error{
 		setCloudName,
+		func() error {
+			if VPCMode {
+				os.Setenv(utils.VPC_MODE, "true")
+				lib.SetNamePrefix("")
+				lib.SetAKOUser(lib.AKOPrefix)
+			}
+			return nil
+		},
 		populateCache,
 		cleanupVirtualServices,
 		cleanupVsVips,
@@ -104,8 +109,19 @@ func (cfg *AKOCleanupConfig) Cleanup(ctx context.Context) error {
 		cleanupL4PolicySets,
 		cleanupPoolGroups,
 		cleanupPools,
-		func() error { return avirest.DeleteServiceEngines() },
-		avirest.DeleteServiceEngineGroup,
+		cleanupAppProfiles,
+		func() error {
+			if VPCMode {
+				return nil
+			}
+			return avirest.DeleteServiceEngines()
+		},
+		func() error {
+			if VPCMode {
+				return nil
+			}
+			return avirest.DeleteServiceEngineGroup()
+		},
 		cleanupVIPNetwork,
 	}
 
@@ -126,18 +142,62 @@ func (cfg *AKOCleanupConfig) Cleanup(ctx context.Context) error {
 	return nil
 }
 
-func setCloudName() error {
-	uri := "/api/serviceenginegroup/?name=" + lib.GetClusterID() + "&include_name=True"
+func getCloudInVPCMode() (string, error) {
+	uri := "/api/cloud/"
 	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
-	response := models.ServiceEngineGroupAPIResponse{}
-	err := lib.AviGet(aviRestClientPool.AviClient[0], uri, &response)
+
+	result, err := lib.AviGetCollectionRaw(aviRestClientPool.AviClient[0], uri)
+	if err != nil {
+		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+		return "", err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to unmarshal data, err: %v", err)
+		return "", err
+	}
+	for i := 0; i < len(elems); i++ {
+		cloud := models.Cloud{}
+		err = json.Unmarshal(elems[i], &cloud)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal cloud data, err: %v", err)
+			continue
+		}
+		if *cloud.Vtype != lib.CLOUD_NSXT || cloud.NsxtConfiguration == nil {
+			continue
+		}
+		if cloud.NsxtConfiguration.VpcMode == nil || !*cloud.NsxtConfiguration.VpcMode {
+			continue
+		}
+		if cloud.NsxtConfiguration.ManagementNetworkConfig == nil ||
+			cloud.NsxtConfiguration.ManagementNetworkConfig.TransportZone == nil {
+			continue
+		}
+		VPCMode = true
+		return *cloud.Name, nil
+	}
+	return "", nil
+}
+
+func setCloudName() error {
+	cloudName, err := getCloudInVPCMode()
 	if err != nil {
 		return err
 	}
-	if len(response.Results) == 0 {
-		return fmt.Errorf(SEGroupNotFoundError)
+	if cloudName == "" {
+		uri := "/api/serviceenginegroup/?name=" + lib.GetClusterID() + "&include_name=True"
+		aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
+		response := models.ServiceEngineGroupAPIResponse{}
+		err := lib.AviGet(aviRestClientPool.AviClient[0], uri, &response)
+		if err != nil {
+			return err
+		}
+		if len(response.Results) == 0 {
+			return errors.New(SEGroupNotFoundError)
+		}
+		cloudName = strings.Split(*response.Results[0].CloudRef, "#")[1]
 	}
-	cloudName := strings.Split(*response.Results[0].CloudRef, "#")[1]
 	utils.SetCloudName(cloudName)
 	return nil
 }
@@ -150,7 +210,7 @@ func (cfg *AKOCleanupConfig) validate() error {
 		return fmt.Errorf("invalid config: one of password or authtoken is required")
 	}
 	if cfg.clusterID == "" {
-		return fmt.Errorf("invalid config: cluster id is required")
+		return fmt.Errorf("invalid config: cluster-id is required")
 	}
 	return nil
 }
@@ -175,26 +235,20 @@ func populateControllerProperties(cfg *AKOCleanupConfig, referer string) {
 }
 
 func populateCache() error {
-	adminRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
-	tenants := make(map[string]struct{})
-	err := lib.GetAllTenants(adminRestClientPool.AviClient[0], tenants)
+	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
+	if aviRestClientPool == nil || len(aviRestClientPool.AviClient) == 0 {
+		return fmt.Errorf("avi Rest client initialization failed")
+	}
+
+	aviObjCache := avicache.SharedAviObjCache()
+	// Randomly pickup a client.
+	_, _, err := aviObjCache.AviObjCachePopulate(aviRestClientPool.AviClient, lib.AKOControlConfig().ControllerVersion(), utils.CloudName)
 	if err != nil {
+		utils.AviLog.Warnf("failed to populate avi cache with error: %v", err.Error())
 		return err
 	}
-	for tenant := range tenants {
-		aviRestClientPool := avicache.SharedAVIClients(tenant)
-		aviObjCache := avicache.SharedAviObjCache()
-		// Randomly pickup a client.
-		if aviRestClientPool != nil && len(aviRestClientPool.AviClient) > 0 {
-			_, _, err = aviObjCache.AviObjCachePopulate(aviRestClientPool.AviClient, lib.AKOControlConfig().ControllerVersion(), utils.CloudName, tenant)
-			if err != nil {
-				utils.AviLog.Warnf("failed to populate avi cache with error: %v", err.Error())
-				return err
-			}
 
-		}
-	}
-	if err = avicache.SetControllerClusterUUID(adminRestClientPool); err != nil {
+	if err = avicache.SetControllerClusterUUID(aviRestClientPool); err != nil {
 		utils.AviLog.Warnf("Failed to set the controller cluster uuid with error: %v", err)
 	}
 
@@ -348,10 +402,29 @@ func cleanupPools() error {
 	return deleteAviResource("/api/pool", pools)
 }
 
+func cleanupAppProfiles() error {
+	tenant := lib.GetAdminTenant()
+	aviClient := avicache.SharedAVIClients(tenant).AviClient[0]
+	err, appProfs := lib.ProxyEnabledAppProfileGet(aviClient)
+	if err != nil {
+		utils.AviLog.Warnf("Application profile Get returned err %v", err)
+		return err
+	}
+	appProfiles := make(map[string][]string)
+	for _, appProfile := range appProfs {
+		appProfiles[tenant] = append(appProfiles[tenant], *appProfile.UUID)
+	}
+	return deleteAviResource("/api/applicationprofile", appProfiles)
+}
+
 /*
 Below section is only applicable for T1 based Supervisor deployments
 */
 func cleanupVIPNetwork() error {
+	if VPCMode {
+		return nil
+	}
+
 	aviClient := avicache.SharedAVIClients(lib.GetAdminTenant()).AviClient[0]
 	avirest.AviNetCachePopulate(aviClient, utils.CloudName)
 	if len(avirest.NetCache) == 0 {

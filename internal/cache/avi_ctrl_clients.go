@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -52,6 +52,9 @@ func SharedAVIClients(tenant string) *utils.AviRestClientPool {
 			lib.AKOShutdown, "Avi Controller information missing (username: %s, password: %s, authToken: %s, controller: %s)",
 			ctrlUsername, passwordLog, authTokenLog, ctrlIpAddress,
 		)
+		if ctrlIpAddress == "" {
+			utils.AviLog.Fatalf("Avi Controller information missing (username: %s, password: %s, authToken: %s, controller: %s). Update the controller IP in ConfigMap : avi-k8s-config", ctrlUsername, passwordLog, authTokenLog, ctrlIpAddress)
+		}
 		utils.AviLog.Fatalf("Avi Controller information missing (username: %s, password: %s, authToken: %s, controller: %s). Update them in avi-secret.", ctrlUsername, passwordLog, authTokenLog, ctrlIpAddress)
 	}
 
@@ -62,6 +65,7 @@ func SharedAVIClients(tenant string) *utils.AviRestClientPool {
 	}
 
 	userHeaders := utils.SharedCtrlProp().GetCtrlUserHeader()
+	userHeaders[utils.XAviUserAgentHeader] = "AKO"
 	apiScheme := utils.SharedCtrlProp().GetCtrlAPIScheme()
 
 	// Always create 9 clients irrespective of shard size

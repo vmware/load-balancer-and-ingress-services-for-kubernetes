@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -323,9 +323,8 @@ func (o *AviObjectGraph) GetOrderedNodes() []AviModelNode {
 }
 
 type StaticRouteDetails struct {
-	StartIndex int
-	Count      int
-	routeID    int
+	Count         int
+	RouteIDPrefix string
 }
 type AviVrfNode struct {
 	Name             string
@@ -333,7 +332,6 @@ type AviVrfNode struct {
 	CloudConfigCksum uint32
 	NodeStaticRoutes map[string]StaticRouteDetails
 	Nodes            []string
-	NodeIds          map[int]struct{}
 }
 
 func (v *AviVrfNode) GetCheckSum() uint32 {
@@ -451,6 +449,7 @@ type AviVsNodeCommonFields struct {
 	VsDatascriptRefs         []string
 	WafPolicyRef             *string
 	SslKeyAndCertificateRefs []string // refs to avi sslkeyandcertificate objs
+	RevokeVipRoute           *bool
 }
 
 // Implementing AviVsEvhSniModel
@@ -1120,6 +1119,7 @@ func (v *AviL4PolicyNode) CalculateCheckSum() {
 	var checksum uint32
 	var ports []int64
 	var protocols []string
+	var pools []string
 	if len(v.PortPool) > 0 {
 		sort.Slice(v.PortPool, func(i, j int) bool {
 			return v.PortPool[i].Name < v.PortPool[j].Name
@@ -1128,9 +1128,13 @@ func (v *AviL4PolicyNode) CalculateCheckSum() {
 	for _, hpp := range v.PortPool {
 		ports = append(ports, int64(hpp.Port))
 		protocols = append(protocols, hpp.Protocol)
+		// Include Pool name in checksum logic
+		pool := strings.TrimPrefix(hpp.Pool, "/api/pool?name=")
+		pools = append(pools, pool)
+
 	}
 	if len(v.PortPool) > 0 {
-		checksum = lib.L4PolicyChecksum(ports, protocols, v.AviMarkers, nil, false)
+		checksum = lib.L4PolicyChecksum(ports, protocols, pools, v.AviMarkers, nil, false)
 	}
 	v.CloudConfigCksum = checksum
 }
@@ -1255,15 +1259,16 @@ func (v *AviHostPathPortPoolPG) CalculateCheckSum() {
 }
 
 type AviRedirectPort struct {
-	Name          string
-	Hosts         []string
-	RedirectPort  int32
-	StatusCode    string
-	VsPort        int32
-	Protocol      string
-	Path          string
-	RedirectPath  string
-	MatchCriteria string
+	Name              string
+	Hosts             []string
+	RedirectPort      int32
+	StatusCode        string
+	VsPort            int32
+	Protocol          string
+	Path              string
+	RedirectPath      string
+	MatchCriteriaPath string
+	MatchCriteriaPort string
 }
 type AviHTTPSecurity struct {
 	Name          string
@@ -1346,6 +1351,7 @@ type AviVSVIPNode struct {
 	SecurePassthroughNode   *AviVsNode
 	InsecurePassthroughNode *AviVsNode
 	T1Lr                    string
+	LBVipType               string
 }
 
 func (v *AviVSVIPNode) GetCheckSum() uint32 {

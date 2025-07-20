@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -28,6 +28,10 @@ import (
 	"github.com/onsi/gomega"
 	"google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
+
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	gatewayfake "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned/fake"
@@ -40,7 +44,24 @@ import (
 
 var KubeClient *k8sfake.Clientset
 var GatewayClient *gatewayfake.Clientset
+var DynamicClient *dynamicfake.FakeDynamicClient
+var GvrToKind = map[schema.GroupVersionResource]string{
+	akogatewayapilib.L7CRDGVR: "l7rulesList",
+}
+var testData unstructured.Unstructured
 
+func GetL7RuleFakeData() unstructured.Unstructured {
+	testData.SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "ako.vmware.com",
+		"kind":       "l7rules",
+		"metadata": map[string]interface{}{
+			"name":      "testL7Rule",
+			"namespace": "default",
+		},
+		"spec": map[string]interface{}{},
+	})
+	return testData
+}
 func NewAviFakeClientInstance(kubeclient *k8sfake.Clientset, skipCachePopulation ...bool) {
 	if integrationtest.AviFakeClientInstance == nil {
 		integrationtest.AviFakeClientInstance = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -268,7 +289,7 @@ type Gateway struct {
 	*gatewayv1.Gateway
 }
 
-func (g *Gateway) GatewayV1(name, namespace, gatewayClass string, address []gatewayv1.GatewayAddress, listeners []gatewayv1.Listener) *gatewayv1.Gateway {
+func (g *Gateway) GatewayV1(name, namespace, gatewayClass string, address []gatewayv1.GatewaySpecAddress, listeners []gatewayv1.Listener, vipType ...string) *gatewayv1.Gateway {
 	gateway := &gatewayv1.Gateway{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            name,
@@ -282,6 +303,11 @@ func (g *Gateway) GatewayV1(name, namespace, gatewayClass string, address []gate
 	}
 
 	gateway.Spec.Listeners = listeners
+	if len(vipType) > 0 {
+		gateway.Annotations = map[string]string{
+			akogatewayapilib.LBVipTypeAnnotation: vipType[0],
+		}
+	}
 	return gateway
 }
 
@@ -309,15 +335,15 @@ func (g *Gateway) Delete(t *testing.T) {
 	t.Logf("Deleted Gateway %s", g.Gateway.Name)
 }
 
-func SetupGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress []gatewayv1.GatewayAddress, listeners []gatewayv1.Listener) {
+func SetupGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress []gatewayv1.GatewaySpecAddress, listeners []gatewayv1.Listener) {
 	g := &Gateway{}
 	g.Gateway = g.GatewayV1(name, namespace, gatewayClass, ipAddress, listeners)
 	g.Create(t)
 }
 
-func UpdateGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress []gatewayv1.GatewayAddress, listeners []gatewayv1.Listener) {
+func UpdateGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress []gatewayv1.GatewaySpecAddress, listeners []gatewayv1.Listener, vipType ...string) {
 	g := &Gateway{}
-	g.Gateway = g.GatewayV1(name, namespace, gatewayClass, ipAddress, listeners)
+	g.Gateway = g.GatewayV1(name, namespace, gatewayClass, ipAddress, listeners, vipType...)
 	g.Update(t)
 }
 
@@ -530,6 +556,16 @@ func GetHTTPRouteFilterV1(filterType string, actions []string) gatewayv1.HTTPRou
 			Hostname:   (*gatewayv1.PreciseHostname)(&host),
 			StatusCode: &statusCode302,
 		}
+	case "URLRewrite":
+		replaceFullPath := "/bar"
+		host := "rewrite.com"
+		routeFilter.URLRewrite = &gatewayv1.HTTPURLRewriteFilter{
+			Hostname: (*gatewayv1.PreciseHostname)(&host),
+			Path: &gatewayv1.HTTPPathModifier{
+				Type:            gatewayv1.FullPathHTTPPathModifier,
+				ReplaceFullPath: &replaceFullPath,
+			},
+		}
 	}
 	return routeFilter
 }
@@ -552,10 +588,10 @@ func GetHTTPRouteBackendV1(backendRefs []string) gatewayv1.HTTPBackendRef {
 
 }
 
-func GetHTTPRouteRuleV1(paths []string, matchHeaders []string, filterActionMap map[string][]string, backendRefs [][]string, backendRefFilters map[string][]string) gatewayv1.HTTPRouteRule {
+func GetHTTPRouteRuleV1(pathMatchType string, paths []string, matchHeaders []string, filterActionMap map[string][]string, backendRefs [][]string, backendRefFilters map[string][]string) gatewayv1.HTTPRouteRule {
 	matches := make([]gatewayv1.HTTPRouteMatch, 0, len(paths))
 	for _, path := range paths {
-		match := GetHTTPRouteMatchV1(path, "PathPrefix", matchHeaders)
+		match := GetHTTPRouteMatchV1(path, pathMatchType, matchHeaders)
 		matches = append(matches, match)
 	}
 

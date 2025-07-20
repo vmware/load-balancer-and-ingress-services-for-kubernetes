@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -58,7 +59,6 @@ type UpdateOptions struct {
 func (l *leader) UpdateIngressStatus(options []UpdateOptions, bulk bool) {
 	var err error
 	ingressesToUpdate, updateIngressOptions := ParseOptionsFromMetadata(options, bulk)
-
 	// ingressMap: {ns/ingress: ingressObj}
 	// this pre-fetches all ingresses to be candidates for status update
 	// after pre-fetching, if a status update comes for that ingress, then the pre-fetched ingress would be stale
@@ -373,11 +373,18 @@ func deleteObject(option UpdateOptions, key string, isVSDelete bool, retryNum ..
 			return errors.New("DeleteIngressStatus retried 3 times, aborting")
 		}
 	}
-
 	mIngress, err := utils.GetInformers().IngressInformer.Lister().Ingresses(option.ServiceMetadata.Namespace).Get(option.ServiceMetadata.IngressName)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: Could not get the ingress object for DeleteStatus: %s", key, err)
 		return err
+	}
+	vsUUIDs := make(map[string]string)
+	annotations := mIngress.Annotations
+	vsAnnotations, exists := annotations[lib.VSAnnotation]
+	if exists {
+		if err := json.Unmarshal([]byte(vsAnnotations), &vsUUIDs); err != nil {
+			utils.AviLog.Warnf("key: %s, msg: Could not unmarshall vs annotations: %s", key, err)
+		}
 	}
 
 	oldIngressStatus := mIngress.Status.LoadBalancer.DeepCopy()
@@ -394,12 +401,25 @@ func deleteObject(option UpdateOptions, key string, isVSDelete bool, retryNum ..
 			if !lib.ValidateIngressForClass(key, mIngress) ||
 				!utils.CheckIfNamespaceAccepted(option.ServiceMetadata.Namespace) ||
 				!utils.HasElem(hostListIng, host) ||
-				isVSDelete ||
 				mIngress.GetDeletionTimestamp() != nil {
 				mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
-			} else {
-				utils.AviLog.Debugf("key: %s, msg: skipping status deletion since host is present in the ingress: %v", key, host)
+				continue
 			}
+			if isVSDelete {
+				vsUUID, ok := vsUUIDs[host]
+				if !ok {
+					utils.AviLog.Debugf("key: %s, msg: No VS UUID found for host %s, removing host from ingress status", key, host)
+					mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
+					continue
+				}
+				_, hostExists := cache.SharedAviObjCache().VsCacheMeta.AviCacheGetKeyByUuid(vsUUID)
+				if !hostExists {
+					utils.AviLog.Debugf("key: %s, msg: VS with UUID %s not found in cache, removing host %s from ingress status", key, vsUUID, host)
+					mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
+					continue
+				}
+			}
+			utils.AviLog.Debugf("key: %s, msg: skipping status deletion since host is present in the ingress: %v", key, host)
 		}
 	}
 
@@ -470,7 +490,7 @@ func deleteIngressAnnotation(ingObj *networkingv1.Ingress, svcMeta lib.ServiceMe
 		return nil
 	}
 
-	for k := range existingAnnotations {
+	for k, vsUUID := range existingAnnotations {
 		for _, host := range svcMeta.HostNames {
 			if k == host {
 				// Check if:
@@ -479,11 +499,18 @@ func deleteIngressAnnotation(ingObj *networkingv1.Ingress, svcMeta lib.ServiceMe
 				//    has to be removed from the annotations list.
 				nsMigrationFilterFlag := utils.CheckIfNamespaceAccepted(svcMeta.Namespace)
 
-				if !utils.HasElem(ingHostList, host) || isVSDelete || !nsMigrationFilterFlag {
+				if !utils.HasElem(ingHostList, host) || !nsMigrationFilterFlag {
 					delete(existingAnnotations, k)
-				} else {
-					utils.AviLog.Debugf("key: %s, msg: skipping annotation update since host is present in the ing: %v", key, host)
+					continue
 				}
+				if isVSDelete {
+					_, exists := cache.SharedAviObjCache().VsCacheMeta.AviCacheGetKeyByUuid(vsUUID)
+					if !exists {
+						delete(existingAnnotations, k)
+						continue
+					}
+				}
+				utils.AviLog.Debugf("key: %s, msg: skipping annotation update since host is present in the ing: %v", key, host)
 			}
 		}
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -291,8 +291,7 @@ func TestMultiNodeUpdate(t *testing.T) {
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVRF()
 	g.Expect(len(nodes)).To(gomega.Equal(1))
 	//AV-171818-Route ID should not change for update
-	g.Expect(*(nodes[0].StaticRoutes[1].RouteID)).Should(gomega.Equal("cluster-2"))
-
+	g.Expect(*(nodes[0].StaticRoutes[1].RouteID)).Should(gomega.Equal("cluster-" + nodes[0].NodeStaticRoutes["testNode4"].RouteIDPrefix + "-0"))
 	KubeClient.CoreV1().Nodes().Delete(context.TODO(), "testNode3", metav1.DeleteOptions{})
 	KubeClient.CoreV1().Nodes().Delete(context.TODO(), "testNode4", metav1.DeleteOptions{})
 	PollForCompletion(t, modelName, 10)
@@ -375,7 +374,7 @@ func TestMultiNodeCDC(t *testing.T) {
 	}, 10*time.Second).Should(gomega.Equal(1))
 	//After delete, Now testNode6 should be at index 0.
 	g.Expect(*(nodes[0].StaticRoutes[0].NextHop.Addr)).Should(gomega.Equal(nodeip2))
-	g.Expect(*(nodes[0].StaticRoutes[0].RouteID)).Should(gomega.Equal("cluster-1"))
+	g.Expect(*(nodes[0].StaticRoutes[0].RouteID)).Should(gomega.Equal("cluster-" + nodes[0].NodeStaticRoutes["testNode6"].RouteIDPrefix + "-0"))
 	// Add another node
 	nodeExample := (FakeNode{
 		Name:     "testNode7",
@@ -405,7 +404,7 @@ func TestMultiNodeCDC(t *testing.T) {
 		num_static_routes := len(nodes[0].StaticRoutes)
 		return num_static_routes
 	}, 10*time.Second).Should(gomega.Equal(2))
-	g.Expect(*(nodes[0].StaticRoutes[1].RouteID)).Should(gomega.Equal("cluster-2"))
+	g.Expect(*(nodes[0].StaticRoutes[1].RouteID)).Should(gomega.Equal("cluster-" + nodes[0].NodeStaticRoutes["testNode7"].RouteIDPrefix + "-0"))
 	g.Expect(*(nodes[0].StaticRoutes[1].NextHop.Addr)).Should(gomega.Equal(nodeip3))
 	KubeClient.CoreV1().Nodes().Delete(context.TODO(), "testNode6", metav1.DeleteOptions{})
 	KubeClient.CoreV1().Nodes().Delete(context.TODO(), "testNode7", metav1.DeleteOptions{})

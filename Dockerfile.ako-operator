@@ -8,7 +8,7 @@ ENV BUILD_PATH="github.com/vmware/load-balancer-and-ingress-services-for-kuberne
 RUN mkdir -p $GOPATH/src/$BUILD_PATH
 
 COPY . $GOPATH/src/$BUILD_PATH
-WORKDIR $GOPATH/src/$BUILD_PATH
+WORKDIR $GOPATH/src/$BUILD_PATH/ako-operator
 
 # Build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -buildvcs=false -o $GOPATH/bin/ako-operator -mod=vendor $BUILD_PATH/ako-operator/
@@ -20,10 +20,11 @@ FROM ${ubi_src_repo}
 
 LABEL name="ako-operator"
 LABEL summary="An AKO operator to deploy AKO controller"
-LABEL version="v1.11.1"
+LABEL version="v1.12.3"
 LABEL release="1"
 LABEL description="Manage configmap, statefulset and other artifacts for deploying AKO controller"
 LABEL vendor="VMware"
+LABEL maintainer="VMware"
 
 RUN yum -y update-minimal --security --sec-severity=Important --sec-severity=Critical
 
@@ -36,6 +37,7 @@ COPY ./helm/ako/crds/ako.vmware.com_httprules.yaml /var/crds/
 COPY ./helm/ako/crds/ako.vmware.com_aviinfrasettings.yaml /var/crds/
 COPY ./helm/ako/crds/ako.vmware.com_l4rules.yaml /var/crds/
 COPY ./helm/ako/crds/ako.vmware.com_ssorules.yaml /var/crds/
+COPY ./helm/ako/crds/ako_vmware.com_l7rules.yaml /var/crds/
 RUN adduser nonroot
 USER nonroot:nonroot
 

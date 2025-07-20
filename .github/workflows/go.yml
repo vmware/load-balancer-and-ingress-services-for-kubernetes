@@ -15,13 +15,13 @@ jobs:
     name: Golangci-lint
     strategy:
       matrix:
-        platform: [ ubuntu-20.04 ]
+        platform: [ ubuntu-latest ]
     runs-on: ${{ matrix.platform }}
     steps:
-    - name: Set up Go 1.21
+    - name: Set up Go 1.24.0
       uses: actions/setup-go@v4
       with:
-        go-version: '1.21'
+        go-version: '1.24.0'
     - name: Check-out code
       uses: actions/checkout@v3
     - name: Run golangci-lint

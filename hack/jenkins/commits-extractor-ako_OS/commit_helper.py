@@ -1,4 +1,4 @@
-# Copyright 2019-2020 VMware, Inc.
+# Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -225,7 +225,7 @@ def get_git_commits(branch,
     all_commits = _get_all_paginated_commits(branch, since_timestamp, credentials_tuple)
     logging.info("Total commits count: {}".format(len(all_commits)))
     logging.info("Excluding the following commits\n {}".format('\n'.join(exclude_list)))
-    filtered_commits = [commit for commit in all_commits if commit['sha'] not in exclude_list]
+    filtered_commits = [commit for commit in all_commits if commit['sha'] not in exclude_list and commit['commit']['committer']['date'] != since_timestamp]
     logging.info("Filtered commits count: {}".format(len(filtered_commits)))
     
     commits_info = []

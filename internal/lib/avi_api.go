@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -173,7 +173,7 @@ func AviPut(client *clients.AviClient, uri string, payload interface{}, response
 		}
 		CheckForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
-		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 400 {
+		if aviError, ok := err.(session.AviError); ok && (aviError.HttpStatusCode == 400 || aviError.HttpStatusCode == 412) {
 			return err
 		}
 		return AviPut(client, uri, payload, response, retry+1)

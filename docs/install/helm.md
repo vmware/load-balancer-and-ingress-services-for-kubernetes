@@ -14,22 +14,22 @@ kubectl create ns avi-system
 Step 2: Search the available charts for AKO
 
 ```
-helm show chart oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 1.13.1
+helm show chart oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 1.14.1
 
-Pulled: projects.packages.broadcom.com/ako/helm-charts/ako:1.13.1
+Pulled: projects.packages.broadcom.com/ako/helm-charts/ako:1.14.1
 Digest: sha256:xyxyxxyxyx
 apiVersion: v2
-appVersion: 1.13.1
+appVersion: 1.14.1
 description: A helm chart for Avi Kubernetes Operator
 name: ako
 type: application
-version: 1.13.1
+version: 1.14.1
 ```
 
 Use the `values.yaml` from this chart to edit values related to Avi configuration. To get the values.yaml for a release, run the following command
 
 ```
-helm show values oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 1.13.1 > values.yaml
+helm show values oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 1.14.1 > values.yaml
 
 ```
 
@@ -44,12 +44,12 @@ Starting AKO-1.7.1, multiple AKO instances can be installed in a cluster.
 
 <b>Primary AKO installation</b>
 ```
-helm install --generate-name oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 1.13.1 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=true --namespace=avi-system
+helm install --generate-name oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 1.14.1 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=true --namespace=avi-system
 ```
 
 <b>Secondary AKO installation</b>
 ```
-helm install --generate-name oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 1.13.1 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=false --namespace=avi-system
+helm install --generate-name oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 1.14.1 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=false --namespace=avi-system
 
 ```
 
@@ -59,7 +59,7 @@ Step 4: Check the installation
 helm list -n avi-system
 
 NAME          	NAMESPACE 	REVISION	UPDATED     STATUS  	CHART    	APP VERSION
-ako-1691752136	avi-system	1       	2023-09-28	deployed	ako-1.13.1	1.13.1
+ako-1691752136	avi-system	1       	2023-09-28	deployed	ako-1.14.1	1.14.1
 ```
 
 ## Uninstall using *helm*
@@ -89,7 +89,7 @@ Follow these steps if you are upgrading from an older AKO release.
 Helm does not upgrade the CRDs during a release upgrade. Before you upgrade a release, run the following command to download and upgrade the CRDs:
 
 ```
-helm template oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 1.13.1 --include-crds --output-dir <output_dir>
+helm template oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 1.14.1 --include-crds --output-dir <output_dir>
 ```
 
 This will save the helm files to an output directory which will contain the CRDs corresponding to the AKO version.
@@ -105,15 +105,15 @@ kubectl apply -f <output_dir>/ako/crds/
 helm list -n avi-system
 
 NAME          	NAMESPACE 	REVISION	UPDATED                             	    STATUS  	CHART    	APP VERSION
-ako-1593523840	avi-system	1       	2023-04-16 13:44:31.609195757 +0000 UTC	    deployed	ako-1.10.3	1.10.3
+ako-1593523840	avi-system	1       	2024-08-04 13:44:31.609195757 +0000 UTC	    deployed	ako-1.12.2	1.12.2
 ```
 
 *Step3*
 
-Get the values.yaml for the AKO version 1.13.1 and edit the values as per the requirement.
+Get the values.yaml for the AKO version 1.14.1 and edit the values as per the requirement.
 
 ```
-helm show values oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 1.13.1 > values.yaml
+helm show values oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 1.14.1 > values.yaml
 
 ```
 *Step4*
@@ -121,7 +121,7 @@ helm show values oci://projects.packages.broadcom.com/ako/helm-charts/ako --vers
 Upgrade the helm chart
 
 ```
-helm upgrade ako-1593523840  oci://projects.packages.broadcom.com/ako/helm-charts/ako -f /path/to/values.yaml --version 1.13.1 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username> --namespace=avi-system
+helm upgrade ako-1593523840  oci://projects.packages.broadcom.com/ako/helm-charts/ako -f /path/to/values.yaml --version 1.14.1 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username> --namespace=avi-system
 
 ```
 
@@ -151,14 +151,15 @@ The following table lists the configurable parameters of the AKO chart and their
 | `NetworkSettings.enableRHI` | Publish route information to BGP peers | false |
 | `NetworkSettings.bgpPeerLabels` | Select BGP peers using bgpPeerLabels, for selective VsVip advertisement. | `Empty List` |
 | `NetworkSettings.nsxtT1LR` | Unique ID (note: not display name) of the T1 Logical Router for Service Engine connectivity. Only applies to NSX-T cloud.| `Empty string` |
+| `NetworkSettings.defaultDomain` | This flag has two use cases. It can be used to specify a default subdomain for L4 virtual services. It can also be used to generate the hostname for an OpenShift route if the OpenShift route uses a subdomain instead of a host field. | First domain name found in cloud's dnsprofile for L4 vs and `empty string` for an Openshift route |
 | `FeatureGates.gatewayAPI` | FeatureGates is to enable or disable experimental features. GatewayAPI feature gate enables/disables processing of Kubernetes Gateway API CRDs. | false |
 | `FeatureGates.enableEndpointSlice` | EnableEndpointSlice feature gate enables/disables processing of Kubernetes EndpointSlices instead of Endpoints. | true |
 | `GatewayAPI.Image.repository` | Specify docker-registry that has the ako-gateway-api image | projects.registry.vmware.com/ako/ako-gateway-api |
 | `GatewayAPI.Image.pullPolicy` | Specify when and how to pull the ako-gateway-api image | IfNotPresent |
-| `L4Settings.defaultDomain` | Specify a default sub-domain for L4 LB services | First domainname found in cloud's dnsprofile |
+| `L4Settings.defaultDomain` | Specify a default sub-domain for L4 LB services. This flag will be deprecated in a future release; use **NetworkSettings.defaultDomain** instead. If both NetworkSettings.defaultDomain and L4Settings.defaultDomain are set, then NetworkSettings.defaultDomain will be used.| First domain name found in cloud's dnsprofile |
 | `L4Settings.autoFQDN`  | Specify the layer 4 FQDN format | default |  
 | `L7Settings.noPGForSNI`  | Skip using Pool Groups for SNI children | false |  
-| `L7Settings.l7ShardingScheme` | Sharding scheme enum values: hostname, namespace | hostname |
+| `L7Settings.fqdnReusePolicy` | Restrict FQDN to single namespace if set to `Strict`. enum: InterNamespaceAllowed, Strict | InterNamespaceAllowed |
 | `AKOSettings.cniPlugin` | CNI Plugin being used in kubernetes cluster. Specify one of: calico, canal, flannel, openshift, antrea, ncp, ovn-kubernetes, cilium | **required** for calico, openshift, ovn-kubernetes, ncp setups. For Cilium CNI, set the string as **cilium** only when using Cluster Scope mode for IPAM and leave it empty if using Kubernetes Host Scope mode for IPAM. |
 | `AKOSettings.enableEvents` | enableEvents can be changed dynamically from the configmap | true |
 | `AKOSettings.logLevel` | logLevel enum values: INFO, DEBUG, WARN, ERROR. logLevel can be changed dynamically from the configmap | INFO |

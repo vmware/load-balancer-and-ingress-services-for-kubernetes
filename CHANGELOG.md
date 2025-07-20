@@ -445,3 +445,82 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
  - Fix: Certificate, from hostrule CRD, can not be assigned to L7 VirtualService when AKO is deployed in Dedicated mode.
  - Fix: Virtualservices are getting deleted when there is an issue with an access to the kube_api server which results in setting up `deleteConfig` flag to true.
+
+## AKO-1.12.1
+
+### Added
+- AKO now claims support for Kubernetes 1.29, OCP version 4.14.
+- AKO supports LoadBalancerClass for LoadBalancer type services.
+- AKO allows pool member to be IPV6 or IPV4 in dual stack deployment for `CALICO` and `ANTREA` CNI.
+- IPV6 address can be used to connect to the Avi Controller.
+- VRF support within VCenter Cloud
+- AKO now has a `L7Rule` CRD to change default parameters of L7 VirtualService in addition to `HostRule` CRD.
+- Support for Network Security policy in `HostRule` CRD.
+- AKO can use pre-existing avi-secret, present in AKO helm installation namespace to connect to the Avi Controller. Customer should not specify credentials as part of values.yaml during installation.
+
+### Changed
+- L4 CRD can be applied to LoadBalancer type service present in different namespace.
+- AKO shows all IPV4 and IPV6 addresses associated with VirtualService as part of Ingress, LoadBalancer status.
+- AKO updates Route's `Status:Reason` field with vsuuid and controller uuid.
+
+### Fixed
+- AKO allows VIP to be IPV6 for LoadBalancer type services.
+- Fix: Static routes are not added due to an error: `Field check for static_routes failed: Unique constraints route_id has duplicated value` when calico CNI allocates multiple block-affinities for a node and that may result in AKO crash.
+- Fix: Failure in creating Virtual Service, PoolGroup and other Pools if name of one of the Pool, attached to PoolGroup, exceeds maximum Avi Controller name length limit.
+
+### Known Issue
+- L4 Rule CRD, with `enableSSL: true` in listener propterties, will not be applied to L4 Virtual Service if Avi Controller license is of type `Enterprise with Cloud Service`.
+
+## AKO-1.12.2
+
+### Added
+ - AKO now claims support for Kubernetes 1.30, OCP 4.15
+
+### Changed
+ - AKO now creates single SSLKeyCertificate per tenant for default secret present in the cluster.
+
+### Fixed
+ - Fix: AKO does not honour readiness probe for pods when AKO boots up in NPL mode.
+ - Fix: AKO Shared VIP functionality doesn't work in NSX-T setup.
+ - Fix: AKO crashes in NSX-T shared L4 vip environment with no subdomain configured.
+ - Fix: L4Rule, with SSL enabled, is not applied to L4 VS if license type is Enterprise with Cloud Services.
+ - Fix: Cloud name with spaces in causes AKO to fail to start after upgrading Avi to 30.x.
+
+## AKO-1.13.1
+
+### Added
+ - AKO now claims support for Kubernetes 1.31 and OCP 4.17.
+ - AKO now supports `multitenancy`. This feature allows AKO to map each Kubernetes/OpenShift cluster uniquely to a tenant in Avi or to map each namespace in a single Kubernetes/OpenShift cluster uniquely to a tenant in Avi. See [AKO Tenancy](docs/ako_tenancy.md) for more details.
+ - Support for EndpointSlices as the default mechanism to determine the network endpoints backing a service in Kubernetes. The preferred mechanism between EndpointSlices and Endpoints can be set using the `enableEndpointSlice` flag in ConfigMap. See [enableEndpointSlice](docs/values.md#featuregatesenableendpointslice) for more details.
+ - Support for graceful shutdown of backend servers when EndpointSlices usage is enabled. See [enableEndpointSlice](docs/values.md#featuregatesenableendpointslice) for more details.
+ - Support for `useRegex` and `applicationRootPath` fields in HostRule CRD. These will enable users to define paths that are regular expressions and the application root path, respectively, for an Ingress/OpenShift Route. See [useRegex](docs/crds/hostrule.md#enable-regular-expression-in-path) and [applicationRootPath](docs/crds/hostrule.md#specifying-application-root-redirect-path) for more details.
+ - Support for `enableHTTP2` field in HTTPRule CRD. This field can be used to enable HTTP/2 traffic support to the backend for L7 virtual services. See [enableHTTP2](docs/crds/httprule.md#enable-http2-protocol-support-for-backend) for more details.
+ - Support for restricting cross-namespace usage of FQDNs/hostnames using the `fqdnReusePolicy` flag in ConfigMap. See [FQDN Restriction](docs/ako_fqdnrestriction.md) for more details.
+ - AKO now supports OpenShift Routes with `spec.subdomain` field specified instead of `spec.host` field, using the `defaultDomain` field in ConfigMap. The default domain specified is appended to `spec.subdomain` to form the FQDN for the VS. See [defaultDomain](docs/values.md#networksettingsdefaultdomain) for more details.
+
+### Changed
+ - The `L4Settings.defaultDomain` field in Helm values.yaml is deprecated in favour of the newly introduced `NetworkSettings.defaultDomain` field. The value in the latter will be preferred for populating `defaultDomain` field in ConfigMap. See [defaultDomain](docs/values.md#networksettingsdefaultdomain) for more details.
+
+### Fixed
+ - Fix: AKO is crashing when a HostRule object, with `analyticsPolicy.logAllHeaders` set, is applied to an Ingress.
+ - Fix: AKO does not configure the **Error Page Profile** for an EVH parent shared virtual service, when `errorPageProfile` is set in a matching HostRule object.
+
+## AKO-1.13.2
+
+### Added
+- AKO now claims support for Kubernetes 1.32.
+
+### Changed
+- AKO will not generate auto-fqdn for Route/Ingress when vipPerNamespace is set to `true` in AKO.
+
+### Fixed
+- Fix: AKO assigns IP to service type LB after 45 minutes.
+- Fix: AKO does not apply hostrule with Shared VS FQDN if there is no DNS present in the cloud.
+- Fix: When service type is changed from Loadbalancer to ClusterIP and reverted, AKO does not create the VirtualService.
+- Fix: If the tenant name contains characters outside the range of (0-9/A-Z/a-z/-/_), AKO fails to create shared SNI parent VS VIPs.
+
+## AKO-1.13.3
+
+### Added
+- AKO now claims support for Kubernetes 1.33.
+- Support for enabling VPC mode in ako with NSX-T Cloud

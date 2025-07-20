@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"reflect"
 	"regexp"
@@ -237,7 +238,7 @@ func GetNamePrefix() string {
 }
 
 func Encode(s, objType string) string {
-	if !IsEvhEnabled() || IsWCP() {
+	if !IsEvhEnabled() || utils.IsWCP() {
 		CheckObjectNameLength(s, objType)
 		return s
 	}
@@ -274,6 +275,8 @@ func GetNSXTTransportZone() string {
 	return NsxTTzType
 }
 
+var nonDnsLabelRegex = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
+
 func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32) ([]string, string) {
 	var fqdns []string
 	var fqdn string
@@ -288,7 +291,10 @@ func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32)
 	if GetL4FqdnFormat() == AutoFQDNDisabled {
 		autoFQDN = false
 	}
-	if subDomains != nil && autoFQDN {
+
+	if subDomains != nil && autoFQDN && !VIPPerNamespace() {
+		//Replace all non valid dns label characters with - in tenant name
+		tenantNameWithValidChars := nonDnsLabelRegex.ReplaceAllString(tenant, "-")
 		// honour defaultSubDomain from values.yaml if specified
 		defaultSubDomain := GetDomain()
 		if defaultSubDomain != "" && utils.HasElem(subDomains, defaultSubDomain) {
@@ -303,18 +309,28 @@ func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32)
 		}
 		if GetL4FqdnFormat() == AutoFQDNDefault {
 			// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
-			fqdn = vsName + "." + tenant + "." + subdomain
+			// TODO: check label length for vsName, tenantName so that it doesn't exceed 63 characters.
+			fqdn = vsName + "." + tenantNameWithValidChars + "." + subdomain
 		} else if GetL4FqdnFormat() == AutoFQDNFlat {
 			// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
-			fqdn = vsName + "-" + tenant + "." + subdomain
+			// TODO: check label length for vsName-tenantName so that it doesn't exceed 63 characters.
+			fqdn = vsName + "-" + tenantNameWithValidChars + "." + subdomain
 		}
 		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(fqdn, GetModelName(tenant, vsName))
 		utils.AviLog.Infof("key: %s, msg: Configured the shared VS with default fqdn as: %s", key, fqdn)
 		fqdns = append(fqdns, fqdn)
+	} else {
+		// Do not generate auto-fqdn for vipPerNS use case
+		if VIPPerNamespace() && autoFQDN {
+			utils.AviLog.Warnf("key: %s, msg: Auto-FQDN is disabled for VIP PER NS mode.", key)
+		}
+		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(vsName, GetModelName(tenant, vsName))
 	}
 	return fqdns, fqdn
 }
-
+func GetEscapedValue(val string) string {
+	return url.QueryEscape(val)
+}
 func SetDisableSync(state bool) {
 	DisableSync = state
 	utils.AviLog.Infof("Setting Disable Sync to: %v", state)
@@ -386,7 +402,7 @@ func GetAKOUser() string {
 }
 
 func GetshardSize() uint32 {
-	if IsWCP() {
+	if utils.IsWCP() {
 		// shard to 8 go routines in the REST layer
 		return ShardSizeMap["LARGE"]
 	}
@@ -408,7 +424,7 @@ func GetShardSizeFromAviInfraSetting(infraSetting *akov1beta1.AviInfraSetting) u
 }
 
 func GetL4FqdnFormat() string {
-	if IsWCP() {
+	if utils.IsWCP() {
 		// disable for advancedL4
 		return AutoFQDNDisabled
 	}
@@ -701,8 +717,13 @@ func GetVrf() string {
 	return VRFContext
 }
 
+// One proxy enabled app profile per cluster
+func GetProxyEnabledApplicationProfileName() string {
+	return Encode(GetClusterName()+"-proxy-applicationprofile", ApplicationProfile)
+}
+
 func GetVPCMode() bool {
-	if vpcMode, _ := strconv.ParseBool(os.Getenv("VPC_MODE")); vpcMode {
+	if vpcMode, _ := strconv.ParseBool(os.Getenv(utils.VPC_MODE)); vpcMode {
 		return true
 	}
 	return false
@@ -827,7 +848,7 @@ func GetNodeInfraNetworkList(name string) map[string]NodeNetworkMap {
 
 func GetVipNetworkListEnv() ([]akov1beta1.AviInfraSettingVipNetwork, error) {
 	var vipNetworkList []akov1beta1.AviInfraSettingVipNetwork
-	if IsWCP() {
+	if utils.IsWCP() || GetVPCMode() {
 		// do not return error in case of WCP deployments.
 		return vipNetworkList, nil
 	}
@@ -974,22 +995,6 @@ func GetHostnameforSubdomain(subdomain string) string {
 	}
 }
 
-// This utility returns a true/false depending on whether
-// the user requires advanced L4 functionality
-func GetAdvancedL4() bool {
-	advanceL4 := os.Getenv(ADVANCED_L4)
-	return advanceL4 == "true"
-}
-
-// Wrapper function for AKO running in either VDS
-// or VCF (WCP with NSX).
-func IsWCP() bool {
-	if GetAdvancedL4() || utils.IsVCFCluster() {
-		return true
-	}
-	return false
-}
-
 type NextPage struct {
 	NextURI    string
 	Collection interface{}
@@ -1088,7 +1093,7 @@ func IsValidCni(returnErr *error) bool {
 
 func GetDisableStaticRoute() bool {
 	// We don't need the static routes for NSX-T cloud
-	if IsWCP() || (GetCloudType() == CLOUD_NSXT && GetCNIPlugin() == NCP_CNI) {
+	if utils.IsWCP() || (GetCloudType() == CLOUD_NSXT && GetCNIPlugin() == NCP_CNI) {
 		return true
 	}
 	if ok, _ := strconv.ParseBool(os.Getenv(DISABLE_STATIC_ROUTE_SYNC)); ok {
@@ -1101,7 +1106,7 @@ func GetDisableStaticRoute() bool {
 }
 
 func GetClusterName() string {
-	if IsWCP() {
+	if utils.IsWCP() {
 		return GetClusterIDSplit()
 	}
 	return os.Getenv(CLUSTER_NAME)
@@ -1122,13 +1127,18 @@ func GetClusterID() string {
 
 func GetClusterIDSplit() string {
 	clusterID := GetClusterID()
-	if clusterID != "" {
-		clusterName := strings.Split(clusterID, ":")
-		if len(clusterName) > 1 {
-			return clusterName[0]
+	clusterName := strings.Split(clusterID, ":")
+	if len(clusterName) > 1 {
+		if GetVPCMode() {
+			// Include first 5 characters to add more uniqueness to cluster name
+			return clusterName[0] + "-" + clusterName[1][:5]
 		}
+		return clusterName[0]
 	}
-	return ""
+	if len(clusterID) > 12 {
+		return clusterID[:12]
+	}
+	return clusterID
 }
 
 func IsClusterNameValid() (bool, error) {
@@ -1423,7 +1433,7 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 	// Nodes, Ingresses, IngressClasses, Routes, MultiClusterIngress and ServiceImports.
 	// Routes should be watched over in Openshift environments only.
 	// MultiClusterIngress and ServiceImport should be watched over only when MCI is enabled.
-	if !IsWCP() {
+	if !utils.IsWCP() {
 		allInformers = append(allInformers, utils.NodeInformer)
 
 		informerTimeout := int64(120)
@@ -1491,14 +1501,15 @@ func SSLKeyCertChecksum(sslName, certificate, cacert string, ingestionMarkers ut
 	return checksum
 }
 
-func L4PolicyChecksum(ports []int64, protocols []string, ingestionMarkers utils.AviObjectMarkers, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
+func L4PolicyChecksum(ports []int64, protocols []string, pools []string, ingestionMarkers utils.AviObjectMarkers, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
 	var portsInt []int
 	for _, port := range ports {
 		portsInt = append(portsInt, int(port))
 	}
 	sort.Ints(portsInt)
 	sort.Strings(protocols)
-	checksum := utils.Hash(utils.Stringify(portsInt)) + utils.Hash(utils.Stringify(protocols))
+	sort.Strings(pools)
+	checksum := utils.Hash(utils.Stringify(portsInt)) + utils.Hash(utils.Stringify(protocols)) + utils.Hash(utils.Stringify(pools))
 	if populateCache {
 		if markers != nil {
 			checksum += ObjectLabelChecksum(markers)
@@ -1757,7 +1768,7 @@ func GetDefaultSecretForRoutes() string {
 func ValidateSvcforClass(key string, svc *corev1.Service) bool {
 	if svc != nil {
 		// only check gateway labels for AdvancedL4 case, and skip validation if found
-		if IsWCP() {
+		if utils.IsWCP() {
 			_, found_name := svc.ObjectMeta.Labels[GatewayNameLabelKey]
 			_, found_namespace := svc.ObjectMeta.Labels[GatewayNamespaceLabelKey]
 			if found_name || found_namespace {
@@ -2294,4 +2305,9 @@ func ValidServiceType(service *v1.Service) bool {
 	default:
 		return false
 	}
+}
+
+func GetAviInfraSettingName(projVpc string) string {
+	hash := sha1.Sum([]byte(projVpc))
+	return hex.EncodeToString(hash[:])
 }

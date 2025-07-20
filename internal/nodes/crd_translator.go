@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	found, hrNamespaceName := objects.SharedCRDLister().GetFQDNToHostruleMappingWithType(host)
 	deleteCase := false
 	if !found {
-		utils.AviLog.Debugf("key: %s, msg: No HostRule found for virtualhost: %s in Cache", key, host)
+		utils.AviLog.Warnf("key: %s, msg: No HostRule found for virtualhost: %s in Cache", key, host)
 		deleteCase = true
 	}
 
@@ -181,6 +181,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 
 		if hostrule.Spec.VirtualHost.AnalyticsPolicy != nil {
 			var infinite uint32 = 0 // Special value to set log duration as infinite
+			// defaults to 'infinite' if hostrule doesn't specify a duration
 			analyticsPolicy = &models.AnalyticsPolicy{
 				FullClientLogs: &models.FullClientLogs{
 					Duration: &infinite,
@@ -190,6 +191,11 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 			if hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs != nil {
 				analyticsPolicy.FullClientLogs.Enabled = hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Enabled
 				analyticsPolicy.FullClientLogs.Throttle = lib.GetThrottle(hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Throttle)
+
+				// only update duration if duration is actually specified in hr
+				if hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Duration != nil {
+					analyticsPolicy.FullClientLogs.Duration = hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Duration
+				}
 			}
 		}
 
@@ -253,43 +259,101 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	vsNode.SetStringGroupRefs(vsStringGroupRefs)
 }
 
+// BuildOnlyRegexAppRoot builds only Regex and Approot with HostRule for vs node.
+// This is added because in some cases, we apply hostrule first to the vs node followed by aviinfrasetting.
+// Also, in some cases the ports added by aviinfrasetting first are over-written by hostrule and then added back.
+// Due to these sequences app-root path redirect rules may not be added for listener ports set from aviinfrasetting.
+// Hence we process only regex app-root again after all ports are updated.
+func BuildOnlyRegexAppRoot(host, key string, vsNode AviVsEvhSniModel) {
+	// use host to find out HostRule CRD if it exists
+	// The host that comes here will have a proper FQDN, from the Ingress/Route (foo.com)
+	found, hrNamespaceName := objects.SharedCRDLister().GetFQDNToHostruleMappingWithType(host)
+	if !found {
+		utils.AviLog.Debugf("key: %s, msg: No HostRule found for virtualhost: %s in Cache", key, host)
+		return
+	}
+
+	var err error
+	var hrNSName []string
+	var hostrule *akov1beta1.HostRule
+	hrNSName = strings.Split(hrNamespaceName, "/")
+	hostrule, err = lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(hrNSName[0]).Get(hrNSName[1])
+	if err != nil {
+		utils.AviLog.Debugf("key: %s, msg: No HostRule found for virtualhost: %s msg: %v", key, host, err)
+		return
+	} else if hostrule.Status.Status == lib.StatusRejected {
+		// do not apply a rejected hostrule, this way the VS would retain
+		utils.AviLog.Debugf("key: %s, msg: hostrule %s is in rejected state", key, hrNSName)
+		return
+	} else {
+		if lib.GetTenantInNamespace(hostrule.Namespace) != vsNode.GetTenant() {
+			utils.AviLog.Warnf("key: %s, msg: Tenant annotation in hostrule namespace %s does not matches with the tenant of host %s ", key, hostrule.Namespace, host)
+			return
+		}
+	}
+	if !hostrule.Spec.VirtualHost.HTTPPolicy.Overwrite && (hostrule.Spec.VirtualHost.UseRegex || hostrule.Spec.VirtualHost.ApplicationRootPath != "") {
+		if !vsNode.IsSharedVS() {
+			if !lib.IsEvhEnabled() && vsNode.IsDedicatedVS() && !vsNode.IsSecure() {
+				utils.AviLog.Debugf("key: %s, Regex and App-root are not supported for insecure SNI virtual service", key)
+			} else {
+				vsStringGroupRefs := BuildRegexAppRootForHostRule(hostrule, vsNode, host, key)
+				vsNode.SetStringGroupRefs(vsStringGroupRefs)
+				utils.AviLog.Infof("key: %s, Successfully updated Regex and AppRoot properties with hostrule %s on dedicated vsNode %s", key, hrNamespaceName, vsNode.GetName())
+			}
+		}
+	}
+}
+
 func BuildRegexAppRootForHostRule(hostrule *akov1beta1.HostRule, vsNode AviVsEvhSniModel, host, key string) []*AviStringGroupNode {
 	var vsStringGroupRefs []*AviStringGroupNode
 
 	httpPolicyRefs := vsNode.GetHttpPolicyRefs()
 	for _, httpPolicyRef := range httpPolicyRefs {
 		var regexhppMap []AviHostPathPortPoolPG
-		var redirectPort *AviRedirectPort
+		var redirectPorts []AviRedirectPort
 		for _, hppMap := range httpPolicyRef.HppMap {
 			if hostrule.Spec.VirtualHost.ApplicationRootPath != "" {
 				if hppMap.Path != nil && len(hppMap.Path) > 0 {
 					path := hppMap.Path[0]
 					var protocol string
-					if hppMap.SvcPort == 443 || hppMap.SvcPort == 6443 {
-						protocol = "HTTPS"
-					} else {
-						protocol = "HTTP"
-					}
 					if path == "/" {
-						redirectPort = &AviRedirectPort{
-							StatusCode:    lib.STATUS_REDIRECT,
-							Protocol:      protocol,
-							Path:          path,
-							RedirectPort:  int32(hppMap.SvcPort),
-							RedirectPath:  hostrule.Spec.VirtualHost.ApplicationRootPath[1:],
-							MatchCriteria: "EQUALS",
+						for _, portProto := range vsNode.GetPortProtocols() {
+							if portProto.EnableSSL {
+								protocol = "HTTPS"
+							} else {
+								protocol = "HTTP"
+							}
+							redirectPort := AviRedirectPort{
+								StatusCode:        lib.STATUS_REDIRECT,
+								Protocol:          protocol,
+								Path:              path,
+								RedirectPort:      portProto.Port,
+								RedirectPath:      hostrule.Spec.VirtualHost.ApplicationRootPath[1:],
+								MatchCriteriaPath: "EQUALS",
+								MatchCriteriaPort: "IS_IN",
+							}
+							redirectPorts = append(redirectPorts, redirectPort)
 						}
 						hppMap.Path[0] = hostrule.Spec.VirtualHost.ApplicationRootPath
 					} else if path == hostrule.Spec.VirtualHost.ApplicationRootPath {
 						for _, childPath := range vsNode.GetPaths() {
 							if childPath == "/" {
-								redirectPort = &AviRedirectPort{
-									StatusCode:    lib.STATUS_REDIRECT,
-									Protocol:      protocol,
-									Path:          childPath,
-									RedirectPort:  int32(hppMap.SvcPort),
-									RedirectPath:  hostrule.Spec.VirtualHost.ApplicationRootPath[1:],
-									MatchCriteria: "EQUALS",
+								for _, portProto := range vsNode.GetPortProtocols() {
+									if portProto.EnableSSL {
+										protocol = "HTTPS"
+									} else {
+										protocol = "HTTP"
+									}
+									redirectPort := AviRedirectPort{
+										StatusCode:        lib.STATUS_REDIRECT,
+										Protocol:          protocol,
+										Path:              childPath,
+										RedirectPort:      portProto.Port,
+										RedirectPath:      hostrule.Spec.VirtualHost.ApplicationRootPath[1:],
+										MatchCriteriaPath: "EQUALS",
+										MatchCriteriaPort: "IS_IN",
+									}
+									redirectPorts = append(redirectPorts, redirectPort)
 								}
 							}
 						}
@@ -320,22 +384,23 @@ func BuildRegexAppRootForHostRule(hostrule *akov1beta1.HostRule, vsNode AviVsEvh
 					vsStringGroupRefs = append(vsStringGroupRefs, &aviStringGroupNode)
 					stringGroupRef := []string{"/api/stringgroup?name=" + regexStringGroupName}
 					hppMap.StringGroupRefs = stringGroupRef
-					if !lib.IsEvhEnabled() {
-						if hppMap.PoolGroup != "" && !lib.IsNameEncoded(hppMap.PoolGroup) {
-							hppMap.PoolGroup = lib.GetEncodedSniPGPoolNameforRegex(hppMap.PoolGroup)
-						}
-						if hppMap.Pool != "" && !lib.IsNameEncoded(hppMap.Pool) {
-							hppMap.Pool = lib.GetEncodedSniPGPoolNameforRegex(hppMap.Pool)
-						}
-					}
-					hppMap.CalculateCheckSum()
 				}
+				if !lib.IsEvhEnabled() {
+					if hppMap.PoolGroup != "" && !lib.IsNameEncoded(hppMap.PoolGroup) {
+						hppMap.PoolGroup = lib.GetEncodedSniPGPoolNameforRegex(hppMap.PoolGroup)
+					}
+					if hppMap.Pool != "" && !lib.IsNameEncoded(hppMap.Pool) {
+						hppMap.Pool = lib.GetEncodedSniPGPoolNameforRegex(hppMap.Pool)
+					}
+				}
+				hppMap.CalculateCheckSum()
+
 			}
 			regexhppMap = append(regexhppMap, hppMap)
 		}
 		httpPolicyRef.HppMap = regexhppMap
-		if redirectPort != nil {
-			httpPolicyRef.RedirectPorts = []AviRedirectPort{*redirectPort}
+		if len(redirectPorts) != 0 {
+			httpPolicyRef.RedirectPorts = redirectPorts
 		}
 	}
 	if !lib.IsEvhEnabled() && hostrule.Spec.VirtualHost.UseRegex {

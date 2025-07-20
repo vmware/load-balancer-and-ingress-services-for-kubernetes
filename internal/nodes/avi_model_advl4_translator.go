@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ package nodes
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -138,6 +139,12 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 
 	avi_vs_meta.PortProto = portProtocols
 	avi_vs_meta.ApplicationProfile = utils.DEFAULT_L4_APP_PROFILE
+	if proxyProtoEnb, ok := gw.GetAnnotations()[lib.GwProxyProtocolEnableAnnotation]; ok {
+		proxyProtocolEnabled, err := strconv.ParseBool(proxyProtoEnb)
+		if err == nil && proxyProtocolEnabled {
+			avi_vs_meta.ApplicationProfile = lib.GetProxyEnabledApplicationProfileName()
+		}
+	}
 
 	avi_vs_meta.NetworkProfile = getNetworkProfile(isSCTP, isTCP, isUDP)
 
@@ -574,7 +581,7 @@ func (o *AviObjectGraph) ConstructSharedVipSvcLBNode(sharedVipKey, namespace, ke
 
 		// Copy the VS properties from L4Rule object
 		if l4Rule, err := getL4Rule(key, serviceObject); err == nil {
-			buildWithL4Rule(key, avi_vs_meta, l4Rule)
+			buildWithL4Rule(key, avi_vs_meta, l4Rule, true)
 
 			// Copy the LoadBalancerIP if configured in L4Rule CRD.
 			if avi_vs_meta.LoadBalancerIP != nil {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -24,6 +24,8 @@ import (
 	gatewayinformerv1 "sigs.k8s.io/gateway-api/pkg/client/informers/externalversions/apis/v1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	v1beta1akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned"
+	v1beta1akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/informers/externalversions/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -53,6 +55,15 @@ type akoControlConfig struct {
 	// controllerVersion stores the version of the controller to
 	// which AKO is communicating with
 	controllerVersion string
+
+	// v1beta1 client set for AKO CRDs
+	v1beta1crdClientset v1beta1akocrd.Interface
+
+	// flag to enable AviInfraSetting informer
+	aviInfraSettingEnabled bool
+
+	// AviInfraSetting Informer
+	aviInfraSettingInformer v1beta1akoinformer.AviInfraSettingInformer
 }
 
 var akoControlConfigInstance *akoControlConfig
@@ -88,6 +99,27 @@ func (c *akoControlConfig) ControllerVersion() string {
 
 func (c *akoControlConfig) SetControllerVersion(v string) {
 	c.controllerVersion = v
+}
+
+func (c *akoControlConfig) SetV1Beta1CRDClientSetAndEnableAviInfraSettingParam(cs v1beta1akocrd.Interface) {
+	c.v1beta1crdClientset = cs
+	c.aviInfraSettingEnabled = true
+}
+
+func (c *akoControlConfig) V1Beta1CRDClientSet() v1beta1akocrd.Interface {
+	return c.v1beta1crdClientset
+}
+
+func (c *akoControlConfig) SetAviInfraSettingInformer(aviInfraSettingInformer v1beta1akoinformer.AviInfraSettingInformer) {
+	c.aviInfraSettingInformer = aviInfraSettingInformer
+}
+
+func (c *akoControlConfig) AviInfraSettingInformer() v1beta1akoinformer.AviInfraSettingInformer {
+	return c.aviInfraSettingInformer
+}
+
+func (c *akoControlConfig) AviInfraSettingEnabled() bool {
+	return c.aviInfraSettingEnabled
 }
 
 func initControllerVersion() string {

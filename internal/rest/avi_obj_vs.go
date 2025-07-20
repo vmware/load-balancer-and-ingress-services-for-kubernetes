@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -90,7 +90,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			CloudConfigCksum:      proto.String(strconv.Itoa(int(vs_meta.CloudConfigCksum))),
 			CreatedBy:             proto.String(lib.AKOUser),
 			CloudRef:              proto.String(fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)),
-			TenantRef:             proto.String(fmt.Sprintf("/api/tenant/?name=%s", vs_meta.Tenant)),
+			TenantRef:             proto.String(fmt.Sprintf("/api/tenant/?name=%s", lib.GetEscapedValue(vs_meta.Tenant))),
 			ApplicationProfileRef: proto.String("/api/applicationprofile/?name=" + vs_meta.ApplicationProfile),
 			SeGroupRef:            proto.String("/api/serviceenginegroup?name=" + vs_meta.ServiceEngineGroup),
 			WafPolicyRef:          vs_meta.WafPolicyRef,
@@ -98,6 +98,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			ErrorPageProfileRef:   &vs_meta.ErrorPageProfileRef,
 			Enabled:               vs_meta.Enabled,
 			ServiceMetadata:       &svc_mdata,
+			RevokeVipRoute:        vs_meta.RevokeVipRoute,
 		}
 
 		if vs_meta.ApplicationProfileRef != nil {
@@ -119,7 +120,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			vs.EnableRhi = &enableRhi
 		}
 
-		if lib.IsWCP() {
+		if utils.IsWCP() {
 			vs.IgnPoolNetReach = proto.Bool(true)
 		}
 
