@@ -78,6 +78,9 @@ func (c *VCFK8sController) AddNamespaceEventHandler(stopCh <-chan struct{}) {
 		},
 		UpdateFunc: func(old, obj interface{}) {
 			utils.AviLog.Infof("Namespace Update Event")
+			if lib.GetVPCMode() {
+				avirest.ScheduleQuickSync()
+			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			utils.AviLog.Infof("Namespace Delete Event")

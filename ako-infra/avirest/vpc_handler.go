@@ -55,10 +55,16 @@ func (v *VPCHandler) SyncLSLRNetwork() {
 		return
 	}
 	utils.AviLog.Infof("Got NS to VPC Map: %v", nsToVPCMap)
-	v.createInfraSettingAndAnnotateNS(nsToVPCMap)
+	nsToSEGMap, err := lib.GetNSToSEGMap()
+	if err != nil {
+		utils.AviLog.Errorf("Failed to get NS to SEG Map, error: %s", err)
+		return
+	}
+	utils.AviLog.Infof("Got NS to SEG Map: %v", nsToSEGMap)
+	v.createInfraSettingAndAnnotateNS(nsToVPCMap, nsToSEGMap)
 }
 
-func (v *VPCHandler) createInfraSettingAndAnnotateNS(nsToVPCMap map[string]string) {
+func (v *VPCHandler) createInfraSettingAndAnnotateNS(nsToVPCMap, nsToSEGMap map[string]string) {
 	infraSettingCRs, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().List(labels.Set(nil).AsSelector())
 	if err != nil {
 		utils.AviLog.Errorf("Failed to list AviInfraSetting CRs, error: %s", err.Error())
@@ -74,7 +80,13 @@ func (v *VPCHandler) createInfraSettingAndAnnotateNS(nsToVPCMap map[string]strin
 	for ns, vpc := range nsToVPCMap {
 		arr := strings.Split(vpc, "/vpcs/")
 		projectArr := strings.Split(arr[0], "/projects/")
-		infraSettingName := lib.GetAviInfraSettingName(projectArr[len(projectArr)-1] + arr[len(arr)-1])
+		name := projectArr[len(projectArr)-1] + arr[len(arr)-1]
+		segName := "Default-Group"
+		if seg, ok := nsToSEGMap[ns]; ok {
+			name = name + seg
+			segName = seg
+		}
+		infraSettingName := lib.GetAviInfraSettingName(name)
 		tenant, err := getTenantForProject(projectArr[len(projectArr)-1])
 		if err != nil {
 			utils.AviLog.Warnf("failed to fetch admin tenant from Avi, error: %s", err.Error())
@@ -92,7 +104,7 @@ func (v *VPCHandler) createInfraSettingAndAnnotateNS(nsToVPCMap map[string]strin
 		processedInfraSettingCRSet[infraSettingName] = struct{}{}
 		delete(staleInfraSettingCRSet, infraSettingName)
 
-		_, err = lib.CreateOrUpdateAviInfraSetting(infraSettingName, "", vpc, "Default-Group")
+		_, err = lib.CreateOrUpdateAviInfraSetting(infraSettingName, "", vpc, segName)
 		if err != nil {
 			utils.AviLog.Errorf("failed to create aviInfraSetting, name: %s, error: %s", infraSettingName, err.Error())
 			continue
