@@ -1296,6 +1296,17 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			}
 		}
 		//Gateway Section
+		gwClassObjs, err := lib.AKOControlConfig().AdvL4Informers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the gatewayclasses during full sync: %s", err)
+			return err
+		}
+		for _, gwClassObj := range gwClassObjs {
+			key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+			nodes.DequeueIngestion(key, true)
+		}
+
 		gatewayObjs, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the gateways during full sync: %s", err)
@@ -1309,17 +1320,6 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			}
 			key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
 			InformerStatusUpdatesForGateway(key, gatewayObj)
-			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-			nodes.DequeueIngestion(key, true)
-		}
-
-		gwClassObjs, err := lib.AKOControlConfig().AdvL4Informers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the gatewayclasses during full sync: %s", err)
-			return err
-		}
-		for _, gwClassObj := range gwClassObjs {
-			key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
 			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			nodes.DequeueIngestion(key, true)
 		}
