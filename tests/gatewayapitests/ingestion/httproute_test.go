@@ -337,3 +337,54 @@ func TestHTTPRouteFilterWithUrlRewrite(t *testing.T) {
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 	waitAndverify(t, gwClassKey)
 }
+
+// TestHTTPRouteWithAppProfileExtensionRef validates ingestion of http route with
+// extension ref filter
+func TestHTTPRouteWithAppProfileExtensionRef(t *testing.T) {
+	gatewayClassName := "gateway-class-09"
+	gatewayName := "gateway-09"
+	httpRouteName := "httproute-09"
+	gwKey := "Gateway/" + DEFAULT_NAMESPACE + "/" + gatewayName
+
+	gwClassKey := "GatewayClass/" + gatewayClassName
+	namespace := "default"
+	ports := []int32{8080}
+	key := "HTTPRoute" + "/" + namespace + "/" + httpRouteName
+
+	// setup gatewayclass
+	akogatewayapiobjects.GatewayApiLister().UpdateGatewayClass(gatewayClassName, true)
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	t.Logf("Created GatewayClass %s", gatewayClassName)
+	waitAndverify(t, gwClassKey)
+
+	// setup gateway
+	listeners := akogatewayapitests.GetListenersV1(ports, true, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
+	t.Logf("Created Gateway %s", gatewayName)
+	waitAndverify(t, gwKey)
+
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
+	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
+
+	// setup http route with app profile extension ref
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{"ExtensionRef": {"app-profile-ref1"}},
+		[][]string{{"avisvc", "default", "8080", "1"}}, nil)
+	rules := []gatewayv1.HTTPRouteRule{rule}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+	t.Logf("Created HTTPRoute %s", httpRouteName)
+	waitAndverify(t, key)
+
+	// update httproute with another  app profile name
+	rules[0].Filters[0].ExtensionRef.Name = "app-profile-ref2"
+	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+	waitAndverify(t, key)
+
+	// cleanup
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
+	waitAndverify(t, key)
+	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	waitAndverify(t, gwKey)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+	waitAndverify(t, gwClassKey)
+}
