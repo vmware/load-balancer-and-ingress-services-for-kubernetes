@@ -996,12 +996,8 @@ func DelSVC(t *testing.T, ns string, Name string) {
 	}
 }
 
-// CreateEPorEPS creates endpoint or endpoint slices based on env
-func CreateEPorEPS(t *testing.T, ns string, Name string, multiPort bool, multiAddress bool, addressPrefix string, multiProtocol ...corev1.Protocol) {
-	if !lib.AKOControlConfig().GetEndpointSlicesEnabled() {
-		CreateEP(t, ns, Name, multiPort, multiAddress, addressPrefix, multiProtocol...)
-		return
-	}
+// CreateEP creates endpoint slices based on env
+func CreateEPS(t *testing.T, ns string, Name string, multiPort bool, multiAddress bool, addressPrefix string, multiProtocol ...corev1.Protocol) {
 	addressType := discovery.AddressTypeIPv4
 
 	if addressPrefix == "" {
@@ -1071,12 +1067,8 @@ func CreateEPorEPS(t *testing.T, ns string, Name string, multiPort bool, multiAd
 	time.Sleep(2 * time.Second)
 }
 
-// CreateEPorEPS creates endpoint or endpoint slices based on env with Node name added
-func CreateEPorEPSNodeName(t *testing.T, ns string, Name string, multiPort bool, multiAddress bool, addressPrefix string, nodeName string, multiProtocol ...corev1.Protocol) {
-	if !lib.AKOControlConfig().GetEndpointSlicesEnabled() {
-		CreateEPNodeName(t, ns, Name, multiPort, multiAddress, addressPrefix, nodeName, multiProtocol...)
-		return
-	}
+// CreateEP creates endpoint based on env with Node name added
+func CreateEPSNodeName(t *testing.T, ns string, Name string, multiPort bool, multiAddress bool, addressPrefix string, nodeName string, multiProtocol ...corev1.Protocol) {
 	addressType := discovery.AddressTypeIPv4
 
 	if addressPrefix == "" {
@@ -1155,153 +1147,7 @@ func randStringBytesRmndr(n int) string {
 	return string(b)
 }
 
-/*
-CreateEP creates a sample Endpoint object
-if multiPort: False and multiAddress: False
-
-	1.1.1.1:8080
-
-if multiPort: True and multiAddress: False
-
-	1.1.1.1:8080,
-	1.1.1.2:8081,
-	1.1.1.3:8082
-
-if multiPort: False and multiAddress: True
-
-	1.1.1.1:8080, 1.1.1.2:8080, 1.1.1.2:8080
-
-if multiPort: True and multiAddress: True
-
-	1.1.1.1:8080, 1.1.1.2:8080, 1.1.1.3:8080,
-	1.1.1.4:8081, 1.1.1.5:8081,
-	1.1.1.6:8082
-*/
-func CreateEP(t *testing.T, ns string, Name string, multiPort bool, multiAddress bool, addressPrefix string, multiProtocol ...corev1.Protocol) {
-	if addressPrefix == "" {
-		addressPrefix = "1.1.1"
-	}
-	var endpointSubsets []corev1.EndpointSubset
-	numPorts, numAddresses, addressStart := 1, 1, 0
-	if multiPort {
-		numPorts = 3
-	}
-	if len(multiProtocol) != 0 {
-		numPorts = len(multiProtocol)
-	}
-	if multiAddress {
-		numAddresses, addressStart = 3, 0
-	}
-
-	for i := 0; i < numPorts; i++ {
-		protocol := corev1.ProtocolTCP
-		if len(multiProtocol) != 0 {
-			protocol = multiProtocol[i]
-		}
-		mPort := 8080 + i
-
-		var addressStartIndex int
-		if !multiPort && !multiAddress {
-			numAddresses, addressStart = 1, 0
-		} else {
-			addressStartIndex = addressStart + i
-		}
-		var epAddresses []corev1.EndpointAddress
-		for j := 0; j < numAddresses; j++ {
-			if strings.Contains(addressPrefix, "::") {
-				epAddresses = append(epAddresses, corev1.EndpointAddress{IP: fmt.Sprintf("%s%d", addressPrefix, addressStartIndex+j+1)})
-			} else {
-				epAddresses = append(epAddresses, corev1.EndpointAddress{IP: fmt.Sprintf("%s.%d", addressPrefix, addressStartIndex+j+1)})
-			}
-		}
-		numAddresses = numAddresses - 1
-		addressStart = addressStart + numAddresses
-		endpointSubsets = append(endpointSubsets, corev1.EndpointSubset{
-			Addresses: epAddresses,
-			Ports: []corev1.EndpointPort{{
-				Name:     fmt.Sprintf("foo%d", i),
-				Port:     int32(mPort),
-				Protocol: protocol,
-			}},
-		})
-	}
-
-	epExample := &corev1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{Namespace: ns, Name: Name},
-		Subsets:    endpointSubsets,
-	}
-	_, err := KubeClient.CoreV1().Endpoints(ns).Create(context.TODO(), epExample, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in creating Endpoint: %v", err)
-	}
-	time.Sleep(2 * time.Second)
-}
-
-func CreateEPNodeName(t *testing.T, ns string, Name string, multiPort bool, multiAddress bool, addressPrefix string, nodeName string, multiProtocol ...corev1.Protocol) {
-	if addressPrefix == "" {
-		addressPrefix = "1.1.1"
-	}
-	var endpointSubsets []corev1.EndpointSubset
-	numPorts, numAddresses, addressStart := 1, 1, 0
-	if multiPort {
-		numPorts = 3
-	}
-	if len(multiProtocol) != 0 {
-		numPorts = len(multiProtocol)
-	}
-	if multiAddress {
-		numAddresses, addressStart = 3, 0
-	}
-
-	for i := 0; i < numPorts; i++ {
-		protocol := corev1.ProtocolTCP
-		if len(multiProtocol) != 0 {
-			protocol = multiProtocol[i]
-		}
-		mPort := 8080 + i
-
-		var addressStartIndex int
-		if !multiPort && !multiAddress {
-			numAddresses, addressStart = 1, 0
-		} else {
-			addressStartIndex = addressStart + i
-		}
-		var epAddresses []corev1.EndpointAddress
-		for j := 0; j < numAddresses; j++ {
-			if strings.Contains(addressPrefix, "::") {
-				epAddresses = append(epAddresses, corev1.EndpointAddress{IP: fmt.Sprintf("%s%d", addressPrefix, addressStartIndex+j+1), NodeName: &nodeName})
-			} else {
-				epAddresses = append(epAddresses, corev1.EndpointAddress{IP: fmt.Sprintf("%s.%d", addressPrefix, addressStartIndex+j+1), NodeName: &nodeName})
-			}
-		}
-		numAddresses = numAddresses - 1
-		addressStart = addressStart + numAddresses
-		endpointSubsets = append(endpointSubsets, corev1.EndpointSubset{
-			Addresses: epAddresses,
-			Ports: []corev1.EndpointPort{{
-				Name:     fmt.Sprintf("foo%d", i),
-				Port:     int32(mPort),
-				Protocol: protocol,
-			}},
-		})
-	}
-
-	epExample := &corev1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{Namespace: ns, Name: Name},
-		Subsets:    endpointSubsets,
-	}
-	_, err := KubeClient.CoreV1().Endpoints(ns).Create(context.TODO(), epExample, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in creating Endpoint: %v", err)
-	}
-	time.Sleep(2 * time.Second)
-}
-
-func ScaleCreateEPorEPS(t *testing.T, ns string, Name string) {
-	if !lib.AKOControlConfig().GetEndpointSlicesEnabled() {
-		ScaleCreateEP(t, ns, Name)
-		return
-	}
+func ScaleCreateEPS(t *testing.T, ns string, Name string) {
 	portName := "foo"
 	port := int32(8080)
 	protocol := corev1.ProtocolTCP
@@ -1327,29 +1173,8 @@ func ScaleCreateEPorEPS(t *testing.T, ns string, Name string) {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
 }
-func ScaleCreateEP(t *testing.T, ns string, Name string) {
-	epExample := &corev1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: ns,
-			Name:      Name,
-		},
-		Subsets: []corev1.EndpointSubset{{
-			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}, {IP: "1.2.3.5"}},
-			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
-		}},
-	}
-	epExample.ResourceVersion = "2"
-	_, err := KubeClient.CoreV1().Endpoints(ns).Update(context.TODO(), epExample, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in creating Endpoint: %v", err)
-	}
-}
 
-func DelEPorEPS(t *testing.T, ns string, Name string) {
-	if !lib.AKOControlConfig().GetEndpointSlicesEnabled() {
-		DelEP(t, ns, Name)
-		return
-	}
+func DelEPS(t *testing.T, ns string, Name string) {
 	epSlice, err := KubeClient.DiscoveryV1().EndpointSlices(ns).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: discovery.LabelServiceName + "=" + Name,
 	})
@@ -1361,13 +1186,6 @@ func DelEPorEPS(t *testing.T, ns string, Name string) {
 		if err != nil {
 			t.Fatalf("error in deleting EndpointSlices: %v", err)
 		}
-	}
-}
-
-func DelEP(t *testing.T, ns string, Name string) {
-	err := KubeClient.CoreV1().Endpoints(ns).Delete(context.TODO(), Name, metav1.DeleteOptions{})
-	if err != nil && !k8serrors.IsNotFound(err) {
-		t.Fatalf("error in deleting Endpoint: %v", err)
 	}
 }
 
