@@ -344,10 +344,12 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 		gwNsNameList = append(gwNsNameList, gwNsName)
 	}
 
-	var svcNsNameList []string
-	var l7RuleNsNameList []string
-
-	var healthMonitorNsNameList []string
+	var (
+		svcNsNameList                   []string
+		l7RuleNsNameList                []string
+		healthMonitorNsNameList         []string
+		routeBackendExtensionNSNameList []string
+	)
 	for _, rule := range hrObj.Spec.Rules {
 		for _, backendRef := range rule.BackendRefs {
 			ns := namespace
@@ -361,6 +363,11 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 					if filter.ExtensionRef.Kind == akogatewayapilib.HealthMonitorKind {
 						healthMonitorNsName := namespace + "/" + string(filter.ExtensionRef.Name)
 						healthMonitorNsNameList = append(healthMonitorNsNameList, healthMonitorNsName)
+					} else if filter.ExtensionRef.Kind == akogatewayapilib.RouteBackendExtensionKind {
+						routeBackendExtensionNsName := namespace + "/" + string(filter.ExtensionRef.Name)
+						if !utils.HasElem(routeBackendExtensionNSNameList, routeBackendExtensionNsName) {
+							routeBackendExtensionNSNameList = append(routeBackendExtensionNSNameList, routeBackendExtensionNsName)
+						}
 					}
 				}
 			}
@@ -394,6 +401,23 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 	for _, healthMonitorNsName := range healthMonitorNsNameList {
 		akogatewayapiobjects.GatewayApiLister().UpdateHTTPRouteToHealthMonitorMapping(routeNSName, healthMonitorNsName)
 		akogatewayapiobjects.GatewayApiLister().UpdateHealthMonitorToHTTPRoutesMapping(healthMonitorNsName, routeNSName)
+	}
+
+	// Delete old entries from HTTPRoute->RouteBackendExtension Mapping & RouteBackendExtension-->HTTPRoute
+	found, oldRouteBackendExtensionNSNameList := akogatewayapiobjects.GatewayApiLister().GetHTTPRouteToRouteBackendExtensionMapping(routeNSName)
+	if found {
+		for routeBackendExtensionNsName := range oldRouteBackendExtensionNSNameList {
+			if !utils.HasElem(routeBackendExtensionNSNameList, routeBackendExtensionNsName) {
+				akogatewayapiobjects.GatewayApiLister().DeleteHTTPRouteToRouteBackendExtensionMapping(routeNSName, routeBackendExtensionNsName)
+				akogatewayapiobjects.GatewayApiLister().DeleteRouteBackendExtensionToHTTPRouteMapping(routeBackendExtensionNsName, routeNSName)
+			}
+		}
+	}
+
+	// update with new entries for HTTPRoute->RouteBackendExtension and RouteBackendExtension-->HTTPRoute
+	for _, routeBackendExtensionNsName := range routeBackendExtensionNSNameList {
+		akogatewayapiobjects.GatewayApiLister().UpdateHTTPRouteToRouteBackendExtensionMapping(routeNSName, routeBackendExtensionNsName)
+		akogatewayapiobjects.GatewayApiLister().UpdateRouteBackendExtensionToHTTPRouteMapping(routeBackendExtensionNsName, routeNSName)
 	}
 
 	// deletes the services, which are removed, from the gateway <-> service and route <-> service mappings

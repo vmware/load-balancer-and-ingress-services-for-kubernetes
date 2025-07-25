@@ -117,6 +117,8 @@ func (c *GatewayController) Start(stopCh <-chan struct{}) {
 	if !utils.IsWCP() {
 		go c.dynamicInformers.L7CRDInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.dynamicInformers.L7CRDInformer.Informer().HasSynced)
+		go c.dynamicInformers.RouteBackendExtensionCRDInformer.Informer().Run(stopCh)
+		informersList = append(informersList, c.dynamicInformers.RouteBackendExtensionCRDInformer.Informer().HasSynced)
 	}
 	if akogatewayapilib.AKOControlConfig().AviInfraSettingEnabled() {
 		go akogatewayapilib.AKOControlConfig().AviInfraSettingInformer().Informer().Run(stopCh)
