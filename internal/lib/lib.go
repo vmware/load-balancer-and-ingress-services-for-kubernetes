@@ -2311,3 +2311,26 @@ func GetAviInfraSettingName(projVpc string) string {
 	hash := sha1.Sum([]byte(projVpc))
 	return hex.EncodeToString(hash[:])
 }
+
+var defaultNSXProject string
+
+func GetTenantForProject(project string, c *clients.AviClient) (string, error) {
+	if defaultNSXProject == "" {
+		uri := "api/tenant/admin"
+		response := models.Tenant{}
+		err := AviGet(c, uri, &response)
+		if err != nil {
+			return "", err
+		}
+		for _, attr := range response.Attrs {
+			if *attr.Key == "path" {
+				projectSlice := strings.Split(*attr.Value, "/projects/")
+				defaultNSXProject = projectSlice[len(projectSlice)-1]
+			}
+		}
+	}
+	if project == defaultNSXProject {
+		return "admin", nil
+	}
+	return project, nil
+}

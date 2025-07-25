@@ -479,11 +479,11 @@ func WaitForInitSecretRecreateAndReboot() {
 }
 
 func GetNSToSEGMap() (map[string]string, error) {
-	nsToSEGMap := make(map[string]string)
 	namespaces, err := utils.GetInformers().NSInformer.Lister().List(labels.Set(nil).AsSelector())
 	if err != nil {
-		return nsToSEGMap, err
+		return nil, err
 	}
+	nsToSEGMap := make(map[string]string)
 	for _, ns := range namespaces {
 		segName := ns.Annotations[WCPSEGroup]
 		if segName != "" {

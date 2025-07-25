@@ -861,7 +861,8 @@ func TestAKOInfraAviInfraSettingCreationVPCSEG(t *testing.T) {
 		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "default", metav1.GetOptions{}); err != nil {
 			return false
 		} else {
-			return ns.Annotations[lib.InfraSettingNameAnnotation] != infraSettingName
+			_, exist := ns.Annotations[lib.InfraSettingNameAnnotation]
+			return !exist
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
 
