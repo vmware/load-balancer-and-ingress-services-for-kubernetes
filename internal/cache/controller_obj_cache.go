@@ -42,20 +42,21 @@ import (
 )
 
 type AviObjCache struct {
-	PgCache            *AviCache
-	DSCache            *AviCache
-	StringGroupCache   *AviCache
-	PoolCache          *AviCache
-	CloudKeyCache      *AviCache
-	HTTPPolicyCache    *AviCache
-	L4PolicyCache      *AviCache
-	SSLKeyCache        *AviCache
-	PKIProfileCache    *AviCache
-	VSVIPCache         *AviCache
-	VrfCache           *AviCache
-	VsCacheMeta        *AviCache
-	VsCacheLocal       *AviCache
-	ClusterStatusCache *AviCache
+	PgCache             *AviCache
+	DSCache             *AviCache
+	StringGroupCache    *AviCache
+	PoolCache           *AviCache
+	CloudKeyCache       *AviCache
+	HTTPPolicyCache     *AviCache
+	L4PolicyCache       *AviCache
+	SSLKeyCache         *AviCache
+	PKIProfileCache     *AviCache
+	VSVIPCache          *AviCache
+	VrfCache            *AviCache
+	VsCacheMeta         *AviCache
+	VsCacheLocal        *AviCache
+	AppPersProfileCache *AviCache
+	ClusterStatusCache  *AviCache
 }
 
 func NewAviObjCache() *AviObjCache {
@@ -73,6 +74,7 @@ func NewAviObjCache() *AviObjCache {
 	c.VSVIPCache = NewAviCache()
 	c.VrfCache = NewAviCache()
 	c.PKIProfileCache = NewAviCache()
+	c.AppPersProfileCache = NewAviCache()
 	c.ClusterStatusCache = NewAviCache()
 	return &c
 }
@@ -100,6 +102,7 @@ func (c *AviObjCache) AviRefreshObjectCache(client []*clients.AviClient, cloud s
 		c.PopulateVsVipDataToCache(client[7], cloud)
 	}()
 	c.PopulatePkiProfilesToCache(client[0])
+	c.PopulateAppPersistenceProfileToCache(client[0])
 	c.PopulatePoolsToCache(client[1], cloud)
 	c.PopulatePgDataToCache(client[2], cloud)
 	c.PopulateStringGroupDataToCache(client[8], cloud)
@@ -679,13 +682,21 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 				pkiKey = NamespaceName{Namespace: tenant, Name: pkiName.(string)}
 			}
 		}
-
+		var persistentProfileKey NamespaceName
+		if pool.ApplicationPersistenceProfileRef != nil {
+			persistentProfileUuid := ExtractUUID(*pool.ApplicationPersistenceProfileRef, "applicationpersistenceprofile-.*.#")
+			persistentProfileName, found := c.AppPersProfileCache.AviCacheGetNameByUuid(persistentProfileUuid)
+			if found {
+				persistentProfileKey = NamespaceName{Namespace: tenant, Name: persistentProfileName.(string)}
+			}
+		}
 		poolCacheObj := AviPoolCache{
 			Name:                 *pool.Name,
 			Tenant:               tenant,
 			Uuid:                 *pool.UUID,
 			CloudConfigCksum:     *pool.CloudConfigCksum,
 			PkiProfileCollection: pkiKey,
+			PersistenceProfile:   persistentProfileKey,
 			ServiceMetadataObj:   svc_mdata_obj,
 			LastModified:         *pool.LastModified,
 		}
@@ -1213,6 +1224,61 @@ func (c *AviObjCache) AviPopulateOnePKICache(client *clients.AviClient,
 	return nil
 }
 
+func (c *AviObjCache) AviPopulateOnePersistenceProfileCache(client *clients.AviClient, objName string) error {
+	var uri string
+	uri = "/api/applicationpersistenceprofile?name=" + objName + "&include_name=true"
+	result, err := lib.AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err for persistenceprofile %v", uri, err)
+		return err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal persistenceprofile data, err: %v", err)
+		return err
+	}
+	for i := 0; i < len(elems); i++ {
+		persistenceProfileKey := models.ApplicationPersistenceProfile{}
+		err = json.Unmarshal(elems[i], &persistenceProfileKey)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal persistenceprofile data, err: %v", err)
+			continue
+		}
+		if persistenceProfileKey.Name == nil || persistenceProfileKey.UUID == nil {
+			utils.AviLog.Warnf("Incomplete persistenceprofile data unmarshalled, %s", utils.Stringify(persistenceProfileKey))
+			continue
+		}
+		//Only cache a Persistence Profile key that belongs to this AKO.
+		if !strings.HasPrefix(*persistenceProfileKey.Name, lib.GetNamePrefix()) {
+			continue
+		}
+		tenant := getTenantFromTenantRef(*persistenceProfileKey.TenantRef)
+		chksum := CalculatePersistenProfileChecksum(persistenceProfileKey)
+		cacheObj := AviPersistenceProfileCache{
+			Name:             *persistenceProfileKey.Name,
+			Tenant:           tenant,
+			Uuid:             *persistenceProfileKey.UUID,
+			CloudConfigCksum: chksum,
+			Type:             *persistenceProfileKey.PersistenceType,
+			LastModified:     *persistenceProfileKey.LastModified,
+		}
+		k := NamespaceName{Namespace: tenant, Name: *persistenceProfileKey.Name}
+		c.AppPersProfileCache.AviCacheAdd(k, &cacheObj)
+		utils.AviLog.Debugf("Adding persistenceprofile to Cache during refresh %s", k)
+	}
+	return nil
+}
+
+func CalculatePersistenProfileChecksum(appPersProfileModel models.ApplicationPersistenceProfile) uint32 {
+	emptyIngestionMarkers := utils.AviObjectMarkers{}
+	chksum := lib.PersistenceProfileChecksum(*appPersProfileModel.Name, *appPersProfileModel.PersistenceType, emptyIngestionMarkers, appPersProfileModel.Markers, true)
+	if appPersProfileModel.HTTPCookiePersistenceProfile != nil {
+		chksum += lib.HTTPCookiePersistenceProfileChecksum(*appPersProfileModel.HTTPCookiePersistenceProfile.CookieName, appPersProfileModel.HTTPCookiePersistenceProfile.Timeout, appPersProfileModel.HTTPCookiePersistenceProfile.IsPersistentCookie)
+	}
+	return chksum
+}
+
 func (c *AviObjCache) AviPopulateOnePoolCache(client *clients.AviClient,
 	cloud string, objName string) error {
 	var uri string
@@ -1264,12 +1330,22 @@ func (c *AviObjCache) AviPopulateOnePoolCache(client *clients.AviClient,
 			}
 		}
 
+		var persistenceKey NamespaceName
+		if pool.ApplicationPersistenceProfileRef != nil {
+			persistenceProfileUuid := ExtractUUID(*pool.ApplicationPersistenceProfileRef, "applicationpersistenceprofile-.*.#")
+			persistenceProfileName, foundPersistenceProfile := c.AppPersProfileCache.AviCacheGetNameByUuid(persistenceProfileUuid)
+			if foundPersistenceProfile {
+				persistenceKey = NamespaceName{Namespace: tenant, Name: persistenceProfileName.(string)}
+			}
+		}
+
 		poolCacheObj := AviPoolCache{
 			Name:                 *pool.Name,
 			Tenant:               tenant,
 			Uuid:                 *pool.UUID,
 			CloudConfigCksum:     *pool.CloudConfigCksum,
 			PkiProfileCollection: pkiKey,
+			PersistenceProfile:   persistenceKey,
 			ServiceMetadataObj:   svc_mdata_obj,
 			LastModified:         *pool.LastModified,
 		}
@@ -2143,6 +2219,105 @@ func (c *AviObjCache) AviPopulateOneStringGroupCache(client *clients.AviClient,
 	return nil
 }
 
+func (c *AviObjCache) AviPopulateAllAppPersistenceProfiles(client *clients.AviClient, appPersProfileData *[]AviPersistenceProfileCache, nextPage ...NextPage) (*[]AviPersistenceProfileCache, int, error) {
+	var uri string
+	if len(nextPage) == 1 {
+		uri = nextPage[0].NextURI
+	} else {
+		uri = "/api/applicationpersistenceprofile/?" + "name.contains=" + lib.GetNamePrefix() + "&include_name=true" + "&page_size=100"
+	}
+	utils.AviLog.Debugf("Get uri %v for applicationpersistenceprofile: ", uri)
+
+	result, err := lib.AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Get uri %v returned err for applicationpersistenceprofile %v", uri, err)
+		return nil, 0, err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal applicationpersistenceprofile data, err: %v", err)
+		return nil, 0, err
+	}
+	for i := 0; i < len(elems); i++ {
+		appPersProfile := models.ApplicationPersistenceProfile{}
+		err = json.Unmarshal(elems[i], &appPersProfile)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal applicationpersistenceprofile data, err: %v", err)
+			continue
+		}
+		if appPersProfile.Name == nil || appPersProfile.UUID == nil {
+			utils.AviLog.Warnf("Incomplete applicationpersistenceprofile data unmarshalled, %s", utils.Stringify(appPersProfile))
+			continue
+		}
+		emptyIngestionMarkers := utils.AviObjectMarkers{}
+		chksum := lib.PersistenceProfileChecksum(*appPersProfile.Name, *appPersProfile.PersistenceType, emptyIngestionMarkers, appPersProfile.Markers, true)
+		if appPersProfile.HTTPCookiePersistenceProfile != nil {
+			chksum += lib.HTTPCookiePersistenceProfileChecksum(*appPersProfile.HTTPCookiePersistenceProfile.CookieName, appPersProfile.HTTPCookiePersistenceProfile.Timeout, appPersProfile.HTTPCookiePersistenceProfile.IsPersistentCookie)
+		}
+
+		appPersProfileCacheObj := AviPersistenceProfileCache{
+			Name:             *appPersProfile.Name,
+			Tenant:           getTenantFromTenantRef(*appPersProfile.TenantRef),
+			Uuid:             *appPersProfile.UUID,
+			CloudConfigCksum: chksum,
+			LastModified:     *appPersProfile.LastModified,
+			Type:             *appPersProfile.PersistenceType,
+		}
+		*appPersProfileData = append(*appPersProfileData, appPersProfileCacheObj)
+	}
+
+	if result.Next != "" {
+		next_uri := strings.Split(result.Next, "/api/applicationpersistenceprofile")
+		if len(next_uri) > 1 {
+			overrideUri := "/api/applicationpersistenceprofile" + next_uri[1]
+			nextPage := NextPage{NextURI: overrideUri}
+			_, _, err := c.AviPopulateAllAppPersistenceProfiles(client, appPersProfileData, nextPage)
+			if err != nil {
+				return nil, 0, err
+			}
+		}
+	}
+	return appPersProfileData, result.Count, nil
+}
+
+func (c *AviObjCache) PopulateAppPersistenceProfileToCache(client *clients.AviClient) {
+	var appPersProfileData []AviPersistenceProfileCache
+	setDefaultTenant := session.SetTenant(lib.GetTenant())
+	setTenant := session.SetTenant("*")
+	setTenant(client.AviSession)
+	defer setDefaultTenant(client.AviSession)
+	c.AviPopulateAllAppPersistenceProfiles(client, &appPersProfileData)
+
+	persistenceCacheData := c.AppPersProfileCache.ShallowCopy()
+	for i, persistenceProfile := range appPersProfileData {
+		k := NamespaceName{Namespace: persistenceProfile.Tenant, Name: persistenceProfile.Name}
+		oldPersistenceIntf, found := c.AppPersProfileCache.AviCacheGet(k)
+		if found {
+			oldPersistenceData, ok := oldPersistenceIntf.(*AviPersistenceProfileCache)
+			if ok {
+				if oldPersistenceData.InvalidData {
+					appPersProfileData[i].InvalidData = true
+					utils.AviLog.Infof("Invalid cache data for persistence profile: %s", k)
+				}
+			} else {
+				utils.AviLog.Infof("Wrong data type for persistence profile: %s in cache", k)
+			}
+		}
+		utils.AviLog.Infof("Adding key to persistence profile cache :%s value :%s", k, persistenceProfile.Uuid)
+		c.AppPersProfileCache.AviCacheAdd(k, &appPersProfileData[i])
+		delete(persistenceCacheData, k)
+	}
+	// The data that is left in persistentCache  should be explicitly removed
+	for key := range persistenceCacheData {
+		_, ok := key.(NamespaceName)
+		if !ok {
+			continue
+		}
+		utils.AviLog.Infof("Deleting key from persistence cache :%s", key)
+		c.AppPersProfileCache.AviCacheDelete(key)
+	}
+}
 func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud string) error {
 	if lib.GetDisableStaticRoute() {
 		utils.AviLog.Debugf("Static route sync disabled, skipping vrf cache population")
