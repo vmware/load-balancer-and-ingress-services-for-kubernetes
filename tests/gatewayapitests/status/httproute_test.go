@@ -2001,7 +2001,7 @@ func TestHTTPRouteWithAppProfileExtensionRef(t *testing.T) {
 
 	condition := metav1.Condition{
 		Type:    string(gatewayv1.RouteConditionResolvedRefs),
-		Reason:  string(gatewayv1.RouteReasonUnsupportedValue),
+		Reason:  string(gatewayv1.RouteReasonBackendNotFound),
 		Status:  metav1.ConditionFalse,
 		Message: "ApplicationProfile Ref test-app-profile-1 is invalid",
 	}
@@ -2059,7 +2059,7 @@ func TestHTTPRouteWithAppProfileExtensionRef(t *testing.T) {
 	})
 	condition = metav1.Condition{
 		Type:    string(gatewayv1.RouteConditionResolvedRefs),
-		Reason:  string(gatewayv1.RouteReasonUnsupportedValue),
+		Reason:  string(gatewayv1.RouteReasonPending),
 		Status:  metav1.ConditionFalse,
 		Message: "ApplicationProfile Ref test-app-profile-2 is not ready",
 	}

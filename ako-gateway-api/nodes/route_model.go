@@ -234,7 +234,7 @@ ruleLoop:
 		}
 		routeConfigRule.Filters = make([]*Filter, 0, len(rule.Filters))
 
-		var hasInvalidFilter bool
+		// var hasInvalidFilter bool
 		for _, ruleFilter := range rule.Filters {
 			filter := &Filter{}
 			filter.Type = string(ruleFilter.Type)
@@ -328,11 +328,12 @@ ruleLoop:
 				var isValid bool
 				isValid, resolvedRefCondition = validateFilterExtensionRef(key, hr.GetNamespace(), filter.ExtensionRef)
 				if !isValid {
-					hasInvalidFilter = true
+					// hasInvalidFilter = true
+					isRouteRejected = true
+					break ruleLoop
 				}
 			}
 
-			routeConfig.Rejected = hasInvalidFilter
 			routeConfigRule.Filters = append(routeConfigRule.Filters, filter)
 		}
 
@@ -374,7 +375,7 @@ ruleLoop:
 			isValidBackend, resolvedRefConditionforBackend := validateBackendReference(key, *backend, httpBackend.Filters, hr.namespace)
 			if isValidBackend {
 				routeConfigRule.Backends = append(routeConfigRule.Backends, httpBackend)
-				if !hasInvalidBackend && !hasInvalidFilter {
+				if !hasInvalidBackend {
 					resolvedRefCondition = resolvedRefConditionforBackend
 				}
 			} else {
@@ -385,7 +386,6 @@ ruleLoop:
 			}
 		}
 		routeConfig.Rules = append(routeConfig.Rules, routeConfigRule)
-
 	}
 	routeConfig.Rejected = isRouteRejected
 	hr.routeConfig = routeConfig

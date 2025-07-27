@@ -65,7 +65,7 @@ func (c *GatewayController) setupL7CRDEventHandlers(numWorkers uint32) {
 			if c.DisableSync {
 				return
 			}
-			_, ok := obj.(*unstructured.Unstructured)
+			l7RuleObj, ok := obj.(*unstructured.Unstructured)
 			if !ok {
 				// httpRoute was deleted but its final state is unrecorded.
 				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
@@ -80,11 +80,11 @@ func (c *GatewayController) setupL7CRDEventHandlers(numWorkers uint32) {
 				}
 			}
 			// fetch name and namespace of appprofile crd
-			namespace, name := getNamespaceName(obj)
+			namespace, name := getNamespaceName(l7RuleObj)
 			if namespace == "" || name == "" {
 				return
 			}
-			isProcessed, _ := isObjectProcessed(obj, namespace, name)
+			isProcessed, _ := isObjectProcessed(l7RuleObj, namespace, name)
 			if !isProcessed {
 				return
 			}
@@ -409,7 +409,7 @@ func (c *GatewayController) setupApplicationProfileEventHandlers(numWorkers uint
 			if c.DisableSync {
 				return
 			}
-			_, ok := obj.(*unstructured.Unstructured)
+			applicationProfileObj, ok := obj.(*unstructured.Unstructured)
 			if !ok {
 				// httpRoute was deleted but its final state is unrecorded.
 				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
@@ -424,11 +424,11 @@ func (c *GatewayController) setupApplicationProfileEventHandlers(numWorkers uint
 				}
 			}
 			// fetch name and namespace of appprofile crd
-			namespace, name := getNamespaceName(obj)
+			namespace, name := getNamespaceName(applicationProfileObj)
 			if namespace == "" || name == "" {
 				return
 			}
-			isProcessed := akogatewayapilib.IsApplicationProfileProcessed(obj, namespace, name)
+			isProcessed := akogatewayapilib.IsApplicationProfileProcessed(applicationProfileObj, namespace, name)
 			if !isProcessed {
 				return
 			}

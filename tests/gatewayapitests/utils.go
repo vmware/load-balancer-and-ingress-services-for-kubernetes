@@ -49,7 +49,7 @@ var GvrToKind = map[schema.GroupVersionResource]string{
 	akogatewayapilib.L7CRDGVR:                    "l7rulesList",
 	akogatewayapilib.HealthMonitorGVR:            "healthmonitorsList",
 	akogatewayapilib.RouteBackendExtensionCRDGVR: "routebackendextensionsList",
-	akogatewayapilib.APPPROFILECRDGVR:            "applicationProfileList",
+	akogatewayapilib.AppProfileCRDGVR:            "applicationProfileList",
 }
 var testData unstructured.Unstructured
 
@@ -1036,21 +1036,21 @@ func GetFakeApplicationProfile(name string, status *FakeApplicationProfileStatus
 
 func CreateApplicationProfileCRD(t *testing.T, name string, status *FakeApplicationProfileStatus) {
 	appProfile := GetFakeApplicationProfile(name, status)
-	_, err := DynamicClient.Resource(akogatewayapilib.APPPROFILECRDGVR).Namespace("default").Create(context.TODO(), &appProfile, metav1.CreateOptions{})
+	_, err := DynamicClient.Resource(akogatewayapilib.AppProfileCRDGVR).Namespace("default").Create(context.TODO(), &appProfile, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in creating ApplicationProfile CRD: %v", err)
 	}
 }
 
 func DeleteApplicationProfileCRD(t *testing.T, name string) {
-	err := DynamicClient.Resource(akogatewayapilib.APPPROFILECRDGVR).Namespace("default").Delete(context.TODO(), name, metav1.DeleteOptions{})
+	err := DynamicClient.Resource(akogatewayapilib.AppProfileCRDGVR).Namespace("default").Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("error in deleting ApplicationProfile CRD: %v", err)
 	}
 }
 
 func GetApplicationProfileCRD(t *testing.T, name string) *unstructured.Unstructured {
-	crd, err := DynamicClient.Resource(akogatewayapilib.APPPROFILECRDGVR).Namespace("default").Get(context.TODO(), name, metav1.GetOptions{})
+	crd, err := DynamicClient.Resource(akogatewayapilib.AppProfileCRDGVR).Namespace("default").Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("error in getting ApplicationProfile CRD: %v", err)
 	}
@@ -1059,7 +1059,7 @@ func GetApplicationProfileCRD(t *testing.T, name string) *unstructured.Unstructu
 
 func UpdateApplicationProfileCRD(t *testing.T, name string, status *FakeApplicationProfileStatus) {
 	appProfile := GetFakeApplicationProfile(name, status)
-	_, err := DynamicClient.Resource(akogatewayapilib.APPPROFILECRDGVR).Namespace("default").Update(context.TODO(), &appProfile, metav1.UpdateOptions{})
+	_, err := DynamicClient.Resource(akogatewayapilib.AppProfileCRDGVR).Namespace("default").Update(context.TODO(), &appProfile, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error in updating ApplicationProfile CRD: %v", err)
 	}

@@ -57,7 +57,7 @@ var (
 		Version:  "v1alpha1",
 		Resource: "routebackendextensions",
 	}
-	APPPROFILECRDGVR = schema.GroupVersionResource{
+	AppProfileCRDGVR = schema.GroupVersionResource{
 		Group:    "ako.vmware.com",
 		Version:  "v1alpha1",
 		Resource: "applicationprofiles",
@@ -111,7 +111,7 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 		informers.RouteBackendExtensionCRDInformer = f.ForResource(RouteBackendExtensionCRDGVR)
 	}
 	informers.HealthMonitorInformer = f.ForResource(HealthMonitorGVR)
-	informers.AppProfileCRDInformer = f.ForResource(APPPROFILECRDGVR)
+	informers.AppProfileCRDInformer = f.ForResource(AppProfileCRDGVR)
 
 	dynamicInformerInstance = informers
 	return dynamicInformerInstance
@@ -393,7 +393,7 @@ func ParseRouteBackendExtensionCR(key, namespace, name string, poolNode *nodes.A
 // IsApplicationProfileValid checks if the ApplicationProfile CRD is valid as well as ready and processed by AKO CRD Operator.
 func IsApplicationProfileValid(namespace, name string) (bool, bool) {
 	clientSet := GetDynamicClientSet()
-	obj, err := clientSet.Resource(APPPROFILECRDGVR).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	obj, err := clientSet.Resource(AppProfileCRDGVR).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
 			utils.AviLog.Warnf("key:%s/%s, msg: ApplicationProfile CRD status not found: %+v", namespace, name, err)
@@ -432,16 +432,12 @@ func IsApplicationProfileProcessed(obj interface{}, namespace, name string) bool
 		condition := c.(map[string]interface{})
 		statusReady := condition["status"].(string) == string(metav1.ConditionTrue)
 		conditionReady := condition["type"].(string) == "Ready"
-		conditionReason := condition["reason"].(string)
 
-		// Deletion when app profile object is already reffered to by a VS causes condition
-		// with Reason "DeletionSkipped" raised i.e App Profile is still intact and processed.
-		isProcessed := (statusReady && conditionReady) || conditionReason == "DeletionSkipped"
-		if !isProcessed {
-			utils.AviLog.Warnf("key:%s/%s, msg: ApplicationProfile CRD is not ready", namespace, name)
-			return false
+		if statusReady && conditionReady {
+			return true
 		}
 	}
 
-	return true
+	utils.AviLog.Warnf("key:%s/%s, msg: ApplicationProfile CRD is not ready", namespace, name)
+	return false
 }

@@ -225,7 +225,7 @@ func validateFilterExtensionRef(key, namespace string, filter *ExtensionRefFilte
 	if filter.Kind != lib.ApplicationProfile {
 		// set the status
 		routeConditionResolvedRef.
-			Reason(string(gatewayv1.RouteReasonUnsupportedValue)).
+			Reason(string(gatewayv1.RouteReasonInvalidKind)).
 			Message(fmt.Sprintf("Unsupported kind %s defined on HTTPRoute-Rule", filter.Kind))
 
 		return false, routeConditionResolvedRef
@@ -238,7 +238,7 @@ func validateFilterExtensionRef(key, namespace string, filter *ExtensionRefFilte
 		utils.AviLog.Warnf("key: %s, msg: %+v", key, err)
 		// set the status
 		routeConditionResolvedRef.
-			Reason(string(gatewayv1.RouteReasonUnsupportedValue)).
+			Reason(string(gatewayv1.RouteReasonBackendNotFound)).
 			Message(err.Error())
 
 		return false, routeConditionResolvedRef
@@ -249,7 +249,7 @@ func validateFilterExtensionRef(key, namespace string, filter *ExtensionRefFilte
 		utils.AviLog.Warnf("key: %s, msg: %+v", key, err)
 		// set the status
 		routeConditionResolvedRef.
-			Reason(string(gatewayv1.RouteReasonUnsupportedValue)).
+			Reason(string(gatewayv1.RouteReasonPending)).
 			Message(err.Error())
 
 		return false, routeConditionResolvedRef
