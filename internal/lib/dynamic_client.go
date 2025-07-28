@@ -478,21 +478,6 @@ func WaitForInitSecretRecreateAndReboot() {
 	}
 }
 
-func GetNSToSEGMap() (map[string]string, error) {
-	nsToSEGMap := make(map[string]string)
-	namespaces, err := utils.GetInformers().NSInformer.Lister().List(labels.Set(nil).AsSelector())
-	if err != nil {
-		return nsToSEGMap, err
-	}
-	for _, ns := range namespaces {
-		segName := ns.Annotations[WCPSEGroup]
-		if segName != "" {
-			nsToSEGMap[ns.GetName()] = segName
-		}
-	}
-	return nsToSEGMap, nil
-}
-
 func GetVPCs() (map[string]string, error) {
 	clientSet := GetDynamicClientSet()
 	nsToVPCMap := make(map[string]string)
