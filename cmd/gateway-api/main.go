@@ -178,10 +178,6 @@ func Initialize() {
 		utils.AviLog.Fatalf("Avi Controller Cluster state is not Active, shutting down AKO")
 	}
 
-	if utils.IsVCFCluster() {
-		k8s.SharedAviController().InitVCFHandlers(kubeClient, ctrlCh, stopCh)
-	}
-
 	err = c.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	if err != nil {
 		utils.AviLog.Errorf("Handle configmap error during reboot, shutting down AKO. Error is: %v", err)

@@ -170,11 +170,16 @@ The following table lists the configurable parameters of the AKO chart and their
 | `AKOSettings.istioEnabled` | set to true if user wants to deploy AKO in istio environment (tech preview)| false |
 | `AKOSettings.ipFamily` | set to V6 if user wants to deploy AKO with V6 backend (vCenter cloud with calico CNI only) (tech preview)| V4 |
 | `AKOSettings.useDefaultSecretsOnly` | Restricts the secret handling to default secrets present in the namespace where AKO is installed in Openshift clusters if set to true | false |
+| `AKOSetttings.namespaceSelector` |  Key-value pair represent a label that is used by AKO to filter out namespace/s | empty |
 | `avicredentials.username` | Avi controller username | empty |
 | `avicredentials.password` | Avi controller password | empty |
 | `avicredentials.authtoken` | Avi controller authentication token | empty |
+| `avicredentials.certificateAuthorityData` | RootCA of the Avi controller, that AKO uses to verify the server certificate provided by the Avi Controller during the TLS handshake | empty |
 | `image.repository` | Specify docker-registry that has the AKO image | avinetworks/ako |
 | `image.pullSecrets` | Specify the pull secrets for the secure private container image registry that has the AKO image | `Empty List` |
+| `nodePortSelector` | Key-Value pair used as a label based selection used by AKO to filter out K8s/OpenShift nodes while populating the pool members. Applicable in AKO NodePort mode | empty |
+| `securityContext` |  Security configuration applied on container running in AKO POD | empty |
+| `podSecurityContext` | Security configuration applied on AKO POD | empty |
 
 > From AKO 1.5.1, fields `subnetIP` and `subnetPrefix` have been deprecated. See [Upgrade Notes](../upgrade/upgrade.md) for more details.
 

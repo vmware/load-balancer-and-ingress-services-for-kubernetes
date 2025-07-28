@@ -128,10 +128,11 @@ type HTTPBackend struct {
 }
 
 type Rule struct {
-	Name     string
-	Matches  []*Match
-	Filters  []*Filter
-	Backends []*HTTPBackend
+	Name               string
+	Matches            []*Match
+	Filters            []*Filter
+	Backends           []*HTTPBackend
+	SessionPersistence *gatewayv1.SessionPersistence
 }
 
 type RouteConfig struct {
@@ -228,6 +229,9 @@ func (hr *httpRoute) ParseRouteConfig(key string) *RouteConfig {
 		sort.Sort((Matches)(routeConfigRule.Matches))
 		if rule.Name != nil {
 			routeConfigRule.Name = string(*rule.Name)
+		}
+		if rule.SessionPersistence != nil {
+			routeConfigRule.SessionPersistence = rule.SessionPersistence.DeepCopy()
 		}
 		routeConfigRule.Filters = make([]*Filter, 0, len(rule.Filters))
 		for _, ruleFilter := range rule.Filters {
