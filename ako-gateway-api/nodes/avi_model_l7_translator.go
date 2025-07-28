@@ -19,6 +19,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
+
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
@@ -181,6 +184,88 @@ func updateHostname(key, parentNsName string, parentNode *nodes.AviEvhVsNode) {
 	parentNode.VSVIPRefs[0].FQDNs = uniqueHostnames
 }
 
+// parseGatewayDurationToMinutes converts Gateway API Duration string to minutes (int32).
+// Returns nil if duration is nil.
+// Returns 0 (Avi's representation for infinite) if parsing fails
+// Returns 1 if duration is positive but < 1 minute
+// Avi specific: Timeout for HTTPCookiePersistenceProfile: Allowed values are 1-14400. Special values are 0- No Timeout.
+func parseGatewayDurationToMinutes(key string, gwDuration *gatewayv1.Duration) *int32 {
+	if gwDuration == nil {
+		return nil
+	}
+	zeroTimeout := int32(0)
+	d, err := time.ParseDuration(string(*gwDuration))
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: failed to parse duration string '%s': %v. Defaulting to Avi's infinite timeout.", key, *gwDuration, err)
+		return &zeroTimeout
+	}
+
+	if d < 0 {
+		utils.AviLog.Warnf("key: %s, msg: negative duration '%s' is not supported. Defaulting to Avi's infinite timeout.", key, *gwDuration)
+		return &zeroTimeout
+	}
+
+	minutes := int32(d.Minutes())
+	// If duration is positive but less than 1 minute, Avi cannot represent it precisely as it takes minutes so we will translate it to 1 minute
+	if d > 0 && minutes == 0 {
+		utils.AviLog.Warnf("key: %s, msg: duration %s is positive but less than 1 minute. Avi's minimum granularity for persistence timeout is 1 minute. Defaulting to Avi's 1 minute).", key, *gwDuration)
+		oneTimeout := int32(1)
+		return &oneTimeout
+	}
+	// Avi's timeout range is 1-14400 minutes, or 0 for infinite.
+	if minutes > 14400 {
+		utils.AviLog.Warnf("key: %s, msg: duration %s (%d minutes) exceeds Avi's max persistence timeout of 14400 minutes. Clamping to 14400.", key, *gwDuration, minutes)
+		maxTimeout := int32(14400)
+		return &maxTimeout
+	}
+
+	return &minutes
+}
+
+func (o *AviObjectGraph) BuildApplicationPersistenceProfile(key string, rule *Rule, routeModel RouteModel, parentNs, parentName string, markers utils.AviObjectMarkers) *nodes.AviApplicationPersistenceProfileNode {
+	sp := rule.SessionPersistence
+	persistProfileNode := &nodes.AviApplicationPersistenceProfileNode{
+		AviMarkers: markers,
+	}
+
+	persistenceType := gatewayv1.CookieBasedSessionPersistence // Default as per Gateway API spec
+	if sp.Type != nil {
+		persistenceType = *sp.Type
+	}
+
+	switch persistenceType {
+	case gatewayv1.CookieBasedSessionPersistence:
+		persistProfileNode.PersistenceType = "PERSISTENCE_TYPE_HTTP_COOKIE"
+		httpCookiePersistenceProfileNode := &nodes.HTTPCookiePersistenceProfileNode{
+			CookieName: *sp.SessionName,
+		}
+		httpCookiePersistenceProfileNode.Timeout = parseGatewayDurationToMinutes(key, sp.AbsoluteTimeout)
+		if sp.CookieConfig != nil && sp.CookieConfig.LifetimeType != nil &&
+			*sp.CookieConfig.LifetimeType == gatewayv1.PermanentCookieLifetimeType {
+			httpCookiePersistenceProfileNode.IsPersistentCookie = proto.Bool(true)
+		} else { // Default LifetimeType is Session
+			httpCookiePersistenceProfileNode.IsPersistentCookie = proto.Bool(false)
+		}
+		persistProfileNode.HTTPCookiePersistenceProfile = httpCookiePersistenceProfileNode
+
+	default:
+		utils.AviLog.Errorf("key: %s, msg: unsupported session persistence type: %s in route %s/%s. No persistence profile will be applied.", key, persistenceType, routeModel.GetNamespace(), routeModel.GetName())
+		return nil
+	}
+	var appPersistProfileName string
+	if rule.Name == "" {
+		appPersistProfileName = akogatewayapilib.GetPersistenceProfileName(parentNs, parentName,
+			routeModel.GetNamespace(), routeModel.GetName(),
+			utils.Stringify(rule.Matches), persistProfileNode.PersistenceType)
+	} else {
+		appPersistProfileName = akogatewayapilib.GetPersistenceProfileName(parentNs, parentName,
+			routeModel.GetNamespace(), routeModel.GetName(),
+			rule.Name, persistProfileNode.PersistenceType)
+	}
+	persistProfileNode.Name = appPersistProfileName
+	return persistProfileNode
+}
+
 func (o *AviObjectGraph) ApplyRuleExtensionRefs(key string, childNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
 	if rule != nil && rule.Filters != nil {
 		isFilterAppProfSet := false
@@ -256,7 +341,13 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 	if rule.Name != "" {
 		PG.AviMarkers.HTTPRouteRuleName = rule.Name
 	}
-
+	var persistenceProfile *nodes.AviApplicationPersistenceProfileNode
+	if rule.SessionPersistence != nil {
+		persistenceProfile = o.BuildApplicationPersistenceProfile(key, rule, routeModel, parentNs, parentName, PG.AviMarkers)
+		if persistenceProfile != nil {
+			persistenceProfile.Tenant = childVsNode.Tenant
+		}
+	}
 	for _, httpbackend := range rule.Backends {
 		var poolName string
 		if rule.Name == "" {
@@ -295,6 +386,9 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 			HTTPRouteNamespace: routeModel.GetNamespace(),
 			BackendNs:          httpbackend.Backend.Namespace,
 			BackendName:        httpbackend.Backend.Name,
+		}
+		if rule.SessionPersistence != nil {
+			poolNode.ApplicationPersistenceProfile = persistenceProfile
 		}
 		if rule.Name != "" {
 			poolNode.AviMarkers.HTTPRouteRuleName = rule.Name

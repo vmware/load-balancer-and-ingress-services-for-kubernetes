@@ -87,6 +87,14 @@ func GetPoolGroupName(parentNs, parentName, routeNs, routeName, matchName string
 	return lib.Encode(name, lib.PG)
 }
 
+func GetPersistenceProfileName(parentNs, parentName, routeNs, routeName, matchName, sessionPersistenceType string) string {
+	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-" + sessionPersistenceType
+	if matchName != "" {
+		name = fmt.Sprintf("%s-%s", name, utils.Stringify(utils.Hash(matchName)))
+	}
+	return lib.Encode(name, lib.ApplicationPersistenceProfile)
+}
+
 func CheckGatewayClassController(controllerName string) bool {
 	return controllerName == lib.AviIngressController
 }

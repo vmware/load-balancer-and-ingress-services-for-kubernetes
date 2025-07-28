@@ -3300,6 +3300,111 @@ func TestHTTPRouteFilterWithUrlRewriteOnlyHostnameOrPath(t *testing.T) {
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 }
 
+func TestHTTPRouteWithSessionPersistence(t *testing.T) {
+	gatewayClassName := "gateway-class-hr-32"
+	gatewayName := "gateway-hr-32"
+	httpRouteName := "httproute-32"
+	namespace := "default"
+	svcName := "avisvc-hr-32"
+	ports := []int32{8080}
+	ruleName := "sticky-rule"
+	cookieName := "sticky-cookie"
+	var timeout gatewayv1.Duration = "10m"
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPorEPS(t, "default", svcName, false, false, "1.1.1")
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(namespace).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
+	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		nil,
+		[][]string{{svcName, namespace, "8080", "1"}}, nil)
+
+	// Add SessionPersistence
+	rule.Name = (*gatewayv1.SectionName)(&ruleName)
+	cookieType := gatewayv1.CookieBasedSessionPersistence
+	rule.SessionPersistence = &gatewayv1.SessionPersistence{
+		Type:            &cookieType,
+		SessionName:     &cookieName,
+		AbsoluteTimeout: &timeout,
+	}
+
+	rules := []gatewayv1.HTTPRouteRule{rule}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			t.Logf("Couldn't get the HTTPRoute, err: %+v", err)
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(DEFAULT_NAMESPACE, gatewayName))
+
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found || aviModel == nil {
+			return false
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		if len(nodes) == 0 || len(nodes[0].EvhNodes) == 0 || len(nodes[0].EvhNodes[0].PoolRefs) == 0 {
+			return false
+		}
+		return nodes[0].EvhNodes[0].PoolRefs[0].ApplicationPersistenceProfile != nil
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(1))
+
+	poolNode := nodes[0].EvhNodes[0].PoolRefs[0]
+	g.Expect(poolNode.ApplicationPersistenceProfile).NotTo(gomega.BeNil())
+
+	appPersistProfile := poolNode.ApplicationPersistenceProfile
+	g.Expect(appPersistProfile.PersistenceType).To(gomega.Equal("PERSISTENCE_TYPE_HTTP_COOKIE"))
+	g.Expect(appPersistProfile.HTTPCookiePersistenceProfile).NotTo(gomega.BeNil())
+	g.Expect(appPersistProfile.HTTPCookiePersistenceProfile.CookieName).To(gomega.Equal(cookieName))
+	g.Expect(*appPersistProfile.HTTPCookiePersistenceProfile.Timeout).To(gomega.Equal(int32(10))) // 10m -> 10 minutes
+	g.Expect(*appPersistProfile.HTTPCookiePersistenceProfile.IsPersistentCookie).To(gomega.BeFalse())
+
+	// Remove session persistence
+	rule.SessionPersistence = nil
+	rules = []gatewayv1.HTTPRouteRule{rule}
+	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return nodes[0].EvhNodes[0].PoolRefs[0].ApplicationPersistenceProfile == nil
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	// Teardown
+	integrationtest.DelSVC(t, namespace, svcName)
+	integrationtest.DelEPorEPS(t, namespace, svcName)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
+	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+
 func TestHTTPRouteWithRouteRuleName(t *testing.T) {
 	gatewayClassName := "gateway-class-hr-31"
 	gatewayName := "gateway-hr-31"
