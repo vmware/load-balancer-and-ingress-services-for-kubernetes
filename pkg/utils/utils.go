@@ -29,6 +29,8 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	oshiftclientset "github.com/openshift/client-go/route/clientset/versioned"
 	oshiftinformers "github.com/openshift/client-go/route/informers/externalversions"
 	corev1 "k8s.io/api/core/v1"
@@ -40,6 +42,8 @@ import (
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	// TODO: Check this to convert to v1beta1 in next release. Couldn't conver as MCI and SI uses that.
 	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
+
+	avimodels "github.com/vmware/alb-sdk/go/models"
 
 	akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions"
 )
@@ -291,6 +295,54 @@ func GetInformers() *Informers {
 func Stringify(serialize interface{}) string {
 	json_marshalled, _ := json.Marshal(serialize)
 	return string(json_marshalled)
+}
+
+func StringifyWithSanitization(serialize interface{}) string {
+	switch serialize.(type) {
+	case avimodels.SSLKeyAndCertificate:
+		return sanitizeSSLKeyAndCertificate(serialize)
+	case []*RestOp:
+		return sanitizeRestOp(serialize)
+	default:
+		return Stringify(serialize)
+	}
+}
+
+func sanitizeSSLKeyAndCertificate(serialize interface{}) string {
+	sslCertificate, ok := serialize.(avimodels.SSLKeyAndCertificate)
+	if ok {
+		sslCertificate.Key = proto.String("<REDACTED>")
+	}
+	return Stringify(sslCertificate)
+}
+
+func sanitizeRestOp(serialize interface{}) string {
+	restOps := serialize.([]*RestOp)
+	sanitizedRestOps := make([]*RestOp, len(restOps))
+	for i, op := range restOps {
+		// we need to make deepcopy since redacting the original object will create issues
+		var opCopy RestOp
+		opBytes, err := json.Marshal(op)
+		if err != nil {
+			AviLog.Warnf("Failed to marshal RestOp for sanitization: %v", err)
+			continue
+		}
+		json.Unmarshal(opBytes, &opCopy)
+
+		// Now, sanitize the deep copy.
+		if opCopy.Obj != nil {
+			if objMap, ok := opCopy.Obj.(map[string]interface{}); ok {
+				// Sanitize based on known sensitive keys.
+				if _, keyExists := objMap["key"]; keyExists {
+					objMap["key"] = "<REDACTED>"
+				}
+			}
+		}
+
+		sanitizedRestOps[i] = &opCopy
+	}
+
+	return Stringify(sanitizedRestOps)
 }
 
 func ExtractNamespaceObjectName(key string) (string, string) {
