@@ -7,6 +7,8 @@ metadata:
   annotations:
     ingressclass.kubernetes.io/is-default-class: "true"
   {{ end }}
+  labels:
+    {{- include "ako.labels" . | nindent 4 }}
 spec:
   controller: ako.vmware.com/avi-lb
 {{- end }}
