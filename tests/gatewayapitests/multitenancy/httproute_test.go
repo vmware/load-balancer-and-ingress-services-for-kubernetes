@@ -53,10 +53,10 @@ func TestHTTPRouteWithNonAdminTenant(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName1, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
+	integrationtest.CreateEPS(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName2, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
+	integrationtest.CreateEPS(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
 	rule1 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
@@ -99,9 +99,9 @@ func TestHTTPRouteWithNonAdminTenant(t *testing.T) {
 	g.Expect(len(childNode2.VHMatches)).To(gomega.Equal(2))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
-	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
-	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName2)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName2)
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
@@ -130,10 +130,10 @@ func TestHTTPRouteAnnotateNamespaceWithNonAdminTenant(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName1, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
+	integrationtest.CreateEPS(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName2, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
+	integrationtest.CreateEPS(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
 	rule1 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
@@ -213,9 +213,9 @@ func TestHTTPRouteAnnotateNamespaceWithNonAdminTenant(t *testing.T) {
 	g.Expect(len(childNode2.VHMatches)).To(gomega.Equal(2))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
-	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
-	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName2)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName2)
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
@@ -245,10 +245,10 @@ func TestHTTPRouteDeannotateNamespaceWithNonAdminTenant(t *testing.T) {
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName1, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
+	integrationtest.CreateEPS(t, DEFAULT_NAMESPACE, svcName1, false, false, "1.2.3")
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName2, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
+	integrationtest.CreateEPS(t, DEFAULT_NAMESPACE, svcName2, false, false, "1.2.3")
 
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
 	rule1 := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
@@ -328,9 +328,9 @@ func TestHTTPRouteDeannotateNamespaceWithNonAdminTenant(t *testing.T) {
 	g.Expect(len(childNode2.VHMatches)).To(gomega.Equal(2))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
-	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName1)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
-	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName2)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName2)
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)

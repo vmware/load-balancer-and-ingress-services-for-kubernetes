@@ -155,7 +155,6 @@ spec:
   - `mountPath`: Mount path for the logs.
   - `logFile`: Log file name where the AKO controller will add it's logs.
   - `featureGates`: FeatureGates is to enable or disable experimental features.
-    * `enableEndpointSlice`: Enables/Disables processing of EndpointSlices instead of Endpoints.
     * `gatewayAPI`: GatewayAPI enables/disables processing of Kubernetes Gateway API CRDs. Defaults to `false`.
     * `enablePrometheus`: EnablePrometheus enables/disables prometheus scraping for AKO container. Defaults to `false`.
   - `gatewayAPI`: GatewayAPI defines settings for AKO Gateway API container. These settings will only be used if **gatewayAPI** feature gate is enabled.

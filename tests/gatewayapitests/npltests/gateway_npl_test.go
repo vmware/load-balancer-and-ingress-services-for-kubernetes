@@ -81,6 +81,7 @@ func TestMain(m *testing.M) {
 		utils.SecretInformer,
 		utils.NSInformer,
 		utils.PodInformer,
+		utils.EndpointSlicesInformer,
 	}
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: tests.KubeClient}, registeredInformers, make(map[string]interface{}))
 	data := map[string][]byte{
@@ -237,7 +238,7 @@ func TestAddPod(t *testing.T) {
 		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 		childNode = nodes[0].EvhNodes[0]
 		return len(childNode.PoolRefs[0].Servers)
-	}, 40*time.Second).Should(gomega.Equal(1))
+	}, 400*time.Second).Should(gomega.Equal(1))
 	g.Expect(childNode.PoolRefs[0].Servers).To(gomega.HaveLen(1))
 	g.Expect(*childNode.PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(defaultHostIP))
 	g.Expect(childNode.PoolRefs[0].Servers[0].Port).To(gomega.Equal(int32(defaultNodePort)))

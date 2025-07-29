@@ -44,7 +44,6 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
-var endpointSliceEnabled bool
 var objNameMap ObjectNameMap
 var MODEL_REDNS_PREFIX = "admin/cluster--red-ns-"
 
@@ -52,7 +51,7 @@ func SetUpTestForSvcLB(t *testing.T, svcName string) {
 	modelName := MODEL_REDNS_PREFIX + svcName
 	objects.SharedAviGraphLister().Delete(modelName)
 	CreateSVC(t, NAMESPACE, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false)
-	CreateEPorEPS(t, NAMESPACE, svcName, false, false, "1.1.1")
+	CreateEPS(t, NAMESPACE, svcName, false, false, "1.1.1")
 	PollForCompletion(t, modelName, 5)
 }
 
@@ -64,7 +63,7 @@ func SetUpTestForSvcLBWithExternalTrafficPolicy(t *testing.T, svcName, nodeName,
 	} else {
 		CreateSvcWithExternalTrafficPolicy(t, NAMESPACE, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, externalTrafficPolicy)
 	}
-	CreateEPorEPSNodeName(t, NAMESPACE, svcName, false, false, "1.1.1", nodeName)
+	CreateEPSNodeName(t, NAMESPACE, svcName, false, false, "1.1.1", nodeName)
 	PollForCompletion(t, modelName, 5)
 }
 
@@ -72,7 +71,7 @@ func SetUpTestForSvcLBWithLBClass(t *testing.T, LBClass, svcName string) {
 	modelName := MODEL_REDNS_PREFIX + svcName
 	objects.SharedAviGraphLister().Delete(modelName)
 	CreateSVCWithValidOrInvalidLBClass(t, NAMESPACE, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, LBClass)
-	CreateEPorEPS(t, NAMESPACE, svcName, false, false, "1.1.1")
+	CreateEPS(t, NAMESPACE, svcName, false, false, "1.1.1")
 	PollForCompletion(t, modelName, 5)
 }
 
@@ -80,7 +79,7 @@ func TearDownTestForSvcLB(t *testing.T, g *gomega.GomegaWithT, svcName string) {
 	modelName := MODEL_REDNS_PREFIX + svcName
 	objects.SharedAviGraphLister().Delete(modelName)
 	DelSVC(t, NAMESPACE, svcName)
-	DelEPorEPS(t, NAMESPACE, svcName)
+	DelEPS(t, NAMESPACE, svcName)
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, svcName)}
 	g.Eventually(func() bool {
@@ -98,7 +97,7 @@ func SetUpTestForSvcLBWithExtDNS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	CreateEPorEPS(t, NAMESPACE, EXTDNSSVC, false, false, "1.1.1")
+	CreateEPS(t, NAMESPACE, EXTDNSSVC, false, false, "1.1.1")
 	PollForCompletion(t, modelSvcDNS01, 5)
 }
 
@@ -106,7 +105,7 @@ func TearDownTestForSvcLBWithExtDNS(t *testing.T, g *gomega.GomegaWithT) {
 	modelSvcDNS01 := MODEL_REDNS_PREFIX + EXTDNSSVC
 	objects.SharedAviGraphLister().Delete(modelSvcDNS01)
 	DelSVC(t, NAMESPACE, EXTDNSSVC)
-	DelEPorEPS(t, NAMESPACE, EXTDNSSVC)
+	DelEPS(t, NAMESPACE, EXTDNSSVC)
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, EXTDNSSVC)}
 	g.Eventually(func() bool {
@@ -119,7 +118,7 @@ func SetUpTestForSvcLBMultiport(t *testing.T, svcName string) {
 	modelName := MODEL_REDNS_PREFIX + svcName
 	objects.SharedAviGraphLister().Delete(modelName)
 	CreateSVC(t, NAMESPACE, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, true)
-	CreateEPorEPS(t, NAMESPACE, svcName, true, true, "1.1.1")
+	CreateEPS(t, NAMESPACE, svcName, true, true, "1.1.1")
 	PollForCompletion(t, modelName, 10)
 }
 
@@ -127,7 +126,7 @@ func SetUpTestForSvcLBMixedProtocol(t *testing.T, svcName string, multiProtocol 
 	modelName := MODEL_REDNS_PREFIX + svcName
 	objects.SharedAviGraphLister().Delete(modelName)
 	CreateSVC(t, NAMESPACE, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false, multiProtocol...)
-	CreateEPorEPS(t, NAMESPACE, svcName, false, false, "1.1.1", multiProtocol...)
+	CreateEPS(t, NAMESPACE, svcName, false, false, "1.1.1", multiProtocol...)
 	PollForCompletion(t, modelName, 10)
 }
 
@@ -135,7 +134,7 @@ func TearDownTestForSvcLBMultiport(t *testing.T, g *gomega.GomegaWithT, svcName 
 	modelName := MODEL_REDNS_PREFIX + svcName
 	objects.SharedAviGraphLister().Delete(modelName)
 	DelSVC(t, NAMESPACE, svcName)
-	DelEPorEPS(t, NAMESPACE, svcName)
+	DelEPS(t, NAMESPACE, svcName)
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, svcName)}
 	g.Eventually(func() bool {
@@ -153,7 +152,7 @@ func SetUpTestForSharedVIPSvcLB(t *testing.T, proto1, proto2 corev1.Protocol) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	CreateEPorEPS(t, NAMESPACE, SHAREDVIPSVC01, false, false, "1.1.1")
+	CreateEPS(t, NAMESPACE, SHAREDVIPSVC01, false, false, "1.1.1")
 	PollForCompletion(t, modelSvc01, 5)
 
 	modelSvc02 := MODEL_REDNS_PREFIX + SHAREDVIPSVC02
@@ -164,7 +163,7 @@ func SetUpTestForSharedVIPSvcLB(t *testing.T, proto1, proto2 corev1.Protocol) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	CreateEPorEPS(t, NAMESPACE, SHAREDVIPSVC02, false, false, "2.1.1")
+	CreateEPS(t, NAMESPACE, SHAREDVIPSVC02, false, false, "2.1.1")
 	PollForCompletion(t, modelSvc02, 5)
 }
 
@@ -172,7 +171,7 @@ func TearDownTestForSharedVIPSvcLB(t *testing.T, g *gomega.GomegaWithT) {
 	modelSvc01 := MODEL_REDNS_PREFIX + SHAREDVIPSVC01
 	objects.SharedAviGraphLister().Delete(modelSvc01)
 	DelSVC(t, NAMESPACE, SHAREDVIPSVC01)
-	DelEPorEPS(t, NAMESPACE, SHAREDVIPSVC01)
+	DelEPS(t, NAMESPACE, SHAREDVIPSVC01)
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, SHAREDVIPSVC01)}
 	g.Eventually(func() bool {
@@ -183,7 +182,7 @@ func TearDownTestForSharedVIPSvcLB(t *testing.T, g *gomega.GomegaWithT) {
 	modelSvc02 := MODEL_REDNS_PREFIX + SHAREDVIPSVC02
 	objects.SharedAviGraphLister().Delete(modelSvc02)
 	DelSVC(t, NAMESPACE, SHAREDVIPSVC02)
-	DelEPorEPS(t, NAMESPACE, SHAREDVIPSVC02)
+	DelEPS(t, NAMESPACE, SHAREDVIPSVC02)
 	mcache = cache.SharedAviObjCache()
 	vsKey = cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, SHAREDVIPSVC02)}
 	g.Eventually(func() bool {
@@ -201,7 +200,7 @@ func SetUpTestForSharedVIPSvcLBWithExtDNS(t *testing.T, proto1, proto2 corev1.Pr
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	CreateEPorEPS(t, NAMESPACE, SHAREDVIPSVC01, false, false, "1.1.1")
+	CreateEPS(t, NAMESPACE, SHAREDVIPSVC01, false, false, "1.1.1")
 	PollForCompletion(t, modelSvc01, 5)
 
 	modelSvc02 := MODEL_REDNS_PREFIX + SHAREDVIPSVC02
@@ -212,7 +211,7 @@ func SetUpTestForSharedVIPSvcLBWithExtDNS(t *testing.T, proto1, proto2 corev1.Pr
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	CreateEPorEPS(t, NAMESPACE, SHAREDVIPSVC02, false, false, "2.1.1")
+	CreateEPS(t, NAMESPACE, SHAREDVIPSVC02, false, false, "2.1.1")
 	PollForCompletion(t, modelSvc02, 5)
 }
 
@@ -240,8 +239,6 @@ func TestMain(m *testing.M) {
 	os.Setenv("DEFAULT_LB_CONTROLLER", "true")
 
 	akoControlConfig := lib.AKOControlConfig()
-	endpointSliceEnabled = lib.GetEndpointSliceEnabled()
-	akoControlConfig.SetEndpointSlicesEnabled(endpointSliceEnabled)
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
 	v1alpha2CRDClient = v1alpha2crdfake.NewSimpleClientset()
@@ -269,11 +266,9 @@ func TestMain(m *testing.M) {
 		utils.NodeInformer,
 		utils.ConfigMapInformer,
 	}
-	if akoControlConfig.GetEndpointSlicesEnabled() {
-		registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
-	} else {
-		registeredInformers = append(registeredInformers, utils.EndpointInformer)
-	}
+
+	registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
+
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
 	k8s.NewCRDInformers()
@@ -474,7 +469,7 @@ func TestAviSvcCreationSinglePortMultiTenantEnabled(t *testing.T) {
 	modelName := fmt.Sprintf("%s/cluster--red-ns-%s", AKOTENANT, svcName)
 	objects.SharedAviGraphLister().Delete(modelName)
 	CreateSVC(t, NAMESPACE, svcName, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, false)
-	CreateEPorEPS(t, NAMESPACE, svcName, false, false, "1.1.1")
+	CreateEPS(t, NAMESPACE, svcName, false, false, "1.1.1")
 
 	var aviModel interface{}
 	var found bool
@@ -500,7 +495,7 @@ func TestAviSvcCreationSinglePortMultiTenantEnabled(t *testing.T) {
 
 	objects.SharedAviGraphLister().Delete(modelName)
 	DelSVC(t, NAMESPACE, svcName)
-	DelEPorEPS(t, NAMESPACE, svcName)
+	DelEPS(t, NAMESPACE, svcName)
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", svcName, NAMESPACE)}
 	g.Eventually(func() bool {
@@ -633,7 +628,7 @@ func TestAviSvcUpdateEndpoint(t *testing.T) {
 	// if _, err = KubeClient.CoreV1().Endpoints(NAMESPACE).Update(context.TODO(), epExample, metav1.UpdateOptions{}); err != nil {
 	// 	t.Fatalf("Error in updating the Endpoint: %v", err)
 	// }
-	ScaleCreateEPorEPS(t, NAMESPACE, svcName)
+	ScaleCreateEPS(t, NAMESPACE, svcName)
 
 	var aviModel interface{}
 	g.Eventually(func() []avinodes.AviPoolMetaServer {
@@ -817,7 +812,7 @@ func TestUpdateAndDeleteServiceLBCacheSync(t *testing.T) {
 	// if _, err = KubeClient.CoreV1().Endpoints(NAMESPACE).Update(context.TODO(), epExample, metav1.UpdateOptions{}); err != nil {
 	// 	t.Fatalf("Error in updating the Endpoint: %v", err)
 	// }
-	ScaleCreateEPorEPS(t, NAMESPACE, svcName)
+	ScaleCreateEPS(t, NAMESPACE, svcName)
 
 	var poolCacheObj *cache.AviPoolCache
 	var poolCache interface{}
@@ -872,7 +867,7 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 
 		objects.SharedAviGraphLister().Delete(model)
 		CreateSVC(t, NAMESPACE, service, corev1.ProtocolTCP, corev1.ServiceTypeLoadBalancer, true)
-		CreateEPorEPS(t, NAMESPACE, service, true, true, "1.1.1")
+		CreateEPS(t, NAMESPACE, service, true, true, "1.1.1")
 	}
 
 	// verify that numScale services are created on the graph and corresponding cache objects
@@ -903,7 +898,7 @@ func TestScaleUpAndDownServiceLBCacheSync(t *testing.T) {
 		model = MODEL_REDNS_PREFIX + service
 		objects.SharedAviGraphLister().Delete(model)
 		DelSVC(t, NAMESPACE, service)
-		DelEPorEPS(t, NAMESPACE, service)
+		DelEPS(t, NAMESPACE, service)
 	}
 
 	// verify that the graph nodes and corresponding cache are deleted for the numScale services
@@ -949,7 +944,7 @@ func TestAviSvcCreationWithStaticIP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in creating Service: %v", err)
 	}
-	CreateEPorEPS(t, NAMESPACE, svcName, false, false, "1.1.1")
+	CreateEPS(t, NAMESPACE, svcName, false, false, "1.1.1")
 	PollForCompletion(t, modelName, 5)
 
 	g.Eventually(func() string {
@@ -989,7 +984,7 @@ func TestWithInfraSettingStatusUpdates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in creating Service: %v", err)
 	}
-	CreateEPorEPS(t, NAMESPACE, svcName, false, false, "1.1.1")
+	CreateEPS(t, NAMESPACE, svcName, false, false, "1.1.1")
 	PollForCompletion(t, modelName, 5)
 
 	// Create with bad seGroup ref.
@@ -1133,7 +1128,7 @@ func TestInfraSettingDelete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in creating Service: %v", err)
 	}
-	CreateEPorEPS(t, NAMESPACE, svcName, false, false, "1.1.1")
+	CreateEPS(t, NAMESPACE, svcName, false, false, "1.1.1")
 	PollForCompletion(t, modelName, 5)
 
 	SetupAviInfraSetting(t, settingName, "")
@@ -1194,7 +1189,7 @@ func TestInfraSettingChangeMapping(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in creating Service: %v", err)
 	}
-	CreateEPorEPS(t, NAMESPACE, svcName, false, false, "1.1.1")
+	CreateEPS(t, NAMESPACE, svcName, false, false, "1.1.1")
 	PollForCompletion(t, modelName, 5)
 
 	SetupAviInfraSetting(t, settingName1, "")
@@ -1465,7 +1460,7 @@ func TestSharedVipSvcWithInvalidLBClass(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	CreateEPorEPS(t, NAMESPACE, SHAREDVIPSVC01, false, false, "1.1.1")
+	CreateEPS(t, NAMESPACE, SHAREDVIPSVC01, false, false, "1.1.1")
 	PollForCompletion(t, modelSvc01, 5)
 
 	// after valid svc creation VS should get created
@@ -1485,7 +1480,7 @@ func TestSharedVipSvcWithInvalidLBClass(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	CreateEPorEPS(t, NAMESPACE, SHAREDVIPSVC02, false, false, "2.1.1")
+	CreateEPS(t, NAMESPACE, SHAREDVIPSVC02, false, false, "2.1.1")
 	PollForCompletion(t, modelSvc02, 5)
 
 	// after invalid svc is created, the model should get invalidated and be nil
@@ -1496,7 +1491,7 @@ func TestSharedVipSvcWithInvalidLBClass(t *testing.T) {
 	// after deletion of invalid svc, model should be valid again
 	objects.SharedAviGraphLister().Delete(modelSvc02)
 	DelSVC(t, NAMESPACE, SHAREDVIPSVC02)
-	DelEPorEPS(t, NAMESPACE, SHAREDVIPSVC02)
+	DelEPS(t, NAMESPACE, SHAREDVIPSVC02)
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, SHAREDVIPSVC02)}
 	g.Eventually(func() bool {
@@ -1512,7 +1507,7 @@ func TestSharedVipSvcWithInvalidLBClass(t *testing.T) {
 	// teardown valid svc
 	objects.SharedAviGraphLister().Delete(modelSvc01)
 	DelSVC(t, NAMESPACE, SHAREDVIPSVC01)
-	DelEPorEPS(t, NAMESPACE, SHAREDVIPSVC01)
+	DelEPS(t, NAMESPACE, SHAREDVIPSVC01)
 	mcache = cache.SharedAviObjCache()
 	vsKey = cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", NAMESPACE, SHAREDVIPSVC01)}
 	g.Eventually(func() bool {
@@ -1843,7 +1838,7 @@ func TestLBSvcWithAutoFQDNAsFlat(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	CreateEPorEPS(t, svcNamespace, svcName, false, false, "1.1.1")
+	CreateEPS(t, svcNamespace, svcName, false, false, "1.1.1")
 	PollForCompletion(t, modelName, 5)
 
 	g.Eventually(func() bool {
@@ -1860,7 +1855,7 @@ func TestLBSvcWithAutoFQDNAsFlat(t *testing.T) {
 	g.Expect(nodes[0].VSVIPRefs[0].FQDNs[0]).To(gomega.HaveLen(len(svcName) + 1 + len(svcNamespace) + len(".com")))
 
 	DelSVC(t, svcNamespace, svcName)
-	DelEPorEPS(t, svcNamespace, svcName)
+	DelEPS(t, svcNamespace, svcName)
 	os.Setenv("AUTO_L4_FQDN", "disable")
 }
 
@@ -1878,7 +1873,7 @@ func TestLBSvcFQDNLengthValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	CreateEPorEPS(t, svcNamespace, svcName, false, false, "1.1.1")
+	CreateEPS(t, svcNamespace, svcName, false, false, "1.1.1")
 	PollForCompletion(t, modelName, 5)
 
 	g.Eventually(func() bool {
@@ -1895,7 +1890,7 @@ func TestLBSvcFQDNLengthValidation(t *testing.T) {
 	g.Expect(nodes[0].VSVIPRefs[0].FQDNs[0]).To(gomega.HaveLen(63 + len(".com")))
 
 	DelSVC(t, svcNamespace, svcName)
-	DelEPorEPS(t, svcNamespace, svcName)
+	DelEPS(t, svcNamespace, svcName)
 	os.Setenv("AUTO_L4_FQDN", "disable")
 }
 
@@ -1913,7 +1908,7 @@ func TestLBSvcWithNameLen63(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	CreateEPorEPS(t, svcNamespace, svcName, false, false, "1.1.1")
+	CreateEPS(t, svcNamespace, svcName, false, false, "1.1.1")
 	PollForCompletion(t, modelName, 5)
 
 	g.Eventually(func() bool {
@@ -1930,7 +1925,7 @@ func TestLBSvcWithNameLen63(t *testing.T) {
 	g.Expect(nodes[0].VSVIPRefs[0].FQDNs[0]).To(gomega.HaveLen(63 + len(".com")))
 
 	DelSVC(t, svcNamespace, svcName)
-	DelEPorEPS(t, svcNamespace, svcName)
+	DelEPS(t, svcNamespace, svcName)
 	os.Setenv("AUTO_L4_FQDN", "disable")
 }
 
@@ -1948,7 +1943,7 @@ func TestLBSvcWithNamespaceNameLen63(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	CreateEPorEPS(t, svcNamespace, svcName, false, false, "1.1.1")
+	CreateEPS(t, svcNamespace, svcName, false, false, "1.1.1")
 	PollForCompletion(t, modelName, 5)
 
 	g.Eventually(func() bool {
@@ -1965,7 +1960,7 @@ func TestLBSvcWithNamespaceNameLen63(t *testing.T) {
 	g.Expect(nodes[0].VSVIPRefs[0].FQDNs[0]).To(gomega.HaveLen(63 + len(".com")))
 
 	DelSVC(t, svcNamespace, svcName)
-	DelEPorEPS(t, svcNamespace, svcName)
+	DelEPS(t, svcNamespace, svcName)
 	os.Setenv("AUTO_L4_FQDN", "disable")
 }
 
@@ -1983,7 +1978,7 @@ func TestLBSvcWithNameLen63AndNamespaceNameLen63(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	CreateEPorEPS(t, svcNamespace, svcName, false, false, "1.1.1")
+	CreateEPS(t, svcNamespace, svcName, false, false, "1.1.1")
 	PollForCompletion(t, modelName, 5)
 
 	g.Eventually(func() bool {
@@ -2001,7 +1996,7 @@ func TestLBSvcWithNameLen63AndNamespaceNameLen63(t *testing.T) {
 	g.Expect(nodes[0].VSVIPRefs[0].FQDNs[0]).To(gomega.HaveSuffix("red-ns-012345678901234567890123456789012345.com"))
 
 	DelSVC(t, svcNamespace, svcName)
-	DelEPorEPS(t, svcNamespace, svcName)
+	DelEPS(t, svcNamespace, svcName)
 	os.Setenv("AUTO_L4_FQDN", "disable")
 }
 

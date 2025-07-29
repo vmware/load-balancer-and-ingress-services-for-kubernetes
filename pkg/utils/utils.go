@@ -32,6 +32,7 @@ import (
 	oshiftclientset "github.com/openshift/client-go/route/clientset/versioned"
 	oshiftinformers "github.com/openshift/client-go/route/informers/externalversions"
 	corev1 "k8s.io/api/core/v1"
+	discovery "k8s.io/api/discovery/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	kubeinformers "k8s.io/client-go/informers"
@@ -101,8 +102,8 @@ func AviUrlToObjType(aviurl string) (string, error) {
 func CrudHashKey(obj_type string, obj interface{}) string {
 	var ns, name string
 	switch obj_type {
-	case "Endpoints":
-		ep := obj.(*corev1.Endpoints)
+	case "EndpointSlice": // This case is for discovery.v1.EndpointSlice
+		ep := obj.(*discovery.EndpointSlice)
 		ns = ep.Namespace
 		name = ep.Name
 	case "Service":
@@ -180,8 +181,6 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 			informers.NSInformer = kubeInformerFactory.Core().V1().Namespaces()
 		case PodInformer:
 			informers.PodInformer = kubeInformerFactory.Core().V1().Pods()
-		case EndpointInformer:
-			informers.EpInformer = kubeInformerFactory.Core().V1().Endpoints()
 		case EndpointSlicesInformer:
 			informers.EpSlicesInformer = kubeInformerFactory.Discovery().V1().EndpointSlices()
 		case SecretInformer:

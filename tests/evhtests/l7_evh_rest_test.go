@@ -324,7 +324,7 @@ func TestUpdatePoolCacheSyncForEvh(t *testing.T) {
 	poolCacheBeforeObj, _ := poolCacheBefore.(*cache.AviPoolCache)
 	oldPoolCksum := poolCacheBeforeObj.CloudConfigCksum
 
-	integrationtest.ScaleCreateEPorEPS(t, "default", svcName)
+	integrationtest.ScaleCreateEPS(t, "default", svcName)
 
 	g.Eventually(func() []avinodes.AviPoolMetaServer {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)

@@ -153,7 +153,6 @@ The following table lists the configurable parameters of the AKO chart and their
 | `NetworkSettings.nsxtT1LR` | Unique ID (note: not display name) of the T1 Logical Router for Service Engine connectivity. Only applies to NSX-T cloud.| `Empty string` |
 | `NetworkSettings.defaultDomain` | This flag has two use cases. It can be used to specify a default subdomain for L4 virtual services. It can also be used to generate the hostname for an OpenShift route if the OpenShift route uses a subdomain instead of a host field. | First domain name found in cloud's dnsprofile for L4 vs and `empty string` for an Openshift route |
 | `FeatureGates.gatewayAPI` | FeatureGates is to enable or disable experimental features. GatewayAPI feature gate enables/disables processing of Kubernetes Gateway API CRDs. | false |
-| `FeatureGates.enableEndpointSlice` | EnableEndpointSlice feature gate enables/disables processing of Kubernetes EndpointSlices instead of Endpoints. | true |
 | `GatewayAPI.Image.repository` | Specify docker-registry that has the ako-gateway-api image | projects.registry.vmware.com/ako/ako-gateway-api |
 | `GatewayAPI.Image.pullPolicy` | Specify when and how to pull the ako-gateway-api image | IfNotPresent |
 | `L4Settings.defaultDomain` | Specify a default sub-domain for L4 LB services. This flag will be deprecated in a future release; use **NetworkSettings.defaultDomain** instead. If both NetworkSettings.defaultDomain and L4Settings.defaultDomain are set, then NetworkSettings.defaultDomain will be used.| First domain name found in cloud's dnsprofile |

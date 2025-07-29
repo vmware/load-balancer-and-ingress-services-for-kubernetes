@@ -44,7 +44,6 @@ import (
 )
 
 var ctrl *akogatewayapik8s.GatewayController
-var endpointSliceEnabled bool
 
 const (
 	DEFAULT_NAMESPACE = "default"
@@ -71,8 +70,6 @@ func TestMain(m *testing.M) {
 	_ = lib.AKOControlConfig()
 	lib.SetAKOUser(akogatewayapilib.Prefix)
 	lib.SetNamePrefix(akogatewayapilib.Prefix)
-	endpointSliceEnabled = lib.GetEndpointSliceEnabled()
-	lib.AKOControlConfig().SetEndpointSlicesEnabled(endpointSliceEnabled)
 	lib.AKOControlConfig().SetIsLeaderFlag(true)
 	akoControlConfig := akogatewayapilib.AKOControlConfig()
 	akoControlConfig.SetEventRecorder(lib.AKOGatewayEventComponent, tests.KubeClient, true)
@@ -83,11 +80,9 @@ func TestMain(m *testing.M) {
 		utils.SecretInformer,
 		utils.NSInformer,
 	}
-	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
-		registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
-	} else {
-		registeredInformers = append(registeredInformers, utils.EndpointInformer)
-	}
+
+	registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
+
 	utils.AviLog.SetLevel("DEBUG")
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: tests.KubeClient}, registeredInformers, make(map[string]interface{}))
 	data := map[string][]byte{

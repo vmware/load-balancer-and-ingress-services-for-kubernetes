@@ -91,18 +91,14 @@ func (c *GatewayController) Start(stopCh <-chan struct{}) {
 		c.informers.ServiceInformer.Informer().HasSynced,
 		c.informers.NSInformer.Informer().HasSynced,
 	}
+	go c.informers.EpSlicesInformer.Informer().Run(stopCh)
+	informersList = append(informersList, c.informers.EpSlicesInformer.Informer().HasSynced)
 
-	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
-		go c.informers.EpSlicesInformer.Informer().Run(stopCh)
-		informersList = append(informersList, c.informers.EpSlicesInformer.Informer().HasSynced)
-	} else if lib.GetServiceType() != lib.NodePortLocal {
-		go c.informers.EpInformer.Informer().Run(stopCh)
-		informersList = append(informersList, c.informers.EpInformer.Informer().HasSynced)
-	}
 	if lib.GetServiceType() == lib.NodePortLocal {
 		go c.informers.PodInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.informers.PodInformer.Informer().HasSynced)
 	}
+
 	if !lib.AviSecretInitialized {
 		go c.informers.SecretInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.informers.SecretInformer.Informer().HasSynced)
@@ -137,144 +133,77 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 	numWorkers := mcpQueue.NumWorkers
 
 	// Add EPSInformer
-	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
-		epsEventHandler := cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				if c.DisableSync {
+	epsEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			eps := obj.(*discovery.EndpointSlice)
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(eps))
+			svcName, ok := eps.Labels[discovery.LabelServiceName]
+			if !ok || svcName == "" {
+				utils.AviLog.Debugf("Endpointslice Add event: Endpointslice does not have backing svc")
+				return
+			}
+			key := utils.Endpointslices + "/" + namespace + "/" + svcName
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+		},
+		DeleteFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			eps, ok := obj.(*discovery.EndpointSlice)
+			if !ok {
+				// endpointSlices were deleted but its final state is unrecorded.
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
 					return
 				}
-				eps := obj.(*discovery.EndpointSlice)
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(eps))
-				svcName, ok := eps.Labels[discovery.LabelServiceName]
-				if !ok || svcName == "" {
-					utils.AviLog.Debugf("Endpointslice Add event: Endpointslice does not have backing svc")
+				eps, ok = tombstone.Obj.(*discovery.EndpointSlice)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not an Endpointslice: %#v", obj)
 					return
+				}
+			}
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(eps))
+			svcName, ok := eps.Labels[discovery.LabelServiceName]
+			if !ok || svcName == "" {
+				utils.AviLog.Debugf("Endpointslice Delete event: Endpointslice does not have backing svc")
+				return
+			}
+			key := utils.Endpointslices + "/" + namespace + "/" + svcName
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+		},
+		UpdateFunc: func(old, cur interface{}) {
+			if c.DisableSync {
+				return
+			}
+			oldEndpointSlice := old.(*discovery.EndpointSlice)
+			currentEndpointSlice := cur.(*discovery.EndpointSlice)
+			if oldEndpointSlice.ResourceVersion != currentEndpointSlice.ResourceVersion {
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(currentEndpointSlice))
+				svcName, ok := currentEndpointSlice.Labels[discovery.LabelServiceName]
+				if !ok || svcName == "" {
+					svcNameOld, ok := oldEndpointSlice.Labels[discovery.LabelServiceName]
+					if !ok || svcNameOld == "" {
+						utils.AviLog.Debugf("Endpointslice Update event: Endpointslice does not have backing svc")
+						return
+					}
+					svcName = svcNameOld
 				}
 				key := utils.Endpointslices + "/" + namespace + "/" + svcName
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: ADD", key)
-			},
-			DeleteFunc: func(obj interface{}) {
-				if c.DisableSync {
-					return
-				}
-				eps, ok := obj.(*discovery.EndpointSlice)
-				if !ok {
-					// endpoints were deleted but its final state is unrecorded.
-					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-					if !ok {
-						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
-						return
-					}
-					eps, ok = tombstone.Obj.(*discovery.EndpointSlice)
-					if !ok {
-						utils.AviLog.Errorf("Tombstone contained object that is not an Endpointslice: %#v", obj)
-						return
-					}
-				}
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(eps))
-				svcName, ok := eps.Labels[discovery.LabelServiceName]
-				if !ok || svcName == "" {
-					utils.AviLog.Debugf("Endpointslice Delete event: Endpointslice does not have backing svc")
-					return
-				}
-				key := utils.Endpointslices + "/" + namespace + "/" + svcName
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-			},
-			UpdateFunc: func(old, cur interface{}) {
-				if c.DisableSync {
-					return
-				}
-				oldEndpointSlice := old.(*discovery.EndpointSlice)
-				currentEndpointSlice := cur.(*discovery.EndpointSlice)
-				if oldEndpointSlice.ResourceVersion != currentEndpointSlice.ResourceVersion {
-					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(currentEndpointSlice))
-					svcName, ok := currentEndpointSlice.Labels[discovery.LabelServiceName]
-					if !ok || svcName == "" {
-						svcNameOld, ok := oldEndpointSlice.Labels[discovery.LabelServiceName]
-						if !ok || svcNameOld == "" {
-							utils.AviLog.Debugf("Endpointslice Update event: Endpointslice does not have backing svc")
-							return
-						}
-						svcName = svcNameOld
-					}
-					key := utils.Endpointslices + "/" + namespace + "/" + svcName
-					bkt := utils.Bkt(namespace, numWorkers)
-					c.workqueue[bkt].AddRateLimited(key)
-					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-				}
-			},
-		}
-		c.informers.EpSlicesInformer.Informer().AddEventHandler(epsEventHandler)
-	} else if lib.GetServiceType() != lib.NodePortLocal {
-		epEventHandler := cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				if c.DisableSync {
-					return
-				}
-				ep := obj.(*corev1.Endpoints)
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
-				key := utils.Endpoints + "/" + utils.ObjKey(ep)
-				if lib.IsNamespaceBlocked(namespace) {
-					utils.AviLog.Debugf("key: %s, msg: Endpoint Add event: Namespace: %s didn't qualify filter", key, namespace)
-					return
-				}
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: ADD", key)
-			},
-			DeleteFunc: func(obj interface{}) {
-				if c.DisableSync {
-					return
-				}
-				ep, ok := obj.(*corev1.Endpoints)
-				if !ok {
-					// endpoints were deleted but its final state is unrecorded.
-					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-					if !ok {
-						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
-						return
-					}
-					ep, ok = tombstone.Obj.(*corev1.Endpoints)
-					if !ok {
-						utils.AviLog.Errorf("Tombstone contained object that is not an Endpoints: %#v", obj)
-						return
-					}
-				}
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
-				key := utils.Endpoints + "/" + utils.ObjKey(ep)
-				if lib.IsNamespaceBlocked(namespace) {
-					utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
-					return
-				}
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-			},
-			UpdateFunc: func(old, cur interface{}) {
-				if c.DisableSync {
-					return
-				}
-				oep := old.(*corev1.Endpoints)
-				cep := cur.(*corev1.Endpoints)
-				if !reflect.DeepEqual(cep.Subsets, oep.Subsets) {
-					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(cep))
-					key := utils.Endpoints + "/" + utils.ObjKey(cep)
-					if lib.IsNamespaceBlocked(namespace) {
-						utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
-						return
-					}
-					bkt := utils.Bkt(namespace, numWorkers)
-					c.workqueue[bkt].AddRateLimited(key)
-					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-				}
-			},
-		}
-		c.informers.EpInformer.Informer().AddEventHandler(epEventHandler)
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+			}
+		},
 	}
+	c.informers.EpSlicesInformer.Informer().AddEventHandler(epsEventHandler)
 
 	if lib.GetServiceType() == lib.NodePortLocal {
 		podEventHandler := cache.ResourceEventHandlerFuncs{

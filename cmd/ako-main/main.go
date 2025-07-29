@@ -110,7 +110,6 @@ func InitializeAKC() {
 	if err != nil {
 		isPrimaryAKO = true
 	}
-	akoControlConfig.SetEndpointSlicesEnabled(lib.GetEndpointSliceEnabled())
 	akoControlConfig.SetAKOInstanceFlag(isPrimaryAKO)
 	akoControlConfig.SetAKOBlockedNSList(lib.GetGlobalBlockedNSList())
 	akoControlConfig.SetControllerVRFContext(lib.GetControllerVRFContext())
