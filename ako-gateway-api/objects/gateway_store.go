@@ -1311,11 +1311,11 @@ func (g *GWLister) DeleteApplicationProfileToHTTPRouteMapping(appProfileName, ht
 	found, httpRoutes := g.GetApplicationProfileToHTTPRouteMapping(appProfileName)
 	if found {
 		g.gwLock.Lock()
+		defer g.gwLock.Unlock()
 
 		delete(httpRoutes, httpRoute)
 		g.appProfileToHTTPRouteCache.AddOrUpdate(appProfileName, httpRoutes)
 
-		g.gwLock.Unlock()
 	}
 }
 
@@ -1348,11 +1348,10 @@ func (g *GWLister) DeleteHTTPRouteToApplicationProfileMapping(httpRouteName, app
 	found, appProfiles := g.GetHTTPRouteToApplicationProfileMapping(httpRouteName)
 	if found {
 		g.gwLock.Lock()
+		defer g.gwLock.Unlock()
 
 		delete(appProfiles, appProfile)
 		g.httpRouteToAppProfileCache.AddOrUpdate(httpRouteName, appProfiles)
-
-		g.gwLock.Unlock()
 	}
 }
 

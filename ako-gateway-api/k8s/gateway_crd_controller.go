@@ -73,7 +73,7 @@ func (c *GatewayController) setupL7CRDEventHandlers(numWorkers uint32) {
 					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
 					return
 				}
-				_, ok = tombstone.Obj.(*unstructured.Unstructured)
+				l7RuleObj, ok = tombstone.Obj.(*unstructured.Unstructured)
 				if !ok {
 					utils.AviLog.Errorf("Tombstone contained object that is not an L7Rule: %#v", obj)
 					return
@@ -417,7 +417,7 @@ func (c *GatewayController) setupApplicationProfileEventHandlers(numWorkers uint
 					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
 					return
 				}
-				_, ok = tombstone.Obj.(*unstructured.Unstructured)
+				applicationProfileObj, ok = tombstone.Obj.(*unstructured.Unstructured)
 				if !ok {
 					utils.AviLog.Errorf("Tombstone contained object that is not an ApplicationProfile: %#v", obj)
 					return
