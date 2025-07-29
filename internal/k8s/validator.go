@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
@@ -371,7 +372,25 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1beta1.Av
 			refData[nodeNetwork.NetworkName] = "Network"
 		}
 	}
+	tenant := lib.GetTenant()
+	var err error
 	if infraSetting.Spec.SeGroup.Name != "" {
+		// In case of WCP/VCF deployments in VPC mode, NS can have SeGroup(shared/dedicated)
+		// annotation which results in setting SeGroup in infrasetting and for validation of SeGroup,
+		// tenant needs to be determined through vpc path in infrasetting cr.
+		if lib.GetVPCMode() && infraSetting.Spec.NSXSettings.T1LR != nil {
+			aviClientPool := cache.SharedAVIClients(lib.GetTenant())
+			vpcArr := strings.Split(*infraSetting.Spec.NSXSettings.T1LR, "/vpcs/")
+			projectArr := strings.Split(vpcArr[0], "/projects/")
+			tenant, err = lib.GetTenantForProject(projectArr[len(projectArr)-1], aviClientPool.AviClient[0])
+			if err != nil {
+				status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
+					Status: lib.StatusRejected,
+					Error:  err.Error(),
+				})
+				return err
+			}
+		}
 		refData[infraSetting.Spec.SeGroup.Name] = "ServiceEngineGroup"
 	}
 	if len(infraSetting.Spec.Network.Listeners) > 0 {
@@ -391,7 +410,7 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1beta1.Av
 			return err
 		}
 	}
-	if err := checkRefsOnController(key, refData, lib.GetTenant()); err != nil {
+	if err := checkRefsOnController(key, refData, tenant); err != nil {
 		status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
 			Status: lib.StatusRejected,
 			Error:  err.Error(),
