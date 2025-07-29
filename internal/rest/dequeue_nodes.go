@@ -1467,10 +1467,11 @@ func (rest *RestOperations) PoolCU(pool_nodes []*nodes.AviPoolNode, vs_cache_obj
 		}
 
 	}
+
 	// Final cleanup for any profiles marked for deletion from the cache object but not processed in the loop
 	rest_ops = rest.ApplicationPersistenceProfileDelete(app_pers_profiles_to_delete, namespace, rest_ops, key)
 
-	utils.AviLog.Debugf("key: %s, msg: the POOLS rest_op is %s", key, utils.Stringify(rest_ops))
+	utils.AviLog.Debugf("key: %s, msg: the POOLS rest_op is %s", key, utils.StringifyWithSanitization(rest_ops))
 	utils.AviLog.Debugf("key: %s, msg: the POOLs to be deleted are: %s", key, cache_pool_nodes)
 	return cache_pool_nodes, rest_ops
 }
@@ -1639,7 +1640,7 @@ func (rest *RestOperations) PoolGroupCU(pg_nodes []*nodes.AviPoolGroupNode, vs_c
 		}
 
 	}
-	utils.AviLog.Debugf("key: %s, msg: the PGs rest_op is %s", key, utils.Stringify(rest_ops))
+	utils.AviLog.Debugf("key: %s, msg: the PGs rest_op is %s", key, utils.StringifyWithSanitization(rest_ops))
 	utils.AviLog.Debugf("key: %s, msg: the PGs to be deleted are: %s", key, cache_pg_nodes)
 	return cache_pg_nodes, rest_ops
 }
@@ -1697,7 +1698,7 @@ func (rest *RestOperations) DatascriptCU(ds_nodes []*nodes.AviHTTPDataScriptNode
 		}
 
 	}
-	utils.AviLog.Debugf("key: %s, msg: the DS rest_op is %s", key, utils.Stringify(rest_ops))
+	utils.AviLog.Debugf("key: %s, msg: the DS rest_op is %s", key, utils.StringifyWithSanitization(rest_ops))
 	utils.AviLog.Debugf("key: %s, msg: the DS to be deleted are: %s", key, cache_ds_nodes)
 	return cache_ds_nodes, rest_ops
 }
@@ -1757,7 +1758,7 @@ func (rest *RestOperations) VSVipCU(vsvip_nodes []*nodes.AviVSVIPNode, vs_cache_
 		}
 
 	}
-	utils.AviLog.Debugf("key: %s, msg: the vsvip rest_op is %s", key, utils.Stringify(rest_ops))
+	utils.AviLog.Debugf("key: %s, msg: the vsvip rest_op is %s", key, utils.StringifyWithSanitization(rest_ops))
 	utils.AviLog.Debugf("key: %s, msg: the vsvip to be deleted are: %s", key, cache_vsvip_nodes)
 	return cache_vsvip_nodes, rest_ops, nil
 }
@@ -1806,7 +1807,7 @@ func (rest *RestOperations) HTTPPolicyCU(http_nodes []*nodes.AviHttpPolicySetNod
 		}
 
 	}
-	utils.AviLog.Debugf("key: %s, The HTTP Policies rest_op is %s", key, utils.Stringify(rest_ops))
+	utils.AviLog.Debugf("key: %s, The HTTP Policies rest_op is %s", key, utils.StringifyWithSanitization(rest_ops))
 	utils.AviLog.Debugf("key: %s, msg: the http policies to be deleted are: %s", key, cache_http_nodes)
 	return cache_http_nodes, rest_ops
 }
@@ -1855,7 +1856,7 @@ func (rest *RestOperations) L4PolicyCU(l4_nodes []*nodes.AviL4PolicyNode, vs_cac
 		}
 
 	}
-	utils.AviLog.Debugf("The l4 Policies rest_op is %s", utils.Stringify(rest_ops))
+	utils.AviLog.Debugf("The l4 Policies rest_op is %s", utils.StringifyWithSanitization(rest_ops))
 	utils.AviLog.Debugf("key: %s, msg: the l4 policies to be deleted are: %s", key, cache_l4_nodes)
 	return cache_l4_nodes, rest_ops
 }
@@ -2122,7 +2123,7 @@ func (rest *RestOperations) stringGroupCU(key, stringGroupName string, avimodel 
 				rest_ops = append(rest_ops, restOp)
 			}
 		}
-		utils.AviLog.Debugf("key: %s, msg: the StringGroup rest_op is %s", key, utils.Stringify(rest_ops))
+		utils.AviLog.Debugf("key: %s, msg: the StringGroup rest_op is %s", key, utils.StringifyWithSanitization(rest_ops))
 		utils.AviLog.Debugf("key: %s, msg: Executing rest for stringgroup %s", key, stringGroupName)
 		utils.AviLog.Debugf("key: %s, msg: restops %v", key, rest_ops)
 		success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, sg_key, avimodel, key, false)
@@ -2176,7 +2177,7 @@ func (rest *RestOperations) StringGroupVsCU(stringGroupNodes []*nodes.AviStringG
 		}
 
 	}
-	utils.AviLog.Debugf("key: %s, The StringGroup rest_op is %s", key, utils.Stringify(rest_ops))
+	utils.AviLog.Debugf("key: %s, The StringGroup rest_op is %s", key, utils.StringifyWithSanitization(rest_ops))
 	utils.AviLog.Debugf("key: %s, msg: the string groups to be deleted are: %s", key, cache_string_group_nodes)
 	return cache_string_group_nodes, rest_ops
 }

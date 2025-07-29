@@ -1068,7 +1068,7 @@ func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient, cloud str
 			continue
 		}
 		if sslkey.Name == nil || sslkey.UUID == nil {
-			utils.AviLog.Warnf("Incomplete sslkey data unmarshalled, %s", utils.Stringify(sslkey))
+			utils.AviLog.Warnf("Incomplete sslkey data unmarshalled, %s", utils.StringifyWithSanitization(sslkey))
 			continue
 		}
 
@@ -1140,7 +1140,7 @@ func (c *AviObjCache) AviPopulateOneSSLCache(client *clients.AviClient,
 			continue
 		}
 		if sslkey.Name == nil || sslkey.UUID == nil {
-			utils.AviLog.Warnf("Incomplete sslkey data unmarshalled, %s", utils.Stringify(sslkey))
+			utils.AviLog.Warnf("Incomplete sslkey data unmarshalled, %s", utils.StringifyWithSanitization(sslkey))
 			continue
 		}
 
