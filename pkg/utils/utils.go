@@ -327,7 +327,10 @@ func sanitizeRestOp(serialize interface{}) string {
 			AviLog.Warnf("Failed to marshal RestOp for sanitization: %v", err)
 			continue
 		}
-		json.Unmarshal(opBytes, &opCopy)
+		if err := json.Unmarshal(opBytes, &opCopy); err != nil {
+			AviLog.Warnf("Failed to unmarshal RestOp for sanitization: %v", err)
+			continue
+		}
 
 		// Now, sanitize the deep copy.
 		if opCopy.Obj != nil {
