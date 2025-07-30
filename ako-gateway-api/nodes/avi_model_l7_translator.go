@@ -80,9 +80,9 @@ func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, pare
 		if rule.Matches == nil {
 			continue
 		}
-		if httpRouteConfig.IsRejected {
+		if httpRouteConfig.Rejected {
 			utils.AviLog.Warnf("key: %s, msg: route %s is rejected", key, routeModel.GetName())
-			return
+			continue
 		}
 		o.BuildChildVS(key, routeModel, parentNsName, rule, childVSes, fullsync)
 	}
@@ -121,7 +121,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 		Gateway:   parentNsName,
 		HTTPRoute: routeModel.GetNamespace() + "/" + routeModel.GetName(),
 	}
-	childNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
+	childNode.ApplicationProfileRef = proto.String(fmt.Sprintf("/api/applicationprofile/?name=%s", utils.DEFAULT_L7_APP_PROFILE))
 	childNode.ServiceEngineGroup = lib.GetSEGName()
 	childNode.VrfContext = lib.GetVrf()
 	childNode.AviMarkers = utils.AviObjectMarkers{
@@ -187,19 +187,22 @@ func updateHostname(key, parentNsName string, parentNode *nodes.AviEvhVsNode) {
 }
 
 func (o *AviObjectGraph) ApplyRuleExtensionRefs(key string, childNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
+
 	if rule != nil && rule.Filters != nil {
 		isFilterAppProfSet := false
 		for _, filter := range rule.Filters {
 			if filter.ExtensionRef != nil {
-				// validations are already done.
-				// Here we need to just apply Extension refs
+				// validations are already done. Here we need to just apply Extension refs
 				// Priortity: Individual ako-crd-oprator CRD have higher priority over
-				// same kind of the object present in AKO defined CRD
-				if filter.ExtensionRef.Kind == lib.ApplicationProfile {
-					// TODO: Accepted / rejected transition has to be handled.(should be done as part of event handling)
-					childNode.ApplicationProfileRef = proto.String(fmt.Sprintf("/api/applicationprofile?name=%s", filter.ExtensionRef.Name))
+				// same kind of the object present in AKO defined CRD.
+				// Application Profile CRD is to be given higher priority.
+
+				switch filter.ExtensionRef.Kind {
+				case lib.ApplicationProfile:
+					appProfRef := fmt.Sprintf("/api/applicationprofile/?name=%s-%s-%s", lib.GetClusterName(), routeModel.GetNamespace(), filter.ExtensionRef.Name)
+					childNode.ApplicationProfileRef = &appProfRef
 					isFilterAppProfSet = true
-				} else if filter.ExtensionRef.Kind == lib.L7Rule {
+				case lib.L7Rule:
 					err := akogatewayapilib.ParseL7CRD(key, routeModel.GetNamespace(), filter.ExtensionRef.Name, childNode, isFilterAppProfSet)
 					if err != nil {
 						resetChildNodeFields(key, err, childNode, isFilterAppProfSet)

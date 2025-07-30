@@ -60,6 +60,8 @@ func GatewayApiLister() *GWLister {
 			httpRouteToHealthMonitorCache:         objects.NewObjectMapStore(),
 			routeBackendExtensionToHTTPRouteCache: objects.NewObjectMapStore(),
 			httpRouteToRouteBackendExtensionCache: objects.NewObjectMapStore(),
+			appProfileToHTTPRouteCache:            objects.NewObjectMapStore(),
+			httpRouteToAppProfileCache:            objects.NewObjectMapStore(),
 		}
 	})
 	return gwLister
@@ -151,6 +153,12 @@ type GWLister struct {
 
 	// HTTPRoute --> RouteBackendExtension
 	httpRouteToRouteBackendExtensionCache *objects.ObjectMapStore
+
+	// ApplicationProfile --> HTTPRoute
+	appProfileToHTTPRouteCache *objects.ObjectMapStore
+
+	// HTTPRoute --> ApplicationProfile
+	httpRouteToAppProfileCache *objects.ObjectMapStore
 }
 
 type GatewayRouteKind struct {
@@ -834,7 +842,7 @@ func (g *GWLister) DeleteRouteFromStore(routeTypeNsName string, key string) {
 	if found, l7Rules := g.httpRouteToL7RuleCache.Get(httpRouteNSName); found {
 		l7RuleList := l7Rules.(map[string]bool)
 		for l7Rule := range l7RuleList {
-			g.deleteL7RuleToHTTPRouteMapping(l7Rule, httpRouteNSName)
+			g.DeleteL7RuleToHTTPRouteMapping(l7Rule, httpRouteNSName)
 		}
 	}
 	// delete the httproutekey
@@ -1064,6 +1072,7 @@ func (g *GWLister) DeletePodsToService(podNsName string) {
 func (g *GWLister) GetL7RuleToHTTPRouteMapping(l7RuleName string) (bool, map[string]bool) {
 	g.gwLock.RLock()
 	defer g.gwLock.RUnlock()
+
 	found, httpRoutes := g.l7RuleToHTTPRouteCache.Get(l7RuleName)
 	if !found {
 		return false, make(map[string]bool)
@@ -1072,38 +1081,30 @@ func (g *GWLister) GetL7RuleToHTTPRouteMapping(l7RuleName string) (bool, map[str
 }
 
 func (g *GWLister) DeleteL7RuleToHTTPRouteMapping(l7RuleName string, httpRoute string) {
-	g.gwLock.Lock()
-	defer g.gwLock.Unlock()
-	g.deleteL7RuleToHTTPRouteMapping(l7RuleName, httpRoute)
-}
-
-func (g *GWLister) deleteL7RuleToHTTPRouteMapping(l7RuleName string, httpRoute string) {
-	found, httpRoutes := g.l7RuleToHTTPRouteCache.Get(l7RuleName)
+	found, httpRoutes := g.GetL7RuleToHTTPRouteMapping(l7RuleName)
 	if found {
-		httpRoutesObj := httpRoutes.(map[string]bool)
-		delete(httpRoutesObj, httpRoute)
-		g.l7RuleToHTTPRouteCache.AddOrUpdate(l7RuleName, httpRoutesObj)
+		g.gwLock.Lock()
+
+		delete(httpRoutes, httpRoute)
+		g.l7RuleToHTTPRouteCache.AddOrUpdate(l7RuleName, httpRoutes)
+
+		g.gwLock.Unlock()
 	}
 }
 
 func (g *GWLister) UpdateL7RuleToHTTPRouteMapping(l7RuleName string, httpRoute string) {
+	_, httpRoutes := g.GetL7RuleToHTTPRouteMapping(l7RuleName)
 	g.gwLock.Lock()
-	defer g.gwLock.Unlock()
-	found, httpRoutes := g.l7RuleToHTTPRouteCache.Get(l7RuleName)
-	var httpRoutesObj map[string]bool
-	if !found {
-		httpRoutesObj = make(map[string]bool)
-	} else {
-		httpRoutesObj = httpRoutes.(map[string]bool)
-	}
-	httpRoutesObj[httpRoute] = true
-	g.l7RuleToHTTPRouteCache.AddOrUpdate(l7RuleName, httpRoutesObj)
+	httpRoutes[httpRoute] = true
+	g.l7RuleToHTTPRouteCache.AddOrUpdate(l7RuleName, httpRoutes)
+	g.gwLock.Unlock()
 }
 
 // HTTPRoute to L7 Rule (Name: Namespace+"/"+name)
 func (g *GWLister) GetHTTPRouteToL7RuleMapping(httpRouteName string) (bool, map[string]bool) {
 	g.gwLock.RLock()
 	defer g.gwLock.RUnlock()
+
 	found, l7Rules := g.httpRouteToL7RuleCache.Get(httpRouteName)
 	if !found {
 		return false, make(map[string]bool)
@@ -1112,13 +1113,14 @@ func (g *GWLister) GetHTTPRouteToL7RuleMapping(httpRouteName string) (bool, map[
 }
 
 func (g *GWLister) DeleteHTTPRouteToL7RuleMapping(httpRouteName string, l7Rule string) {
-	g.gwLock.Lock()
-	defer g.gwLock.Unlock()
-	found, l7Rules := g.httpRouteToL7RuleCache.Get(httpRouteName)
+	found, l7Rules := g.GetHTTPRouteToL7RuleMapping(httpRouteName)
 	if found {
-		l7RulesObj := l7Rules.(map[string]bool)
-		delete(l7RulesObj, l7Rule)
-		g.httpRouteToL7RuleCache.AddOrUpdate(httpRouteName, l7RulesObj)
+		g.gwLock.Lock()
+
+		delete(l7Rules, l7Rule)
+		g.httpRouteToL7RuleCache.AddOrUpdate(httpRouteName, l7Rules)
+
+		g.gwLock.Unlock()
 	}
 }
 
@@ -1257,7 +1259,6 @@ func (g *GWLister) UpdateRouteBackendExtensionToHTTPRouteMapping(routeBackendExt
 }
 
 // HTTPRoute to RouteBackendExtension (Name: Namespace+"/"+name)
-
 func (g *GWLister) GetHTTPRouteToRouteBackendExtensionMapping(httpRouteName string) (bool, map[string]struct{}) {
 	g.gwLock.RLock()
 	defer g.gwLock.RUnlock()
@@ -1291,4 +1292,79 @@ func (g *GWLister) UpdateHTTPRouteToRouteBackendExtensionMapping(httpRouteName s
 	}
 	routeBackendExtensionsObj[routeBackendExtension] = struct{}{}
 	g.httpRouteToRouteBackendExtensionCache.AddOrUpdate(httpRouteName, routeBackendExtensionsObj)
+}
+
+// Application Profile CRD
+// App Prof --> HTTP Route
+func (g *GWLister) GetApplicationProfileToHTTPRouteMapping(appProfileName string) (bool, map[string]struct{}) {
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
+
+	found, httpRoutes := g.appProfileToHTTPRouteCache.Get(appProfileName)
+	if !found {
+		return false, nil
+	}
+	return true, httpRoutes.(map[string]struct{})
+}
+
+func (g *GWLister) DeleteApplicationProfileToHTTPRouteMapping(appProfileName, httpRoute string) {
+	found, httpRoutes := g.GetApplicationProfileToHTTPRouteMapping(appProfileName)
+	if found {
+		g.gwLock.Lock()
+		defer g.gwLock.Unlock()
+
+		delete(httpRoutes, httpRoute)
+		g.appProfileToHTTPRouteCache.AddOrUpdate(appProfileName, httpRoutes)
+
+	}
+}
+
+func (g *GWLister) UpdateApplicationProfileToHTTPRouteMapping(appProfileName, httpRoute string) {
+	_, httpRoutes := g.GetApplicationProfileToHTTPRouteMapping(appProfileName)
+	// app profile -> http route cache can be nil, init a new one on first update
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	if httpRoutes == nil {
+		httpRoutes = make(map[string]struct{})
+	}
+	httpRoutes[httpRoute] = struct{}{}
+	g.appProfileToHTTPRouteCache.AddOrUpdate(appProfileName, httpRoutes)
+}
+
+// HTTP Route --> App Profile
+func (g *GWLister) GetHTTPRouteToApplicationProfileMapping(httpRouteName string) (bool, map[string]struct{}) {
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
+
+	found, appProfiles := g.httpRouteToAppProfileCache.Get(httpRouteName)
+	if !found {
+		return false, nil
+	}
+	return true, appProfiles.(map[string]struct{})
+}
+
+func (g *GWLister) DeleteHTTPRouteToApplicationProfileMapping(httpRouteName, appProfile string) {
+	found, appProfiles := g.GetHTTPRouteToApplicationProfileMapping(httpRouteName)
+	if found {
+		g.gwLock.Lock()
+		defer g.gwLock.Unlock()
+
+		delete(appProfiles, appProfile)
+		g.httpRouteToAppProfileCache.AddOrUpdate(httpRouteName, appProfiles)
+	}
+}
+
+func (g *GWLister) UpdateHTTPRouteToApplicationProfileMapping(httpRouteName, appProfile string) {
+	_, appProfiles := g.GetHTTPRouteToApplicationProfileMapping(httpRouteName)
+
+	// http route -> application profile cache can be nil, init a new one on first update
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	if appProfiles == nil {
+		appProfiles = make(map[string]struct{})
+	}
+	appProfiles[appProfile] = struct{}{}
+	g.httpRouteToAppProfileCache.AddOrUpdate(httpRouteName, appProfiles)
 }

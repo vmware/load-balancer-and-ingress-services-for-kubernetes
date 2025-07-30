@@ -135,9 +135,9 @@ type Rule struct {
 }
 
 type RouteConfig struct {
-	Rules      []*Rule
-	Hosts      []string
-	IsRejected bool
+	Rules    []*Rule
+	Hosts    []string
+	Rejected bool
 }
 
 type httpRoute struct {
@@ -233,6 +233,8 @@ ruleLoop:
 			routeConfigRule.Name = string(*rule.Name)
 		}
 		routeConfigRule.Filters = make([]*Filter, 0, len(rule.Filters))
+
+		// var hasInvalidFilter bool
 		for _, ruleFilter := range rule.Filters {
 			filter := &Filter{}
 			filter.Type = string(ruleFilter.Type)
@@ -322,10 +324,20 @@ ruleLoop:
 				filter.ExtensionRef.Group = string(ruleFilter.ExtensionRef.Group)
 				filter.ExtensionRef.Kind = string(ruleFilter.ExtensionRef.Kind)
 				filter.ExtensionRef.Name = string(ruleFilter.ExtensionRef.Name)
+
+				var isValid bool
+				isValid, resolvedRefCondition = validateFilterExtensionRef(key, hr.GetNamespace(), filter.ExtensionRef)
+				if !isValid {
+					// hasInvalidFilter = true
+					isRouteRejected = true
+					break ruleLoop
+				}
 			}
+
 			routeConfigRule.Filters = append(routeConfigRule.Filters, filter)
 		}
-		hasInvalidBackend := false
+
+		var hasInvalidBackend bool
 		for _, ruleBackend := range rule.BackendRefs {
 			httpBackend := &HTTPBackend{}
 			backend := &Backend{}
@@ -374,9 +386,8 @@ ruleLoop:
 			}
 		}
 		routeConfig.Rules = append(routeConfig.Rules, routeConfigRule)
-
 	}
-	routeConfig.IsRejected = isRouteRejected
+	routeConfig.Rejected = isRouteRejected
 	hr.routeConfig = routeConfig
 	setResolvedRefConditionInHTTPRouteStatus(key, resolvedRefCondition, lib.HTTPRoute+"/"+hr.GetNamespace()+"/"+hr.GetName())
 	return hr.routeConfig

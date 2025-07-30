@@ -216,6 +216,51 @@ func validatedBackendRefExtensions(backendFilters []*Filter, routeConditionResol
 	return true, routeConditionResolvedRef
 }
 
+// validateFilterExtensionRef validates a single ExtensionRefFilter
+func validateFilterExtensionRef(key, namespace string, filter *ExtensionRefFilter) (bool, akogatewayapistatus.Condition) {
+	routeConditionResolvedRef := akogatewayapistatus.NewCondition().
+		Type(string(gatewayv1.RouteConditionResolvedRefs)).
+		Status(metav1.ConditionFalse)
+
+	if filter.Kind != lib.ApplicationProfile {
+		// set the status
+		routeConditionResolvedRef.
+			Reason(string(gatewayv1.RouteReasonInvalidKind)).
+			Message(fmt.Sprintf("Unsupported kind %s defined on HTTPRoute-Rule", filter.Kind))
+
+		return false, routeConditionResolvedRef
+	}
+
+	isValid, isReady := akogatewayapilib.IsApplicationProfileValid(namespace, string(filter.Name))
+	if !isValid {
+		err := fmt.Errorf("ApplicationProfile Ref %v is invalid", filter.Name)
+
+		utils.AviLog.Warnf("key: %s, msg: %+v", key, err)
+		// set the status
+		routeConditionResolvedRef.
+			Reason(string(gatewayv1.RouteReasonBackendNotFound)).
+			Message(err.Error())
+
+		return false, routeConditionResolvedRef
+	}
+	if !isReady {
+		err := fmt.Errorf("ApplicationProfile Ref %v is not ready", filter.Name)
+
+		utils.AviLog.Warnf("key: %s, msg: %+v", key, err)
+		// set the status
+		routeConditionResolvedRef.
+			Reason(string(gatewayv1.RouteReasonPending)).
+			Message(err.Error())
+
+		return false, routeConditionResolvedRef
+	}
+
+	routeConditionResolvedRef.
+		Status(metav1.ConditionTrue).
+		Reason(string(gatewayv1.RouteReasonResolvedRefs))
+	return true, routeConditionResolvedRef
+}
+
 // Current behaviour: Any invalid Rule, that HTTPRoute object is not processed.
 // TODO: Need to modify this behaviour by keeping map of rule to valid/invalid for a given route.
 func validateHTTPRouteRules(key string, httpRoute *gatewayv1.HTTPRoute, httpRouteStatus *gatewayv1.HTTPRouteStatus) bool {
@@ -223,7 +268,7 @@ func validateHTTPRouteRules(key string, httpRoute *gatewayv1.HTTPRoute, httpRout
 	//Validate URL Rewrite Filter, ExtensionRef
 	if httpRoute.Spec.Rules != nil {
 		for _, rule := range httpRoute.Spec.Rules {
-			extensionRefType := make(map[string]struct{})
+			extensionRefType := utils.NewSet[string]()
 			for _, filter := range rule.Filters {
 				if filter.Type == gatewayv1.HTTPRouteFilterURLRewrite && filter.URLRewrite != nil && filter.URLRewrite.Path != nil && filter.URLRewrite.Path.Type != gatewayv1.FullPathHTTPPathModifier {
 					setRouteConditionInHTTPRouteStatus(key,
@@ -251,7 +296,7 @@ func validateHTTPRouteRules(key string, httpRoute *gatewayv1.HTTPRoute, httpRout
 							httpRoute, httpRouteStatus)
 						return false
 					}
-					if _, ok := extensionRefType[kind]; ok {
+					if extensionRefType.Has(kind) {
 						utils.AviLog.Warnf("key: %s, msg: multiple entries for a kind %s. AKO handles only one object of each kind in ExtensionRef", key, kind)
 						// set the status
 						setRouteConditionInHTTPRouteStatus(key,
@@ -260,7 +305,8 @@ func validateHTTPRouteRules(key string, httpRoute *gatewayv1.HTTPRoute, httpRout
 							httpRoute, httpRouteStatus)
 						return false
 					}
-					extensionRefType[kind] = struct{}{}
+
+					extensionRefType.Add(kind)
 				}
 			}
 		}
