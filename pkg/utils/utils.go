@@ -743,3 +743,49 @@ func GetUriEncoded(uri string) string {
 	newUri.RawQuery = queryValues.Encode()
 	return newUri.String()
 }
+
+// Set implementation
+type empty struct{}
+
+type Set[K comparable] map[K]empty
+
+// NewSet creates and returns a new Set with the given keys.
+func NewSet[T comparable](keys ...T) Set[T] {
+	s := make(Set[T])
+	s.Add(keys...)
+	return s
+}
+
+// Add adds the given keys to the Set.
+func (s Set[T]) Add(keys ...T) {
+	for _, k := range keys {
+		s[k] = empty{}
+	}
+}
+
+// Remove removes the given keys from the Set.
+func (s Set[T]) Remove(keys ...T) {
+	for _, k := range keys {
+		delete(s, k)
+	}
+}
+
+// Has checks if the Set contains the given key.
+func (s Set[T]) Has(key T) bool {
+	_, ok := s[key]
+	return ok
+}
+
+// Size returns the number of elements in the Set.
+func (s Set[T]) Size() int {
+	return len(s)
+}
+
+// Keys returns a slice containing all keys in the Set.
+func (s Set[T]) Keys() []T {
+	keys := make([]T, 0)
+	for k := range s {
+		keys = append(keys, k)
+	}
+	return keys
+}

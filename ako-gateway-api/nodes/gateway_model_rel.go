@@ -346,10 +346,12 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 
 	var (
 		svcNsNameList                   []string
-		l7RuleNsNameList                []string
 		healthMonitorNsNameList         []string
 		routeBackendExtensionNSNameList []string
 	)
+	l7RuleNsNameList := utils.NewSet[string]()
+	appProfileNsNameList := utils.NewSet[string]()
+
 	for _, rule := range hrObj.Spec.Rules {
 		for _, backendRef := range rule.BackendRefs {
 			ns := namespace
@@ -375,14 +377,14 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 		for _, filter := range rule.Filters {
 			// Do we need to check first condition??
 			if filter.Type == gatewayv1.HTTPRouteFilterExtensionRef && filter.ExtensionRef != nil {
-				if filter.ExtensionRef.Kind == lib.L7Rule {
-					l7RuleNsName := namespace + "/" + string(filter.ExtensionRef.Name)
-					if !utils.HasElem(l7RuleNsNameList, l7RuleNsName) {
-						l7RuleNsNameList = append(l7RuleNsNameList, l7RuleNsName)
-					}
+				ns := namespace + "/" + string(filter.ExtensionRef.Name)
+				switch filter.ExtensionRef.Kind {
+				case lib.L7Rule:
+					l7RuleNsNameList.Add(ns)
+				case lib.ApplicationProfile:
+					appProfileNsNameList.Add(ns)
 				}
 			}
-
 		}
 	}
 	routeNSName := namespace + "/" + name
@@ -442,9 +444,27 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 	}
 
 	// update with new entries for HTTPRoute->L7 Rule and L7Rule to HTTPRoute
-	for _, l7RuleNsName := range l7RuleNsNameList {
+	for l7RuleNsName := range l7RuleNsNameList {
 		akogatewayapiobjects.GatewayApiLister().UpdateHTTPRouteToL7RuleMapping(routeNSName, l7RuleNsName)
 		akogatewayapiobjects.GatewayApiLister().UpdateL7RuleToHTTPRouteMapping(l7RuleNsName, routeNSName)
+	}
+
+	// HTTP Route <--> Application Profile mapping
+	found, oldAppProfileNSNameList := akogatewayapiobjects.GatewayApiLister().GetHTTPRouteToApplicationProfileMapping(routeNSName)
+	if found {
+		for appProfileNsName := range oldAppProfileNSNameList {
+			// clean up both mappings if app profile is removed
+			if !appProfileNsNameList.Has(appProfileNsName) {
+				akogatewayapiobjects.GatewayApiLister().DeleteHTTPRouteToApplicationProfileMapping(routeNSName, appProfileNsName)
+				akogatewayapiobjects.GatewayApiLister().DeleteApplicationProfileToHTTPRouteMapping(appProfileNsName, routeNSName)
+			}
+		}
+	}
+
+	// update the new app profiles' mappings
+	for appProfileNsName := range appProfileNsNameList {
+		akogatewayapiobjects.GatewayApiLister().UpdateHTTPRouteToApplicationProfileMapping(routeNSName, appProfileNsName)
+		akogatewayapiobjects.GatewayApiLister().UpdateApplicationProfileToHTTPRouteMapping(appProfileNsName, routeNSName)
 	}
 
 	found, oldGateways := akogatewayapiobjects.GatewayApiLister().GetRouteToGateway(routeTypeNsName)
