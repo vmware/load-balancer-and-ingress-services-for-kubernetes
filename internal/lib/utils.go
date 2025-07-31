@@ -690,6 +690,71 @@ func ProxyEnabledAppProfileCU(client *clients.AviClient) error {
 	return nil
 }
 
+func TcpHalfOpenHealthMonitorGet(client *clients.AviClient) (error, []models.HealthMonitor) {
+	var tcpHalfOpenHMs []models.HealthMonitor
+	uri := fmt.Sprintf("/api/healthmonitor/?name=%s", GetTcpHalfOpenHealthMonitorName())
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Health Monitor Get uri %v returned err %v", uri, err)
+		return err, tcpHalfOpenHMs
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal health monitor result, err: %v", err)
+		return err, tcpHalfOpenHMs
+	}
+	for i := 0; i < len(elems); i++ {
+		hMon := models.HealthMonitor{}
+		if err = json.Unmarshal(elems[i], &hMon); err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal health monitor data, err: %v", err)
+			return err, tcpHalfOpenHMs
+		}
+		tcpHalfOpenHMs = append(tcpHalfOpenHMs, hMon)
+	}
+	return nil, tcpHalfOpenHMs
+}
+
+func TcpHalfOpenHealthMonitorCU(client *clients.AviClient) error {
+	name := GetTcpHalfOpenHealthMonitorName()
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", GetAdminTenant())
+	tcpHM := models.HealthMonitorTCP{
+		TCPHalfOpen: proto.Bool(true),
+	}
+	hMon := models.HealthMonitor{
+		Name:       proto.String(name),
+		TenantRef:  proto.String(tenant),
+		Type:       proto.String(AllowedTCPHealthMonitorType),
+		TCPMonitor: &tcpHM,
+	}
+	resp := models.HealthMonitorAPIResponse{}
+	err, tcpHalfOpenHMs := TcpHalfOpenHealthMonitorGet(client)
+	if err == nil && len(tcpHalfOpenHMs) == 1 {
+		hm := tcpHalfOpenHMs[0]
+		if hm.TCPMonitor != nil &&
+			hm.TCPMonitor.TCPHalfOpen != nil &&
+			*hm.TCPMonitor.TCPHalfOpen {
+			utils.AviLog.Debugf("TCP Half Open connection health monitor %s present", name)
+			return nil
+		}
+		uri := fmt.Sprintf("/api/healthmonitor/%s", *hm.UUID)
+		err = AviPut(client, uri, hMon, resp)
+	} else {
+		if len(tcpHalfOpenHMs) > 1 {
+			return fmt.Errorf("More than one TcpHalfOpen connection health monitor with name %s found", name)
+		}
+		if len(tcpHalfOpenHMs) == 0 {
+			uri := "/api/healthmonitor"
+			err = AviPost(client, uri, hMon, resp)
+		}
+	}
+	if err != nil {
+		return err
+	}
+	utils.AviLog.Infof("TCP Half Open connection health monitor %s created/updated", name)
+	return nil
+}
+
 func Uuid4() string {
 	id, err := uuid.NewRandom()
 	if err != nil {

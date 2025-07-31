@@ -1176,6 +1176,7 @@ func TestAdvL4MultiTenancyWithTenantDeannotationInNS(t *testing.T) {
 func TestAdvL4WithProxyEnabledAppProfile(t *testing.T) {
 	// create a gw object with proxy-enabled annotation
 	// graph layer VS should come up with correct app profile
+	// graph layer Pool should have correct health monitor ref
 	// delete the gw object, graph layer object deletion
 	g := gomega.NewGomegaWithT(t)
 
@@ -1215,6 +1216,7 @@ func TestAdvL4WithProxyEnabledAppProfile(t *testing.T) {
 	g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/my-gateway"))
 	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(3))
 	g.Expect(nodes[0].ApplicationProfile).To(gomega.Equal(lib.GetProxyEnabledApplicationProfileName()))
+	g.Expect(nodes[0].PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring(lib.GetTcpHalfOpenHealthMonitorName()))
 
 	TeardownGatewayClass(t, gwClassName)
 	g.Eventually(func() int {
