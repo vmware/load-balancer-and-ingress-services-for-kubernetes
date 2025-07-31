@@ -110,6 +110,7 @@ func (cfg *AKOCleanupConfig) Cleanup(ctx context.Context) error {
 		cleanupPoolGroups,
 		cleanupPools,
 		cleanupAppProfiles,
+		cleanupHealthMonitors,
 		func() error {
 			if VPCMode {
 				return nil
@@ -415,6 +416,21 @@ func cleanupAppProfiles() error {
 		appProfiles[tenant] = append(appProfiles[tenant], *appProfile.UUID)
 	}
 	return deleteAviResource("/api/applicationprofile", appProfiles)
+}
+
+func cleanupHealthMonitors() error {
+	tenant := lib.GetAdminTenant()
+	aviClient := avicache.SharedAVIClients(tenant).AviClient[0]
+	err, healthMons := lib.TcpHalfOpenHealthMonitorGet(aviClient)
+	if err != nil {
+		utils.AviLog.Warnf("Health monitor GET returned err %v", err)
+		return err
+	}
+	hmons := make(map[string][]string)
+	for _, hmon := range healthMons {
+		hmons[tenant] = append(hmons[tenant], *hmon.UUID)
+	}
+	return deleteAviResource("/api/healthmonitor", hmons)
 }
 
 /*

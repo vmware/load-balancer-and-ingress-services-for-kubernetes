@@ -321,6 +321,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 	// create a mapping of portProto to hostname
 	gwListenerHostNameMapping := make(map[string]string)
 	gwClassName := ""
+	hmRef := ""
 	if lib.UseServicesAPI() {
 		// enable fqdn for gateway services only for non-advancedl4 usecases.
 		gw, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
@@ -334,6 +335,18 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 			}
 		}
 		gwClassName = gw.Spec.GatewayClassName
+	} else {
+		gw, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: GatewayLister returned error for advancedL4 pool nodes: %s", err)
+			return
+		}
+		if proxyProtoEnb, ok := gw.GetAnnotations()[lib.GwProxyProtocolEnableAnnotation]; ok {
+			proxyProtocolEnabled, err := strconv.ParseBool(proxyProtoEnb)
+			if err == nil && proxyProtocolEnabled {
+				hmRef = fmt.Sprintf("/api/healthmonitor/?name=%s", lib.GetTcpHalfOpenHealthMonitorName())
+			}
+		}
 	}
 
 	infraSetting, err := getL4InfraSetting(key, namespace, nil, &gwClassName)
@@ -387,6 +400,10 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		if t1lr != "" {
 			poolNode.T1Lr = t1lr
 			poolNode.VrfContext = ""
+		}
+
+		if hmRef != "" {
+			poolNode.HealthMonitorRefs = append(poolNode.HealthMonitorRefs, hmRef)
 		}
 
 		poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
