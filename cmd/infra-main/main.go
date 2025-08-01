@@ -156,6 +156,7 @@ func InitializeAKOInfra() {
 		}
 	}
 	c.AddNamespaceEventHandler(stopCh)
+	c.AddVKSCapabilityEventHandler(stopCh)
 	c.Sync()
 	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName)
 	c.AddNetworkInfoEventHandler(stopCh)
