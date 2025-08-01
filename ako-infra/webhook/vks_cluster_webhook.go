@@ -50,21 +50,16 @@ var vksWebhookOnce sync.Once
 func StartVKSWebhook(kubeClient kubernetes.Interface, stopCh <-chan struct{}) {
 	vksWebhookOnce.Do(func() {
 		utils.AviLog.Infof("VKS webhook: capability activated, starting webhook")
-
 		// Create webhook configuration
-		go func() {
-			if err := CreateWebhookConfiguration(kubeClient); err != nil {
-				utils.AviLog.Fatalf("VKS webhook: failed to create configuration: %v", err)
-			}
-		}()
+		if err := CreateWebhookConfiguration(kubeClient); err != nil {
+			utils.AviLog.Fatalf("VKS webhook: failed to create configuration: %v", err)
+		}
 
 		// Start webhook server
-		go func() {
-			vksWebhook := NewVKSClusterWebhook(kubeClient)
-			if err := StartWebhookServer(vksWebhook, stopCh); err != nil {
-				utils.AviLog.Fatalf("VKS webhook: server failed: %v", err)
-			}
-		}()
+		vksWebhook := NewVKSClusterWebhook(kubeClient)
+		if err := StartWebhookServer(vksWebhook, stopCh); err != nil {
+			utils.AviLog.Fatalf("VKS webhook: server failed: %v", err)
+		}
 
 		utils.AviLog.Infof("VKS webhook: startup initiated successfully")
 	})
@@ -328,15 +323,23 @@ func StartWebhookServer(webhook *VKSClusterWebhook, stopCh <-chan struct{}) erro
 		WriteTimeout: 10 * time.Second,
 	}
 
+	// Channel to receive server startup errors
+	serverErrCh := make(chan error, 1)
+
 	go func() {
 		utils.AviLog.Infof("VKS webhook: starting server on port %s with certs from %s", port, certDir)
 		if err := server.ListenAndServeTLS(certPath, keyPath); err != nil && err != http.ErrServerClosed {
 			utils.AviLog.Errorf("VKS webhook server error: %v", err)
+			serverErrCh <- err
 		}
 	}()
 
-	<-stopCh
-	utils.AviLog.Infof("VKS webhook: shutting down server")
+	select {
+	case err := <-serverErrCh:
+		return fmt.Errorf("VKS webhook server failed to start: %w", err)
+	case <-stopCh:
+		utils.AviLog.Infof("VKS webhook: shutting down server")
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
