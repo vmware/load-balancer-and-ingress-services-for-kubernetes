@@ -249,7 +249,7 @@ func (c *VCFK8sController) AddVKSCapabilityEventHandler(stopCh <-chan struct{}) 
 			if lib.IsVKSCapabilityActivated() && !capabilityActive {
 				utils.AviLog.Infof("VKS capability activated")
 				capabilityActive = true
-				webhook.StartVKSWebhook(utils.GetInformers().ClientSet, stopCh)
+				go webhook.StartVKSWebhook(utils.GetInformers().ClientSet, stopCh)
 			}
 		},
 		UpdateFunc: func(old, obj interface{}) {
@@ -257,7 +257,7 @@ func (c *VCFK8sController) AddVKSCapabilityEventHandler(stopCh <-chan struct{}) 
 			if lib.IsVKSCapabilityActivated() && !capabilityActive {
 				utils.AviLog.Infof("VKS capability activated")
 				capabilityActive = true
-				webhook.StartVKSWebhook(utils.GetInformers().ClientSet, stopCh)
+				go webhook.StartVKSWebhook(utils.GetInformers().ClientSet, stopCh)
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
