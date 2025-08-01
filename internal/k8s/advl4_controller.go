@@ -196,6 +196,20 @@ func (c *AviController) SetupNamespaceEventHandler(numWorkers uint32) {
 					utils.AviLog.Debugf("Adding ingresses for namespaces: %s", nsCur.GetName())
 					AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
 				}
+				if lib.AKOControlConfig().CRDInformers().L4RuleInformer != nil {
+					l4RuleObjs, err := lib.AKOControlConfig().CRDInformers().L4RuleInformer.Lister().L4Rules(nsCur.GetName()).List(labels.Set(nil).AsSelector())
+					if err != nil {
+						utils.AviLog.Errorf("Unable to retrieve the l4rules : %s", err)
+					} else {
+						for _, l4RuleObj := range l4RuleObjs {
+							key := lib.L4Rule + "/" + utils.ObjKey(l4RuleObj)
+							if err := c.GetValidator().ValidateL4RuleObj(key, l4RuleObj); err != nil {
+								utils.AviLog.Warnf("key: %s, Error retrieved during validation of L4Rule: %v", key, err)
+							}
+							AddKeyFromNSToIngstionQueue(numWorkers, c, nsCur.GetName(), key, lib.NsFilterAdd)
+						}
+					}
+				}
 				utils.AviLog.Debugf("Adding Gateways for namespaces: %s", nsCur.GetName())
 				AddGatewaysFromNSToIngestionQueueWCP(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
 			}

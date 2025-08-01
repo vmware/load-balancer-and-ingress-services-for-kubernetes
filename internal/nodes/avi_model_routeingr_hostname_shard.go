@@ -82,6 +82,7 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 			} else {
 				RouteIngrDeletePoolsByHostname(routeIgrObj, namespace, objname, key, fullsync, sharedQueue)
 			}
+			objects.SharedNamespaceTenantLister().RemoveNamespaceToTenantCache(namespace + "/" + objname)
 		}
 		return
 	}

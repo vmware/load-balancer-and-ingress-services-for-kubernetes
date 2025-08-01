@@ -17,6 +17,7 @@ package nodes
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -182,7 +183,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	}
 
 	// L4Rule CRD processing.
-	if objType == lib.L4Rule {
+	if objType == lib.L4Rule && !utils.IsWCP() {
 
 		if !utils.CheckIfNamespaceAccepted(namespace) {
 			utils.AviLog.Debugf("key: %s, msg: namespace of l4rule is not in accepted state", key)
@@ -257,10 +258,13 @@ func DequeueIngestion(key string, fullsync bool) {
 		handleIngress(key, fullsync, ingressNames)
 	}
 
-	// handle the services APIs
-	if (utils.IsWCP() && objType == utils.L4LBService) ||
-		(lib.UseServicesAPI() && (objType == utils.Service || objType == utils.L4LBService)) ||
-		((utils.IsWCP() || lib.UseServicesAPI()) && (objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpointslices || objType == lib.AviInfraSetting)) {
+	// Allowed object types for Advanced L4 and services APIs
+	allowedObjectTypes := []string{utils.L4LBService, lib.Gateway, lib.GatewayClass, utils.Endpointslices, lib.AviInfraSetting, lib.L4Rule}
+	if lib.UseServicesAPI() {
+		allowedObjectTypes = append(allowedObjectTypes, utils.Service)
+	}
+
+	if (utils.IsWCP() || lib.UseServicesAPI()) && slices.Contains(allowedObjectTypes, objType) {
 		if !valid && objType == utils.L4LBService {
 			// Required for advl4 schemas.
 			schema, _ = ConfigDescriptor().GetByType(utils.Service)
@@ -282,6 +286,7 @@ func DequeueIngestion(key string, fullsync bool) {
 					modelName := lib.GetModelName(tenant, lib.Encode(lib.GetNamePrefix()+namespace+"-"+gwName, lib.ADVANCED_L4))
 					if found, _ := objects.SharedAviGraphLister().Get(modelName); found {
 						objects.SharedAviGraphLister().Save(modelName, nil)
+						objects.SharedNamespaceTenantLister().RemoveNamespaceToTenantCache(namespace + "/" + gwName)
 						if !fullsync {
 							PublishKeyToRestLayer(modelName, key, sharedQueue)
 						}
@@ -784,6 +789,7 @@ func handleL4Service(key string, fullsync bool) {
 	}
 	model_name := lib.GetModelName(tenant, lib.Encode(lib.GetNamePrefix()+namespace+"-"+name, lib.L4VS))
 	objects.SharedAviGraphLister().Save(model_name, nil)
+	objects.SharedNamespaceTenantLister().RemoveNamespaceToTenantCache(namespace + "/" + name)
 	if !fullsync {
 		bkt := utils.Bkt(model_name, sharedQueue.NumWorkers)
 		sharedQueue.Workqueue[bkt].AddRateLimited(model_name)
