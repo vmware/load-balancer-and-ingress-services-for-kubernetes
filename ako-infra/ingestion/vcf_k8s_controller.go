@@ -237,6 +237,10 @@ func (c *VCFK8sController) AddNetworkInfoEventHandler(stopCh <-chan struct{}) {
 }
 
 func (c *VCFK8sController) AddVKSCapabilityEventHandler(stopCh <-chan struct{}) {
+	if !lib.GetVPCMode() {
+		utils.AviLog.Infof("Not running in VPC mode, skipping VKS capability event handler")
+		return
+	}
 	capabilityActive := lib.IsVKSCapabilityActivated()
 	utils.AviLog.Infof("VKS capability: informer starting, initial state activated=%t", capabilityActive)
 
