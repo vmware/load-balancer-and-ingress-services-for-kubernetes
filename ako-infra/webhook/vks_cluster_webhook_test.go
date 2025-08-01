@@ -688,6 +688,17 @@ func TestCreateWebhookConfiguration_DoesNotExist(t *testing.T) {
 	if len(rule.APIGroups) != 1 || rule.APIGroups[0] != "cluster.x-k8s.io" {
 		t.Errorf("Expected cluster.x-k8s.io API group, got %v", rule.APIGroups)
 	}
+
+	// Verify cert-manager annotation is set
+	expectedAnnotation := "cert-manager.io/inject-ca-from"
+	if webhook.Annotations == nil || webhook.Annotations[expectedAnnotation] == "" {
+		t.Errorf("Expected cert-manager annotation %s to be set", expectedAnnotation)
+	}
+
+	expectedValue := "/ako-vks-webhook-serving-cert"
+	if webhook.Annotations[expectedAnnotation] != expectedValue {
+		t.Errorf("Expected cert-manager annotation value %s, got %s", expectedValue, webhook.Annotations[expectedAnnotation])
+	}
 }
 
 func TestCreateWebhookConfiguration_AlreadyExists(t *testing.T) {
@@ -710,20 +721,68 @@ func TestStartVKSWebhook_SyncOnce(t *testing.T) {
 	kubeClient := k8sfake.NewSimpleClientset()
 	stopCh := make(chan struct{})
 
+	// Create temporary directory for test certificates
+	certDir, err := os.MkdirTemp("", "vks-webhook-test-certs")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(certDir)
+
+	// Create dummy certificate files (valid RSA certificate for testing)
+	tlsCrt := `-----BEGIN CERTIFICATE-----
+MIIDXTCCAkWgAwIBAgIJAKLdQJfKRoqBMA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV
+BAYTAlVTMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
+aWRnaXRzIFB0eSBMdGQwHhcNMjMwNjE1MTQzNzA0WhcNMjQwNjE0MTQzNzA0WjBF
+MQswCQYDVQQGEwJVUzETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50
+ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB
+CgKCAQEA3H2YZdCEKx4Y7QjBKAEjH1vZCJJMWNj1K/+PKBiNQNGOQSECU7m1P4Sv
+eBi3qgVxLYGJChp1Vnd5jNOXKMpVZtMxr2gKmFKJ4mB7TnXKYZ7dNK5QGXL7+0xX
+7XHoNnKLZ4OKF9WzV7j0V6nxSGP7Z0w1kYQYNbEJ0zCQfQ7l0n0tOq8y9qBe3tUm
+0e3Zt1OvyQ7aEOlFHKzjKwjKZn3Lp3qH0/QGnKQ8T7Q6tZ8cQ7VjEXNj9K8X3oYd
+KZmH5H8zXkA1zKw7YC0z0QIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQCZlVwVj8cg
+yJdCzpOLxoYBV5JjZ3Vl7U6wJWXLEjI8Z3V7H0vEzF6V0vX9tHzV7K8Y0qNYCzYZ
+-----END CERTIFICATE-----`
+
+	tlsKey := `-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEA3H2YZdCEKx4Y7QjBKAEjH1vZCJJMWNj1K/+PKBiNQNGOQSEC
+U7m1P4SveBi3qgVxLYGJChp1Vnd5jNOXKMpVZtMxr2gKmFKJ4mB7TnXKYZ7dNK5Q
+GXL7+0xX7XHoNnKLZ4OKF9WzV7j0V6nxSGP7Z0w1kYQYNbEJ0zCQfQ7l0n0tOq8y
+9qBe3tUm0e3Zt1OvyQ7aEOlFHKzjKwjKZn3Lp3qH0/QGnKQ8T7Q6tZ8cQ7VjEXNj
+9K8X3oYdKZmH5H8zXkA1zKw7YC0z0QIDAQABAoIBAQCKp6I2m1J4L8C5z7y5L3tF
+dYVkJl6f7gGVt8Z3nB5Q8X9y2Y0VQz7z8X9Y0z6X8z7z8X9z8z8X9z8z8X9z8z8X
+9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z
+8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z
+8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X
+9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z
+AoGBAOBr8fQlK3z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8
+X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8
+z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9
+-----END RSA PRIVATE KEY-----`
+
+	if err := os.WriteFile(certDir+"/tls.crt", []byte(tlsCrt), 0644); err != nil {
+		t.Fatalf("Failed to write tls.crt: %v", err)
+	}
+	if err := os.WriteFile(certDir+"/tls.key", []byte(tlsKey), 0644); err != nil {
+		t.Fatalf("Failed to write tls.key: %v", err)
+	}
+
 	// Set environment variables for webhook configuration
 	os.Setenv("VKS_WEBHOOK_PORT", "19443")
-	os.Setenv("VKS_WEBHOOK_CERT_DIR", "/tmp/test-certs")
+	os.Setenv("VKS_WEBHOOK_CERT_DIR", certDir)
 	defer func() {
 		os.Unsetenv("VKS_WEBHOOK_PORT")
 		os.Unsetenv("VKS_WEBHOOK_CERT_DIR")
 	}()
 
-	// Call the function multiple times
+	// Close the stopCh immediately to prevent server startup in tests
+	close(stopCh)
+
+	// Call the function multiple times (only first call will execute due to sync.Once)
 	StartVKSWebhook(kubeClient, stopCh)
 	StartVKSWebhook(kubeClient, stopCh)
 	StartVKSWebhook(kubeClient, stopCh)
 
-	// Give time for goroutines to start
+	// Give time for webhook configuration to be created
 	time.Sleep(100 * time.Millisecond)
 
 	// Verify that webhook configuration was created only once

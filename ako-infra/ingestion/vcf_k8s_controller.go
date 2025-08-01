@@ -240,6 +240,11 @@ func (c *VCFK8sController) AddVKSCapabilityEventHandler(stopCh <-chan struct{}) 
 	capabilityActive := lib.IsVKSCapabilityActivated()
 	utils.AviLog.Infof("VKS capability: informer starting, initial state activated=%t", capabilityActive)
 
+	if capabilityActive {
+		utils.AviLog.Infof("VKS capability already active, starting webhook")
+		go webhook.StartVKSWebhook(utils.GetInformers().ClientSet, stopCh)
+	}
+
 	capabilityEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			utils.AviLog.Infof("SupervisorCapability ADD Event")
