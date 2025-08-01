@@ -393,6 +393,9 @@ func CreateWebhookConfiguration(kubeClient kubernetes.Interface) error {
 			webhookConfig := &admissionregistrationv1.MutatingWebhookConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: webhookName,
+					Annotations: map[string]string{
+						"cert-manager.io/inject-ca-from": fmt.Sprintf("%s/ako-vks-webhook-serving-cert", serviceNamespace),
+					},
 				},
 				Webhooks: []admissionregistrationv1.MutatingWebhook{webhook},
 			}
