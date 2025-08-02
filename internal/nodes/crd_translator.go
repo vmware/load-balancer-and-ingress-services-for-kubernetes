@@ -86,7 +86,6 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	commonFieldObj.vsHTTPPolicySets = []string{}
 	commonFieldObj.vsICAPProfile = []string{}
 	vsDatascripts := []string{}
-	var analyticsPolicy *models.AnalyticsPolicy
 	var vsStringGroupRefs []*AviStringGroupNode
 
 	// Get the existing VH domain names and then manipulate it based on the aliases in Hostrule CRD.
@@ -194,19 +193,19 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 		if hostrule.Spec.VirtualHost.AnalyticsPolicy != nil {
 			var infinite uint32 = 0 // Special value to set log duration as infinite
 			// defaults to 'infinite' if hostrule doesn't specify a duration
-			analyticsPolicy = &models.AnalyticsPolicy{
+			commonFieldObj.analyticsPolicy = &models.AnalyticsPolicy{
 				FullClientLogs: &models.FullClientLogs{
 					Duration: &infinite,
 				},
 				AllHeaders: hostrule.Spec.VirtualHost.AnalyticsPolicy.LogAllHeaders,
 			}
 			if hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs != nil {
-				analyticsPolicy.FullClientLogs.Enabled = hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Enabled
-				analyticsPolicy.FullClientLogs.Throttle = lib.GetThrottle(hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Throttle)
+				commonFieldObj.analyticsPolicy.FullClientLogs.Enabled = hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Enabled
+				commonFieldObj.analyticsPolicy.FullClientLogs.Throttle = lib.GetThrottle(hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Throttle)
 
 				// only update duration if duration is actually specified in hr
 				if hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Duration != nil {
-					analyticsPolicy.FullClientLogs.Duration = hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Duration
+					commonFieldObj.analyticsPolicy.FullClientLogs.Duration = hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Duration
 				}
 			}
 		}
@@ -257,7 +256,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	vsNode.SetSSLProfileRef(vsSslProfile)
 	vsNode.SetVsDatascriptRefs(vsDatascripts)
 	vsNode.SetEnabled(vsEnabled)
-	vsNode.SetAnalyticsPolicy(analyticsPolicy)
+	vsNode.SetAnalyticsPolicy(commonFieldObj.analyticsPolicy)
 	if len(portProtocols) != 0 {
 		vsNode.SetPortProtocols(portProtocols)
 	}
@@ -782,7 +781,7 @@ func populateCommonFields(key string, l7RuleSpec *akov1alpha2.L7RuleSpec, common
 		commonFieldObj.vsWafPolicy = proto.String(fmt.Sprintf("/api/wafpolicy?name=%s", *l7RuleSpec.WafPolicy.Name))
 	}
 	// HTTPPolicySet
-	if commonFieldObj.vsHTTPPolicySets == nil && l7RuleSpec.HTTPPolicy != nil {
+	if len(commonFieldObj.vsHTTPPolicySets) == 0 && l7RuleSpec.HTTPPolicy != nil {
 		utils.AviLog.Infof("key: %s, Setting HTTPPolicySet from L7Rule", key)
 		for _, policy := range l7RuleSpec.HTTPPolicy.PolicySets {
 			if !utils.HasElem(commonFieldObj.vsHTTPPolicySets, fmt.Sprintf("/api/httppolicyset?name=%s", *policy)) {
