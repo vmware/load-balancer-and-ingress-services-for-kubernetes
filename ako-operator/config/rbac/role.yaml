@@ -1,9 +1,7 @@
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
   name: manager-role
 rules:
 - apiGroups:
@@ -19,6 +17,13 @@ rules:
   resources:
   - configmaps
   - configmaps/finalizers
+  - secrets
+  - secrets/finalizers
+  - secrets/status
+  - serviceaccounts
+  - serviceaccounts/finalizers
+  - services
+  - services/status
   verbs:
   - create
   - delete
@@ -36,49 +41,28 @@ rules:
   - patch
   - update
 - apiGroups:
-  - ""
-  resources:
-  - secrets
-  - secrets/finalizers
-  - secrets/status
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - serviceaccounts
-  - serviceaccounts/finalizers
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - services
-  - services/status
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
   - ako.vmware.com
   resources:
   - akoconfigs
+  - akoconfigs/finalizers
+  - aviinfrasettings
+  - aviinfrasettings/finalizers
+  - aviinfrasettings/status
+  - hostrules
+  - hostrules/finalizers
+  - hostrules/status
+  - httprules
+  - httprules/finalizers
+  - httprules/status
+  - l4rules
+  - l4rules/finalizers
+  - l4rules/status
+  - l7rules
+  - l7rules/finalizers
+  - l7rules/status
+  - ssorules
+  - ssorules/finalizers
+  - ssorules/status
   verbs:
   - create
   - delete
@@ -87,12 +71,6 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - ako.vmware.com
-  resources:
-  - akoconfigs/finalizers
-  verbs:
-  - update
 - apiGroups:
   - ako.vmware.com
   resources:
@@ -101,48 +79,6 @@ rules:
   - get
   - patch
   - update
-- apiGroups:
-  - ako.vmware.com
-  resources:
-  - aviinfrasettings
-  - aviinfrasettings/finalizers
-  - aviinfrasettings/status
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ako.vmware.com
-  resources:
-  - hostrules
-  - hostrules/finalizers
-  - hostrules/status
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ako.vmware.com
-  resources:
-  - httprules
-  - httprules/finalizers
-  - httprules/status
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
 - apiGroups:
   - apiextensions.k8s.io
   resources:
@@ -172,20 +108,41 @@ rules:
   - update
   - watch
 - apiGroups:
+  - cilium.io
+  resources:
+  - ciliumnodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - get
+  - update
+- apiGroups:
   - crd.projectcalico.org
   resources:
   - blockaffinities
   - blockaffinities/status
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
+  - watch
+- apiGroups:
+  - discovery.k8s.io
+  resources:
+  - endpointslices
+  verbs:
+  - get
+  - list
   - watch
 - apiGroups:
   - extensions
+  - networking.k8s.io
   resources:
   - ingresses
   - ingresses/status
@@ -198,11 +155,14 @@ rules:
   - update
   - watch
 - apiGroups:
-  - extensions
-  - policy
+  - gateway.networking.k8s.io
   resources:
-  - podsecuritypolicies
-  - podsecuritypolicies/finalizers
+  - gatewayclasses
+  - gatewayclasses/status
+  - gateways
+  - gateways/status
+  - httproutes
+  - httproutes/status
   verbs:
   - create
   - delete
@@ -210,7 +170,6 @@ rules:
   - list
   - patch
   - update
-  - use
   - watch
 - apiGroups:
   - network.openshift.io
@@ -229,19 +188,6 @@ rules:
   resources:
   - ingressclasses
   - ingressclasses/finalizers
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - networking.k8s.io
-  resources:
-  - ingresses
-  - ingresses/status
   verbs:
   - create
   - delete
@@ -272,17 +218,6 @@ rules:
   resources:
   - clusterrolebindings
   - clusterrolebindings/finalizers
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
   - clusterroles
   - clusterroles/finalizers
   verbs:
