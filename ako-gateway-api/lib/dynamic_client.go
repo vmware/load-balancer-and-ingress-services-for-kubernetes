@@ -139,13 +139,6 @@ func ParseL7CRD(key, namespace, name string, vsNode nodes.AviVsEvhSniModel, isFi
 	generatedFields.ConvertL7RuleParentOnlyFieldsToNil()
 	generatedFields.ConvertToRef()
 
-	//analyticsProfileObj, found, err := unstructured.NestedStringMap(specJSON, "analyticsProfile")
-	/*
-		if err == nil && found {
-			//get the object
-			vsAnalyticsProfile := proto.String(fmt.Sprintf("/api/analyticsprofile?name=%s", analyticsProfileObj["name"]))
-			vsNode.SetAnalyticsProfileRef(vsAnalyticsProfile)
-		}*/
 	vsAnalyticsProfile := getFieldValueFromSpec(specJSON, "analyticsProfile")
 	if vsAnalyticsProfile != nil {
 		vsNode.SetAnalyticsProfileRef(vsAnalyticsProfile)

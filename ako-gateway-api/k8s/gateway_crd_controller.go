@@ -107,9 +107,9 @@ func (c *GatewayController) SetupCRDEventHandlers(numWorkers uint32) {
 }
 
 func getNamespaceName(obj interface{}) (string, string) {
-	oldObj := obj.(*unstructured.Unstructured)
-	name := oldObj.GetName()
-	namespace := oldObj.GetNamespace()
+	unstructuredObj := obj.(*unstructured.Unstructured)
+	name := unstructuredObj.GetName()
+	namespace := unstructuredObj.GetNamespace()
 	return namespace, name
 }
 func isObjectProcessed(obj interface{}, namespace, name string) (bool, string) {
@@ -129,7 +129,7 @@ func isObjectProcessed(obj interface{}, namespace, name string) (bool, string) {
 }
 
 func (c *GatewayController) processHTTPRoutes(key, namespace, name string, numWorkers uint32) {
-	utils.AviLog.Debugf("key: %s, msg: Fetchting HTTPRoute associated with L7Rule %s/%s", key, namespace, name)
+	utils.AviLog.Debugf("key: %s, msg: Fetching HTTPRoute associated with L7Rule %s/%s", key, namespace, name)
 
 	l7RuleNSName := namespace + "/" + name
 	ok, httpRoutes := akogatewayapiobjects.GatewayApiLister().GetL7RuleToHTTPRouteMapping(l7RuleNSName)

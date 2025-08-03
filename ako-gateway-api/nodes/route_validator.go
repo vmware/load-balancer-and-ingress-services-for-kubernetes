@@ -131,7 +131,7 @@ func validatedBackendRefExtensions(backendFilters []*Filter, routeConditionResol
 				continue
 			}
 			// Allow only one instance of each kind.
-			// If user wants to define multiple instances of that kind, use an instnace of AKO defined CRD
+			// If user wants to define multiple instances of that kind, use an instance of AKO defined CRD
 			kind := string(filter.ExtensionRef.Kind)
 			if _, ok := SupportedExtensionRefKindsOnHTTPRouteBackendRef[kind]; !ok {
 				utils.AviLog.Warnf("key: %s, msg: AKO does not support a kind: %s on HTTPRoute-Rule-BackendRef", key, kind)
@@ -177,7 +177,7 @@ func validateHTTPRouteRules(key string, httpRoute *gatewayv1.HTTPRoute, httpRout
 						continue
 					}
 					// Allow only one instance of each kind.
-					// If user wants to define multiple instances of that kind, use an instnace of AKO defined CRD
+					// If user wants to define multiple instances of that kind, use an instance of AKO defined CRD
 					kind := string(filter.ExtensionRef.Kind)
 					if _, ok := SupportedExtensionRefKindsOnHTTPRouteRule[kind]; !ok {
 						utils.AviLog.Warnf("key: %s, msg: AKO does not support a kind: %s on HTTPRoute-Rule", key, kind)
