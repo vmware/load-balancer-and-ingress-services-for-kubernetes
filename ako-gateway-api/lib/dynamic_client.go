@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jinzhu/copier"
 	"github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
 	v1 "k8s.io/api/core/v1"
@@ -135,8 +134,17 @@ func ParseL7CRD(key, namespace, name string, vsNode nodes.AviVsEvhSniModel, isFi
 		return err
 	}
 	generatedFields := vsNode.GetGeneratedFields()
-	copier.CopyWithOption(vsNode, specJSON, copier.Option{IgnoreEmpty: true, DeepCopy: true})
-	generatedFields.ConvertL7RuleParentOnlyFieldsToNil()
+
+	// bot policy has license restriction
+	generatedFields.BotPolicyRef = getFieldValueTypeString(specJSON, "botPolicyRef")
+	generatedFields.TrafficCloneProfileRef = getFieldValueTypeString(specJSON, "trafficCloneProfileRef")
+	generatedFields.AllowInvalidClientCert = getFieldValueTypeBool(specJSON, "allowInvalidClientCert")
+	generatedFields.CloseClientConnOnConfigUpdate = getFieldValueTypeBool(specJSON, "closeClientConnOnConfigUpdate")
+	generatedFields.IgnPoolNetReach = getFieldValueTypeBool(specJSON, "ignPoolNetReach")
+	generatedFields.RemoveListeningPortOnVsDown = getFieldValueTypeBool(specJSON, "removeListeningPortOnVsDown")
+	generatedFields.MinPoolsUp = getFieldValueTypeUint32(specJSON, "minPoolsUp")
+	generatedFields.SslSessCacheAvgSize = getFieldValueTypeUint32(specJSON, "sslSessCacheAvgSize")
+
 	generatedFields.ConvertToRef()
 
 	vsAnalyticsProfile := getFieldValueFromSpec(specJSON, "analyticsProfile")
@@ -144,10 +152,12 @@ func ParseL7CRD(key, namespace, name string, vsNode nodes.AviVsEvhSniModel, isFi
 		vsNode.SetAnalyticsProfileRef(vsAnalyticsProfile)
 	}
 
+	// WAF Policy
 	vsWafPolicy := getFieldValueFromSpec(specJSON, "wafPolicy")
 	if vsWafPolicy != nil {
 		vsNode.SetWafPolicyRef(vsWafPolicy)
 	}
+
 	//ICAP profile
 	icapProfileObj, found, err := unstructured.NestedStringMap(specJSON, "icapProfile")
 	if err == nil && found {
@@ -177,7 +187,11 @@ func ParseL7CRD(key, namespace, name string, vsNode nodes.AviVsEvhSniModel, isFi
 		policysetObj, found, err := unstructured.NestedStringSlice(httpPolicyObj, "policySets")
 		if err == nil && found {
 			// avoid duplicates
-			vsHTTPPolicySets := sets.NewString(policysetObj...).List()
+			httpPolicySet := sets.NewString(policysetObj...).List()
+			vsHTTPPolicySets := make([]string, len(httpPolicySet))
+			for i, v := range httpPolicySet {
+				vsHTTPPolicySets[i] = fmt.Sprintf("/api/httppolicyset?name=%s", v)
+			}
 			vsNode.SetHttpPolicySetRefs(vsHTTPPolicySets)
 		}
 		// overwrite AKO-GatewayAPI created HTTP Policysets
@@ -218,7 +232,31 @@ func ParseL7CRD(key, namespace, name string, vsNode nodes.AviVsEvhSniModel, isFi
 	}
 	return nil
 }
+func getFieldValueTypeString(specJSON map[string]interface{}, fieldName string) *string {
+	var value *string
+	obj, found, err := unstructured.NestedString(specJSON, fieldName)
+	if err == nil && found {
+		return proto.String(obj)
+	}
+	return value
+}
 
+func getFieldValueTypeUint32(specJSON map[string]interface{}, fieldName string) *uint32 {
+	var value *uint32
+	obj, found, err := unstructured.NestedInt64(specJSON, fieldName)
+	if err == nil && found {
+		return proto.Uint32(uint32(obj))
+	}
+	return value
+}
+func getFieldValueTypeBool(specJSON map[string]interface{}, fieldName string) *bool {
+	var value *bool
+	obj, found, err := unstructured.NestedBool(specJSON, fieldName)
+	if err == nil && found {
+		return proto.Bool(obj)
+	}
+	return value
+}
 func getFieldValueFromSpec(specJSON map[string]interface{}, fieldName string) *string {
 	var value *string
 	obj, found, err := unstructured.NestedStringMap(specJSON, fieldName)
