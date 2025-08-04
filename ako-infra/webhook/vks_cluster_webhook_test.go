@@ -37,6 +37,7 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -948,4 +949,48 @@ func createTestCertificatesForValidation(certPath, keyPath string) error {
 	pem.Encode(keyOut, &pem.Block{Type: "PRIVATE KEY", Bytes: privKeyDER})
 
 	return nil
+}
+
+func TestCleanupWebhookConfiguration(t *testing.T) {
+	kubeClient := k8sfake.NewSimpleClientset()
+
+	// Test cleanup when webhook doesn't exist (should not error)
+	t.Run("WebhookNotExists", func(t *testing.T) {
+		err := CleanupWebhookConfiguration(kubeClient)
+		if err != nil {
+			t.Errorf("Expected no error when webhook doesn't exist, got: %v", err)
+		}
+	})
+
+	// Test cleanup when webhook exists
+	t.Run("WebhookExists", func(t *testing.T) {
+		// First create a webhook configuration
+		err := CreateWebhookConfiguration(kubeClient)
+		if err != nil {
+			t.Fatalf("Failed to create webhook configuration: %v", err)
+		}
+
+		// Verify it was created
+		_, err = kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(
+			context.TODO(), "ako-vks-cluster-webhook", metav1.GetOptions{})
+		if err != nil {
+			t.Fatalf("Expected webhook to exist after creation, got error: %v", err)
+		}
+
+		// Now test cleanup
+		err = CleanupWebhookConfiguration(kubeClient)
+		if err != nil {
+			t.Errorf("Expected no error during cleanup, got: %v", err)
+		}
+
+		// Verify it was deleted
+		_, err = kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(
+			context.TODO(), "ako-vks-cluster-webhook", metav1.GetOptions{})
+		if err == nil {
+			t.Error("Expected webhook to be deleted, but it still exists")
+		}
+		if !errors.IsNotFound(err) {
+			t.Errorf("Expected NotFound error, got: %v", err)
+		}
+	})
 }
