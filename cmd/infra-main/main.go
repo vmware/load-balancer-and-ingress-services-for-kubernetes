@@ -164,7 +164,7 @@ func InitializeAKOInfra() {
 	lib.SetAKOUser(lib.AKOPrefix)
 	c.AddNamespaceEventHandler(stopCh)
 	c.AddVKSCapabilityEventHandler(stopCh)
-	c.AddVKSAddonEventHandler(stopCh)
+	//c.AddVKSAddonEventHandler(stopCh)
 	c.Sync()
 	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName, clusterName)
 	c.AddNetworkInfoEventHandler(stopCh)
