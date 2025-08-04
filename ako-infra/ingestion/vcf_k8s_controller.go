@@ -14,6 +14,8 @@
 
 package ingestion
 
+// +kubebuilder:rbac:groups=iaas.vmware.com,resources=capabilities,verbs=get;list;watch
+
 import (
 	"context"
 	"fmt"
