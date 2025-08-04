@@ -59,19 +59,19 @@ func StartVKSWebhook(kubeClient kubernetes.Interface, stopCh <-chan struct{}) {
 
 		utils.AviLog.Infof("VKS webhook: waiting for certificates at %s", certDir)
 		if err := waitForCertificates(certDir, 120*time.Second); err != nil {
-			utils.AviLog.Fatalf("VKS webhook: certificate wait failed: %v", err)
+			utils.AviLog.Errorf("VKS webhook: certificate wait failed: %v", err)
 			return
 		}
 
 		// Create webhook configuration
 		if err := CreateWebhookConfiguration(kubeClient); err != nil {
-			utils.AviLog.Fatalf("VKS webhook: failed to create configuration: %v", err)
+			utils.AviLog.Errorf("VKS webhook: failed to create configuration: %v", err)
 		}
 
 		// Start webhook server
 		vksWebhook := NewVKSClusterWebhook(kubeClient)
 		if err := StartWebhookServer(vksWebhook, stopCh); err != nil {
-			utils.AviLog.Fatalf("VKS webhook: server failed: %v", err)
+			utils.AviLog.Errorf("VKS webhook: server failed: %v", err)
 		}
 
 		utils.AviLog.Infof("VKS webhook: startup initiated successfully")
@@ -311,7 +311,7 @@ func escapeJSONPointer(s string) string {
 func StartWebhookServer(webhook *VKSClusterWebhook, stopCh <-chan struct{}) error {
 	port := os.Getenv("VKS_WEBHOOK_PORT")
 	if port == "" {
-		port = "9443"
+		port = "9998"
 	}
 
 	certDir := os.Getenv("VKS_WEBHOOK_CERT_DIR")

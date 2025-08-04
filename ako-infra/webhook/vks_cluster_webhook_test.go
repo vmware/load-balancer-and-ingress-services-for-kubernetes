@@ -774,7 +774,7 @@ z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9z8z8X9
 	}
 
 	// Set environment variables for webhook configuration
-	os.Setenv("VKS_WEBHOOK_PORT", "19443")
+	os.Setenv("VKS_WEBHOOK_PORT", "19998")
 	os.Setenv("VKS_WEBHOOK_CERT_DIR", certDir)
 	defer func() {
 		os.Unsetenv("VKS_WEBHOOK_PORT")
