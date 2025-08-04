@@ -20,10 +20,17 @@ package webhook
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -825,4 +832,120 @@ func TestStartVKSWebhook_EnvironmentDefaults(t *testing.T) {
 	// We can't reliably test webhook creation here due to sync.Once behavior,
 	// but we can verify the function doesn't panic with missing environment variables.
 	// The actual environment default testing is implicitly covered by the server startup logic.
+}
+
+// Certificate waiting functionality tests
+func TestFilesExist(t *testing.T) {
+	// Create a temporary directory for test certificates
+	tempDir, err := os.MkdirTemp("", "webhook-cert-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	certPath := filepath.Join(tempDir, "tls.crt")
+	keyPath := filepath.Join(tempDir, "tls.key")
+
+	// Test case 1: Files don't exist
+	t.Run("FilesDoNotExist", func(t *testing.T) {
+		if filesExist(certPath, keyPath) {
+			t.Error("Expected false when files don't exist")
+		}
+	})
+}
+
+func TestWaitForCertificates(t *testing.T) {
+	// Create a temporary directory for test certificates
+	tempDir, err := os.MkdirTemp("", "webhook-cert-wait-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Test case 1: Timeout when certificates don't exist
+	t.Run("TimeoutWhenMissing", func(t *testing.T) {
+		start := time.Now()
+		err := waitForCertificates(tempDir, 1*time.Second)
+		duration := time.Since(start)
+
+		if err == nil {
+			t.Error("Expected timeout error when certificates don't exist")
+		}
+		if duration < 1*time.Second {
+			t.Error("Expected to wait for at least the timeout duration")
+		}
+	})
+
+	// Test case 2: Success when certificates are created
+	t.Run("SuccessWhenCertificatesExist", func(t *testing.T) {
+		certPath := filepath.Join(tempDir, "tls.crt")
+		keyPath := filepath.Join(tempDir, "tls.key")
+
+		// Create certificates first
+		err := createTestCertificatesForValidation(certPath, keyPath)
+		if err != nil {
+			t.Fatalf("Failed to create test certificates: %v", err)
+		}
+
+		start := time.Now()
+		err = waitForCertificates(tempDir, 5*time.Second)
+		duration := time.Since(start)
+
+		if err != nil {
+			t.Errorf("Expected success when certificates exist: %v", err)
+		}
+		if duration > 3*time.Second {
+			t.Error("Expected to return quickly when certificates are ready")
+		}
+	})
+}
+
+// createTestCertificatesForValidation creates a valid certificate and key pair for testing
+func createTestCertificatesForValidation(certPath, keyPath string) error {
+	// Generate private key
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return err
+	}
+
+	// Create certificate template
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Organization: []string{"Test Org"},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Hour * 24 * 180),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+
+	// Create certificate
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &privateKey.PublicKey, privateKey)
+	if err != nil {
+		return err
+	}
+
+	// Write certificate file
+	certOut, err := os.Create(certPath)
+	if err != nil {
+		return err
+	}
+	defer certOut.Close()
+	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+
+	// Write private key file
+	keyOut, err := os.Create(keyPath)
+	if err != nil {
+		return err
+	}
+	defer keyOut.Close()
+	privKeyDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	if err != nil {
+		return err
+	}
+	pem.Encode(keyOut, &pem.Block{Type: "PRIVATE KEY", Bytes: privKeyDER})
+
+	return nil
 }

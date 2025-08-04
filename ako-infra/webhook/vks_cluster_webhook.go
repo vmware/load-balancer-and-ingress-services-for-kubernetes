@@ -50,6 +50,19 @@ var vksWebhookOnce sync.Once
 func StartVKSWebhook(kubeClient kubernetes.Interface, stopCh <-chan struct{}) {
 	vksWebhookOnce.Do(func() {
 		utils.AviLog.Infof("VKS webhook: capability activated, starting webhook")
+
+		// Wait for certificates to be ready before starting
+		certDir := os.Getenv("VKS_WEBHOOK_CERT_DIR")
+		if certDir == "" {
+			certDir = "/tmp/k8s-webhook-server/serving-certs"
+		}
+
+		utils.AviLog.Infof("VKS webhook: waiting for certificates at %s", certDir)
+		if err := waitForCertificates(certDir, 120*time.Second); err != nil {
+			utils.AviLog.Fatalf("VKS webhook: certificate wait failed: %v", err)
+			return
+		}
+
 		// Create webhook configuration
 		if err := CreateWebhookConfiguration(kubeClient); err != nil {
 			utils.AviLog.Fatalf("VKS webhook: failed to create configuration: %v", err)
@@ -413,4 +426,44 @@ func CreateWebhookConfiguration(kubeClient kubernetes.Interface) error {
 		utils.AviLog.Infof("VKS webhook: MutatingWebhookConfiguration '%s' already exists", webhookName)
 	}
 	return nil
+}
+
+// waitForCertificates waits for the TLS certificates to be available
+func waitForCertificates(certDir string, timeout time.Duration) error {
+	certPath := filepath.Join(certDir, "tls.crt")
+	keyPath := filepath.Join(certDir, "tls.key")
+
+	utils.AviLog.Infof("VKS webhook: waiting for certificates at %s and %s", certPath, keyPath)
+
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+	timeoutCh := time.After(timeout)
+
+	for {
+		select {
+		case <-ticker.C:
+			if filesExist(certPath, keyPath) {
+				utils.AviLog.Infof("VKS webhook: certificates ready and valid")
+				return nil
+			}
+			utils.AviLog.Debugf("VKS webhook: certificates not ready yet, continuing to wait...")
+		case <-timeoutCh:
+			return fmt.Errorf("timeout waiting for certificates after %v", timeout)
+		}
+	}
+}
+
+// filesExist checks if certificate files exist
+func filesExist(certPath, keyPath string) bool {
+	if _, err := os.Stat(certPath); os.IsNotExist(err) {
+		utils.AviLog.Debugf("VKS webhook: certificate file does not exist: %s", certPath)
+		return false
+	}
+	if _, err := os.Stat(keyPath); os.IsNotExist(err) {
+		utils.AviLog.Debugf("VKS webhook: key file does not exist: %s", keyPath)
+		return false
+	}
+
+	utils.AviLog.Debugf("VKS webhook: certificate files exist")
+	return true
 }
