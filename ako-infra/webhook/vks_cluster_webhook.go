@@ -100,7 +100,7 @@ func (w *VKSClusterWebhook) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	admissionResponse := w.processAdmissionRequest(admissionReview.Request)
+	admissionResponse := w.ProcessAdmissionRequest(admissionReview.Request)
 
 	responseAdmissionReview := &admissionv1.AdmissionReview{
 		TypeMeta: metav1.TypeMeta{
@@ -123,7 +123,7 @@ func (w *VKSClusterWebhook) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 	rw.Write(responseBytes)
 }
 
-func (w *VKSClusterWebhook) processAdmissionRequest(req *admissionv1.AdmissionRequest) *admissionv1.AdmissionResponse {
+func (w *VKSClusterWebhook) ProcessAdmissionRequest(req *admissionv1.AdmissionRequest) *admissionv1.AdmissionResponse {
 	if req.Operation != admissionv1.Create {
 		return &admissionv1.AdmissionResponse{
 			Allowed: true,
