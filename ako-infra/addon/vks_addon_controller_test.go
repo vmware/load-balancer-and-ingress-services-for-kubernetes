@@ -71,8 +71,14 @@ func TestCreateAddonInstallSpec(t *testing.T) {
 		t.Fatalf("Failed to get spec: %v", err)
 	}
 
-	if spec["addonName"] != AKOAddonName {
-		t.Errorf("Expected addonName '%s', got '%v'", AKOAddonName, spec["addonName"])
+	// Test addonRef field
+	addonRef, found, err := unstructured.NestedMap(addonSpec.Object, "spec", "addonRef")
+	if err != nil || !found {
+		t.Fatalf("Failed to get addonRef: %v", err)
+	}
+
+	if addonRef["name"] != AKOAddonName {
+		t.Errorf("Expected addonRef.name '%s', got '%v'", AKOAddonName, addonRef["name"])
 	}
 
 	if spec["crossNamespaceSelection"] != "Allowed" {
@@ -104,19 +110,17 @@ func TestCreateAddonInstallSpec(t *testing.T) {
 		t.Errorf("Expected VKS label '%s'='%s', got '%s'", webhook.VKSManagedLabel, expectedVKSLabel, matchLabels[webhook.VKSManagedLabel])
 	}
 
-	// Test releases configuration
-	releases, found, err := unstructured.NestedMap(addonSpec.Object, "spec", "releases")
+	// Test releaseFilter configuration
+	releaseFilter, found, err := unstructured.NestedMap(addonSpec.Object, "spec", "releaseFilter")
 	if err != nil || !found {
-		t.Fatalf("Failed to get releases configuration: %v", err)
+		t.Fatalf("Failed to get releaseFilter configuration: %v", err)
 	}
 
-	if releases["resolutionRule"] != "PreferLatest" {
-		t.Errorf("Expected resolutionRule 'PreferLatest', got '%v'", releases["resolutionRule"])
-	}
+	// Note: resolutionRule is not needed - framework automatically selects latest compatible version
 
-	releaseMatchLabels, found, err := unstructured.NestedStringMap(releases, "selector", "matchLabels")
+	releaseMatchLabels, found, err := unstructured.NestedStringMap(releaseFilter, "selector", "matchLabels")
 	if err != nil || !found {
-		t.Fatalf("Failed to get release selector matchLabels: %v", err)
+		t.Fatalf("Failed to get releaseFilter selector matchLabels: %v", err)
 	}
 
 	expectedAddonLabel := AKOAddonName
