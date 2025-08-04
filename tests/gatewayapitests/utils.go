@@ -749,3 +749,221 @@ func ValidateHTTPRouteStatus(t *testing.T, actualStatus, expectedStatus *gateway
 		ValidateConditions(t, actualRouteParentStatus.Conditions, expectedRouteParentStatus.Conditions)
 	}
 }
+
+type FullClientLogsL7 struct {
+	Enabled  bool
+	Throttle string
+	Duration uint32
+}
+
+type L7RuleAnalyticsPolicy struct {
+	FullClientLogs FullClientLogsL7
+	LogAllHeaders  bool
+}
+type KindNameNamespace struct {
+	Kind string
+	Name string
+}
+type L7RuleHTTPPolicy struct {
+	PolicySets []string
+	Overwrite  bool
+}
+type FakeL7Rule struct {
+	AllowInvalidClientCert        bool
+	BotPolicyRef                  string
+	CloseClientConnOnConfigUpdate bool
+	HostNameXlate                 string
+	IgnPoolNetReach               bool
+	MinPoolsUp                    int
+	RemoveListeningPortOnVsDown   bool
+	SecurityPolicyRef             string
+	SslSessCacheAvgSize           int
+	Name                          string
+	Namespace                     string
+	AnalyticsProfile              KindNameNamespace
+	ApplicationProfile            KindNameNamespace
+	WafPolicy                     KindNameNamespace
+	IcapProfile                   KindNameNamespace
+	ErrorPageProfile              KindNameNamespace
+	HTTPPolicy                    L7RuleHTTPPolicy
+	AnalyticsPolicy               L7RuleAnalyticsPolicy
+	Status                        string
+	Error                         string
+}
+
+func getKindName(kind string, name string) KindNameNamespace {
+	return KindNameNamespace{
+		Kind: kind,
+		Name: name,
+	}
+}
+func getHTTPPSset(policyName ...string) []string {
+	httpPSet := []string{}
+	for _, p := range policyName {
+		httpPSet = append(httpPSet, p)
+	}
+	return httpPSet
+}
+func getAnalyticsPolicy() L7RuleAnalyticsPolicy {
+	return L7RuleAnalyticsPolicy{
+		LogAllHeaders: false,
+		FullClientLogs: FullClientLogsL7{
+			Enabled: true,
+		},
+	}
+}
+func GetFakeDefaultL7RuleObj(name, namespace string) *FakeL7Rule {
+
+	l7Rule := FakeL7Rule{
+		Name:                          name,
+		Namespace:                     namespace,
+		AllowInvalidClientCert:        true,
+		BotPolicyRef:                  "thisisaviref-botpolicy",
+		CloseClientConnOnConfigUpdate: true,
+		HostNameXlate:                 "hostname.com", // Parent field
+		IgnPoolNetReach:               false,
+		MinPoolsUp:                    2,
+		SecurityPolicyRef:             "thisisaviref-secpolicy", // Parent field
+		RemoveListeningPortOnVsDown:   false,
+		SslSessCacheAvgSize:           2024,
+		AnalyticsProfile:              getKindName("AviRef", "thisisaviref-analyticsprofile-l7"),
+		ApplicationProfile:            getKindName("AviRef", "thisisaviref-appprofile-l7"),
+		WafPolicy:                     getKindName("AviRef", "thisisaviref-wafpolicy-l7"),
+		IcapProfile:                   getKindName("AviRef", "thisisaviref-icaprofile-l7"),
+		ErrorPageProfile:              getKindName("AviRef", "thisisaviref-errorpageprofile-l7"),
+		HTTPPolicy: L7RuleHTTPPolicy{
+			Overwrite: false,
+			PolicySets: getHTTPPSset(
+				"thisisaviref-httpps1-l7",
+				"thisisaviref-httpps2-l7"),
+		},
+		AnalyticsPolicy: getAnalyticsPolicy(),
+		Status:          "Accepted",
+		Error:           "",
+	}
+	return &l7Rule
+}
+
+func (l7rule *FakeL7Rule) CreateFakeL7RuleWithStatus(t *testing.T) {
+
+	l7RuleNew := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "ako.vmware.com/v1alpha2",
+			"kind":       "L7Rule",
+			"metadata": map[string]interface{}{
+				"name":      l7rule.Name,
+				"namespace": l7rule.Namespace,
+			},
+			"spec": map[string]interface{}{
+				"allowInvalidClientCert":        l7rule.AllowInvalidClientCert,
+				"botPolicyRef":                  l7rule.BotPolicyRef,
+				"closeClientConnOnConfigUpdate": l7rule.CloseClientConnOnConfigUpdate,
+				"hostNameXlate":                 l7rule.HostNameXlate,
+				"ignPoolNetReach":               l7rule.IgnPoolNetReach,
+				"minPoolsUp":                    "2",
+				"removeListeningPortOnVsDown":   l7rule.RemoveListeningPortOnVsDown,
+				"securityPolicyRef":             l7rule.SecurityPolicyRef,
+				"sslSessCacheAvgSize":           "1024",
+				"analyticsProfile": map[string]interface{}{
+					"kind": "AviRef",
+					"name": l7rule.AnalyticsProfile.Name,
+				},
+				"applicationProfile": map[string]interface{}{
+					"kind": "AviRef",
+					"name": l7rule.ApplicationProfile.Name,
+				},
+				"wafPolicy": map[string]interface{}{
+					"kind": "AviRef",
+					"name": l7rule.WafPolicy.Name,
+				},
+				"icapProfile": map[string]interface{}{
+					"kind": "AviRef",
+					"name": l7rule.IcapProfile.Name,
+				},
+				"errorPageProfile": map[string]interface{}{
+					"kind": "AviRef",
+					"name": l7rule.ErrorPageProfile.Name,
+				},
+				/*
+					"httpPolicy": map[string]interface{}{
+						"overwrite":  l7rule.HTTPPolicy.Overwrite,
+						"policySets": []interface{}{l7rule.HTTPPolicy.PolicySets},
+					},*/
+				"analyticsPolicy": map[string]interface{}{
+					"logAllHeaders": l7rule.AnalyticsPolicy.LogAllHeaders,
+					"fullClientLogs": map[string]interface{}{
+						"enabled": l7rule.AnalyticsPolicy.FullClientLogs.Enabled,
+					},
+				},
+			},
+			"status": map[string]interface{}{
+				"status": l7rule.Status,
+				"error":  l7rule.Error,
+			},
+		},
+	}
+	_, err := DynamicClient.Resource(akogatewayapilib.L7CRDGVR).Namespace(l7rule.Namespace).Create(context.TODO(), l7RuleNew, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in creating L7Rule: %v", err)
+	}
+	t.Logf("Created L7Rule %s/%s with status=%s", l7rule.Namespace, l7rule.Name, l7rule.Status)
+}
+
+func (l7rule *FakeL7Rule) DeleteL7RuleCR(t *testing.T) {
+	err := DynamicClient.Resource(akogatewayapilib.L7CRDGVR).Namespace(l7rule.Namespace).Delete(context.TODO(), l7rule.Name, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("error in deleting RouteBackendExtension: %v", err)
+	}
+	t.Logf("Deleted RouteBackendExtension %s/%s", l7rule.Namespace, l7rule.Name)
+}
+
+func (l7rule *FakeL7Rule) UpdateRouteBackendExtensionStatus(t *testing.T) {
+	routeBackendExtension, err := DynamicClient.Resource(akogatewayapilib.L7CRDGVR).Namespace(l7rule.Namespace).Get(context.TODO(), l7rule.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("error in getting RouteBackendExtension: %v", err)
+	}
+
+	// Update the status section
+	statusObj := routeBackendExtension.Object["status"].(map[string]interface{})
+	statusObj["status"] = l7rule.Status
+	statusObj["error"] = l7rule.Error
+
+	_, err = DynamicClient.Resource(akogatewayapilib.L7CRDGVR).Namespace(l7rule.Namespace).UpdateStatus(context.TODO(), routeBackendExtension, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating RouteBackendExtension status: %v", err)
+	}
+	t.Logf("Updated RouteBackendExtension %s/%s status to Status=%s, Error=%s", l7rule.Namespace, l7rule.Name, l7rule.Status, l7rule.Error)
+}
+
+func GetHTTPRouteRuleWithCustomCRDs(pathType string, paths []string, headers []string, filters map[string][]string, backends [][]string, filterExtensionCrds map[string][]string) gatewayv1.HTTPRouteRule {
+	rule := GetHTTPRouteRuleV1(pathType, paths, headers, filters, backends, nil)
+	// Frontend - L7 Rule
+	if l7Rules, ok := filterExtensionCrds["L7Rule"]; ok {
+		for _, l7Rule := range l7Rules {
+			filter := gatewayv1.HTTPRouteFilter{
+				Type: gatewayv1.HTTPRouteFilterExtensionRef,
+				ExtensionRef: &gatewayv1.LocalObjectReference{
+					Group: gatewayv1.Group("ako.vmware.com"),
+					Kind:  gatewayv1.Kind("L7Rule"),
+					Name:  gatewayv1.ObjectName(l7Rule),
+				},
+			}
+			rule.Filters = append(rule.Filters, filter)
+		}
+	}
+	if appProfileRules, ok := filterExtensionCrds["ApplicationProfile"]; ok {
+		for _, appProfile := range appProfileRules {
+			filter := gatewayv1.HTTPRouteFilter{
+				Type: gatewayv1.HTTPRouteFilterExtensionRef,
+				ExtensionRef: &gatewayv1.LocalObjectReference{
+					Group: gatewayv1.Group("ako.vmware.com"),
+					Kind:  gatewayv1.Kind("ApplicationProfile"),
+					Name:  gatewayv1.ObjectName(appProfile),
+				},
+			}
+			rule.Filters = append(rule.Filters, filter)
+		}
+	}
+	// TODO: Backend
+	return rule
+}
