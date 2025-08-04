@@ -19,7 +19,6 @@ package ingestion
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"time"
 
@@ -281,7 +280,12 @@ func (w *VKSClusterWatcher) cleanupClusterSecret(ctx context.Context, clusterNam
 	secretName := fmt.Sprintf("%s-avi-secret", clusterName)
 	err := w.kubeClient.CoreV1().Secrets(clusterNamespace).Delete(ctx, secretName, metav1.DeleteOptions{})
 	if err != nil {
-		utils.AviLog.Warnf("Failed to delete Avi credentials secret %s/%s: %v", clusterNamespace, secretName, err)
+		if errors.IsNotFound(err) {
+			utils.AviLog.Debugf("Avi credentials secret %s/%s already deleted", clusterNamespace, secretName)
+		} else {
+			utils.AviLog.Warnf("Failed to delete Avi credentials secret %s/%s: %v", clusterNamespace, secretName, err)
+			// Continue cleanup but log the error
+		}
 	} else {
 		utils.AviLog.Infof("Deleted Avi credentials secret %s/%s", clusterNamespace, secretName)
 	}
@@ -331,23 +335,23 @@ func (w *VKSClusterWatcher) createAviCredentialsSecret(ctx context.Context, clus
 	secretName := fmt.Sprintf("%s-avi-secret", clusterName)
 
 	secretData := map[string][]byte{
-		"username":     []byte(base64.StdEncoding.EncodeToString([]byte(username))),
-		"controllerIP": []byte(base64.StdEncoding.EncodeToString([]byte(controllerIP))),
+		"username":     []byte(username),
+		"controllerIP": []byte(controllerIP),
 	}
 
 	// Add password if available
 	if password != "" {
-		secretData["password"] = []byte(base64.StdEncoding.EncodeToString([]byte(password)))
+		secretData["password"] = []byte(password)
 	}
 
 	// Add authtoken if available
 	if authToken != "" {
-		secretData["authtoken"] = []byte(base64.StdEncoding.EncodeToString([]byte(authToken)))
+		secretData["authtoken"] = []byte(authToken)
 	}
 
 	// Add CA cert if available
 	if caCert != "" {
-		secretData["certificateAuthorityData"] = []byte(base64.StdEncoding.EncodeToString([]byte(caCert)))
+		secretData["certificateAuthorityData"] = []byte(caCert)
 	}
 
 	secret := &corev1.Secret{
