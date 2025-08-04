@@ -99,10 +99,10 @@ var (
 		Resource: "addoninstalls",
 	}
 
-	// ClusterGVR defines the cluster.x-k8s.io/v1beta1 Cluster resource
+	// ClusterGVR defines the cluster.x-k8s.io/v1beta2 Cluster resource
 	ClusterGVR = schema.GroupVersionResource{
 		Group:    "cluster.x-k8s.io",
-		Version:  "v1beta1",
+		Version:  "v1beta2",
 		Resource: "clusters",
 	}
 )

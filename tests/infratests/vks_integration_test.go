@@ -55,7 +55,7 @@ var (
 	}
 	ClusterGVR = schema.GroupVersionResource{
 		Group:    "cluster.x-k8s.io",
-		Version:  "v1beta1",
+		Version:  "v1beta2",
 		Resource: "clusters",
 	}
 )
@@ -208,7 +208,7 @@ func TestVKSWebhookFunctionality(t *testing.T) {
 
 	admissionRequest := &admissionv1.AdmissionRequest{
 		UID:       types.UID("test-uid"),
-		Kind:      metav1.GroupVersionKind{Group: "cluster.x-k8s.io", Version: "v1beta1", Kind: "Cluster"},
+		Kind:      metav1.GroupVersionKind{Group: "cluster.x-k8s.io", Version: "v1beta2", Kind: "Cluster"},
 		Namespace: "test-cluster-ns",
 		Object:    runtime.RawExtension{Raw: clusterBytes},
 		Operation: admissionv1.Create,
@@ -463,7 +463,7 @@ func TestVKSErrorHandling(t *testing.T) {
 
 	admissionRequest := &admissionv1.AdmissionRequest{
 		UID:       types.UID("test-uid"),
-		Kind:      metav1.GroupVersionKind{Group: "cluster.x-k8s.io", Version: "v1beta1", Kind: "Cluster"},
+		Kind:      metav1.GroupVersionKind{Group: "cluster.x-k8s.io", Version: "v1beta2", Kind: "Cluster"},
 		Namespace: "unmanageable-ns",
 		Object:    runtime.RawExtension{Raw: clusterBytes},
 		Operation: admissionv1.Create,
