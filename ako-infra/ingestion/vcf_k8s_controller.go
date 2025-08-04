@@ -311,7 +311,7 @@ func (c *VCFK8sController) startVKSInfrastructure(stopCh <-chan struct{}) {
 		utils.AviLog.Infof("VKS: All cleanup completed successfully")
 	}()
 
-	go c.startVKSClusterWatcher(stopCh)
+	// go c.startVKSClusterWatcher(stopCh)
 }
 
 func (c *VCFK8sController) startVKSClusterWatcher(stopCh <-chan struct{}) {

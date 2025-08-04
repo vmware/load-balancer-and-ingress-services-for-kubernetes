@@ -50,7 +50,7 @@ import (
 func createTestCluster(name, namespace string, labels map[string]string) *unstructured.Unstructured {
 	cluster := &unstructured.Unstructured{
 		Object: map[string]interface{}{
-			"apiVersion": "cluster.x-k8s.io/v1beta1",
+			"apiVersion": "cluster.x-k8s.io/v1beta2",
 			"kind":       "Cluster",
 			"metadata": map[string]interface{}{
 				"name":      name,
