@@ -291,7 +291,7 @@ func (c *VCFK8sController) startVKSInfrastructure(stopCh <-chan struct{}) {
 	go webhook.StartVKSWebhook(utils.GetInformers().ClientSet, stopCh)
 
 	// Start VKS cluster watcher for cluster lifecycle management
-	go c.startVKSClusterWatcher(stopCh)
+	//	go c.startVKSClusterWatcher(stopCh)
 }
 
 func (c *VCFK8sController) startVKSClusterWatcher(stopCh <-chan struct{}) {
