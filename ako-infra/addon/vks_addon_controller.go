@@ -119,3 +119,29 @@ func createAddonInstallSpec() *unstructured.Unstructured {
 		},
 	}
 }
+
+func CleanupGlobalAddonInstall() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	dynamicClient := lib.GetDynamicClientSet()
+	if dynamicClient == nil {
+		return fmt.Errorf("dynamic client not available")
+	}
+
+	utils.AviLog.Infof("VKS addon: cleaning up global AddonInstall %s/%s", VKSPublicNamespace, AKOAddonInstallName)
+
+	err := dynamicClient.Resource(AddonInstallGVR).Namespace(VKSPublicNamespace).Delete(
+		ctx, AKOAddonInstallName, metav1.DeleteOptions{})
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			utils.AviLog.Debugf("VKS addon: global AddonInstall %s/%s already deleted", VKSPublicNamespace, AKOAddonInstallName)
+			return nil
+		}
+		return fmt.Errorf("failed to delete global AddonInstall %s/%s: %v", VKSPublicNamespace, AKOAddonInstallName, err)
+	}
+
+	utils.AviLog.Infof("VKS addon: successfully deleted global AddonInstall %s/%s", VKSPublicNamespace, AKOAddonInstallName)
+	return nil
+}
