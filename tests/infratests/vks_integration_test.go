@@ -19,7 +19,6 @@ package infratests
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"testing"
 	"time"
@@ -298,12 +297,8 @@ func TestVKSClusterLifecycleIntegration(t *testing.T) {
 			return false
 		}
 
-		decodedUsername, err := base64.StdEncoding.DecodeString(string(usernameBytes))
-		if err != nil {
-			return false
-		}
-
-		return string(decodedUsername) == "admin"
+		// The secret data is stored as raw bytes (not base64 encoded)
+		return string(usernameBytes) == "admin"
 	}, 15*time.Second, 1*time.Second).Should(gomega.Equal(true))
 
 	// Step 5: Test cluster opt-out (change label to false)
@@ -559,4 +554,285 @@ func TestVKSIdempotencyIntegration(t *testing.T) {
 	g.Expect(originalSecret.ResourceVersion).To(gomega.Equal(currentSecret.ResourceVersion))
 
 	t.Log("✅ VKS Idempotency integration test completed successfully")
+}
+
+// TestVKSE2ECreationToCleanup tests the full E2E flow from VKS infrastructure startup to complete cleanup
+func TestVKSE2ECreationToCleanup(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	kubeClient, dynamicClient := setupVKSIntegrationTest(t)
+
+	// === Phase 1: VKS Infrastructure Startup ===
+	t.Log("🚀 Phase 1: VKS Infrastructure Startup")
+
+	// Step 1: Enable VKS capability (simulates capability activation)
+	capability := createVKSSupervisorCapability("ako-vks")
+	_, err := dynamicClient.Resource(SupervisorCapabilityGVR).Create(context.Background(), capability, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Failed to create SupervisorCapability: %v", err)
+	}
+	t.Log("✅ VKS SupervisorCapability created")
+
+	// Step 2: Global addon install creation
+	err = addon.EnsureGlobalAddonInstall()
+	if err != nil {
+		t.Fatalf("Failed to ensure global addon install: %v", err)
+	}
+
+	// Verify AddonInstall was created
+	g.Eventually(func() bool {
+		_, err := dynamicClient.Resource(AddonInstallGVR).
+			Namespace(addon.VKSPublicNamespace).
+			Get(context.Background(), addon.AKOAddonInstallName, metav1.GetOptions{})
+		return err == nil
+	}, 10*time.Second, 1*time.Second).Should(gomega.Equal(true))
+	t.Log("✅ Global AddonInstall created")
+
+	// Step 3: Webhook configuration creation
+	err = webhook.CreateWebhookConfiguration(kubeClient)
+	if err != nil {
+		t.Fatalf("Failed to create webhook configuration: %v", err)
+	}
+
+	// Verify MutatingWebhookConfiguration was created
+	g.Eventually(func() bool {
+		_, err := kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(
+			context.Background(), "ako-vks-cluster-webhook", metav1.GetOptions{})
+		return err == nil
+	}, 10*time.Second, 1*time.Second).Should(gomega.Equal(true))
+	t.Log("✅ VKS webhook configuration created")
+
+	// === Phase 2: Cluster Lifecycle Management ===
+	t.Log("🔄 Phase 2: Cluster Lifecycle Management")
+
+	// Step 4: Create namespace with required annotations
+	namespace := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "e2e-test-ns",
+			Annotations: map[string]string{
+				"ako.vmware.com/wcp-se-group": "test-se-group",
+			},
+		},
+	}
+	_, err = kubeClient.CoreV1().Namespaces().Create(context.Background(), namespace, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Failed to create namespace: %v", err)
+	}
+
+	// Step 5: Start cluster watcher
+	clusterWatcher := ingestion.NewVKSClusterWatcher(kubeClient, dynamicClient)
+	stopCh := make(chan struct{})
+
+	err = clusterWatcher.Start(stopCh)
+	if err != nil {
+		t.Fatalf("Failed to start cluster watcher: %v", err)
+	}
+	t.Log("✅ VKS cluster watcher started")
+
+	// Step 6: Create VKS-managed cluster
+	cluster := createClusterResource("e2e-cluster", "e2e-test-ns", "Provisioned", true)
+	_, err = dynamicClient.Resource(ClusterGVR).Namespace("e2e-test-ns").Create(context.Background(), cluster, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Failed to create cluster: %v", err)
+	}
+
+	// Process cluster ADD event
+	clusterWatcher.EnqueueCluster(cluster, "ADD")
+	processed := clusterWatcher.ProcessNextWorkItem()
+	g.Expect(processed).To(gomega.BeTrue())
+
+	// Verify cluster secret was created
+	g.Eventually(func() bool {
+		secretName := "e2e-cluster-avi-secret"
+		secret, err := kubeClient.CoreV1().Secrets("e2e-test-ns").Get(context.Background(), secretName, metav1.GetOptions{})
+		if err != nil {
+			return false
+		}
+
+		// Verify all required fields are present
+		requiredFields := []string{"username", "password", "authtoken", "controllerIP"}
+		for _, field := range requiredFields {
+			if _, exists := secret.Data[field]; !exists {
+				return false
+			}
+		}
+
+		// Verify proper labels
+		expectedLabels := map[string]string{
+			"ako.kubernetes.vmware.com/cluster":    "e2e-cluster",
+			"ako.kubernetes.vmware.com/managed-by": "ako-infra",
+		}
+		for key, expectedValue := range expectedLabels {
+			if actualValue, exists := secret.Labels[key]; !exists || actualValue != expectedValue {
+				return false
+			}
+		}
+
+		return true
+	}, 15*time.Second, 1*time.Second).Should(gomega.Equal(true))
+	t.Log("✅ Cluster secret created successfully")
+
+	// === Phase 3: Resource State Validation ===
+	t.Log("🔍 Phase 3: Resource State Validation")
+
+	// Verify all VKS resources are present
+	resourceChecks := []struct {
+		name        string
+		checkFunc   func() bool
+		description string
+	}{
+		{
+			name: "AddonInstall",
+			checkFunc: func() bool {
+				_, err := dynamicClient.Resource(AddonInstallGVR).
+					Namespace(addon.VKSPublicNamespace).
+					Get(context.Background(), addon.AKOAddonInstallName, metav1.GetOptions{})
+				return err == nil
+			},
+			description: "Global AddonInstall exists",
+		},
+		{
+			name: "WebhookConfiguration",
+			checkFunc: func() bool {
+				_, err := kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(
+					context.Background(), "ako-vks-cluster-webhook", metav1.GetOptions{})
+				return err == nil
+			},
+			description: "MutatingWebhookConfiguration exists",
+		},
+		{
+			name: "ClusterSecret",
+			checkFunc: func() bool {
+				_, err := kubeClient.CoreV1().Secrets("e2e-test-ns").Get(
+					context.Background(), "e2e-cluster-avi-secret", metav1.GetOptions{})
+				return err == nil
+			},
+			description: "Cluster secret exists",
+		},
+	}
+
+	for _, check := range resourceChecks {
+		g.Expect(check.checkFunc()).To(gomega.BeTrue(), check.description+" should be present")
+		t.Logf("✅ %s validated", check.description)
+	}
+
+	// === Phase 4: Cleanup Simulation (AKO Shutdown) ===
+	t.Log("🧹 Phase 4: VKS Cleanup Simulation")
+
+	// Step 7: Simulate AKO shutdown by closing stopCh and triggering cleanup
+	close(stopCh)
+	t.Log("✅ Shutdown signal sent")
+
+	// Step 8: Execute cleanup functions (simulates the cleanup goroutine in vcf_k8s_controller.go)
+	t.Log("🔧 Executing webhook cleanup...")
+	err = webhook.CleanupWebhookConfiguration(kubeClient)
+	if err != nil {
+		t.Fatalf("Failed to cleanup webhook configuration: %v", err)
+	}
+	t.Log("✅ Webhook configuration cleaned up")
+
+	t.Log("🔧 Executing addon cleanup...")
+	err = addon.CleanupGlobalAddonInstall()
+	if err != nil {
+		t.Fatalf("Failed to cleanup global addon install: %v", err)
+	}
+	t.Log("✅ Global AddonInstall cleaned up")
+
+	// === Phase 5: Cleanup Verification ===
+	t.Log("🔍 Phase 5: Cleanup Verification")
+
+	// Verify webhook configuration was deleted
+	g.Eventually(func() bool {
+		_, err := kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(
+			context.Background(), "ako-vks-cluster-webhook", metav1.GetOptions{})
+		return err != nil // Should be deleted
+	}, 10*time.Second, 1*time.Second).Should(gomega.Equal(true))
+	t.Log("✅ MutatingWebhookConfiguration deletion verified")
+
+	// Verify AddonInstall was deleted
+	g.Eventually(func() bool {
+		_, err := dynamicClient.Resource(AddonInstallGVR).
+			Namespace(addon.VKSPublicNamespace).
+			Get(context.Background(), addon.AKOAddonInstallName, metav1.GetOptions{})
+		return err != nil // Should be deleted
+	}, 10*time.Second, 1*time.Second).Should(gomega.Equal(true))
+	t.Log("✅ Global AddonInstall deletion verified")
+
+	// === Phase 6: Cluster Secret Cleanup (Cluster Deletion) ===
+	t.Log("🗑️ Phase 6: Cluster Secret Cleanup")
+
+	// Step 9: Delete cluster (simulates cluster deletion)
+	err = dynamicClient.Resource(ClusterGVR).Namespace("e2e-test-ns").Delete(context.Background(), "e2e-cluster", metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Failed to delete cluster: %v", err)
+	}
+
+	// Process cluster DELETE event
+	clusterWatcher.EnqueueCluster(cluster, "DELETE")
+	processed = clusterWatcher.ProcessNextWorkItem()
+	g.Expect(processed).To(gomega.BeTrue())
+
+	// Verify cluster secret was deleted
+	g.Eventually(func() bool {
+		_, err := kubeClient.CoreV1().Secrets("e2e-test-ns").Get(
+			context.Background(), "e2e-cluster-avi-secret", metav1.GetOptions{})
+		return err != nil // Should be deleted
+	}, 10*time.Second, 1*time.Second).Should(gomega.Equal(true))
+	t.Log("✅ Cluster secret deletion verified")
+
+	// Stop cluster watcher
+	clusterWatcher.Stop()
+	t.Log("✅ Cluster watcher stopped")
+
+	// === Final Verification ===
+	t.Log("🎯 Final State Verification")
+
+	finalChecks := []struct {
+		name        string
+		checkFunc   func() bool
+		description string
+	}{
+		{
+			name: "AddonInstall_Deleted",
+			checkFunc: func() bool {
+				_, err := dynamicClient.Resource(AddonInstallGVR).
+					Namespace(addon.VKSPublicNamespace).
+					Get(context.Background(), addon.AKOAddonInstallName, metav1.GetOptions{})
+				return err != nil // Should be deleted
+			},
+			description: "AddonInstall is deleted",
+		},
+		{
+			name: "WebhookConfiguration_Deleted",
+			checkFunc: func() bool {
+				_, err := kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(
+					context.Background(), "ako-vks-cluster-webhook", metav1.GetOptions{})
+				return err != nil // Should be deleted
+			},
+			description: "MutatingWebhookConfiguration is deleted",
+		},
+		{
+			name: "ClusterSecret_Deleted",
+			checkFunc: func() bool {
+				_, err := kubeClient.CoreV1().Secrets("e2e-test-ns").Get(
+					context.Background(), "e2e-cluster-avi-secret", metav1.GetOptions{})
+				return err != nil // Should be deleted
+			},
+			description: "Cluster secret is deleted",
+		},
+	}
+
+	for _, check := range finalChecks {
+		g.Expect(check.checkFunc()).To(gomega.BeTrue(), check.description)
+		t.Logf("✅ %s verified", check.description)
+	}
+
+	t.Log("🎉 === VKS E2E Creation-to-Cleanup test completed successfully ===")
+	t.Log("📋 Test Summary:")
+	t.Log("   ✅ VKS infrastructure startup")
+	t.Log("   ✅ Global addon install creation and management")
+	t.Log("   ✅ Webhook configuration lifecycle")
+	t.Log("   ✅ Cluster secret creation and management")
+	t.Log("   ✅ Complete cleanup on AKO shutdown")
+	t.Log("   ✅ Cluster-specific resource cleanup on cluster deletion")
+	t.Log("   ✅ All resources properly cleaned up")
 }

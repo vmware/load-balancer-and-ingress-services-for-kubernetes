@@ -467,3 +467,24 @@ func filesExist(certPath, keyPath string) bool {
 	utils.AviLog.Debugf("VKS webhook: certificate files exist")
 	return true
 }
+
+// CleanupWebhookConfiguration deletes the MutatingWebhookConfiguration
+func CleanupWebhookConfiguration(kubeClient kubernetes.Interface) error {
+	webhookName := "ako-vks-cluster-webhook"
+
+	utils.AviLog.Infof("VKS webhook: deleting MutatingWebhookConfiguration '%s'", webhookName)
+
+	err := kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Delete(
+		context.TODO(), webhookName, metav1.DeleteOptions{})
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			utils.AviLog.Debugf("VKS webhook: MutatingWebhookConfiguration '%s' already deleted", webhookName)
+			return nil
+		}
+		return fmt.Errorf("failed to delete MutatingWebhookConfiguration '%s': %v", webhookName, err)
+	}
+
+	utils.AviLog.Infof("VKS webhook: successfully deleted MutatingWebhookConfiguration '%s'", webhookName)
+	return nil
+}
