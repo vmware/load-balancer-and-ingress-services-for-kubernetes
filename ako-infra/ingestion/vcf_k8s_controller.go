@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/addon"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/webhook"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -248,8 +249,8 @@ func (c *VCFK8sController) AddVKSCapabilityEventHandler(stopCh <-chan struct{}) 
 	utils.AviLog.Infof("VKS capability: informer starting, initial state activated=%t", capabilityActive)
 
 	if capabilityActive {
-		utils.AviLog.Infof("VKS capability already active, starting webhook")
-		go webhook.StartVKSWebhook(utils.GetInformers().ClientSet, stopCh)
+		utils.AviLog.Infof("VKS capability already active, starting infrastructure")
+		c.startVKSInfrastructure(stopCh)
 	}
 
 	capabilityEventHandler := cache.ResourceEventHandlerFuncs{
@@ -258,7 +259,7 @@ func (c *VCFK8sController) AddVKSCapabilityEventHandler(stopCh <-chan struct{}) 
 			if lib.IsVKSCapabilityActivated() && !capabilityActive {
 				utils.AviLog.Infof("VKS capability activated")
 				capabilityActive = true
-				go webhook.StartVKSWebhook(utils.GetInformers().ClientSet, stopCh)
+				c.startVKSInfrastructure(stopCh)
 			}
 		},
 		UpdateFunc: func(old, obj interface{}) {
@@ -266,7 +267,7 @@ func (c *VCFK8sController) AddVKSCapabilityEventHandler(stopCh <-chan struct{}) 
 			if lib.IsVKSCapabilityActivated() && !capabilityActive {
 				utils.AviLog.Infof("VKS capability activated")
 				capabilityActive = true
-				go webhook.StartVKSWebhook(utils.GetInformers().ClientSet, stopCh)
+				c.startVKSInfrastructure(stopCh)
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -280,6 +281,115 @@ func (c *VCFK8sController) AddVKSCapabilityEventHandler(stopCh <-chan struct{}) 
 		runtime.HandleError(fmt.Errorf("timed out waiting for SupervisorCapability caches to sync"))
 	} else {
 		utils.AviLog.Infof("VKS capability: caches synced for SupervisorCapability informer")
+	}
+}
+
+func (c *VCFK8sController) startVKSInfrastructure(stopCh <-chan struct{}) {
+	go func() {
+		if err := addon.EnsureGlobalAddonInstall(); err != nil {
+			utils.AviLog.Errorf("VKS: Failed to ensure global addon install: %v", err)
+		}
+	}()
+
+	go webhook.StartVKSWebhook(utils.GetInformers().ClientSet, stopCh)
+
+	// Start VKS cluster watcher for cluster lifecycle management
+	go c.startVKSClusterWatcher(stopCh)
+}
+
+func (c *VCFK8sController) startVKSClusterWatcher(stopCh <-chan struct{}) {
+	if !lib.GetVPCMode() {
+		utils.AviLog.Infof("Not running in VPC mode, skipping VKS cluster watcher")
+		return
+	}
+
+	utils.AviLog.Infof("Starting VKS cluster watcher for cluster lifecycle management")
+
+	kubeClient := utils.GetInformers().ClientSet
+	dynamicClient := lib.GetDynamicClientSet()
+
+	if kubeClient == nil || dynamicClient == nil {
+		utils.AviLog.Errorf("VKS cluster watcher: missing required clients")
+		return
+	}
+
+	clusterWatcher := NewVKSClusterWatcher(kubeClient, dynamicClient)
+	if err := clusterWatcher.Start(stopCh); err != nil {
+		utils.AviLog.Errorf("VKS cluster watcher: failed to start: %v", err)
+		return
+	}
+
+	clusterEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			utils.AviLog.Debugf("Cluster ADD event")
+			clusterWatcher.EnqueueCluster(obj, "ADD")
+		},
+		UpdateFunc: func(old, new interface{}) {
+			utils.AviLog.Debugf("Cluster UPDATE event")
+			clusterWatcher.EnqueueCluster(new, "UPDATE")
+		},
+		DeleteFunc: func(obj interface{}) {
+			utils.AviLog.Debugf("Cluster DELETE event")
+			clusterWatcher.EnqueueCluster(obj, "DELETE")
+		},
+	}
+
+	c.dynamicInformers.ClusterInformer.Informer().AddEventHandler(clusterEventHandler)
+	go c.dynamicInformers.ClusterInformer.Informer().Run(stopCh)
+
+	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.ClusterInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("timed out waiting for cluster caches to sync"))
+	} else {
+		utils.AviLog.Infof("VKS cluster watcher: caches synced for cluster informer")
+	}
+
+	// Wait for stop signal and cleanup
+	<-stopCh
+	clusterWatcher.Stop()
+	utils.AviLog.Infof("VKS cluster watcher stopped")
+}
+
+func (c *VCFK8sController) AddVKSAddonEventHandler(stopCh <-chan struct{}) {
+	if !lib.GetVPCMode() {
+		utils.AviLog.Infof("Not running in VPC mode, skipping VKS addon event handler")
+		return
+	}
+
+	utils.AviLog.Infof("VKS addon: starting AddonInstall informer to monitor deletions")
+
+	addonEventHandler := cache.ResourceEventHandlerFuncs{
+		DeleteFunc: func(obj interface{}) {
+			if addonObj, ok := obj.(*unstructured.Unstructured); ok {
+				addonName := addonObj.GetName()
+				namespace := addonObj.GetNamespace()
+
+				// Only handle our global AKO addon
+				if addonName != addon.AKOAddonInstallName || namespace != addon.VKSPublicNamespace {
+					return
+				}
+
+				utils.AviLog.Errorf("VKS addon: Global AKO AddonInstall deleted: %s/%s", namespace, addonName)
+				if lib.IsVKSCapabilityActivated() {
+					go func() {
+						utils.AviLog.Infof("VKS addon: Attempting to recreate global AddonInstall")
+						if err := addon.EnsureGlobalAddonInstall(); err != nil {
+							utils.AviLog.Errorf("VKS addon: Failed to recreate global AddonInstall: %v", err)
+						} else {
+							utils.AviLog.Infof("VKS addon: Successfully recreated global AddonInstall")
+						}
+					}()
+				}
+			}
+		},
+	}
+
+	c.dynamicInformers.AddonInstallInformer.Informer().AddEventHandler(addonEventHandler)
+	go c.dynamicInformers.AddonInstallInformer.Informer().Run(stopCh)
+
+	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.AddonInstallInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("timed out waiting for AddonInstall caches to sync"))
+	} else {
+		utils.AviLog.Infof("VKS addon: caches synced for AddonInstall informer")
 	}
 }
 

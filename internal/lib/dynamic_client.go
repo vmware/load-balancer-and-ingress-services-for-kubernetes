@@ -98,6 +98,19 @@ var (
 		Version:  "v1alpha1",
 		Resource: "healthmonitors",
 	}
+
+	AddonInstallGVR = schema.GroupVersionResource{
+		Group:    "addons.kubernetes.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "addoninstalls",
+	}
+
+	// ClusterGVR defines the cluster.x-k8s.io/v1beta1 Cluster resource
+	ClusterGVR = schema.GroupVersionResource{
+		Group:    "cluster.x-k8s.io",
+		Version:  "v1beta1",
+		Resource: "clusters",
+	}
 )
 
 type BootstrapCRData struct {
@@ -155,6 +168,10 @@ type DynamicInformers struct {
 	// AKO CRD informers
 	HealthMonitorInformer        informers.GenericInformer
 	SupervisorCapabilityInformer informers.GenericInformer
+
+	AddonInstallInformer informers.GenericInformer
+
+	ClusterInformer informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
@@ -185,6 +202,8 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 		informers.AvailabilityZoneInformer = f.ForResource(AvailabilityZoneVR)
 		informers.VPCNetworkConfigurationInformer = f.ForResource(VPCNetworkConfigurationGVR)
 		informers.SupervisorCapabilityInformer = f.ForResource(SupervisorCapabilityGVR)
+		informers.AddonInstallInformer = f.ForResource(AddonInstallGVR)
+		informers.ClusterInformer = f.ForResource(ClusterGVR)
 	}
 
 	// Initialize HealthMonitor informer only when L4Rules are enabled
