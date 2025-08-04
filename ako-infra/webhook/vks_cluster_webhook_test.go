@@ -224,7 +224,7 @@ func TestVKSClusterWebhook_ProcessAdmissionRequest_ValidCluster(t *testing.T) {
 	cluster := createTestCluster("test-cluster", "test-namespace", nil)
 	request := createAdmissionRequest(cluster)
 
-	response := webhook.processAdmissionRequest(request)
+	response := webhook.ProcessAdmissionRequest(request)
 
 	if !response.Allowed {
 		t.Errorf("Expected admission to be allowed, got denied")
@@ -285,7 +285,7 @@ func TestVKSClusterWebhook_ProcessAdmissionRequest_ValidClusterWithExistingLabel
 	})
 	request := createAdmissionRequest(cluster)
 
-	response := webhook.processAdmissionRequest(request)
+	response := webhook.ProcessAdmissionRequest(request)
 
 	if !response.Allowed {
 		t.Errorf("Expected admission to be allowed, got denied")
@@ -336,7 +336,7 @@ func TestVKSClusterWebhook_ProcessAdmissionRequest_OptedOutCluster(t *testing.T)
 	})
 	request := createAdmissionRequest(cluster)
 
-	response := webhook.processAdmissionRequest(request)
+	response := webhook.ProcessAdmissionRequest(request)
 
 	if !response.Allowed {
 		t.Errorf("Expected admission to be allowed, got denied")
@@ -355,7 +355,7 @@ func TestVKSClusterWebhook_ProcessAdmissionRequest_NoSEGNamespace(t *testing.T) 
 	cluster := createTestCluster("test-cluster", "test-namespace", nil)
 	request := createAdmissionRequest(cluster)
 
-	response := webhook.processAdmissionRequest(request)
+	response := webhook.ProcessAdmissionRequest(request)
 
 	if !response.Allowed {
 		t.Errorf("Expected admission to be allowed, got denied")
@@ -382,7 +382,7 @@ func TestVKSClusterWebhook_ProcessAdmissionRequest_InvalidObject(t *testing.T) {
 		},
 	}
 
-	response := webhook.processAdmissionRequest(request)
+	response := webhook.ProcessAdmissionRequest(request)
 
 	if response.Allowed {
 		t.Errorf("Expected admission to be denied for invalid object, got allowed")
@@ -402,7 +402,7 @@ func TestVKSClusterWebhook_ProcessAdmissionRequest_NonClusterObject(t *testing.T
 		},
 	}
 
-	response := webhook.processAdmissionRequest(request)
+	response := webhook.ProcessAdmissionRequest(request)
 
 	if !response.Allowed {
 		t.Errorf("Expected non-cluster objects to be allowed, got denied")
