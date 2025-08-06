@@ -15,7 +15,7 @@
 package webhook
 
 // +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=mutatingwebhookconfigurations,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=cert-manager.io,resources=certificates;issuers,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=cert-manager.io,resources=certificates;issuers,verbs=get;list;watch;create;update;patch;delete
 
 import (
 	"context"
@@ -33,6 +33,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
 	internalLib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -49,20 +51,57 @@ var vksWebhookOnce sync.Once
 
 func StartVKSWebhook(kubeClient kubernetes.Interface, stopCh <-chan struct{}) {
 	vksWebhookOnce.Do(func() {
-		utils.AviLog.Infof("VKS webhook: capability activated, starting webhook")
-		// Create webhook configuration
-		if err := CreateWebhookConfiguration(kubeClient); err != nil {
-			utils.AviLog.Fatalf("VKS webhook: failed to create configuration: %v", err)
-		}
+		utils.AviLog.Infof("VKS webhook: capability activated, starting webhook with infinite retry")
 
-		// Start webhook server
-		vksWebhook := NewVKSClusterWebhook(kubeClient)
-		if err := StartWebhookServer(vksWebhook, stopCh); err != nil {
-			utils.AviLog.Fatalf("VKS webhook: server failed: %v", err)
-		}
+		retryInterval := 10 * time.Second
 
-		utils.AviLog.Infof("VKS webhook: startup initiated successfully")
+		for {
+			if err := setupAndStartWebhook(kubeClient, stopCh); err != nil {
+				utils.AviLog.Warnf("VKS webhook: setup failed, will retry in %v: %v", retryInterval, err)
+
+				// Wait before retry, but also check for shutdown
+				select {
+				case <-stopCh:
+					utils.AviLog.Infof("VKS webhook: shutdown signal received during retry wait")
+					// Clean up webhook resources on shutdown
+					if err := CleanupAllWebhookResources(kubeClient); err != nil {
+						utils.AviLog.Warnf("VKS webhook: failed to cleanup resources during shutdown: %v", err)
+					}
+					return
+				case <-time.After(retryInterval):
+					// Continue to next retry
+					continue
+				}
+			} else {
+				// Server returned without error - this means graceful shutdown
+				utils.AviLog.Infof("VKS webhook: server stopped gracefully")
+				// Clean up webhook resources on graceful shutdown
+				if err := CleanupAllWebhookResources(kubeClient); err != nil {
+					utils.AviLog.Warnf("VKS webhook: failed to cleanup resources during graceful shutdown: %v", err)
+				}
+				return
+			}
+		}
 	})
+}
+
+// setupAndStartWebhook attempts to setup certificates, configuration, and start the webhook server
+// Returns error if any step fails, allowing the caller to retry
+func setupAndStartWebhook(kubeClient kubernetes.Interface, stopCh <-chan struct{}) error {
+	if err := ensureWebhookCertificates(kubeClient); err != nil {
+		return fmt.Errorf("failed to ensure certificates: %v", err)
+	}
+
+	if err := CreateWebhookConfiguration(kubeClient); err != nil {
+		return fmt.Errorf("failed to create webhook configuration: %v", err)
+	}
+
+	vksWebhook := NewVKSClusterWebhook(kubeClient)
+	if err := StartWebhookServer(vksWebhook, stopCh); err != nil {
+		return fmt.Errorf("webhook server failed: %v", err)
+	}
+
+	return nil
 }
 
 // VKSClusterWebhook handles admission requests for Cluster objects
@@ -100,7 +139,7 @@ func (w *VKSClusterWebhook) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	admissionResponse := w.processAdmissionRequest(admissionReview.Request)
+	admissionResponse := w.ProcessAdmissionRequest(admissionReview.Request)
 
 	responseAdmissionReview := &admissionv1.AdmissionReview{
 		TypeMeta: metav1.TypeMeta{
@@ -123,7 +162,7 @@ func (w *VKSClusterWebhook) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 	rw.Write(responseBytes)
 }
 
-func (w *VKSClusterWebhook) processAdmissionRequest(req *admissionv1.AdmissionRequest) *admissionv1.AdmissionResponse {
+func (w *VKSClusterWebhook) ProcessAdmissionRequest(req *admissionv1.AdmissionRequest) *admissionv1.AdmissionResponse {
 	if req.Operation != admissionv1.Create {
 		return &admissionv1.AdmissionResponse{
 			Allowed: true,
@@ -294,11 +333,199 @@ func escapeJSONPointer(s string) string {
 	return result
 }
 
+// Certificate Management Functions
+
+// isCertManagerAvailable checks if cert-manager CRDs are available
+func isCertManagerAvailable(kubeClient kubernetes.Interface) bool {
+	discoveryClient := kubeClient.Discovery()
+
+	_, err := discoveryClient.ServerResourcesForGroupVersion("cert-manager.io/v1")
+	if err != nil {
+		utils.AviLog.Infof("cert-manager.io/v1 not available: %v", err)
+		return false
+	}
+
+	return true
+}
+
+// createCertManagerResources creates Issuer and Certificate resources for the webhook
+func createCertManagerResources(kubeClient kubernetes.Interface, namespace string) error {
+	if !isCertManagerAvailable(kubeClient) {
+		return fmt.Errorf("cert-manager CRDs not available")
+	}
+
+	dynamicClient := internalLib.GetDynamicClientSet()
+	if dynamicClient == nil {
+		return fmt.Errorf("dynamic client not available - AKO-infra not properly initialized")
+	}
+
+	if err := createWebhookIssuer(dynamicClient, namespace); err != nil {
+		return fmt.Errorf("failed to create issuer: %v", err)
+	}
+
+	if err := createWebhookCertificate(dynamicClient, namespace); err != nil {
+		return fmt.Errorf("failed to create certificate: %v", err)
+	}
+
+	return nil
+}
+
+// createWebhookIssuer creates a self-signed issuer for webhook certificates
+func createWebhookIssuer(dynamicClient dynamic.Interface, namespace string) error {
+	issuerGVR := schema.GroupVersionResource{
+		Group:    "cert-manager.io",
+		Version:  "v1",
+		Resource: "issuers",
+	}
+
+	issuerName := "ako-vks-webhook-selfsigned-issuer"
+
+	// Check if issuer already exists
+	_, err := dynamicClient.Resource(issuerGVR).Namespace(namespace).Get(
+		context.TODO(), issuerName, metav1.GetOptions{})
+	if err == nil {
+		utils.AviLog.Infof("Issuer %s already exists", issuerName)
+		return nil
+	}
+
+	if !errors.IsNotFound(err) {
+		return fmt.Errorf("error checking for existing issuer: %v", err)
+	}
+
+	// Create issuer
+	issuer := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "cert-manager.io/v1",
+			"kind":       "Issuer",
+			"metadata": map[string]interface{}{
+				"name":      issuerName,
+				"namespace": namespace,
+			},
+			"spec": map[string]interface{}{
+				"selfSigned": map[string]interface{}{},
+			},
+		},
+	}
+
+	_, err = dynamicClient.Resource(issuerGVR).Namespace(namespace).Create(
+		context.TODO(), issuer, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to create issuer: %v", err)
+	}
+
+	utils.AviLog.Infof("Created webhook issuer: %s", issuerName)
+	return nil
+}
+
+// createWebhookCertificate creates a certificate for the webhook service
+func createWebhookCertificate(dynamicClient dynamic.Interface, namespace string) error {
+	certificateGVR := schema.GroupVersionResource{
+		Group:    "cert-manager.io",
+		Version:  "v1",
+		Resource: "certificates",
+	}
+
+	certificateName := "ako-vks-webhook-serving-cert"
+	serviceName := "ako-vks-webhook-service"
+
+	_, err := dynamicClient.Resource(certificateGVR).Namespace(namespace).Get(
+		context.TODO(), certificateName, metav1.GetOptions{})
+	if err == nil {
+		utils.AviLog.Infof("Certificate %s already exists", certificateName)
+		return nil
+	}
+
+	if !errors.IsNotFound(err) {
+		return fmt.Errorf("error checking for existing certificate: %v", err)
+	}
+
+	certificate := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "cert-manager.io/v1",
+			"kind":       "Certificate",
+			"metadata": map[string]interface{}{
+				"name":      certificateName,
+				"namespace": namespace,
+			},
+			"spec": map[string]interface{}{
+				"dnsNames": []interface{}{
+					fmt.Sprintf("%s.%s.svc", serviceName, namespace),
+					fmt.Sprintf("%s.%s.svc.cluster.local", serviceName, namespace),
+				},
+				"issuerRef": map[string]interface{}{
+					"kind": "Issuer",
+					"name": "ako-vks-webhook-selfsigned-issuer",
+				},
+				"secretName":  certificateName,
+				"duration":    "2160h", // 90 days
+				"renewBefore": "720h",  // 30 days
+			},
+		},
+	}
+
+	_, err = dynamicClient.Resource(certificateGVR).Namespace(namespace).Create(
+		context.TODO(), certificate, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to create certificate: %v", err)
+	}
+
+	utils.AviLog.Infof("Created webhook certificate: %s", certificateName)
+	return nil
+}
+
+func waitForWebhookCertificates(kubeClient kubernetes.Interface, namespace string) error {
+	secretName := os.Getenv("VKS_WEBHOOK_CERT_SECRET")
+	if secretName == "" {
+		secretName = "ako-vks-webhook-serving-cert"
+	}
+
+	utils.AviLog.Debugf("Checking webhook certificate secret '%s'...", secretName)
+
+	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(
+		context.TODO(), secretName, metav1.GetOptions{})
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return fmt.Errorf("certificate secret '%s' not found", secretName)
+		}
+		return fmt.Errorf("error checking certificate secret: %v", err)
+	}
+
+	// Verify secret has required certificate data
+	if _, hasCert := secret.Data["tls.crt"]; !hasCert {
+		return fmt.Errorf("certificate secret missing 'tls.crt' key")
+	}
+	if _, hasKey := secret.Data["tls.key"]; !hasKey {
+		return fmt.Errorf("certificate secret missing 'tls.key' key")
+	}
+	if _, hasCA := secret.Data["ca.crt"]; !hasCA {
+		return fmt.Errorf("certificate secret missing 'ca.crt' key")
+	}
+
+	utils.AviLog.Infof("Webhook certificates are ready!")
+	return nil
+}
+
+func ensureWebhookCertificates(kubeClient kubernetes.Interface) error {
+	namespace := utils.GetAKONamespace()
+
+	if err := createCertManagerResources(kubeClient, namespace); err != nil {
+		return fmt.Errorf("cert-manager not ready: %v", err)
+	}
+
+	if err := waitForWebhookCertificates(kubeClient, namespace); err != nil {
+		return fmt.Errorf("certificate not ready: %v", err)
+	}
+
+	utils.AviLog.Infof("Webhook certificates are ready")
+	return nil
+}
+
 // StartWebhookServer starts the webhook server for VKS cluster admission
 func StartWebhookServer(webhook *VKSClusterWebhook, stopCh <-chan struct{}) error {
 	port := os.Getenv("VKS_WEBHOOK_PORT")
 	if port == "" {
-		port = "9443"
+		port = "9998"
 	}
 
 	certDir := os.Getenv("VKS_WEBHOOK_CERT_DIR")
@@ -310,7 +537,7 @@ func StartWebhookServer(webhook *VKSClusterWebhook, stopCh <-chan struct{}) erro
 	keyPath := filepath.Join(certDir, "tls.key")
 
 	mux := http.NewServeMux()
-	mux.Handle("/mutate-cluster-x-k8s-io-v1beta1-cluster", webhook)
+	mux.Handle("/ako-vks-mutate-cluster-x-k8s-io", webhook)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
@@ -357,7 +584,7 @@ func CreateWebhookConfiguration(kubeClient kubernetes.Interface) error {
 	webhookName := "ako-vks-cluster-webhook"
 	serviceName := "ako-vks-webhook-service"
 	serviceNamespace := utils.GetAKONamespace()
-	webhookPath := "/mutate-cluster-x-k8s-io-v1beta1-cluster"
+	webhookPath := "/ako-vks-mutate-cluster-x-k8s-io"
 	failurePolicy := admissionregistrationv1.Fail
 	sideEffects := admissionregistrationv1.SideEffectClassNone
 
@@ -381,13 +608,13 @@ func CreateWebhookConfiguration(kubeClient kubernetes.Interface) error {
 					},
 					Rule: admissionregistrationv1.Rule{
 						APIGroups:   []string{"cluster.x-k8s.io"},
-						APIVersions: []string{"v1beta1"},
+						APIVersions: []string{"v1beta2"},
 						Resources:   []string{"clusters"},
 					},
 				}},
 				FailurePolicy:           &failurePolicy,
 				SideEffects:             &sideEffects,
-				AdmissionReviewVersions: []string{"v1", "v1beta1"},
+				AdmissionReviewVersions: []string{"v1", "v1beta2"},
 			}
 
 			webhookConfig := &admissionregistrationv1.MutatingWebhookConfiguration{
@@ -412,5 +639,142 @@ func CreateWebhookConfiguration(kubeClient kubernetes.Interface) error {
 	} else {
 		utils.AviLog.Infof("VKS webhook: MutatingWebhookConfiguration '%s' already exists", webhookName)
 	}
+	return nil
+}
+
+// waitForCertificates waits for the TLS certificates to be available
+func waitForCertificates(certDir string, timeout time.Duration) error {
+	certPath := filepath.Join(certDir, "tls.crt")
+	keyPath := filepath.Join(certDir, "tls.key")
+
+	utils.AviLog.Infof("VKS webhook: waiting for certificates at %s and %s", certPath, keyPath)
+
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+	timeoutCh := time.After(timeout)
+
+	for {
+		select {
+		case <-ticker.C:
+			if filesExist(certPath, keyPath) {
+				utils.AviLog.Infof("VKS webhook: certificates ready and valid")
+				return nil
+			}
+			utils.AviLog.Debugf("VKS webhook: certificates not ready yet, continuing to wait...")
+		case <-timeoutCh:
+			return fmt.Errorf("timeout waiting for certificates after %v", timeout)
+		}
+	}
+}
+
+// filesExist checks if certificate files exist
+func filesExist(certPath, keyPath string) bool {
+	if _, err := os.Stat(certPath); os.IsNotExist(err) {
+		utils.AviLog.Debugf("VKS webhook: certificate file does not exist: %s", certPath)
+		return false
+	}
+	if _, err := os.Stat(keyPath); os.IsNotExist(err) {
+		utils.AviLog.Debugf("VKS webhook: key file does not exist: %s", keyPath)
+		return false
+	}
+
+	utils.AviLog.Debugf("VKS webhook: certificate files exist")
+	return true
+}
+
+// CleanupWebhookConfiguration deletes the MutatingWebhookConfiguration
+func CleanupWebhookConfiguration(kubeClient kubernetes.Interface) error {
+	webhookName := "ako-vks-cluster-webhook"
+
+	utils.AviLog.Infof("VKS webhook: deleting MutatingWebhookConfiguration '%s'", webhookName)
+
+	err := kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Delete(
+		context.TODO(), webhookName, metav1.DeleteOptions{})
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			utils.AviLog.Debugf("VKS webhook: MutatingWebhookConfiguration '%s' already deleted", webhookName)
+			return nil
+		}
+		return fmt.Errorf("failed to delete MutatingWebhookConfiguration '%s': %v", webhookName, err)
+	}
+
+	utils.AviLog.Infof("VKS webhook: successfully deleted MutatingWebhookConfiguration '%s'", webhookName)
+	return nil
+}
+
+// CleanupCertManagerResources deletes the cert-manager Issuer and Certificate resources
+func CleanupCertManagerResources(kubeClient kubernetes.Interface) error {
+	namespace := utils.GetAKONamespace()
+
+	if !isCertManagerAvailable(kubeClient) {
+		utils.AviLog.Infof("VKS webhook: cert-manager CRDs not available, skipping cert-manager resource cleanup")
+		return nil
+	}
+
+	dynamicClient := internalLib.GetDynamicClientSet()
+	if dynamicClient == nil {
+		utils.AviLog.Warnf("VKS webhook: dynamic client not available, skipping cert-manager resource cleanup")
+		return nil
+	}
+
+	issuerGVR := schema.GroupVersionResource{
+		Group:    "cert-manager.io",
+		Version:  "v1",
+		Resource: "issuers",
+	}
+
+	certificateGVR := schema.GroupVersionResource{
+		Group:    "cert-manager.io",
+		Version:  "v1",
+		Resource: "certificates",
+	}
+
+	certificateName := "ako-vks-webhook-serving-cert"
+	utils.AviLog.Infof("VKS webhook: deleting Certificate '%s'", certificateName)
+
+	err := dynamicClient.Resource(certificateGVR).Namespace(namespace).Delete(
+		context.TODO(), certificateName, metav1.DeleteOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			utils.AviLog.Debugf("VKS webhook: Certificate '%s' already deleted", certificateName)
+		} else {
+			utils.AviLog.Warnf("VKS webhook: failed to delete Certificate '%s': %v", certificateName, err)
+		}
+	} else {
+		utils.AviLog.Infof("VKS webhook: successfully deleted Certificate '%s'", certificateName)
+	}
+
+	issuerName := "ako-vks-webhook-selfsigned-issuer"
+	utils.AviLog.Infof("VKS webhook: deleting Issuer '%s'", issuerName)
+
+	err = dynamicClient.Resource(issuerGVR).Namespace(namespace).Delete(
+		context.TODO(), issuerName, metav1.DeleteOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			utils.AviLog.Debugf("VKS webhook: Issuer '%s' already deleted", issuerName)
+		} else {
+			utils.AviLog.Warnf("VKS webhook: failed to delete Issuer '%s': %v", issuerName, err)
+		}
+	} else {
+		utils.AviLog.Infof("VKS webhook: successfully deleted Issuer '%s'", issuerName)
+	}
+
+	return nil
+}
+
+// CleanupAllWebhookResources cleans up all webhook-related resources
+func CleanupAllWebhookResources(kubeClient kubernetes.Interface) error {
+	utils.AviLog.Infof("VKS webhook: starting cleanup of all webhook resources")
+
+	if err := CleanupWebhookConfiguration(kubeClient); err != nil {
+		utils.AviLog.Errorf("VKS webhook: failed to cleanup webhook configuration: %v", err)
+	}
+
+	if err := CleanupCertManagerResources(kubeClient); err != nil {
+		utils.AviLog.Errorf("VKS webhook: failed to cleanup cert-manager resources: %v", err)
+	}
+
+	utils.AviLog.Infof("VKS webhook: completed cleanup of all webhook resources")
 	return nil
 }
