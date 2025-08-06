@@ -791,58 +791,13 @@ type FakeL7Rule struct {
 	Error                         string
 }
 
-func getKindName(kind string, name string) KindNameNamespace {
-	return KindNameNamespace{
-		Kind: kind,
-		Name: name,
-	}
-}
-func getHTTPPSset(policyName ...string) []string {
-	httpPSet := []string{}
-	for _, p := range policyName {
-		httpPSet = append(httpPSet, p)
-	}
-	return httpPSet
-}
-func getAnalyticsPolicy() L7RuleAnalyticsPolicy {
-	return L7RuleAnalyticsPolicy{
-		LogAllHeaders: false,
-		FullClientLogs: FullClientLogsL7{
-			Enabled: true,
-		},
-	}
-}
-
 func GetFakeDefaultL7RuleObj(name, namespace string) *FakeL7Rule {
 
 	l7Rule := FakeL7Rule{
 		Name:      name,
 		Namespace: namespace,
-		/*
-			AllowInvalidClientCert:        true,
-			BotPolicyRef:                  "thisisaviref-botpolicy",
-			CloseClientConnOnConfigUpdate: true,
-			HostNameXlate:                 "hostname.com", // Parent field
-			IgnPoolNetReach:               false,
-			MinPoolsUp:                    2,
-			SecurityPolicyRef:             "thisisaviref-secpolicy", // Parent field
-			RemoveListeningPortOnVsDown:   false,
-			SslSessCacheAvgSize:           2024,
-			AnalyticsProfile:              getKindName("AviRef", "thisisaviref-analyticsprofile-l7"),
-			ApplicationProfile:            getKindName("AviRef", "thisisaviref-appprofile-l7"),
-			WafPolicy:                     getKindName("AviRef", "thisisaviref-wafpolicy-l7"),
-			IcapProfile:                   getKindName("AviRef", "thisisaviref-icaprofile-l7"),
-			ErrorPageProfile:              getKindName("AviRef", "thisisaviref-errorpageprofile-l7"),
-			HTTPPolicy: L7RuleHTTPPolicy{
-				Overwrite: false,
-				PolicySets: getHTTPPSset(
-					"thisisaviref-httpps1-l7",
-					"thisisaviref-httpps2-l7"),
-			},
-			AnalyticsPolicy: getAnalyticsPolicy(),
-		*/
-		Status: "Accepted",
-		Error:  "",
+		Status:    "Accepted",
+		Error:     "",
 	}
 	return &l7Rule
 }
@@ -965,6 +920,5 @@ func GetHTTPRouteRuleWithCustomCRDs(pathType string, paths []string, headers []s
 			rule.Filters = append(rule.Filters, filter)
 		}
 	}
-	// TODO: Backend
 	return rule
 }
