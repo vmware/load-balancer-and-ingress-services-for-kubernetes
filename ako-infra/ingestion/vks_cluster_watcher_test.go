@@ -19,7 +19,6 @@ package ingestion
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"testing"
 
@@ -217,9 +216,8 @@ func TestVKSClusterWatcher_GenerateClusterSecret(t *testing.T) {
 				}
 
 				// Verify we're using admin credentials
-				decodedUsername, _ := base64.StdEncoding.DecodeString(string(secret.Data["username"]))
-				if string(decodedUsername) != "admin" {
-					t.Errorf("Expected username to be 'admin', got '%s'", string(decodedUsername))
+				if string(secret.Data["username"]) != "admin" {
+					t.Errorf("Expected username to be 'admin', got '%s'", string(secret.Data["username"]))
 				}
 			}
 		})
@@ -566,7 +564,7 @@ func TestVKSClusterWatcher_ProcessClusterEvent(t *testing.T) {
 			if tt.clusterExists {
 				cluster := &unstructured.Unstructured{
 					Object: map[string]interface{}{
-						"apiVersion": "cluster.x-k8s.io/v1beta1",
+						"apiVersion": "cluster.x-k8s.io/v1beta2",
 						"kind":       "Cluster",
 						"metadata": map[string]interface{}{
 							"name":      "test-cluster",
@@ -623,7 +621,7 @@ func TestVKSClusterWatcher_WorkerIntegration(t *testing.T) {
 	// Create a test cluster
 	cluster := &unstructured.Unstructured{
 		Object: map[string]interface{}{
-			"apiVersion": "cluster.x-k8s.io/v1beta1",
+			"apiVersion": "cluster.x-k8s.io/v1beta2",
 			"kind":       "Cluster",
 			"metadata": map[string]interface{}{
 				"name":      "test-cluster",
