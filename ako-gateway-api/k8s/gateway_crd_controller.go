@@ -38,7 +38,7 @@ func (c *GatewayController) SetupCRDEventHandlers(numWorkers uint32) {
 					utils.AviLog.Warn("Error in converting object to L7 CRD object")
 					return
 				}
-				// fetch name and namespace of appprofile crd
+				// fetch name and namespace of L7 crd
 				namespace, name := getNamespaceName(obj)
 				if namespace == "" || name == "" {
 					return
@@ -68,7 +68,7 @@ func (c *GatewayController) SetupCRDEventHandlers(numWorkers uint32) {
 						return
 					}
 				}
-				// fetch name and namespace of appprofile crd
+				// fetch name and namespace of l7 crd
 				namespace, name := getNamespaceName(obj)
 				if namespace == "" || name == "" {
 					return
@@ -113,16 +113,16 @@ func getNamespaceName(obj interface{}) (string, string) {
 	return namespace, name
 }
 func isObjectProcessed(obj interface{}, namespace, name string) (bool, string) {
-	oldObj := obj.(*unstructured.Unstructured)
-	statusJSON, found, err := unstructured.NestedMap(oldObj.UnstructuredContent(), "status")
+	crdObj := obj.(*unstructured.Unstructured)
+	statusJSON, found, err := unstructured.NestedMap(crdObj.UnstructuredContent(), "status")
 	if err != nil || !found {
-		utils.AviLog.Warnf("key:%s/%s, msg:ApplicationProfile CRD status not found: %+v", namespace, name, err)
+		utils.AviLog.Warnf("key:%s/%s, msg: L7Rule CRD status not found: %+v", namespace, name, err)
 		return false, ""
 	}
 	// fetch the status
 	status, ok := statusJSON["status"]
 	if !ok || status == "" {
-		utils.AviLog.Warnf("key:%s/%s, msg: ApplicationProfile CRD status not found", namespace, name)
+		utils.AviLog.Warnf("key:%s/%s, msg: L7Rule  CRD status not found", namespace, name)
 		return false, ""
 	}
 	return true, status.(string)
@@ -142,7 +142,7 @@ func (c *GatewayController) processHTTPRoutes(key, namespace, name string, numWo
 		namespace, name, _ = cache.SplitMetaNamespaceKey(httpRoute)
 		// Get HTTPRoute-->L7Rule mapping
 		_, l7RuleNSNameList := akogatewayapiobjects.GatewayApiLister().GetHTTPRouteToL7RuleMapping(httpRoute)
-		ok := l7RuleNSNameList[l7RuleNSName]
+		_, ok := l7RuleNSNameList[l7RuleNSName]
 		if !ok {
 			// IF HTTPRoute to L7Rule Mapping is no there.. delete the entry from L7Rule to HTTPRoute
 			akogatewayapiobjects.GatewayApiLister().DeleteL7RuleToHTTPRouteMapping(l7RuleNSName, httpRoute)

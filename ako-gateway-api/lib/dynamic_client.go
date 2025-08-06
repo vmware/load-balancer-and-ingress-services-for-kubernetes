@@ -103,30 +103,41 @@ func GetDynamicInformers() *DynamicInformers {
 	return dynamicInformerInstance
 }
 
-func ParseL7CRD(key, namespace, name string, vsNode nodes.AviVsEvhSniModel, isFilterAppProfSet bool) error {
-
+func IsL7CRDValid(key, namespace, name string) (bool, *unstructured.Unstructured, error) {
 	clientSet := GetDynamicClientSet()
 	if clientSet == nil {
-		return fmt.Errorf("key: %s, msg:error in fetching L7Rule CRD object", key)
+		return false, nil, fmt.Errorf("error in fetching L7Rule CRD object. clientset is nil")
 	}
 	obj, err := clientSet.Resource(L7CRDGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			return fmt.Errorf("key: %s, msg: error: L7Rule CRD %s/%s not found", key, namespace, name)
+			utils.AviLog.Errorf("key:%s/%s, msg:L7Rule CRD not found: %+v", namespace, name, err)
+			return false, nil, fmt.Errorf("L7Rule CRD %s/%s not found", namespace, name)
 		}
-		return err
+		return false, nil, err
 	}
 	statusJSON, found, err := unstructured.NestedMap(obj.UnstructuredContent(), "status")
 	if err != nil || !found {
-		utils.AviLog.Warnf("key:%s/%s, msg:L7Rule CRD status not found: %+v", namespace, name, err)
-		return err
+		utils.AviLog.Errorf("key:%s/%s, msg:L7Rule CRD status not found: %+v", namespace, name, err)
+		return false, nil, err
 	}
 	status, ok := statusJSON["status"]
 	if !ok || status.(string) == "" {
-		return fmt.Errorf("key:%s, msg: error: L7Rule CRD %s/%s is not processed by AKO main container", key, namespace, name)
+		utils.AviLog.Errorf("key:%s, msg: error: L7Rule CRD %s/%s is not processed by AKO main container", key, namespace, name)
+		return false, nil, fmt.Errorf("L7Rule CRD %s/%s is not processed by AKO main container", namespace, name)
 	}
 	if status.(string) != lib.StatusAccepted {
-		return fmt.Errorf("key: %s, msg: error: L7Rule CRD %s/%s is not accepted", key, namespace, name)
+		utils.AviLog.Errorf("key: %s, msg: error: L7Rule CRD %s/%s is not accepted", key, namespace, name)
+		return false, nil, fmt.Errorf("L7Rule CRD %s/%s is not accepted", namespace, name)
+	}
+	return true, obj, nil
+}
+
+func ParseL7CRD(key, namespace, name string, vsNode nodes.AviVsEvhSniModel, isFilterAppProfSet bool) error {
+	ok, obj, err := IsL7CRDValid(key, namespace, name)
+	// second check is precautionary check to avoid failure in fetching content
+	if !ok || obj == nil {
+		return err
 	}
 	specJSON, found, err := unstructured.NestedMap(obj.UnstructuredContent(), "spec")
 	if err != nil || !found {

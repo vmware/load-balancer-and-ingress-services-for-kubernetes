@@ -812,40 +812,42 @@ func getAnalyticsPolicy() L7RuleAnalyticsPolicy {
 		},
 	}
 }
+
 func GetFakeDefaultL7RuleObj(name, namespace string) *FakeL7Rule {
 
 	l7Rule := FakeL7Rule{
-		Name:                          name,
-		Namespace:                     namespace,
-		AllowInvalidClientCert:        true,
-		BotPolicyRef:                  "thisisaviref-botpolicy",
-		CloseClientConnOnConfigUpdate: true,
-		HostNameXlate:                 "hostname.com", // Parent field
-		IgnPoolNetReach:               false,
-		MinPoolsUp:                    2,
-		SecurityPolicyRef:             "thisisaviref-secpolicy", // Parent field
-		RemoveListeningPortOnVsDown:   false,
-		SslSessCacheAvgSize:           2024,
-		AnalyticsProfile:              getKindName("AviRef", "thisisaviref-analyticsprofile-l7"),
-		ApplicationProfile:            getKindName("AviRef", "thisisaviref-appprofile-l7"),
-		WafPolicy:                     getKindName("AviRef", "thisisaviref-wafpolicy-l7"),
-		IcapProfile:                   getKindName("AviRef", "thisisaviref-icaprofile-l7"),
-		ErrorPageProfile:              getKindName("AviRef", "thisisaviref-errorpageprofile-l7"),
-		HTTPPolicy: L7RuleHTTPPolicy{
-			Overwrite: false,
-			PolicySets: getHTTPPSset(
-				"thisisaviref-httpps1-l7",
-				"thisisaviref-httpps2-l7"),
-		},
-		AnalyticsPolicy: getAnalyticsPolicy(),
-		Status:          "Accepted",
-		Error:           "",
+		Name:      name,
+		Namespace: namespace,
+		/*
+			AllowInvalidClientCert:        true,
+			BotPolicyRef:                  "thisisaviref-botpolicy",
+			CloseClientConnOnConfigUpdate: true,
+			HostNameXlate:                 "hostname.com", // Parent field
+			IgnPoolNetReach:               false,
+			MinPoolsUp:                    2,
+			SecurityPolicyRef:             "thisisaviref-secpolicy", // Parent field
+			RemoveListeningPortOnVsDown:   false,
+			SslSessCacheAvgSize:           2024,
+			AnalyticsProfile:              getKindName("AviRef", "thisisaviref-analyticsprofile-l7"),
+			ApplicationProfile:            getKindName("AviRef", "thisisaviref-appprofile-l7"),
+			WafPolicy:                     getKindName("AviRef", "thisisaviref-wafpolicy-l7"),
+			IcapProfile:                   getKindName("AviRef", "thisisaviref-icaprofile-l7"),
+			ErrorPageProfile:              getKindName("AviRef", "thisisaviref-errorpageprofile-l7"),
+			HTTPPolicy: L7RuleHTTPPolicy{
+				Overwrite: false,
+				PolicySets: getHTTPPSset(
+					"thisisaviref-httpps1-l7",
+					"thisisaviref-httpps2-l7"),
+			},
+			AnalyticsPolicy: getAnalyticsPolicy(),
+		*/
+		Status: "Accepted",
+		Error:  "",
 	}
 	return &l7Rule
 }
 
 func (l7rule *FakeL7Rule) CreateFakeL7RuleWithStatus(t *testing.T) {
-
 	l7RuleNew := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "ako.vmware.com/v1alpha2",
@@ -855,44 +857,43 @@ func (l7rule *FakeL7Rule) CreateFakeL7RuleWithStatus(t *testing.T) {
 				"namespace": l7rule.Namespace,
 			},
 			"spec": map[string]interface{}{
-				"allowInvalidClientCert":        l7rule.AllowInvalidClientCert,
-				"botPolicyRef":                  l7rule.BotPolicyRef,
-				"closeClientConnOnConfigUpdate": l7rule.CloseClientConnOnConfigUpdate,
-				"hostNameXlate":                 l7rule.HostNameXlate,
-				"ignPoolNetReach":               l7rule.IgnPoolNetReach,
+				"allowInvalidClientCert":        true,
+				"botPolicyRef":                  "sample-bot",
+				"closeClientConnOnConfigUpdate": false,
+				"hostNameXlate":                 "foo.com",
+				"ignPoolNetReach":               true,
 				"minPoolsUp":                    "2",
-				"removeListeningPortOnVsDown":   l7rule.RemoveListeningPortOnVsDown,
-				"securityPolicyRef":             l7rule.SecurityPolicyRef,
+				"removeListeningPortOnVsDown":   false,
+				"securityPolicyRef":             "thisisaviref-secpolicy",
 				"sslSessCacheAvgSize":           "1024",
 				"analyticsProfile": map[string]interface{}{
 					"kind": "AviRef",
-					"name": l7rule.AnalyticsProfile.Name,
+					"name": "thisisaviref-analyticsprofile-l7",
 				},
 				"applicationProfile": map[string]interface{}{
 					"kind": "AviRef",
-					"name": l7rule.ApplicationProfile.Name,
+					"name": "thisisaviref-appprofile-l7",
 				},
 				"wafPolicy": map[string]interface{}{
 					"kind": "AviRef",
-					"name": l7rule.WafPolicy.Name,
+					"name": "thisisaviref-wafpolicy-l7",
 				},
 				"icapProfile": map[string]interface{}{
 					"kind": "AviRef",
-					"name": l7rule.IcapProfile.Name,
+					"name": "thisisaviref-icaprofile-l7",
 				},
 				"errorPageProfile": map[string]interface{}{
 					"kind": "AviRef",
-					"name": l7rule.ErrorPageProfile.Name,
+					"name": "thisisaviref-errorpageprofile-l7",
 				},
-				/*
-					"httpPolicy": map[string]interface{}{
-						"overwrite":  l7rule.HTTPPolicy.Overwrite,
-						"policySets": []interface{}{l7rule.HTTPPolicy.PolicySets},
-					},*/
+				"httpPolicy": map[string]interface{}{
+					"overwrite":  l7rule.HTTPPolicy.Overwrite,
+					"policySets": []interface{}{"policy1", "policy2"},
+				},
 				"analyticsPolicy": map[string]interface{}{
-					"logAllHeaders": l7rule.AnalyticsPolicy.LogAllHeaders,
+					"logAllHeaders": true,
 					"fullClientLogs": map[string]interface{}{
-						"enabled": l7rule.AnalyticsPolicy.FullClientLogs.Enabled,
+						"enabled": true,
 					},
 				},
 			},
@@ -917,7 +918,7 @@ func (l7rule *FakeL7Rule) DeleteL7RuleCR(t *testing.T) {
 	t.Logf("Deleted RouteBackendExtension %s/%s", l7rule.Namespace, l7rule.Name)
 }
 
-func (l7rule *FakeL7Rule) UpdateRouteBackendExtensionStatus(t *testing.T) {
+func (l7rule *FakeL7Rule) UpdateL7RuleStatus(t *testing.T) {
 	routeBackendExtension, err := DynamicClient.Resource(akogatewayapilib.L7CRDGVR).Namespace(l7rule.Namespace).Get(context.TODO(), l7rule.Name, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("error in getting RouteBackendExtension: %v", err)
