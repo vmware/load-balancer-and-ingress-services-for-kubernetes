@@ -32,6 +32,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	utils.AviLog.Infof("key: %s, msg: starting graph Sync", key)
 	objType, namespace, name := lib.ExtractTypeNameNamespace(key)
 
+	utils.AviLog.Infof("Key: %s, msg: objectType: %s, namespace: %s, name: %s", key, objType, namespace, name)
 	schema, valid := ConfigDescriptor().GetByType(objType)
 	if !valid {
 		return
@@ -52,7 +53,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		utils.AviLog.Errorf("key: %s, msg: got error while getting k8s object", key)
 		return
 	}
-
+	utils.AviLog.Infof("key: %s, msg: processing gateways %v", key, gatewayNsNameList)
 	if objType == lib.Gateway {
 		handleGateway(namespace, name, fullsync, key)
 	}
@@ -74,11 +75,11 @@ func DequeueIngestion(key string, fullsync bool) {
 	if !(objType == lib.Gateway && fullsync) {
 		routeTypeNsNameList, found = schema.GetRoutes(namespace, name, key)
 		if !found {
-			utils.AviLog.Errorf("key: %s, msg: got error while getting object %s", key, objType)
+			utils.AviLog.Infof("key: %s, msg: got error while getting object %s", key, objType)
 			return
 		}
 	}
-	utils.AviLog.Debugf("key: %s, msg: processing gateways %v and routes %v", key, gatewayNsNameList, routeTypeNsNameList)
+	utils.AviLog.Infof("key: %s, msg: processing gateways %v and routes %v", key, gatewayNsNameList, routeTypeNsNameList)
 	for _, gatewayNsName := range gatewayNsNameList {
 
 		parentNs, _, parentName := lib.ExtractTypeNameNamespace(gatewayNsName)
@@ -127,6 +128,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		}
 
 		model := &AviObjectGraph{modelIntf.(*nodes.AviObjectGraph)}
+		utils.AviLog.Infof("key: %s, msg: processing routes %v", key, routeTypeNsNameList)
 		for _, routeTypeNsName := range routeTypeNsNameList {
 			objType, namespace, name := lib.ExtractTypeNameNamespace(routeTypeNsName)
 			utils.AviLog.Infof("key: %s, msg: processing route %s mapped to gateway %s", key, routeTypeNsName, gatewayNsName)
@@ -160,6 +162,7 @@ func DequeueIngestion(key string, fullsync bool) {
 			nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
 		}
 	}
+	utils.AviLog.Infof("key: %s, msg: finished graph Sync", key)
 }
 func handleSecrets(gatewayNamespace string, gatewayName string, key string, object *AviObjectGraph) bool {
 	_, _, secretName := lib.ExtractTypeNameNamespace(key)

@@ -92,7 +92,6 @@ func TestMain(m *testing.M) {
 	testData := akogatewayapitests.GetL7RuleFakeData()
 	akogatewayapitests.KubeClient = k8sfake.NewSimpleClientset()
 	akogatewayapitests.GatewayClient = gatewayfake.NewSimpleClientset()
-	//akogatewayapitests.DynamicClient = dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
 	akogatewayapitests.DynamicClient = dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), akogatewayapitests.GvrToKind, &testData)
 
 	integrationtest.KubeClient = akogatewayapitests.KubeClient
