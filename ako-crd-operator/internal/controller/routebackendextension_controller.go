@@ -127,8 +127,12 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 		}
 	}
 	err := r.SetStatus(rbe, "", constants.ACCEPTED)
+	if err != nil {
+		log.Errorf("error in setting status: %s", err.Error())
+		return err
+	}
 	log.Info("Accepted. Validated RouteBackendExtension CRD")
-	return err
+	return nil
 }
 
 func (r *RouteBackendExtensionReconciler) SetStatus(rbe *akov1alpha1.RouteBackendExtension, error string, status string) error {
