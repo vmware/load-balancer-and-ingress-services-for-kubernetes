@@ -740,10 +740,10 @@ func populateCommonFields(key string, l7RuleSpec *akov1alpha2.L7RuleSpec, common
 	// Analytics Policy
 	if commonFieldObj.analyticsPolicy == nil && l7RuleSpec.AnalyticsPolicy != nil {
 		utils.AviLog.Infof("key: %s, Setting AnalyticsPolicy from L7Rule", key)
-		var infinite uint32 = 0
+
 		commonFieldObj.analyticsPolicy = &models.AnalyticsPolicy{
 			FullClientLogs: &models.FullClientLogs{
-				Duration: &infinite,
+				Duration: proto.Uint32(0),
 			},
 			AllHeaders: l7RuleSpec.AnalyticsPolicy.LogAllHeaders,
 		}

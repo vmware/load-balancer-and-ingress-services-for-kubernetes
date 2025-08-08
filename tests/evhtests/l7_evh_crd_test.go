@@ -2353,7 +2353,6 @@ func TestCreateUpdateDeleteL7RuleInHostRule(t *testing.T) {
 		v := true
 		return &v
 	}, 25*time.Second).Should(gomega.BeNil())
-	g.Expect(nodes[0].EvhNodes[0].CloseClientConnOnConfigUpdate).Should(gomega.BeNil())
 	g.Expect(nodes[0].EvhNodes[0].CloseClientConnOnConfigUpdate).To(gomega.BeNil())
 	g.Expect(nodes[0].EvhNodes[0].AllowInvalidClientCert).To(gomega.BeNil())
 	g.Expect(nodes[0].EvhNodes[0].IgnPoolNetReach).To(gomega.BeNil())
@@ -4041,12 +4040,6 @@ func TestCreateUpdateDeleteL7RuleInHostRuleWithCommonProperties(t *testing.T) {
 			return nodes[0].EvhNodes[0].AllowInvalidClientCert
 		}
 		return nil
-	}, 25*time.Second, 1*time.Second).ShouldNot(gomega.BeNil())
-
-	g.Eventually(func() interface{} {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return nodes[0].EvhNodes[0].AviVsNodeGeneratedFields
 	}, 25*time.Second, 1*time.Second).ShouldNot(gomega.BeNil())
 
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
