@@ -32,6 +32,17 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
+// Common fields between L7Rule and Hostrule
+type crdCommonFields struct {
+	vsWafPolicy        *string
+	vsAppProfile       *string
+	vsAnalyticsProfile *string
+	vsErrorPageProfile string
+	vsICAPProfile      []string
+	analyticsPolicy    *models.AnalyticsPolicy
+	vsHTTPPolicySets   []string
+}
+
 func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	// use host to find out HostRule CRD if it exists
 	// The host that comes here will have a proper FQDN, either from the Ingress/Route (foo.com)
@@ -64,17 +75,17 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	}
 
 	// host specific
-	var vsWafPolicy, vsAppProfile, vsAnalyticsProfile, vsSslProfile, vsNetworkSecurityPolicy *string
-	var vsErrorPageProfile, lbIP string
+	var vsSslProfile, vsNetworkSecurityPolicy *string
+	var lbIP string
 	var vsSslKeyCertificates []string
 	var vsEnabled *bool
 	var crdStatus lib.CRDMetadata
-	var vsICAPProfile []string
+	var commonFieldObj crdCommonFields
 
-	// Initializing the values of vsHTTPPolicySets and vsDatascripts, using a nil value would impact the value of VS checksum
-	vsHTTPPolicySets := []string{}
+	// Initializing the values of vsDatascripts, using a nil value would impact the value of VS checksum
+	commonFieldObj.vsHTTPPolicySets = []string{}
+	commonFieldObj.vsICAPProfile = []string{}
 	vsDatascripts := []string{}
-	var analyticsPolicy *models.AnalyticsPolicy
 	var vsStringGroupRefs []*AviStringGroupNode
 
 	// Get the existing VH domain names and then manipulate it based on the aliases in Hostrule CRD.
@@ -106,27 +117,27 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 		}
 
 		if hostrule.Spec.VirtualHost.WAFPolicy != "" {
-			vsWafPolicy = proto.String(fmt.Sprintf("/api/wafpolicy?name=%s", hostrule.Spec.VirtualHost.WAFPolicy))
+			commonFieldObj.vsWafPolicy = proto.String(fmt.Sprintf("/api/wafpolicy?name=%s", hostrule.Spec.VirtualHost.WAFPolicy))
 		}
 
 		if hostrule.Spec.VirtualHost.ApplicationProfile != "" {
-			vsAppProfile = proto.String(fmt.Sprintf("/api/applicationprofile?name=%s", hostrule.Spec.VirtualHost.ApplicationProfile))
+			commonFieldObj.vsAppProfile = proto.String(fmt.Sprintf("/api/applicationprofile?name=%s", hostrule.Spec.VirtualHost.ApplicationProfile))
 		}
 
 		if len(hostrule.Spec.VirtualHost.ICAPProfile) != 0 {
-			vsICAPProfile = []string{fmt.Sprintf("/api/icapprofile?name=%s", hostrule.Spec.VirtualHost.ICAPProfile[0])}
+			commonFieldObj.vsICAPProfile = []string{fmt.Sprintf("/api/icapprofile?name=%s", hostrule.Spec.VirtualHost.ICAPProfile[0])}
 		}
 		if hostrule.Spec.VirtualHost.ErrorPageProfile != "" {
-			vsErrorPageProfile = fmt.Sprintf("/api/errorpageprofile?name=%s", hostrule.Spec.VirtualHost.ErrorPageProfile)
+			commonFieldObj.vsErrorPageProfile = fmt.Sprintf("/api/errorpageprofile?name=%s", hostrule.Spec.VirtualHost.ErrorPageProfile)
 		}
 
 		if hostrule.Spec.VirtualHost.AnalyticsProfile != "" {
-			vsAnalyticsProfile = proto.String(fmt.Sprintf("/api/analyticsprofile?name=%s", hostrule.Spec.VirtualHost.AnalyticsProfile))
+			commonFieldObj.vsAnalyticsProfile = proto.String(fmt.Sprintf("/api/analyticsprofile?name=%s", hostrule.Spec.VirtualHost.AnalyticsProfile))
 		}
 
 		for _, policy := range hostrule.Spec.VirtualHost.HTTPPolicy.PolicySets {
-			if !utils.HasElem(vsHTTPPolicySets, fmt.Sprintf("/api/httppolicyset?name=%s", policy)) {
-				vsHTTPPolicySets = append(vsHTTPPolicySets, fmt.Sprintf("/api/httppolicyset?name=%s", policy))
+			if !utils.HasElem(commonFieldObj.vsHTTPPolicySets, fmt.Sprintf("/api/httppolicyset?name=%s", policy)) {
+				commonFieldObj.vsHTTPPolicySets = append(commonFieldObj.vsHTTPPolicySets, fmt.Sprintf("/api/httppolicyset?name=%s", policy))
 			}
 		}
 
@@ -182,19 +193,19 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 		if hostrule.Spec.VirtualHost.AnalyticsPolicy != nil {
 			var infinite uint32 = 0 // Special value to set log duration as infinite
 			// defaults to 'infinite' if hostrule doesn't specify a duration
-			analyticsPolicy = &models.AnalyticsPolicy{
+			commonFieldObj.analyticsPolicy = &models.AnalyticsPolicy{
 				FullClientLogs: &models.FullClientLogs{
 					Duration: &infinite,
 				},
 				AllHeaders: hostrule.Spec.VirtualHost.AnalyticsPolicy.LogAllHeaders,
 			}
 			if hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs != nil {
-				analyticsPolicy.FullClientLogs.Enabled = hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Enabled
-				analyticsPolicy.FullClientLogs.Throttle = lib.GetThrottle(hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Throttle)
+				commonFieldObj.analyticsPolicy.FullClientLogs.Enabled = hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Enabled
+				commonFieldObj.analyticsPolicy.FullClientLogs.Throttle = lib.GetThrottle(hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Throttle)
 
 				// only update duration if duration is actually specified in hr
 				if hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Duration != nil {
-					analyticsPolicy.FullClientLogs.Duration = hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Duration
+					commonFieldObj.analyticsPolicy.FullClientLogs.Duration = hostrule.Spec.VirtualHost.AnalyticsPolicy.FullClientLogs.Duration
 				}
 			}
 		}
@@ -206,7 +217,7 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 		}
 		if lib.IsEvhEnabled() {
 			if hostrule.Spec.VirtualHost.L7Rule != "" {
-				BuildL7Rule(host, key, hostrule.Spec.VirtualHost.L7Rule, hrNSName[0], vsNode)
+				BuildL7Rule(host, key, hostrule.Spec.VirtualHost.L7Rule, hrNSName[0], vsNode, &commonFieldObj)
 			} else {
 				vsNode.GetGeneratedFields().ConvertL7RuleFieldsToNil()
 			}
@@ -236,16 +247,16 @@ func BuildL7HostRule(host, key string, vsNode AviVsEvhSniModel) {
 	}
 
 	vsNode.SetSslKeyAndCertificateRefs(vsSslKeyCertificates)
-	vsNode.SetWafPolicyRef(vsWafPolicy)
-	vsNode.SetHttpPolicySetRefs(vsHTTPPolicySets)
-	vsNode.SetICAPProfileRefs(vsICAPProfile)
-	vsNode.SetAppProfileRef(vsAppProfile)
-	vsNode.SetAnalyticsProfileRef(vsAnalyticsProfile)
-	vsNode.SetErrorPageProfileRef(vsErrorPageProfile)
+	vsNode.SetWafPolicyRef(commonFieldObj.vsWafPolicy)
+	vsNode.SetHttpPolicySetRefs(commonFieldObj.vsHTTPPolicySets)
+	vsNode.SetICAPProfileRefs(commonFieldObj.vsICAPProfile)
+	vsNode.SetAppProfileRef(commonFieldObj.vsAppProfile)
+	vsNode.SetAnalyticsProfileRef(commonFieldObj.vsAnalyticsProfile)
+	vsNode.SetErrorPageProfileRef(commonFieldObj.vsErrorPageProfile)
 	vsNode.SetSSLProfileRef(vsSslProfile)
 	vsNode.SetVsDatascriptRefs(vsDatascripts)
 	vsNode.SetEnabled(vsEnabled)
-	vsNode.SetAnalyticsPolicy(analyticsPolicy)
+	vsNode.SetAnalyticsPolicy(commonFieldObj.analyticsPolicy)
 	if len(portProtocols) != 0 {
 		vsNode.SetPortProtocols(portProtocols)
 	}
@@ -694,7 +705,7 @@ func BuildL7SSORule(host, key string, vsNode AviVsEvhSniModel) {
 	vsNode.SetServiceMetadata(serviceMetadataObj)
 }
 
-func BuildL7Rule(host, key, l7RuleName, namespace string, vsNode AviVsEvhSniModel) {
+func BuildL7Rule(host, key, l7RuleName, namespace string, vsNode AviVsEvhSniModel, commonFieldObj *crdCommonFields) {
 	deleteL7RuleCase := false
 	l7Rule, err := lib.AKOControlConfig().CRDInformers().L7RuleInformer.Lister().L7Rules(namespace).Get(l7RuleName)
 	if err != nil {
@@ -718,9 +729,68 @@ func BuildL7Rule(host, key, l7RuleName, namespace string, vsNode AviVsEvhSniMode
 				generatedFields.ConvertL7RuleParentOnlyFieldsToNil()
 			}
 		}
-		utils.AviLog.Infof("key: %s, Successfully attached L7Rule %s on vsNode %s", key, l7RuleName, vsNode.GetName())
 		generatedFields.ConvertToRef()
+		populateCommonFields(key, &l7Rule.Spec, commonFieldObj, vsNode)
+		utils.AviLog.Infof("key: %s, Successfully attached L7Rule %s on vsNode %s", key, l7RuleName, vsNode.GetName())
 	} else {
 		generatedFields.ConvertL7RuleFieldsToNil()
+	}
+}
+func populateCommonFields(key string, l7RuleSpec *akov1alpha2.L7RuleSpec, commonFieldObj *crdCommonFields, vsNode AviVsEvhSniModel) {
+	// Analytics Policy
+	if commonFieldObj.analyticsPolicy == nil && l7RuleSpec.AnalyticsPolicy != nil {
+		utils.AviLog.Infof("key: %s, Setting AnalyticsPolicy from L7Rule", key)
+
+		commonFieldObj.analyticsPolicy = &models.AnalyticsPolicy{
+			FullClientLogs: &models.FullClientLogs{
+				Duration: proto.Uint32(0),
+			},
+			AllHeaders: l7RuleSpec.AnalyticsPolicy.LogAllHeaders,
+		}
+		if l7RuleSpec.AnalyticsPolicy.FullClientLogs != nil {
+			commonFieldObj.analyticsPolicy.FullClientLogs.Enabled = l7RuleSpec.AnalyticsPolicy.FullClientLogs.Enabled
+			commonFieldObj.analyticsPolicy.FullClientLogs.Throttle = lib.GetThrottle(l7RuleSpec.AnalyticsPolicy.FullClientLogs.Throttle)
+			if l7RuleSpec.AnalyticsPolicy.FullClientLogs.Duration != nil {
+				commonFieldObj.analyticsPolicy.FullClientLogs.Duration = l7RuleSpec.AnalyticsPolicy.FullClientLogs.Duration
+			}
+		}
+	}
+	// AnalyticsProfile
+	if commonFieldObj.vsAnalyticsProfile == nil && l7RuleSpec.AnalyticsProfile != nil {
+		utils.AviLog.Infof("key: %s, Setting AnalyticsPolicy from L7Rule", key)
+		commonFieldObj.vsAnalyticsProfile = proto.String(fmt.Sprintf("/api/analyticsprofile?name=%s", *l7RuleSpec.AnalyticsProfile.Name))
+	}
+	// ErrorPageProfile
+	if commonFieldObj.vsErrorPageProfile == "" && l7RuleSpec.ErrorPageProfile != nil {
+		utils.AviLog.Infof("key: %s, Setting ErrorPageProfile from L7Rule", key)
+		commonFieldObj.vsErrorPageProfile = fmt.Sprintf("/api/errorpageprofile?name=%s", *l7RuleSpec.ErrorPageProfile.Name)
+	}
+	// ApplicationProfile
+	if commonFieldObj.vsAppProfile == nil && l7RuleSpec.ApplicationProfile != nil {
+		utils.AviLog.Infof("key: %s, Setting ApplicationProfile from L7Rule", key)
+		commonFieldObj.vsAppProfile = proto.String(fmt.Sprintf("/api/applicationprofile?name=%s", *l7RuleSpec.ApplicationProfile.Name))
+	}
+	// ICAPProfile
+	if commonFieldObj.vsICAPProfile == nil && l7RuleSpec.IcapProfile != nil {
+		utils.AviLog.Infof("key: %s, Setting ICAPProfile from L7Rule", key)
+		commonFieldObj.vsICAPProfile = []string{fmt.Sprintf("/api/icapprofile?name=%s", *l7RuleSpec.IcapProfile.Name)}
+	}
+	// WAFPolicy
+	if commonFieldObj.vsWafPolicy == nil && l7RuleSpec.WafPolicy != nil {
+		utils.AviLog.Infof("key: %s, Setting WAFPolicy from L7Rule", key)
+		commonFieldObj.vsWafPolicy = proto.String(fmt.Sprintf("/api/wafpolicy?name=%s", *l7RuleSpec.WafPolicy.Name))
+	}
+	// HTTPPolicySet
+	if len(commonFieldObj.vsHTTPPolicySets) == 0 && l7RuleSpec.HTTPPolicy != nil {
+		utils.AviLog.Infof("key: %s, Setting HTTPPolicySet from L7Rule", key)
+		for _, policy := range l7RuleSpec.HTTPPolicy.PolicySets {
+			if !utils.HasElem(commonFieldObj.vsHTTPPolicySets, fmt.Sprintf("/api/httppolicyset?name=%s", *policy)) {
+				commonFieldObj.vsHTTPPolicySets = append(commonFieldObj.vsHTTPPolicySets, fmt.Sprintf("/api/httppolicyset?name=%s", *policy))
+			}
+		}
+		// delete all auto-created HttpPolicySets by AKO if override is set
+		if l7RuleSpec.HTTPPolicy.Overwrite != nil && *l7RuleSpec.HTTPPolicy.Overwrite {
+			vsNode.SetHttpPolicyRefs([]*AviHttpPolicySetNode{})
+		}
 	}
 }
