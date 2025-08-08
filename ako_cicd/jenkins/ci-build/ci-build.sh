@@ -12,6 +12,9 @@ minor_version=${version_numbers[1]}
 export PATH=$PATH:/usr/local/go/bin
 go version
 
+make golangci
+make test
+
 make build
 make BUILD_TAG=$version_tag docker
 make BUILD_TAG=$version_tag ako-operator-docker
@@ -28,3 +31,11 @@ fi
 if [ "$RUN_INT_TESTS" = true ]; then
     make int_test
 fi
+
+echo "Build step for ako-crd-operator"
+
+cd $WORKSPACE/ako-crd-operator
+make lint
+make test
+make build
+
