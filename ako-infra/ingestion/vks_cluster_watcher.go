@@ -78,6 +78,11 @@ type VKSClusterWatcher struct {
 	mockCredentialsFunc func(string, string) (*lib.ClusterCredentials, error)
 }
 
+// getUniqueClusterName generates a unique cluster identifier using namespace, name and UID
+func (w *VKSClusterWatcher) getUniqueClusterName(cluster *unstructured.Unstructured) string {
+	return fmt.Sprintf("%s-%s-%s", cluster.GetNamespace(), cluster.GetName(), cluster.GetUID())
+}
+
 // NewVKSClusterWatcher creates a new cluster watcher instance
 func NewVKSClusterWatcher(kubeClient kubernetes.Interface, dynamicClient dynamic.Interface) *VKSClusterWatcher {
 	workqueue := workqueue.NewNamedRateLimitingQueue(
@@ -175,7 +180,7 @@ func (w *VKSClusterWatcher) ProcessClusterEvent(key string) error {
 	if err != nil {
 		if errors.IsNotFound(err) {
 			utils.AviLog.Infof("Cluster deleted: %s", key)
-			return w.handleClusterDeletion(namespace, name)
+			return w.handleClusterDeletionByName(namespace, name)
 		}
 		return fmt.Errorf("failed to get cluster %s: %v", key, err)
 	}
@@ -184,32 +189,34 @@ func (w *VKSClusterWatcher) ProcessClusterEvent(key string) error {
 }
 
 func (w *VKSClusterWatcher) handleClusterAddOrUpdate(cluster *unstructured.Unstructured) error {
-	clusterName := cluster.GetName()
+	clusterNameWithUID := w.getUniqueClusterName(cluster)
 	clusterNamespace := cluster.GetNamespace()
 
 	phase := w.GetClusterPhase(cluster)
-	utils.AviLog.Debugf("Processing cluster %s/%s in phase: %s", clusterNamespace, clusterName, phase)
+	utils.AviLog.Debugf("Processing cluster %s in phase: %s", clusterNameWithUID, phase)
 
 	switch phase {
 	case ClusterPhaseProvisioned:
 		return w.HandleProvisionedCluster(cluster)
 	case ClusterPhaseDeleting:
-		return w.handleClusterDeletion(clusterNamespace, clusterName)
+		return w.handleClusterDeletion(cluster)
 	default:
-		utils.AviLog.Debugf("Cluster %s/%s not in provisioned state, skipping", clusterNamespace, clusterName)
+		utils.AviLog.Debugf("Cluster %s/%s (UID: %s) not in provisioned state, skipping", clusterNamespace, cluster.GetName(), cluster.GetUID())
 		return nil
 	}
 }
 
 func (w *VKSClusterWatcher) HandleProvisionedCluster(cluster *unstructured.Unstructured) error {
-	clusterName := cluster.GetName()
+	clusterNameWithUID := w.getUniqueClusterName(cluster)
 	clusterNamespace := cluster.GetNamespace()
 
 	// Check if cluster should be managed by VKS
 	labels := cluster.GetLabels()
 	shouldManage := labels != nil && labels[webhook.VKSManagedLabel] == webhook.VKSManagedLabelValueTrue
 
-	secretName := fmt.Sprintf("%s-avi-secret", clusterName)
+	utils.AviLog.Debugf("Processing provisioned cluster %s", clusterNameWithUID)
+
+	secretName := fmt.Sprintf("%s-avi-secret", cluster.GetName())
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -219,29 +226,66 @@ func (w *VKSClusterWatcher) HandleProvisionedCluster(cluster *unstructured.Unstr
 	switch {
 	case shouldManage:
 		if err := w.UpsertAviCredentialsSecret(ctx, cluster); err != nil {
-			return fmt.Errorf("failed to manage dependencies for cluster %s/%s: %v", clusterNamespace, clusterName, err)
+			return fmt.Errorf("failed to manage dependencies for cluster %s/%s (UID: %s): %v", clusterNamespace, cluster.GetName(), cluster.GetUID(), err)
 		}
 
 	case !shouldManage && secretExists:
-		utils.AviLog.Infof("Cleaning up VKS dependencies for cluster: %s/%s", clusterNamespace, clusterName)
-		if err := w.cleanupClusterSecret(ctx, clusterName, clusterNamespace); err != nil {
-			return fmt.Errorf("failed to cleanup dependencies for cluster %s/%s: %v", clusterNamespace, clusterName, err)
+		utils.AviLog.Infof("Cleaning up VKS dependencies for cluster: %s/%s (UID: %s)", clusterNamespace, cluster.GetName(), cluster.GetUID())
+		if err := w.cleanupClusterSecret(ctx, cluster.GetName(), clusterNamespace); err != nil {
+			return fmt.Errorf("failed to cleanup dependencies for cluster %s/%s (UID: %s): %v", clusterNamespace, cluster.GetName(), cluster.GetUID(), err)
 		}
-		utils.AviLog.Infof("Successfully cleaned up VKS dependencies for cluster: %s/%s", clusterNamespace, clusterName)
+		utils.AviLog.Infof("Successfully cleaned up VKS dependencies for cluster: %s/%s (UID: %s)", clusterNamespace, cluster.GetName(), cluster.GetUID())
 
 	case !shouldManage && !secretExists:
 		// Should not manage and no secret exists - already in desired state
-		utils.AviLog.Debugf("Cluster %s/%s not managed by VKS and no dependencies exist", clusterNamespace, clusterName)
+		utils.AviLog.Debugf("Cluster %s/%s (UID: %s) not managed by VKS and no dependencies exist", clusterNamespace, cluster.GetName(), cluster.GetUID())
 	}
 
 	return nil
 }
 
-func (w *VKSClusterWatcher) handleClusterDeletion(namespace, name string) error {
-	utils.AviLog.Infof("Cleaning up dependencies for deleted cluster: %s/%s", namespace, name)
+func (w *VKSClusterWatcher) handleClusterDeletion(cluster *unstructured.Unstructured) error {
+	clusterNameWithUID := w.getUniqueClusterName(cluster)
+	clusterNamespace := cluster.GetNamespace()
+	clusterName := cluster.GetName()
+
+	utils.AviLog.Infof("Cleaning up dependencies for deleted cluster: %s/%s (UID: %s)", clusterNamespace, clusterName, cluster.GetUID())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	delete(w.clusterCredentials, clusterNameWithUID)
+
+	if err := w.cleanupClusterSecret(ctx, clusterName, clusterNamespace); err != nil {
+		utils.AviLog.Errorf("Failed to cleanup dependencies for cluster %s/%s (UID: %s): %v", clusterNamespace, clusterName, cluster.GetUID(), err)
+		return err
+	}
+
+	utils.AviLog.Infof("Successfully cleaned up cluster: %s/%s (UID: %s)", clusterNamespace, clusterName, cluster.GetUID())
+	return nil
+}
+
+// handleClusterDeletionByName handles cleanup when cluster object is no longer available
+func (w *VKSClusterWatcher) handleClusterDeletionByName(namespace, name string) error {
+	utils.AviLog.Infof("Cleaning up dependencies for deleted cluster: %s/%s (cluster object not available)", namespace, name)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Clean up credentials cache entries that match the namespace-cluster pattern
+	// Format: namespace-clusterName-clusterUID
+	clusterPrefix := fmt.Sprintf("%s-%s-", namespace, name)
+	var keysToDelete []string
+	for key := range w.clusterCredentials {
+		if strings.HasPrefix(key, clusterPrefix) {
+			keysToDelete = append(keysToDelete, key)
+		}
+	}
+
+	for _, key := range keysToDelete {
+		delete(w.clusterCredentials, key)
+		utils.AviLog.Debugf("Removed credentials cache entry: %s", key)
+	}
 
 	if err := w.cleanupClusterSecret(ctx, name, namespace); err != nil {
 		utils.AviLog.Errorf("Failed to cleanup dependencies for cluster %s/%s: %v", namespace, name, err)
@@ -307,10 +351,10 @@ func (w *VKSClusterWatcher) cleanupClusterSpecificRBAC(clusterName string) {
 }
 
 // createClusterSpecificCredentials creates cluster-specific RBAC credentials in Avi Controller
-func (w *VKSClusterWatcher) createClusterSpecificCredentials(clusterName string, operationalTenant string) (*lib.ClusterCredentials, error) {
+func (w *VKSClusterWatcher) createClusterSpecificCredentials(clusterNameWithUID string, operationalTenant string) (*lib.ClusterCredentials, error) {
 	// Use mock in test mode
 	if w.testMode && w.mockCredentialsFunc != nil {
-		return w.mockCredentialsFunc(clusterName, operationalTenant)
+		return w.mockCredentialsFunc(clusterNameWithUID, operationalTenant)
 	}
 
 	aviClient := avirest.InfraAviClientInstance()
@@ -319,32 +363,32 @@ func (w *VKSClusterWatcher) createClusterSpecificCredentials(clusterName string,
 	}
 
 	if operationalTenant == "" {
-		return nil, fmt.Errorf("no tenant configured for cluster %s: tenant must be provided from namespace annotation %s", clusterName, lib.TenantAnnotation)
+		return nil, fmt.Errorf("no tenant configured for cluster %s: tenant must be provided from namespace annotation %s", clusterNameWithUID, lib.TenantAnnotation)
 	}
 
-	utils.AviLog.Infof("Creating VKS cluster RBAC for %s in operational tenant: %s", clusterName, operationalTenant)
+	utils.AviLog.Infof("Creating VKS cluster RBAC for %s in operational tenant: %s", clusterNameWithUID, operationalTenant)
 
-	roles, err := lib.CreateVKSClusterRoles(aviClient, clusterName, operationalTenant)
+	roles, err := lib.CreateVKSClusterRoles(aviClient, clusterNameWithUID, operationalTenant)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create VKS cluster roles in tenant %s: %v", operationalTenant, err)
 	}
 
-	user, password, err := lib.CreateVKSClusterUserWithRoles(aviClient, clusterName, roles, operationalTenant)
+	user, password, err := lib.CreateVKSClusterUserWithRoles(aviClient, clusterNameWithUID, roles, operationalTenant)
 	if err != nil {
-		lib.DeleteVKSClusterRoles(aviClient, clusterName)
+		lib.DeleteVKSClusterRoles(aviClient, clusterNameWithUID)
 		return nil, fmt.Errorf("failed to create VKS cluster user in tenant %s: %v", operationalTenant, err)
 	}
 
 	utils.AviLog.Infof("Created VKS cluster RBAC for %s: admin-role=%s, tenant-role=%s, all-tenants-role=%s, user=%s",
-		clusterName, *roles.AdminRole.Name, *roles.TenantRole.Name, *roles.AllTenantsRole.Name, *user.Username)
+		clusterNameWithUID, *roles.AdminRole.Name, *roles.TenantRole.Name, *roles.AllTenantsRole.Name, *user.Username)
 
-	w.clusterCredentials[clusterName] = &lib.ClusterCredentials{
+	w.clusterCredentials[clusterNameWithUID] = &lib.ClusterCredentials{
 		Username: *user.Username,
 		Password: password,
 	}
 
-	utils.AviLog.Infof("Created cluster-specific credentials for %s: user=%s", clusterName, w.clusterCredentials[clusterName].Username)
-	return w.clusterCredentials[clusterName], nil
+	utils.AviLog.Infof("Created cluster-specific credentials for %s: user=%s", clusterNameWithUID, w.clusterCredentials[clusterNameWithUID].Username)
+	return w.clusterCredentials[clusterNameWithUID], nil
 }
 
 // populateCacheFromSecrets scans existing VKS cluster secrets and populates the credentials cache
@@ -368,7 +412,15 @@ func (w *VKSClusterWatcher) populateCacheFromSecrets() error {
 
 		clusterName := strings.TrimSuffix(secret.Name, "-avi-secret")
 
-		if _, exists := w.clusterCredentials[clusterName]; exists {
+		clusterObj, err := w.dynamicClient.Resource(lib.ClusterGVR).Namespace(secret.Namespace).Get(ctx, clusterName, metav1.GetOptions{})
+		if err != nil {
+			utils.AviLog.Warnf("Failed to get cluster %s/%s for cache population: %v", secret.Namespace, clusterName, err)
+			continue
+		}
+
+		clusterNameWithUID := w.getUniqueClusterName(clusterObj)
+
+		if _, exists := w.clusterCredentials[clusterNameWithUID]; exists {
 			continue
 		}
 
@@ -384,14 +436,14 @@ func (w *VKSClusterWatcher) populateCacheFromSecrets() error {
 			continue
 		}
 
-		w.clusterCredentials[clusterName] = &lib.ClusterCredentials{
+		w.clusterCredentials[clusterNameWithUID] = &lib.ClusterCredentials{
 			Username: string(username),
 			Password: string(password),
 		}
 
 		credentialsPopulated++
-		utils.AviLog.Debugf("Populated credentials cache for cluster %s from secret %s/%s",
-			clusterName, secret.Namespace, secret.Name)
+		utils.AviLog.Debugf("Populated credentials cache for cluster %s (UID: %s) from secret %s/%s",
+			clusterName, clusterObj.GetUID(), secret.Namespace, secret.Name)
 	}
 
 	if credentialsPopulated > 0 {
@@ -464,17 +516,17 @@ func (w *VKSClusterWatcher) getNamespaceConfig(clusterNamespace string) (*Namesp
 
 // buildVKSClusterConfig builds complete configuration for a VKS cluster
 func (w *VKSClusterWatcher) buildVKSClusterConfig(cluster *unstructured.Unstructured) (*VKSClusterConfig, error) {
-	clusterName := cluster.GetName()
+	clusterNameWithUID := w.getUniqueClusterName(cluster)
 	clusterNamespace := cluster.GetNamespace()
 
 	nsConfig, err := w.getNamespaceConfig(clusterNamespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get namespace configuration for cluster %s/%s: %v", clusterNamespace, clusterName, err)
+		return nil, fmt.Errorf("failed to get namespace configuration for cluster %s/%s (UID: %s): %v", clusterNamespace, cluster.GetName(), cluster.GetUID(), err)
 	}
 
-	clusterCreds, exists := w.clusterCredentials[clusterName]
+	clusterCreds, exists := w.clusterCredentials[clusterNameWithUID]
 	if !exists {
-		creds, err := w.createClusterSpecificCredentials(clusterName, nsConfig.Tenant)
+		creds, err := w.createClusterSpecificCredentials(clusterNameWithUID, nsConfig.Tenant)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create cluster-specific credentials: %v", err)
 		}
@@ -504,11 +556,11 @@ func (w *VKSClusterWatcher) buildVKSClusterConfig(cluster *unstructured.Unstruct
 	}
 
 	if config.ControllerVersion == "" {
-		utils.AviLog.Warnf("Controller version not available for cluster %s/%s", clusterNamespace, clusterName)
+		utils.AviLog.Warnf("Controller version not available for cluster %s/%s (UID: %s)", clusterNamespace, cluster.GetName(), cluster.GetUID())
 	}
 
-	utils.AviLog.Infof("Built configuration for cluster %s/%s: SEG=%s, Tenant=%s, T1LR=%s",
-		clusterNamespace, clusterName, config.ServiceEngineGroup, config.TenantName, config.NsxtT1LR)
+	utils.AviLog.Infof("Built configuration for cluster %s/%s (UID: %s): SEG=%s, Tenant=%s, T1LR=%s",
+		clusterNamespace, cluster.GetName(), cluster.GetUID(), config.ServiceEngineGroup, config.TenantName, config.NsxtT1LR)
 
 	return config, nil
 }
@@ -524,7 +576,7 @@ func (w *VKSClusterWatcher) UpsertAviCredentialsSecret(ctx context.Context, clus
 		return fmt.Errorf("failed to build cluster configuration: %v", err)
 	}
 
-	secretData := w.buildSecretData(config)
+	secretData := w.buildSecretData(config, cluster)
 
 	existingSecret, err := w.kubeClient.CoreV1().Secrets(clusterNamespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
@@ -601,11 +653,14 @@ func (w *VKSClusterWatcher) UpsertAviCredentialsSecret(ctx context.Context, clus
 }
 
 // buildSecretData builds the complete secret data for a VKS cluster
-func (w *VKSClusterWatcher) buildSecretData(config *VKSClusterConfig) map[string][]byte {
+func (w *VKSClusterWatcher) buildSecretData(config *VKSClusterConfig, cluster *unstructured.Unstructured) map[string][]byte {
 	secretData := make(map[string][]byte)
 
 	secretData["username"] = []byte(config.Username)
 	secretData["controllerIP"] = []byte(config.ControllerIP)
+
+	clusterNameWithUID := w.getUniqueClusterName(cluster)
+	secretData["clusterName"] = []byte(clusterNameWithUID)
 
 	if config.Password != "" {
 		secretData["password"] = []byte(config.Password)
