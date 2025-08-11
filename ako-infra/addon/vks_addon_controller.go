@@ -145,3 +145,29 @@ func CleanupGlobalAddonInstall() error {
 	utils.AviLog.Infof("VKS addon: successfully deleted global AddonInstall %s/%s", VKSPublicNamespace, AKOAddonInstallName)
 	return nil
 }
+
+// EnsureGlobalAddonInstallWithRetry ensures global addon install with infinite retry
+func EnsureGlobalAddonInstallWithRetry(stopCh <-chan struct{}) {
+	utils.AviLog.Infof("VKS addon: starting global addon install with infinite retry")
+
+	retryInterval := 10 * time.Second
+
+	for {
+		if err := EnsureGlobalAddonInstall(); err != nil {
+			utils.AviLog.Warnf("VKS addon: failed to ensure global addon install, will retry in %v: %v", retryInterval, err)
+
+			// Wait before retry, but also check for shutdown
+			select {
+			case <-stopCh:
+				utils.AviLog.Infof("VKS addon: shutdown signal received during retry wait")
+				return
+			case <-time.After(retryInterval):
+				// Continue to next retry
+				continue
+			}
+		} else {
+			utils.AviLog.Infof("VKS addon: global addon install ensured successfully")
+			return
+		}
+	}
+}

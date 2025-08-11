@@ -1330,7 +1330,7 @@ func TestEnsureWebhookCertificates(t *testing.T) {
 
 		stopCh := make(chan struct{})
 		defer close(stopCh)
-		err := ensureWebhookCertificates(kubeClient, stopCh)
+		err := ensureWebhookCertificates(kubeClient)
 		if err == nil {
 			t.Error("Expected error when cert-manager not available")
 		}
