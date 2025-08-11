@@ -17,16 +17,16 @@ oc new-project avi-system
 Search for available charts
 
 ```
-helm show chart oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 1.13.3
+helm show chart oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 99.9.9
 
-Pulled: projects.packages.broadcom.com/ako/helm-charts/ako:1.13.3
+Pulled: projects.packages.broadcom.com/ako/helm-charts/ako:99.9.9
 Digest: sha256:xyxyxxyxyx
 apiVersion: v2
-appVersion: 1.13.3
+appVersion: 99.9.9
 description: A helm chart for Avi Kubernetes Operator
 name: ako
 type: application
-version: 1.13.3
+version: 99.9.9
 ```
 
 *Step-3*
@@ -34,7 +34,7 @@ version: 1.13.3
 Edit the [values.yaml](../install/helm.md#parameters) file and update the details according to your environment.
 
 ```
-helm show values oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 1.13.3 > values.yaml
+helm show values oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 99.9.9 > values.yaml
 
 ```
 
@@ -43,7 +43,7 @@ helm show values oci://projects.packages.broadcom.com/ako/helm-charts/ako --vers
 Install AKO.
 
 ```
-helm install --generate-name oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 1.13.3 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --namespace=avi-system
+helm install --generate-name oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 99.9.9 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --namespace=avi-system
 ```
 
 
@@ -55,5 +55,5 @@ Verify the installation
 helm list -n avi-system
 
 NAME          	NAMESPACE 	REVISION	UPDATED     STATUS  	CHART    	APP VERSION
-ako-1691752136	avi-system	1       	2025-01-31	deployed	ako-1.13.3	1.13.3
+ako-1691752136	avi-system	1       	2025-01-31	deployed	ako-99.9.9	99.9.9
 ```
