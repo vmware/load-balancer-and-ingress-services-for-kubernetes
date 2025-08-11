@@ -194,6 +194,7 @@ func TestVKSClusterWatcher_GenerateClusterSecret(t *testing.T) {
 					"metadata": map[string]interface{}{
 						"name":      tt.clusterName,
 						"namespace": tt.clusterNamespace,
+						"uid":       "test-uid-123",
 					},
 				},
 			}
@@ -431,6 +432,7 @@ func TestVKSClusterWatcher_HandleProvisionedCluster(t *testing.T) {
 					"metadata": map[string]interface{}{
 						"name":      tt.clusterName,
 						"namespace": tt.clusterNamespace,
+						"uid":       "test-uid-123",
 					},
 				},
 			}
@@ -520,7 +522,16 @@ func TestVKSClusterWatcher_handleClusterDeletion(t *testing.T) {
 			dynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
 			watcher := NewVKSClusterWatcher(kubeClient, dynamicClient)
 
-			err := watcher.handleClusterDeletion(tt.clusterNamespace, tt.clusterName)
+			cluster := &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"name":      tt.clusterName,
+						"namespace": tt.clusterNamespace,
+						"uid":       "test-uid-123",
+					},
+				},
+			}
+			err := watcher.handleClusterDeletion(cluster)
 
 			if tt.expectError && err == nil {
 				t.Error("Expected error but got none")
@@ -611,6 +622,7 @@ func TestVKSClusterWatcher_ProcessClusterEvent(t *testing.T) {
 						"metadata": map[string]interface{}{
 							"name":      "test-cluster",
 							"namespace": "test-namespace",
+							"uid":       "test-uid-123",
 						},
 						"status": map[string]interface{}{
 							"phase": tt.clusterPhase,
@@ -685,6 +697,7 @@ func TestVKSClusterWatcher_WorkerIntegration(t *testing.T) {
 			"metadata": map[string]interface{}{
 				"name":      "test-cluster",
 				"namespace": "test-namespace",
+				"uid":       "test-uid-123",
 				"labels": map[string]interface{}{
 					webhook.VKSManagedLabel: webhook.VKSManagedLabelValueTrue,
 				},
@@ -725,8 +738,9 @@ func TestVKSClusterWatcher_WorkerIntegration(t *testing.T) {
 	}
 
 	// Verify mock credentials are in the secret
-	if string(secret.Data["username"]) != "vks-cluster-test-cluster-user" {
-		t.Errorf("Expected username to be 'vks-cluster-test-cluster-user', got '%s'", string(secret.Data["username"]))
+	expectedUsername := "vks-cluster-test-namespace-test-cluster-test-uid-123-user"
+	if string(secret.Data["username"]) != expectedUsername {
+		t.Errorf("Expected username to be '%s', got '%s'", expectedUsername, string(secret.Data["username"]))
 	}
 
 	// Stop the watcher
@@ -774,6 +788,31 @@ func TestVKSClusterWatcher_StartupCachePopulation(t *testing.T) {
 		}
 	}
 
+	// Create corresponding cluster objects for cache population
+	clusters := []struct {
+		name      string
+		namespace string
+		uid       string
+	}{
+		{"restart-cluster1", "test-ns1", "restart-uid-1"},
+		{"restart-cluster2", "test-ns2", "restart-uid-2"},
+	}
+
+	for _, clusterInfo := range clusters {
+		cluster := &unstructured.Unstructured{
+			Object: map[string]interface{}{
+				"apiVersion": "cluster.x-k8s.io/v1beta2",
+				"kind":       "Cluster",
+				"metadata": map[string]interface{}{
+					"name":      clusterInfo.name,
+					"namespace": clusterInfo.namespace,
+					"uid":       clusterInfo.uid,
+				},
+			},
+		}
+		dynamicClient.Tracker().Add(cluster)
+	}
+
 	watcher := NewVKSClusterWatcher(kubeClient, dynamicClient)
 
 	// Simulate startup by calling Start (which should populate cache from secrets)
@@ -786,9 +825,10 @@ func TestVKSClusterWatcher_StartupCachePopulation(t *testing.T) {
 	}
 
 	// Verify cache was populated on startup
+	// Note: Cache keys now use unique cluster name format: namespace-name-uid
 	expectedClusters := map[string]*lib.ClusterCredentials{
-		"restart-cluster1": {Username: "restart-cluster1-user", Password: "restart-cluster1-password"},
-		"restart-cluster2": {Username: "restart-cluster2-user", Password: "restart-cluster2-password"},
+		"test-ns1-restart-cluster1-restart-uid-1": {Username: "restart-cluster1-user", Password: "restart-cluster1-password"},
+		"test-ns2-restart-cluster2-restart-uid-2": {Username: "restart-cluster2-user", Password: "restart-cluster2-password"},
 	}
 
 	if len(watcher.clusterCredentials) != len(expectedClusters) {
@@ -845,6 +885,7 @@ func TestVKSClusterWatcher_SecretIdempotency(t *testing.T) {
 			"metadata": map[string]interface{}{
 				"name":      "test-cluster",
 				"namespace": "test-namespace",
+				"uid":       "test-uid-123",
 				"labels": map[string]interface{}{
 					webhook.VKSManagedLabel: webhook.VKSManagedLabelValueTrue,
 				},
@@ -1088,6 +1129,7 @@ func TestVKSClusterWatcher_buildVKSClusterConfig(t *testing.T) {
 					"metadata": map[string]interface{}{
 						"name":      tt.clusterName,
 						"namespace": tt.clusterNamespace,
+						"uid":       "test-uid-123",
 					},
 				},
 			}
@@ -1153,8 +1195,8 @@ func TestVKSClusterWatcher_populateCacheFromSecrets(t *testing.T) {
 				},
 			},
 			expectedCache: map[string]*lib.ClusterCredentials{
-				"cluster1": {Username: "cluster1-user", Password: "cluster1-password"},
-				"cluster2": {Username: "cluster2-user", Password: "cluster2-password"},
+				"test-ns1-cluster1-cluster-uid-1": {Username: "cluster1-user", Password: "cluster1-password"},
+				"test-ns2-cluster2-cluster-uid-2": {Username: "cluster2-user", Password: "cluster2-password"},
 			},
 			expectError: false,
 		},
@@ -1217,6 +1259,31 @@ func TestVKSClusterWatcher_populateCacheFromSecrets(t *testing.T) {
 				}
 			}
 
+			// Create corresponding cluster objects if they exist in the test data
+			clusters := []struct {
+				name      string
+				namespace string
+				uid       string
+			}{
+				{"cluster1", "test-ns1", "cluster-uid-1"},
+				{"cluster2", "test-ns2", "cluster-uid-2"},
+			}
+
+			for _, clusterInfo := range clusters {
+				cluster := &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "cluster.x-k8s.io/v1beta2",
+						"kind":       "Cluster",
+						"metadata": map[string]interface{}{
+							"name":      clusterInfo.name,
+							"namespace": clusterInfo.namespace,
+							"uid":       clusterInfo.uid,
+						},
+					},
+				}
+				dynamicClient.Tracker().Add(cluster)
+			}
+
 			watcher := NewVKSClusterWatcher(kubeClient, dynamicClient)
 
 			err := watcher.populateCacheFromSecrets()
@@ -1276,7 +1343,7 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 			expectedFields: []string{
 				"username", "password", "controllerIP",
 				"certificateAuthorityData", "controllerVersion", "nsxtT1LR",
-				"serviceEngineGroupName", "tenantName",
+				"serviceEngineGroupName", "tenantName", "clusterName",
 			},
 			checkValues: map[string]string{
 				"username":                 "admin",
@@ -1300,7 +1367,7 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 			},
 			expectedFields: []string{
 				"username", "password", "controllerIP",
-				"certificateAuthorityData",
+				"certificateAuthorityData", "clusterName",
 			},
 			checkValues: map[string]string{
 				"username":                 "admin",
@@ -1323,7 +1390,7 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 			},
 			expectedFields: []string{
 				"username", "password", "controllerIP",
-				"certificateAuthorityData",
+				"certificateAuthorityData", "clusterName",
 			},
 			checkValues: map[string]string{
 				"username":                 "admin",
@@ -1340,7 +1407,16 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			secretData := watcher.buildSecretData(tt.config)
+			cluster := &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"name":      "test-cluster",
+						"namespace": "test-namespace",
+						"uid":       "test-uid-123",
+					},
+				},
+			}
+			secretData := watcher.buildSecretData(tt.config, cluster)
 
 			// Check that all expected fields are present
 			for _, field := range tt.expectedFields {
@@ -1478,6 +1554,7 @@ func TestVKSClusterWatcher_UpsertAviCredentialsSecret_Comprehensive(t *testing.T
 					"metadata": map[string]interface{}{
 						"name":      tt.clusterName,
 						"namespace": tt.clusterNamespace,
+						"uid":       "test-uid-123",
 					},
 				},
 			}
@@ -1525,7 +1602,7 @@ func TestVKSClusterWatcher_UpsertAviCredentialsSecret_Comprehensive(t *testing.T
 			if tt.expectUpdate {
 				// For fake clients, we can't always rely on resource version changes
 				// Instead, verify that the secret data has been updated to match expected values
-				expectedUsername := fmt.Sprintf("vks-cluster-%s-user", tt.clusterName)
+				expectedUsername := fmt.Sprintf("vks-cluster-%s-%s-test-uid-123-user", tt.clusterNamespace, tt.clusterName)
 				if string(secret.Data["username"]) != expectedUsername {
 					t.Error("Expected secret to be updated with mock credentials")
 				}
@@ -1536,7 +1613,7 @@ func TestVKSClusterWatcher_UpsertAviCredentialsSecret_Comprehensive(t *testing.T
 			}
 
 			// Verify mock credentials are used
-			expectedUsername := fmt.Sprintf("vks-cluster-%s-user", tt.clusterName)
+			expectedUsername := fmt.Sprintf("vks-cluster-%s-%s-test-uid-123-user", tt.clusterNamespace, tt.clusterName)
 			if string(secret.Data["username"]) != expectedUsername {
 				t.Errorf("Expected username to be '%s', got '%s'", expectedUsername, string(secret.Data["username"]))
 			}
