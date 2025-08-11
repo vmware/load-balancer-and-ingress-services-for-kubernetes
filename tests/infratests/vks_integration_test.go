@@ -127,6 +127,7 @@ func createClusterResource(name, namespace, phase string, managed bool) *unstruc
 			"metadata": map[string]interface{}{
 				"name":      name,
 				"namespace": namespace,
+				"uid":       "test-uid-123",
 			},
 			"status": map[string]interface{}{
 				"phase": phase,
@@ -264,9 +265,9 @@ func TestVKSClusterLifecycleIntegration(t *testing.T) {
 	}
 
 	clusterWatcher := ingestion.NewVKSClusterWatcher(kubeClient, dynamicClient)
-	clusterWatcher.SetTestMode(func(clusterName, operationalTenant string) (*lib.ClusterCredentials, error) {
+	clusterWatcher.SetTestMode(func(clusterNameWithUID, operationalTenant string) (*lib.ClusterCredentials, error) {
 		return &lib.ClusterCredentials{
-			Username: fmt.Sprintf("vks-cluster-%s-user", clusterName),
+			Username: fmt.Sprintf("vks-cluster-%s-user", clusterNameWithUID),
 			Password: "integration-test-password",
 		}, nil
 	})
@@ -312,7 +313,7 @@ func TestVKSClusterLifecycleIntegration(t *testing.T) {
 			return false
 		}
 
-		expectedUsername := "vks-cluster-test-cluster-user"
+		expectedUsername := "vks-cluster-test-cluster-ns-test-cluster-test-uid-123-user"
 		return string(usernameBytes) == expectedUsername
 	}, 15*time.Second, 1*time.Second).Should(gomega.Equal(true))
 
@@ -387,9 +388,9 @@ func TestVKSEndToEndIntegration(t *testing.T) {
 	}
 
 	clusterWatcher := ingestion.NewVKSClusterWatcher(kubeClient, dynamicClient)
-	clusterWatcher.SetTestMode(func(clusterName, operationalTenant string) (*lib.ClusterCredentials, error) {
+	clusterWatcher.SetTestMode(func(clusterNameWithUID, operationalTenant string) (*lib.ClusterCredentials, error) {
 		return &lib.ClusterCredentials{
-			Username: fmt.Sprintf("vks-cluster-%s-user", clusterName),
+			Username: fmt.Sprintf("vks-cluster-%s-user", clusterNameWithUID),
 			Password: "integration-test-password",
 		}, nil
 	})
@@ -532,9 +533,9 @@ func TestVKSIdempotencyIntegration(t *testing.T) {
 	g.Expect(len(addons.Items)).To(gomega.Equal(1))
 
 	clusterWatcher := ingestion.NewVKSClusterWatcher(kubeClient, dynamicClient)
-	clusterWatcher.SetTestMode(func(clusterName, operationalTenant string) (*lib.ClusterCredentials, error) {
+	clusterWatcher.SetTestMode(func(clusterNameWithUID, operationalTenant string) (*lib.ClusterCredentials, error) {
 		return &lib.ClusterCredentials{
-			Username: fmt.Sprintf("vks-cluster-%s-user", clusterName),
+			Username: fmt.Sprintf("vks-cluster-%s-user", clusterNameWithUID),
 			Password: "integration-test-password",
 		}, nil
 	})
@@ -608,9 +609,9 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 	}
 
 	clusterWatcher := ingestion.NewVKSClusterWatcher(kubeClient, dynamicClient)
-	clusterWatcher.SetTestMode(func(clusterName, operationalTenant string) (*lib.ClusterCredentials, error) {
+	clusterWatcher.SetTestMode(func(clusterNameWithUID, operationalTenant string) (*lib.ClusterCredentials, error) {
 		return &lib.ClusterCredentials{
-			Username: fmt.Sprintf("vks-cluster-%s-user", clusterName),
+			Username: fmt.Sprintf("vks-cluster-%s-user", clusterNameWithUID),
 			Password: "integration-test-password",
 		}, nil
 	})
