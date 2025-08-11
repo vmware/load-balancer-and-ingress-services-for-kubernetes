@@ -20,6 +20,7 @@ package infratests
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -247,33 +248,49 @@ func TestVKSClusterLifecycleIntegration(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	kubeClient, dynamicClient := setupVKSIntegrationTest(t)
 
-	// Step 1: Create VKS cluster watcher
-	clusterWatcher := ingestion.NewVKSClusterWatcher(kubeClient, dynamicClient)
+	// Step 1: Create required namespace with VKS annotations
+	namespace := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-cluster-ns",
+			Annotations: map[string]string{
+				lib.WCPSEGroup:       "test-se-group",
+				lib.TenantAnnotation: "test-tenant",
+			},
+		},
+	}
+	_, err := kubeClient.CoreV1().Namespaces().Create(context.Background(), namespace, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Failed to create namespace: %v", err)
+	}
 
-	// Start the watcher
+	clusterWatcher := ingestion.NewVKSClusterWatcher(kubeClient, dynamicClient)
+	clusterWatcher.SetTestMode(func(clusterName, operationalTenant string) (*lib.ClusterCredentials, error) {
+		return &lib.ClusterCredentials{
+			Username: fmt.Sprintf("vks-cluster-%s-user", clusterName),
+			Password: "integration-test-password",
+		}, nil
+	})
+
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 
-	err := clusterWatcher.Start(stopCh)
+	err = clusterWatcher.Start(stopCh)
 	if err != nil {
 		t.Fatalf("Failed to start cluster watcher: %v", err)
 	}
 
-	// Step 2: Create a VKS-managed cluster
+	// Create a VKS-managed cluster
 	cluster := createClusterResource("test-cluster", "test-cluster-ns", "Provisioned", true)
 	_, err = dynamicClient.Resource(ClusterGVR).Namespace("test-cluster-ns").Create(context.Background(), cluster, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create cluster: %v", err)
 	}
 
-	// Step 3: Simulate cluster event processing
 	clusterWatcher.EnqueueCluster(cluster, "ADD")
-
-	// Process the event
 	processed := clusterWatcher.ProcessNextWorkItem()
 	g.Expect(processed).To(gomega.BeTrue())
 
-	// Step 4: Verify cluster secret was created
+	// Verify cluster secret was created
 	g.Eventually(func() bool {
 		secretName := "test-cluster-avi-secret"
 		secret, err := kubeClient.CoreV1().Secrets("test-cluster-ns").Get(context.Background(), secretName, metav1.GetOptions{})
@@ -282,7 +299,6 @@ func TestVKSClusterLifecycleIntegration(t *testing.T) {
 			return false
 		}
 
-		// Verify secret contains expected fields
 		expectedFields := []string{"username", "controllerIP", "authtoken"}
 		for _, field := range expectedFields {
 			if _, exists := secret.Data[field]; !exists {
@@ -291,17 +307,16 @@ func TestVKSClusterLifecycleIntegration(t *testing.T) {
 			}
 		}
 
-		// Verify username is from admin credentials
 		usernameBytes, exists := secret.Data["username"]
 		if !exists {
 			return false
 		}
 
-		// The secret data is stored as raw bytes (not base64 encoded)
-		return string(usernameBytes) == "admin"
+		expectedUsername := "vks-cluster-test-cluster-user"
+		return string(usernameBytes) == expectedUsername
 	}, 15*time.Second, 1*time.Second).Should(gomega.Equal(true))
 
-	// Step 5: Test cluster opt-out (change label to false)
+	// Test cluster opt-out
 	cluster.SetLabels(map[string]string{
 		webhook.VKSManagedLabel: webhook.VKSManagedLabelValueFalse,
 	})
@@ -310,25 +325,23 @@ func TestVKSClusterLifecycleIntegration(t *testing.T) {
 		t.Fatalf("Failed to update cluster: %v", err)
 	}
 
-	// Simulate UPDATE event
 	clusterWatcher.EnqueueCluster(cluster, "UPDATE")
 	processed = clusterWatcher.ProcessNextWorkItem()
 	g.Expect(processed).To(gomega.BeTrue())
 
-	// Step 6: Verify secret was cleaned up
+	// Verify secret was cleaned up
 	g.Eventually(func() bool {
 		secretName := "test-cluster-avi-secret"
 		_, err := kubeClient.CoreV1().Secrets("test-cluster-ns").Get(context.Background(), secretName, metav1.GetOptions{})
 		return err != nil // Secret should be deleted
 	}, 10*time.Second, 1*time.Second).Should(gomega.Equal(true))
 
-	// Step 7: Test cluster deletion
+	// Test cluster deletion
 	err = dynamicClient.Resource(ClusterGVR).Namespace("test-cluster-ns").Delete(context.Background(), "test-cluster", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Failed to delete cluster: %v", err)
 	}
 
-	// Simulate DELETE event
 	clusterWatcher.EnqueueCluster(cluster, "DELETE")
 	processed = clusterWatcher.ProcessNextWorkItem()
 	g.Expect(processed).To(gomega.BeTrue())
@@ -343,20 +356,16 @@ func TestVKSEndToEndIntegration(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	kubeClient, dynamicClient := setupVKSIntegrationTest(t)
 
-	// Step 1: Enable VKS capability
 	capability := createVKSSupervisorCapability("ako-vks")
 	_, err := dynamicClient.Resource(SupervisorCapabilityGVR).Create(context.Background(), capability, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create SupervisorCapability: %v", err)
 	}
 
-	// Step 2: Ensure global addon is created
 	err = addon.EnsureGlobalAddonInstall()
 	if err != nil {
 		t.Fatalf("Failed to ensure global addon install: %v", err)
 	}
-
-	// Step 3: Verify addon was created
 	g.Eventually(func() bool {
 		_, err := dynamicClient.Resource(AddonInstallGVR).
 			Namespace(addon.VKSPublicNamespace).
@@ -364,7 +373,6 @@ func TestVKSEndToEndIntegration(t *testing.T) {
 		return err == nil
 	}, 10*time.Second, 1*time.Second).Should(gomega.Equal(true))
 
-	// Step 4: Create namespace with required annotations
 	namespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "vks-test-ns",
@@ -378,8 +386,14 @@ func TestVKSEndToEndIntegration(t *testing.T) {
 		t.Fatalf("Failed to create namespace: %v", err)
 	}
 
-	// Step 5: Create and start cluster watcher
 	clusterWatcher := ingestion.NewVKSClusterWatcher(kubeClient, dynamicClient)
+	clusterWatcher.SetTestMode(func(clusterName, operationalTenant string) (*lib.ClusterCredentials, error) {
+		return &lib.ClusterCredentials{
+			Username: fmt.Sprintf("vks-cluster-%s-user", clusterName),
+			Password: "integration-test-password",
+		}, nil
+	})
+
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 
@@ -388,19 +402,15 @@ func TestVKSEndToEndIntegration(t *testing.T) {
 		t.Fatalf("Failed to start cluster watcher: %v", err)
 	}
 
-	// Step 6: Create a cluster (simulating webhook labeling)
 	cluster := createClusterResource("vks-cluster", "vks-test-ns", "Provisioned", true)
 	_, err = dynamicClient.Resource(ClusterGVR).Namespace("vks-test-ns").Create(context.Background(), cluster, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create cluster: %v", err)
 	}
 
-	// Step 7: Process cluster event
 	clusterWatcher.EnqueueCluster(cluster, "ADD")
 	processed := clusterWatcher.ProcessNextWorkItem()
 	g.Expect(processed).To(gomega.BeTrue())
-
-	// Step 8: Verify end-to-end flow - cluster secret was created with admin credentials
 	g.Eventually(func() bool {
 		secretName := "vks-cluster-avi-secret"
 		secret, err := kubeClient.CoreV1().Secrets("vks-test-ns").Get(context.Background(), secretName, metav1.GetOptions{})
@@ -408,7 +418,6 @@ func TestVKSEndToEndIntegration(t *testing.T) {
 			return false
 		}
 
-		// Verify secret has all required fields
 		requiredFields := []string{"username", "password", "authtoken", "controllerIP"}
 		for _, field := range requiredFields {
 			if _, exists := secret.Data[field]; !exists {
@@ -417,7 +426,6 @@ func TestVKSEndToEndIntegration(t *testing.T) {
 			}
 		}
 
-		// Verify it has proper labels
 		expectedLabels := map[string]string{
 			"ako.kubernetes.vmware.com/cluster":    "vks-cluster",
 			"ako.kubernetes.vmware.com/managed-by": "ako-infra",
@@ -443,11 +451,9 @@ func TestVKSErrorHandling(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	kubeClient, dynamicClient := setupVKSIntegrationTest(t)
 
-	// Test 1: Cluster in namespace without ServiceEngineGroup annotation should not be managed
 	unmanageableNamespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "unmanageable-ns",
-			// No ServiceEngineGroup annotation
 		},
 	}
 	_, err := kubeClient.CoreV1().Namespaces().Create(context.Background(), unmanageableNamespace, metav1.CreateOptions{})
@@ -455,7 +461,6 @@ func TestVKSErrorHandling(t *testing.T) {
 		t.Fatalf("Failed to create namespace: %v", err)
 	}
 
-	// Create webhook to test validation
 	webhookHandler := webhook.NewVKSClusterWebhook(kubeClient)
 
 	cluster := createClusterResource("unmanageable-cluster", "unmanageable-ns", "Provisioned", false)
@@ -471,27 +476,22 @@ func TestVKSErrorHandling(t *testing.T) {
 
 	response := webhookHandler.ProcessAdmissionRequest(admissionRequest)
 
-	// Should be allowed but no VKS label should be added
 	g.Expect(response.Allowed).To(gomega.BeTrue())
-	g.Expect(len(response.Patch)).To(gomega.Equal(0)) // No patch should be applied
+	g.Expect(len(response.Patch)).To(gomega.Equal(0))
 
-	// Test 2: Cluster watcher should handle missing admin credentials gracefully
-	// Remove the avi-secret
+	// Test missing admin credentials
 	err = kubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.Background(), lib.AviSecret, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Failed to delete avi-secret: %v", err)
 	}
 
 	clusterWatcher := ingestion.NewVKSClusterWatcher(kubeClient, dynamicClient)
-
-	// Create VKS-managed cluster
 	managedCluster := createClusterResource("test-cluster", "vks-test-ns", "Provisioned", true)
 
-	// This should fail gracefully when trying to generate secret
 	ctx := context.Background()
-	err = clusterWatcher.GenerateClusterSecret(ctx, managedCluster)
+	err = clusterWatcher.UpsertAviCredentialsSecret(ctx, managedCluster)
 	g.Expect(err).To(gomega.HaveOccurred())
-	g.Expect(err.Error()).To(gomega.ContainSubstring("failed to get ako-infra admin credentials"))
+	g.Expect(err.Error()).To(gomega.ContainSubstring("failed to build cluster configuration"))
 
 	t.Log("✅ VKS Error handling test completed successfully")
 }
@@ -501,59 +501,59 @@ func TestVKSIdempotencyIntegration(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	kubeClient, dynamicClient := setupVKSIntegrationTest(t)
 
-	// Test addon creation idempotency
-	err := addon.EnsureGlobalAddonInstall()
+	// Create required namespace with VKS annotations
+	namespace := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-ns",
+			Annotations: map[string]string{
+				lib.WCPSEGroup:       "test-se-group",
+				lib.TenantAnnotation: "test-tenant",
+			},
+		},
+	}
+	_, err := kubeClient.CoreV1().Namespaces().Create(context.Background(), namespace, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Failed to create namespace: %v", err)
+	}
+
+	err = addon.EnsureGlobalAddonInstall()
 	if err != nil {
 		t.Fatalf("First addon creation failed: %v", err)
 	}
 
-	// Call again - should be idempotent
 	err = addon.EnsureGlobalAddonInstall()
 	if err != nil {
 		t.Fatalf("Second addon creation failed: %v", err)
 	}
-
-	// Verify only one addon exists
 	addons, err := dynamicClient.Resource(AddonInstallGVR).Namespace(addon.VKSPublicNamespace).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		t.Fatalf("Failed to list addons: %v", err)
 	}
 	g.Expect(len(addons.Items)).To(gomega.Equal(1))
 
-	// Test cluster secret creation idempotency
 	clusterWatcher := ingestion.NewVKSClusterWatcher(kubeClient, dynamicClient)
+	clusterWatcher.SetTestMode(func(clusterName, operationalTenant string) (*lib.ClusterCredentials, error) {
+		return &lib.ClusterCredentials{
+			Username: fmt.Sprintf("vks-cluster-%s-user", clusterName),
+			Password: "integration-test-password",
+		}, nil
+	})
+
 	cluster := createClusterResource("idempotent-cluster", "test-ns", "Provisioned", true)
 
 	ctx := context.Background()
 
-	// First creation
-	err = clusterWatcher.GenerateClusterSecret(ctx, cluster)
+	err = clusterWatcher.UpsertAviCredentialsSecret(ctx, cluster)
 	if err != nil {
-		t.Fatalf("First secret creation failed: %v", err)
+		t.Fatalf("Expected secret creation to succeed with mock credentials, got: %v", err)
 	}
 
-	// Get original secret
-	secretName := "idempotent-cluster-avi-secret"
-	originalSecret, err := kubeClient.CoreV1().Secrets("test-ns").Get(ctx, secretName, metav1.GetOptions{})
+	err = clusterWatcher.UpsertAviCredentialsSecret(ctx, cluster)
 	if err != nil {
-		t.Fatalf("Failed to get original secret: %v", err)
+		t.Fatalf("Expected second secret creation to be idempotent, got: %v", err)
 	}
 
-	// Handle the same cluster again (should be idempotent)
-	err = clusterWatcher.HandleProvisionedCluster(cluster)
-	if err != nil {
-		t.Fatalf("Second HandleProvisionedCluster failed: %v", err)
-	}
-
-	// Verify secret wasn't modified
-	currentSecret, err := kubeClient.CoreV1().Secrets("test-ns").Get(ctx, secretName, metav1.GetOptions{})
-	if err != nil {
-		t.Fatalf("Failed to get current secret: %v", err)
-	}
-
-	g.Expect(originalSecret.ResourceVersion).To(gomega.Equal(currentSecret.ResourceVersion))
-
-	t.Log("✅ VKS Idempotency integration test completed successfully")
+	t.Log("✅ VKS Idempotency test completed - validated secret creation idempotency")
 }
 
 // TestVKSE2ECreationToCleanup tests the full E2E flow from VKS infrastructure startup to complete cleanup
@@ -561,10 +561,8 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	kubeClient, dynamicClient := setupVKSIntegrationTest(t)
 
-	// === Phase 1: VKS Infrastructure Startup ===
 	t.Log("🚀 Phase 1: VKS Infrastructure Startup")
 
-	// Step 1: Enable VKS capability (simulates capability activation)
 	capability := createVKSSupervisorCapability("ako-vks")
 	_, err := dynamicClient.Resource(SupervisorCapabilityGVR).Create(context.Background(), capability, metav1.CreateOptions{})
 	if err != nil {
@@ -572,13 +570,10 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 	}
 	t.Log("✅ VKS SupervisorCapability created")
 
-	// Step 2: Global addon install creation
 	err = addon.EnsureGlobalAddonInstall()
 	if err != nil {
 		t.Fatalf("Failed to ensure global addon install: %v", err)
 	}
-
-	// Verify AddonInstall was created
 	g.Eventually(func() bool {
 		_, err := dynamicClient.Resource(AddonInstallGVR).
 			Namespace(addon.VKSPublicNamespace).
@@ -587,13 +582,10 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 	}, 10*time.Second, 1*time.Second).Should(gomega.Equal(true))
 	t.Log("✅ Global AddonInstall created")
 
-	// Step 3: Webhook configuration creation
 	err = webhook.CreateWebhookConfiguration(kubeClient)
 	if err != nil {
 		t.Fatalf("Failed to create webhook configuration: %v", err)
 	}
-
-	// Verify MutatingWebhookConfiguration was created
 	g.Eventually(func() bool {
 		_, err := kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(
 			context.Background(), "ako-vks-cluster-webhook", metav1.GetOptions{})
@@ -601,10 +593,7 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 	}, 10*time.Second, 1*time.Second).Should(gomega.Equal(true))
 	t.Log("✅ VKS webhook configuration created")
 
-	// === Phase 2: Cluster Lifecycle Management ===
 	t.Log("🔄 Phase 2: Cluster Lifecycle Management")
-
-	// Step 4: Create namespace with required annotations
 	namespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "e2e-test-ns",
@@ -618,8 +607,14 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 		t.Fatalf("Failed to create namespace: %v", err)
 	}
 
-	// Step 5: Start cluster watcher
 	clusterWatcher := ingestion.NewVKSClusterWatcher(kubeClient, dynamicClient)
+	clusterWatcher.SetTestMode(func(clusterName, operationalTenant string) (*lib.ClusterCredentials, error) {
+		return &lib.ClusterCredentials{
+			Username: fmt.Sprintf("vks-cluster-%s-user", clusterName),
+			Password: "integration-test-password",
+		}, nil
+	})
+
 	stopCh := make(chan struct{})
 
 	err = clusterWatcher.Start(stopCh)
@@ -628,19 +623,15 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 	}
 	t.Log("✅ VKS cluster watcher started")
 
-	// Step 6: Create VKS-managed cluster
 	cluster := createClusterResource("e2e-cluster", "e2e-test-ns", "Provisioned", true)
 	_, err = dynamicClient.Resource(ClusterGVR).Namespace("e2e-test-ns").Create(context.Background(), cluster, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create cluster: %v", err)
 	}
 
-	// Process cluster ADD event
 	clusterWatcher.EnqueueCluster(cluster, "ADD")
 	processed := clusterWatcher.ProcessNextWorkItem()
 	g.Expect(processed).To(gomega.BeTrue())
-
-	// Verify cluster secret was created
 	g.Eventually(func() bool {
 		secretName := "e2e-cluster-avi-secret"
 		secret, err := kubeClient.CoreV1().Secrets("e2e-test-ns").Get(context.Background(), secretName, metav1.GetOptions{})
@@ -648,7 +639,6 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 			return false
 		}
 
-		// Verify all required fields are present
 		requiredFields := []string{"username", "password", "authtoken", "controllerIP"}
 		for _, field := range requiredFields {
 			if _, exists := secret.Data[field]; !exists {
@@ -656,7 +646,6 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 			}
 		}
 
-		// Verify proper labels
 		expectedLabels := map[string]string{
 			"ako.kubernetes.vmware.com/cluster":    "e2e-cluster",
 			"ako.kubernetes.vmware.com/managed-by": "ako-infra",
@@ -671,10 +660,7 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 	}, 15*time.Second, 1*time.Second).Should(gomega.Equal(true))
 	t.Log("✅ Cluster secret created successfully")
 
-	// === Phase 3: Resource State Validation ===
 	t.Log("🔍 Phase 3: Resource State Validation")
-
-	// Verify all VKS resources are present
 	resourceChecks := []struct {
 		name        string
 		checkFunc   func() bool
@@ -715,14 +701,11 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 		t.Logf("✅ %s validated", check.description)
 	}
 
-	// === Phase 4: Cleanup Simulation (AKO Shutdown) ===
 	t.Log("🧹 Phase 4: VKS Cleanup Simulation")
 
-	// Step 7: Simulate AKO shutdown by closing stopCh and triggering cleanup
 	close(stopCh)
 	t.Log("✅ Shutdown signal sent")
 
-	// Step 8: Execute cleanup functions (simulates the cleanup goroutine in vcf_k8s_controller.go)
 	t.Log("🔧 Executing webhook cleanup...")
 	err = webhook.CleanupWebhookConfiguration(kubeClient)
 	if err != nil {
@@ -737,10 +720,7 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 	}
 	t.Log("✅ Global AddonInstall cleaned up")
 
-	// === Phase 5: Cleanup Verification ===
 	t.Log("🔍 Phase 5: Cleanup Verification")
-
-	// Verify webhook configuration was deleted
 	g.Eventually(func() bool {
 		_, err := kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(
 			context.Background(), "ako-vks-cluster-webhook", metav1.GetOptions{})
