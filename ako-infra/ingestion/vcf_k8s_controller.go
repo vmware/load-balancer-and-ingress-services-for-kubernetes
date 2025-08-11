@@ -287,15 +287,14 @@ func (c *VCFK8sController) AddVKSCapabilityEventHandler(stopCh <-chan struct{}) 
 }
 
 func (c *VCFK8sController) startVKSInfrastructure(stopCh <-chan struct{}) {
-	/* go func() {
-		if err := addon.EnsureGlobalAddonInstall(); err != nil {
-			utils.AviLog.Errorf("VKS: Failed to ensure global addon install: %v", err)
-		}
-	}() */
+	go addon.EnsureGlobalAddonInstallWithRetry(stopCh)
 
 	go webhook.StartVKSWebhook(utils.GetInformers().ClientSet, stopCh)
 
-	/* go func() {
+	go StartVKSClusterWatcherWithRetry(stopCh, c.dynamicInformers)
+
+	// Cleanup on shutdown
+	go func() {
 		<-stopCh
 		utils.AviLog.Infof("VKS: AKO shutdown detected, cleaning up VKS resources")
 
@@ -307,8 +306,6 @@ func (c *VCFK8sController) startVKSInfrastructure(stopCh <-chan struct{}) {
 
 		utils.AviLog.Infof("VKS: All cleanup completed successfully")
 	}()
-
-	go c.startVKSClusterWatcher(stopCh) */
 }
 
 func (c *VCFK8sController) startVKSClusterWatcher(stopCh <-chan struct{}) {
