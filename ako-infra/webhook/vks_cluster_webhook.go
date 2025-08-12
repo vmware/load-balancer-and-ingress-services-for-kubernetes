@@ -22,6 +22,7 @@ package webhook
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=aviinfrasettings,verbs=get;list;watch
 // +kubebuilder:rbac:groups=addons.kubernetes.vmware.com,resources=addoninstalls,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=iaas.vmware.com,resources=capabilities,verbs=get;list;watch
+// +kubebuilder:rbac:groups=run.tanzu.vmware.com,resources=clusterbootstraps,verbs=get;list;watch
 
 import (
 	"context"
