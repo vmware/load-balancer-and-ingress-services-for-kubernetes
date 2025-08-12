@@ -14,8 +14,6 @@
 
 package addon
 
-// +kubebuilder:rbac:groups=addons.kubernetes.vmware.com,resources=addoninstalls,verbs=get;list;watch;create;update;patch;delete
-
 import (
 	"context"
 	"fmt"
