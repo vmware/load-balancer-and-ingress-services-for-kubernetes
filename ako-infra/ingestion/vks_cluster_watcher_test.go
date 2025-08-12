@@ -1170,8 +1170,8 @@ func TestVKSClusterWatcher_buildVKSClusterConfig(t *testing.T) {
 				if config.CNIPlugin != "antrea" {
 					t.Errorf("Expected CNIPlugin to be 'antrea', got '%s'", config.CNIPlugin)
 				}
-				if config.ServiceType != "NodePort" {
-					t.Errorf("Expected ServiceType to be 'NodePort', got '%s'", config.ServiceType)
+				if config.ServiceType != "NodePortLocal" {
+					t.Errorf("Expected ServiceType to be 'NodePortLocal', got '%s'", config.ServiceType)
 				}
 
 				// Note: In unit tests, we can't test the full RBAC creation
@@ -1444,7 +1444,7 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 				ServiceEngineGroup: "test-seg-group",
 				TenantName:         "test-tenant",
 				CNIPlugin:          "antrea",
-				ServiceType:        "NodePort",
+				ServiceType:        "NodePortLocal",
 			},
 			expectedFields: []string{
 				"username", "password", "controllerIP",
@@ -1462,7 +1462,7 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 				"serviceEngineGroupName":   "test-seg-group",
 				"tenantName":               "test-tenant",
 				"cniPlugin":                "antrea",
-				"serviceType":              "NodePort",
+				"serviceType":              "NodePortLocal",
 			},
 		},
 		{
@@ -1473,7 +1473,7 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 				ControllerIP: "10.10.10.10",
 				CACert:       "test-ca-cert",
 				CNIPlugin:    "antrea",
-				ServiceType:  "NodePort",
+				ServiceType:  "NodePortLocal",
 				// Missing optional fields
 			},
 			expectedFields: []string{
@@ -1487,7 +1487,7 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 				"controllerIP":             "10.10.10.10",
 				"certificateAuthorityData": "test-ca-cert",
 				"cniPlugin":                "antrea",
-				"serviceType":              "NodePort",
+				"serviceType":              "NodePortLocal",
 			},
 		},
 		{
@@ -1497,12 +1497,12 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 				Password:           "admin123",
 				ControllerIP:       "10.10.10.10",
 				CACert:             "test-ca-cert",
-				ControllerVersion:  "",         // Empty
-				NsxtT1LR:           "",         // Empty
-				ServiceEngineGroup: "",         // Empty
-				TenantName:         "",         // Empty
-				CNIPlugin:          "antrea",   // Required
-				ServiceType:        "NodePort", // Required
+				ControllerVersion:  "",              // Empty
+				NsxtT1LR:           "",              // Empty
+				ServiceEngineGroup: "",              // Empty
+				TenantName:         "",              // Empty
+				CNIPlugin:          "antrea",        // Required
+				ServiceType:        "NodePortLocal", // Required
 			},
 			expectedFields: []string{
 				"username", "password", "controllerIP",
@@ -1515,7 +1515,7 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 				"controllerIP":             "10.10.10.10",
 				"certificateAuthorityData": "test-ca-cert",
 				"cniPlugin":                "antrea",
-				"serviceType":              "NodePort",
+				"serviceType":              "NodePortLocal",
 			},
 		},
 	}
