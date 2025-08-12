@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -58,6 +59,10 @@ type VKSClusterConfig struct {
 	ServiceEngineGroup string
 	TenantName         string
 	NsxtT1LR           string
+
+	CNIPlugin   string
+	ServiceType string
+	ClusterName string
 }
 
 // VKSClusterWatcher monitors cluster lifecycle events for AKO addon management
@@ -539,6 +544,11 @@ func (w *VKSClusterWatcher) buildVKSClusterConfig(cluster *unstructured.Unstruct
 		return nil, fmt.Errorf("failed to get controller properties from secret: %v", err)
 	}
 
+	cniPlugin, err := w.detectAndValidateCNI(cluster)
+	if err != nil {
+		return nil, fmt.Errorf("CNI validation failed for cluster %s/%s (UID: %s): %v", clusterNamespace, cluster.GetName(), cluster.GetUID(), err)
+	}
+
 	config := &VKSClusterConfig{
 		Username:           clusterCreds.Username,
 		Password:           clusterCreds.Password,
@@ -548,14 +558,17 @@ func (w *VKSClusterWatcher) buildVKSClusterConfig(cluster *unstructured.Unstruct
 		ServiceEngineGroup: nsConfig.ServiceEngineGroup,
 		TenantName:         nsConfig.Tenant,
 		NsxtT1LR:           nsConfig.T1LR,
+		CNIPlugin:          cniPlugin,
+		ServiceType:        "NodePortLocal",
+		ClusterName:        clusterNameWithUID,
 	}
 
 	if config.ControllerVersion == "" {
 		utils.AviLog.Warnf("Controller version not available for cluster %s/%s (UID: %s)", clusterNamespace, cluster.GetName(), cluster.GetUID())
 	}
 
-	utils.AviLog.Infof("Built configuration for cluster %s/%s (UID: %s): SEG=%s, Tenant=%s, T1LR=%s",
-		clusterNamespace, cluster.GetName(), cluster.GetUID(), config.ServiceEngineGroup, config.TenantName, config.NsxtT1LR)
+	utils.AviLog.Infof("Built configuration for cluster %s/%s (UID: %s): SEG=%s, Tenant=%s, T1LR=%s, CNI=%s",
+		clusterNamespace, cluster.GetName(), cluster.GetUID(), config.ServiceEngineGroup, config.TenantName, config.NsxtT1LR, config.CNIPlugin)
 
 	return config, nil
 }
@@ -571,7 +584,7 @@ func (w *VKSClusterWatcher) UpsertAviCredentialsSecret(ctx context.Context, clus
 		return fmt.Errorf("failed to build cluster configuration: %v", err)
 	}
 
-	secretData := w.buildSecretData(config, cluster)
+	secretData := w.buildSecretData(config)
 
 	existingSecret, err := w.kubeClient.CoreV1().Secrets(clusterNamespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
@@ -648,14 +661,13 @@ func (w *VKSClusterWatcher) UpsertAviCredentialsSecret(ctx context.Context, clus
 }
 
 // buildSecretData builds the complete secret data for a VKS cluster
-func (w *VKSClusterWatcher) buildSecretData(config *VKSClusterConfig, cluster *unstructured.Unstructured) map[string][]byte {
+func (w *VKSClusterWatcher) buildSecretData(config *VKSClusterConfig) map[string][]byte {
 	secretData := make(map[string][]byte)
 
 	secretData["username"] = []byte(config.Username)
 	secretData["controllerIP"] = []byte(config.ControllerIP)
 
-	clusterNameWithUID := w.getUniqueClusterName(cluster)
-	secretData["clusterName"] = []byte(clusterNameWithUID)
+	secretData["clusterName"] = []byte(config.ClusterName)
 
 	if config.Password != "" {
 		secretData["password"] = []byte(config.Password)
@@ -680,7 +692,46 @@ func (w *VKSClusterWatcher) buildSecretData(config *VKSClusterConfig, cluster *u
 		secretData["tenantName"] = []byte(config.TenantName)
 	}
 
+	// Add VKS-specific fields from config
+	if config.CNIPlugin != "" {
+		secretData["cniPlugin"] = []byte(config.CNIPlugin)
+	}
+
+	if config.ServiceType != "" {
+		secretData["serviceType"] = []byte(config.ServiceType)
+	}
+
 	return secretData
+}
+
+// detectAndValidateCNI detects the CNI plugin used by the VKS cluster and validates it's Antrea
+func (w *VKSClusterWatcher) detectAndValidateCNI(cluster *unstructured.Unstructured) (string, error) {
+	ctx := context.Background()
+	clusterName := cluster.GetName()
+	clusterNamespace := cluster.GetNamespace()
+
+	clusterBootstrapGVR := schema.GroupVersionResource{
+		Group:    "run.tanzu.vmware.com",
+		Version:  "v1alpha3",
+		Resource: "clusterbootstraps",
+	}
+
+	clusterBootstrap, err := w.dynamicClient.Resource(clusterBootstrapGVR).Namespace(clusterNamespace).Get(ctx, clusterName, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to get ClusterBootstrap for cluster %s/%s: %v", clusterNamespace, clusterName, err)
+	}
+
+	cniRefName, found, err := unstructured.NestedString(clusterBootstrap.Object, "spec", "cni", "refName")
+	if err != nil || !found {
+		return "", fmt.Errorf("failed to get CNI refName from ClusterBootstrap %s/%s: %v", clusterNamespace, clusterName, err)
+	}
+
+	if !strings.Contains(cniRefName, "antrea") {
+		return "", fmt.Errorf("cluster %s/%s is using unsupported CNI '%s', AKO VKS integration only supports Antrea", clusterNamespace, clusterName, cniRefName)
+	}
+
+	utils.AviLog.Infof("VKS cluster watcher: detected Antrea CNI for cluster %s/%s (package: %s)", clusterNamespace, clusterName, cniRefName)
+	return "antrea", nil
 }
 
 // StartVKSClusterWatcherWithRetry starts cluster watcher with infinite retry
