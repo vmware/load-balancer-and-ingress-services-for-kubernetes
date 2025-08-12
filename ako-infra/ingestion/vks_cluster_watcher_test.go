@@ -1606,7 +1606,7 @@ func TestVKSClusterWatcher_UpsertAviCredentialsSecret_Comprehensive(t *testing.T
 				if string(secret.Data["username"]) != expectedUsername {
 					t.Error("Expected secret to be updated with mock credentials")
 				}
-			} else if !tt.expectCreate {
+			} else if !tt.expectCreate { //nolint:staticcheck
 				// For no-update case, the secret should remain unchanged
 				// We can verify this by checking if the log shows an update occurred
 				// Since we can't easily capture logs in tests, we'll trust the implementation

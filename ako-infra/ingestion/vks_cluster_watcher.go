@@ -14,11 +14,6 @@
 
 package ingestion
 
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch
-// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters,verbs=get;list;watch
-// +kubebuilder:rbac:groups=ako.vmware.com,resources=aviinfrasettings,verbs=get;list;watch
-
 import (
 	"context"
 	"fmt"
@@ -69,7 +64,7 @@ type VKSClusterConfig struct {
 type VKSClusterWatcher struct {
 	kubeClient    kubernetes.Interface
 	dynamicClient dynamic.Interface
-	workqueue     workqueue.RateLimitingInterface
+	workqueue     workqueue.RateLimitingInterface //nolint:staticcheck
 
 	clusterCredentials map[string]*lib.ClusterCredentials
 
@@ -86,7 +81,7 @@ func (w *VKSClusterWatcher) getUniqueClusterName(cluster *unstructured.Unstructu
 // NewVKSClusterWatcher creates a new cluster watcher instance
 func NewVKSClusterWatcher(kubeClient kubernetes.Interface, dynamicClient dynamic.Interface) *VKSClusterWatcher {
 	workqueue := workqueue.NewNamedRateLimitingQueue(
-		workqueue.DefaultControllerRateLimiter(),
+		workqueue.DefaultControllerRateLimiter(), //nolint:staticcheck
 		VKSClusterWorkQueue,
 	)
 

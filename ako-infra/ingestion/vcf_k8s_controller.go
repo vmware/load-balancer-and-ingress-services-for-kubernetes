@@ -14,8 +14,6 @@
 
 package ingestion
 
-// +kubebuilder:rbac:groups=iaas.vmware.com,resources=capabilities,verbs=get;list;watch
-
 import (
 	"context"
 	"fmt"
@@ -306,58 +304,6 @@ func (c *VCFK8sController) startVKSInfrastructure(stopCh <-chan struct{}) {
 
 		utils.AviLog.Infof("VKS: All cleanup completed successfully")
 	}()
-}
-
-func (c *VCFK8sController) startVKSClusterWatcher(stopCh <-chan struct{}) {
-	if !lib.GetVPCMode() {
-		utils.AviLog.Infof("Not running in VPC mode, skipping VKS cluster watcher")
-		return
-	}
-
-	utils.AviLog.Infof("Starting VKS cluster watcher for cluster lifecycle management")
-
-	kubeClient := utils.GetInformers().ClientSet
-	dynamicClient := lib.GetDynamicClientSet()
-
-	if kubeClient == nil || dynamicClient == nil {
-		utils.AviLog.Errorf("VKS cluster watcher: missing required clients")
-		return
-	}
-
-	clusterWatcher := NewVKSClusterWatcher(kubeClient, dynamicClient)
-	if err := clusterWatcher.Start(stopCh); err != nil {
-		utils.AviLog.Errorf("VKS cluster watcher: failed to start: %v", err)
-		return
-	}
-
-	clusterEventHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			utils.AviLog.Debugf("Cluster ADD event")
-			clusterWatcher.EnqueueCluster(obj, "ADD")
-		},
-		UpdateFunc: func(old, new interface{}) {
-			utils.AviLog.Debugf("Cluster UPDATE event")
-			clusterWatcher.EnqueueCluster(new, "UPDATE")
-		},
-		DeleteFunc: func(obj interface{}) {
-			utils.AviLog.Debugf("Cluster DELETE event")
-			clusterWatcher.EnqueueCluster(obj, "DELETE")
-		},
-	}
-
-	c.dynamicInformers.ClusterInformer.Informer().AddEventHandler(clusterEventHandler)
-	go c.dynamicInformers.ClusterInformer.Informer().Run(stopCh)
-
-	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.ClusterInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("timed out waiting for cluster caches to sync"))
-	} else {
-		utils.AviLog.Infof("VKS cluster watcher: caches synced for cluster informer")
-	}
-
-	// Wait for stop signal and cleanup
-	<-stopCh
-	clusterWatcher.Stop()
-	utils.AviLog.Infof("VKS cluster watcher stopped")
 }
 
 func (c *VCFK8sController) AddVKSAddonEventHandler(stopCh <-chan struct{}) {
