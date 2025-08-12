@@ -1093,7 +1093,25 @@ func TestVKSClusterWatcher_buildVKSClusterConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			kubeClient := k8sfake.NewSimpleClientset()
-			dynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
+
+			// Create ClusterBootstrap with Antrea CNI for testing
+			clusterBootstrap := &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "run.tanzu.vmware.com/v1alpha3",
+					"kind":       "ClusterBootstrap",
+					"metadata": map[string]interface{}{
+						"name":      tt.clusterName,
+						"namespace": tt.clusterNamespace,
+					},
+					"spec": map[string]interface{}{
+						"cni": map[string]interface{}{
+							"refName": "antrea.tanzu.vmware.com.2.3.0+vmware.1-tkg.1",
+						},
+					},
+				},
+			}
+
+			dynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), clusterBootstrap)
 
 			// Create test namespace with annotations
 			namespace := &corev1.Namespace{
@@ -1148,10 +1166,96 @@ func TestVKSClusterWatcher_buildVKSClusterConfig(t *testing.T) {
 					t.Fatal("Expected config but got nil")
 				}
 
+				// Validate VKS-specific fields
+				if config.CNIPlugin != "antrea" {
+					t.Errorf("Expected CNIPlugin to be 'antrea', got '%s'", config.CNIPlugin)
+				}
+				if config.ServiceType != "NodePort" {
+					t.Errorf("Expected ServiceType to be 'NodePort', got '%s'", config.ServiceType)
+				}
+
 				// Note: In unit tests, we can't test the full RBAC creation
 				// because it requires a real Avi Controller connection.
 				// The main validation is that the function properly handles
 				// the credential creation flow and namespace configuration.
+			}
+		})
+	}
+}
+
+func TestVKSClusterWatcher_detectAndValidateCNI(t *testing.T) {
+	tests := []struct {
+		name        string
+		cniRefName  string
+		expectError bool
+		expectedCNI string
+	}{
+		{
+			name:        "Antrea CNI",
+			cniRefName:  "antrea.tanzu.vmware.com.2.3.0+vmware.1-tkg.1",
+			expectError: false,
+			expectedCNI: "antrea",
+		},
+		{
+			name:        "Calico CNI - should fail",
+			cniRefName:  "calico.tanzu.vmware.com.3.20.2+vmware.1-tkg.1",
+			expectError: true,
+		},
+		{
+			name:        "Cilium CNI - should fail",
+			cniRefName:  "cilium.tanzu.vmware.com.1.12.0+vmware.1-tkg.1",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create ClusterBootstrap with specific CNI
+			clusterBootstrap := &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "run.tanzu.vmware.com/v1alpha3",
+					"kind":       "ClusterBootstrap",
+					"metadata": map[string]interface{}{
+						"name":      "test-cluster",
+						"namespace": "test-namespace",
+					},
+					"spec": map[string]interface{}{
+						"cni": map[string]interface{}{
+							"refName": tt.cniRefName,
+						},
+					},
+				},
+			}
+
+			dynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), clusterBootstrap)
+			kubeClient := k8sfake.NewSimpleClientset()
+			watcher := NewVKSClusterWatcher(kubeClient, dynamicClient)
+
+			cluster := &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"name":      "test-cluster",
+						"namespace": "test-namespace",
+					},
+				},
+			}
+
+			cniPlugin, err := watcher.detectAndValidateCNI(cluster)
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("Expected error but got none")
+				}
+				if !strings.Contains(err.Error(), "unsupported CNI") {
+					t.Errorf("Expected unsupported CNI error, got: %v", err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error but got: %v", err)
+				}
+				if cniPlugin != tt.expectedCNI {
+					t.Errorf("Expected CNI '%s', got '%s'", tt.expectedCNI, cniPlugin)
+				}
 			}
 		})
 	}
@@ -1339,11 +1443,14 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 				NsxtT1LR:           "/orgs/test-org/projects/test-project/vpcs/test-vpc",
 				ServiceEngineGroup: "test-seg-group",
 				TenantName:         "test-tenant",
+				CNIPlugin:          "antrea",
+				ServiceType:        "NodePort",
 			},
 			expectedFields: []string{
 				"username", "password", "controllerIP",
 				"certificateAuthorityData", "controllerVersion", "nsxtT1LR",
 				"serviceEngineGroupName", "tenantName", "clusterName",
+				"cniPlugin", "serviceType",
 			},
 			checkValues: map[string]string{
 				"username":                 "admin",
@@ -1354,6 +1461,8 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 				"nsxtT1LR":                 "/orgs/test-org/projects/test-project/vpcs/test-vpc",
 				"serviceEngineGroupName":   "test-seg-group",
 				"tenantName":               "test-tenant",
+				"cniPlugin":                "antrea",
+				"serviceType":              "NodePort",
 			},
 		},
 		{
@@ -1363,17 +1472,22 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 				Password:     "admin123",
 				ControllerIP: "10.10.10.10",
 				CACert:       "test-ca-cert",
+				CNIPlugin:    "antrea",
+				ServiceType:  "NodePort",
 				// Missing optional fields
 			},
 			expectedFields: []string{
 				"username", "password", "controllerIP",
 				"certificateAuthorityData", "clusterName",
+				"cniPlugin", "serviceType",
 			},
 			checkValues: map[string]string{
 				"username":                 "admin",
 				"password":                 "admin123",
 				"controllerIP":             "10.10.10.10",
 				"certificateAuthorityData": "test-ca-cert",
+				"cniPlugin":                "antrea",
+				"serviceType":              "NodePort",
 			},
 		},
 		{
@@ -1383,20 +1497,25 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 				Password:           "admin123",
 				ControllerIP:       "10.10.10.10",
 				CACert:             "test-ca-cert",
-				ControllerVersion:  "", // Empty
-				NsxtT1LR:           "", // Empty
-				ServiceEngineGroup: "", // Empty
-				TenantName:         "", // Empty
+				ControllerVersion:  "",         // Empty
+				NsxtT1LR:           "",         // Empty
+				ServiceEngineGroup: "",         // Empty
+				TenantName:         "",         // Empty
+				CNIPlugin:          "antrea",   // Required
+				ServiceType:        "NodePort", // Required
 			},
 			expectedFields: []string{
 				"username", "password", "controllerIP",
 				"certificateAuthorityData", "clusterName",
+				"cniPlugin", "serviceType",
 			},
 			checkValues: map[string]string{
 				"username":                 "admin",
 				"password":                 "admin123",
 				"controllerIP":             "10.10.10.10",
 				"certificateAuthorityData": "test-ca-cert",
+				"cniPlugin":                "antrea",
+				"serviceType":              "NodePort",
 			},
 		},
 	}
@@ -1407,16 +1526,8 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cluster := &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"name":      "test-cluster",
-						"namespace": "test-namespace",
-						"uid":       "test-uid-123",
-					},
-				},
-			}
-			secretData := watcher.buildSecretData(tt.config, cluster)
+
+			secretData := watcher.buildSecretData(tt.config)
 
 			// Check that all expected fields are present
 			for _, field := range tt.expectedFields {
