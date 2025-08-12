@@ -12,29 +12,6 @@
 * limitations under the License.
 */
 
-/*
-Package lib provides VKS (VMware Kubernetes Services) RBAC management for Avi Controller.
-
-This implementation follows the AKO tenancy model with three-role structure:
-
-1. ADMIN TENANT ROLE: Minimal admin tenant access for infrastructure operations
-2. OPERATIONAL TENANT ROLE: Full operational permissions with cluster-specific filtering where supported
-3. ALL-TENANTS ROLE: Controller read access across all tenants
-
-Permissions are based on existing AKO role definitions (ako-admin.json, ako-tenant.json,
-ako-all-tenants-permission-controller.json) but implemented as Go constants.
-
-Cluster isolation is achieved through Avi's Extended Granular RBAC with markers:
-- Objects supporting markers get cluster-specific filtering (clustername=cluster-name)
-- Objects not supporting markers are shared within tenant
-- This aligns with AKO's existing cluster marker system
-
-References:
-- docs/ako_tenancy.md
-- docs/roles/*.json
-- https://techdocs.broadcom.com/...extended-granular-rbac/using-markers.html
-*/
-
 package lib
 
 import (
@@ -115,6 +92,14 @@ var akoAllTenantsPermissions = []AKOPermission{
 	{"PERMISSION_CONTROLLER", "READ_ACCESS"},
 }
 
+func pointerBool(b bool) *bool {
+	return &b
+}
+
+func pointerString(s string) *string {
+	return &s
+}
+
 // createRoleFromPermissions creates an Avi role from AKO permission definitions
 // If the role already exists, it returns the existing role
 func createRoleFromPermissions(aviClient *clients.AviClient, permissions []AKOPermission,
@@ -139,7 +124,7 @@ func createRoleFromPermissions(aviClient *clients.AviClient, permissions []AKOPe
 		Name:                  &roleName,
 		Privileges:            privileges,
 		TenantRef:             func() *string { s := fmt.Sprintf("/api/tenant/?name=%s", tenantName); return &s }(),
-		AllowUnlabelledAccess: func() *bool { b := true; return &b }(),
+		AllowUnlabelledAccess: pointerBool(true),
 	}
 
 	if clusterFilter != nil {
@@ -181,12 +166,12 @@ func CreateVKSClusterRoles(aviClient *clients.AviClient, clusterName, operationa
 
 	// Create operational tenant role with cluster filtering
 	clusterFilter := &models.RoleFilter{
-		MatchOperation: func() *string { s := "ROLE_FILTER_EQUALS"; return &s }(),
+		MatchOperation: pointerString("ROLE_FILTER_EQUALS"),
 		MatchLabel: &models.RoleFilterMatchLabel{
-			Key:    func() *string { s := "clustername"; return &s }(),
+			Key:    pointerString("clustername"),
 			Values: []string{clusterName},
 		},
-		Enabled: func() *bool { b := true; return &b }(),
+		Enabled: pointerBool(true),
 	}
 
 	tenantRoleName := fmt.Sprintf("vks-cluster-%s-tenant-role", clusterName)
@@ -249,15 +234,15 @@ func CreateVKSClusterUserWithRoles(aviClient *clients.AviClient, clusterName str
 	userAccess := []*models.UserRole{
 		{
 			RoleRef:   roles.AdminRole.UUID,
-			TenantRef: func() *string { s := "/api/tenant/?name=admin"; return &s }(),
+			TenantRef: pointerString("/api/tenant/?name=admin"),
 		},
 		{
 			RoleRef:   roles.TenantRole.UUID,
-			TenantRef: func() *string { s := fmt.Sprintf("/api/tenant/?name=%s", operationalTenant); return &s }(),
+			TenantRef: pointerString(fmt.Sprintf("/api/tenant/?name=%s", operationalTenant)),
 		},
 		{
-			RoleRef:   roles.AllTenantsRole.UUID,
-			TenantRef: func() *string { s := "*"; return &s }(),
+			RoleRef:    roles.AllTenantsRole.UUID,
+			AllTenants: pointerBool(true),
 		},
 	}
 
@@ -265,7 +250,7 @@ func CreateVKSClusterUserWithRoles(aviClient *clients.AviClient, clusterName str
 		Name:             &userName,
 		Username:         &userName,
 		Password:         &password,
-		DefaultTenantRef: func() *string { s := fmt.Sprintf("/api/tenant/?name=%s", operationalTenant); return &s }(),
+		DefaultTenantRef: pointerString(fmt.Sprintf("/api/tenant/?name=%s", operationalTenant)),
 		Access:           userAccess,
 	}
 
@@ -282,7 +267,7 @@ func CreateVKSClusterUserWithRoles(aviClient *clients.AviClient, clusterName str
 	}
 
 	utils.AviLog.Infof("Created VKS cluster user with three-role access: %s (UUID: %s)", userName, *createdUser.UUID)
-	utils.AviLog.Infof("User access: admin tenant, operational tenant (%s), all-tenants controller read", operationalTenant)
+	utils.AviLog.Infof("User access: admin tenant, operational tenant (%s), all-tenants (AllTenants=true)", operationalTenant)
 
 	return createdUser, password, nil
 }
