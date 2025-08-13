@@ -1,4 +1,3 @@
----
 apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
@@ -6,47 +5,178 @@ metadata:
     alm-examples: |-
       [
         {
-          "apiVersion": "ako.vmware.com/v1alpha1",
+          "apiVersion": "ako.vmware.com/v1beta1",
           "kind": "AKOConfig",
           "metadata": {
-            "name": "ako-sample",
+            "finalizers": [
+              "ako.vmware.com/cleanup"
+            ],
+            "labels": {
+              "app.kubernetes.io/managed-by": "kustomize",
+              "app.kubernetes.io/name": "ako-operator"
+            },
+            "name": "akoconfig-sample",
             "namespace": "avi-system"
           },
           "spec": {
+            "akoGatewayLogFile": "avi-gw.log",
             "akoSettings": {
               "apiServerPort": 8080,
+              "blockedNamespaceList": [],
               "clusterName": "my-cluster",
-              "cniPlugin": "openshift",
+              "cniPlugin": "",
               "deleteConfig": false,
               "disableStaticRouteSync": false,
               "enableEVH": false,
-              "fullSyncFrequency": "1800",
-              "layer7Only": false,
-              "logLevel": "INFO",
               "enableEvents": true,
+              "fullSyncFrequency": "1800",
+              "ipFamily": "",
+              "istioEnabled": false,
+              "layer7Only": false,
+              "logLevel": "WARN",
               "namespaceSelector": {
                 "labelKey": "",
                 "labelValue": ""
               },
               "servicesAPI": false,
-              "vipPerNamespace": false,
-              "istioEnabled": false,
-              "blockedNamespaceList": [],
-              "ipFamily": "",
-              "useDefaultSecretsOnly": false
+              "useDefaultSecretsOnly": false,
+              "vipPerNamespace": false
             },
             "controllerSettings": {
               "cloudName": "Default-Cloud",
               "controllerIP": "",
-              "controllerVersion": "22.1.3",
+              "controllerVersion": "",
               "serviceEngineGroupName": "Default-Group",
               "tenantName": "admin",
               "vrfName": ""
             },
-            "replicaCount": 1,
+            "featureGates": {
+              "enableEndpointSlice": true,
+              "enablePrometheus": false,
+              "gatewayAPI": true
+            },
+            "gatewayAPI": {
+              "image": {
+                "pullPolicy": "IfNotPresent",
+                "repository": "projects.packages.broadcom.com/ako/ako-gateway-api@sha256:cb4e220aa7e1dbbdecbcec64486dd0c72249a6c71d15f78e8a44bba47b9eed68"
+              }
+            },
             "imagePullPolicy": "IfNotPresent",
-            "imageRepository": "projects.packages.broadcom.com/ako/ako@sha256:2b926cbc7101c00b6684f3c6de65c137df9d8e06f0f7f753c90a0120682bac8d",
             "imagePullSecrets": [],
+            "imageRepository": "projects.packages.broadcom.com/ako/ako@sha256:8e06f730f6c16e76d24000492da85a1afd59f6227863e54b30da417ab528568f",
+            "l4Settings": {
+              "autoFQDN": "default",
+              "defaultDomain": "",
+              "defaultLBController": true
+            },
+            "l7Settings": {
+              "defaultIngController": true,
+              "fqdnReusePolicy": "InterNamespaceAllowed",
+              "noPGForSNI": false,
+              "passthroughShardSize": "SMALL",
+              "serviceType": "ClusterIP",
+              "shardVSSize": "LARGE"
+            },
+            "logFile": "avi.log",
+            "mountPath": "/log",
+            "networkSettings": {
+              "bgpPeerLabels": [],
+              "defaultDomain": "",
+              "enableRHI": false,
+              "nodeNetworkList": [
+                {
+                  "cidrs": [
+                    ""
+                  ],
+                  "networkName": ""
+                }
+              ],
+              "nsxtT1LR": "",
+              "vipNetworkList": [
+                {
+                  "cidr": "",
+                  "networkName": "",
+                  "v6cidr": ""
+                }
+              ]
+            },
+            "nodePortSelector": {
+              "key": "",
+              "value": ""
+            },
+            "pvc": "",
+            "replicaCount": 1,
+            "resources": {
+              "limits": {
+                "cpu": "350m",
+                "memory": "400Mi"
+              },
+              "requests": {
+                "cpu": "200m",
+                "memory": "300Mi"
+              }
+            }
+          }
+        },
+        {
+          "apiVersion": "ako.vmware.com/v1alpha1",
+          "kind": "AKOConfig",
+          "metadata": {
+            "finalizers": [
+              "ako.vmware.com/cleanup"
+            ],
+            "labels": {
+              "app.kubernetes.io/managed-by": "kustomize",
+              "app.kubernetes.io/name": "ako-operator"
+            },
+            "name": "akoconfig-sample",
+            "namespace": "avi-system"
+          },
+          "spec": {
+            "akoGatewayLogFile": "avi-gw.log",
+            "akoSettings": {
+              "apiServerPort": 8080,
+              "blockedNamespaceList": [],
+              "clusterName": "my-cluster",
+              "cniPlugin": "",
+              "deleteConfig": false,
+              "disableStaticRouteSync": false,
+              "enableEVH": false,
+              "enableEvents": true,
+              "fullSyncFrequency": "1800",
+              "ipFamily": "",
+              "istioEnabled": false,
+              "layer7Only": false,
+              "logLevel": "WARN",
+              "namespaceSelector": {
+                "labelKey": "",
+                "labelValue": ""
+              },
+              "servicesAPI": false,
+              "useDefaultSecretsOnly": false,
+              "vipPerNamespace": false
+            },
+            "controllerSettings": {
+              "cloudName": "Default-Cloud",
+              "controllerIP": "",
+              "controllerVersion": "",
+              "serviceEngineGroupName": "Default-Group",
+              "tenantName": "admin",
+              "vrfName": ""
+            },
+            "featureGates": {
+              "enablePrometheus": false,
+              "gatewayAPI": true
+            },
+            "gatewayAPI": {
+              "image": {
+                "pullPolicy": "IfNotPresent",
+                "repository": "projects.packages.broadcom.com/ako/ako-gateway-api@sha256:cb4e220aa7e1dbbdecbcec64486dd0c72249a6c71d15f78e8a44bba47b9eed68"
+              }
+            },
+            "imagePullPolicy": "IfNotPresent",
+            "imagePullSecrets": [],
+            "imageRepository": "projects.packages.broadcom.com/ako/ako@sha256:8e06f730f6c16e76d24000492da85a1afd59f6227863e54b30da417ab528568f",
             "l4Settings": {
               "autoFQDN": "default",
               "defaultDomain": "",
@@ -66,15 +196,17 @@ metadata:
               "enableRHI": false,
               "nodeNetworkList": [
                 {
-                  "networkName": "",
-                  "cidrs": []
+                  "cidrs": [
+                    ""
+                  ],
+                  "networkName": ""
                 }
               ],
               "nsxtT1LR": "",
               "vipNetworkList": [
                 {
-                  "networkName": "",
                   "cidr": "",
+                  "networkName": "",
                   "v6cidr": ""
                 }
               ]
@@ -83,6 +215,8 @@ metadata:
               "key": "",
               "value": ""
             },
+            "pvc": "",
+            "replicaCount": 1,
             "resources": {
               "limits": {
                 "cpu": "350m",
@@ -92,30 +226,13 @@ metadata:
                 "cpu": "200m",
                 "memory": "300Mi"
               }
-            },
-            "rbac": {
-              "pspEnable": false
-            },
-            "featureGates": {
-              "gatewayAPI": false,
-              "enablePrometheus": false
-            },
-            "gatewayAPI": {
-              "image": {
-                "repository": "projects.packages.broadcom.com/ako/ako-gateway-api@sha256:99853b51a9aee33abdb58ce1fa088927228b66c4ab621efd044a6264185587aa",
-                "pullPolicy": "IfNotPresent"
-              }
-            },
-            "akoGatewayLogFile": "avi-gw.log"
-          },
-          "status": {}
+            }
+          }
         }
       ]
     capabilities: Basic Install
-    operators.operatorframework.io/builder: operator-sdk-v1.16.0+git
-    operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
-    operatorframework.io/suggested-namespace: avi-system
     containerImage: projects.packages.broadcom.com/ako/ako-operator@sha256:cfc30e3a06fd3afa54e6a0a10a3aac1604395a60f04b291fcbba61e3529b4876
+    createdAt: "2025-08-02T19:17:02Z"
     features.operators.openshift.io/disconnected: "true"
     features.operators.openshift.io/fips-compliant: "false"
     features.operators.openshift.io/proxy-aware: "false"
@@ -123,555 +240,530 @@ metadata:
     features.operators.openshift.io/token-auth-aws: "false"
     features.operators.openshift.io/token-auth-azure: "false"
     features.operators.openshift.io/token-auth-gcp: "false"
-  name: ako-operator.v1.12.3
+    operatorframework.io/suggested-namespace: avi-system
+    operators.operatorframework.io/builder: operator-sdk-v1.39.2
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
+  name: ako-operator.v1.13.2
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: AKOConfig is the Schema for the akoconfigs API
-      displayName: AKOConfig
-      kind: AKOConfig
-      name: akoconfigs.ako.vmware.com
-      version: v1alpha1
-      resources:
-        - kind: Statefulset
-          name: ""
-          version: v1
-        - kind: Configmap
-          name: ""
-          version: v1
-      specDescriptors:
-      - description: AKOSettings defines the settings requried for the AKO controller
-        displayName: AKO Settings
-        path: akoSettings
-      - description: L7Settings defines the L7 configuration for the AKO controller
-        displayName: Layer 7 Settings
-        path: l7Settings
-      - description: ImagePullPolicy defines when the AKO controller image gets pulled
-        displayName: Image Pull Policy
-        path: imagePullPolicy
-      - description: ImageRepository is where the AKO controller resides.
-        displayName: Image Repository
-        path: imageRepository
-      - description: ReplicaCount defines the number of replicas for AKO Statefulset
-        displayName: Replica Count
-        path: replicaCount
-      - description: LogFile is the name of the file where AKO will dump its logs
-        displayName: Log File
-        path: logFile
-      - description: L4Settings defines the L4 configuration for the AKO controller
-        displayName: Layer 4 Settings
-        path: l4Settings
-      - description: MountPath is where the logFile will be mounted on
-        displayName: Mount Path
-        path: mountPath
-      - description: NetworkSettings defines the network details required for the AKO controller
-        displayName: Network Settings
-        path: networkSettings
-      - description: NodePortSelector defines the node port settings, to be used only if the serviceType is selected NodePort
-        displayName: NodePort Selector
-        path: nodePortSelector
-      - description: Resources defines the limits and requests for cpu and memory to be used by the AKO controller
-        displayName: Resources
-        path: resources
-      - description: ControllerSettings defines the Avi Controller parameters
-        displayName: Controller Settings
-        path: controllerSettings
-      - description: rbac enables the pod security policy for AKO
-        displayName: RBAC
-        path: rbac
-      - description: PersistentVolumeClaim where the logs needs to be stored
-        displayName: PVC
-        path: pvc
-      - description: ImagePullSecrets will add pull secrets to the statefulset for AKO. Required if using secure private container image registry for AKO image
-        displayName: Image Pull Secrets
-        path: imagePullSecrets
-      - description: AKOGatewayLogFile is the name of the file where ako-gateway-api container will dump its logs
-        displayName: AKO Gateway Log File
-        path: akoGatewayLogFile
-      - description: FeatureGates is to enable or disable experimental features
-        displayName: Feature Gates
-        path: featureGates
-      - description: GatewayAPI defines settings for AKO Gateway API container
-        displayName: Gateway API
-        path: gatewayAPI
-      statusDescriptors:
-      - description: Status of the AKO Operator deployment
-        displayName: Deployed
-        path: deployed
-
+      - description: AKOConfig is the Schema for the akoconfigs API
+        displayName: AKOConfig
+        kind: AKOConfig
+        name: akoconfigs.ako.vmware.com
+        specDescriptors:
+          - description: AKOGatewayLogFile is the name of the file where ako-gateway-api container will dump its logs
+            displayName: AKOGateway Log File
+            path: akoGatewayLogFile
+          - description: AKOSettings defines the settings required for the AKO controller
+            displayName: AKO Settings
+            path: akoSettings
+          - description: ControllerSettings defines the Avi Controller parameters
+            displayName: Controller Settings
+            path: controllerSettings
+          - description: FeatureGates is to enable or disable experimental features
+            displayName: Feature Gates
+            path: featureGates
+          - description: GatewayAPI defines settings for AKO Gateway API container
+            displayName: Gateway API
+            path: gatewayAPI
+          - description: ImagePullPolicy defines when the AKO controller image gets pulled
+            displayName: Image Pull Policy
+            path: imagePullPolicy
+          - description: ImagePullSecrets will add pull secrets to the statefulset for AKO. Required if using secure private container image registry for AKO image
+            displayName: Image Pull Secrets
+            path: imagePullSecrets
+          - description: ImageRepository is where the AKO controller resides
+            displayName: Image Repository
+            path: imageRepository
+          - description: L4Settings defines the L4 configuration for the AKO controller
+            displayName: Layer 4 Settings
+            path: l4Settings
+          - description: L7Settings defines the L7 configuration for the AKO controller
+            displayName: Layer 7 Settings
+            path: l7Settings
+          - description: LogFile is the name of the file where AKO will dump its logs
+            displayName: Log File
+            path: logFile
+          - description: MountPath is where the logFile will be mounted on
+            displayName: Mount Path
+            path: mountPath
+          - description: NetworkSettings defines the network details required for the AKO controller
+            displayName: Network Settings
+            path: networkSettings
+          - description: NodePortSelector defines the node port settings, to be used only if the serviceTYpe is selected NodePort
+            displayName: NodePort Selector
+            path: nodePortSelector
+          - description: PersistentVolumeClaim where the logs need to be stored
+            displayName: PVC
+            path: pvc
+          - description: Rbac enables the pod security policy for AKO
+            displayName: Rbac
+            path: rbac
+          - description: ReplicaCount defines the number of replicas for AKO Statefulset
+            displayName: Replica Count
+            path: replicaCount
+          - description: Resources defines the limits and requests for cpu and memory to be used by the AKO controller
+            displayName: Resources
+            path: resources
+        statusDescriptors:
+          - description: State defines the current Kubernetes phase of AKOConfig object
+            displayName: State
+            path: state
+            x-descriptors:
+              - urn:alm:descriptor:urn:alm:descriptor:io.kubernetes.phase
+        version: v1alpha1
+      - description: AKOConfig is the Schema for the akoconfigs API
+        displayName: AKOConfig
+        kind: AKOConfig
+        name: akoconfigs.ako.vmware.com
+        resources:
+          - kind: Configmap
+            name: ""
+            version: v1
+          - kind: Statefulset
+            name: ""
+            version: v1
+        specDescriptors:
+          - description: AKOGatewayLogFile is the name of the file where ako-gateway-api container will dump its logs
+            displayName: AKOGateway Log File
+            path: akoGatewayLogFile
+          - description: AKOSettings defines the settings required for the AKO controller
+            displayName: AKO Settings
+            path: akoSettings
+          - description: ControllerSettings defines the Avi Controller parameters
+            displayName: Controller Settings
+            path: controllerSettings
+          - description: FeatureGates is to enable or disable experimental features
+            displayName: Feature Gates
+            path: featureGates
+          - description: GatewayAPI defines settings for AKO Gateway API container
+            displayName: Gateway API
+            path: gatewayAPI
+          - description: ImagePullPolicy defines when the AKO controller image gets pulled
+            displayName: Image Pull Policy
+            path: imagePullPolicy
+          - description: ImagePullSecrets will add pull secrets to the statefulset for AKO. Required if using secure private container image registry for AKO image
+            displayName: Image Pull Secrets
+            path: imagePullSecrets
+          - description: ImageRepository is where the AKO controller resides
+            displayName: Image Repository
+            path: imageRepository
+          - description: L4Settings defines the L4 configuration for the AKO controller
+            displayName: Layer 4 Settings
+            path: l4Settings
+          - description: L7Settings defines the L7 configuration for the AKO controller
+            displayName: Layer 7 Settings
+            path: l7Settings
+          - description: LogFile is the name of the file where AKO will dump its logs
+            displayName: Log File
+            path: logFile
+          - description: MountPath is where the logFile will be mounted on
+            displayName: Mount Path
+            path: mountPath
+          - description: NetworkSettings defines the network details required for the AKO controller
+            displayName: Network Settings
+            path: networkSettings
+          - description: NodePortSelector defines the node port settings, to be used only if the serviceTYpe is selected NodePort
+            displayName: NodePort Selector
+            path: nodePortSelector
+          - description: PersistentVolumeClaim where the logs need to be stored
+            displayName: PVC
+            path: pvc
+          - description: ReplicaCount defines the number of replicas for AKO Statefulset
+            displayName: Replica Count
+            path: replicaCount
+          - description: Resources defines the limits and requests for cpu and memory to be used by the AKO controller
+            displayName: Resources
+            path: resources
+        statusDescriptors:
+          - description: State defines the current Kubernetes phase of AKOConfig object
+            displayName: State
+            path: state
+            x-descriptors:
+              - urn:alm:descriptor:urn:alm:descriptor:io.kubernetes.phase
+        version: v1beta1
   description: Operator to manage the artifacts of the AKO Controller
   displayName: AKO Operator
   icon:
-    - base64data: "iVBORw0KGgoAAAANSUhEUgAAAREAAABkCAYAAAChDARIAAABJ2lDQ1BrQ0dDb2xvclNwYWNlQWRvYmVSR0IxOTk4AAAokWNgYFJILCjIYRJgYMjNKykKcndSiIiMUmB/wsDOwMwgwKDMwJWYXFzgGBDgwwAEMBoVfLvGwAiiL+uCzMKUxwu4UlKLk4H0HyDOTi4oKmFgYMwAspXLSwpA7B4gWyQpG8xeAGIXAR0IZG8BsdMh7BNgNRD2HbCakCBnIPsDkM2XBGYzgeziS4ewBUBsqL0gIOiYkp+UqgDyvYahpaWFJol+IAhKUitKQLRzfkFlUWZ6RomCIzCkUhU885L1dBSMDIwMGBhA4Q5R/TkQHJ6MYmcQYgiAEJsjwcDgv5SBgeUPQsykl4FhgQ4DA/9UhJiaIQODgD4Dw745yaVFZVBjGJmMGRgI8QHxhUo92mt8awAAAAlwSFlzAAALEwAACxMBAJqcGAAAAgtpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IlhNUCBDb3JlIDUuNC4wIj4KICAgPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4KICAgICAgPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIKICAgICAgICAgICAgeG1sbnM6dGlmZj0iaHR0cDovL25zLmFkb2JlLmNvbS90aWZmLzEuMC8iPgogICAgICAgICA8dGlmZjpSZXNvbHV0aW9uVW5pdD4yPC90aWZmOlJlc29sdXRpb25Vbml0PgogICAgICAgICA8dGlmZjpDb21wcmVzc2lvbj4xPC90aWZmOkNvbXByZXNzaW9uPgogICAgICAgICA8dGlmZjpPcmllbnRhdGlvbj4xPC90aWZmOk9yaWVudGF0aW9uPgogICAgICAgICA8dGlmZjpQaG90b21ldHJpY0ludGVycHJldGF0aW9uPjI8L3RpZmY6UGhvdG9tZXRyaWNJbnRlcnByZXRhdGlvbj4KICAgICAgPC9yZGY6RGVzY3JpcHRpb24+CiAgIDwvcmRmOlJERj4KPC94OnhtcG1ldGE+Cg9FKpMAADGVSURBVHgB7Z0H3JxF8cc3hSqhCRJIIO+LChEJkFBUQFBQsWBHKbYAQlDsqICKFSwoFqygIHaKYKNYKFEUCwSxgCCQRKpikISWRvL85zv3/p7sPXnu7rny3h/us5PcPc+zZWZ2dnZ2dnafe8dkBiFBkkCSQJJAhxIY22G9VC1JIEkgScAlkIxIUoQkgSSBriSQjEhX4kuVkwSSBJIRSTqQJJAk0JUEBtuIpJBxvXKMljxGC28994+tp/9PmfSZ9pi0O/PY0s3EbZLAo00Cg+2JPNqknfhJEhhACSQjMoCdmpqUJNBPCSQj0k9pJ1pJAgMogWREBrBTU5OSBPopgWRE+intRCtJYAAlkIzIAHZqalKSQD8lkIxIP6WdaCUJDKAEkhEZwE5NTUoS6KcEkhHpp7QTrSSBAZRAMiID2KmpSUkC/ZRAMiL9lHailSQwgBJIRmQAOzU1KUmgnxJIRqSf0k60kgQGUALJiAxgp6YmJQn0UwLJiPRT2olWksAASiAZkQHs1NSkJIF+SiAZkX5KO9FKEhhACSQjMoCdmpqUJNBPCSQj0k9pJ1pJAgMogWREBrBTU5OSBPopgWRE+intRCtJYAAlML6bNvFnfPmMGTMmv3LfD9CfEBZ90VQ6fHTCC/VzHMHaNcZ+f3/kJ/iFT1fRrHKtwxvJyGmZyIzbjvitQjuV6Z0ETDu8rzrF2G190ZWO8tyJPgpP8Sq87eDs6E9GNCPULK/IcCfP4OdDI1s1dOXKlZXKtYMTnsELjB3b3JFrG282gndMc7zQjnFXlQf1qkIRP/VatbcqbsoV8VfpT9WLr9wDRV0Av0B5uiq9nSuDP1tZ0zvqgb+KPNRO6og+adzrmbxWUIfHzBj/YyAfEE5d4zLN7oVffDk+QzlmbIFQCZK2jUjM7PLly8N9990Xli1bFsaNHxc2WH+DsO666zoZyrXbkBL+6pKKOJctXRYefOjBsHjJYp8dyB8/fnxYf/31w1prrZV3cjNjUsyjTQ8//HB46KGHXFFggHasueaaYcKECWGNNdZoiRc+xKtk8Mgjj4SlS5eGBx58IKxYsSK4g2P9s8b4NcL6E9YPa661Zo6XuqLrN4Uv4S4k5zSL6e0+jzb+Rvw0o0sd5UumjfCUpVO3u/roQT1m4atPrT2tbGNCKKuvNPG9msEyFYEGsijKQ3XK8oQ3vhbbAd6xIxNZcXzE9XTflhHBGvMf5m6/4/ZwycWXhJ/97Gfh7n/fHSasNyHss88+4ZWvfGXYbrvtHH+RORHt5EpjECQ4//vf/4brr78+/PWvfw3X/fm6cONNNzpKymy88cbhaU97Wthpx53CjjvtGLbccks3LNQDJHCe+ahz7rvvf+Hmm29xnH/+858Dn1iAQ0NDYaeddgpPfvKTw/bbb+9411577Zyu8MR4ucfIzps3z/m98cYbw5xr5oSFixaGcePGBQzLxIkTw2677eYymzZtWkO8Tsi+wEkb4O3OO+8MCxYsCBtuuGFdO9VG1WnnSh+bWrqhu+OOO1zWGGXkuM466+T028EZl4V/AB7/85//hLvvvjust956jh/Dr/apDu0EYvkuWbIk8Ln//vtdhpRZvHhxbTIbN974XNuNMxPKhA0mhHXXWTeor8AV9yvPrUA83XPPPeGf//yn49p22219UlGecPDMR/wyKS1atMh5ffDBB532FltsEZ7whCeoSum1iAddYWJbeN/C8MBDD4QF/13gbUaPNtpoI/887nGPCxtsUD+Rx7yUESJf+nLXXXeFv//972HhwoXeH095ylNctygDqNxqeKxAZTDhe9kbbrghe8lLXgLm1T677LJL9oc//CHHqTp5Qgc3NnN7rQcffCi75JJLsgMOOGA1umW8TJ8+PfvGN76R/etf/8qpgkv4SPzf//6XXXrppdmRRx5ZCSd0Jm0xKTv50ydn199wfab2FfGawmU///nPs1mzZlXGu/GGG2enfPaU7B//+EcdXjEPLdH7zW9+k+2888457gsvvDBvl8qoXtVrjP/Syy7NpgxPyfGfdtppmQ0CR9UxflsPqC5tfPWrX53j/+53v5uZB1iHX2VJNIOR3XLLLd7/p556avbmN78522GHHfL6Zf1vk1n21re+NfvKV76SXXHF5ZkZxcwGdU4jxu+JJV8qM3fu3OzQQw/N6Z100knZvffem+PiBh1QeTNqGePk29/+dvbGN74xrwefBx18kPcxdVSee0Gsn8jkhn/ckJ199tnZO9/5zmx4eLgOV9zu/fffP/v0pz+dXX755ZkZBKGr4ytPtBto8zEDlf3yl7/Mjj3u2Oz73/9+9pOf/CT7/Oc/nx133HEuc+qobFxf91jNSrByRc2A2MyXHX300d4Qm5mzrbbaKps0aVI2efLkzGZoT3/xi1/sHQbiWCCVCBUKqb7NWtknPvGJXICbb755tvXWW2dTpkxx2tDnYzOmp5u1z8u+/OUvz373u9/VdRhCufbaa71j4o6gk8zrqMMJXtr5xCc+MYvxTtt+mgvclik51/A7Z84cV/IYLzjBDX/iVfyCFxmqPMbPPLzMZlvHKxnoilF8zWte4+VtRvTrXnvtldks6eVpWycg/PPmzcsOeGXNUMdK+4tf/KIn+JHXhz70IefbPDu/mtfg/QEB+FAbbFbMfv3rX3vfT5061ctKTu1emfi+973vZbfffnutHZFR84TCl3jA8HzhC19w2hgm8/z8/uKLL67hMXlLdiRg7DB0m03cbDV+0Vn4/uQnP5n3r+hQV3hI+9vf/pZ97nOfy2zJuxoe8w5dZ8yTXS0P/AcffLDrEOMVAF9MxxNHvpiQ3vGOd7hhQ7cw8A888EB25ZVXZkcddVRukMRbXJf7ykZECLByMLn1E7fONtusXkjmWmXbbLON52PRxLSuReKtnkWTWf29732v42XQMCDN9S0VnhQLXhikT3rSk/JyWFgA6372OWdnT9qmlscgZrBYzCMzly0vL1zxFWWn41B+i4942TPPPNOtOYOedkvJUBjw0uHm3jbFC78YKA0qaJ5++un57IwsJA+Ua8aMGZm5xG7YNLiYrYBmCuMFGnypn35mXg30zZ31Pn7qU5/qzyeedGJX3oj4v+mmm7L99tvPcdKfyB96v/3tb50zZkYAL/EjH/mI56kPkBF1aDMfeGNgwyvPXHmmDPKn/8HPpCMcDDBoiY7a7USjL/ELH9I/8EvH6fe4Xyw26F7ti170IqdlcTTnAX1FZ2zZltmS1fPApwEuOroygH/4wx/mkzL6gx6pbbQJfLZ0zzbddFMfD+SJt3hCes973pN7PTRNNNRmW2pllJlnEwd6hdd04oknuhHE84SPb37zm03HciUjIqXkCkI6gw5iQKljdGXG5v61r33takKK+qflrRrJgMe1Aifuq637/L7VYBc/XDUwN9lkk+yCCy7IvvSlLzmO8WPHeR6drfLt4KVj1WE/+MEPsq9//es5HhRt/Bqr5APeqrjxrsQzbr46XkpvsZDcG4QHlBT+3//+9/sMEitLS0GPFJC8URxmSfDJAOM98fzSl74093bEUzv4RePHP/6x48MI0lZwP+c5z8mVXe3UhIUsMQwyCJSv+mHgIh+LG7g3yUBTXby9R5bXDJZ4i9ujNlpcK3vf+97n9eABmYODpbKWRyxfWLoIN0aM9lksxicH6jA2ZPCLnoho4XF/7GMfy/HQdsaa+kD4G11tY8PbSx0ZO5Y5CjHQTlYVaq/F/pzesuXLfGx88IMfzCzemGEIMSosizAqtA9QvVhOlc+J2ADwIBY7DADPhsjv4y+CSOSdd+55wdaQHmzluR2I8doyJJirFawTwvz58z24RNDKGlMJJbRvvvnmYBbbd2xe8YpXeD2bnXy3hDxA7Ylpe0aDL3gw6+0BLXiz2c1LCi8BOKATvOZSBvOignl64Q1veEMA59Of/vQcF+nmiTh+AmsEGYGrr77aZUTgt12g3fBKoPOPf/yjV2fXDSCgaEoZzJMLFuPx4DJdqjpeqMUXZZGZTQrBlpFemt0uaALPetazgnkZfi+ZEZQE6Gv0ikCywIxKeN7znud8EUBFDtSjLPXoGzNWYe7cuYGAJmUIDJurHsx78UC3LbuDxcPCvvvu62ibtYc8QPxyDy3aBL1zzj0nzHzDTNcHm6xc58xoePCTgGUMthQNL3vZy1wf2TbmH3iQsxmXYEuYYMbO+aZvb7vtNq++6667BosjBTMOrh8Eos3geoCascFYMUPmOoAsGatmzILFyxy3LbF808EpjvQ3wVrwmGHxndVf/epXLmtkAv+SndpfKiNLbAkmrHw2vOjii9xKMoPg/lvr6j4m5Nw9ZWZsZsEaEZZVtl0fD0JBY2hktjVh19ETfbwiaOs5viodLwY3kBnBFMrLxvgox8zFJ06PccX3wgsuZh1mi0Z4oY28WLYIh+rrWVfRZjYhjYCegniapZlZmBUpy7LNDJmXPe+881ys9BmfKhCXZZ0PTWgzi4oneUbEpXCBAfVTFRoqS7BR7j48q18vuuiiHKfK2i6cB0bFg+3+ZZ/97Gc9vsXanWUGnio6Fn9II5Yyz1x0AoYEYYVDnqM8EjNeGcsrQHT9IXrGEyHICA7kwPKIezxPgMA8z3i6yI0lFzokms997nOzk08+2YOjV/72yozluUA04VfeDks06qtPwYPXYwYxs0GfL8OEg/5jKc3yyIxAdsghhzhtlvwsedR3xCqJdwDSI3CytEJmbATgBeGhve1tb3P5/ulPf/JgrTyuMp2qtJyBqBpL0Mi2cZ1JuaISlq4Ikfu99947s21Yquf1/aHJl5jk+tOf/tTx0DHx4BMdXTEMdCzlWi13yNcyTIOV5QzKzKDEwPDhnjTFPRoNeKXjRmpZJLzQQUbgmmI4MTLcoxwaoKqvtsRXjI7iKwpqqh9QRIJhlKfdfLgnYIlCAirbRNx15dgB+dSnPuV4NFBsy9CfMVTgZyCjA0BV/PSlyv7oRz9yPMhYg8S8w9WWSdKDf//73+5mE8+y2TZbunSJ027nC3mgS7vvvrvTliFRrOeUU07xwQlO0eVePLsROX51I8IS1o4F5LuFLFWEG1lhvBiYLD8xchqI4AZECzpnnnGm8wYOdEnyRzbmYa5Wlzr61LCt+obeRz/6UcenyUtLm3e/+915mIEa4Dj1i6dm519wfmZeaMZyCrjlllutbTdnJ5xwQnbVVVd5mvj1h+irshERAiyYYgpYuLLBzcCTEAgOAtQXjoj+arc0CmCW0ZYaCkenlA24uNMow0eKr+eyq3AxSKXMZeUwJJpVVKesnNJkQFAEDWzlxVfa9PjHP75hu1RWvDETyquTjL71rW95fXjUmpldmnYNt/ChNM9+9rMdp4yG+KBPNWkwMIB2+5TB/OEPfdjxY0z5gB/vpti2GHd8L7rwzEd5ZVflO7P2xaz6zGc+M28ffb/Ouut48LhMZpJLbEQYjJosiNXFRlcyI75D7I16RYBP8SX87BwyXsBLAFgDnh047biBR/W8rbYOEqjtyicd2optMakzJqRL559/vlcVfQw13sh3vvOdzJZObkjwGDEgxOTktai86Opa2YhQQUgQuKy6BCdl00BDsUl7/etfn2+pqb6Il10RCED0nPrga2QUNAht/ZZxjoG9e5WVRyK+4qt4xNVT+syZMz2Ai4BRALb04F35Kqu6So+vysODkKfBTgAzHcsMZmEM8BFHHJHjZRkEDtWN8XEv4/D85z8/u/XWW1026lS2qDUoKCfDDf+AlMsfGnzFZbSUoe9whTfYYEMPZk+aXNt+Fn4CbXgtQJU+VRk7yJQbKRRabWfJIVzqf08YwV9LYxJatfWr/FZX6oo+ZTlnJBljRGTIGEDsrgDiQfViI6KlAfXYYeKYA/ik74cdelj2txHvW7jAA059lM6VyZKzLOAApyZMvHjkBai+P7T4itsbe6vIWzyykijqEkuhs846y8cQS0aWNZdddlluQCSTMvJtGREhYv2lrTcaXjYAmL3FNK4koPpljMT5rM+IEsedo47XldhDET87C1pX0hnyClSHq3glWs/z0JQh33HCBYzdTQYqh5M4qKT6ZTEg5QkvxsteAfA6GAwsu5STNqIQWH4i+fJUZAyFQzi5slTj+oxnPMPdWnDIiDCQjznmGM9HSdh2pywzCMoJaCD4Q8mX+gRcGAfqaybcZZedfS2OS0265M05FilhFfyioaUM7dasyIEz4htAI1zUXzXvljSiQpJwoyParqU98q5YejTaco2NiIwO8tBHcjn88MPzpR48i2YZe5KJjBp84FUrFMDhQcDbbrjagZg2Ew07W/AKfhlBtm7hLy4LDfQA3WGMC8SrnovX1m96GXWBKTlGx6O5ZoU9mm7r42CDQEXyK1Fdc4H9+fe//70fpaW+MZSXKd6AG2B3wgJtfq/dIH+wL3AAJmyPQr/lLW/xiDNpNoA9cs09dESfZwE0zEvw92tI+/gnPu47IOAjwk8+HzNAwYQeDjvssPDFL37Rq9POMpxkUoc8doFWPLIifPWrXw3mcdQdR6cM/LO7QoTeDLHjhW94Ir8IZlA9am6uuEfYyYc3yppRC0TsAeS0fNlyz7PBWreT4QUafIkmOwO2xvdSkvG0aTsE+tm8Tk+HLnLilQALRua7E8JRRoI88Jli5rsy4BENjvybN1tHt4iHsrVeL+ZUf5bMkLUFdr2ixVhymc+ePTvY+YzGCAtdA0+2/PD+BY/FisK73vUu30mTjkOzDMinvhmnYAe9vAi6wy4JOzk2CQRblnq65FeGp1Gay8vwA7xKgQ4D0DDD4ffswpjRzPsBOnzQKY7Rw4vSwNcMylvZrMaIMNlGPOjAg7wkhGMQUbblzGUN55xzjr9zEJcp3sOwOtqWMsFOffoWEw2NgXIMOHWUrT+dBumA0uM6xXuMA4bKZvFgywQXpM3uxWIucIRp5yOCHbUP801ZGESNALyUYVuWOihZI7y0Fdo2A/oWXiO8bB+a2+28YJgB5Kv22tmZYK6vKx95Q0ND/v4Dxl3KqrLkx0A6uCiHUeB9JNqgrd0999zT3+3ZcccdvRr9abEev7fdId++5KERfi848sXWsS3pvI9p01zbep06dVt7b2jXvN87sRTQLv2Yo8C/GMSneUEBvQGYOBhcFgPw7e24fLN7cMVGwgKW+TtjyFRjoBkO8+bccDNG0JN5c+cF80h8y5kxRb/ENJrhKuZJR9japq3oCboJHSZDW/77GKBezCvtgi7Xqu1o34iYUYKAW/T9axadF6mkXDBFPsDsZjEKVxjOBjBbylB4gehLdczVD7YW8xwagcIVwVx8PwdgB9qCudZ12bHixPcqhFFASACDBKvLM8KW0HQVrwwszQwoHWWLQBp5gAYfeEkTPl3BSx7nCWyZ4nVoP0anDKgHSEZxGQaEcIhf8vH+GPTULasnHORbUNPLk0Y/zps3z7MxHrTLXGAf7LbNnOPCINC/zQC64F9hbeXlQz5DZuTUHl5o3HbbqY7Cy7awIpThg+z4cC8Apz41hPZt2WVlLb6Ve3DUwTMEaB/lSYtxe2bJlwVBgx2hD8cff3zeB6pfUtyTwKv+54wSAxuD4TSNYTw/BjxAWjegNlgsKz8LA20mJYCzTIwv0eHKhzJKq0K/bSMCcjGHkjHr4nLjxscgJjgsA3BQSYeFVL+sPMbGjm/74MbdKwKzBo0EdCAm7rjY8Y3vhYdBIuVHmQDxqjK6Kh16Q6b8ALN0bDA90b5403Xxw4vdS6IsdfVRGV3jdAwJYDsXXldlWl3BgRzxyrTcYBDI6NoZhpYzq/oBL8HeKXGS4AU4KMisCDBz2bs0fi8l5NAWb3yCgzTh8kIjX6SBb5G1Dc8FEN/c77XX3m5Ilc61DMBDHwsf9PiIV+VTho9bD/smPy7LPYBh10DiWZMCs7RokN4MLOaXe5l2ItTxQVs0GtUFP4BuIz+AOvJYmRCY2HoBkg/6Km9Syxnw430ydruF1afUChjFHI21l9uCbTW68OkcMSlhscazQFqwbcFgx2jDsM2cCC3uLN2zJr3iiiucAxQXl7wIeCG4wi94wQty618s0+wZhaEDOcmHQaoK1KO8eFU9ZEEabV+ydIkvd/iNkKoATtxZYgbFZWErHOKFdS8nWhmo9MlWU7YKt/3rNp/5aSe8qaxw8qx+wJXH+/B4zsiaGRcYLxJgwOy8yy5+zwlH+gajBz3KWZDblw5lRptKGKnPfOYzTg8jzOyNHhDPEQ/SKScSfTEwyaMcQH144AMPeMEP2W/KLF9eMwCUQ6YMHAw0xgIPjzbghXLPlQ+AtyraNQPkyat/FZwC+gw9tENZHgdZvULzFJam0m/oI5PtnrpdjotxRDr91A3IsKEHAHSGRiZETrjaC3bez0X9aIdmx0ZEzHH8muPHtk3nQSaYVOO5Igx1jh2Y8lkTZY2Z1j2zm70v4fyjJEWoKUjN5ccLwU1rBmXLmbx8m30Dj5rluRfoniuDlTK2l+DZpCGDZtAqv1Fd0IoL4ikvfOELfVBrsFHP3n71gF886xbxsZSxtzU9GQNE/wEcK2cwMkNiQG1XItjJy0BAjuUNwD0eC3lFA0Lb4YX6xFoA2zHzK1+2Ne2TC/dlciJNOCiDl8WgZfa+5pprXE9YHrUC2sSyCW9tyAaPHebyuI+CqPbuTO6JgAuapTCSrHzJmd+uwViR3qovY33kN3HOPfdcH8CaeCdPmpx7f+hSL4HgNeOFOIx4r4UYaq82dEOrIyMCQQkMz4DYBEakuKaXwFEAFJ0dCzt7Ubf0kfBRNnYgiPyjpHqnJW4ca9e5c2/1iLMdivLOV/24nO6Liq10rnGHxulV7hvZBXihgySbKrgoIzlVLV8rV2sddRnsioswM2uJZGdefKbBiBTlpGd+eEgxKBQXo8LsWtwxwfvAUGE4aCPPvKuDgXAjYkIRTrUJOTDjzradD4EGTOzpFOUFHgA6eI0YDXac0J8i2HZ0rnfgoS6TFvrERMQSGu9WHi71eS8F74nytH9oZGYu4m70zNLVtkI9Gy8buWlSbVTH061ZaquC5Hh7CmTTjxgXZKQJq4hP9SUj5bs2RPOV8rnidfH+jZbh6gM8ufvvX+QohFf42rl2ZUQQHA3HLcWlZmbAWLCEgSkawBWrL8VmS4v1mbvAlk8ZlIXdEimbhCocahDrf4AtOmaURxt4x0UdWZW/TjoQI0g9KS/yIPiLfJHnFpO28AHEEpKBhqKrPyRz+GNmx3BjoKVczNruvZjSg4vyBNK1rsbQEE9icuBlPYKB2qIutgXPRoMf/PJ0CIjHPElWLkN7AA+Bv7POOivYiVbPZpIaHh4yo7GWv3SIZ6IXHb1Agy88X4weuopuoWvEAnjG2MRQ5D/O4x7+MCIYn1e96lW5XhfLtXqm3wQYfuAvf/lL4MiC+kH53V5pE+1kWQnQb/QrPBB8F9C2Vu1X2fjasREBiQgSgLODNv62LcoWg5RC5z14y5A3aZm97ARR/kOwKDszJy4XVhNQXe5Rau0aEA/BqqrRcTnKCrrxNoSjnSvygJd26TbivxlteVnqA4w08SmMiAYn9VnSsJWM4heBgcS6GMDtx/gjV4wOSxgZKK7QGbY4BgOHnRkZcYwI/UUdAe1BSRkM1113nSezlAEnwECxU7B+T1m1QXLgGcNm7wH5z2+iK/BA/p133uXeDZUxmuyEEUtiUsIoUGbpsqVhyeIlPpsTa6KNHBmIgdkZnRRt5YkHPZddFU8hzoBx6gRiOrQNwDDhHdAWpXWCu6wO/QHfeJj0AzrC0qYX0LURobE0WjsEuJ9YftwyOkjCYkeErVLcXxQPhaRhlCFPh25oFK5cXJc03D4EzAEubYGBu6gElBVooOm5Z9eR9XEpPvKa5ZdWaj8xbjt9gCdgP5foiHDjpegMIGZ/Xn9XHV2ZkRmsAEqFi37sscd6bMsTR74kY4KJe+yxhxsRslBIYlgEZjEixT7DA1WMizzN+ixF+XFqQLi5x/jyA8F4tCd88IRw0YUXeWxm/vz5bgTZ/gfs5TI3INBncrHfbQnjxo5zfSIfeWDAuKJL6A28sLQhmMkyjB1AgHa3A/ArnmW42qmfly14rOCkX1jmaKmTlx2lG+I52oGT7Dsh1ZURiQlilelcO67uMQ2MSAwokGYiOwbvwViMDUD8g99QoEHafkWgAgaEtor5HQZ3tS1Tnalyfbtah5cCLLOJMJJdlb+q5WKaqsNVsmJ9jpdn786EoaGhwDkGXGS8AYwIRpuyXAGWMsQK8BI0wFlmMLtSLqbBgMRLYdkK4MXI6yRmwZJGM6jqcXiK3+sASMNoMfAJ2jJ4wSledI97bb8Y5gaE2AUGiqUWBuTQmYeGWUfN8raw21IVMH4AAVaWM/z2y9SnTA32MqAfphO/lInveS5CnM/ySkYoTi/WKX1epd6OA/mj/8QDkb36tLRuh4nwyAcZMF5ZPSjY3c2E27URQQlQANxlXEsABcNziNdbpONaInSi0ngUBNeYNXWGAHeUGYOGSom5ogTMprjr+jEeKR14+w7GUylgPPBMG2SX1ukwUfKhuhSYwb/f8/dzI4KckSfAwTP7fVF3+5EbeciZQDbAcgAPkdgWygW+RvJluUlwnGUpxgDAm8FAaImj/rvW0nHRUVTxMnPmTB+4XnHkKx4w6IL92LDH1uhzDCOxD36Yyn6oOFd66sT1JANHafJnZi0Cuoqh4zN58paeLSPgDw3mhmKe6GJUmRjLaBVpF59lPEnHSLIkJOZE/IelaaPAahFPu8/qWyYAlrAA7amTX5tIuzYiMT1mKTrbXpH22EbxxCSKK6VghsKI3POfe4L9XIArGcYnBnWWPBh+1UkB2m4aHdPo6L6ZskUIq3ZOJ0oYkckHPUsa/aoZnpvkxiBnICowSl0GPV4KIFmyhSv31jOiL5XBu8FbwYhgaIbM47G3f8MRRx6RGxGqsaydPfsKx8CA0aBgFwlPsigbyrCc4pUHgAEKTfjmCIH9Gr8bEGgC5MUD0RP1Zf1TNrNSl3rEQh6xZQ4gHas9FJ49ceRrxCZRXzzgicADtCr1ofHlcUDDoRiVlv9QQf/pQ3lOMfnRui/2Qyd0an5tJzWjOhIsA5z3OACUBmtX10mWrgArgS6CqfZnFzzCTrykuKsDHtIJqBJzsT9H4QNDykD+owpQtGg5U5m3EQWtXL5JweGhYR9wrP8xIsjPflQmD3Bq4OF5sF2LZ6E+YRJgdipTLPqYdAaOjBFLDGZ1gL//wyQh/LfcfIv3L3nwQVxjH3tJTWdMYhrSEfpfhg2XW3Gdgw46yLdlVc4HrvHTLtAGQDy2W1/lO+2u2LCxlCdIjczwhmgrnhcfQDEddH00Psgy7gO1rZNrz4yIiPNW5ute9zp3zxTzUB5XxUqYCVn78juYQCMvhBkJwIVmPQ1IGfyhB1/NlMJk/ZgAyQSZE/wESNNAvGbONe4dkMayUgFVjAAxKQ7vETcBGimXBjGGgP4gYCm6V//pal+6UJ/DdnOuneMGYXi4FkAnnbgJ54oA1fOHkS+2HjkAxfYxyx+8EJbIxDIA6HdrAIQHIwXU8YEHU8E4tW++nFTdFzEdlo4CljQcQ+fAJYBhgRfaOxofcFdpq/hrdu2JEYEADNHJnBNBIQGepcSeYF90HkJBcVn2nHHGGT67xQFVNQ6FQ7FYAhFJxtVrywupbAAaFyzXqV6okSTS2VUyUm2ekQ2zPrEJDG78BvS1c67ND/Cx/tayQYaBeMjQ0JDQlV5Fkz7WwMbjxJu5+JKLfRBQkSUqcRiAwSBPh2UQ8Rf4FEBfeDkvgQeFqy++iF3o+L3qdHsFNx4AAH+iZTer7rsl0qC+2mo/+OTeFcWQh4wjctO5kZyvBrgeLck9NyI0jCPNxDvwNsrWdwiNzmP5g0XWrCChSHgoHLMmQVjOCgCxS6jyDa/+u80Nc/OM5jgbG5gcwaPsZthmf+JHeAooJ0aYJY1mOQ5osfXLTKjtRIwC8kb2UvRis0gnH5xsJ7Oty2TAEgfAu1ls63qWLhyl198XRg/YEVEfUraMhowNuiFDM3Zs72ZM6RWxOjweQLtS/uDaNboTBO2u6f9YN/bIEO8c3hgPxJrEW42n3nyDXx/oSxa9wN4zIwIzUgyCc/wcP4DCoRRFYM2HgeD0YwzCwU6DFByXFmND46v8lfJV+HqgEFkZjgaGhaJkKbus6irm8ju1OU+ocFOmBOAhnSWNdrF41guBLA/mz5vvywRIMPgZ4ARUFeegfDN+RBfl17kUsctW7+22G4ORwpBM2WqKsvzvDePBAI3wKxDs/WxtARQb8IcefbG1zcFGYNHCVSc2fTKp2GfdsKL2Y9wPPPBADyjTF9q25ge58MwZO8iiW5A8ocsHvFzVl93i77kRgWGMBksa3OpG3giMUxYliUENI8DHMV0OP2mtHpfr2327SiUDAoPxfVOGKxdsiiVWDLZfMb6cSnxkRe1oN8FUfiBKSw3tmGBwdF6gKQHLhAaAh8kSE8CTpM9ZInGaVQfMwM9EAWCkWNoSLxEOz7Av9bliaOwsKY1zIvGyTHXavaJnDB74QQbAsHlsi0beHeGZHRbR5Xk0Ad1nl0obESyvOO6AYfnyl78cOEuFl9StIYEOOGgXnig7aRh4INYXT+jwq6dGRIxxZZ3MTwACWNmi4nhGgy/carm2CBmDgjDawdEAdU+SrT+qQWUDVLlgS7qSEcqoU8SqdNnll4Xjjj/OFRQZ6xwPxoAANoqm+qpTvJJPORSTOAp0MFQMCDzHD3zgA+6Sy6vAAPDzfHguDgXZxfQwIhzRZ/Jg0KND7OBxdqTTAQWv4NISiUA+RwrwihR7iNsY8xOn9/I+psGOIxMlO106lQ0tlvAyxjIktKUqMF5kQJAdP8UBTt4741fY8MYAcPKvGxgVIwJjBEGJxgME8rQvXoVZ1oZsddnfBa375bJY+FXwNCvTDa6mdTuwB+BrR0GatYs8cKGQWtKgTOzCLLxvoRt0dj4wIgxW3j/RawTUbdo2ChiIV2IcBEsBXHHSuTJgNXDJmz5jug9a7svwK40zKDrnwsTDGQqAQa+DcQwocIsHL1DyRT7ttovzw0DCgBxupzQxfOBhR5BrDK3wxmW7uZdhoJ8OPPDV7qlxJB/54RWSz88s8PMZeHTiU8YBPjX4/Z7nkTbLeFCHiYIj/ryBTRyMvmYpx0nlvP3d2RA/1dCNLErrqiMI3HHKkOeqR9UxPlKqvZ+1t28JUl9ppQTjxEgg4iPO1n1NwaLCymhybcWDDhKpnK+xm+AjCx5REtVpVlxKQ5lG5UlXuxmQnM3gnI1+xQ3FYkAhZ2DPPffw4/H+UPFLtIlb7Wv4BaTTFgY5XgUeCko7Y/oM57dZP5IHj/Ke6B8GAAOKJQ0/aqSX6DBSgAZU8ZqNLJloK4FZjKX9BblgfyrB20psiJO0GFbqxqC2xWmjdS9a000+/MQiQNtY1rC7RlwEz4xgK22gfK1Nq2Ia8C+5xvnEGjlzY39GxY9c0FbODKnfVbYXbas3w73AaDhgkIbhfSjAyjOzC9dmwFqbTqbennvUjtFLSM3qKc/+XIPfIlwEXgSlcRBOLnexTPwc89uKj7HjjF7UvLhujDO+hweWa3LX4zzukSWDEuAlM0Ez3NQBmHFZcgDaaifeQD8sWlTb4tx99z3yA2NesMIX+JEvCj9j5KU/Yl/0N8tQeNP5Hh2lB20jnqUvlMEz4i1fDB8xNbxYBhS/J/L2t7/dr3fddbfj0oAqXsfYS3zEadgu5mQ0A/RNb3qTH9NnMILf/taLB/WRi+QFf414hLdeg+QIXn5i0f4+kbcbTxxjzNkRPEY8cvvjZf5GM3LBuLp3Yu1U29ERlpMsi/Da+CFmYmK8QoAe0E6MPnnImJglBoV+VPs7bV9Pj72LCQmHK7PhkbOODKefdro3BgNBw2FeQDk6D6XUOxb8WrqOYLdqpOpz3XTTTdyVR6CxkVAZBhAAbjoIgHYjGkqHr6GhIQ/MwT+gPNXH/eZsS0zXC5Z8qQ7uLHiZtTXQY7ykEVcgpoASAKpbgjZPogyzDz+bCDC4Gdi4sODhdCgDnAAs9KrgzJFHN8PDW/sv4dvfMXEjwrYyMlb/Ql98q11R9fwWmcIDZVly4G4TCCaozhVDgjvOh0HFm8DIDQOM8aI+sy9H5+kH5EkAmQONAMsutqAxRBgQ/RATA1UAf414LEsvSxOuqleNBSY12o0MiFmgn4wHBrq2fvFImFyRKTEdPugHBhOvhRgP44vALMDSCDwYHPTS/uicL2t4P4eXGzvt82LbRsWIQAQBo0i4tYccfIgbEYSCS8UMEQONAVhjc2qPN1H5zRDh0KCN6xTvJZAttpjkwiUSDW1tE4vGWmuv5VURqpS7iKvsGbcapZ1vkW3awGARTsozQNnvpw2TLd9hTO3S7BseURJARiTGi3IxKFAY6AJqqz+UfEluXDnKvvszdg9X/f4qr48RkUtLkE3neFgqVVl+iRy4gY022tDfbcGI0L8AhhEPgrMn2gZuxbNXtC/KUY8fMsJYYEB0NN/+yp9PMixN+ADoCf2C4WbnhUAsg0XAcgoDKgPCAEWW0gsNYsrTplj2whFfyVeZ+D4u0+69eEBuvCO00cYbhcMPO9zRYDyhgwy42h/b9k8zGptvPtEMyITcg8VLBI455t3mkR2V4yJN/ch9pzCqRkTCZsZjTUsH4pkwU3ESlXwagQIwI+gw1NFHH+0drfwqjZMwEDbnHsBFoG7lysws9VI3aAzWNdeoeSIcDdcAUt1mdFBUdopmz57txknuI8uXDW0gEfOhs3AVtzSDAzQblKIJj7idbDsyc6A0GCgAT4k4Aet3aMODw5japdm38DPw9tl3HzciGCw8KhkrXobLd2WM23aBSQJ8OmPCkowj8RgpDCr9Hh8wa4UfnulzPhxY5G3vU089NfcmkAd6ouArhsD+glwdWgwt3gs6xdIFg7LO+HXC1772NX8LnD7HqGiJGC9rlVaH0B40yEnH62FmB5AjdOC3WxAN2shrI1PtT2nYX1DM/6AY+JGlfkYBWfPRGJEXzzOeCR4ZSxtgeGg4nPTxk9wLwVDRb8haOuKFuvkyoqMK1jGO3xqU8UepjVf/mND8z/rZIMrTyLNIsv3l96VexxrbFm8qb4ee8j+6bB3tdCZuNjGnY1td/qcsQb5yRXMa/AFHtcECfJlthzoeWyr4nzycuPkqvLYEy2zN6jyrjj80+BK/5t1k1JVskInNlvmzua+ZGUXHwt+jrQrCb+tg3IwcH3TskJP/FXhwVeG1jKbqmQeQ/2lKtYGrxSO8GnyIlzI8xbS4vLnpmf1lvszc+Dr+wW8D2v8UqcVO/E9/mvGqK2OxgMy2TzMLyK7SKetv+LYDXXVlwWfLn5xfbmI+7PxLXXlbDvgfCKec5MB9txDjMiOY8ecuY92I5WuTguuJTY51vKmMvceW2e/0ZPYjT/mfiAV/O31RpT1jKGRERxUggdVbsOBe+/szP7bg2AX261U3+boVwqxXcTsPOeQQn3Gx8KrTDmNqCld+PY3Zh4g+LjFHsKfvNN33yV9vln6KzeomTJ9lWtEQXtqAW8yWI2tzXGdg5xk7h32fs6+fh2BHKi7fDDdLCHZ0mIVYxvEeEYFAaADM8MzIuPXcV8UrmpSHZ2YsYgDgZxbGO5k1a5YvddrFKdy6igbLPP7WDTsCzIr8PSLW73gqVeUsnFxjvqjPep8fV9KPQxMDwEPD+/M1/2YTzQPc0tf+eCO77bqbBX1n+OyNtwGAB0DezNT2R7z9z7VSf+bMmb6MJo6kNlFW95Rni5gffKIM5QlOyhPp2axuNOETfHygj1fHDhV6gT6zvCW4fOedd1gc6GHzjjbwpTlLdGJExM84fzJth2m2tJ7snj9t6aQfqNcK+mJEYEKdQUOIifDOBe4oHYqbjRusbUiVbcV8WX5clzUyy5oF9y4I48eN9+1CudtxuTI8xTQGPMASheg4eFFkOpqO2tb+JGS+NLC0dkC8sLV34003hrvsd0QBXHd2KHChKQN0qqzIHb7ZnVlvwnphgq2ZvU2GtlOc8BPzRbwFGhgOlBljorZRtl2gLh90RAD/nO5kYGFYdLqVwQxNlofIi6Wh6sU8gkc8YTzAA5/Ex8BRBipvs7jHXSjfC10to6U0aPKPn4sUQB/5YtDuvvsuuz6QywfdY6mGDGg7hk5QbL/Se3XtmxGB4VaWsFeNbYXH/Dl7B2dV51QVZku8HQ700cKrdoG/aCha0VTdKtdGuMroVsFXLOP4MXZ25qMdwMsj1FNsOzjKeCtLE72yvLI0le/VFRqCsnYor3ilnvhrp14RT5XnvhoRGIobFzPY6waX0ekVDYwhHcM/Zgu1SzNf3K527qX01BFueO4WL/gkD+4B579Nj6lWs/x7tPGLquggH/6vDvRHLaPV4KEfBVXkkdMekVsr/MLdqyv0rSdH0JU2PjccrkHlRXrFTo6n70Ykp2w3NaHUFDpOH417aPW700ejHY9KnKvGbd/Ze9T2ax9k0s/x06xj/1+NSDPGUl6SQJLAY0MC7QcGHhvtSlwmCSQJ9EkCyYj0SdCJTJLAoEogGZFB7dnUriSBPkkgGZE+CTqRSRIYVAkkIzKoPZvalSTQJwkkI9InQScySQKDKoFkRAa1Z1O7kgT6JIFkRPok6EQmSWBQJZCMyKD2bGpXkkCfJJCMSJ8EncgkCQyqBJIRGdSeTe1KEuiTBJIR6ZOgE5kkgUGVQDIig9qzqV1JAn2SQDIifRJ0IpMkMKgSSEZkUHs2tStJoE8SSEakT4JOZJIEBlUCyYgMas+mdiUJ9EkCyYj0SdCJTJLAoEogGZFB7dnUriSBPkkgGZE+CTqRSRIYVAkkIzKoPZvalSTQJwkkI9InQScySQKDKoFkRAa1Z1O7kgT6JIFkRPok6EQmSWBQJZCMyKD2bGpXkkCfJPB/n4tYAa2NirYAAAAASUVORK5CYII="
-      mediatype: "image/png"
+    - base64data: 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
+      mediatype: image/jpeg
   install:
     spec:
       clusterPermissions:
-      - rules:
-        - apiGroups:
-          - ""
-          resources:
-          - '*'
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - configmaps
-          - configmaps/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - events
-          verbs:
-          - create
-          - patch
-          - update
-        - apiGroups:
-          - ""
-          resources:
-          - secrets
-          - secrets/status
-          - secrets/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - services
-          - services/status
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - serviceaccounts
-          - serviceaccounts/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ako.vmware.com
-          resources:
-          - akoconfigs
-          - akoconfigs/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ako.vmware.com
-          resources:
-          - akoconfigs/status
-          verbs:
-          - get
-          - patch
-          - update
-        - apiGroups:
-          - ako.vmware.com
-          resources:
-          - aviinfrasettings
-          - aviinfrasettings/status
-          - aviinfrasettings/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ako.vmware.com
-          resources:
-          - hostrules
-          - hostrules/status
-          - hostrules/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ako.vmware.com
-          resources:
-          - httprules
-          - httprules/status
-          - httprules/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - apiextensions.k8s.io
-          resources:
-          - customresourcedefinitions
-          - customresourcedefinitions/status
-          - customresourcedefinitions/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - apps
-          resources:
-          - statefulsets
-          - statefulsets/status
-          - statefulsets/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - crd.projectcalico.org
-          resources:
-          - blockaffinities
-          - blockaffinities/status
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - extensions
-          resources:
-          - ingresses
-          - ingresses/status
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - extensions
-          - policy
-          resources:
-          - podsecuritypolicies
-          - podsecuritypolicies/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - use
-          - watch
-        - apiGroups:
-          - network.openshift.io
-          resources:
-          - hostsubnets
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - networking.k8s.io
-          resources:
-          - ingressclasses
-          - ingressclasses/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - networking.k8s.io
-          resources:
-          - ingresses
-          - ingresses/status
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - networking.x-k8s.io
-          resources:
-          - gatewayclasses
-          - gatewayclasses/status
-          - gatewayclasses/finalizers
-          - gateways
-          - gateways/status
-          - gateways/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - rbac.authorization.k8s.io
-          resources:
-          - clusterrolebindings
-          - clusterrolebindings/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - rbac.authorization.k8s.io
-          resources:
-          - clusterroles
-          - clusterroles/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - route.openshift.io
-          resources:
-          - routes
-          - routes/status
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - coordination.k8s.io
-          resources:
-          - leases
-          verbs:
-          - create
-          - get
-          - update
-        - apiGroups:
-          - ako.vmware.com
-          resources:
-          - l4rules
-          - l4rules/status
-          - l4rules/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ako.vmware.com
-          resources:
-          - ssorules
-          - ssorules/status
-          - ssorules/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - cilium.io
-          resources:
-          - ciliumnodes
-          verbs:
-          - get
-          - watch
-          - list
-        - apiGroups:
-          - gateway.networking.k8s.io
-          resources:
-          - gatewayclasses
-          - gatewayclasses/status
-          - gateways
-          - gateways/status
-          - httproutes
-          - httproutes/status
-          verbs:
-          - get
-          - watch
-          - list
-          - patch
-          - update
-          - create
-          - delete
-        - apiGroups:
-          - ako.vmware.com
-          resources:
-          - l7rules
-          - l7rules/status
-          - l7rules/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        serviceAccountName: default
+        - rules:
+            - apiGroups:
+                - ""
+              resources:
+                - '*'
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - configmaps
+                - configmaps/finalizers
+                - secrets
+                - secrets/finalizers
+                - secrets/status
+                - serviceaccounts
+                - serviceaccounts/finalizers
+                - services
+                - services/status
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - ""
+              resources:
+                - events
+              verbs:
+                - create
+                - patch
+                - update
+            - apiGroups:
+                - ako.vmware.com
+              resources:
+                - akoconfigs
+                - akoconfigs/finalizers
+                - aviinfrasettings
+                - aviinfrasettings/finalizers
+                - aviinfrasettings/status
+                - hostrules
+                - hostrules/finalizers
+                - hostrules/status
+                - httprules
+                - httprules/finalizers
+                - httprules/status
+                - l4rules
+                - l4rules/finalizers
+                - l4rules/status
+                - l7rules
+                - l7rules/finalizers
+                - l7rules/status
+                - ssorules
+                - ssorules/finalizers
+                - ssorules/status
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - ako.vmware.com
+              resources:
+                - akoconfigs/status
+              verbs:
+                - get
+                - patch
+                - update
+            - apiGroups:
+                - apiextensions.k8s.io
+              resources:
+                - customresourcedefinitions
+                - customresourcedefinitions/finalizers
+                - customresourcedefinitions/status
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - apps
+              resources:
+                - statefulsets
+                - statefulsets/finalizers
+                - statefulsets/status
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - cilium.io
+              resources:
+                - ciliumnodes
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - coordination.k8s.io
+              resources:
+                - leases
+              verbs:
+                - create
+                - get
+                - update
+            - apiGroups:
+                - crd.projectcalico.org
+              resources:
+                - blockaffinities
+                - blockaffinities/status
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - discovery.k8s.io
+              resources:
+                - endpointslices
+              verbs:
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - extensions
+                - networking.k8s.io
+              resources:
+                - ingresses
+                - ingresses/status
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - gateway.networking.k8s.io
+              resources:
+                - gatewayclasses
+                - gatewayclasses/status
+                - gateways
+                - gateways/status
+                - httproutes
+                - httproutes/status
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - network.openshift.io
+              resources:
+                - hostsubnets
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - networking.k8s.io
+              resources:
+                - ingressclasses
+                - ingressclasses/finalizers
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - networking.x-k8s.io
+              resources:
+                - gatewayclasses
+                - gatewayclasses/finalizers
+                - gatewayclasses/status
+                - gateways
+                - gateways/finalizers
+                - gateways/status
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - rbac.authorization.k8s.io
+              resources:
+                - clusterrolebindings
+                - clusterrolebindings/finalizers
+                - clusterroles
+                - clusterroles/finalizers
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - route.openshift.io
+              resources:
+                - routes
+                - routes/status
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+          serviceAccountName: ako-operator-sa
       deployments:
-      - name: ako-operator-controller-manager
-        spec:
-          replicas: 1
-          selector:
-            matchLabels:
-              control-plane: controller-manager
-          strategy: {}
-          template:
-            metadata:
-              labels:
+        - label:
+            app.kubernetes.io/managed-by: kustomize
+            app.kubernetes.io/name: ako-operator
+            control-plane: controller-manager
+          name: ako-operator-controller-manager
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
                 control-plane: controller-manager
-            spec:
-              containers:
-              - command:
-                - /ako-operator
-                image: projects.packages.broadcom.com/ako/ako-operator@sha256:cfc30e3a06fd3afa54e6a0a10a3aac1604395a60f04b291fcbba61e3529b4876
-                name: ako-operator
-                resources:
-                  limits:
-                    cpu: 100m
-                    memory: 100Mi
-                  requests:
-                    cpu: 100m
-                    memory: 50Mi
-              terminationGracePeriodSeconds: 10
+            strategy: {}
+            template:
+              metadata:
+                annotations:
+                  kubectl.kubernetes.io/default-container: manager
+                labels:
+                  control-plane: controller-manager
+              spec:
+                containers:
+                  - args:
+                      - --health-probe-bind-address=:8081
+                    command:
+                      - /ako-operator
+                    image: projects.packages.broadcom.com/ako/ako-operator@sha256:cfc30e3a06fd3afa54e6a0a10a3aac1604395a60f04b291fcbba61e3529b4876
+                    livenessProbe:
+                      httpGet:
+                        path: /healthz
+                        port: 8081
+                      initialDelaySeconds: 15
+                      periodSeconds: 20
+                    name: ako-operator
+                    readinessProbe:
+                      httpGet:
+                        path: /readyz
+                        port: 8081
+                      initialDelaySeconds: 5
+                      periodSeconds: 10
+                    resources:
+                      limits:
+                        cpu: 100m
+                        memory: 250Mi
+                      requests:
+                        cpu: 100m
+                        memory: 150Mi
+                    securityContext:
+                      allowPrivilegeEscalation: false
+                      capabilities:
+                        drop:
+                          - ALL
+                securityContext:
+                  runAsNonRoot: true
+                serviceAccountName: ako-operator-sa
+                terminationGracePeriodSeconds: 10
       permissions:
-      - rules:
-        - apiGroups:
-          - ""
-          resources:
-          - configmaps
-          - configmaps/finalizers
-          verbs:
-          - get
-          - list
-          - watch
-          - create
-          - update
-          - patch
-          - delete
-        - apiGroups:
-          - ""
-          resources:
-          - configmaps/status
-          verbs:
-          - get
-          - update
-          - patch
-        - apiGroups:
-          - ""
-          resources:
-          - events
-          verbs:
-          - create
-          - patch
-        serviceAccountName: default
+        - rules:
+            - apiGroups:
+                - ""
+              resources:
+                - configmaps
+                - configmaps/finalizers
+              verbs:
+                - get
+                - list
+                - watch
+                - create
+                - update
+                - patch
+                - delete
+            - apiGroups:
+                - ""
+              resources:
+                - configmaps/status
+              verbs:
+                - get
+                - update
+                - patch
+            - apiGroups:
+                - coordination.k8s.io
+              resources:
+                - leases
+              verbs:
+                - get
+                - list
+                - watch
+                - create
+                - update
+                - patch
+                - delete
+            - apiGroups:
+                - ""
+              resources:
+                - events
+              verbs:
+                - create
+                - patch
+          serviceAccountName: ako-operator-sa
     strategy: deployment
   installModes:
-  - type: OwnNamespace
-    supported: true
-  - type: SingleNamespace
-    supported: true
-  - type: MultiNamespace
-    supported: false
-  - type: AllNamespaces
-    supported: false
-  relatedImages:
-  - name: ako-operator
-    image: projects.packages.broadcom.com/ako/ako-operator@sha256:cfc30e3a06fd3afa54e6a0a10a3aac1604395a60f04b291fcbba61e3529b4876
-  - name: ako
-    image: projects.packages.broadcom.com/ako/ako@sha256:2b926cbc7101c00b6684f3c6de65c137df9d8e06f0f7f753c90a0120682bac8d
-  - name: ako-gateway-api
-    image: projects.packages.broadcom.com/ako/ako-gateway-api@sha256:99853b51a9aee33abdb58ce1fa088927228b66c4ab621efd044a6264185587aa
+    - supported: true
+      type: OwnNamespace
+    - supported: true
+      type: SingleNamespace
+    - supported: false
+      type: MultiNamespace
+    - supported: false
+      type: AllNamespaces
   keywords:
-  - AKO
-  - AKO Operator
-  - Load Balancer
-  - Ingress Controller
-  - GatewayAPI
+    - AKO
+    - AKO Operator
+    - Load Balancer
+    - Ingress Controller
+    - GatewayAPI
   links:
-  - name: AKO Operator
-    url: https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tree/release-1.12.3/ako-operator#readme
-  - name: AKO Repository
-    url: https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
-  - name: AKO
-    url: https://techdocs.broadcom.com/us/en/vmware-security-load-balancing/avi-load-balancer/avi-kubernetes-operator/1-12/avi-kubernetes-operator-guide-1-12.html
+    - name: AKO Operator
+      url: https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tree/release-1.13.2/ako-operator#readme
+    - name: AKO Repository
+      url: https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
+    - name: AKO
+      url: https://techdocs.broadcom.com/us/en/vmware-security-load-balancing/avi-load-balancer/avi-kubernetes-operator/1-13/avi-kubernetes-operator-guide-1-13.html
   maintainers:
-  - email: aakash-kumar.dixit@broadcom.com
-    name: Aakash Kumar Dixit
+    - email: aakash-kumar.dixit@broadcom.com
+      name: Aakash Kumar Dixit
   maturity: stable
   provider:
-    name: VMware
-  version: 1.12.3
+    name: VMware by Broadcom
+  relatedImages:
+    - image: projects.packages.broadcom.com/ako/ako-operator@sha256:cfc30e3a06fd3afa54e6a0a10a3aac1604395a60f04b291fcbba61e3529b4876
+      name: ako-operator
+    - image: projects.packages.broadcom.com/ako/ako@sha256:8e06f730f6c16e76d24000492da85a1afd59f6227863e54b30da417ab528568f
+      name: ako
+    - image: projects.packages.broadcom.com/ako/ako-gateway-api@sha256:cb4e220aa7e1dbbdecbcec64486dd0c72249a6c71d15f78e8a44bba47b9eed68
+      name: ako-gateway-api
+  replaces: ako-operator.v1.12.3
+  version: 1.13.2

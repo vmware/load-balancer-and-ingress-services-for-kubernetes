@@ -1,9 +1,9 @@
----
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.6.2
+    controller-gen.kubebuilder.io/version: v0.18.0
+  creationTimestamp: null
   name: akoconfigs.ako.vmware.com
 spec:
   group: ako.vmware.com
@@ -14,20 +14,28 @@ spec:
     singular: akoconfig
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - deprecated: true
+    deprecationWarning: The v1alpha1 version is deprecated for AKOConfig CRD, please
+      use v1beta1 version
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: AKOConfig is the Schema for the akoconfigs API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -145,8 +153,9 @@ spec:
                       objects will be created in Avi.
                     type: string
                   tenantsPerCluster:
-                    description: TenantsPerCluster if set to true, AKO will map each
-                      k8s cluster uniquely to a tenant in Avi
+                    description: |-
+                      TenantsPerCluster if set to true, AKO will map each k8s cluster uniquely to a tenant
+                      in Avi
                     type: boolean
                   vrfName:
                     description: VRFName is the name of the VRFContext. All Avi objects
@@ -180,7 +189,7 @@ spec:
                 type: object
               imagePullPolicy:
                 description: ImagePullPolicy defines when the AKO controller image
-                  gets pulled.
+                  gets pulled
                 type: string
               imagePullSecrets:
                 description: ImagePullSecrets will add pull secrets to the statefulset
@@ -193,7 +202,7 @@ spec:
                   type: object
                 type: array
               imageRepository:
-                description: ImageRepository is where the AKO controller resides.
+                description: ImageRepository is where the AKO controller resides
                 type: string
               l4Settings:
                 description: L4Settings defines the L4 configuration for the AKO controller
@@ -254,8 +263,11 @@ spec:
                     type: string
                 type: object
               logFile:
+                description: LogFile is the name of the file where AKO will dump its
+                  logs
                 type: string
               mountPath:
+                description: MountPath is where the logFile will be mounted on
                 type: string
               networkSettings:
                 description: NetworkSettings defines the network details required
@@ -271,13 +283,13 @@ spec:
                     description: EnableRHI is a cluster wide setting for BGP peering
                     type: boolean
                   nodeNetworkList:
-                    description: 'NodeNetworkList is the list of networks and their
-                      cidrs used in pool placement network for vcenter cloud. Either
-                      networkName or networkUUID should be specified. If duplicate
-                      networks are present for the network name, networkUUID should
-                      be used for appropriate network. This is not required for either
-                      of these cases: 1. nodeport is enabled 2. static routes are
-                      disabled 3. non vcenter clouds'
+                    description: |-
+                      NodeNetworkList is the list of networks and their cidrs used in pool placement network for vcenter
+                      cloud. Either networkName or networkUUID should be specified. If duplicate networks are present for
+                      the network name, networkUUID should be used for appropriate network. This is not required for either of these cases:
+                      1. nodeport is enabled
+                      2. static routes are disabled
+                      3. non vcenter clouds
                     items:
                       properties:
                         cidrs:
@@ -291,15 +303,15 @@ spec:
                       type: object
                     type: array
                   nsxtT1LR:
-                    description: 'NsxtT1LR is the unique ID (not display name) of
-                      the T1 Logical Router for Service Engine connectivity. Only
-                      applies to NSX-T cloud. For eg : nsxtT1LR: "/infra/tier-1s/avi-t1".'
+                    description: |-
+                      NsxtT1LR is the unique ID (not display name) of the T1 Logical Router for Service Engine connectivity. Only applies to NSX-T cloud.
+                      For eg : nsxtT1LR: "/infra/tier-1s/avi-t1".
                     type: string
                   vipNetworkList:
-                    description: VipNetworkList holds the names and subnet information
-                      of networks as specified in Avi. Either networkName or networkUUID
-                      should be specified. If duplicate networks are present for the
-                      network name, networkUUID should be used for appropriate network.
+                    description: |-
+                      VipNetworkList holds the names and subnet information of networks as specified in Avi.
+                      Either networkName or networkUUID should be specified. If duplicate networks are present
+                      for the network name, networkUUID should be used for appropriate network.
                     items:
                       properties:
                         cidr:
@@ -324,8 +336,10 @@ spec:
                     type: string
                 type: object
               pvc:
+                description: PersistentVolumeClaim where the logs need to be stored
                 type: string
               rbac:
+                description: Rbac enables the pod security policy for AKO
                 properties:
                   pspEnable:
                     type: boolean
@@ -361,6 +375,377 @@ spec:
             description: AKOConfigStatus defines the observed state of AKOConfig
             properties:
               state:
+                description: State defines the current Kubernetes phase of AKOConfig
+                  object
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: false
+    subresources:
+      status: {}
+  - name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: AKOConfig is the Schema for the akoconfigs API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: AKOConfigSpec defines the desired state of AKOConfig
+            properties:
+              akoGatewayLogFile:
+                description: AKOGatewayLogFile is the name of the file where ako-gateway-api
+                  container will dump its logs
+                type: string
+              akoSettings:
+                description: AKOSettings defines the settings required for the AKO
+                  controller
+                properties:
+                  apiServerPort:
+                    description: APIServerPort is the port at which the AKO API server
+                      runs
+                    type: integer
+                  blockedNamespaceList:
+                    description: BlockedNamespaceList is the list of system namespaces
+                      from which AKO will not listen any Kubernetes or Openshift object
+                      event.
+                    items:
+                      type: string
+                    type: array
+                  clusterName:
+                    description: ClusterName is used to identify a cluster
+                    type: string
+                  cniPlugin:
+                    description: CNIPlugin specifies the CNI to be used
+                    type: string
+                  deleteConfig:
+                    description: DeleteConfig is set if clean up is required by AKO
+                    type: boolean
+                  disableStaticRouteSync:
+                    description: DisableStaticRouteSync is set if the static route
+                      sync is not required
+                    type: boolean
+                  enableEVH:
+                    description: EnableEVH enables the Enhanced Virtual Hosting Model
+                      in Avi Controller for the Virtual Services
+                    type: boolean
+                  enableEvents:
+                    description: EnableEvents controls whether AKO broadcasts Events
+                      in the cluster or not
+                    type: boolean
+                  fullSyncFrequency:
+                    description: FullSyncFrequency defines the interval at which full
+                      sync is carried out by the AKO controller
+                    type: string
+                  ipFamily:
+                    description: IPFamily specifies IP family to be used. This flag
+                      can take values V4 or V6 (default V4). This is for the backend
+                      pools to use ipv6 or ipv4. For frontside VS, use v6cidr.
+                    type: string
+                  istioEnabled:
+                    description: IstioEnabled flag needs to be enabled when AKO is
+                      be to brought up in an Istio environment
+                    type: boolean
+                  layer7Only:
+                    description: Layer7Only enables AKO to do Layer 7 loadbalancing
+                      only
+                    type: boolean
+                  logLevel:
+                    description: LogLevel defines the log level to be used by the
+                      AKO controller
+                    enum:
+                    - INFO
+                    - DEBUG
+                    - WARN
+                    - ERROR
+                    type: string
+                  namespaceSelector:
+                    description: Namespace selector specifies the namespace labels
+                      from which AKO should sync from
+                    properties:
+                      labelKey:
+                        type: string
+                      labelValue:
+                        type: string
+                    type: object
+                  servicesAPI:
+                    description: ServicesAPI enables AKO to do Layer 4 loadbalancing
+                      using Services API
+                    type: boolean
+                  useDefaultSecretsOnly:
+                    description: UseDefaultSecretsOnly flag if set to true, AKO will
+                      only handle default secrets from the namespace where AKO is
+                      installed. This flag is applicable only to Openshift clusters.
+                    type: boolean
+                  vipPerNamespace:
+                    description: VipPerNamespace enables AKO to create Parent VS per
+                      Namespace in EVH mode
+                    type: boolean
+                type: object
+              controllerSettings:
+                description: ControllerSettings defines the Avi Controller parameters
+                properties:
+                  cloudName:
+                    description: CloudName is the name of the cloud to be used in
+                      Avi
+                    type: string
+                  controllerIP:
+                    description: ControllerIP is the IP address of the Avi Controller
+                    type: string
+                  controllerVersion:
+                    description: ControllerVersion is the Avi controller version
+                    type: string
+                  serviceEngineGroupName:
+                    description: ServiceEngineGroupName is the name of the Serviceengine
+                      group in Avi
+                    type: string
+                  tenantName:
+                    description: TenantName is the name of the tenant where all AKO
+                      objects will be created in Avi.
+                    type: string
+                  vrfName:
+                    description: VRFName is the name of the VRFContext. All Avi objects
+                      will be under this VRF. Applicable only in Vcenter Cloud.
+                    type: string
+                type: object
+              featureGates:
+                description: FeatureGates is to enable or disable experimental features
+                properties:
+                  enableEndpointSlice:
+                    default: true
+                    description: EnableEndpointSlice enables/disables processing of
+                      EndpointSlices instead of Endpoints in AKO. This field defaults
+                      to true if not set.
+                    type: boolean
+                  enablePrometheus:
+                    description: EnablePrometheus enables/disables prometheus scraping
+                      for AKO container
+                    type: boolean
+                  gatewayAPI:
+                    description: GatewayAPI enables/disables processing of Kubernetes
+                      Gateway API CRDs
+                    type: boolean
+                type: object
+              gatewayAPI:
+                description: GatewayAPI defines settings for AKO Gateway API container
+                properties:
+                  image:
+                    description: Image defines image related settings for AKO Gateway
+                      API container
+                    properties:
+                      pullPolicy:
+                        type: string
+                      repository:
+                        type: string
+                    type: object
+                type: object
+              imagePullPolicy:
+                description: ImagePullPolicy defines when the AKO controller image
+                  gets pulled
+                type: string
+              imagePullSecrets:
+                description: ImagePullSecrets will add pull secrets to the statefulset
+                  for AKO. Required if using secure private container image registry
+                  for AKO image
+                items:
+                  properties:
+                    name:
+                      type: string
+                  type: object
+                type: array
+              imageRepository:
+                description: ImageRepository is where the AKO controller resides
+                type: string
+              l4Settings:
+                description: L4Settings defines the L4 configuration for the AKO controller
+                properties:
+                  autoFQDN:
+                    description: Specifies the FQDN pattern - default, flat or disabled
+                    type: string
+                  defaultDomain:
+                    description: |-
+                      If multiple sub-domains are configured in the cloud, use this knob to set the default sub-domain to use for L4 VSes. This flag will be deprecated in a future release; use NetworkSettings.defaultDomain instead.
+                      If both NetworkSettings.defaultDomain and L4Settings.defaultDomain are set, then NetworkSettings.defaultDomain will be used.
+                    type: string
+                  defaultLBController:
+                    description: DefaultLBController enables ako to check if it is
+                      the default LoadBalancer controller.
+                    type: boolean
+                type: object
+              l7Settings:
+                description: L7Settings defines the L7 configuration for the AKO controller
+                properties:
+                  defaultIngController:
+                    description: DefaultIngController specifies whether AKO controller
+                      is the default ingress controller
+                    type: boolean
+                  fqdnReusePolicy:
+                    description: FQDNReusePolicy can be used control whether AKO allows
+                      cross-namespace usage of FQDNs
+                    enum:
+                    - InterNamespaceAllowed
+                    - Strict
+                    type: string
+                  noPGForSNI:
+                    description: NoPGForSNI removes Avi PoolGroups from SNI VSes
+                    type: boolean
+                  passthroughShardSize:
+                    description: PassthroughShardSize specifies the number of shard
+                      VSs to be created for passthrough routes
+                    enum:
+                    - LARGE
+                    - MEDIUM
+                    - SMALL
+                    type: string
+                  serviceType:
+                    description: 'ServiceType defines the service type: ClusterIP,
+                      NodePort or NodePortLocal'
+                    enum:
+                    - NodePort
+                    - ClusterIP
+                    - NodePortLocal
+                    type: string
+                  shardVSSize:
+                    description: ShardVSSize specifies the number of shard VSs to
+                      be created
+                    enum:
+                    - LARGE
+                    - MEDIUM
+                    - SMALL
+                    - DEDICATED
+                    type: string
+                type: object
+              logFile:
+                description: LogFile is the name of the file where AKO will dump its
+                  logs
+                type: string
+              mountPath:
+                description: MountPath is where the logFile will be mounted on
+                type: string
+              networkSettings:
+                description: NetworkSettings defines the network details required
+                  for the AKO controller
+                properties:
+                  bgpPeerLabels:
+                    description: BGPPeerLabels enable selection of BGP peers, for
+                      selective VsVip advertisement.
+                    items:
+                      type: string
+                    type: array
+                  defaultDomain:
+                    description: |-
+                      The defaultDomain flag has two use cases.
+                      For L4 VSes, if multiple sub-domains are configured in the cloud, this flag can be used to set the default sub-domain to use for the VS. This flag should be used instead of L4Settings.defaultDomain, as it will be deprecated in a future release.
+                      If both NetworkSettings.defaultDomain and L4Settings.defaultDomain are set, then NetworkSettings.defaultDomain will be used.
+                      For L7 VSes(created from OpenShift Routes), if spec.subdomain field is specified instead of spec.host field for an OpenShift route, then the default domain specified is appended to the spec.subdomain to form the FQDN for the VS. The defaultDomain should be configured as a sub-domain in Avi cloud.
+                    type: string
+                  enableRHI:
+                    description: EnableRHI is a cluster wide setting for BGP peering
+                    type: boolean
+                  nodeNetworkList:
+                    description: |-
+                      NodeNetworkList is the list of networks and their cidrs used in pool placement network for vcenter
+                      cloud. Either networkName or networkUUID should be specified. If duplicate networks are present for
+                      the network name, networkUUID should be used for appropriate network. This is not required for either of these cases:
+                      1. static routes are disabled
+                      2. non vcenter clouds
+                    items:
+                      properties:
+                        cidrs:
+                          items:
+                            type: string
+                          type: array
+                        networkName:
+                          type: string
+                        networkUUID:
+                          type: string
+                      type: object
+                    type: array
+                  nsxtT1LR:
+                    description: |-
+                      NsxtT1LR is the unique ID (not display name) of the T1 Logical Router for Service Engine connectivity. Only applies to NSX-T cloud.
+                      For eg : nsxtT1LR: "/infra/tier-1s/avi-t1".
+                    type: string
+                  vipNetworkList:
+                    description: |-
+                      VipNetworkList holds the names and subnet information of networks as specified in Avi.
+                      Either networkName or networkUUID should be specified. If duplicate networks are present
+                      for the network name, networkUUID should be used for appropriate network.
+                    items:
+                      properties:
+                        cidr:
+                          type: string
+                        networkName:
+                          type: string
+                        networkUUID:
+                          type: string
+                        v6cidr:
+                          description: V6Cidr will enable the VS networks to use ipv6
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              nodePortSelector:
+                description: NodePortSelector defines the node port settings, to be
+                  used only if the serviceTYpe is selected NodePort
+                properties:
+                  key:
+                    type: string
+                  value:
+                    type: string
+                type: object
+              pvc:
+                description: PersistentVolumeClaim where the logs need to be stored
+                type: string
+              replicaCount:
+                description: ReplicaCount defines the number of replicas for AKO Statefulset
+                type: integer
+              resources:
+                description: Resources defines the limits and requests for cpu and
+                  memory to be used by the AKO controller
+                properties:
+                  limits:
+                    description: ResourceLimits defines the limits on cpu and memory
+                      for the AKO controller
+                    properties:
+                      cpu:
+                        type: string
+                      memory:
+                        type: string
+                    type: object
+                  requests:
+                    description: ResourceRequests defines the requests for cpu and
+                      memory by the AKO controller
+                    properties:
+                      cpu:
+                        type: string
+                      memory:
+                        type: string
+                    type: object
+                type: object
+            type: object
+          status:
+            description: AKOConfigStatus defines the observed state of AKOConfig
+            properties:
+              state:
+                description: State defines the current Kubernetes phase of AKOConfig
+                  object
                 type: string
             type: object
         type: object
@@ -372,5 +757,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: []
-  storedVersions: []
+  conditions: null
+  storedVersions: null
