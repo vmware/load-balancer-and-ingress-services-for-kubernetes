@@ -69,6 +69,19 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) (bool, bool) {
 
 	gatewayStatus := gateway.Status.DeepCopy()
 
+	if akogatewayapilib.IsGatewayInDedicatedMode(gateway.Namespace) {
+		for _, listener := range spec.Listeners {
+			if listener.Hostname != nil {
+				utils.AviLog.Errorf("key: %s, msg: Hostname is not supported in dedicated mode for gateway %+v", key, gateway.Name)
+				defaultCondition.
+					SetIn(&gatewayStatus.Conditions)
+				programmedCondition.
+					SetIn(&gatewayStatus.Conditions)
+				akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
+				return false, allowedRoutesAll
+			}
+		}
+	}
 	// has 1 or more listeners
 	if len(spec.Listeners) == 0 {
 		utils.AviLog.Errorf("key: %s, msg: no listeners found in gateway %+v", key, gateway.Name)

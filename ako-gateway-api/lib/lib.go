@@ -54,6 +54,9 @@ func InformersToRegister(kclient *kubernetes.Clientset) ([]string, error) {
 func GetGatewayParentName(namespace, gwName string) string {
 	//clustername > gateway namespace > Gateway-name
 	//Adding -EVH prefix to reuse rest layer
+	if IsGatewayInDedicatedMode(namespace) {
+		return lib.GetNamePrefix() + namespace + "-" + gwName + lib.DedicatedSuffix + "-EVH"
+	}
 	return lib.GetNamePrefix() + namespace + "-" + gwName + "-EVH"
 }
 
@@ -241,4 +244,17 @@ func CreateVCFGatewayClass() error {
 	}
 	utils.AviLog.Infof("Successfully created Gatewayclass %s", VCFGatewayClassName)
 	return nil
+}
+
+func IsGatewayInDedicatedMode(namespace string) bool {
+	infraSetting, err := lib.GetNamespacedAviInfraSetting("", namespace, AKOControlConfig().AviInfraSettingInformer())
+	if err != nil || infraSetting == nil {
+		return false
+	}
+	return infraSetting.Spec.L7Settings.DedicatedGatewayMode != nil &&
+		*infraSetting.Spec.L7Settings.DedicatedGatewayMode
+}
+
+func GetGatewayDedicatedVSName(namespace, gatewayName string) string {
+	return lib.GetNamePrefix() + namespace + "-" + gatewayName
 }

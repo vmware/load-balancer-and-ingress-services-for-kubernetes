@@ -54,7 +54,6 @@ func isRegexMatch(stringWithWildCard string, stringToBeMatched string, key strin
 }
 
 func IsHTTPRouteValid(key string, obj *gatewayv1.HTTPRoute) bool {
-
 	httpRoute := obj.DeepCopy()
 	httpRouteStatus := obj.Status.DeepCopy()
 	httpRouteStatus.Parents = make([]gatewayv1.RouteParentStatus, 0, len(httpRoute.Spec.ParentRefs))
@@ -482,6 +481,28 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		*parentRefIndexInHttpRouteStatus = *parentRefIndexInHttpRouteStatus + 1
 		return err
 	}
+	dedicatedGatewayMode := akogatewayapilib.IsGatewayInDedicatedMode(namespace)
+	if dedicatedGatewayMode {
+		var err error
+		if len(httpRoute.Spec.ParentRefs) > 1 {
+			utils.AviLog.Errorf("key: %s, msg: Dedicated Gateway Mode is enabled. Only one parent reference is allowed in HTTPRoute %s", key, httpRoute.Name)
+			err = fmt.Errorf("Dedicated Gateway Mode is enabled. Only one parent reference is allowed in HTTPRoute")
+		} else if httpRoute.Spec.ParentRefs[0].Namespace != nil && string(*httpRoute.Spec.ParentRefs[0].Namespace) != namespace {
+			utils.AviLog.Errorf("key: %s, msg: Dedicated Gateway Mode is enabled. Parent Reference %s is not in the same namespace as HTTPRoute %s", key, name, httpRoute.Name)
+			err = fmt.Errorf("Dedicated Gateway Mode is enabled. Parent Reference %s is not in the same namespace as HTTPRoute %s", name, httpRoute.Name)
+		} else if len(httpRoute.Spec.Hostnames) > 0 {
+			utils.AviLog.Errorf("key: %s, msg: Dedicated Gateway Mode is enabled. Hostnames are not allowed in HTTPRoute %s", key, httpRoute.Name)
+			err = fmt.Errorf("Dedicated Gateway Mode is enabled. Hostnames are not allowed in HTTPRoute")
+		}
+		if err != nil {
+			defaultCondition.
+				Reason(string(gatewayv1.RouteReasonUnsupportedValue)).
+				Message(err.Error()).
+				SetIn(&httpRouteStatus.Parents[*parentRefIndexInHttpRouteStatus].Conditions)
+			*parentRefIndexInHttpRouteStatus = *parentRefIndexInHttpRouteStatus + 1
+			return err
+		}
+	}
 
 	// If Gateway and HTTPRoute are in different namespace, validate that both namespaces are scoped to the same tenant
 	if httpRoute.Namespace != namespace {
@@ -542,7 +563,6 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 	} else {
 		listenersForRoute = append(listenersForRoute, gateway.Spec.Listeners...)
 	}
-
 	// TODO: Validation for hostname (those being fqdns) need to validate as per the K8 gateway req.
 	// Here I need to check
 	var listenersMatchedToRoute []gatewayv1.Listener
@@ -555,8 +575,12 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		// Use case to handle for validations of hostname:
 		// USe case 1: Shouldn't contain mor than 1 *
 		// USe case 2: * should be at the beginning only
-		if (hostInListener == nil || *hostInListener == "" || *hostInListener == utils.WILDCARD) && len(httpRoute.Spec.Hostnames) != 0 {
-			matched = true
+		if hostInListener == nil || *hostInListener == "" || *hostInListener == utils.WILDCARD {
+			if len(httpRoute.Spec.Hostnames) != 0 {
+				matched = true
+			} else if dedicatedGatewayMode {
+				matched = true
+			}
 		} else {
 			// mark listener fqdn if it has *
 			if hostInListener != nil && strings.HasPrefix(string(*hostInListener), utils.WILDCARD) {
@@ -645,8 +669,20 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 			*parentRefIndexInHttpRouteStatus = *parentRefIndexInHttpRouteStatus + 1
 			return err
 		}
-
+		if dedicatedGatewayMode {
+			if gatewayStatus.Listeners[i].AttachedRoutes > 1 {
+				utils.AviLog.Errorf("key: %s, msg: Dedicated Gateway Mode is enabled. Only one route is allowed per listener in Gateway %s", key, gateway.Name)
+				err := fmt.Errorf("Dedicated Gateway Mode is enabled. Only one route is allowed per listener in Gateway")
+				defaultCondition.
+					Reason(string(gatewayv1.RouteReasonUnsupportedValue)).
+					Message(err.Error()).
+					SetIn(&httpRouteStatus.Parents[*parentRefIndexInHttpRouteStatus].Conditions)
+				*parentRefIndexInHttpRouteStatus = *parentRefIndexInHttpRouteStatus + 1
+				return err
+			}
+		}
 		gatewayStatus.Listeners[i].AttachedRoutes += 1
+
 	}
 	akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
 
