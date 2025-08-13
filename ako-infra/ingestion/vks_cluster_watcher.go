@@ -370,13 +370,13 @@ func (w *VKSClusterWatcher) createClusterSpecificCredentials(clusterNameWithUID 
 
 	roles, err := lib.CreateVKSClusterRoles(aviClient, clusterNameWithUID, operationalTenant)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create VKS cluster roles in tenant %s: %v", operationalTenant, err)
+		return nil, fmt.Errorf("failed to create VKS cluster roles: %v", err)
 	}
 
 	user, password, err := lib.CreateVKSClusterUserWithRoles(aviClient, clusterNameWithUID, roles, operationalTenant)
 	if err != nil {
 		lib.DeleteVKSClusterRoles(aviClient, clusterNameWithUID)
-		return nil, fmt.Errorf("failed to create VKS cluster user in tenant %s: %v", operationalTenant, err)
+		return nil, fmt.Errorf("failed to create VKS cluster user: %v", err)
 	}
 
 	utils.AviLog.Infof("Created VKS cluster RBAC for %s: admin-role=%s, tenant-role=%s, all-tenants-role=%s, user=%s",
@@ -424,13 +424,13 @@ func (w *VKSClusterWatcher) populateCacheFromSecrets() error {
 			continue
 		}
 
-		username, exists := secret.Data[utils.ENV_CTRL_USERNAME]
+		username, exists := secret.Data["username"]
 		if !exists {
 			utils.AviLog.Warnf("Secret %s/%s missing username field", secret.Namespace, secret.Name)
 			continue
 		}
 
-		password, exists := secret.Data[utils.ENV_CTRL_PASSWORD]
+		password, exists := secret.Data["password"]
 		if !exists {
 			utils.AviLog.Warnf("Secret %s/%s missing password field", secret.Namespace, secret.Name)
 			continue
