@@ -81,7 +81,6 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 		},
 		Caller: utils.GATEWAY_API, // Always Populate this field to recognise caller at rest layer
 	}
-
 	infraSetting, err := lib.GetNamespacedAviInfraSetting(key, gateway.GetNamespace(), akogatewayapilib.AKOControlConfig().AviInfraSettingInformer())
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: failed to get AviInfraSetting, err: %s", key, err.Error())
@@ -93,7 +92,7 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 	if t1LR != "" {
 		utils.AviLog.Infof("key: %s, msg: T1LR is %s.", key, t1LR)
 		parentVsNode.VrfContext = ""
-	}
+	}	
 	parentVsNode.PortProto = BuildPortProtocols(gateway, key)
 
 	tlsNodes := BuildTLSNodesForGateway(gateway, parentVsNode, key)
@@ -298,6 +297,12 @@ func buildWithInfraSettingForGateway(key string, vs *nodes.AviEvhVsNode, vsvip *
 			vsvip.T1Lr = *infraSetting.Spec.NSXSettings.T1LR
 			vsvip.VrfContext = ""
 			vs.VrfContext = ""
+		}
+		if infraSetting.Spec.L7Settings.DedicatedGatewayMode != nil && *infraSetting.Spec.L7Settings.DedicatedGatewayMode {
+			utils.AviLog.Infof("key: %s, msg: Dedicated Gateway Mode is enabled", key)			
+			vs.EVHParent = false
+			vs.Dedicated = true
+			
 		}
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VS and VSVip nodes %s", key, vs.Name)
 	}
