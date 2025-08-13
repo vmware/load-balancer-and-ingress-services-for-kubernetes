@@ -3530,3 +3530,342 @@ func TestHTTPRouteWithRouteRuleName(t *testing.T) {
 	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 }
+
+func TestHTTPRouteWithL7Rule(t *testing.T) {
+	gatewayName := "gateway-l7rule-01"
+	gatewayClassName := "gateway-class-l7rule-01"
+	httpRouteName := "http-route-l7rule-01"
+	svcName := "avisvc-l7rule-01"
+	l7RuleName := "l7rule-01"
+	ports := []int32{8080}
+	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+	g := gomega.NewGomegaWithT(t)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
+
+	// Create L7Rule CR
+	l7Rule := akogatewayapitests.GetFakeDefaultL7RuleObj(l7RuleName, DEFAULT_NAMESPACE)
+	l7Rule.CreateFakeL7RuleWithStatus(t)
+	extensionRefCRDs := make(map[string][]string)
+	extensionRefCRDs["L7Rule"] = []string{l7RuleName}
+
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
+	rule := akogatewayapitests.GetHTTPRouteRuleWithCustomCRDs(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add"}},
+		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, extensionRefCRDs)
+	rules := []gatewayv1.HTTPRouteRule{rule}
+	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	// Verify L7Rule configured settings are present in graph layer
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	childNode := nodes[0].EvhNodes[0]
+	g.Expect(*childNode.ApplicationProfileRef).To(gomega.ContainSubstring("thisisaviref-appprofile-l7"))
+	g.Expect(*childNode.WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-wafpolicy-l7"))
+	g.Expect(*childNode.AnalyticsProfileRef).To(gomega.ContainSubstring("thisisaviref-analyticsprofile-l7"))
+	g.Expect(childNode.ICAPProfileRefs[0]).To(gomega.ContainSubstring("thisisaviref-icaprofile-l7"))
+	g.Expect(childNode.ErrorPageProfileRef).To(gomega.ContainSubstring("thisisaviref-errorpageprofile-l7"))
+	// This is from HTTPRoute filter
+	g.Expect(len(childNode.HttpPolicyRefs)).To(gomega.Equal(1))
+	// This is from L7CRD
+	g.Expect(len(childNode.HttpPolicySetRefs)).To(gomega.Equal(2))
+	g.Expect(childNode.HttpPolicySetRefs[0]).To(gomega.ContainSubstring("policy1"))
+	g.Expect(childNode.HttpPolicySetRefs[1]).To(gomega.ContainSubstring("policy2"))
+
+	// Analytics Policy
+	g.Expect(childNode.AnalyticsPolicy).NotTo(gomega.BeNil())
+	g.Expect(childNode.AnalyticsPolicy.AllHeaders).NotTo(gomega.BeNil())
+	g.Expect(*childNode.AnalyticsPolicy.AllHeaders).To(gomega.Equal(true))
+	g.Expect(childNode.AnalyticsPolicy.FullClientLogs).NotTo(gomega.BeNil())
+	g.Expect(childNode.AnalyticsPolicy.FullClientLogs.Enabled).NotTo(gomega.BeNil())
+	g.Expect(*childNode.AnalyticsPolicy.FullClientLogs.Enabled).To(gomega.Equal(true))
+
+	g.Expect(*childNode.CloseClientConnOnConfigUpdate).To(gomega.Equal(false))
+	g.Expect(*childNode.AllowInvalidClientCert).To(gomega.Equal(true))
+	g.Expect(*childNode.IgnPoolNetReach).To(gomega.Equal(true))
+	g.Expect(*childNode.RemoveListeningPortOnVsDown).To(gomega.Equal(false))
+	g.Expect(*childNode.BotPolicyRef).To(gomega.ContainSubstring("sample-bot"))
+
+	g.Expect(childNode.HostNameXlate).To(gomega.BeNil())
+	g.Expect(childNode.SecurityPolicyRef).To(gomega.BeNil())
+	// Delete L7 and verify it's settings are removed from graph layer
+	l7Rule.DeleteL7RuleCR(t)
+
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 20*time.Second).Should(gomega.Equal(1))
+
+	g.Eventually(func() bool {
+		return childNode.ApplicationProfileRef == nil
+	}, 60*time.Second).Should(gomega.Equal(true))
+
+	g.Expect(childNode.ApplicationProfileRef).To(gomega.BeNil())
+	g.Expect(childNode.HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode.HttpPolicySetRefs).To(gomega.HaveLen(0))
+	g.Expect(childNode.AnalyticsPolicy).To(gomega.BeNil())
+	g.Expect(childNode.ErrorPageProfileRef).To(gomega.BeEmpty())
+	g.Expect(childNode.WafPolicyRef).To(gomega.BeNil())
+	g.Expect(childNode.ICAPProfileRefs).To(gomega.HaveLen(0))
+	g.Expect(childNode.CloseClientConnOnConfigUpdate).To(gomega.BeNil())
+	g.Expect(childNode.AllowInvalidClientCert).To(gomega.BeNil())
+	g.Expect(childNode.IgnPoolNetReach).To(gomega.BeNil())
+	g.Expect(childNode.RemoveListeningPortOnVsDown).To(gomega.BeNil())
+	g.Expect(childNode.BotPolicyRef).To(gomega.BeNil())
+
+	// Teardown
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestHTTPRouteWithL7RuleValidToInvalid(t *testing.T) {
+	gatewayName := "gateway-l7rule-02"
+	gatewayClassName := "gateway-class-l7rule-02"
+	httpRouteName := "http-route-l7rule-02"
+	svcName := "avisvc-l7rule-02"
+	l7RuleName := "l7rule-02"
+	ports := []int32{8080}
+	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+	g := gomega.NewGomegaWithT(t)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
+
+	// Create L7Rule CR
+	l7Rule := akogatewayapitests.GetFakeDefaultL7RuleObj(l7RuleName, DEFAULT_NAMESPACE)
+	l7Rule.CreateFakeL7RuleWithStatus(t)
+	extensionRefCRDs := make(map[string][]string)
+	extensionRefCRDs["L7Rule"] = []string{l7RuleName}
+
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
+	rule := akogatewayapitests.GetHTTPRouteRuleWithCustomCRDs(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add"}},
+		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, extensionRefCRDs)
+	rules := []gatewayv1.HTTPRouteRule{rule}
+	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	// Verify L7Rule configured settings are present in graph layer
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	childNode := nodes[0].EvhNodes[0]
+	g.Expect(*childNode.ApplicationProfileRef).To(gomega.ContainSubstring("thisisaviref-appprofile-l7"))
+	g.Expect(*childNode.WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-wafpolicy-l7"))
+	g.Expect(*childNode.AnalyticsProfileRef).To(gomega.ContainSubstring("thisisaviref-analyticsprofile-l7"))
+	g.Expect(childNode.ICAPProfileRefs[0]).To(gomega.ContainSubstring("thisisaviref-icaprofile-l7"))
+	g.Expect(childNode.ErrorPageProfileRef).To(gomega.ContainSubstring("thisisaviref-errorpageprofile-l7"))
+	// This is from HTTPRoute filter
+	g.Expect(len(childNode.HttpPolicyRefs)).To(gomega.Equal(1))
+	// This is from L7CRD
+	g.Expect(len(childNode.HttpPolicySetRefs)).To(gomega.Equal(2))
+	g.Expect(childNode.HttpPolicySetRefs[0]).To(gomega.ContainSubstring("policy1"))
+	g.Expect(childNode.HttpPolicySetRefs[1]).To(gomega.ContainSubstring("policy2"))
+
+	// Analytics Policy
+	g.Expect(childNode.AnalyticsPolicy).NotTo(gomega.BeNil())
+	g.Expect(childNode.AnalyticsPolicy.AllHeaders).NotTo(gomega.BeNil())
+	g.Expect(*childNode.AnalyticsPolicy.AllHeaders).To(gomega.Equal(true))
+	g.Expect(childNode.AnalyticsPolicy.FullClientLogs).NotTo(gomega.BeNil())
+	g.Expect(childNode.AnalyticsPolicy.FullClientLogs.Enabled).NotTo(gomega.BeNil())
+	g.Expect(*childNode.AnalyticsPolicy.FullClientLogs.Enabled).To(gomega.Equal(true))
+
+	g.Expect(*childNode.CloseClientConnOnConfigUpdate).To(gomega.Equal(false))
+	g.Expect(*childNode.AllowInvalidClientCert).To(gomega.Equal(true))
+	g.Expect(*childNode.IgnPoolNetReach).To(gomega.Equal(true))
+	g.Expect(*childNode.RemoveListeningPortOnVsDown).To(gomega.Equal(false))
+	g.Expect(*childNode.BotPolicyRef).To(gomega.ContainSubstring("sample-bot"))
+
+	g.Expect(childNode.HostNameXlate).To(gomega.BeNil())
+	g.Expect(childNode.SecurityPolicyRef).To(gomega.BeNil())
+
+	// Reject
+	l7Rule.Status = "Rejected"
+	l7Rule.Error = "Invalid Application Profile ref"
+	l7Rule.UpdateL7RuleStatus(t)
+
+	// L7Rule fields should be removed.
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		if len(nodes) > 0 {
+			return nodes[0].EvhNodes[0].ApplicationProfileRef == nil
+		}
+		return false
+	}, 25*time.Second, 1*time.Second).Should(gomega.Equal(true))
+	g.Expect(childNode.HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode.HttpPolicySetRefs).To(gomega.HaveLen(0))
+	g.Expect(childNode.AnalyticsPolicy).To(gomega.BeNil())
+	g.Expect(childNode.ErrorPageProfileRef).To(gomega.BeEmpty())
+	g.Expect(childNode.WafPolicyRef).To(gomega.BeNil())
+	g.Expect(childNode.ICAPProfileRefs).To(gomega.HaveLen(0))
+	g.Expect(childNode.CloseClientConnOnConfigUpdate).To(gomega.BeNil())
+	g.Expect(childNode.AllowInvalidClientCert).To(gomega.BeNil())
+	g.Expect(childNode.IgnPoolNetReach).To(gomega.BeNil())
+	g.Expect(childNode.RemoveListeningPortOnVsDown).To(gomega.BeNil())
+	g.Expect(childNode.BotPolicyRef).To(gomega.BeNil())
+
+	// Teardown
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestHTTPRouteWithL7RuleWithApplicationProfileCRD(t *testing.T) {
+	gatewayName := "gateway-l7rule-03"
+	gatewayClassName := "gateway-class-l7rule-03"
+	httpRouteName := "http-route-l7rule-03"
+	svcName := "avisvc-l7rule-03"
+	l7RuleName := "l7rule-03"
+	ports := []int32{8080}
+	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+	g := gomega.NewGomegaWithT(t)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
+
+	// Create L7Rule CR
+	l7Rule := akogatewayapitests.GetFakeDefaultL7RuleObj(l7RuleName, DEFAULT_NAMESPACE)
+	l7Rule.CreateFakeL7RuleWithStatus(t)
+	extensionRefCRDs := make(map[string][]string)
+	extensionRefCRDs["L7Rule"] = []string{l7RuleName}
+	extensionRefCRDs["ApplicationProfile"] = []string{"AppProfile1"}
+
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
+	rule := akogatewayapitests.GetHTTPRouteRuleWithCustomCRDs(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add"}},
+		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, extensionRefCRDs)
+	rules := []gatewayv1.HTTPRouteRule{rule}
+	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	// Verify L7Rule configured settings are present in graph layer
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	childNode := nodes[0].EvhNodes[0]
+	// Application Profile CRD object
+	g.Expect(*childNode.ApplicationProfileRef).To(gomega.ContainSubstring("AppProfile1"))
+	g.Expect(*childNode.WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-wafpolicy-l7"))
+	g.Expect(*childNode.AnalyticsProfileRef).To(gomega.ContainSubstring("thisisaviref-analyticsprofile-l7"))
+	g.Expect(childNode.ICAPProfileRefs[0]).To(gomega.ContainSubstring("thisisaviref-icaprofile-l7"))
+	g.Expect(childNode.ErrorPageProfileRef).To(gomega.ContainSubstring("thisisaviref-errorpageprofile-l7"))
+	// This is from HTTPRoute filter
+	g.Expect(len(childNode.HttpPolicyRefs)).To(gomega.Equal(1))
+	// This is from L7CRD
+	g.Expect(len(childNode.HttpPolicySetRefs)).To(gomega.Equal(2))
+	g.Expect(childNode.HttpPolicySetRefs[0]).To(gomega.ContainSubstring("policy1"))
+	g.Expect(childNode.HttpPolicySetRefs[1]).To(gomega.ContainSubstring("policy2"))
+
+	// Analytics Policy
+	g.Expect(childNode.AnalyticsPolicy).NotTo(gomega.BeNil())
+	g.Expect(childNode.AnalyticsPolicy.AllHeaders).NotTo(gomega.BeNil())
+	g.Expect(*childNode.AnalyticsPolicy.AllHeaders).To(gomega.Equal(true))
+	g.Expect(childNode.AnalyticsPolicy.FullClientLogs).NotTo(gomega.BeNil())
+	g.Expect(childNode.AnalyticsPolicy.FullClientLogs.Enabled).NotTo(gomega.BeNil())
+	g.Expect(*childNode.AnalyticsPolicy.FullClientLogs.Enabled).To(gomega.Equal(true))
+
+	g.Expect(*childNode.CloseClientConnOnConfigUpdate).To(gomega.Equal(false))
+	g.Expect(*childNode.AllowInvalidClientCert).To(gomega.Equal(true))
+	g.Expect(*childNode.IgnPoolNetReach).To(gomega.Equal(true))
+	g.Expect(*childNode.RemoveListeningPortOnVsDown).To(gomega.Equal(false))
+	g.Expect(*childNode.BotPolicyRef).To(gomega.ContainSubstring("sample-bot"))
+
+	g.Expect(childNode.HostNameXlate).To(gomega.BeNil())
+	g.Expect(childNode.SecurityPolicyRef).To(gomega.BeNil())
+
+	// Reject
+	l7Rule.Status = "Rejected"
+	l7Rule.Error = "Invalid Application Profile ref"
+	l7Rule.UpdateL7RuleStatus(t)
+
+	// L7Rule fields should be removed.
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		if len(nodes) > 0 {
+			return len(nodes[0].EvhNodes[0].HttpPolicySetRefs) == 0
+		}
+		return false
+	}, 25*time.Second, 1*time.Second).Should(gomega.Equal(true))
+	// Application Profile CRD object
+	g.Expect(*childNode.ApplicationProfileRef).To(gomega.ContainSubstring("AppProfile1"))
+	g.Expect(childNode.HttpPolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode.HttpPolicySetRefs).To(gomega.HaveLen(0))
+	g.Expect(childNode.AnalyticsPolicy).To(gomega.BeNil())
+	g.Expect(childNode.ErrorPageProfileRef).To(gomega.BeEmpty())
+	g.Expect(childNode.WafPolicyRef).To(gomega.BeNil())
+	g.Expect(childNode.ICAPProfileRefs).To(gomega.HaveLen(0))
+	g.Expect(childNode.CloseClientConnOnConfigUpdate).To(gomega.BeNil())
+	g.Expect(childNode.AllowInvalidClientCert).To(gomega.BeNil())
+	g.Expect(childNode.IgnPoolNetReach).To(gomega.BeNil())
+	g.Expect(childNode.RemoveListeningPortOnVsDown).To(gomega.BeNil())
+	g.Expect(childNode.BotPolicyRef).To(gomega.BeNil())
+
+	// Teardown
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}

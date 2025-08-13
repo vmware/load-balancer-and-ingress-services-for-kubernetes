@@ -17,6 +17,7 @@ package status
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akogatewayapitests "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/gatewayapitests"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
@@ -1313,5 +1315,282 @@ func TestHTTPRouteFilterWithUnsupportedUrlRewritePathType(t *testing.T) {
 
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestHTTPRouteMultpleL7Rules(t *testing.T) {
+	gatewayName := "gateway-l7Rule-01"
+	gatewayClassName := "gateway-class-l7rule-01"
+	httpRouteName := "http-route-l7rule-01"
+	svcName := "avisvc-l7rule-01"
+	l7RuleName1 := "l7rule-01a"
+	l7RuleName2 := "l7rule-01b"
+
+	ports := []int32{8080}
+	modelName, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gatewayName)
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 60*time.Second).Should(gomega.Equal(true))
+
+	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
+
+	l7CRDObj1 := akogatewayapitests.GetFakeDefaultL7RuleObj(l7RuleName1, DEFAULT_NAMESPACE)
+	l7CRDObj1.CreateFakeL7RuleWithStatus(t)
+	l7CRDObj2 := akogatewayapitests.GetFakeDefaultL7RuleObj(l7RuleName2, DEFAULT_NAMESPACE)
+	l7CRDObj2.CreateFakeL7RuleWithStatus(t)
+
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
+
+	extensionRefCRDs := make(map[string][]string)
+	extensionRefCRDs["L7Rule"] = []string{l7RuleName1, l7RuleName2}
+	rule := akogatewayapitests.GetHTTPRouteRuleWithCustomCRDs(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add"}},
+		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, extensionRefCRDs)
+
+	rules := []gatewayv1.HTTPRouteRule{rule}
+	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
+
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return -1
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(0))
+
+	// HTTPRoute should have unresolved refs condition due to non-existent L7Rule
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(DEFAULT_NAMESPACE).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			t.Logf("Couldn't get the HTTPRoute, err: %+v", err)
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionFalse &&
+			condition.Reason == string(gatewayv1.RouteReasonInvalidKind)
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Verify error message mentions MultipleExtensionRef of same kind defined
+	httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(DEFAULT_NAMESPACE).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+	if err != nil || httpRoute == nil {
+		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
+	}
+	condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+	g.Expect(condition.Message).To(gomega.ContainSubstring("MultipleExtensionRef of same kind defined on HTTPRoute-Rule"))
+
+	// Delete L7Rule and verify it's removed from graph layer
+	l7CRDObj1.DeleteL7RuleCR(t)
+	l7CRDObj2.DeleteL7RuleCR(t)
+
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return -1
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	// Clean up
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestHTTPRouteStatusWithL7RuleLifecycle(t *testing.T) {
+	gatewayClassName := "gateway-class-l7rule-lifecycle"
+	gatewayName := "gateway-l7rule-lifecycle"
+	httpRouteName := "httproute-l7rule-lifecycle"
+	namespace := "default"
+	svcName := "avisvc-l7rule-lifecycle"
+	ports := []int32{8080}
+	l7RuleName1 := "l7rule-02a"
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	integrationtest.CreateSVC(t, namespace, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPS(t, namespace, svcName, false, false, "1.1.1")
+
+	listeners := akogatewayapitests.GetListenersV1(ports, true, false)
+	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(namespace).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	extensionRefCRDs := make(map[string][]string)
+	extensionRefCRDs["L7Rule"] = []string{l7RuleName1}
+	// Create HTTPRoute with reference to non-existent L7Rule CRD
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
+	hostnames := []gatewayv1.Hostname{"foo.avi.internal"}
+	rules := []gatewayv1.HTTPRouteRule{
+		akogatewayapitests.GetHTTPRouteRuleWithCustomCRDs(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+			map[string][]string{"RequestHeaderModifier": {"add"}},
+			[][]string{{svcName, namespace, "8080", "1"}}, extensionRefCRDs),
+	}
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
+
+	// HTTPRoute should have unresolved refs condition due to non-existent L7Rule
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			t.Logf("Couldn't get the HTTPRoute, err: %+v", err)
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionFalse &&
+			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound)
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Verify error message mentions L7Rule
+	httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+	if err != nil || httpRoute == nil {
+		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
+	}
+	condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+	g.Expect(condition.Message).To(gomega.ContainSubstring("L7Rule CRD default/l7rule-02a not found"))
+
+	// Create L7Rule CRD with status as rejected
+	l7RuleObj := akogatewayapitests.GetFakeDefaultL7RuleObj(l7RuleName1, DEFAULT_NAMESPACE)
+	l7RuleObj.Status = "Rejected"
+	l7RuleObj.CreateFakeL7RuleWithStatus(t)
+
+	// HTTPRoute should still have unresolved refs condition due to rejected L7Rule
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionFalse &&
+			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound) &&
+			strings.Contains(condition.Message, "L7Rule CRD default/l7rule-02a is not accepted")
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Update L7Rule status to Accepted
+	l7RuleObj.Status = "Accepted"
+	l7RuleObj.UpdateL7RuleStatus(t)
+
+	// HTTPRoute should now have resolved refs condition
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionTrue
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Test status transition from status accepted to rejected
+	l7RuleObj.Status = "Rejected"
+	l7RuleObj.UpdateL7RuleStatus(t)
+
+	// HTTPRoute should now have unresolved refs condition
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionFalse &&
+			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound)
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Transition back to status accepted
+	l7RuleObj.Status = "Accepted"
+	l7RuleObj.UpdateL7RuleStatus(t)
+
+	// HTTPRoute should have resolved refs condition again
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionTrue
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	//Test L7Rule deletion
+	l7RuleObj.DeleteL7RuleCR(t)
+
+	// HTTPRoute should now have unresolved refs condition due to deleted L7Rule
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionFalse &&
+			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound)
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Verify the condition message mentions the L7Rule
+	httpRoute, err = akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+	if err != nil || httpRoute == nil {
+		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
+	}
+	condition = apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+	g.Expect(condition.Message).To(gomega.ContainSubstring("L7Rule CRD default/l7rule-02a not found"))
+
+	// Recreate L7Rule to verify HTTPRoute status recovers
+	l7RuleObj.CreateFakeL7RuleWithStatus(t)
+
+	// HTTPRoute should have resolved refs condition again
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) != len(ports) {
+			return false
+		}
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionTrue
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Cleanup
+	l7RuleObj.DeleteL7RuleCR(t)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
+	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 }

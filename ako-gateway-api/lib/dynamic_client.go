@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jinzhu/copier"
 	"github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
 	v1 "k8s.io/api/core/v1"
@@ -104,30 +103,41 @@ func GetDynamicInformers() *DynamicInformers {
 	return dynamicInformerInstance
 }
 
-func ParseL7CRD(key, namespace, name string, vsNode nodes.AviVsEvhSniModel, isFilterAppProfSet bool) error {
-
+func IsL7CRDValid(key, namespace, name string) (bool, *unstructured.Unstructured, error) {
 	clientSet := GetDynamicClientSet()
 	if clientSet == nil {
-		return fmt.Errorf("key: %s, msg:error in fetching L7Rule CRD object", key)
+		return false, nil, fmt.Errorf("error in fetching L7Rule CRD object. clientset is nil")
 	}
 	obj, err := clientSet.Resource(L7CRDGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			return fmt.Errorf("key: %s, msg: error: L7Rule CRD %s/%s not found", key, namespace, name)
+			utils.AviLog.Errorf("key:%s/%s, msg:L7Rule CRD not found: %+v", namespace, name, err)
+			return false, nil, fmt.Errorf("L7Rule CRD %s/%s not found", namespace, name)
 		}
-		return err
+		return false, nil, err
 	}
 	statusJSON, found, err := unstructured.NestedMap(obj.UnstructuredContent(), "status")
 	if err != nil || !found {
-		utils.AviLog.Warnf("key:%s/%s, msg:L7Rule CRD status not found: %+v", namespace, name, err)
-		return err
+		utils.AviLog.Errorf("key:%s/%s, msg:L7Rule CRD status not found: %+v", namespace, name, err)
+		return false, nil, err
 	}
 	status, ok := statusJSON["status"]
 	if !ok || status.(string) == "" {
-		return fmt.Errorf("key:%s, msg: error: L7Rule CRD %s/%s is not processed by AKO main container", key, namespace, name)
+		utils.AviLog.Errorf("key:%s, msg: error: L7Rule CRD %s/%s is not processed by AKO main container", key, namespace, name)
+		return false, nil, fmt.Errorf("L7Rule CRD %s/%s is not processed by AKO main container", namespace, name)
 	}
 	if status.(string) != lib.StatusAccepted {
-		return fmt.Errorf("key: %s, msg: error: L7Rule CRD %s/%s is not accepted", key, namespace, name)
+		utils.AviLog.Errorf("key: %s, msg: error: L7Rule CRD %s/%s is not accepted", key, namespace, name)
+		return false, nil, fmt.Errorf("L7Rule CRD %s/%s is not accepted", namespace, name)
+	}
+	return true, obj, nil
+}
+
+func ParseL7CRD(key, namespace, name string, vsNode nodes.AviVsEvhSniModel, isFilterAppProfSet bool) error {
+	ok, obj, err := IsL7CRDValid(key, namespace, name)
+	// second check is precautionary check to avoid failure in fetching content
+	if !ok || obj == nil {
+		return err
 	}
 	specJSON, found, err := unstructured.NestedMap(obj.UnstructuredContent(), "spec")
 	if err != nil || !found {
@@ -135,26 +145,30 @@ func ParseL7CRD(key, namespace, name string, vsNode nodes.AviVsEvhSniModel, isFi
 		return err
 	}
 	generatedFields := vsNode.GetGeneratedFields()
-	copier.CopyWithOption(vsNode, specJSON, copier.Option{IgnoreEmpty: true, DeepCopy: true})
-	generatedFields.ConvertL7RuleParentOnlyFieldsToNil()
+
+	// bot policy has license restriction
+	generatedFields.BotPolicyRef = getFieldValueTypeString(specJSON, "botPolicyRef")
+	generatedFields.TrafficCloneProfileRef = getFieldValueTypeString(specJSON, "trafficCloneProfileRef")
+	generatedFields.AllowInvalidClientCert = getFieldValueTypeBool(specJSON, "allowInvalidClientCert")
+	generatedFields.CloseClientConnOnConfigUpdate = getFieldValueTypeBool(specJSON, "closeClientConnOnConfigUpdate")
+	generatedFields.IgnPoolNetReach = getFieldValueTypeBool(specJSON, "ignPoolNetReach")
+	generatedFields.RemoveListeningPortOnVsDown = getFieldValueTypeBool(specJSON, "removeListeningPortOnVsDown")
+	generatedFields.MinPoolsUp = getFieldValueTypeUint32(specJSON, "minPoolsUp")
+	generatedFields.SslSessCacheAvgSize = getFieldValueTypeUint32(specJSON, "sslSessCacheAvgSize")
+
 	generatedFields.ConvertToRef()
 
-	//analyticsProfileObj, found, err := unstructured.NestedStringMap(specJSON, "analyticsProfile")
-	/*
-		if err == nil && found {
-			//get the object
-			vsAnalyticsProfile := proto.String(fmt.Sprintf("/api/analyticsprofile?name=%s", analyticsProfileObj["name"]))
-			vsNode.SetAnalyticsProfileRef(vsAnalyticsProfile)
-		}*/
 	vsAnalyticsProfile := getFieldValueFromSpec(specJSON, "analyticsProfile")
 	if vsAnalyticsProfile != nil {
 		vsNode.SetAnalyticsProfileRef(vsAnalyticsProfile)
 	}
 
+	// WAF Policy
 	vsWafPolicy := getFieldValueFromSpec(specJSON, "wafPolicy")
 	if vsWafPolicy != nil {
 		vsNode.SetWafPolicyRef(vsWafPolicy)
 	}
+
 	//ICAP profile
 	icapProfileObj, found, err := unstructured.NestedStringMap(specJSON, "icapProfile")
 	if err == nil && found {
@@ -184,7 +198,11 @@ func ParseL7CRD(key, namespace, name string, vsNode nodes.AviVsEvhSniModel, isFi
 		policysetObj, found, err := unstructured.NestedStringSlice(httpPolicyObj, "policySets")
 		if err == nil && found {
 			// avoid duplicates
-			vsHTTPPolicySets := sets.NewString(policysetObj...).List()
+			httpPolicySet := sets.NewString(policysetObj...).List()
+			vsHTTPPolicySets := make([]string, len(httpPolicySet))
+			for i, v := range httpPolicySet {
+				vsHTTPPolicySets[i] = fmt.Sprintf("/api/httppolicyset?name=%s", v)
+			}
 			vsNode.SetHttpPolicySetRefs(vsHTTPPolicySets)
 		}
 		// overwrite AKO-GatewayAPI created HTTP Policysets
@@ -225,7 +243,31 @@ func ParseL7CRD(key, namespace, name string, vsNode nodes.AviVsEvhSniModel, isFi
 	}
 	return nil
 }
+func getFieldValueTypeString(specJSON map[string]interface{}, fieldName string) *string {
+	var value *string
+	obj, found, err := unstructured.NestedString(specJSON, fieldName)
+	if err == nil && found {
+		return proto.String(obj)
+	}
+	return value
+}
 
+func getFieldValueTypeUint32(specJSON map[string]interface{}, fieldName string) *uint32 {
+	var value *uint32
+	obj, found, err := unstructured.NestedInt64(specJSON, fieldName)
+	if err == nil && found {
+		return proto.Uint32(uint32(obj))
+	}
+	return value
+}
+func getFieldValueTypeBool(specJSON map[string]interface{}, fieldName string) *bool {
+	var value *bool
+	obj, found, err := unstructured.NestedBool(specJSON, fieldName)
+	if err == nil && found {
+		return proto.Bool(obj)
+	}
+	return value
+}
 func getFieldValueFromSpec(specJSON map[string]interface{}, fieldName string) *string {
 	var value *string
 	obj, found, err := unstructured.NestedStringMap(specJSON, fieldName)
