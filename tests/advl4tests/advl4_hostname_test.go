@@ -1173,7 +1173,7 @@ func TestAdvL4MultiTenancyWithTenantDeannotationInNS(t *testing.T) {
 	VerifyGatewayVSNodeDeletion(g, newModelName)
 }
 
-func TestAdvL4WithProxyEnabledAppProfile(t *testing.T) {
+func TestAdvL4WithProxyEnabledAnnotation(t *testing.T) {
 	// create a gw object with proxy-enabled annotation
 	// graph layer VS should come up with correct app profile
 	// graph layer Pool should have correct health monitor ref

@@ -406,7 +406,7 @@ func cleanupPools() error {
 func cleanupAppProfiles() error {
 	tenant := lib.GetAdminTenant()
 	aviClient := avicache.SharedAVIClients(tenant).AviClient[0]
-	err, appProfs := lib.ProxyEnabledAppProfileGet(aviClient)
+	appProfs, err := lib.ProxyEnabledAppProfileGet(aviClient)
 	if err != nil {
 		utils.AviLog.Warnf("Application profile Get returned err %v", err)
 		return err
@@ -421,7 +421,7 @@ func cleanupAppProfiles() error {
 func cleanupHealthMonitors() error {
 	tenant := lib.GetAdminTenant()
 	aviClient := avicache.SharedAVIClients(tenant).AviClient[0]
-	err, healthMons := lib.TcpHalfOpenHealthMonitorGet(aviClient)
+	healthMons, err := lib.TcpHalfOpenHealthMonitorGet(aviClient)
 	if err != nil {
 		utils.AviLog.Warnf("Health monitor GET returned err %v", err)
 		return err
