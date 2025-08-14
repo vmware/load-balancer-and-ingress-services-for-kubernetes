@@ -389,6 +389,11 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 			poolNode.VrfContext = ""
 		}
 
+		if vsNode.ApplicationProfile == lib.GetProxyEnabledApplicationProfileName() {
+			hmRef := fmt.Sprintf("/api/healthmonitor/?name=%s", lib.GetTcpHalfOpenHealthMonitorName())
+			poolNode.HealthMonitorRefs = append(poolNode.HealthMonitorRefs, hmRef)
+		}
+
 		poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
 
 		if svcFQDN != "" {

@@ -1272,6 +1272,12 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			utils.AviLog.Errorf("Proxy enabled application profile Get/Create/Update failed: %s", err)
 			return err
 		}
+		// TCP Half-Open Connection Health Monitor GET/CREATE/UPDATE
+		err = lib.TcpHalfOpenHealthMonitorCU(aviClientPool.AviClient[0])
+		if err != nil {
+			utils.AviLog.Errorf("TCP Half-Open connection health monitor Get/Create/Update failed: %s", err)
+			return err
+		}
 
 		//Ingress Section
 		if utils.GetInformers().IngressInformer != nil {

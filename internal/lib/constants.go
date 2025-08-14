@@ -172,6 +172,8 @@ const (
 	SSLKeyCert                                 = "SSLKeyandCertificate"
 	PKIProfile                                 = "PKI Profile"
 	ApplicationProfile                         = "ApplicationProfile"
+	HealthMonitor                              = "HealthMonitor"
+	AllowedTCPHealthMonitorType                = "HEALTH_MONITOR_TCP"
 	PassthroughPG                              = "Passthrough PG"
 	Passthroughpool                            = "Passthrough pool"
 	PassthroughVS                              = "Passthrough VirtualService"

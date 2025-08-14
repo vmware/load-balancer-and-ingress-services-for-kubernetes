@@ -1506,7 +1506,14 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 		}
 		w.WriteHeader(http.StatusOK)
 		w.Write(data)
-
+	} else if r.Method == "GET" && strings.Contains(url, "/api/applicationprofile/") &&
+		strings.HasSuffix(r.URL.RawQuery, lib.GetProxyEnabledApplicationProfileName()) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"results": [], "count": 0}`))
+	} else if r.Method == "GET" && strings.Contains(url, "/api/healthmonitor/") &&
+		strings.HasSuffix(r.URL.RawQuery, lib.GetTcpHalfOpenHealthMonitorName()) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"results": [], "count": 0}`))
 	} else if r.Method == "GET" && inArray(FakeAviObjects, object) {
 		FeedMockCollectionData(w, r, mockFilePath)
 
