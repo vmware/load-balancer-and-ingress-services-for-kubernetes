@@ -173,8 +173,8 @@ func TestAKOPermissionStructure(t *testing.T) {
 	testPermissions(akoAllTenantsPermissions, "all-tenants")
 }
 
-func TestCreateVKSClusterRolesWithNilClient(t *testing.T) {
-	_, err := CreateVKSClusterRoles(nil, "test-cluster", "test-tenant")
+func TestCreateClusterRolesWithNilClient(t *testing.T) {
+	_, err := CreateClusterRoles(nil, "test-cluster", "test-tenant")
 	if err == nil {
 		t.Errorf("Expected error when aviClient is nil")
 	}
@@ -185,9 +185,9 @@ func TestCreateVKSClusterRolesWithNilClient(t *testing.T) {
 	}
 }
 
-func TestCreateVKSClusterUserWithRolesWithNilClient(t *testing.T) {
-	roles := &VKSClusterRoles{} // Empty roles for test
-	_, _, err := CreateVKSClusterUserWithRoles(nil, "test-cluster", roles, "test-tenant")
+func TestCreateClusterUserWithRolesWithNilClient(t *testing.T) {
+	roles := &ClusterRoles{} // Empty roles for test
+	_, _, err := CreateClusterUserWithRoles(nil, "test-cluster", roles, "test-tenant")
 	if err == nil {
 		t.Errorf("Expected error when aviClient is nil")
 	}
@@ -198,19 +198,19 @@ func TestCreateVKSClusterUserWithRolesWithNilClient(t *testing.T) {
 	}
 }
 
-func TestDeleteVKSClusterRolesWithNilClient(t *testing.T) {
-	// DeleteVKSClusterRoles should handle nil client gracefully
-	err := DeleteVKSClusterRoles(nil, "test-cluster")
+func TestDeleteClusterRolesWithNilClient(t *testing.T) {
+	// DeleteClusterRoles should handle nil client gracefully
+	err := DeleteClusterRoles(nil, "test-cluster")
 	if err != nil {
-		t.Errorf("DeleteVKSClusterRoles should handle nil client gracefully, got error: %v", err)
+		t.Errorf("DeleteClusterRoles should handle nil client gracefully, got error: %v", err)
 	}
 }
 
-func TestDeleteVKSClusterUserWithNilClient(t *testing.T) {
-	// DeleteVKSClusterUser should handle nil client gracefully
-	err := DeleteVKSClusterUser(nil, "test-cluster")
+func TestDeleteClusterUserWithNilClient(t *testing.T) {
+	// DeleteClusterUser should handle nil client gracefully
+	err := DeleteClusterUser(nil, "test-cluster")
 	if err != nil {
-		t.Errorf("DeleteVKSClusterUser should handle nil client gracefully, got error: %v", err)
+		t.Errorf("DeleteClusterUser should handle nil client gracefully, got error: %v", err)
 	}
 }
 
@@ -218,7 +218,7 @@ func TestRoleFilterConstruction(t *testing.T) {
 	// Test the role filter construction logic
 	clusterName := "test-cluster"
 
-	// This mimics what CreateVKSClusterRoles does internally
+	// This mimics what CreateClusterRoles does internally
 	clusterFilter := &models.RoleFilter{
 		MatchOperation: func() *string { s := "ROLE_FILTER_EQUALS"; return &s }(),
 		MatchLabel: &models.RoleFilterMatchLabel{
@@ -280,12 +280,12 @@ func TestCreateRoleFromPermissions_ExistingRole(t *testing.T) {
 	}
 }
 
-func TestCreateVKSClusterUserWithRoles_ExistingUser(t *testing.T) {
+func TestCreateClusterUserWithRoles_ExistingUser(t *testing.T) {
 	// Test user recreation behavior structure
-	userName := "vks-cluster-test-user"
+	userName := "test-user"
 
 	// Verify user name generation
-	expectedName := "vks-cluster-test-user"
+	expectedName := "test-user"
 	if userName != expectedName {
 		t.Errorf("Expected user name %s, got %s", expectedName, userName)
 	}
@@ -294,13 +294,13 @@ func TestCreateVKSClusterUserWithRoles_ExistingUser(t *testing.T) {
 	// by deleting and recreating them for fresh credentials
 }
 
-func TestVKSClusterRolesStructure(t *testing.T) {
-	// Test VKSClusterRoles struct
+func TestClusterRolesStructure(t *testing.T) {
+	// Test ClusterRoles struct
 	adminRole := &models.Role{Name: func() *string { s := "admin-role"; return &s }()}
 	tenantRole := &models.Role{Name: func() *string { s := "tenant-role"; return &s }()}
 	allTenantsRole := &models.Role{Name: func() *string { s := "all-tenants-role"; return &s }()}
 
-	roles := &VKSClusterRoles{
+	roles := &ClusterRoles{
 		AdminRole:      adminRole,
 		TenantRole:     tenantRole,
 		AllTenantsRole: allTenantsRole,
