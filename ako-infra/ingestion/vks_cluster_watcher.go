@@ -336,12 +336,12 @@ func (w *VKSClusterWatcher) cleanupClusterSpecificRBAC(clusterName string) {
 		return
 	}
 
-	err := lib.DeleteVKSClusterUser(aviClient, clusterName)
+	err := lib.DeleteClusterUser(aviClient, clusterName)
 	if err != nil {
 		utils.AviLog.Errorf("Failed to delete VKS cluster user for %s: %v", clusterName, err)
 	}
 
-	err = lib.DeleteVKSClusterRoles(aviClient, clusterName)
+	err = lib.DeleteClusterRoles(aviClient, clusterName)
 	if err != nil {
 		utils.AviLog.Errorf("Failed to delete VKS cluster roles for %s: %v", clusterName, err)
 	}
@@ -369,14 +369,14 @@ func (w *VKSClusterWatcher) createClusterSpecificCredentials(clusterNameWithUID 
 
 	utils.AviLog.Infof("Creating VKS cluster RBAC for %s in operational tenant: %s", clusterNameWithUID, operationalTenant)
 
-	roles, err := lib.CreateVKSClusterRoles(aviClient, clusterNameWithUID, operationalTenant)
+	roles, err := lib.CreateClusterRoles(aviClient, clusterNameWithUID, operationalTenant)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create VKS cluster roles: %v", err)
 	}
 
-	user, password, err := lib.CreateVKSClusterUserWithRoles(aviClient, clusterNameWithUID, roles, operationalTenant)
+	user, password, err := lib.CreateClusterUserWithRoles(aviClient, clusterNameWithUID, roles, operationalTenant)
 	if err != nil {
-		lib.DeleteVKSClusterRoles(aviClient, clusterNameWithUID)
+		lib.DeleteClusterRoles(aviClient, clusterNameWithUID)
 		return nil, fmt.Errorf("failed to create VKS cluster user: %v", err)
 	}
 

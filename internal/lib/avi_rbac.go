@@ -29,7 +29,7 @@ type ClusterCredentials struct {
 	Password string
 }
 
-type VKSClusterRoles struct {
+type ClusterRoles struct {
 	AdminRole      *models.Role
 	TenantRole     *models.Role
 	AllTenantsRole *models.Role
@@ -105,7 +105,7 @@ func createRoleFromPermissions(aviClient *clients.AviClient, permissions []AKOPe
 
 	existingRole, err := aviClient.Role.GetByName(roleName)
 	if err == nil && existingRole != nil {
-		utils.AviLog.Infof("VKS role %s already exists (UUID: %s), reusing existing role",
+		utils.AviLog.Infof("Role %s already exists (UUID: %s), reusing existing role",
 			roleName, *existingRole.UUID)
 		return existingRole, nil
 	}
@@ -141,22 +141,22 @@ func createRoleFromPermissions(aviClient *clients.AviClient, permissions []AKOPe
 		return nil, fmt.Errorf("failed to retrieve created role %s: %v", roleName, err)
 	}
 
-	utils.AviLog.Infof("Created VKS role: %s (UUID: %s, Tenant: %s)",
+	utils.AviLog.Infof("Created role: %s (UUID: %s, Tenant: %s)",
 		roleName, *createdRole.UUID, tenantName)
 
 	return createdRole, nil
 }
 
-// CreateVKSClusterRoles creates the three roles required for a VKS cluster
-func CreateVKSClusterRoles(aviClient *clients.AviClient, clusterName, operationalTenant string) (*VKSClusterRoles, error) {
+// CreateClusterRoles creates the three roles required for a cluster
+func CreateClusterRoles(aviClient *clients.AviClient, clusterName, operationalTenant string) (*ClusterRoles, error) {
 	if aviClient == nil {
 		return nil, fmt.Errorf("avi Controller client not available - ensure AKO infra is properly initialized")
 	}
 
-	utils.AviLog.Infof("Creating VKS cluster roles for %s (operational tenant: %s)", clusterName, operationalTenant)
+	utils.AviLog.Infof("Creating cluster roles for %s (operational tenant: %s)", clusterName, operationalTenant)
 
 	// Create admin tenant role
-	adminRoleName := fmt.Sprintf("vks-cluster-%s-admin-role", clusterName)
+	adminRoleName := fmt.Sprintf("%s-admin-role", clusterName)
 	adminRole, err := createRoleFromPermissions(aviClient, akoAdminPermissions, adminRoleName, "admin", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create admin tenant role: %v", err)
@@ -172,7 +172,7 @@ func CreateVKSClusterRoles(aviClient *clients.AviClient, clusterName, operationa
 		Enabled: pointerBool(true),
 	}
 
-	tenantRoleName := fmt.Sprintf("vks-cluster-%s-tenant-role", clusterName)
+	tenantRoleName := fmt.Sprintf("%s-tenant-role", clusterName)
 	tenantRole, err := createRoleFromPermissions(aviClient, akoTenantPermissions, tenantRoleName, operationalTenant, clusterFilter)
 	if err != nil {
 		aviClient.Role.Delete(*adminRole.UUID)
@@ -180,7 +180,7 @@ func CreateVKSClusterRoles(aviClient *clients.AviClient, clusterName, operationa
 	}
 
 	// Create all-tenants role
-	allTenantsRoleName := fmt.Sprintf("vks-cluster-%s-all-tenants-role", clusterName)
+	allTenantsRoleName := fmt.Sprintf("%s-all-tenants-role", clusterName)
 	allTenantsRole, err := createRoleFromPermissions(aviClient, akoAllTenantsPermissions, allTenantsRoleName, "admin", nil)
 	if err != nil {
 		aviClient.Role.Delete(*adminRole.UUID)
@@ -188,39 +188,39 @@ func CreateVKSClusterRoles(aviClient *clients.AviClient, clusterName, operationa
 		return nil, fmt.Errorf("failed to create all-tenants role: %v", err)
 	}
 
-	roles := &VKSClusterRoles{
+	roles := &ClusterRoles{
 		AdminRole:      adminRole,
 		TenantRole:     tenantRole,
 		AllTenantsRole: allTenantsRole,
 	}
 
-	utils.AviLog.Infof("Successfully created VKS cluster roles for %s: admin=%s, tenant=%s, all-tenants=%s",
+	utils.AviLog.Infof("Successfully created cluster roles for %s: admin=%s, tenant=%s, all-tenants=%s",
 		clusterName, *adminRole.UUID, *tenantRole.UUID, *allTenantsRole.UUID)
 
 	return roles, nil
 }
 
-// CreateVKSClusterUserWithRoles creates a user account for a VKS cluster with three-role access
+// CreateClusterUserWithRoles creates a user account for a cluster with three-role access
 // If the user already exists, it deletes and recreates it to ensure proper role assignment and fresh password
-func CreateVKSClusterUserWithRoles(aviClient *clients.AviClient, clusterName string, roles *VKSClusterRoles, operationalTenant string) (*models.User, string, error) {
+func CreateClusterUserWithRoles(aviClient *clients.AviClient, clusterName string, roles *ClusterRoles, operationalTenant string) (*models.User, string, error) {
 	if aviClient == nil {
 		return nil, "", fmt.Errorf("avi Controller client not available - ensure AKO infra is properly initialized")
 	}
 
-	userName := fmt.Sprintf("vks-cluster-%s-user", clusterName)
+	userName := fmt.Sprintf("%s-user", clusterName)
 
 	// Check if user already exists and delete it
 	// We recreate users to ensure fresh passwords and correct role assignments
 	existingUser, err := aviClient.User.GetByName(userName)
 	if err == nil && existingUser != nil {
-		utils.AviLog.Infof("VKS user %s already exists (UUID: %s), deleting to recreate with fresh credentials",
+		utils.AviLog.Infof("User %s already exists (UUID: %s), deleting to recreate with fresh credentials",
 			userName, *existingUser.UUID)
 
 		err = aviClient.User.Delete(*existingUser.UUID)
 		if err != nil {
-			utils.AviLog.Warnf("Failed to delete existing VKS user %s: %v, attempting to continue", userName, err)
+			utils.AviLog.Warnf("Failed to delete existing user %s: %v, attempting to continue", userName, err)
 		} else {
-			utils.AviLog.Infof("Successfully deleted existing VKS user %s", userName)
+			utils.AviLog.Infof("Successfully deleted existing user %s", userName)
 		}
 	}
 
@@ -252,81 +252,81 @@ func CreateVKSClusterUserWithRoles(aviClient *clients.AviClient, clusterName str
 		Access:           userAccess,
 	}
 
-	utils.AviLog.Infof("Creating VKS cluster user: %s (operational tenant: %s)", userName, operationalTenant)
+	utils.AviLog.Infof("Creating cluster user: %s (operational tenant: %s)", userName, operationalTenant)
 
 	_, err = aviClient.User.Create(user)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to create VKS cluster user %s: %v", userName, err)
+		return nil, "", fmt.Errorf("failed to create cluster user %s: %v", userName, err)
 	}
 
 	createdUser, err := aviClient.User.GetByName(userName)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to retrieve created VKS cluster user %s: %v", userName, err)
+		return nil, "", fmt.Errorf("failed to retrieve created cluster user %s: %v", userName, err)
 	}
 
-	utils.AviLog.Infof("Created VKS cluster user with three-role access: %s (UUID: %s)", userName, *createdUser.UUID)
+	utils.AviLog.Infof("Created cluster user with three-role access: %s (UUID: %s)", userName, *createdUser.UUID)
 	utils.AviLog.Infof("User access: admin tenant, operational tenant (%s), all-tenants (AllTenants=true)", operationalTenant)
 
 	return createdUser, password, nil
 }
 
-// DeleteVKSClusterRoles deletes all roles associated with a VKS cluster
-func DeleteVKSClusterRoles(aviClient *clients.AviClient, clusterName string) error {
+// DeleteClusterRoles deletes all roles associated with a cluster
+func DeleteClusterRoles(aviClient *clients.AviClient, clusterName string) error {
 	if aviClient == nil {
 		utils.AviLog.Warnf("Avi Controller client not available for role cleanup of cluster %s", clusterName)
 		return nil
 	}
 
 	roleNames := []string{
-		fmt.Sprintf("vks-cluster-%s-admin-role", clusterName),
-		fmt.Sprintf("vks-cluster-%s-tenant-role", clusterName),
-		fmt.Sprintf("vks-cluster-%s-all-tenants-role", clusterName),
+		fmt.Sprintf("%s-admin-role", clusterName),
+		fmt.Sprintf("%s-tenant-role", clusterName),
+		fmt.Sprintf("%s-all-tenants-role", clusterName),
 	}
 
 	var errors []error
 	for _, roleName := range roleNames {
 		role, err := aviClient.Role.GetByName(roleName)
 		if err != nil {
-			utils.AviLog.Warnf("VKS cluster role %s not found for deletion: %v", roleName, err)
+			utils.AviLog.Warnf("Cluster role %s not found for deletion: %v", roleName, err)
 			continue
 		}
 
 		err = aviClient.Role.Delete(*role.UUID)
 		if err != nil {
-			errors = append(errors, fmt.Errorf("failed to delete VKS cluster role %s: %v", roleName, err))
+			errors = append(errors, fmt.Errorf("failed to delete cluster role %s: %v", roleName, err))
 		} else {
-			utils.AviLog.Infof("Deleted VKS cluster role: %s", roleName)
+			utils.AviLog.Infof("Deleted cluster role: %s", roleName)
 		}
 	}
 
 	if len(errors) > 0 {
-		return fmt.Errorf("failed to delete some VKS cluster roles: %v", errors)
+		return fmt.Errorf("failed to delete some cluster roles: %v", errors)
 	}
 
 	return nil
 }
 
-// DeleteVKSClusterUser deletes the user account associated with a VKS cluster
-func DeleteVKSClusterUser(aviClient *clients.AviClient, clusterName string) error {
+// DeleteClusterUser deletes the user account associated with a cluster
+func DeleteClusterUser(aviClient *clients.AviClient, clusterName string) error {
 	if aviClient == nil {
 		utils.AviLog.Warnf("Avi Controller client not available for user cleanup of cluster %s", clusterName)
 		return nil
 	}
 
-	userName := fmt.Sprintf("vks-cluster-%s-user", clusterName)
+	userName := fmt.Sprintf("%s-user", clusterName)
 
 	user, err := aviClient.User.GetByName(userName)
 	if err != nil {
-		utils.AviLog.Warnf("VKS cluster user %s not found for deletion: %v", userName, err)
+		utils.AviLog.Warnf("Cluster user %s not found for deletion: %v", userName, err)
 		return nil
 	}
 
 	err = aviClient.User.Delete(*user.UUID)
 	if err != nil {
-		return fmt.Errorf("failed to delete VKS cluster user %s: %v", userName, err)
+		return fmt.Errorf("failed to delete cluster user %s: %v", userName, err)
 	}
 
-	utils.AviLog.Infof("Deleted VKS cluster user: %s", userName)
+	utils.AviLog.Infof("Deleted cluster user: %s", userName)
 	return nil
 }
 
