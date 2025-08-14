@@ -67,6 +67,17 @@ func TestVKSClusterWatcher_GetClusterPhase(t *testing.T) {
 		expectedPhase string
 	}{
 		{
+			name: "Provisioning cluster",
+			cluster: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"status": map[string]interface{}{
+						"phase": "Provisioning",
+					},
+				},
+			},
+			expectedPhase: "Provisioning",
+		},
+		{
 			name: "Provisioned cluster",
 			cluster: &unstructured.Unstructured{
 				Object: map[string]interface{}{
@@ -566,6 +577,14 @@ func TestVKSClusterWatcher_ProcessClusterEvent(t *testing.T) {
 		expectError   bool
 	}{
 		{
+			name:          "Process provisioning cluster",
+			key:           "test-namespace/test-cluster",
+			clusterExists: true,
+			clusterPhase:  ClusterPhaseProvisioning,
+			vksLabel:      webhook.VKSManagedLabelValueTrue,
+			expectError:   false,
+		},
+		{
 			name:          "Process provisioned cluster",
 			key:           "test-namespace/test-cluster",
 			clusterExists: true,
@@ -606,7 +625,7 @@ func TestVKSClusterWatcher_ProcessClusterEvent(t *testing.T) {
 			dynamicClient := fake.NewSimpleDynamicClient(scheme)
 
 			// Setup test environment (if cluster creation is expected)
-			if tt.clusterExists && tt.clusterPhase == ClusterPhaseProvisioned && tt.vksLabel == webhook.VKSManagedLabelValueTrue {
+			if tt.clusterExists && (tt.clusterPhase == ClusterPhaseProvisioning || tt.clusterPhase == ClusterPhaseProvisioned) && tt.vksLabel == webhook.VKSManagedLabelValueTrue {
 				err := setupTestEnvironment(kubeClient, "test-namespace")
 				if err != nil {
 					t.Fatalf("Failed to setup test environment: %v", err)
@@ -638,12 +657,32 @@ func TestVKSClusterWatcher_ProcessClusterEvent(t *testing.T) {
 
 				// Add cluster to fake client
 				dynamicClient.Tracker().Add(cluster)
+
+				// Add ClusterBootstrap if this is a provisioning/provisioned cluster test
+				if (tt.clusterPhase == ClusterPhaseProvisioning || tt.clusterPhase == ClusterPhaseProvisioned) && tt.vksLabel == webhook.VKSManagedLabelValueTrue {
+					clusterBootstrap := &unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "run.tanzu.vmware.com/v1alpha3",
+							"kind":       "ClusterBootstrap",
+							"metadata": map[string]interface{}{
+								"name":      "test-cluster",
+								"namespace": "test-namespace",
+							},
+							"spec": map[string]interface{}{
+								"cni": map[string]interface{}{
+									"refName": "antrea.tanzu.vmware.com.2.3.0+vmware.1-tkg.1",
+								},
+							},
+						},
+					}
+					dynamicClient.Tracker().Add(clusterBootstrap)
+				}
 			}
 
 			watcher := NewVKSClusterWatcher(kubeClient, dynamicClient)
 
-			// Set up mock credentials function for provisioned cluster tests
-			if tt.clusterPhase == ClusterPhaseProvisioned && tt.vksLabel == webhook.VKSManagedLabelValueTrue {
+			// Set up mock credentials function for provisioning/provisioned cluster tests
+			if (tt.clusterPhase == ClusterPhaseProvisioning || tt.clusterPhase == ClusterPhaseProvisioned) && tt.vksLabel == webhook.VKSManagedLabelValueTrue {
 				watcher.SetTestMode(func(clusterName, operationalTenant string) (*lib.ClusterCredentials, error) {
 					return &lib.ClusterCredentials{
 						Username: fmt.Sprintf("vks-cluster-%s-user", clusterName),
@@ -1197,14 +1236,28 @@ func TestVKSClusterWatcher_detectAndValidateCNI(t *testing.T) {
 			expectedCNI: "antrea",
 		},
 		{
-			name:        "Calico CNI - should fail",
+			name:        "Calico CNI - should work",
 			cniRefName:  "calico.tanzu.vmware.com.3.20.2+vmware.1-tkg.1",
-			expectError: true,
+			expectError: false,
+			expectedCNI: "calico",
 		},
 		{
-			name:        "Cilium CNI - should fail",
+			name:        "Cilium CNI - should work",
 			cniRefName:  "cilium.tanzu.vmware.com.1.12.0+vmware.1-tkg.1",
-			expectError: true,
+			expectError: false,
+			expectedCNI: "cilium",
+		},
+		{
+			name:        "Flannel CNI",
+			cniRefName:  "flannel.tanzu.vmware.com.0.22.2+vmware.1-tkg.1",
+			expectError: false,
+			expectedCNI: "flannel",
+		},
+		{
+			name:        "Unknown CNI - should return empty",
+			cniRefName:  "unknown-cni.tanzu.vmware.com.1.0.0+vmware.1-tkg.1",
+			expectError: false,
+			expectedCNI: "",
 		},
 	}
 
@@ -1245,9 +1298,6 @@ func TestVKSClusterWatcher_detectAndValidateCNI(t *testing.T) {
 			if tt.expectError {
 				if err == nil {
 					t.Error("Expected error but got none")
-				}
-				if !strings.Contains(err.Error(), "unsupported CNI") {
-					t.Errorf("Expected unsupported CNI error, got: %v", err)
 				}
 			} else {
 				if err != nil {
@@ -1420,6 +1470,145 @@ func TestVKSClusterWatcher_populateCacheFromSecrets(t *testing.T) {
 					t.Errorf("Expected password %s for cluster %s, got %s",
 						expectedCreds.Password, clusterName, actualCreds.Password)
 				}
+			}
+		})
+	}
+}
+
+func TestVKSClusterWatcher_CNIServiceTypeMapping(t *testing.T) {
+	// Test CNI detection and service type mapping
+	tests := []struct {
+		name                string
+		cniRefName          string
+		expectedCNI         string
+		expectedServiceType string
+	}{
+		{
+			name:                "Antrea CNI -> NodePortLocal",
+			cniRefName:          "antrea.tanzu.vmware.com.2.3.0+vmware.1-tkg.1",
+			expectedCNI:         "antrea",
+			expectedServiceType: "NodePortLocal",
+		},
+		{
+			name:                "Calico CNI -> NodePort",
+			cniRefName:          "calico.tanzu.vmware.com.3.26.4+vmware.1-tkg.1",
+			expectedCNI:         "calico",
+			expectedServiceType: "NodePort",
+		},
+		{
+			name:                "Cilium CNI -> NodePort",
+			cniRefName:          "cilium.tanzu.vmware.com.1.14.5+vmware.1-tkg.1",
+			expectedCNI:         "cilium",
+			expectedServiceType: "NodePort",
+		},
+		{
+			name:                "Flannel CNI -> NodePort",
+			cniRefName:          "flannel.tanzu.vmware.com.0.22.2+vmware.1-tkg.1",
+			expectedCNI:         "flannel",
+			expectedServiceType: "NodePort",
+		},
+		{
+			name:                "Unknown CNI -> NodePort",
+			cniRefName:          "unknown-cni.tanzu.vmware.com.1.0.0+vmware.1-tkg.1",
+			expectedCNI:         "",
+			expectedServiceType: "NodePort",
+		},
+	}
+
+	// Set up mock controller IP and T1LR
+	lib.SetControllerIP("10.10.10.10")
+	lib.AKOControlConfig().SetControllerVersion("22.1.3")
+
+	// Set up mock T1LR path environment variable for tests
+	originalT1LR := os.Getenv("NSXT_T1_LR")
+	defer func() {
+		if originalT1LR != "" {
+			os.Setenv("NSXT_T1_LR", originalT1LR)
+		} else {
+			os.Unsetenv("NSXT_T1_LR")
+		}
+	}()
+	os.Setenv("NSXT_T1_LR", "/orgs/test-org/projects/test-project/vpcs/test-vpc")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kubeClient := k8sfake.NewSimpleClientset()
+
+			// Create ClusterBootstrap with specific CNI
+			clusterBootstrap := &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "run.tanzu.vmware.com/v1alpha3",
+					"kind":       "ClusterBootstrap",
+					"metadata": map[string]interface{}{
+						"name":      "test-cluster",
+						"namespace": "test-namespace",
+					},
+					"spec": map[string]interface{}{
+						"cni": map[string]interface{}{
+							"refName": tt.cniRefName,
+						},
+					},
+				},
+			}
+
+			dynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), clusterBootstrap)
+
+			// Create test namespace with annotations
+			namespace := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-namespace",
+					Annotations: map[string]string{
+						lib.WCPSEGroup:                 "test-seg-group",
+						lib.TenantAnnotation:           "test-tenant",
+						lib.InfraSettingNameAnnotation: "test-aviinfrasetting",
+					},
+				},
+			}
+			_, err := kubeClient.CoreV1().Namespaces().Create(context.Background(), namespace, metav1.CreateOptions{})
+			if err != nil {
+				t.Fatalf("Failed to create test namespace: %v", err)
+			}
+
+			// Create admin secret
+			adminSecret := createTestAdminSecret()
+			_, err = kubeClient.CoreV1().Secrets(adminSecret.Namespace).Create(context.Background(), adminSecret, metav1.CreateOptions{})
+			if err != nil {
+				t.Fatalf("Failed to create admin secret: %v", err)
+			}
+
+			watcher := NewVKSClusterWatcher(kubeClient, dynamicClient)
+
+			// Set up mock credentials function
+			watcher.SetTestMode(func(clusterName, operationalTenant string) (*lib.ClusterCredentials, error) {
+				return &lib.ClusterCredentials{
+					Username: fmt.Sprintf("vks-cluster-%s-user", clusterName),
+					Password: "mock-password",
+				}, nil
+			})
+
+			cluster := &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"name":      "test-cluster",
+						"namespace": "test-namespace",
+						"uid":       "test-uid-123",
+					},
+				},
+			}
+
+			config, err := watcher.buildVKSClusterConfig(cluster)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			// Validate CNI detection
+			if config.CNIPlugin != tt.expectedCNI {
+				t.Errorf("Expected CNI '%s', got '%s'", tt.expectedCNI, config.CNIPlugin)
+			}
+
+			// Validate service type selection
+			if config.ServiceType != tt.expectedServiceType {
+				t.Errorf("Expected ServiceType '%s', got '%s'", tt.expectedServiceType, config.ServiceType)
 			}
 		})
 	}
