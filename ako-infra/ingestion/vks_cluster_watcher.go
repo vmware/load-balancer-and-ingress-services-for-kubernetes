@@ -196,12 +196,12 @@ func (w *VKSClusterWatcher) handleClusterAddOrUpdate(cluster *unstructured.Unstr
 	utils.AviLog.Debugf("Processing cluster %s in phase: %s", clusterNameWithUID, phase)
 
 	switch phase {
-	case ClusterPhaseProvisioned:
+	case ClusterPhaseProvisioning, ClusterPhaseProvisioned:
 		return w.HandleProvisionedCluster(cluster)
 	case ClusterPhaseDeleting:
 		return w.handleClusterDeletion(cluster)
 	default:
-		utils.AviLog.Debugf("Cluster %s/%s (UID: %s) not in provisioned state, skipping", clusterNamespace, cluster.GetName(), cluster.GetUID())
+		utils.AviLog.Debugf("Cluster %s/%s (UID: %s) not in provisioning/provisioned state, skipping", clusterNamespace, cluster.GetName(), cluster.GetUID())
 		return nil
 	}
 }
@@ -214,7 +214,8 @@ func (w *VKSClusterWatcher) HandleProvisionedCluster(cluster *unstructured.Unstr
 	labels := cluster.GetLabels()
 	shouldManage := labels != nil && labels[webhook.VKSManagedLabel] == webhook.VKSManagedLabelValueTrue
 
-	utils.AviLog.Debugf("Processing provisioned cluster %s", clusterNameWithUID)
+	phase := w.GetClusterPhase(cluster)
+	utils.AviLog.Debugf("Processing cluster %s in phase: %s", clusterNameWithUID, phase)
 
 	secretName := fmt.Sprintf("%s-avi-secret", cluster.GetName())
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -226,7 +227,7 @@ func (w *VKSClusterWatcher) HandleProvisionedCluster(cluster *unstructured.Unstr
 	switch {
 	case shouldManage:
 		if err := w.UpsertAviCredentialsSecret(ctx, cluster); err != nil {
-			return fmt.Errorf("failed to manage dependencies for cluster %s/%s (UID: %s): %v", clusterNamespace, cluster.GetName(), cluster.GetUID(), err)
+			return fmt.Errorf("failed to manage dependencies for cluster %s/%s (UID: %s) in phase %s: %v", clusterNamespace, cluster.GetName(), cluster.GetUID(), phase, err)
 		}
 
 	case !shouldManage && secretExists:
@@ -546,7 +547,12 @@ func (w *VKSClusterWatcher) buildVKSClusterConfig(cluster *unstructured.Unstruct
 
 	cniPlugin, err := w.detectAndValidateCNI(cluster)
 	if err != nil {
-		return nil, fmt.Errorf("CNI validation failed for cluster %s/%s (UID: %s): %v", clusterNamespace, cluster.GetName(), cluster.GetUID(), err)
+		return nil, fmt.Errorf("CNI detection failed for cluster %s/%s (UID: %s): %v", clusterNamespace, cluster.GetName(), cluster.GetUID(), err)
+	}
+
+	serviceType := "NodePort"
+	if cniPlugin == "antrea" {
+		serviceType = "NodePortLocal"
 	}
 
 	config := &VKSClusterConfig{
@@ -559,7 +565,7 @@ func (w *VKSClusterWatcher) buildVKSClusterConfig(cluster *unstructured.Unstruct
 		TenantName:         nsConfig.Tenant,
 		NsxtT1LR:           nsConfig.T1LR,
 		CNIPlugin:          cniPlugin,
-		ServiceType:        "NodePortLocal",
+		ServiceType:        serviceType,
 		ClusterName:        clusterNameWithUID,
 	}
 
@@ -567,8 +573,8 @@ func (w *VKSClusterWatcher) buildVKSClusterConfig(cluster *unstructured.Unstruct
 		utils.AviLog.Warnf("Controller version not available for cluster %s/%s (UID: %s)", clusterNamespace, cluster.GetName(), cluster.GetUID())
 	}
 
-	utils.AviLog.Infof("Built configuration for cluster %s/%s (UID: %s): SEG=%s, Tenant=%s, T1LR=%s, CNI=%s",
-		clusterNamespace, cluster.GetName(), cluster.GetUID(), config.ServiceEngineGroup, config.TenantName, config.NsxtT1LR, config.CNIPlugin)
+	utils.AviLog.Infof("Built configuration for cluster %s/%s (UID: %s): SEG=%s, Tenant=%s, T1LR=%s, CNI=%s, ServiceType=%s",
+		clusterNamespace, cluster.GetName(), cluster.GetUID(), config.ServiceEngineGroup, config.TenantName, config.NsxtT1LR, config.CNIPlugin, config.ServiceType)
 
 	return config, nil
 }
@@ -704,7 +710,7 @@ func (w *VKSClusterWatcher) buildSecretData(config *VKSClusterConfig) map[string
 	return secretData
 }
 
-// detectAndValidateCNI detects the CNI plugin used by the VKS cluster and validates it's Antrea
+// detectAndValidateCNI detects the CNI plugin used by the VKS cluster and returns the appropriate CNI name
 func (w *VKSClusterWatcher) detectAndValidateCNI(cluster *unstructured.Unstructured) (string, error) {
 	ctx := context.Background()
 	clusterName := cluster.GetName()
@@ -726,12 +732,37 @@ func (w *VKSClusterWatcher) detectAndValidateCNI(cluster *unstructured.Unstructu
 		return "", fmt.Errorf("failed to get CNI refName from ClusterBootstrap %s/%s: %v", clusterNamespace, clusterName, err)
 	}
 
-	if !strings.Contains(cniRefName, "antrea") {
-		return "", fmt.Errorf("cluster %s/%s is using unsupported CNI '%s', AKO VKS integration only supports Antrea", clusterNamespace, clusterName, cniRefName)
+	var detectedCNI string
+
+	cniMapping := map[string]string{
+		"antrea":         "antrea",
+		"calico":         "calico",
+		"canal":          "canal",
+		"flannel":        "flannel",
+		"cilium":         "cilium",
+		"ovn-kubernetes": "ovn-kubernetes",
+		"ovn":            "ovn-kubernetes",
+		"ncp":            "ncp",
+		"nsx":            "ncp",
+		"openshift":      "openshift",
 	}
 
-	utils.AviLog.Infof("VKS cluster watcher: detected Antrea CNI for cluster %s/%s (package: %s)", clusterNamespace, clusterName, cniRefName)
-	return "antrea", nil
+	for packagePrefix, akoValue := range cniMapping {
+		if strings.Contains(strings.ToLower(cniRefName), packagePrefix) {
+			detectedCNI = akoValue
+			utils.AviLog.Infof("VKS cluster watcher: detected %s CNI for cluster %s/%s (package: %s)",
+				akoValue, clusterNamespace, clusterName, cniRefName)
+			break
+		}
+	}
+
+	if detectedCNI == "" {
+		utils.AviLog.Warnf("VKS cluster watcher: unknown CNI package for cluster %s/%s (package: %s), using default CNI configuration",
+			clusterNamespace, clusterName, cniRefName)
+		detectedCNI = ""
+	}
+
+	return detectedCNI, nil
 }
 
 // StartVKSClusterWatcherWithRetry starts cluster watcher with infinite retry
