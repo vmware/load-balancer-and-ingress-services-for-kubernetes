@@ -3,6 +3,7 @@ package infratests
 import (
 	"context"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -56,10 +57,13 @@ func annotateNamespaceWithVpcNetworkConfigCR(t *testing.T, ns, vpcNetConfigCR st
 			t.Fatalf("Error occurred while Adding namespace: %v", err)
 		}
 	} else {
-		namespace.ResourceVersion = "2"
-		namespace.Annotations = map[string]string{
-			"nsx.vmware.com/vpc_network_config": vpcNetConfigCR,
+		n, err := strconv.Atoi(namespace.ResourceVersion)
+		if err != nil {
+			t.Fatalf("Failed to convert version from string to int: %v", err)
 		}
+		namespace.ResourceVersion = strconv.Itoa(n + 1)
+		anns := namespace.Annotations
+		anns["nsx.vmware.com/vpc_network_config"] = vpcNetConfigCR
 		_, err = kubeClient.CoreV1().Namespaces().Update(context.TODO(), namespace, metav1.UpdateOptions{})
 		if err != nil {
 			t.Fatalf("Error occurred while Updating namespace: %v", err)
@@ -83,10 +87,43 @@ func annotateNamespaceWithCloud(t *testing.T, ns, cloudName string) {
 			t.Fatalf("Error occurred while Adding namespace: %v", err)
 		}
 	} else {
-		namespace.ResourceVersion = "2"
-		namespace.Annotations = map[string]string{
-			"ako.vmware.com/wcp-cloud-name": cloudName,
+		n, err := strconv.Atoi(namespace.ResourceVersion)
+		if err != nil {
+			t.Fatalf("Failed to convert version from string to int: %v", err)
 		}
+		namespace.ResourceVersion = strconv.Itoa(n + 1)
+		anns := namespace.Annotations
+		anns["ako.vmware.com/wcp-cloud-name"] = cloudName
+		_, err = kubeClient.CoreV1().Namespaces().Update(context.TODO(), namespace, metav1.UpdateOptions{})
+		if err != nil {
+			t.Fatalf("Error occurred while Updating namespace: %v", err)
+		}
+	}
+}
+
+func annotateNamespaceWithSEG(t *testing.T, ns, segName string) {
+	namespace, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), ns, metav1.GetOptions{})
+	if err != nil {
+		namespace := (integrationtest.FakeNamespace{
+			Name:   ns,
+			Labels: map[string]string{},
+		}).Namespace()
+		namespace.ResourceVersion = "1"
+		namespace.Annotations = map[string]string{
+			"ako.vmware.com/wcp-se-group": segName,
+		}
+		_, err = kubeClient.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
+		if err != nil {
+			t.Fatalf("Error occurred while Adding namespace: %v", err)
+		}
+	} else {
+		n, err := strconv.Atoi(namespace.ResourceVersion)
+		if err != nil {
+			t.Fatalf("Failed to convert version from string to int: %v", err)
+		}
+		namespace.ResourceVersion = strconv.Itoa(n + 1)
+		anns := namespace.Annotations
+		anns["ako.vmware.com/wcp-se-group"] = segName
 		_, err = kubeClient.CoreV1().Namespaces().Update(context.TODO(), namespace, metav1.UpdateOptions{})
 		if err != nil {
 			t.Fatalf("Error occurred while Updating namespace: %v", err)
@@ -672,6 +709,160 @@ func TestAKOInfraMultiAviInfraSettingCreationVPC(t *testing.T) {
 			return false
 		} else {
 			return ns.Annotations[lib.InfraSettingNameAnnotation] != infraSettingName1
+		}
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	worker.Shutdown()
+	os.Unsetenv("VPC_MODE")
+}
+
+func TestAKOInfraAviInfraSettingCreationVPCSEG(t *testing.T) {
+	// create NS and annotate it with SEG and VPC CR,
+	// AKO should create an AviInfraSetting for each unique vpcpath and SEG combination
+	// NS should be annotated with AviInfraSetting
+	// Update NS annotation for new SEG,
+	// AKO should create an AviInfraSetting for each unique vpcpath and SEG combination
+	// NS should be annotated with new AviInfraSetting
+	// Older AviInfraSetting should get deleted
+	// Update NS annotation for SEG  to empty string,
+	// AKO should create an AviInfraSetting for each unique vpcpath and SEG combination
+	// NS should be annotated with new AviInfraSetting
+	// Older AviInfraSetting should get deleted
+	g := gomega.NewGomegaWithT(t)
+	var testData []*unstructured.Unstructured
+	testData = append(testData, &unstructured.Unstructured{})
+	gatewayPathName := objNameMap.GenerateName("testGW")
+	vpcNetConfig := objNameMap.GenerateName("testvpcnetworkconfig")
+	testData[0].SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "crd.nsx.vmware.com/v1alpha1",
+		"kind":       "vpcnetworkconfigurations",
+		"metadata": map[string]interface{}{
+			"name": vpcNetConfig,
+		},
+		"status": map[string]interface{}{
+			"vpcs": []interface{}{
+				map[string]interface{}{
+					"name":         "vpc1",
+					"lbSubnetPath": "/orgs/default/projects/test-project/vpcs/" + gatewayPathName + "/subnets/_AVI_SUBNET--LB",
+				},
+			},
+		},
+	})
+
+	setupInfraTest(testData)
+	annotateNamespaceWithSEG(t, "default", "AVISEG1")
+	annotateNamespaceWithVpcNetworkConfigCR(t, "default", vpcNetConfig)
+
+	os.Setenv("VPC_MODE", "true")
+
+	c := ingestion.SharedVCFK8sController()
+	c.InitNetworkingHandler()
+	c.AddNetworkInfoEventHandler(make(chan struct{}))
+	worker := c.InitFullSyncWorker()
+	go worker.Run()
+
+	_, err := dynamicClient.Resource(lib.VPCNetworkConfigurationGVR).Create(context.TODO(), testData[0], v1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("failed to create namespacenetworkinfos CR, error: %s", err.Error())
+	}
+
+	infraSettingName := lib.GetAviInfraSettingName("test-project" + gatewayPathName + "AVISEG1")
+
+	g.Eventually(func() bool {
+		if infraSetting, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName, metav1.GetOptions{}); err != nil {
+			return false
+		} else {
+			return *infraSetting.Spec.NSXSettings.T1LR == "/orgs/default/projects/test-project/vpcs/"+gatewayPathName &&
+				len(infraSetting.Spec.Network.VipNetworks) == 0 &&
+				infraSetting.Spec.SeGroup.Name == "AVISEG1"
+		}
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() bool {
+		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "default", metav1.GetOptions{}); err != nil {
+			return false
+		} else {
+			return ns.Annotations[lib.InfraSettingNameAnnotation] == infraSettingName &&
+				ns.Annotations[lib.TenantAnnotation] == "test-project"
+		}
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	annotateNamespaceWithSEG(t, "default", "AVISEG2")
+	infraSettingName2 := lib.GetAviInfraSettingName("test-project" + gatewayPathName + "AVISEG2")
+
+	g.Eventually(func() bool {
+		if infraSetting, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName2, metav1.GetOptions{}); err != nil {
+			return false
+		} else {
+			return *infraSetting.Spec.NSXSettings.T1LR == "/orgs/default/projects/test-project/vpcs/"+gatewayPathName &&
+				len(infraSetting.Spec.Network.VipNetworks) == 0 &&
+				infraSetting.Spec.SeGroup.Name == "AVISEG2"
+		}
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() bool {
+		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "default", metav1.GetOptions{}); err != nil {
+			return false
+		} else {
+			return ns.Annotations[lib.InfraSettingNameAnnotation] == infraSettingName2 &&
+				ns.Annotations[lib.TenantAnnotation] == "test-project"
+		}
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() bool {
+		if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName, metav1.GetOptions{}); err != nil {
+			return false
+		}
+		return true
+	}, 10*time.Second).Should(gomega.Equal(false))
+
+	annotateNamespaceWithSEG(t, "default", "")
+	infraSettingName3 := lib.GetAviInfraSettingName("test-project" + gatewayPathName)
+
+	g.Eventually(func() bool {
+		if infraSetting, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName3, metav1.GetOptions{}); err != nil {
+			return false
+		} else {
+			return *infraSetting.Spec.NSXSettings.T1LR == "/orgs/default/projects/test-project/vpcs/"+gatewayPathName &&
+				len(infraSetting.Spec.Network.VipNetworks) == 0 &&
+				infraSetting.Spec.SeGroup.Name == "Default-Group"
+		}
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() bool {
+		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "default", metav1.GetOptions{}); err != nil {
+			return false
+		} else {
+			return ns.Annotations[lib.InfraSettingNameAnnotation] == infraSettingName3 &&
+				ns.Annotations[lib.TenantAnnotation] == "test-project"
+		}
+	}, 10*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() bool {
+		if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName2, metav1.GetOptions{}); err != nil {
+			return false
+		}
+		return true
+	}, 10*time.Second).Should(gomega.Equal(false))
+
+	err = dynamicClient.Resource(lib.VPCNetworkConfigurationGVR).Delete(context.TODO(), vpcNetConfig, v1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("failed to delete namespacenetworkinfo CR, error: %s", err.Error())
+	}
+
+	g.Eventually(func() bool {
+		if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName3, metav1.GetOptions{}); err != nil {
+			return false
+		}
+		return true
+	}, 10*time.Second).Should(gomega.Equal(false))
+
+	g.Eventually(func() bool {
+		if ns, err := kubeClient.CoreV1().Namespaces().Get(context.TODO(), "default", metav1.GetOptions{}); err != nil {
+			return false
+		} else {
+			_, exist := ns.Annotations[lib.InfraSettingNameAnnotation]
+			return !exist
 		}
 	}, 10*time.Second).Should(gomega.Equal(true))
 

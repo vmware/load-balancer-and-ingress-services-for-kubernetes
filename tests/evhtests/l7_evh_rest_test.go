@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -324,7 +324,7 @@ func TestUpdatePoolCacheSyncForEvh(t *testing.T) {
 	poolCacheBeforeObj, _ := poolCacheBefore.(*cache.AviPoolCache)
 	oldPoolCksum := poolCacheBeforeObj.CloudConfigCksum
 
-	integrationtest.ScaleCreateEPorEPS(t, "default", svcName)
+	integrationtest.ScaleCreateEPS(t, "default", svcName)
 
 	g.Eventually(func() []avinodes.AviPoolMetaServer {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)

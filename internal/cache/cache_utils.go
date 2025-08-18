@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -38,6 +38,7 @@ type AviPoolCache struct {
 	CloudConfigCksum     string
 	ServiceMetadataObj   lib.ServiceMetadataObj
 	PkiProfileCollection NamespaceName
+	PersistenceProfile   NamespaceName
 	LastModified         string
 	InvalidData          bool
 	HasReference         bool
@@ -307,6 +308,16 @@ type AviPkiProfileCache struct {
 	HasReference     bool
 }
 
+type AviPersistenceProfileCache struct {
+	Name             string
+	Tenant           string
+	Uuid             string
+	CloudConfigCksum uint32
+	LastModified     string
+	Type             string
+	InvalidData      bool
+}
+
 type NextPage struct {
 	NextURI    string
 	Collection interface{}
@@ -535,6 +546,12 @@ func (c *AviCache) AviCacheGetNameByUuid(uuid string) (interface{}, bool) {
 				utils.AviLog.Warnf("Got nil value in cache for stringgroup key %v", reflect.ValueOf(key))
 			} else if value.(*AviStringGroupCache).Uuid == uuid {
 				return value.(*AviStringGroupCache).Name, true
+			}
+		case *AviPersistenceProfileCache:
+			if value.(*AviPersistenceProfileCache) == nil {
+				utils.AviLog.Warnf("Got nil value in cache for persistence profile key %v", reflect.ValueOf(key))
+			} else if value.(*AviPersistenceProfileCache).Uuid == uuid {
+				return value.(*AviPersistenceProfileCache).Name, true
 			}
 		}
 	}

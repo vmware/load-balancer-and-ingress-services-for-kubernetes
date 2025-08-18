@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -95,7 +95,7 @@ func TestMain(m *testing.M) {
 	akoControlConfig.SetServicesAPIClientset(SvcAPIClient)
 	registeredInformers := []string{
 		utils.ServiceInformer,
-		utils.EndpointInformer,
+		utils.EndpointSlicesInformer,
 		utils.IngressInformer,
 		utils.IngressClassInformer,
 		utils.SecretInformer,
@@ -299,7 +299,7 @@ func SetupSvcApiService(t *testing.T, svcname, namespace, gwname, gwnamespace, p
 	if _, err := KubeClient.CoreV1().Services(namespace).Create(context.TODO(), svcCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	integrationtest.CreateEP(t, namespace, svcname, false, true, "1.1.1")
+	integrationtest.CreateEPS(t, namespace, svcname, false, true, "1.1.1")
 }
 
 func SetupSvcApiLBServiceWithLBClass(t *testing.T, svcname, namespace, gwname, gwnamespace, protocol string, LBClass string) {
@@ -318,14 +318,14 @@ func SetupSvcApiLBServiceWithLBClass(t *testing.T, svcname, namespace, gwname, g
 	if _, err := KubeClient.CoreV1().Services(namespace).Create(context.TODO(), svcCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	integrationtest.CreateEP(t, namespace, svcname, false, true, "1.1.1")
+	integrationtest.CreateEPS(t, namespace, svcname, false, true, "1.1.1")
 }
 
 func TeardownAdvLBService(t *testing.T, svcname, namespace string) {
 	if err := KubeClient.CoreV1().Services(namespace).Delete(context.TODO(), svcname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting AdvLB Service: %v", err)
 	}
-	integrationtest.DelEP(t, namespace, svcname)
+	integrationtest.DelEPS(t, namespace, svcname)
 }
 
 func VerifyGatewayVSNodeDeletion(g *gomega.WithT, modelName string) {
@@ -435,8 +435,8 @@ func TestServicesAPISvcHostnameStatusUpdate(t *testing.T) {
 		t.Fatalf("error in adding Service: %v", err)
 	}
 
-	integrationtest.CreateEP(t, ns, svcName1, false, true, "1.1.1")
-	integrationtest.CreateEP(t, ns, svcName2, false, true, "1.1.1")
+	integrationtest.CreateEPS(t, ns, svcName1, false, true, "1.1.1")
+	integrationtest.CreateEPS(t, ns, svcName2, false, true, "1.1.1")
 
 	g.Eventually(func() bool {
 		svc1, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName1, metav1.GetOptions{})
@@ -1249,7 +1249,7 @@ func TestServicesAPIEndpointDeleteCreate(t *testing.T) {
 	SetupSvcApiService(t, svcName, ns, gatewayName, ns, "TCP")
 
 	// delete endpoints
-	integrationtest.DelEP(t, ns, svcName)
+	integrationtest.DelEPS(t, ns, svcName)
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -1264,7 +1264,7 @@ func TestServicesAPIEndpointDeleteCreate(t *testing.T) {
 
 	// create new endpoints
 	newIP := "2.2.2"
-	integrationtest.CreateEP(t, ns, svcName, false, true, newIP)
+	integrationtest.CreateEPS(t, ns, svcName, false, true, newIP)
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -1327,7 +1327,7 @@ func TestServicesAPIMultiServiceMultiProtocol(t *testing.T) {
 	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc1.Service(), metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	integrationtest.CreateEP(t, ns, svcName1, false, true, "1.1.1")
+	integrationtest.CreateEPS(t, ns, svcName1, false, true, "1.1.1")
 
 	svc2 := integrationtest.FakeService{
 		Name:         svcName2,
@@ -1341,7 +1341,7 @@ func TestServicesAPIMultiServiceMultiProtocol(t *testing.T) {
 		t.Fatalf("error in adding Service: %v", err)
 	}
 
-	integrationtest.CreateEP(t, ns, svcName2, false, true, "1.1.1")
+	integrationtest.CreateEPS(t, ns, svcName2, false, true, "1.1.1")
 
 	g.Eventually(func() string {
 		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})

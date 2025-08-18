@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -144,7 +144,7 @@ func TestMain(m *testing.M) {
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
-		utils.EndpointInformer,
+		utils.EndpointSlicesInformer,
 		utils.IngressInformer,
 		utils.IngressClassInformer,
 		utils.SecretInformer,

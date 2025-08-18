@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -131,7 +131,7 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 	rest_ops = rest.StringGroupDelete(string_groups_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.L4PolicyDelete(l4pol_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.PoolGroupDelete(pgs_to_delete, namespace, rest_ops, key)
-	rest_ops = rest.PoolDelete(pools_to_delete, namespace, rest_ops, key)
+	rest_ops = rest.PoolDelete(pools_to_delete, namespace, rest_ops, nil, key)
 	if success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, true); !success {
 		return
 	}
@@ -175,6 +175,7 @@ func (rest *RestOperations) EvhNodeCU(sni_node *nodes.AviEvhVsNode, vs_cache_obj
 	var http_policies_to_delete []avicache.NamespaceName
 	var sslkey_cert_delete []avicache.NamespaceName
 	var string_groups_to_delete []avicache.NamespaceName
+	var sni_cache_obj *avicache.AviVsCache
 	if vs_cache_obj != nil {
 		sni_key := avicache.NamespaceName{Namespace: namespace, Name: sni_node.Name}
 		// Search the VS cache and obtain the UUID of this VS. Then see if this UUID is part of the SNIChildCollection or not.
@@ -183,7 +184,7 @@ func (rest *RestOperations) EvhNodeCU(sni_node *nodes.AviEvhVsNode, vs_cache_obj
 		if found && cache_sni_nodes != nil {
 			cache_sni_nodes = avicache.RemoveNamespaceName(cache_sni_nodes, sni_key)
 			utils.AviLog.Debugf("key: %s, msg: the cache evh nodes are: %v", key, cache_sni_nodes)
-			sni_cache_obj := rest.getVsCacheObj(sni_key, key)
+			sni_cache_obj = rest.getVsCacheObj(sni_key, key)
 			if sni_cache_obj != nil {
 				// CAcerts have to be created first, as they are referred by the keycerts
 				sslkey_cert_delete, rest_ops = rest.CACertCU(sni_node.CACertRefs, sni_cache_obj.SSLKeyCertCollection, namespace, rest_ops, key)
@@ -224,7 +225,7 @@ func (rest *RestOperations) EvhNodeCU(sni_node *nodes.AviEvhVsNode, vs_cache_obj
 		rest_ops = rest.HTTPPolicyDelete(http_policies_to_delete, namespace, rest_ops, key)
 		rest_ops = rest.StringGroupDelete(string_groups_to_delete, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(sni_pgs_to_delete, namespace, rest_ops, key)
-		rest_ops = rest.PoolDelete(sni_pools_to_delete, namespace, rest_ops, key)
+		rest_ops = rest.PoolDelete(sni_pools_to_delete, namespace, rest_ops, sni_cache_obj, key)
 		utils.AviLog.Debugf("key: %s, msg: the EVH VSes to be deleted are: %s", key, cache_sni_nodes)
 	} else {
 		utils.AviLog.Debugf("key: %s, msg: EVH child %s not found in cache and EVH parent also does not exist in cache", key, sni_node.Name)

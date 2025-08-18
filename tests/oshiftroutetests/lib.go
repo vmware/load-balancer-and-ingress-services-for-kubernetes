@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -233,14 +233,14 @@ func SetUpTestForRoute(t *testing.T, modelName string, models ...string) {
 	}
 
 	integrationtest.CreateSVC(t, defaultNamespace, "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, defaultNamespace, "avisvc", false, false, "1.1.1")
+	integrationtest.CreateEPS(t, defaultNamespace, "avisvc", false, false, "1.1.1")
 	integrationtest.PollForCompletion(t, modelName, 5)
 }
 
 func TearDownTestForRoute(t *testing.T, modelName string) {
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.DelSVC(t, "default", "avisvc")
-	integrationtest.DelEPorEPS(t, "default", "avisvc")
+	integrationtest.DelEPS(t, "default", "avisvc")
 }
 
 // TO DO (Aakash) : Rename function to DeleteRouteAndVerify

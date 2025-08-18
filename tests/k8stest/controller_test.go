@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -48,7 +48,6 @@ var v1beta1crdClient *v1beta1crdfake.Clientset
 var dynamicClient *dynamicfake.FakeDynamicClient
 var keyChan chan string
 var ctrl *k8s.AviController
-var endpointSliceEnabled bool
 
 func syncFuncForTest(key interface{}, wg *sync.WaitGroup) error {
 	keyStr, ok := key.(string)
@@ -111,8 +110,6 @@ func TestMain(m *testing.M) {
 	kubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
 
 	akoControlConfig := lib.AKOControlConfig()
-	endpointSliceEnabled = lib.GetEndpointSliceEnabled()
-	akoControlConfig.SetEndpointSlicesEnabled(endpointSliceEnabled)
 	crdClient = crdfake.NewSimpleClientset()
 	v1beta1crdClient = v1beta1crdfake.NewSimpleClientset()
 	akoControlConfig.SetCRDClientset(crdClient)
@@ -133,11 +130,8 @@ func TestMain(m *testing.M) {
 		utils.ServiceImportInformer,
 	}
 
-	if akoControlConfig.GetEndpointSlicesEnabled() {
-		registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
-	} else {
-		registeredInformers = append(registeredInformers, utils.EndpointInformer)
-	}
+	registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
+
 	args := make(map[string]interface{})
 	args[utils.INFORMERS_AKO_CLIENT] = crdClient
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, args)
@@ -181,29 +175,7 @@ func TestSvc(t *testing.T) {
 	waitAndverify(t, "L4LBService/red-ns/testsvc")
 }
 
-func TestEndpoint(t *testing.T) {
-	if endpointSliceEnabled {
-		t.Skip("endpoint slice is enabled. skipping testing endpoint")
-	}
-	epExample := &corev1.Endpoints{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "red-ns",
-			Name:      "testep",
-		},
-		Subsets: []corev1.EndpointSubset{},
-	}
-	_, err := kubeClient.CoreV1().Endpoints("red-ns").Create(context.TODO(), epExample, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in creating Endpoint: %v", err)
-	}
-	waitAndverify(t, "Endpoints/red-ns/testep")
-}
-
 func TestEndpointSlice(t *testing.T) {
-	// set os.Setenv("ENDPOINTSLICES_ENABLED", "true") in TestMain to run this locally without make
-	if !endpointSliceEnabled {
-		t.Skip("endpoint slice is disabled")
-	}
 	epExample := &discovery.EndpointSlice{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "red-ns",

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -78,6 +78,9 @@ func (c *VCFK8sController) AddNamespaceEventHandler(stopCh <-chan struct{}) {
 		},
 		UpdateFunc: func(old, obj interface{}) {
 			utils.AviLog.Infof("Namespace Update Event")
+			if lib.GetVPCMode() {
+				avirest.ScheduleQuickSync()
+			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			utils.AviLog.Infof("Namespace Delete Event")

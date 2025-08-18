@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -41,13 +41,12 @@ import (
 )
 
 var (
-	KubeClient           *k8sfake.Clientset
-	CRDClient            *crdfake.Clientset
-	V1beta1Client        *v1beta1crdfake.Clientset
-	endpointSliceEnabled bool
-	ctrl                 *k8s.AviController
-	akoApiServer         *api.FakeApiServer
-	objNameMap           integrationtest.ObjectNameMap
+	KubeClient    *k8sfake.Clientset
+	CRDClient     *crdfake.Clientset
+	V1beta1Client *v1beta1crdfake.Clientset
+	ctrl          *k8s.AviController
+	akoApiServer  *api.FakeApiServer
+	objNameMap    integrationtest.ObjectNameMap
 )
 
 func TestMain(m *testing.M) {
@@ -63,8 +62,6 @@ func TestMain(m *testing.M) {
 	os.Setenv("POD_NAME", "ako-0")
 
 	akoControlConfig := lib.AKOControlConfig()
-	endpointSliceEnabled = lib.GetEndpointSliceEnabled()
-	akoControlConfig.SetEndpointSlicesEnabled(endpointSliceEnabled)
 	akoControlConfig.SetAKOInstanceFlag(true)
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
@@ -89,11 +86,9 @@ func TestMain(m *testing.M) {
 		utils.NodeInformer,
 		utils.ConfigMapInformer,
 	}
-	if akoControlConfig.GetEndpointSlicesEnabled() {
-		registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
-	} else {
-		registeredInformers = append(registeredInformers, utils.EndpointInformer)
-	}
+
+	registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
+
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
 	k8s.NewCRDInformers()
@@ -178,7 +173,7 @@ func SetUpTestForIngress(t *testing.T, svcName string, modelNames ...string) {
 		objects.SharedAviGraphLister().Delete(model)
 	}
 	integrationtest.CreateSVC(t, "default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, "default", svcName, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, "default", svcName, false, false, "1.1.1")
 }
 
 func TearDownTestForIngress(t *testing.T, svcName string, modelNames ...string) {
@@ -186,7 +181,7 @@ func TearDownTestForIngress(t *testing.T, svcName string, modelNames ...string) 
 		objects.SharedAviGraphLister().Delete(model)
 	}
 	integrationtest.DelSVC(t, "default", svcName)
-	integrationtest.DelEPorEPS(t, "default", svcName)
+	integrationtest.DelEPS(t, "default", svcName)
 }
 
 func SetUpIngressForCacheSyncCheck(t *testing.T, ingTestObj IngressTestObject) {
@@ -469,7 +464,7 @@ func TestL7ModelDedicatedNodePortExternalTrafficPolicyLocal(t *testing.T) {
 	_, ok := nodes[0].PoolRefs[0].NetworkPlacementSettings["net123"]
 	g.Expect(ok).To(gomega.Equal(true))
 
-	integrationtest.CreateEPorEPSNodeName(t, "default", svcName, false, false, "1.1.1", nodeName)
+	integrationtest.CreateEPSNodeName(t, "default", svcName, false, false, "1.1.1", nodeName)
 	// After creating the endpointslice/endpoint, pool server should be added for testNodeNP node
 	g.Eventually(func() int {
 		return len(nodes[0].PoolRefs[0].Servers)
@@ -480,7 +475,7 @@ func TestL7ModelDedicatedNodePortExternalTrafficPolicyLocal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-	integrationtest.DelEPorEPS(t, "default", svcName)
+	integrationtest.DelEPS(t, "default", svcName)
 	VerifyIngressDeletion(t, g, aviModel, 0)
 	TearDownTestForIngressInNodePortMode(t, svcName, modelName)
 }

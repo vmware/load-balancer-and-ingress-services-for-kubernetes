@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	discovery "k8s.io/api/discovery/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -34,8 +35,15 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	v1beta1akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/informers/externalversions"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
+
+// Used in VCF RBAC
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gatewayclasses;gatewayclasses/status,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways;gateways/status,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes;httproutes/status,verbs=get;list;watch;update;patch
 
 var controllerInstance *GatewayController
 var ctrlonce sync.Once
@@ -69,25 +77,28 @@ func (c *GatewayController) InitGatewayAPIInformers(cs gatewayclientset.Interfac
 	})
 }
 
+func NewInfraSettingCRDInformer() {
+	akoInformerFactory := v1beta1akoinformers.NewSharedInformerFactoryWithOptions(akogatewayapilib.AKOControlConfig().V1Beta1CRDClientSet(), time.Second*30)
+	aviSettingsInformer := akoInformerFactory.Ako().V1beta1().AviInfraSettings()
+	akogatewayapilib.AKOControlConfig().SetAviInfraSettingInformer(aviSettingsInformer)
+}
+
 func (c *GatewayController) Start(stopCh <-chan struct{}) {
 	go c.informers.ServiceInformer.Informer().Run(stopCh)
 	go c.informers.NSInformer.Informer().Run(stopCh)
 
 	informersList := []cache.InformerSynced{
 		c.informers.ServiceInformer.Informer().HasSynced,
+		c.informers.NSInformer.Informer().HasSynced,
 	}
+	go c.informers.EpSlicesInformer.Informer().Run(stopCh)
+	informersList = append(informersList, c.informers.EpSlicesInformer.Informer().HasSynced)
 
-	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
-		go c.informers.EpSlicesInformer.Informer().Run(stopCh)
-		informersList = append(informersList, c.informers.EpSlicesInformer.Informer().HasSynced)
-	} else if lib.GetServiceType() != lib.NodePortLocal {
-		go c.informers.EpInformer.Informer().Run(stopCh)
-		informersList = append(informersList, c.informers.EpInformer.Informer().HasSynced)
-	}
 	if lib.GetServiceType() == lib.NodePortLocal {
 		go c.informers.PodInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.informers.PodInformer.Informer().HasSynced)
 	}
+
 	if !lib.AviSecretInitialized {
 		go c.informers.SecretInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.informers.SecretInformer.Informer().HasSynced)
@@ -109,6 +120,10 @@ func (c *GatewayController) Start(stopCh <-chan struct{}) {
 		go c.dynamicInformers.RouteBackendExtensionCRDInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.dynamicInformers.RouteBackendExtensionCRDInformer.Informer().HasSynced)
 	}
+	if akogatewayapilib.AKOControlConfig().AviInfraSettingEnabled() {
+		go akogatewayapilib.AKOControlConfig().AviInfraSettingInformer().Informer().Run(stopCh)
+		informersList = append(informersList, akogatewayapilib.AKOControlConfig().AviInfraSettingInformer().Informer().HasSynced)
+	}
 
 	go c.dynamicInformers.AppProfileCRDInformer.Informer().Run(stopCh)
 	informersList = append(informersList, c.dynamicInformers.AppProfileCRDInformer.Informer().HasSynced)
@@ -126,144 +141,77 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 	numWorkers := mcpQueue.NumWorkers
 
 	// Add EPSInformer
-	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
-		epsEventHandler := cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				if c.DisableSync {
+	epsEventHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			eps := obj.(*discovery.EndpointSlice)
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(eps))
+			svcName, ok := eps.Labels[discovery.LabelServiceName]
+			if !ok || svcName == "" {
+				utils.AviLog.Debugf("Endpointslice Add event: Endpointslice does not have backing svc")
+				return
+			}
+			key := utils.Endpointslices + "/" + namespace + "/" + svcName
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Debugf("key: %s, msg: ADD", key)
+		},
+		DeleteFunc: func(obj interface{}) {
+			if c.DisableSync {
+				return
+			}
+			eps, ok := obj.(*discovery.EndpointSlice)
+			if !ok {
+				// endpointSlices were deleted but its final state is unrecorded.
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
 					return
 				}
-				eps := obj.(*discovery.EndpointSlice)
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(eps))
-				svcName, ok := eps.Labels[discovery.LabelServiceName]
-				if !ok || svcName == "" {
-					utils.AviLog.Debugf("Endpointslice Add event: Endpointslice does not have backing svc")
+				eps, ok = tombstone.Obj.(*discovery.EndpointSlice)
+				if !ok {
+					utils.AviLog.Errorf("Tombstone contained object that is not an Endpointslice: %#v", obj)
 					return
+				}
+			}
+			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(eps))
+			svcName, ok := eps.Labels[discovery.LabelServiceName]
+			if !ok || svcName == "" {
+				utils.AviLog.Debugf("Endpointslice Delete event: Endpointslice does not have backing svc")
+				return
+			}
+			key := utils.Endpointslices + "/" + namespace + "/" + svcName
+			bkt := utils.Bkt(namespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(key)
+			utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+		},
+		UpdateFunc: func(old, cur interface{}) {
+			if c.DisableSync {
+				return
+			}
+			oldEndpointSlice := old.(*discovery.EndpointSlice)
+			currentEndpointSlice := cur.(*discovery.EndpointSlice)
+			if oldEndpointSlice.ResourceVersion != currentEndpointSlice.ResourceVersion {
+				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(currentEndpointSlice))
+				svcName, ok := currentEndpointSlice.Labels[discovery.LabelServiceName]
+				if !ok || svcName == "" {
+					svcNameOld, ok := oldEndpointSlice.Labels[discovery.LabelServiceName]
+					if !ok || svcNameOld == "" {
+						utils.AviLog.Debugf("Endpointslice Update event: Endpointslice does not have backing svc")
+						return
+					}
+					svcName = svcNameOld
 				}
 				key := utils.Endpointslices + "/" + namespace + "/" + svcName
 				bkt := utils.Bkt(namespace, numWorkers)
 				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: ADD", key)
-			},
-			DeleteFunc: func(obj interface{}) {
-				if c.DisableSync {
-					return
-				}
-				eps, ok := obj.(*discovery.EndpointSlice)
-				if !ok {
-					// endpoints were deleted but its final state is unrecorded.
-					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-					if !ok {
-						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
-						return
-					}
-					eps, ok = tombstone.Obj.(*discovery.EndpointSlice)
-					if !ok {
-						utils.AviLog.Errorf("Tombstone contained object that is not an Endpointslice: %#v", obj)
-						return
-					}
-				}
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(eps))
-				svcName, ok := eps.Labels[discovery.LabelServiceName]
-				if !ok || svcName == "" {
-					utils.AviLog.Debugf("Endpointslice Delete event: Endpointslice does not have backing svc")
-					return
-				}
-				key := utils.Endpointslices + "/" + namespace + "/" + svcName
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-			},
-			UpdateFunc: func(old, cur interface{}) {
-				if c.DisableSync {
-					return
-				}
-				oldEndpointSlice := old.(*discovery.EndpointSlice)
-				currentEndpointSlice := cur.(*discovery.EndpointSlice)
-				if oldEndpointSlice.ResourceVersion != currentEndpointSlice.ResourceVersion {
-					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(currentEndpointSlice))
-					svcName, ok := currentEndpointSlice.Labels[discovery.LabelServiceName]
-					if !ok || svcName == "" {
-						svcNameOld, ok := oldEndpointSlice.Labels[discovery.LabelServiceName]
-						if !ok || svcNameOld == "" {
-							utils.AviLog.Debugf("Endpointslice Update event: Endpointslice does not have backing svc")
-							return
-						}
-						svcName = svcNameOld
-					}
-					key := utils.Endpointslices + "/" + namespace + "/" + svcName
-					bkt := utils.Bkt(namespace, numWorkers)
-					c.workqueue[bkt].AddRateLimited(key)
-					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-				}
-			},
-		}
-		c.informers.EpSlicesInformer.Informer().AddEventHandler(epsEventHandler)
-	} else if lib.GetServiceType() != lib.NodePortLocal {
-		epEventHandler := cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				if c.DisableSync {
-					return
-				}
-				ep := obj.(*corev1.Endpoints)
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
-				key := utils.Endpoints + "/" + utils.ObjKey(ep)
-				if lib.IsNamespaceBlocked(namespace) {
-					utils.AviLog.Debugf("key: %s, msg: Endpoint Add event: Namespace: %s didn't qualify filter", key, namespace)
-					return
-				}
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: ADD", key)
-			},
-			DeleteFunc: func(obj interface{}) {
-				if c.DisableSync {
-					return
-				}
-				ep, ok := obj.(*corev1.Endpoints)
-				if !ok {
-					// endpoints were deleted but its final state is unrecorded.
-					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-					if !ok {
-						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
-						return
-					}
-					ep, ok = tombstone.Obj.(*corev1.Endpoints)
-					if !ok {
-						utils.AviLog.Errorf("Tombstone contained object that is not an Endpoints: %#v", obj)
-						return
-					}
-				}
-				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(ep))
-				key := utils.Endpoints + "/" + utils.ObjKey(ep)
-				if lib.IsNamespaceBlocked(namespace) {
-					utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
-					return
-				}
-				bkt := utils.Bkt(namespace, numWorkers)
-				c.workqueue[bkt].AddRateLimited(key)
-				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
-			},
-			UpdateFunc: func(old, cur interface{}) {
-				if c.DisableSync {
-					return
-				}
-				oep := old.(*corev1.Endpoints)
-				cep := cur.(*corev1.Endpoints)
-				if !reflect.DeepEqual(cep.Subsets, oep.Subsets) {
-					namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(cep))
-					key := utils.Endpoints + "/" + utils.ObjKey(cep)
-					if lib.IsNamespaceBlocked(namespace) {
-						utils.AviLog.Debugf("key: %s, msg: Endpoint Update event: Namespace: %s didn't qualify filter", key, namespace)
-						return
-					}
-					bkt := utils.Bkt(namespace, numWorkers)
-					c.workqueue[bkt].AddRateLimited(key)
-					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
-				}
-			},
-		}
-		c.informers.EpInformer.Informer().AddEventHandler(epEventHandler)
+				utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+			}
+		},
 	}
+	c.informers.EpSlicesInformer.Informer().AddEventHandler(epsEventHandler)
 
 	if lib.GetServiceType() == lib.NodePortLocal {
 		podEventHandler := cache.ResourceEventHandlerFuncs{
@@ -505,14 +453,16 @@ func (c *GatewayController) SetupEventHandlers(k8sinfo k8s.K8sinformers) {
 	}
 	c.SetupCRDEventHandlers(numWorkers)
 
+	if c.informers.NSInformer != nil {
+		namespaceEventHandler := addNamespaceAnnotationEventHandler(numWorkers, c)
+		c.informers.NSInformer.Informer().AddEventHandler(namespaceEventHandler)
+	}
 }
 
 func checkAviSecretUpdateAndShutdown(secret *corev1.Secret) bool {
 	if secret.Namespace == utils.GetAKONamespace() && secret.Name == lib.AviSecret {
 		// if the secret is updated or deleted we shutdown API server
-		utils.AviLog.Warnf("Avi Secret object %s/%s updated/deleted, shutting down AKO", secret.Namespace, secret.Name)
-		lib.ShutdownApi()
-		return false
+		utils.AviLog.Fatalf("Avi Secret object %s/%s updated/deleted, shutting down AKO", secret.Namespace, secret.Name)
 	}
 	return true
 }
@@ -604,6 +554,7 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 			if !IsGatewayClassValid(key, gwClass) {
 				return
 			}
+
 			namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gwClass))
 			bkt := utils.Bkt(namespace, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
@@ -725,13 +676,68 @@ func (c *GatewayController) SetupGatewayApiEventHandlers(numWorkers uint32) {
 	informer.HTTPRouteInformer.Informer().AddEventHandler(httpRouteEventHandler)
 }
 
+func (c *GatewayController) SetupAviInfraSettingEventHandler(numWorkers uint32) {
+	if akogatewayapilib.AKOControlConfig().AviInfraSettingEnabled() {
+		utils.AviLog.Infof("Setting up AviInfraSetting CRD event handler")
+		aviInfraEventHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				aviInfra := obj.(*akov1beta1.AviInfraSetting)
+				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfra)
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
+
+				addGatewayMappedToInfrasettingToIngestionQueue(numWorkers, c, utils.ObjKey(aviInfra))
+			},
+			UpdateFunc: func(old, new interface{}) {
+				if c.DisableSync {
+					return
+				}
+				oldObj := old.(*akov1beta1.AviInfraSetting)
+				aviInfra := new.(*akov1beta1.AviInfraSetting)
+				if isAviInfraUpdated(oldObj, aviInfra) {
+					key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfra)
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+
+					addGatewayMappedToInfrasettingToIngestionQueue(numWorkers, c, utils.ObjKey(aviInfra))
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				aviInfra, ok := obj.(*akov1beta1.AviInfraSetting)
+				if !ok {
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					aviInfra, ok = tombstone.Obj.(*akov1beta1.AviInfraSetting)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not an AviInfraSetting: %#v", obj)
+						return
+					}
+				}
+				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfra)
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+				addGatewayMappedToInfrasettingToIngestionQueue(numWorkers, c, utils.ObjKey(aviInfra))
+			},
+		}
+		akogatewayapilib.AKOControlConfig().AviInfraSettingInformer().Informer().AddEventHandler(aviInfraEventHandler)
+	}
+}
+
 func IsGatewayUpdated(oldGateway, newGateway *gatewayv1.Gateway) bool {
 	if newGateway.GetDeletionTimestamp() != nil {
 		return true
 	}
 	oldHash := utils.Hash(utils.Stringify(oldGateway.Spec))
 	newHash := utils.Hash(utils.Stringify(newGateway.Spec))
-	return oldHash != newHash
+	oldvipType := oldGateway.Annotations[akogatewayapilib.LBVipTypeAnnotation]
+	newvipType := newGateway.Annotations[akogatewayapilib.LBVipTypeAnnotation]
+	return oldHash != newHash || oldvipType != newvipType
 }
 
 func IsHTTPRouteUpdated(oldHTTPRoute, newHTTPRoute *gatewayv1.HTTPRoute) bool {
@@ -743,10 +749,73 @@ func IsHTTPRouteUpdated(oldHTTPRoute, newHTTPRoute *gatewayv1.HTTPRoute) bool {
 	return oldHash != newHash
 }
 
+func isAviInfraUpdated(oldAviInfra, newAviInfra *akov1beta1.AviInfraSetting) bool {
+	oldSpecHash := utils.Hash(utils.Stringify(oldAviInfra.Spec) + oldAviInfra.Status.Status)
+	newSpecHash := utils.Hash(utils.Stringify(newAviInfra.Spec) + newAviInfra.Status.Status)
+
+	return oldSpecHash != newSpecHash
+}
+
 func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
 	configMap, ok := obj.(*corev1.ConfigMap)
 	if ok && configMap.Namespace == utils.GetAKONamespace() && configMap.Name == lib.AviConfigMap {
 		return configMap, true
 	}
 	return nil, false
+}
+
+func addNamespaceAnnotationEventHandler(numWorkers uint32, c *GatewayController) cache.ResourceEventHandler {
+	nsEventHandler := cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(old, cur interface{}) {
+			if c.DisableSync {
+				return
+			}
+			nsOld := old.(*corev1.Namespace)
+			nsCur := cur.(*corev1.Namespace)
+			if lib.IsNamespaceUpdated(nsOld, nsCur) {
+				oldTenant := nsOld.Annotations[lib.TenantAnnotation]
+				newTenant := nsCur.Annotations[lib.TenantAnnotation]
+				if oldTenant != newTenant {
+					key := utils.Namespace + "/" + nsCur.Name
+					utils.AviLog.Debugf("key: Namespace/%s, msg: UPDATE", key)
+					addGatewaysFromNamespaceToIngestionQueue(key, numWorkers, c)
+				}
+			}
+		},
+	}
+	return nsEventHandler
+}
+
+func addGatewaysFromNamespaceToIngestionQueue(key string, numWorkers uint32, c *GatewayController) {
+	_, _, namespace := lib.ExtractTypeNameNamespace(key)
+	gateways, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Warnf("failed to list Gateways in the Namespace %s, err: %s", namespace, err.Error())
+		return
+	}
+
+	for _, gateway := range gateways {
+		key := lib.Gateway + "/" + utils.ObjKey(gateway)
+		valid, _ := IsValidGateway(key, gateway)
+		if !valid {
+			continue
+		}
+		bkt := utils.Bkt(gateway.Namespace, numWorkers)
+		c.workqueue[bkt].AddRateLimited(key)
+		utils.AviLog.Debugf("key: %s, msg: ADD for Gateway", key)
+	}
+}
+
+func addGatewayMappedToInfrasettingToIngestionQueue(numWorkers uint32, c *GatewayController, name string) {
+	namespaces, err := utils.GetInformers().NSInformer.Informer().GetIndexer().ByIndex(lib.AviSettingNamespaceIndex, name)
+	if err != nil {
+		utils.AviLog.Warnf("failed to fetch Namespaces for the AviInfraSetting %s, err: %s", name, err.Error())
+		return
+	}
+	for _, obj := range namespaces {
+		if ns, ok := obj.(*corev1.Namespace); ok {
+			key := utils.Namespace + "/" + ns.Name
+			addGatewaysFromNamespaceToIngestionQueue(key, numWorkers, c)
+		}
+	}
 }

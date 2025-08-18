@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@ func TestHTTPRouteWithValidConfig(t *testing.T) {
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, "default", svcName, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, "default", svcName, false, false, "1.1.1")
 
 	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
@@ -1119,7 +1119,7 @@ func TestHTTPRouteWithValidAndInvalidBackendKind(t *testing.T) {
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, "default", svcName, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, "default", svcName, false, false, "1.1.1")
 
 	listeners := akogatewayapitests.GetListenersV1(ports, false, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)

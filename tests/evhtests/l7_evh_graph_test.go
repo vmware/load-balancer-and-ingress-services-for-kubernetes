@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -240,7 +240,7 @@ func TestL7ModelForEvhNodePortExternalTrafficPolicyLocal(t *testing.T) {
 	_, ok := nodes[0].EvhNodes[0].PoolRefs[0].NetworkPlacementSettings["net123"]
 	g.Expect(ok).To(gomega.Equal(true))
 
-	integrationtest.CreateEPorEPSNodeName(t, "default", svcName, false, false, "1.1.1", nodeName)
+	integrationtest.CreateEPSNodeName(t, "default", svcName, false, false, "1.1.1", nodeName)
 	// After creating the endpointslice/endpoint, pool server should be added for testNodeNP node
 	g.Eventually(func() int {
 		return len(nodes[0].EvhNodes[0].PoolRefs[0].Servers)
@@ -251,7 +251,7 @@ func TestL7ModelForEvhNodePortExternalTrafficPolicyLocal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
-	integrationtest.DelEPorEPS(t, "default", svcName)
+	integrationtest.DelEPS(t, "default", svcName)
 	VerifyEvhPoolDeletion(t, g, aviModel, 0)
 	VerifyEvhIngressDeletion(t, g, aviModel, 0)
 	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
@@ -403,7 +403,7 @@ func TestMultiIngressToSameSvcForEvh(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	integrationtest.CreateEPorEPS(t, "default", svcName, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, "default", svcName, false, false, "1.1.1")
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:        ingressName1,
 		Namespace:   "default",
@@ -448,7 +448,7 @@ func TestMultiIngressToSameSvcForEvh(t *testing.T) {
 	}
 	//====== VERIFICATION OF SERVICE DELETE
 	// Now we have cleared the layer 2 queue for both the models. Let's delete the service.
-	integrationtest.DelEPorEPS(t, "default", svcName)
+	integrationtest.DelEPS(t, "default", svcName)
 	err = KubeClient.CoreV1().Services("default").Delete(context.TODO(), svcName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Service %v", err)
@@ -468,7 +468,7 @@ func TestMultiIngressToSameSvcForEvh(t *testing.T) {
 	g.Expect(len(dsNodes)).To(gomega.Equal(0))
 	g.Expect(len(nodes[0].PoolRefs)).To(gomega.Equal(0))
 
-	integrationtest.CreateEPorEPS(t, "default", svcName, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, "default", svcName, false, false, "1.1.1")
 	//====== VERIFICATION OF ONE INGRESS DELETE
 	// Now let's delete one ingress and expect the update for that.
 	err = KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingressName1, metav1.DeleteOptions{})
@@ -511,7 +511,7 @@ func TestMultiIngressToSameSvcForEvh(t *testing.T) {
 		t.Fatalf("Could not find model on service ADD: %v", err)
 	}
 	//====== VERIFICATION OF ONE ENDPOINT DELETE
-	integrationtest.DelEPorEPS(t, "default", svcName)
+	integrationtest.DelEPS(t, "default", svcName)
 	integrationtest.PollForCompletion(t, modelName, 5)
 	// Deletion should also give us the affected ingress objects
 	g.Eventually(func() bool {
@@ -616,7 +616,7 @@ func TestMultiPortServiceIngressForEvh(t *testing.T) {
 	ingressName := objNameMap.GenerateName("foo-with-targets")
 	svcName := objNameMap.GenerateName("avisvc")
 	integrationtest.CreateSVC(t, "default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, true)
-	integrationtest.CreateEPorEPS(t, "default", svcName, true, true, "1.1.1")
+	integrationtest.CreateEPS(t, "default", svcName, true, true, "1.1.1")
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        ingressName,
 		Namespace:   "default",
@@ -843,7 +843,7 @@ func TestDeleteBackendServiceForEvh(t *testing.T) {
 	}
 	// Delete the service
 	integrationtest.DelSVC(t, "default", svcName)
-	integrationtest.DelEPorEPS(t, "default", svcName)
+	integrationtest.DelEPS(t, "default", svcName)
 	g.Eventually(func() bool {
 		found, _ = objects.SharedAviGraphLister().Get(modelName)
 		return found
@@ -914,7 +914,7 @@ func TestUpdateBackendServiceForEvh(t *testing.T) {
 
 	// Update the service
 	integrationtest.CreateSVC(t, "default", svcName2, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, "default", svcName2, false, false, "2.2.2")
+	integrationtest.CreateEPS(t, "default", svcName2, false, false, "2.2.2")
 
 	_, err = (integrationtest.FakeIngress{
 		Name:        ingressName,
@@ -947,7 +947,7 @@ func TestUpdateBackendServiceForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.DelSVC(t, "default", svcName2)
-	integrationtest.DelEPorEPS(t, "default", svcName2)
+	integrationtest.DelEPS(t, "default", svcName2)
 	VerifyEvhPoolDeletion(t, g, aviModel, 0)
 	VerifyEvhIngressDeletion(t, g, aviModel, 0)
 	VerifyEvhVsCacheChildDeletion(t, g, cache.NamespaceName{Namespace: "admin", Name: modelName})
@@ -1009,7 +1009,7 @@ func TestL2ChecksumsUpdateForEvh(t *testing.T) {
 	secretName2, svcName2 := "my-secret-71", "avisvc-71"
 
 	integrationtest.CreateSVC(t, "default", svcName2, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, "default", svcName2, false, false, "2.2.2")
+	integrationtest.CreateEPS(t, "default", svcName2, false, false, "2.2.2")
 	integrationtest.AddSecret(secretName2, "default", "tlsCert-new", "tlsKey")
 
 	_, err = (integrationtest.FakeIngress{
@@ -1063,7 +1063,7 @@ func TestL2ChecksumsUpdateForEvh(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.DelSVC(t, "default", svcName2)
-	integrationtest.DelEPorEPS(t, "default", svcName2)
+	integrationtest.DelEPS(t, "default", svcName2)
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), secretName1, metav1.DeleteOptions{})
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), secretName2, metav1.DeleteOptions{})
 	VerifyEvhIngressDeletion(t, g, aviModel, 0)
@@ -1668,7 +1668,7 @@ func TestScaleEndpointsForEvh(t *testing.T) {
 	g.Expect(len(nodes[0].EvhNodes[0].PoolGroupRefs[1].Members)).To(gomega.Equal(1))
 	g.Expect(len(nodes[0].EvhNodes[0].PoolRefs[1].Servers)).To(gomega.Equal(1))
 
-	integrationtest.ScaleCreateEPorEPS(t, "default", svcName)
+	integrationtest.ScaleCreateEPS(t, "default", svcName)
 	integrationtest.PollForCompletion(t, modelName, 5)
 	integrationtest.DetectModelChecksumChange(t, modelName, 5)
 

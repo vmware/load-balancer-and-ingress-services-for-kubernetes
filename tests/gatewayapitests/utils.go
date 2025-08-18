@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -292,7 +292,7 @@ type Gateway struct {
 	*gatewayv1.Gateway
 }
 
-func (g *Gateway) GatewayV1(name, namespace, gatewayClass string, address []gatewayv1.GatewaySpecAddress, listeners []gatewayv1.Listener) *gatewayv1.Gateway {
+func (g *Gateway) GatewayV1(name, namespace, gatewayClass string, address []gatewayv1.GatewaySpecAddress, listeners []gatewayv1.Listener, vipType ...string) *gatewayv1.Gateway {
 	gateway := &gatewayv1.Gateway{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            name,
@@ -306,6 +306,11 @@ func (g *Gateway) GatewayV1(name, namespace, gatewayClass string, address []gate
 	}
 
 	gateway.Spec.Listeners = listeners
+	if len(vipType) > 0 {
+		gateway.Annotations = map[string]string{
+			akogatewayapilib.LBVipTypeAnnotation: vipType[0],
+		}
+	}
 	return gateway
 }
 
@@ -339,9 +344,9 @@ func SetupGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress 
 	g.Create(t)
 }
 
-func UpdateGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress []gatewayv1.GatewaySpecAddress, listeners []gatewayv1.Listener) {
+func UpdateGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress []gatewayv1.GatewaySpecAddress, listeners []gatewayv1.Listener, vipType ...string) {
 	g := &Gateway{}
-	g.Gateway = g.GatewayV1(name, namespace, gatewayClass, ipAddress, listeners)
+	g.Gateway = g.GatewayV1(name, namespace, gatewayClass, ipAddress, listeners, vipType...)
 	g.Update(t)
 }
 

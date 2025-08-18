@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -46,7 +46,6 @@ var KubeClient *k8sfake.Clientset
 var CRDClient *crdfake.Clientset
 var V1beta1CRDClient *v1beta1crdfake.Clientset
 var ctrl *k8s.AviController
-var endpointSliceEnabled bool
 
 const (
 	defaultPodName  = "test-pod"
@@ -195,8 +194,6 @@ func TestMain(m *testing.M) {
 	os.Setenv("POD_NAME", "ako-0")
 
 	akoControlConfig := lib.AKOControlConfig()
-	endpointSliceEnabled = lib.GetEndpointSliceEnabled()
-	akoControlConfig.SetEndpointSlicesEnabled(endpointSliceEnabled)
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
 	V1beta1CRDClient = v1beta1crdfake.NewSimpleClientset()
@@ -223,9 +220,8 @@ func TestMain(m *testing.M) {
 		utils.ConfigMapInformer,
 		utils.PodInformer,
 	}
-	if akoControlConfig.GetEndpointSlicesEnabled() {
-		registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
-	}
+
+	registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
 	k8s.NewCRDInformers()

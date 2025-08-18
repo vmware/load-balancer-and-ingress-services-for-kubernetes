@@ -48,7 +48,7 @@ func SetUpTestForIngress(t *testing.T, modelNames ...string) {
 		objects.SharedAviGraphLister().Delete(model)
 	}
 	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEP(t, "default", "avisvc", false, false, "1.1.1")
+	integrationtest.CreateEPS(t, "default", "avisvc", false, false, "1.1.1")
 }
 
 func TearDownTestForIngress(t *testing.T, modelNames ...string) {
@@ -56,7 +56,7 @@ func TearDownTestForIngress(t *testing.T, modelNames ...string) {
 		objects.SharedAviGraphLister().Delete(model)
 	}
 	integrationtest.DelSVC(t, "default", "avisvc")
-	integrationtest.DelEP(t, "default", "avisvc")
+	integrationtest.DelEPS(t, "default", "avisvc")
 }
 
 func SetUpIngressForCacheSyncCheck(t *testing.T, tlsIngress, withSecret bool, modelNames ...string) {
@@ -127,7 +127,7 @@ func TestMain(m *testing.M) {
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
-		utils.EndpointInformer,
+		utils.EndpointSlicesInformer,
 		utils.IngressInformer,
 		utils.IngressClassInformer,
 		utils.SecretInformer,

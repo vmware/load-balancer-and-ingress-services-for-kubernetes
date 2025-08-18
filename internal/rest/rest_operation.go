@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -305,7 +305,7 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 		}
 		if op.Err != nil {
 			utils.AviLog.Warnf("key: %s, msg: RestOp method %v path %v tenant %v Obj %s returned err %s with response %s",
-				key, op.Method, op.Path, op.Tenant, utils.Stringify(op.Obj), utils.Stringify(op.Err), utils.Stringify(op.Response))
+				key, op.Method, op.Path, op.Tenant, utils.StringifyWithSanitization(op.Obj), utils.Stringify(op.Err), utils.Stringify(op.Response))
 			// Wrap the error into a websync error.
 			err := &utils.WebSyncError{Err: op.Err, Operation: string(op.Method)}
 			aviErr, ok := op.Err.(session.AviError)
@@ -340,7 +340,7 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 					continue
 				}
 				utils.AviLog.Warnf("key: %s, msg: RestOp method %v path %v tenant %v Obj %s returned err %s with response %s",
-					key, op.Method, op.Path, lib.GetAdminTenant(), utils.Stringify(op.Obj), utils.Stringify(op.Err), utils.Stringify(op.Response))
+					key, op.Method, op.Path, lib.GetAdminTenant(), utils.StringifyWithSanitization(op.Obj), utils.Stringify(op.Err), utils.Stringify(op.Response))
 				err = &utils.WebSyncError{Err: op.Err, Operation: string(op.Method)}
 			} else if !isErrorRetryable(aviErr.HttpStatusCode, *aviErr.Message) {
 				if op.Method != utils.RestPost {
@@ -356,6 +356,7 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 			}
 			return err
 		} else {
+			// POST of SSLKeyAndCertificate response contains certificate data but private_key is redacted
 			utils.AviLog.Debugf("key: %s, msg: RestOp method %v path %v tenant %v response %v objName %v",
 				key, op.Method, op.Path, op.Tenant, utils.Stringify(op.Response), op.ObjName)
 		}
@@ -404,7 +405,7 @@ func (f *follower) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp
 		op.Err = c.AviSession.Get(utils.GetUriEncoded(op.Path), &op.Response)
 		if op.Err != nil {
 			utils.AviLog.Warnf("key: %s, msg: RestOp method %v path %v tenant %v Obj %s returned err %s with response %s",
-				key, op.Method, op.Path, op.Tenant, utils.Stringify(op.Obj), utils.Stringify(op.Err), utils.Stringify(op.Response))
+				key, op.Method, op.Path, op.Tenant, utils.StringifyWithSanitization(op.Obj), utils.Stringify(op.Err), utils.Stringify(op.Response))
 			// Wrap the error into a websync error.
 			err := &utils.WebSyncError{Err: op.Err, Operation: string(op.Method)}
 			aviErr, ok := op.Err.(session.AviError)

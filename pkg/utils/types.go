@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -75,7 +75,6 @@ type KubeClientIntf struct {
 type Informers struct {
 	ConfigMapInformer           coreinformers.ConfigMapInformer
 	ServiceInformer             coreinformers.ServiceInformer
-	EpInformer                  coreinformers.EndpointsInformer
 	EpSlicesInformer            discoveryinformers.EndpointSliceInformer
 	PodInformer                 coreinformers.PodInformer
 	NSInformer                  coreinformers.NamespaceInformer

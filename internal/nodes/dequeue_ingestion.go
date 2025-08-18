@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -225,7 +225,7 @@ func DequeueIngestion(key string, fullsync bool) {
 		} else if objType == utils.L4LBService {
 			// L4 type of services need special handling. We create a dedicated VS in Avi for these.
 			handleL4Service(key, fullsync)
-		} else if objType == utils.Endpoints || objType == utils.Endpointslices {
+		} else if objType == utils.Endpointslices {
 			svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
 			if err != nil {
 				utils.AviLog.Debugf("key: %s, msg: there was an error in retrieving the service for endpoint", key)
@@ -260,7 +260,7 @@ func DequeueIngestion(key string, fullsync bool) {
 	// handle the services APIs
 	if (utils.IsWCP() && objType == utils.L4LBService) ||
 		(lib.UseServicesAPI() && (objType == utils.Service || objType == utils.L4LBService)) ||
-		((utils.IsWCP() || lib.UseServicesAPI()) && (objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpoints || objType == utils.Endpointslices || objType == lib.AviInfraSetting)) {
+		((utils.IsWCP() || lib.UseServicesAPI()) && (objType == lib.Gateway || objType == lib.GatewayClass || objType == utils.Endpointslices || objType == lib.AviInfraSetting)) {
 		if !valid && objType == utils.L4LBService {
 			// Required for advl4 schemas.
 			schema, _ = ConfigDescriptor().GetByType(utils.Service)

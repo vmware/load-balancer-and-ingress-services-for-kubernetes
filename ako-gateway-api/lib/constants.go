@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -33,9 +33,16 @@ const (
 	REGULAREXPRESSION                  = "RegularExpression"
 	EXACT                              = "Exact"
 	PATHPREFIX                         = "PathPrefix"
+	LBVipTypeAnnotation                = "networking.vmware.com/lb-vip-type"
+	VCFGatewayClassName                = "avi-lb"
 )
 
 const (
 	AllowedRoutesNamespaceFromAll  = "All"
 	AllowedRoutesNamespaceFromSame = "Same"
 )
+
+var SupportedLBVipTypes = map[string]string{
+	"public":  "PUBLIC",
+	"private": "PRIVATE",
+}

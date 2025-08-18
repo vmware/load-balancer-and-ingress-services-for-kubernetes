@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -880,14 +880,6 @@ func GetGlobalBgpPeerLabels() []string {
 	return bgpPeerLabels
 }
 
-func GetEndpointSliceEnabled() bool {
-	flag, err := strconv.ParseBool(os.Getenv("ENDPOINTSLICES_ENABLED"))
-	if err != nil {
-		flag = false
-	}
-	return flag
-}
-
 func GetGlobalBlockedNSList() []string {
 	var blockedNs []string
 	blockedNSStr := os.Getenv(BLOCKED_NS_LIST)
@@ -1413,11 +1405,7 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 		utils.SecretInformer,
 		utils.ConfigMapInformer,
 		utils.NSInformer,
-	}
-	if AKOControlConfig().GetEndpointSlicesEnabled() {
-		allInformers = append(allInformers, utils.EndpointSlicesInformer)
-	} else if GetServiceType() != NodePortLocal {
-		allInformers = append(allInformers, utils.EndpointInformer)
+		utils.EndpointSlicesInformer,
 	}
 	if GetServiceType() == NodePortLocal {
 		allInformers = append(allInformers, utils.PodInformer)
@@ -1510,6 +1498,31 @@ func L4PolicyChecksum(ports []int64, protocols []string, pools []string, ingesti
 	sort.Strings(protocols)
 	sort.Strings(pools)
 	checksum := utils.Hash(utils.Stringify(portsInt)) + utils.Hash(utils.Stringify(protocols)) + utils.Hash(utils.Stringify(pools))
+	if populateCache {
+		if markers != nil {
+			checksum += ObjectLabelChecksum(markers)
+		}
+		return checksum
+	}
+	checksum += GetMarkersChecksum(ingestionMarkers)
+	return checksum
+}
+
+func HTTPCookiePersistenceProfileChecksum(cookieName string, timeout *int32, isPersistentCookie *bool) uint32 {
+	checksum := utils.Hash(cookieName)
+	if timeout != nil {
+		checksum += utils.Hash(utils.Stringify(*timeout))
+	}
+	if isPersistentCookie != nil {
+		checksum += utils.Hash(utils.Stringify(*isPersistentCookie))
+	}
+	return checksum
+}
+
+func PersistenceProfileChecksum(name, persistenceType string, ingestionMarkers utils.AviObjectMarkers, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
+	var checksum uint32 = 0
+	checksum += utils.Hash(name)
+	checksum += utils.Hash(persistenceType)
 	if populateCache {
 		if markers != nil {
 			checksum += ObjectLabelChecksum(markers)
@@ -2310,4 +2323,42 @@ func ValidServiceType(service *v1.Service) bool {
 func GetAviInfraSettingName(projVpc string) string {
 	hash := sha1.Sum([]byte(projVpc))
 	return hex.EncodeToString(hash[:])
+}
+
+var defaultNSXProject string
+
+func GetTenantForProject(project string, c *clients.AviClient) (string, error) {
+	if defaultNSXProject == "" {
+		uri := "api/tenant/admin"
+		response := models.Tenant{}
+		err := AviGet(c, uri, &response)
+		if err != nil {
+			return "", err
+		}
+		for _, attr := range response.Attrs {
+			if *attr.Key == "path" {
+				projectSlice := strings.Split(*attr.Value, "/projects/")
+				defaultNSXProject = projectSlice[len(projectSlice)-1]
+			}
+		}
+	}
+	if project == defaultNSXProject {
+		return "admin", nil
+	}
+	return project, nil
+}
+
+func GetNSToSEGMap() (map[string]string, error) {
+	namespaces, err := utils.GetInformers().NSInformer.Lister().List(labels.Set(nil).AsSelector())
+	if err != nil {
+		return nil, err
+	}
+	nsToSEGMap := make(map[string]string)
+	for _, ns := range namespaces {
+		segName := ns.Annotations[WCPSEGroup]
+		if segName != "" {
+			nsToSEGMap[ns.GetName()] = segName
+		}
+	}
+	return nsToSEGMap, nil
 }

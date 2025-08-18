@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -48,7 +48,8 @@ func TestL7Model(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := "admin/cluster--Shared-L7-0"
-	ingresstests.SetUpTestForIngress(t, modelName)
+	svcName := "avisvc"
+	ingresstests.SetUpTestForIngress(t, svcName, modelName)
 
 	integrationtest.PollForCompletion(t, modelName, 5)
 	found, _ := objects.SharedAviGraphLister().Get(modelName)
@@ -93,7 +94,7 @@ func TestL7Model(t *testing.T) {
 	}
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
-	ingresstests.TearDownTestForIngress(t, modelName)
+	ingresstests.TearDownTestForIngress(t, svcName, modelName)
 }
 
 func TestRoute(t *testing.T) {

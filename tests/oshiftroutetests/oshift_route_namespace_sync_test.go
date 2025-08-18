@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ func SetupRoute(t *testing.T, modelName, namespace string) {
 
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.CreateSVC(t, namespace, "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, namespace, "avisvc", false, false, "1.1.1")
+	integrationtest.CreateEPS(t, namespace, "avisvc", false, false, "1.1.1")
 	integrationtest.PollForCompletion(t, modelName, 5)
 
 	routeExample := FakeRoute{Namespace: namespace, Path: "/foo"}.Route()
@@ -73,7 +73,7 @@ func TearDownTest(t *testing.T, modelName, namespace string) {
 
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.DelSVC(t, namespace, "avisvc")
-	integrationtest.DelEPorEPS(t, namespace, "avisvc")
+	integrationtest.DelEPS(t, namespace, "avisvc")
 	integrationtest.DeleteNamespace(namespace)
 	integrationtest.PollForCompletion(t, modelName, 10)
 }

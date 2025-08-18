@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -128,10 +128,11 @@ type HTTPBackend struct {
 }
 
 type Rule struct {
-	Name     string
-	Matches  []*Match
-	Filters  []*Filter
-	Backends []*HTTPBackend
+	Name               string
+	Matches            []*Match
+	Filters            []*Filter
+	Backends           []*HTTPBackend
+	SessionPersistence *gatewayv1.SessionPersistence
 }
 
 type RouteConfig struct {
@@ -231,6 +232,9 @@ ruleLoop:
 		sort.Sort((Matches)(routeConfigRule.Matches))
 		if rule.Name != nil {
 			routeConfigRule.Name = string(*rule.Name)
+		}
+		if rule.SessionPersistence != nil {
+			routeConfigRule.SessionPersistence = rule.SessionPersistence.DeepCopy()
 		}
 		routeConfigRule.Filters = make([]*Filter, 0, len(rule.Filters))
 

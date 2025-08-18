@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2024 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -15,11 +15,14 @@
 package lib
 
 import (
+	"context"
 	"fmt"
 
 	"os"
 	"strings"
 
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -31,19 +34,15 @@ import (
 
 func InformersToRegister(kclient *kubernetes.Clientset) ([]string, error) {
 	// Initialize the following informers in all AKO deployments. Provide AKO the ability to watch over
-	// Services, Endpoints, Secrets, ConfigMaps.
+	// Services, EndpointSlices, Secrets, ConfigMaps.
 	allInformers := []string{
 		utils.ServiceInformer,
 		utils.SecretInformer,
 		utils.ConfigMapInformer,
 		utils.NSInformer,
+		utils.EndpointSlicesInformer,
 	}
 
-	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
-		allInformers = append(allInformers, utils.EndpointSlicesInformer)
-	} else if lib.GetServiceType() != lib.NodePortLocal {
-		allInformers = append(allInformers, utils.EndpointInformer)
-	}
 	if lib.GetServiceType() == lib.NodePortLocal {
 		allInformers = append(allInformers, utils.PodInformer)
 	}
@@ -82,6 +81,14 @@ func GetPoolGroupName(parentNs, parentName, routeNs, routeName, matchName string
 		name = fmt.Sprintf("%s-%s", name, utils.Stringify(utils.Hash(matchName)))
 	}
 	return lib.Encode(name, lib.PG)
+}
+
+func GetPersistenceProfileName(parentNs, parentName, routeNs, routeName, matchName, sessionPersistenceType string) string {
+	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-" + sessionPersistenceType
+	if matchName != "" {
+		name = fmt.Sprintf("%s-%s", name, utils.Stringify(utils.Hash(matchName)))
+	}
+	return lib.Encode(name, lib.ApplicationPersistenceProfile)
 }
 
 func CheckGatewayClassController(controllerName string) bool {
@@ -197,4 +204,41 @@ func GetDefaultHTTPPSName() string {
 func GetTLSKeyCertNodeName(gatewayNameSpace, gatewayName, secretNameSpace, secretName string) string {
 	namePrefix := gatewayNameSpace + "-" + gatewayName + "-" + secretNameSpace + "-" + secretName
 	return lib.Encode(namePrefix, lib.TLSKeyCert)
+}
+
+func CreateVCFGatewayClass() error {
+	gwClass, err := AKOControlConfig().GatewayAPIClientset().GatewayV1().GatewayClasses().Get(context.TODO(), VCFGatewayClassName, metav1.GetOptions{})
+	if err != nil {
+		if !k8serrors.IsNotFound(err) {
+			utils.AviLog.Errorf("Failed to GET Gatewayclass %s, err: %v", VCFGatewayClassName, err)
+			return err
+		}
+		gwClass = nil
+	}
+	if gwClass != nil && gwClass.Spec.ControllerName == GatewayController {
+		return nil
+	} else if gwClass != nil {
+		// controller Name is an immutable field, need to delete the avi-lb Gateway class and recreate it with the correct controller Name
+		err = AKOControlConfig().GatewayAPIClientset().GatewayV1().GatewayClasses().Delete(context.TODO(), VCFGatewayClassName, metav1.DeleteOptions{})
+		if err != nil {
+			utils.AviLog.Errorf("Failed to DELETE Gatewayclass %s, err: %v", VCFGatewayClassName, err)
+			return err
+		}
+	}
+
+	gwClass = &gatewayv1.GatewayClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: VCFGatewayClassName,
+		},
+		Spec: gatewayv1.GatewayClassSpec{
+			ControllerName: GatewayController,
+		},
+	}
+	_, err = AKOControlConfig().GatewayAPIClientset().GatewayV1().GatewayClasses().Create(context.TODO(), gwClass, metav1.CreateOptions{})
+	if err != nil {
+		utils.AviLog.Errorf("Failed to CREATE Gatewayclass %s, err: %v", VCFGatewayClassName, err)
+		return err
+	}
+	utils.AviLog.Infof("Successfully created Gatewayclass %s", VCFGatewayClassName)
+	return nil
 }

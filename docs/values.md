@@ -373,10 +373,6 @@ Enable Gateway API in the featureGate to use this field.
 
 If you are using a private container registry and you'd like to override the default dockerhub settings, then this field can be edited with the private registry name.
 
-### featureGates.EnableEndpointSlice
-
-Enable this flag to use EndpointSlices instead of Endpoints in AKO. This also supports graceful shutdown of servers. Enabled by default from AKO 1.13.1.
-
 ### ako-crd-operator.enabled
 Enable this flag to deploy ako-crd-operator which manages multiple CRDs
 
@@ -405,3 +401,4 @@ Specify CPU request for ako-crd-operator
 ### ako-crd-operator.controllerManager.container.resources.requests.memory
 Specify Memory request for ako-crd-operator
 
+>>>>>>> e708fb3f2 (AV-235889: Implement deployment of ako-crd-controller (#1752))

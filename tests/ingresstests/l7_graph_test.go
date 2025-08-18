@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -46,14 +46,13 @@ import (
 )
 
 var (
-	KubeClient           *k8sfake.Clientset
-	CRDClient            *crdfake.Clientset
-	v1beta1CRDClient     *v1beta1crdfake.Clientset
-	ctrl                 *k8s.AviController
-	akoApiServer         *api.FakeApiServer
-	keyChan              chan string
-	endpointSliceEnabled bool
-	objNameMap           integrationtest.ObjectNameMap
+	KubeClient       *k8sfake.Clientset
+	CRDClient        *crdfake.Clientset
+	v1beta1CRDClient *v1beta1crdfake.Clientset
+	ctrl             *k8s.AviController
+	akoApiServer     *api.FakeApiServer
+	keyChan          chan string
+	objNameMap       integrationtest.ObjectNameMap
 )
 
 const (
@@ -73,8 +72,6 @@ func TestMain(m *testing.M) {
 	os.Setenv("POD_NAME", "ako-0")
 
 	akoControlConfig := lib.AKOControlConfig()
-	endpointSliceEnabled = lib.GetEndpointSliceEnabled()
-	akoControlConfig.SetEndpointSlicesEnabled(endpointSliceEnabled)
 
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
@@ -101,11 +98,9 @@ func TestMain(m *testing.M) {
 		utils.NodeInformer,
 		utils.ConfigMapInformer,
 	}
-	if akoControlConfig.GetEndpointSlicesEnabled() {
-		registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
-	} else {
-		registeredInformers = append(registeredInformers, utils.EndpointInformer)
-	}
+
+	registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
+
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
 	k8s.NewCRDInformers()
@@ -401,7 +396,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 		t.Fatalf("error in adding Service: %v", err)
 	}
 
-	integrationtest.CreateEPorEPS(t, "default", svcName, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, "default", svcName, false, false, "1.1.1")
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:        ingName,
 		Namespace:   "default",
@@ -456,7 +451,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	//====== VERIFICATION OF SERVICE DELETE
 	// Now we have cleared the layer 2 queue for both the models. Let's delete the service.
 
-	integrationtest.DelEPorEPS(t, "default", svcName)
+	integrationtest.DelEPS(t, "default", svcName)
 	err = KubeClient.CoreV1().Services("default").Delete(context.TODO(), svcName, metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Couldn't DELETE the Service %v", err)
@@ -477,7 +472,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 		t.Fatalf("Could not find model on service delete: %v", err)
 	}
 
-	integrationtest.CreateEPorEPS(t, "default", svcName, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, "default", svcName, false, false, "1.1.1")
 
 	//====== VERIFICATION OF ONE INGRESS DELETE
 	// Now let's delete one ingress and expect the update for that.
@@ -522,7 +517,7 @@ func TestMultiIngressToSameSvc(t *testing.T) {
 	}
 	//====== VERIFICATION OF ONE ENDPOINT DELETE
 
-	integrationtest.DelEPorEPS(t, "default", svcName)
+	integrationtest.DelEPS(t, "default", svcName)
 	integrationtest.PollForCompletion(t, modelName, 5)
 	// Deletion should also give us the affected ingress objects
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
@@ -702,7 +697,7 @@ func TestMultiPortServiceIngress(t *testing.T) {
 	svcName := objNameMap.GenerateName("avisvc")
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.CreateSVC(t, "default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, true)
-	integrationtest.CreateEPorEPS(t, "default", svcName, true, true, "1.1.1")
+	integrationtest.CreateEPS(t, "default", svcName, true, true, "1.1.1")
 	ingrFake := (integrationtest.FakeIngress{
 		Name:        "ingress-multipath",
 		Namespace:   "default",
@@ -912,7 +907,7 @@ func TestDeleteBackendService(t *testing.T) {
 
 	// Delete the service
 	integrationtest.DelSVC(t, "default", svcName)
-	integrationtest.DelEPorEPS(t, "default", svcName)
+	integrationtest.DelEPS(t, "default", svcName)
 	found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -985,7 +980,7 @@ func TestUpdateBackendService(t *testing.T) {
 	// Update the service
 
 	integrationtest.CreateSVC(t, "default", svcName2, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, "default", svcName2, false, false, "2.2.2")
+	integrationtest.CreateEPS(t, "default", svcName2, false, false, "2.2.2")
 
 	_, err = (integrationtest.FakeIngress{
 		Name:        "ingress-backend-svc",
@@ -1018,7 +1013,7 @@ func TestUpdateBackendService(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.DelSVC(t, "default", svcName)
-	integrationtest.DelEPorEPS(t, "default", svcName)
+	integrationtest.DelEPS(t, "default", svcName)
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
 	TearDownTestForIngress(t, svcName, modelName)
@@ -1073,7 +1068,7 @@ func TestL2ChecksumsUpdate(t *testing.T) {
 	}
 
 	integrationtest.CreateSVC(t, "default", svcName2, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, "default", svcName2, false, false, "2.2.2")
+	integrationtest.CreateEPS(t, "default", svcName2, false, false, "2.2.2")
 	secretName2 := secretName + "-new"
 	integrationtest.AddSecret(secretName2, "default", "tlsCert-new", "tlsKey")
 
@@ -1128,7 +1123,7 @@ func TestL2ChecksumsUpdate(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.DelSVC(t, "default", svcName2)
-	integrationtest.DelEPorEPS(t, "default", svcName2)
+	integrationtest.DelEPS(t, "default", svcName2)
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), secretName, metav1.DeleteOptions{})
 	KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), secretName2, metav1.DeleteOptions{})
 	VerifySNIIngressDeletion(t, g, aviModel, 0)
@@ -2262,7 +2257,7 @@ func TestScaleEndpoints(t *testing.T) {
 	} else {
 		t.Fatalf("Could not find model: %s", modelName)
 	}
-	integrationtest.ScaleCreateEPorEPS(t, "default", svcName)
+	integrationtest.ScaleCreateEPS(t, "default", svcName)
 	found, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	if found {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -2926,7 +2921,7 @@ func TestV6BackendService(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	integrationtest.CreateEPorEPS(t, "default", svcName, false, false, "ff06::")
+	integrationtest.CreateEPS(t, "default", svcName, false, false, "ff06::")
 
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:        "ingress-v6-backend-svc",
@@ -2954,7 +2949,7 @@ func TestV6BackendService(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.DelSVC(t, "default", svcName)
-	integrationtest.DelEPorEPS(t, "default", svcName)
+	integrationtest.DelEPS(t, "default", svcName)
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
 	TearDownTestForIngress(t, svcName, modelName)
@@ -2974,7 +2969,7 @@ func TestDualStackBackendService(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	integrationtest.CreateEPorEPS(t, "default", svcName, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, "default", svcName, false, false, "1.1.1")
 
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:        "ingress-ds-backend-svc",
@@ -3002,7 +2997,7 @@ func TestDualStackBackendService(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.DelSVC(t, "default", svcName)
-	integrationtest.DelEPorEPS(t, "default", svcName)
+	integrationtest.DelEPS(t, "default", svcName)
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
 	TearDownTestForIngress(t, svcName, modelName)
@@ -3023,7 +3018,7 @@ func TestDualStackMultipleBackendService(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	integrationtest.CreateEPorEPS(t, "default", svcName, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, "default", svcName, false, false, "1.1.1")
 
 	v6Svc := integrationtest.ConstructService("default", svcName2, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false, make(map[string]string), "")
 	v6Svc.Spec.IPFamilies = []corev1.IPFamily{"IPv6"}
@@ -3032,7 +3027,7 @@ func TestDualStackMultipleBackendService(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	integrationtest.CreateEPorEPS(t, "default", svcName2, false, false, "ff06::")
+	integrationtest.CreateEPS(t, "default", svcName2, false, false, "ff06::")
 
 	ingrFake1 := (integrationtest.FakeIngress{
 		Name:        "ingress-ds-multipath",
@@ -3089,9 +3084,9 @@ func TestDualStackMultipleBackendService(t *testing.T) {
 		t.Fatalf("Couldn't DELETE the Ingress %v", err)
 	}
 	integrationtest.DelSVC(t, "default", svcName)
-	integrationtest.DelEPorEPS(t, "default", svcName)
+	integrationtest.DelEPS(t, "default", svcName)
 	integrationtest.DelSVC(t, "default", svcName2)
-	integrationtest.DelEPorEPS(t, "default", svcName2)
+	integrationtest.DelEPS(t, "default", svcName2)
 	VerifyIngressDeletion(t, g, aviModel, 0)
 
 	TearDownTestForIngress(t, svcName, modelName)

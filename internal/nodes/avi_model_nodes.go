@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -1351,6 +1351,7 @@ type AviVSVIPNode struct {
 	SecurePassthroughNode   *AviVsNode
 	InsecurePassthroughNode *AviVsNode
 	T1Lr                    string
+	LBVipType               string
 }
 
 func (v *AviVSVIPNode) GetCheckSum() uint32 {
@@ -1584,25 +1585,72 @@ func (v *AviPkiProfileNode) CalculateCheckSum() {
 	v.CloudConfigCksum = checksum
 }
 
+type AviApplicationPersistenceProfileNode struct {
+	Name                         string
+	Tenant                       string
+	CloudConfigCksum             uint32
+	AviMarkers                   utils.AviObjectMarkers
+	PersistenceType              string
+	HTTPCookiePersistenceProfile *HTTPCookiePersistenceProfileNode
+}
+
+type HTTPCookiePersistenceProfileNode struct {
+	CookieName         string
+	Timeout            *int32
+	IsPersistentCookie *bool
+}
+
+func (v *AviApplicationPersistenceProfileNode) GetNodeType() string {
+	return lib.ApplicationPersistenceProfileNode
+}
+
+func (v *AviApplicationPersistenceProfileNode) CopyNode() AviModelNode {
+	newNode := AviApplicationPersistenceProfileNode{}
+	bytes, err := json.Marshal(v)
+	if err != nil {
+		utils.AviLog.Warnf("Unable to marshal AviApplicationPersistenceProfileNode: %s", err)
+	}
+	err = json.Unmarshal(bytes, &newNode)
+	if err != nil {
+		utils.AviLog.Warnf("Unable to unmarshal AviApplicationPersistenceProfileNode: %s", err)
+	}
+	return &newNode
+}
+func (v *AviApplicationPersistenceProfileNode) GetCheckSum() uint32 {
+	v.CalculateCheckSum()
+	return v.CloudConfigCksum
+}
+
+func (v *AviApplicationPersistenceProfileNode) CalculateCheckSum() {
+	var checksum uint32 = 0
+	checksum += lib.PersistenceProfileChecksum(v.Name, v.PersistenceType, v.AviMarkers, nil, false)
+	if v.HTTPCookiePersistenceProfile != nil {
+		cookieProfile := v.HTTPCookiePersistenceProfile
+		checksum += lib.HTTPCookiePersistenceProfileChecksum(cookieProfile.CookieName, cookieProfile.Timeout, cookieProfile.IsPersistentCookie)
+	}
+	v.CloudConfigCksum = checksum
+}
+
 type AviPoolNode struct {
-	Name                     string
-	Tenant                   string
-	CloudConfigCksum         uint32
-	Port                     int32
-	TargetPort               intstr.IntOrString
-	PortName                 string
-	Servers                  []AviPoolMetaServer
-	Protocol                 string
-	IngressName              string
-	PriorityLabel            string
-	ServiceMetadata          lib.ServiceMetadataObj
-	SniEnabled               bool
-	PkiProfile               *AviPkiProfileNode
-	NetworkPlacementSettings map[string]lib.NodeNetworkMap
-	VrfContext               string
-	T1Lr                     string // Only applicable to NSX-T cloud, if this value is set, we automatically should unset the VRF context value.
-	AviMarkers               utils.AviObjectMarkers
-	AttachedWithSharedVS     bool
+	Name                          string
+	Tenant                        string
+	CloudConfigCksum              uint32
+	Port                          int32
+	TargetPort                    intstr.IntOrString
+	PortName                      string
+	Servers                       []AviPoolMetaServer
+	Protocol                      string
+	IngressName                   string
+	PriorityLabel                 string
+	ServiceMetadata               lib.ServiceMetadataObj
+	SniEnabled                    bool
+	PkiProfile                    *AviPkiProfileNode
+	ApplicationPersistenceProfile *AviApplicationPersistenceProfileNode
+	NetworkPlacementSettings      map[string]lib.NodeNetworkMap
+	VrfContext                    string
+	T1Lr                          string // Only applicable to NSX-T cloud, if this value is set, we automatically should unset the VRF context value.
+	AviMarkers                    utils.AviObjectMarkers
+	AttachedWithSharedVS          bool
 
 	AviPoolCommonFields
 
@@ -1700,6 +1748,10 @@ func (v *AviPoolNode) CalculateCheckSum() {
 
 	if v.PkiProfile != nil {
 		checksum += v.PkiProfile.GetCheckSum()
+	}
+
+	if v.ApplicationPersistenceProfile != nil {
+		checksum += v.ApplicationPersistenceProfile.GetCheckSum()
 	}
 
 	if v.ApplicationPersistenceProfileRef != nil {

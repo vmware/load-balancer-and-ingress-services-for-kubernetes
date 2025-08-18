@@ -518,3 +518,9 @@ All notable changes to this project will be documented in this file. The format 
 - Fix: AKO does not apply hostrule with Shared VS FQDN if there is no DNS present in the cloud.
 - Fix: When service type is changed from Loadbalancer to ClusterIP and reverted, AKO does not create the VirtualService.
 - Fix: If the tenant name contains characters outside the range of (0-9/A-Z/a-z/-/_), AKO fails to create shared SNI parent VS VIPs.
+
+## AKO-1.13.3
+
+### Added
+- AKO now claims support for Kubernetes 1.33.
+- Support for enabling VPC mode in ako with NSX-T Cloud

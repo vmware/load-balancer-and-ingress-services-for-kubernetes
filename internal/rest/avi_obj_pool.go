@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -126,6 +126,10 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	if pool_meta.PkiProfile != nil {
 		pkiProfileName := "/api/pkiprofile?name=" + pool_meta.PkiProfile.Name
 		pool.PkiProfileRef = &pkiProfileName
+	}
+	if pool_meta.ApplicationPersistenceProfile != nil {
+		appPersProfileName := "/api/applicationpersistenceprofile?name=" + pool_meta.ApplicationPersistenceProfile.Name
+		pool.ApplicationPersistenceProfileRef = &appPersProfileName
 	}
 
 	// there are defaults set by the Avi controller internally
@@ -291,10 +295,18 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 			pkiUuid := avicache.ExtractUUID(pkiprof.(string), "pkiprofile-.*.#")
 			pkiName, foundPki := rest.cache.PKIProfileCache.AviCacheGetNameByUuid(pkiUuid)
 			if foundPki {
-				pkiKey = avicache.NamespaceName{Namespace: lib.GetTenant(), Name: pkiName.(string)}
+				pkiKey = avicache.NamespaceName{Namespace: rest_op.Tenant, Name: pkiName.(string)}
 			}
 		}
 
+		var persistentProfileKey avicache.NamespaceName
+		if appPersProfileRef, ok := resp["application_persistence_profile_ref"]; ok && appPersProfileRef != "" {
+			persistentProfileUuid := avicache.ExtractUUID(appPersProfileRef.(string), "applicationpersistenceprofile-.*.#")
+			persistentProfileName, foundPersistentProfile := rest.cache.AppPersProfileCache.AviCacheGetNameByUuid(persistentProfileUuid)
+			if foundPersistentProfile {
+				persistentProfileKey = avicache.NamespaceName{Namespace: rest_op.Tenant, Name: persistentProfileName.(string)}
+			}
+		}
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		oldCacheServiceMetadataCRD := lib.CRDMetadata{}
 		if poolCache, ok := rest.cache.PoolCache.AviCacheGet(k); ok {
@@ -310,6 +322,7 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 			CloudConfigCksum:     cksum,
 			ServiceMetadataObj:   svc_mdata_obj,
 			PkiProfileCollection: pkiKey,
+			PersistenceProfile:   persistentProfileKey,
 			LastModified:         lastModifiedStr,
 		}
 		if lastModifiedStr == "" {

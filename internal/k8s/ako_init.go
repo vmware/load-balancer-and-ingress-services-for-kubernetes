@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -95,14 +95,13 @@ func (c *AviController) CleanupStaleVSes() {
 		status.NewStatusPublisher().ResetStatefulSetAnnotation(status.ObjectDeletionStatus)
 	}
 
+	if _, err := lib.IsClusterNameValid(); err != nil {
+		utils.AviLog.Errorf("AKO cluster name is invalid.")
+		return
+	}
+
 	for tenant := range tenants {
-
 		// Delete Stale objects by deleting model for dummy VS
-		if _, err := lib.IsClusterNameValid(); err != nil {
-			utils.AviLog.Errorf("AKO cluster name is invalid.")
-			return
-		}
-
 		utils.AviLog.Infof("Starting clean up of stale objects")
 		restlayer := rest.NewRestOperations(aviObjCache)
 		staleVSKey := tenant + "/" + lib.DummyVSForStaleData
@@ -660,23 +659,22 @@ func (c *AviController) addIndexers() {
 			},
 		)
 	}
-	if lib.AKOControlConfig().GetEndpointSlicesEnabled() {
-		c.informers.EpSlicesInformer.Informer().AddIndexers(
-			cache.Indexers{
-				discovery.LabelServiceName: func(obj interface{}) ([]string, error) {
-					eps, ok := obj.(*discovery.EndpointSlice)
-					if !ok {
-						utils.AviLog.Debugf("error indexing epslice object by service name")
-						return []string{}, nil
-					}
-					if val, ok := eps.Labels[discovery.LabelServiceName]; ok && val != "" {
-						return []string{eps.Namespace + "/" + val}, nil
-					}
+	c.informers.EpSlicesInformer.Informer().AddIndexers(
+		cache.Indexers{
+			discovery.LabelServiceName: func(obj interface{}) ([]string, error) {
+				eps, ok := obj.(*discovery.EndpointSlice)
+				if !ok {
+					utils.AviLog.Debugf("error indexing epslice object by service name")
 					return []string{}, nil
-				},
+				}
+				if val, ok := eps.Labels[discovery.LabelServiceName]; ok && val != "" {
+					return []string{eps.Namespace + "/" + val}, nil
+				}
+				return []string{}, nil
 			},
-		)
-	}
+		},
+	)
+
 	c.informers.ServiceInformer.Informer().AddIndexers(
 		cache.Indexers{
 			lib.AviSettingServicesIndex: func(obj interface{}) ([]string, error) {
@@ -1297,6 +1295,17 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			}
 		}
 		//Gateway Section
+		gwClassObjs, err := lib.AKOControlConfig().AdvL4Informers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the gatewayclasses during full sync: %s", err)
+			return err
+		}
+		for _, gwClassObj := range gwClassObjs {
+			key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+			nodes.DequeueIngestion(key, true)
+		}
+
 		gatewayObjs, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Errorf("Unable to retrieve the gateways during full sync: %s", err)
@@ -1310,17 +1319,6 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			}
 			key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
 			InformerStatusUpdatesForGateway(key, gatewayObj)
-			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-			nodes.DequeueIngestion(key, true)
-		}
-
-		gwClassObjs, err := lib.AKOControlConfig().AdvL4Informers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the gatewayclasses during full sync: %s", err)
-			return err
-		}
-		for _, gwClassObj := range gwClassObjs {
-			key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
 			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			nodes.DequeueIngestion(key, true)
 		}
