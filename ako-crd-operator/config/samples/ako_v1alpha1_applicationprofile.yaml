@@ -6,7 +6,7 @@ metadata:
     app.kubernetes.io/name: ako-crd-operator
     app.kubernetes.io/managed-by: kustomize
 spec:
-  type: "ApplicationProfileHTTP" # Required. Enum: ApplicationProfileHTTP
+  type: APPLICATION_PROFILE_TYPE_HTTP # Required. Enum: APPLICATION_PROFILE_TYPE_HTTP
   http_profile: # Optional
     connection_multiplexing_enabled: true # Optional, default: true
     xff_enabled: true # Optional, default: true

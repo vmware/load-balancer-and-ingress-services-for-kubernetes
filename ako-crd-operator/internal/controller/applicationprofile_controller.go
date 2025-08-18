@@ -33,15 +33,19 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	avisession "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	controllerutils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
@@ -56,6 +60,11 @@ type ApplicationProfileReconciler struct {
 	ClusterName   string
 }
 
+// GetLogger returns the logger for the reconciler to implement NamespaceHandler interface
+func (r *ApplicationProfileReconciler) GetLogger() *utils.AviLogger {
+	return r.Logger
+}
+
 type ApplicationProfileRequest struct {
 	Name string `json:"name"`
 	akov1alpha1.ApplicationProfileSpec
@@ -65,6 +74,7 @@ type ApplicationProfileRequest struct {
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=applicationprofiles,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=applicationprofiles/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=applicationprofiles/finalizers,verbs=update
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -135,9 +145,24 @@ func (r *ApplicationProfileReconciler) Reconcile(ctx context.Context, req ctrl.R
 // SetupWithManager sets up the controller with the Manager.
 func (r *ApplicationProfileReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&akov1alpha1.ApplicationProfile{}).
-		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		For(&akov1alpha1.ApplicationProfile{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Named("applicationprofile").
+		Watches(
+			&corev1.Namespace{},
+			handler.EnqueueRequestsFromMapFunc(controllerutils.CreateGenericNamespaceHandler(
+				r,
+				"applicationprofile",
+				func() *akov1alpha1.ApplicationProfileList { return &akov1alpha1.ApplicationProfileList{} },
+				func(list *akov1alpha1.ApplicationProfileList) []client.Object {
+					objects := make([]client.Object, len(list.Items))
+					for i, item := range list.Items {
+						objects[i] = &item
+					}
+					return objects
+				},
+			)),
+			builder.WithPredicates(controllerutils.TenantAnnotationNamespacePredicate()),
+		).
 		Complete(r)
 }
 
@@ -145,8 +170,8 @@ func (r *ApplicationProfileReconciler) SetupWithManager(mgr ctrl.Manager) error 
 // The boolean indicates whether the finalizer should be removed (true) or kept (false)
 func (r *ApplicationProfileReconciler) DeleteObject(ctx context.Context, ap *akov1alpha1.ApplicationProfile) (error, bool) {
 	log := utils.LoggerFromContext(ctx)
-	if ap.Status.UUID != "" {
-		if err := r.AviClient.AviSessionDelete(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.ApplicationProfileURL, ap.Status.UUID)), nil, nil); err != nil {
+	if ap.Status.UUID != "" && ap.Status.Tenant != "" {
+		if err := r.AviClient.AviSessionDelete(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.ApplicationProfileURL, ap.Status.UUID)), nil, nil, session.SetOptTenant(ap.Status.Tenant)); err != nil {
 			// Handle 404 as success case - object doesn't exist, which is the desired state for delete
 			if aviError, ok := err.(session.AviError); ok {
 				switch aviError.HttpStatusCode {
@@ -180,6 +205,31 @@ func (r *ApplicationProfileReconciler) DeleteObject(ctx context.Context, ap *ako
 // TODO: Make this function generic
 func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, ap *akov1alpha1.ApplicationProfile) error {
 	log := utils.LoggerFromContext(ctx)
+	namespaceTenant, err := controllerutils.GetTenantInNamespace(ctx, r.Client, ap.Namespace)
+	if err != nil {
+		log.Errorf("error getting tenant in namespace: %s", err.Error())
+		return err
+	}
+
+	// Check if tenant in status differs from tenant in namespace annotation
+	// Only trigger tenant mismatch if status has a tenant set (not for new resources)
+	if ap.Status.Tenant != "" && ap.Status.Tenant != namespaceTenant {
+		log.Infof("Tenant update detected. Status tenant: %s, Namespace tenant: %s. Deleting ApplicationProfile from AVI.", ap.Status.Tenant, namespaceTenant)
+		err, _ := r.DeleteObject(ctx, ap)
+		if err != nil {
+			log.Errorf("Failed to delete ApplicationProfile due to error: %s", err.Error())
+			r.EventRecorder.Event(ap, corev1.EventTypeWarning, "DeletionFailed", fmt.Sprintf("Failed to delete ApplicationProfile due to error: %v", err))
+			return err
+		}
+		// Clear the status to force recreation with correct tenant
+		ap.Status.UUID = ""
+		ap.Status.Tenant = ""
+		ap.Status.BackendObjectName = ""
+		ap.Status.LastUpdated = nil
+		ap.Status.ObservedGeneration = 0
+		log.Info("ApplicationProfile deleted from AVI due to tenant update, status cleared for recreation")
+	}
+
 	apReq := &ApplicationProfileRequest{
 		Name:                   fmt.Sprintf("%s-%s-%s", r.ClusterName, ap.Namespace, ap.Name),
 		ApplicationProfileSpec: ap.Spec,
@@ -187,7 +237,7 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 	}
 	// this is a POST Call
 	if ap.Status.UUID == "" {
-		resp, err := r.createApplicationProfile(ctx, apReq, ap)
+		resp, err := r.createApplicationProfile(ctx, apReq, ap, namespaceTenant)
 		if err != nil {
 			r.EventRecorder.Event(ap, corev1.EventTypeWarning, "CreationFailed", fmt.Sprintf("Failed to create ApplicationProfile on Avi Controller: %v", err))
 			log.Errorf("error creating application profile: %s", err.Error())
@@ -218,7 +268,7 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 			log.Debugf("overwriting applicationprofile")
 		}
 		resp := map[string]interface{}{}
-		if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.ApplicationProfileURL, ap.Status.UUID)), apReq, &resp); err != nil {
+		if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.ApplicationProfileURL, ap.Status.UUID)), apReq, &resp, session.SetOptTenant(namespaceTenant)); err != nil {
 			log.Errorf("error updating application profile %s", err.Error())
 			r.EventRecorder.Event(ap, corev1.EventTypeWarning, "UpdateFailed", fmt.Sprintf("Failed to update ApplicationProfile on Avi Controller: %v", err))
 			return err
@@ -234,6 +284,7 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 		log.Info("succesfully updated application profile")
 	}
 	ap.Status.BackendObjectName = apReq.Name
+	ap.Status.Tenant = namespaceTenant
 	lastUpdated := metav1.Time{Time: time.Now().UTC()}
 	ap.Status.LastUpdated = &lastUpdated
 	ap.Status.ObservedGeneration = ap.Generation
@@ -246,10 +297,10 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 }
 
 // createApplicationProfile will attempt to create a application profile, if it already exists, it will return an object which contains the uuid
-func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Context, apReq *ApplicationProfileRequest, ap *akov1alpha1.ApplicationProfile) (map[string]interface{}, error) {
+func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Context, apReq *ApplicationProfileRequest, ap *akov1alpha1.ApplicationProfile, tenant string) (map[string]interface{}, error) {
 	log := utils.LoggerFromContext(ctx)
 	resp := map[string]interface{}{}
-	if err := r.AviClient.AviSessionPost(utils.GetUriEncoded(constants.ApplicationProfileURL), apReq, &resp); err != nil {
+	if err := r.AviClient.AviSessionPost(utils.GetUriEncoded(constants.ApplicationProfileURL), apReq, &resp, session.SetOptTenant(tenant)); err != nil {
 		log.Errorf("error posting application profile: %s", err.Error())
 		if aviError, ok := err.(session.AviError); ok {
 			if aviError.HttpStatusCode == http.StatusConflict && strings.Contains(aviError.Error(), "already exists") {
@@ -265,7 +316,7 @@ func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Cont
 					return nil, err
 				}
 				log.Info("updating application profile")
-				if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.ApplicationProfileURL, uuid)), apReq, &resp); err != nil {
+				if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.ApplicationProfileURL, uuid)), apReq, &resp, session.SetOptTenant(tenant)); err != nil {
 					log.Errorf("error updating application profile", err.Error())
 					return nil, err
 				}

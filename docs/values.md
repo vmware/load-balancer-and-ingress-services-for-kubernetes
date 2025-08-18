@@ -401,4 +401,3 @@ Specify CPU request for ako-crd-operator
 ### ako-crd-operator.controllerManager.container.resources.requests.memory
 Specify Memory request for ako-crd-operator
 
->>>>>>> e708fb3f2 (AV-235889: Implement deployment of ako-crd-controller (#1752))

@@ -177,6 +177,8 @@ type ApplicationProfileStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 	// BackendObjectName is the name of the backend object
 	BackendObjectName string `json:"backendObjectName,omitempty"`
+	// Tenant is the tenant where the application profile is created
+	Tenant string `json:"tenant,omitempty"`
 }
 
 // +genclient

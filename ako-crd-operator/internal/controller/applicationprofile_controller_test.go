@@ -30,7 +30,9 @@ import (
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/test/mock"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -81,7 +83,7 @@ func TestApplicationProfileController(t *testing.T) {
 				responseUUID := map[string]interface{}{
 					"uuid": "123",
 				}
-				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}) {
+				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params interface{}) {
 					if resp, ok := response.(*map[string]interface{}); ok {
 						*resp = responseUUID
 					}
@@ -107,6 +109,7 @@ func TestApplicationProfileController(t *testing.T) {
 						},
 					},
 					BackendObjectName: "test-cluster-default-test",
+					Tenant:            "admin",
 					LastUpdated:       &metav1.Time{Time: time.Now().Truncate(time.Second)},
 				},
 			},
@@ -126,7 +129,7 @@ func TestApplicationProfileController(t *testing.T) {
 				responseBody := map[string]interface{}{
 					"results": []interface{}{map[string]interface{}{"uuid": "123"}},
 				}
-				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: http.StatusConflict,
 					AviResult: session.AviResult{
 						Message: &[]string{"already exists"}[0],
@@ -137,7 +140,7 @@ func TestApplicationProfileController(t *testing.T) {
 						*resp = responseBody
 					}
 				}).Return(nil).AnyTimes()
-				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}) {
+				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params interface{}) {
 					if resp, ok := response.(*map[string]interface{}); ok {
 						*resp = responseBody
 					}
@@ -163,6 +166,7 @@ func TestApplicationProfileController(t *testing.T) {
 						},
 					},
 					BackendObjectName: "test-cluster-default-test",
+					Tenant:            "admin",
 					LastUpdated:       &metav1.Time{Time: time.Now().Truncate(time.Second)},
 				},
 			},
@@ -182,7 +186,7 @@ func TestApplicationProfileController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			want: &akov1alpha1.ApplicationProfile{
 				ObjectMeta: metav1.ObjectMeta{
@@ -203,6 +207,7 @@ func TestApplicationProfileController(t *testing.T) {
 						},
 					},
 					BackendObjectName: "test-cluster-default-test",
+					Tenant:            "admin",
 					LastUpdated:       &metav1.Time{Time: time.Now().Truncate(time.Second)},
 				},
 			},
@@ -260,7 +265,7 @@ func TestApplicationProfileController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionDelete(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockAviClient.EXPECT().AviSessionDelete(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			want:    nil,
 			wantErr: false,
@@ -278,7 +283,7 @@ func TestApplicationProfileController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionDelete(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionDelete(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: 404,
 				}).AnyTimes()
 			},
@@ -321,7 +326,7 @@ func TestApplicationProfileController(t *testing.T) {
 				cache.EXPECT().GetObjectByUUID(gomock.Any(), "123").Return(nil, false).AnyTimes()
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			want: &akov1alpha1.ApplicationProfile{
 				ObjectMeta: metav1.ObjectMeta{
@@ -343,6 +348,7 @@ func TestApplicationProfileController(t *testing.T) {
 						},
 					},
 					BackendObjectName:  "test-cluster-default-test",
+					Tenant:             "admin",
 					LastUpdated:        &metav1.Time{Time: time.Now().Truncate(time.Second)},
 					ObservedGeneration: 1,
 				},
@@ -366,7 +372,7 @@ func TestApplicationProfileController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			want: &akov1alpha1.ApplicationProfile{
 				ObjectMeta: metav1.ObjectMeta{
@@ -388,6 +394,7 @@ func TestApplicationProfileController(t *testing.T) {
 						},
 					},
 					BackendObjectName:  "test-cluster-default-test",
+					Tenant:             "admin",
 					LastUpdated:        &metav1.Time{Time: time.Now().Truncate(time.Second)},
 					ObservedGeneration: 1,
 				},
@@ -406,7 +413,7 @@ func TestApplicationProfileController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: 500,
 					AviResult: session.AviResult{
 						Message: &[]string{"internal server error"}[0],
@@ -427,7 +434,7 @@ func TestApplicationProfileController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: http.StatusConflict,
 					AviResult: session.AviResult{
 						Message: &[]string{"already exists"}[0],
@@ -452,7 +459,7 @@ func TestApplicationProfileController(t *testing.T) {
 				responseBody := map[string]interface{}{
 					"results": []interface{}{}, // Empty results to cause extractUUID to fail
 				}
-				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: http.StatusConflict,
 					AviResult: session.AviResult{
 						Message: &[]string{"already exists"}[0],
@@ -481,7 +488,7 @@ func TestApplicationProfileController(t *testing.T) {
 				responseBody := map[string]interface{}{
 					"results": []interface{}{map[string]interface{}{"uuid": "123"}},
 				}
-				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: http.StatusConflict,
 					AviResult: session.AviResult{
 						Message: &[]string{"already exists"}[0],
@@ -492,7 +499,7 @@ func TestApplicationProfileController(t *testing.T) {
 						*resp = responseBody
 					}
 				}).Return(nil).AnyTimes()
-				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any()).Return(errors.New("PUT failed")).AnyTimes()
+				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("PUT failed")).AnyTimes()
 			},
 			want:    nil,
 			wantErr: true,
@@ -511,7 +518,7 @@ func TestApplicationProfileController(t *testing.T) {
 				responseUUID := map[string]interface{}{
 					"invalid": "response", // Invalid response to cause extractUUID to fail
 				}
-				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}) {
+				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params interface{}) {
 					if resp, ok := response.(*map[string]interface{}); ok {
 						*resp = responseUUID
 					}
@@ -534,7 +541,7 @@ func TestApplicationProfileController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any()).Return(errors.New("PUT failed")).AnyTimes()
+				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("PUT failed")).AnyTimes()
 			},
 			want:    nil,
 			wantErr: true,
@@ -548,11 +555,12 @@ func TestApplicationProfileController(t *testing.T) {
 					DeletionTimestamp: &metav1.Time{Time: time.Now().Truncate(time.Second)},
 				},
 				Status: akov1alpha1.ApplicationProfileStatus{
-					UUID: "123",
+					UUID:   "123",
+					Tenant: "admin",
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionDelete(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionDelete(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: 500,
 					AviResult: session.AviResult{
 						Message: &[]string{"server error"}[0],
@@ -572,11 +580,12 @@ func TestApplicationProfileController(t *testing.T) {
 					ResourceVersion:   "1000",
 				},
 				Status: akov1alpha1.ApplicationProfileStatus{
-					UUID: "123",
+					UUID:   "123",
+					Tenant: "admin",
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionDelete(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionDelete(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: 403,
 					AviResult: session.AviResult{
 						Message: &[]string{"Cannot delete, object is referred by: ['VirtualService custom-vs', 'Pool custom-pool']"}[0],
@@ -601,6 +610,7 @@ func TestApplicationProfileController(t *testing.T) {
 							Message:            "Cannot delete, object is referred by: ['VirtualService custom-vs', 'Pool custom-pool']",
 						},
 					},
+					Tenant: "admin",
 				},
 			},
 			wantErr: false, // 403 doesn't cause requeue, it sets condition and waits
@@ -616,7 +626,7 @@ func TestApplicationProfileController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: 400, // Non-retryable error
 					AviResult: session.AviResult{
 						Message: &[]string{"bad request"}[0],
@@ -653,7 +663,12 @@ func TestApplicationProfileController(t *testing.T) {
 			// Create fake k8s client
 			scheme := runtime.NewScheme()
 			_ = akov1alpha1.AddToScheme(scheme)
-			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.ap).WithStatusSubresource(tt.ap).Build()
+			_ = corev1.AddToScheme(scheme)
+
+			// Create namespace object with tenant annotation
+			namespace := createNamespaceWithTenant(tt.ap.Namespace)
+
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.ap, namespace).WithStatusSubresource(tt.ap).Build()
 
 			// Create mock AVI client
 			mockAviClient := mock.NewMockAviClientInterface(gomock.NewController(t))
@@ -717,6 +732,7 @@ func TestApplicationProfileController(t *testing.T) {
 
 // TestApplicationProfileControllerKubernetesError tests error scenarios in Reconcile function
 func TestApplicationProfileControllerKubernetesError(t *testing.T) {
+
 	tests := []struct {
 		name    string
 		setup   func() (*fake.ClientBuilder, ctrl.Request)
@@ -729,9 +745,13 @@ func TestApplicationProfileControllerKubernetesError(t *testing.T) {
 				// Create a client without the resource to simulate a different kind of error
 				scheme := runtime.NewScheme()
 				_ = akov1alpha1.AddToScheme(scheme)
+				_ = corev1.AddToScheme(scheme)
+
+				// Create namespace object with tenant annotation
+				namespace := createNamespaceWithTenant("default")
 
 				// Create a fake client that will return an error for Get operations
-				builder := fake.NewClientBuilder().WithScheme(scheme).WithInterceptorFuncs(interceptor.Funcs{
+				builder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(namespace).WithInterceptorFuncs(interceptor.Funcs{
 					Get: func(ctx context.Context, client client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						return k8serror.NewNotFound(akov1alpha1.GroupVersion.WithResource("applicationprofiles").GroupResource(), "test")
 					},
@@ -753,8 +773,12 @@ func TestApplicationProfileControllerKubernetesError(t *testing.T) {
 				// Create a client without the resource to simulate a different kind of error
 				scheme := runtime.NewScheme()
 				_ = akov1alpha1.AddToScheme(scheme)
+				_ = corev1.AddToScheme(scheme)
 
-				builder := fake.NewClientBuilder().WithScheme(scheme).WithInterceptorFuncs(interceptor.Funcs{
+				// Create namespace object with tenant annotation
+				namespace := createNamespaceWithTenant("default")
+
+				builder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(namespace).WithInterceptorFuncs(interceptor.Funcs{
 					Get: func(ctx context.Context, client client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						return k8serror.NewInternalError(errors.New("internal server error"))
 					},
@@ -775,13 +799,18 @@ func TestApplicationProfileControllerKubernetesError(t *testing.T) {
 			setup: func() (*fake.ClientBuilder, ctrl.Request) {
 				scheme := runtime.NewScheme()
 				_ = akov1alpha1.AddToScheme(scheme)
+				_ = corev1.AddToScheme(scheme)
 				ap := &akov1alpha1.ApplicationProfile{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test",
 						Namespace: "default",
 					},
 				}
-				builder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ap).WithStatusSubresource(ap).WithInterceptorFuncs(interceptor.Funcs{
+
+				// Create namespace object with tenant annotation
+				namespace := createNamespaceWithTenant("default")
+
+				builder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ap, namespace).WithStatusSubresource(ap).WithInterceptorFuncs(interceptor.Funcs{
 					Update: func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
 						return k8serror.NewInternalError(errors.New("internal server error"))
 					},
@@ -801,6 +830,7 @@ func TestApplicationProfileControllerKubernetesError(t *testing.T) {
 			setup: func() (*fake.ClientBuilder, ctrl.Request) {
 				scheme := runtime.NewScheme()
 				_ = akov1alpha1.AddToScheme(scheme)
+				_ = corev1.AddToScheme(scheme)
 				ap := &akov1alpha1.ApplicationProfile{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:              "test",
@@ -809,7 +839,11 @@ func TestApplicationProfileControllerKubernetesError(t *testing.T) {
 						Finalizers:        []string{"applicationprofile.ako.vmware.com/finalizer"},
 					},
 				}
-				builder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ap).WithStatusSubresource(ap).WithInterceptorFuncs(interceptor.Funcs{
+
+				// Create namespace object with tenant annotation
+				namespace := createNamespaceWithTenant("default")
+
+				builder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ap, namespace).WithStatusSubresource(ap).WithInterceptorFuncs(interceptor.Funcs{
 					Update: func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
 						return k8serror.NewInternalError(errors.New("internal server error"))
 					},
@@ -829,6 +863,7 @@ func TestApplicationProfileControllerKubernetesError(t *testing.T) {
 			setup: func() (*fake.ClientBuilder, ctrl.Request) {
 				scheme := runtime.NewScheme()
 				_ = akov1alpha1.AddToScheme(scheme)
+				_ = corev1.AddToScheme(scheme)
 				ap := &akov1alpha1.ApplicationProfile{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:       "test",
@@ -839,7 +874,11 @@ func TestApplicationProfileControllerKubernetesError(t *testing.T) {
 						UUID: "123",
 					},
 				}
-				builder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ap).WithStatusSubresource(ap).WithInterceptorFuncs(interceptor.Funcs{
+
+				// Create namespace object with tenant annotation
+				namespace := createNamespaceWithTenant("default")
+
+				builder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ap, namespace).WithStatusSubresource(ap).WithInterceptorFuncs(interceptor.Funcs{
 					SubResourceUpdate: func(ctx context.Context, client client.Client, subResourceName string, obj client.Object, opts ...client.SubResourceUpdateOption) error {
 						return k8serror.NewInternalError(errors.New("internal server error"))
 					},
@@ -853,7 +892,7 @@ func TestApplicationProfileControllerKubernetesError(t *testing.T) {
 				return builder, req
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			wantErr: true,
 		},
@@ -886,6 +925,267 @@ func TestApplicationProfileControllerKubernetesError(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// @AI-Generated
+// [Generated by Cursor claude-4-sonnet]
+func TestApplicationProfileControllerTenantChange(t *testing.T) {
+	tests := []struct {
+		name             string
+		initialAP        *akov1alpha1.ApplicationProfile
+		initialNamespace *corev1.Namespace
+		updatedNamespace *corev1.Namespace
+		prepare          func(mockAviClient *mock.MockAviClientInterface)
+		prepareCache     func(cache *mock.MockCacheOperation)
+		expectedTenant   string
+		expectDeletion   bool
+		expectRecreation bool
+		wantErr          bool
+	}{
+		{
+			name: "success: tenant change triggers deletion and recreation",
+			initialAP: &akov1alpha1.ApplicationProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test-ap-tenant-change",
+					Namespace:       "test-namespace",
+					Finalizers:      []string{"applicationprofile.ako.vmware.com/finalizer"},
+					ResourceVersion: "1000",
+				},
+				Spec: akov1alpha1.ApplicationProfileSpec{
+					Type: "APPLICATION_PROFILE_TYPE_HTTP",
+				},
+				Status: akov1alpha1.ApplicationProfileStatus{
+					UUID:   "existing-uuid-123",
+					Tenant: "tenant-a", // Initially set to tenant-a
+				},
+			},
+			initialNamespace: &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-namespace",
+					Annotations: map[string]string{
+						lib.TenantAnnotation: "tenant-a", // Initially tenant-a
+					},
+				},
+			},
+			updatedNamespace: &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-namespace",
+					Annotations: map[string]string{
+						lib.TenantAnnotation: "tenant-b", // Changed to tenant-b
+					},
+				},
+			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				// Expect deletion call for old tenant
+				mockAviClient.EXPECT().AviSessionDelete(
+					gomock.Any(), // URL
+					gomock.Any(), // request
+					gomock.Any(), // response
+					gomock.Any(), // Options - tenant-a
+				).Return(nil).Times(1)
+
+				// Expect creation call for new tenant
+				mockAviClient.EXPECT().AviSessionPost(
+					constants.ApplicationProfileURL,
+					gomock.Any(), // Request body
+					gomock.Any(), // Response
+					gomock.Any(), // Options - tenant-b
+				).DoAndReturn(func(url string, req interface{}, resp interface{}, opts ...interface{}) error {
+					// Simulate successful creation response
+					respMap := resp.(*map[string]interface{})
+					(*respMap)["uuid"] = "new-uuid-456"
+					return nil
+				}).Times(1)
+			},
+			prepareCache: func(cache *mock.MockCacheOperation) {
+				// Expect cache operations
+				cache.EXPECT().GetObjectByUUID(gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
+			},
+			expectedTenant:   "tenant-b",
+			expectDeletion:   true,
+			expectRecreation: true,
+			wantErr:          false,
+		},
+		{
+			name: "success: no tenant change, no deletion",
+			initialAP: &akov1alpha1.ApplicationProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test-ap-no-change",
+					Namespace:       "test-namespace",
+					Finalizers:      []string{"applicationprofile.ako.vmware.com/finalizer"},
+					ResourceVersion: "1000",
+				},
+				Spec: akov1alpha1.ApplicationProfileSpec{
+					Type: "APPLICATION_PROFILE_TYPE_HTTP",
+				},
+				Status: akov1alpha1.ApplicationProfileStatus{
+					UUID:   "existing-uuid-123",
+					Tenant: "tenant-a", // Same tenant
+				},
+			},
+			initialNamespace: &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-namespace",
+					Annotations: map[string]string{
+						lib.TenantAnnotation: "tenant-a", // Same tenant
+					},
+				},
+			},
+			updatedNamespace: &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-namespace",
+					Annotations: map[string]string{
+						lib.TenantAnnotation: "tenant-a", // No change
+					},
+				},
+			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				// Expect update call since the object already exists
+				mockAviClient.EXPECT().AviSessionPut(
+					gomock.Any(), // URL
+					gomock.Any(), // Request body
+					gomock.Any(), // Response
+					gomock.Any(), // Options - tenant-a
+				).Return(nil).Times(1)
+			},
+			prepareCache: func(cache *mock.MockCacheOperation) {
+				cache.EXPECT().GetObjectByUUID(gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
+			},
+			expectedTenant:   "tenant-a",
+			expectDeletion:   false,
+			expectRecreation: false,
+			wantErr:          false,
+		},
+		{
+			name: "success: new resource with tenant annotation",
+			initialAP: &akov1alpha1.ApplicationProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test-ap-new",
+					Namespace:       "test-namespace",
+					Finalizers:      []string{"applicationprofile.ako.vmware.com/finalizer"},
+					ResourceVersion: "1000",
+				},
+				Spec: akov1alpha1.ApplicationProfileSpec{
+					Type: "APPLICATION_PROFILE_TYPE_HTTP",
+				},
+				Status: akov1alpha1.ApplicationProfileStatus{
+					// No UUID or Tenant set (new resource)
+				},
+			},
+			initialNamespace: &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-namespace",
+					Annotations: map[string]string{
+						lib.TenantAnnotation: "tenant-b",
+					},
+				},
+			},
+			updatedNamespace: &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-namespace",
+					Annotations: map[string]string{
+						lib.TenantAnnotation: "tenant-b", // Same tenant
+					},
+				},
+			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				// Expect creation call for the tenant
+				mockAviClient.EXPECT().AviSessionPost(
+					constants.ApplicationProfileURL,
+					gomock.Any(), // Request body
+					gomock.Any(), // Response
+					gomock.Any(), // Options - tenant-b
+				).DoAndReturn(func(url string, req interface{}, resp interface{}, opts ...interface{}) error {
+					// Simulate successful creation response
+					respMap := resp.(*map[string]interface{})
+					(*respMap)["uuid"] = "new-uuid-789"
+					return nil
+				}).Times(1)
+			},
+			prepareCache: func(cache *mock.MockCacheOperation) {
+				cache.EXPECT().GetObjectByUUID(gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
+			},
+			expectedTenant:   "tenant-b",
+			expectDeletion:   false,
+			expectRecreation: true,
+			wantErr:          false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create fake k8s client
+			scheme := runtime.NewScheme()
+			_ = akov1alpha1.AddToScheme(scheme)
+			_ = corev1.AddToScheme(scheme)
+
+			// Start with the updated namespace (simulating the namespace change)
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.initialAP, tt.updatedNamespace).WithStatusSubresource(tt.initialAP).Build()
+
+			// Create mock AVI client
+			mockAviClient := mock.NewMockAviClientInterface(gomock.NewController(t))
+			if tt.prepare != nil {
+				tt.prepare(mockAviClient)
+			}
+
+			mockCache := mock.NewMockCacheOperation(gomock.NewController(t))
+			if tt.prepareCache != nil {
+				tt.prepareCache(mockCache)
+			}
+
+			// Create reconciler
+			reconciler := &ApplicationProfileReconciler{
+				Client:        fakeClient,
+				AviClient:     mockAviClient,
+				Scheme:        scheme,
+				Logger:        utils.AviLog,
+				EventRecorder: record.NewFakeRecorder(10),
+				ClusterName:   "test-cluster",
+				Cache:         mockCache,
+			}
+
+			// Test reconcile
+			ctx := context.Background()
+			req := ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      tt.initialAP.Name,
+					Namespace: tt.initialAP.Namespace,
+				},
+			}
+
+			_, err := reconciler.Reconcile(ctx, req)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			} else {
+				assert.NoError(t, err)
+			}
+
+			// Check final state
+			ap := &akov1alpha1.ApplicationProfile{}
+			err = fakeClient.Get(ctx, req.NamespacedName, ap)
+			assert.NoError(t, err)
+
+			// Verify tenant is correctly set
+			assert.Equal(t, tt.expectedTenant, ap.Status.Tenant, "Tenant should match expected value")
+
+			// For tenant change scenarios, verify the UUID was cleared and recreated
+			if tt.expectDeletion && tt.expectRecreation {
+				assert.NotEmpty(t, ap.Status.UUID, "UUID should be set after recreation")
+				assert.NotEqual(t, "existing-uuid-123", ap.Status.UUID, "UUID should be different after recreation")
+			}
+
+			// For no-change scenarios, verify UUID is preserved
+			if !tt.expectDeletion && !tt.expectRecreation && tt.initialAP.Status.UUID != "" {
+				assert.Equal(t, tt.initialAP.Status.UUID, ap.Status.UUID, "UUID should be preserved when no tenant change")
+			}
+
+			// For new resources, verify UUID is set
+			if tt.expectRecreation && tt.initialAP.Status.UUID == "" {
+				assert.NotEmpty(t, ap.Status.UUID, "UUID should be set for new resource")
 			}
 		})
 	}
