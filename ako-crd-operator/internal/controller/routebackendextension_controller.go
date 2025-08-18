@@ -139,6 +139,11 @@ func (r *RouteBackendExtensionReconciler) SetStatus(rbe *akov1alpha1.RouteBacken
 	rbe.SetRouteBackendExtensionController(constants.AKOCRDController)
 	rbe.Status.Error = error
 	rbe.Status.Status = status
+	if r.Client == nil {
+		log := utils.LoggerFromContext(context.Background())
+		log.Errorf("r.Status() returned nil. Cannot update status for RouteBackendExtension: %s/%s", rbe.Namespace, rbe.Name)
+		return fmt.Errorf("status client is nil")
+	}
 	err := r.Status().Update(context.Background(), rbe)
 	return err
 }

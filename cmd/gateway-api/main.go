@@ -153,7 +153,7 @@ func Initialize() {
 
 	akogatewayk8s.NewInfraSettingCRDInformer()
 
-	if utils.IsVCFCluster() {
+	if utils.IsVCFCluster() { 
 		// AKO will be primary by default in VCF deployments
 		lib.AKOControlConfig().SetAKOInstanceFlag(true)
 		k8s.SharedAviController().InitVCFHandlers(kubeClient, ctrlCh, stopCh)
