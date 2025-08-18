@@ -1330,7 +1330,7 @@ func TestHTTPRouteStatusWithHealthMonitorLifecycle(t *testing.T) {
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	integrationtest.CreateSVC(t, namespace, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, namespace, svcName, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, namespace, svcName, false, false, "1.1.1")
 
 	listeners := akogatewayapitests.GetListenersV1(ports, true, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
@@ -1507,7 +1507,7 @@ func TestHTTPRouteStatusWithCrossNamespaceHealthMonitorDifferentTenant(t *testin
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	integrationtest.CreateSVC(t, namespace, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, namespace, svcName, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, namespace, svcName, false, false, "1.1.1")
 
 	// Create the HealthMonitor namespace and annotate it with a different tenant
 	integrationtest.AddNamespace(t, healthMonitorNamespace, map[string]string{})
@@ -1596,7 +1596,7 @@ func TestHTTPRouteMultpleRouteBackendExtensionSingleBackend(t *testing.T) {
 	}, 60*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
+	integrationtest.CreateEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
 
 	// Create RouteBackendExtension CRs
 	rbe1 := akogatewayapitests.GetFakeDefaultRBEObj(routeBackendExtensionName1, DEFAULT_NAMESPACE, "thisisaviref-hm1")
@@ -1660,7 +1660,7 @@ func TestHTTPRouteMultpleRouteBackendExtensionSingleBackend(t *testing.T) {
 
 	// Clean up
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
-	integrationtest.DelEPorEPS(t, DEFAULT_NAMESPACE, svcName)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName)
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
@@ -1677,7 +1677,7 @@ func TestHTTPRouteStatusWithRouteBackendExtensionLifecycle(t *testing.T) {
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	integrationtest.CreateSVC(t, namespace, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, namespace, svcName, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, namespace, svcName, false, false, "1.1.1")
 
 	listeners := akogatewayapitests.GetListenersV1(ports, true, false)
 	akogatewayapitests.SetupGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
@@ -1900,7 +1900,7 @@ func TestHTTPRouteStatusWithCrossNamespaceRouteBackendExtensionDifferentTenant(t
 
 	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	integrationtest.CreateSVC(t, namespace, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPorEPS(t, namespace, svcName, false, false, "1.1.1")
+	integrationtest.CreateEPS(t, namespace, svcName, false, false, "1.1.1")
 
 	// Create the RouteBackendExtension namespace and annotate it with a different tenant
 	integrationtest.AddNamespace(t, routeBackendExtensionNamespace, map[string]string{})

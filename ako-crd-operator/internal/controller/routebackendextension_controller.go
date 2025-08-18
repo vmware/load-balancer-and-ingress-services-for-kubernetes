@@ -81,7 +81,7 @@ func (r *RouteBackendExtensionReconciler) Reconcile(ctx context.Context, req ctr
 	if !rbe.DeletionTimestamp.IsZero() {
 		// The object is being deleted
 		r.EventRecorder.Event(rbe, corev1.EventTypeNormal, "Deleted", "RouteBackendExtension CRD deleted successfully from Avi Controller")
-		log.Info("Succesfully deleted RouteBackendExtension CRD")
+		log.Info("Successfully deleted RouteBackendExtension CRD")
 		return ctrl.Result{}, nil
 	}
 	// create or update - validate the object
