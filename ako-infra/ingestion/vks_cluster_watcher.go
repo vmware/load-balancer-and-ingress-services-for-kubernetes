@@ -52,13 +52,13 @@ type VKSClusterConfig struct {
 	Username          string
 	Password          string
 	ControllerIP      string
-	CACert            string
 	ControllerVersion string
 
 	// Namespace-specific configuration
 	ServiceEngineGroup string
 	TenantName         string
 	NsxtT1LR           string
+	CloudName          string
 
 	CNIPlugin   string
 	ServiceType string
@@ -461,6 +461,7 @@ type NamespaceConfig struct {
 	ServiceEngineGroup string
 	Tenant             string
 	T1LR               string
+	CloudName          string
 }
 
 // getNamespaceConfig fetches namespace and extracts all required configuration in a single call
@@ -508,11 +509,37 @@ func (w *VKSClusterWatcher) getNamespaceConfig(clusterNamespace string) (*Namesp
 		}
 	}
 
+	cloudName, err := w.getCloudNameFromAKONamespace()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cloud name from AKO namespace: %v", err)
+	}
+
 	return &NamespaceConfig{
 		ServiceEngineGroup: seg,
 		Tenant:             tenant,
 		T1LR:               t1lr,
+		CloudName:          cloudName,
 	}, nil
+}
+
+// getCloudNameFromAKONamespace fetches cloud name from AKO namespace annotation
+func (w *VKSClusterWatcher) getCloudNameFromAKONamespace() (string, error) {
+	akoNamespace := utils.GetAKONamespace()
+	namespace, err := w.kubeClient.CoreV1().Namespaces().Get(context.Background(), akoNamespace, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to get AKO namespace %s: %v", akoNamespace, err)
+	}
+
+	if namespace.Annotations == nil {
+		return "", fmt.Errorf("AKO namespace %s has no annotations", akoNamespace)
+	}
+
+	cloudName, exists := namespace.Annotations[lib.WCPCloud]
+	if !exists || cloudName == "" {
+		return "", fmt.Errorf("AKO namespace %s does not have annotation %s or it is empty", akoNamespace, lib.WCPCloud)
+	}
+
+	return cloudName, nil
 }
 
 // buildVKSClusterConfig builds complete configuration for a VKS cluster
@@ -540,11 +567,6 @@ func (w *VKSClusterWatcher) buildVKSClusterConfig(cluster *unstructured.Unstruct
 		return nil, fmt.Errorf("controller IP not set")
 	}
 
-	ctrlProps, err := lib.GetControllerPropertiesFromSecret(w.kubeClient)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get controller properties from secret: %v", err)
-	}
-
 	cniPlugin, err := w.detectAndValidateCNI(cluster)
 	if err != nil {
 		return nil, fmt.Errorf("CNI detection failed for cluster %s/%s (UID: %s): %v", clusterNamespace, cluster.GetName(), cluster.GetUID(), err)
@@ -559,11 +581,11 @@ func (w *VKSClusterWatcher) buildVKSClusterConfig(cluster *unstructured.Unstruct
 		Username:           clusterCreds.Username,
 		Password:           clusterCreds.Password,
 		ControllerIP:       controllerIP,
-		CACert:             ctrlProps[utils.ENV_CTRL_CADATA],
 		ControllerVersion:  lib.GetControllerVersion(),
 		ServiceEngineGroup: nsConfig.ServiceEngineGroup,
 		TenantName:         nsConfig.Tenant,
 		NsxtT1LR:           nsConfig.T1LR,
+		CloudName:          nsConfig.CloudName,
 		CNIPlugin:          cniPlugin,
 		ServiceType:        serviceType,
 		ClusterName:        clusterNameWithUID,
@@ -573,8 +595,8 @@ func (w *VKSClusterWatcher) buildVKSClusterConfig(cluster *unstructured.Unstruct
 		utils.AviLog.Warnf("Controller version not available for cluster %s/%s (UID: %s)", clusterNamespace, cluster.GetName(), cluster.GetUID())
 	}
 
-	utils.AviLog.Infof("Built configuration for cluster %s/%s (UID: %s): SEG=%s, Tenant=%s, T1LR=%s, CNI=%s, ServiceType=%s",
-		clusterNamespace, cluster.GetName(), cluster.GetUID(), config.ServiceEngineGroup, config.TenantName, config.NsxtT1LR, config.CNIPlugin, config.ServiceType)
+	utils.AviLog.Infof("Built configuration for cluster %s/%s (UID: %s): SEG=%s, Tenant=%s, T1LR=%s, Cloud=%s, CNI=%s, ServiceType=%s",
+		clusterNamespace, cluster.GetName(), cluster.GetUID(), config.ServiceEngineGroup, config.TenantName, config.NsxtT1LR, config.CloudName, config.CNIPlugin, config.ServiceType)
 
 	return config, nil
 }
@@ -679,10 +701,6 @@ func (w *VKSClusterWatcher) buildSecretData(config *VKSClusterConfig) map[string
 		secretData["password"] = []byte(config.Password)
 	}
 
-	if config.CACert != "" {
-		secretData["certificateAuthorityData"] = []byte(config.CACert)
-	}
-
 	if config.ControllerVersion != "" {
 		secretData["controllerVersion"] = []byte(config.ControllerVersion)
 	}
@@ -706,6 +724,8 @@ func (w *VKSClusterWatcher) buildSecretData(config *VKSClusterConfig) map[string
 	if config.ServiceType != "" {
 		secretData["serviceType"] = []byte(config.ServiceType)
 	}
+
+	secretData["cloudName"] = []byte(config.CloudName)
 
 	return secretData
 }
