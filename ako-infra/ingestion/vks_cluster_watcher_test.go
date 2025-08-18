@@ -1627,11 +1627,11 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 				Username:           "admin",
 				Password:           "admin123",
 				ControllerIP:       "10.10.10.10",
-				CACert:             "test-ca-cert",
 				ControllerVersion:  "22.1.3",
 				NsxtT1LR:           "/orgs/test-org/projects/test-project/vpcs/test-vpc",
 				ServiceEngineGroup: "test-seg-group",
 				TenantName:         "test-tenant",
+				CloudName:          "CLOUD_NSXT",
 				CNIPlugin:          "antrea",
 				ServiceType:        "NodePortLocal",
 			},
@@ -1639,7 +1639,7 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 				"username", "password", "controllerIP",
 				"certificateAuthorityData", "controllerVersion", "nsxtT1LR",
 				"serviceEngineGroupName", "tenantName", "clusterName",
-				"cniPlugin", "serviceType",
+				"cloudName", "cniPlugin", "serviceType",
 			},
 			checkValues: map[string]string{
 				"username":                 "admin",
@@ -1650,6 +1650,7 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 				"nsxtT1LR":                 "/orgs/test-org/projects/test-project/vpcs/test-vpc",
 				"serviceEngineGroupName":   "test-seg-group",
 				"tenantName":               "test-tenant",
+				"cloudName":                "CLOUD_NSXT",
 				"cniPlugin":                "antrea",
 				"serviceType":              "NodePortLocal",
 			},
@@ -1660,7 +1661,7 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 				Username:     "admin",
 				Password:     "admin123",
 				ControllerIP: "10.10.10.10",
-				CACert:       "test-ca-cert",
+				CloudName:    "Default-Cloud",
 				CNIPlugin:    "antrea",
 				ServiceType:  "NodePortLocal",
 				// Missing optional fields
@@ -1668,13 +1669,14 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 			expectedFields: []string{
 				"username", "password", "controllerIP",
 				"certificateAuthorityData", "clusterName",
-				"cniPlugin", "serviceType",
+				"cloudName", "cniPlugin", "serviceType",
 			},
 			checkValues: map[string]string{
 				"username":                 "admin",
 				"password":                 "admin123",
 				"controllerIP":             "10.10.10.10",
 				"certificateAuthorityData": "test-ca-cert",
+				"cloudName":                "Default-Cloud",
 				"cniPlugin":                "antrea",
 				"serviceType":              "NodePortLocal",
 			},
@@ -1685,24 +1687,25 @@ func TestVKSClusterWatcher_buildSecretData(t *testing.T) {
 				Username:           "admin",
 				Password:           "admin123",
 				ControllerIP:       "10.10.10.10",
-				CACert:             "test-ca-cert",
 				ControllerVersion:  "",              // Empty
 				NsxtT1LR:           "",              // Empty
 				ServiceEngineGroup: "",              // Empty
 				TenantName:         "",              // Empty
+				CloudName:          "Default-Cloud", // Required field
 				CNIPlugin:          "antrea",        // Required
 				ServiceType:        "NodePortLocal", // Required
 			},
 			expectedFields: []string{
 				"username", "password", "controllerIP",
 				"certificateAuthorityData", "clusterName",
-				"cniPlugin", "serviceType",
+				"cloudName", "cniPlugin", "serviceType",
 			},
 			checkValues: map[string]string{
 				"username":                 "admin",
 				"password":                 "admin123",
 				"controllerIP":             "10.10.10.10",
 				"certificateAuthorityData": "test-ca-cert",
+				"cloudName":                "Default-Cloud",
 				"cniPlugin":                "antrea",
 				"serviceType":              "NodePortLocal",
 			},

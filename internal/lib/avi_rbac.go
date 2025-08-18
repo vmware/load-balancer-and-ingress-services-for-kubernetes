@@ -88,6 +88,7 @@ var akoTenantPermissions = []AKOPermission{
 
 var akoAllTenantsPermissions = []AKOPermission{
 	{"PERMISSION_CONTROLLER", "READ_ACCESS"},
+	{"PERMISSION_TENANT", "READ_ACCESS"},
 }
 
 func pointerBool(b bool) *bool {
