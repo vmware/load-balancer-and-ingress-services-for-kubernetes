@@ -19,6 +19,7 @@ data:
   vipPerNamespace: {{ .Values.AKOSettings.vipPerNamespace | quote }}
   tenantName: {{ .Values.ControllerSettings.tenantName | quote }}
   vrfName: {{ .Values.ControllerSettings.vrfName | quote }}
+  dedicatedTenantMode: {{ .Values.ControllerSettings.dedicatedTenantMode | quote }}
   {{ if .Values.NetworkSettings.defaultDomain }}
   defaultDomain: {{ .Values.NetworkSettings.defaultDomain | quote }}
   {{ else }}
