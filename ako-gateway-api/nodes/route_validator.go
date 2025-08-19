@@ -576,9 +576,7 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		// USe case 1: Shouldn't contain mor than 1 *
 		// USe case 2: * should be at the beginning only
 		if hostInListener == nil || *hostInListener == "" || *hostInListener == utils.WILDCARD {
-			if len(httpRoute.Spec.Hostnames) != 0 {
-				matched = true
-			} else if dedicatedGatewayMode {
+			if len(httpRoute.Spec.Hostnames) != 0 || dedicatedGatewayMode {
 				matched = true
 			}
 		} else {
@@ -670,7 +668,8 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 			return err
 		}
 		if dedicatedGatewayMode {
-			if gatewayStatus.Listeners[i].AttachedRoutes > 1 {
+			_, routeTypeNsNameList := akogatewayapiobjects.GatewayApiLister().GetGatewayToRoute(gwNsName)
+			if len(routeTypeNsNameList) > 1 || (len(routeTypeNsNameList) == 1 && routeTypeNsNameList[0] != routeTypeNsName) {
 				utils.AviLog.Errorf("key: %s, msg: Dedicated Gateway Mode is enabled. Only one route is allowed per listener in Gateway %s", key, gateway.Name)
 				err := fmt.Errorf("Dedicated Gateway Mode is enabled. Only one route is allowed per listener in Gateway")
 				defaultCondition.
