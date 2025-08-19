@@ -81,7 +81,7 @@ func (r *RouteBackendExtensionReconciler) Reconcile(ctx context.Context, req ctr
 	if !rbe.DeletionTimestamp.IsZero() {
 		// The object is being deleted
 		r.EventRecorder.Event(rbe, corev1.EventTypeNormal, "Deleted", "RouteBackendExtension CRD deleted successfully from Avi Controller")
-		log.Info("Succesfully deleted RouteBackendExtension CRD")
+		log.Info("Successfully deleted RouteBackendExtension CRD")
 		return ctrl.Result{}, nil
 	}
 	// create or update - validate the object
@@ -139,6 +139,11 @@ func (r *RouteBackendExtensionReconciler) SetStatus(rbe *akov1alpha1.RouteBacken
 	rbe.SetRouteBackendExtensionController(constants.AKOCRDController)
 	rbe.Status.Error = error
 	rbe.Status.Status = status
+	if r.Client == nil {
+		log := utils.LoggerFromContext(context.Background())
+		log.Errorf("r.Status() returned nil. Cannot update status for RouteBackendExtension: %s/%s", rbe.Namespace, rbe.Name)
+		return fmt.Errorf("status client is nil")
+	}
 	err := r.Status().Update(context.Background(), rbe)
 	return err
 }

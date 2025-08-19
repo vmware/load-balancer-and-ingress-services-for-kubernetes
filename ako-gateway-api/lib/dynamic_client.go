@@ -354,7 +354,7 @@ func ParseRouteBackendExtensionCR(key, namespace, name string, poolNode *nodes.A
 		return err
 	}
 	_, status, err := IsRouteBackendExtensionProcessed(key, namespace, name, obj)
-	if status != lib.StatusAccepted {
+	if status != lib.StatusAccepted || err != nil {
 		return fmt.Errorf("RouteBackendExtension CR %s/%s is not accepted", namespace, name)
 	}
 	specJSON, found, err := unstructured.NestedMap(obj.UnstructuredContent(), "spec")
