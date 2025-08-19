@@ -69,19 +69,6 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) (bool, bool) {
 
 	gatewayStatus := gateway.Status.DeepCopy()
 
-	if akogatewayapilib.IsGatewayInDedicatedMode(gateway.Namespace) {
-		for _, listener := range spec.Listeners {
-			if listener.Hostname != nil {
-				utils.AviLog.Errorf("key: %s, msg: Hostname is not supported in dedicated mode for gateway %+v", key, gateway.Name)
-				defaultCondition.
-					SetIn(&gatewayStatus.Conditions)
-				programmedCondition.
-					SetIn(&gatewayStatus.Conditions)
-				akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
-				return false, allowedRoutesAll
-			}
-		}
-	}
 	// has 1 or more listeners
 	if len(spec.Listeners) == 0 {
 		utils.AviLog.Errorf("key: %s, msg: no listeners found in gateway %+v", key, gateway.Name)
@@ -121,10 +108,10 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) (bool, bool) {
 	}
 
 	gatewayStatus.Listeners = make([]gatewayv1.ListenerStatus, len(gateway.Spec.Listeners))
-
+	gatewayInDedicatedMode := akogatewayapilib.IsGatewayInDedicatedMode(gateway.Namespace)
 	var validListenerCount int
 	for index := range spec.Listeners {
-		if isValidListener(key, gateway, gatewayStatus, index) {
+		if isValidListener(key, gateway, gatewayStatus, index, gatewayInDedicatedMode) {
 			if !allowedRoutesAll {
 				if spec.Listeners[index].AllowedRoutes != nil && spec.Listeners[index].AllowedRoutes.Namespaces != nil && spec.Listeners[index].AllowedRoutes.Namespaces.From != nil {
 					if string(*spec.Listeners[index].AllowedRoutes.Namespaces.From) == akogatewayapilib.AllowedRoutesNamespaceFromAll {
@@ -168,8 +155,7 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) (bool, bool) {
 	return true, allowedRoutesAll
 }
 
-func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gatewayv1.GatewayStatus, index int) bool {
-
+func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gatewayv1.GatewayStatus, index int, gatewayInDedicatedMode bool) bool {
 	listener := gateway.Spec.Listeners[index]
 	gatewayStatus.Listeners[index].Name = gateway.Spec.Listeners[index].Name
 	gatewayStatus.Listeners[index].SupportedKinds = akogatewayapilib.SupportedKinds[listener.Protocol]
@@ -200,6 +186,30 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 		programmedCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
 		gatewayStatus.Listeners[index].SupportedKinds = akogatewayapilib.SupportedKinds[gatewayv1.HTTPSProtocolType]
 		return false
+	}
+
+	if gatewayInDedicatedMode {
+		if listener.Hostname != nil {
+			utils.AviLog.Errorf("key: %s, msg: Hostname is not supported in dedicated mode for gateway %+v", key, gateway.Name)
+			defaultCondition.
+				Message("Hostname is not supported in dedicated mode").
+				SetIn(&gatewayStatus.Listeners[index].Conditions)
+			programmedCondition.
+				SetIn(&gatewayStatus.Listeners[index].Conditions)
+			return false
+		}
+		if listener.AllowedRoutes != nil &&
+			listener.AllowedRoutes.Namespaces != nil &&
+			listener.AllowedRoutes.Namespaces.From != nil &&
+			string(*listener.AllowedRoutes.Namespaces.From) == akogatewayapilib.AllowedRoutesNamespaceFromAll {
+			utils.AviLog.Errorf("key: %s, msg: Routes from all namespaces is not supported in dedicated mode for gateway %+v", key, gateway.Name)
+			defaultCondition.
+				Message("Routes from all namespaces is not supported in dedicated mode").
+				SetIn(&gatewayStatus.Listeners[index].Conditions)
+			programmedCondition.
+				SetIn(&gatewayStatus.Listeners[index].Conditions)
+			return false
+		}
 	}
 
 	// hostname should not overlap with hostname of an existing gateway
