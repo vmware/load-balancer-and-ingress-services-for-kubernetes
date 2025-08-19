@@ -33,6 +33,7 @@ import (
 	akoerrors "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/errors"
 	avisession "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	controllerutils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
@@ -61,6 +62,11 @@ type HealthMonitorReconciler struct {
 	ClusterName   string
 }
 
+// GetLogger returns the logger for the reconciler to implement NamespaceHandler interface
+func (r *HealthMonitorReconciler) GetLogger() *utils.AviLogger {
+	return r.Logger
+}
+
 type HealthMonitorRequest struct {
 	Name string `json:"name"`
 	akov1alpha1.HealthMonitorSpec
@@ -77,6 +83,7 @@ type HealthMonitorAuthRequest struct {
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=healthmonitors/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=healthmonitors/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -212,14 +219,31 @@ func (r *HealthMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			// Use a predicate to only watch for secrets of the correct type.
 			builder.WithPredicates(predicate.NewPredicateFuncs(healthMonitorSecretPredicate)),
 		).
+		Watches(
+			&corev1.Namespace{},
+			handler.EnqueueRequestsFromMapFunc(controllerutils.CreateGenericNamespaceHandler(
+				r,
+				"healthmonitor",
+				func() *akov1alpha1.HealthMonitorList { return &akov1alpha1.HealthMonitorList{} },
+				func(list *akov1alpha1.HealthMonitorList) []client.Object {
+					objects := make([]client.Object, len(list.Items))
+					for i, item := range list.Items {
+						objects[i] = &item
+					}
+					return objects
+				},
+			)),
+			builder.WithPredicates(controllerutils.TenantAnnotationNamespacePredicate()),
+		).
 		Complete(r)
 }
 
-// SetupWithManager sets up the controller with the Manager.
+// DeleteObject deletes the HealthMonitor from Avi Controller and returns (error, bool)
+// The boolean indicates whether the finalizer should be removed (true) or kept (false)
 func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alpha1.HealthMonitor) (error, bool) {
 	log := utils.LoggerFromContext(ctx)
-	if hm.Status.UUID != "" {
-		if err := r.AviClient.AviSessionDelete(fmt.Sprintf("%s/%s", constants.HealthMonitorURL, hm.Status.UUID), nil, nil); err != nil {
+	if hm.Status.UUID != "" && hm.Status.Tenant != "" {
+		if err := r.AviClient.AviSessionDelete(fmt.Sprintf("%s/%s", constants.HealthMonitorURL, hm.Status.UUID), nil, nil, session.SetOptTenant(hm.Status.Tenant)); err != nil {
 			// Handle 404 as success case - object doesn't exist, which is the desired state for delete
 			if aviError, ok := err.(session.AviError); ok {
 				switch aviError.HttpStatusCode {
@@ -255,6 +279,26 @@ func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alp
 // TODO: Make this function generic
 func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *akov1alpha1.HealthMonitor) error {
 	log := utils.LoggerFromContext(ctx)
+	namespaceTenant, err := controllerutils.GetTenantInNamespace(ctx, r.Client, hm.Namespace)
+	if err != nil {
+		log.Errorf("error getting tenant in namespace: %s", err.Error())
+		return err
+	}
+	// Check if tenant in status differs from tenant in namespace annotation
+	// Only trigger tenant update if status has a tenant set (not for new resources)
+	if hm.Status.Tenant != "" && hm.Status.Tenant != namespaceTenant {
+		log.Infof("Tenant update detected. Status tenant: %s, Namespace tenant: %s. Deleting HealthMonitor from AVI.", hm.Status.Tenant, namespaceTenant)
+		err, _ := r.DeleteObject(ctx, hm)
+		if err != nil {
+			log.Errorf("Failed to delete HealthMonitor due to error: %s", err.Error())
+			r.EventRecorder.Event(hm, corev1.EventTypeWarning, "DeletionFailed", fmt.Sprintf("Failed to delete HealthMonitor due to error: %v", err))
+			return err
+		}
+		// Clear the status to force recreation with correct tenant
+		hm.Status = akov1alpha1.HealthMonitorStatus{}
+		log.Info("HealthMonitor deleted from AVI due to tenant update, status cleared for recreation")
+	}
+
 	hmReq := &HealthMonitorRequest{
 		Name:              fmt.Sprintf("%s-%s-%s", r.ClusterName, hm.Namespace, hm.Name),
 		HealthMonitorSpec: hm.Spec,
@@ -271,7 +315,7 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 
 	// this is a POST Call
 	if hm.Status.UUID == "" {
-		resp, err := r.createHealthMonitor(ctx, hmReq, hm)
+		resp, err := r.createHealthMonitor(ctx, hmReq, hm, namespaceTenant)
 		if err != nil {
 			r.EventRecorder.Event(hm, corev1.EventTypeWarning, "CreationFailed", fmt.Sprintf("Failed to create HealthMonitor on Avi Controller: %v", err))
 			log.Errorf("error creating healthmonitor: %s", err.Error())
@@ -319,6 +363,7 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 	}
 	hm.Status.DependencySum = dependencyChecksum
 	hm.Status.BackendObjectName = hmReq.Name
+	hm.Status.Tenant = namespaceTenant
 	lastUpdated := metav1.Time{Time: time.Now().UTC()}
 	hm.Status.LastUpdated = &lastUpdated
 	hm.Status.ObservedGeneration = hm.Generation
@@ -331,10 +376,10 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 }
 
 // createHealthMonitor will attempt to create a health monitor, if it already exists, it will return an object which contains the uuid
-func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hmReq *HealthMonitorRequest, hm *akov1alpha1.HealthMonitor) (map[string]interface{}, error) {
+func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hmReq *HealthMonitorRequest, hm *akov1alpha1.HealthMonitor, tenant string) (map[string]interface{}, error) {
 	log := utils.LoggerFromContext(ctx)
 	resp := map[string]interface{}{}
-	if err := r.AviClient.AviSessionPost(utils.GetUriEncoded(constants.HealthMonitorURL), hmReq, &resp); err != nil {
+	if err := r.AviClient.AviSessionPost(utils.GetUriEncoded(constants.HealthMonitorURL), hmReq, &resp, session.SetOptTenant(tenant)); err != nil {
 		log.Errorf("error posting healthmonitor: %s", err.Error())
 		if aviError, ok := err.(session.AviError); ok {
 			if aviError.HttpStatusCode == http.StatusConflict && strings.Contains(aviError.Error(), "already exists") {
@@ -350,7 +395,7 @@ func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hmReq
 					return nil, err
 				}
 				log.Info("updating healthmonitor")
-				if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.HealthMonitorURL, uuid)), hmReq, &resp); err != nil {
+				if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.HealthMonitorURL, uuid)), hmReq, &resp, session.SetOptTenant(tenant)); err != nil {
 					log.Errorf("error updating healthmonitor: %s", err.Error())
 					return nil, err
 				}

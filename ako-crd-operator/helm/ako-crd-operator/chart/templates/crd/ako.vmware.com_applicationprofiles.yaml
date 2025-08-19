@@ -279,6 +279,10 @@ spec:
                   operator
                 format: int64
                 type: integer
+              tenant:
+                description: Tenant is the tenant where the application profile is
+                  created
+                type: string
               uuid:
                 description: UUID is unique identifier of the application profile
                   object

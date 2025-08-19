@@ -133,7 +133,7 @@ func TestCreateAviClients(t *testing.T) {
 			prepareMock: func(mockFactory *mock.MockAviRestClientPoolFactory) {
 				mockClientPool := &utils.AviRestClientPool{}
 				mockFactory.EXPECT().NewAviRestClientPool(
-					1, "10.1.1.1", "admin", "password123", "", "", "ca-data", "", "", nil,
+					1, "10.1.1.1", "admin", "password123", "", "", "ca-data", "admin", "", nil,
 				).Return(mockClientPool, "20.1.1", nil)
 			},
 			wantStatus:     utils.AVIAPI_CONNECTED,
@@ -152,7 +152,7 @@ func TestCreateAviClients(t *testing.T) {
 			prepareMock: func(mockFactory *mock.MockAviRestClientPoolFactory) {
 				mockClientPool := &utils.AviRestClientPool{}
 				mockFactory.EXPECT().NewAviRestClientPool(
-					1, "10.1.1.1", "admin", "", "token123", "", "ca-data", "", "", nil,
+					1, "10.1.1.1", "admin", "", "token123", "", "ca-data", "admin", "", nil,
 				).Return(mockClientPool, "20.1.1", nil)
 			},
 			wantStatus:     utils.AVIAPI_CONNECTED,
@@ -175,7 +175,7 @@ func TestCreateAviClients(t *testing.T) {
 			prepareMock: func(mockFactory *mock.MockAviRestClientPoolFactory) {
 				mockClientPool := &utils.AviRestClientPool{}
 				mockFactory.EXPECT().NewAviRestClientPool(
-					1, "192.168.1.100", "admin", "password123", "", "", "ca-data", "", "", nil,
+					1, "192.168.1.100", "admin", "password123", "", "", "ca-data", "admin", "", nil,
 				).Return(mockClientPool, "20.1.1", nil)
 			},
 			wantStatus:     utils.AVIAPI_CONNECTED,
@@ -193,7 +193,7 @@ func TestCreateAviClients(t *testing.T) {
 			setupControllerIP: func() { lib.SetControllerIP("10.1.1.1") },
 			prepareMock: func(mockFactory *mock.MockAviRestClientPoolFactory) {
 				mockFactory.EXPECT().NewAviRestClientPool(
-					1, "10.1.1.1", "admin", "password123", "", "", "ca-data", "", "", nil,
+					1, "10.1.1.1", "admin", "password123", "", "", "ca-data", "admin", "", nil,
 				).Return(nil, "", errors.New("connection failed"))
 			},
 			wantStatus:     utils.AVIAPI_DISCONNECTED,
@@ -374,7 +374,7 @@ func TestCreateAviClients_VersionFormats(t *testing.T) {
 			// Mock the factory to return success with specific version
 			mockClientPool := &utils.AviRestClientPool{}
 			mockFactory.EXPECT().NewAviRestClientPool(
-				1, "10.1.1.1", "admin", "password123", "", "", "ca-data", "", "", nil,
+				1, "10.1.1.1", "admin", "password123", "", "", "ca-data", "admin", "", nil,
 			).Return(mockClientPool, tc.returnedVersion, nil)
 
 			session.CreateAviClients(context.Background(), 1)
@@ -414,7 +414,7 @@ func TestUpdateAviClients(t *testing.T) {
 			prepareMock: func(mockFactory *mock.MockAviRestClientPoolFactory) {
 				mockClientPool := &utils.AviRestClientPool{}
 				mockFactory.EXPECT().NewAviRestClientPool(
-					2, "10.1.1.1", "admin", "password123", "", "", "ca-data", "", "", nil,
+					2, "10.1.1.1", "admin", "password123", "", "", "ca-data", "admin", "", nil,
 				).Return(mockClientPool, "20.1.1", nil)
 			},
 			wantErr:     false,
@@ -631,7 +631,7 @@ func TestCreateAviClients_VersionHandling(t *testing.T) {
 			}
 
 			mockFactory.EXPECT().NewAviRestClientPool(
-				1, "10.1.1.1", "admin", "password123", "", "", "ca-data", "", "", nil,
+				1, "10.1.1.1", "admin", "password123", "", "", "ca-data", "admin", "", nil,
 			).Return(mockClientPool, tt.factoryReturnVersion, tt.factoryReturnError)
 
 			session.CreateAviClients(context.Background(), 1)

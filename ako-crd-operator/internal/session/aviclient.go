@@ -19,27 +19,27 @@ func NewAviSessionClient(aviClient *clients.AviClient) AviClientInterface {
 type AviClientInterface interface {
 	// currently only required functions are defined here
 	GetAviSession() *session.AviSession
-	AviSessionGet(url string, response interface{}) error
+	AviSessionGet(url string, response interface{}, params ...session.ApiOptionsParams) error
 	AviSessionGetCollectionRaw(url string, params ...session.ApiOptionsParams) (session.AviCollectionResult, error)
-	AviSessionPost(url string, request interface{}, response interface{}) error
-	AviSessionPut(url string, request interface{}, response interface{}) error
-	AviSessionDelete(url string, request interface{}, response interface{}) error
+	AviSessionPost(url string, request interface{}, response interface{}, params ...session.ApiOptionsParams) error
+	AviSessionPut(url string, request interface{}, response interface{}, params ...session.ApiOptionsParams) error
+	AviSessionDelete(url string, request interface{}, response interface{}, params ...session.ApiOptionsParams) error
 }
 
-func (s *AviSessionClient) AviSessionGet(url string, response interface{}) error {
-	return s.AviClient.AviSession.Get(url, response)
+func (s *AviSessionClient) AviSessionGet(url string, response interface{}, params ...session.ApiOptionsParams) error {
+	return s.AviClient.AviSession.Get(url, response, params...)
 }
 
-func (s *AviSessionClient) AviSessionPut(url string, request interface{}, response interface{}) error {
-	return s.AviClient.AviSession.Put(url, request, response)
+func (s *AviSessionClient) AviSessionPut(url string, request interface{}, response interface{}, params ...session.ApiOptionsParams) error {
+	return s.AviClient.AviSession.Put(url, request, response, params...)
 }
 
-func (s *AviSessionClient) AviSessionDelete(url string, request interface{}, response interface{}) error {
+func (s *AviSessionClient) AviSessionDelete(url string, request interface{}, response interface{}, params ...session.ApiOptionsParams) error {
 	return s.AviClient.AviSession.Delete(url, request, response)
 }
 
-func (s *AviSessionClient) AviSessionPost(url string, request interface{}, response interface{}) error {
-	return s.AviClient.AviSession.Post(url, request, response)
+func (s *AviSessionClient) AviSessionPost(url string, request interface{}, response interface{}, params ...session.ApiOptionsParams) error {
+	return s.AviClient.AviSession.Post(url, request, response, params...)
 }
 
 func (s *AviSessionClient) GetAviSession() *session.AviSession {

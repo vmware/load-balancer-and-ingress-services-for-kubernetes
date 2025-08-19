@@ -24,15 +24,18 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/google/uuid"
+	"github.com/vmware/alb-sdk/go/session"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
 	controllerutils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
@@ -51,8 +54,14 @@ type RouteBackendExtensionReconciler struct {
 	ClusterName   string
 }
 
+// GetLogger returns the logger for the reconciler to implement NamespaceHandler interface
+func (r *RouteBackendExtensionReconciler) GetLogger() *utils.AviLogger {
+	return r.Logger
+}
+
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=routebackendextensions,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=routebackendextensions/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -101,32 +110,57 @@ func (r *RouteBackendExtensionReconciler) Reconcile(ctx context.Context, req ctr
 // SetupWithManager sets up the controller with the Manager.
 func (r *RouteBackendExtensionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&akov1alpha1.RouteBackendExtension{}).
-		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		For(&akov1alpha1.RouteBackendExtension{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Named("routebackendextension").
+		Watches(
+			&corev1.Namespace{},
+			handler.EnqueueRequestsFromMapFunc(controllerutils.CreateGenericNamespaceHandler(
+				r,
+				"routebackendextension",
+				func() *akov1alpha1.RouteBackendExtensionList { return &akov1alpha1.RouteBackendExtensionList{} },
+				func(list *akov1alpha1.RouteBackendExtensionList) []client.Object {
+					objects := make([]client.Object, len(list.Items))
+					for i, item := range list.Items {
+						objects[i] = &item
+					}
+					return objects
+				},
+			)),
+			builder.WithPredicates(controllerutils.TenantAnnotationNamespacePredicate()),
+		).
 		Complete(r)
 }
 func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, rbe *akov1alpha1.RouteBackendExtension) error {
 	log := utils.LoggerFromContext(ctx)
 	log.Info("Validating RouteBackendExtension CRD")
 	resp := map[string]interface{}{}
+	tenant, err := controllerutils.GetTenantInNamespace(ctx, r.Client, rbe.Namespace)
+	if err != nil {
+		log.Errorf("error in getting tenant in namespace: %s", err.Error())
+		return err
+	}
 	for _, hm := range rbe.Spec.HealthMonitor {
 		// Check HM Present or not
 		uri := fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, hm.Name)
-		err := r.AviClient.AviSessionGet(utils.GetUriEncoded(uri), &resp)
+		err := r.AviClient.AviSessionGet(utils.GetUriEncoded(uri), &resp, session.SetOptTenant(tenant))
 		if err != nil {
 			// This log message will change in multitenancy
-			log.Errorf("error in getting healthmonitor: %s from tenant %s. Err: %s", hm.Name, lib.GetTenant(), err.Error())
+			log.Errorf("error in getting healthmonitor: %s from tenant %s. Err: %s", hm.Name, tenant, err.Error())
+			r.SetStatus(rbe, err.Error(), constants.REJECTED)
+			return err
+		} else if resp == nil {
+			log.Errorf("error in getting healthmonitor: : %s from tenant %s. Count: 0.000000", hm.Name, tenant)
+			err = fmt.Errorf("error in getting healthmonitor: %s from tenant %s. Object not found", hm.Name, tenant)
 			r.SetStatus(rbe, err.Error(), constants.REJECTED)
 			return err
 		} else if len(resp) == 0 || resp["count"] == nil || resp["count"].(float64) == float64(0) {
-			log.Errorf("error in getting healthmonitor: %s from tenant %s. Object not found", hm.Name, lib.GetTenant())
-			err = fmt.Errorf("error in getting healthmonitor: %s from tenant %s. Object not found", hm.Name, lib.GetTenant())
+			log.Errorf("error in getting healthmonitor: %s from tenant %s. Object not found", hm.Name, tenant)
+			err = fmt.Errorf("error in getting healthmonitor: %s from tenant %s. Object not found", hm.Name, tenant)
 			r.SetStatus(rbe, err.Error(), constants.REJECTED)
 			return err
 		}
 	}
-	err := r.SetStatus(rbe, "", constants.ACCEPTED)
+	err = r.SetStatus(rbe, "", constants.ACCEPTED)
 	if err != nil {
 		log.Errorf("error in setting status: %s", err.Error())
 		return err

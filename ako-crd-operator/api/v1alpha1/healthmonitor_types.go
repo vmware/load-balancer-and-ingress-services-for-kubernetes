@@ -199,6 +199,9 @@ type HealthMonitorStatus struct {
 	// DependencySum is the checksum of all the dependencies for the health monitor
 	// +optional
 	DependencySum uint32 `json:"dependencySum,omitempty"`
+	// Tenant is the tenant where the health monitor is created
+	// +optional
+	Tenant string `json:"tenant,omitempty"`
 }
 
 // +genclient

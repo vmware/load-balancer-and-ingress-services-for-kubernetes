@@ -27,9 +27,15 @@ import (
 	"github.com/vmware/alb-sdk/go/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/errors"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // StatusUpdater interface defines the methods needed to update status
@@ -194,4 +200,106 @@ func ParseAviErrorMessage(input string) string {
 		return errorMsg
 	}
 	return input
+}
+
+// NamespaceHandler is an interface that must be implemented by reconcilers using the generic namespace handler
+type NamespaceHandler interface {
+	List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error
+	GetLogger() *utils.AviLogger
+}
+
+// ExtractItems is a function type that extracts client.Object items from a resource list
+type ExtractItems[T client.ObjectList] func(T) []client.Object
+
+// CreateGenericNamespaceHandler creates a generic namespace handler that can work with any resource type
+// It takes the resource type name for logging, a function that creates a new empty resource list,
+// and a function that extracts the items from the list
+func CreateGenericNamespaceHandler[T client.ObjectList](
+	handler NamespaceHandler,
+	resourceTypeName string,
+	newList func() T,
+	extractItems ExtractItems[T],
+) func(context.Context, client.Object) []reconcile.Request {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
+		ns := obj.(*corev1.Namespace)
+		log := handler.GetLogger().WithValues("namespace", ns.Name)
+		log.Info("Processing namespace update")
+
+		list := newList()
+		err := handler.List(ctx, list, &client.ListOptions{
+			Namespace: ns.Name,
+		})
+		if err != nil {
+			log.Errorf("failed to list %ss for namespace %s: %v", resourceTypeName, ns.Name, err)
+			return []reconcile.Request{}
+		}
+
+		items := extractItems(list)
+		requests := make([]reconcile.Request, 0, len(items))
+		for _, item := range items {
+			log.Debugf("enqueuing reconcile request for %s %s/%s", resourceTypeName, item.GetNamespace(), item.GetName())
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      item.GetName(),
+					Namespace: item.GetNamespace(),
+				},
+			})
+		}
+		return requests
+	}
+}
+
+// TenantAnnotationNamespacePredicate creates a generic namespace predicate that triggers reconciliation
+// when tenant annotations are added, removed, or changed on namespaces
+func TenantAnnotationNamespacePredicate() predicate.Predicate {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			if e.ObjectOld == nil || e.ObjectNew == nil {
+				return false
+			}
+			oldNs, ok := e.ObjectOld.(*corev1.Namespace)
+			if !ok {
+				return false
+			}
+			newNs, ok := e.ObjectNew.(*corev1.Namespace)
+			if !ok {
+				return false
+			}
+
+			// Get tenant annotation values from both old and new namespaces
+			oldTenant, oldHasTenant := oldNs.Annotations[lib.TenantAnnotation]
+			newTenant, newHasTenant := newNs.Annotations[lib.TenantAnnotation]
+
+			// Scenario 1: Tenant annotation was removed (old had it, new doesn't)
+			if oldHasTenant && !newHasTenant {
+				return true
+			}
+
+			// Scenario 2: Tenant annotation was added (old didn't have it, new does)
+			if !oldHasTenant && newHasTenant {
+				return true
+			}
+
+			// Scenario 3: Tenant annotation value was changed (both have it but different values)
+			if oldHasTenant && newHasTenant && oldTenant != newTenant {
+				return true
+			}
+
+			return false
+		},
+	}
+}
+
+// GetTenantInNamespace is a generic function that retrieves the tenant annotation from a namespace
+// using the Kubernetes client. This follows the same pattern as the existing controller implementations.
+func GetTenantInNamespace(ctx context.Context, client client.Client, namespace string) (string, error) {
+	nsObj := corev1.Namespace{}
+	if err := client.Get(ctx, types.NamespacedName{Name: namespace}, &nsObj); err != nil {
+		return "", err
+	}
+	tenant, ok := nsObj.Annotations[lib.TenantAnnotation]
+	if !ok || tenant == "" {
+		return lib.GetTenant(), nil
+	}
+	return tenant, nil
 }

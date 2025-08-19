@@ -39,6 +39,7 @@ rules:
       - ""
     resources:
       - secrets
+      - namespaces
     verbs:
       - get
       - list

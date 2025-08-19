@@ -293,6 +293,9 @@ spec:
                   operator
                 format: int64
                 type: integer
+              tenant:
+                description: Tenant is the tenant where the health monitor is created
+                type: string
               uuid:
                 description: UUID is unique identifier of the health monitor object
                 type: string
