@@ -804,10 +804,16 @@ func TestRouteBackendExtensionValidatedObject(t *testing.T) {
 			}
 
 			mockCache := mock.NewMockCacheOperation(gomock.NewController(t))
+			// Create fake k8s client
+			scheme := runtime.NewScheme()
+			_ = akov1alpha1.AddToScheme(scheme)
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.rbe).WithStatusSubresource(tt.rbe).Build()
 
 			// Create reconciler
 			reconciler := &RouteBackendExtensionReconciler{
+				Client:      fakeClient,
 				AviClient:   mockAviClient,
+				Scheme:      scheme,
 				Logger:      utils.AviLog,
 				ClusterName: "test-cluster",
 				Cache:       mockCache,

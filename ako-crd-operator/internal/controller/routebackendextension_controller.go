@@ -119,8 +119,8 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 			log.Errorf("error in getting healthmonitor: %s from tenant %s. Err: %s", hm.Name, lib.GetTenant(), err.Error())
 			r.SetStatus(rbe, err.Error(), constants.REJECTED)
 			return err
-		} else if resp == nil || resp["count"].(float64) == float64(0) {
-			log.Errorf("error in getting healthmonitor: : %s from tenant %s. Count: %f", hm.Name, lib.GetTenant(), resp["count"].(float64))
+		} else if len(resp) == 0 || resp["count"] == nil || resp["count"].(float64) == float64(0) {
+			log.Errorf("error in getting healthmonitor: %s from tenant %s. Object not found", hm.Name, lib.GetTenant())
 			err = fmt.Errorf("error in getting healthmonitor: %s from tenant %s. Object not found", hm.Name, lib.GetTenant())
 			r.SetStatus(rbe, err.Error(), constants.REJECTED)
 			return err
@@ -135,9 +135,9 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 	return nil
 }
 
-func (r *RouteBackendExtensionReconciler) SetStatus(rbe *akov1alpha1.RouteBackendExtension, error string, status string) error {
+func (r *RouteBackendExtensionReconciler) SetStatus(rbe *akov1alpha1.RouteBackendExtension, error1 string, status string) error {
 	rbe.SetRouteBackendExtensionController(constants.AKOCRDController)
-	rbe.Status.Error = error
+	rbe.Status.Error = error1
 	rbe.Status.Status = status
 	err := r.Status().Update(context.Background(), rbe)
 	return err
