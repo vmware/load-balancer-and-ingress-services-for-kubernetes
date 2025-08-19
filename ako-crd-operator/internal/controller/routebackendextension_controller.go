@@ -90,7 +90,7 @@ func (r *RouteBackendExtensionReconciler) Reconcile(ctx context.Context, req ctr
 	if !rbe.DeletionTimestamp.IsZero() {
 		// The object is being deleted
 		r.EventRecorder.Event(rbe, corev1.EventTypeNormal, "Deleted", "RouteBackendExtension CRD deleted successfully from Avi Controller")
-		log.Info("Succesfully deleted RouteBackendExtension CRD")
+		log.Info("Successfully deleted RouteBackendExtension CRD")
 		return ctrl.Result{}, nil
 	}
 	// create or update - validate the object
@@ -153,12 +153,8 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 			err = fmt.Errorf("error in getting healthmonitor: %s from tenant %s. Object not found", hm.Name, tenant)
 			r.SetStatus(rbe, err.Error(), constants.REJECTED)
 			return err
-		} else if count, ok := resp["count"].(float64); !ok || count == float64(0) {
-			if !ok {
-				log.Errorf("error in getting healthmonitor: : %s from tenant %s. Count: 0.000000", hm.Name, tenant)
-			} else {
-				log.Errorf("error in getting healthmonitor: : %s from tenant %s. Count: %f", hm.Name, tenant, count)
-			}
+		} else if len(resp) == 0 || resp["count"] == nil || resp["count"].(float64) == float64(0) {
+			log.Errorf("error in getting healthmonitor: %s from tenant %s. Object not found", hm.Name, tenant)
 			err = fmt.Errorf("error in getting healthmonitor: %s from tenant %s. Object not found", hm.Name, tenant)
 			r.SetStatus(rbe, err.Error(), constants.REJECTED)
 			return err
@@ -173,10 +169,15 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 	return nil
 }
 
-func (r *RouteBackendExtensionReconciler) SetStatus(rbe *akov1alpha1.RouteBackendExtension, error string, status string) error {
+func (r *RouteBackendExtensionReconciler) SetStatus(rbe *akov1alpha1.RouteBackendExtension, error1 string, status string) error {
 	rbe.SetRouteBackendExtensionController(constants.AKOCRDController)
-	rbe.Status.Error = error
+	rbe.Status.Error = error1
 	rbe.Status.Status = status
+	if r.Client == nil {
+		log := utils.LoggerFromContext(context.Background())
+		log.Errorf("r.Status() returned nil. Cannot update status for RouteBackendExtension: %s/%s", rbe.Namespace, rbe.Name)
+		return fmt.Errorf("status client is nil")
+	}
 	err := r.Status().Update(context.Background(), rbe)
 	return err
 }

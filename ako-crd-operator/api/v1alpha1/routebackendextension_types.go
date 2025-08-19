@@ -86,7 +86,7 @@ type RouteBackendExtensionSpec struct {
 	// This field should be specified only when lbAlgorithm is LB_ALGORITHM_CONSISTENT_HASH and lbAlgorithmHash is LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER.
 	// +optional
 	LBAlgorithmConsistentHashHdr string `json:"lbAlgorithmConsistentHashHdr,omitempty"`
-	//Criteria used as a key for determining the hash between the client and server
+	// Criteria used as a key for determining the hash between the client and server
 	// +optional
 	// +kubebuilder:default=LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS
 	LBAlgorithmHash LBAlgorithmHashType `json:"lbAlgorithmHash,omitempty"`

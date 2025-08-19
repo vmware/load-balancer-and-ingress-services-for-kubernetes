@@ -126,7 +126,7 @@ func (r *ApplicationProfileReconciler) Reconcile(ctx context.Context, req ctrl.R
 			return ctrl.Result{}, err
 		}
 		r.EventRecorder.Event(ap, corev1.EventTypeNormal, "Deleted", "ApplicationProfile deleted successfully from Avi Controller")
-		log.Info("succesfully deleted applicationprofile")
+		log.Info("successfully deleted applicationprofile")
 		return ctrl.Result{}, nil
 	}
 	if err := r.ReconcileIfRequired(ctx, ap); err != nil {
@@ -222,11 +222,7 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 			return err
 		}
 		// Clear the status to force recreation with correct tenant
-		ap.Status.UUID = ""
-		ap.Status.Tenant = ""
-		ap.Status.BackendObjectName = ""
-		ap.Status.LastUpdated = nil
-		ap.Status.ObservedGeneration = 0
+		ap.Status = akov1alpha1.ApplicationProfileStatus{}
 		log.Info("ApplicationProfile deleted from AVI due to tenant update, status cleared for recreation")
 	}
 
@@ -281,7 +277,7 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 			Message:            "ApplicationProfile updated successfully on Avi Controller",
 		})
 		r.EventRecorder.Event(ap, corev1.EventTypeNormal, "Updated", "ApplicationProfile updated successfully on Avi Controller")
-		log.Info("succesfully updated application profile")
+		log.Info("successfully updated application profile")
 	}
 	ap.Status.BackendObjectName = apReq.Name
 	ap.Status.Tenant = namespaceTenant

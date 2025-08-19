@@ -294,6 +294,7 @@ func TestCreateAviClients(t *testing.T) {
 			defer func() {
 				if r := recover(); r != nil {
 					// Expected to panic/exit due to validation errors
+					t.Logf("Recovered from panic: %v", r)
 				}
 			}()
 

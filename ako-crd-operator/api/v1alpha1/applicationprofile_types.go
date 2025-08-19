@@ -37,11 +37,11 @@ const (
 type XFFUpdate string
 
 const (
-	//Drop all the incoming xff headers and add a new one with client's IP address
+	// Drop all the incoming xff headers and add a new one with client's IP address
 	REPLACE_XFF_HEADERS XFFUpdate = "Replace all incoming X-Forward-For headers with the Avi created header."
-	//Appends all the incoming XFF headers and client's IP address together
+	// Appends all the incoming XFF headers and client's IP address together
 	APPEND_TO_THE_XFF_HEADER XFFUpdate = "All incoming X-Forwarded-For headers will be appended to the Avi created header."
-	//Add new XFF header with client's IP address
+	// Add new XFF header with client's IP address
 	ADD_NEW_XFF_HEADER XFFUpdate = "Simply add a new X-Forwarded-For header."
 )
 
@@ -50,9 +50,9 @@ const (
 type TrueClientIPIndexDirection string
 
 const (
-	//From Left.
+	// From Left.
 	LEFT TrueClientIPIndexDirection = "From Left."
-	//From Right.
+	// From Right.
 	RIGHT TrueClientIPIndexDirection = "From Right."
 )
 

@@ -132,11 +132,11 @@ type HTTPResponseCode string
 
 const (
 	HTTPAny HTTPResponseCode = "HTTP_ANY"
-	HTTP1XX                  = "HTTP_1XX"
-	HTTP2XX                  = "HTTP_2XX"
-	HTTP3XX                  = "HTTP_3XX"
-	HTTP4XX                  = "HTTP_4XX"
-	HTTP5XX                  = "HTTP_5XX"
+	HTTP1XX HTTPResponseCode = "HTTP_1XX"
+	HTTP2XX HTTPResponseCode = "HTTP_2XX"
+	HTTP3XX HTTPResponseCode = "HTTP_3XX"
+	HTTP4XX HTTPResponseCode = "HTTP_4XX"
+	HTTP5XX HTTPResponseCode = "HTTP_5XX"
 )
 
 // HTTPMonitor defines the HTTP monitor configuration.

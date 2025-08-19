@@ -251,7 +251,7 @@ func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alp
 					log.Info("HealthMonitor not found on Avi Controller (404), treating as successful deletion")
 					return nil, true
 				case 403:
-					log.Errorf("HealthMonitor is being reffered by other objects, cannot be deleted. %s", aviError.Error())
+					log.Errorf("HealthMonitor is being referred by other objects, cannot be deleted. %s", aviError.Error())
 					r.EventRecorder.Event(hm, corev1.EventTypeWarning, "DeletionSkipped", aviError.Error())
 					hm.Status.Conditions = controllerutils.SetCondition(hm.Status.Conditions, metav1.Condition{
 						Type:               "Deleted",
@@ -272,7 +272,7 @@ func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alp
 		log.Warn("error deleting healthmonitor. uuid not present. possibly avi healthmonitor object not created")
 	}
 	r.EventRecorder.Event(hm, corev1.EventTypeNormal, "Deleted", "HealthMonitor deleted successfully from Avi Controller")
-	log.Info("succesfully deleted healthmonitor")
+	log.Info("successfully deleted healthmonitor")
 	return nil, true
 }
 
@@ -295,12 +295,7 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 			return err
 		}
 		// Clear the status to force recreation with correct tenant
-		hm.Status.UUID = ""
-		hm.Status.Tenant = ""
-		hm.Status.BackendObjectName = ""
-		hm.Status.LastUpdated = nil
-		hm.Status.ObservedGeneration = 0
-		hm.Status.DependencySum = 0
+		hm.Status = akov1alpha1.HealthMonitorStatus{}
 		log.Info("HealthMonitor deleted from AVI due to tenant update, status cleared for recreation")
 	}
 
@@ -364,7 +359,7 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 			Message:            "HealthMonitor updated successfully on Avi Controller",
 		})
 		r.EventRecorder.Event(hm, corev1.EventTypeNormal, "Updated", "HealthMonitor updated successfully on Avi Controller")
-		log.Info("succesfully updated healthmonitor")
+		log.Info("successfully updated healthmonitor")
 	}
 	hm.Status.DependencySum = dependencyChecksum
 	hm.Status.BackendObjectName = hmReq.Name
@@ -423,7 +418,7 @@ func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hmReq
 		Reason:             "Created",
 		Message:            "HealthMonitor created successfully on Avi Controller",
 	})
-	log.Info("healthmonitor succesfully created")
+	log.Info("healthmonitor successfully created")
 	return resp, nil
 }
 
@@ -460,7 +455,7 @@ func extractUUID(resp map[string]interface{}) (string, error) {
 
 func (r *HealthMonitorReconciler) resolveRefsAndCheckDependencies(ctx context.Context, namespace string, hm *akov1alpha1.HealthMonitor, hmReq *HealthMonitorRequest) (bool, uint32, error) {
 	reconcile := false
-	secretResourceVersion, err := r.resolveSecret(ctx, namespace, hm, hmReq)
+	secretResourceVersion, err := r.resolveSecret(ctx, namespace, hmReq)
 	if err != nil {
 		return reconcile, 0, err
 	}
@@ -485,7 +480,7 @@ func generateChecksum(checkSumFields ...string) uint32 {
 	return utils.Hash(strings.Join(checksumString, ":"))
 }
 
-func (r *HealthMonitorReconciler) resolveSecret(ctx context.Context, namespace string, hm *akov1alpha1.HealthMonitor, hmReq *HealthMonitorRequest) (string, error) {
+func (r *HealthMonitorReconciler) resolveSecret(ctx context.Context, namespace string, hmReq *HealthMonitorRequest) (string, error) {
 	log := utils.LoggerFromContext(ctx)
 	if hmReq.Authentication == nil || hmReq.Authentication.SecretRef == "" {
 		return "", nil
