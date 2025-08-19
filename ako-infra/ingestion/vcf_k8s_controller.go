@@ -291,8 +291,9 @@ func (c *VCFK8sController) startVKSInfrastructure(stopCh <-chan struct{}) {
 
 	go StartVKSClusterWatcherWithRetry(stopCh, c.dynamicInformers)
 
-	// Cleanup on shutdown
 	go func() {
+		c.AddVKSAddonEventHandler(stopCh)
+		// Cleanup on shutdown
 		<-stopCh
 		utils.AviLog.Infof("VKS: AKO shutdown detected, cleaning up VKS resources")
 

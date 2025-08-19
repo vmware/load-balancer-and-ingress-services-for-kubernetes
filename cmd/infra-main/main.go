@@ -167,9 +167,8 @@ func InitializeAKOInfra() {
 	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName, clusterName)
 	c.AddNetworkInfoEventHandler(stopCh)
 
-	// Add VKS capability and addon event handlers after system namespace is annotated
+	// Add VKS capability event handler after system namespace is annotated
 	c.AddVKSCapabilityEventHandler(stopCh)
-	c.AddVKSAddonEventHandler(stopCh)
 
 	worker := c.InitFullSyncWorker()
 	go worker.Run()
