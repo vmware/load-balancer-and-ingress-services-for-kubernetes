@@ -2284,7 +2284,7 @@ func (c *AviObjCache) AviPopulateAllAppPersistenceProfiles(client *clients.AviCl
 func (c *AviObjCache) PopulateAppPersistenceProfileToCache(client *clients.AviClient) {
 	var appPersProfileData []AviPersistenceProfileCache
 	setDefaultTenant := session.SetTenant(lib.GetTenant())
-	setTenant := session.SetTenant("*")
+	setTenant := session.SetTenant(lib.GetQueryTenant())
 	setTenant(client.AviSession)
 	defer setDefaultTenant(client.AviSession)
 	c.AviPopulateAllAppPersistenceProfiles(client, &appPersProfileData)
