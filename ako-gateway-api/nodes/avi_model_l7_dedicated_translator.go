@@ -5,12 +5,13 @@ import (
 
 	"github.com/vmware/alb-sdk/go/models"
 
+	"google.golang.org/protobuf/proto"
+
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	"google.golang.org/protobuf/proto"
 )
 
 func (o *AviObjectGraph) ProcessL7RoutesForDedicatedGateway(key string, routeModel RouteModel, httpRouteRules []*Rule, parentNsName string, childVSes map[string]struct{}, fullsync bool) {
@@ -100,8 +101,8 @@ func (o *AviObjectGraph) BuildSingleHTTPPolicySetForDedicatedMode(key string, vs
 		return
 	}
 
-	// Create HTTP PolicySet name for the entire HTTPRoute
-	httpPSName := fmt.Sprintf("%s-%s-%s-httproute", vsNode.Name, routeModel.GetNamespace(), routeModel.GetName())
+	// Create HTTP PolicySet name for the entire HTTPRoute with encoding
+	httpPSName := akogatewayapilib.GetHttpPolicySetName(vsNode.AviMarkers.GatewayNamespace, vsNode.AviMarkers.GatewayName, routeModel.GetNamespace(), routeModel.GetName())
 
 	// Check if policy already exists, if so, reuse it
 	var policy *nodes.AviHttpPolicySetNode
@@ -428,10 +429,7 @@ func (o *AviObjectGraph) BuildPGPoolForDedicatedMode(key string, vsNode *nodes.A
 	// Create pools for each backend
 	for backendIndex, httpbackend := range rule.Backends {
 		backend := httpbackend.Backend
-		poolName := fmt.Sprintf("%s-backend-%d", poolGroupName, backendIndex)
-		if backend.Name != "" {
-			poolName = fmt.Sprintf("%s-%s-%d", poolGroupName, backend.Name, backend.Port)
-		}
+		poolName := akogatewayapilib.GetDedicatedPoolName(poolGroupName, backend.Namespace, backend.Name, backend.Port, backendIndex)
 
 		// Get service object for pool population
 		svcObj, err := utils.GetInformers().ServiceInformer.Lister().Services(backend.Namespace).Get(backend.Name)

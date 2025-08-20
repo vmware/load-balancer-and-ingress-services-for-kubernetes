@@ -16,7 +16,6 @@ package nodes
 
 import (
 	"context"
-	"fmt"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -321,7 +320,7 @@ func (o *AviObjectGraph) ProcessRouteDeletionForDedicatedMode(key, parentNsName 
 
 	dedicatedVS := gatewayVSes[0]
 
-	httpPSName := fmt.Sprintf("%s-%s-%s-httproute", dedicatedVS.Name, routeModel.GetNamespace(), routeModel.GetName())
+	httpPSName := akogatewayapilib.GetHttpPolicySetName(dedicatedVS.AviMarkers.GatewayNamespace, dedicatedVS.AviMarkers.GatewayName, routeModel.GetNamespace(), routeModel.GetName())
 
 	var updatedHttpPolicyRefs []*nodes.AviHttpPolicySetNode
 	for _, policy := range dedicatedVS.HttpPolicyRefs {
