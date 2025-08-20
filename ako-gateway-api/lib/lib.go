@@ -94,6 +94,21 @@ func GetPersistenceProfileName(parentNs, parentName, routeNs, routeName, matchNa
 	return lib.Encode(name, lib.ApplicationPersistenceProfile)
 }
 
+func GetHttpPolicySetName(parentNs, parentName, routeNs, routeName string) string {
+	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-httproute"
+	return lib.Encode(name, lib.HTTPPS)
+}
+
+func GetDedicatedPoolName(poolGroupName, backendNs, backendName string, backendPort int32, backendIndex int) string {
+	var name string
+	if backendName != "" {
+		name = fmt.Sprintf("%s-%s-%s-%d", poolGroupName, backendNs, backendName, backendPort)
+	} else {
+		name = fmt.Sprintf("%s-backend-%d", poolGroupName, backendIndex)
+	}
+	return lib.Encode(name, lib.Pool)
+}
+
 func CheckGatewayClassController(controllerName string) bool {
 	return controllerName == lib.AviIngressController
 }
