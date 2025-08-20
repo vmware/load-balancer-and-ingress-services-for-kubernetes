@@ -328,7 +328,7 @@ func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 			return []string{}, false
 		}
 		// httproute must be deleted so remove mappings
-
+		utils.AviLog.Debugf("Deleting from store")
 		//delete route to service must also update gateway to service (through route)
 		akogatewayapiobjects.GatewayApiLister().DeleteRouteFromStore(routeTypeNsName, key)
 		return []string{routeTypeNsName}, true
@@ -811,6 +811,7 @@ func validateReferredHTTPRoute(key, name, namespace string, allowedRoutesAll boo
 				}
 			}
 		}
+
 		akogatewayapistatus.Record(key, httpRoute, &status.Status{HTTPRouteStatus: httpRouteStatus})
 		if appendRoute {
 			httpRoutes = append(httpRoutes, httpRoute)

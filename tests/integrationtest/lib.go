@@ -1506,7 +1506,14 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 		}
 		w.WriteHeader(http.StatusOK)
 		w.Write(data)
-
+	} else if r.Method == "GET" && strings.Contains(url, "/api/applicationprofile/") &&
+		strings.HasSuffix(r.URL.RawQuery, lib.GetProxyEnabledApplicationProfileName()) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"results": [], "count": 0}`))
+	} else if r.Method == "GET" && strings.Contains(url, "/api/healthmonitor/") &&
+		strings.HasSuffix(r.URL.RawQuery, lib.GetTcpHalfOpenHealthMonitorName()) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"results": [], "count": 0}`))
 	} else if r.Method == "GET" && inArray(FakeAviObjects, object) {
 		FeedMockCollectionData(w, r, mockFilePath)
 
@@ -1857,6 +1864,13 @@ type FakeL7Rule struct {
 	SslSessCacheAvgSize           uint32
 	Name                          string
 	Namespace                     string
+	AnalyticsProfile              *akov1alpha2.KindNameNamespace
+	ApplicationProfile            *akov1alpha2.KindNameNamespace
+	WafPolicy                     *akov1alpha2.KindNameNamespace
+	IcapProfile                   *akov1alpha2.KindNameNamespace
+	ErrorPageProfile              *akov1alpha2.KindNameNamespace
+	HTTPPolicy                    *akov1alpha2.L7RuleHTTPPolicy
+	AnalyticsPolicy               *akov1alpha2.L7RuleAnalyticsPolicy
 }
 
 func (l7 FakeL7Rule) L7Rule() *akov1alpha2.L7Rule {
@@ -1875,10 +1889,37 @@ func (l7 FakeL7Rule) L7Rule() *akov1alpha2.L7Rule {
 			RemoveListeningPortOnVsDown:   &l7.RemoveListeningPortOnVsDown,
 			SecurityPolicyRef:             &l7.SecurityPolicyRef,
 			SslSessCacheAvgSize:           &l7.SslSessCacheAvgSize,
+			AnalyticsProfile:              l7.AnalyticsProfile,
+			ApplicationProfile:            l7.ApplicationProfile,
+			WafPolicy:                     l7.WafPolicy,
+			IcapProfile:                   l7.IcapProfile,
+			ErrorPageProfile:              l7.ErrorPageProfile,
+			HTTPPolicy:                    l7.HTTPPolicy,
+			AnalyticsPolicy:               l7.AnalyticsPolicy,
 		}}
 	return &l7Rule
 }
-
+func getKindName(kind string, name string) *akov1alpha2.KindNameNamespace {
+	return &akov1alpha2.KindNameNamespace{
+		Kind: &kind,
+		Name: &name,
+	}
+}
+func getHTTPPSset(policyName ...string) []*string {
+	httpPSet := []*string{}
+	for _, p := range policyName {
+		httpPSet = append(httpPSet, &p)
+	}
+	return httpPSet
+}
+func getAnalyticsPolicy() *akov1alpha2.L7RuleAnalyticsPolicy {
+	return &akov1alpha2.L7RuleAnalyticsPolicy{
+		LogAllHeaders: proto.Bool(false),
+		FullClientLogs: &akov1alpha2.FullClientLogsL7{
+			Enabled: proto.Bool(true),
+		},
+	}
+}
 func SetupL7Rule(t *testing.T, name string, g *gomega.WithT) {
 	l7rule := FakeL7Rule{
 		Name:                          name,
@@ -1892,6 +1933,18 @@ func SetupL7Rule(t *testing.T, name string, g *gomega.WithT) {
 		SecurityPolicyRef:             "thisisaviref-secpolicy",
 		RemoveListeningPortOnVsDown:   false,
 		SslSessCacheAvgSize:           2024,
+		AnalyticsProfile:              getKindName("AviRef", "thisisaviref-analyticsprofile-l7"),
+		ApplicationProfile:            getKindName("AviRef", "thisisaviref-appprofile-l7"),
+		WafPolicy:                     getKindName("AviRef", "thisisaviref-wafpolicy-l7"),
+		IcapProfile:                   getKindName("AviRef", "thisisaviref-icaprofile-l7"),
+		ErrorPageProfile:              getKindName("AviRef", "thisisaviref-errorpageprofile-l7"),
+		HTTPPolicy: &akov1alpha2.L7RuleHTTPPolicy{
+			Overwrite: proto.Bool(false),
+			PolicySets: getHTTPPSset(
+				"thisisaviref-httpps1-l7",
+				"thisisaviref-httpps2-l7"),
+		},
+		AnalyticsPolicy: getAnalyticsPolicy(),
 	}
 	srCreate := l7rule.L7Rule()
 	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L7Rules("default").Create(context.TODO(), srCreate, metav1.CreateOptions{}); err != nil {
@@ -1901,7 +1954,6 @@ func SetupL7Rule(t *testing.T, name string, g *gomega.WithT) {
 		l7Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L7Rules("default").Get(context.TODO(), name, metav1.GetOptions{})
 		return l7Rule.Status.Status
 	}, 25*time.Second).Should(gomega.Equal("Accepted"))
-
 }
 
 type FakeHTTPRule struct {

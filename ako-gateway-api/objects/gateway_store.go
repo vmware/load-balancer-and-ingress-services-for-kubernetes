@@ -843,9 +843,9 @@ func (g *GWLister) DeleteRouteFromStore(routeTypeNsName string, key string) {
 	_, httpRouteNSName := utils.ExtractNamespaceObjectName(routeTypeNsName)
 
 	if found, l7Rules := g.httpRouteToL7RuleCache.Get(httpRouteNSName); found {
-		l7RuleList := l7Rules.(map[string]bool)
+		l7RuleList := l7Rules.(map[string]struct{})
 		for l7Rule := range l7RuleList {
-			g.DeleteL7RuleToHTTPRouteMapping(l7Rule, httpRouteNSName)
+			g.deleteL7RuleToHTTPRouteMapping(l7Rule, httpRouteNSName)
 		}
 	}
 	// delete the httproutekey
@@ -1072,58 +1072,66 @@ func (g *GWLister) DeletePodsToService(podNsName string) {
 }
 
 // L7Rule CRD (Name: Namespace+"/"+ name)
-func (g *GWLister) GetL7RuleToHTTPRouteMapping(l7RuleName string) (bool, map[string]bool) {
+func (g *GWLister) GetL7RuleToHTTPRouteMapping(l7RuleName string) (bool, map[string]struct{}) {
 	g.gwLock.RLock()
 	defer g.gwLock.RUnlock()
 
 	found, httpRoutes := g.l7RuleToHTTPRouteCache.Get(l7RuleName)
 	if !found {
-		return false, make(map[string]bool)
+		return false, make(map[string]struct{})
 	}
-	return true, httpRoutes.(map[string]bool)
+	return true, httpRoutes.(map[string]struct{})
 }
 
 func (g *GWLister) DeleteL7RuleToHTTPRouteMapping(l7RuleName string, httpRoute string) {
-	found, httpRoutes := g.GetL7RuleToHTTPRouteMapping(l7RuleName)
-	if found {
-		g.gwLock.Lock()
-
-		delete(httpRoutes, httpRoute)
-		g.l7RuleToHTTPRouteCache.AddOrUpdate(l7RuleName, httpRoutes)
-
-		g.gwLock.Unlock()
-	}
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	g.deleteL7RuleToHTTPRouteMapping(l7RuleName, httpRoute)
 }
 
+func (g *GWLister) deleteL7RuleToHTTPRouteMapping(l7RuleName string, httpRoute string) {
+	//found,
+	found, httpRoutes := g.l7RuleToHTTPRouteCache.Get(l7RuleName)
+	if found {
+		httpRouteObjs := httpRoutes.(map[string]struct{})
+		delete(httpRouteObjs, httpRoute)
+		g.l7RuleToHTTPRouteCache.AddOrUpdate(l7RuleName, httpRouteObjs)
+	}
+}
 func (g *GWLister) UpdateL7RuleToHTTPRouteMapping(l7RuleName string, httpRoute string) {
-	_, httpRoutes := g.GetL7RuleToHTTPRouteMapping(l7RuleName)
 	g.gwLock.Lock()
-	httpRoutes[httpRoute] = true
-	g.l7RuleToHTTPRouteCache.AddOrUpdate(l7RuleName, httpRoutes)
-	g.gwLock.Unlock()
+	defer g.gwLock.Unlock()
+	found, httpRoutes := g.l7RuleToHTTPRouteCache.Get(l7RuleName)
+	var httpRoutesObj map[string]struct{}
+	if !found {
+		httpRoutesObj = make(map[string]struct{})
+	} else {
+		httpRoutesObj = httpRoutes.(map[string]struct{})
+	}
+	httpRoutesObj[httpRoute] = struct{}{}
+	g.l7RuleToHTTPRouteCache.AddOrUpdate(l7RuleName, httpRoutesObj)
 }
 
 // HTTPRoute to L7 Rule (Name: Namespace+"/"+name)
-func (g *GWLister) GetHTTPRouteToL7RuleMapping(httpRouteName string) (bool, map[string]bool) {
+func (g *GWLister) GetHTTPRouteToL7RuleMapping(httpRouteName string) (bool, map[string]struct{}) {
 	g.gwLock.RLock()
 	defer g.gwLock.RUnlock()
 
 	found, l7Rules := g.httpRouteToL7RuleCache.Get(httpRouteName)
 	if !found {
-		return false, make(map[string]bool)
+		return false, make(map[string]struct{})
 	}
-	return true, l7Rules.(map[string]bool)
+	return true, l7Rules.(map[string]struct{})
 }
 
 func (g *GWLister) DeleteHTTPRouteToL7RuleMapping(httpRouteName string, l7Rule string) {
-	found, l7Rules := g.GetHTTPRouteToL7RuleMapping(httpRouteName)
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	found, l7Rules := g.httpRouteToL7RuleCache.Get(httpRouteName)
 	if found {
-		g.gwLock.Lock()
-
-		delete(l7Rules, l7Rule)
-		g.httpRouteToL7RuleCache.AddOrUpdate(httpRouteName, l7Rules)
-
-		g.gwLock.Unlock()
+		l7RuleObj := l7Rules.(map[string]struct{})
+		delete(l7RuleObj, l7Rule)
+		g.httpRouteToL7RuleCache.AddOrUpdate(httpRouteName, l7RuleObj)
 	}
 }
 
@@ -1131,13 +1139,13 @@ func (g *GWLister) UpdateHTTPRouteToL7RuleMapping(httpRouteName string, l7Rule s
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
 	found, l7Rules := g.httpRouteToL7RuleCache.Get(httpRouteName)
-	var l7RulesObj map[string]bool
+	var l7RulesObj map[string]struct{}
 	if !found {
-		l7RulesObj = make(map[string]bool)
+		l7RulesObj = make(map[string]struct{})
 	} else {
-		l7RulesObj = l7Rules.(map[string]bool)
+		l7RulesObj = l7Rules.(map[string]struct{})
 	}
-	l7RulesObj[l7Rule] = true
+	l7RulesObj[l7Rule] = struct{}{}
 	g.httpRouteToL7RuleCache.AddOrUpdate(httpRouteName, l7RulesObj)
 }
 

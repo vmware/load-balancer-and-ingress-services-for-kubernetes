@@ -7,7 +7,7 @@ metadata:
   name: ako-crb-{{ .Release.Namespace }}
   {{- end }}
   labels:
-    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    chart: {{ include "ako.chart" . }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
