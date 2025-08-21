@@ -22,6 +22,9 @@ resources:
 # default, aiding admins in cluster management. Those roles are
 # not used by the {{ .ProjectName }} itself. You can comment the following lines
 # if you do not want those helpers be installed with your Project.
+- pkiprofile_admin_role.yaml
+- pkiprofile_editor_role.yaml
+- pkiprofile_viewer_role.yaml
 - applicationprofile_admin_role.yaml
 - applicationprofile_editor_role.yaml
 - applicationprofile_viewer_role.yaml

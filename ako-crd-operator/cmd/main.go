@@ -140,6 +140,17 @@ func main() {
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Fatalf("unable to create controller [RouteBackendExtension]. error: %s", err.Error())
 	}
+	if err = (&controller.PKIProfileReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		AviClient:     session2.NewAviSessionClient(aviClients.AviClient[2]),
+		Cache:         cacheManager,
+		EventRecorder: mgr.GetEventRecorderFor("routebackendextension-controller"),
+		Logger:        utils.AviLog.WithName("routebackendextension"),
+		ClusterName:   clusterName,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Fatalf("unable to create controller [PKIProfile]. error: %s", err.Error())
+	}
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

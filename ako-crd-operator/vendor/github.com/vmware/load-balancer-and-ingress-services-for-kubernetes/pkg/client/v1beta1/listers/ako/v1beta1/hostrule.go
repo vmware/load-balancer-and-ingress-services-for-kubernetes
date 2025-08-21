@@ -19,10 +19,10 @@ limitations under the License.
 package v1beta1
 
 import (
-	v1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/tools/cache"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // HostRuleLister helps list HostRules.
@@ -30,7 +30,7 @@ import (
 type HostRuleLister interface {
 	// List lists all HostRules in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1beta1.HostRule, err error)
+	List(selector labels.Selector) (ret []*akov1beta1.HostRule, err error)
 	// HostRules returns an object that can list and get HostRules.
 	HostRules(namespace string) HostRuleNamespaceLister
 	HostRuleListerExpansion
@@ -38,25 +38,17 @@ type HostRuleLister interface {
 
 // hostRuleLister implements the HostRuleLister interface.
 type hostRuleLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*akov1beta1.HostRule]
 }
 
 // NewHostRuleLister returns a new HostRuleLister.
 func NewHostRuleLister(indexer cache.Indexer) HostRuleLister {
-	return &hostRuleLister{indexer: indexer}
-}
-
-// List lists all HostRules in the indexer.
-func (s *hostRuleLister) List(selector labels.Selector) (ret []*v1beta1.HostRule, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1beta1.HostRule))
-	})
-	return ret, err
+	return &hostRuleLister{listers.New[*akov1beta1.HostRule](indexer, akov1beta1.Resource("hostrule"))}
 }
 
 // HostRules returns an object that can list and get HostRules.
 func (s *hostRuleLister) HostRules(namespace string) HostRuleNamespaceLister {
-	return hostRuleNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return hostRuleNamespaceLister{listers.NewNamespaced[*akov1beta1.HostRule](s.ResourceIndexer, namespace)}
 }
 
 // HostRuleNamespaceLister helps list and get HostRules.
@@ -64,36 +56,15 @@ func (s *hostRuleLister) HostRules(namespace string) HostRuleNamespaceLister {
 type HostRuleNamespaceLister interface {
 	// List lists all HostRules in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1beta1.HostRule, err error)
+	List(selector labels.Selector) (ret []*akov1beta1.HostRule, err error)
 	// Get retrieves the HostRule from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1beta1.HostRule, error)
+	Get(name string) (*akov1beta1.HostRule, error)
 	HostRuleNamespaceListerExpansion
 }
 
 // hostRuleNamespaceLister implements the HostRuleNamespaceLister
 // interface.
 type hostRuleNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all HostRules in the indexer for a given namespace.
-func (s hostRuleNamespaceLister) List(selector labels.Selector) (ret []*v1beta1.HostRule, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1beta1.HostRule))
-	})
-	return ret, err
-}
-
-// Get retrieves the HostRule from the indexer for a given namespace and name.
-func (s hostRuleNamespaceLister) Get(name string) (*v1beta1.HostRule, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1beta1.Resource("hostrule"), name)
-	}
-	return obj.(*v1beta1.HostRule), nil
+	listers.ResourceIndexer[*akov1beta1.HostRule]
 }
