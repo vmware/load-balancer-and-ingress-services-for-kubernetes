@@ -1,6 +1,6 @@
 Load Balancer and Ingress Services for Kubernetes
 
-Copyright 2020 VMware, Inc. 
+Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved. 
 
 This product is licensed to you under the Apache 2.0 license (the "License").  You may not use this product except in compliance with the Apache 2.0 License.  
 

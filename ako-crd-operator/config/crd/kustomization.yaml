@@ -5,6 +5,7 @@ resources:
 - bases/ako.vmware.com_healthmonitors.yaml
 - bases/ako.vmware.com_applicationprofiles.yaml
 - bases/ako.vmware.com_routebackendextensions.yaml
+- bases/ako.vmware.com_pkiprofiles.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:
