@@ -19,13 +19,13 @@ limitations under the License.
 package v1beta1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	apisakov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	versioned "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned"
 	internalinterfaces "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/informers/externalversions/internalinterfaces"
-	v1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/listers/ako/v1beta1"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/listers/ako/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // HTTPRules.
 type HTTPRuleInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1beta1.HTTPRuleLister
+	Lister() akov1beta1.HTTPRuleLister
 }
 
 type hTTPRuleInformer struct {
@@ -71,7 +71,7 @@ func NewFilteredHTTPRuleInformer(client versioned.Interface, namespace string, r
 				return client.AkoV1beta1().HTTPRules(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&akov1beta1.HTTPRule{},
+		&apisakov1beta1.HTTPRule{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +82,9 @@ func (f *hTTPRuleInformer) defaultInformer(client versioned.Interface, resyncPer
 }
 
 func (f *hTTPRuleInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&akov1beta1.HTTPRule{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisakov1beta1.HTTPRule{}, f.defaultInformer)
 }
 
-func (f *hTTPRuleInformer) Lister() v1beta1.HTTPRuleLister {
-	return v1beta1.NewHTTPRuleLister(f.Informer().GetIndexer())
+func (f *hTTPRuleInformer) Lister() akov1beta1.HTTPRuleLister {
+	return akov1beta1.NewHTTPRuleLister(f.Informer().GetIndexer())
 }
