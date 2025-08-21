@@ -2005,7 +2005,7 @@ func GetControllerPropertiesFromSecret(cs kubernetes.Interface) (map[string]stri
 	ctrlProps := make(map[string]string)
 	aviSecret, err := cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), AviSecret, metav1.GetOptions{})
 	if err != nil {
-		utils.AviLog.Error(err, err.Error())
+		utils.AviLog.Error(err.Error())
 		return ctrlProps, err
 	}
 	ctrlProps[utils.ENV_CTRL_USERNAME] = string(aviSecret.Data["username"])

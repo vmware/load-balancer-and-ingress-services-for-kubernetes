@@ -372,3 +372,32 @@ Enable Gateway API in the featureGate to use this field.
 ### GatewayAPI.image.repository
 
 If you are using a private container registry and you'd like to override the default dockerhub settings, then this field can be edited with the private registry name.
+
+### ako-crd-operator.enabled
+Enable this flag to deploy ako-crd-operator which manages multiple CRDs
+
+### ako-crd-operator.controllerManager.container.image.repository
+Specify docker-registry that has the ako-crd-operator image
+
+### ako-crd-operator.controllerManager.container.image.tag
+Specify image tag to be used for ako-crd-operator image
+
+### ako-crd-operator.controllerManager.container.image.imagePullPolicy
+Specify image pull policy for ako-crd-operator image
+
+### ako-crd-operator.controllerManager.container.image.pullSecrets
+
+If you are setting the [image.repository](#imagerepository) field to use a secure private container image registry for ako-crd-operator image, then you must specify the pull secrets in this field. The pull secrets are a list of Kubernetes Secret objects that are created from the login credentials of a secure private image registry. The container runtime uses the pull secrets to authenticate with the registry in order to pull the ako-crd-operator image.
+
+### ako-crd-operator.controllerManager.container.resources.limits.cpu
+Specify CPU limit for ako-crd-operator pod
+
+### ako-crd-operator.controllerManager.container.resources.limits.memory
+Specify Memory limit for ako-crd-operator pod
+
+### ako-crd-operator.controllerManager.container.resources.requests.cpu
+Specify CPU request for ako-crd-operator 
+
+### ako-crd-operator.controllerManager.container.resources.requests.memory
+Specify Memory request for ako-crd-operator
+

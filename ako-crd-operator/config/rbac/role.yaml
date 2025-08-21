@@ -1,0 +1,46 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ako.vmware.com
+  resources:
+  - applicationprofiles
+  - healthmonitors
+  - routebackendextensions
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ako.vmware.com
+  resources:
+  - applicationprofiles/finalizers
+  - healthmonitors/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ako.vmware.com
+  resources:
+  - applicationprofiles/status
+  - healthmonitors/status
+  - routebackendextensions/status
+  verbs:
+  - get
+  - patch
+  - update

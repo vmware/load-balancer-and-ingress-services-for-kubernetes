@@ -25,6 +25,7 @@ import (
 
 	"github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
@@ -82,6 +83,10 @@ func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, pare
 		if rule.Matches == nil {
 			continue
 		}
+		if httpRouteConfig.Rejected {
+			utils.AviLog.Warnf("key: %s, msg: route %s is rejected", key, routeModel.GetName())
+			continue
+		}
 		o.BuildChildVS(key, routeModel, parentNsName, rule, childVSes, fullsync)
 	}
 }
@@ -119,7 +124,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 		Gateway:   parentNsName,
 		HTTPRoute: routeModel.GetNamespace() + "/" + routeModel.GetName(),
 	}
-	childNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
+	childNode.ApplicationProfileRef = proto.String(fmt.Sprintf("/api/applicationprofile/?name=%s", utils.DEFAULT_L7_APP_PROFILE))
 	childNode.ServiceEngineGroup = lib.GetSEGName()
 	childNode.VrfContext = lib.GetVrf()
 	childNode.AviMarkers = utils.AviObjectMarkers{
@@ -267,19 +272,22 @@ func (o *AviObjectGraph) BuildApplicationPersistenceProfile(key string, rule *Ru
 }
 
 func (o *AviObjectGraph) ApplyRuleExtensionRefs(key string, childNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
+
 	if rule != nil && rule.Filters != nil {
 		isFilterAppProfSet := false
 		for _, filter := range rule.Filters {
 			if filter.ExtensionRef != nil {
-				// validations are already done.
-				// Here we need to just apply Extension refs
+				// validations are already done. Here we need to just apply Extension refs
 				// Priortity: Individual ako-crd-oprator CRD have higher priority over
-				// same kind of the object present in AKO defined CRD
-				if filter.ExtensionRef.Kind == lib.ApplicationProfile {
-					// TODO: Accepted / rejected transition has to be handled.(should be done as part of event handling)
-					childNode.ApplicationProfileRef = proto.String(fmt.Sprintf("/api/applicationprofile?name=%s", filter.ExtensionRef.Name))
+				// same kind of the object present in AKO defined CRD.
+				// Application Profile CRD is to be given higher priority.
+
+				switch filter.ExtensionRef.Kind {
+				case lib.ApplicationProfile:
+					appProfRef := fmt.Sprintf("/api/applicationprofile/?name=%s-%s-%s", lib.GetClusterName(), routeModel.GetNamespace(), filter.ExtensionRef.Name)
+					childNode.ApplicationProfileRef = &appProfRef
 					isFilterAppProfSet = true
-				} else if filter.ExtensionRef.Kind == lib.L7Rule {
+				case lib.L7Rule:
 					err := akogatewayapilib.ParseL7CRD(key, routeModel.GetNamespace(), filter.ExtensionRef.Name, childNode, isFilterAppProfSet)
 					if err != nil {
 						resetChildNodeFields(key, err, childNode, isFilterAppProfSet)
@@ -303,6 +311,56 @@ func resetChildNodeFields(key string, err error, childNode *nodes.AviEvhVsNode, 
 	childNode.SetWafPolicyRef(nil)
 	childNode.SetHttpPolicySetRefs([]string{})
 }
+
+func resetPoolNodeFields(key string, err error, poolNode *nodes.AviPoolNode, isFilterHMSet bool) {
+	utils.AviLog.Warnf("key: %s, msg: Error while parsing extension ref: %s. Resetting pool %s fields", key, err.Error(), poolNode.Name)
+	poolNode.LbAlgorithm = nil
+	poolNode.LbAlgorithmHash = nil
+	poolNode.LbAlgorithmConsistentHashHdr = nil
+	if !isFilterHMSet {
+		poolNode.HealthMonitorRefs = nil
+	}
+}
+
+func buildPoolWithBackendExtensionRefs(key string, poolNode *nodes.AviPoolNode, namespace string, backend *HTTPBackend) {
+	healthMonitorRefsSet := sets.NewString()
+	if backend == nil || backend.Filters == nil || len(backend.Filters) == 0 {
+		return
+	}
+	for _, filter := range backend.Filters {
+		if filter.ExtensionRef != nil {
+			if filter.ExtensionRef.Kind == akogatewayapilib.HealthMonitorKind {
+				obj, err := akogatewayapilib.GetDynamicInformers().HealthMonitorInformer.Lister().ByNamespace(namespace).Get(filter.ExtensionRef.Name)
+				if err != nil {
+					utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s will not be processed by gateway-container. err: %s", key, namespace, filter.ExtensionRef.Name, err)
+					continue
+				}
+				unstructuredObj := obj.(*unstructured.Unstructured)
+				status, found, err := unstructured.NestedMap(unstructuredObj.UnstructuredContent(), "status")
+				if err != nil || !found {
+					utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s status not found. err: %s", key, namespace, filter.ExtensionRef.Name, err)
+					continue
+				}
+				uuid, ok := status["uuid"]
+				if !ok {
+					utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s uuid not found. err: %s", key, namespace, filter.ExtensionRef.Name, err)
+					continue
+				}
+				healthMonitorRefsSet.Insert(uuid.(string))
+			} else if filter.ExtensionRef.Kind == akogatewayapilib.RouteBackendExtensionKind {
+				isFilterHMSet := healthMonitorRefsSet.Len() > 0
+				err := akogatewayapilib.ParseRouteBackendExtensionCR(key, namespace, filter.ExtensionRef.Name, poolNode, isFilterHMSet)
+				if err != nil {
+					resetPoolNodeFields(key, err, poolNode, isFilterHMSet)
+				}
+			}
+		}
+	}
+	if healthMonitorRefsSet.Len() > 0 {
+		poolNode.HealthMonitorRefs = healthMonitorRefsSet.List()
+	}
+}
+
 func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
 	//reset pool, poolgroupreferences
 	childVsNode.PoolGroupRefs = nil
@@ -430,6 +488,7 @@ func (o *AviObjectGraph) BuildPGPool(key, parentNsName string, childVsNode *node
 				poolNode.Servers = servers
 			}
 		}
+		buildPoolWithBackendExtensionRefs(key, poolNode, routeModel.GetNamespace(), httpbackend)
 		if childVsNode.CheckPoolNChecksum(poolNode.Name, poolNode.GetCheckSum()) {
 			// Replace the poolNode.
 			childVsNode.ReplaceEvhPoolInEVHNode(poolNode, key)

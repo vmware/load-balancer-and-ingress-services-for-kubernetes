@@ -1,0 +1,307 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: healthmonitors.ako.vmware.com
+spec:
+  group: ako.vmware.com
+  names:
+    kind: HealthMonitor
+    listKind: HealthMonitorList
+    plural: healthmonitors
+    shortNames:
+    - hm
+    singular: healthmonitor
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: HealthMonitor is the Schema for the healthmonitors API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec defines the desired state of HealthMonitor
+            properties:
+              authentication:
+                description: Authentication defines the authentication information
+                  for HTTP/HTTPS monitors.
+                properties:
+                  secret_ref:
+                    description: SecretRef is the reference to the secret containing
+                      the username and password.
+                    type: string
+                required:
+                - secret_ref
+                type: object
+              failed_checks:
+                default: 2
+                description: FailedChecks is the number of failed pings before marking
+                  down.
+                format: int32
+                maximum: 50
+                minimum: 1
+                type: integer
+              http_monitor:
+                description: HTTPMonitor defines the HTTP monitor configuration.
+                properties:
+                  auth_type:
+                    description: AuthType is the type of authentication to use.
+                    enum:
+                    - AUTH_BASIC
+                    - AUTH_NTLM
+                    type: string
+                  exact_http_request:
+                    description: ExactHttpRequest checks if the whole http request
+                      should match.
+                    type: boolean
+                  http_request:
+                    default: GET / HTTP/1.0
+                    description: HTTPRequest is the HTTP request to send.
+                    maxLength: 1024
+                    type: string
+                  http_request_body:
+                    description: HTTPRequestBody is the request body to send.
+                    type: string
+                  http_response:
+                    description: HTTPResponse is a keyword to match in the response
+                      body.
+                    maxLength: 512
+                    type: string
+                  http_response_code:
+                    description: HTTPResponseCode is the list of expected HTTP response
+                      codes.
+                    items:
+                      enum:
+                      - HTTP_ANY
+                      - HTTP_1XX
+                      - HTTP_2XX
+                      - HTTP_3XX
+                      - HTTP_4XX
+                      - HTTP_5XX
+                      type: string
+                    minItems: 1
+                    type: array
+                  maintenance_code:
+                    description: MaintenanceCode is the HTTP code for maintenance
+                      response.
+                    items:
+                      format: uint32
+                      maximum: 599
+                      minimum: 101
+                      type: integer
+                    maxItems: 4
+                    type: array
+                  maintenance_response:
+                    description: MaintenanceResponse is the body content to match
+                      for maintenance response.
+                    type: string
+                  response_size:
+                    description: ResponseSize is the expected size of the response.
+                    format: int32
+                    maximum: 16384
+                    minimum: 2048
+                    type: integer
+                type: object
+                x-kubernetes-validations:
+                - message: if auth_type is set, exact_http_request must be set to
+                    false
+                  rule: (has(self.auth_type) && (!has(self.exact_http_request) ||
+                    !self.exact_http_request))|| !(has(self.auth_type))
+              is_federated:
+                description: |-
+                  IsFederated describes the object's replication scope. If the
+                  field is set to false, then the object is visible within
+                  the controller-cluster and its associated service-engines.
+                  If the field is set to true, then the object is replicated
+                  across the federation
+                type: boolean
+                x-kubernetes-validations:
+                - message: is_federated is immutable
+                  rule: self == oldSelf
+              monitor_port:
+                description: MonitorPort is the port to use for the health check.
+                format: int32
+                maximum: 65535
+                minimum: 0
+                type: integer
+                x-kubernetes-validations:
+                - message: monitor port is immutable
+                  rule: self == oldSelf
+              receive_timeout:
+                default: 4
+                description: ReceiveTimeout is the timeout for receiving a ping response,
+                  in seconds.
+                format: int32
+                maximum: 2400
+                minimum: 1
+                type: integer
+              send_interval:
+                default: 10
+                description: SendInterval is the frequency, in seconds, that pings
+                  are sent.
+                format: int32
+                maximum: 3600
+                minimum: 1
+                type: integer
+              successful_checks:
+                default: 2
+                description: SuccessfulChecks is the number of successful pings before
+                  marking up.
+                format: int32
+                maximum: 50
+                minimum: 1
+                type: integer
+              tcp_monitor:
+                description: TCP defines the TCP monitor configuration.
+                properties:
+                  maintenance_response:
+                    description: MaintenanceResponse is the response to send when
+                      in maintenance mode.
+                    maxLength: 512
+                    type: string
+                  tcp_half_open:
+                    description: TcpHalfOpen is a boolean to check if the tcp monitor
+                      is in half open mode
+                    type: boolean
+                  tcp_request:
+                    description: TcpRequest is the request to send for the TCP health
+                      check.
+                    maxLength: 1024
+                    type: string
+                  tcp_response:
+                    description: TcpResponse is the expected response for the TCP
+                      health check.
+                    maxLength: 512
+                    type: string
+                type: object
+                x-kubernetes-validations:
+                - message: If tcp_half_open is true, tcp_request, tcp_response, and
+                    maintenance_response must not be set
+                  rule: '!has(self.tcp_half_open) || !self.tcp_half_open || (!has(self.tcp_request)
+                    && !has(self.tcp_response) && !has(self.maintenance_response))'
+              type:
+                description: Type is the type of health monitor.
+                enum:
+                - HEALTH_MONITOR_TCP
+                - HEALTH_MONITOR_PING
+                - HEALTH_MONITOR_HTTP
+                - HEALTH_MONITOR_HTTPS
+                type: string
+                x-kubernetes-validations:
+                - message: type is immutable
+                  rule: self == oldSelf
+            required:
+            - type
+            type: object
+            x-kubernetes-validations:
+            - message: If auth_type is set, secret_ref must be set in authentication
+              rule: (!has(self.http_monitor) || !has(self.http_monitor.auth_type)
+                || has(self.authentication.secret_ref))
+          status:
+            description: Status defines the observed state of HealthMonitor
+            properties:
+              backendObjectName:
+                description: BackendObjectName is the name of the backend object
+                type: string
+              conditions:
+                description: Conditions is the list of conditions for the health monitor
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              dependencySum:
+                description: DependencySum is the checksum of all the dependencies
+                  for the health monitor
+                format: int32
+                type: integer
+              lastUpdated:
+                description: LastUpdated is the timestamp the object was last updated
+                format: date-time
+                type: string
+              observedGeneration:
+                description: ObservedGeneration is the observed generation by the
+                  operator
+                format: int64
+                type: integer
+              tenant:
+                description: Tenant is the tenant where the health monitor is created
+                type: string
+              uuid:
+                description: UUID is unique identifier of the health monitor object
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

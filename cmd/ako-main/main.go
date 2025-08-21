@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+
 	"io/fs"
 	"os"
 	"strconv"
@@ -25,7 +26,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-logr/logr"
+	"github.com/go-logr/zapr"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
@@ -80,7 +81,7 @@ func InitializeAKC() {
 	utils.AviLog.Infof("AKO is running with version: %s", version)
 
 	// set the logger for k8s as AviLogger.
-	klog.SetLogger(logr.New(&utils.AviLog))
+	klog.SetLogger(zapr.NewLogger(utils.AviLog.Sugar.Desugar()))
 
 	// Check if we are running inside kubernetes. Hence try authenticating with service token
 	cfg, err := rest.InClusterConfig()

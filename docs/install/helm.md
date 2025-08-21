@@ -43,9 +43,13 @@ Starting AKO-1.7.1, multiple AKO instances can be installed in a cluster.
     2. Each AKO instance should be installed in a different namespace.
 
 <b>Primary AKO installation</b>
+
+Starting AKO-1.14.1, ako helm chart has a dependency chart `ako-crd-operator`. This can be enabled/disabled by setting ako-crd-operator.enabled in AKO values.yaml
 ```
-helm install --generate-name oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 1.14.1 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=true --namespace=avi-system
+helm install --generate-name oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 1.14.1 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=true --namespace=avi-system --dependency-update
 ```
+
+Note: Set the dependent `ako-crd-operator` chart repository: `oci://projects.packages.broadcom.com/ako/helm-charts/ako-crd-operator` in AKO Chart.yaml before installation.  
 
 <b>Secondary AKO installation</b>
 ```
@@ -180,6 +184,14 @@ The following table lists the configurable parameters of the AKO chart and their
 | `nodePortSelector` | Key-Value pair used as a label based selection used by AKO to filter out K8s/OpenShift nodes while populating the pool members. Applicable in AKO NodePort mode | empty |
 | `securityContext` |  Security configuration applied on container running in AKO POD | empty |
 | `podSecurityContext` | Security configuration applied on AKO POD | empty |
+| `ako-crd-operator.controllerManager.container.image.repository` | Specify docker-registry that has the ako-crd-operator image | packages.broadcom.com/ako/ako-crd-operator |
+| `ako-crd-operator.controllerManager.container.image.tag` | Specify image tag to be used for ako-crd-operator image | latest |
+| `ako-crd-operator.controllerManager.container.image.pullPolicy` | Specify when and how to pull the ako-crd-operator image | IfNotPresent |
+| `ako-crd-operator.controllerManager.container.image.pullSecrets` | Specify the pull secrets for the secure private container image registry that has the ako-crd-operator image | `Empty List` |
+| `ako-crd-operator.controllerManager.container.resources.limits.cpu` | Specify CPU limit for ako-crd-operator pod | 256m |
+| `ako-crd-operator.controllerManager.container.resources.limits.memory` | Specify Memory limit for ako-crd-operator pod | 128Mi |
+| `ako-crd-operator.controllerManager.container.resources.requests.cpu` | Specify CPU request for ako-crd-operator | 128m |
+| `ako-crd-operator.controllerManager.container.resources.requests.memory` | Specify Memory request for ako-crd-operator | 64Mi |
 
 > From AKO 1.5.1, fields `subnetIP` and `subnetPrefix` have been deprecated. See [Upgrade Notes](../upgrade/upgrade.md) for more details.
 

@@ -38,7 +38,7 @@ rules:
     resources: ["routes","routes/status"]
     verbs: ["get","watch","list","patch","update"]
   - apiGroups: ["ako.vmware.com"]
-    resources: ["hostrules","hostrules/status","httprules","httprules/status","aviinfrasettings","aviinfrasettings/status", "l4rules", "l4rules/status", "ssorules", "ssorules/status", "l7rules", "l7rules/status"]
+    resources: ["hostrules","hostrules/status","httprules","httprules/status","aviinfrasettings","aviinfrasettings/status", "l4rules", "l4rules/status", "ssorules", "ssorules/status", "l7rules", "l7rules/status", "healthmonitors", "healthmonitors/status", "routebackendextensions", "routebackendextensions/status", "applicationprofiles", "applicationprofiles/status"]
     verbs: ["get","watch","list","patch","update"]
   - apiGroups: ["networking.x-k8s.io"]
     resources: ["gateways","gateways/status","gatewayclasses","gatewayclasses/status"]

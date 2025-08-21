@@ -33,30 +33,36 @@ var gwonce sync.Once
 func GatewayApiLister() *GWLister {
 	gwonce.Do(func() {
 		gwLister = &GWLister{
-			gatewayClassStore:              objects.NewObjectMapStore(),
-			gatewayToGatewayClassStore:     objects.NewObjectMapStore(),
-			gatewayClassToGatewayStore:     objects.NewObjectMapStore(),
-			gatewayToListenerStore:         objects.NewObjectMapStore(),
-			routeToGateway:                 objects.NewObjectMapStore(),
-			routeToGatewayListener:         objects.NewObjectMapStore(),
-			gatewayToRoute:                 objects.NewObjectMapStore(),
-			serviceToGateway:               objects.NewObjectMapStore(),
-			gatewayToService:               objects.NewObjectMapStore(),
-			serviceToRoute:                 objects.NewObjectMapStore(),
-			routeToService:                 objects.NewObjectMapStore(),
-			secretToGateway:                objects.NewObjectMapStore(),
-			gatewayToSecret:                objects.NewObjectMapStore(),
-			routeToChildVS:                 objects.NewObjectMapStore(),
-			gatewayToHostnameStore:         objects.NewObjectMapStore(),
-			gatewayListenerToHostnameStore: objects.NewObjectMapStore(),
-			gatewayRouteToHostnameStore:    objects.NewObjectMapStore(),
-			gatewayRouteToHTTPSPGPoolStore: objects.NewObjectMapStore(),
-			podToServiceStore:              objects.NewObjectMapStore(),
-			gatewayToStatus:                objects.NewObjectMapStore(),
-			routeToStatus:                  objects.NewObjectMapStore(),
-			l7RuleToHTTPRouteCache:         objects.NewObjectMapStore(),
-			httpRouteToL7RuleCache:         objects.NewObjectMapStore(),
-			gatewayToInfraSetting:          objects.NewObjectMapStore(),
+			gatewayClassStore:                     objects.NewObjectMapStore(),
+			gatewayToGatewayClassStore:            objects.NewObjectMapStore(),
+			gatewayClassToGatewayStore:            objects.NewObjectMapStore(),
+			gatewayToListenerStore:                objects.NewObjectMapStore(),
+			routeToGateway:                        objects.NewObjectMapStore(),
+			routeToGatewayListener:                objects.NewObjectMapStore(),
+			gatewayToRoute:                        objects.NewObjectMapStore(),
+			serviceToGateway:                      objects.NewObjectMapStore(),
+			gatewayToService:                      objects.NewObjectMapStore(),
+			serviceToRoute:                        objects.NewObjectMapStore(),
+			routeToService:                        objects.NewObjectMapStore(),
+			secretToGateway:                       objects.NewObjectMapStore(),
+			gatewayToSecret:                       objects.NewObjectMapStore(),
+			routeToChildVS:                        objects.NewObjectMapStore(),
+			gatewayToHostnameStore:                objects.NewObjectMapStore(),
+			gatewayListenerToHostnameStore:        objects.NewObjectMapStore(),
+			gatewayRouteToHostnameStore:           objects.NewObjectMapStore(),
+			gatewayRouteToHTTPSPGPoolStore:        objects.NewObjectMapStore(),
+			podToServiceStore:                     objects.NewObjectMapStore(),
+			gatewayToStatus:                       objects.NewObjectMapStore(),
+			routeToStatus:                         objects.NewObjectMapStore(),
+			l7RuleToHTTPRouteCache:                objects.NewObjectMapStore(),
+			httpRouteToL7RuleCache:                objects.NewObjectMapStore(),
+			gatewayToInfraSetting:                 objects.NewObjectMapStore(),
+			healthMonitorToHTTPRouteCache:         objects.NewObjectMapStore(),
+			httpRouteToHealthMonitorCache:         objects.NewObjectMapStore(),
+			routeBackendExtensionToHTTPRouteCache: objects.NewObjectMapStore(),
+			httpRouteToRouteBackendExtensionCache: objects.NewObjectMapStore(),
+			appProfileToHTTPRouteCache:            objects.NewObjectMapStore(),
+			httpRouteToAppProfileCache:            objects.NewObjectMapStore(),
 		}
 	})
 	return gwLister
@@ -138,6 +144,24 @@ type GWLister struct {
 	httpRouteToL7RuleCache *objects.ObjectMapStore
 	// namespace/gateway -> infrasetting
 	gatewayToInfraSetting *objects.ObjectMapStore
+
+	// HealthMonitor --> HTTPRoute
+	healthMonitorToHTTPRouteCache *objects.ObjectMapStore
+
+	// HTTPRoute --> HealthMonitor
+	httpRouteToHealthMonitorCache *objects.ObjectMapStore
+
+	// RouteBackendExtension -> HTTPRoute
+	routeBackendExtensionToHTTPRouteCache *objects.ObjectMapStore
+
+	// HTTPRoute --> RouteBackendExtension
+	httpRouteToRouteBackendExtensionCache *objects.ObjectMapStore
+
+	// ApplicationProfile --> HTTPRoute
+	appProfileToHTTPRouteCache *objects.ObjectMapStore
+
+	// HTTPRoute --> ApplicationProfile
+	httpRouteToAppProfileCache *objects.ObjectMapStore
 }
 
 type GatewayRouteKind struct {
@@ -826,6 +850,27 @@ func (g *GWLister) DeleteRouteFromStore(routeTypeNsName string, key string) {
 	}
 	// delete the httproutekey
 	g.httpRouteToL7RuleCache.Delete(httpRouteNSName)
+
+	// delete Route entries from HealthMonitorHTTPRoute mapping
+	if found, healthMonitorList := g.httpRouteToHealthMonitorCache.Get(httpRouteNSName); found {
+		healthMonitorListObj := healthMonitorList.(map[string]struct{})
+		for healthMonitor := range healthMonitorListObj {
+			g.deleteHealthMonitorToHTTPRoutesMapping(healthMonitor, httpRouteNSName)
+		}
+	}
+	// delete the httproutekey
+	g.httpRouteToHealthMonitorCache.Delete(httpRouteNSName)
+
+	// delete Route entries from RouteBackendExtensionHTTPRoute mapping
+	if found, routeBackendExtensionList := g.httpRouteToRouteBackendExtensionCache.Get(httpRouteNSName); found {
+		routeBackendExtensionListObj := routeBackendExtensionList.(map[string]struct{})
+		for routeBackendExtension := range routeBackendExtensionListObj {
+			g.deleteRouteBackendExtensionToHTTPRoutesMapping(routeBackendExtension, httpRouteNSName)
+		}
+	}
+	// delete the httproutekey
+	g.httpRouteToRouteBackendExtensionCache.Delete(httpRouteNSName)
+
 	//delete route to service
 	found, svcList := g.routeToService.Get(routeTypeNsName)
 	if found {
@@ -1118,4 +1163,234 @@ func (g *GWLister) UpdateGatewayToAviInfraSettingMappings(gwNsName, aviInfraSett
 
 func (g *GWLister) DeleteGatewayToAviInfraSettingMappings(gwNsName string) bool {
 	return g.gatewayToInfraSetting.Delete(gwNsName)
+}
+
+// HealthMonitor to HTTPRoute
+
+func (g *GWLister) GetHealthMonitorToHTTPRoutesMapping(healthMonitorName string) (bool, map[string]struct{}) {
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
+	found, httpRoutes := g.healthMonitorToHTTPRouteCache.Get(healthMonitorName)
+	if !found {
+		return false, make(map[string]struct{})
+	}
+	return true, httpRoutes.(map[string]struct{})
+}
+
+func (g *GWLister) UpdateHealthMonitorToHTTPRoutesMapping(healthMonitorName string, httpRoute string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	found, httpRoutes := g.healthMonitorToHTTPRouteCache.Get(healthMonitorName)
+	var httpRoutesObj map[string]struct{}
+	if !found {
+		httpRoutesObj = make(map[string]struct{})
+	} else {
+		httpRoutesObj = httpRoutes.(map[string]struct{})
+	}
+	httpRoutesObj[httpRoute] = struct{}{}
+	g.healthMonitorToHTTPRouteCache.AddOrUpdate(healthMonitorName, httpRoutesObj)
+}
+
+func (g *GWLister) DeleteHealthMonitorToHTTPRoutesMapping(healthMonitorName string, httpRoute string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	g.deleteHealthMonitorToHTTPRoutesMapping(healthMonitorName, httpRoute)
+}
+
+func (g *GWLister) deleteHealthMonitorToHTTPRoutesMapping(healthMonitorName string, httpRoute string) {
+	found, httpRoutes := g.healthMonitorToHTTPRouteCache.Get(healthMonitorName)
+	if found {
+		httpRoutesObj := httpRoutes.(map[string]struct{})
+		delete(httpRoutesObj, httpRoute)
+		g.healthMonitorToHTTPRouteCache.AddOrUpdate(healthMonitorName, httpRoutesObj)
+	}
+}
+
+// HTTPRoute to HealthMonitor
+
+func (g *GWLister) GetHTTPRouteToHealthMonitorMapping(httpRouteName string) (bool, map[string]struct{}) {
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
+	found, healthMonitors := g.httpRouteToHealthMonitorCache.Get(httpRouteName)
+	if !found {
+		return false, make(map[string]struct{})
+	}
+	return true, healthMonitors.(map[string]struct{})
+}
+
+func (g *GWLister) UpdateHTTPRouteToHealthMonitorMapping(httpRouteName string, healthMonitor string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	found, healthMonitors := g.httpRouteToHealthMonitorCache.Get(httpRouteName)
+	var healthMonitorsObj map[string]struct{}
+	if !found {
+		healthMonitorsObj = make(map[string]struct{})
+	} else {
+		healthMonitorsObj = healthMonitors.(map[string]struct{})
+	}
+	healthMonitorsObj[healthMonitor] = struct{}{}
+	g.httpRouteToHealthMonitorCache.AddOrUpdate(httpRouteName, healthMonitorsObj)
+}
+
+func (g *GWLister) DeleteHTTPRouteToHealthMonitorMapping(httpRouteName string, healthMonitor string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	found, healthMonitors := g.httpRouteToHealthMonitorCache.Get(httpRouteName)
+	if found {
+		healthMonitorsObj := healthMonitors.(map[string]struct{})
+		delete(healthMonitorsObj, healthMonitor)
+		g.httpRouteToHealthMonitorCache.AddOrUpdate(httpRouteName, healthMonitorsObj)
+	}
+}
+
+// RouteBackendExtension to HTTPRoute (Name: Namespace+"/"+ name)
+
+func (g *GWLister) GetRouteBackendExtensionToHTTPRouteMapping(routeBackendExtensionName string) (bool, map[string]struct{}) {
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
+	found, httpRoutes := g.routeBackendExtensionToHTTPRouteCache.Get(routeBackendExtensionName)
+	if !found {
+		return false, make(map[string]struct{})
+	}
+	return true, httpRoutes.(map[string]struct{})
+}
+
+func (g *GWLister) DeleteRouteBackendExtensionToHTTPRouteMapping(routeBackendExtensionName string, httpRoute string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	g.deleteRouteBackendExtensionToHTTPRoutesMapping(routeBackendExtensionName, httpRoute)
+}
+
+func (g *GWLister) deleteRouteBackendExtensionToHTTPRoutesMapping(routeBackendExtensionName string, httpRoute string) {
+	found, httpRoutes := g.routeBackendExtensionToHTTPRouteCache.Get(routeBackendExtensionName)
+	if found {
+		httpRoutesObj := httpRoutes.(map[string]struct{})
+		delete(httpRoutesObj, httpRoute)
+		g.routeBackendExtensionToHTTPRouteCache.AddOrUpdate(routeBackendExtensionName, httpRoutesObj)
+	}
+}
+
+func (g *GWLister) UpdateRouteBackendExtensionToHTTPRouteMapping(routeBackendExtensionName string, httpRoute string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	found, httpRoutes := g.routeBackendExtensionToHTTPRouteCache.Get(routeBackendExtensionName)
+	var httpRoutesObj map[string]struct{}
+	if !found {
+		httpRoutesObj = make(map[string]struct{})
+	} else {
+		httpRoutesObj = httpRoutes.(map[string]struct{})
+	}
+	httpRoutesObj[httpRoute] = struct{}{}
+	g.routeBackendExtensionToHTTPRouteCache.AddOrUpdate(routeBackendExtensionName, httpRoutesObj)
+}
+
+// HTTPRoute to RouteBackendExtension (Name: Namespace+"/"+name)
+func (g *GWLister) GetHTTPRouteToRouteBackendExtensionMapping(httpRouteName string) (bool, map[string]struct{}) {
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
+	found, routeBackendExtensions := g.httpRouteToRouteBackendExtensionCache.Get(httpRouteName)
+	if !found {
+		return false, make(map[string]struct{})
+	}
+	return true, routeBackendExtensions.(map[string]struct{})
+}
+
+func (g *GWLister) DeleteHTTPRouteToRouteBackendExtensionMapping(httpRouteName string, routeBackendExtension string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	found, routeBackendExtensions := g.httpRouteToRouteBackendExtensionCache.Get(httpRouteName)
+	if found {
+		routeBackendExtensionsObj := routeBackendExtensions.(map[string]struct{})
+		delete(routeBackendExtensionsObj, routeBackendExtension)
+		g.httpRouteToRouteBackendExtensionCache.AddOrUpdate(httpRouteName, routeBackendExtensionsObj)
+	}
+}
+
+func (g *GWLister) UpdateHTTPRouteToRouteBackendExtensionMapping(httpRouteName string, routeBackendExtension string) {
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+	found, routeBackendExtensions := g.httpRouteToRouteBackendExtensionCache.Get(httpRouteName)
+	var routeBackendExtensionsObj map[string]struct{}
+	if !found {
+		routeBackendExtensionsObj = make(map[string]struct{})
+	} else {
+		routeBackendExtensionsObj = routeBackendExtensions.(map[string]struct{})
+	}
+	routeBackendExtensionsObj[routeBackendExtension] = struct{}{}
+	g.httpRouteToRouteBackendExtensionCache.AddOrUpdate(httpRouteName, routeBackendExtensionsObj)
+}
+
+// Application Profile CRD
+// App Prof --> HTTP Route
+func (g *GWLister) GetApplicationProfileToHTTPRouteMapping(appProfileName string) (bool, map[string]struct{}) {
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
+
+	found, httpRoutes := g.appProfileToHTTPRouteCache.Get(appProfileName)
+	if !found {
+		return false, nil
+	}
+	return true, httpRoutes.(map[string]struct{})
+}
+
+func (g *GWLister) DeleteApplicationProfileToHTTPRouteMapping(appProfileName, httpRoute string) {
+	found, httpRoutes := g.GetApplicationProfileToHTTPRouteMapping(appProfileName)
+	if found {
+		g.gwLock.Lock()
+		defer g.gwLock.Unlock()
+
+		delete(httpRoutes, httpRoute)
+		g.appProfileToHTTPRouteCache.AddOrUpdate(appProfileName, httpRoutes)
+
+	}
+}
+
+func (g *GWLister) UpdateApplicationProfileToHTTPRouteMapping(appProfileName, httpRoute string) {
+	_, httpRoutes := g.GetApplicationProfileToHTTPRouteMapping(appProfileName)
+	// app profile -> http route cache can be nil, init a new one on first update
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	if httpRoutes == nil {
+		httpRoutes = make(map[string]struct{})
+	}
+	httpRoutes[httpRoute] = struct{}{}
+	g.appProfileToHTTPRouteCache.AddOrUpdate(appProfileName, httpRoutes)
+}
+
+// HTTP Route --> App Profile
+func (g *GWLister) GetHTTPRouteToApplicationProfileMapping(httpRouteName string) (bool, map[string]struct{}) {
+	g.gwLock.RLock()
+	defer g.gwLock.RUnlock()
+
+	found, appProfiles := g.httpRouteToAppProfileCache.Get(httpRouteName)
+	if !found {
+		return false, nil
+	}
+	return true, appProfiles.(map[string]struct{})
+}
+
+func (g *GWLister) DeleteHTTPRouteToApplicationProfileMapping(httpRouteName, appProfile string) {
+	found, appProfiles := g.GetHTTPRouteToApplicationProfileMapping(httpRouteName)
+	if found {
+		g.gwLock.Lock()
+		defer g.gwLock.Unlock()
+
+		delete(appProfiles, appProfile)
+		g.httpRouteToAppProfileCache.AddOrUpdate(httpRouteName, appProfiles)
+	}
+}
+
+func (g *GWLister) UpdateHTTPRouteToApplicationProfileMapping(httpRouteName, appProfile string) {
+	_, appProfiles := g.GetHTTPRouteToApplicationProfileMapping(httpRouteName)
+
+	// http route -> application profile cache can be nil, init a new one on first update
+	g.gwLock.Lock()
+	defer g.gwLock.Unlock()
+
+	if appProfiles == nil {
+		appProfiles = make(map[string]struct{})
+	}
+	appProfiles[appProfile] = struct{}{}
+	g.httpRouteToAppProfileCache.AddOrUpdate(httpRouteName, appProfiles)
 }

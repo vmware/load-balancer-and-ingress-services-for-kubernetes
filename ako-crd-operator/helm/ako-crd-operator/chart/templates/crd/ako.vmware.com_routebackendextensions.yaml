@@ -1,0 +1,121 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: routebackendextensions.ako.vmware.com
+spec:
+  group: ako.vmware.com
+  names:
+    kind: RouteBackendExtension
+    listKind: RouteBackendExtensionList
+    plural: routebackendextensions
+    shortNames:
+    - rbe
+    singular: routebackendextension
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: RouteBackendExtension is the Schema for the routebackendextensions
+          API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              healthMonitor:
+                description: Represents health monitor objects
+                items:
+                  description: BackendHealthMonitor defines the desired state of BackendHealthMontior.
+                  properties:
+                    kind:
+                      description: Defines the type of HealthMonitor object
+                      enum:
+                      - AVIREF
+                      type: string
+                    name:
+                      description: Defines the name of HealthMonitor object. HealthMonitor
+                        object should be in the same namespace as that of RouteBackendExtension
+                        object
+                      type: string
+                  required:
+                  - kind
+                  - name
+                  type: object
+                type: array
+              lbAlgorithm:
+                default: LB_ALGORITHM_LEAST_CONNECTIONS
+                description: Defines LB algorithm on Pool
+                enum:
+                - LB_ALGORITHM_LEAST_CONNECTIONS
+                - LB_ALGORITHM_ROUND_ROBIN
+                - LB_ALGORITHM_FASTEST_RESPONSE
+                - LB_ALGORITHM_CONSISTENT_HASH
+                - LB_ALGORITHM_LEAST_LOAD
+                - LB_ALGORITHM_FEWEST_SERVERS
+                - LB_ALGORITHM_RANDOM
+                - LB_ALGORITHM_FEWEST_TASKS
+                - LB_ALGORITHM_NEAREST_SERVER
+                - LB_ALGORITHM_CORE_AFFINITY
+                - LB_ALGORITHM_TOPOLOGY
+                type: string
+              lbAlgorithmConsistentHashHdr:
+                description: |-
+                  HTTP header name to be used for the hash key.
+                  This field should be specified only when lbAlgorithm is LB_ALGORITHM_CONSISTENT_HASH and lbAlgorithmHash is LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER.
+                type: string
+              lbAlgorithmHash:
+                default: LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS
+                description: Criteria used as a key for determining the hash between
+                  the client and server
+                enum:
+                - LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS
+                - LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS_AND_PORT
+                - LB_ALGORITHM_CONSISTENT_HASH_URI
+                - LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER
+                - LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_STRING
+                - LB_ALGORITHM_CONSISTENT_HASH_CALLID
+                type: string
+            type: object
+            x-kubernetes-validations:
+            - message: lbAlgorithmHash must be set if and only if lbAlgorithm is LB_ALGORITHM_CONSISTENT_HASH
+              rule: (self.lbAlgorithm == 'LB_ALGORITHM_CONSISTENT_HASH') && has(self.lbAlgorithmHash)
+            - message: lbAlgorithmConsistentHashHdr must be set if and only if lbAlgorithmHash
+                is LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER
+              rule: '!has(self.lbAlgorithmHash) || (self.lbAlgorithmHash == ''LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER'')
+                && has(self.lbAlgorithmConsistentHashHdr)'
+          status:
+            description: RouteBackendExtensionStatus defines the observed state of
+              RouteBackendExtension.
+            properties:
+              controller:
+                description: Field is populated by AKO CRD operator as ako-crd-operator
+                type: string
+              error:
+                type: string
+              status:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
