@@ -78,6 +78,7 @@ func (r *RouteBackendExtensionReconciler) GetReconcilerName() string {
 
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=routebackendextensions,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=routebackendextensions/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=ako.vmware.com,resources=pkiprofiles,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -124,8 +125,24 @@ func (r *RouteBackendExtensionReconciler) Reconcile(ctx context.Context, req ctr
 	return ctrl.Result{}, nil
 }
 
+const (
+	// PKIProfileIndexKey is the index key for RouteBackendExtensions by PKIProfile reference
+	PKIProfileIndexKey = "spec.pkiProfile.name"
+)
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *RouteBackendExtensionReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// Add indexer for RouteBackendExtension by PKIProfile reference
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &akov1alpha1.RouteBackendExtension{}, PKIProfileIndexKey, func(rawObj client.Object) []string {
+		rbe := rawObj.(*akov1alpha1.RouteBackendExtension)
+		if rbe.Spec.PKIProfile != nil && rbe.Spec.PKIProfile.Kind == akov1alpha1.ObjectKindCRD {
+			return []string{rbe.Spec.PKIProfile.Name}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&akov1alpha1.RouteBackendExtension{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Named("routebackendextension").
@@ -145,8 +162,48 @@ func (r *RouteBackendExtensionReconciler) SetupWithManager(mgr ctrl.Manager) err
 			)),
 			builder.WithPredicates(controllerutils.TenantAnnotationNamespacePredicate()),
 		).
+		Watches(
+			&akov1alpha1.PKIProfile{},
+			handler.EnqueueRequestsFromMapFunc(r.findRouteBackendExtensionsForPKIProfile),
+		).
 		Complete(r)
 }
+
+// findRouteBackendExtensionsForPKIProfile finds all RouteBackendExtensions that reference the given PKIProfile
+func (r *RouteBackendExtensionReconciler) findRouteBackendExtensionsForPKIProfile(ctx context.Context, obj client.Object) []ctrl.Request {
+	pkiProfile, ok := obj.(*akov1alpha1.PKIProfile)
+	if !ok {
+		return nil
+	}
+
+	var rbeList akov1alpha1.RouteBackendExtensionList
+
+	// Use indexer to find RouteBackendExtensions that reference this PKIProfile
+	if err := r.Client.List(ctx, &rbeList,
+		client.InNamespace(pkiProfile.Namespace),
+		client.MatchingFields{PKIProfileIndexKey: pkiProfile.Name}); err != nil {
+		r.Logger.Errorf("Failed to list RouteBackendExtensions by PKIProfile index in namespace %s: %v", pkiProfile.Namespace, err)
+		return nil
+	}
+
+	// Pre-allocate requests slice with the expected capacity
+	requests := make([]ctrl.Request, 0, len(rbeList.Items))
+
+	// Convert found RouteBackendExtensions to reconcile requests
+	for _, rbe := range rbeList.Items {
+		requests = append(requests, ctrl.Request{
+			NamespacedName: client.ObjectKey{
+				Namespace: rbe.Namespace,
+				Name:      rbe.Name,
+			},
+		})
+		r.Logger.Debugf("PKIProfile %s/%s changed, queuing RouteBackendExtension %s/%s for reconciliation",
+			pkiProfile.Namespace, pkiProfile.Name, rbe.Namespace, rbe.Name)
+	}
+
+	return requests
+}
+
 func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, rbe *akov1alpha1.RouteBackendExtension) error {
 	log := utils.LoggerFromContext(ctx)
 	log.Info("Validating RouteBackendExtension CRD")
@@ -173,6 +230,53 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 		} else if len(resp) == 0 || resp["count"] == nil || resp["count"].(float64) == float64(0) {
 			log.Errorf("error in getting healthmonitor: %s from tenant %s. Object not found", hm.Name, tenant)
 			err = fmt.Errorf("error in getting healthmonitor: %s from tenant %s. Object not found", hm.Name, tenant)
+			r.SetStatus(rbe, err.Error(), constants.REJECTED)
+			return err
+		}
+	}
+
+	// Check PKIProfile if present
+	if rbe.Spec.PKIProfile != nil && rbe.Spec.PKIProfile.Kind == akov1alpha1.ObjectKindCRD {
+		pkiProfile := &akov1alpha1.PKIProfile{}
+		pkiProfileKey := client.ObjectKey{
+			Namespace: rbe.Namespace,
+			Name:      rbe.Spec.PKIProfile.Name,
+		}
+		err := r.Client.Get(ctx, pkiProfileKey, pkiProfile)
+		if err != nil {
+			if k8serror.IsNotFound(err) {
+				log.Errorf("PKIProfile %s not found in namespace %s", rbe.Spec.PKIProfile.Name, rbe.Namespace)
+				err = fmt.Errorf("PKIProfile %s not found in namespace %s", rbe.Spec.PKIProfile.Name, rbe.Namespace)
+				r.SetStatus(rbe, err.Error(), constants.REJECTED)
+				return err
+			}
+			log.Errorf("error getting PKIProfile %s from namespace %s. Err: %s", rbe.Spec.PKIProfile.Name, rbe.Namespace, err.Error())
+			r.SetStatus(rbe, err.Error(), constants.REJECTED)
+			return err
+		}
+
+		// Validate that the tenant of the PKI profile matches with the namespace tenant
+		if pkiProfile.Status.Tenant != "" && pkiProfile.Status.Tenant != tenant {
+			log.Errorf("PKIProfile %s tenant %s does not match namespace %s tenant %s",
+				rbe.Spec.PKIProfile.Name, pkiProfile.Status.Tenant, rbe.Namespace, tenant)
+			err = fmt.Errorf("PKIProfile %s tenant %s does not match namespace %s tenant %s",
+				rbe.Spec.PKIProfile.Name, pkiProfile.Status.Tenant, rbe.Namespace, tenant)
+			r.SetStatus(rbe, err.Error(), constants.REJECTED)
+			return err
+		}
+
+		// Check if PKIProfile is ready by looking at its Ready condition
+		isReady := false
+		for _, condition := range pkiProfile.Status.Conditions {
+			if condition.Type == "Ready" && condition.Status == "True" {
+				isReady = true
+				break
+			}
+		}
+
+		if !isReady {
+			log.Errorf("RBE is rejected beacause PKIProfile %s is not ready in namespace %s", rbe.Spec.PKIProfile.Name, rbe.Namespace)
+			err = fmt.Errorf("RBE is rejected beacause PKIProfile %s is not ready in namespace %s", rbe.Spec.PKIProfile.Name, rbe.Namespace)
 			r.SetStatus(rbe, err.Error(), constants.REJECTED)
 			return err
 		}

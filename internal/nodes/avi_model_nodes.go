@@ -1677,6 +1677,8 @@ type AviPoolCommonFields struct {
 	SslProfileRef                    *string
 	SslKeyAndCertificateRef          *string
 	EnableHttp2                      *bool
+	HostCheckEnabled                 *bool
+	DomainName                       []string
 }
 
 func (v *AviPoolNode) GetCheckSum() uint32 {
@@ -1727,6 +1729,12 @@ func (v *AviPoolNode) CalculateCheckSum() {
 	}
 	if v.SslKeyAndCertificateRef != nil {
 		checksumStringSlice = append(checksumStringSlice, *v.SslKeyAndCertificateRef)
+	}
+	if v.HostCheckEnabled != nil {
+		checksumStringSlice = append(checksumStringSlice, utils.Stringify(*v.HostCheckEnabled))
+	}
+	if v.DomainName != nil {
+		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.DomainName))
 	}
 
 	if len(v.ServiceMetadata.NamespaceServiceName) > 0 {

@@ -6,8 +6,21 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: routebackendextension-sample
 spec:
-  lbAlgorithm: LB_ALGORITHM_LEAST_CONNECTIONS
+  lbAlgorithm: LB_ALGORITHM_CONSISTENT_HASH
+  lbAlgorithmConsistentHashHdr: X-Forwarded-For
+  lbAlgorithmHash: LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER
   persistenceProfile: System-Persistence-Client-IP
   healthMonitor:
   - kind: "AVIREF"
     name: "healthmonitor-sample"
+  # Enable SSL termination at the backend
+  enableBackendSSL: true
+  # PKI Profile for certificate validation
+  pkiProfile:
+    kind: "CRD"
+    name: "pkiprofile-sample"
+  # Enable hostname verification during TLS handshake
+  hostCheckEnabled: true
+  # Domain name for backend connections
+  domainName:
+  - "backend.example.com"

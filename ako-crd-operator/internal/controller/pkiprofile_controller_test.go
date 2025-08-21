@@ -1,0 +1,586 @@
+/*
+Copyright 2025.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package controller
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"testing"
+	"time"
+
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/assert"
+	"github.com/vmware/alb-sdk/go/session"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/test/mock"
+
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
+	k8serror "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
+)
+
+const (
+	// testCertificate represents a test certificate used in PKI profile tests
+	testCertificate = "-----BEGIN CERTIFICATE-----\nMIIC...test...cert\n-----END CERTIFICATE-----"
+	// testUpdatedCertificate represents an updated test certificate used in PKI profile tests
+	testUpdatedCertificate = "-----BEGIN CERTIFICATE-----\nMIIC...updated...cert\n-----END CERTIFICATE-----"
+)
+
+func TestPKIProfileController(t *testing.T) {
+	tests := []struct {
+		name         string
+		pki          *akov1alpha1.PKIProfile
+		prepare      func(mockAviClient *mock.MockAviClientInterface)
+		prepareCache func(cache *mock.MockCacheOperation)
+		want         *akov1alpha1.PKIProfile
+		wantErr      bool
+	}{
+		{
+			name: "success: add finalizer",
+			pki: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+				},
+			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				responseUUID := map[string]interface{}{
+					"uuid": "123",
+				}
+				mockAviClient.EXPECT().AviSessionPost(constants.PKIProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params interface{}) {
+					if resp, ok := response.(*map[string]interface{}); ok {
+						*resp = responseUUID
+					}
+				}).Return(nil).AnyTimes()
+			},
+			want: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test",
+					Namespace:       "default",
+					Finalizers:      []string{"pkiprofile.ako.vmware.com/finalizer"},
+					ResourceVersion: "1000",
+				},
+				Status: akov1alpha1.PKIProfileStatus{
+					UUID:               "123",
+					Controller:         constants.AKOCRDController,
+					ObservedGeneration: 0,
+					Conditions: []metav1.Condition{
+						{
+							Type:    "Ready",
+							Status:  "True",
+							Reason:  "Created",
+							Message: "PKIProfile created successfully on Avi Controller",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "success: add pkiprofile",
+			pki: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test",
+					Finalizers:      []string{"pkiprofile.ako.vmware.com/finalizer"},
+					ResourceVersion: "1000",
+					Namespace:       "default",
+				},
+				Spec: akov1alpha1.PKIProfileSpec{
+					CACerts: []*akov1alpha1.SSLCertificate{{Certificate: func() *string {
+						s := testCertificate
+						return &s
+					}()}},
+				},
+			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				responseUUID := map[string]interface{}{
+					"uuid": "123",
+				}
+				mockAviClient.EXPECT().AviSessionPost(constants.PKIProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params interface{}) {
+					if resp, ok := response.(*map[string]interface{}); ok {
+						*resp = responseUUID
+					}
+				}).Return(nil).AnyTimes()
+			},
+			want: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test",
+					Finalizers:      []string{"pkiprofile.ako.vmware.com/finalizer"},
+					Namespace:       "default",
+					ResourceVersion: "1001",
+				},
+				Status: akov1alpha1.PKIProfileStatus{
+					UUID:               "123",
+					Controller:         constants.AKOCRDController,
+					ObservedGeneration: 0,
+					Conditions: []metav1.Condition{
+						{
+							Type:   "Ready",
+							Status: "True",
+							Reason: "Created",
+						},
+					},
+				},
+				Spec: akov1alpha1.PKIProfileSpec{
+					CACerts: []*akov1alpha1.SSLCertificate{{Certificate: func() *string {
+						s := testCertificate
+						return &s
+					}()}},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "success: update pkiprofile",
+			pki: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test",
+					Finalizers:      []string{"pkiprofile.ako.vmware.com/finalizer"},
+					ResourceVersion: "1000",
+					Namespace:       "default",
+				},
+				Status: akov1alpha1.PKIProfileStatus{
+					UUID: "123",
+				},
+				Spec: akov1alpha1.PKIProfileSpec{
+					CACerts: []*akov1alpha1.SSLCertificate{{Certificate: func() *string {
+						s := testUpdatedCertificate
+						return &s
+					}()}},
+				},
+			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				responseUUID := map[string]interface{}{
+					"uuid": "123",
+				}
+				mockAviClient.EXPECT().AviSessionPut(fmt.Sprintf("%s/%s", constants.PKIProfileURL, "123"), gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params interface{}) {
+					if resp, ok := response.(*map[string]interface{}); ok {
+						*resp = responseUUID
+					}
+				}).Return(nil).AnyTimes()
+			},
+			prepareCache: func(cache *mock.MockCacheOperation) {
+				cache.EXPECT().GetObjectByUUID(gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
+			},
+			want: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test",
+					Finalizers:      []string{"pkiprofile.ako.vmware.com/finalizer"},
+					Namespace:       "default",
+					ResourceVersion: "1001",
+				},
+				Status: akov1alpha1.PKIProfileStatus{
+					UUID:               "123",
+					Controller:         constants.AKOCRDController,
+					ObservedGeneration: 0,
+					Conditions: []metav1.Condition{
+						{
+							Type:   "Ready",
+							Status: "True",
+							Reason: "Updated",
+						},
+					},
+				},
+				Spec: akov1alpha1.PKIProfileSpec{
+					CACerts: []*akov1alpha1.SSLCertificate{{Certificate: func() *string {
+						s := testUpdatedCertificate
+						return &s
+					}()}},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "success: delete pkiprofile",
+			pki: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test",
+					Finalizers:        []string{"pkiprofile.ako.vmware.com/finalizer"},
+					ResourceVersion:   "1000",
+					Namespace:         "default",
+					DeletionTimestamp: &metav1.Time{Time: time.Now()},
+				},
+				Status: akov1alpha1.PKIProfileStatus{
+					UUID: "123",
+				},
+				Spec: akov1alpha1.PKIProfileSpec{
+					CACerts: []*akov1alpha1.SSLCertificate{{Certificate: func() *string {
+						s := testCertificate
+						return &s
+					}()}},
+				},
+			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				mockAviClient.EXPECT().AviSessionDelete(fmt.Sprintf("%s/%s", constants.PKIProfileURL, "123"), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+			},
+			want: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test",
+					Finalizers:        []string{},
+					Namespace:         "default",
+					ResourceVersion:   "1001",
+					DeletionTimestamp: &metav1.Time{Time: time.Now()},
+				},
+				Status: akov1alpha1.PKIProfileStatus{
+					UUID:               "123",
+					Controller:         constants.AKOCRDController,
+					ObservedGeneration: 0,
+					Conditions: []metav1.Condition{
+						{
+							Type:   "Deleted",
+							Status: "True",
+							Reason: "DeletionSkipped",
+						},
+					},
+				},
+				Spec: akov1alpha1.PKIProfileSpec{
+					CACerts: []*akov1alpha1.SSLCertificate{{Certificate: func() *string {
+						s := testCertificate
+						return &s
+					}()}},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "error: AVI client connection error during creation",
+			pki: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test-error",
+					Finalizers:      []string{"pkiprofile.ako.vmware.com/finalizer"},
+					ResourceVersion: "1000",
+					Namespace:       "default",
+				},
+				Spec: akov1alpha1.PKIProfileSpec{
+					CACerts: []*akov1alpha1.SSLCertificate{{Certificate: func() *string {
+						s := testCertificate
+						return &s
+					}()}},
+				},
+			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				aviError := session.AviError{
+					HttpStatusCode: 400,
+					AviResult: session.AviResult{
+						Code:    400,
+						Message: func() *string { s := "Bad Request"; return &s }(),
+					},
+				}
+				mockAviClient.EXPECT().AviSessionPost(constants.PKIProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(aviError).AnyTimes()
+			},
+			want: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test-error",
+					Finalizers:      []string{"pkiprofile.ako.vmware.com/finalizer"},
+					Namespace:       "default",
+					ResourceVersion: "1001",
+				},
+				Status: akov1alpha1.PKIProfileStatus{
+					Controller:         constants.AKOCRDController,
+					ObservedGeneration: 0,
+					Conditions: []metav1.Condition{
+						{
+							Type:    "Ready",
+							Status:  "False",
+							Reason:  "CreationFailed",
+							Message: "Failed to create PKIProfile on Avi Controller: Bad Request",
+						},
+					},
+				},
+				Spec: akov1alpha1.PKIProfileSpec{
+					CACerts: []*akov1alpha1.SSLCertificate{{Certificate: func() *string {
+						s := testCertificate
+						return &s
+					}()}},
+				},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create mock AVI client
+			mockAviClient := mock.NewMockAviClientInterface(gomock.NewController(t))
+			if tt.prepare != nil {
+				tt.prepare(mockAviClient)
+			}
+
+			mockCache := mock.NewMockCacheOperation(gomock.NewController(t))
+			if tt.prepareCache != nil {
+				tt.prepareCache(mockCache)
+			}
+
+			// Create fake k8s client
+			scheme := runtime.NewScheme()
+			_ = akov1alpha1.AddToScheme(scheme)
+			_ = corev1.AddToScheme(scheme)
+
+			// Create namespace object with tenant annotation
+			namespace := createNamespaceWithTenant(tt.pki.Namespace)
+			if tt.pki.Namespace == "" {
+				namespace = createNamespaceWithTenant("default")
+			}
+
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.pki, namespace).WithStatusSubresource(tt.pki).Build()
+
+			// Create reconciler
+			reconciler := &PKIProfileReconciler{
+				Client:        fakeClient,
+				AviClient:     mockAviClient,
+				Scheme:        scheme,
+				Logger:        utils.AviLog,
+				EventRecorder: record.NewFakeRecorder(10),
+				ClusterName:   "test-cluster",
+				Cache:         mockCache,
+			}
+
+			// Test reconcile
+			ctx := context.Background()
+			_, err := reconciler.Reconcile(ctx, ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      tt.pki.Name,
+					Namespace: tt.pki.Namespace,
+				},
+			})
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			// Get the updated object
+			updatedPKI := &akov1alpha1.PKIProfile{}
+			err = fakeClient.Get(ctx, types.NamespacedName{Name: tt.pki.Name, Namespace: tt.pki.Namespace}, updatedPKI)
+
+			// For deletion tests, the object might be removed from the client
+			if tt.pki.DeletionTimestamp != nil && k8serror.IsNotFound(err) {
+				// Object was successfully deleted, skip further checks
+				return
+			}
+			assert.NoError(t, err)
+
+			// Check finalizers
+			assert.Equal(t, tt.want.Finalizers, updatedPKI.Finalizers)
+
+			// Check status fields only if we don't expect an error
+			if !tt.wantErr {
+				assert.Equal(t, tt.want.Status.UUID, updatedPKI.Status.UUID)
+				assert.Equal(t, tt.want.Status.Controller, updatedPKI.Status.Controller)
+				assert.Equal(t, tt.want.Status.ObservedGeneration, updatedPKI.Status.ObservedGeneration)
+			}
+
+			// Check conditions only if we don't expect an error
+			if !tt.wantErr && len(tt.want.Status.Conditions) > 0 && len(updatedPKI.Status.Conditions) > 0 {
+				assert.Equal(t, len(tt.want.Status.Conditions), len(updatedPKI.Status.Conditions))
+				for i, expectedCondition := range tt.want.Status.Conditions {
+					if i < len(updatedPKI.Status.Conditions) {
+						actualCondition := updatedPKI.Status.Conditions[i]
+						assert.Equal(t, expectedCondition.Type, actualCondition.Type)
+						assert.Equal(t, expectedCondition.Status, actualCondition.Status)
+						assert.Equal(t, expectedCondition.Reason, actualCondition.Reason)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestPKIProfileControllerKubernetesError(t *testing.T) {
+	tests := []struct {
+		name        string
+		pki         *akov1alpha1.PKIProfile
+		interceptor interceptor.Funcs
+		wantErr     bool
+	}{
+		{
+			name: "error: kubernetes client get error",
+			pki: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+				},
+			},
+			interceptor: interceptor.Funcs{
+				Get: func(ctx context.Context, client client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+					return errors.New("get error")
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "success: kubernetes client not found error",
+			pki: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "default",
+				},
+			},
+			interceptor: interceptor.Funcs{
+				Get: func(ctx context.Context, client client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+					return k8serror.NewNotFound(akov1alpha1.GroupVersion.WithResource("pkiprofiles").GroupResource(), "test")
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create fake k8s client with interceptor
+			scheme := runtime.NewScheme()
+			_ = akov1alpha1.AddToScheme(scheme)
+			_ = corev1.AddToScheme(scheme)
+
+			// Create namespace object with tenant annotation
+			namespace := createNamespaceWithTenant("default")
+
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.pki, namespace).WithStatusSubresource(tt.pki).WithInterceptorFuncs(tt.interceptor).Build()
+
+			// Create reconciler
+			reconciler := &PKIProfileReconciler{
+				Client:        fakeClient,
+				Scheme:        scheme,
+				Logger:        utils.AviLog,
+				EventRecorder: record.NewFakeRecorder(10),
+				ClusterName:   "test-cluster",
+			}
+
+			// Test reconcile
+			ctx := context.Background()
+			_, err := reconciler.Reconcile(ctx, ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      tt.pki.Name,
+					Namespace: tt.pki.Namespace,
+				},
+			})
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestPKIProfileSetStatus(t *testing.T) {
+	tests := []struct {
+		name          string
+		initialPKI    *akov1alpha1.PKIProfile
+		conditionType string
+		reason        string
+		message       string
+	}{
+		{
+			name: "success: set Ready condition to True",
+			initialPKI: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pki",
+					Namespace: "default",
+				},
+			},
+			conditionType: "Ready",
+			reason:        "ValidationSucceeded",
+			message:       "PKIProfile validation succeeded",
+		},
+		{
+			name: "error: set Ready condition to False",
+			initialPKI: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pki-error",
+					Namespace: "default",
+				},
+			},
+			conditionType: "Ready",
+			reason:        "ValidationFailed",
+			message:       "CA certificate at index 0 is empty",
+		},
+		{
+			name: "success: set Deleted condition to True",
+			initialPKI: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pki-deleted",
+					Namespace: "default",
+				},
+			},
+			conditionType: "Deleted",
+			reason:        "DeletionSkipped",
+			message:       "UUID not present, PKIProfile may not have been created on Avi Controller",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create fake k8s client
+			scheme := runtime.NewScheme()
+			_ = akov1alpha1.AddToScheme(scheme)
+			_ = corev1.AddToScheme(scheme)
+
+			// Create namespace object with tenant annotation
+			namespace := createNamespaceWithTenant(tt.initialPKI.Namespace)
+
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.initialPKI, namespace).WithStatusSubresource(tt.initialPKI).Build()
+
+			// Create reconciler
+			reconciler := &PKIProfileReconciler{
+				Client:        fakeClient,
+				Scheme:        scheme,
+				Logger:        utils.AviLog,
+				EventRecorder: record.NewFakeRecorder(10),
+				ClusterName:   "test-cluster",
+			}
+
+			// Test SetStatus
+			ctx := context.Background()
+			err := reconciler.SetStatus(ctx, tt.initialPKI, tt.conditionType, tt.reason, tt.message)
+			assert.NoError(t, err)
+
+			// Check status was set correctly
+			assert.Equal(t, constants.AKOCRDController, tt.initialPKI.Status.Controller)
+			assert.Equal(t, tt.message, tt.initialPKI.Status.Conditions[0].Message)
+			assert.Equal(t, tt.initialPKI.Generation, tt.initialPKI.Status.ObservedGeneration)
+			assert.NotNil(t, tt.initialPKI.Status.LastUpdated)
+
+			// Check conditions
+			found := false
+			for _, condition := range tt.initialPKI.Status.Conditions {
+				if condition.Type == tt.conditionType && condition.Reason == tt.reason {
+					found = true
+					if tt.reason == "ValidationFailed" || tt.reason == "CreationFailed" || tt.reason == "UpdateFailed" || tt.reason == "DeletionFailed" || tt.reason == "DeletionSkipped" {
+						assert.Equal(t, "False", string(condition.Status))
+					} else {
+						assert.Equal(t, "True", string(condition.Status))
+					}
+					break
+				}
+			}
+			assert.True(t, found, "Expected condition with type %s and reason %s", tt.conditionType, tt.reason)
+		})
+	}
+}

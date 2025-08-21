@@ -18,6 +18,7 @@ rules:
   resources:
   - applicationprofiles
   - healthmonitors
+  - pkiprofiles
   - routebackendextensions
   verbs:
   - create
@@ -32,13 +33,18 @@ rules:
   resources:
   - applicationprofiles/finalizers
   - healthmonitors/finalizers
+  - pkiprofiles/finalizers
   verbs:
+  - create
+  - delete
+  - get
   - update
 - apiGroups:
   - ako.vmware.com
   resources:
   - applicationprofiles/status
   - healthmonitors/status
+  - pkiprofiles/status
   - routebackendextensions/status
   verbs:
   - get

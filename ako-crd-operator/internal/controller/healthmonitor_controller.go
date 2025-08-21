@@ -98,7 +98,7 @@ type HealthMonitorAuthRequest struct {
 
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=healthmonitors,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=healthmonitors/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=ako.vmware.com,resources=healthmonitors/finalizers,verbs=update
+// +kubebuilder:rbac:groups=ako.vmware.com,resources=healthmonitors/finalizers,verbs=update;get;create;delete
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 
