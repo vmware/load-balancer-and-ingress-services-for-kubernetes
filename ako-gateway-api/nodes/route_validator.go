@@ -223,12 +223,7 @@ func validateFilterExtensionRef(key, namespace string, filter *ExtensionRefFilte
 		Status(metav1.ConditionFalse)
 
 	if filter.Kind != lib.ApplicationProfile {
-		// set the status
-		routeConditionResolvedRef.
-			Reason(string(gatewayv1.RouteReasonInvalidKind)).
-			Message(fmt.Sprintf("Unsupported kind %s defined on HTTPRoute-Rule", filter.Kind))
-
-		return false, routeConditionResolvedRef
+		return true, routeConditionResolvedRef
 	}
 
 	isValid, isReady := akogatewayapilib.IsApplicationProfileValid(namespace, string(filter.Name))

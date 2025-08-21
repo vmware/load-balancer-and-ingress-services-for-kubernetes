@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -289,6 +290,10 @@ outerLoop:
 			if (condition.Type == string(gatewayv1.RouteConditionAccepted) ||
 				condition.Type == string(gatewayv1.RouteConditionResolvedRefs)) &&
 				condition.Status == metav1.ConditionFalse {
+				// Skip validation for L7Rule
+				if strings.Contains(condition.Message, "L7Rule") {
+					break
+				}
 				statusIndex += 1
 				break outerLoop
 			}

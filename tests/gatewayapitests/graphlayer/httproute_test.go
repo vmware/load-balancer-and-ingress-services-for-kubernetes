@@ -5339,6 +5339,10 @@ func TestHTTPRouteWithL7RuleWithApplicationProfileCRD(t *testing.T) {
 	extensionRefCRDs["L7Rule"] = []string{l7RuleName}
 	extensionRefCRDs["ApplicationProfile"] = []string{"AppProfile1"}
 
+	akogatewayapitests.CreateApplicationProfileCRD(t, "AppProfile1", &akogatewayapitests.FakeApplicationProfileStatus{
+		Status: "True",
+	})
+
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, DEFAULT_NAMESPACE, ports)
 	rule := akogatewayapitests.GetHTTPRouteRuleWithCustomCRDs(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"RequestHeaderModifier": {"add"}},
