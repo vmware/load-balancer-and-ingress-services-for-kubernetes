@@ -73,6 +73,17 @@ const (
 	LBAlgorithmConsistentHashCallID                 LBAlgorithmHashType = "LB_ALGORITHM_CONSISTENT_HASH_CALLID"
 )
 
+// PersistenceProfileType defines the type of persistence profile.
+// +kubebuilder:validation:Enum=System-Persistence-Client-IP;System-Persistence-Http-Cookie;System-Persistence-TLS;System-Persistence-App-Cookie;
+type PersistenceProfileType string
+
+const (
+	PersistenceTypeClientIPAddress PersistenceProfileType = "System-Persistence-Client-IP"
+	PersistenceTypeHTTPCookie      PersistenceProfileType = "System-Persistence-Http-Cookie"
+	PersistenceTypeTLS             PersistenceProfileType = "System-Persistence-TLS"
+	PersistenceTypeAppCookie       PersistenceProfileType = "System-Persistence-App-Cookie"
+)
+
 // RouteBackendExtensionSpec defines the desired state of RouteBackendExtension
 // +kubebuilder:validation:XValidation:rule="(self.lbAlgorithm == 'LB_ALGORITHM_CONSISTENT_HASH') && has(self.lbAlgorithmHash)",message="lbAlgorithmHash must be set if and only if lbAlgorithm is LB_ALGORITHM_CONSISTENT_HASH"
 // +kubebuilder:validation:XValidation:rule="!has(self.lbAlgorithmHash) || (self.lbAlgorithmHash == 'LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER') && has(self.lbAlgorithmConsistentHashHdr)",message="lbAlgorithmConsistentHashHdr must be set if and only if lbAlgorithmHash is LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER"
@@ -86,10 +97,13 @@ type RouteBackendExtensionSpec struct {
 	// This field should be specified only when lbAlgorithm is LB_ALGORITHM_CONSISTENT_HASH and lbAlgorithmHash is LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER.
 	// +optional
 	LBAlgorithmConsistentHashHdr string `json:"lbAlgorithmConsistentHashHdr,omitempty"`
-	// Criteria used as a key for determining the hash between the client and server
+	//Criteria used as a key for determining the hash between the client and server
 	// +optional
 	// +kubebuilder:default=LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS
 	LBAlgorithmHash LBAlgorithmHashType `json:"lbAlgorithmHash,omitempty"`
+	// Defines the persistence profile type on Pool
+	// +optional
+	PersistenceProfile PersistenceProfileType `json:"persistenceProfile,omitempty"`
 	// Represents health monitor objects
 	// +optional
 	HealthMonitor []BackendHealthMonitor `json:"healthMonitor,omitempty"`
