@@ -6,23 +6,57 @@ metadata:
   name: ako-crd-operator-role
 rules:
   - apiGroups:
-      - ako.vmware.com
+      - ""
     resources:
-      - healthmonitors
-      - healthmonitors/status
-      - healthmonitors/finalizers
-      - routebackendextensions
-      - routebackendextensions/status
+      - namespaces
     verbs:
-      - '*'
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - watch
   - apiGroups:
       - ako.vmware.com
     resources:
       - applicationprofiles
-      - applicationprofiles/status
-      - applicationprofiles/finalizers
+      - healthmonitors
+      - pkiprofiles
+      - routebackendextensions
     verbs:
-      - '*'
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ako.vmware.com
+    resources:
+      - applicationprofiles/finalizers
+      - healthmonitors/finalizers
+      - pkiprofiles/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - ako.vmware.com
+    resources:
+      - applicationprofiles/status
+      - healthmonitors/status
+      - pkiprofiles/status
+      - routebackendextensions/status
+    verbs:
+      - get
+      - patch
+      - update
   - apiGroups:
       - ""
     resources:
@@ -35,15 +69,6 @@ rules:
       - update
       - patch
       - delete
-  - apiGroups:
-      - ""
-    resources:
-      - secrets
-      - namespaces
-    verbs:
-      - get
-      - list
-      - watch
   - apiGroups:
       - coordination.k8s.io
     resources:

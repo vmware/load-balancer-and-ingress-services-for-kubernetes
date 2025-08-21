@@ -1,0 +1,20 @@
+apiVersion: ako.vmware.com/v1alpha1
+kind: PKIProfile
+metadata:
+  labels:
+    app.kubernetes.io/name: ako-crd-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: pkiprofile-sample
+  namespace: test-gateway-ns
+spec:
+  # CaCertificateRefs is a list of Certificate Authorities (Root and Intermediate) trusted that is used for certificate validation.
+  # Each reference points to a Kubernetes object containing the CA certificate
+  caCertificateRefs:
+    # Root CA certificate reference
+    - group: ""  # Core API group for Secrets
+      kind: "Secret"
+      name: "gwsecret"
+      namespace: test-gateway-ns
+
+      
+   

@@ -42,6 +42,25 @@ type BackendHealthMonitor struct {
 	Name string `json:"name,omitempty"`
 }
 
+// PKIProfileKind defines the type of PKIProfile object.
+type PKIProfileKind string
+
+const (
+	PKIProfileKindAVIREF PKIProfileKind = "AVIREF"
+	PKIProfileKindCRD    PKIProfileKind = "CRD"
+)
+
+// BackendPKIProfile defines the desired state of Backend PKI Profile.
+type BackendPKIProfile struct {
+	// Defines the type of PKIProfile object
+	// +kubebuilder:validation:Enum=AVIREF;CRD
+	// +required
+	Kind PKIProfileKind `json:"kind,omitempty"`
+	// Defines the name of PKIProfile object. PKIProfile object should be in the same namespace as that of RouteBackendExtension object
+	// +required
+	Name string `json:"name,omitempty"`
+}
+
 // LBAlgorithmType defines the type of LB algorithm.
 // +kubebuilder:validation:Enum=LB_ALGORITHM_LEAST_CONNECTIONS;LB_ALGORITHM_ROUND_ROBIN;LB_ALGORITHM_FASTEST_RESPONSE;LB_ALGORITHM_CONSISTENT_HASH;LB_ALGORITHM_LEAST_LOAD;LB_ALGORITHM_FEWEST_SERVERS;LB_ALGORITHM_RANDOM;LB_ALGORITHM_FEWEST_TASKS;LB_ALGORITHM_NEAREST_SERVER;LB_ALGORITHM_CORE_AFFINITY;LB_ALGORITHM_TOPOLOGY
 type LBAlgorithmType string
@@ -76,6 +95,9 @@ const (
 // RouteBackendExtensionSpec defines the desired state of RouteBackendExtension
 // +kubebuilder:validation:XValidation:rule="(self.lbAlgorithm == 'LB_ALGORITHM_CONSISTENT_HASH') && has(self.lbAlgorithmHash)",message="lbAlgorithmHash must be set if and only if lbAlgorithm is LB_ALGORITHM_CONSISTENT_HASH"
 // +kubebuilder:validation:XValidation:rule="!has(self.lbAlgorithmHash) || (self.lbAlgorithmHash == 'LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER') && has(self.lbAlgorithmConsistentHashHdr)",message="lbAlgorithmConsistentHashHdr must be set if and only if lbAlgorithmHash is LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER"
+// +kubebuilder:validation:XValidation:rule="!has(self.pkiProfile) || (has(self.enableBackendSSL) && self.enableBackendSSL == true)",message="pkiProfile can only be configured when enableBackendSSL is set to true"
+// +kubebuilder:validation:XValidation:rule="!has(self.hostCheckEnabled) || (has(self.enableBackendSSL) && self.enableBackendSSL == true)",message="hostCheckEnabled can only be configured when enableBackendSSL is set to true"
+// +kubebuilder:validation:XValidation:rule="!has(self.domainName) || (has(self.enableBackendSSL) && self.enableBackendSSL == true && has(self.hostCheckEnabled) && self.hostCheckEnabled == true)",message="domainName can only be configured when both enableBackendSSL and hostCheckEnabled are set to true"
 
 type RouteBackendExtensionSpec struct {
 	// Defines LB algorithm on Pool
@@ -93,6 +115,20 @@ type RouteBackendExtensionSpec struct {
 	// Represents health monitor objects
 	// +optional
 	HealthMonitor []BackendHealthMonitor `json:"healthMonitor,omitempty"`
+	// EnableBackendSSL enables SSL termination at the backend.
+	// +optional
+	EnableBackendSSL *bool `json:"enableBackendSSL,omitempty"`
+	// Represents PKI Profile objects
+	// +optional
+	PKIProfile *BackendPKIProfile `json:"pkiProfile,omitempty"`
+	// HostCheckEnabled enables hostname verification during TLS handshake with the backend.
+	// When enabled, the certificate presented by the backend must match the hostname.
+	// +optional
+	HostCheckEnabled *bool `json:"hostCheckEnabled,omitempty"`
+	// DomainName specifies the domain name to be used for backend connections.
+	// This can be used to override the default domain derived from the service.
+	// +optional
+	DomainName *string `json:"domainName,omitempty"`
 }
 
 // RouteBackendExtensionStatus defines the observed state of RouteBackendExtension.

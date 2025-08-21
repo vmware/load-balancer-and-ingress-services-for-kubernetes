@@ -8,16 +8,26 @@ rules:
   - ""
   resources:
   - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - secrets
   verbs:
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - ako.vmware.com
   resources:
   - applicationprofiles
   - healthmonitors
+  - pkiprofiles
   - routebackendextensions
   verbs:
   - create
@@ -32,6 +42,7 @@ rules:
   resources:
   - applicationprofiles/finalizers
   - healthmonitors/finalizers
+  - pkiprofiles/finalizers
   verbs:
   - update
 - apiGroups:
@@ -39,6 +50,7 @@ rules:
   resources:
   - applicationprofiles/status
   - healthmonitors/status
+  - pkiprofiles/status
   - routebackendextensions/status
   verbs:
   - get
