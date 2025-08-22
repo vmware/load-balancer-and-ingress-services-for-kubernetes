@@ -29,6 +29,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -92,6 +93,12 @@ var (
 		Version:  "v1alpha1",
 		Resource: "capabilities",
 	}
+
+	HealthMonitorGVR = schema.GroupVersionResource{
+		Group:    "ako.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "healthmonitors",
+	}
 )
 
 type BootstrapCRData struct {
@@ -100,10 +107,11 @@ type BootstrapCRData struct {
 
 // NewDynamicClientSet initializes dynamic client set instance
 func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
-	// do not instantiate the dynamic client set
-	// 1. if the CNI being used is NOT calico or OpenShift or Cilium and
-	// 2. if it is NOT VCF cluster
-	if !utils.IsVCFCluster() && GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI && GetCNIPlugin() != CILIUM_CNI {
+	// Always instantiate the dynamic client set if:
+	// 1. CNI being used is calico or OpenShift or Cilium, OR
+	// 2. it is VCF cluster, OR
+	// 3. L4Rules are enabled (for HealthMonitor support)
+	if !utils.IsVCFCluster() && GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI && GetCNIPlugin() != CILIUM_CNI && !AKOControlConfig().L4RuleEnabled() {
 		return nil, nil
 	}
 
@@ -144,6 +152,9 @@ type DynamicInformers struct {
 	AvailabilityZoneInformer informers.GenericInformer
 
 	VPCNetworkConfigurationInformer informers.GenericInformer
+
+	// AKO CRD informers
+	HealthMonitorInformer informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
@@ -159,7 +170,7 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 	case CILIUM_CNI:
 		informers.CiliumNodeInformer = f.ForResource(CiliumNodeGVR)
 	default:
-		utils.AviLog.Infof("Skipped initializing dynamic informers for cniPlugin %s", GetCNIPlugin())
+		utils.AviLog.Infof("Skipped initializing CNI-specific dynamic informers for cniPlugin %s", GetCNIPlugin())
 	}
 
 	if utils.IsVCFCluster() && akoInfra {
@@ -168,6 +179,9 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 		informers.AvailabilityZoneInformer = f.ForResource(AvailabilityZoneVR)
 		informers.VPCNetworkConfigurationInformer = f.ForResource(VPCNetworkConfigurationGVR)
 	}
+
+	// Always initialize HealthMonitor informer for L4Rule support
+	informers.HealthMonitorInformer = f.ForResource(HealthMonitorGVR)
 
 	dynamicInformerInstance = informers
 	return dynamicInformerInstance
@@ -180,6 +194,73 @@ func GetDynamicInformers() *DynamicInformers {
 		return nil
 	}
 	return dynamicInformerInstance
+}
+
+// IsHealthMonitorProcessed checks if HealthMonitor CRD is processed by AKO CRD Operator
+// Returns (processed, ready, error)
+func IsHealthMonitorProcessed(key, namespace, name string, obj ...*unstructured.Unstructured) (bool, bool, error) {
+	clientSet := GetDynamicClientSet()
+	if clientSet == nil {
+		return false, false, fmt.Errorf("internal error in fetching HealthMonitor %s/%s object", namespace, name)
+	}
+	var object *unstructured.Unstructured
+	var err error
+	if len(obj) == 0 {
+		object, err = clientSet.Resource(HealthMonitorGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				return false, false, fmt.Errorf("healthMonitor %s/%s not found", namespace, name)
+			}
+			return false, false, err
+		}
+	} else {
+		object = obj[0]
+	}
+
+	statusJSON, found, err := unstructured.NestedMap(object.UnstructuredContent(), "status")
+	if err != nil || !found {
+		utils.AviLog.Warnf("key: %s, msg: HealthMonitor %s/%s status not found: %+v", key, namespace, name, err)
+		return false, false, err
+	}
+	conditions, ok := statusJSON["conditions"]
+	if !ok || conditions.([]interface{}) == nil || len(conditions.([]interface{})) == 0 {
+		return false, false, fmt.Errorf("healthMonitor %s/%s is not processed by AKO CRD Operator", namespace, name)
+	}
+	processed, ready := false, false
+	deleted := false
+
+	for _, condition := range conditions.([]interface{}) {
+		conditionMap, ok := condition.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		switch conditionMap["type"] {
+		case "Ready":
+			processed = true
+			if conditionMap["status"] == "True" {
+				ready = true
+			}
+		case "Deleted":
+			if conditionMap["status"] == "False" {
+				// HealthMonitor is being deleted (finalizer prevents actual deletion)
+				// This indicates the object is marked for deletion but still exists
+				deleted = true
+				utils.AviLog.Debugf("key: %s, msg: HealthMonitor %s/%s is being deleted (Deleted condition status=False)", key, namespace, name)
+			}
+		}
+	}
+
+	// If HealthMonitor is being deleted, treat it as not ready
+	if deleted {
+		return processed, false, fmt.Errorf("healthMonitor %s/%s is being deleted", namespace, name)
+	}
+
+	if processed {
+		return true, ready, nil
+	}
+
+	return false, false, nil
 }
 
 func GetNetworkInfoCRData() (map[string]string, map[string]string, map[string]map[string]struct{}) {

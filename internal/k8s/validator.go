@@ -21,6 +21,11 @@ import (
 	"regexp"
 	"strings"
 
+	v1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
@@ -29,9 +34,6 @@ import (
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Validator interface {
@@ -725,6 +727,21 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 			rejectL4Rule(key, l4Rule, err)
 			return err
 		}
+
+		// Validate HealthMonitor CRDs referenced through healthMonitorCrdRefs
+		for _, healthMonitorName := range backendProperties.HealthMonitorCrdRefs {
+			if healthMonitorName == "" {
+				err := fmt.Errorf("Empty HealthMonitor name in healthMonitorCrdRefs")
+				rejectL4Rule(key, l4Rule, err)
+				return err
+			}
+
+			// Validate HealthMonitor CRD exists, is processed, and type is compatible with backend protocol
+			if err := validateHealthMonitorForL4Rule(key, l4Rule.Namespace, healthMonitorName, backendProperties); err != nil {
+				rejectL4Rule(key, l4Rule, err)
+				return err
+			}
+		}
 	}
 	tenant := lib.GetTenantInNamespace(l4Rule.Namespace)
 	if err := checkRefsOnController(key, refData, tenant); err != nil {
@@ -917,4 +934,68 @@ func rejectL4Rule(key string, l4Rule *akov1alpha2.L4Rule, err error) {
 		Status: lib.StatusRejected,
 		Error:  err.Error(),
 	})
+}
+
+// validateHealthMonitorForL4Rule validates that HealthMonitor exists, is processed by AKO CRD Operator, and type is compatible with backend protocol
+func validateHealthMonitorForL4Rule(key, namespace, healthMonitorName string, backendProperties *akov1alpha2.BackendProperties) error {
+	// Get HealthMonitor object using dynamic client (single fetch for all validations)
+	clientSet := lib.GetDynamicClientSet()
+	if clientSet == nil {
+		return fmt.Errorf("internal error in fetching HealthMonitor %s/%s object", namespace, healthMonitorName)
+	}
+
+	object, err := clientSet.Resource(lib.HealthMonitorGVR).Namespace(namespace).Get(context.TODO(), healthMonitorName, metav1.GetOptions{})
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return fmt.Errorf("HealthMonitor %s/%s not found", namespace, healthMonitorName)
+		}
+		return fmt.Errorf("failed to get HealthMonitor %s/%s: %v", namespace, healthMonitorName, err)
+	}
+
+	// Check if HealthMonitor is processed by AKO CRD Operator using existing function
+	processed, ready, err := lib.IsHealthMonitorProcessed(key, namespace, healthMonitorName, object)
+	if err != nil {
+		return fmt.Errorf("HealthMonitor validation failed for %s/%s: %v", namespace, healthMonitorName, err)
+	}
+	if !processed {
+		return fmt.Errorf("HealthMonitor %s/%s is not processed by ako-crd-operator", namespace, healthMonitorName)
+	}
+	if !ready {
+		return fmt.Errorf("HealthMonitor %s/%s is not in ready state", namespace, healthMonitorName)
+	}
+
+	// Extract HealthMonitor type from spec for compatibility validation
+	spec, found, err := unstructured.NestedMap(object.UnstructuredContent(), "spec")
+	if err != nil || !found {
+		return fmt.Errorf("failed to get spec from HealthMonitor %s/%s: %v", namespace, healthMonitorName, err)
+	}
+
+	hmType, found, err := unstructured.NestedString(spec, "type")
+	if err != nil || !found {
+		return fmt.Errorf("failed to get type from HealthMonitor %s/%s spec: %v", namespace, healthMonitorName, err)
+	}
+
+	// Get backend protocol (protocol is a required field in CRD schema, so it's guaranteed to be non-nil)
+	backendProtocol := strings.ToUpper(*backendProperties.Protocol)
+
+	// Validate HealthMonitor type compatibility with backend protocol
+	switch backendProtocol {
+	case "TCP":
+		if hmType != lib.AllowedTCPHealthMonitorType {
+			return fmt.Errorf("HealthMonitor %s/%s has type '%s' which is not compatible with TCP protocol. Valid types: %s", namespace, healthMonitorName, hmType, lib.AllowedTCPHealthMonitorType)
+		}
+	case "UDP":
+		if hmType != lib.AllowedUDPHealthMonitorType {
+			return fmt.Errorf("HealthMonitor %s/%s has type '%s' which is not compatible with UDP protocol. Valid types: %s", namespace, healthMonitorName, hmType, lib.AllowedUDPHealthMonitorType)
+		}
+	case "SCTP":
+		if hmType != lib.AllowedSCTPHealthMonitorType {
+			return fmt.Errorf("HealthMonitor %s/%s has type '%s' which is not compatible with SCTP protocol. Valid types: %s", namespace, healthMonitorName, hmType, lib.AllowedSCTPHealthMonitorType)
+		}
+	default:
+		return fmt.Errorf("unknown backend protocol '%s' for HealthMonitor %s/%s validation", backendProtocol, namespace, healthMonitorName)
+	}
+
+	utils.AviLog.Debugf("key: %s, HealthMonitor %s/%s type '%s' is compatible with backend protocol '%s'", key, namespace, healthMonitorName, hmType, backendProtocol)
+	return nil
 }
