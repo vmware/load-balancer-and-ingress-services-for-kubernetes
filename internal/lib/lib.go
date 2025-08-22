@@ -747,6 +747,23 @@ func GetTenant() string {
 	return utils.ADMIN_NS
 }
 
+func IsDedicatedTenantMode() bool {
+	if ok, _ := strconv.ParseBool(os.Getenv("DEDICATED_TENANT_MODE")); ok {
+		return true
+	}
+	return false
+}
+
+// GetQueryTenant returns the tenant to use for queries
+// If dedicatedTenantMode is enabled, returns the specific tenant
+// Otherwise, returns "*" for all tenants
+func GetQueryTenant() string {
+	if IsDedicatedTenantMode() {
+		return GetTenant()
+	}
+	return "*"
+}
+
 func IsIstioEnabled() bool {
 	if ok, _ := strconv.ParseBool(os.Getenv("ISTIO_ENABLED")); ok {
 		utils.AviLog.Debugf("Istio is enabled")

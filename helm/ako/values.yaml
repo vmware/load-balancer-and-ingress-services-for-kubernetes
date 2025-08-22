@@ -117,6 +117,7 @@ ControllerSettings:
   controllerHost: "" # IP address or Hostname of Avi Controller
   tenantName: "admin" # Name of the tenant where all the AKO objects will be created in AVI.
   vrfName: "" # Name of the VRFContext. All Avi objects will be under this VRF. Applicable only in Vcenter Cloud.
+  dedicatedTenantMode: false # If true, AKO will only query objects from its specific tenant instead of all tenants.
 
 nodePortSelector: # Only applicable if serviceType is NodePort
   key: ""
