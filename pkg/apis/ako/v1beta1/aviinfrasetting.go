@@ -76,7 +76,8 @@ type AviInfraSettingSeGroup struct {
 }
 
 type AviInfraL7Settings struct {
-	ShardSize string `json:"shardSize,omitempty"`
+	ShardSize            string `json:"shardSize,omitempty"`
+	DedicatedGatewayMode *bool  `json:"dedicatedGatewayMode,omitempty"`
 }
 
 // AviInfraSettingStatus holds the status of the AviInfraSetting

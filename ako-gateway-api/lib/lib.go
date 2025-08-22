@@ -54,6 +54,9 @@ func InformersToRegister(kclient *kubernetes.Clientset) ([]string, error) {
 func GetGatewayParentName(namespace, gwName string) string {
 	//clustername > gateway namespace > Gateway-name
 	//Adding -EVH prefix to reuse rest layer
+	if IsGatewayInDedicatedMode(namespace) {
+		return lib.GetNamePrefix() + namespace + "-" + gwName + lib.DedicatedSuffix + "-EVH"
+	}
 	return lib.GetNamePrefix() + namespace + "-" + gwName + "-EVH"
 }
 
@@ -89,6 +92,21 @@ func GetPersistenceProfileName(parentNs, parentName, routeNs, routeName, matchNa
 		name = fmt.Sprintf("%s-%s", name, utils.Stringify(utils.Hash(matchName)))
 	}
 	return lib.Encode(name, lib.ApplicationPersistenceProfile)
+}
+
+func GetHttpPolicySetName(parentNs, parentName, routeNs, routeName string) string {
+	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-httproute"
+	return lib.Encode(name, lib.HTTPPS)
+}
+
+func GetDedicatedPoolName(poolGroupName, backendNs, backendName string, backendPort int32, backendIndex int) string {
+	var name string
+	if backendName != "" {
+		name = fmt.Sprintf("%s-%s-%s-%d", poolGroupName, backendNs, backendName, backendPort)
+	} else {
+		name = fmt.Sprintf("%s-backend-%d", poolGroupName, backendIndex)
+	}
+	return lib.Encode(name, lib.Pool)
 }
 
 func CheckGatewayClassController(controllerName string) bool {
@@ -241,4 +259,17 @@ func CreateVCFGatewayClass() error {
 	}
 	utils.AviLog.Infof("Successfully created Gatewayclass %s", VCFGatewayClassName)
 	return nil
+}
+
+func IsGatewayInDedicatedMode(namespace string) bool {
+	infraSetting, err := lib.GetNamespacedAviInfraSetting("", namespace, AKOControlConfig().AviInfraSettingInformer())
+	if err != nil || infraSetting == nil {
+		return false
+	}
+	return infraSetting.Spec.L7Settings.DedicatedGatewayMode != nil &&
+		*infraSetting.Spec.L7Settings.DedicatedGatewayMode
+}
+
+func GetGatewayDedicatedVSName(namespace, gatewayName string) string {
+	return lib.GetNamePrefix() + namespace + "-" + gatewayName
 }
