@@ -1,5 +1,5 @@
 ARG golang_src_repo=golang:latest
-ARG ubi_src_repo=registry.access.redhat.com/ubi8/ubi:latest
+ARG ubi_src_repo=registry.access.redhat.com/ubi9/ubi:latest
 
 # Build the ako-operator binary
 FROM ${golang_src_repo} as builder
