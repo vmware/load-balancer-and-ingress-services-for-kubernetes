@@ -98,8 +98,9 @@ func (cfg *AKOCleanupConfig) Cleanup(ctx context.Context) error {
 				os.Setenv(utils.VPC_MODE, "true")
 				lib.SetNamePrefix("")
 				lib.SetAKOUser(lib.AKOPrefix)
+				return nil
 			}
-			return nil
+			return checkVirtualServicesAndUpdateClusterName()
 		},
 		populateCache,
 		cleanupVirtualServices,
@@ -179,6 +180,67 @@ func getCloudInVPCMode() (string, error) {
 		return *cloud.Name, nil
 	}
 	return "", nil
+}
+
+func checkVirtualServicesAndUpdateClusterName() error {
+	clusterName := ""
+	clusterIDArr := strings.Split(lib.GetClusterID(), ":")
+	if len(clusterIDArr) > 1 {
+		clusterName = clusterIDArr[0] + "-" + clusterIDArr[1][:5]
+	} else {
+		// In case of Supervisor ID, use first 12 characters as cluster name
+		clusterName = lib.GetClusterID()[:12]
+		return nil
+	}
+	defer func() {
+		lib.SetClusterName(clusterName)
+		lib.SetNamePrefix("")
+		lib.SetAKOUser(lib.AKOPrefix)
+	}()
+	uri := "/api/virtualservice?se_group_ref.name=" + lib.GetClusterID()
+	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
+
+	result, err := lib.AviGetCollectionRaw(aviRestClientPool.AviClient[0], uri)
+	if err != nil {
+		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+		return err
+	}
+
+	if result.Count == 0 {
+		utils.AviLog.Debugf("No virtual services found for SE Group: %s", lib.GetClusterID())
+		return nil
+	}
+
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Errorf("Failed to unmarshal virtual service data, err: %v", err)
+		return err
+	}
+
+	for _, elem := range elems {
+		vs := models.VirtualService{}
+		err = json.Unmarshal(elem, &vs)
+		if err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal virtual service data, err: %v", err)
+			continue
+		}
+
+		// Check for clustername marker
+		if len(vs.Markers) > 0 {
+			for _, marker := range vs.Markers {
+				if marker.Key != nil && *marker.Key == lib.ClusterNameLabelKey && len(marker.Values) > 0 {
+					clusterName = marker.Values[0]
+
+					if clusterName != lib.GetClusterName() {
+						utils.AviLog.Infof("Updating cluster name from %s to %s based on VS marker", lib.GetClusterName(), clusterName)
+					}
+					return nil
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func setCloudName() error {
