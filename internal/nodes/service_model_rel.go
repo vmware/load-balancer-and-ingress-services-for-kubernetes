@@ -41,9 +41,10 @@ func L4RuleToSvc(l4RuleName string, namespace string, key string) ([]string, boo
 		return []string{}, false
 	}
 
+	// Note: We should return services even if L4Rule is rejected, so that services can be processed
+	// and virtual service properties can be cleaned up when L4Rule becomes invalid
 	if l4Rule != nil && l4Rule.Status.Status != lib.StatusAccepted {
-		utils.AviLog.Errorf("key: %s, msg: L4Rule is not in accepted state", key)
-		return []string{}, false
+		utils.AviLog.Debugf("key: %s, msg: L4Rule %s is in %s state, but still returning services for cleanup", key, l4RuleName, l4Rule.Status.Status)
 	}
 
 	// Get all services that are mapped to this L4Rule.

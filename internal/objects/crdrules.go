@@ -28,18 +28,19 @@ var crdonce sync.Once
 func SharedCRDLister() *CRDLister {
 	crdonce.Do(func() {
 		CRDinstance = &CRDLister{
-			FqdnHostRuleCache:      NewObjectMapStore(),
-			HostRuleFQDNCache:      NewObjectMapStore(),
-			FqdnHTTPRulesCache:     NewObjectMapStore(),
-			HTTPRuleFqdnCache:      NewObjectMapStore(),
-			FqdnToGSFQDNCache:      NewObjectMapStore(),
-			FqdnSharedVSModelCache: NewObjectMapStore(),
-			SharedVSModelFqdnCache: NewObjectMapStore(),
-			FqdnFqdnTypeCache:      NewObjectMapStore(),
-			FQDNToAliasesCache:     NewObjectMapStore(),
-			FqdnSSORuleCache:       NewObjectMapStore(),
-			SSORuleFQDNCache:       NewObjectMapStore(),
-			L7RuleHostRuleCache:    NewObjectMapStore(),
+			FqdnHostRuleCache:        NewObjectMapStore(),
+			HostRuleFQDNCache:        NewObjectMapStore(),
+			FqdnHTTPRulesCache:       NewObjectMapStore(),
+			HTTPRuleFqdnCache:        NewObjectMapStore(),
+			FqdnToGSFQDNCache:        NewObjectMapStore(),
+			FqdnSharedVSModelCache:   NewObjectMapStore(),
+			SharedVSModelFqdnCache:   NewObjectMapStore(),
+			FqdnFqdnTypeCache:        NewObjectMapStore(),
+			FQDNToAliasesCache:       NewObjectMapStore(),
+			FqdnSSORuleCache:         NewObjectMapStore(),
+			SSORuleFQDNCache:         NewObjectMapStore(),
+			L7RuleHostRuleCache:      NewObjectMapStore(),
+			HealthMonitorL4RuleCache: NewObjectMapStore(),
 		}
 	})
 	return CRDinstance
@@ -88,6 +89,9 @@ type CRDLister struct {
 
 	// L7CRD : HostruleCRD
 	L7RuleHostRuleCache *ObjectMapStore
+
+	// HealthMonitor : L4RuleCRD
+	HealthMonitorL4RuleCache *ObjectMapStore
 }
 
 // FqdnHostRuleCache
@@ -390,4 +394,32 @@ func (c *CRDLister) UpdateL7RuleToHostRuleMapping(l7Rule string, hostRule string
 	_, hostRules := c.GetL7RuleToHostRuleMapping(l7Rule)
 	hostRules[hostRule] = true
 	c.L7RuleHostRuleCache.AddOrUpdate(l7Rule, hostRules)
+}
+
+// HealthMonitor to L4Rule mapping functions
+
+func (c *CRDLister) GetHealthMonitorToL4RuleMapping(healthMonitor string) (bool, map[string]bool) {
+	found, l4Rules := c.HealthMonitorL4RuleCache.Get(healthMonitor)
+	if !found {
+		return false, make(map[string]bool)
+	}
+	return true, l4Rules.(map[string]bool)
+}
+
+func (c *CRDLister) DeleteHealthMonitorToL4RuleMapping(healthMonitor string, l4Rule string) {
+	c.NSLock.Lock()
+	defer c.NSLock.Unlock()
+	found, l4Rules := c.GetHealthMonitorToL4RuleMapping(healthMonitor)
+	if found {
+		delete(l4Rules, l4Rule)
+		c.HealthMonitorL4RuleCache.AddOrUpdate(healthMonitor, l4Rules)
+	}
+}
+
+func (c *CRDLister) UpdateHealthMonitorToL4RuleMapping(healthMonitor string, l4Rule string) {
+	c.NSLock.Lock()
+	defer c.NSLock.Unlock()
+	_, l4Rules := c.GetHealthMonitorToL4RuleMapping(healthMonitor)
+	l4Rules[l4Rule] = true
+	c.HealthMonitorL4RuleCache.AddOrUpdate(healthMonitor, l4Rules)
 }

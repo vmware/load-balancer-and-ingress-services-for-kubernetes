@@ -40,7 +40,11 @@ import (
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
@@ -270,7 +274,22 @@ func TestMain(m *testing.M) {
 	registeredInformers = append(registeredInformers, utils.EndpointSlicesInformer)
 
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
-	informers := k8s.K8sinformers{Cs: KubeClient}
+
+	// Initialize fake dynamic client for HealthMonitor support (required for L4Rules)
+	scheme := runtime.NewScheme()
+	// Register HealthMonitor CRD schema with the fake client
+	scheme.AddKnownTypeWithName(
+		schema.GroupVersionKind{Group: "ako.vmware.com", Version: "v1alpha1", Kind: "HealthMonitor"},
+		&unstructured.Unstructured{},
+	)
+	scheme.AddKnownTypeWithName(
+		schema.GroupVersionKind{Group: "ako.vmware.com", Version: "v1alpha1", Kind: "HealthMonitorList"},
+		&unstructured.UnstructuredList{},
+	)
+	dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
+	lib.SetDynamicClientSet(dynamicClient)
+
+	informers := k8s.K8sinformers{Cs: KubeClient, DynamicClient: dynamicClient}
 	k8s.NewCRDInformers()
 
 	InitializeFakeAKOAPIServer()

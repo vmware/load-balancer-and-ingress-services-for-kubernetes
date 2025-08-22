@@ -21,19 +21,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-
 	"github.com/fatih/structs"
 	"github.com/onsi/gomega"
+	"github.com/vmware/alb-sdk/go/models"
 	"golang.org/x/exp/maps"
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 func validateCRDValues(t *testing.T, g *gomega.GomegaWithT, expectedValues interface{}, actualValues ...interface{}) {
@@ -78,13 +79,49 @@ func validateCRDValues(t *testing.T, g *gomega.GomegaWithT, expectedValues inter
 		} else if field == "AnalyticsPolicy" {
 			// All fields of AnalyticsPolicy are not used currently. Hence
 			// handling it separately.
-			actualAnalyticsPolicy := valueFromGraphLayer.(map[string]interface{})
-			expectedAnalyticsPolicy := valuefromCRD.(map[string]interface{})
-			// For backendProperties, the PoolAnalyticsPolicy only have one field EnableRealtimeMetrics
-			if _, ok := expectedAnalyticsPolicy["EnableRealtimeMetrics"]; ok {
-				g.Expect(expectedAnalyticsPolicy["EnableRealtimeMetrics"]).To(gomega.Equal(actualAnalyticsPolicy["EnableRealtimeMetrics"]))
+
+			// Try to type cast valueFromGraphLayer to pointer types first
+			if actualAnalyticsPolicyStruct, ok := valueFromGraphLayer.(*models.AnalyticsPolicy); ok {
+				// Handle AVI models.AnalyticsPolicy struct (from VS model)
+				if valuefromCRD == nil {
+					// When L4Rule is invalid/default, AnalyticsPolicy should be nil
+					g.Expect(actualAnalyticsPolicyStruct).To(gomega.BeNil())
+				} else if expectedAnalyticsPolicy, ok := valuefromCRD.(*akov1alpha2.AnalyticsPolicy); ok {
+					// VS-level AnalyticsPolicy comparison
+					if expectedAnalyticsPolicy != nil && expectedAnalyticsPolicy.FullClientLogs != nil && actualAnalyticsPolicyStruct != nil && actualAnalyticsPolicyStruct.FullClientLogs != nil {
+						g.Expect(expectedAnalyticsPolicy.FullClientLogs.Enabled).To(gomega.Equal(actualAnalyticsPolicyStruct.FullClientLogs.Enabled))
+						g.Expect(expectedAnalyticsPolicy.FullClientLogs.Duration).To(gomega.Equal(actualAnalyticsPolicyStruct.FullClientLogs.Duration))
+						g.Expect(expectedAnalyticsPolicy.FullClientLogs.Throttle).To(gomega.Equal(actualAnalyticsPolicyStruct.FullClientLogs.Throttle))
+					}
+				}
+			} else if actualPoolAnalyticsPolicyStruct, ok := valueFromGraphLayer.(*models.PoolAnalyticsPolicy); ok {
+				// Handle AVI models.PoolAnalyticsPolicy struct (from Pool model)
+				if valuefromCRD == nil {
+					// When L4Rule is invalid/default, PoolAnalyticsPolicy should be nil
+					g.Expect(actualPoolAnalyticsPolicyStruct).To(gomega.BeNil())
+				} else if expectedPoolAnalyticsPolicy, ok := valuefromCRD.(*akov1alpha2.PoolAnalyticsPolicy); ok {
+					// Pool-level AnalyticsPolicy comparison
+					if expectedPoolAnalyticsPolicy != nil && expectedPoolAnalyticsPolicy.EnableRealtimeMetrics != nil && actualPoolAnalyticsPolicyStruct != nil {
+						g.Expect(expectedPoolAnalyticsPolicy.EnableRealtimeMetrics).To(gomega.Equal(actualPoolAnalyticsPolicyStruct.EnableRealtimeMetrics))
+					}
+				}
+			} else if actualAnalyticsPolicyMap, ok := valueFromGraphLayer.(map[string]interface{}); ok {
+				// Fallback to map[string]interface{} handling for backward compatibility
+				if valuefromCRD == nil {
+					// When L4Rule is invalid/default, AnalyticsPolicy should be nil
+					g.Expect(actualAnalyticsPolicyMap).To(gomega.BeNil())
+				} else {
+					expectedAnalyticsPolicy := valuefromCRD.(map[string]interface{})
+					// For backendProperties, the PoolAnalyticsPolicy only have one field EnableRealtimeMetrics
+					if _, ok := expectedAnalyticsPolicy["EnableRealtimeMetrics"]; ok {
+						g.Expect(expectedAnalyticsPolicy["EnableRealtimeMetrics"]).To(gomega.Equal(actualAnalyticsPolicyMap["EnableRealtimeMetrics"]))
+					} else {
+						g.Expect(expectedAnalyticsPolicy["FullClientLogs"]).To(gomega.Equal(actualAnalyticsPolicyMap["FullClientLogs"]))
+					}
+				}
 			} else {
-				g.Expect(expectedAnalyticsPolicy["FullClientLogs"]).To(gomega.Equal(actualAnalyticsPolicy["FullClientLogs"]))
+				// Direct comparison for other types (including nil)
+				g.Expect(valuefromCRD).To(gomega.Equal(valueFromGraphLayer))
 			}
 		} else {
 			g.Expect(utils.Stringify(valuefromCRD)).To(gomega.Equal(utils.Stringify(valueFromGraphLayer)))
@@ -897,7 +934,6 @@ func TestInvalidToValidL4Rule(t *testing.T) {
 		Ports:     ports,
 	}
 	obj := l4Rule.L4Rule()
-	acceptedL4Rule := obj.DeepCopy()
 
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -921,13 +957,17 @@ func TestInvalidToValidL4Rule(t *testing.T) {
 
 	time.Sleep(5 * time.Second)
 
-	// Verify whether the properties are retained
+	// Verify that the properties revert to defaults when L4Rule is invalid
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 
-	validateCRDValues(t, g, acceptedL4Rule.Spec, nodes[0].AviVsNodeGeneratedFields, nodes[0].AviVsNodeCommonFields)
+	// Create empty/default L4Rule spec to validate that VS reverts to default properties
+	defaultL4RuleSpec := akov1alpha2.L4RuleSpec{}
+	defaultBackendProperties := akov1alpha2.BackendProperties{}
 
-	validateCRDValues(t, g, acceptedL4Rule.Spec.BackendProperties[0],
+	validateCRDValues(t, g, defaultL4RuleSpec, nodes[0].AviVsNodeGeneratedFields, nodes[0].AviVsNodeCommonFields)
+
+	validateCRDValues(t, g, defaultBackendProperties,
 		nodes[0].PoolRefs[0].AviPoolGeneratedFields, nodes[0].PoolRefs[0].AviPoolCommonFields)
 
 	// Update L4Rule with a valid application persistence profile.
@@ -1013,7 +1053,6 @@ func TestL4RuleLbAlgorithm(t *testing.T) {
 	obj.Spec.BackendProperties[0].LbAlgorithm = proto.String("LB_ALGORITHM_ROUND_ROBIN")
 	obj.Spec.BackendProperties[0].LbAlgorithmHash = nil
 	obj.Spec.BackendProperties[0].LbAlgorithmConsistentHashHdr = nil
-	acceptedL4rule := obj.DeepCopy()
 	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Create(context.TODO(), obj, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding L4Rule: %v", err)
 	}
@@ -1085,13 +1124,17 @@ func TestL4RuleLbAlgorithm(t *testing.T) {
 
 	time.Sleep(5 * time.Second)
 
-	// Verify whether the properties are retained.
+	// Verify that the properties revert to defaults when L4Rule is invalid
 	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
 
-	validateCRDValues(t, g, acceptedL4rule.Spec, nodes[0].AviVsNodeGeneratedFields, nodes[0].AviVsNodeCommonFields)
+	// Create empty/default L4Rule spec to validate that VS reverts to default properties
+	defaultL4RuleSpec := akov1alpha2.L4RuleSpec{}
+	defaultBackendProperties := akov1alpha2.BackendProperties{}
 
-	validateCRDValues(t, g, acceptedL4rule.Spec.BackendProperties[0],
+	validateCRDValues(t, g, defaultL4RuleSpec, nodes[0].AviVsNodeGeneratedFields, nodes[0].AviVsNodeCommonFields)
+
+	validateCRDValues(t, g, defaultBackendProperties,
 		nodes[0].PoolRefs[0].AviPoolGeneratedFields, nodes[0].PoolRefs[0].AviPoolCommonFields)
 
 	// Update the L4Rule with LbAlgorithm as LB_ALGORITHM_CONSISTENT_HASH and lbAlgorithmHash as

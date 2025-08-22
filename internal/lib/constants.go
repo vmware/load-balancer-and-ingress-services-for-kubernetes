@@ -174,6 +174,8 @@ const (
 	ApplicationProfile                         = "ApplicationProfile"
 	HealthMonitor                              = "HealthMonitor"
 	AllowedTCPHealthMonitorType                = "HEALTH_MONITOR_TCP"
+	AllowedUDPHealthMonitorType                = "HEALTH_MONITOR_UDP"
+	AllowedSCTPHealthMonitorType               = "HEALTH_MONITOR_SCTP"
 	PassthroughPG                              = "Passthrough PG"
 	Passthroughpool                            = "Passthrough pool"
 	PassthroughVS                              = "Passthrough VirtualService"
