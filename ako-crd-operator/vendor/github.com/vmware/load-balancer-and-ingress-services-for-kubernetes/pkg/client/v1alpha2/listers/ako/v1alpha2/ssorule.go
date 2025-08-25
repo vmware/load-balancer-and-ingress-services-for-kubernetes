@@ -19,10 +19,10 @@ limitations under the License.
 package v1alpha2
 
 import (
-	v1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/tools/cache"
+	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // SSORuleLister helps list SSORules.
@@ -30,7 +30,7 @@ import (
 type SSORuleLister interface {
 	// List lists all SSORules in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha2.SSORule, err error)
+	List(selector labels.Selector) (ret []*akov1alpha2.SSORule, err error)
 	// SSORules returns an object that can list and get SSORules.
 	SSORules(namespace string) SSORuleNamespaceLister
 	SSORuleListerExpansion
@@ -38,25 +38,17 @@ type SSORuleLister interface {
 
 // sSORuleLister implements the SSORuleLister interface.
 type sSORuleLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*akov1alpha2.SSORule]
 }
 
 // NewSSORuleLister returns a new SSORuleLister.
 func NewSSORuleLister(indexer cache.Indexer) SSORuleLister {
-	return &sSORuleLister{indexer: indexer}
-}
-
-// List lists all SSORules in the indexer.
-func (s *sSORuleLister) List(selector labels.Selector) (ret []*v1alpha2.SSORule, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha2.SSORule))
-	})
-	return ret, err
+	return &sSORuleLister{listers.New[*akov1alpha2.SSORule](indexer, akov1alpha2.Resource("ssorule"))}
 }
 
 // SSORules returns an object that can list and get SSORules.
 func (s *sSORuleLister) SSORules(namespace string) SSORuleNamespaceLister {
-	return sSORuleNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return sSORuleNamespaceLister{listers.NewNamespaced[*akov1alpha2.SSORule](s.ResourceIndexer, namespace)}
 }
 
 // SSORuleNamespaceLister helps list and get SSORules.
@@ -64,36 +56,15 @@ func (s *sSORuleLister) SSORules(namespace string) SSORuleNamespaceLister {
 type SSORuleNamespaceLister interface {
 	// List lists all SSORules in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha2.SSORule, err error)
+	List(selector labels.Selector) (ret []*akov1alpha2.SSORule, err error)
 	// Get retrieves the SSORule from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha2.SSORule, error)
+	Get(name string) (*akov1alpha2.SSORule, error)
 	SSORuleNamespaceListerExpansion
 }
 
 // sSORuleNamespaceLister implements the SSORuleNamespaceLister
 // interface.
 type sSORuleNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all SSORules in the indexer for a given namespace.
-func (s sSORuleNamespaceLister) List(selector labels.Selector) (ret []*v1alpha2.SSORule, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha2.SSORule))
-	})
-	return ret, err
-}
-
-// Get retrieves the SSORule from the indexer for a given namespace and name.
-func (s sSORuleNamespaceLister) Get(name string) (*v1alpha2.SSORule, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1alpha2.Resource("ssorule"), name)
-	}
-	return obj.(*v1alpha2.SSORule), nil
+	listers.ResourceIndexer[*akov1alpha2.SSORule]
 }
