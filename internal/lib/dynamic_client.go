@@ -159,6 +159,12 @@ type DynamicInformers struct {
 
 // NewDynamicInformers initializes the DynamicInformers struct
 func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInformers {
+	// Return nil if client is nil to avoid nil pointer dereference
+	if client == nil {
+		utils.AviLog.Infof("Dynamic client is nil, skipping dynamic informers initialization")
+		return nil
+	}
+
 	informers := &DynamicInformers{}
 	f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, 0, v1.NamespaceAll, nil)
 
@@ -180,8 +186,10 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 		informers.VPCNetworkConfigurationInformer = f.ForResource(VPCNetworkConfigurationGVR)
 	}
 
-	// Always initialize HealthMonitor informer for L4Rule support
-	informers.HealthMonitorInformer = f.ForResource(HealthMonitorGVR)
+	// Initialize HealthMonitor informer only when L4Rules are enabled
+	if AKOControlConfig().L4RuleEnabled() {
+		informers.HealthMonitorInformer = f.ForResource(HealthMonitorGVR)
+	}
 
 	dynamicInformerInstance = informers
 	return dynamicInformerInstance
