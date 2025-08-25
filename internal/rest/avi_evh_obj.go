@@ -346,6 +346,10 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 			vs.EnableRhi = &enableRhi
 		}
 
+		if vs_meta.TrafficEnabled != nil {
+			vs.TrafficEnabled = vs_meta.TrafficEnabled
+		}
+
 		if vs_meta.SharedVS {
 			vs.Markers = lib.GetMarkers()
 		} else {

@@ -155,6 +155,7 @@ type AviEvhVsNode struct {
 	Secure              bool
 	Caller              string
 	StringGroupRefs     []*AviStringGroupNode
+	TrafficEnabled      *bool
 
 	AviVsNodeCommonFields
 
@@ -741,6 +742,10 @@ func (v *AviEvhVsNode) CalculateCheckSum() {
 
 	if v.Enabled != nil {
 		checksum += utils.Hash(utils.Stringify(v.Enabled))
+	}
+	// TrafficEnabled: For GatewayAPI VS always PUT request
+	if v.TrafficEnabled != nil {
+		checksum += utils.Hash(utils.Stringify(v.TrafficEnabled))
 	}
 
 	checksum += lib.GetMarkersChecksum(v.AviMarkers)
