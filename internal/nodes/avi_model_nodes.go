@@ -429,6 +429,7 @@ type AviVsNode struct {
 	IsL4VS                bool
 	Secure                bool
 	StringGroupRefs       []*AviStringGroupNode
+	TrafficEnabled        *bool
 
 	AviVsNodeCommonFields
 
@@ -1071,7 +1072,10 @@ func (v *AviVsNode) CalculateCheckSum() {
 	if v.Enabled != nil {
 		checksum += utils.Hash(utils.Stringify(v.Enabled))
 	}
-
+	// TrafficEnabled: This will cause PUT request on all L4 VS
+	if v.TrafficEnabled != nil {
+		checksum += utils.Hash(utils.Stringify(v.TrafficEnabled))
+	}
 	checksum += lib.GetMarkersChecksum(v.AviMarkers)
 
 	if v.EnableRhi != nil {

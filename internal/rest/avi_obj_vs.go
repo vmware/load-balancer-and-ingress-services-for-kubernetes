@@ -101,6 +101,9 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			RevokeVipRoute:        vs_meta.RevokeVipRoute,
 		}
 
+		if vs_meta.TrafficEnabled != nil {
+			vs.TrafficEnabled = vs_meta.TrafficEnabled
+		}
 		if vs_meta.ApplicationProfileRef != nil {
 			// hostrule ref overrides defaults
 			vs.ApplicationProfileRef = vs_meta.ApplicationProfileRef
