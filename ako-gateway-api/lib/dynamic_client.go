@@ -414,7 +414,12 @@ func ParseRouteBackendExtensionCR(key, namespace, name string, poolNode *nodes.A
 	if lbAlgoHashHdr, found, err := unstructured.NestedString(specJSON, "lbAlgorithmConsistentHashHdr"); err == nil && found {
 		poolNode.LbAlgorithmConsistentHashHdr = &lbAlgoHashHdr
 	}
-
+	// if sessionPersistence is not set in rule, set it from the spec of routebackendextension
+	if poolNode.ApplicationPersistenceProfile == nil {
+		if persistenceProfile, found, err := unstructured.NestedString(specJSON, "persistenceProfile"); err == nil && found {
+			poolNode.ApplicationPersistenceProfileRef = proto.String(fmt.Sprintf("/api/applicationpersistenceprofile?name=%s", persistenceProfile))
+		}
+	}
 	if !isFilterHMSet {
 		hms, found, err := unstructured.NestedSlice(specJSON, "healthMonitor")
 		if err == nil && found {

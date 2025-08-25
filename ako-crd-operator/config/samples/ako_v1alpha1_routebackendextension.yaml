@@ -7,6 +7,7 @@ metadata:
   name: routebackendextension-sample
 spec:
   lbAlgorithm: LB_ALGORITHM_LEAST_CONNECTIONS
+  persistenceProfile: System-Persistence-Client-IP
   healthMonitor:
   - kind: "AVIREF"
     name: "healthmonitor-sample"
