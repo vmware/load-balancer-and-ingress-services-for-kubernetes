@@ -58,7 +58,8 @@ type VKSClusterConfig struct {
 	ServiceEngineGroup string
 	TenantName         string
 	NsxtT1LR           string
-	CloudName          string
+
+	CloudName string
 
 	CNIPlugin   string
 	ServiceType string
@@ -509,37 +510,12 @@ func (w *VKSClusterWatcher) getNamespaceConfig(clusterNamespace string) (*Namesp
 		}
 	}
 
-	cloudName, err := w.getCloudNameFromAKONamespace()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get cloud name from AKO namespace: %v", err)
-	}
-
 	return &NamespaceConfig{
 		ServiceEngineGroup: seg,
 		Tenant:             tenant,
 		T1LR:               t1lr,
-		CloudName:          cloudName,
+		CloudName:          utils.CloudName,
 	}, nil
-}
-
-// getCloudNameFromAKONamespace fetches cloud name from AKO namespace annotation
-func (w *VKSClusterWatcher) getCloudNameFromAKONamespace() (string, error) {
-	akoNamespace := utils.GetAKONamespace()
-	namespace, err := w.kubeClient.CoreV1().Namespaces().Get(context.Background(), akoNamespace, metav1.GetOptions{})
-	if err != nil {
-		return "", fmt.Errorf("failed to get AKO namespace %s: %v", akoNamespace, err)
-	}
-
-	if namespace.Annotations == nil {
-		return "", fmt.Errorf("AKO namespace %s has no annotations", akoNamespace)
-	}
-
-	cloudName, exists := namespace.Annotations[lib.WCPCloud]
-	if !exists || cloudName == "" {
-		return "", fmt.Errorf("AKO namespace %s does not have annotation %s or it is empty", akoNamespace, lib.WCPCloud)
-	}
-
-	return cloudName, nil
 }
 
 // buildVKSClusterConfig builds complete configuration for a VKS cluster

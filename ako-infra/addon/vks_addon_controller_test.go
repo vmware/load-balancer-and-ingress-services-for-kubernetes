@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/webhook"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -153,7 +154,7 @@ func TestConstants(t *testing.T) {
 		Resource: "addoninstalls",
 	}
 
-	if AddonInstallGVR != expectedGVR {
-		t.Errorf("Expected AddonInstallGVR %+v, got %+v", expectedGVR, AddonInstallGVR)
+	if lib.AddonInstallGVR != expectedGVR {
+		t.Errorf("Expected AddonInstallGVR %+v, got %+v", expectedGVR, lib.AddonInstallGVR)
 	}
 }
