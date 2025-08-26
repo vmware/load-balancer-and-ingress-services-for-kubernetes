@@ -9,10 +9,10 @@ branch_version=$($WORKSPACE/hack/jenkins/get_branch_version.sh)
 version_numbers=(${branch_version//./ })
 minor_version=${version_numbers[1]}
 
-AKO_IMAGES=($DOCKER_AKO_IMAGE_NAME $DOCKER_AKO_OPERATOR_IMAGE_NAME)
+AKO_IMAGES=("ako" "ako-operator" "ako-crd-operator")
 
 if [ "$minor_version" -ge "11" ]; then
-    AKO_IMAGES+=($DOCKER_AKO_GATEWAY_API_IMAGE_NAME)
+    AKO_IMAGES+=("ako-gateway-api")
 fi
 
 echo ${AKO_IMAGES[@]}
