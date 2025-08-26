@@ -114,7 +114,8 @@ func validateBackendReference(key string, backend Backend, backendFilters []*Fil
 
 	flag, routeConditionResolvedRef := validatedBackendRefExtensions(backendFilters, routeConditionResolvedRef, key, backend)
 	if !flag {
-		return false, routeConditionResolvedRef
+		// ExtensionRef is partially supported hence will not be marking it as complete invalidBackend
+		return true, routeConditionResolvedRef
 	}
 	// Valid route case
 	routeConditionResolvedRef.
@@ -223,7 +224,7 @@ func validateFilterExtensionRef(key, namespace string, filter *ExtensionRefFilte
 		Status(metav1.ConditionFalse)
 
 	if filter.Kind != lib.ApplicationProfile {
-		return true, routeConditionResolvedRef
+		return true, nil
 	}
 
 	isValid, isReady := akogatewayapilib.IsApplicationProfileValid(namespace, string(filter.Name))
@@ -249,11 +250,7 @@ func validateFilterExtensionRef(key, namespace string, filter *ExtensionRefFilte
 
 		return false, routeConditionResolvedRef
 	}
-
-	routeConditionResolvedRef.
-		Status(metav1.ConditionTrue).
-		Reason(string(gatewayv1.RouteReasonResolvedRefs))
-	return true, routeConditionResolvedRef
+	return true, nil
 }
 
 // Current behaviour: Any invalid Rule, that HTTPRoute object is not processed.

@@ -1355,7 +1355,6 @@ func TestHTTPRouteStatusWithHealthMonitorLifecycle(t *testing.T) {
 	}
 
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
-
 	// HTTPRoute should have unresolved refs condition due to non-existent HealthMonitor
 	g.Eventually(func() bool {
 		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})

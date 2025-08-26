@@ -3589,7 +3589,7 @@ func TestHTTPRouteWithSingleHealthMonitor(t *testing.T) {
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
+		return len(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs)
 	}, 25*time.Second).Should(gomega.Equal(0))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
@@ -3660,28 +3660,13 @@ func TestHTTPRouteWithMultipleHealthMonitors(t *testing.T) {
 	// Delete one HealthMonitor
 	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName1, DEFAULT_NAMESPACE)
 
-	// this will make the HTTPRoute invalid and remove all poolrefs
+	// this will remove the first healthmonitor from the poolref
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
-	}, 25*time.Second).Should(gomega.Equal(0))
-
-	// update httproute to remove healthmonitor
-	rule = akogatewayapitests.GetHTTPRouteRuleWithHealthMonitorFilters(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
-		map[string][]string{"RequestHeaderModifier": {"add"}},
-		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, []string{healthMonitorName2})
-	rules = []gatewayv1.HTTPRouteRule{rule}
-	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
-
-	// this will add one healthmonitor to the poolref
-	g.Eventually(func() int {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
+		return len(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs)
 	}, 25*time.Second).Should(gomega.Equal(1))
 
-	childNode = nodes[0].EvhNodes[0]
 	g.Expect(childNode.PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring("thisisaviref-hm2"))
 
 	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName2, DEFAULT_NAMESPACE)
@@ -3828,6 +3813,13 @@ func TestHTTPRouteWithInvalidHealthMonitor(t *testing.T) {
 		}
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	// this will remove the first healthmonitor from the poolref
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs)
 	}, 25*time.Second).Should(gomega.Equal(0))
 
 	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName, DEFAULT_NAMESPACE)
@@ -3912,9 +3904,16 @@ func TestHTTPRouteWithHealthMonitorMultipleRules(t *testing.T) {
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
+		return len(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs)
 	}, 25*time.Second).Should(gomega.Equal(0))
 
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes[1].PoolRefs[0].HealthMonitorRefs)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	g.Expect(childNode2.PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring("thisisaviref-hm2"))
 	// Clean up
 	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName2, DEFAULT_NAMESPACE)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
@@ -3996,8 +3995,17 @@ func TestHTTPRouteWithHealthMonitorMultipleBackends(t *testing.T) {
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
-	}, 25*time.Second).Should(gomega.Equal(0))
+		return len(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes[0].PoolRefs[1].HealthMonitorRefs)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	g.Expect(childNode1.PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring("thisisaviref-hm2"))
+	g.Expect(childNode1.PoolRefs[1].HealthMonitorRefs[0]).To(gomega.ContainSubstring("thisisaviref-hm2"))
 
 	// Clean up
 	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName2, DEFAULT_NAMESPACE)
@@ -4068,8 +4076,8 @@ func TestHTTPRouteWithHealthMonitorStatusTransition(t *testing.T) {
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
-	}, 25*time.Second).Should(gomega.Equal(0))
+		return len(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs)
+	}, 60*time.Second).Should(gomega.Equal(0))
 
 	// Update HealthMonitor status back to Ready=True
 	akogatewayapitests.UpdateHealthMonitorStatus(t, healthMonitorName, DEFAULT_NAMESPACE, true, "Accepted", "HealthMonitor has been successfully processed")

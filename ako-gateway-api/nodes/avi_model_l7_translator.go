@@ -83,8 +83,7 @@ func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, pare
 		if rule.Matches == nil {
 			continue
 		}
-		if httpRouteConfig.Rejected {
-			utils.AviLog.Warnf("key: %s, msg: route %s is rejected", key, routeModel.GetName())
+		if len(rule.Backends) == 0 {
 			continue
 		}
 		o.BuildChildVS(key, routeModel, parentNsName, rule, childVSes, fullsync)
@@ -336,6 +335,11 @@ func buildPoolWithBackendExtensionRefs(key string, poolNode *nodes.AviPoolNode, 
 					continue
 				}
 				unstructuredObj := obj.(*unstructured.Unstructured)
+				_, ready, _ := akogatewayapilib.IsHealthMonitorProcessed(key, namespace, filter.ExtensionRef.Name, unstructuredObj)
+				if !ready {
+					utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s not ready. err: %s", key, namespace, filter.ExtensionRef.Name, err)
+					continue
+				}
 				status, found, err := unstructured.NestedMap(unstructuredObj.UnstructuredContent(), "status")
 				if err != nil || !found {
 					utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s status not found. err: %s", key, namespace, filter.ExtensionRef.Name, err)
