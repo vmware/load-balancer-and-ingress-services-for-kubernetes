@@ -253,34 +253,36 @@ func (c *VCFK8sController) AddVKSCapabilityEventHandler(stopCh <-chan struct{}) 
 		c.startVKSInfrastructure(stopCh)
 	}
 
-	capabilityEventHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			utils.AviLog.Infof("SupervisorCapability ADD Event")
-			if lib.IsVKSCapabilityActivated() && !capabilityActive {
-				utils.AviLog.Infof("VKS capability activated")
-				capabilityActive = true
-				c.startVKSInfrastructure(stopCh)
-			}
-		},
-		UpdateFunc: func(old, obj interface{}) {
-			utils.AviLog.Infof("SupervisorCapability UPDATE Event")
-			if lib.IsVKSCapabilityActivated() && !capabilityActive {
-				utils.AviLog.Infof("VKS capability activated")
-				capabilityActive = true
-				c.startVKSInfrastructure(stopCh)
-			}
-		},
-		DeleteFunc: func(obj interface{}) {
-			utils.AviLog.Infof("SupervisorCapability DELETE Event")
-		},
-	}
+	if !capabilityActive {
+		capabilityEventHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				utils.AviLog.Infof("SupervisorCapability ADD Event")
+				if lib.IsVKSCapabilityActivated() {
+					utils.AviLog.Infof("VKS capability activated")
+					capabilityActive = true
+					c.startVKSInfrastructure(stopCh)
+				}
+			},
+			UpdateFunc: func(old, obj interface{}) {
+				utils.AviLog.Infof("SupervisorCapability UPDATE Event")
+				if lib.IsVKSCapabilityActivated() {
+					utils.AviLog.Infof("VKS capability activated")
+					capabilityActive = true
+					c.startVKSInfrastructure(stopCh)
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				utils.AviLog.Infof("SupervisorCapability DELETE Event")
+			},
+		}
 
-	c.dynamicInformers.SupervisorCapabilityInformer.Informer().AddEventHandler(capabilityEventHandler)
-	go c.dynamicInformers.SupervisorCapabilityInformer.Informer().Run(stopCh)
-	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.SupervisorCapabilityInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("timed out waiting for SupervisorCapability caches to sync"))
-	} else {
-		utils.AviLog.Infof("VKS capability: caches synced for SupervisorCapability informer")
+		c.dynamicInformers.SupervisorCapabilityInformer.Informer().AddEventHandler(capabilityEventHandler)
+		go c.dynamicInformers.SupervisorCapabilityInformer.Informer().Run(stopCh)
+		if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.SupervisorCapabilityInformer.Informer().HasSynced) {
+			runtime.HandleError(fmt.Errorf("timed out waiting for SupervisorCapability caches to sync"))
+		} else {
+			utils.AviLog.Infof("VKS capability: caches synced for SupervisorCapability informer")
+		}
 	}
 }
 

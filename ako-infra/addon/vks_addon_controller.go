@@ -26,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 const (
@@ -34,12 +33,6 @@ const (
 	AKOAddonName        = "ako"
 	AKOAddonInstallName = "ako-global-installer"
 )
-
-var AddonInstallGVR = schema.GroupVersionResource{
-	Group:    "addons.kubernetes.vmware.com",
-	Version:  "v1alpha1",
-	Resource: "addoninstalls",
-}
 
 // EnsureGlobalAddonInstall creates the global AddonInstall resource for VKS
 func EnsureGlobalAddonInstall() error {
@@ -52,7 +45,7 @@ func EnsureGlobalAddonInstall() error {
 	}
 
 	// Check if AddonInstall already exists
-	existingAddon, err := dynamicClient.Resource(AddonInstallGVR).Namespace(VKSPublicNamespace).Get(
+	existingAddon, err := dynamicClient.Resource(lib.AddonInstallGVR).Namespace(VKSPublicNamespace).Get(
 		ctx, AKOAddonInstallName, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("failed to check existing AddonInstall %s/%s: %w",
@@ -66,7 +59,7 @@ func EnsureGlobalAddonInstall() error {
 
 	addonInstall := createAddonInstallSpec()
 
-	_, err = dynamicClient.Resource(AddonInstallGVR).Namespace(VKSPublicNamespace).Create(
+	_, err = dynamicClient.Resource(lib.AddonInstallGVR).Namespace(VKSPublicNamespace).Create(
 		ctx, addonInstall, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to create AddonInstall %s/%s: %w",
@@ -129,7 +122,7 @@ func CleanupGlobalAddonInstall() error {
 
 	utils.AviLog.Infof("VKS addon: cleaning up global AddonInstall %s/%s", VKSPublicNamespace, AKOAddonInstallName)
 
-	err := dynamicClient.Resource(AddonInstallGVR).Namespace(VKSPublicNamespace).Delete(
+	err := dynamicClient.Resource(lib.AddonInstallGVR).Namespace(VKSPublicNamespace).Delete(
 		ctx, AKOAddonInstallName, metav1.DeleteOptions{})
 
 	if err != nil {
