@@ -1741,7 +1741,8 @@ func TestHTTPRouteStatusWithRouteBackendExtensionLifecycle(t *testing.T) {
 		}
 		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
 		return condition != nil && condition.Status == metav1.ConditionFalse &&
-			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound) && strings.Contains(condition.Message, "RouteBackendExtension object default/rbe-lifecycle is not in Accepted state")
+			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound) &&
+			strings.Contains(condition.Message, "RouteBackendExtension object default/rbe-lifecycle is not in Accepted state")
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	// Update RouteBackendExtension status to Accepted
@@ -1852,7 +1853,8 @@ func TestHTTPRouteStatusWithRouteBackendExtensionLifecycle(t *testing.T) {
 		}
 		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
 		return condition != nil && condition.Status == metav1.ConditionFalse &&
-			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound)
+			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound) &&
+			strings.Contains(condition.Message, "RouteBackendExtension CR default/rbe-lifecycle is not handled by AKO CRD Operator")
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	// Verify error message mentions RouteBackendExtension

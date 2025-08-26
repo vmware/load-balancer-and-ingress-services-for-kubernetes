@@ -311,16 +311,6 @@ func resetChildNodeFields(key string, err error, childNode *nodes.AviEvhVsNode, 
 	childNode.SetHttpPolicySetRefs([]string{})
 }
 
-func resetPoolNodeFields(key string, err error, poolNode *nodes.AviPoolNode, isFilterHMSet bool) {
-	utils.AviLog.Warnf("key: %s, msg: Error while parsing extension ref: %s. Resetting pool %s fields", key, err.Error(), poolNode.Name)
-	poolNode.LbAlgorithm = nil
-	poolNode.LbAlgorithmHash = nil
-	poolNode.LbAlgorithmConsistentHashHdr = nil
-	if !isFilterHMSet {
-		poolNode.HealthMonitorRefs = nil
-	}
-}
-
 func buildPoolWithBackendExtensionRefs(key string, poolNode *nodes.AviPoolNode, namespace string, backend *HTTPBackend) {
 	healthMonitorRefsSet := sets.NewString()
 	if backend == nil || backend.Filters == nil || len(backend.Filters) == 0 {
@@ -355,7 +345,7 @@ func buildPoolWithBackendExtensionRefs(key string, poolNode *nodes.AviPoolNode, 
 				isFilterHMSet := healthMonitorRefsSet.Len() > 0
 				err := akogatewayapilib.ParseRouteBackendExtensionCR(key, namespace, filter.ExtensionRef.Name, poolNode, isFilterHMSet)
 				if err != nil {
-					resetPoolNodeFields(key, err, poolNode, isFilterHMSet)
+					utils.AviLog.Warnf("key: %s, msg: Error while parsing RouteBackendExtension %s/%s: %s", key, namespace, filter.ExtensionRef.Name, err.Error())
 				}
 			}
 		}
