@@ -636,8 +636,8 @@ func (o *AviObjectGraph) ConstructSharedVipPolPoolNodes(vsNode *AviVsNode, share
 
 			l4Rule, err = getL4Rule(key, svcObj)
 			if err != nil {
-				utils.AviLog.Warnf("key: %s, msg: Error while fetching l4Rule for Service %s", key, err.Error())
-				return
+				utils.AviLog.Warnf("key: %s, msg: Error while fetching l4Rule for Service %s, will use default properties. Err: %s", key, svcObj.Name, err.Error())
+				l4Rule = nil // Continue with nil L4Rule to use default properties
 			}
 		}
 
