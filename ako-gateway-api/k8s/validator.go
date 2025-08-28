@@ -108,7 +108,7 @@ func IsValidGateway(key string, gateway *gatewayv1.Gateway) (bool, bool) {
 	}
 
 	gatewayStatus.Listeners = make([]gatewayv1.ListenerStatus, len(gateway.Spec.Listeners))
-	gatewayInDedicatedMode := akogatewayapilib.IsGatewayInDedicatedMode(gateway.Namespace)
+	gatewayInDedicatedMode := akogatewayapilib.IsGatewayInDedicatedMode(gateway.Namespace, gateway.Name)
 	var validListenerCount int
 	for index := range spec.Listeners {
 		if isValidListener(key, gateway, gatewayStatus, index, gatewayInDedicatedMode) {

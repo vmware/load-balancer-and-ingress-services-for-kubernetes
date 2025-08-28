@@ -48,10 +48,6 @@ func (o *AviObjectGraph) ProcessL7RoutesForDedicatedGateway(key string, routeMod
 
 	// Process each rule to create pools for the backends
 	for ruleIndex, rule := range httpRouteRules {
-		if rule.Matches == nil {
-			utils.AviLog.Warnf("key: %s, msg: Skipping rule %d with no matches for HTTPRoute %s/%s", key, ruleIndex, routeModel.GetNamespace(), routeModel.GetName())
-			continue
-		}
 		// Create pools for the backends in this rule
 		o.BuildPGPoolForDedicatedMode(key, dedicatedVS, routeModel, rule, ruleIndex)
 		utils.AviLog.Debugf("key: %s, msg: Processed rule %d for HTTPRoute %s/%s in dedicated mode", key, ruleIndex, routeModel.GetNamespace(), routeModel.GetName())
@@ -64,31 +60,8 @@ func (o *AviObjectGraph) ProcessL7RoutesForDedicatedGateway(key string, routeMod
 // RemovePoolsAndPoolGroupsForHTTPRoute removes existing pools and pool groups for a specific HTTPRoute
 // This ensures that when an HTTPRoute is updated, old pools/pool groups are replaced instead of accumulated
 func (o *AviObjectGraph) RemovePoolsAndPoolGroupsForHTTPRoute(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel) {
-	// Remove pool groups for this HTTPRoute
-	var updatedPoolGroupRefs []*nodes.AviPoolGroupNode
-	for _, poolGroup := range vsNode.PoolGroupRefs {
-		if poolGroup.AviMarkers.HTTPRouteName == routeModel.GetName() &&
-			poolGroup.AviMarkers.HTTPRouteNamespace == routeModel.GetNamespace() {
-			utils.AviLog.Debugf("key: %s, msg: Removing existing Pool Group %s for HTTPRoute %s/%s replacement",
-				key, poolGroup.Name, routeModel.GetNamespace(), routeModel.GetName())
-		} else {
-			updatedPoolGroupRefs = append(updatedPoolGroupRefs, poolGroup)
-		}
-	}
-	vsNode.PoolGroupRefs = updatedPoolGroupRefs
-
-	// Remove pools for this HTTPRoute
-	var updatedPoolRefs []*nodes.AviPoolNode
-	for _, pool := range vsNode.PoolRefs {
-		if pool.AviMarkers.HTTPRouteName == routeModel.GetName() &&
-			pool.AviMarkers.HTTPRouteNamespace == routeModel.GetNamespace() {
-			utils.AviLog.Debugf("key: %s, msg: Removing existing Pool %s for HTTPRoute %s/%s replacement",
-				key, pool.Name, routeModel.GetNamespace(), routeModel.GetName())
-		} else {
-			updatedPoolRefs = append(updatedPoolRefs, pool)
-		}
-	}
-	vsNode.PoolRefs = updatedPoolRefs
+	vsNode.PoolGroupRefs = []*nodes.AviPoolGroupNode{}
+	vsNode.PoolRefs = []*nodes.AviPoolNode{}
 
 	utils.AviLog.Debugf("key: %s, msg: Completed removal of existing pools/pool groups for HTTPRoute %s/%s",
 		key, routeModel.GetNamespace(), routeModel.GetName())
@@ -97,10 +70,6 @@ func (o *AviObjectGraph) RemovePoolsAndPoolGroupsForHTTPRoute(key string, vsNode
 // BuildSingleHTTPPolicySetForDedicatedMode creates a single HTTP PolicySet for all HTTPRoute rules in dedicated mode
 // Each match gets its own request and response rules with specific match criteria
 func (o *AviObjectGraph) BuildSingleHTTPPolicySetForDedicatedMode(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, httpRouteRules []*Rule) {
-	if len(httpRouteRules) == 0 {
-		return
-	}
-
 	// Create HTTP PolicySet name for the entire HTTPRoute with encoding
 	httpPSName := akogatewayapilib.GetHttpPolicySetName(vsNode.AviMarkers.GatewayNamespace, vsNode.AviMarkers.GatewayName, routeModel.GetNamespace(), routeModel.GetName())
 
@@ -126,10 +95,6 @@ func (o *AviObjectGraph) BuildSingleHTTPPolicySetForDedicatedMode(key string, vs
 
 	// Process each rule and create request/response rules for each match
 	for ruleIndex, rule := range httpRouteRules {
-		if rule.Matches == nil {
-			utils.AviLog.Warnf("key: %s, msg: Skipping rule %d with no matches for HTTPRoute %s/%s", key, ruleIndex, routeModel.GetNamespace(), routeModel.GetName())
-			continue
-		}
 		// Create HTTP request rules with match criteria for each match
 		for matchIndex, match := range rule.Matches {
 			// Build HTTP request rule with match, filters, and switching action
@@ -193,21 +158,21 @@ func (o *AviObjectGraph) BuildHTTPRequestRuleWithMatch(key string, policy *nodes
 		}
 		// Handle request header modifications
 		if filter.RequestFilter != nil {
-			var j uint32 = 0
-			for i := range filter.RequestFilter.Add {
-				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_ADD_HDR", filter.RequestFilter.Add[i], j)
+			var index uint32 = 0
+			for requestFilterAdd := range filter.RequestFilter.Add {
+				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_ADD_HDR", filter.RequestFilter.Add[requestFilterAdd], index)
 				httpRequestRule.HdrAction = append(httpRequestRule.HdrAction, action)
-				j++
+				index++
 			}
-			for i := range filter.RequestFilter.Set {
-				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_REPLACE_HDR", filter.RequestFilter.Set[i], j)
+			for requestFilterSet := range filter.RequestFilter.Set {
+				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_REPLACE_HDR", filter.RequestFilter.Set[requestFilterSet], index)
 				httpRequestRule.HdrAction = append(httpRequestRule.HdrAction, action)
-				j++
+				index++
 			}
-			for i := range filter.RequestFilter.Remove {
-				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_REMOVE_HDR", &Header{Name: filter.RequestFilter.Remove[i]}, j)
+			for requestFilterRemove := range filter.RequestFilter.Remove {
+				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_REMOVE_HDR", &Header{Name: filter.RequestFilter.Remove[requestFilterRemove]}, index)
 				httpRequestRule.HdrAction = append(httpRequestRule.HdrAction, action)
-				j++
+				index++
 			}
 		}
 		// Handle URL rewrite
@@ -217,21 +182,23 @@ func (o *AviObjectGraph) BuildHTTPRequestRuleWithMatch(key string, policy *nodes
 				var pathValue string
 				if filter.UrlRewriteFilter.path.ReplaceFullPath != nil {
 					pathValue = *filter.UrlRewriteFilter.path.ReplaceFullPath
-				} else if filter.UrlRewriteFilter.path.ReplacePrefixMatch != nil {
-					pathValue = *filter.UrlRewriteFilter.path.ReplacePrefixMatch
 				}
 				if pathValue != "" {
 					rewriteAction.Path = &models.URIParam{
-						Type:   proto.String("HTTP_TYPE_PATH"),
+						Type:   proto.String("URI_PARAM_TYPE_TOKENIZED"),
 						Tokens: []*models.URIParamToken{{Type: proto.String("URI_TOKEN_TYPE_STRING"), StrValue: &pathValue}},
 					}
 				}
 			}
 			if filter.UrlRewriteFilter.hostname != "" {
 				rewriteAction.HostHdr = &models.URIParam{
-					Type:   proto.String("HTTP_TYPE_HOST"),
+					Type:   proto.String("URI_PARAM_TYPE_TOKENIZED"),
 					Tokens: []*models.URIParamToken{{Type: proto.String("URI_TOKEN_TYPE_STRING"), StrValue: &filter.UrlRewriteFilter.hostname}},
 				}
+			}
+			rewriteAction.Query = &models.URIParamQuery{
+				AddString: nil,
+				KeepQuery: proto.Bool(true),
 			}
 			httpRequestRule.RewriteURLAction = rewriteAction
 		}
@@ -272,24 +239,24 @@ func (o *AviObjectGraph) BuildHTTPResponseRuleWithMatch(key string, policy *node
 	// Apply response filters
 	for _, filter := range responseFilters {
 		if filter.ResponseFilter != nil {
-			var j uint32 = 0
+			var index uint32 = 0
 			// Handle response header additions
-			for i := range filter.ResponseFilter.Add {
-				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_ADD_HDR", filter.ResponseFilter.Add[i], j)
+			for responseFilterAdd := range filter.ResponseFilter.Add {
+				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_ADD_HDR", filter.ResponseFilter.Add[responseFilterAdd], index)
 				httpResponseRule.HdrAction = append(httpResponseRule.HdrAction, action)
-				j++
+				index++
 			}
 			// Handle response header replacements
-			for i := range filter.ResponseFilter.Set {
-				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_REPLACE_HDR", filter.ResponseFilter.Set[i], j)
+			for responseFilterSet := range filter.ResponseFilter.Set {
+				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_REPLACE_HDR", filter.ResponseFilter.Set[responseFilterSet], index)
 				httpResponseRule.HdrAction = append(httpResponseRule.HdrAction, action)
-				j++
+				index++
 			}
 			// Handle response header removals
-			for i := range filter.ResponseFilter.Remove {
-				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_REMOVE_HDR", &Header{Name: filter.ResponseFilter.Remove[i]}, j)
+			for responseFilterRemove := range filter.ResponseFilter.Remove {
+				action := o.BuildHTTPPolicySetHTTPRuleHdrAction(key, "HTTP_REMOVE_HDR", &Header{Name: filter.ResponseFilter.Remove[responseFilterRemove]}, index)
 				httpResponseRule.HdrAction = append(httpResponseRule.HdrAction, action)
-				j++
+				index++
 			}
 		}
 	}
@@ -517,18 +484,13 @@ func (o *AviObjectGraph) BuildPGPoolForDedicatedMode(key string, vsNode *nodes.A
 			Ratio:   &ratio,
 		})
 
-		// Add pool to VS (pools are still attached to VS for management)
+		// pools are attached to VS for management
 		vsNode.PoolRefs = append(vsNode.PoolRefs, poolNode)
 
 		utils.AviLog.Debugf("key: %s, msg: Created pool %s with ratio %d for dedicated mode rule %d",
 			key, poolName, ratio, ruleIndex)
 	}
-
-	// NOTE: Pool group is NOT attached to VS directly in dedicated mode
-	// It will be referenced by HTTP PolicySet switching rules created in BuildDedicatedModeSwitchingRule
-
-	// Instead, we add the pool group to a temporary collection for HTTP PolicySet reference
-	// The HTTP PolicySet switching rules will reference this pool group by name
+	// pool groups are attached to VS for management
 	vsNode.PoolGroupRefs = append(vsNode.PoolGroupRefs, poolGroupNode)
 
 	utils.AviLog.Debugf("key: %s, msg: Built pool group %s for dedicated mode rule %d (attached via HTTP PolicySet)",

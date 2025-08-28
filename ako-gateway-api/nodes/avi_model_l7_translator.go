@@ -79,12 +79,12 @@ func (o *AviObjectGraph) AddDefaultHTTPPolicySet(key string) {
 func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, parentNsName string, childVSes map[string]struct{}, fullsync bool) {
 	httpRouteConfig := routeModel.ParseRouteConfig(key)
 	httpRouteRules := httpRouteConfig.Rules
-	if akogatewayapilib.IsGatewayInDedicatedMode(routeModel.GetNamespace()) {
+	if o.GetAviEvhVS()[0].Dedicated {
 		o.ProcessL7RoutesForDedicatedGateway(key, routeModel, httpRouteRules, parentNsName, childVSes, fullsync)
 		return
 	}
 	for _, rule := range httpRouteRules {
-		// TODO: add the scenarios where we will not create child VS here.
+		// TODO: add the scenarios where we will not create child VS here.ß
 		if rule.Matches == nil {
 			continue
 		}

@@ -108,6 +108,13 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 	}
 
 	buildWithInfraSettingForGateway(key, parentVsNode, vsvipNode, infraSetting)
+
+	// Check for dedicated mode via Gateway annotation
+	if annotation, exists := gateway.GetAnnotations()[akogatewayapilib.DedicatedGatewayModeAnnotation]; exists && annotation == "true" {
+		utils.AviLog.Infof("key: %s, msg: Dedicated Gateway Mode is enabled via gateway annotation", key)
+		parentVsNode.EVHParent = false
+		parentVsNode.Dedicated = true
+	}
 	if infraSetting != nil {
 		akogatewayapiobjects.GatewayApiLister().UpdateGatewayToAviInfraSettingMappings(gateway.Namespace+"/"+gateway.Name, infraSetting.Name)
 	} else {
@@ -297,12 +304,6 @@ func buildWithInfraSettingForGateway(key string, vs *nodes.AviEvhVsNode, vsvip *
 			vsvip.T1Lr = *infraSetting.Spec.NSXSettings.T1LR
 			vsvip.VrfContext = ""
 			vs.VrfContext = ""
-		}
-		if infraSetting.Spec.L7Settings.DedicatedGatewayMode != nil && *infraSetting.Spec.L7Settings.DedicatedGatewayMode {
-			utils.AviLog.Infof("key: %s, msg: Dedicated Gateway Mode is enabled", key)
-			vs.EVHParent = false
-			vs.Dedicated = true
-
 		}
 		utils.AviLog.Debugf("key: %s, msg: Applied AviInfraSetting configuration over VS and VSVip nodes %s", key, vs.Name)
 	}

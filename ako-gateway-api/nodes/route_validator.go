@@ -481,7 +481,7 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 		*parentRefIndexInHttpRouteStatus = *parentRefIndexInHttpRouteStatus + 1
 		return err
 	}
-	dedicatedGatewayMode := akogatewayapilib.IsGatewayInDedicatedMode(namespace)
+	dedicatedGatewayMode := akogatewayapilib.IsGatewayInDedicatedMode(namespace, name)
 	if dedicatedGatewayMode {
 		var err error
 		if len(httpRoute.Spec.ParentRefs) > 1 {

@@ -54,7 +54,7 @@ func InformersToRegister(kclient *kubernetes.Clientset) ([]string, error) {
 func GetGatewayParentName(namespace, gwName string) string {
 	//clustername > gateway namespace > Gateway-name
 	//Adding -EVH prefix to reuse rest layer
-	if IsGatewayInDedicatedMode(namespace) {
+	if IsGatewayInDedicatedMode(namespace, gwName) {
 		return lib.GetNamePrefix() + namespace + "-" + gwName + lib.DedicatedSuffix + "-EVH"
 	}
 	return lib.GetNamePrefix() + namespace + "-" + gwName + "-EVH"
@@ -261,13 +261,20 @@ func CreateVCFGatewayClass() error {
 	return nil
 }
 
-func IsGatewayInDedicatedMode(namespace string) bool {
-	infraSetting, err := lib.GetNamespacedAviInfraSetting("", namespace, AKOControlConfig().AviInfraSettingInformer())
-	if err != nil || infraSetting == nil {
+func IsGatewayInDedicatedMode(namespace, gatewayName string) bool {
+	// Get Gateway object and check for dedicated mode annotation
+	gateway, err := AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).Get(gatewayName)
+	if err != nil {
+		utils.AviLog.Debugf("Failed to get gateway %s/%s: %v", namespace, gatewayName, err)
 		return false
 	}
-	return infraSetting.Spec.L7Settings.DedicatedGatewayMode != nil &&
-		*infraSetting.Spec.L7Settings.DedicatedGatewayMode
+
+	// Check annotation for dedicated mode
+	if annotation, exists := gateway.GetAnnotations()[DedicatedGatewayModeAnnotation]; exists {
+		return annotation == "true"
+	}
+
+	return false
 }
 
 func GetGatewayDedicatedVSName(namespace, gatewayName string) string {

@@ -100,8 +100,6 @@ spec:
                     - LARGE
                     - DEDICATED
                     type: string
-                  dedicatedGatewayMode:
-                    type: boolean
                 type: object
                 required:
                 - shardSize
@@ -208,8 +206,6 @@ spec:
                     - LARGE
                     - DEDICATED
                     type: string
-                  dedicatedGatewayMode:
-                    type: boolean
                 type: object
                 required:
                 - shardSize

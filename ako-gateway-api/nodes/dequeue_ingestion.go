@@ -153,7 +153,7 @@ func DequeueIngestion(key string, fullsync bool) {
 			}
 			model.DeleteStaleChildVSes(key, routeModel, childVSes, fullsync)
 		}
-		if !akogatewayapilib.IsGatewayInDedicatedMode(namespace) {
+		if !akogatewayapilib.IsGatewayInDedicatedMode(parentNs, parentName) {
 			model.AddDefaultHTTPPolicySet(key)
 		}
 
@@ -284,7 +284,7 @@ func (o *AviObjectGraph) ProcessRouteDeletion(key, parentNsName string, routeMod
 
 	parentNode := o.GetAviEvhVS()
 	routeTypeNsName := routeModel.GetType() + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName()
-	if akogatewayapilib.IsGatewayInDedicatedMode(routeModel.GetNamespace()) {
+	if parentNode[0].Dedicated {
 		o.ProcessRouteDeletionForDedicatedMode(key, parentNsName, routeModel, fullsync)
 
 	} else {
@@ -332,27 +332,8 @@ func (o *AviObjectGraph) ProcessRouteDeletionForDedicatedMode(key, parentNsName 
 	}
 	dedicatedVS.HttpPolicyRefs = updatedHttpPolicyRefs
 
-	var updatedPoolGroupRefs []*nodes.AviPoolGroupNode
-	for _, poolGroup := range dedicatedVS.PoolGroupRefs {
-		if poolGroup.AviMarkers.HTTPRouteName == routeModel.GetName() &&
-			poolGroup.AviMarkers.HTTPRouteNamespace == routeModel.GetNamespace() {
-			utils.AviLog.Infof("key: %s, msg: Removing Pool Group %s for route deletion", key, poolGroup.Name)
-		} else {
-			updatedPoolGroupRefs = append(updatedPoolGroupRefs, poolGroup)
-		}
-	}
-	dedicatedVS.PoolGroupRefs = updatedPoolGroupRefs
-
-	var updatedPoolRefs []*nodes.AviPoolNode
-	for _, pool := range dedicatedVS.PoolRefs {
-		if pool.AviMarkers.HTTPRouteName == routeModel.GetName() &&
-			pool.AviMarkers.HTTPRouteNamespace == routeModel.GetNamespace() {
-			utils.AviLog.Infof("key: %s, msg: Removing Pool %s for route deletion", key, pool.Name)
-		} else {
-			updatedPoolRefs = append(updatedPoolRefs, pool)
-		}
-	}
-	dedicatedVS.PoolRefs = updatedPoolRefs
+	dedicatedVS.PoolGroupRefs = []*nodes.AviPoolGroupNode{}
+	dedicatedVS.PoolRefs = []*nodes.AviPoolNode{}
 
 	if dedicatedVS.ServiceMetadata.HTTPRoute == routeModel.GetNamespace()+"/"+routeModel.GetName() {
 		dedicatedVS.ServiceMetadata.HTTPRoute = ""

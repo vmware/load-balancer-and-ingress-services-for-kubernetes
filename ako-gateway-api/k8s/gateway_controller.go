@@ -737,7 +737,9 @@ func IsGatewayUpdated(oldGateway, newGateway *gatewayv1.Gateway) bool {
 	newHash := utils.Hash(utils.Stringify(newGateway.Spec))
 	oldvipType := oldGateway.Annotations[akogatewayapilib.LBVipTypeAnnotation]
 	newvipType := newGateway.Annotations[akogatewayapilib.LBVipTypeAnnotation]
-	return oldHash != newHash || oldvipType != newvipType
+	oldDedicatedMode := oldGateway.Annotations[akogatewayapilib.DedicatedGatewayModeAnnotation]
+	newDedicatedMode := newGateway.Annotations[akogatewayapilib.DedicatedGatewayModeAnnotation]
+	return oldHash != newHash || oldvipType != newvipType || oldDedicatedMode != newDedicatedMode
 }
 
 func IsHTTPRouteUpdated(oldHTTPRoute, newHTTPRoute *gatewayv1.HTTPRoute) bool {
