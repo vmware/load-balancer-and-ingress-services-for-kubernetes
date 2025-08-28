@@ -17,6 +17,7 @@ package ingestion
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -49,10 +50,13 @@ const (
 
 // VKSClusterConfig holds all the configuration needed for a VKS cluster's AKO deployment
 type VKSClusterConfig struct {
-	Username          string
-	Password          string
-	ControllerIP      string
-	ControllerVersion string
+	Username            string
+	Password            string
+	ControllerIP        string
+	ControllerVersion   string
+	VPCMode             bool
+	DedicatedTenantMode bool
+	Managed             bool
 
 	// Namespace-specific configuration
 	ServiceEngineGroup string
@@ -466,17 +470,20 @@ func (w *VKSClusterWatcher) buildVKSClusterConfig(cluster *unstructured.Unstruct
 	}
 
 	config := &VKSClusterConfig{
-		Username:           clusterCreds.Username,
-		Password:           clusterCreds.Password,
-		ControllerIP:       controllerIP,
-		ControllerVersion:  lib.GetControllerVersion(),
-		ServiceEngineGroup: nsConfig.ServiceEngineGroup,
-		TenantName:         nsConfig.Tenant,
-		NsxtT1LR:           nsConfig.T1LR,
-		CloudName:          nsConfig.CloudName,
-		CNIPlugin:          cniPlugin,
-		ServiceType:        serviceType,
-		ClusterName:        clusterNameWithUID,
+		Username:            clusterCreds.Username,
+		Password:            clusterCreds.Password,
+		ControllerIP:        controllerIP,
+		ControllerVersion:   lib.GetControllerVersion(),
+		ServiceEngineGroup:  nsConfig.ServiceEngineGroup,
+		TenantName:          nsConfig.Tenant,
+		NsxtT1LR:            nsConfig.T1LR,
+		CloudName:           nsConfig.CloudName,
+		CNIPlugin:           cniPlugin,
+		ServiceType:         serviceType,
+		ClusterName:         clusterNameWithUID,
+		VPCMode:             true,
+		DedicatedTenantMode: true,
+		Managed:             true,
 	}
 
 	if config.ControllerVersion == "" {
@@ -614,6 +621,10 @@ func (w *VKSClusterWatcher) buildSecretData(config *VKSClusterConfig) map[string
 	}
 
 	secretData["cloudName"] = []byte(config.CloudName)
+
+	secretData["vpcMode"] = []byte(strconv.FormatBool(config.VPCMode))
+	secretData["dedicatedTenantMode"] = []byte(strconv.FormatBool(config.DedicatedTenantMode))
+	secretData["managed"] = []byte(strconv.FormatBool(config.Managed))
 
 	return secretData
 }
