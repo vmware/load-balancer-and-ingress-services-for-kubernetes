@@ -21,16 +21,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/addon"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/ingestion"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/webhook"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	akoapisv1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/onsi/gomega"
+	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,26 +45,61 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/cache"
 )
 
-// VKS GVRs for testing
+// Global sync.Once to ensure informers are started only once across all tests
 var (
-	SupervisorCapabilityGVR = schema.GroupVersionResource{
+	informerStartOnce sync.Once
+	stopChInformers   chan struct{}
+)
+
+var (
+	// Use the existing SupervisorCapability GVR from lib for VKS capability detection
+	AviInfraSettingGVR = schema.GroupVersionResource{
+		Group:    "ako.vmware.com",
+		Version:  "v1beta1",
+		Resource: "aviinfrasettings",
+	}
+	ClusterBootstrapGVR = schema.GroupVersionResource{
 		Group:    "run.tanzu.vmware.com",
 		Version:  "v1alpha3",
-		Resource: "supervisorcapabilities",
-	}
-	AddonInstallGVR = schema.GroupVersionResource{
-		Group:    "addons.kubernetes.vmware.com",
-		Version:  "v1alpha1",
-		Resource: "addoninstalls",
-	}
-	ClusterGVR = schema.GroupVersionResource{
-		Group:    "cluster.x-k8s.io",
-		Version:  "v1beta2",
-		Resource: "clusters",
+		Resource: "clusterbootstraps",
 	}
 )
+
+// Reuse existing GVRs from lib
+var (
+	SupervisorCapabilityGVR = lib.SupervisorCapabilityGVR
+	AddonInstallGVR         = lib.AddonInstallGVR
+	ClusterGVR              = lib.ClusterGVR
+)
+
+// forceInformerCacheSync manually syncs a secret into the informer cache for testing
+func forceInformerCacheSync(secret *corev1.Secret) {
+	// Add secret to the informer cache manually
+	informer := utils.GetInformers().SecretInformer.Informer()
+	informer.GetStore().Add(secret)
+}
+
+// startInformersOnce starts informers only once using sync.Once
+func startInformersOnce() {
+	informerStartOnce.Do(func() {
+		// Initialize the stop channel for informers
+		stopChInformers = make(chan struct{})
+
+		// Start the secret informer
+		go func() {
+			utils.GetInformers().SecretInformer.Informer().Run(stopChInformers)
+		}()
+
+		// Wait for secret informer cache to sync
+		if !cache.WaitForCacheSync(stopChInformers, utils.GetInformers().SecretInformer.Informer().HasSynced) {
+			// Log warning but don't fail - this is expected in test environment
+			fmt.Printf("Warning: secret informer cache sync timed out (expected in test environment)\n")
+		}
+	})
+}
 
 // setupVKSIntegrationTest sets up the environment for VKS integration tests
 func setupVKSIntegrationTest(t *testing.T) (*k8sfake.Clientset, *dynamicfake.FakeDynamicClient) {
@@ -75,7 +115,6 @@ func setupVKSIntegrationTest(t *testing.T) (*k8sfake.Clientset, *dynamicfake.Fak
 		Data: map[string][]byte{
 			"username":                 []byte("admin"),
 			"password":                 []byte("admin123"),
-			"authtoken":                []byte("test-auth-token-12345"),
 			"certificateAuthorityData": []byte("-----BEGIN CERTIFICATE-----\nMIICertificateData...\n-----END CERTIFICATE-----"),
 		},
 	}
@@ -86,26 +125,126 @@ func setupVKSIntegrationTest(t *testing.T) (*k8sfake.Clientset, *dynamicfake.Fak
 
 	// Set up dynamic client with custom list kinds
 	gvrToKind := map[schema.GroupVersionResource]string{
-		SupervisorCapabilityGVR: "supervisorcapabilitiesList",
+		SupervisorCapabilityGVR: "capabilitiesList",
 		AddonInstallGVR:         "addoninstallsList",
 		ClusterGVR:              "clustersList",
+		AviInfraSettingGVR:      "aviinfrasettingsList",
+		ClusterBootstrapGVR:     "clusterbootstrapsList",
 	}
 
 	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToKind)
 	lib.SetDynamicClientSet(dynamicClient)
 	lib.NewDynamicInformers(dynamicClient, true)
 
+	// Initialize regular informers needed by VKS cluster watcher
+	registeredInformers := []string{
+		utils.SecretInformer,
+	}
+	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, nil)
+
+	// Start informers once using sync.Once to avoid multiple starts
+	startInformersOnce()
+
+	// Initialize CRD informers for AviInfraSetting
+	akoControlConfig := lib.AKOControlConfig()
+
+	// Create a test AviInfraSetting in the fake client
+	testAviInfraSetting := createTypedAviInfraSetting("test-aviinfrasetting")
+	v1beta1crdClient := v1beta1crdfake.NewSimpleClientset(testAviInfraSetting)
+	akoControlConfig.SetCRDClientsetAndEnableInfraSettingParam(v1beta1crdClient)
+
+	// Initialize CRD informers
+	k8s.NewCRDInformers()
+
+	// Start the AviInfraSetting informer and wait for cache sync
+	stopCh := make(chan struct{})
+	go func() {
+		defer close(stopCh)
+		time.Sleep(30 * time.Second) // Allow test to complete
+	}()
+
+	go lib.RunAviInfraSettingInformer(stopCh)
+
+	// Give the informer time to sync
+	time.Sleep(100 * time.Millisecond)
+
 	// Set controller IP for testing
 	lib.SetControllerIP("10.10.10.10")
+
+	// Set up T1LR environment variable for tests
+	os.Setenv("NSXT_T1_LR", "/orgs/test-org/projects/test-project/vpcs/test-vpc")
 
 	return kubeClient, dynamicClient
 }
 
-// createVKSSupervisorCapability creates a VKS SupervisorCapability resource
-func createVKSSupervisorCapability(name string) *unstructured.Unstructured {
+// createAviInfraSetting creates an AviInfraSetting resource for testing
+func createAviInfraSetting(name string) *unstructured.Unstructured {
+	return &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "ako.vmware.com/v1beta1",
+			"kind":       "AviInfraSetting",
+			"metadata": map[string]interface{}{
+				"name": name,
+			},
+			"spec": map[string]interface{}{
+				"seGroup": map[string]interface{}{
+					"name": "test-se-group",
+				},
+				"nsxSettings": map[string]interface{}{
+					"t1lr": "/orgs/test-org/projects/test-project/vpcs/test-vpc",
+				},
+			},
+		},
+	}
+}
+
+// createTypedAviInfraSetting creates a typed AviInfraSetting for the fake CRD client
+func createTypedAviInfraSetting(name string) *akoapisv1beta1.AviInfraSetting {
+	t1lr := "/orgs/test-org/projects/test-project/vpcs/test-vpc"
+	return &akoapisv1beta1.AviInfraSetting{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "ako.vmware.com/v1beta1",
+			Kind:       "AviInfraSetting",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: akoapisv1beta1.AviInfraSettingSpec{
+			SeGroup: akoapisv1beta1.AviInfraSettingSeGroup{
+				Name: "test-se-group",
+			},
+			NSXSettings: akoapisv1beta1.AviInfraNSXSettings{
+				T1LR: &t1lr,
+			},
+		},
+	}
+}
+
+// createClusterBootstrap creates a ClusterBootstrap resource for CNI detection
+func createClusterBootstrap(name, namespace, cniRefName string) *unstructured.Unstructured {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "run.tanzu.vmware.com/v1alpha3",
+			"kind":       "ClusterBootstrap",
+			"metadata": map[string]interface{}{
+				"name":      name,
+				"namespace": namespace,
+			},
+			"spec": map[string]interface{}{
+				"cni": map[string]interface{}{
+					"refName": cniRefName,
+				},
+			},
+		},
+	}
+}
+
+// createVKSSupervisorCapability creates a VKS SupervisorCapability resource
+// that matches the structure expected by lib.IsVKSCapabilityActivated()
+func createVKSSupervisorCapability(name string) *unstructured.Unstructured {
+	return &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "iaas.vmware.com/v1alpha1",
 			"kind":       "SupervisorCapability",
 			"metadata": map[string]interface{}{
 				"name": name,
@@ -113,6 +252,13 @@ func createVKSSupervisorCapability(name string) *unstructured.Unstructured {
 			"spec": map[string]interface{}{
 				"capability": "ako_vks",
 				"version":    "v1.12.1",
+			},
+			"status": map[string]interface{}{
+				"supervisor": map[string]interface{}{
+					"supports_ako_vks_integration": map[string]interface{}{
+						"activated": true,
+					},
+				},
 			},
 		},
 	}
@@ -254,14 +400,29 @@ func TestVKSClusterLifecycleIntegration(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-cluster-ns",
 			Annotations: map[string]string{
-				lib.WCPSEGroup:       "test-se-group",
-				lib.TenantAnnotation: "test-tenant",
+				lib.WCPSEGroup:                 "test-se-group",
+				lib.TenantAnnotation:           "test-tenant",
+				lib.InfraSettingNameAnnotation: "test-aviinfrasetting",
 			},
 		},
 	}
 	_, err := kubeClient.CoreV1().Namespaces().Create(context.Background(), namespace, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create namespace: %v", err)
+	}
+
+	// Create AviInfraSetting resource in both clients
+	aviInfraSetting := createAviInfraSetting("test-aviinfrasetting")
+	_, err = dynamicClient.Resource(AviInfraSettingGVR).Create(context.Background(), aviInfraSetting, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Failed to create AviInfraSetting in dynamic client: %v", err)
+	}
+
+	// Create ClusterBootstrap for CNI detection
+	clusterBootstrap := createClusterBootstrap("test-cluster", "test-cluster-ns", "antrea.tanzu.vmware.com.2.3.0+vmware.1-tkg.1")
+	_, err = dynamicClient.Resource(ClusterBootstrapGVR).Namespace("test-cluster-ns").Create(context.Background(), clusterBootstrap, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Failed to create ClusterBootstrap: %v", err)
 	}
 
 	clusterWatcher := ingestion.NewVKSClusterWatcher(kubeClient, dynamicClient)
@@ -300,7 +461,7 @@ func TestVKSClusterLifecycleIntegration(t *testing.T) {
 			return false
 		}
 
-		expectedFields := []string{"username", "controllerIP", "authtoken"}
+		expectedFields := []string{"username", "controllerIP", "password"}
 		for _, field := range expectedFields {
 			if _, exists := secret.Data[field]; !exists {
 				t.Logf("Secret missing field: %s", field)
@@ -314,7 +475,12 @@ func TestVKSClusterLifecycleIntegration(t *testing.T) {
 		}
 
 		expectedUsername := "vks-cluster-test-cluster-ns-test-cluster-test-uid-123-user"
-		return string(usernameBytes) == expectedUsername
+		if string(usernameBytes) == expectedUsername {
+			// Manually sync the secret to informer cache for testing
+			forceInformerCacheSync(secret)
+			return true
+		}
+		return false
 	}, 15*time.Second, 1*time.Second).Should(gomega.Equal(true))
 
 	// Test cluster opt-out
@@ -378,13 +544,22 @@ func TestVKSEndToEndIntegration(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "vks-test-ns",
 			Annotations: map[string]string{
-				"ako.vmware.com/wcp-se-group": "test-se-group",
+				lib.WCPSEGroup:                 "test-se-group",
+				lib.TenantAnnotation:           "test-tenant",
+				lib.InfraSettingNameAnnotation: "test-aviinfrasetting",
 			},
 		},
 	}
 	_, err = kubeClient.CoreV1().Namespaces().Create(context.Background(), namespace, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create namespace: %v", err)
+	}
+
+	// Create ClusterBootstrap for CNI detection
+	clusterBootstrap := createClusterBootstrap("vks-cluster", "vks-test-ns", "antrea.tanzu.vmware.com.2.3.0+vmware.1-tkg.1")
+	_, err = dynamicClient.Resource(ClusterBootstrapGVR).Namespace("vks-test-ns").Create(context.Background(), clusterBootstrap, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Failed to create ClusterBootstrap: %v", err)
 	}
 
 	clusterWatcher := ingestion.NewVKSClusterWatcher(kubeClient, dynamicClient)
@@ -419,7 +594,7 @@ func TestVKSEndToEndIntegration(t *testing.T) {
 			return false
 		}
 
-		requiredFields := []string{"username", "password", "authtoken", "controllerIP"}
+		requiredFields := []string{"username", "password", "controllerIP"}
 		for _, field := range requiredFields {
 			if _, exists := secret.Data[field]; !exists {
 				t.Logf("Secret missing required field: %s", field)
@@ -507,14 +682,22 @@ func TestVKSIdempotencyIntegration(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-ns",
 			Annotations: map[string]string{
-				lib.WCPSEGroup:       "test-se-group",
-				lib.TenantAnnotation: "test-tenant",
+				lib.WCPSEGroup:                 "test-se-group",
+				lib.TenantAnnotation:           "test-tenant",
+				lib.InfraSettingNameAnnotation: "test-aviinfrasetting",
 			},
 		},
 	}
 	_, err := kubeClient.CoreV1().Namespaces().Create(context.Background(), namespace, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create namespace: %v", err)
+	}
+
+	// Create ClusterBootstrap for CNI detection
+	clusterBootstrap := createClusterBootstrap("idempotent-cluster", "test-ns", "antrea.tanzu.vmware.com.2.3.0+vmware.1-tkg.1")
+	_, err = dynamicClient.Resource(ClusterBootstrapGVR).Namespace("test-ns").Create(context.Background(), clusterBootstrap, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Failed to create ClusterBootstrap: %v", err)
 	}
 
 	err = addon.EnsureGlobalAddonInstall()
@@ -548,6 +731,14 @@ func TestVKSIdempotencyIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Expected secret creation to succeed with mock credentials, got: %v", err)
 	}
+
+	// Manually sync the created secret to the informer cache for testing
+	secretName := "idempotent-cluster-avi-secret"
+	secret, err := kubeClient.CoreV1().Secrets("test-ns").Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("Failed to get created secret: %v", err)
+	}
+	forceInformerCacheSync(secret)
 
 	err = clusterWatcher.UpsertAviCredentialsSecret(ctx, cluster)
 	if err != nil {
@@ -599,13 +790,22 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "e2e-test-ns",
 			Annotations: map[string]string{
-				"ako.vmware.com/wcp-se-group": "test-se-group",
+				lib.WCPSEGroup:                 "test-se-group",
+				lib.TenantAnnotation:           "test-tenant",
+				lib.InfraSettingNameAnnotation: "test-aviinfrasetting",
 			},
 		},
 	}
 	_, err = kubeClient.CoreV1().Namespaces().Create(context.Background(), namespace, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create namespace: %v", err)
+	}
+
+	// Create ClusterBootstrap for CNI detection
+	clusterBootstrap := createClusterBootstrap("e2e-cluster", "e2e-test-ns", "antrea.tanzu.vmware.com.2.3.0+vmware.1-tkg.1")
+	_, err = dynamicClient.Resource(ClusterBootstrapGVR).Namespace("e2e-test-ns").Create(context.Background(), clusterBootstrap, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Failed to create ClusterBootstrap: %v", err)
 	}
 
 	clusterWatcher := ingestion.NewVKSClusterWatcher(kubeClient, dynamicClient)
@@ -640,7 +840,7 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 			return false
 		}
 
-		requiredFields := []string{"username", "password", "authtoken", "controllerIP"}
+		requiredFields := []string{"username", "password", "controllerIP"}
 		for _, field := range requiredFields {
 			if _, exists := secret.Data[field]; !exists {
 				return false

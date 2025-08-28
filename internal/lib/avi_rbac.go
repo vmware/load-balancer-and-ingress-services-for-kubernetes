@@ -99,16 +99,72 @@ func pointerString(s string) *string {
 	return &s
 }
 
-// createRoleFromPermissions creates an Avi role from AKO permission definitions
-// If the role already exists, it returns the existing role
-func createRoleFromPermissions(aviClient *clients.AviClient, permissions []AKOPermission,
+// validateRolePermissions compares existing role permissions with expected AKO permissions
+func validateRolePermissions(existingRole *models.Role, expectedPermissions []AKOPermission) error {
+	if existingRole.Privileges == nil {
+		return fmt.Errorf("existing role has no privileges defined")
+	}
+
+	expectedPermsMap := make(map[string]string)
+	for _, perm := range expectedPermissions {
+		expectedPermsMap[perm.Resource] = perm.Type
+	}
+
+	existingPermsMap := make(map[string]string)
+	for _, privilege := range existingRole.Privileges {
+		if privilege.Resource != nil && privilege.Type != nil {
+			existingPermsMap[*privilege.Resource] = *privilege.Type
+		}
+	}
+
+	var missingPerms []string
+	for resource, expectedType := range expectedPermsMap {
+		if existingType, exists := existingPermsMap[resource]; !exists {
+			missingPerms = append(missingPerms, fmt.Sprintf("%s:%s", resource, expectedType))
+		} else if existingType != expectedType {
+			return fmt.Errorf("permission mismatch for %s: expected %s, got %s", resource, expectedType, existingType)
+		}
+	}
+
+	if len(missingPerms) > 0 {
+		return fmt.Errorf("missing permissions: %v", missingPerms)
+	}
+
+	var extraPerms []string
+	for resource := range existingPermsMap {
+		if _, expected := expectedPermsMap[resource]; !expected {
+			extraPerms = append(extraPerms, resource)
+		}
+	}
+
+	if len(extraPerms) > 0 {
+		utils.AviLog.Warnf("Role %s has unexpected permissions: %v", *existingRole.Name, extraPerms)
+	}
+
+	return nil
+}
+
+// createRole creates an Avi role from AKO permission definitions
+// If the role already exists with correct permissions, it reuses the existing role
+// If the role exists with outdated permissions, it deletes and recreates the role
+func createRole(aviClient *clients.AviClient, permissions []AKOPermission,
 	roleName, tenantName string, clusterFilter *models.RoleFilter) (*models.Role, error) {
 
 	existingRole, err := aviClient.Role.GetByName(roleName)
 	if err == nil && existingRole != nil {
-		utils.AviLog.Infof("Role %s already exists (UUID: %s), reusing existing role",
-			roleName, *existingRole.UUID)
-		return existingRole, nil
+		// Validate existing role has current permissions
+		if validateErr := validateRolePermissions(existingRole, permissions); validateErr != nil {
+			utils.AviLog.Infof("Role %s exists but has outdated permissions, updating: %v", roleName, validateErr)
+
+			if deleteErr := aviClient.Role.Delete(*existingRole.UUID); deleteErr != nil {
+				utils.AviLog.Errorf("Failed to delete outdated role %s: %v", roleName, deleteErr)
+				return nil, fmt.Errorf("failed to delete outdated role %s: %v", roleName, deleteErr)
+			}
+			utils.AviLog.Infof("Deleted outdated role %s, will recreate with current permissions", roleName)
+		} else {
+			utils.AviLog.Infof("Role %s already exists with current permissions, reusing", roleName)
+			return existingRole, nil
+		}
 	}
 
 	var privileges []*models.Permission
@@ -122,7 +178,7 @@ func createRoleFromPermissions(aviClient *clients.AviClient, permissions []AKOPe
 	role := &models.Role{
 		Name:                  &roleName,
 		Privileges:            privileges,
-		TenantRef:             func() *string { s := fmt.Sprintf("/api/tenant/?name=%s", tenantName); return &s }(),
+		TenantRef:             pointerString(fmt.Sprintf("/api/tenant/?name=%s", tenantName)),
 		AllowUnlabelledAccess: pointerBool(true),
 	}
 
@@ -149,6 +205,8 @@ func createRoleFromPermissions(aviClient *clients.AviClient, permissions []AKOPe
 }
 
 // CreateClusterRoles creates the three roles required for a cluster
+// Admin and all-tenants roles are shared across clusters for efficiency
+// Only tenant roles are cluster-specific due to cluster filtering requirements
 func CreateClusterRoles(aviClient *clients.AviClient, clusterName, operationalTenant string) (*ClusterRoles, error) {
 	if aviClient == nil {
 		return nil, fmt.Errorf("avi Controller client not available - ensure AKO infra is properly initialized")
@@ -156,14 +214,16 @@ func CreateClusterRoles(aviClient *clients.AviClient, clusterName, operationalTe
 
 	utils.AviLog.Infof("Creating cluster roles for %s (operational tenant: %s)", clusterName, operationalTenant)
 
-	// Create admin tenant role
-	adminRoleName := fmt.Sprintf("%s-admin-role", clusterName)
-	adminRole, err := createRoleFromPermissions(aviClient, akoAdminPermissions, adminRoleName, "admin", nil)
+	adminRole, err := createRole(aviClient, akoAdminPermissions, "vks-admin-role", "admin", nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create admin tenant role: %v", err)
+		return nil, fmt.Errorf("failed to create/reuse shared admin role: %v", err)
 	}
 
-	// Create operational tenant role with cluster filtering
+	allTenantsRole, err := createRole(aviClient, akoAllTenantsPermissions, "vks-all-tenants-role", "admin", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create/reuse shared all-tenants role: %v", err)
+	}
+
 	clusterFilter := &models.RoleFilter{
 		MatchOperation: pointerString("ROLE_FILTER_EQUALS"),
 		MatchLabel: &models.RoleFilterMatchLabel{
@@ -174,19 +234,9 @@ func CreateClusterRoles(aviClient *clients.AviClient, clusterName, operationalTe
 	}
 
 	tenantRoleName := fmt.Sprintf("%s-tenant-role", clusterName)
-	tenantRole, err := createRoleFromPermissions(aviClient, akoTenantPermissions, tenantRoleName, operationalTenant, clusterFilter)
+	tenantRole, err := createRole(aviClient, akoTenantPermissions, tenantRoleName, operationalTenant, clusterFilter)
 	if err != nil {
-		aviClient.Role.Delete(*adminRole.UUID)
-		return nil, fmt.Errorf("failed to create operational tenant role: %v", err)
-	}
-
-	// Create all-tenants role
-	allTenantsRoleName := fmt.Sprintf("%s-all-tenants-role", clusterName)
-	allTenantsRole, err := createRoleFromPermissions(aviClient, akoAllTenantsPermissions, allTenantsRoleName, "admin", nil)
-	if err != nil {
-		aviClient.Role.Delete(*adminRole.UUID)
-		aviClient.Role.Delete(*tenantRole.UUID)
-		return nil, fmt.Errorf("failed to create all-tenants role: %v", err)
+		return nil, fmt.Errorf("failed to create cluster-specific tenant role: %v", err)
 	}
 
 	roles := &ClusterRoles{
@@ -195,7 +245,7 @@ func CreateClusterRoles(aviClient *clients.AviClient, clusterName, operationalTe
 		AllTenantsRole: allTenantsRole,
 	}
 
-	utils.AviLog.Infof("Successfully created cluster roles for %s: admin=%s, tenant=%s, all-tenants=%s",
+	utils.AviLog.Infof("Successfully created cluster roles for %s: admin=%s (shared), tenant=%s (cluster-specific), all-tenants=%s (shared)",
 		clusterName, *adminRole.UUID, *tenantRole.UUID, *allTenantsRole.UUID)
 
 	return roles, nil
@@ -271,39 +321,30 @@ func CreateClusterUserWithRoles(aviClient *clients.AviClient, clusterName string
 	return createdUser, password, nil
 }
 
-// DeleteClusterRoles deletes all roles associated with a cluster
+// DeleteClusterRoles deletes cluster-specific roles only (not shared roles)
+// Shared roles (vks-admin-role, vks-all-tenants-role) are kept for reuse by other clusters
 func DeleteClusterRoles(aviClient *clients.AviClient, clusterName string) error {
 	if aviClient == nil {
 		utils.AviLog.Warnf("Avi Controller client not available for role cleanup of cluster %s", clusterName)
 		return nil
 	}
 
-	roleNames := []string{
-		fmt.Sprintf("%s-admin-role", clusterName),
-		fmt.Sprintf("%s-tenant-role", clusterName),
-		fmt.Sprintf("%s-all-tenants-role", clusterName),
+	tenantRoleName := fmt.Sprintf("%s-tenant-role", clusterName)
+
+	utils.AviLog.Infof("Deleting cluster-specific roles for %s (preserving shared roles)", clusterName)
+
+	role, err := aviClient.Role.GetByName(tenantRoleName)
+	if err != nil {
+		utils.AviLog.Warnf("Cluster-specific tenant role %s not found for deletion: %v", tenantRoleName, err)
+		return nil
 	}
 
-	var errors []error
-	for _, roleName := range roleNames {
-		role, err := aviClient.Role.GetByName(roleName)
-		if err != nil {
-			utils.AviLog.Warnf("Cluster role %s not found for deletion: %v", roleName, err)
-			continue
-		}
-
-		err = aviClient.Role.Delete(*role.UUID)
-		if err != nil {
-			errors = append(errors, fmt.Errorf("failed to delete cluster role %s: %v", roleName, err))
-		} else {
-			utils.AviLog.Infof("Deleted cluster role: %s", roleName)
-		}
+	err = aviClient.Role.Delete(*role.UUID)
+	if err != nil {
+		return fmt.Errorf("failed to delete cluster-specific tenant role %s: %v", tenantRoleName, err)
 	}
 
-	if len(errors) > 0 {
-		return fmt.Errorf("failed to delete some cluster roles: %v", errors)
-	}
-
+	utils.AviLog.Infof("Deleted cluster-specific tenant role: %s (shared admin and all-tenants roles preserved)", tenantRoleName)
 	return nil
 }
 
@@ -328,6 +369,43 @@ func DeleteClusterUser(aviClient *clients.AviClient, clusterName string) error {
 	}
 
 	utils.AviLog.Infof("Deleted cluster user: %s", userName)
+	return nil
+}
+
+func CleanupSharedRoles(aviClient *clients.AviClient) error {
+	if aviClient == nil {
+		utils.AviLog.Warnf("Avi Controller client not available for shared role cleanup")
+		return nil
+	}
+
+	sharedRoleNames := []string{
+		"vks-admin-role",
+		"vks-all-tenants-role",
+	}
+
+	utils.AviLog.Warnf("Cleaning up shared VKS roles - this will affect ALL VKS clusters")
+
+	var errors []error
+	for _, roleName := range sharedRoleNames {
+		role, err := aviClient.Role.GetByName(roleName)
+		if err != nil {
+			utils.AviLog.Warnf("Shared role %s not found for deletion: %v", roleName, err)
+			continue
+		}
+
+		err = aviClient.Role.Delete(*role.UUID)
+		if err != nil {
+			errors = append(errors, fmt.Errorf("failed to delete shared role %s: %v", roleName, err))
+		} else {
+			utils.AviLog.Infof("Deleted shared VKS role: %s", roleName)
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to delete some shared roles: %v", errors)
+	}
+
+	utils.AviLog.Infof("Successfully cleaned up all shared VKS roles")
 	return nil
 }
 
