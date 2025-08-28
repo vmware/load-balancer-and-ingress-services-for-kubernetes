@@ -377,7 +377,6 @@ type NamespaceConfig struct {
 	ServiceEngineGroup string
 	Tenant             string
 	T1LR               string
-	CloudName          string
 }
 
 // getNamespaceConfig fetches namespace and extracts all required configuration in a single call
@@ -406,30 +405,20 @@ func (w *VKSClusterWatcher) getNamespaceConfig(clusterNamespace string) (*Namesp
 		return nil, fmt.Errorf("namespace %s does not have annotation %s or it is empty", clusterNamespace, lib.InfraSettingNameAnnotation)
 	}
 
-	var t1lr string
-	if lib.AKOControlConfig() != nil && lib.AKOControlConfig().CRDInformers() != nil {
-		infraSetting, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get AviInfraSetting %s: %v", infraSettingName, err)
-		}
-
-		if infraSetting.Spec.NSXSettings.T1LR == nil || *infraSetting.Spec.NSXSettings.T1LR == "" {
-			return nil, fmt.Errorf("AviInfraSetting %s does not have nsxSettings.t1lr configured or it is empty", infraSettingName)
-		}
-		t1lr = *infraSetting.Spec.NSXSettings.T1LR
-	} else {
-		// Fallback for test environment when CRD informers are not available
-		t1lr = lib.GetT1LRPath()
-		if t1lr == "" {
-			return nil, fmt.Errorf("T1LR not configured: AviInfraSetting %s not accessible and environment variable not set", infraSettingName)
-		}
+	infraSetting, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get AviInfraSetting %s: %v", infraSettingName, err)
 	}
+
+	if infraSetting.Spec.NSXSettings.T1LR == nil || *infraSetting.Spec.NSXSettings.T1LR == "" {
+		return nil, fmt.Errorf("AviInfraSetting %s does not have nsxSettings.t1lr configured or it is empty", infraSettingName)
+	}
+	t1lr := *infraSetting.Spec.NSXSettings.T1LR
 
 	return &NamespaceConfig{
 		ServiceEngineGroup: seg,
 		Tenant:             tenant,
 		T1LR:               t1lr,
-		CloudName:          utils.CloudName,
 	}, nil
 }
 
@@ -477,7 +466,7 @@ func (w *VKSClusterWatcher) buildVKSClusterConfig(cluster *unstructured.Unstruct
 		ServiceEngineGroup:  nsConfig.ServiceEngineGroup,
 		TenantName:          nsConfig.Tenant,
 		NsxtT1LR:            nsConfig.T1LR,
-		CloudName:           nsConfig.CloudName,
+		CloudName:           utils.CloudName,
 		CNIPlugin:           cniPlugin,
 		ServiceType:         serviceType,
 		ClusterName:         clusterNameWithUID,
@@ -698,6 +687,7 @@ func StartVKSClusterWatcherWithRetry(stopCh <-chan struct{}, dynamicInformers *l
 			select {
 			case <-stopCh:
 				utils.AviLog.Infof("VKS cluster watcher: shutdown signal received during retry wait")
+				lib.CleanupSharedRoles(avirest.InfraAviClientInstance())
 				return
 			case <-time.After(retryInterval):
 				// Continue to next retry
@@ -705,6 +695,7 @@ func StartVKSClusterWatcherWithRetry(stopCh <-chan struct{}, dynamicInformers *l
 			}
 		} else {
 			utils.AviLog.Infof("VKS cluster watcher: shutdown gracefully")
+			lib.CleanupSharedRoles(avirest.InfraAviClientInstance())
 			return
 		}
 	}

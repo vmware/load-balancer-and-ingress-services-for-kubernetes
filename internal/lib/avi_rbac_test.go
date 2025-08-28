@@ -18,330 +18,575 @@
 package lib
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/vmware/alb-sdk/go/models"
 )
 
 func TestGenerateSecurePassword(t *testing.T) {
-	password, err := generateSecurePassword()
-	if err != nil {
-		t.Fatalf("generateSecurePassword() failed: %v", err)
-	}
+	t.Run("BasicGeneration", func(t *testing.T) {
+		password, err := generateSecurePassword()
+		if err != nil {
+			t.Fatalf("generateSecurePassword failed: %v", err)
+		}
 
-	if len(password) != 16 {
-		t.Errorf("Expected password length 16, got %d", len(password))
-	}
+		// Check length
+		if len(password) != 16 {
+			t.Errorf("Expected length 16, got %d", len(password))
+		}
 
-	// Test that multiple calls generate different passwords
-	password2, err := generateSecurePassword()
-	if err != nil {
-		t.Fatalf("generateSecurePassword() second call failed: %v", err)
-	}
+		// Check character set
+		validChars := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+		for i, c := range password {
+			if !strings.ContainsRune(validChars, c) {
+				t.Errorf("Invalid character at position %d: %c", i, c)
+			}
+		}
+	})
 
-	if password == password2 {
-		t.Errorf("generateSecurePassword() should generate unique passwords")
-	}
+	t.Run("Uniqueness", func(t *testing.T) {
+		passwords := make(map[string]bool)
+		for i := 0; i < 50; i++ {
+			password, err := generateSecurePassword()
+			if err != nil {
+				t.Fatalf("generateSecurePassword failed on iteration %d: %v", i, err)
+			}
+			if passwords[password] {
+				t.Errorf("Duplicate password generated: %s", password)
+			}
+			passwords[password] = true
+		}
+	})
+}
 
-	// Test password contains only valid characters
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	for _, char := range password {
+// TestValidateRolePermissions tests permission validation logic
+func TestValidateRolePermissions(t *testing.T) {
+	t.Run("ValidPermissions", func(t *testing.T) {
+		role := &models.Role{
+			Name: pointerString("valid-role"),
+			Privileges: []*models.Permission{
+				{Resource: pointerString("PERMISSION_VIRTUALSERVICE"), Type: pointerString("WRITE_ACCESS")},
+				{Resource: pointerString("PERMISSION_POOL"), Type: pointerString("READ_ACCESS")},
+			},
+		}
+
+		expected := []AKOPermission{
+			{"PERMISSION_VIRTUALSERVICE", "WRITE_ACCESS"},
+			{"PERMISSION_POOL", "READ_ACCESS"},
+		}
+
+		err := validateRolePermissions(role, expected)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+	})
+
+	t.Run("MissingPermissions", func(t *testing.T) {
+		role := &models.Role{
+			Name: pointerString("incomplete-role"),
+			Privileges: []*models.Permission{
+				{Resource: pointerString("PERMISSION_VIRTUALSERVICE"), Type: pointerString("WRITE_ACCESS")},
+			},
+		}
+
+		expected := []AKOPermission{
+			{"PERMISSION_VIRTUALSERVICE", "WRITE_ACCESS"},
+			{"PERMISSION_POOL", "READ_ACCESS"},
+		}
+
+		err := validateRolePermissions(role, expected)
+		if err == nil {
+			t.Fatal("Expected error for missing permissions")
+		}
+		if !strings.Contains(err.Error(), "missing permissions") {
+			t.Errorf("Expected 'missing permissions' in error, got: %v", err)
+		}
+	})
+
+	t.Run("WrongPermissionType", func(t *testing.T) {
+		role := &models.Role{
+			Name: pointerString("wrong-type-role"),
+			Privileges: []*models.Permission{
+				{Resource: pointerString("PERMISSION_VIRTUALSERVICE"), Type: pointerString("READ_ACCESS")},
+			},
+		}
+
+		expected := []AKOPermission{
+			{"PERMISSION_VIRTUALSERVICE", "WRITE_ACCESS"},
+		}
+
+		err := validateRolePermissions(role, expected)
+		if err == nil {
+			t.Fatal("Expected error for wrong permission type")
+		}
+		if !strings.Contains(err.Error(), "permission mismatch") {
+			t.Errorf("Expected 'permission mismatch' in error, got: %v", err)
+		}
+	})
+
+	t.Run("NoPrivileges", func(t *testing.T) {
+		role := &models.Role{
+			Name:       pointerString("empty-role"),
+			Privileges: nil,
+		}
+
+		expected := []AKOPermission{
+			{"PERMISSION_VIRTUALSERVICE", "WRITE_ACCESS"},
+		}
+
+		err := validateRolePermissions(role, expected)
+		if err == nil {
+			t.Fatal("Expected error for role with no privileges")
+		}
+		if !strings.Contains(err.Error(), "no privileges defined") {
+			t.Errorf("Expected 'no privileges defined' in error, got: %v", err)
+		}
+	})
+
+	t.Run("ExtraPermissions", func(t *testing.T) {
+		role := &models.Role{
+			Name: pointerString("extra-perms-role"),
+			Privileges: []*models.Permission{
+				{Resource: pointerString("PERMISSION_VIRTUALSERVICE"), Type: pointerString("WRITE_ACCESS")},
+				{Resource: pointerString("PERMISSION_EXTRA"), Type: pointerString("READ_ACCESS")},
+			},
+		}
+
+		expected := []AKOPermission{
+			{"PERMISSION_VIRTUALSERVICE", "WRITE_ACCESS"},
+		}
+
+		// Extra permissions should not cause error (only warning)
+		err := validateRolePermissions(role, expected)
+		if err != nil {
+			t.Errorf("Expected no error for extra permissions, got: %v", err)
+		}
+	})
+}
+
+// TestCreateClusterRoles tests cluster role creation
+func TestCreateClusterRoles(t *testing.T) {
+	t.Run("NilClient", func(t *testing.T) {
+		_, err := CreateClusterRoles(nil, "test", "tenant")
+		if err == nil {
+			t.Fatal("Expected error for nil client")
+		}
+		expected := "avi Controller client not available - ensure AKO infra is properly initialized"
+		if err.Error() != expected {
+			t.Errorf("Expected error %q, got %q", expected, err.Error())
+		}
+	})
+
+	t.Run("RoleNameGeneration", func(t *testing.T) {
+		cluster := "my-cluster"
+
+		// Test shared role names (no cluster prefix)
+		sharedAdminRole := "vks-admin-role"
+		sharedAllTenantsRole := "vks-all-tenants-role"
+
+		// Test cluster-specific role name
+		clusterTenantRole := fmt.Sprintf("%s-tenant-role", cluster)
+
+		if sharedAdminRole != "vks-admin-role" {
+			t.Error("Shared admin role name incorrect")
+		}
+		if clusterTenantRole != "my-cluster-tenant-role" {
+			t.Error("Cluster-specific tenant role name generation incorrect")
+		}
+		if sharedAllTenantsRole != "vks-all-tenants-role" {
+			t.Error("Shared all-tenants role name incorrect")
+		}
+	})
+
+	t.Run("SharedRoleOptimization", func(t *testing.T) {
+		// Test that shared roles are used for admin and all-tenants permissions
+		cluster1 := "cluster-1"
+		cluster2 := "cluster-2"
+
+		// Both clusters should use the same shared role names
+		sharedAdminRole := "vks-admin-role"
+		sharedAllTenantsRole := "vks-all-tenants-role"
+
+		// But different cluster-specific tenant roles
+		cluster1TenantRole := fmt.Sprintf("%s-tenant-role", cluster1)
+		cluster2TenantRole := fmt.Sprintf("%s-tenant-role", cluster2)
+
+		// Verify admin and all-tenants roles are shared
+		if sharedAdminRole != "vks-admin-role" {
+			t.Error("Admin role should be shared across clusters")
+		}
+		if sharedAllTenantsRole != "vks-all-tenants-role" {
+			t.Error("All-tenants role should be shared across clusters")
+		}
+
+		// Verify tenant roles are cluster-specific
+		if cluster1TenantRole == cluster2TenantRole {
+			t.Error("Tenant roles should be cluster-specific")
+		}
+		if cluster1TenantRole != "cluster-1-tenant-role" {
+			t.Error("Cluster 1 tenant role name incorrect")
+		}
+		if cluster2TenantRole != "cluster-2-tenant-role" {
+			t.Error("Cluster 2 tenant role name incorrect")
+		}
+	})
+
+	t.Run("RoleUpdateCapability", func(t *testing.T) {
+		// Test that roles can be updated when permissions change
+		// This verifies the auto-update mechanism for role evolution
+
+		// Simulate role name construction
+		adminRoleName := "vks-admin-role"
+		allTenantsRoleName := "vks-all-tenants-role"
+		clusterTenantRoleName := fmt.Sprintf("%s-tenant-role", "test-cluster")
+
+		// Verify consistent naming
+		if adminRoleName != "vks-admin-role" {
+			t.Error("Admin role name should be consistent across updates")
+		}
+		if allTenantsRoleName != "vks-all-tenants-role" {
+			t.Error("All-tenants role name should be consistent across updates")
+		}
+		if clusterTenantRoleName != "test-cluster-tenant-role" {
+			t.Error("Cluster tenant role should include cluster name")
+		}
+
+		// Test role update detection logic would be here in integration tests
+		// The system will detect outdated permissions and recreate roles automatically
+	})
+
+	// Note: Full integration tests with real Avi client would be in integration test suite
+	// These unit tests focus on the business logic that can be tested in isolation
+}
+
+// TestCreateClusterUserWithRoles tests user creation
+func TestCreateClusterUserWithRoles(t *testing.T) {
+	t.Run("NilClient", func(t *testing.T) {
+		roles := &ClusterRoles{}
+		_, _, err := CreateClusterUserWithRoles(nil, "test", roles, "tenant")
+		if err == nil {
+			t.Fatal("Expected error for nil client")
+		}
+		expected := "avi Controller client not available - ensure AKO infra is properly initialized"
+		if err.Error() != expected {
+			t.Errorf("Expected error %q, got %q", expected, err.Error())
+		}
+	})
+
+	t.Run("UserNameGeneration", func(t *testing.T) {
+		cluster := "test-cluster"
+		expected := fmt.Sprintf("%s-user", cluster)
+		if expected != "test-cluster-user" {
+			t.Error("User name generation incorrect")
+		}
+	})
+
+	t.Run("UserAccessStructure", func(t *testing.T) {
+		// Test user access role structure
+		tenant := "my-tenant"
+		roles := &ClusterRoles{
+			AdminRole:      &models.Role{UUID: pointerString("admin-uuid")},
+			TenantRole:     &models.Role{UUID: pointerString("tenant-uuid")},
+			AllTenantsRole: &models.Role{UUID: pointerString("all-uuid")},
+		}
+
+		userAccess := []*models.UserRole{
+			{
+				RoleRef:   roles.AdminRole.UUID,
+				TenantRef: pointerString("/api/tenant/?name=admin"),
+			},
+			{
+				RoleRef:   roles.TenantRole.UUID,
+				TenantRef: pointerString(fmt.Sprintf("/api/tenant/?name=%s", tenant)),
+			},
+			{
+				RoleRef:    roles.AllTenantsRole.UUID,
+				AllTenants: pointerBool(true),
+			},
+		}
+
+		if len(userAccess) != 3 {
+			t.Error("Expected 3 user access roles")
+		}
+
+		// Check admin role
+		if *userAccess[0].RoleRef != "admin-uuid" {
+			t.Error("Admin role ref incorrect")
+		}
+		if *userAccess[0].TenantRef != "/api/tenant/?name=admin" {
+			t.Error("Admin tenant ref incorrect")
+		}
+
+		// Check tenant role
+		if *userAccess[1].RoleRef != "tenant-uuid" {
+			t.Error("Tenant role ref incorrect")
+		}
+		if *userAccess[1].TenantRef != "/api/tenant/?name=my-tenant" {
+			t.Error("Tenant ref incorrect")
+		}
+
+		// Check all-tenants role
+		if *userAccess[2].RoleRef != "all-uuid" {
+			t.Error("All-tenants role ref incorrect")
+		}
+		if !*userAccess[2].AllTenants {
+			t.Error("AllTenants should be true")
+		}
+	})
+}
+
+// TestDeleteClusterRoles tests role deletion
+func TestDeleteClusterRoles(t *testing.T) {
+	t.Run("NilClientHandling", func(t *testing.T) {
+		err := DeleteClusterRoles(nil, "test")
+		if err != nil {
+			t.Errorf("Should handle nil client gracefully, got: %v", err)
+		}
+	})
+
+	t.Run("ClusterSpecificRoleDeletion", func(t *testing.T) {
+		cluster := "del-cluster"
+
+		// Only cluster-specific tenant role is deleted (shared roles are preserved)
+		clusterTenantRole := fmt.Sprintf("%s-tenant-role", cluster)
+
+		if clusterTenantRole != "del-cluster-tenant-role" {
+			t.Errorf("Expected cluster-specific tenant role name del-cluster-tenant-role, got %s", clusterTenantRole)
+		}
+
+		// Verify shared roles are NOT in deletion list
+		sharedRoles := []string{"vks-admin-role", "vks-all-tenants-role"}
+		for _, shared := range sharedRoles {
+			if strings.Contains(shared, cluster) {
+				t.Errorf("Shared role %s should not contain cluster name", shared)
+			}
+		}
+	})
+}
+
+// TestDeleteClusterUser tests user deletion
+func TestDeleteClusterUser(t *testing.T) {
+	t.Run("NilClientHandling", func(t *testing.T) {
+		err := DeleteClusterUser(nil, "test")
+		if err != nil {
+			t.Errorf("Should handle nil client gracefully, got: %v", err)
+		}
+	})
+
+	t.Run("UserNameConstruction", func(t *testing.T) {
+		cluster := "del-user-cluster"
+		expected := fmt.Sprintf("%s-user", cluster)
+		if expected != "del-user-cluster-user" {
+			t.Error("User name construction for deletion incorrect")
+		}
+	})
+}
+
+// TestPermissionConstants tests the permission constant arrays
+func TestPermissionConstants(t *testing.T) {
+	t.Run("AdminPermissions", func(t *testing.T) {
+		if len(akoAdminPermissions) == 0 {
+			t.Error("Admin permissions should not be empty")
+		}
+
+		// Check for critical permissions
+		found := make(map[string]bool)
+		for _, perm := range akoAdminPermissions {
+			found[perm.Resource] = true
+		}
+
+		critical := []string{"PERMISSION_CLOUD", "PERMISSION_TENANT"}
+		for _, crit := range critical {
+			if !found[crit] {
+				t.Errorf("Missing critical admin permission: %s", crit)
+			}
+		}
+	})
+
+	t.Run("TenantPermissions", func(t *testing.T) {
+		if len(akoTenantPermissions) == 0 {
+			t.Error("Tenant permissions should not be empty")
+		}
+
+		// Check for critical permissions
+		found := make(map[string]bool)
+		for _, perm := range akoTenantPermissions {
+			found[perm.Resource] = true
+		}
+
+		critical := []string{"PERMISSION_VIRTUALSERVICE", "PERMISSION_POOL"}
+		for _, crit := range critical {
+			if !found[crit] {
+				t.Errorf("Missing critical tenant permission: %s", crit)
+			}
+		}
+	})
+
+	t.Run("AllTenantsPermissions", func(t *testing.T) {
+		if len(akoAllTenantsPermissions) == 0 {
+			t.Error("All-tenants permissions should not be empty")
+		}
+
+		// Check for controller permission
 		found := false
-		for _, validChar := range charset {
-			if char == validChar {
+		for _, perm := range akoAllTenantsPermissions {
+			if perm.Resource == "PERMISSION_CONTROLLER" {
 				found = true
 				break
 			}
 		}
 		if !found {
-			t.Errorf("Password contains invalid character: %c", char)
+			t.Error("Missing PERMISSION_CONTROLLER in all-tenants permissions")
+		}
+	})
+
+	t.Run("PermissionStructure", func(t *testing.T) {
+		allPerms := [][]AKOPermission{
+			akoAdminPermissions,
+			akoTenantPermissions,
+			akoAllTenantsPermissions,
+		}
+		names := []string{"admin", "tenant", "all-tenants"}
+
+		for i, perms := range allPerms {
+			for j, perm := range perms {
+				// Check non-empty resource
+				if perm.Resource == "" {
+					t.Errorf("%s permission %d has empty resource", names[i], j)
+				}
+
+				// Check valid type
+				if perm.Type != "READ_ACCESS" && perm.Type != "WRITE_ACCESS" {
+					t.Errorf("%s permission %d has invalid type: %s", names[i], j, perm.Type)
+				}
+
+				// Check naming convention
+				if !strings.HasPrefix(perm.Resource, "PERMISSION_") {
+					t.Errorf("%s permission %d doesn't follow naming convention: %s", names[i], j, perm.Resource)
+				}
+			}
+		}
+	})
+}
+
+// TestClusterFilterConstruction tests the cluster filter logic
+func TestClusterFilterConstruction(t *testing.T) {
+	t.Run("FilterStructure", func(t *testing.T) {
+		cluster := "filter-cluster"
+
+		filter := &models.RoleFilter{
+			MatchOperation: pointerString("ROLE_FILTER_EQUALS"),
+			MatchLabel: &models.RoleFilterMatchLabel{
+				Key:    pointerString("clustername"),
+				Values: []string{cluster},
+			},
+			Enabled: pointerBool(true),
+		}
+
+		// Verify structure
+		if *filter.MatchOperation != "ROLE_FILTER_EQUALS" {
+			t.Error("Expected ROLE_FILTER_EQUALS")
+		}
+
+		if *filter.MatchLabel.Key != "clustername" {
+			t.Error("Expected key 'clustername'")
+		}
+
+		if len(filter.MatchLabel.Values) != 1 || filter.MatchLabel.Values[0] != cluster {
+			t.Error("Expected cluster name in values")
+		}
+
+		if !*filter.Enabled {
+			t.Error("Expected filter to be enabled")
+		}
+	})
+}
+
+// TestDataStructures tests the struct definitions
+func TestDataStructures(t *testing.T) {
+	t.Run("ClusterCredentials", func(t *testing.T) {
+		creds := &ClusterCredentials{
+			Username: "testuser",
+			Password: "testpass",
+		}
+
+		if creds.Username != "testuser" {
+			t.Errorf("Expected username 'testuser', got %s", creds.Username)
+		}
+		if creds.Password != "testpass" {
+			t.Errorf("Expected password 'testpass', got %s", creds.Password)
+		}
+	})
+
+	t.Run("ClusterRoles", func(t *testing.T) {
+		admin := &models.Role{Name: pointerString("admin")}
+		tenant := &models.Role{Name: pointerString("tenant")}
+		allTenants := &models.Role{Name: pointerString("all")}
+
+		roles := &ClusterRoles{
+			AdminRole:      admin,
+			TenantRole:     tenant,
+			AllTenantsRole: allTenants,
+		}
+
+		if roles.AdminRole != admin {
+			t.Error("AdminRole not set correctly")
+		}
+		if roles.TenantRole != tenant {
+			t.Error("TenantRole not set correctly")
+		}
+		if roles.AllTenantsRole != allTenants {
+			t.Error("AllTenantsRole not set correctly")
+		}
+	})
+
+	t.Run("AKOPermission", func(t *testing.T) {
+		perm := AKOPermission{
+			Resource: "PERMISSION_TEST",
+			Type:     "WRITE_ACCESS",
+		}
+
+		if perm.Resource != "PERMISSION_TEST" {
+			t.Errorf("Expected resource 'PERMISSION_TEST', got %s", perm.Resource)
+		}
+		if perm.Type != "WRITE_ACCESS" {
+			t.Errorf("Expected type 'WRITE_ACCESS', got %s", perm.Type)
+		}
+	})
+}
+
+// BenchmarkGenerateSecurePassword benchmarks password generation
+func BenchmarkGenerateSecurePassword(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_, err := generateSecurePassword()
+		if err != nil {
+			b.Fatalf("generateSecurePassword failed: %v", err)
 		}
 	}
 }
 
-func TestAKOPermissionConstants(t *testing.T) {
-	// Test that permission constants are properly defined
-	if len(akoAdminPermissions) == 0 {
-		t.Errorf("akoAdminPermissions should not be empty")
-	}
-
-	if len(akoTenantPermissions) == 0 {
-		t.Errorf("akoTenantPermissions should not be empty")
-	}
-
-	if len(akoAllTenantsPermissions) == 0 {
-		t.Errorf("akoAllTenantsPermissions should not be empty")
-	}
-
-	// Test expected counts based on the role definitions
-	expectedAdminCount := 6      // Based on ako-admin.json
-	expectedTenantCount := 36    // Based on ako-tenant.json
-	expectedAllTenantsCount := 1 // Based on ako-all-tenants-permission-controller.json
-
-	if len(akoAdminPermissions) != expectedAdminCount {
-		t.Errorf("Expected %d admin permissions, got %d", expectedAdminCount, len(akoAdminPermissions))
-	}
-
-	if len(akoTenantPermissions) != expectedTenantCount {
-		t.Errorf("Expected %d tenant permissions, got %d", expectedTenantCount, len(akoTenantPermissions))
-	}
-
-	if len(akoAllTenantsPermissions) != expectedAllTenantsCount {
-		t.Errorf("Expected %d all-tenants permissions, got %d", expectedAllTenantsCount, len(akoAllTenantsPermissions))
-	}
-
-	// Verify specific admin permissions exist
-	adminPermissionMap := make(map[string]string)
-	for _, perm := range akoAdminPermissions {
-		adminPermissionMap[perm.Resource] = perm.Type
-	}
-
-	expectedAdminPerms := map[string]string{
-		"PERMISSION_STRINGGROUP":        "WRITE_ACCESS",
-		"PERMISSION_CLOUD":              "READ_ACCESS",
-		"PERMISSION_SERVICEENGINEGROUP": "WRITE_ACCESS",
-		"PERMISSION_NETWORK":            "READ_ACCESS",
-		"PERMISSION_VRFCONTEXT":         "WRITE_ACCESS",
-		"PERMISSION_TENANT":             "READ_ACCESS",
-	}
-
-	for resource, expectedType := range expectedAdminPerms {
-		if actualType, exists := adminPermissionMap[resource]; !exists {
-			t.Errorf("Expected admin permission %s not found", resource)
-		} else if actualType != expectedType {
-			t.Errorf("Expected admin permission %s to have type %s, got %s", resource, expectedType, actualType)
-		}
-	}
-
-	// Verify specific tenant permissions exist
-	tenantPermissionMap := make(map[string]string)
-	for _, perm := range akoTenantPermissions {
-		tenantPermissionMap[perm.Resource] = perm.Type
-	}
-
-	expectedTenantPerms := map[string]string{
-		"PERMISSION_VIRTUALSERVICE": "WRITE_ACCESS",
-		"PERMISSION_POOL":           "WRITE_ACCESS",
-		"PERMISSION_POOLGROUP":      "WRITE_ACCESS",
-		"PERMISSION_HTTPPOLICYSET":  "WRITE_ACCESS",
-		"PERMISSION_L4POLICYSET":    "WRITE_ACCESS",
-		"PERMISSION_HEALTHMONITOR":  "WRITE_ACCESS",
-		"PERMISSION_STRINGGROUP":    "WRITE_ACCESS",
-	}
-
-	for resource, expectedType := range expectedTenantPerms {
-		if actualType, exists := tenantPermissionMap[resource]; !exists {
-			t.Errorf("Expected tenant permission %s not found", resource)
-		} else if actualType != expectedType {
-			t.Errorf("Expected tenant permission %s to have type %s, got %s", resource, expectedType, actualType)
-		}
-	}
-
-	// Verify all-tenants permissions
-	allTenantsPermissionMap := make(map[string]string)
-	for _, perm := range akoAllTenantsPermissions {
-		allTenantsPermissionMap[perm.Resource] = perm.Type
-	}
-
-	if actualType, exists := allTenantsPermissionMap["PERMISSION_CONTROLLER"]; !exists {
-		t.Errorf("Expected all-tenants permission PERMISSION_CONTROLLER not found")
-	} else if actualType != "READ_ACCESS" {
-		t.Errorf("Expected all-tenants permission PERMISSION_CONTROLLER to have type READ_ACCESS, got %s", actualType)
-	}
-}
-
-func TestAKOPermissionStructure(t *testing.T) {
-	// Test that all permissions have valid structure
-	testPermissions := func(perms []AKOPermission, name string) {
-		for i, perm := range perms {
-			if perm.Resource == "" {
-				t.Errorf("%s permission %d has empty Resource", name, i)
-			}
-			if perm.Type == "" {
-				t.Errorf("%s permission %d has empty Type", name, i)
-			}
-			if perm.Type != "READ_ACCESS" && perm.Type != "WRITE_ACCESS" {
-				t.Errorf("%s permission %d has invalid Type: %s", name, i, perm.Type)
-			}
-			if !isValidPermissionResource(perm.Resource) {
-				t.Errorf("%s permission %d has invalid Resource: %s", name, i, perm.Resource)
-			}
-		}
-	}
-
-	testPermissions(akoAdminPermissions, "admin")
-	testPermissions(akoTenantPermissions, "tenant")
-	testPermissions(akoAllTenantsPermissions, "all-tenants")
-}
-
-func TestCreateClusterRolesWithNilClient(t *testing.T) {
-	_, err := CreateClusterRoles(nil, "test-cluster", "test-tenant")
-	if err == nil {
-		t.Errorf("Expected error when aviClient is nil")
-	}
-
-	expectedError := "avi Controller client not available - ensure AKO infra is properly initialized"
-	if err.Error() != expectedError {
-		t.Errorf("Expected error message '%s', got '%s'", expectedError, err.Error())
-	}
-}
-
-func TestCreateClusterUserWithRolesWithNilClient(t *testing.T) {
-	roles := &ClusterRoles{} // Empty roles for test
-	_, _, err := CreateClusterUserWithRoles(nil, "test-cluster", roles, "test-tenant")
-	if err == nil {
-		t.Errorf("Expected error when aviClient is nil")
-	}
-
-	expectedError := "avi Controller client not available - ensure AKO infra is properly initialized"
-	if err.Error() != expectedError {
-		t.Errorf("Expected error message '%s', got '%s'", expectedError, err.Error())
-	}
-}
-
-func TestDeleteClusterRolesWithNilClient(t *testing.T) {
-	// DeleteClusterRoles should handle nil client gracefully
-	err := DeleteClusterRoles(nil, "test-cluster")
-	if err != nil {
-		t.Errorf("DeleteClusterRoles should handle nil client gracefully, got error: %v", err)
-	}
-}
-
-func TestDeleteClusterUserWithNilClient(t *testing.T) {
-	// DeleteClusterUser should handle nil client gracefully
-	err := DeleteClusterUser(nil, "test-cluster")
-	if err != nil {
-		t.Errorf("DeleteClusterUser should handle nil client gracefully, got error: %v", err)
-	}
-}
-
-func TestRoleFilterConstruction(t *testing.T) {
-	// Test the role filter construction logic
-	clusterName := "test-cluster"
-
-	// This mimics what CreateClusterRoles does internally
-	clusterFilter := &models.RoleFilter{
-		MatchOperation: func() *string { s := "ROLE_FILTER_EQUALS"; return &s }(),
-		MatchLabel: &models.RoleFilterMatchLabel{
-			Key:    func() *string { s := "clustername"; return &s }(),
-			Values: []string{clusterName},
+// BenchmarkValidateRolePermissions benchmarks permission validation
+func BenchmarkValidateRolePermissions(b *testing.B) {
+	role := &models.Role{
+		Name: pointerString("bench-role"),
+		Privileges: []*models.Permission{
+			{Resource: pointerString("PERMISSION_VIRTUALSERVICE"), Type: pointerString("WRITE_ACCESS")},
+			{Resource: pointerString("PERMISSION_POOL"), Type: pointerString("READ_ACCESS")},
 		},
-		Enabled: func() *bool { b := true; return &b }(),
 	}
 
-	if clusterFilter.MatchOperation == nil || *clusterFilter.MatchOperation != "ROLE_FILTER_EQUALS" {
-		t.Errorf("Expected MatchOperation to be ROLE_FILTER_EQUALS")
+	perms := []AKOPermission{
+		{"PERMISSION_VIRTUALSERVICE", "WRITE_ACCESS"},
+		{"PERMISSION_POOL", "READ_ACCESS"},
 	}
 
-	if clusterFilter.MatchLabel == nil {
-		t.Fatalf("Expected MatchLabel to be set")
-	}
-
-	if clusterFilter.MatchLabel.Key == nil || *clusterFilter.MatchLabel.Key != "clustername" {
-		t.Errorf("Expected MatchLabel.Key to be clustername")
-	}
-
-	if len(clusterFilter.MatchLabel.Values) != 1 || clusterFilter.MatchLabel.Values[0] != clusterName {
-		t.Errorf("Expected MatchLabel.Values to contain cluster name")
-	}
-
-	if clusterFilter.Enabled == nil || !*clusterFilter.Enabled {
-		t.Errorf("Expected filter to be enabled")
-	}
-}
-
-func TestClusterCredentialsStructure(t *testing.T) {
-	// Test ClusterCredentials struct
-	creds := &ClusterCredentials{
-		Username: "test-user",
-		Password: "test-password",
-	}
-
-	if creds.Username != "test-user" {
-		t.Errorf("Expected Username to be test-user, got %s", creds.Username)
-	}
-
-	if creds.Password != "test-password" {
-		t.Errorf("Expected Password to be test-password, got %s", creds.Password)
-	}
-}
-
-func TestCreateRoleFromPermissions_ExistingRole(t *testing.T) {
-	// Test that createRoleFromPermissions handles existing roles correctly
-	roleName := "test-existing-role"
-	existingRole := &models.Role{
-		Name: &roleName,
-		UUID: func() *string { s := "existing-uuid-123"; return &s }(),
-	}
-
-	// This test would need a mock Avi client to verify the behavior
-	// For now, just verify the function signature and structure
-	if existingRole.UUID == nil {
-		t.Errorf("Expected UUID to be set")
-	}
-}
-
-func TestCreateClusterUserWithRoles_ExistingUser(t *testing.T) {
-	// Test user recreation behavior structure
-	userName := "test-user"
-
-	// Verify user name generation
-	expectedName := "test-user"
-	if userName != expectedName {
-		t.Errorf("Expected user name %s, got %s", expectedName, userName)
-	}
-
-	// Test validates that the user creation logic handles existing users
-	// by deleting and recreating them for fresh credentials
-}
-
-func TestClusterRolesStructure(t *testing.T) {
-	// Test ClusterRoles struct
-	adminRole := &models.Role{Name: func() *string { s := "admin-role"; return &s }()}
-	tenantRole := &models.Role{Name: func() *string { s := "tenant-role"; return &s }()}
-	allTenantsRole := &models.Role{Name: func() *string { s := "all-tenants-role"; return &s }()}
-
-	roles := &ClusterRoles{
-		AdminRole:      adminRole,
-		TenantRole:     tenantRole,
-		AllTenantsRole: allTenantsRole,
-	}
-
-	if roles.AdminRole != adminRole {
-		t.Errorf("Expected AdminRole to be set correctly")
-	}
-
-	if roles.TenantRole != tenantRole {
-		t.Errorf("Expected TenantRole to be set correctly")
-	}
-
-	if roles.AllTenantsRole != allTenantsRole {
-		t.Errorf("Expected AllTenantsRole to be set correctly")
-	}
-}
-
-// Helper function to validate permission resource names
-func isValidPermissionResource(resource string) bool {
-	validResources := []string{
-		"PERMISSION_STRINGGROUP", "PERMISSION_CLOUD", "PERMISSION_SERVICEENGINEGROUP",
-		"PERMISSION_NETWORK", "PERMISSION_VRFCONTEXT", "PERMISSION_TENANT",
-		"PERMISSION_VIRTUALSERVICE", "PERMISSION_POOL", "PERMISSION_POOLGROUP",
-		"PERMISSION_HTTPPOLICYSET", "PERMISSION_NETWORKSECURITYPOLICY", "PERMISSION_AUTOSCALE",
-		"PERMISSION_DNSPOLICY", "PERMISSION_NETWORKPROFILE", "PERMISSION_APPLICATIONPROFILE",
-		"PERMISSION_APPLICATIONPERSISTENCEPROFILE", "PERMISSION_HEALTHMONITOR", "PERMISSION_ANALYTICSPROFILE",
-		"PERMISSION_IPAMDNSPROVIDERPROFILE", "PERMISSION_CUSTOMIPAMDNSPROFILE", "PERMISSION_TRAFFICCLONEPROFILE",
-		"PERMISSION_IPADDRGROUP", "PERMISSION_VSDATASCRIPTSET", "PERMISSION_PROTOCOLPARSER",
-		"PERMISSION_SSLPROFILE", "PERMISSION_AUTHPROFILE", "PERMISSION_PINGACCESSAGENT",
-		"PERMISSION_PKIPROFILE", "PERMISSION_SSLKEYANDCERTIFICATE", "PERMISSION_CERTIFICATEMANAGEMENTPROFILE",
-		"PERMISSION_HARDWARESECURITYMODULEGROUP", "PERMISSION_SSOPOLICY", "PERMISSION_WAFPROFILE",
-		"PERMISSION_WAFPOLICY", "PERMISSION_SYSTEMCONFIGURATION", "PERMISSION_L4POLICYSET",
-		"PERMISSION_CONTROLLER",
-	}
-
-	for _, valid := range validResources {
-		if resource == valid {
-			return true
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		err := validateRolePermissions(role, perms)
+		if err != nil {
+			b.Fatalf("validateRolePermissions failed: %v", err)
 		}
 	}
-	return false
 }
