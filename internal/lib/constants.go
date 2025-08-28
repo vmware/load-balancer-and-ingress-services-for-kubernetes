@@ -256,7 +256,7 @@ const (
 	AviIngressController             = "ako.vmware.com/avi-lb"
 	AKOConditionType                 = "ako.vmware.com/ObjectDeletionInProgress"
 	DefaultSecretEnabled             = "ako.vmware.com/enable-tls"
-	VSTrafficEnabled                 = "ako.vmware.com/enable-traffic"
+	VSTrafficDisabled                = "ako.vmware.com/disable-traffic"
 	GatewayNameLabelKey              = "service.route.lbapi.run.tanzu.vmware.com/gateway-name"
 	GatewayNamespaceLabelKey         = "service.route.lbapi.run.tanzu.vmware.com/gateway-namespace"
 	GatewayTypeLabelKey              = "service.route.lbapi.run.tanzu.vmware.com/type"
