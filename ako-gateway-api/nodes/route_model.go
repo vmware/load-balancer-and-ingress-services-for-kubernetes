@@ -332,8 +332,11 @@ func (hr *httpRoute) ParseRouteConfig(key string) *RouteConfig {
 				if !isValid {
 					continue
 				}
-			}
 
+			}
+			if resolvedRefConditionRuleFilter != nil {
+				resolvedRefCondition = resolvedRefConditionRuleFilter
+			}
 			routeConfigRule.Filters = append(routeConfigRule.Filters, filter)
 		}
 
@@ -376,12 +379,9 @@ func (hr *httpRoute) ParseRouteConfig(key string) *RouteConfig {
 			if isValidBackend {
 				routeConfigRule.Backends = append(routeConfigRule.Backends, httpBackend)
 			}
-		}
-		if resolvedRefConditionRuleFilter != nil {
-			resolvedRefCondition = resolvedRefConditionRuleFilter
-		}
-		if resolvedRefConditionRuleBackend != nil {
-			resolvedRefCondition = resolvedRefConditionRuleBackend
+			if resolvedRefConditionRuleBackend != nil {
+				resolvedRefCondition = resolvedRefConditionRuleBackend
+			}
 		}
 		routeConfig.Rules = append(routeConfig.Rules, routeConfigRule)
 	}
