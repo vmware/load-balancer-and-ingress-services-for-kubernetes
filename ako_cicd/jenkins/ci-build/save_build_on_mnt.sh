@@ -19,7 +19,7 @@ function get_git_ws {
 BUILD_VERSION_SCRIPT=$WORKSPACE/hack/jenkins/get_build_version.sh
 AKO_CHARTS_PATH="$(get_git_ws)/helm/ako"
 AKO_OPERATOR_CHARTS_PATH="$(get_git_ws)/ako-operator/helm/ako-operator"
-AKO_OPERATOR_CRD_CHARTS_PATH="$(get_git_ws)/ako-crd-operator/helm/ako-crd-operator/chart"
+AKO_CRD_OPERATOR_CHARTS_PATH="$(get_git_ws)/ako-crd-operator/helm/ako-crd-operator/chart"
 
 build_version=$(bash $BUILD_VERSION_SCRIPT "dummy" $BUILD_NUMBER)
 
@@ -42,7 +42,7 @@ sudo sed -i 's|repository:.*|repository: "ako-crd-operator"|' $ako_target_path/C
 sudo cp -r $AKO_OPERATOR_CHARTS_PATH/* $ako_operator_target_path/
 
 # Copy ako-crd-operator helm charts
-sudo cp -r $AKO_OPERATOR_CRD_CHARTS_PATH/* $ako_crd_operator_target_path/
+sudo cp -r $AKO_CRD_OPERATOR_CHARTS_PATH/* $ako_crd_operator_target_path/
 
 
 sudo cp "$(get_git_ws)/HEAD_COMMIT" $target_path/
