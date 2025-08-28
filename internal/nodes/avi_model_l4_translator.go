@@ -64,7 +64,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 	// Not using it in Shared VIP as we don't have use case for it.
 	trafficEnabled := proto.Bool(true)
 
-	if traffic_enabled, ok := svcObj.Annotations[lib.VSTrafficEnabled]; ok && strings.ToLower(traffic_enabled) == "false" {
+	if traffic_disabled, ok := svcObj.Annotations[lib.VSTrafficDisabled]; ok && strings.ToLower(traffic_disabled) == "true" {
 		trafficEnabled = proto.Bool(false)
 	}
 	tenant := lib.GetTenantInNamespace(svcObj.GetNamespace())

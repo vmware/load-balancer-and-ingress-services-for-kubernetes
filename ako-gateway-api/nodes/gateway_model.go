@@ -60,10 +60,9 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 		oldTenant = lib.GetTenant()
 	}
 	// Default: Traffic is enabled
-	// Not using it in Shared VIP as we don't have use case for it.
 	trafficEnabled := proto.Bool(true)
 
-	if traffic_enabled, ok := gateway.Annotations[lib.VSTrafficEnabled]; ok && strings.ToLower(traffic_enabled) == "false" {
+	if traffic_disabled, ok := gateway.Annotations[lib.VSTrafficDisabled]; ok && strings.ToLower(traffic_disabled) == "true" {
 		trafficEnabled = proto.Bool(false)
 	}
 	// Cleanup resources in the old tenant in case of tenant change
