@@ -33,7 +33,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 )
@@ -42,9 +41,6 @@ var controllerInstance *VCFK8sController
 var ctrlonce sync.Once
 var tzonce sync.Once
 var transportZone string
-
-var WorkloadNamespaceCount int = 0
-var countLock sync.RWMutex
 
 type VCFK8sController struct {
 	worker_id        uint32
@@ -68,20 +64,13 @@ func SharedVCFK8sController() *VCFK8sController {
 }
 
 func (c *VCFK8sController) AddNamespaceEventHandler(stopCh <-chan struct{}) {
-	// Saves the initial workload namespace count during reboot,
-	// before the config handlers are started.
-	if err := c.addWorkloadNamespaceCount(); err != nil {
-		utils.AviLog.Fatalf("Unable to list Namespaces: %s", err.Error())
-	}
-
 	namespaceHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			utils.AviLog.Infof("Namespace ADD Event")
-			c.handleNamespaceAdd()
 			proxy.HandleNamespaceGrantAdd(obj)
 		},
 		UpdateFunc: func(old, obj interface{}) {
-			utils.AviLog.Infof("Namespace Update Event")
+			utils.AviLog.Info("Namespace Update Event")
 			if lib.GetVPCMode() {
 				avirest.ScheduleQuickSync()
 			}
@@ -98,7 +87,6 @@ func (c *VCFK8sController) AddNamespaceEventHandler(stopCh <-chan struct{}) {
 					return
 				}
 			}
-			c.handleNamespaceDelete()
 			proxy.HandleNamespaceGrantDelete(obj)
 		},
 	}
@@ -110,87 +98,6 @@ func (c *VCFK8sController) AddNamespaceEventHandler(stopCh <-chan struct{}) {
 	} else {
 		utils.AviLog.Infof("Caches synced for Namespace informer")
 	}
-}
-
-func (c *VCFK8sController) addWorkloadNamespaceCount() error {
-	clientSet := c.informers.ClientSet
-	nsList, err := clientSet.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	count := 0
-	for _, ns := range nsList.Items {
-		if _, ok := ns.Labels[VSphereClusterIDLabelKey]; ok {
-			count += 1
-		}
-	}
-	WorkloadNamespaceCount = count
-	utils.AviLog.Infof("Initial number of workload namespaces: %d", WorkloadNamespaceCount)
-	return nil
-}
-
-func (c *VCFK8sController) handleNamespaceAdd() {
-	countLock.Lock()
-	defer countLock.Unlock()
-	count, err := c.getWorkloadNamespaceCount()
-	if err != nil {
-		return
-	}
-
-	// Only when before the addition, the count was 0, (and now it becomes more than 0),
-	// we must reconfigure the SEG, by rebooting AKO. On reboot AKO ensures SEG configuration.
-	if WorkloadNamespaceCount == 0 && count > 0 {
-		utils.AviLog.Fatalf("First Workload Namespace added in cluster. Rebooting AKO for infra configuration.")
-	}
-	WorkloadNamespaceCount = count
-}
-
-func (c *VCFK8sController) handleNamespaceDelete() {
-	countLock.Lock()
-	count, err := c.getWorkloadNamespaceCount()
-	if err != nil {
-		countLock.Unlock()
-		return
-	}
-
-	WorkloadNamespaceCount = count
-	if count > 0 {
-		utils.AviLog.Infof("%d Workload Namespace exist in the cluster. Skipping deconfiguration.", count)
-		countLock.Unlock()
-		return
-	}
-	countLock.Unlock()
-
-	utils.AviLog.Infof("No Workload Namespace exist, proceeding with Avi infra deconfiguraiton.")
-
-	// Fetch all service engines and delete them.
-	if err := avirest.DeleteServiceEngines(); err != nil {
-		utils.AviLog.Errorf("Unable to remove SEs %s", err.Error())
-		return
-	}
-
-	// Delete service engine group.
-	if err := avirest.DeleteServiceEngineGroup(); err != nil {
-		utils.AviLog.Errorf("Unable to remove SEG %s", err.Error())
-		return
-	}
-}
-
-// Gets number of only the Workload Namespaces. Only the Workload Namespaces
-// have the label with key vSphereClusterID in them, which is how we differentiate.
-func (c *VCFK8sController) getWorkloadNamespaceCount() (int, error) {
-	nsList, err := c.informers.NSInformer.Lister().List(labels.Set(nil).AsSelector())
-	if err != nil {
-		utils.AviLog.Error(err.Error())
-		return 0, err
-	}
-	count := 0
-	for _, ns := range nsList {
-		if _, ok := ns.Labels[VSphereClusterIDLabelKey]; ok {
-			count += 1
-		}
-	}
-	return count, nil
 }
 
 func (c *VCFK8sController) AddConfigMapEventHandler(stopCh <-chan struct{}, startSyncCh chan struct{}) {
