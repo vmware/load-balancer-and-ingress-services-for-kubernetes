@@ -272,18 +272,16 @@ func (o *AviObjectGraph) BuildHTTPResponseRuleWithMatch(key string, policy *node
 // BuildMatchTarget builds the MatchTarget for HTTP request rules
 func (o *AviObjectGraph) BuildMatchTarget(matchTarget *models.MatchTarget, match *Match) {
 	// Handle path matching
-	if match.PathMatch != nil {
-		matchTarget.Path = &models.PathMatch{
-			MatchCase: proto.String("SENSITIVE"),
-			MatchStr:  []string{match.PathMatch.Path},
-		}
-		if match.PathMatch.Type == akogatewayapilib.EXACT {
-			matchTarget.Path.MatchCriteria = proto.String("EQUALS")
-		} else if match.PathMatch.Type == akogatewayapilib.PATHPREFIX {
-			matchTarget.Path.MatchCriteria = proto.String("BEGINS_WITH")
-		} else if match.PathMatch.Type == akogatewayapilib.REGULAREXPRESSION {
-			matchTarget.Path.MatchCriteria = proto.String("REGEX")
-		}
+	matchTarget.Path = &models.PathMatch{
+		MatchCase: proto.String("SENSITIVE"),
+		MatchStr:  []string{match.PathMatch.Path},
+	}
+	if match.PathMatch.Type == akogatewayapilib.EXACT {
+		matchTarget.Path.MatchCriteria = proto.String("EQUALS")
+	} else if match.PathMatch.Type == akogatewayapilib.PATHPREFIX {
+		matchTarget.Path.MatchCriteria = proto.String("BEGINS_WITH")
+	} else if match.PathMatch.Type == akogatewayapilib.REGULAREXPRESSION {
+		matchTarget.Path.MatchCriteria = proto.String("REGEX")
 	}
 
 	// Handle header matching
@@ -309,21 +307,18 @@ func (o *AviObjectGraph) BuildMatchTarget(matchTarget *models.MatchTarget, match
 // BuildResponseMatchTarget builds the ResponseMatchTarget for HTTP response rules
 // This converts request match criteria to response match criteria where applicable
 func (o *AviObjectGraph) BuildResponseMatchTarget(responseMatchTarget *models.ResponseMatchTarget, match *Match) {
-	// Copy over applicable match criteria that can be used for response matching
-
 	// Path matching (applicable to response)
-	if match.PathMatch != nil {
-		responseMatchTarget.Path = &models.PathMatch{
-			MatchCase: proto.String("SENSITIVE"),
-			MatchStr:  []string{match.PathMatch.Path},
-		}
-		if match.PathMatch.Type == akogatewayapilib.EXACT {
-			responseMatchTarget.Path.MatchCriteria = proto.String("EQUALS")
-		} else if match.PathMatch.Type == akogatewayapilib.PATHPREFIX {
-			responseMatchTarget.Path.MatchCriteria = proto.String("BEGINS_WITH")
-		} else if match.PathMatch.Type == akogatewayapilib.REGULAREXPRESSION {
-			responseMatchTarget.Path.MatchCriteria = proto.String("REGEX")
-		}
+
+	responseMatchTarget.Path = &models.PathMatch{
+		MatchCase: proto.String("SENSITIVE"),
+		MatchStr:  []string{match.PathMatch.Path},
+	}
+	if match.PathMatch.Type == akogatewayapilib.EXACT {
+		responseMatchTarget.Path.MatchCriteria = proto.String("EQUALS")
+	} else if match.PathMatch.Type == akogatewayapilib.PATHPREFIX {
+		responseMatchTarget.Path.MatchCriteria = proto.String("BEGINS_WITH")
+	} else if match.PathMatch.Type == akogatewayapilib.REGULAREXPRESSION {
+		responseMatchTarget.Path.MatchCriteria = proto.String("REGEX")
 	}
 
 	// Header matching (applicable to response - can match request headers)
