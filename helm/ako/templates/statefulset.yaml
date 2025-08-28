@@ -133,6 +133,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: tenantName
+          - name: DEDICATED_TENANT_MODE
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: dedicatedTenantMode
           - name: VRF_NAME
             valueFrom:
               configMapKeyRef:
@@ -353,6 +358,16 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: tenantName
+          - name: DEDICATED_TENANT_MODE
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: dedicatedTenantMode
+          - name: VPC_MODE
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: vpcMode
           - name: CLUSTER_NAME
             valueFrom:
               configMapKeyRef:

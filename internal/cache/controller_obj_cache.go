@@ -140,7 +140,7 @@ func (c *AviObjCache) AviObjCachePopulate(client []*clients.AviClient, version s
 	allVsKeys = c.VsCacheMeta.AviGetAllKeys()
 	err = func(client *clients.AviClient) error {
 		setDefaultTenant := session.SetTenant(lib.GetTenant())
-		setTenant := session.SetTenant("*")
+		setTenant := session.SetTenant(lib.GetQueryTenant())
 		setTenant(client.AviSession)
 		defer setDefaultTenant(client.AviSession)
 		return c.AviObjVSCachePopulate(client, cloud, &allVsKeys)
@@ -535,7 +535,7 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient, cloud string,
 func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient, cloud string) {
 	var pgData []AviPGCache
 	setDefaultTenant := session.SetTenant(lib.GetTenant())
-	setTenant := session.SetTenant("*")
+	setTenant := session.SetTenant(lib.GetQueryTenant())
 	setTenant(client.AviSession)
 	defer setDefaultTenant(client.AviSession)
 	c.AviPopulateAllPGs(client, cloud, &pgData)
@@ -710,7 +710,7 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 func (c *AviObjCache) PopulatePkiProfilesToCache(client *clients.AviClient) {
 	var pkiProfData []AviPkiProfileCache
 	setDefaultTenant := session.SetTenant(lib.GetTenant())
-	setTenant := session.SetTenant("*")
+	setTenant := session.SetTenant(lib.GetQueryTenant())
 	setTenant(client.AviSession)
 	defer setDefaultTenant(client.AviSession)
 	c.AviPopulateAllPkiPRofiles(client, &pkiProfData)
@@ -748,7 +748,7 @@ func (c *AviObjCache) PopulatePkiProfilesToCache(client *clients.AviClient) {
 func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient, cloud string) {
 	var poolsData []AviPoolCache
 	setDefaultTenant := session.SetTenant(lib.GetTenant())
-	setTenant := session.SetTenant("*")
+	setTenant := session.SetTenant(lib.GetQueryTenant())
 	setTenant(client.AviSession)
 	defer setDefaultTenant(client.AviSession)
 	c.AviPopulateAllPools(client, cloud, &poolsData)
@@ -884,7 +884,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 func (c *AviObjCache) PopulateVsVipDataToCache(client *clients.AviClient, cloud string) {
 	var vsVipData []AviVSVIPCache
 	setDefaultTenant := session.SetTenant(lib.GetTenant())
-	setTenant := session.SetTenant("*")
+	setTenant := session.SetTenant(lib.GetQueryTenant())
 	setTenant(client.AviSession)
 	defer setDefaultTenant(client.AviSession)
 	c.AviPopulateAllVSVips(client, cloud, &vsVipData)
@@ -994,7 +994,7 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient, cloud string,
 func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient, cloud string) {
 	var DsData []AviDSCache
 	setDefaultTenant := session.SetTenant(lib.GetTenant())
-	setTenant := session.SetTenant("*")
+	setTenant := session.SetTenant(lib.GetQueryTenant())
 	setTenant(client.AviSession)
 	defer setDefaultTenant(client.AviSession)
 	c.AviPopulateAllDSs(client, cloud, &DsData)
@@ -1649,7 +1649,7 @@ func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
 func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient, cloud string) {
 	var SslKeyData []AviSSLCache
 	setDefaultTenant := session.SetTenant(lib.GetTenant())
-	setTenant := session.SetTenant("*")
+	setTenant := session.SetTenant(lib.GetQueryTenant())
 	setTenant(client.AviSession)
 	defer setDefaultTenant(client.AviSession)
 	c.AviPopulateAllSSLKeys(client, cloud, &SslKeyData)
@@ -1838,7 +1838,7 @@ func (c *AviObjCache) AviPopulateHttpPolicySetbyUUID(client *clients.AviClient, 
 func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient, cloud string) {
 	var HttPolData []AviHTTPPolicyCache
 	setDefaultTenant := session.SetTenant(lib.GetTenant())
-	setTenant := session.SetTenant("*")
+	setTenant := session.SetTenant(lib.GetQueryTenant())
 	setTenant(client.AviSession)
 	defer setDefaultTenant(client.AviSession)
 	_, count, err := c.AviPopulateAllHttpPolicySets(client, cloud, &HttPolData)
@@ -1967,7 +1967,7 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 func (c *AviObjCache) PopulateL4PolicySetToCache(client *clients.AviClient, cloud string) {
 	var l4PolData []AviL4PolicyCache
 	setDefaultTenant := session.SetTenant(lib.GetTenant())
-	setTenant := session.SetTenant("*")
+	setTenant := session.SetTenant(lib.GetQueryTenant())
 	setTenant(client.AviSession)
 	defer setDefaultTenant(client.AviSession)
 	_, count, err := c.AviPopulateAllL4PolicySets(client, cloud, &l4PolData)
@@ -2059,7 +2059,7 @@ func (c *AviObjCache) AviPopulateAllStringGroups(client *clients.AviClient, clou
 func (c *AviObjCache) PopulateStringGroupDataToCache(client *clients.AviClient, cloud string) {
 	var StringGroupData []AviStringGroupCache
 	setDefaultTenant := session.SetTenant(lib.GetTenant())
-	setTenant := session.SetTenant("*")
+	setTenant := session.SetTenant(lib.GetQueryTenant())
 	setTenant(client.AviSession)
 	defer setDefaultTenant(client.AviSession)
 	c.AviPopulateAllStringGroups(client, cloud, &StringGroupData)
