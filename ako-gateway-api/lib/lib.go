@@ -54,6 +54,9 @@ func InformersToRegister(kclient *kubernetes.Clientset) ([]string, error) {
 func GetGatewayParentName(namespace, gwName string) string {
 	//clustername > gateway namespace > Gateway-name
 	//Adding -EVH prefix to reuse rest layer
+	if IsGatewayInDedicatedMode(namespace, gwName) {
+		return lib.GetNamePrefix() + namespace + "-" + gwName + lib.DedicatedSuffix + "-EVH"
+	}
 	return lib.GetNamePrefix() + namespace + "-" + gwName + "-EVH"
 }
 
@@ -89,6 +92,21 @@ func GetPersistenceProfileName(parentNs, parentName, routeNs, routeName, matchNa
 		name = fmt.Sprintf("%s-%s", name, utils.Stringify(utils.Hash(matchName)))
 	}
 	return lib.Encode(name, lib.ApplicationPersistenceProfile)
+}
+
+func GetHttpPolicySetName(parentNs, parentName, routeNs, routeName string) string {
+	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-httproute"
+	return lib.Encode(name, lib.HTTPPS)
+}
+
+func GetDedicatedPoolName(poolGroupName, backendNs, backendName string, backendPort int32, backendIndex int) string {
+	var name string
+	if backendName != "" {
+		name = fmt.Sprintf("%s-%s-%s-%d", poolGroupName, backendNs, backendName, backendPort)
+	} else {
+		name = fmt.Sprintf("%s-backend-%d", poolGroupName, backendIndex)
+	}
+	return lib.Encode(name, lib.Pool)
 }
 
 func CheckGatewayClassController(controllerName string) bool {
@@ -241,4 +259,24 @@ func CreateVCFGatewayClass() error {
 	}
 	utils.AviLog.Infof("Successfully created Gatewayclass %s", VCFGatewayClassName)
 	return nil
+}
+
+func IsGatewayInDedicatedMode(namespace, gatewayName string) bool {
+	// Get Gateway object and check for dedicated mode annotation
+	gateway, err := AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).Get(gatewayName)
+	if err != nil {
+		utils.AviLog.Debugf("Failed to get gateway %s/%s: %v", namespace, gatewayName, err)
+		return false
+	}
+
+	// Check annotation for dedicated mode
+	if annotation, exists := gateway.GetAnnotations()[DedicatedGatewayModeAnnotation]; exists {
+		return annotation == "true"
+	}
+
+	return false
+}
+
+func GetGatewayDedicatedVSName(namespace, gatewayName string) string {
+	return lib.GetNamePrefix() + namespace + "-" + gatewayName
 }

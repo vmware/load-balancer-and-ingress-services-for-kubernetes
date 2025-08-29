@@ -29,6 +29,11 @@ const (
 )
 
 const (
+	// Gateway annotations
+	DedicatedGatewayModeAnnotation = "ako.vmware.com/dedicated-gateway-mode"
+)
+
+const (
 	GatewayClassGatewayControllerIndex = "GatewayClassGatewayController"
 	REGULAREXPRESSION                  = "RegularExpression"
 	EXACT                              = "Exact"

@@ -153,7 +153,9 @@ func DequeueIngestion(key string, fullsync bool) {
 			}
 			model.DeleteStaleChildVSes(key, routeModel, childVSes, fullsync)
 		}
-		model.AddDefaultHTTPPolicySet(key)
+		if !akogatewayapilib.IsGatewayInDedicatedMode(parentNs, parentName) {
+			model.AddDefaultHTTPPolicySet(key)
+		}
 
 		// Only add this node to the list of models if the checksum has changed.
 		modelChanged := saveAviModel(modelName, model.AviObjectGraph, key)
@@ -282,20 +284,22 @@ func (o *AviObjectGraph) ProcessRouteDeletion(key, parentNsName string, routeMod
 
 	parentNode := o.GetAviEvhVS()
 	routeTypeNsName := routeModel.GetType() + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName()
+	if parentNode[0].Dedicated {
+		o.ProcessRouteDeletionForDedicatedMode(key, parentNsName, routeModel, fullsync)
 
-	found, childVSNames := akogatewayapiobjects.GatewayApiLister().GetRouteToChildVS(routeTypeNsName)
+	} else {
+		found, childVSNames := akogatewayapiobjects.GatewayApiLister().GetRouteToChildVS(routeTypeNsName)
+		if found {
+			utils.AviLog.Infof("key: %s, msg: child VSes retrieved for deletion %v", key, childVSNames)
 
-	if found {
-		utils.AviLog.Infof("key: %s, msg: child VSes retrieved for deletion %v", key, childVSNames)
-
-		for _, childVSName := range childVSNames {
-			removed := nodes.RemoveEvhInModel(childVSName, parentNode, key)
-			if removed {
-				akogatewayapiobjects.GatewayApiLister().DeleteRouteChildVSMappings(routeTypeNsName, childVSName)
+			for _, childVSName := range childVSNames {
+				removed := nodes.RemoveEvhInModel(childVSName, parentNode, key)
+				if removed {
+					akogatewayapiobjects.GatewayApiLister().DeleteRouteChildVSMappings(routeTypeNsName, childVSName)
+				}
 			}
 		}
 	}
-
 	updateHostname(key, parentNsName, parentNode[0])
 	modelName := parentNode[0].Tenant + "/" + parentNode[0].Name
 	ok := saveAviModel(modelName, o.AviObjectGraph, key)
@@ -303,7 +307,41 @@ func (o *AviObjectGraph) ProcessRouteDeletion(key, parentNsName string, routeMod
 		sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 		nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
 	}
+}
 
+func (o *AviObjectGraph) ProcessRouteDeletionForDedicatedMode(key, parentNsName string, routeModel RouteModel, fullsync bool) {
+	utils.AviLog.Infof("key: %s, msg: Processing route deletion for dedicated mode: %s/%s", key, routeModel.GetNamespace(), routeModel.GetName())
+
+	gatewayVSes := o.GetAviEvhVS()
+	if len(gatewayVSes) == 0 {
+		utils.AviLog.Errorf("key: %s, msg: No Gateway VS found for dedicated mode deletion", key)
+		return
+	}
+
+	dedicatedVS := gatewayVSes[0]
+
+	httpPSName := akogatewayapilib.GetHttpPolicySetName(dedicatedVS.AviMarkers.GatewayNamespace, dedicatedVS.AviMarkers.GatewayName, routeModel.GetNamespace(), routeModel.GetName())
+
+	var updatedHttpPolicyRefs []*nodes.AviHttpPolicySetNode
+	for _, policy := range dedicatedVS.HttpPolicyRefs {
+		if policy.Name != httpPSName {
+			updatedHttpPolicyRefs = append(updatedHttpPolicyRefs, policy)
+		} else {
+			utils.AviLog.Infof("key: %s, msg: Removing HTTP PolicySet %s for route deletion", key, httpPSName)
+		}
+	}
+	dedicatedVS.HttpPolicyRefs = updatedHttpPolicyRefs
+
+	dedicatedVS.PoolGroupRefs = []*nodes.AviPoolGroupNode{}
+	dedicatedVS.PoolRefs = []*nodes.AviPoolNode{}
+
+	if dedicatedVS.ServiceMetadata.HTTPRoute == routeModel.GetNamespace()+"/"+routeModel.GetName() {
+		dedicatedVS.ServiceMetadata.HTTPRoute = ""
+		dedicatedVS.AviMarkers.HTTPRouteName = ""
+		dedicatedVS.AviMarkers.HTTPRouteNamespace = ""
+	}
+
+	utils.AviLog.Infof("key: %s, msg: Completed route deletion for dedicated mode: %s/%s", key, routeModel.GetNamespace(), routeModel.GetName())
 }
 
 func (o *AviObjectGraph) DeleteStaleChildVSes(key string, routeModel RouteModel, childVSes map[string]struct{}, fullsync bool) {

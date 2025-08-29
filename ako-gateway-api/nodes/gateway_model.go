@@ -81,7 +81,6 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 		},
 		Caller: utils.GATEWAY_API, // Always Populate this field to recognise caller at rest layer
 	}
-
 	infraSetting, err := lib.GetNamespacedAviInfraSetting(key, gateway.GetNamespace(), akogatewayapilib.AKOControlConfig().AviInfraSettingInformer())
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: failed to get AviInfraSetting, err: %s", key, err.Error())
@@ -109,6 +108,13 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 	}
 
 	buildWithInfraSettingForGateway(key, parentVsNode, vsvipNode, infraSetting)
+
+	// Check for dedicated mode via Gateway annotation
+	if annotation, exists := gateway.GetAnnotations()[akogatewayapilib.DedicatedGatewayModeAnnotation]; exists && annotation == "true" {
+		utils.AviLog.Infof("key: %s, msg: Dedicated Gateway Mode is enabled via gateway annotation", key)
+		parentVsNode.EVHParent = false
+		parentVsNode.Dedicated = true
+	}
 	if infraSetting != nil {
 		akogatewayapiobjects.GatewayApiLister().UpdateGatewayToAviInfraSettingMappings(gateway.Namespace+"/"+gateway.Name, infraSetting.Name)
 	} else {
