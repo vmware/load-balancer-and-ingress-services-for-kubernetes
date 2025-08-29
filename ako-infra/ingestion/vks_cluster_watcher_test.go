@@ -439,8 +439,6 @@ func TestVKSClusterWatcher_HandleProvisionedCluster(t *testing.T) {
 				}
 			}
 
-			watcher := NewVKSClusterWatcher(setup.KubeClient, setup.DynamicClient)
-
 			// Start informers and ensure proper cache sync
 			stopCh := make(chan struct{})
 			defer close(stopCh)
@@ -546,7 +544,7 @@ func TestVKSClusterWatcher_HandleProvisionedCluster(t *testing.T) {
 			// Give the informer time to sync
 			time.Sleep(100 * time.Millisecond)
 
-			watcher = NewVKSClusterWatcher(setup.KubeClient, setup.DynamicClient)
+			watcher := NewVKSClusterWatcher(setup.KubeClient, setup.DynamicClient)
 
 			// Set up mock credentials function for tests that need secret creation
 			if tt.expectedAction == "create" || (tt.expectedAction == "none" && tt.vksLabel == webhook.VKSManagedLabelValueTrue) {
@@ -946,24 +944,6 @@ func TestVKSClusterWatcher_SecretIdempotency(t *testing.T) {
 
 	t.Logf("Secret idempotency test passed - secret exists with %d fields", len(currentSecret.Data))
 }
-
-// createTestAdminSecret function removed - no longer needed with cluster-specific RBAC
-
-// createTestNamespace creates a test namespace with VKS annotations
-func createTestNamespace(name string) *corev1.Namespace {
-	return &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-			Annotations: map[string]string{
-				lib.WCPSEGroup:                 "test-seg-group",
-				lib.TenantAnnotation:           "test-tenant",
-				lib.InfraSettingNameAnnotation: "test-aviinfrasetting",
-			},
-		},
-	}
-}
-
-// setupTestEnvironment function removed - functionality now in setupVKSTest
 
 func TestVKSClusterWatcher_buildVKSClusterConfig(t *testing.T) {
 	// Set up mock controller IP and version for consistent testing
