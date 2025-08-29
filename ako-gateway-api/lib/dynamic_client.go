@@ -401,7 +401,6 @@ func ParseRouteBackendExtensionCR(key, namespace, name string, poolNode *nodes.A
 	}
 	specJSON, found, err := unstructured.NestedMap(obj.UnstructuredContent(), "spec")
 	if err != nil || !found {
-		utils.AviLog.Warnf("key: %s, msg: RouteBackendExtension CR %s/%s spec not found: %+v", key, namespace, name, err)
 		return fmt.Errorf("RouteBackendExtension CR %s/%s spec not found", namespace, name)
 	}
 
