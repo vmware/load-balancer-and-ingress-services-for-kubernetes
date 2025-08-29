@@ -83,9 +83,6 @@ func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, pare
 		if rule.Matches == nil {
 			continue
 		}
-		if len(rule.Backends) == 0 {
-			continue
-		}
 		o.BuildChildVS(key, routeModel, parentNsName, rule, childVSes, fullsync)
 	}
 }
