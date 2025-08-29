@@ -60,7 +60,13 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 			fqdns = append(fqdns, fqdn)
 		}
 	}
+	// Default: Traffic is enabled
+	// Not using it in Shared VIP as we don't have use case for it.
+	trafficEnabled := proto.Bool(true)
 
+	if traffic_disabled, ok := svcObj.Annotations[lib.VSTrafficDisabled]; ok && strings.ToLower(traffic_disabled) == "true" {
+		trafficEnabled = proto.Bool(false)
+	}
 	tenant := lib.GetTenantInNamespace(svcObj.GetNamespace())
 
 	DeleteStaleTenantModelData(svcObj.GetName(), svcObj.GetNamespace(), key, tenant, lib.L4VS)
@@ -82,6 +88,7 @@ func (o *AviObjectGraph) ConstructAviL4VsNode(svcObj *corev1.Service, key string
 		},
 		ServiceEngineGroup: lib.GetSEGName(),
 		EnableRhi:          proto.Bool(lib.GetEnableRHI()),
+		TrafficEnabled:     trafficEnabled,
 	}
 
 	vrfcontext := lib.GetVrf()
