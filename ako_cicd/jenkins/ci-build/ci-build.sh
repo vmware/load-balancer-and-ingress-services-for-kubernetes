@@ -32,13 +32,6 @@ fi
 #Steps to Build and Test AKO-CRD-OPERATOR
 cd $WORKSPACE/ako-crd-operator
 
-# Setting GO related variables for Broadcom GOPROXY artifactory
-go env -w GOPROXY=https://packages.vcfd.broadcom.net/artifactory/proxy-golang-remote
-go env -w GOSUMDB=https://packages.vcfd.broadcom.net/artifactory/go-gosumdb-remote
-
-go clean -modcache
-
-
 make lint
 make build
 make BUILD_TAG=$version_tag docker-build
