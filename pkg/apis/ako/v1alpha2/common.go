@@ -25,6 +25,7 @@ type BackendProperties struct {
 	ApplicationPersistenceProfileRef *string              `json:"applicationPersistenceProfileRef,omitempty"`
 	Enabled                          *bool                `json:"enabled,omitempty"`
 	HealthMonitorRefs                []string             `json:"healthMonitorRefs,omitempty"`
+	HealthMonitorCrdRefs             []string             `json:"healthMonitorCrdRefs,omitempty"`
 	LbAlgorithm                      *string              `json:"lbAlgorithm,omitempty"`
 	LbAlgorithmConsistentHashHdr     *string              `json:"lbAlgorithmConsistentHashHdr,omitempty"`
 	LbAlgorithmHash                  *string              `json:"lbAlgorithmHash,omitempty"`
