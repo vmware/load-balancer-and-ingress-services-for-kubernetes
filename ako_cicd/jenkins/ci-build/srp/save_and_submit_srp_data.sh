@@ -49,6 +49,13 @@ docker manifest inspect $CI_REGISTRY_IMAGE_AKO_OPERATOR:${build_version} --insec
 cat ako_operator_manifest.json
 sudo /srp-tools/srp provenance add-output package.oci --set-key=ako-operator-image --action-key=ako-build --name=${CI_REGISTRY_IMAGE_AKO_OPERATOR}  --digest=${IMAGE_DIGEST} --manifest-path $WORKSPACE/ako_operator_manifest.json --working-dir $WORKSPACE/provenance
 
+CI_REGISTRY_IMAGE_AKO_CRD_OPERATOR=$CI_REGISTRY_PATH/ako/$branch/ako-crd-operator
+IMAGE_DIGEST=`sudo docker images $CI_REGISTRY_IMAGE_AKO_CRD_OPERATOR  --digests | grep sha256 | xargs | cut -d " " -f3`
+echo $IMAGE_DIGEST
+docker manifest inspect $CI_REGISTRY_IMAGE_AKO__CRD_OPERATOR:${build_version} --insecure > ako_crd_operator_manifest.json
+cat ako_crd_operator_manifest.json
+sudo /srp-tools/srp provenance add-output package.oci --set-key=ako-crd-operator-image --action-key=ako-build --name=${CI_REGISTRY_IMAGE_AKO_CRD_OPERATOR}  --digest=${IMAGE_DIGEST} --manifest-path $WORKSPACE/ako_crd_operator_manifest.json --working-dir $WORKSPACE/provenance
+
 branch_version=$($WORKSPACE/hack/jenkins/get_branch_version.sh)
 version_numbers=(${branch_version//./ })
 minor_version=${version_numbers[1]}
@@ -65,6 +72,7 @@ fi
 # to the container, which are duplicate of the inputs above, but in this case we KNOW they are incorporated.
 sudo /srp-tools/srp provenance add-input syft --output-key=ako-image --usage functionality --incorporated true --working-dir $WORKSPACE/provenance
 sudo /srp-tools/srp provenance add-input syft --output-key=ako-operator-image --usage functionality --incorporated true --working-dir $WORKSPACE/provenance
+sudo /srp-tools/srp provenance add-input syft --output-key=ako-crd-operator-image --usage functionality --incorporated true --working-dir $WORKSPACE/provenance
 if [ "$minor_version" -ge "11" ]; then
     sudo /srp-tools/srp provenance add-input syft --output-key=ako-gateway-api-image --usage functionality --incorporated true --working-dir $WORKSPACE/provenance
 fi
@@ -72,6 +80,7 @@ fi
 # adding source input
 sudo /srp-tools/srp provenance add-input source --source-key=mainsrc --output-key=ako-image --is-component-source --incorporated=true --working-dir $WORKSPACE/provenance
 sudo /srp-tools/srp provenance add-input source --source-key=mainsrc --output-key=ako-operator-image --is-component-source --incorporated=true --working-dir $WORKSPACE/provenance
+sudo /srp-tools/srp provenance add-input source --source-key=mainsrc --output-key=ako-crd-operator-image --is-component-source --incorporated=true --working-dir $WORKSPACE/provenance
 if [ "$minor_version" -ge "11" ]; then
     sudo /srp-tools/srp provenance add-input source --source-key=mainsrc --output-key=ako-gateway-api-image --is-component-source --incorporated=true --working-dir $WORKSPACE/provenance
 fi

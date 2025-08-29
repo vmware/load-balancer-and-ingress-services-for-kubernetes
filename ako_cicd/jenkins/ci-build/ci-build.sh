@@ -28,3 +28,11 @@ fi
 if [ "$RUN_INT_TESTS" = true ]; then
     make int_test
 fi
+
+#Steps to Build and Test AKO-CRD-OPERATOR
+cd $WORKSPACE/ako-crd-operator
+go env -w GOSUMDB=off
+make lint
+make build
+make BUILD_TAG=$version_tag docker-build
+#make test
