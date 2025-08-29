@@ -94,6 +94,14 @@ spec:
                 - LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_STRING
                 - LB_ALGORITHM_CONSISTENT_HASH_CALLID
                 type: string
+              persistenceProfile:
+                description: Defines the persistence profile type on Pool
+                enum:
+                - System-Persistence-Client-IP
+                - System-Persistence-Http-Cookie
+                - System-Persistence-TLS
+                - System-Persistence-App-Cookie
+                type: string
             type: object
             x-kubernetes-validations:
             - message: lbAlgorithmHash must be set if and only if lbAlgorithm is LB_ALGORITHM_CONSISTENT_HASH
