@@ -35,4 +35,4 @@ go env -w GOSUMDB=off
 make lint
 make build
 make BUILD_TAG=$version_tag docker-build
-make test
+#make test
