@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package utils
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"hash/fnv"
 	"math/rand"
 	"net"
@@ -28,9 +29,12 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	oshiftclientset "github.com/openshift/client-go/route/clientset/versioned"
 	oshiftinformers "github.com/openshift/client-go/route/informers/externalversions"
 	corev1 "k8s.io/api/core/v1"
+	discovery "k8s.io/api/discovery/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	kubeinformers "k8s.io/client-go/informers"
@@ -39,6 +43,8 @@ import (
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	// TODO: Check this to convert to v1beta1 in next release. Couldn't conver as MCI and SI uses that.
 	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
+
+	avimodels "github.com/vmware/alb-sdk/go/models"
 
 	akoinformers "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/informers/externalversions"
 )
@@ -100,8 +106,8 @@ func AviUrlToObjType(aviurl string) (string, error) {
 func CrudHashKey(obj_type string, obj interface{}) string {
 	var ns, name string
 	switch obj_type {
-	case "Endpoints":
-		ep := obj.(*corev1.Endpoints)
+	case "EndpointSlice": // This case is for discovery.v1.EndpointSlice
+		ep := obj.(*discovery.EndpointSlice)
 		ns = ep.Namespace
 		name = ep.Name
 	case "Service":
@@ -179,8 +185,6 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 			informers.NSInformer = kubeInformerFactory.Core().V1().Namespaces()
 		case PodInformer:
 			informers.PodInformer = kubeInformerFactory.Core().V1().Pods()
-		case EndpointInformer:
-			informers.EpInformer = kubeInformerFactory.Core().V1().Endpoints()
 		case EndpointSlicesInformer:
 			informers.EpSlicesInformer = kubeInformerFactory.Discovery().V1().EndpointSlices()
 		case SecretInformer:
@@ -292,10 +296,63 @@ func Stringify(serialize interface{}) string {
 	return string(json_marshalled)
 }
 
+func StringifyWithSanitization(serialize interface{}) string {
+	switch serialize.(type) {
+	case avimodels.SSLKeyAndCertificate:
+		return sanitizeSSLKeyAndCertificate(serialize)
+	case []*RestOp:
+		return sanitizeRestOp(serialize)
+	default:
+		return Stringify(serialize)
+	}
+}
+
+func sanitizeSSLKeyAndCertificate(serialize interface{}) string {
+	sslCertificate, ok := serialize.(avimodels.SSLKeyAndCertificate)
+	if ok {
+		sslCertificate.Key = proto.String("<REDACTED>")
+	}
+	return Stringify(sslCertificate)
+}
+
+func sanitizeRestOp(serialize interface{}) string {
+	restOps := serialize.([]*RestOp)
+	sanitizedRestOps := make([]*RestOp, len(restOps))
+	for i, op := range restOps {
+		// we need to make deepcopy since redacting the original object will create issues
+		var opCopy RestOp
+		opBytes, err := json.Marshal(op)
+		if err != nil {
+			AviLog.Warnf("Failed to marshal RestOp for sanitization: %v", err)
+			continue
+		}
+		if err := json.Unmarshal(opBytes, &opCopy); err != nil {
+			AviLog.Warnf("Failed to unmarshal RestOp for sanitization: %v", err)
+			continue
+		}
+
+		// Now, sanitize the deep copy.
+		if opCopy.Obj != nil {
+			if objMap, ok := opCopy.Obj.(map[string]interface{}); ok {
+				// Sanitize based on known sensitive keys.
+				if _, keyExists := objMap["key"]; keyExists {
+					objMap["key"] = "<REDACTED>"
+				}
+			}
+		}
+
+		sanitizedRestOps[i] = &opCopy
+	}
+
+	return Stringify(sanitizedRestOps)
+}
+
 func ExtractNamespaceObjectName(key string) (string, string) {
 	segments := strings.Split(key, "/")
 	if len(segments) == 2 {
 		return segments[0], segments[1]
+	} else if len(segments) == 3 {
+		return segments[0], fmt.Sprintf("%s/%s", segments[1], segments[2])
 	}
 	return "", ""
 }
@@ -685,4 +742,50 @@ func GetUriEncoded(uri string) string {
 	}
 	newUri.RawQuery = queryValues.Encode()
 	return newUri.String()
+}
+
+// Set implementation
+type empty struct{}
+
+type Set[K comparable] map[K]empty
+
+// NewSet creates and returns a new Set with the given keys.
+func NewSet[T comparable](keys ...T) Set[T] {
+	s := make(Set[T])
+	s.Add(keys...)
+	return s
+}
+
+// Add adds the given keys to the Set.
+func (s Set[T]) Add(keys ...T) {
+	for _, k := range keys {
+		s[k] = empty{}
+	}
+}
+
+// Remove removes the given keys from the Set.
+func (s Set[T]) Remove(keys ...T) {
+	for _, k := range keys {
+		delete(s, k)
+	}
+}
+
+// Has checks if the Set contains the given key.
+func (s Set[T]) Has(key T) bool {
+	_, ok := s[key]
+	return ok
+}
+
+// Size returns the number of elements in the Set.
+func (s Set[T]) Size() int {
+	return len(s)
+}
+
+// Keys returns a slice containing all keys in the Set.
+func (s Set[T]) Keys() []T {
+	keys := make([]T, 0)
+	for k := range s {
+		keys = append(keys, k)
+	}
+	return keys
 }

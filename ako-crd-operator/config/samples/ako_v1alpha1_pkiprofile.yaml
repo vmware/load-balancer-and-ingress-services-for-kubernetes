@@ -1,0 +1,22 @@
+apiVersion: ako.vmware.com/v1alpha1
+kind: PKIProfile
+metadata:
+  labels:
+    app.kubernetes.io/name: ako-crd-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: pkiprofile-sample
+spec:
+  # CaCerts is a list of Certificate Authorities (Root and Intermediate) trusted that is used for certificate validation.
+  caCerts:
+    - name: "root-ca-cert"
+      certificateRef: "root-ca-secret"
+    - name: "intermediate-ca-cert"
+      certificate: |
+        -----BEGIN CERTIFICATE-----
+        MIIDXTCCAkWgAwIBAgIJAKoK/OvD/2CYMA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV
+        BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
+        aWRnaXRzIFB0eSBMdGQwHhcNMTcwNzEyMTU0NTQyWhcNMjcwNzEwMTU0NTQyWjBF
+        MQswCQYDVQQGEwJBVTETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50
+        ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB
+        CgKCAQEAuuExKvY1xbXF4I+7g5WgD9yCuTnkRLOHiVi+gUy9BFAafPEE4iSYwZfW
+        -----END CERTIFICATE-----
