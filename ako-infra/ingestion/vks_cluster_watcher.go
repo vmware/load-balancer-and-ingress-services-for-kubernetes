@@ -85,7 +85,25 @@ type VKSClusterWatcher struct {
 
 // getUniqueClusterName generates a unique cluster identifier using namespace, name and UID
 func (w *VKSClusterWatcher) getUniqueClusterName(cluster *unstructured.Unstructured) string {
-	return fmt.Sprintf("%s-%s-%s", cluster.GetNamespace(), cluster.GetName(), cluster.GetUID())
+	namespace := cluster.GetNamespace()
+	name := cluster.GetName()
+	uid := cluster.GetUID()
+
+	maxNamespaceLen := 15
+	maxNameLen := 25
+	maxUIDLen := 8
+
+	if len(namespace) > maxNamespaceLen {
+		namespace = namespace[:maxNamespaceLen]
+	}
+	if len(name) > maxNameLen {
+		name = name[:maxNameLen]
+	}
+	if len(uid) > maxUIDLen {
+		uid = uid[:maxUIDLen]
+	}
+
+	return fmt.Sprintf("%s-%s-%s", namespace, name, uid)
 }
 
 // NewVKSClusterWatcher creates a new cluster watcher instance
