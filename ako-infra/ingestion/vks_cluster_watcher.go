@@ -23,6 +23,8 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/webhook"
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -177,7 +179,7 @@ func (w *VKSClusterWatcher) ProcessClusterEvent(key string) error {
 	if err != nil {
 		if errors.IsNotFound(err) {
 			utils.AviLog.Infof("Cluster deleted: %s", key)
-			return w.handleClusterDeletion(namespace, name)
+			return w.handleClusterDeletion(namespace, name, "")
 		}
 		return fmt.Errorf("failed to get cluster %s: %v", key, err)
 	}
@@ -196,7 +198,7 @@ func (w *VKSClusterWatcher) handleClusterAddOrUpdate(cluster *unstructured.Unstr
 	case ClusterPhaseProvisioning, ClusterPhaseProvisioned:
 		return w.HandleProvisionedCluster(cluster)
 	case ClusterPhaseDeleting:
-		return w.handleClusterDeletion(clusterNamespace, cluster.GetName())
+		return w.handleClusterDeletion(clusterNamespace, cluster.GetName(), clusterNameWithUID)
 	default:
 		utils.AviLog.Debugf("Cluster %s/%s (UID: %s) not in provisioning/provisioned state, skipping", clusterNamespace, cluster.GetName(), cluster.GetUID())
 		return nil
@@ -228,11 +230,11 @@ func (w *VKSClusterWatcher) HandleProvisionedCluster(cluster *unstructured.Unstr
 		}
 
 	case !shouldManage && secretExists:
-		utils.AviLog.Infof("Cleaning up VKS dependencies for cluster: %s/%s (UID: %s)", clusterNamespace, cluster.GetName(), cluster.GetUID())
-		if err := w.cleanupClusterSecret(ctx, cluster.GetName(), clusterNamespace); err != nil {
+		utils.AviLog.Infof("Cluster opted out of VKS management, cleaning up all VKS dependencies for cluster: %s/%s (UID: %s)", clusterNamespace, cluster.GetName(), cluster.GetUID())
+		if err := w.cleanupClusterDependencies(ctx, cluster.GetName(), clusterNamespace, clusterNameWithUID); err != nil {
 			return fmt.Errorf("failed to cleanup dependencies for cluster %s/%s (UID: %s): %v", clusterNamespace, cluster.GetName(), cluster.GetUID(), err)
 		}
-		utils.AviLog.Infof("Successfully cleaned up VKS dependencies for cluster: %s/%s (UID: %s)", clusterNamespace, cluster.GetName(), cluster.GetUID())
+		utils.AviLog.Infof("Successfully cleaned up all VKS dependencies for opted-out cluster: %s/%s (UID: %s)", clusterNamespace, cluster.GetName(), cluster.GetUID())
 
 	case !shouldManage && !secretExists:
 		// Should not manage and no secret exists - already in desired state
@@ -243,13 +245,13 @@ func (w *VKSClusterWatcher) HandleProvisionedCluster(cluster *unstructured.Unstr
 }
 
 // handleClusterDeletion handles cleanup for deleted clusters
-func (w *VKSClusterWatcher) handleClusterDeletion(namespace, name string) error {
+func (w *VKSClusterWatcher) handleClusterDeletion(namespace, name, clusterNameWithUID string) error {
 	utils.AviLog.Infof("Cleaning up dependencies for deleted cluster: %s/%s", namespace, name)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if err := w.cleanupClusterSecret(ctx, name, namespace); err != nil {
+	if err := w.cleanupClusterDependencies(ctx, name, namespace, clusterNameWithUID); err != nil {
 		utils.AviLog.Errorf("Failed to cleanup dependencies for cluster %s/%s: %v", namespace, name, err)
 		return err
 	}
@@ -267,11 +269,26 @@ func (w *VKSClusterWatcher) GetClusterPhase(cluster *unstructured.Unstructured) 
 	return status
 }
 
-// cleanupClusterSecret removes dependency resources for a deleted cluster
-func (w *VKSClusterWatcher) cleanupClusterSecret(ctx context.Context, clusterName, clusterNamespace string) error {
+// cleanupClusterDependencies removes all dependency resources for a deleted cluster
+func (w *VKSClusterWatcher) cleanupClusterDependencies(ctx context.Context, clusterName, clusterNamespace, clusterNameWithUID string) error {
 	utils.AviLog.Infof("Cleaning up VKS dependencies for cluster %s/%s", clusterNamespace, clusterName)
 
-	w.cleanupClusterSpecificRBAC(clusterName)
+	// If clusterNameWithUID is not provided, try to get it from the secret
+	if clusterNameWithUID == "" {
+		clusterNameWithUID = w.getClusterNameWithUIDFromSecret(clusterName, clusterNamespace)
+	}
+
+	if clusterNameWithUID != "" {
+		if err := w.cleanupAviObjects(clusterNameWithUID); err != nil {
+			utils.AviLog.Errorf("AVI objects cleanup failed for cluster %s/%s: %v", clusterNamespace, clusterName, err)
+		}
+
+		utils.AviLog.Infof("Cleaning up RBAC for cluster: %s", clusterNameWithUID)
+		w.cleanupClusterSpecificRBAC(clusterNameWithUID)
+		utils.AviLog.Infof("Successfully cleaned up RBAC for cluster: %s", clusterNameWithUID)
+	} else {
+		utils.AviLog.Infof("Could not determine cluster identifier for %s/%s - skipping AVI objects and RBAC cleanup", clusterNamespace, clusterName)
+	}
 
 	secretName := fmt.Sprintf("%s-avi-secret", clusterName)
 	err := w.kubeClient.CoreV1().Secrets(clusterNamespace).Delete(ctx, secretName, metav1.DeleteOptions{})
@@ -287,6 +304,24 @@ func (w *VKSClusterWatcher) cleanupClusterSecret(ctx context.Context, clusterNam
 
 	utils.AviLog.Infof("Completed cleanup of VKS dependencies for cluster %s/%s", clusterNamespace, clusterName)
 	return nil
+}
+
+// getClusterNameWithUIDFromSecret gets the cluster name with UID from the secret
+// This is used during cluster deletion when the cluster object might be gone
+func (w *VKSClusterWatcher) getClusterNameWithUIDFromSecret(clusterName, clusterNamespace string) string {
+	secretName := fmt.Sprintf("%s-avi-secret", clusterName)
+
+	secret, err := w.kubeClient.CoreV1().Secrets(clusterNamespace).Get(context.Background(), secretName, metav1.GetOptions{})
+	if err == nil && secret.Data != nil {
+		if clusterNameBytes, exists := secret.Data["clusterName"]; exists {
+			clusterNameWithUID := string(clusterNameBytes)
+			utils.AviLog.Debugf("Retrieved cluster name with UID from secret: %s", clusterNameWithUID)
+			return clusterNameWithUID
+		}
+	}
+
+	utils.AviLog.Warnf("Could not get cluster UID for %s/%s from secret", clusterNamespace, clusterName)
+	return ""
 }
 
 // cleanupClusterSpecificRBAC removes cluster-specific RBAC from Avi Controller
@@ -754,6 +789,38 @@ func StartVKSClusterWatcher(stopCh <-chan struct{}, dynamicInformers *lib.Dynami
 	<-stopCh
 	clusterWatcher.Stop()
 	utils.AviLog.Infof("VKS cluster watcher stopped")
+	return nil
+}
+
+// cleanupAviObjects removes all AVI objects created by the cluster
+func (w *VKSClusterWatcher) cleanupAviObjects(clusterNameWithUID string) error {
+	utils.AviLog.Infof("Cleaning up AVI objects for cluster: %s", clusterNameWithUID)
+
+	aviObjCache := avicache.SharedAviObjCache()
+	if aviObjCache == nil {
+		return fmt.Errorf("AVI object cache not available")
+	}
+
+	// Get all VS cache keys and filter for this cluster
+	var parentVSKeys []avicache.NamespaceName
+	vsCacheKeys := aviObjCache.VsCacheMeta.AviGetAllKeys()
+
+	for _, vsKey := range vsCacheKeys {
+		if strings.Contains(vsKey.Name, clusterNameWithUID) {
+			parentVSKeys = append(parentVSKeys, vsKey)
+		}
+	}
+
+	if len(parentVSKeys) == 0 {
+		utils.AviLog.Infof("No parent VS keys found for cluster %s", clusterNameWithUID)
+		return nil
+	}
+
+	utils.AviLog.Infof("Found %d parent VS keys for cluster %s", len(parentVSKeys), clusterNameWithUID)
+
+	k8s.DeleteAviObjects(parentVSKeys, aviObjCache)
+
+	utils.AviLog.Infof("Completed AVI object deletion for VKS cluster: %s", clusterNameWithUID)
 	return nil
 }
 
