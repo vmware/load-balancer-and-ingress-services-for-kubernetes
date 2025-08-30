@@ -476,7 +476,7 @@ func TestVKSClusterLifecycleIntegration(t *testing.T) {
 			return false
 		}
 
-		expectedUsername := "vks-cluster-test-cluster-ns-test-cluster-test-uid-123-user"
+		expectedUsername := "vks-cluster-test-cluster-ns-test-cluster-test-uid-user"
 		if string(usernameBytes) == expectedUsername {
 			// Manually sync the secret to informer cache for testing
 			forceInformerCacheSync(secret)

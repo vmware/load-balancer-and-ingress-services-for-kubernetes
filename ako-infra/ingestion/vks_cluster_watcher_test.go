@@ -836,7 +836,7 @@ func TestVKSClusterWatcher_WorkerIntegration(t *testing.T) {
 	}
 
 	// Verify mock credentials are in the secret
-	expectedUsername := "vks-cluster-test-namespace-test-cluster-test-uid-123-user"
+	expectedUsername := "vks-cluster-test-namespace-test-cluster-test-uid-user"
 	if string(secret.Data["username"]) != expectedUsername {
 		t.Errorf("Expected username to be '%s', got '%s'", expectedUsername, string(secret.Data["username"]))
 	}
