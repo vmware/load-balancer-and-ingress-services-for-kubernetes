@@ -399,6 +399,8 @@ func (c *CRDLister) UpdateL7RuleToHostRuleMapping(l7Rule string, hostRule string
 // HealthMonitor to L4Rule mapping functions
 
 func (c *CRDLister) GetHealthMonitorToL4RuleMapping(healthMonitor string) (bool, map[string]bool) {
+	c.NSLock.RLock()
+	defer c.NSLock.RUnlock()
 	found, l4Rules := c.HealthMonitorL4RuleCache.Get(healthMonitor)
 	if !found {
 		return false, make(map[string]bool)
@@ -409,17 +411,24 @@ func (c *CRDLister) GetHealthMonitorToL4RuleMapping(healthMonitor string) (bool,
 func (c *CRDLister) DeleteHealthMonitorToL4RuleMapping(healthMonitor string, l4Rule string) {
 	c.NSLock.Lock()
 	defer c.NSLock.Unlock()
-	found, l4Rules := c.GetHealthMonitorToL4RuleMapping(healthMonitor)
+	found, l4Rules := c.HealthMonitorL4RuleCache.Get(healthMonitor)
 	if found {
-		delete(l4Rules, l4Rule)
-		c.HealthMonitorL4RuleCache.AddOrUpdate(healthMonitor, l4Rules)
+		l4RulesMap := l4Rules.(map[string]bool)
+		delete(l4RulesMap, l4Rule)
+		c.HealthMonitorL4RuleCache.AddOrUpdate(healthMonitor, l4RulesMap)
 	}
 }
 
 func (c *CRDLister) UpdateHealthMonitorToL4RuleMapping(healthMonitor string, l4Rule string) {
 	c.NSLock.Lock()
 	defer c.NSLock.Unlock()
-	_, l4Rules := c.GetHealthMonitorToL4RuleMapping(healthMonitor)
-	l4Rules[l4Rule] = true
-	c.HealthMonitorL4RuleCache.AddOrUpdate(healthMonitor, l4Rules)
+	found, l4Rules := c.HealthMonitorL4RuleCache.Get(healthMonitor)
+	var l4RulesMap map[string]bool
+	if found {
+		l4RulesMap = l4Rules.(map[string]bool)
+	} else {
+		l4RulesMap = make(map[string]bool)
+	}
+	l4RulesMap[l4Rule] = true
+	c.HealthMonitorL4RuleCache.AddOrUpdate(healthMonitor, l4RulesMap)
 }

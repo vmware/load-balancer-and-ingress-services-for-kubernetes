@@ -162,7 +162,7 @@ func validatedBackendRefExtensions(backendFilters []*Filter, routeConditionResol
 			extensionRefType[kind] = struct{}{}
 			if kind == akogatewayapilib.HealthMonitorKind {
 				if filter.ExtensionRef.Name != "" {
-					_, ready, err := akogatewayapilib.IsHealthMonitorProcessed(key, backend.Namespace, string(filter.ExtensionRef.Name))
+					_, ready, err := lib.IsHealthMonitorProcessedWithOptions(key, backend.Namespace, string(filter.ExtensionRef.Name), akogatewayapilib.GetDynamicClientSet(), false)
 					if err != nil || !ready {
 						var errMsg string
 						if err != nil {

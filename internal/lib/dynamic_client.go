@@ -29,7 +29,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -202,73 +201,6 @@ func GetDynamicInformers() *DynamicInformers {
 		return nil
 	}
 	return dynamicInformerInstance
-}
-
-// IsHealthMonitorProcessed checks if HealthMonitor CRD is processed by AKO CRD Operator
-// Returns (processed, ready, error)
-func IsHealthMonitorProcessed(key, namespace, name string, obj ...*unstructured.Unstructured) (bool, bool, error) {
-	clientSet := GetDynamicClientSet()
-	if clientSet == nil {
-		return false, false, fmt.Errorf("internal error in fetching HealthMonitor %s/%s object", namespace, name)
-	}
-	var object *unstructured.Unstructured
-	var err error
-	if len(obj) == 0 {
-		object, err = clientSet.Resource(HealthMonitorGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
-				return false, false, fmt.Errorf("healthMonitor %s/%s not found", namespace, name)
-			}
-			return false, false, err
-		}
-	} else {
-		object = obj[0]
-	}
-
-	statusJSON, found, err := unstructured.NestedMap(object.UnstructuredContent(), "status")
-	if err != nil || !found {
-		utils.AviLog.Warnf("key: %s, msg: HealthMonitor %s/%s status not found: %+v", key, namespace, name, err)
-		return false, false, err
-	}
-	conditions, ok := statusJSON["conditions"]
-	if !ok || conditions.([]interface{}) == nil || len(conditions.([]interface{})) == 0 {
-		return false, false, fmt.Errorf("healthMonitor %s/%s is not processed by AKO CRD Operator", namespace, name)
-	}
-	processed, ready := false, false
-	deleted := false
-
-	for _, condition := range conditions.([]interface{}) {
-		conditionMap, ok := condition.(map[string]interface{})
-		if !ok {
-			continue
-		}
-
-		switch conditionMap["type"] {
-		case "Ready":
-			processed = true
-			if conditionMap["status"] == "True" {
-				ready = true
-			}
-		case "Deleted":
-			if conditionMap["status"] == "False" {
-				// HealthMonitor is being deleted (finalizer prevents actual deletion)
-				// This indicates the object is marked for deletion but still exists
-				deleted = true
-				utils.AviLog.Debugf("key: %s, msg: HealthMonitor %s/%s is being deleted (Deleted condition status=False)", key, namespace, name)
-			}
-		}
-	}
-
-	// If HealthMonitor is being deleted, treat it as not ready
-	if deleted {
-		return processed, false, fmt.Errorf("healthMonitor %s/%s is being deleted", namespace, name)
-	}
-
-	if processed {
-		return true, ready, nil
-	}
-
-	return false, false, nil
 }
 
 func GetNetworkInfoCRData() (map[string]string, map[string]string, map[string]map[string]struct{}) {

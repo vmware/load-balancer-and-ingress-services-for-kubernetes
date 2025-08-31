@@ -979,7 +979,7 @@ func buildPoolWithL4Rule(key string, pool *AviPoolNode, l4Rule *akov1alpha2.L4Ru
 
 // buildPoolWithHealthMonitorCrdRefs processes healthMonitorCrdRefs field from L4Rule to apply HealthMonitor CRDs to pools
 func buildPoolWithHealthMonitorCrdRefs(key string, poolNode *AviPoolNode, backendProperty *akov1alpha2.BackendProperties, namespace, l4RuleName string) {
-	if backendProperty == nil || backendProperty.HealthMonitorCrdRefs == nil || len(backendProperty.HealthMonitorCrdRefs) == 0 {
+	if backendProperty == nil || len(backendProperty.HealthMonitorCrdRefs) == 0 {
 		return
 	}
 

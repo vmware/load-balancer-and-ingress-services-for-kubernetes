@@ -953,7 +953,7 @@ func validateHealthMonitorForL4Rule(key, namespace, healthMonitorName string, ba
 	}
 
 	// Check if HealthMonitor is processed by AKO CRD Operator using existing function
-	processed, ready, err := lib.IsHealthMonitorProcessed(key, namespace, healthMonitorName, object)
+	processed, ready, err := lib.IsHealthMonitorProcessedWithOptions(key, namespace, healthMonitorName, lib.GetDynamicClientSet(), true, object)
 	if err != nil {
 		return fmt.Errorf("HealthMonitor validation failed for %s/%s: %v", namespace, healthMonitorName, err)
 	}

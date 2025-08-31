@@ -1476,14 +1476,12 @@ func (c *AviController) cleanupHealthMonitorToL4RuleMappings(key, l4RuleNsName s
 	// Extract HealthMonitor references from the deleted L4Rule's healthMonitorCrdRefs
 	if l4Rule.Spec.BackendProperties != nil {
 		for _, backendProperty := range l4Rule.Spec.BackendProperties {
-			if backendProperty.HealthMonitorCrdRefs != nil {
-				for _, healthMonitorName := range backendProperty.HealthMonitorCrdRefs {
-					if healthMonitorName != "" {
-						// Remove this L4Rule from the HealthMonitor mapping
-						healthMonitorNsName := l4Rule.Namespace + "/" + healthMonitorName
-						objects.SharedCRDLister().DeleteHealthMonitorToL4RuleMapping(healthMonitorNsName, l4RuleNsName)
-						utils.AviLog.Debugf("key: %s, msg: Removed L4Rule %s from HealthMonitor %s mapping", key, l4RuleNsName, healthMonitorNsName)
-					}
+			for _, healthMonitorName := range backendProperty.HealthMonitorCrdRefs {
+				if healthMonitorName != "" {
+					// Remove this L4Rule from the HealthMonitor mapping
+					healthMonitorNsName := l4Rule.Namespace + "/" + healthMonitorName
+					objects.SharedCRDLister().DeleteHealthMonitorToL4RuleMapping(healthMonitorNsName, l4RuleNsName)
+					utils.AviLog.Infof("key: %s, msg: Removed L4Rule %s from HealthMonitor %s mapping", key, l4RuleNsName, healthMonitorNsName)
 				}
 			}
 		}
@@ -1509,7 +1507,7 @@ func (c *AviController) processL4RulesForHealthMonitor(key, namespace, healthMon
 			// Check if L4Rule still exists and get the object for validation
 			l4RuleObj, err := lib.AKOControlConfig().CRDInformers().L4RuleInformer.Lister().L4Rules(l4RuleNamespace).Get(l4RuleName)
 			if err != nil {
-				utils.AviLog.Debugf("key: %s, msg: L4Rule %s not found, removing from mapping", key, l4RuleNsName)
+				utils.AviLog.Warnf("key: %s, msg: L4Rule %s not found, removing from mapping", key, l4RuleNsName)
 				objects.SharedCRDLister().DeleteHealthMonitorToL4RuleMapping(healthMonitorNsName, l4RuleNsName)
 				continue
 			}
@@ -1517,7 +1515,7 @@ func (c *AviController) processL4RulesForHealthMonitor(key, namespace, healthMon
 			// Validate L4Rule before queuing (important for previously rejected L4Rules)
 			l4RuleKey := lib.L4Rule + "/" + l4RuleNsName
 			if err := c.GetValidator().ValidateL4RuleObj(l4RuleKey, l4RuleObj); err != nil {
-				utils.AviLog.Debugf("key: %s, msg: L4Rule %s validation failed, not queuing: %v", key, l4RuleKey, err)
+				utils.AviLog.Warnf("key: %s, msg: L4Rule %s validation failed, not queuing: %v", key, l4RuleKey, err)
 				continue
 			}
 
