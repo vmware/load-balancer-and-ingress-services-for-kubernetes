@@ -27,6 +27,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"k8s.io/apimachinery/pkg/labels"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -48,6 +49,8 @@ const (
 
 	// VKS cluster watcher configuration
 	VKSClusterWorkQueue = "vks-cluster-watcher"
+
+	VKSReconcileInterval = 5 * time.Minute
 )
 
 // VKSClusterConfig holds all the configuration needed for a VKS cluster's AKO deployment
@@ -72,11 +75,21 @@ type VKSClusterConfig struct {
 	ClusterName string
 }
 
+// VKSSecretInfo holds information about a VKS secret
+type VKSSecretInfo struct {
+	Name               string
+	Namespace          string
+	ClusterNameWithUID string
+}
+
 // VKSClusterWatcher monitors cluster lifecycle events for AKO addon management
 type VKSClusterWatcher struct {
 	kubeClient    kubernetes.Interface
 	dynamicClient dynamic.Interface
 	workqueue     workqueue.RateLimitingInterface //nolint:staticcheck
+
+	reconcileTicker *time.Ticker
+	reconcileStopCh chan struct{}
 
 	// For testing - allows injecting mock behavior
 	testMode            bool
@@ -114,9 +127,10 @@ func NewVKSClusterWatcher(kubeClient kubernetes.Interface, dynamicClient dynamic
 	)
 
 	watcher := &VKSClusterWatcher{
-		kubeClient:    kubeClient,
-		dynamicClient: dynamicClient,
-		workqueue:     workqueue,
+		kubeClient:      kubeClient,
+		dynamicClient:   dynamicClient,
+		workqueue:       workqueue,
+		reconcileStopCh: make(chan struct{}),
 	}
 
 	return watcher
@@ -126,13 +140,18 @@ func NewVKSClusterWatcher(kubeClient kubernetes.Interface, dynamicClient dynamic
 func (w *VKSClusterWatcher) Start(stopCh <-chan struct{}) error {
 	utils.AviLog.Infof("Starting cluster watcher")
 	go w.runWorker()
-	utils.AviLog.Infof("Cluster watcher started successfully")
+
+	w.startPeriodicReconciler()
+
+	utils.AviLog.Infof("Cluster watcher started successfully with periodic reconciliation every %v", VKSReconcileInterval)
 	return nil
 }
 
 // Stop gracefully shuts down the cluster watcher
 func (w *VKSClusterWatcher) Stop() {
 	utils.AviLog.Infof("Stopping cluster watcher")
+
+	w.stopPeriodicReconciler()
 
 	w.workqueue.ShutDown()
 	utils.AviLog.Infof("Cluster watcher stopped")
@@ -193,13 +212,18 @@ func (w *VKSClusterWatcher) ProcessClusterEvent(key string) error {
 		return nil
 	}
 
-	cluster, err := w.dynamicClient.Resource(lib.ClusterGVR).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	obj, err := lib.GetDynamicInformers().ClusterInformer.Lister().ByNamespace(namespace).Get(name)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			utils.AviLog.Infof("Cluster deleted: %s", key)
 			return w.handleClusterDeletion(namespace, name, "")
 		}
 		return fmt.Errorf("failed to get cluster %s: %v", key, err)
+	}
+
+	cluster, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		return fmt.Errorf("unexpected object type for cluster %s: %T", key, obj)
 	}
 
 	return w.handleClusterAddOrUpdate(cluster)
@@ -291,7 +315,7 @@ func (w *VKSClusterWatcher) GetClusterPhase(cluster *unstructured.Unstructured) 
 func (w *VKSClusterWatcher) cleanupClusterDependencies(ctx context.Context, clusterName, clusterNamespace, clusterNameWithUID string) error {
 	utils.AviLog.Infof("Cleaning up VKS dependencies for cluster %s/%s", clusterNamespace, clusterName)
 
-	// If clusterNameWithUID is not provided, try to get it from the secret
+	secretName := fmt.Sprintf("%s-avi-secret", clusterName)
 	if clusterNameWithUID == "" {
 		clusterNameWithUID = w.getClusterNameWithUIDFromSecret(clusterName, clusterNamespace)
 	}
@@ -299,16 +323,16 @@ func (w *VKSClusterWatcher) cleanupClusterDependencies(ctx context.Context, clus
 	if clusterNameWithUID != "" {
 		if err := w.cleanupAviObjects(clusterNameWithUID); err != nil {
 			utils.AviLog.Errorf("AVI objects cleanup failed for cluster %s/%s: %v", clusterNamespace, clusterName, err)
+			return fmt.Errorf("AVI objects cleanup failed, keeping secret for retry: %v", err)
 		}
 
 		utils.AviLog.Infof("Cleaning up RBAC for cluster: %s", clusterNameWithUID)
 		w.cleanupClusterSpecificRBAC(clusterNameWithUID)
 		utils.AviLog.Infof("Successfully cleaned up RBAC for cluster: %s", clusterNameWithUID)
 	} else {
-		utils.AviLog.Infof("Could not determine cluster identifier for %s/%s - skipping AVI objects and RBAC cleanup", clusterNamespace, clusterName)
+		utils.AviLog.Infof("Could not determine cluster identifier for %s/%s - likely already cleaned up", clusterNamespace, clusterName)
 	}
 
-	secretName := fmt.Sprintf("%s-avi-secret", clusterName)
 	err := w.kubeClient.CoreV1().Secrets(clusterNamespace).Delete(ctx, secretName, metav1.DeleteOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -317,7 +341,7 @@ func (w *VKSClusterWatcher) cleanupClusterDependencies(ctx context.Context, clus
 			utils.AviLog.Warnf("Failed to delete Avi credentials secret %s/%s: %v", clusterNamespace, secretName, err)
 		}
 	} else {
-		utils.AviLog.Infof("Deleted Avi credentials secret %s/%s", clusterNamespace, secretName)
+		utils.AviLog.Infof("Deleted Avi credentials secret %s/%s after successful cleanup", clusterNamespace, secretName)
 	}
 
 	utils.AviLog.Infof("Completed cleanup of VKS dependencies for cluster %s/%s", clusterNamespace, clusterName)
@@ -329,7 +353,7 @@ func (w *VKSClusterWatcher) cleanupClusterDependencies(ctx context.Context, clus
 func (w *VKSClusterWatcher) getClusterNameWithUIDFromSecret(clusterName, clusterNamespace string) string {
 	secretName := fmt.Sprintf("%s-avi-secret", clusterName)
 
-	secret, err := w.kubeClient.CoreV1().Secrets(clusterNamespace).Get(context.Background(), secretName, metav1.GetOptions{})
+	secret, err := utils.GetInformers().SecretInformer.Lister().Secrets(clusterNamespace).Get(secretName)
 	if err == nil && secret.Data != nil {
 		if clusterNameBytes, exists := secret.Data["clusterName"]; exists {
 			clusterNameWithUID := string(clusterNameBytes)
@@ -434,7 +458,7 @@ type NamespaceConfig struct {
 
 // getNamespaceConfig fetches namespace and extracts all required configuration in a single call
 func (w *VKSClusterWatcher) getNamespaceConfig(clusterNamespace string) (*NamespaceConfig, error) {
-	namespace, err := w.kubeClient.CoreV1().Namespaces().Get(context.Background(), clusterNamespace, metav1.GetOptions{})
+	namespace, err := utils.GetInformers().NSInformer.Lister().Get(clusterNamespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get namespace %s: %v", clusterNamespace, err)
 	}
@@ -525,7 +549,7 @@ func (w *VKSClusterWatcher) buildVKSClusterConfig(cluster *unstructured.Unstruct
 		ClusterName:         clusterNameWithUID,
 		VPCMode:             true,
 		DedicatedTenantMode: true,
-		Managed:             true,
+		Managed:             false, // Will enable this once the proxy feature is ready
 	}
 
 	if config.ControllerVersion == "" {
@@ -846,4 +870,166 @@ func (w *VKSClusterWatcher) cleanupAviObjects(clusterNameWithUID string) error {
 func (w *VKSClusterWatcher) SetTestMode(mockFunc func(string, string) (*lib.ClusterCredentials, error)) {
 	w.testMode = true
 	w.mockCredentialsFunc = mockFunc
+}
+
+func (w *VKSClusterWatcher) startPeriodicReconciler() {
+	utils.AviLog.Infof("Starting VKS periodic reconciler with interval %v", VKSReconcileInterval)
+
+	w.reconcileTicker = time.NewTicker(VKSReconcileInterval)
+
+	go func() {
+		for {
+			select {
+			case <-w.reconcileTicker.C:
+				utils.AviLog.Debugf("VKS periodic reconciler: starting reconciliation cycle")
+				w.reconcileAllClusters()
+			case <-w.reconcileStopCh:
+				utils.AviLog.Infof("VKS periodic reconciler: stopping")
+				return
+			}
+		}
+	}()
+}
+
+func (w *VKSClusterWatcher) stopPeriodicReconciler() {
+	if w.reconcileTicker != nil {
+		w.reconcileTicker.Stop()
+		w.reconcileTicker = nil
+	}
+
+	close(w.reconcileStopCh)
+	utils.AviLog.Infof("VKS periodic reconciler stopped")
+}
+
+// reconcileAllClusters performs periodic reconciliation of all VKS-managed clusters
+func (w *VKSClusterWatcher) reconcileAllClusters() {
+	utils.AviLog.Debugf("VKS reconciler: starting reconciliation cycle")
+
+	clusterObjects, err := lib.GetDynamicInformers().ClusterInformer.Lister().List(labels.Everything())
+	if err != nil {
+		utils.AviLog.Errorf("VKS reconciler: failed to list clusters: %v", err)
+		return
+	}
+
+	activeVKSClusters := make(map[string]bool)
+
+	for _, obj := range clusterObjects {
+		cluster, ok := obj.(*unstructured.Unstructured)
+		if !ok {
+			utils.AviLog.Warnf("VKS reconciler: unexpected object type in cluster list: %T", obj)
+			continue
+		}
+
+		labels := cluster.GetLabels()
+		shouldManage := labels != nil && labels[webhook.VKSManagedLabel] == webhook.VKSManagedLabelValueTrue
+
+		phase := w.GetClusterPhase(cluster)
+
+		if shouldManage {
+			clusterNameWithUID := w.getUniqueClusterName(cluster)
+			activeVKSClusters[clusterNameWithUID] = true
+
+			if phase == ClusterPhaseProvisioning || phase == ClusterPhaseProvisioned {
+				utils.AviLog.Debugf("VKS reconciler: reconciling cluster %s/%s (phase: %s)",
+					cluster.GetNamespace(), cluster.GetName(), phase)
+				w.EnqueueCluster(cluster, "RECONCILE")
+			}
+		}
+	}
+
+	// Clean up orphaned AVI objects for deleted VKS clusters
+	orphanedCount := w.cleanupOrphanedAviObjects(activeVKSClusters)
+
+	if orphanedCount > 0 {
+		utils.AviLog.Infof("VKS reconciler: completed reconciliation cycle - orphaned cleaned: %d",
+			orphanedCount)
+	}
+}
+
+// cleanupOrphanedAviObjects identifies and cleans up AVI objects belonging to deleted VKS clusters
+func (w *VKSClusterWatcher) cleanupOrphanedAviObjects(activeVKSClusters map[string]bool) int {
+	utils.AviLog.Debugf("VKS reconciler: checking for orphaned AVI objects")
+
+	orphanedSecrets := w.findOrphanedVKSSecrets(activeVKSClusters)
+	if len(orphanedSecrets) == 0 {
+		return 0
+	}
+
+	totalOrphanedCount := 0
+	for _, secretInfo := range orphanedSecrets {
+		clusterNameWithUID := secretInfo.ClusterNameWithUID
+		utils.AviLog.Infof("VKS reconciler: processing orphaned cluster %s from secret %s/%s",
+			clusterNameWithUID, secretInfo.Namespace, secretInfo.Name)
+
+		utils.AviLog.Infof("VKS reconciler: cleaning up orphaned AVI objects for deleted cluster %s", clusterNameWithUID)
+
+		if err := w.cleanupAviObjects(clusterNameWithUID); err != nil {
+			utils.AviLog.Errorf("VKS reconciler: failed to cleanup AVI objects for cluster %s: %v", clusterNameWithUID, err)
+			continue
+		}
+
+		w.cleanupClusterSpecificRBAC(clusterNameWithUID)
+
+		err := w.kubeClient.CoreV1().Secrets(secretInfo.Namespace).Delete(context.Background(), secretInfo.Name, metav1.DeleteOptions{})
+		if err != nil && !errors.IsNotFound(err) {
+			utils.AviLog.Warnf("VKS reconciler: failed to delete orphaned secret %s/%s: %v",
+				secretInfo.Namespace, secretInfo.Name, err)
+		} else {
+			utils.AviLog.Infof("VKS reconciler: deleted orphaned secret %s/%s for cluster %s",
+				secretInfo.Namespace, secretInfo.Name, clusterNameWithUID)
+		}
+
+		totalOrphanedCount++
+	}
+
+	if totalOrphanedCount > 0 {
+		utils.AviLog.Infof("VKS reconciler: cleaned up %d orphaned clusters", totalOrphanedCount)
+	}
+
+	return totalOrphanedCount
+}
+
+// findOrphanedVKSSecrets finds VKS secrets for clusters that no longer exist
+func (w *VKSClusterWatcher) findOrphanedVKSSecrets(activeVKSClusters map[string]bool) []VKSSecretInfo {
+	var orphanedSecrets []VKSSecretInfo
+
+	namespaces, err := utils.GetInformers().NSInformer.Lister().List(labels.Everything())
+	if err != nil {
+		utils.AviLog.Warnf("VKS reconciler: failed to list namespaces from cache for orphaned secret discovery: %v", err)
+		return orphanedSecrets
+	}
+
+	for _, namespace := range namespaces {
+		secrets, err := utils.GetInformers().SecretInformer.Lister().Secrets(namespace.Name).List(labels.SelectorFromSet(labels.Set{
+			"ako.kubernetes.vmware.com/managed-by": "ako-infra",
+		}))
+		if err != nil {
+			utils.AviLog.Debugf("VKS reconciler: failed to list secrets from cache in namespace %s: %v", namespace.Name, err)
+			continue
+		}
+
+		for _, secret := range secrets {
+			if clusterNameData, exists := secret.Data["clusterName"]; exists {
+				clusterNameWithUID := string(clusterNameData)
+
+				// Check if this cluster is still active
+				if !activeVKSClusters[clusterNameWithUID] {
+					utils.AviLog.Debugf("VKS reconciler: found orphaned secret %s/%s for deleted cluster %s",
+						namespace.Name, secret.Name, clusterNameWithUID)
+
+					orphanedSecrets = append(orphanedSecrets, VKSSecretInfo{
+						Name:               secret.Name,
+						Namespace:          namespace.Name,
+						ClusterNameWithUID: clusterNameWithUID,
+					})
+				}
+			}
+		}
+	}
+
+	if len(orphanedSecrets) > 0 {
+		utils.AviLog.Infof("VKS reconciler: found %d orphaned secrets for deleted clusters", len(orphanedSecrets))
+	}
+
+	return orphanedSecrets
 }
