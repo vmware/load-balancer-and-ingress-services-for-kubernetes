@@ -17,7 +17,9 @@ package lib
 import (
 	"crypto/rand"
 	"fmt"
+	"strings"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/models"
 
@@ -91,14 +93,6 @@ var akoAllTenantsPermissions = []AKOPermission{
 	{"PERMISSION_TENANT", "READ_ACCESS"},
 }
 
-func pointerBool(b bool) *bool {
-	return &b
-}
-
-func pointerString(s string) *string {
-	return &s
-}
-
 // validateRolePermissions compares existing role permissions with expected AKO permissions
 func validateRolePermissions(existingRole *models.Role, expectedPermissions []AKOPermission) error {
 	if existingRole.Privileges == nil {
@@ -118,16 +112,25 @@ func validateRolePermissions(existingRole *models.Role, expectedPermissions []AK
 	}
 
 	var missingPerms []string
+	var mismatchedPerms []string
 	for resource, expectedType := range expectedPermsMap {
 		if existingType, exists := existingPermsMap[resource]; !exists {
 			missingPerms = append(missingPerms, fmt.Sprintf("%s:%s", resource, expectedType))
 		} else if existingType != expectedType {
-			return fmt.Errorf("permission mismatch for %s: expected %s, got %s", resource, expectedType, existingType)
+			mismatchedPerms = append(mismatchedPerms, fmt.Sprintf("%s: expected %s, got %s", resource, expectedType, existingType))
 		}
 	}
 
+	var permissionErrors []string
 	if len(missingPerms) > 0 {
-		return fmt.Errorf("missing permissions: %v", missingPerms)
+		permissionErrors = append(permissionErrors, fmt.Sprintf("missing permissions: %v", missingPerms))
+	}
+	if len(mismatchedPerms) > 0 {
+		permissionErrors = append(permissionErrors, fmt.Sprintf("permission mismatches: %v", mismatchedPerms))
+	}
+
+	if len(permissionErrors) > 0 {
+		return fmt.Errorf("permission validation failed: %s", strings.Join(permissionErrors, "; "))
 	}
 
 	var extraPerms []string
@@ -178,8 +181,8 @@ func createRole(aviClient *clients.AviClient, permissions []AKOPermission,
 	role := &models.Role{
 		Name:                  &roleName,
 		Privileges:            privileges,
-		TenantRef:             pointerString(fmt.Sprintf("/api/tenant/?name=%s", tenantName)),
-		AllowUnlabelledAccess: pointerBool(true),
+		TenantRef:             proto.String(fmt.Sprintf("/api/tenant/?name=%s", tenantName)),
+		AllowUnlabelledAccess: proto.Bool(true),
 	}
 
 	if clusterFilter != nil {
@@ -225,12 +228,12 @@ func CreateClusterRoles(aviClient *clients.AviClient, clusterName, operationalTe
 	}
 
 	clusterFilter := &models.RoleFilter{
-		MatchOperation: pointerString("ROLE_FILTER_EQUALS"),
+		MatchOperation: proto.String("ROLE_FILTER_EQUALS"),
 		MatchLabel: &models.RoleFilterMatchLabel{
-			Key:    pointerString("clustername"),
+			Key:    proto.String("clustername"),
 			Values: []string{clusterName},
 		},
-		Enabled: pointerBool(true),
+		Enabled: proto.Bool(true),
 	}
 
 	tenantRoleName := fmt.Sprintf("%s-tenant-role", clusterName)
@@ -283,15 +286,15 @@ func CreateClusterUserWithRoles(aviClient *clients.AviClient, clusterName string
 	userAccess := []*models.UserRole{
 		{
 			RoleRef:   roles.AdminRole.UUID,
-			TenantRef: pointerString("/api/tenant/?name=admin"),
+			TenantRef: proto.String("/api/tenant/?name=admin"),
 		},
 		{
 			RoleRef:   roles.TenantRole.UUID,
-			TenantRef: pointerString(fmt.Sprintf("/api/tenant/?name=%s", operationalTenant)),
+			TenantRef: proto.String(fmt.Sprintf("/api/tenant/?name=%s", operationalTenant)),
 		},
 		{
 			RoleRef:    roles.AllTenantsRole.UUID,
-			AllTenants: pointerBool(true),
+			AllTenants: proto.Bool(true),
 		},
 	}
 
@@ -299,7 +302,7 @@ func CreateClusterUserWithRoles(aviClient *clients.AviClient, clusterName string
 		Name:             &userName,
 		Username:         &userName,
 		Password:         &password,
-		DefaultTenantRef: pointerString(fmt.Sprintf("/api/tenant/?name=%s", operationalTenant)),
+		DefaultTenantRef: proto.String(fmt.Sprintf("/api/tenant/?name=%s", operationalTenant)),
 		Access:           userAccess,
 	}
 

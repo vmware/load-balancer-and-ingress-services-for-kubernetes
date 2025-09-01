@@ -49,6 +49,13 @@ const (
 	VKSManagedLabel           = "ako.kubernetes.vmware.com/install"
 	VKSManagedLabelValueTrue  = "true"
 	VKSManagedLabelValueFalse = "false"
+
+	WebhookName            = "ako-vks-cluster-webhook"
+	WebhookServiceName     = "ako-vks-webhook-service"
+	WebhookPath            = "/ako-vks-mutate-cluster-x-k8s-io"
+	WebhookIssuerName      = "ako-vks-webhook-selfsigned-issuer"
+	WebhookCertificateName = "ako-vks-webhook-serving-cert"
+	WebhookCertSecretName  = "ako-vks-webhook-serving-cert"
 )
 
 var vksWebhookOnce sync.Once
@@ -295,7 +302,7 @@ func (w *VKSClusterWebhook) createVKSLabelPatch(cluster *unstructured.Unstructur
 		patches = append(patches, map[string]interface{}{
 			"op":   "add",
 			"path": "/metadata/labels",
-			"value": map[string]string{
+			"value": map[string]interface{}{
 				VKSManagedLabel: VKSManagedLabelValueTrue,
 			},
 		})
@@ -382,7 +389,7 @@ func createWebhookIssuer(dynamicClient dynamic.Interface, namespace string) erro
 		Resource: "issuers",
 	}
 
-	issuerName := "ako-vks-webhook-selfsigned-issuer"
+	issuerName := WebhookIssuerName
 
 	// Check if issuer already exists
 	_, err := dynamicClient.Resource(issuerGVR).Namespace(namespace).Get(
@@ -429,8 +436,8 @@ func createWebhookCertificate(dynamicClient dynamic.Interface, namespace string)
 		Resource: "certificates",
 	}
 
-	certificateName := "ako-vks-webhook-serving-cert"
-	serviceName := "ako-vks-webhook-service"
+	certificateName := WebhookCertificateName
+	serviceName := WebhookServiceName
 
 	_, err := dynamicClient.Resource(certificateGVR).Namespace(namespace).Get(
 		context.TODO(), certificateName, metav1.GetOptions{})
@@ -458,7 +465,7 @@ func createWebhookCertificate(dynamicClient dynamic.Interface, namespace string)
 				},
 				"issuerRef": map[string]interface{}{
 					"kind": "Issuer",
-					"name": "ako-vks-webhook-selfsigned-issuer",
+					"name": WebhookIssuerName,
 				},
 				"secretName":  certificateName,
 				"duration":    "2160h", // 90 days
@@ -480,7 +487,7 @@ func createWebhookCertificate(dynamicClient dynamic.Interface, namespace string)
 func waitForWebhookCertificates(kubeClient kubernetes.Interface, namespace string) error {
 	secretName := os.Getenv("VKS_WEBHOOK_CERT_SECRET")
 	if secretName == "" {
-		secretName = "ako-vks-webhook-serving-cert"
+		secretName = WebhookCertSecretName
 	}
 
 	utils.AviLog.Debugf("Checking webhook certificate secret '%s'...", secretName)
@@ -541,7 +548,7 @@ func StartWebhookServer(webhook *VKSClusterWebhook, stopCh <-chan struct{}) erro
 	keyPath := filepath.Join(certDir, "tls.key")
 
 	mux := http.NewServeMux()
-	mux.Handle("/ako-vks-mutate-cluster-x-k8s-io", webhook)
+	mux.Handle(WebhookPath, webhook)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
@@ -585,10 +592,10 @@ func StartWebhookServer(webhook *VKSClusterWebhook, stopCh <-chan struct{}) erro
 
 // CreateWebhookConfiguration creates the MutatingWebhookConfiguration
 func CreateWebhookConfiguration(kubeClient kubernetes.Interface) error {
-	webhookName := "ako-vks-cluster-webhook"
-	serviceName := "ako-vks-webhook-service"
+	webhookName := WebhookName
+	serviceName := WebhookServiceName
 	serviceNamespace := utils.GetAKONamespace()
-	webhookPath := "/ako-vks-mutate-cluster-x-k8s-io"
+	webhookPath := WebhookPath
 	failurePolicy := admissionregistrationv1.Fail
 	sideEffects := admissionregistrationv1.SideEffectClassNone
 
@@ -625,7 +632,7 @@ func CreateWebhookConfiguration(kubeClient kubernetes.Interface) error {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: webhookName,
 					Annotations: map[string]string{
-						"cert-manager.io/inject-ca-from": fmt.Sprintf("%s/ako-vks-webhook-serving-cert", serviceNamespace),
+						"cert-manager.io/inject-ca-from": fmt.Sprintf("%s/%s", serviceNamespace, WebhookCertSecretName),
 					},
 				},
 				Webhooks: []admissionregistrationv1.MutatingWebhook{webhook},
@@ -673,12 +680,20 @@ func waitForCertificates(certDir string, timeout time.Duration) error {
 
 // filesExist checks if certificate files exist
 func filesExist(certPath, keyPath string) bool {
-	if _, err := os.Stat(certPath); os.IsNotExist(err) {
-		utils.AviLog.Debugf("VKS webhook: certificate file does not exist: %s", certPath)
+	if _, err := os.Stat(certPath); err != nil {
+		if os.IsNotExist(err) {
+			utils.AviLog.Debugf("VKS webhook: certificate file does not exist: %s", certPath)
+		} else {
+			utils.AviLog.Warnf("VKS webhook: error checking certificate file %s: %v", certPath, err)
+		}
 		return false
 	}
-	if _, err := os.Stat(keyPath); os.IsNotExist(err) {
-		utils.AviLog.Debugf("VKS webhook: key file does not exist: %s", keyPath)
+	if _, err := os.Stat(keyPath); err != nil {
+		if os.IsNotExist(err) {
+			utils.AviLog.Debugf("VKS webhook: key file does not exist: %s", keyPath)
+		} else {
+			utils.AviLog.Warnf("VKS webhook: error checking key file %s: %v", keyPath, err)
+		}
 		return false
 	}
 
@@ -688,7 +703,7 @@ func filesExist(certPath, keyPath string) bool {
 
 // CleanupWebhookConfiguration deletes the MutatingWebhookConfiguration
 func CleanupWebhookConfiguration(kubeClient kubernetes.Interface) error {
-	webhookName := "ako-vks-cluster-webhook"
+	webhookName := WebhookName
 
 	utils.AviLog.Infof("VKS webhook: deleting MutatingWebhookConfiguration '%s'", webhookName)
 
@@ -734,7 +749,7 @@ func CleanupCertManagerResources(kubeClient kubernetes.Interface) error {
 		Resource: "certificates",
 	}
 
-	certificateName := "ako-vks-webhook-serving-cert"
+	certificateName := WebhookCertificateName
 	utils.AviLog.Infof("VKS webhook: deleting Certificate '%s'", certificateName)
 
 	err := dynamicClient.Resource(certificateGVR).Namespace(namespace).Delete(
@@ -749,7 +764,7 @@ func CleanupCertManagerResources(kubeClient kubernetes.Interface) error {
 		utils.AviLog.Infof("VKS webhook: successfully deleted Certificate '%s'", certificateName)
 	}
 
-	issuerName := "ako-vks-webhook-selfsigned-issuer"
+	issuerName := WebhookIssuerName
 	utils.AviLog.Infof("VKS webhook: deleting Issuer '%s'", issuerName)
 
 	err = dynamicClient.Resource(issuerGVR).Namespace(namespace).Delete(

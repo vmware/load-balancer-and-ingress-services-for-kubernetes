@@ -549,9 +549,9 @@ func TestVKSClusterWebhook_CreateVKSLabelPatch_NoExistingLabels(t *testing.T) {
 	}
 
 	// Verify the value
-	value, ok := patch["value"].(map[string]string)
+	value, ok := patch["value"].(map[string]interface{})
 	if !ok {
-		t.Errorf("Expected value to be map[string]string")
+		t.Errorf("Expected value to be map[string]interface{}")
 	}
 	if value[VKSManagedLabel] != VKSManagedLabelValueTrue {
 		t.Errorf("Expected label value '%s', got '%s'", VKSManagedLabelValueTrue, value[VKSManagedLabel])

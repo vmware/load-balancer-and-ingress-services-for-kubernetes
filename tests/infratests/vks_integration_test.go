@@ -491,7 +491,7 @@ func TestVKSClusterLifecycleIntegration(t *testing.T) {
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 
-	err = clusterWatcher.Start(stopCh)
+	err = clusterWatcher.Start()
 	if err != nil {
 		t.Fatalf("Failed to start cluster watcher: %v", err)
 	}
@@ -632,7 +632,7 @@ func TestVKSEndToEndIntegration(t *testing.T) {
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 
-	err = clusterWatcher.Start(stopCh)
+	err = clusterWatcher.Start()
 	if err != nil {
 		t.Fatalf("Failed to start cluster watcher: %v", err)
 	}
@@ -883,7 +883,7 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 
 	stopCh := make(chan struct{})
 
-	err = clusterWatcher.Start(stopCh)
+	err = clusterWatcher.Start()
 	if err != nil {
 		t.Fatalf("Failed to start cluster watcher: %v", err)
 	}
