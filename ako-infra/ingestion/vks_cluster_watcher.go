@@ -103,7 +103,7 @@ func (w *VKSClusterWatcher) getUniqueClusterName(cluster *unstructured.Unstructu
 	uid := cluster.GetUID()
 
 	maxNamespaceLen := 15
-	maxNameLen := 25
+	maxNameLen := 15
 	maxUIDLen := 8
 
 	if len(namespace) > maxNamespaceLen {
@@ -137,7 +137,7 @@ func NewVKSClusterWatcher(kubeClient kubernetes.Interface, dynamicClient dynamic
 }
 
 // Start begins cluster watcher operation
-func (w *VKSClusterWatcher) Start(stopCh <-chan struct{}) error {
+func (w *VKSClusterWatcher) Start() error {
 	utils.AviLog.Infof("Starting cluster watcher")
 	go w.runWorker()
 
@@ -262,8 +262,17 @@ func (w *VKSClusterWatcher) HandleProvisionedCluster(cluster *unstructured.Unstr
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	secretExists := false
 	_, err := utils.GetInformers().SecretInformer.Lister().Secrets(clusterNamespace).Get(secretName)
-	secretExists := err == nil
+	if err != nil {
+		if errors.IsNotFound(err) {
+			utils.AviLog.Debugf("Secret %s/%s does not exist", clusterNamespace, secretName)
+		} else {
+			utils.AviLog.Warnf("Failed to check secret %s/%s: %v", clusterNamespace, secretName, err)
+		}
+	} else {
+		secretExists = true
+	}
 
 	switch {
 	case shouldManage:
@@ -430,7 +439,7 @@ func (w *VKSClusterWatcher) getCredentialsFromSecret(clusterName, namespace stri
 
 	secret, err := utils.GetInformers().SecretInformer.Lister().Secrets(namespace).Get(secretName)
 	if err != nil {
-		return nil, fmt.Errorf("secret %s/%s not found in cache: %v", namespace, secretName, err)
+		return nil, err
 	}
 
 	username, exists := secret.Data["username"]
@@ -511,12 +520,15 @@ func (w *VKSClusterWatcher) buildVKSClusterConfig(cluster *unstructured.Unstruct
 
 	clusterCreds, err := w.getCredentialsFromSecret(cluster.GetName(), clusterNamespace)
 	if err != nil {
-		// Secret doesn't exist, create new credentials
-		creds, err := w.createClusterSpecificCredentials(clusterNameWithUID, nsConfig.Tenant)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create cluster-specific credentials: %v", err)
+		if errors.IsNotFound(err) {
+			creds, err := w.createClusterSpecificCredentials(clusterNameWithUID, nsConfig.Tenant)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create cluster-specific credentials: %v", err)
+			}
+			clusterCreds = creds
+		} else {
+			return nil, fmt.Errorf("failed to retrieve credentials from existing secret: %v", err)
 		}
-		clusterCreds = creds
 	}
 
 	// Get common controller properties
@@ -744,7 +756,6 @@ func (w *VKSClusterWatcher) detectAndValidateCNI(cluster *unstructured.Unstructu
 	if detectedCNI == "" {
 		utils.AviLog.Warnf("VKS cluster watcher: unknown CNI package for cluster %s/%s (package: %s), using default CNI configuration",
 			clusterNamespace, clusterName, cniRefName)
-		detectedCNI = ""
 	}
 
 	return detectedCNI, nil
@@ -799,7 +810,7 @@ func StartVKSClusterWatcher(stopCh <-chan struct{}, dynamicInformers *lib.Dynami
 	}
 
 	clusterWatcher := NewVKSClusterWatcher(kubeClient, dynamicClient)
-	if err := clusterWatcher.Start(stopCh); err != nil {
+	if err := clusterWatcher.Start(); err != nil {
 		return fmt.Errorf("VKS cluster watcher: failed to start: %v", err)
 	}
 

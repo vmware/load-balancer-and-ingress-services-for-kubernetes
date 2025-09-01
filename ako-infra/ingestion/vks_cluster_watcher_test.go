@@ -459,6 +459,12 @@ func TestVKSClusterWatcher_HandleProvisionedCluster(t *testing.T) {
 						Name:      secretName,
 						Namespace: tt.clusterNamespace,
 					},
+					Data: map[string][]byte{
+						"username":     []byte("existing-user"),
+						"password":     []byte("existing-password"),
+						"controllerIP": []byte("127.0.0.1"),
+						"clusterName":  []byte(tt.clusterName),
+					},
 				}
 				_, err := setup.KubeClient.CoreV1().Secrets(tt.clusterNamespace).Create(context.Background(), secret, metav1.CreateOptions{})
 				if err != nil {
@@ -851,7 +857,7 @@ func TestVKSClusterWatcher_WorkerIntegration(t *testing.T) {
 	}
 
 	// Start the worker
-	err := watcher.Start(make(<-chan struct{}))
+	err := watcher.Start()
 	if err != nil {
 		t.Fatalf("Failed to start watcher: %v", err)
 	}

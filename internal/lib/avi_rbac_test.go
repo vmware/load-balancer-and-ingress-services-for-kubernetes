@@ -22,6 +22,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/vmware/alb-sdk/go/models"
 )
 
@@ -65,10 +66,10 @@ func TestGenerateSecurePassword(t *testing.T) {
 func TestValidateRolePermissions(t *testing.T) {
 	t.Run("ValidPermissions", func(t *testing.T) {
 		role := &models.Role{
-			Name: pointerString("valid-role"),
+			Name: proto.String("valid-role"),
 			Privileges: []*models.Permission{
-				{Resource: pointerString("PERMISSION_VIRTUALSERVICE"), Type: pointerString("WRITE_ACCESS")},
-				{Resource: pointerString("PERMISSION_POOL"), Type: pointerString("READ_ACCESS")},
+				{Resource: proto.String("PERMISSION_VIRTUALSERVICE"), Type: proto.String("WRITE_ACCESS")},
+				{Resource: proto.String("PERMISSION_POOL"), Type: proto.String("READ_ACCESS")},
 			},
 		}
 
@@ -85,9 +86,9 @@ func TestValidateRolePermissions(t *testing.T) {
 
 	t.Run("MissingPermissions", func(t *testing.T) {
 		role := &models.Role{
-			Name: pointerString("incomplete-role"),
+			Name: proto.String("incomplete-role"),
 			Privileges: []*models.Permission{
-				{Resource: pointerString("PERMISSION_VIRTUALSERVICE"), Type: pointerString("WRITE_ACCESS")},
+				{Resource: proto.String("PERMISSION_VIRTUALSERVICE"), Type: proto.String("WRITE_ACCESS")},
 			},
 		}
 
@@ -107,9 +108,9 @@ func TestValidateRolePermissions(t *testing.T) {
 
 	t.Run("WrongPermissionType", func(t *testing.T) {
 		role := &models.Role{
-			Name: pointerString("wrong-type-role"),
+			Name: proto.String("wrong-type-role"),
 			Privileges: []*models.Permission{
-				{Resource: pointerString("PERMISSION_VIRTUALSERVICE"), Type: pointerString("READ_ACCESS")},
+				{Resource: proto.String("PERMISSION_VIRTUALSERVICE"), Type: proto.String("READ_ACCESS")},
 			},
 		}
 
@@ -128,7 +129,7 @@ func TestValidateRolePermissions(t *testing.T) {
 
 	t.Run("NoPrivileges", func(t *testing.T) {
 		role := &models.Role{
-			Name:       pointerString("empty-role"),
+			Name:       proto.String("empty-role"),
 			Privileges: nil,
 		}
 
@@ -147,10 +148,10 @@ func TestValidateRolePermissions(t *testing.T) {
 
 	t.Run("ExtraPermissions", func(t *testing.T) {
 		role := &models.Role{
-			Name: pointerString("extra-perms-role"),
+			Name: proto.String("extra-perms-role"),
 			Privileges: []*models.Permission{
-				{Resource: pointerString("PERMISSION_VIRTUALSERVICE"), Type: pointerString("WRITE_ACCESS")},
-				{Resource: pointerString("PERMISSION_EXTRA"), Type: pointerString("READ_ACCESS")},
+				{Resource: proto.String("PERMISSION_VIRTUALSERVICE"), Type: proto.String("WRITE_ACCESS")},
+				{Resource: proto.String("PERMISSION_EXTRA"), Type: proto.String("READ_ACCESS")},
 			},
 		}
 
@@ -287,23 +288,23 @@ func TestCreateClusterUserWithRoles(t *testing.T) {
 		// Test user access role structure
 		tenant := "my-tenant"
 		roles := &ClusterRoles{
-			AdminRole:      &models.Role{UUID: pointerString("admin-uuid")},
-			TenantRole:     &models.Role{UUID: pointerString("tenant-uuid")},
-			AllTenantsRole: &models.Role{UUID: pointerString("all-uuid")},
+			AdminRole:      &models.Role{UUID: proto.String("admin-uuid")},
+			TenantRole:     &models.Role{UUID: proto.String("tenant-uuid")},
+			AllTenantsRole: &models.Role{UUID: proto.String("all-uuid")},
 		}
 
 		userAccess := []*models.UserRole{
 			{
 				RoleRef:   roles.AdminRole.UUID,
-				TenantRef: pointerString("/api/tenant/?name=admin"),
+				TenantRef: proto.String("/api/tenant/?name=admin"),
 			},
 			{
 				RoleRef:   roles.TenantRole.UUID,
-				TenantRef: pointerString(fmt.Sprintf("/api/tenant/?name=%s", tenant)),
+				TenantRef: proto.String(fmt.Sprintf("/api/tenant/?name=%s", tenant)),
 			},
 			{
 				RoleRef:    roles.AllTenantsRole.UUID,
-				AllTenants: pointerBool(true),
+				AllTenants: proto.Bool(true),
 			},
 		}
 
@@ -477,12 +478,12 @@ func TestClusterFilterConstruction(t *testing.T) {
 		cluster := "filter-cluster"
 
 		filter := &models.RoleFilter{
-			MatchOperation: pointerString("ROLE_FILTER_EQUALS"),
+			MatchOperation: proto.String("ROLE_FILTER_EQUALS"),
 			MatchLabel: &models.RoleFilterMatchLabel{
-				Key:    pointerString("clustername"),
+				Key:    proto.String("clustername"),
 				Values: []string{cluster},
 			},
-			Enabled: pointerBool(true),
+			Enabled: proto.Bool(true),
 		}
 
 		// Verify structure
@@ -521,9 +522,9 @@ func TestDataStructures(t *testing.T) {
 	})
 
 	t.Run("ClusterRoles", func(t *testing.T) {
-		admin := &models.Role{Name: pointerString("admin")}
-		tenant := &models.Role{Name: pointerString("tenant")}
-		allTenants := &models.Role{Name: pointerString("all")}
+		admin := &models.Role{Name: proto.String("admin")}
+		tenant := &models.Role{Name: proto.String("tenant")}
+		allTenants := &models.Role{Name: proto.String("all")}
 
 		roles := &ClusterRoles{
 			AdminRole:      admin,
@@ -570,10 +571,10 @@ func BenchmarkGenerateSecurePassword(b *testing.B) {
 // BenchmarkValidateRolePermissions benchmarks permission validation
 func BenchmarkValidateRolePermissions(b *testing.B) {
 	role := &models.Role{
-		Name: pointerString("bench-role"),
+		Name: proto.String("bench-role"),
 		Privileges: []*models.Permission{
-			{Resource: pointerString("PERMISSION_VIRTUALSERVICE"), Type: pointerString("WRITE_ACCESS")},
-			{Resource: pointerString("PERMISSION_POOL"), Type: pointerString("READ_ACCESS")},
+			{Resource: proto.String("PERMISSION_VIRTUALSERVICE"), Type: proto.String("WRITE_ACCESS")},
+			{Resource: proto.String("PERMISSION_POOL"), Type: proto.String("READ_ACCESS")},
 		},
 	}
 

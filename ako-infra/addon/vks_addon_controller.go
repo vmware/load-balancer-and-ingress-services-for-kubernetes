@@ -80,7 +80,7 @@ func createAddonInstallSpec() *unstructured.Unstructured {
 				"name":      AKOAddonInstallName,
 				"namespace": VKSPublicNamespace,
 				"labels": map[string]interface{}{
-					"app.kubernetes.io/name":       "ako",
+					"app.kubernetes.io/name":       AKOAddonName,
 					"app.kubernetes.io/managed-by": "ako-infra",
 				},
 			},
