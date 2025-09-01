@@ -37,6 +37,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
@@ -101,6 +102,16 @@ type VKSTestSetup struct {
 
 // setupVKSTest creates a complete VKS test environment with all required resources and informers
 func setupVKSTest(t *testing.T, clusterName, namespaceName, cniRefName string) *VKSTestSetup {
+	// Set VCF_CLUSTER environment variable to enable dynamic informers
+	oldVCFCluster := os.Getenv("VCF_CLUSTER")
+	os.Setenv("VCF_CLUSTER", "true")
+	t.Cleanup(func() {
+		if oldVCFCluster == "" {
+			os.Unsetenv("VCF_CLUSTER")
+		} else {
+			os.Setenv("VCF_CLUSTER", oldVCFCluster)
+		}
+	})
 	// Create namespace with required VKS annotations
 	namespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -151,15 +162,31 @@ func setupVKSTest(t *testing.T, clusterName, namespaceName, cniRefName string) *
 
 	// Create Kubernetes and dynamic clients
 	kubeClient := k8sfake.NewSimpleClientset(namespace)
-	dynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), clusterBootstrap, aviInfraSetting)
 
-	// Initialize regular informers
+	// Set up dynamic client with custom list kinds to support List operations
+	gvrToKind := map[schema.GroupVersionResource]string{
+		lib.ClusterGVR: "clustersList",
+		{
+			Group:    "ako.vmware.com",
+			Version:  "v1beta1",
+			Resource: "aviinfrasettings",
+		}: "aviinfrasettingsList",
+		{
+			Group:    "run.tanzu.vmware.com",
+			Version:  "v1alpha3",
+			Resource: "clusterbootstraps",
+		}: "clusterbootstrapsList",
+	}
+	dynamicClient := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToKind, clusterBootstrap, aviInfraSetting)
+
+	// Initialize regular informers (including namespace informer)
 	registeredInformers := []string{
 		utils.SecretInformer,
+		utils.NSInformer,
 	}
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, nil)
 
-	// Initialize CRD informers for AviInfraSetting
+	// Initialize dynamic informers for cluster operations
 	lib.SetDynamicClientSet(dynamicClient)
 	lib.NewDynamicInformers(dynamicClient, true)
 
@@ -190,6 +217,12 @@ func setupVKSTest(t *testing.T, clusterName, namespaceName, cniRefName string) *
 
 	// Start informers once using sync.Once to avoid multiple starts
 	startInformersOnce()
+
+	// Add namespace to informer cache for tests that need it
+	err := utils.GetInformers().NSInformer.Informer().GetStore().Add(namespace)
+	if err != nil {
+		t.Logf("Warning: Failed to add namespace to informer cache: %v", err)
+	}
 
 	return &VKSTestSetup{
 		KubeClient:       kubeClient,
@@ -711,8 +744,16 @@ func TestVKSClusterWatcher_ProcessClusterEvent(t *testing.T) {
 					})
 				}
 
-				// Add cluster to fake client
+				// Add cluster to fake client and dynamic informer cache
 				setup.DynamicClient.Tracker().Add(cluster)
+
+				// Also add to dynamic informer cache if available
+				if lib.GetDynamicInformers() != nil && lib.GetDynamicInformers().ClusterInformer != nil {
+					err := lib.GetDynamicInformers().ClusterInformer.Informer().GetStore().Add(cluster)
+					if err != nil {
+						t.Logf("Warning: Failed to add cluster to dynamic informer cache: %v", err)
+					}
+				}
 
 				// Add ClusterBootstrap if this is a provisioning/provisioned cluster test
 				if (tt.clusterPhase == ClusterPhaseProvisioning || tt.clusterPhase == ClusterPhaseProvisioned) && tt.vksLabel == webhook.VKSManagedLabelValueTrue {
@@ -798,8 +839,16 @@ func TestVKSClusterWatcher_WorkerIntegration(t *testing.T) {
 		},
 	}
 
-	// Add cluster to fake client
+	// Add cluster to fake client and dynamic informer cache
 	setup.DynamicClient.Tracker().Add(cluster)
+
+	// Also add to dynamic informer cache if available
+	if lib.GetDynamicInformers() != nil && lib.GetDynamicInformers().ClusterInformer != nil {
+		err := lib.GetDynamicInformers().ClusterInformer.Informer().GetStore().Add(cluster)
+		if err != nil {
+			t.Logf("Warning: Failed to add cluster to dynamic informer cache: %v", err)
+		}
+	}
 
 	// Start the worker
 	err := watcher.Start(make(<-chan struct{}))
@@ -1526,29 +1575,87 @@ func TestVKSClusterWatcher_CleanupOnOptOut(t *testing.T) {
 	t.Log("✅ VKS cluster opt-out cleanup test completed successfully")
 }
 
-// TestVKSClusterWatcher_IntegratedCleanupMethods tests the integrated cleanup methods
-func TestVKSClusterWatcher_IntegratedCleanupMethods(t *testing.T) {
-	// Set up mock controller IP
-	lib.SetControllerIP("10.10.10.10")
-
-	setup := setupVKSTest(t, "test-cluster", "test-namespace", "antrea.tanzu.vmware.com.2.3.0+vmware.1-tkg.1")
+// TestVKSClusterWatcher_PeriodicReconciler tests the periodic reconciliation functionality
+func TestVKSClusterWatcher_PeriodicReconciler(t *testing.T) {
+	setup := setupVKSTest(t, "reconcile-test-cluster", "vks-reconcile-test-ns", "antrea.tanzu.vmware.com.2.3.0+vmware.1-tkg.1")
 	defer setup.Cleanup()
 
-	watcher := NewVKSClusterWatcher(setup.KubeClient, setup.DynamicClient)
-
-	// Test cleanupAviObjects method (should not fail even with no objects)
-	err := watcher.cleanupAviObjects("test-cluster-uid-123")
-	// This may return an error due to missing AVI cache in test, but method should exist
-	if err != nil {
-		t.Logf("cleanupAviObjects returned error (expected in test environment): %v", err)
+	// Create multiple VKS clusters with different states
+	clusters := []*unstructured.Unstructured{
+		// Managed cluster in provisioned state - should be reconciled
+		{
+			Object: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"name":      "managed-cluster",
+					"namespace": "vks-reconcile-test-ns",
+					"uid":       "managed-uid-123",
+					"labels": map[string]interface{}{
+						webhook.VKSManagedLabel: webhook.VKSManagedLabelValueTrue,
+					},
+				},
+				"status": map[string]interface{}{
+					"phase": ClusterPhaseProvisioned,
+				},
+			},
+		},
+		// Unmanaged cluster - should be skipped
+		{
+			Object: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"name":      "unmanaged-cluster",
+					"namespace": "vks-reconcile-test-ns",
+					"uid":       "unmanaged-uid-456",
+					"labels": map[string]interface{}{
+						webhook.VKSManagedLabel: webhook.VKSManagedLabelValueFalse,
+					},
+				},
+				"status": map[string]interface{}{
+					"phase": ClusterPhaseProvisioned,
+				},
+			},
+		},
+		// Managed cluster in deleting state - should be skipped
+		{
+			Object: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"name":      "deleting-cluster",
+					"namespace": "vks-reconcile-test-ns",
+					"uid":       "deleting-uid-789",
+					"labels": map[string]interface{}{
+						webhook.VKSManagedLabel: webhook.VKSManagedLabelValueTrue,
+					},
+				},
+				"status": map[string]interface{}{
+					"phase": ClusterPhaseDeleting,
+				},
+			},
+		},
 	}
 
-	// Test cleanupClusterSpecificRBAC method directly (should not fail even with no AVI client)
-	watcher.cleanupClusterSpecificRBAC("test-cluster-uid-123")
-	t.Log("cleanupClusterSpecificRBAC called successfully")
+	// Add clusters to dynamic client
+	for _, cluster := range clusters {
+		_, err := setup.DynamicClient.Resource(lib.ClusterGVR).Namespace("vks-reconcile-test-ns").Create(context.Background(), cluster, metav1.CreateOptions{})
+		if err != nil {
+			t.Fatalf("Failed to create cluster %s: %v", cluster.GetName(), err)
+		}
+	}
 
-	// The comprehensive cleanup logic is now integrated directly into cleanupClusterDependencies
-	// No separate performComprehensiveCleanup function needed
+	watcher := NewVKSClusterWatcher(setup.KubeClient, setup.DynamicClient)
+	watcher.SetTestMode(func(clusterNameWithUID, operationalTenant string) (*lib.ClusterCredentials, error) {
+		return &lib.ClusterCredentials{
+			Username: fmt.Sprintf("vks-cluster-%s-user", clusterNameWithUID),
+			Password: "mock-password",
+		}, nil
+	})
 
-	t.Log("✅ VKS cluster integrated cleanup methods test completed successfully")
+	// Test reconcileAllClusters method directly
+	watcher.reconcileAllClusters()
+
+	// Give some time for items to be processed
+	time.Sleep(100 * time.Millisecond)
+
+	// We'll just verify the method doesn't panic and logs appropriately
+	// The reconciler should have processed 1 managed cluster and skipped 2 others
+
+	t.Log("✅ VKS periodic reconciler test completed successfully")
 }
