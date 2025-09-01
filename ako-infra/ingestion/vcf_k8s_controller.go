@@ -257,7 +257,7 @@ func (c *VCFK8sController) AddVKSCapabilityEventHandler(stopCh <-chan struct{}) 
 		capabilityEventHandler := cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				utils.AviLog.Infof("SupervisorCapability ADD Event")
-				if lib.IsVKSCapabilityActivated() {
+				if lib.IsVKSCapabilityActivated() && !capabilityActive {
 					utils.AviLog.Infof("VKS capability activated")
 					capabilityActive = true
 					c.startVKSInfrastructure(stopCh)
@@ -265,7 +265,7 @@ func (c *VCFK8sController) AddVKSCapabilityEventHandler(stopCh <-chan struct{}) 
 			},
 			UpdateFunc: func(old, obj interface{}) {
 				utils.AviLog.Infof("SupervisorCapability UPDATE Event")
-				if lib.IsVKSCapabilityActivated() {
+				if lib.IsVKSCapabilityActivated() && !capabilityActive {
 					utils.AviLog.Infof("VKS capability activated")
 					capabilityActive = true
 					c.startVKSInfrastructure(stopCh)

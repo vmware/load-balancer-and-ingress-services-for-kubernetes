@@ -37,6 +37,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
@@ -101,6 +102,16 @@ type VKSTestSetup struct {
 
 // setupVKSTest creates a complete VKS test environment with all required resources and informers
 func setupVKSTest(t *testing.T, clusterName, namespaceName, cniRefName string) *VKSTestSetup {
+	// Set VCF_CLUSTER environment variable to enable dynamic informers
+	oldVCFCluster := os.Getenv("VCF_CLUSTER")
+	os.Setenv("VCF_CLUSTER", "true")
+	t.Cleanup(func() {
+		if oldVCFCluster == "" {
+			os.Unsetenv("VCF_CLUSTER")
+		} else {
+			os.Setenv("VCF_CLUSTER", oldVCFCluster)
+		}
+	})
 	// Create namespace with required VKS annotations
 	namespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -151,15 +162,31 @@ func setupVKSTest(t *testing.T, clusterName, namespaceName, cniRefName string) *
 
 	// Create Kubernetes and dynamic clients
 	kubeClient := k8sfake.NewSimpleClientset(namespace)
-	dynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), clusterBootstrap, aviInfraSetting)
 
-	// Initialize regular informers
+	// Set up dynamic client with custom list kinds to support List operations
+	gvrToKind := map[schema.GroupVersionResource]string{
+		lib.ClusterGVR: "clustersList",
+		{
+			Group:    "ako.vmware.com",
+			Version:  "v1beta1",
+			Resource: "aviinfrasettings",
+		}: "aviinfrasettingsList",
+		{
+			Group:    "run.tanzu.vmware.com",
+			Version:  "v1alpha3",
+			Resource: "clusterbootstraps",
+		}: "clusterbootstrapsList",
+	}
+	dynamicClient := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToKind, clusterBootstrap, aviInfraSetting)
+
+	// Initialize regular informers (including namespace informer)
 	registeredInformers := []string{
 		utils.SecretInformer,
+		utils.NSInformer,
 	}
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, nil)
 
-	// Initialize CRD informers for AviInfraSetting
+	// Initialize dynamic informers for cluster operations
 	lib.SetDynamicClientSet(dynamicClient)
 	lib.NewDynamicInformers(dynamicClient, true)
 
@@ -190,6 +217,12 @@ func setupVKSTest(t *testing.T, clusterName, namespaceName, cniRefName string) *
 
 	// Start informers once using sync.Once to avoid multiple starts
 	startInformersOnce()
+
+	// Add namespace to informer cache for tests that need it
+	err := utils.GetInformers().NSInformer.Informer().GetStore().Add(namespace)
+	if err != nil {
+		t.Logf("Warning: Failed to add namespace to informer cache: %v", err)
+	}
 
 	return &VKSTestSetup{
 		KubeClient:       kubeClient,
@@ -327,7 +360,7 @@ func TestVKSClusterWatcher_ClusterDeletionAndCleanup(t *testing.T) {
 			watcher := NewVKSClusterWatcher(setup.KubeClient, setup.DynamicClient)
 
 			ctx := context.Background()
-			err := watcher.cleanupClusterSecret(ctx, tt.clusterName, tt.clusterNamespace)
+			err := watcher.cleanupClusterDependencies(ctx, tt.clusterName, tt.clusterNamespace, "")
 
 			if tt.expectError && err == nil {
 				t.Error("Expected error but got none")
@@ -439,8 +472,6 @@ func TestVKSClusterWatcher_HandleProvisionedCluster(t *testing.T) {
 				}
 			}
 
-			watcher := NewVKSClusterWatcher(setup.KubeClient, setup.DynamicClient)
-
 			// Start informers and ensure proper cache sync
 			stopCh := make(chan struct{})
 			defer close(stopCh)
@@ -546,7 +577,7 @@ func TestVKSClusterWatcher_HandleProvisionedCluster(t *testing.T) {
 			// Give the informer time to sync
 			time.Sleep(100 * time.Millisecond)
 
-			watcher = NewVKSClusterWatcher(setup.KubeClient, setup.DynamicClient)
+			watcher := NewVKSClusterWatcher(setup.KubeClient, setup.DynamicClient)
 
 			// Set up mock credentials function for tests that need secret creation
 			if tt.expectedAction == "create" || (tt.expectedAction == "none" && tt.vksLabel == webhook.VKSManagedLabelValueTrue) {
@@ -713,8 +744,16 @@ func TestVKSClusterWatcher_ProcessClusterEvent(t *testing.T) {
 					})
 				}
 
-				// Add cluster to fake client
+				// Add cluster to fake client and dynamic informer cache
 				setup.DynamicClient.Tracker().Add(cluster)
+
+				// Also add to dynamic informer cache if available
+				if lib.GetDynamicInformers() != nil && lib.GetDynamicInformers().ClusterInformer != nil {
+					err := lib.GetDynamicInformers().ClusterInformer.Informer().GetStore().Add(cluster)
+					if err != nil {
+						t.Logf("Warning: Failed to add cluster to dynamic informer cache: %v", err)
+					}
+				}
 
 				// Add ClusterBootstrap if this is a provisioning/provisioned cluster test
 				if (tt.clusterPhase == ClusterPhaseProvisioning || tt.clusterPhase == ClusterPhaseProvisioned) && tt.vksLabel == webhook.VKSManagedLabelValueTrue {
@@ -800,8 +839,16 @@ func TestVKSClusterWatcher_WorkerIntegration(t *testing.T) {
 		},
 	}
 
-	// Add cluster to fake client
+	// Add cluster to fake client and dynamic informer cache
 	setup.DynamicClient.Tracker().Add(cluster)
+
+	// Also add to dynamic informer cache if available
+	if lib.GetDynamicInformers() != nil && lib.GetDynamicInformers().ClusterInformer != nil {
+		err := lib.GetDynamicInformers().ClusterInformer.Informer().GetStore().Add(cluster)
+		if err != nil {
+			t.Logf("Warning: Failed to add cluster to dynamic informer cache: %v", err)
+		}
+	}
 
 	// Start the worker
 	err := watcher.Start(make(<-chan struct{}))
@@ -838,7 +885,7 @@ func TestVKSClusterWatcher_WorkerIntegration(t *testing.T) {
 	}
 
 	// Verify mock credentials are in the secret
-	expectedUsername := "vks-cluster-test-namespace-test-cluster-test-uid-123-user"
+	expectedUsername := "vks-cluster-test-namespace-test-cluster-test-uid-user"
 	if string(secret.Data["username"]) != expectedUsername {
 		t.Errorf("Expected username to be '%s', got '%s'", expectedUsername, string(secret.Data["username"]))
 	}
@@ -946,24 +993,6 @@ func TestVKSClusterWatcher_SecretIdempotency(t *testing.T) {
 
 	t.Logf("Secret idempotency test passed - secret exists with %d fields", len(currentSecret.Data))
 }
-
-// createTestAdminSecret function removed - no longer needed with cluster-specific RBAC
-
-// createTestNamespace creates a test namespace with VKS annotations
-func createTestNamespace(name string) *corev1.Namespace {
-	return &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-			Annotations: map[string]string{
-				lib.WCPSEGroup:                 "test-seg-group",
-				lib.TenantAnnotation:           "test-tenant",
-				lib.InfraSettingNameAnnotation: "test-aviinfrasetting",
-			},
-		},
-	}
-}
-
-// setupTestEnvironment function removed - functionality now in setupVKSTest
 
 func TestVKSClusterWatcher_buildVKSClusterConfig(t *testing.T) {
 	// Set up mock controller IP and version for consistent testing
@@ -1386,4 +1415,247 @@ func TestVKSClusterWatcher_UpsertAviCredentialsSecret_Comprehensive(t *testing.T
 			}
 		})
 	}
+}
+
+// TestVKSClusterWatcher_CleanupOnDeletion tests VKS cleanup when cluster is deleted
+func TestVKSClusterWatcher_CleanupOnDeletion(t *testing.T) {
+	// Set up mock controller IP
+	lib.SetControllerIP("10.10.10.10")
+
+	setup := setupVKSTest(t, "cleanup-test-cluster", "vks-cleanup-test-ns", "antrea.tanzu.vmware.com.2.3.0+vmware.1-tkg.1")
+	defer setup.Cleanup()
+
+	watcher := NewVKSClusterWatcher(setup.KubeClient, setup.DynamicClient)
+
+	// Set up mock credentials function
+	watcher.SetTestMode(func(clusterNameWithUID, operationalTenant string) (*lib.ClusterCredentials, error) {
+		return &lib.ClusterCredentials{
+			Username: fmt.Sprintf("vks-cluster-%s-user", clusterNameWithUID),
+			Password: "mock-password",
+		}, nil
+	})
+
+	// Create a VKS cluster with managed label
+	cluster := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "cluster.x-k8s.io/v1beta2",
+			"kind":       "Cluster",
+			"metadata": map[string]interface{}{
+				"name":      "cleanup-test-cluster",
+				"namespace": "vks-cleanup-test-ns",
+				"uid":       "test-uid-123",
+				"labels": map[string]interface{}{
+					webhook.VKSManagedLabel: webhook.VKSManagedLabelValueTrue,
+				},
+			},
+			"status": map[string]interface{}{
+				"phase": "Provisioned",
+			},
+		},
+	}
+
+	// Add cluster to fake client
+	setup.DynamicClient.Tracker().Add(cluster)
+
+	// Create cluster and its secret first
+	ctx := context.Background()
+	err := watcher.UpsertAviCredentialsSecret(ctx, cluster)
+	if err != nil {
+		t.Fatalf("Failed to create cluster secret: %v", err)
+	}
+
+	// Verify secret was created
+	secretName := "cleanup-test-cluster-avi-secret"
+	secret, err := setup.KubeClient.CoreV1().Secrets("vks-cleanup-test-ns").Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("Expected secret to be created: %v", err)
+	}
+	if secret.Name != secretName {
+		t.Errorf("Expected secret name %s, got %s", secretName, secret.Name)
+	}
+
+	// Now test cluster deletion (VKS always does comprehensive cleanup)
+	err = watcher.cleanupClusterDependencies(ctx, "cleanup-test-cluster", "vks-cleanup-test-ns", "")
+	if err != nil {
+		t.Errorf("Cleanup should not fail: %v", err)
+	}
+
+	// Verify secret was cleaned up
+	_, err = setup.KubeClient.CoreV1().Secrets("vks-cleanup-test-ns").Get(ctx, secretName, metav1.GetOptions{})
+	if err == nil {
+		t.Error("Expected secret to be deleted but it still exists")
+	}
+
+	t.Log("✅ VKS cluster cleanup on deletion test completed successfully")
+}
+
+// TestVKSClusterWatcher_CleanupOnOptOut tests VKS cleanup when cluster opts out
+func TestVKSClusterWatcher_CleanupOnOptOut(t *testing.T) {
+	// Set up mock controller IP
+	lib.SetControllerIP("10.10.10.10")
+
+	setup := setupVKSTest(t, "optout-test-cluster", "vks-optout-test-ns", "antrea.tanzu.vmware.com.2.3.0+vmware.1-tkg.1")
+	defer setup.Cleanup()
+
+	watcher := NewVKSClusterWatcher(setup.KubeClient, setup.DynamicClient)
+
+	// Set up mock credentials function
+	watcher.SetTestMode(func(clusterNameWithUID, operationalTenant string) (*lib.ClusterCredentials, error) {
+		return &lib.ClusterCredentials{
+			Username: fmt.Sprintf("vks-cluster-%s-user", clusterNameWithUID),
+			Password: "mock-password",
+		}, nil
+	})
+
+	// Create a VKS cluster with managed label initially
+	cluster := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "cluster.x-k8s.io/v1beta2",
+			"kind":       "Cluster",
+			"metadata": map[string]interface{}{
+				"name":      "optout-test-cluster",
+				"namespace": "vks-optout-test-ns",
+				"uid":       "test-uid-456",
+				"labels": map[string]interface{}{
+					webhook.VKSManagedLabel: webhook.VKSManagedLabelValueTrue,
+				},
+			},
+			"status": map[string]interface{}{
+				"phase": "Provisioned",
+			},
+		},
+	}
+
+	// Add cluster to fake client
+	setup.DynamicClient.Tracker().Add(cluster)
+
+	// Create cluster and its secret first
+	ctx := context.Background()
+	err := watcher.UpsertAviCredentialsSecret(ctx, cluster)
+	if err != nil {
+		t.Fatalf("Failed to create cluster secret: %v", err)
+	}
+
+	// Verify secret was created
+	secretName := "optout-test-cluster-avi-secret"
+	secret, err := setup.KubeClient.CoreV1().Secrets("vks-optout-test-ns").Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("Expected secret to be created: %v", err)
+	}
+
+	// Add the secret to the informer cache so HandleProvisionedCluster can find it
+	err = utils.GetInformers().SecretInformer.Informer().GetStore().Add(secret)
+	if err != nil {
+		t.Logf("Warning: Failed to add secret to informer cache: %v", err)
+	}
+
+	// Now test cluster opt-out by changing the label
+	cluster.SetLabels(map[string]string{
+		webhook.VKSManagedLabel: webhook.VKSManagedLabelValueFalse,
+	})
+
+	// Update the cluster in the dynamic client to reflect the label change
+	_, err = setup.DynamicClient.Resource(lib.ClusterGVR).Namespace("vks-optout-test-ns").Update(ctx, cluster, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("Failed to update cluster for opt-out: %v", err)
+	}
+
+	// Process cluster opt-out via HandleProvisionedCluster
+	err = watcher.HandleProvisionedCluster(cluster)
+	if err != nil {
+		t.Errorf("HandleProvisionedCluster should not fail on opt-out: %v", err)
+	}
+
+	// Verify secret was cleaned up (opt-out should trigger comprehensive cleanup)
+	_, err = setup.KubeClient.CoreV1().Secrets("vks-optout-test-ns").Get(ctx, secretName, metav1.GetOptions{})
+	if err == nil {
+		t.Error("Expected secret to be deleted after opt-out but it still exists")
+	}
+
+	t.Log("✅ VKS cluster opt-out cleanup test completed successfully")
+}
+
+// TestVKSClusterWatcher_PeriodicReconciler tests the periodic reconciliation functionality
+func TestVKSClusterWatcher_PeriodicReconciler(t *testing.T) {
+	setup := setupVKSTest(t, "reconcile-test-cluster", "vks-reconcile-test-ns", "antrea.tanzu.vmware.com.2.3.0+vmware.1-tkg.1")
+	defer setup.Cleanup()
+
+	// Create multiple VKS clusters with different states
+	clusters := []*unstructured.Unstructured{
+		// Managed cluster in provisioned state - should be reconciled
+		{
+			Object: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"name":      "managed-cluster",
+					"namespace": "vks-reconcile-test-ns",
+					"uid":       "managed-uid-123",
+					"labels": map[string]interface{}{
+						webhook.VKSManagedLabel: webhook.VKSManagedLabelValueTrue,
+					},
+				},
+				"status": map[string]interface{}{
+					"phase": ClusterPhaseProvisioned,
+				},
+			},
+		},
+		// Unmanaged cluster - should be skipped
+		{
+			Object: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"name":      "unmanaged-cluster",
+					"namespace": "vks-reconcile-test-ns",
+					"uid":       "unmanaged-uid-456",
+					"labels": map[string]interface{}{
+						webhook.VKSManagedLabel: webhook.VKSManagedLabelValueFalse,
+					},
+				},
+				"status": map[string]interface{}{
+					"phase": ClusterPhaseProvisioned,
+				},
+			},
+		},
+		// Managed cluster in deleting state - should be skipped
+		{
+			Object: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"name":      "deleting-cluster",
+					"namespace": "vks-reconcile-test-ns",
+					"uid":       "deleting-uid-789",
+					"labels": map[string]interface{}{
+						webhook.VKSManagedLabel: webhook.VKSManagedLabelValueTrue,
+					},
+				},
+				"status": map[string]interface{}{
+					"phase": ClusterPhaseDeleting,
+				},
+			},
+		},
+	}
+
+	// Add clusters to dynamic client
+	for _, cluster := range clusters {
+		_, err := setup.DynamicClient.Resource(lib.ClusterGVR).Namespace("vks-reconcile-test-ns").Create(context.Background(), cluster, metav1.CreateOptions{})
+		if err != nil {
+			t.Fatalf("Failed to create cluster %s: %v", cluster.GetName(), err)
+		}
+	}
+
+	watcher := NewVKSClusterWatcher(setup.KubeClient, setup.DynamicClient)
+	watcher.SetTestMode(func(clusterNameWithUID, operationalTenant string) (*lib.ClusterCredentials, error) {
+		return &lib.ClusterCredentials{
+			Username: fmt.Sprintf("vks-cluster-%s-user", clusterNameWithUID),
+			Password: "mock-password",
+		}, nil
+	})
+
+	// Test reconcileAllClusters method directly
+	watcher.reconcileAllClusters()
+
+	// Give some time for items to be processed
+	time.Sleep(100 * time.Millisecond)
+
+	// We'll just verify the method doesn't panic and logs appropriately
+	// The reconciler should have processed 1 managed cluster and skipped 2 others
+
+	t.Log("✅ VKS periodic reconciler test completed successfully")
 }

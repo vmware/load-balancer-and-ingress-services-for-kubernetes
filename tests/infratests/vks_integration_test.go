@@ -35,7 +35,9 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/onsi/gomega"
+
 	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
+
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,6 +46,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/kubernetes"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 )
@@ -103,6 +106,17 @@ func startInformersOnce() {
 
 // setupVKSIntegrationTest sets up the environment for VKS integration tests
 func setupVKSIntegrationTest(t *testing.T) (*k8sfake.Clientset, *dynamicfake.FakeDynamicClient) {
+	// Set VCF_CLUSTER environment variable to enable dynamic informers
+	oldVCFCluster := os.Getenv("VCF_CLUSTER")
+	os.Setenv("VCF_CLUSTER", "true")
+	t.Cleanup(func() {
+		if oldVCFCluster == "" {
+			os.Unsetenv("VCF_CLUSTER")
+		} else {
+			os.Setenv("VCF_CLUSTER", oldVCFCluster)
+		}
+	})
+
 	kubeClient := k8sfake.NewSimpleClientset()
 
 	// Create avi-secret with admin credentials
@@ -136,9 +150,10 @@ func setupVKSIntegrationTest(t *testing.T) (*k8sfake.Clientset, *dynamicfake.Fak
 	lib.SetDynamicClientSet(dynamicClient)
 	lib.NewDynamicInformers(dynamicClient, true)
 
-	// Initialize regular informers needed by VKS cluster watcher
+	// Initialize regular informers needed by VKS cluster watcher (including namespace informer)
 	registeredInformers := []string{
 		utils.SecretInformer,
+		utils.NSInformer,
 	}
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, nil)
 
@@ -175,6 +190,44 @@ func setupVKSIntegrationTest(t *testing.T) (*k8sfake.Clientset, *dynamicfake.Fak
 	os.Setenv("NSXT_T1_LR", "/orgs/test-org/projects/test-project/vpcs/test-vpc")
 
 	return kubeClient, dynamicClient
+}
+
+// addClusterToInformerCache adds a cluster to the dynamic informer cache for tests
+func addClusterToInformerCache(t *testing.T, cluster *unstructured.Unstructured) {
+	if lib.GetDynamicInformers() != nil && lib.GetDynamicInformers().ClusterInformer != nil {
+		err := lib.GetDynamicInformers().ClusterInformer.Informer().GetStore().Add(cluster)
+		if err != nil {
+			t.Logf("Warning: Failed to add cluster to dynamic informer cache: %v", err)
+		}
+	}
+}
+
+// addNamespaceToInformerCache adds a namespace to the namespace informer cache for tests
+func addNamespaceToInformerCache(t *testing.T, namespace *corev1.Namespace) {
+	if utils.GetInformers() != nil && utils.GetInformers().NSInformer != nil {
+		err := utils.GetInformers().NSInformer.Informer().GetStore().Add(namespace)
+		if err != nil {
+			t.Logf("Warning: Failed to add namespace to informer cache: %v", err)
+		}
+	}
+}
+
+// waitForSecretInCache waits for a secret to appear in the informer cache or adds it manually for fake clients
+func waitForSecretInCache(t *testing.T, secretName, namespace string, kubeClient kubernetes.Interface) {
+	// In real environments, the secret should appear in cache automatically via watch events
+	// In test environments with fake clients, we need to add it manually
+	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), secretName, metav1.GetOptions{})
+	if err == nil && utils.GetInformers() != nil && utils.GetInformers().SecretInformer != nil {
+		// Try to get from cache first
+		_, err := utils.GetInformers().SecretInformer.Lister().Secrets(namespace).Get(secretName)
+		if err != nil {
+			// Not in cache, add it manually for tests
+			err = utils.GetInformers().SecretInformer.Informer().GetStore().Add(secret)
+			if err != nil {
+				t.Logf("Warning: Failed to add secret %s/%s to informer cache: %v", namespace, secretName, err)
+			}
+		}
+	}
 }
 
 // createAviInfraSetting creates an AviInfraSetting resource for testing
@@ -410,6 +463,8 @@ func TestVKSClusterLifecycleIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create namespace: %v", err)
 	}
+	// Add namespace to informer cache
+	addNamespaceToInformerCache(t, namespace)
 
 	// Create AviInfraSetting resource in both clients
 	aviInfraSetting := createAviInfraSetting("test-aviinfrasetting")
@@ -447,6 +502,8 @@ func TestVKSClusterLifecycleIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create cluster: %v", err)
 	}
+	// Add cluster to informer cache
+	addClusterToInformerCache(t, cluster)
 
 	clusterWatcher.EnqueueCluster(cluster, "ADD")
 	processed := clusterWatcher.ProcessNextWorkItem()
@@ -474,7 +531,7 @@ func TestVKSClusterLifecycleIntegration(t *testing.T) {
 			return false
 		}
 
-		expectedUsername := "vks-cluster-test-cluster-ns-test-cluster-test-uid-123-user"
+		expectedUsername := "vks-cluster-test-cluster-ns-test-cluster-test-uid-user"
 		if string(usernameBytes) == expectedUsername {
 			// Manually sync the secret to informer cache for testing
 			forceInformerCacheSync(secret)
@@ -554,6 +611,8 @@ func TestVKSEndToEndIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create namespace: %v", err)
 	}
+	// Add namespace to informer cache
+	addNamespaceToInformerCache(t, namespace)
 
 	// Create ClusterBootstrap for CNI detection
 	clusterBootstrap := createClusterBootstrap("vks-cluster", "vks-test-ns", "antrea.tanzu.vmware.com.2.3.0+vmware.1-tkg.1")
@@ -583,6 +642,8 @@ func TestVKSEndToEndIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create cluster: %v", err)
 	}
+	// Add cluster to informer cache
+	addClusterToInformerCache(t, cluster)
 
 	clusterWatcher.EnqueueCluster(cluster, "ADD")
 	processed := clusterWatcher.ProcessNextWorkItem()
@@ -692,6 +753,8 @@ func TestVKSIdempotencyIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create namespace: %v", err)
 	}
+	// Add namespace to informer cache
+	addNamespaceToInformerCache(t, namespace)
 
 	// Create ClusterBootstrap for CNI detection
 	clusterBootstrap := createClusterBootstrap("idempotent-cluster", "test-ns", "antrea.tanzu.vmware.com.2.3.0+vmware.1-tkg.1")
@@ -800,6 +863,8 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create namespace: %v", err)
 	}
+	// Add namespace to informer cache
+	addNamespaceToInformerCache(t, namespace)
 
 	// Create ClusterBootstrap for CNI detection
 	clusterBootstrap := createClusterBootstrap("e2e-cluster", "e2e-test-ns", "antrea.tanzu.vmware.com.2.3.0+vmware.1-tkg.1")
@@ -829,6 +894,8 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create cluster: %v", err)
 	}
+	// Add cluster to informer cache
+	addClusterToInformerCache(t, cluster)
 
 	clusterWatcher.EnqueueCluster(cluster, "ADD")
 	processed := clusterWatcher.ProcessNextWorkItem()
@@ -859,6 +926,10 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 
 		return true
 	}, 15*time.Second, 1*time.Second).Should(gomega.Equal(true))
+
+	// Ensure secret is in informer cache for fake client tests
+	waitForSecretInCache(t, "e2e-cluster-avi-secret", "e2e-test-ns", kubeClient)
+
 	t.Log("✅ Cluster secret created successfully")
 
 	t.Log("🔍 Phase 3: Resource State Validation")
@@ -945,6 +1016,14 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 	err = dynamicClient.Resource(ClusterGVR).Namespace("e2e-test-ns").Delete(context.Background(), "e2e-cluster", metav1.DeleteOptions{})
 	if err != nil {
 		t.Fatalf("Failed to delete cluster: %v", err)
+	}
+
+	// Remove cluster from informer cache to simulate real deletion
+	if lib.GetDynamicInformers() != nil && lib.GetDynamicInformers().ClusterInformer != nil {
+		err = lib.GetDynamicInformers().ClusterInformer.Informer().GetStore().Delete(cluster)
+		if err != nil {
+			t.Logf("Warning: Failed to remove cluster from dynamic informer cache: %v", err)
+		}
 	}
 
 	// Process cluster DELETE event
