@@ -487,6 +487,7 @@ func TestAviSvcCreationSinglePortMultiTenantEnabled(t *testing.T) {
 	// Tenant should be akotenant instead of admin
 	g.Expect(nodes[0].Tenant).To(gomega.Equal(AKOTENANT))
 	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(*nodes[0].TrafficEnabled).To(gomega.Equal(true))
 
 	// Check for the pools
 	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
@@ -2045,4 +2046,89 @@ func TestLBSvcWithExtDNSAndAutoFQDNAsFlat(t *testing.T) {
 
 	TearDownTestForSvcLBWithExtDNS(t, g)
 	os.Setenv("AUTO_L4_FQDN", "disable")
+}
+func TestAviSvcCreationSinglePortMultiTenantEnabledWithTrafficDisabledAnnotation(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	SetAkoTenant()
+	defer ResetAkoTenant()
+	svcName := objNameMap.GenerateName(SINGLEPORTSVC)
+	modelName := fmt.Sprintf("%s/cluster--red-ns-%s", AKOTENANT, svcName)
+	objects.SharedAviGraphLister().Delete(modelName)
+	svcExample := (FakeService{
+		Name:         svcName,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+	// Disable Traffic
+	svcExample.Annotations = map[string]string{lib.VSTrafficDisabled: "true"}
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in creating Service: %v", err)
+	}
+	CreateEPS(t, NAMESPACE, svcName, false, false, "1.1.1")
+
+	var aviModel interface{}
+	var found bool
+	g.Eventually(func() bool {
+		found, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		if found && aviModel != nil {
+			return true
+		}
+		return false
+	}, 40*time.Second).Should(gomega.Equal(true))
+
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, svcName)))
+	// Tenant should be akotenant instead of admin
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AKOTENANT))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(*nodes[0].TrafficEnabled).To(gomega.Equal(false))
+
+	// Check for the pools
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	address := "1.1.1.1"
+	g.Expect(nodes[0].PoolRefs[0].Servers[0].Ip.Addr).To(gomega.Equal(&address))
+
+	// Enable Traffic
+	svcExample.Annotations = map[string]string{lib.VSTrafficDisabled: "false"}
+	svcExample.ResourceVersion = "2"
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	// Traffic should be enabled.
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return nodes[0].TrafficEnabled != nil && *nodes[0].TrafficEnabled
+	}, 40*time.Second).Should(gomega.Equal(true))
+
+	// Remove annotations
+	svcExample.Annotations = nil
+	svcExample.ResourceVersion = "3"
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	// Traffic should be enabled.
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return nodes[0].TrafficEnabled != nil && *nodes[0].TrafficEnabled
+	}, 40*time.Second).Should(gomega.Equal(true))
+
+	objects.SharedAviGraphLister().Delete(modelName)
+	objects.SharedAviGraphLister().Delete(modelName)
+	DelSVC(t, NAMESPACE, svcName)
+	DelEPS(t, NAMESPACE, svcName)
+	mcache := cache.SharedAviObjCache()
+	vsKey := cache.NamespaceName{Namespace: AVINAMESPACE, Name: fmt.Sprintf("cluster--%s-%s", svcName, NAMESPACE)}
+	g.Eventually(func() bool {
+		_, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
+		return found
+	}, 5*time.Second).Should(gomega.Equal(false))
 }
