@@ -19,13 +19,13 @@ limitations under the License.
 package v1beta1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	apisakov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	versioned "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned"
 	internalinterfaces "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/informers/externalversions/internalinterfaces"
-	v1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/listers/ako/v1beta1"
+	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/listers/ako/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // AviInfraSettings.
 type AviInfraSettingInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1beta1.AviInfraSettingLister
+	Lister() akov1beta1.AviInfraSettingLister
 }
 
 type aviInfraSettingInformer struct {
@@ -70,7 +70,7 @@ func NewFilteredAviInfraSettingInformer(client versioned.Interface, resyncPeriod
 				return client.AkoV1beta1().AviInfraSettings().Watch(context.TODO(), options)
 			},
 		},
-		&akov1beta1.AviInfraSetting{},
+		&apisakov1beta1.AviInfraSetting{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,9 +81,9 @@ func (f *aviInfraSettingInformer) defaultInformer(client versioned.Interface, re
 }
 
 func (f *aviInfraSettingInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&akov1beta1.AviInfraSetting{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisakov1beta1.AviInfraSetting{}, f.defaultInformer)
 }
 
-func (f *aviInfraSettingInformer) Lister() v1beta1.AviInfraSettingLister {
-	return v1beta1.NewAviInfraSettingLister(f.Informer().GetIndexer())
+func (f *aviInfraSettingInformer) Lister() akov1beta1.AviInfraSettingLister {
+	return akov1beta1.NewAviInfraSettingLister(f.Informer().GetIndexer())
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -28,7 +28,6 @@ const (
 	PodInformer                   = "PodInformer"
 	SecretInformer                = "SecretInformer"
 	NodeInformer                  = "NodeInformer"
-	EndpointInformer              = "EndpointInformer"
 	EndpointSlicesInformer        = "EndpointSlicesInformer"
 	ConfigMapInformer             = "ConfigMapInformer"
 	MultiClusterIngressInformer   = "MultiClusterIngressInformer"
@@ -44,7 +43,6 @@ const (
 	L4LBService                   = "L4LBService"
 	LoadBalancer                  = "LoadBalancer"
 	Pod                           = "Pod"
-	Endpoints                     = "Endpoints"
 	Endpointslices                = "Endpointslices"
 	Ingress                       = "Ingress"
 	IngressClass                  = "IngressClass"
@@ -105,6 +103,7 @@ const (
 	MaxAviVersion                 = "30.2.1"
 	ControllerAPIHeader           = "userHeader"
 	ControllerAPIScheme           = "scheme"
+	XAviUserAgentHeader           = "X-Avi-UserAgent"
 
 	RefreshAuthTokenInterval = 12  //hours
 	AuthTokenExpiry          = 240 //hours

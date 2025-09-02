@@ -1,5 +1,5 @@
 /*
-* Copyright 2022-2023 VMware, Inc.
+* Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
 * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ type L4RuleSpec struct {
 	SslKeyAndCertificateRefs []string             `json:"sslKeyAndCertificateRefs,omitempty"`
 	SslProfileRef            *string              `json:"sslProfileRef,omitempty"`
 	VsDatascriptRefs         []string             `json:"vsDatascriptRefs,omitempty"`
+	RevokeVipRoute           *bool                `json:"revokeVipRoute,omitempty"`
 }
 
 type L4RuleStatus struct {
