@@ -23,8 +23,6 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/webhook"
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -330,11 +328,6 @@ func (w *VKSClusterWatcher) cleanupClusterDependencies(ctx context.Context, clus
 	}
 
 	if clusterNameWithUID != "" {
-		if err := w.cleanupAviObjects(clusterNameWithUID); err != nil {
-			utils.AviLog.Errorf("AVI objects cleanup failed for cluster %s/%s: %v", clusterNamespace, clusterName, err)
-			return fmt.Errorf("AVI objects cleanup failed, keeping secret for retry: %v", err)
-		}
-
 		utils.AviLog.Infof("Cleaning up RBAC for cluster: %s", clusterNameWithUID)
 		w.cleanupClusterSpecificRBAC(clusterNameWithUID)
 		utils.AviLog.Infof("Successfully cleaned up RBAC for cluster: %s", clusterNameWithUID)
@@ -845,38 +838,6 @@ func StartVKSClusterWatcher(stopCh <-chan struct{}, dynamicInformers *lib.Dynami
 	return nil
 }
 
-// cleanupAviObjects removes all AVI objects created by the cluster
-func (w *VKSClusterWatcher) cleanupAviObjects(clusterNameWithUID string) error {
-	utils.AviLog.Infof("Cleaning up AVI objects for cluster: %s", clusterNameWithUID)
-
-	aviObjCache := avicache.SharedAviObjCache()
-	if aviObjCache == nil {
-		return fmt.Errorf("AVI object cache not available")
-	}
-
-	// Get all VS cache keys and filter for this cluster
-	var parentVSKeys []avicache.NamespaceName
-	vsCacheKeys := aviObjCache.VsCacheMeta.AviGetAllKeys()
-
-	for _, vsKey := range vsCacheKeys {
-		if strings.Contains(vsKey.Name, clusterNameWithUID) {
-			parentVSKeys = append(parentVSKeys, vsKey)
-		}
-	}
-
-	if len(parentVSKeys) == 0 {
-		utils.AviLog.Infof("No parent VS keys found for cluster %s", clusterNameWithUID)
-		return nil
-	}
-
-	utils.AviLog.Infof("Found %d parent VS keys for cluster %s", len(parentVSKeys), clusterNameWithUID)
-
-	k8s.DeleteAviObjects(parentVSKeys, aviObjCache)
-
-	utils.AviLog.Infof("Completed AVI object deletion for VKS cluster: %s", clusterNameWithUID)
-	return nil
-}
-
 // SetTestMode enables test mode with mock credentials function
 func (w *VKSClusterWatcher) SetTestMode(mockFunc func(string, string) (*lib.ClusterCredentials, error)) {
 	w.testMode = true
@@ -972,12 +933,7 @@ func (w *VKSClusterWatcher) cleanupOrphanedAviObjects(activeVKSClusters map[stri
 		utils.AviLog.Infof("VKS reconciler: processing orphaned cluster %s from secret %s/%s",
 			clusterNameWithUID, secretInfo.Namespace, secretInfo.Name)
 
-		utils.AviLog.Infof("VKS reconciler: cleaning up orphaned AVI objects for deleted cluster %s", clusterNameWithUID)
-
-		if err := w.cleanupAviObjects(clusterNameWithUID); err != nil {
-			utils.AviLog.Errorf("VKS reconciler: failed to cleanup AVI objects for cluster %s: %v", clusterNameWithUID, err)
-			continue
-		}
+		utils.AviLog.Infof("VKS reconciler: cleaning up orphaned RBAC for deleted cluster %s", clusterNameWithUID)
 
 		w.cleanupClusterSpecificRBAC(clusterNameWithUID)
 
