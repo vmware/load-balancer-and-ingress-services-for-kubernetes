@@ -52,7 +52,7 @@ sudo /srp-tools/srp provenance add-output package.oci --set-key=ako-operator-ima
 CI_REGISTRY_IMAGE_AKO_CRD_OPERATOR=$CI_REGISTRY_PATH/ako/$branch/ako-crd-operator
 IMAGE_DIGEST=`sudo docker images $CI_REGISTRY_IMAGE_AKO_CRD_OPERATOR  --digests | grep sha256 | xargs | cut -d " " -f3`
 echo $IMAGE_DIGEST
-docker manifest inspect $CI_REGISTRY_IMAGE_AKO__CRD_OPERATOR:${build_version} --insecure > ako_crd_operator_manifest.json
+docker manifest inspect $CI_REGISTRY_IMAGE_AKO_CRD_OPERATOR:${build_version} --insecure > ako_crd_operator_manifest.json
 cat ako_crd_operator_manifest.json
 sudo /srp-tools/srp provenance add-output package.oci --set-key=ako-crd-operator-image --action-key=ako-build --name=${CI_REGISTRY_IMAGE_AKO_CRD_OPERATOR}  --digest=${IMAGE_DIGEST} --manifest-path $WORKSPACE/ako_crd_operator_manifest.json --working-dir $WORKSPACE/provenance
 
