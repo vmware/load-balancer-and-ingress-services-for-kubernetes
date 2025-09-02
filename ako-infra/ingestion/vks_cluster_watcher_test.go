@@ -413,8 +413,8 @@ func TestVKSClusterWatcher_HandleProvisionedCluster(t *testing.T) {
 			clusterNamespace: "test-namespace-2",
 			vksLabel:         webhook.VKSManagedLabelValueFalse,
 			secretExists:     true,
-			expectedAction:   "delete",
-			expectError:      false,
+			expectedAction:   "delete", // Secret deleted with successful RBAC cleanup
+			expectError:      false,    // Should succeed with mock RBAC cleanup
 		},
 		{
 			name:             "Should manage cluster with secret - update if needed",
@@ -440,8 +440,8 @@ func TestVKSClusterWatcher_HandleProvisionedCluster(t *testing.T) {
 			clusterNamespace: "test-namespace-5",
 			vksLabel:         "",
 			secretExists:     true,
-			expectedAction:   "delete",
-			expectError:      false,
+			expectedAction:   "delete", // Secret deleted with successful RBAC cleanup
+			expectError:      false,    // Should succeed with mock RBAC cleanup
 		},
 	}
 
@@ -585,8 +585,8 @@ func TestVKSClusterWatcher_HandleProvisionedCluster(t *testing.T) {
 
 			watcher := NewVKSClusterWatcher(setup.KubeClient, setup.DynamicClient)
 
-			// Set up mock credentials function for tests that need secret creation
-			if tt.expectedAction == "create" || (tt.expectedAction == "none" && tt.vksLabel == webhook.VKSManagedLabelValueTrue) {
+			// Set up mock credentials and RBAC function for tests that need secret operations or cleanup
+			if tt.expectedAction == "create" || tt.expectedAction == "delete" || (tt.expectedAction == "none" && tt.vksLabel == webhook.VKSManagedLabelValueTrue) {
 				watcher.SetTestMode(func(clusterNameWithUID, operationalTenant string) (*lib.ClusterCredentials, error) {
 					return &lib.ClusterCredentials{
 						Username: fmt.Sprintf("vks-cluster-%s-user", clusterNameWithUID),
@@ -642,6 +642,11 @@ func TestVKSClusterWatcher_HandleProvisionedCluster(t *testing.T) {
 			case "delete":
 				if secretExistsAfter {
 					t.Error("Expected secret to be deleted but it still exists")
+				}
+			case "retry":
+				// Secret should remain due to RBAC cleanup failure (correct behavior)
+				if !secretExistsAfter {
+					t.Error("Expected secret to remain for retry but it was deleted")
 				}
 			case "none":
 				// For "none" action, secret existence should match initial state
@@ -699,7 +704,7 @@ func TestVKSClusterWatcher_ProcessClusterEvent(t *testing.T) {
 			clusterExists: true,
 			clusterPhase:  ClusterPhaseDeleting,
 			vksLabel:      webhook.VKSManagedLabelValueTrue,
-			expectError:   false,
+			expectError:   false, // Should succeed with mock RBAC cleanup
 		},
 		{
 			name:          "Process non-existent cluster",
@@ -784,8 +789,8 @@ func TestVKSClusterWatcher_ProcessClusterEvent(t *testing.T) {
 
 			watcher := NewVKSClusterWatcher(setup.KubeClient, setup.DynamicClient)
 
-			// Set up mock credentials function for provisioning/provisioned cluster tests
-			if (tt.clusterPhase == ClusterPhaseProvisioning || tt.clusterPhase == ClusterPhaseProvisioned) && tt.vksLabel == webhook.VKSManagedLabelValueTrue {
+			// Set up mock credentials and RBAC function for all VKS-managed cluster tests
+			if tt.vksLabel == webhook.VKSManagedLabelValueTrue {
 				watcher.SetTestMode(func(clusterNameWithUID, operationalTenant string) (*lib.ClusterCredentials, error) {
 					return &lib.ClusterCredentials{
 						Username: fmt.Sprintf("vks-cluster-%s-user", clusterNameWithUID),
@@ -1569,7 +1574,7 @@ func TestVKSClusterWatcher_CleanupOnOptOut(t *testing.T) {
 	// Process cluster opt-out via HandleProvisionedCluster
 	err = watcher.HandleProvisionedCluster(cluster)
 	if err != nil {
-		t.Errorf("HandleProvisionedCluster should not fail on opt-out: %v", err)
+		t.Errorf("HandleProvisionedCluster should not fail on opt-out with mock RBAC: %v", err)
 	}
 
 	// Verify secret was cleaned up (opt-out should trigger comprehensive cleanup)
