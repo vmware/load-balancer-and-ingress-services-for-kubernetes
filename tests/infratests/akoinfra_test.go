@@ -41,6 +41,9 @@ var gvrToKind = map[schema.GroupVersionResource]string{
 	lib.ClusterNetworkGVR:          "clusternetworkinfosList",
 	lib.VPCNetworkConfigurationGVR: "vpcnetworkconfigurationsList",
 	lib.AvailabilityZoneVR:         "availabilityzonesList",
+	lib.SupervisorCapabilityGVR:    "supervisorcapabilitiesList",
+	lib.AddonInstallGVR:            "addoninstallsList",
+	lib.ClusterGVR:                 "clustersList",
 }
 
 func annotateNamespaceWithVpcNetworkConfigCR(t *testing.T, ns, vpcNetConfigCR string) {

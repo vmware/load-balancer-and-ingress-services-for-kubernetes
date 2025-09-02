@@ -309,6 +309,13 @@ func (c *VCFK8sController) startVKSInfrastructure(stopCh <-chan struct{}) {
 	}()
 }
 
+// SetDynamicInformersForTesting updates the controller's dynamic informers reference
+// This is only intended for testing scenarios where the controller singleton is created
+// before dynamic informers are initialized. In production, this should not be needed.
+func (c *VCFK8sController) SetDynamicInformersForTesting() {
+	c.dynamicInformers = lib.GetDynamicInformers()
+}
+
 func (c *VCFK8sController) AddVKSAddonEventHandler(stopCh <-chan struct{}) {
 	if !lib.GetVPCMode() {
 		utils.AviLog.Infof("Not running in VPC mode, skipping VKS addon event handler")
