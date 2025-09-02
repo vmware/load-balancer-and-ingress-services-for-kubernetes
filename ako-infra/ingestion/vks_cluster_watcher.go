@@ -92,6 +92,7 @@ type VKSClusterWatcher struct {
 	// For testing - allows injecting mock behavior
 	testMode            bool
 	mockCredentialsFunc func(string, string) (*lib.ClusterCredentials, error)
+	mockRBACFunc        func(string) error
 }
 
 // getUniqueClusterName generates a unique cluster identifier using namespace, name and UID
@@ -329,7 +330,10 @@ func (w *VKSClusterWatcher) cleanupClusterDependencies(ctx context.Context, clus
 
 	if clusterNameWithUID != "" {
 		utils.AviLog.Infof("Cleaning up RBAC for cluster: %s", clusterNameWithUID)
-		w.cleanupClusterSpecificRBAC(clusterNameWithUID)
+		if err := w.cleanupClusterSpecificRBAC(clusterNameWithUID); err != nil {
+			utils.AviLog.Errorf("RBAC cleanup failed for cluster %s: %v", clusterNameWithUID, err)
+			return fmt.Errorf("RBAC cleanup failed for cluster %s: %v", clusterNameWithUID, err)
+		}
 		utils.AviLog.Infof("Successfully cleaned up RBAC for cluster: %s", clusterNameWithUID)
 	} else {
 		utils.AviLog.Infof("Could not determine cluster identifier for %s/%s - likely already cleaned up", clusterNamespace, clusterName)
@@ -369,24 +373,29 @@ func (w *VKSClusterWatcher) getClusterNameWithUIDFromSecret(clusterName, cluster
 }
 
 // cleanupClusterSpecificRBAC removes cluster-specific RBAC from Avi Controller
-func (w *VKSClusterWatcher) cleanupClusterSpecificRBAC(clusterName string) {
+func (w *VKSClusterWatcher) cleanupClusterSpecificRBAC(clusterName string) error {
+	if w.testMode && w.mockRBACFunc != nil {
+		return w.mockRBACFunc(clusterName)
+	}
+
 	aviClient := avirest.InfraAviClientInstance()
 	if aviClient == nil {
 		utils.AviLog.Warnf("Avi Controller client not available for RBAC cleanup of cluster %s", clusterName)
-		return
+		return fmt.Errorf("avi Controller client not available for RBAC cleanup of cluster %s", clusterName)
 	}
 
-	err := lib.DeleteClusterUser(aviClient, clusterName)
-	if err != nil {
+	if err := lib.DeleteClusterUser(aviClient, clusterName); err != nil {
 		utils.AviLog.Errorf("Failed to delete VKS cluster user for %s: %v", clusterName, err)
+		return fmt.Errorf("failed to delete VKS cluster user for %s: %v", clusterName, err)
 	}
 
-	err = lib.DeleteClusterRoles(aviClient, clusterName)
-	if err != nil {
+	if err := lib.DeleteClusterRoles(aviClient, clusterName); err != nil {
 		utils.AviLog.Errorf("Failed to delete VKS cluster roles for %s: %v", clusterName, err)
+		return fmt.Errorf("failed to delete VKS cluster roles for %s: %v", clusterName, err)
 	}
 
 	utils.AviLog.Infof("Cleaned up VKS cluster RBAC for %s", clusterName)
+	return nil
 }
 
 // createClusterSpecificCredentials creates cluster-specific RBAC credentials in Avi Controller
@@ -842,6 +851,10 @@ func StartVKSClusterWatcher(stopCh <-chan struct{}, dynamicInformers *lib.Dynami
 func (w *VKSClusterWatcher) SetTestMode(mockFunc func(string, string) (*lib.ClusterCredentials, error)) {
 	w.testMode = true
 	w.mockCredentialsFunc = mockFunc
+	w.mockRBACFunc = func(clusterName string) error {
+		utils.AviLog.Infof("Mock RBAC cleanup for cluster: %s", clusterName)
+		return nil
+	}
 }
 
 func (w *VKSClusterWatcher) startPeriodicReconciler() {
@@ -935,7 +948,11 @@ func (w *VKSClusterWatcher) cleanupOrphanedAviObjects(activeVKSClusters map[stri
 
 		utils.AviLog.Infof("VKS reconciler: cleaning up orphaned RBAC for deleted cluster %s", clusterNameWithUID)
 
-		w.cleanupClusterSpecificRBAC(clusterNameWithUID)
+		if err := w.cleanupClusterSpecificRBAC(clusterNameWithUID); err != nil {
+			utils.AviLog.Errorf("VKS reconciler: RBAC cleanup failed for cluster %s: %v - will retry in next cycle", clusterNameWithUID, err)
+			// Continue to next orphaned cluster - don't delete secret if RBAC cleanup failed
+			continue
+		}
 
 		err := w.kubeClient.CoreV1().Secrets(secretInfo.Namespace).Delete(context.Background(), secretInfo.Name, metav1.DeleteOptions{})
 		if err != nil && !errors.IsNotFound(err) {
