@@ -95,27 +95,24 @@ type VKSClusterWatcher struct {
 	mockRBACFunc        func(string) error
 }
 
-// getUniqueClusterName generates a unique cluster identifier using namespace, name and UID
+// getUniqueClusterName generates a unique cluster identifier in format: clustername[:15]-hash
+// The hash is computed from clustername, namespace, uid, and supervisorID to ensure uniqueness across supervisors
 func (w *VKSClusterWatcher) getUniqueClusterName(cluster *unstructured.Unstructured) string {
+	supervisorID := lib.GetClusterID()
 	namespace := cluster.GetNamespace()
 	name := cluster.GetName()
 	uid := cluster.GetUID()
 
-	maxNamespaceLen := 15
-	maxNameLen := 15
-	maxUIDLen := 8
-
-	if len(namespace) > maxNamespaceLen {
-		namespace = namespace[:maxNamespaceLen]
-	}
-	if len(name) > maxNameLen {
-		name = name[:maxNameLen]
-	}
-	if len(uid) > maxUIDLen {
-		uid = uid[:maxUIDLen]
+	clusterName := name
+	if len(clusterName) > 15 {
+		clusterName = clusterName[:15]
 	}
 
-	return fmt.Sprintf("%s-%s-%s", namespace, name, uid)
+	// Create hash from all components to ensure uniqueness across supervisors
+	hashInput := fmt.Sprintf("%s-%s-%s-%s", name, namespace, uid, supervisorID)
+	hash := utils.Hash(hashInput)
+
+	return fmt.Sprintf("%s-%s", clusterName, fmt.Sprintf("%x", hash))
 }
 
 // NewVKSClusterWatcher creates a new cluster watcher instance

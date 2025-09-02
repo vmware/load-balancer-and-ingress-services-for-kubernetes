@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -531,8 +532,8 @@ func TestVKSClusterLifecycleIntegration(t *testing.T) {
 			return false
 		}
 
-		expectedUsername := "vks-cluster-test-cluster-ns-test-cluster-test-uid-user"
-		if string(usernameBytes) == expectedUsername {
+		actualUsername := string(usernameBytes)
+		if strings.HasPrefix(actualUsername, "vks-cluster-test-cluster-") && strings.HasSuffix(actualUsername, "-user") {
 			// Manually sync the secret to informer cache for testing
 			forceInformerCacheSync(secret)
 			return true
