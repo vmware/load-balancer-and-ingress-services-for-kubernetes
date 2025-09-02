@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -896,9 +897,10 @@ func TestVKSClusterWatcher_WorkerIntegration(t *testing.T) {
 	}
 
 	// Verify mock credentials are in the secret
-	expectedUsername := "vks-cluster-test-namespace-test-cluster-test-uid-user"
-	if string(secret.Data["username"]) != expectedUsername {
-		t.Errorf("Expected username to be '%s', got '%s'", expectedUsername, string(secret.Data["username"]))
+	// The cluster name format is now: clustername[:15]-hash
+	actualUsername := string(secret.Data["username"])
+	if !strings.HasPrefix(actualUsername, "vks-cluster-test-cluster-") || !strings.HasSuffix(actualUsername, "-user") {
+		t.Errorf("Expected username to match pattern 'vks-cluster-test-cluster-<hash>-user', got '%s'", actualUsername)
 	}
 
 	// Stop the watcher
