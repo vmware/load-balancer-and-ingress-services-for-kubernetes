@@ -4966,20 +4966,15 @@ func TestHTTPRouteStatusWithRouteBackendExtensionStatusTransition(t *testing.T) 
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 }
 
-// new changes
-func verifyApplicationProfileRef(g *gomega.GomegaWithT, modelName, appProfileRef string, childVSAbsent bool) {
+func verifyApplicationProfileRef(g *gomega.GomegaWithT, modelName, appProfileRef string) {
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found {
 			return false
 		}
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		// in case of non-ready app profiles, child vs is to be deleted
-		if childVSAbsent {
-			return len(nodes[0].EvhNodes) == 0
-		}
 
-		if len(nodes[0].EvhNodes) == 1 {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		if len(nodes[0].EvhNodes) > 0 {
 			childVS := nodes[0].EvhNodes[0]
 			if childVS.ApplicationProfileRef == nil {
 				return false
@@ -5025,7 +5020,7 @@ func TestHTTPRouteWithAppProfileExtensionRef(t *testing.T) {
 
 	// if no application profile ref is provided,
 	// the default "System-HTTP" profile should be used.
-	verifyApplicationProfileRef(g, modelName, defaultHTTPAppProfile, false)
+	verifyApplicationProfileRef(g, modelName, defaultHTTPAppProfile)
 
 	// check if invalid app profile is correctly handled post update
 	rule = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
@@ -5036,7 +5031,7 @@ func TestHTTPRouteWithAppProfileExtensionRef(t *testing.T) {
 
 	// if an invalid application profile ref is provided,
 	// the child vs should be absent
-	verifyApplicationProfileRef(g, modelName, "", true)
+	verifyApplicationProfileRef(g, modelName, defaultHTTPAppProfile)
 
 	// create the previous "test-app-profile" app profile and check if
 	// http route was actually processed with child vs correctly getting
@@ -5045,11 +5040,11 @@ func TestHTTPRouteWithAppProfileExtensionRef(t *testing.T) {
 		Status: "True",
 	})
 	// should be updated correctly with prefix <cluster-name>-<namespace>
-	verifyApplicationProfileRef(g, modelName, "/api/applicationprofile/?name=cluster-default-test-app-profile", false)
+	verifyApplicationProfileRef(g, modelName, "/api/applicationprofile/?name=cluster-default-test-app-profile")
 
 	// delete the app profile ref and check if the child vs is removed
 	akogatewayapitests.DeleteApplicationProfileCRD(t, "test-app-profile")
-	verifyApplicationProfileRef(g, modelName, "", true)
+	verifyApplicationProfileRef(g, modelName, defaultHTTPAppProfile)
 
 	// Delete the existing httproute and create a new one with existing app prof ref
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
@@ -5065,14 +5060,14 @@ func TestHTTPRouteWithAppProfileExtensionRef(t *testing.T) {
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
 
 	// should be updated correctly
-	verifyApplicationProfileRef(g, modelName, "/api/applicationprofile/?name=cluster-default-test-app-profile-2", false)
+	verifyApplicationProfileRef(g, modelName, "/api/applicationprofile/?name=cluster-default-test-app-profile-2")
 
 	// update the application profile to change condition status to "False"
 	// and verify if existing application profile wasn't changed
 	akogatewayapitests.UpdateApplicationProfileCRD(t, "test-app-profile-2", &akogatewayapitests.FakeApplicationProfileStatus{
 		Status: "False",
 	})
-	verifyApplicationProfileRef(g, modelName, "", true)
+	verifyApplicationProfileRef(g, modelName, defaultHTTPAppProfile)
 
 	// create a new application profile crd and update the http route ref to it
 	// and it should update correctly
@@ -5085,7 +5080,7 @@ func TestHTTPRouteWithAppProfileExtensionRef(t *testing.T) {
 	rules = []gatewayv1.HTTPRouteRule{rule}
 	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
 
-	verifyApplicationProfileRef(g, modelName, "/api/applicationprofile/?name=cluster-default-test-app-profile-3", false)
+	verifyApplicationProfileRef(g, modelName, "/api/applicationprofile/?name=cluster-default-test-app-profile-3")
 
 	// cleanup
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
@@ -5178,14 +5173,14 @@ func TestHTTPRouteWithAppProfileExtensionRefMultipleRules(t *testing.T) {
 		return *childNode1.ApplicationProfileRef == defaultHTTPAppProfile
 	}, 25*time.Second).Should(gomega.Equal(true))
 
-	// set invalid app profile to one of the rules and check if child vs is gone
-	rule1 = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/bar"}, []string{},
+	// set invalid app profile to one of the rules and check vs has default application profile ref
+	rule1 = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"ExtensionRef": {"invalid-app-profile"}},
 		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
 	rules = []gatewayv1.HTTPRouteRule{rule1, rule2}
 	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
 
-	verifyApplicationProfileRef(g, modelName, "", true)
+	verifyApplicationProfileRef(g, modelName, defaultHTTPAppProfile)
 
 	// update application profiles in both rules and verify if the refs are updated correctly
 	rule1 = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},

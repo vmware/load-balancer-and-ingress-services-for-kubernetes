@@ -330,12 +330,12 @@ func (hr *httpRoute) ParseRouteConfig(key string) *RouteConfig {
 				var isValid bool
 				isValid, resolvedRefConditionRuleFilter = validateFilterExtensionRef(key, hr.GetNamespace(), filter.ExtensionRef)
 				if !isValid {
+					if resolvedRefConditionRuleFilter != nil {
+						resolvedRefCondition = resolvedRefConditionRuleFilter
+					}
 					continue
 				}
 
-			}
-			if resolvedRefConditionRuleFilter != nil {
-				resolvedRefCondition = resolvedRefConditionRuleFilter
 			}
 			routeConfigRule.Filters = append(routeConfigRule.Filters, filter)
 		}
