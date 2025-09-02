@@ -29,7 +29,6 @@ def get_pr_files():
     
 def are_there_any_changes(folder_path):
     for fpath in get_pr_files():
-        print(fpath)
         if folder_path in fpath:
             return True
     return False
