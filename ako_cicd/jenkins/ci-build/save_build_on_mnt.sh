@@ -36,10 +36,11 @@ sudo mkdir -p $ako_crd_operator_target_path
 # Copy ako helm charts
 sudo cp -r $AKO_CHARTS_PATH/* $ako_target_path/
 sudo sed -i --regexp-extended "s/^(\s*)(appVersion\s*:\s*latest\s*$)/\1appVersion: $build_version/" $ako_target_path/Chart.yaml
-sudo sed -i 's|repository:.*|repository: "../ako-crd-operator"|' $ako_target_path/Chart.yaml
+sudo sed -i 's|repository:.*|repository: "file://../ako-crd-operator"|' $ako_target_path/Chart.yaml
 
 # Copy ako-operator helm charts
 sudo cp -r $AKO_OPERATOR_CHARTS_PATH/* $ako_operator_target_path/
+sudo sed -i --regexp-extended "s/^(\s*)(appVersion\s*:\s*latest\s*$)/\1appVersion: $build_version/" $ako_operator_target_path/Chart.yaml
 
 # Copy ako-crd-operator helm charts
 sudo cp -r $AKO_CRD_OPERATOR_CHARTS_PATH/* $ako_crd_operator_target_path/
