@@ -472,6 +472,11 @@ func (o *AviObjectGraph) BuildPGPoolForDedicatedMode(key string, vsNode *nodes.A
 			ratio = uint32(backend.Weight)
 		}
 
+		buildPoolWithBackendExtensionRefs(key, poolNode, routeModel.GetNamespace(), httpbackend)
+		if vsNode.CheckPoolNChecksum(poolNode.Name, poolNode.GetCheckSum()) {
+			// Replace the poolNode.
+			vsNode.ReplaceEvhPoolInEVHNode(poolNode, key)
+		}
 		// Add pool reference to pool group
 		poolRef := fmt.Sprintf("/api/pool?name=%s", poolName)
 		poolGroupNode.Members = append(poolGroupNode.Members, &models.PoolGroupMember{
@@ -490,18 +495,4 @@ func (o *AviObjectGraph) BuildPGPoolForDedicatedMode(key string, vsNode *nodes.A
 
 	utils.AviLog.Debugf("key: %s, msg: Built pool group %s for dedicated mode rule %d (attached via HTTP PolicySet)",
 		key, poolGroupName, ruleIndex)
-}
-
-// ApplyRuleExtensionRefsForDedicatedMode handles extension refs for dedicated mode
-func (o *AviObjectGraph) ApplyRuleExtensionRefsForDedicatedMode(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
-	// This would handle any extension refs similar to how it's done for child VS
-	// For now, just log that extension refs are not yet fully implemented for dedicated mode
-	if len(rule.Filters) > 0 {
-		for _, filter := range rule.Filters {
-			if filter.ExtensionRef != nil {
-				utils.AviLog.Debugf("key: %s, msg: Extension ref %s/%s found for dedicated mode (implementation pending)",
-					key, filter.ExtensionRef.Kind, filter.ExtensionRef.Name)
-			}
-		}
-	}
 }

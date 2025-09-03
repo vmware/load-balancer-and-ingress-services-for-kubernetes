@@ -128,12 +128,14 @@ func (v *AviVsCache) SetPGKeyCollection(keyCollection []NamespaceName) {
 }
 
 func RemoveNamespaceName(s []NamespaceName, r NamespaceName) []NamespaceName {
-	for i, v := range s {
-		if v == r {
-			return append(s[:i], s[i+1:]...)
+	n := 0
+	for _, v := range s {
+		if v != r {
+			s[n] = v
+			n++
 		}
 	}
-	return s
+	return s[:n]
 }
 
 func (v *AviVsCache) AddToPGKeyCollection(k NamespaceName) {
