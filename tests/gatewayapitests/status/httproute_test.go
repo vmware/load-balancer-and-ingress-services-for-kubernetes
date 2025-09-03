@@ -1614,14 +1614,19 @@ func TestHTTPRouteMultpleRouteBackendExtensionSingleBackend(t *testing.T) {
 	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
 
-	g.Eventually(func() int {
+	// Only the RBE specified first should be processed, and the HM and LbAlgorithm should be set
+	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found {
-			return -1
+			return false
 		}
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
-	}, 25*time.Second).Should(gomega.Equal(0))
+		return len(nodes[0].EvhNodes) == 1 &&
+			len(nodes[0].EvhNodes[0].PoolRefs) == 1 &&
+			len(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs) == 1 &&
+			strings.Contains(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs[0], "thisisaviref-hm1") &&
+			*nodes[0].EvhNodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_ROUND_ROBIN"
+	}, 25*time.Second).Should(gomega.Equal(true))
 
 	// HTTPRoute should have unresolved refs condition due to non-existent RouteBackendExtension
 	g.Eventually(func() bool {
@@ -1651,11 +1656,14 @@ func TestHTTPRouteMultpleRouteBackendExtensionSingleBackend(t *testing.T) {
 	rbe2.DeleteRouteBackendExtensionCR(t)
 
 	// Wait for the model to be updated after RouteBackendExtension deletion
-	g.Eventually(func() int {
+	g.Eventually(func() bool {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
-	}, 25*time.Second).Should(gomega.Equal(0))
+		return len(nodes[0].EvhNodes) == 1 &&
+			len(nodes[0].EvhNodes[0].PoolRefs) == 1 &&
+			len(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs) == 0 &&
+			nodes[0].EvhNodes[0].PoolRefs[0].LbAlgorithm == nil
+	}, 25*time.Second).Should(gomega.Equal(true))
 
 	// Clean up
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
