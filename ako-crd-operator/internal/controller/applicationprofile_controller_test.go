@@ -684,13 +684,13 @@ func TestApplicationProfileController(t *testing.T) {
 
 			// Create reconciler
 			reconciler := &ApplicationProfileReconciler{
-				Client:        fakeClient,
-				AviClient:     mockAviClient,
-				Scheme:        scheme,
-				Logger:        utils.AviLog,
-				EventRecorder: record.NewFakeRecorder(10),
-				ClusterName:   "test-cluster",
-				Cache:         mockCache,
+				Client:              fakeClient,
+				AviClientForTesting: mockAviClient,
+				Scheme:              scheme,
+				Logger:              utils.AviLog,
+				EventRecorder:       record.NewFakeRecorder(10),
+				ClusterName:         "test-cluster",
+				Cache:               mockCache,
 			}
 
 			// Test reconcile
@@ -909,13 +909,13 @@ func TestApplicationProfileControllerKubernetesError(t *testing.T) {
 				tt.prepare(mockAviClient)
 			}
 			reconciler := &ApplicationProfileReconciler{
-				Client:        fakeClient,
-				AviClient:     mockAviClient,
-				Scheme:        runtime.NewScheme(),
-				Logger:        utils.AviLog,
-				EventRecorder: &record.FakeRecorder{},
-				ClusterName:   "test-cluster",
-				Cache:         mockCache,
+				Client:              fakeClient,
+				AviClientForTesting: mockAviClient,
+				Scheme:              runtime.NewScheme(),
+				Logger:              utils.AviLog,
+				EventRecorder:       &record.FakeRecorder{},
+				ClusterName:         "test-cluster",
+				Cache:               mockCache,
 			}
 
 			ctx := context.Background()
@@ -1138,13 +1138,13 @@ func TestApplicationProfileControllerTenantChange(t *testing.T) {
 
 			// Create reconciler
 			reconciler := &ApplicationProfileReconciler{
-				Client:        fakeClient,
-				AviClient:     mockAviClient,
-				Scheme:        scheme,
-				Logger:        utils.AviLog,
-				EventRecorder: record.NewFakeRecorder(10),
-				ClusterName:   "test-cluster",
-				Cache:         mockCache,
+				Client:              fakeClient,
+				AviClientForTesting: mockAviClient,
+				Scheme:              scheme,
+				Logger:              utils.AviLog,
+				EventRecorder:       record.NewFakeRecorder(10),
+				ClusterName:         "test-cluster",
+				Cache:               mockCache,
 			}
 
 			// Test reconcile

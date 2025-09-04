@@ -47,6 +47,12 @@ type Session struct {
 	controllerVersion        string
 }
 
+// Global singleton instance
+var (
+	globalSession *Session
+	sessionOnce   sync.Once
+)
+
 func NewSession(k8sClient kubernetes.Interface, eventManager *event.EventManager) *Session {
 	return &Session{
 		sync:                     &sync.Mutex{},
@@ -56,6 +62,37 @@ func NewSession(k8sClient kubernetes.Interface, eventManager *event.EventManager
 		status:                   utils.AVIAPI_INITIATING,
 		eventManager:             eventManager,
 	}
+}
+
+// InitializeGlobalSession initializes the global singleton session
+func InitializeGlobalSession(k8sClient kubernetes.Interface, eventManager *event.EventManager) *Session {
+	sessionOnce.Do(func() {
+		globalSession = NewSession(k8sClient, eventManager)
+	})
+	return globalSession
+}
+
+// GetGlobalSession returns the global singleton session instance
+func GetGlobalSession() *Session {
+	if globalSession == nil {
+		panic("Global session not initialized. Call InitializeGlobalSession first.")
+	}
+	return globalSession
+}
+
+// ResetGlobalSessionForTesting resets the global session for testing purposes
+// This should only be used in tests
+func ResetGlobalSessionForTesting() {
+	globalSession = nil
+	sessionOnce = sync.Once{}
+}
+
+// SetGlobalSessionForTesting sets a mock session for testing purposes
+// This should only be used in tests
+func SetGlobalSessionForTesting(session *Session) {
+	globalSession = session
+	sessionOnce = sync.Once{}
+	sessionOnce.Do(func() {}) // Mark as already initialized
 }
 
 func (s *Session) PopulateControllerProperties(ctx context.Context) error {
@@ -138,4 +175,28 @@ func (s *Session) UpdateAviClients(ctx context.Context, numClient int) error {
 
 func (s *Session) GetAviClients() *utils.AviRestClientPool {
 	return s.aviClientPool
+}
+
+// SetAviClientPool sets the AVI client pool - used for testing
+func (s *Session) SetAviClientPool(pool *utils.AviRestClientPool) {
+	s.aviClientPool = pool
+}
+
+// UpdateAviClientsFromSecret updates the AVI client pool when avi-secret changes
+// This method is thread-safe and refreshes the global session with new credentials
+func (s *Session) UpdateAviClientsFromSecret(ctx context.Context, numClient int) error {
+	log := utils.LoggerFromContext(ctx)
+
+	// Repopulate controller properties from the updated secret
+	if err := s.PopulateControllerProperties(ctx); err != nil {
+		log.Errorf("Failed to repopulate controller properties: %v", err)
+		return err
+	}
+
+	// Create new AVI clients with updated credentials
+	log.Infof("Creating new AVI client pool with updated credentials")
+	s.CreateAviClients(ctx, numClient)
+
+	log.Infof("AVI client pool successfully refreshed from avi-secret changes")
+	return nil
 }

@@ -463,13 +463,13 @@ func TestRouteBackendExtensionController(t *testing.T) {
 
 			// Create reconciler
 			reconciler := &RouteBackendExtensionReconciler{
-				Client:        fakeClient,
-				AviClient:     mockAviClient,
-				Scheme:        scheme,
-				Logger:        utils.AviLog,
-				EventRecorder: eventRecorder,
-				ClusterName:   "test-cluster",
-				Cache:         mockCache,
+				Client:              fakeClient,
+				AviClientForTesting: mockAviClient,
+				Scheme:              scheme,
+				Logger:              utils.AviLog,
+				EventRecorder:       eventRecorder,
+				ClusterName:         "test-cluster",
+				Cache:               mockCache,
 			}
 
 			// Test reconcile
@@ -653,13 +653,13 @@ func TestRouteBackendExtensionControllerKubernetesError(t *testing.T) {
 			}
 
 			reconciler := &RouteBackendExtensionReconciler{
-				Client:        fakeClient,
-				AviClient:     mockAviClient,
-				Scheme:        runtime.NewScheme(),
-				Logger:        utils.AviLog,
-				EventRecorder: record.NewFakeRecorder(10),
-				ClusterName:   "test-cluster",
-				Cache:         mockCache,
+				Client:              fakeClient,
+				AviClientForTesting: mockAviClient,
+				Scheme:              runtime.NewScheme(),
+				Logger:              utils.AviLog,
+				EventRecorder:       record.NewFakeRecorder(10),
+				ClusterName:         "test-cluster",
+				Cache:               mockCache,
 			}
 
 			ctx := context.Background()
@@ -837,12 +837,12 @@ func TestRouteBackendExtensionValidatedObject(t *testing.T) {
 
 			// Create reconciler
 			reconciler := &RouteBackendExtensionReconciler{
-				Client:      fakeClient,
-				AviClient:   mockAviClient,
-				Scheme:      scheme,
-				Logger:      utils.AviLog,
-				ClusterName: "test-cluster",
-				Cache:       mockCache,
+				Client:              fakeClient,
+				AviClientForTesting: mockAviClient,
+				Scheme:              scheme,
+				Logger:              utils.AviLog,
+				ClusterName:         "test-cluster",
+				Cache:               mockCache,
 			}
 
 			// Test ValidatedObject
@@ -958,13 +958,13 @@ func TestRouteBackendExtensionSetupWithManager(t *testing.T) {
 
 	// Create reconciler with fake client
 	reconciler := &RouteBackendExtensionReconciler{
-		Client:        fakeClient,
-		AviClient:     mock.NewMockAviClientInterface(gomock.NewController(t)),
-		Scheme:        scheme,
-		Logger:        utils.AviLog,
-		EventRecorder: record.NewFakeRecorder(10),
-		ClusterName:   "test-cluster",
-		Cache:         mock.NewMockCacheOperation(gomock.NewController(t)),
+		Client:              fakeClient,
+		AviClientForTesting: mock.NewMockAviClientInterface(gomock.NewController(t)),
+		Scheme:              scheme,
+		Logger:              utils.AviLog,
+		EventRecorder:       record.NewFakeRecorder(10),
+		ClusterName:         "test-cluster",
+		Cache:               mock.NewMockCacheOperation(gomock.NewController(t)),
 	}
 
 	// Test that the SetupWithManager method exists and can be called
@@ -1190,12 +1190,12 @@ func TestRouteBackendExtensionControllerTenantValidation(t *testing.T) {
 
 			// Create reconciler
 			reconciler := &RouteBackendExtensionReconciler{
-				Client:        fakeClient,
-				AviClient:     mockAviClient,
-				Scheme:        scheme,
-				Logger:        utils.AviLog,
-				EventRecorder: record.NewFakeRecorder(10),
-				ClusterName:   "test-cluster",
+				Client:              fakeClient,
+				AviClientForTesting: mockAviClient,
+				Scheme:              scheme,
+				Logger:              utils.AviLog,
+				EventRecorder:       record.NewFakeRecorder(10),
+				ClusterName:         "test-cluster",
 			}
 
 			// Test validation

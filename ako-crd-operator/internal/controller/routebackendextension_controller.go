@@ -46,17 +46,28 @@ import (
 // RouteBackendExtensionReconciler reconciles a RouteBackendExtension object
 type RouteBackendExtensionReconciler struct {
 	client.Client
-	AviClient     avisession.AviClientInterface
 	Scheme        *runtime.Scheme
 	Cache         cache.CacheOperation
 	Logger        *utils.AviLogger
 	EventRecorder record.EventRecorder
 	ClusterName   string
+	// AviClientForTesting is used only for testing to inject mock AVI client
+	AviClientForTesting avisession.AviClientInterface
 }
 
 // GetLogger returns the logger for the reconciler to implement NamespaceHandler interface
 func (r *RouteBackendExtensionReconciler) GetLogger() *utils.AviLogger {
 	return r.Logger
+}
+
+// getAviClient returns the AVI client for this reconciler
+// Uses test client if available, otherwise gets from singleton session
+func (r *RouteBackendExtensionReconciler) getAviClient() avisession.AviClientInterface {
+	if r.AviClientForTesting != nil {
+		return r.AviClientForTesting
+	}
+	sessionObj := avisession.GetGlobalSession()
+	return avisession.NewAviSessionClient(sessionObj.GetAviClients().AviClient[2])
 }
 
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=routebackendextensions,verbs=get;list;watch;create;update;patch;delete
@@ -139,10 +150,11 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 		log.Errorf("error in getting tenant in namespace: %s", err.Error())
 		return err
 	}
+	aviClient := r.getAviClient()
 	for _, hm := range rbe.Spec.HealthMonitor {
 		// Check HM Present or not
 		uri := fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, hm.Name)
-		err := r.AviClient.AviSessionGet(utils.GetUriEncoded(uri), &resp, session.SetOptTenant(tenant))
+		err := aviClient.AviSessionGet(utils.GetUriEncoded(uri), &resp, session.SetOptTenant(tenant))
 		if err != nil {
 			// This log message will change in multitenancy
 			log.Errorf("error in getting healthmonitor: %s from tenant %s. Err: %s", hm.Name, tenant, err.Error())

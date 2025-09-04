@@ -86,8 +86,9 @@ func main() {
 	// TODO: crd-specific event recorders
 	eventRecorder := utils.NewEventRecorder("ako-crd-operator", kubeClient, false)
 	eventManager := event.NewEventManager(eventRecorder, &v1.Pod{})
-	// setup controller properties
-	sessionManager := session2.NewSession(kubeClient, eventManager)
+
+	// setup controller properties using singleton session
+	sessionManager := session2.InitializeGlobalSession(kubeClient, eventManager)
 	if err := sessionManager.PopulateControllerProperties(ctx); err != nil {
 		setupLog.Fatalf("Error populating controller properties. error: %s", err.Error())
 	}
@@ -108,7 +109,6 @@ func main() {
 	hmReconciler := &controller.HealthMonitorReconciler{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
-		AviClient:     session2.NewAviSessionClient(aviClients.AviClient[0]),
 		Cache:         cacheManager,
 		EventRecorder: mgr.GetEventRecorderFor("healthmonitor-controller"),
 		Logger:        utils.AviLog.WithName("healthmonitor"),
@@ -121,7 +121,6 @@ func main() {
 	if err = (&controller.ApplicationProfileReconciler{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
-		AviClient:     session2.NewAviSessionClient(aviClients.AviClient[1]),
 		Cache:         cacheManager,
 		EventRecorder: mgr.GetEventRecorderFor("applicationprofile-controller"),
 		Logger:        utils.AviLog.WithName("applicationprofile"),
@@ -132,13 +131,22 @@ func main() {
 	if err := (&controller.RouteBackendExtensionReconciler{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
-		AviClient:     session2.NewAviSessionClient(aviClients.AviClient[2]),
 		Cache:         cacheManager,
 		EventRecorder: mgr.GetEventRecorderFor("routebackendextension-controller"),
 		Logger:        utils.AviLog.WithName("routebackendextension"),
 		ClusterName:   clusterName,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Fatalf("unable to create controller [RouteBackendExtension]. error: %s", err.Error())
+	}
+
+	// Setup secret reconciler to watch avi-secret updates
+	if err := (&controller.SecretReconciler{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		EventRecorder: mgr.GetEventRecorderFor("secret-controller"),
+		Logger:        utils.AviLog.WithName("secret"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Fatalf("unable to create controller [Secret]. error: %s", err.Error())
 	}
 	// +kubebuilder:scaffold:builder
 

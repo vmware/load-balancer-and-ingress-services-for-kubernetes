@@ -685,13 +685,13 @@ func TestHealthMonitorController(t *testing.T) {
 
 			// Create reconciler
 			reconciler := &HealthMonitorReconciler{
-				Client:        fakeClient,
-				AviClient:     mockAviClient,
-				Scheme:        scheme,
-				Logger:        utils.AviLog,
-				EventRecorder: record.NewFakeRecorder(10),
-				ClusterName:   "test-cluster",
-				Cache:         mockCache,
+				Client:              fakeClient,
+				AviClientForTesting: mockAviClient,
+				Scheme:              scheme,
+				Logger:              utils.AviLog,
+				EventRecorder:       record.NewFakeRecorder(10),
+				ClusterName:         "test-cluster",
+				Cache:               mockCache,
 			}
 
 			// Test reconcile
@@ -917,13 +917,13 @@ func TestHealthMonitorControllerKubernetesError(t *testing.T) {
 				tt.prepare(mockAviClient)
 			}
 			reconciler := &HealthMonitorReconciler{
-				Client:        fakeClient,
-				AviClient:     mockAviClient,
-				Scheme:        runtime.NewScheme(),
-				Logger:        utils.AviLog,
-				EventRecorder: record.NewFakeRecorder(10),
-				ClusterName:   "test-cluster",
-				Cache:         mockCache,
+				Client:              fakeClient,
+				AviClientForTesting: mockAviClient,
+				Scheme:              runtime.NewScheme(),
+				Logger:              utils.AviLog,
+				EventRecorder:       record.NewFakeRecorder(10),
+				ClusterName:         "test-cluster",
+				Cache:               mockCache,
 			}
 
 			ctx := context.Background()
@@ -1601,13 +1601,13 @@ func TestHealthMonitorControllerSecretEvent(t *testing.T) {
 
 			// Create reconciler
 			reconciler := &HealthMonitorReconciler{
-				Client:        fakeClient,
-				AviClient:     mockAviClient,
-				Scheme:        scheme,
-				Logger:        utils.AviLog,
-				EventRecorder: record.NewFakeRecorder(10),
-				ClusterName:   "test-cluster",
-				Cache:         mockCache,
+				Client:              fakeClient,
+				AviClientForTesting: mockAviClient,
+				Scheme:              scheme,
+				Logger:              utils.AviLog,
+				EventRecorder:       record.NewFakeRecorder(10),
+				ClusterName:         "test-cluster",
+				Cache:               mockCache,
 			}
 
 			// Test reconcile
@@ -1664,13 +1664,13 @@ func TestHealthMonitorControllerSetupWithManager(t *testing.T) {
 
 	// Create reconciler with fake client
 	reconciler := &HealthMonitorReconciler{
-		Client:        fakeClient,
-		AviClient:     mock.NewMockAviClientInterface(gomock.NewController(t)),
-		Scheme:        scheme,
-		Logger:        utils.AviLog,
-		EventRecorder: record.NewFakeRecorder(10),
-		ClusterName:   "test-cluster",
-		Cache:         mock.NewMockCacheOperation(gomock.NewController(t)),
+		Client:              fakeClient,
+		AviClientForTesting: mock.NewMockAviClientInterface(gomock.NewController(t)),
+		Scheme:              scheme,
+		Logger:              utils.AviLog,
+		EventRecorder:       record.NewFakeRecorder(10),
+		ClusterName:         "test-cluster",
+		Cache:               mock.NewMockCacheOperation(gomock.NewController(t)),
 	}
 
 	// Test that the SetupWithManager method exists and can be called
@@ -2022,13 +2022,13 @@ func TestHealthMonitorControllerTenantChange(t *testing.T) {
 
 			// Create reconciler
 			reconciler := &HealthMonitorReconciler{
-				Client:        fakeClient,
-				AviClient:     mockAviClient,
-				Scheme:        scheme,
-				Logger:        utils.AviLog,
-				EventRecorder: record.NewFakeRecorder(10),
-				ClusterName:   "test-cluster",
-				Cache:         mockCache,
+				Client:              fakeClient,
+				AviClientForTesting: mockAviClient,
+				Scheme:              scheme,
+				Logger:              utils.AviLog,
+				EventRecorder:       record.NewFakeRecorder(10),
+				ClusterName:         "test-cluster",
+				Cache:               mockCache,
 			}
 
 			// Test reconcile
