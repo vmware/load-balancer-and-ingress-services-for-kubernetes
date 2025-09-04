@@ -28,6 +28,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -2274,4 +2275,557 @@ func TestSharedVIPSvcWithRevokeVipRoute(t *testing.T) {
 
 	TearDownTestForSharedVIPSvcLB(t, g)
 	TeardownL4Rule(t, L4RuleName, NAMESPACE)
+}
+
+func TestL4RuleWithValidHealthMonitorCRDReference(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	L4RuleName := objNameMap.GenerateName("test-l4rule-hm-crd")
+	svcName := objNameMap.GenerateName(SINGLEPORTSVC)
+	healthMonitorName := objNameMap.GenerateName("test-healthmonitor")
+	modelName := MODEL_REDNS_PREFIX + svcName
+	ports := []int{8080}
+	hmUUID := "test-uuid-123"
+
+	// Create a HealthMonitor CRD first
+	CreateTCPHealthMonitorCRD(t, healthMonitorName, NAMESPACE, hmUUID)
+
+	// Set up the service
+	SetUpTestForSvcLB(t, svcName)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, svcName)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+
+	// Check for the pools (without L4Rule)
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PoolRefs[0].HealthMonitorRefs).To(gomega.HaveLen(0))
+
+	// Create minimal L4Rule with only essential fields and HealthMonitor CRD reference
+	obj := &akov1alpha2.L4Rule{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: NAMESPACE,
+			Name:      L4RuleName,
+		},
+		Spec: akov1alpha2.L4RuleSpec{
+			BackendProperties: []*akov1alpha2.BackendProperties{
+				{
+					Port:                 &ports[0], // Port 8080
+					Protocol:             proto.String("TCP"),
+					HealthMonitorCrdRefs: []string{healthMonitorName}, // The field we're testing
+					Enabled:              proto.Bool(true),
+				},
+			},
+		},
+	}
+	// Create the L4Rule
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Create(context.TODO(), obj, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding L4Rule: %v", err)
+	}
+
+	// Wait for L4Rule to be accepted
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	// Apply the L4Rule to Service
+	svcObj := (FakeService{
+		Name:         svcName,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+	svcObj.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName}
+	svcObj.ResourceVersion = "2"
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	// Wait for the model to be updated with L4Rule configuration
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return false
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return g.Expect(nodes[0].PoolRefs[0].AviPoolCommonFields).NotTo(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolGeneratedFields).NotTo(gomega.BeZero())
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Validate that the pool has the HealthMonitor CRD reference applied
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PoolRefs[0].HealthMonitorRefs).To(gomega.HaveLen(1))
+	// Should contain uuid for configured HM
+	g.Expect(nodes[0].PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring(hmUUID))
+
+	// Cleanup: Remove the L4Rule from Service
+	svcObj.Annotations = nil
+	svcObj.ResourceVersion = "3"
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	// Wait for model to be updated (should revert to original state)
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return false
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		if len(nodes) == 0 {
+			return false
+		}
+		// Check that it reverted to default configuration
+		return len(nodes[0].PoolRefs) > 0 &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolCommonFields).To(gomega.BeZero()) &&
+			g.Expect(nodes[0].PoolRefs[0].AviPoolGeneratedFields).To(gomega.BeZero())
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Cleanup
+	TeardownL4Rule(t, L4RuleName, NAMESPACE)
+	DeleteHealthMonitorCRD(t, healthMonitorName, NAMESPACE)
+	TearDownTestForSvcLB(t, g, svcName)
+}
+
+func TestL4RuleWithMultipleHMCRDRefs(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	svcName := objNameMap.GenerateName("testsvc")
+	L4RuleName := objNameMap.GenerateName("test-l4rule-multi-hm")
+	healthMonitorName1 := objNameMap.GenerateName("test-healthmonitor")
+	healthMonitorName2 := objNameMap.GenerateName("test-healthmonitor")
+	modelName := MODEL_REDNS_PREFIX + svcName
+	port := 8080
+	hmUUID1 := "test-uuid-hm1-456"
+	hmUUID2 := "test-uuid-hm2-789"
+
+	// Create two HealthMonitor CRDs
+	CreateTCPHealthMonitorCRD(t, healthMonitorName1, NAMESPACE, hmUUID1)
+	CreateTCPHealthMonitorCRD(t, healthMonitorName2, NAMESPACE, hmUUID2)
+
+	// Set up the service
+	SetUpTestForSvcLB(t, svcName)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Create L4Rule with two HealthMonitor CRD references
+	obj := &akov1alpha2.L4Rule{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: NAMESPACE,
+			Name:      L4RuleName,
+		},
+		Spec: akov1alpha2.L4RuleSpec{
+			BackendProperties: []*akov1alpha2.BackendProperties{
+				{
+					Port:                 &port,
+					Protocol:             proto.String("TCP"),
+					HealthMonitorCrdRefs: []string{healthMonitorName1, healthMonitorName2},
+					Enabled:              proto.Bool(true),
+				},
+			},
+		},
+	}
+
+	// Create the L4Rule
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Create(context.TODO(), obj, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding L4Rule: %v", err)
+	}
+
+	// Wait for L4Rule to be accepted
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	// Apply the L4Rule to Service
+	svcObj := (FakeService{
+		Name:         svcName,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+	svcObj.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName}
+	svcObj.ResourceVersion = "2"
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	// Wait for the model to be updated with both HealthMonitors
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes) > 0 && len(nodes[0].PoolRefs) == 1 &&
+			len(nodes[0].PoolRefs[0].HealthMonitorRefs) == 2
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Validate that both HealthMonitors are applied to the pool
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].PoolRefs[0].HealthMonitorRefs).To(gomega.ContainElement("/api/healthmonitor/" + hmUUID1))
+	g.Expect(nodes[0].PoolRefs[0].HealthMonitorRefs).To(gomega.ContainElement("/api/healthmonitor/" + hmUUID2))
+
+	// Update L4Rule to remove first HealthMonitor reference (keep the CRD)
+	obj.Spec.BackendProperties[0].HealthMonitorCrdRefs = []string{healthMonitorName2}
+	obj.ResourceVersion = "2"
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Update(context.TODO(), obj, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("error in updating L4Rule: %v", err)
+	}
+
+	// Wait for the model to be updated - should now try to use the second HealthMonitor
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes) > 0 && len(nodes[0].PoolRefs) > 0 &&
+			len(nodes[0].PoolRefs[0].HealthMonitorRefs) == 1
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].PoolRefs[0].HealthMonitorRefs).To(gomega.ContainElement("/api/healthmonitor/" + hmUUID2))
+
+	// Update L4Rule to remove all HealthMonitor references (keep the CRDs)
+	obj.Spec.BackendProperties[0].HealthMonitorCrdRefs = []string{}
+	obj.ResourceVersion = "3"
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Update(context.TODO(), obj, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("error in updating L4Rule: %v", err)
+	}
+
+	// Wait for the model to be updated and validate it falls back to default HealthMonitor
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes) > 0 && len(nodes[0].PoolRefs) > 0 &&
+			len(nodes[0].PoolRefs[0].HealthMonitorRefs) == 0
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Cleanup
+	TeardownL4Rule(t, L4RuleName, NAMESPACE)
+	DeleteHealthMonitorCRD(t, healthMonitorName1, NAMESPACE)
+	DeleteHealthMonitorCRD(t, healthMonitorName2, NAMESPACE)
+	TearDownTestForSvcLB(t, g, svcName)
+}
+
+// TestL4RuleWithHMCRDRefTransition tests the complete lifecycle:
+// L4Rule starts Rejected (no HM) -> Rejected (HM not ready) -> Accepted (HM ready) -> Rejected (HM deleted)
+func TestL4RuleWithHMCRDRefTransition(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	svcName := objNameMap.GenerateName("testsvc")
+	L4RuleName := objNameMap.GenerateName("test-l4rule-hm-transition")
+	healthMonitorName := objNameMap.GenerateName("test-healthmonitor")
+	modelName := MODEL_REDNS_PREFIX + svcName
+	port := 8080
+	hmUUID := "test-uuid-hm-transition-456"
+
+	// Set up the service
+	SetUpTestForSvcLB(t, svcName)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Create L4Rule with HealthMonitor CRD reference
+	obj := &akov1alpha2.L4Rule{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: NAMESPACE,
+			Name:      L4RuleName,
+		},
+		Spec: akov1alpha2.L4RuleSpec{
+			BackendProperties: []*akov1alpha2.BackendProperties{
+				{
+					Port:                 &port,
+					Protocol:             proto.String("TCP"),
+					HealthMonitorCrdRefs: []string{healthMonitorName},
+					Enabled:              proto.Bool(true),
+				},
+			},
+		},
+	}
+
+	// Create the L4Rule
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Create(context.TODO(), obj, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding L4Rule: %v", err)
+	}
+
+	// L4Rule should be rejected
+	g.Eventually(func() bool {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status == "Rejected" && l4Rule.Status.Error == "HealthMonitor "+NAMESPACE+"/"+healthMonitorName+" not found"
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Create HealthMonitor CRD
+	CreateTCPHealthMonitorCRDWithStatus(t, healthMonitorName, NAMESPACE, hmUUID, false, "ValidationError", "HealthMonitor configuration is invalid")
+
+	// L4Rule will still be rejected
+	g.Eventually(func() bool {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status == "Rejected" && l4Rule.Status.Error == "HealthMonitor "+NAMESPACE+"/"+healthMonitorName+" is not in ready state"
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	UpdateHealthMonitorStatus(t, healthMonitorName, NAMESPACE, hmUUID, true, "Accepted", "HealthMonitor has been successfully processed")
+
+	// Wait for L4Rule to be accepted
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	// Apply the L4Rule to Service
+	svcObj := (FakeService{
+		Name:         svcName,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+	svcObj.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName}
+	svcObj.ResourceVersion = "2"
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	// Wait for the model to be updated with both HealthMonitors
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes) == 1 && len(nodes[0].PoolRefs) == 1 &&
+			len(nodes[0].PoolRefs[0].HealthMonitorRefs) == 1
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Validate that both HealthMonitors are applied to the pool
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].PoolRefs[0].HealthMonitorRefs).To(gomega.ContainElement("/api/healthmonitor/" + hmUUID))
+
+	DeleteHealthMonitorCRD(t, healthMonitorName, NAMESPACE)
+
+	// L4Rule should be rejected
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Rejected"))
+
+	// TO DO : Wait for the model to be updated and validate it falls back to default settings
+
+	// Cleanup
+	TeardownL4Rule(t, L4RuleName, NAMESPACE)
+	TearDownTestForSvcLB(t, g, svcName)
+}
+
+// TestL4RuleWithBothHealthMonitorRefsAndCrdRefs tests that when both healthMonitorRefs and healthMonitorCrdRefs
+// are specified, only healthMonitorRefs are applied (precedence test)
+func TestL4RuleWithBothHealthMonitorRefsAndCrdRefs(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	svcName := objNameMap.GenerateName("testsvc")
+	L4RuleName := objNameMap.GenerateName("test-l4rule-precedence")
+	healthMonitorName := objNameMap.GenerateName("test-healthmonitor")
+	modelName := MODEL_REDNS_PREFIX + svcName
+	port := 8080
+	hmUUID := "test-uuid-precedence-123"
+
+	// Create HealthMonitor CRD
+	CreateTCPHealthMonitorCRD(t, healthMonitorName, NAMESPACE, hmUUID)
+
+	// Set up the service
+	SetUpTestForSvcLB(t, svcName)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Create L4Rule with BOTH healthMonitorRefs and healthMonitorCrdRefs
+	obj := &akov1alpha2.L4Rule{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: NAMESPACE,
+			Name:      L4RuleName,
+		},
+		Spec: akov1alpha2.L4RuleSpec{
+			BackendProperties: []*akov1alpha2.BackendProperties{
+				{
+					Port:     &port,
+					Protocol: proto.String("TCP"),
+					// Both types of HealthMonitor references
+					HealthMonitorRefs:    []string{"thisisaviref-hm1", "thisisaviref-hm2"}, // Regular AVI refs
+					HealthMonitorCrdRefs: []string{healthMonitorName},                      // CRD refs
+					Enabled:              proto.Bool(true),
+				},
+			},
+		},
+	}
+
+	// Create the L4Rule
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Create(context.TODO(), obj, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding L4Rule: %v", err)
+	}
+
+	// Wait for L4Rule to be accepted
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	// Apply the L4Rule to Service
+	svcObj := (FakeService{
+		Name:         svcName,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+	svcObj.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName}
+	svcObj.ResourceVersion = "2"
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	// Wait for the model to be updated
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes) > 0 && len(nodes[0].PoolRefs) == 1 &&
+			len(nodes[0].PoolRefs[0].HealthMonitorRefs) > 0
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Validate that ONLY healthMonitorRefs are applied (not healthMonitorCrdRefs)
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].PoolRefs[0].HealthMonitorRefs).To(gomega.HaveLen(2))
+
+	// Should contain the regular AVI HealthMonitor refs
+	g.Expect(nodes[0].PoolRefs[0].HealthMonitorRefs).To(gomega.ContainElement("/api/healthmonitor?name=thisisaviref-hm1"))
+	g.Expect(nodes[0].PoolRefs[0].HealthMonitorRefs).To(gomega.ContainElement("/api/healthmonitor?name=thisisaviref-hm2"))
+
+	// Should NOT contain the CRD HealthMonitor UUID (precedence rule)
+	for _, hmRef := range nodes[0].PoolRefs[0].HealthMonitorRefs {
+		g.Expect(hmRef).NotTo(gomega.ContainSubstring(hmUUID))
+	}
+
+	// Cleanup
+	TeardownL4Rule(t, L4RuleName, NAMESPACE)
+	DeleteHealthMonitorCRD(t, healthMonitorName, NAMESPACE)
+	TearDownTestForSvcLB(t, g, svcName)
+}
+
+// TestL4RuleWithCrossNamespaceHealthMonitorCRD tests that L4Rule is rejected when
+// HealthMonitor CRD is referenced from a different namespace
+func TestL4RuleWithCrossNamespaceHealthMonitorCRD(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	svcName := objNameMap.GenerateName("testsvc")
+	L4RuleName := objNameMap.GenerateName("test-l4rule-cross-ns")
+	healthMonitorName := objNameMap.GenerateName("test-healthmonitor")
+	differentNamespace := "different-ns"
+	modelName := MODEL_REDNS_PREFIX + svcName
+	port := 8080
+	hmUUID := "test-uuid-cross-ns-123"
+	hmCorrectUUID := "test-uuid-cross-ns-456"
+
+	// Create HealthMonitor CRD in a different namespace
+	CreateTCPHealthMonitorCRD(t, healthMonitorName, differentNamespace, hmUUID)
+
+	// Set up the service in the default test namespace
+	SetUpTestForSvcLB(t, svcName)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Create L4Rule that references HealthMonitor from different namespace
+	obj := &akov1alpha2.L4Rule{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: NAMESPACE, // L4Rule is in NAMESPACE (red-ns)
+			Name:      L4RuleName,
+		},
+		Spec: akov1alpha2.L4RuleSpec{
+			BackendProperties: []*akov1alpha2.BackendProperties{
+				{
+					Port:     &port,
+					Protocol: proto.String("TCP"),
+					// Reference HealthMonitor from different namespace (should be rejected)
+					HealthMonitorCrdRefs: []string{healthMonitorName}, // This will look in same namespace as L4Rule
+					Enabled:              proto.Bool(true),
+				},
+			},
+		},
+	}
+
+	// Create the L4Rule
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Create(context.TODO(), obj, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding L4Rule: %v", err)
+	}
+
+	expectedErrorMsg := fmt.Sprintf("HealthMonitor %s/%s not found", NAMESPACE, healthMonitorName)
+	// Wait for L4Rule to be rejected (HealthMonitor not found in same namespace)
+	g.Eventually(func() bool {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status == "Rejected" && l4Rule.Status.Error == expectedErrorMsg
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Now create HealthMonitor in the correct namespace (same as L4Rule)
+	CreateTCPHealthMonitorCRD(t, healthMonitorName, NAMESPACE, hmCorrectUUID)
+
+	// Wait for L4Rule to become accepted
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	// Apply the L4Rule to Service
+	svcObj := (FakeService{
+		Name:      svcName,
+		Namespace: NAMESPACE,
+		Type:      corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080,
+			TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+	svcObj.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName}
+	svcObj.ResourceVersion = "2"
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.
+		UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	// Wait for the model to be updated with custom HealthMonitor
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return false
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		if len(nodes) == 0 || len(nodes[0].PoolRefs) == 0 || len(nodes[0].PoolRefs[0].HealthMonitorRefs) != 1 {
+			return false
+		}
+		return true
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Validate that the pool now uses the custom HealthMonitor
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring(hmCorrectUUID))
+
+	// Cleanup
+	TeardownL4Rule(t, L4RuleName, NAMESPACE)
+	DeleteHealthMonitorCRD(t, healthMonitorName, differentNamespace) // Delete from different namespace
+	DeleteHealthMonitorCRD(t, healthMonitorName, NAMESPACE)          // Delete from correct namespace
+	TearDownTestForSvcLB(t, g, svcName)
 }

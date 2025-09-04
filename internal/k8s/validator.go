@@ -736,6 +736,12 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 				return err
 			}
 
+			// Create HealthMonitor to L4Rule mapping (regardless of validation result)
+			// This ensures that even rejected L4Rules can be re-evaluated when HealthMonitors change
+			healthMonitorNsName := l4Rule.Namespace + "/" + healthMonitorName
+			l4RuleNsName := l4Rule.Namespace + "/" + l4Rule.Name
+			objects.SharedCRDLister().UpdateHealthMonitorToL4RuleMapping(healthMonitorNsName, l4RuleNsName)
+
 			// Validate HealthMonitor CRD exists, is processed, and type is compatible with backend protocol
 			if err := validateHealthMonitorForL4Rule(key, l4Rule.Namespace, healthMonitorName, backendProperties); err != nil {
 				rejectL4Rule(key, l4Rule, err)
@@ -953,7 +959,7 @@ func validateHealthMonitorForL4Rule(key, namespace, healthMonitorName string, ba
 	}
 
 	// Check if HealthMonitor is processed by AKO CRD Operator using existing function
-	processed, ready, err := lib.IsHealthMonitorProcessedWithOptions(key, namespace, healthMonitorName, lib.GetDynamicClientSet(), true, object)
+	processed, ready, err := lib.IsHealthMonitorProcessedWithOptions(key, namespace, healthMonitorName, clientSet, true, object)
 	if err != nil {
 		return fmt.Errorf("HealthMonitor validation failed for %s/%s: %v", namespace, healthMonitorName, err)
 	}
