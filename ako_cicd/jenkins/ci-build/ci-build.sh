@@ -19,7 +19,7 @@ go env -w GOSUMDB=off
 #make lint
 make build
 #make BUILD_TAG=$version_tag docker-build
-make test
+GOPROXY='https://proxy.golang.org,direct' GOSUMDB=off make test
 
 make build
 make BUILD_TAG=$version_tag docker
