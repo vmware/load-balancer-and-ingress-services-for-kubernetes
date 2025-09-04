@@ -12,6 +12,15 @@ minor_version=${version_numbers[1]}
 export PATH=$PATH:/usr/local/go/bin
 go version
 
+
+#Steps to Build and Test AKO-CRD-OPERATOR
+cd $WORKSPACE/ako-crd-operator
+go env -w GOSUMDB=off
+#make lint
+make build
+#make BUILD_TAG=$version_tag docker-build
+make test
+
 make build
 make BUILD_TAG=$version_tag docker
 make BUILD_TAG=$version_tag ako-operator-docker
@@ -29,10 +38,4 @@ if [ "$RUN_INT_TESTS" = true ]; then
     make int_test
 fi
 
-#Steps to Build and Test AKO-CRD-OPERATOR
-cd $WORKSPACE/ako-crd-operator
-go env -w GOSUMDB=off
-make lint
-make build
-make BUILD_TAG=$version_tag docker-build
-#make test
+
