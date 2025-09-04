@@ -743,7 +743,7 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 			objects.SharedCRDLister().UpdateHealthMonitorToL4RuleMapping(healthMonitorNsName, l4RuleNsName)
 
 			// Validate HealthMonitor CRD exists, is processed, and type is compatible with backend protocol
-			if err := validateHealthMonitorForL4Rule(key, l4Rule.Namespace, healthMonitorName, backendProperties); err != nil {
+			if err := validateHealthMonitorForL4Rule(key, l4Rule.Namespace, healthMonitorName, *backendProperties.Protocol); err != nil {
 				rejectL4Rule(key, l4Rule, err)
 				return err
 			}
@@ -943,7 +943,7 @@ func rejectL4Rule(key string, l4Rule *akov1alpha2.L4Rule, err error) {
 }
 
 // validateHealthMonitorForL4Rule validates that HealthMonitor exists, is processed by AKO CRD Operator, and type is compatible with backend protocol
-func validateHealthMonitorForL4Rule(key, namespace, healthMonitorName string, backendProperties *akov1alpha2.BackendProperties) error {
+func validateHealthMonitorForL4Rule(key, namespace, healthMonitorName, protocol string) error {
 	// Get HealthMonitor object using dynamic client (single fetch for all validations)
 	clientSet := lib.GetDynamicClientSet()
 	if clientSet == nil {
@@ -981,8 +981,8 @@ func validateHealthMonitorForL4Rule(key, namespace, healthMonitorName string, ba
 		return fmt.Errorf("failed to get type from HealthMonitor %s/%s spec: %v", namespace, healthMonitorName, err)
 	}
 
-	// Get backend protocol (protocol is a required field in CRD schema, so it's guaranteed to be non-nil)
-	backendProtocol := strings.ToUpper(*backendProperties.Protocol)
+	// Get backend protocol (protocol is a required field in CRD schema, so it's guaranteed to be non-empty)
+	backendProtocol := strings.ToUpper(protocol)
 
 	// Validate HealthMonitor type compatibility with backend protocol
 	switch backendProtocol {
