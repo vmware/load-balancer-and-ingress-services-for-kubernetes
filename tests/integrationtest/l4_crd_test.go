@@ -2621,7 +2621,7 @@ func TestL4RuleWithHMCRDRefTransition(t *testing.T) {
 		return l4Rule.Status.Status
 	}, 30*time.Second).Should(gomega.Equal("Rejected"))
 
-	// TO DO : Wait for the model to be updated and validate it falls back to default settings
+	// We don't validate if model falls back to default settings because the l4rule rejection on HM deletion does trigger an Update event, but since fake client is used, the resource version is not updated. Hence, the model is not updated.
 
 	// Cleanup
 	TeardownL4Rule(t, L4RuleName, NAMESPACE)
@@ -2827,5 +2827,239 @@ func TestL4RuleWithCrossNamespaceHealthMonitorCRD(t *testing.T) {
 	TeardownL4Rule(t, L4RuleName, NAMESPACE)
 	DeleteHealthMonitorCRD(t, healthMonitorName, differentNamespace) // Delete from different namespace
 	DeleteHealthMonitorCRD(t, healthMonitorName, NAMESPACE)          // Delete from correct namespace
+	TearDownTestForSvcLB(t, g, svcName)
+}
+
+// TestSharedVIPL4RuleWithHealthMonitorCRD tests shared-VIP LoadBalancer services with L4Rule that has HealthMonitor CRD references
+func TestSharedVIPL4RuleWithHealthMonitorCRD(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	L4RuleName := objNameMap.GenerateName("test-l4rule-shared-vip-hm")
+	healthMonitorName := objNameMap.GenerateName("test-healthmonitor")
+	modelName := MODEL_REDNS_PREFIX + SHAREDVIPKEY
+	ports := []int{8080}
+	hmUUID := "test-uuid-shared-vip-hm-123"
+
+	// Create a HealthMonitor CRD first
+	CreateTCPHealthMonitorCRD(t, healthMonitorName, NAMESPACE, hmUUID)
+
+	// Set up shared-VIP test infrastructure
+	SetUpTestForSharedVIPSvcLB(t, corev1.ProtocolTCP, corev1.ProtocolTCP)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("cluster--%s-%s", NAMESPACE, SHAREDVIPKEY)))
+	g.Expect(nodes[0].Tenant).To(gomega.Equal(AVINAMESPACE))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+
+	// Check for the pools (without L4Rule) - should have 2 pools for 2 shared-VIP services
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(2))
+	// Both pools should use default HealthMonitor initially (they may have 0 or 1 HealthMonitor refs)
+	for _, poolRef := range nodes[0].PoolRefs {
+		if len(poolRef.HealthMonitorRefs) > 0 {
+			g.Expect(poolRef.HealthMonitorRefs[0]).To(gomega.ContainSubstring("System-TCP"))
+		}
+	}
+
+	// Create L4Rule with HealthMonitor CRD reference
+	obj := &akov1alpha2.L4Rule{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: NAMESPACE,
+			Name:      L4RuleName,
+		},
+		Spec: akov1alpha2.L4RuleSpec{
+			BackendProperties: []*akov1alpha2.BackendProperties{
+				{
+					Port:                 &ports[0], // Port 8080
+					Protocol:             proto.String("TCP"),
+					HealthMonitorCrdRefs: []string{healthMonitorName}, // The field we're testing
+					Enabled:              proto.Bool(true),
+				},
+			},
+		},
+	}
+
+	// Create the L4Rule
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Create(context.TODO(), obj, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding L4Rule: %v", err)
+	}
+
+	// Wait for L4Rule to be accepted
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	// Apply the L4Rule to first shared-VIP Service
+	svcObj01 := (FakeService{
+		Name:         SHAREDVIPSVC01,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+	svcObj01.Annotations = map[string]string{
+		lib.L4RuleAnnotation:         L4RuleName,
+		lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY,
+	}
+	svcObj01.ResourceVersion = "2"
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj01, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service 1: %v", err)
+	}
+
+	// Apply the L4Rule to second shared-VIP Service
+	svcObj02 := (FakeService{
+		Name:         SHAREDVIPSVC02,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo2", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+	svcObj02.Annotations = map[string]string{
+		lib.L4RuleAnnotation:         L4RuleName,
+		lib.SharedVipSvcLBAnnotation: SHAREDVIPKEY,
+	}
+	svcObj02.ResourceVersion = "2"
+	_, err = KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj02, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service 2: %v", err)
+	}
+
+	// Wait for the model to be updated with custom HealthMonitor applied to both pools
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return false
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		if len(nodes) != 1 || len(nodes[0].PoolRefs) != 2 {
+			return false
+		}
+
+		// Both pools should now use the custom HealthMonitor
+		for _, poolRef := range nodes[0].PoolRefs {
+			if len(poolRef.HealthMonitorRefs) != 1 {
+				return false
+			}
+			if !strings.Contains(poolRef.HealthMonitorRefs[0], hmUUID) {
+				return false
+			}
+		}
+		return true
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Cleanup
+	TeardownL4Rule(t, L4RuleName, NAMESPACE)
+	DeleteHealthMonitorCRD(t, healthMonitorName, NAMESPACE)
+	TearDownTestForSharedVIPSvcLB(t, g)
+}
+
+// TestL4RuleWithHealthMonitorCrdAndAppPersistenceProfile tests healthMonitorCrdRefs
+// along with ApplicationPersistenceProfileRef. The goal is to test how another field's validity affects L4Rule and consequently application of healthMonitorCrdRefs as well.
+func TestL4RuleWithHealthMonitorCrdAndAppPersistenceProfile(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	svcName := objNameMap.GenerateName("testsvc")
+	L4RuleName := objNameMap.GenerateName("test-l4rule-precedence")
+	healthMonitorName := objNameMap.GenerateName("test-healthmonitor")
+	modelName := MODEL_REDNS_PREFIX + svcName
+	port := 8080
+	hmUUID := "test-uuid-precedence-123"
+
+	// Create HealthMonitor CRD
+	CreateTCPHealthMonitorCRD(t, healthMonitorName, NAMESPACE, hmUUID)
+
+	// Set up the service
+	SetUpTestForSvcLB(t, svcName)
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Create L4Rule with invalid ApplicationPersistenceProfileRef and healthMonitorCrdRefs
+	obj := &akov1alpha2.L4Rule{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: NAMESPACE,
+			Name:      L4RuleName,
+		},
+		Spec: akov1alpha2.L4RuleSpec{
+			BackendProperties: []*akov1alpha2.BackendProperties{
+				{
+					Port:                             &port,
+					Protocol:                         proto.String("TCP"),
+					ApplicationPersistenceProfileRef: proto.String("invalid-profile-ref"), // Invalid ApplicationPersistenceProfileRef
+					HealthMonitorCrdRefs:             []string{healthMonitorName},         // CRD refs
+					Enabled:                          proto.Bool(true),
+				},
+			},
+		},
+	}
+
+	// Create the L4Rule
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Create(context.TODO(), obj, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding L4Rule: %v", err)
+	}
+
+	// Wait for L4Rule to be rejected (due to invalid ApplicationPersistenceProfileRef)
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Rejected"))
+
+	// Now update the L4Rule with a valid ApplicationPersistenceProfileRef BEFORE applying to service
+	obj.Spec.BackendProperties[0].ApplicationPersistenceProfileRef = proto.String("thisisaviref-applicationpersistenceprofileref")
+	obj.ResourceVersion = "2"
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Update(context.TODO(), obj, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("error in adding L4Rule: %v", err)
+	}
+
+	// Wait for L4Rule to be accepted after the fix
+	g.Eventually(func() string {
+		l4Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(NAMESPACE).Get(context.TODO(), L4RuleName, metav1.GetOptions{})
+		return l4Rule.Status.Status
+	}, 45*time.Second).Should(gomega.Equal("Accepted"))
+
+	// Now apply the corrected L4Rule to Service
+	svcObj := (FakeService{
+		Name:         svcName,
+		Namespace:    NAMESPACE,
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8080, TargetPort: intstr.FromInt(8080)}},
+	}).Service()
+	svcObj.Annotations = map[string]string{lib.L4RuleAnnotation: L4RuleName}
+	svcObj.ResourceVersion = "2"
+	_, err := KubeClient.CoreV1().Services(NAMESPACE).Update(context.TODO(), svcObj, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating Service: %v", err)
+	}
+
+	// Wait for the model to be updated
+	g.Eventually(func() bool {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return false
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+		return len(nodes) == 1 && len(nodes[0].PoolRefs) == 1 && len(nodes[0].PoolRefs[0].HealthMonitorRefs) == 1
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Validate that now the custom HealthMonitor CRD reference is applied
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes[0].PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring(hmUUID))
+
+	// Validate that ApplicationPersistenceProfileRef is also applied
+	g.Expect(nodes[0].PoolRefs[0].ApplicationPersistenceProfileRef).NotTo(gomega.BeNil())
+	g.Expect(*nodes[0].PoolRefs[0].ApplicationPersistenceProfileRef).To(gomega.Equal("/api/applicationpersistenceprofile?name=thisisaviref-applicationpersistenceprofileref"))
+
+	// Cleanup
+	TeardownL4Rule(t, L4RuleName, NAMESPACE)
+	DeleteHealthMonitorCRD(t, healthMonitorName, NAMESPACE)
 	TearDownTestForSvcLB(t, g, svcName)
 }
