@@ -164,6 +164,7 @@ func TestGateway(t *testing.T) {
 	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(0))
 	g.Expect(nodes[0].VSVIPRefs).To(gomega.HaveLen(1))
+	g.Expect(*nodes[0].TrafficEnabled).To(gomega.BeTrue())
 	// default backend response
 	g.Expect(nodes[0].HttpPolicyRefs[0].RequestRules[0].Match.Path.MatchStr[0]).To(gomega.Equal("/"))
 	g.Expect(*nodes[0].HttpPolicyRefs[0].RequestRules[0].SwitchingAction.StatusCode).To(gomega.Equal("HTTP_LOCAL_RESPONSE_STATUS_CODE_404"))
@@ -890,6 +891,65 @@ func TestGatewaywithSameCertificateRefsinMultipleListenersWithSameHostname(t *te
 		return aviModel == nil
 
 	}, 30*time.Second).Should(gomega.Equal(true))
+
+	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	tests.TeardownGatewayClass(t, gatewayClassName)
+}
+
+func TestGatewayWithTrafficDisabledAnnotation(t *testing.T) {
+
+	gatewayName := "gateway-12"
+	gatewayClassName := "gateway-class-12"
+	ports := []int32{8080}
+
+	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := tests.GetListenersV1(ports, false, false)
+	tests.SetupGatewayWithAnnotation(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(DEFAULT_NAMESPACE, gatewayName))
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].VSVIPRefs).To(gomega.HaveLen(1))
+	g.Expect(*nodes[0].TrafficEnabled).To(gomega.BeFalse())
+	// default backend response
+	g.Expect(nodes[0].HttpPolicyRefs[0].RequestRules[0].Match.Path.MatchStr[0]).To(gomega.Equal("/"))
+	g.Expect(*nodes[0].HttpPolicyRefs[0].RequestRules[0].SwitchingAction.StatusCode).To(gomega.Equal("HTTP_LOCAL_RESPONSE_STATUS_CODE_404"))
+
+	// update gateway with trafficdisabled false
+	tests.UpdateGatewayWithAnnotation(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, "false", nil, listeners)
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return *nodes[0].TrafficEnabled
+	}, 40*time.Second).Should(gomega.Equal(true))
+
+	// update gateway with no annotation
+	tests.UpdateGatewayWithAnnotation(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, "nil", nil, listeners)
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return *nodes[0].TrafficEnabled
+	}, 40*time.Second).Should(gomega.Equal(true))
 
 	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	tests.TeardownGatewayClass(t, gatewayClassName)

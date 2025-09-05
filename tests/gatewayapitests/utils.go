@@ -38,6 +38,7 @@ import (
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 )
@@ -349,7 +350,23 @@ func UpdateGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress
 	g.Gateway = g.GatewayV1(name, namespace, gatewayClass, ipAddress, listeners, vipType...)
 	g.Update(t)
 }
+func SetupGatewayWithAnnotation(t *testing.T, name, namespace, gatewayClass string, ipAddress []gatewayv1.GatewaySpecAddress, listeners []gatewayv1.Listener) {
+	g := &Gateway{}
+	g.Gateway = g.GatewayV1(name, namespace, gatewayClass, ipAddress, listeners)
+	g.Gateway.Annotations = map[string]string{lib.VSTrafficDisabled: "true"}
+	g.Create(t)
+}
 
+func UpdateGatewayWithAnnotation(t *testing.T, name, namespace, gatewayClass, annotation string, ipAddress []gatewayv1.GatewaySpecAddress, listeners []gatewayv1.Listener, vipType ...string) {
+	g := &Gateway{}
+	g.Gateway = g.GatewayV1(name, namespace, gatewayClass, ipAddress, listeners, vipType...)
+	if annotation == "nil" {
+		g.Gateway.Annotations = nil
+	} else {
+		g.Gateway.Annotations = map[string]string{lib.VSTrafficDisabled: annotation}
+	}
+	g.Update(t)
+}
 func TeardownGateway(t *testing.T, name, namespace string) {
 	g := &Gateway{}
 	g.Gateway = g.GatewayV1(name, namespace, "", nil, nil)

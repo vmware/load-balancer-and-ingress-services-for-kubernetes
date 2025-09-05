@@ -16,7 +16,9 @@ package nodes
 
 import (
 	"context"
+	"strings"
 
+	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/net"
@@ -57,6 +59,12 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 	if oldTenant == "" {
 		oldTenant = lib.GetTenant()
 	}
+	// Default: Traffic is enabled
+	trafficEnabled := proto.Bool(true)
+
+	if traffic_disabled, ok := gateway.Annotations[lib.VSTrafficDisabled]; ok && strings.ToLower(traffic_disabled) == "true" {
+		trafficEnabled = proto.Bool(false)
+	}
 	// Cleanup resources in the old tenant in case of tenant change
 	if tenant != oldTenant {
 		oldModelName := lib.GetModelName(oldTenant, vsName)
@@ -79,7 +87,8 @@ func (o *AviObjectGraph) BuildGatewayParent(gateway *gatewayv1.Gateway, key stri
 		ServiceMetadata: lib.ServiceMetadataObj{
 			Gateway: gateway.Namespace + "/" + gateway.Name,
 		},
-		Caller: utils.GATEWAY_API, // Always Populate this field to recognise caller at rest layer
+		TrafficEnabled: trafficEnabled,
+		Caller:         utils.GATEWAY_API, // Always Populate this field to recognise caller at rest layer
 	}
 	infraSetting, err := lib.GetNamespacedAviInfraSetting(key, gateway.GetNamespace(), akogatewayapilib.AKOControlConfig().AviInfraSettingInformer())
 	if err != nil {
