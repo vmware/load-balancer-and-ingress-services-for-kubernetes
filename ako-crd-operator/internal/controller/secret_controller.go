@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	"github.com/google/uuid"
 	avisession "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -49,7 +50,11 @@ type SecretReconciler struct {
 
 // Reconcile handles avi-secret updates and refreshes AVI client pool
 func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := utils.LoggerFromContext(ctx)
+	log := r.Logger.WithValues("name", req.Name, "namespace", req.Namespace, "traceID", uuid.New().String())
+	ctx = utils.LoggerWithContext(ctx, log)
+
+	log.Debug("Reconciling Secret Resource")
+	defer log.Debug("Reconciled Secret Resource")
 
 	// Only process avi-secret in the AKO namespace
 	if req.Name != lib.AviSecret || req.Namespace != utils.GetAKONamespace() {

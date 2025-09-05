@@ -117,7 +117,6 @@ func (r *ApplicationProfileReconciler) Reconcile(ctx context.Context, req ctrl.R
 				log.Error("Failed to add finalizer to ApplicationProfile")
 				return ctrl.Result{}, err
 			}
-			return ctrl.Result{}, nil
 		}
 	} else {
 		// The object is being deleted

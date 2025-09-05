@@ -24,26 +24,25 @@ import (
 	"github.com/go-logr/zapr"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrl "sigs.k8s.io/controller-runtime"
 
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/controller"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/event"
 	session2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
+	utils2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	ctrl "sigs.k8s.io/controller-runtime"
-
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-
-	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/cache"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -86,6 +85,13 @@ func main() {
 	// TODO: crd-specific event recorders
 	eventRecorder := utils.NewEventRecorder("ako-crd-operator", kubeClient, false)
 	eventManager := event.NewEventManager(eventRecorder, &v1.Pod{})
+
+	// Initialize the CRD Operator in VCF mode
+	if utils.IsVCFCluster() {
+		if err := utils2.WaitForWCPCloudNameAndInitialize(ctx, kubeClient, setupLog); err != nil {
+			setupLog.Fatalf("Failed to initialize WCP cluster configuration: %s", err.Error())
+		}
+	}
 
 	// setup controller properties using singleton session
 	sessionManager := session2.InitializeGlobalSession(kubeClient, eventManager)
