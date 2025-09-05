@@ -1,6 +1,6 @@
 module github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
 
-go 1.24.3
+go 1.24.6
 
 require (
 	github.com/Masterminds/semver v1.5.0
