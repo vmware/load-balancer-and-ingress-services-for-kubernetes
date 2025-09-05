@@ -1,6 +1,6 @@
 module github.com/vmware/load-balancer-and-ingress-services-for-kubernetes
 
-go 1.24.3
+go 1.24.6
 
 require (
 	github.com/Masterminds/semver v1.5.0
@@ -68,7 +68,6 @@ require (
 	golang.org/x/term v0.30.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
-	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20241209162323-e6fa225c2576 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
@@ -87,6 +86,5 @@ replace (
 	github.com/golang/glog => github.com/golang/glog v1.2.4
 	github.com/google/gofuzz => github.com/google/gofuzz v1.2.0
 	github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
-	golang.org/x/oauth2 => golang.org/x/oauth2 v0.0.0-20201109201403-9fd604954f58
 	sigs.k8s.io/service-apis => sigs.k8s.io/service-apis v0.1.0
 )
