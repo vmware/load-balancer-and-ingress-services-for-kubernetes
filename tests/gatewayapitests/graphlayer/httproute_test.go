@@ -3590,7 +3590,7 @@ func TestHTTPRouteWithSingleHealthMonitor(t *testing.T) {
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
+		return len(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs)
 	}, 25*time.Second).Should(gomega.Equal(0))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
@@ -3661,28 +3661,13 @@ func TestHTTPRouteWithMultipleHealthMonitors(t *testing.T) {
 	// Delete one HealthMonitor
 	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName1, DEFAULT_NAMESPACE)
 
-	// this will make the HTTPRoute invalid and remove all poolrefs
+	// this will remove the first healthmonitor from the poolref
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
-	}, 25*time.Second).Should(gomega.Equal(0))
-
-	// update httproute to remove healthmonitor
-	rule = akogatewayapitests.GetHTTPRouteRuleWithHealthMonitorFilters(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
-		map[string][]string{"RequestHeaderModifier": {"add"}},
-		[][]string{{svcName, DEFAULT_NAMESPACE, "8080", "1"}}, []string{healthMonitorName2})
-	rules = []gatewayv1.HTTPRouteRule{rule}
-	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
-
-	// this will add one healthmonitor to the poolref
-	g.Eventually(func() int {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
+		return len(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs)
 	}, 25*time.Second).Should(gomega.Equal(1))
 
-	childNode = nodes[0].EvhNodes[0]
 	g.Expect(childNode.PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring("thisisaviref-hm2"))
 
 	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName2, DEFAULT_NAMESPACE)
@@ -3829,6 +3814,13 @@ func TestHTTPRouteWithInvalidHealthMonitor(t *testing.T) {
 		}
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	// this will remove the first healthmonitor from the poolref
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs)
 	}, 25*time.Second).Should(gomega.Equal(0))
 
 	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName, DEFAULT_NAMESPACE)
@@ -3913,9 +3905,16 @@ func TestHTTPRouteWithHealthMonitorMultipleRules(t *testing.T) {
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
+		return len(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs)
 	}, 25*time.Second).Should(gomega.Equal(0))
 
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes[1].PoolRefs[0].HealthMonitorRefs)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	g.Expect(childNode2.PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring("thisisaviref-hm2"))
 	// Clean up
 	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName2, DEFAULT_NAMESPACE)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
@@ -3997,8 +3996,17 @@ func TestHTTPRouteWithHealthMonitorMultipleBackends(t *testing.T) {
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
-	}, 25*time.Second).Should(gomega.Equal(0))
+		return len(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes[0].PoolRefs[1].HealthMonitorRefs)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	g.Expect(childNode1.PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring("thisisaviref-hm2"))
+	g.Expect(childNode1.PoolRefs[1].HealthMonitorRefs[0]).To(gomega.ContainSubstring("thisisaviref-hm2"))
 
 	// Clean up
 	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName2, DEFAULT_NAMESPACE)
@@ -4069,8 +4077,8 @@ func TestHTTPRouteWithHealthMonitorStatusTransition(t *testing.T) {
 	g.Eventually(func() int {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
-	}, 25*time.Second).Should(gomega.Equal(0))
+		return len(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs)
+	}, 60*time.Second).Should(gomega.Equal(0))
 
 	// Update HealthMonitor status back to Ready=True
 	akogatewayapitests.UpdateHealthMonitorStatus(t, healthMonitorName, DEFAULT_NAMESPACE, true, "Accepted", "HealthMonitor has been successfully processed")
@@ -4152,14 +4160,23 @@ func TestHTTPRouteWithRouteBackendExtension(t *testing.T) {
 	g.Expect(childNode.PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring("thisisaviref-hm1"))
 	g.Expect(*childNode.PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_ROUND_ROBIN"))
 
-	// Delete routeBackendExtension and verify it's settings are removed from graph layer
+	// Delete routeBackendExtension and verify child VS is still present but with default settings
 	rbe.DeleteRouteBackendExtensionCR(t)
-
 	g.Eventually(func() int {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
-	}, 60*time.Second).Should(gomega.Equal(0))
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return -1
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		childNode = nodes[0].EvhNodes[0]
+		if len(childNode.PoolRefs) != 1 {
+			return -1
+		}
+		// When RouteBackendExtension is rejected, HM should not be set in graph layer
+		return len(childNode.PoolRefs[0].HealthMonitorRefs)
+	}, 25*time.Second).Should(gomega.Equal(0))
+	// When RouteBackendExtension is deleted, default settings should be applied
+	g.Expect(childNode.PoolRefs[0].LbAlgorithm).To(gomega.BeNil())
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
 	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName)
@@ -4246,15 +4263,39 @@ func TestHTTPRouteWithRouteBackendExtensionsMultipleRules(t *testing.T) {
 	// Delete routeBackendExtension and verify it's settings are removed from graph layer
 	rbe1.DeleteRouteBackendExtensionCR(t)
 
-	// Wait for the model to be updated after RouteBackendExtension deletion
+	// Both child nodes should still be present after one RouteBackendExtension deletion
 	g.Eventually(func() int {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return -1
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		childNode1 = nodes[0].EvhNodes[0]
+		childNode2 = nodes[0].EvhNodes[1]
+		if len(childNode1.PoolRefs) != 1 || len(childNode2.PoolRefs) != 1 {
+			return -1
+		}
+		// When one RouteBackendExtension is deleted, HM should not be set in graph layer for childnode1
+		return len(childNode1.PoolRefs[0].HealthMonitorRefs)
 	}, 25*time.Second).Should(gomega.Equal(0))
+	// When first RouteBackendExtension is deleted, default settings should be applied for childnode1
+	g.Expect(childNode1.PoolRefs[0].LbAlgorithm).To(gomega.BeNil())
+	// Verify childnode2 still has its settings
+	g.Expect(childNode2.PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring("thisisaviref-hm2"))
+	g.Expect(*childNode2.PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_CONSISTENT_HASH"))
 
 	// Clean up
 	rbe2.DeleteRouteBackendExtensionCR(t)
+	// Both child nodes should still exist
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(2))
+
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
@@ -4322,10 +4363,20 @@ func TestHTTPRouteWithRouteBackendExtensionMultipleHMs(t *testing.T) {
 	rbe.DeleteRouteBackendExtensionCR(t)
 
 	g.Eventually(func() int {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
-	}, 60*time.Second).Should(gomega.Equal(0))
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return -1
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		childNode = nodes[0].EvhNodes[0]
+		if len(childNode.PoolRefs) != 1 {
+			return -1
+		}
+		// When RouteBackendExtension is deleted, HM should not be set in graph layer
+		return len(childNode.PoolRefs[0].HealthMonitorRefs)
+	}, 25*time.Second).Should(gomega.Equal(0))
+	// When RouteBackendExtension is deleted, default settings should be applied
+	g.Expect(childNode.PoolRefs[0].LbAlgorithm).To(gomega.BeNil())
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
 	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName)
@@ -4407,15 +4458,40 @@ func TestHTTPRouteWithHMAndRouteBackendExtensionMultipleRules(t *testing.T) {
 	// Delete routeBackendExtension and verify it's settings are removed from graph layer
 	rbe.DeleteRouteBackendExtensionCR(t)
 
-	// Wait for the model to be updated after RouteBackendExtension deletion
+	// Both child nodes should still be present after RouteBackendExtension deletion
 	g.Eventually(func() int {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return -1
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		childNode1 = nodes[0].EvhNodes[0]
+		childNode2 = nodes[0].EvhNodes[1]
+		if len(childNode1.PoolRefs) != 1 || len(childNode2.PoolRefs) != 1 {
+			return -1
+		}
+		// When RouteBackendExtension is deleted, HM should not be set in graph layer for childnode1
+		return len(childNode1.PoolRefs[0].HealthMonitorRefs)
 	}, 25*time.Second).Should(gomega.Equal(0))
+	// When first RouteBackendExtension is deleted, default settings should be applied for childnode1
+	g.Expect(childNode1.PoolRefs[0].LbAlgorithm).To(gomega.BeNil())
+	// Verify childnode2 still has its settings
+	g.Expect(childNode2.PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring("thisisaviref-hm2"))
+	g.Expect(childNode2.PoolRefs[0].LbAlgorithm).To(gomega.BeNil())
 
 	// Clean up
 	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName, DEFAULT_NAMESPACE)
+
+	// Both child nodes should still exist
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(2))
+
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
@@ -4490,15 +4566,43 @@ func TestHTTPRouteWithHMAndRouteBackendExtensionSingleRule(t *testing.T) {
 	// Delete routeBackendExtension and verify it's settings are removed from graph layer
 	rbe.DeleteRouteBackendExtensionCR(t)
 
-	// Wait for the model to be updated after RouteBackendExtension deletion
 	g.Eventually(func() int {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return -1
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		childNode = nodes[0].EvhNodes[0]
+		if len(childNode.PoolRefs) != 1 {
+			return -1
+		}
+		// When RouteBackendExtension is deleted, LbAlgorithm should not be set in graph layer
+		if childNode.PoolRefs[0].LbAlgorithm != nil {
+			return -1
+		}
+		return 0
 	}, 25*time.Second).Should(gomega.Equal(0))
+	// Verify childnode still has HM set from HM CR
+	g.Expect(childNode.PoolRefs[0].HealthMonitorRefs).To(gomega.HaveLen(1))
+	g.Expect(childNode.PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring("thisisaviref-hm2"))
 
 	// Clean up
 	akogatewayapitests.DeleteHealthMonitorCRD(t, healthMonitorName, DEFAULT_NAMESPACE)
+
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return -1
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		childNode = nodes[0].EvhNodes[0]
+		if len(childNode.PoolRefs) != 1 {
+			return -1
+		}
+		// When HM CR is also deleted, HM should not be set in graph layer
+		return len(childNode.PoolRefs[0].HealthMonitorRefs)
+	}, 25*time.Second).Should(gomega.Equal(0))
+
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
@@ -4573,12 +4677,25 @@ func TestHTTPRouteWithRouteBackendExtensionMultipleBackends(t *testing.T) {
 	// Delete routeBackendExtension and verify it's settings are removed from graph layer
 	rbe.DeleteRouteBackendExtensionCR(t)
 
-	// Wait for the model to be updated after RouteBackendExtension deletion
 	g.Eventually(func() int {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		if !found {
+			return -1
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		childNode = nodes[0].EvhNodes[0]
+		if len(childNode.PoolRefs) != 2 {
+			return -1
+		}
+		// When RouteBackendExtension is deleted, HM should not be set in graph layer
+		if len(childNode.PoolRefs[0].HealthMonitorRefs) != 0 || len(childNode.PoolRefs[1].HealthMonitorRefs) != 0 {
+			return -1
+		}
+		return 0
 	}, 25*time.Second).Should(gomega.Equal(0))
+	// When RouteBackendExtension is deleted, default settings should be applied
+	g.Expect(childNode.PoolRefs[0].LbAlgorithm).To(gomega.BeNil())
+	g.Expect(childNode.PoolRefs[1].LbAlgorithm).To(gomega.BeNil())
 
 	// Clean up
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
@@ -4691,6 +4808,8 @@ func TestHTTPRouteWithRouteBackendExtensionCRUD(t *testing.T) {
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 }
 
+// TestHTTPRouteStatusWithRouteBackendExtensionStatusTransition tests the behavior when RouteBackendExtension
+// status transitions between valid and invalid states.
 func TestHTTPRouteStatusWithRouteBackendExtensionStatusTransition(t *testing.T) {
 	gatewayName := "gateway-rbe-09"
 	gatewayClassName := "gateway-class-rbe-09"
@@ -4748,14 +4867,23 @@ func TestHTTPRouteStatusWithRouteBackendExtensionStatusTransition(t *testing.T) 
 	rbe.Status = "Rejected"
 	rbe.UpdateRouteBackendExtensionStatus(t)
 
+	// Child VS should still exist even when RouteBackendExtension is invalid
 	g.Eventually(func() int {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found {
 			return -1
 		}
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		childNode = nodes[0].EvhNodes[0]
+		if len(childNode.PoolRefs) != 1 {
+			return -1
+		}
+		// When RouteBackendExtension is rejected, HM should not be set in graph layer
+		return len(childNode.PoolRefs[0].HealthMonitorRefs)
 	}, 25*time.Second).Should(gomega.Equal(0))
+
+	// When RouteBackendExtension is rejected, default settings should be applied
+	g.Expect(childNode.PoolRefs[0].LbAlgorithm).To(gomega.BeNil())
 
 	// Test status transition from status rejected to accepted
 	rbe.Status = "Accepted"
@@ -4766,16 +4894,16 @@ func TestHTTPRouteStatusWithRouteBackendExtensionStatusTransition(t *testing.T) 
 		if !found {
 			return 0
 		}
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		childNode = nodes[0].EvhNodes[0]
+		if len(childNode.PoolRefs) != 1 {
+			return -1
+		}
+		// When RouteBackendExtension is accepted, HM should be set in graph layer
+		return len(childNode.PoolRefs[0].HealthMonitorRefs)
 	}, 25*time.Second).Should(gomega.Equal(1))
 
 	// Verify RouteBackendExtension configured settings are present in graph layer
-	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
-	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-	childNode = nodes[0].EvhNodes[0]
-	g.Expect(childNode.PoolRefs).To(gomega.HaveLen(1))
-	g.Expect(childNode.PoolRefs[0].HealthMonitorRefs).To(gomega.HaveLen(1))
 	g.Expect(childNode.PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring("thisisaviref-hm1"))
 	g.Expect(*childNode.PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_ROUND_ROBIN"))
 
@@ -4783,14 +4911,23 @@ func TestHTTPRouteStatusWithRouteBackendExtensionStatusTransition(t *testing.T) 
 	rbe.Controller = "Invalid-Controller"
 	rbe.UpdateRouteBackendExtensionStatus(t)
 
+	// Child VS should still exist even when RouteBackendExtension has invalid controller
 	g.Eventually(func() int {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found {
 			return -1
 		}
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		childNode = nodes[0].EvhNodes[0]
+		if len(childNode.PoolRefs) != 1 {
+			return -1
+		}
+		// When RouteBackendExtension is accepted, HM should not be set in graph layer
+		return len(childNode.PoolRefs[0].HealthMonitorRefs)
 	}, 25*time.Second).Should(gomega.Equal(0))
+
+	// When RouteBackendExtension controller is invalid, default settings should be applied
+	g.Expect(childNode.PoolRefs[0].LbAlgorithm).To(gomega.BeNil())
 
 	// Test status transition from status controller invalid to valid
 	rbe.Controller = "AKOCRDController"
@@ -4801,16 +4938,16 @@ func TestHTTPRouteStatusWithRouteBackendExtensionStatusTransition(t *testing.T) 
 		if !found {
 			return 0
 		}
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		childNode = nodes[0].EvhNodes[0]
+		if len(childNode.PoolRefs) != 1 {
+			return -1
+		}
+		// When RouteBackendExtension is accepted, HM should be set in graph layer
+		return len(childNode.PoolRefs[0].HealthMonitorRefs)
 	}, 25*time.Second).Should(gomega.Equal(1))
 
 	// Verify RouteBackendExtension configured settings are present in graph layer
-	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
-	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-	childNode = nodes[0].EvhNodes[0]
-	g.Expect(childNode.PoolRefs).To(gomega.HaveLen(1))
-	g.Expect(childNode.PoolRefs[0].HealthMonitorRefs).To(gomega.HaveLen(1))
 	g.Expect(childNode.PoolRefs[0].HealthMonitorRefs[0]).To(gomega.ContainSubstring("thisisaviref-hm1"))
 	g.Expect(*childNode.PoolRefs[0].LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_ROUND_ROBIN"))
 
@@ -4821,7 +4958,7 @@ func TestHTTPRouteStatusWithRouteBackendExtensionStatusTransition(t *testing.T) 
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 		return len(nodes[0].EvhNodes)
-	}, 60*time.Second).Should(gomega.Equal(0))
+	}, 60*time.Second).Should(gomega.Equal(1))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
 	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName)
@@ -4830,20 +4967,15 @@ func TestHTTPRouteStatusWithRouteBackendExtensionStatusTransition(t *testing.T) 
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 }
 
-// new changes
-func verifyApplicationProfileRef(g *gomega.GomegaWithT, modelName, appProfileRef string, childVSAbsent bool) {
+func verifyApplicationProfileRef(g *gomega.GomegaWithT, modelName, appProfileRef string) {
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found {
 			return false
 		}
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		// in case of non-ready app profiles, child vs is to be deleted
-		if childVSAbsent {
-			return len(nodes[0].EvhNodes) == 0
-		}
 
-		if len(nodes[0].EvhNodes) == 1 {
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		if len(nodes[0].EvhNodes) > 0 {
 			childVS := nodes[0].EvhNodes[0]
 			if childVS.ApplicationProfileRef == nil {
 				return false
@@ -4889,7 +5021,7 @@ func TestHTTPRouteWithAppProfileExtensionRef(t *testing.T) {
 
 	// if no application profile ref is provided,
 	// the default "System-HTTP" profile should be used.
-	verifyApplicationProfileRef(g, modelName, defaultHTTPAppProfile, false)
+	verifyApplicationProfileRef(g, modelName, defaultHTTPAppProfile)
 
 	// check if invalid app profile is correctly handled post update
 	rule = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
@@ -4900,7 +5032,7 @@ func TestHTTPRouteWithAppProfileExtensionRef(t *testing.T) {
 
 	// if an invalid application profile ref is provided,
 	// the child vs should be absent
-	verifyApplicationProfileRef(g, modelName, "", true)
+	verifyApplicationProfileRef(g, modelName, defaultHTTPAppProfile)
 
 	// create the previous "test-app-profile" app profile and check if
 	// http route was actually processed with child vs correctly getting
@@ -4909,11 +5041,11 @@ func TestHTTPRouteWithAppProfileExtensionRef(t *testing.T) {
 		Status: "True",
 	})
 	// should be updated correctly with prefix <cluster-name>-<namespace>
-	verifyApplicationProfileRef(g, modelName, "/api/applicationprofile/?name=cluster-default-test-app-profile", false)
+	verifyApplicationProfileRef(g, modelName, "/api/applicationprofile/?name=cluster-default-test-app-profile")
 
 	// delete the app profile ref and check if the child vs is removed
 	akogatewayapitests.DeleteApplicationProfileCRD(t, "test-app-profile")
-	verifyApplicationProfileRef(g, modelName, "", true)
+	verifyApplicationProfileRef(g, modelName, defaultHTTPAppProfile)
 
 	// Delete the existing httproute and create a new one with existing app prof ref
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
@@ -4929,14 +5061,14 @@ func TestHTTPRouteWithAppProfileExtensionRef(t *testing.T) {
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
 
 	// should be updated correctly
-	verifyApplicationProfileRef(g, modelName, "/api/applicationprofile/?name=cluster-default-test-app-profile-2", false)
+	verifyApplicationProfileRef(g, modelName, "/api/applicationprofile/?name=cluster-default-test-app-profile-2")
 
 	// update the application profile to change condition status to "False"
 	// and verify if existing application profile wasn't changed
 	akogatewayapitests.UpdateApplicationProfileCRD(t, "test-app-profile-2", &akogatewayapitests.FakeApplicationProfileStatus{
 		Status: "False",
 	})
-	verifyApplicationProfileRef(g, modelName, "", true)
+	verifyApplicationProfileRef(g, modelName, defaultHTTPAppProfile)
 
 	// create a new application profile crd and update the http route ref to it
 	// and it should update correctly
@@ -4949,7 +5081,7 @@ func TestHTTPRouteWithAppProfileExtensionRef(t *testing.T) {
 	rules = []gatewayv1.HTTPRouteRule{rule}
 	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
 
-	verifyApplicationProfileRef(g, modelName, "/api/applicationprofile/?name=cluster-default-test-app-profile-3", false)
+	verifyApplicationProfileRef(g, modelName, "/api/applicationprofile/?name=cluster-default-test-app-profile-3")
 
 	// cleanup
 	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
@@ -5042,14 +5174,14 @@ func TestHTTPRouteWithAppProfileExtensionRefMultipleRules(t *testing.T) {
 		return *childNode1.ApplicationProfileRef == defaultHTTPAppProfile
 	}, 25*time.Second).Should(gomega.Equal(true))
 
-	// set invalid app profile to one of the rules and check if child vs is gone
-	rule1 = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/bar"}, []string{},
+	// set invalid app profile to one of the rules and check vs has default application profile ref
+	rule1 = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
 		map[string][]string{"ExtensionRef": {"invalid-app-profile"}},
 		[][]string{{svcName1, DEFAULT_NAMESPACE, "8080", "1"}}, nil)
 	rules = []gatewayv1.HTTPRouteRule{rule1, rule2}
 	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
 
-	verifyApplicationProfileRef(g, modelName, "", true)
+	verifyApplicationProfileRef(g, modelName, defaultHTTPAppProfile)
 
 	// update application profiles in both rules and verify if the refs are updated correctly
 	rule1 = akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},

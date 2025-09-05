@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strings"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
@@ -136,9 +137,8 @@ type Rule struct {
 }
 
 type RouteConfig struct {
-	Rules    []*Rule
-	Hosts    []string
-	Rejected bool
+	Rules []*Rule
+	Hosts []string
 }
 
 type httpRoute struct {
@@ -190,10 +190,9 @@ func (hr *httpRoute) ParseRouteConfig(key string) *RouteConfig {
 	for i := range hr.spec.Hostnames {
 		routeConfig.Hosts[i] = string(hr.spec.Hostnames[i])
 	}
-	var resolvedRefCondition akogatewayapistatus.Condition
+	var resolvedRefCondition, resolvedRefConditionRuleFilter, resolvedRefConditionRuleBackend akogatewayapistatus.Condition
 	routeConfig.Rules = make([]*Rule, 0, len(hr.spec.Rules))
-	isRouteRejected := false
-ruleLoop:
+
 	for _, rule := range hr.spec.Rules {
 		routeConfigRule := &Rule{}
 		routeConfigRule.Matches = make([]*Match, 0, len(rule.Matches))
@@ -328,20 +327,19 @@ ruleLoop:
 				filter.ExtensionRef.Group = string(ruleFilter.ExtensionRef.Group)
 				filter.ExtensionRef.Kind = string(ruleFilter.ExtensionRef.Kind)
 				filter.ExtensionRef.Name = string(ruleFilter.ExtensionRef.Name)
-
 				var isValid bool
-				isValid, resolvedRefCondition = validateFilterExtensionRef(key, hr.GetNamespace(), filter.ExtensionRef)
+				isValid, resolvedRefConditionRuleFilter = validateFilterExtensionRef(key, hr.GetNamespace(), filter.ExtensionRef)
 				if !isValid {
-					// hasInvalidFilter = true
-					isRouteRejected = true
-					break ruleLoop
+					if resolvedRefConditionRuleFilter != nil {
+						resolvedRefCondition = resolvedRefConditionRuleFilter
+					}
+					continue
 				}
-			}
 
+			}
 			routeConfigRule.Filters = append(routeConfigRule.Filters, filter)
 		}
 
-		var hasInvalidBackend bool
 		for _, ruleBackend := range rule.BackendRefs {
 			httpBackend := &HTTPBackend{}
 			backend := &Backend{}
@@ -376,22 +374,27 @@ ruleLoop:
 					httpBackend.Filters = append(httpBackend.Filters, httpBackendFilter)
 				}
 			}
-			isValidBackend, resolvedRefConditionforBackend := validateBackendReference(key, *backend, httpBackend.Filters, hr.namespace)
+			isValidBackend := false
+			isValidBackend, resolvedRefConditionRuleBackend = validateBackendReference(key, *backend, httpBackend.Filters, hr.namespace)
 			if isValidBackend {
 				routeConfigRule.Backends = append(routeConfigRule.Backends, httpBackend)
-				if !hasInvalidBackend {
-					resolvedRefCondition = resolvedRefConditionforBackend
-				}
-			} else {
-				hasInvalidBackend = true
-				resolvedRefCondition = resolvedRefConditionforBackend
-				isRouteRejected = true
-				break ruleLoop
+			}
+			if resolvedRefConditionRuleBackend != nil {
+				resolvedRefCondition = resolvedRefConditionRuleBackend
 			}
 		}
 		routeConfig.Rules = append(routeConfig.Rules, routeConfigRule)
 	}
-	routeConfig.Rejected = isRouteRejected
+	if resolvedRefCondition == nil {
+		resolvedRefCondition = akogatewayapistatus.NewCondition().
+			Type(string(gatewayv1.RouteConditionResolvedRefs)).
+			Status(metav1.ConditionTrue).
+			Reason(string(gatewayv1.RouteReasonResolvedRefs))
+	}
+	// Note 1: resolvedRefCondition set in filterExtension will be overwritten by resolvedRefCondition set in backend
+	// Note 2: if resolvedRefCondition if already set during isHTTPRouteValid, it will NOT be overwritten by resolvedRefCondition set in ParseRouteConfig
+	// Note 3: resolveRefCondition of final rule will overwrite the existing resolvedRefCondition if there are multiple rules
+	// TODO: Consolidate all resolvedRefCondition at single place including isHTTPRouteValid
 	hr.routeConfig = routeConfig
 	setResolvedRefConditionInHTTPRouteStatus(key, resolvedRefCondition, lib.HTTPRoute+"/"+hr.GetNamespace()+"/"+hr.GetName())
 	return hr.routeConfig

@@ -88,10 +88,6 @@ func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, pare
 		if rule.Matches == nil {
 			continue
 		}
-		if httpRouteConfig.Rejected {
-			utils.AviLog.Warnf("key: %s, msg: route %s is rejected", key, routeModel.GetName())
-			continue
-		}
 		o.BuildChildVS(key, routeModel, parentNsName, rule, childVSes, fullsync)
 	}
 }
@@ -317,21 +313,12 @@ func resetChildNodeFields(key string, err error, childNode *nodes.AviEvhVsNode, 
 	childNode.SetHttpPolicySetRefs([]string{})
 }
 
-func resetPoolNodeFields(key string, err error, poolNode *nodes.AviPoolNode, isFilterHMSet bool) {
-	utils.AviLog.Warnf("key: %s, msg: Error while parsing extension ref: %s. Resetting pool %s fields", key, err.Error(), poolNode.Name)
-	poolNode.LbAlgorithm = nil
-	poolNode.LbAlgorithmHash = nil
-	poolNode.LbAlgorithmConsistentHashHdr = nil
-	if !isFilterHMSet {
-		poolNode.HealthMonitorRefs = nil
-	}
-}
-
 func buildPoolWithBackendExtensionRefs(key string, poolNode *nodes.AviPoolNode, namespace string, backend *HTTPBackend) {
 	healthMonitorRefsSet := sets.NewString()
 	if backend == nil || backend.Filters == nil || len(backend.Filters) == 0 {
 		return
 	}
+	var firstRBEProcessed bool
 	for _, filter := range backend.Filters {
 		if filter.ExtensionRef != nil {
 			if filter.ExtensionRef.Kind == akogatewayapilib.HealthMonitorKind {
@@ -341,6 +328,11 @@ func buildPoolWithBackendExtensionRefs(key string, poolNode *nodes.AviPoolNode, 
 					continue
 				}
 				unstructuredObj := obj.(*unstructured.Unstructured)
+				_, ready, _ := akogatewayapilib.IsHealthMonitorProcessed(key, namespace, filter.ExtensionRef.Name, unstructuredObj)
+				if !ready {
+					utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s not ready. err: %s", key, namespace, filter.ExtensionRef.Name, err)
+					continue
+				}
 				status, found, err := unstructured.NestedMap(unstructuredObj.UnstructuredContent(), "status")
 				if err != nil || !found {
 					utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s status not found. err: %s", key, namespace, filter.ExtensionRef.Name, err)
@@ -352,11 +344,13 @@ func buildPoolWithBackendExtensionRefs(key string, poolNode *nodes.AviPoolNode, 
 					continue
 				}
 				healthMonitorRefsSet.Insert(uuid.(string))
-			} else if filter.ExtensionRef.Kind == akogatewayapilib.RouteBackendExtensionKind {
+			} else if filter.ExtensionRef.Kind == akogatewayapilib.RouteBackendExtensionKind && !firstRBEProcessed {
 				isFilterHMSet := healthMonitorRefsSet.Len() > 0
 				err := akogatewayapilib.ParseRouteBackendExtensionCR(key, namespace, filter.ExtensionRef.Name, poolNode, isFilterHMSet)
 				if err != nil {
-					resetPoolNodeFields(key, err, poolNode, isFilterHMSet)
+					utils.AviLog.Warnf("key: %s, msg: Error while parsing RouteBackendExtension %s/%s: %s", key, namespace, filter.ExtensionRef.Name, err.Error())
+				} else {
+					firstRBEProcessed = true
 				}
 			}
 		}

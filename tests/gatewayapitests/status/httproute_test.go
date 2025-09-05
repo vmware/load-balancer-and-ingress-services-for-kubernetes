@@ -1355,7 +1355,6 @@ func TestHTTPRouteStatusWithHealthMonitorLifecycle(t *testing.T) {
 	}
 
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, hostnames, rules)
-
 	// HTTPRoute should have unresolved refs condition due to non-existent HealthMonitor
 	g.Eventually(func() bool {
 		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
@@ -1615,14 +1614,19 @@ func TestHTTPRouteMultpleRouteBackendExtensionSingleBackend(t *testing.T) {
 	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
 	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
 
-	g.Eventually(func() int {
+	// Only the RBE specified first should be processed, and the HM and LbAlgorithm should be set
+	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found {
-			return -1
+			return false
 		}
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
-	}, 25*time.Second).Should(gomega.Equal(0))
+		return len(nodes[0].EvhNodes) == 1 &&
+			len(nodes[0].EvhNodes[0].PoolRefs) == 1 &&
+			len(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs) == 1 &&
+			strings.Contains(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs[0], "thisisaviref-hm1") &&
+			*nodes[0].EvhNodes[0].PoolRefs[0].LbAlgorithm == "LB_ALGORITHM_ROUND_ROBIN"
+	}, 25*time.Second).Should(gomega.Equal(true))
 
 	// HTTPRoute should have unresolved refs condition due to non-existent RouteBackendExtension
 	g.Eventually(func() bool {
@@ -1652,11 +1656,14 @@ func TestHTTPRouteMultpleRouteBackendExtensionSingleBackend(t *testing.T) {
 	rbe2.DeleteRouteBackendExtensionCR(t)
 
 	// Wait for the model to be updated after RouteBackendExtension deletion
-	g.Eventually(func() int {
+	g.Eventually(func() bool {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-		return len(nodes[0].EvhNodes)
-	}, 25*time.Second).Should(gomega.Equal(0))
+		return len(nodes[0].EvhNodes) == 1 &&
+			len(nodes[0].EvhNodes[0].PoolRefs) == 1 &&
+			len(nodes[0].EvhNodes[0].PoolRefs[0].HealthMonitorRefs) == 0 &&
+			nodes[0].EvhNodes[0].PoolRefs[0].LbAlgorithm == nil
+	}, 25*time.Second).Should(gomega.Equal(true))
 
 	// Clean up
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
@@ -1742,7 +1749,8 @@ func TestHTTPRouteStatusWithRouteBackendExtensionLifecycle(t *testing.T) {
 		}
 		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
 		return condition != nil && condition.Status == metav1.ConditionFalse &&
-			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound) && strings.Contains(condition.Message, "RouteBackendExtension object default/rbe-lifecycle is not in Accepted state")
+			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound) &&
+			strings.Contains(condition.Message, "RouteBackendExtension object default/rbe-lifecycle is not in Accepted state")
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	// Update RouteBackendExtension status to Accepted
@@ -1853,7 +1861,8 @@ func TestHTTPRouteStatusWithRouteBackendExtensionLifecycle(t *testing.T) {
 		}
 		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
 		return condition != nil && condition.Status == metav1.ConditionFalse &&
-			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound)
+			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound) &&
+			strings.Contains(condition.Message, "RouteBackendExtension CR default/rbe-lifecycle is not handled by AKO CRD Operator")
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	// Verify error message mentions RouteBackendExtension
