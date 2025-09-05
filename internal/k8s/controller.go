@@ -52,7 +52,7 @@ var ctrlonce sync.Once
 // +kubebuilder:rbac:groups=extensions;networking.k8s.io,resources=ingressclasses;ingressclasses/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=networking.x-k8s.io,resources=gateways;gateways/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=networking.x-k8s.io,resources=gatewayclasses;gatewayclasses/status,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;delete;update;patch
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;delete;update;patch;create
 // +kubebuilder:rbac:groups=core,resources=services;services/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=core,resources=endpoints,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;
