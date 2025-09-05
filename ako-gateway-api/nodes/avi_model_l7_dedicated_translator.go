@@ -51,6 +51,7 @@ func (o *AviObjectGraph) ProcessL7RoutesForDedicatedGateway(key string, routeMod
 		}
 	}
 
+	dedicatedVS.StringGroupRefs = nil
 	// Create a single HTTP PolicySet for all HTTPRoute rules
 	o.BuildHTTPPolicySetsForDedicatedMode(key, dedicatedVS, routeModel, httpRouteRules, ruleToPoolGroupIndex)
 
@@ -58,7 +59,6 @@ func (o *AviObjectGraph) ProcessL7RoutesForDedicatedGateway(key string, routeMod
 	dedicatedVS.PoolGroupRefs = nil
 	dedicatedVS.PoolRefs = nil
 	dedicatedVS.DefaultPoolGroup = ""
-	dedicatedVS.StringGroupRefs = nil
 
 	// Create pool groups for unique rules using the same mapping
 	for rule, poolGroupIndex := range ruleToPoolGroupIndex {
@@ -87,6 +87,14 @@ func (o *AviObjectGraph) BuildHTTPPolicySetsForDedicatedMode(key string, vsNode 
 	if policy == nil {
 		policy = &nodes.AviHttpPolicySetNode{Name: httpPSName, Tenant: vsNode.Tenant}
 		vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs, policy)
+	}
+
+	// Set AviMarkers for the policy to ensure proper checksum calculation
+	policy.AviMarkers = utils.AviObjectMarkers{
+		GatewayName:        vsNode.AviMarkers.GatewayName,
+		GatewayNamespace:   vsNode.AviMarkers.GatewayNamespace,
+		HTTPRouteName:      routeModel.GetName(),
+		HTTPRouteNamespace: routeModel.GetNamespace(),
 	}
 
 	// Clear existing rules to rebuild them completely
@@ -173,7 +181,6 @@ func (o *AviObjectGraph) BuildHTTPPolicySetsForDedicatedMode(key string, vsNode 
 			}
 		}
 	}
-
 	utils.AviLog.Debugf("key: %s, msg: Built HTTP PolicySets for dedicated mode with %d request rules and %d response rules",
 		key, httpPSName, len(policy.RequestRules), len(policy.ResponseRules))
 }
@@ -452,6 +459,7 @@ func (o *AviObjectGraph) addStringGroup(stringGroupName, pathPattern, tenant str
 	}
 	stringGroupNode.CloudConfigCksum = stringGroupNode.GetCheckSum()
 	vsNode.StringGroupRefs = append(vsNode.StringGroupRefs, stringGroupNode)
+	utils.AviLog.Debugf("key: %s, msg: Added string group %s to VS %s", stringGroupName, vsNode.Name)
 }
 
 // GetPoolGroupNameForRule generates the pool group name for a rule
@@ -598,14 +606,18 @@ func (o *AviObjectGraph) BuildPGPoolForDedicatedMode(key string, vsNode *nodes.A
 			Ratio:   &ratio,
 		})
 
-		// pools are attached to VS for management
-		vsNode.PoolRefs = append(vsNode.PoolRefs, poolNode)
+		if vsNode.CheckPoolNChecksum(poolNode.Name, poolNode.GetCheckSum()) {
+			// Replace the poolNode.
+			vsNode.ReplaceEvhPoolInEVHNode(poolNode, key)
+		}
 
 		utils.AviLog.Debugf("key: %s, msg: Created pool %s with ratio %d for dedicated mode rule %d",
 			key, poolName, ratio, ruleIndex)
 	}
 	// pool groups are attached to VS for management
-	vsNode.PoolGroupRefs = append(vsNode.PoolGroupRefs, poolGroupNode)
+	if !utils.HasElem(vsNode.PoolGroupRefs, poolGroupName) {
+		vsNode.PoolGroupRefs = append(vsNode.PoolGroupRefs, poolGroupNode)
+	}
 
 	utils.AviLog.Debugf("key: %s, msg: Built pool group %s for dedicated mode rule %d (attached via HTTP PolicySet)",
 		key, poolGroupName, ruleIndex)
