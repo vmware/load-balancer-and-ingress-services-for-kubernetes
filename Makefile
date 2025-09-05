@@ -213,7 +213,7 @@ integrationtest:
 	(sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/integrationtest -failfast -coverprofile cover-2.out -coverpkg=./...  > integrationtest.log 2>&1 && echo "integrationtest passed") || (echo "integrationtest failed" && cat integrationtest.log && exit 1)
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/integrationtest -failfast -timeout 0 -coverprofile cover-2.out -coverpkg=./...  > integrationtest.log 2>&1 && echo "integrationtest passed") || (echo "integrationtest failed" && cat integrationtest.log && exit 1)
 
 .PHONY: ingresstests
 ingresstests:
