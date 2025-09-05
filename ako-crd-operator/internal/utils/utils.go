@@ -19,10 +19,12 @@ package utils
 import (
 	"context"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/models"
 	"github.com/vmware/alb-sdk/go/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
@@ -30,8 +32,13 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -302,4 +309,196 @@ func GetTenantInNamespace(ctx context.Context, client client.Client, namespace s
 		return lib.GetTenant(), nil
 	}
 	return tenant, nil
+}
+
+// WaitForWCPCloudNameAndInitialize watches the vmware-system-ako namespace for the WCP cloud name annotation
+// and initializes cluster configuration once the annotation is found.
+func WaitForWCPCloudNameAndInitialize(ctx context.Context, kubeClient kubernetes.Interface, logger *utils.AviLogger) error {
+	logger.Info("Starting WCP cloud name annotation watcher")
+
+	// First, try to get the namespace and check if annotation already exists
+	nsName := utils.GetAKONamespace()
+	nsObj, err := kubeClient.CoreV1().Namespaces().Get(ctx, nsName, metav1.GetOptions{})
+	if err != nil {
+		logger.Errorf("Failed to get namespace %s: %v", nsName, err)
+		return err
+	}
+
+	// Check if annotation already exists
+	if annotations := nsObj.GetAnnotations(); annotations != nil {
+		if cloudName, exists := annotations[lib.WCPCloud]; exists && cloudName != "" {
+			logger.Infof("WCP cloud name annotation already exists: %s", cloudName)
+			return initializeClusterConfig(ctx, kubeClient, cloudName, logger)
+		}
+	}
+
+	logger.Info("WCP cloud name annotation not found, setting up namespace watcher")
+
+	// Create informer factory for watching namespace events
+	informerFactory := informers.NewSharedInformerFactory(kubeClient, time.Second*30)
+	nsInformer := informerFactory.Core().V1().Namespaces()
+
+	// Create a channel to signal when annotation is found
+	annotationFoundCh := make(chan string, 1)
+	stopCh := make(chan struct{})
+
+	// Add event handler for namespace updates
+	nsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			newNs := newObj.(*v1.Namespace)
+
+			// Only watch the vmware-system-ako namespace
+			if newNs.Name != nsName {
+				return
+			}
+
+			newAnnotations := newNs.GetAnnotations()
+			cloudName := ""
+
+			if newAnnotations != nil {
+				cloudName = newAnnotations[lib.WCPCloud]
+			}
+
+			// If annotation was added or changed and is now non-empty
+			if cloudName != "" {
+				logger.Infof("WCP cloud name annotation found: %s", cloudName)
+				select {
+				case annotationFoundCh <- cloudName:
+				default:
+				}
+			}
+		},
+	})
+
+	// Start the informer
+	go informerFactory.Start(stopCh)
+
+	// Wait for informer cache to sync
+	if !cache.WaitForCacheSync(stopCh, nsInformer.Informer().HasSynced) {
+		close(stopCh)
+		utilruntime.HandleError(fmt.Errorf("timed out waiting for namespace informer cache to sync"))
+		return fmt.Errorf("timed out waiting for namespace informer cache to sync")
+	}
+
+	logger.Info("Namespace informer cache synced, waiting for WCP cloud name annotation")
+
+	// Wait for annotation to be found
+	select {
+	case cloudName := <-annotationFoundCh:
+		close(stopCh)
+		logger.Infof("WCP cloud name annotation received: %s", cloudName)
+		return initializeClusterConfig(ctx, kubeClient, cloudName, logger)
+	case <-ctx.Done():
+		close(stopCh)
+		return ctx.Err()
+	}
+}
+
+// initializeClusterConfig retrieves cluster configuration from configmap and validates AVI secret
+func initializeClusterConfig(ctx context.Context, kubeClient kubernetes.Interface, cloudName string, logger *utils.AviLogger) error {
+	logger.Infof("Initializing cluster configuration with cloud name: %s", cloudName)
+
+	// Get avi-k8s-config configmap
+	configMap, err := kubeClient.CoreV1().ConfigMaps(utils.GetAKONamespace()).Get(ctx, "avi-k8s-config", metav1.GetOptions{})
+	if err != nil {
+		logger.Errorf("Failed to get avi-k8s-config configmap: %v", err)
+		return err
+	}
+
+	// Extract clusterID from configmap
+	clusterID := configMap.Data["clusterID"]
+	if clusterID == "" {
+		logger.Error("clusterID not found in avi-k8s-config configmap")
+		return fmt.Errorf("clusterID not found in configmap")
+	}
+	clusterName := clusterID
+	clusterIDArr := strings.Split(clusterID, ":")
+	if len(clusterIDArr) > 1 {
+		// Include first 5 characters to add more uniqueness to cluster name
+		clusterName = clusterIDArr[0] + "-" + clusterIDArr[1][:5]
+	} else {
+		if len(clusterID) > 12 {
+			clusterName = clusterID[:12]
+		}
+	}
+
+	// Extract controllerIP from configmap
+	controllerIP := configMap.Data["controllerIP"]
+	if controllerIP == "" {
+		logger.Error("controllerIP not found in avi-k8s-config configmap")
+		return fmt.Errorf("controllerIP not found in configmap")
+	}
+
+	// Set cluster Name, ID and controller IP
+	os.Setenv("CLUSTER_NAME", clusterName)
+	lib.SetClusterID(clusterID)
+	lib.SetControllerIP(controllerIP)
+	logger.Infof("Set clusterName: %s, clusterID: %s, controllerIP: %s", clusterName, clusterID, controllerIP)
+
+	// Validate AVI secret
+	if err := validateAviSecret(ctx, kubeClient, controllerIP, logger); err != nil {
+		logger.Errorf("AVI secret validation failed: %v", err)
+		return err
+	}
+
+	logger.Info("Cluster configuration initialized successfully")
+	return nil
+}
+
+// validateAviSecret validates the AVI secret by creating an AVI client
+func validateAviSecret(ctx context.Context, kubeClient kubernetes.Interface, controllerIP string, logger *utils.AviLogger) error {
+	logger.Info("Validating AVI secret")
+
+	// Get avi-secret
+	aviSecret, err := kubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Get(ctx, lib.AviSecret, metav1.GetOptions{})
+	if err != nil {
+		logger.Errorf("Failed to get avi-secret: %v", err)
+		return err
+	}
+
+	// Extract credentials from secret
+	authToken := string(aviSecret.Data["authtoken"])
+	username := string(aviSecret.Data["username"])
+	password := string(aviSecret.Data["password"])
+	caData := string(aviSecret.Data["certificateAuthorityData"])
+
+	// Validate that required fields are present
+	if username == "" || (password == "" && authToken == "") {
+		return fmt.Errorf("invalid avi-secret: username is required and either password or authtoken must be provided")
+	}
+
+	// Create HTTP transport with certificate
+	transport, isSecure := utils.GetHTTPTransportWithCert(caData)
+
+	// Configure AVI session options
+	options := []func(*session.AviSession) error{
+		session.DisableControllerStatusCheckOnFailure(true),
+		session.SetTransport(transport),
+		session.SetTimeout(120 * time.Second),
+	}
+
+	if !isSecure {
+		options = append(options, session.SetInsecure)
+	}
+
+	// Use authtoken if available, otherwise use password
+	if authToken != "" {
+		options = append(options, session.SetAuthToken(authToken))
+	} else {
+		options = append(options, session.SetPassword(password))
+	}
+
+	// Create AVI client and test connection
+	aviClient, err := clients.NewAviClient(controllerIP, username, options...)
+	if err != nil {
+		logger.Errorf("Failed to create AVI client: %v", err)
+		return err
+	}
+
+	logger.Infof("Successfully validated AVI secret and created client connection to controller: %s", controllerIP)
+
+	// The aviClient connection test was successful, we can safely discard it
+	_ = aviClient
+
+	return nil
 }

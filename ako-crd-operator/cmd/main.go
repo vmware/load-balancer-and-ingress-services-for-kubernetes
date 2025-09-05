@@ -22,13 +22,14 @@ import (
 	"os"
 
 	"github.com/go-logr/zapr"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/event"
 	session2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
+	utils2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -86,6 +87,13 @@ func main() {
 	// TODO: crd-specific event recorders
 	eventRecorder := utils.NewEventRecorder("ako-crd-operator", kubeClient, false)
 	eventManager := event.NewEventManager(eventRecorder, &v1.Pod{})
+
+	// Initialize the CRD Operator in VCF mode
+	if utils.IsVCFCluster() {
+		if err := utils2.WaitForWCPCloudNameAndInitialize(ctx, kubeClient, setupLog); err != nil {
+			setupLog.Fatalf("Failed to initialize WCP cluster configuration: %s", err.Error())
+		}
+	}
 
 	// Initialize singleton session
 	sessionManager := session2.InitializeSessionInstance(kubeClient, eventManager)
