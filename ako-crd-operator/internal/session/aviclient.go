@@ -35,7 +35,7 @@ func (s *AviSessionClient) AviSessionPut(url string, request interface{}, respon
 }
 
 func (s *AviSessionClient) AviSessionDelete(url string, request interface{}, response interface{}, params ...session.ApiOptionsParams) error {
-	return s.AviClient.AviSession.Delete(url, request, response)
+	return s.AviClient.AviSession.DeleteObject(url, params...)
 }
 
 func (s *AviSessionClient) AviSessionPost(url string, request interface{}, response interface{}, params ...session.ApiOptionsParams) error {

@@ -301,7 +301,7 @@ func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Cont
 		if aviError, ok := err.(session.AviError); ok {
 			if aviError.HttpStatusCode == http.StatusConflict && strings.Contains(aviError.Error(), "already exists") {
 				log.Info("application profile already exists. trying to get uuid")
-				err := r.AviClient.AviSessionGet(utils.GetUriEncoded(fmt.Sprintf("%s?name=%s", constants.ApplicationProfileURL, apReq.Name)), &resp)
+				err := r.AviClient.AviSessionGet(utils.GetUriEncoded(fmt.Sprintf("%s?name=%s", constants.ApplicationProfileURL, apReq.Name)), &resp, session.SetOptTenant(tenant))
 				if err != nil {
 					log.Errorf("error getting application profile %s", err.Error())
 					return nil, err

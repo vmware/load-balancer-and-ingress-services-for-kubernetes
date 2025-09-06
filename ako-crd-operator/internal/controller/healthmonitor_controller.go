@@ -346,7 +346,7 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 			log.Debug("overwriting healthmonitor")
 		}
 		resp := map[string]interface{}{}
-		if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.HealthMonitorURL, hm.Status.UUID)), hmReq, &resp); err != nil {
+		if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.HealthMonitorURL, hm.Status.UUID)), hmReq, &resp, session.SetOptTenant(namespaceTenant)); err != nil {
 			log.Errorf("error updating healthmonitor %s", err.Error())
 			r.EventRecorder.Event(hm, corev1.EventTypeWarning, "UpdateFailed", fmt.Sprintf("Failed to update HealthMonitor on Avi Controller: %v", err))
 			return err
@@ -384,7 +384,7 @@ func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hmReq
 		if aviError, ok := err.(session.AviError); ok {
 			if aviError.HttpStatusCode == http.StatusConflict && strings.Contains(aviError.Error(), "already exists") {
 				log.Info("healthmonitor already exists. trying to get uuid")
-				err := r.AviClient.AviSessionGet(utils.GetUriEncoded(fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, hmReq.Name)), &resp)
+				err := r.AviClient.AviSessionGet(utils.GetUriEncoded(fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, hmReq.Name)), &resp, session.SetOptTenant(tenant))
 				if err != nil {
 					log.Errorf("error getting healthmonitor: %s", err.Error())
 					return nil, err

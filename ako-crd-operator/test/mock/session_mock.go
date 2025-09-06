@@ -35,9 +35,9 @@ func (m *MockAviRestClientPoolFactory) EXPECT() *MockAviRestClientPoolFactoryMoc
 }
 
 // NewAviRestClientPool mocks base method.
-func (m *MockAviRestClientPoolFactory) NewAviRestClientPool(numClients int, ctrlUsername, ctrlPassword, ctrlAuthToken, controllerVersion, ctrlIpAddress, ctrlCAData, tenant, protocol string, userHeaders map[string]string) (*utils.AviRestClientPool, string, error) {
+func (m *MockAviRestClientPoolFactory) NewAviRestClientPool(numClients int, ctrlIpAddress, ctrlUsername, ctrlPassword, ctrlAuthToken, controllerVersion, ctrlCAData, tenant, protocol string, userHeaders map[string]string) (*utils.AviRestClientPool, string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewAviRestClientPool", numClients, ctrlUsername, ctrlPassword, ctrlAuthToken, controllerVersion, ctrlIpAddress, ctrlCAData, tenant, protocol, userHeaders)
+	ret := m.ctrl.Call(m, "NewAviRestClientPool", numClients, ctrlIpAddress, ctrlUsername, ctrlPassword, ctrlAuthToken, controllerVersion, ctrlCAData, tenant, protocol, userHeaders)
 	ret0, _ := ret[0].(*utils.AviRestClientPool)
 	ret1, _ := ret[1].(string)
 	ret2, _ := ret[2].(error)
@@ -45,7 +45,7 @@ func (m *MockAviRestClientPoolFactory) NewAviRestClientPool(numClients int, ctrl
 }
 
 // NewAviRestClientPool indicates an expected call of NewAviRestClientPool.
-func (mr *MockAviRestClientPoolFactoryMockRecorder) NewAviRestClientPool(numClients, ctrlUsername, ctrlPassword, ctrlAuthToken, controllerVersion, ctrlIpAddress, ctrlCAData, tenant, protocol, userHeaders interface{}) *gomock.Call {
+func (mr *MockAviRestClientPoolFactoryMockRecorder) NewAviRestClientPool(numClients, ctrlIpAddress, ctrlUsername, ctrlPassword, ctrlAuthToken, controllerVersion, ctrlCAData, tenant, protocol, userHeaders interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewAviRestClientPool", reflect.TypeOf((*MockAviRestClientPoolFactory)(nil).NewAviRestClientPool), numClients, ctrlUsername, ctrlPassword, ctrlAuthToken, controllerVersion, ctrlIpAddress, ctrlCAData, tenant, protocol, userHeaders)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewAviRestClientPool", reflect.TypeOf((*MockAviRestClientPoolFactory)(nil).NewAviRestClientPool), numClients, ctrlIpAddress, ctrlUsername, ctrlPassword, ctrlAuthToken, controllerVersion, ctrlCAData, tenant, protocol, userHeaders)
 }

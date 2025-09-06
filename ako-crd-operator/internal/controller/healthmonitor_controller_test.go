@@ -136,7 +136,7 @@ func TestHealthMonitorController(t *testing.T) {
 						Message: &[]string{"already exists"}[0],
 					},
 				})
-				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, "test-cluster-default-test"), gomock.Any()).Do(func(url string, response interface{}) {
+				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, "test-cluster-default-test"), gomock.Any(), gomock.Any()).Do(func(url string, response interface{}, params interface{}) {
 					if resp, ok := response.(*map[string]interface{}); ok {
 						*resp = responseBody
 					}
@@ -441,7 +441,7 @@ func TestHealthMonitorController(t *testing.T) {
 						Message: &[]string{"already exists"}[0],
 					},
 				})
-				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, "test-cluster-default-test"), gomock.Any()).Return(errors.New("GET failed")).AnyTimes()
+				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, "test-cluster-default-test"), gomock.Any(), gomock.Any()).Return(errors.New("GET failed")).AnyTimes()
 			},
 			want:    nil,
 			wantErr: true,
@@ -466,7 +466,7 @@ func TestHealthMonitorController(t *testing.T) {
 						Message: &[]string{"already exists"}[0],
 					},
 				})
-				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, "test-cluster-default-test"), gomock.Any()).Do(func(url string, response interface{}) {
+				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, "test-cluster-default-test"), gomock.Any(), gomock.Any()).Do(func(url string, response interface{}, params interface{}) {
 					if resp, ok := response.(*map[string]interface{}); ok {
 						*resp = responseBody
 					}
@@ -495,7 +495,7 @@ func TestHealthMonitorController(t *testing.T) {
 						Message: &[]string{"already exists"}[0],
 					},
 				})
-				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, "test-cluster-default-test"), gomock.Any()).Do(func(url string, response interface{}) {
+				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, "test-cluster-default-test"), gomock.Any(), gomock.Any()).Do(func(url string, response interface{}, params interface{}) {
 					if resp, ok := response.(*map[string]interface{}); ok {
 						*resp = responseBody
 					}
