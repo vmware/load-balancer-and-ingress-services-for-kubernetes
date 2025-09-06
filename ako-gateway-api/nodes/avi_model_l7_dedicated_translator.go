@@ -2,6 +2,7 @@ package nodes
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/vmware/alb-sdk/go/models"
 
@@ -41,35 +42,37 @@ func (o *AviObjectGraph) ProcessL7RoutesForDedicatedGateway(key string, routeMod
 	dedicatedVS.AviMarkers.HTTPRouteName = routeModel.GetName()
 	dedicatedVS.AviMarkers.HTTPRouteNamespace = routeModel.GetNamespace()
 
-	// First, remove existing pools and pool groups for this HTTPRoute to replace them
-	o.RemovePoolsAndPoolGroupsForHTTPRoute(key, dedicatedVS, routeModel)
-	// Create a single HTTP PolicySet for all HTTPRoute rules
-	o.BuildSingleHTTPPolicySetForDedicatedMode(key, dedicatedVS, routeModel, httpRouteRules)
+	ruleToPoolGroupIndex := make(map[*Rule]int)
+	poolGroupIndex := 0
+	for _, rule := range httpRouteRules {
+		if _, exists := ruleToPoolGroupIndex[rule]; !exists {
+			ruleToPoolGroupIndex[rule] = poolGroupIndex
+			poolGroupIndex++
+		}
+	}
 
-	// Process each rule to create pools for the backends
-	for ruleIndex, rule := range httpRouteRules {
+	dedicatedVS.StringGroupRefs = nil
+	// Create a single HTTP PolicySet for all HTTPRoute rules
+	o.BuildHTTPPolicySetsForDedicatedMode(key, dedicatedVS, routeModel, httpRouteRules, ruleToPoolGroupIndex)
+
+	// cleanup before processing
+	dedicatedVS.PoolGroupRefs = nil
+	dedicatedVS.PoolRefs = nil
+	dedicatedVS.DefaultPoolGroup = ""
+
+	// Create pool groups for unique rules using the same mapping
+	for rule, poolGroupIndex := range ruleToPoolGroupIndex {
 		// Create pools for the backends in this rule
-		o.BuildPGPoolForDedicatedMode(key, dedicatedVS, routeModel, rule, ruleIndex)
-		utils.AviLog.Debugf("key: %s, msg: Processed rule %d for HTTPRoute %s/%s in dedicated mode", key, ruleIndex, routeModel.GetNamespace(), routeModel.GetName())
+		o.BuildPGPoolForDedicatedMode(key, dedicatedVS, routeModel, rule, poolGroupIndex)
+		utils.AviLog.Debugf("key: %s, msg: Processed rule %d for HTTPRoute %s/%s in dedicated mode", key, poolGroupIndex, routeModel.GetNamespace(), routeModel.GetName())
 	}
 	// Update route to VS mapping for dedicated mode
 	akogatewayapiobjects.GatewayApiLister().UpdateRouteChildVSMappings(routeModel.GetType()+"/"+routeModel.GetNamespace()+"/"+routeModel.GetName(), dedicatedVSName)
 	utils.AviLog.Infof("key: %s, msg: Completed processing HTTPRoute %s/%s in dedicated mode for VS %s", key, routeModel.GetNamespace(), routeModel.GetName(), dedicatedVSName)
 }
 
-// RemovePoolsAndPoolGroupsForHTTPRoute removes existing pools and pool groups for a specific HTTPRoute
-// This ensures that when an HTTPRoute is updated, old pools/pool groups are replaced instead of accumulated
-func (o *AviObjectGraph) RemovePoolsAndPoolGroupsForHTTPRoute(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel) {
-	vsNode.PoolGroupRefs = []*nodes.AviPoolGroupNode{}
-	vsNode.PoolRefs = []*nodes.AviPoolNode{}
-
-	utils.AviLog.Debugf("key: %s, msg: Completed removal of existing pools/pool groups for HTTPRoute %s/%s",
-		key, routeModel.GetNamespace(), routeModel.GetName())
-}
-
-// BuildSingleHTTPPolicySetForDedicatedMode creates a single HTTP PolicySet for all HTTPRoute rules in dedicated mode
-// Each match gets its own request and response rules with specific match criteria
-func (o *AviObjectGraph) BuildSingleHTTPPolicySetForDedicatedMode(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, httpRouteRules []*Rule) {
+// BuildHTTPPolicySetsForDedicatedMode creates HTTP PolicySets for all HTTPRoute rules in dedicated mode
+func (o *AviObjectGraph) BuildHTTPPolicySetsForDedicatedMode(key string, vsNode *nodes.AviEvhVsNode, routeModel RouteModel, httpRouteRules []*Rule, ruleToPoolGroupIndex map[*Rule]int) {
 	// Create HTTP PolicySet name for the entire HTTPRoute with encoding
 	httpPSName := akogatewayapilib.GetHttpPolicySetName(vsNode.AviMarkers.GatewayNamespace, vsNode.AviMarkers.GatewayName, routeModel.GetNamespace(), routeModel.GetName())
 
@@ -86,6 +89,14 @@ func (o *AviObjectGraph) BuildSingleHTTPPolicySetForDedicatedMode(key string, vs
 		vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs, policy)
 	}
 
+	// Set AviMarkers for the policy to ensure proper checksum calculation
+	policy.AviMarkers = utils.AviObjectMarkers{
+		GatewayName:        vsNode.AviMarkers.GatewayName,
+		GatewayNamespace:   vsNode.AviMarkers.GatewayNamespace,
+		HTTPRouteName:      routeModel.GetName(),
+		HTTPRouteNamespace: routeModel.GetNamespace(),
+	}
+
 	// Clear existing rules to rebuild them completely
 	policy.RequestRules = []*models.HTTPRequestRule{}
 	policy.ResponseRules = []*models.HTTPResponseRule{}
@@ -93,25 +104,99 @@ func (o *AviObjectGraph) BuildSingleHTTPPolicySetForDedicatedMode(key string, vs
 	var requestRuleIndex int32 = 0
 	var responseRuleIndex int32 = 1000 // Response rules start at higher indices
 
-	// Process each rule and create request/response rules for each match
+	type MatchWithMetadata struct {
+		Match          *Match
+		Rule           *Rule
+		RuleIndex      int
+		MatchIndex     int
+		PoolGroupIndex int
+	}
+
+	rootPathPresent := false
+	var allMatches []MatchWithMetadata
 	for ruleIndex, rule := range httpRouteRules {
-		// Create HTTP request rules with match criteria for each match
 		for matchIndex, match := range rule.Matches {
-			// Build HTTP request rule with match, filters, and switching action
-			o.BuildHTTPRequestRuleWithMatch(key, policy, routeModel, rule, ruleIndex, matchIndex, match, &requestRuleIndex, vsNode.AviMarkers.GatewayNamespace, vsNode.AviMarkers.GatewayName)
-		}
-		// Create HTTP response rules with match criteria for each match (if response filters exist)
-		responseFilters := o.GetResponseFilters(rule.Filters)
-		if len(responseFilters) > 0 {
-			for matchIndex, match := range rule.Matches {
-				// Build HTTP response rule with match and response filters
-				o.BuildHTTPResponseRuleWithMatch(key, policy, routeModel, responseFilters, ruleIndex, matchIndex, match, &responseRuleIndex)
+			if match.PathMatch.Path == "/" {
+				rootPathPresent = true
 			}
+			allMatches = append(allMatches, MatchWithMetadata{
+				Match:          match,
+				Rule:           rule,
+				RuleIndex:      ruleIndex,
+				MatchIndex:     matchIndex,
+				PoolGroupIndex: ruleToPoolGroupIndex[rule],
+			})
 		}
 	}
 
-	utils.AviLog.Debugf("key: %s, msg: Built single HTTP PolicySet %s for dedicated mode with %d request rules and %d response rules",
+	sort.SliceStable(allMatches, func(i, j int) bool {
+		pathI := allMatches[i].Match.PathMatch.Path
+		pathJ := allMatches[j].Match.PathMatch.Path
+
+		// path type priority
+		priorityI := getPathTypePriority(allMatches[i].Match.PathMatch.Type)
+		priorityJ := getPathTypePriority(allMatches[j].Match.PathMatch.Type)
+
+		if priorityI != priorityJ {
+			return priorityI > priorityJ
+		}
+
+		// if path type is equal, check length
+		if len(pathI) != len(pathJ) {
+			return len(pathI) > len(pathJ)
+		}
+
+		// maintain rule index
+		if allMatches[i].RuleIndex != allMatches[j].RuleIndex {
+			return allMatches[i].RuleIndex < allMatches[j].RuleIndex
+		}
+		// maintain match index
+		return allMatches[i].MatchIndex < allMatches[j].MatchIndex
+	})
+
+	utils.AviLog.Debugf("key: %s, msg: Sorted %d matches for longest prefix matching in dedicated mode %v", key, len(allMatches), allMatches)
+
+	for _, matchMeta := range allMatches {
+		o.BuildHTTPRequestRuleWithMatch(key, policy, routeModel, matchMeta.Rule,
+			matchMeta.Match, matchMeta.PoolGroupIndex, &requestRuleIndex, vsNode.AviMarkers.GatewayNamespace, vsNode.AviMarkers.GatewayName, vsNode)
+	}
+
+	for _, matchMeta := range allMatches {
+		responseFilters := o.GetResponseFilters(matchMeta.Rule.Filters)
+		if len(responseFilters) > 0 {
+			o.BuildHTTPResponseRuleWithMatch(key, policy, routeModel, responseFilters,
+				matchMeta.Match, &responseRuleIndex, vsNode)
+		}
+	}
+
+	if !rootPathPresent {
+		o.AddDefaultHTTPPolicySet(key)
+	} else {
+		// remove the default policy ref if present
+		defaultPolicyRefName := akogatewayapilib.GetDefaultHTTPPSName()
+		for i, http := range vsNode.HttpPolicyRefs {
+			if http.Name == defaultPolicyRefName {
+				vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs[:i], vsNode.HttpPolicyRefs[i+1:]...)
+				break
+			}
+		}
+	}
+	utils.AviLog.Debugf("key: %s, msg: Built HTTP PolicySets for dedicated mode with %d request rules and %d response rules",
 		key, httpPSName, len(policy.RequestRules), len(policy.ResponseRules))
+}
+
+// getPathTypePriority returns priority value for path match types for LPM sorting
+func getPathTypePriority(pathType string) int {
+	switch pathType {
+	case akogatewayapilib.EXACT:
+		return 3
+	case akogatewayapilib.PATHPREFIX:
+		return 2
+	case akogatewayapilib.REGULAREXPRESSION:
+		return 1
+	default:
+		return 2
+	}
 }
 
 // GetResponseFilters extracts response filters from the filter list
@@ -126,8 +211,8 @@ func (o *AviObjectGraph) GetResponseFilters(filters []*Filter) []*Filter {
 }
 
 // BuildHTTPRequestRuleWithMatch creates an HTTP request rule with specific match criteria, filters, and switching action
-func (o *AviObjectGraph) BuildHTTPRequestRuleWithMatch(key string, policy *nodes.AviHttpPolicySetNode, routeModel RouteModel, rule *Rule, ruleIndex, matchIndex int, match *Match, requestRuleIndex *int32, gatewayNamespace, gatewayName string) {
-	ruleName := fmt.Sprintf("rule-%d-match-%d", ruleIndex, matchIndex)
+func (o *AviObjectGraph) BuildHTTPRequestRuleWithMatch(key string, policy *nodes.AviHttpPolicySetNode, routeModel RouteModel, rule *Rule, match *Match, poolGroupIndex int, requestRuleIndex *int32, gatewayNamespace, gatewayName string, vsNode *nodes.AviEvhVsNode) {
+	ruleName := fmt.Sprintf("rule-%d", *requestRuleIndex)
 
 	// Create the HTTP request rule
 	httpRequestRule := &models.HTTPRequestRule{
@@ -138,7 +223,7 @@ func (o *AviObjectGraph) BuildHTTPRequestRuleWithMatch(key string, policy *nodes
 	}
 
 	// Build match criteria
-	o.BuildMatchTarget(httpRequestRule.Match, match)
+	o.BuildMatchTarget(httpRequestRule.Match, match, vsNode.Tenant, vsNode)
 
 	// Apply request filters (redirects, header modifications, URL rewrites)
 	for _, filter := range rule.Filters {
@@ -206,7 +291,7 @@ func (o *AviObjectGraph) BuildHTTPRequestRuleWithMatch(key string, policy *nodes
 
 	// Add switching action to backends
 	if len(rule.Backends) > 0 {
-		poolGroupName := o.GetPoolGroupNameForRule(routeModel, rule, ruleIndex, gatewayNamespace, gatewayName)
+		poolGroupName := o.GetPoolGroupNameForRule(routeModel, rule, poolGroupIndex, gatewayNamespace, gatewayName)
 		switchAction := &models.HttpswitchingAction{
 			Action:       proto.String("HTTP_SWITCHING_SELECT_POOLGROUP"),
 			PoolGroupRef: proto.String(fmt.Sprintf("/api/poolgroup?name=%s", poolGroupName)),
@@ -222,8 +307,8 @@ func (o *AviObjectGraph) BuildHTTPRequestRuleWithMatch(key string, policy *nodes
 }
 
 // BuildHTTPResponseRuleWithMatch creates an HTTP response rule with specific match criteria and response filters
-func (o *AviObjectGraph) BuildHTTPResponseRuleWithMatch(key string, policy *nodes.AviHttpPolicySetNode, routeModel RouteModel, responseFilters []*Filter, ruleIndex, matchIndex int, match *Match, responseRuleIndex *int32) {
-	ruleName := fmt.Sprintf("response-rule-%d-match-%d", ruleIndex, matchIndex)
+func (o *AviObjectGraph) BuildHTTPResponseRuleWithMatch(key string, policy *nodes.AviHttpPolicySetNode, routeModel RouteModel, responseFilters []*Filter, match *Match, responseRuleIndex *int32, vsNode *nodes.AviEvhVsNode) {
+	ruleName := fmt.Sprintf("response-rule-%d", *responseRuleIndex)
 
 	// Create the HTTP response rule
 	httpResponseRule := &models.HTTPResponseRule{
@@ -234,7 +319,7 @@ func (o *AviObjectGraph) BuildHTTPResponseRuleWithMatch(key string, policy *node
 	}
 
 	// Build match criteria for response rule (converting request match to response match)
-	o.BuildResponseMatchTarget(httpResponseRule.Match, match)
+	o.BuildResponseMatchTarget(httpResponseRule.Match, match, vsNode.Tenant, vsNode)
 
 	// Apply response filters
 	for _, filter := range responseFilters {
@@ -270,7 +355,7 @@ func (o *AviObjectGraph) BuildHTTPResponseRuleWithMatch(key string, policy *node
 }
 
 // BuildMatchTarget builds the MatchTarget for HTTP request rules
-func (o *AviObjectGraph) BuildMatchTarget(matchTarget *models.MatchTarget, match *Match) {
+func (o *AviObjectGraph) BuildMatchTarget(matchTarget *models.MatchTarget, match *Match, tenant string, vsNode *nodes.AviEvhVsNode) {
 	// Handle path matching
 	matchTarget.Path = &models.PathMatch{
 		MatchCase: proto.String("SENSITIVE"),
@@ -281,7 +366,13 @@ func (o *AviObjectGraph) BuildMatchTarget(matchTarget *models.MatchTarget, match
 	} else if match.PathMatch.Type == akogatewayapilib.PATHPREFIX {
 		matchTarget.Path.MatchCriteria = proto.String("BEGINS_WITH")
 	} else if match.PathMatch.Type == akogatewayapilib.REGULAREXPRESSION {
-		matchTarget.Path.MatchCriteria = proto.String("REGEX")
+		matchTarget.Path.MatchCriteria = proto.String("REGEX_MATCH")
+		// unset MatchStr
+		matchTarget.Path.MatchStr = []string{}
+		// generate string group to be attached
+		regexStringGroupName := lib.GetEncodedStringGroupName("", match.PathMatch.Path)
+		matchTarget.Path.StringGroupRefs = []string{"/api/stringgroup?name=" + regexStringGroupName}
+		o.addStringGroup(regexStringGroupName, match.PathMatch.Path, tenant, vsNode)
 	}
 
 	// Handle header matching
@@ -306,7 +397,7 @@ func (o *AviObjectGraph) BuildMatchTarget(matchTarget *models.MatchTarget, match
 
 // BuildResponseMatchTarget builds the ResponseMatchTarget for HTTP response rules
 // This converts request match criteria to response match criteria where applicable
-func (o *AviObjectGraph) BuildResponseMatchTarget(responseMatchTarget *models.ResponseMatchTarget, match *Match) {
+func (o *AviObjectGraph) BuildResponseMatchTarget(responseMatchTarget *models.ResponseMatchTarget, match *Match, tenant string, vsNode *nodes.AviEvhVsNode) {
 	// Path matching (applicable to response)
 
 	responseMatchTarget.Path = &models.PathMatch{
@@ -318,7 +409,12 @@ func (o *AviObjectGraph) BuildResponseMatchTarget(responseMatchTarget *models.Re
 	} else if match.PathMatch.Type == akogatewayapilib.PATHPREFIX {
 		responseMatchTarget.Path.MatchCriteria = proto.String("BEGINS_WITH")
 	} else if match.PathMatch.Type == akogatewayapilib.REGULAREXPRESSION {
-		responseMatchTarget.Path.MatchCriteria = proto.String("REGEX")
+		responseMatchTarget.Path.MatchCriteria = proto.String("REGEX_MATCH")
+		// unset MatchStr
+		responseMatchTarget.Path.MatchStr = []string{}
+		regexStringGroupName := lib.GetEncodedStringGroupName("", match.PathMatch.Path)
+		responseMatchTarget.Path.StringGroupRefs = []string{"/api/stringgroup?name=" + regexStringGroupName}
+		o.addStringGroup(regexStringGroupName, match.PathMatch.Path, tenant, vsNode)
 	}
 
 	// Header matching (applicable to response - can match request headers)
@@ -338,6 +434,32 @@ func (o *AviObjectGraph) BuildResponseMatchTarget(responseMatchTarget *models.Re
 			responseMatchTarget.Hdrs = append(responseMatchTarget.Hdrs, hdrMatch)
 		}
 	}
+}
+
+// addStringGroup checks if a string group already exists in vsNode and adds it only if it doesn't exist
+func (o *AviObjectGraph) addStringGroup(stringGroupName, pathPattern, tenant string, vsNode *nodes.AviEvhVsNode) {
+	for _, existingStringGroup := range vsNode.StringGroupRefs {
+		if existingStringGroup.StringGroup.Name != nil && *existingStringGroup.StringGroup.Name == stringGroupName {
+			return
+		}
+	}
+
+	kv := &models.KeyValue{
+		Key: &pathPattern,
+	}
+	regexStringGroup := &models.StringGroup{
+		TenantRef:    &tenant,
+		Type:         proto.String("SG_TYPE_STRING"),
+		LongestMatch: proto.Bool(true),
+		Name:         &stringGroupName,
+		Kv:           []*models.KeyValue{kv},
+	}
+	stringGroupNode := &nodes.AviStringGroupNode{
+		StringGroup: regexStringGroup,
+	}
+	stringGroupNode.CloudConfigCksum = stringGroupNode.GetCheckSum()
+	vsNode.StringGroupRefs = append(vsNode.StringGroupRefs, stringGroupNode)
+	utils.AviLog.Debugf("key: %s, msg: Added string group %s to VS %s", stringGroupName, vsNode.Name)
 }
 
 // GetPoolGroupNameForRule generates the pool group name for a rule
@@ -484,14 +606,18 @@ func (o *AviObjectGraph) BuildPGPoolForDedicatedMode(key string, vsNode *nodes.A
 			Ratio:   &ratio,
 		})
 
-		// pools are attached to VS for management
-		vsNode.PoolRefs = append(vsNode.PoolRefs, poolNode)
+		if vsNode.CheckPoolNChecksum(poolNode.Name, poolNode.GetCheckSum()) {
+			// Replace the poolNode.
+			vsNode.ReplaceEvhPoolInEVHNode(poolNode, key)
+		}
 
 		utils.AviLog.Debugf("key: %s, msg: Created pool %s with ratio %d for dedicated mode rule %d",
 			key, poolName, ratio, ruleIndex)
 	}
 	// pool groups are attached to VS for management
-	vsNode.PoolGroupRefs = append(vsNode.PoolGroupRefs, poolGroupNode)
+	if !utils.HasElem(vsNode.PoolGroupRefs, poolGroupName) {
+		vsNode.PoolGroupRefs = append(vsNode.PoolGroupRefs, poolGroupNode)
+	}
 
 	utils.AviLog.Debugf("key: %s, msg: Built pool group %s for dedicated mode rule %d (attached via HTTP PolicySet)",
 		key, poolGroupName, ruleIndex)
