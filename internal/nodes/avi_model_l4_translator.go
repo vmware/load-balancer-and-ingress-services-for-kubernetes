@@ -23,6 +23,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	discovery "k8s.io/api/discovery/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -874,6 +875,7 @@ func getL4Rule(key string, svc *corev1.Service) (*akov1alpha2.L4Rule, error) {
 	}
 
 	if l4Rule != nil && l4Rule.Status.Status != lib.StatusAccepted {
+		utils.AviLog.Warnf("key: %s, msg: referred L4Rule %s is invalid", key, l4Rule.Name)
 		return nil, fmt.Errorf("referred L4Rule %s is invalid", l4Rule.Name)
 	}
 	svcPortsLen := len(svc.Spec.Ports)
@@ -966,6 +968,69 @@ func buildPoolWithL4Rule(key string, pool *AviPoolNode, l4Rule *akov1alpha2.L4Ru
 	pool.AviPoolGeneratedFields.ConvertToRef()
 
 	utils.AviLog.Debugf("key: %s, msg: Applied L4Rule %s configuration over Pool %s", key, l4Rule.Name, pool.Name)
+
+	// Process healthMonitorCrdRefs for HealthMonitor CRDs only if pool doesn't have health monitors (healthMonitorRefs takes priority)
+	if pool.HealthMonitorRefs == nil || len(pool.HealthMonitorRefs) == 0 {
+		buildPoolWithHealthMonitorCrdRefs(key, pool, l4Rule.Spec.BackendProperties[index], l4Rule.Namespace, l4Rule.Name)
+	} else {
+		utils.AviLog.Debugf("key: %s, msg: Pool %s already has health monitors (healthMonitorRefs takes priority), skipping healthMonitorCrdRefs", key, pool.Name)
+	}
+}
+
+// buildPoolWithHealthMonitorCrdRefs processes healthMonitorCrdRefs field from L4Rule to apply HealthMonitor CRDs to pools
+func buildPoolWithHealthMonitorCrdRefs(key string, poolNode *AviPoolNode, backendProperty *akov1alpha2.BackendProperties, namespace, l4RuleName string) {
+	if backendProperty == nil || len(backendProperty.HealthMonitorCrdRefs) == 0 {
+		return
+	}
+
+	healthMonitorRefsSet := sets.NewString()
+	for _, healthMonitorName := range backendProperty.HealthMonitorCrdRefs {
+		if healthMonitorName == "" {
+			utils.AviLog.Warnf("key: %s, msg: Empty HealthMonitor name in healthMonitorCrdRefs", key)
+			continue
+		}
+
+		// Update HealthMonitor to L4Rule mapping for cache management (regardless of HealthMonitor validity)
+		healthMonitorNsName := namespace + "/" + healthMonitorName
+		l4RuleNsName := namespace + "/" + l4RuleName
+		objects.SharedCRDLister().UpdateHealthMonitorToL4RuleMapping(healthMonitorNsName, l4RuleNsName)
+
+		// Get HealthMonitor CRD using dynamic informer
+		obj, err := lib.GetDynamicInformers().HealthMonitorInformer.Lister().ByNamespace(namespace).Get(healthMonitorName)
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s not found. err: %s", key, namespace, healthMonitorName, err)
+			continue
+		}
+
+		// Extract UUID from status (HealthMonitor already validated in validation phase)
+		unstructuredObj := obj.(*unstructured.Unstructured)
+		status, found, err := unstructured.NestedMap(unstructuredObj.UnstructuredContent(), "status")
+		if err != nil || !found {
+			utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s status not found. err: %s", key, namespace, healthMonitorName, err)
+			continue
+		}
+
+		uuid, ok := status["uuid"]
+		if !ok {
+			utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s uuid not found", key, namespace, healthMonitorName)
+			continue
+		}
+
+		healthMonitorUUID, ok := uuid.(string)
+		if !ok || healthMonitorUUID == "" {
+			utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s has invalid uuid", key, namespace, healthMonitorName)
+			continue
+		}
+		// Format UUID as proper AVI API reference
+		healthMonitorUUIDRef := "/api/healthmonitor/" + healthMonitorUUID
+		healthMonitorRefsSet.Insert(healthMonitorUUIDRef)
+	}
+
+	// Apply health monitor UUIDs from healthMonitorCrdRefs
+	if healthMonitorRefsSet.Len() > 0 {
+		poolNode.HealthMonitorRefs = healthMonitorRefsSet.List()
+		utils.AviLog.Debugf("key: %s, msg: Applied HealthMonitor CRDs from healthMonitorCrdRefs to Pool %s", key, poolNode.Name)
+	}
 }
 
 // In case the VS has services that are a mix of TCP and UDP/SCTP sockets,

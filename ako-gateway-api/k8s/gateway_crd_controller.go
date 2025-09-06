@@ -135,7 +135,7 @@ func (c *GatewayController) setupHealthMonitorEventHandlers(numWorkers uint32) {
 			}
 
 			key := akogatewayapilib.HealthMonitorKind + "/" + namespace + "/" + name
-			processed, _, err := akogatewayapilib.IsHealthMonitorProcessed(key, namespace, name, healthMonitorObj)
+			processed, _, err := lib.IsHealthMonitorProcessedWithOptions(key, namespace, name, akogatewayapilib.GetDynamicClientSet(), false, healthMonitorObj)
 			if err != nil {
 				utils.AviLog.Warnf("key: %s, msg: error: Error processing HealthMonitor. err: %s", key, err)
 				return
@@ -172,7 +172,7 @@ func (c *GatewayController) setupHealthMonitorEventHandlers(numWorkers uint32) {
 				return
 			}
 			key := akogatewayapilib.HealthMonitorKind + "/" + namespace + "/" + name
-			processed, _, err := akogatewayapilib.IsHealthMonitorProcessed(key, namespace, name, healthMonitorObj)
+			processed, _, err := lib.IsHealthMonitorProcessedWithOptions(key, namespace, name, akogatewayapilib.GetDynamicClientSet(), false, healthMonitorObj)
 			if err != nil {
 				utils.AviLog.Warnf("key: %s, msg: error: Error processing HealthMonitor. err: %s", key, err)
 				return
@@ -210,8 +210,8 @@ func (c *GatewayController) setupHealthMonitorEventHandlers(numWorkers uint32) {
 			}
 
 			key := akogatewayapilib.HealthMonitorKind + "/" + namespace + "/" + name
-			processedOldObj, _, _ := akogatewayapilib.IsHealthMonitorProcessed(key, namespace, name, oldHealthMonitorObj)
-			processedCurObj, _, _ := akogatewayapilib.IsHealthMonitorProcessed(key, namespace, name, curHealthMonitorObj)
+			processedOldObj, _, _ := lib.IsHealthMonitorProcessedWithOptions(key, namespace, name, akogatewayapilib.GetDynamicClientSet(), false, oldHealthMonitorObj)
+			processedCurObj, _, _ := lib.IsHealthMonitorProcessedWithOptions(key, namespace, name, akogatewayapilib.GetDynamicClientSet(), false, curHealthMonitorObj)
 
 			if !processedOldObj && !processedCurObj {
 				utils.AviLog.Debugf("key: %s/%s, msg: HealthMonitor is not processed.", namespace, name)

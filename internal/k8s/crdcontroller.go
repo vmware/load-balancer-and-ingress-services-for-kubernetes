@@ -39,6 +39,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 )
@@ -485,6 +486,11 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 				key := lib.L4Rule + "/" + utils.ObjKey(l4Rule)
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(l4Rule))
 				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+
+				// Clean up HealthMonitor to L4Rule mappings when L4Rule is deleted
+				l4RuleNsName := namespace + "/" + l4Rule.Name
+				c.cleanupHealthMonitorToL4RuleMappings(key, l4RuleNsName, l4Rule)
+
 				bkt := utils.Bkt(namespace, numWorkers)
 				objects.SharedResourceVerInstanceLister().Delete(key)
 				c.workqueue[bkt].AddRateLimited(key)
@@ -492,6 +498,108 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			},
 		}
 		informer.L4RuleInformer.Informer().AddEventHandler(l4RuleEventHandler)
+	}
+
+	// HealthMonitor dynamic event handler - only when L4Rule is enabled
+	if lib.AKOControlConfig().L4RuleEnabled() {
+		healthMonitorEventHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+
+				healthMonitorObj, ok := obj.(*unstructured.Unstructured)
+				if !ok {
+					utils.AviLog.Warn("Error in converting object to HealthMonitor object")
+					return
+				}
+
+				namespace, name := healthMonitorObj.GetNamespace(), healthMonitorObj.GetName()
+				if namespace == "" || name == "" {
+					return
+				}
+
+				key := lib.HealthMonitor + "/" + namespace + "/" + name
+				utils.AviLog.Debugf("key: %s, msg: ADD", key)
+
+				// Find all L4Rules that reference this HealthMonitor and re-queue them
+				// (Mapping only exists if HealthMonitor was previously processed)
+				c.processL4RulesForHealthMonitor(key, namespace, name, numWorkers)
+			},
+			UpdateFunc: func(oldObj, curObj interface{}) {
+				if c.DisableSync {
+					return
+				}
+				oldHealthMonitorObj, ok := oldObj.(*unstructured.Unstructured)
+				if !ok {
+					utils.AviLog.Warn("Error in converting old object to HealthMonitor object")
+					return
+				}
+
+				curHealthMonitorObj, ok := curObj.(*unstructured.Unstructured)
+				if !ok {
+					utils.AviLog.Warn("Error in converting current object to HealthMonitor object")
+					return
+				}
+
+				// Check if resource version changed
+				if oldHealthMonitorObj.GetResourceVersion() != curHealthMonitorObj.GetResourceVersion() {
+					namespace, name := curHealthMonitorObj.GetNamespace(), curHealthMonitorObj.GetName()
+					if namespace == "" || name == "" {
+						return
+					}
+
+					key := lib.HealthMonitor + "/" + namespace + "/" + name
+					utils.AviLog.Debugf("key: %s, msg: UPDATE", key)
+
+					// Find all L4Rules that reference this HealthMonitor and re-queue them
+					// (Mapping only exists if HealthMonitor was previously processed)
+					c.processL4RulesForHealthMonitor(key, namespace, name, numWorkers)
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				if c.DisableSync {
+					return
+				}
+
+				healthMonitorObj, ok := obj.(*unstructured.Unstructured)
+				if !ok {
+					// healthMonitorObj was deleted but its final state is unrecorded.
+					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+					if !ok {
+						utils.AviLog.Errorf("couldn't get object from tombstone %#v", obj)
+						return
+					}
+					healthMonitorObj, ok = tombstone.Obj.(*unstructured.Unstructured)
+					if !ok {
+						utils.AviLog.Errorf("Tombstone contained object that is not a HealthMonitor: %#v", obj)
+						return
+					}
+				}
+
+				namespace, name := healthMonitorObj.GetNamespace(), healthMonitorObj.GetName()
+				if namespace == "" || name == "" {
+					return
+				}
+				key := lib.HealthMonitor + "/" + namespace + "/" + name
+				utils.AviLog.Debugf("key: %s, msg: DELETE", key)
+
+				// Find all L4Rules that reference this HealthMonitor and re-queue them
+				// (Mapping only exists if HealthMonitor was previously processed)
+				c.processL4RulesForHealthMonitor(key, namespace, name, numWorkers)
+
+				// Note: We do NOT delete the HealthMonitor-to-L4Rule mapping here.
+				// The mapping should persist even when HealthMonitor is deleted because:
+				// 1. L4Rule still exists and still references the deleted HealthMonitor
+				// 2. If HealthMonitor is recreated, L4Rule should be re-evaluated
+				// 3. Mapping cleanup happens only when L4Rule itself is deleted
+			},
+		}
+
+		// Add event handler to HealthMonitor dynamic informer
+		if c.dynamicInformers != nil && c.dynamicInformers.HealthMonitorInformer != nil {
+			c.dynamicInformers.HealthMonitorInformer.Informer().AddEventHandler(healthMonitorEventHandler)
+		}
 	}
 
 	if lib.AKOControlConfig().L7RuleEnabled() {
@@ -1359,4 +1467,63 @@ func (c *AviController) SyncCRDObjects() {
 		}
 	}
 	utils.AviLog.Debugf("Successfully synced all CRD objects")
+}
+
+// cleanupHealthMonitorToL4RuleMappings removes all HealthMonitor to L4Rule mappings for a deleted L4Rule
+func (c *AviController) cleanupHealthMonitorToL4RuleMappings(key, l4RuleNsName string, l4Rule *akov1alpha2.L4Rule) {
+	utils.AviLog.Debugf("key: %s, msg: Cleaning up HealthMonitor mappings for deleted L4Rule %s", key, l4RuleNsName)
+
+	// Extract HealthMonitor references from the deleted L4Rule's healthMonitorCrdRefs
+	if l4Rule.Spec.BackendProperties != nil {
+		for _, backendProperty := range l4Rule.Spec.BackendProperties {
+			for _, healthMonitorName := range backendProperty.HealthMonitorCrdRefs {
+				if healthMonitorName != "" {
+					// Remove this L4Rule from the HealthMonitor mapping
+					healthMonitorNsName := l4Rule.Namespace + "/" + healthMonitorName
+					objects.SharedCRDLister().DeleteHealthMonitorToL4RuleMapping(healthMonitorNsName, l4RuleNsName)
+					utils.AviLog.Infof("key: %s, msg: Removed L4Rule %s from HealthMonitor %s mapping", key, l4RuleNsName, healthMonitorNsName)
+				}
+			}
+		}
+	}
+
+	utils.AviLog.Debugf("key: %s, msg: HealthMonitor mapping cleanup completed for L4Rule %s", key, l4RuleNsName)
+}
+
+// processL4RulesForHealthMonitor finds all L4Rules that reference the given HealthMonitor and re-queues them
+func (c *AviController) processL4RulesForHealthMonitor(key, namespace, healthMonitorName string, numWorkers uint32) {
+	healthMonitorNsName := namespace + "/" + healthMonitorName
+	found, l4Rules := objects.SharedCRDLister().GetHealthMonitorToL4RuleMapping(healthMonitorNsName)
+	if found {
+		for l4RuleNsName := range l4Rules {
+			// Parse namespace and name from l4RuleNsName
+			parts := strings.Split(l4RuleNsName, "/")
+			if len(parts) != 2 {
+				utils.AviLog.Warnf("key: %s, msg: Invalid L4Rule namespace/name format: %s", key, l4RuleNsName)
+				continue
+			}
+			l4RuleNamespace, l4RuleName := parts[0], parts[1]
+
+			// Check if L4Rule still exists and get the object for validation
+			l4RuleObj, err := lib.AKOControlConfig().CRDInformers().L4RuleInformer.Lister().L4Rules(l4RuleNamespace).Get(l4RuleName)
+			if err != nil {
+				utils.AviLog.Warnf("key: %s, msg: L4Rule %s not found, removing from mapping", key, l4RuleNsName)
+				objects.SharedCRDLister().DeleteHealthMonitorToL4RuleMapping(healthMonitorNsName, l4RuleNsName)
+				continue
+			}
+
+			// Validate L4Rule before queuing (important for previously rejected L4Rules)
+			l4RuleKey := lib.L4Rule + "/" + l4RuleNsName
+			if err := c.GetValidator().ValidateL4RuleObj(l4RuleKey, l4RuleObj); err != nil {
+				utils.AviLog.Warnf("key: %s, msg: L4Rule %s validation failed, not queuing: %v", key, l4RuleKey, err)
+				continue
+			}
+
+			// Re-queue the L4Rule for processing only if validation passes
+			utils.AviLog.Debugf("key: %s, msg: Re-queuing L4Rule %s due to HealthMonitor change (validation passed)", key, l4RuleKey)
+			bkt := utils.Bkt(l4RuleNamespace, numWorkers)
+			c.workqueue[bkt].AddRateLimited(l4RuleKey)
+			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+		}
+	}
 }

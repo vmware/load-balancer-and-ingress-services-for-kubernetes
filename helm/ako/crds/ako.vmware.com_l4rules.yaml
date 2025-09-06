@@ -162,6 +162,11 @@ spec:
                         servers. The specific SSL profile defines which ciphers and
                         SSL versions will be supported.
                       type: string
+                    healthMonitorCrdRefs:
+                      description: Names of HealthMonitor CR objects.
+                      items:
+                        type: string
+                      type: array
                   required:
                   - port
                   - protocol

@@ -79,6 +79,15 @@ func TestMain(m *testing.M) {
 	v1alpha2CRDClient = v1alpha2crdfake.NewSimpleClientset()
 
 	gvrToKind := make(map[schema.GroupVersionResource]string)
+
+	// Always register HealthMonitor CRD schema for L4Rule support
+	healthMonitorGVR := schema.GroupVersionResource{
+		Group:    "ako.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "healthmonitors",
+	}
+	gvrToKind[healthMonitorGVR] = "HealthMonitorList"
+
 	var testData unstructured.Unstructured
 	if *cniPlugin == "calico" {
 		testData.SetUnstructuredContent(map[string]interface{}{
@@ -126,7 +135,13 @@ func TestMain(m *testing.M) {
 		gvrToKind[lib.CiliumNodeGVR] = "ciliumnodesList"
 	}
 
-	DynamicClient = dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToKind, &testData)
+	// Create test data objects for different CNI plugins
+	var testDataObjects []runtime.Object
+	if testData.Object != nil {
+		testDataObjects = append(testDataObjects, &testData)
+	}
+
+	DynamicClient = dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToKind, testDataObjects...)
 	//DynamicClient = dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
 	lib.SetDynamicClientSet(DynamicClient)
 	akoControlConfig.SetCRDClientset(CRDClient)

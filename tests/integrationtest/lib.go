@@ -54,6 +54,7 @@ import (
 	networking "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
@@ -2680,4 +2681,139 @@ func SetEmptyDomainList() {
 		}
 		NormalControllerServer(w, r)
 	})
+}
+
+// HealthMonitor CRD helper functions for integration tests
+
+func CreateTCPHealthMonitorCRD(t *testing.T, name, namespace, uuid string) {
+	CreateTCPHealthMonitorCRDWithStatus(t, name, namespace, uuid, true, "Accepted", "HealthMonitor has been successfully processed")
+}
+
+func CreateTCPHealthMonitorCRDWithStatus(t *testing.T, name, namespace, uuid string, ready bool, reason, message string) {
+	clientSet := lib.GetDynamicClientSet()
+	if clientSet == nil {
+		t.Fatalf("dynamic client not available")
+	}
+
+	status := "True"
+	if !ready {
+		status = "False"
+	}
+
+	// Create TCP HealthMonitor for L4Rule testing (L4Rule only supports TCP health monitors)
+	healthMonitor := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "ako.vmware.com/v1alpha1",
+			"kind":       "HealthMonitor",
+			"metadata": map[string]interface{}{
+				"name":      name,
+				"namespace": namespace,
+			},
+			"spec": map[string]interface{}{
+				"type": "HEALTH_MONITOR_TCP",
+				"tcpMonitor": map[string]interface{}{
+					"port":        int64(8080),
+					"interval":    int64(30),
+					"timeout":     int64(10),
+					"maxRetries":  int64(3),
+					"maintenance": false,
+				},
+			},
+			"status": map[string]interface{}{
+				"conditions": []interface{}{
+					map[string]interface{}{
+						"type":    "Ready",
+						"status":  status,
+						"reason":  reason,
+						"message": message,
+					},
+				},
+			},
+		},
+	}
+
+	// Only add uuid to status if it's provided (for ready HealthMonitors)
+	if ready && uuid != "" {
+		statusObj := healthMonitor.Object["status"].(map[string]interface{})
+		statusObj["uuid"] = uuid
+	}
+
+	_, err := clientSet.Resource(lib.HealthMonitorGVR).Namespace(namespace).Create(context.TODO(), healthMonitor, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in creating HealthMonitor: %v", err)
+	}
+	t.Logf("Created HealthMonitor %s/%s with Ready=%v", namespace, name, ready)
+}
+
+func DeleteHealthMonitorCRD(t *testing.T, name, namespace string) {
+	clientSet := lib.GetDynamicClientSet()
+	if clientSet == nil {
+		t.Fatalf("dynamic client not available")
+	}
+
+	err := clientSet.Resource(lib.HealthMonitorGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("error in deleting HealthMonitor: %v", err)
+	}
+	t.Logf("Deleted HealthMonitor %s/%s", namespace, name)
+}
+
+func UpdateHealthMonitorStatus(t *testing.T, name, namespace string, uuid string, ready bool, reason, message string) {
+	clientSet := lib.GetDynamicClientSet()
+	if clientSet == nil {
+		t.Fatalf("dynamic client not available")
+	}
+
+	healthMonitor, err := clientSet.Resource(lib.HealthMonitorGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("error in getting HealthMonitor: %v", err)
+	}
+
+	// Update the status condition
+	status := "True"
+	if !ready {
+		status = "False"
+	}
+
+	conditions := []interface{}{
+		map[string]interface{}{
+			"type":    "Ready",
+			"status":  status,
+			"reason":  reason,
+			"message": message,
+		},
+	}
+
+	statusObj := healthMonitor.Object["status"].(map[string]interface{})
+	statusObj["conditions"] = conditions
+
+	// Handle UUID logic: if UUID doesn't already exist AND uuid param is not empty AND ready is true, set UUID
+	if existingUUID, exists := statusObj["uuid"]; exists {
+		// Preserve existing UUID
+		statusObj["uuid"] = existingUUID
+	} else if uuid != "" && ready {
+		// Set new UUID only if none exists, uuid param is provided, and ready is true
+		statusObj["uuid"] = uuid
+	}
+
+	// Use full CRD update instead of UpdateStatus to ensure it triggers Kubernetes watch events
+	// Manually increment ResourceVersion since fake client doesn't do this automatically
+	oldResourceVersion := healthMonitor.GetResourceVersion()
+	if oldResourceVersion == "" {
+		healthMonitor.SetResourceVersion("1")
+	} else {
+		// Parse and increment the version
+		if version, err := strconv.Atoi(oldResourceVersion); err == nil {
+			healthMonitor.SetResourceVersion(strconv.Itoa(version + 1))
+		} else {
+			healthMonitor.SetResourceVersion("2") // fallback
+		}
+	}
+
+	_, err = clientSet.Resource(lib.HealthMonitorGVR).Namespace(namespace).Update(context.TODO(), healthMonitor, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating HealthMonitor: %v", err)
+	}
+
+	t.Logf("Updated HealthMonitor %s/%s status to Ready=%v", namespace, name, ready)
 }

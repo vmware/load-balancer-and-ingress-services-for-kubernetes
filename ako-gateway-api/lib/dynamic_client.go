@@ -125,46 +125,6 @@ func GetDynamicInformers() *DynamicInformers {
 	return dynamicInformerInstance
 }
 
-func IsHealthMonitorProcessed(key, namespace, name string, obj ...*unstructured.Unstructured) (bool, bool, error) {
-	clientSet := GetDynamicClientSet()
-	if clientSet == nil {
-		return false, false, fmt.Errorf("internal error in fetching HealthMonitor %s/%s object", namespace, name)
-	}
-	var object *unstructured.Unstructured
-	var err error
-	if len(obj) == 0 {
-		object, err = clientSet.Resource(HealthMonitorGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
-				return false, false, fmt.Errorf("healthMonitor %s/%s not found", namespace, name)
-			}
-			return false, false, err
-		}
-	} else {
-		object = obj[0]
-	}
-
-	statusJSON, found, err := unstructured.NestedMap(object.UnstructuredContent(), "status")
-	if err != nil || !found {
-		utils.AviLog.Warnf("key:%s/%s, msg:HealthMonitor status not found: %+v", namespace, name, err)
-		return false, false, err
-	}
-	conditions, ok := statusJSON["conditions"]
-	if !ok || conditions.([]interface{}) == nil || len(conditions.([]interface{})) == 0 {
-		return false, false, fmt.Errorf("healthMonitor %s/%s is not processed by AKO CRD Operator", namespace, name)
-	}
-	for _, condition := range conditions.([]interface{}) {
-		conditionMap, ok := condition.(map[string]interface{})
-		if ok && conditionMap["type"] == "Ready" {
-			if conditionMap["status"] == "True" {
-				return true, true, nil
-			}
-			return true, false, nil
-		}
-	}
-	return false, false, nil
-}
-
 func IsRouteBackendExtensionProcessed(key, namespace, name string, objects ...*unstructured.Unstructured) (bool, string, error) {
 	var object *unstructured.Unstructured
 	var err error

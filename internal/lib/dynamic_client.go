@@ -92,6 +92,12 @@ var (
 		Version:  "v1alpha1",
 		Resource: "capabilities",
 	}
+
+	HealthMonitorGVR = schema.GroupVersionResource{
+		Group:    "ako.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "healthmonitors",
+	}
 )
 
 type BootstrapCRData struct {
@@ -100,10 +106,11 @@ type BootstrapCRData struct {
 
 // NewDynamicClientSet initializes dynamic client set instance
 func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
-	// do not instantiate the dynamic client set
-	// 1. if the CNI being used is NOT calico or OpenShift or Cilium and
-	// 2. if it is NOT VCF cluster
-	if !utils.IsVCFCluster() && GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI && GetCNIPlugin() != CILIUM_CNI {
+	// Always instantiate the dynamic client set if:
+	// 1. CNI being used is calico or OpenShift or Cilium, OR
+	// 2. it is VCF cluster, OR
+	// 3. L4Rules are enabled (for HealthMonitor support)
+	if !utils.IsVCFCluster() && GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI && GetCNIPlugin() != CILIUM_CNI && !AKOControlConfig().L4RuleEnabled() {
 		return nil, nil
 	}
 
@@ -144,10 +151,19 @@ type DynamicInformers struct {
 	AvailabilityZoneInformer informers.GenericInformer
 
 	VPCNetworkConfigurationInformer informers.GenericInformer
+
+	// AKO CRD informers
+	HealthMonitorInformer informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
 func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInformers {
+	// Return nil if client is nil to avoid nil pointer dereference
+	if client == nil {
+		utils.AviLog.Infof("Dynamic client is nil, skipping dynamic informers initialization")
+		return nil
+	}
+
 	informers := &DynamicInformers{}
 	f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, 0, v1.NamespaceAll, nil)
 
@@ -159,7 +175,7 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 	case CILIUM_CNI:
 		informers.CiliumNodeInformer = f.ForResource(CiliumNodeGVR)
 	default:
-		utils.AviLog.Infof("Skipped initializing dynamic informers for cniPlugin %s", GetCNIPlugin())
+		utils.AviLog.Infof("Skipped initializing CNI-specific dynamic informers for cniPlugin %s", GetCNIPlugin())
 	}
 
 	if utils.IsVCFCluster() && akoInfra {
@@ -167,6 +183,11 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 		informers.VCFClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
 		informers.AvailabilityZoneInformer = f.ForResource(AvailabilityZoneVR)
 		informers.VPCNetworkConfigurationInformer = f.ForResource(VPCNetworkConfigurationGVR)
+	}
+
+	// Initialize HealthMonitor informer only when L4Rules are enabled
+	if AKOControlConfig().L4RuleEnabled() {
+		informers.HealthMonitorInformer = f.ForResource(HealthMonitorGVR)
 	}
 
 	dynamicInformerInstance = informers
