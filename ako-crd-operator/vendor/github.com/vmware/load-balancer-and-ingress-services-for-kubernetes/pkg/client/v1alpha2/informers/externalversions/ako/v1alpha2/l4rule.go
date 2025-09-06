@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha2
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
+	apisakov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	versioned "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned"
 	internalinterfaces "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/informers/externalversions/internalinterfaces"
-	v1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/listers/ako/v1alpha2"
+	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/listers/ako/v1alpha2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // L4Rules.
 type L4RuleInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha2.L4RuleLister
+	Lister() akov1alpha2.L4RuleLister
 }
 
 type l4RuleInformer struct {
@@ -71,7 +71,7 @@ func NewFilteredL4RuleInformer(client versioned.Interface, namespace string, res
 				return client.AkoV1alpha2().L4Rules(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&akov1alpha2.L4Rule{},
+		&apisakov1alpha2.L4Rule{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +82,9 @@ func (f *l4RuleInformer) defaultInformer(client versioned.Interface, resyncPerio
 }
 
 func (f *l4RuleInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&akov1alpha2.L4Rule{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisakov1alpha2.L4Rule{}, f.defaultInformer)
 }
 
-func (f *l4RuleInformer) Lister() v1alpha2.L4RuleLister {
-	return v1alpha2.NewL4RuleLister(f.Informer().GetIndexer())
+func (f *l4RuleInformer) Lister() akov1alpha2.L4RuleLister {
+	return akov1alpha2.NewL4RuleLister(f.Informer().GetIndexer())
 }

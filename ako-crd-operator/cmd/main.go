@@ -92,7 +92,7 @@ func main() {
 		setupLog.Fatalf("Error populating controller properties. error: %s", err.Error())
 	}
 
-	sessionManager.CreateAviClients(ctx, 3)
+	sessionManager.CreateAviClients(ctx, 4)
 	aviClients := sessionManager.GetAviClients()
 	clusterName := os.Getenv("CLUSTER_NAME")
 
@@ -139,6 +139,17 @@ func main() {
 		ClusterName:   clusterName,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Fatalf("unable to create controller [RouteBackendExtension]. error: %s", err.Error())
+	}
+	if err = (&controller.PKIProfileReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		AviClient:     session2.NewAviSessionClient(aviClients.AviClient[3]),
+		Cache:         cacheManager,
+		EventRecorder: mgr.GetEventRecorderFor("pkiprofile-controller"),
+		Logger:        utils.AviLog.WithName("pkiprofile"),
+		ClusterName:   clusterName,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Fatalf("unable to create controller [PKIProfile]. error: %s", err.Error())
 	}
 	// +kubebuilder:scaffold:builder
 
