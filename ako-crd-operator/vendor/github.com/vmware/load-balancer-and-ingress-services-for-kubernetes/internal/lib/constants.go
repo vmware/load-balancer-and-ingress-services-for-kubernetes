@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ const (
 	VLAN_TRANSPORT_ZONE       = "VLAN"
 	OVERLAY_TRANSPORT_ZONE    = "OVERLAY"
 	IP_FAMILY                 = "IP_FAMILY"
+	AVI_REF                   = "AviRef"
 
 	AVI_INGRESS_CLASS                          = "avi"
 	NETWORK_NAME                               = "NETWORK_NAME"
@@ -165,10 +166,14 @@ const (
 	StringGroupNode                            = "StringGroupNode"
 	VIP                                        = "VS VIP"
 	PG                                         = "Poolgroup"
+	ApplicationPersistenceProfile              = "PersistenceProfile"
+	ApplicationPersistenceProfileNode          = "ApplicationPersistenceProfileNode"
 	PriorityLabel                              = "PriorityLabel"
 	SSLKeyCert                                 = "SSLKeyandCertificate"
 	PKIProfile                                 = "PKI Profile"
 	ApplicationProfile                         = "ApplicationProfile"
+	HealthMonitor                              = "HealthMonitor"
+	AllowedTCPHealthMonitorType                = "HEALTH_MONITOR_TCP"
 	PassthroughPG                              = "Passthrough PG"
 	Passthroughpool                            = "Passthrough pool"
 	PassthroughVS                              = "Passthrough VirtualService"
@@ -214,6 +219,7 @@ const (
 	FQDNReusePolicyStrict                      = "strict"
 	FQDNReusePolicyOpen                        = "internamespaceallowed"
 	DefaultPSName                              = "default-backend"
+	ConcurrentUpdateError                      = "the object has been modified"
 
 	// AKO Event constants
 	AKOEventComponent        = "avi-kubernetes-operator"
@@ -266,6 +272,7 @@ const (
 	OVNNodeSubnetAnnotation          = "k8s.ovn.org/node-subnets"
 	WCPSEGroup                       = "ako.vmware.com/wcp-se-group"
 	WCPCloud                         = "ako.vmware.com/wcp-cloud-name"
+	WCPAKOUserClusterName            = "ako.vmware.com/ako-user-cluster-name"
 	VSAnnotation                     = "ako.vmware.com/host-fqdn-vs-uuid-map"
 	ControllerAnnotation             = "ako.vmware.com/controller-cluster-uuid"
 	SharedVipSvcLBAnnotation         = "ako.vmware.com/enable-shared-vip"

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 VMware, Inc.
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	v1beta1akoinformer "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/informers/externalversions/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -451,7 +452,16 @@ func removeInfraSettingAnnotationFromNamespace(namespace string, infraSettingNam
 	return nil
 }
 
-func AnnotateNamespaceWithInfraSetting(namespace, infraSettingName string) error {
+func AnnotateNamespaceWithInfraSetting(namespace, infraSettingName string, retryCounter ...int) error {
+	retry := 0
+	if len(retryCounter) > 0 {
+		retry = retryCounter[0]
+	}
+	if retry > 2 {
+		err := fmt.Errorf("maximum limit reached for retrying Infrasetting annotation on the Namespace, infraSetting: %s, namespace: %s", infraSettingName, namespace)
+		utils.AviLog.Errorf(err.Error())
+		return err
+	}
 	nsObj, err := utils.GetInformers().NSInformer.Lister().Get(namespace)
 	if err != nil {
 		utils.AviLog.Warnf("Failed to GET the namespace details, namespace: %s, error :%s", namespace, err.Error())
@@ -467,13 +477,25 @@ func AnnotateNamespaceWithInfraSetting(namespace, infraSettingName string) error
 	_, err = utils.GetInformers().ClientSet.CoreV1().Namespaces().Update(context.TODO(), nsObj, metav1.UpdateOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error occurred while Updating namespace: %s", err.Error())
+		if strings.Contains(err.Error(), ConcurrentUpdateError) {
+			return AnnotateNamespaceWithInfraSetting(namespace, infraSettingName, retry+1)
+		}
 		return err
 	}
 	utils.AviLog.Infof("Annotated Namespace %s with AviInfraSetting %s", namespace, infraSettingName)
 	return nil
 }
 
-func AnnotateNamespaceWithTenant(namespace, tenant string) error {
+func AnnotateNamespaceWithTenant(namespace, tenant string, retryCounter ...int) error {
+	retry := 0
+	if len(retryCounter) > 0 {
+		retry = retryCounter[0]
+	}
+	if retry > 2 {
+		err := fmt.Errorf("maximum limit reached for retrying Tenant annotation on the Namespace, tenant: %s, namespace: %s", tenant, namespace)
+		utils.AviLog.Errorf(err.Error())
+		return err
+	}
 	nsObj, err := utils.GetInformers().NSInformer.Lister().Get(namespace)
 	if err != nil {
 		utils.AviLog.Warnf("Failed to GET the namespace details, namespace: %s, error :%s", namespace, err.Error())
@@ -489,6 +511,9 @@ func AnnotateNamespaceWithTenant(namespace, tenant string) error {
 	_, err = utils.GetInformers().ClientSet.CoreV1().Namespaces().Update(context.TODO(), nsObj, metav1.UpdateOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error occurred while Updating namespace: %s", err.Error())
+		if strings.Contains(err.Error(), ConcurrentUpdateError) {
+			return AnnotateNamespaceWithTenant(namespace, tenant, retry+1)
+		}
 		return err
 	}
 	utils.AviLog.Infof("Annotated Namespace %s with tenant %s", namespace, tenant)
@@ -599,32 +624,36 @@ func GetLockSet() *LockSet {
 	return &lockSet
 }
 
-func ProxyEnabledAppProfileGet(client *clients.AviClient) (error, []models.ApplicationProfile) {
+func ProxyEnabledAppProfileGet(client *clients.AviClient) ([]models.ApplicationProfile, error) {
 	var appProfs []models.ApplicationProfile
 	uri := fmt.Sprintf("/api/applicationprofile/?name=%s", GetProxyEnabledApplicationProfileName())
 	result, err := AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Application profile Get uri %v returned err %v", uri, err)
-		return err, appProfs
+		return appProfs, err
 	}
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
 		utils.AviLog.Warnf("Failed to unmarshal application profile result, err: %v", err)
-		return err, appProfs
+		return appProfs, err
 	}
 	for i := 0; i < len(elems); i++ {
 		appProf := models.ApplicationProfile{}
 		if err = json.Unmarshal(elems[i], &appProf); err != nil {
 			utils.AviLog.Warnf("Failed to unmarshal application profile data, err: %v", err)
-			return err, appProfs
+			return appProfs, err
 		}
 		appProfs = append(appProfs, appProf)
 	}
-	return nil, appProfs
+	return appProfs, nil
 }
 
 func ProxyEnabledAppProfileCU(client *clients.AviClient) error {
+	appProfs, err := ProxyEnabledAppProfileGet(client)
+	if err != nil {
+		return err
+	}
 	name := GetProxyEnabledApplicationProfileName()
 	tenant := fmt.Sprintf("/api/tenant/?name=%s", GetAdminTenant())
 	tcpAppProfile := models.TCPApplicationProfile{
@@ -638,8 +667,7 @@ func ProxyEnabledAppProfileCU(client *clients.AviClient) error {
 		TCPAppProfile: &tcpAppProfile,
 	}
 	resp := models.ApplicationProfileAPIResponse{}
-	err, appProfs := ProxyEnabledAppProfileGet(client)
-	if err == nil && len(appProfs) == 1 {
+	if len(appProfs) == 1 {
 		appProf := appProfs[0]
 		if appProf.TCPAppProfile != nil &&
 			appProf.TCPAppProfile.ProxyProtocolEnabled != nil &&
@@ -648,21 +676,93 @@ func ProxyEnabledAppProfileCU(client *clients.AviClient) error {
 			return nil
 		}
 		uri := fmt.Sprintf("/api/applicationprofile/%s", *appProf.UUID)
-		err = AviPut(client, uri, appProfile, resp)
-	} else {
-		if len(appProfs) > 1 {
-			return fmt.Errorf("More than one app profile with name %s found", name)
+		err := AviPut(client, uri, appProfile, resp)
+		if err != nil {
+			return err
 		}
-		if len(appProfs) == 0 {
-			uri := "/api/applicationprofile"
-			err = AviPost(client, uri, appProfile, resp)
-		}
+		utils.AviLog.Infof("Proxy enabled application profile %s updated", name)
+		return nil
 	}
+	if len(appProfs) == 0 {
+		uri := "/api/applicationprofile"
+		err := AviPost(client, uri, appProfile, resp)
+		if err != nil {
+			return err
+		}
+		utils.AviLog.Infof("Proxy enabled application profile %s created", name)
+		return nil
+	}
+	return fmt.Errorf("More than one app profile with name %s found", name)
+}
+
+func TcpHalfOpenHealthMonitorGet(client *clients.AviClient) ([]models.HealthMonitor, error) {
+	var tcpHalfOpenHMs []models.HealthMonitor
+	uri := fmt.Sprintf("/api/healthmonitor/?name=%s", GetTcpHalfOpenHealthMonitorName())
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Health Monitor Get uri %v returned err %v", uri, err)
+		return tcpHalfOpenHMs, err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal health monitor result, err: %v", err)
+		return tcpHalfOpenHMs, err
+	}
+	for i := 0; i < len(elems); i++ {
+		hMon := models.HealthMonitor{}
+		if err = json.Unmarshal(elems[i], &hMon); err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal health monitor data, err: %v", err)
+			return tcpHalfOpenHMs, err
+		}
+		tcpHalfOpenHMs = append(tcpHalfOpenHMs, hMon)
+	}
+	return tcpHalfOpenHMs, nil
+}
+
+func TcpHalfOpenHealthMonitorCU(client *clients.AviClient) error {
+	tcpHalfOpenHMs, err := TcpHalfOpenHealthMonitorGet(client)
 	if err != nil {
 		return err
 	}
-	utils.AviLog.Infof("Proxy enabled application profile %s created/updated", name)
-	return nil
+	name := GetTcpHalfOpenHealthMonitorName()
+	resp := models.HealthMonitorAPIResponse{}
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", GetAdminTenant())
+	tcpHM := models.HealthMonitorTCP{
+		TCPHalfOpen: proto.Bool(true),
+	}
+	hMon := models.HealthMonitor{
+		Name:       proto.String(name),
+		TenantRef:  proto.String(tenant),
+		Type:       proto.String(AllowedTCPHealthMonitorType),
+		TCPMonitor: &tcpHM,
+	}
+	if len(tcpHalfOpenHMs) == 0 {
+		uri := "/api/healthmonitor"
+		err := AviPost(client, uri, hMon, resp)
+		if err != nil {
+			return err
+		}
+		utils.AviLog.Infof("TCP Half Open connection health monitor %s created", name)
+		return nil
+	}
+	if len(tcpHalfOpenHMs) == 1 {
+		hm := tcpHalfOpenHMs[0]
+		if hm.TCPMonitor != nil &&
+			hm.TCPMonitor.TCPHalfOpen != nil &&
+			*hm.TCPMonitor.TCPHalfOpen {
+			utils.AviLog.Debugf("TCP Half Open connection health monitor %s present", name)
+			return nil
+		}
+		uri := fmt.Sprintf("/api/healthmonitor/%s", *hm.UUID)
+		err := AviPut(client, uri, hMon, resp)
+		if err != nil {
+			return err
+		}
+		utils.AviLog.Infof("TCP Half Open connection health monitor %s updated", name)
+		return nil
+	}
+	return fmt.Errorf("More than one TcpHalfOpen connection health monitor with name %s found", name)
 }
 
 func Uuid4() string {
@@ -671,4 +771,35 @@ func Uuid4() string {
 		log.Fatal(err)
 	}
 	return id.String()
+}
+
+func GetNamespacedAviInfraSetting(key, ns string, aviInfraSettingInformer v1beta1akoinformer.AviInfraSettingInformer) (*akov1beta1.AviInfraSetting, error) {
+	namespace, err := utils.GetInformers().NSInformer.Lister().Get(ns)
+	if err != nil {
+		return nil, err
+	}
+	infraSettingCRName, ok := namespace.GetAnnotations()[InfraSettingNameAnnotation]
+	if !ok {
+		return nil, nil
+	}
+	infraSetting, err := aviInfraSettingInformer.Lister().Get(infraSettingCRName)
+	if err != nil {
+		return nil, err
+	}
+	if infraSetting != nil && infraSetting.Status.Status != StatusAccepted {
+		utils.AviLog.Warnf("key: %s, msg: Referred AviInfraSetting %s is invalid", key, infraSetting.Name)
+		return nil, fmt.Errorf("AviInfraSetting %s is invalid", infraSetting.Name)
+	}
+	return infraSetting, nil
+}
+
+func IsNamespaceUpdated(oldNS, newNS *corev1.Namespace) bool {
+	if oldNS.ResourceVersion == newNS.ResourceVersion {
+		return false
+	}
+	oldLabelHash := utils.Hash(utils.Stringify(oldNS.Labels))
+	newLabelHash := utils.Hash(utils.Stringify(newNS.Labels))
+	oldTenant := oldNS.Annotations[TenantAnnotation]
+	newTenant := newNS.Annotations[TenantAnnotation]
+	return oldLabelHash != newLabelHash || oldTenant != newTenant
 }
