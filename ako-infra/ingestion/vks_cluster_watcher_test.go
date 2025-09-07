@@ -387,8 +387,9 @@ func TestVKSClusterWatcher_HandleProvisionedCluster(t *testing.T) {
 	// This test focuses on VKS management decision logic with proper mocks
 	// Tests the key scenarios for cluster provisioning and VKS label handling
 
-	// Set up mock controller IP
+	// Set up mock controller IP and CA certificate data
 	lib.SetControllerIP("10.10.10.10")
+	utils.SharedCtrlProp().AviCacheAdd(utils.ENV_CTRL_CADATA, "mock-ca-cert")
 
 	tests := []struct {
 		name             string
@@ -672,8 +673,9 @@ func TestVKSClusterWatcher_HandleProvisionedCluster(t *testing.T) {
 }
 
 func TestVKSClusterWatcher_ProcessClusterEvent(t *testing.T) {
-	// Set up mock controller IP
+	// Set up mock controller IP and CA certificate data
 	lib.SetControllerIP("10.10.10.10")
+	utils.SharedCtrlProp().AviCacheAdd(utils.ENV_CTRL_CADATA, "mock-ca-cert")
 
 	tests := []struct {
 		name          string
@@ -816,8 +818,9 @@ func TestVKSClusterWatcher_ProcessClusterEvent(t *testing.T) {
 func TestVKSClusterWatcher_WorkerIntegration(t *testing.T) {
 	// Test the worker integration with proper mocking
 
-	// Set up mock controller IP
+	// Set up mock controller IP and CA certificate data
 	lib.SetControllerIP("10.10.10.10")
+	utils.SharedCtrlProp().AviCacheAdd(utils.ENV_CTRL_CADATA, "mock-ca-cert")
 
 	setup := setupVKSTest(t, "test-cluster", "test-namespace", "antrea.tanzu.vmware.com.2.3.0+vmware.1-tkg.1")
 	defer setup.Cleanup()
@@ -910,8 +913,9 @@ func TestVKSClusterWatcher_WorkerIntegration(t *testing.T) {
 func TestVKSClusterWatcher_SecretIdempotency(t *testing.T) {
 	// Test that handling the same cluster multiple times is idempotent
 
-	// Set up mock controller IP
+	// Set up mock controller IP and CA certificate data
 	lib.SetControllerIP("10.10.10.10")
+	utils.SharedCtrlProp().AviCacheAdd(utils.ENV_CTRL_CADATA, "mock-ca-cert")
 
 	// Set up environment for T1LR fallback
 	os.Setenv("NSXT_T1_LR", "/orgs/test-org/projects/test-project/vpcs/test-vpc")
@@ -1008,8 +1012,9 @@ func TestVKSClusterWatcher_SecretIdempotency(t *testing.T) {
 }
 
 func TestVKSClusterWatcher_buildVKSClusterConfig(t *testing.T) {
-	// Set up mock controller IP and version for consistent testing
+	// Set up mock controller IP, CA certificate data, and version for consistent testing
 	lib.SetControllerIP("10.10.10.10")
+	utils.SharedCtrlProp().AviCacheAdd(utils.ENV_CTRL_CADATA, "mock-ca-cert")
 	originalVersion := lib.GetControllerVersion()
 	defer func() {
 		if originalVersion != "" {
@@ -1170,8 +1175,9 @@ func TestVKSClusterWatcher_CNIServiceTypeMapping(t *testing.T) {
 		},
 	}
 
-	// Set up mock controller IP and T1LR
+	// Set up mock controller IP, CA certificate data, and T1LR
 	lib.SetControllerIP("10.10.10.10")
+	utils.SharedCtrlProp().AviCacheAdd(utils.ENV_CTRL_CADATA, "mock-ca-cert")
 	lib.AKOControlConfig().SetControllerVersion("22.1.3")
 
 	// Set up mock T1LR path environment variable for tests
@@ -1233,8 +1239,9 @@ func TestVKSClusterWatcher_CNIServiceTypeMapping(t *testing.T) {
 func TestVKSClusterWatcher_UpsertAviCredentialsSecret_Comprehensive(t *testing.T) {
 	// Test comprehensive secret upsert operations with mocking
 
-	// Set up mock controller IP
+	// Set up mock controller IP and CA certificate data
 	lib.SetControllerIP("10.10.10.10")
+	utils.SharedCtrlProp().AviCacheAdd(utils.ENV_CTRL_CADATA, "mock-ca-cert")
 
 	tests := []struct {
 		name                 string
@@ -1432,8 +1439,9 @@ func TestVKSClusterWatcher_UpsertAviCredentialsSecret_Comprehensive(t *testing.T
 
 // TestVKSClusterWatcher_CleanupOnDeletion tests VKS cleanup when cluster is deleted
 func TestVKSClusterWatcher_CleanupOnDeletion(t *testing.T) {
-	// Set up mock controller IP
+	// Set up mock controller IP and CA certificate data
 	lib.SetControllerIP("10.10.10.10")
+	utils.SharedCtrlProp().AviCacheAdd(utils.ENV_CTRL_CADATA, "mock-ca-cert")
 
 	setup := setupVKSTest(t, "cleanup-test-cluster", "vks-cleanup-test-ns", "antrea.tanzu.vmware.com.2.3.0+vmware.1-tkg.1")
 	defer setup.Cleanup()
@@ -1504,8 +1512,9 @@ func TestVKSClusterWatcher_CleanupOnDeletion(t *testing.T) {
 
 // TestVKSClusterWatcher_CleanupOnOptOut tests VKS cleanup when cluster opts out
 func TestVKSClusterWatcher_CleanupOnOptOut(t *testing.T) {
-	// Set up mock controller IP
+	// Set up mock controller IP and CA certificate data
 	lib.SetControllerIP("10.10.10.10")
+	utils.SharedCtrlProp().AviCacheAdd(utils.ENV_CTRL_CADATA, "mock-ca-cert")
 
 	setup := setupVKSTest(t, "optout-test-cluster", "vks-optout-test-ns", "antrea.tanzu.vmware.com.2.3.0+vmware.1-tkg.1")
 	defer setup.Cleanup()

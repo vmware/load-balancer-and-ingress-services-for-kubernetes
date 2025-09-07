@@ -166,7 +166,8 @@ type DynamicInformers struct {
 	VPCNetworkConfigurationInformer informers.GenericInformer
 
 	// AKO CRD informers
-	HealthMonitorInformer        informers.GenericInformer
+	HealthMonitorInformer informers.GenericInformer
+
 	SupervisorCapabilityInformer informers.GenericInformer
 
 	AddonInstallInformer informers.GenericInformer

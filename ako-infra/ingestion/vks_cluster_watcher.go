@@ -53,13 +53,14 @@ const (
 
 // VKSClusterConfig holds all the configuration needed for a VKS cluster's AKO deployment
 type VKSClusterConfig struct {
-	Username            string
-	Password            string
-	ControllerIP        string
-	ControllerVersion   string
-	VPCMode             bool
-	DedicatedTenantMode bool
-	Managed             bool
+	Username                 string
+	Password                 string
+	ControllerIP             string
+	ControllerVersion        string
+	CertificateAuthorityData string
+	VPCMode                  bool
+	DedicatedTenantMode      bool
+	Managed                  bool
 
 	// Namespace-specific configuration
 	ServiceEngineGroup string
@@ -536,6 +537,9 @@ func (w *VKSClusterWatcher) buildVKSClusterConfig(cluster *unstructured.Unstruct
 		return nil, fmt.Errorf("controller IP not set")
 	}
 
+	ctrlProp := utils.SharedCtrlProp().GetAllCtrlProp()
+	certificateAuthorityData := ctrlProp[utils.ENV_CTRL_CADATA]
+
 	cniPlugin, err := w.detectAndValidateCNI(cluster)
 	if err != nil {
 		return nil, fmt.Errorf("CNI detection failed for cluster %s/%s (UID: %s): %v", clusterNamespace, cluster.GetName(), cluster.GetUID(), err)
@@ -547,20 +551,21 @@ func (w *VKSClusterWatcher) buildVKSClusterConfig(cluster *unstructured.Unstruct
 	}
 
 	config := &VKSClusterConfig{
-		Username:            clusterCreds.Username,
-		Password:            clusterCreds.Password,
-		ControllerIP:        controllerIP,
-		ControllerVersion:   lib.GetControllerVersion(),
-		ServiceEngineGroup:  nsConfig.ServiceEngineGroup,
-		TenantName:          nsConfig.Tenant,
-		NsxtT1LR:            nsConfig.T1LR,
-		CloudName:           utils.CloudName,
-		CNIPlugin:           cniPlugin,
-		ServiceType:         serviceType,
-		ClusterName:         clusterNameWithUID,
-		VPCMode:             true,
-		DedicatedTenantMode: true,
-		Managed:             false, // Will enable this once the proxy feature is ready
+		Username:                 clusterCreds.Username,
+		Password:                 clusterCreds.Password,
+		ControllerIP:             controllerIP,
+		ControllerVersion:        lib.GetControllerVersion(),
+		CertificateAuthorityData: certificateAuthorityData,
+		ServiceEngineGroup:       nsConfig.ServiceEngineGroup,
+		TenantName:               nsConfig.Tenant,
+		NsxtT1LR:                 nsConfig.T1LR,
+		CloudName:                utils.CloudName,
+		CNIPlugin:                cniPlugin,
+		ServiceType:              serviceType,
+		ClusterName:              clusterNameWithUID,
+		VPCMode:                  true,
+		DedicatedTenantMode:      true,
+		Managed:                  false, // Will enable this once the proxy feature is ready
 	}
 
 	if config.ControllerVersion == "" {
@@ -675,6 +680,10 @@ func (w *VKSClusterWatcher) buildSecretData(config *VKSClusterConfig) map[string
 
 	if config.ControllerVersion != "" {
 		secretData["controllerVersion"] = []byte(config.ControllerVersion)
+	}
+
+	if config.CertificateAuthorityData != "" {
+		secretData["certificateAuthorityData"] = []byte(config.CertificateAuthorityData)
 	}
 
 	if config.NsxtT1LR != "" {
