@@ -208,6 +208,11 @@ func handleGateway(namespace, name string, fullsync bool, key string) {
 			return
 		}
 		utils.AviLog.Debugf("key: %s, msg: gateway not found: %s/%s", key, namespace, name)
+		if !modelFound {
+			// try to get model if it was dedicated mode since there is no way to find the annotation once gateway is deleted
+			modelName = lib.GetModelName(tenant, lib.GetNamePrefix()+namespace+"-"+name+lib.DedicatedSuffix+"-EVH")
+			modelFound, _ = objects.SharedAviGraphLister().Get(modelName)
+		}
 		if modelFound {
 			// As gateway is not present, we need to remove mapping.
 			gwNsName := namespace + "/" + name
