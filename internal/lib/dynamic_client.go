@@ -98,6 +98,19 @@ var (
 		Version:  "v1alpha1",
 		Resource: "healthmonitors",
 	}
+
+	AddonInstallGVR = schema.GroupVersionResource{
+		Group:    "addons.kubernetes.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "addoninstalls",
+	}
+
+	// ClusterGVR defines the cluster.x-k8s.io/v1beta2 Cluster resource
+	ClusterGVR = schema.GroupVersionResource{
+		Group:    "cluster.x-k8s.io",
+		Version:  "v1beta2",
+		Resource: "clusters",
+	}
 )
 
 type BootstrapCRData struct {
@@ -154,6 +167,12 @@ type DynamicInformers struct {
 
 	// AKO CRD informers
 	HealthMonitorInformer informers.GenericInformer
+
+	SupervisorCapabilityInformer informers.GenericInformer
+
+	AddonInstallInformer informers.GenericInformer
+
+	ClusterInformer informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
@@ -183,6 +202,9 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 		informers.VCFClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
 		informers.AvailabilityZoneInformer = f.ForResource(AvailabilityZoneVR)
 		informers.VPCNetworkConfigurationInformer = f.ForResource(VPCNetworkConfigurationGVR)
+		informers.SupervisorCapabilityInformer = f.ForResource(SupervisorCapabilityGVR)
+		informers.AddonInstallInformer = f.ForResource(AddonInstallGVR)
+		informers.ClusterInformer = f.ForResource(ClusterGVR)
 	}
 
 	// Initialize HealthMonitor informer only when L4Rules are enabled
@@ -575,5 +597,51 @@ func IsGatewayAPICapabilityEnabled() bool {
 		}
 		return gatewayAPISupportInSupervisor["activated"].(bool)
 	}
+	return false
+}
+
+func IsVKSCapabilityActivated() bool {
+	clientSet := GetDynamicClientSet()
+	if clientSet == nil {
+		utils.AviLog.Debugf("VKS capability: dynamic client not initialized yet")
+		return false
+	}
+	crList, err := clientSet.Resource(SupervisorCapabilityGVR).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		utils.AviLog.Errorf("VKS capability: error getting SupervisorCapability CR %v", err)
+		return false
+	}
+	if len(crList.Items) == 0 {
+		utils.AviLog.Debugf("VKS capability: no SupervisorCapability CRs found")
+		return false
+	}
+	for _, obj := range crList.Items {
+		status, ok := obj.Object["status"].(map[string]interface{})
+		if !ok {
+			utils.AviLog.Debugf("VKS capability: status field not found in SupervisorCapability CR %s", obj.GetName())
+			continue
+		}
+		supervisor, ok := status["supervisor"].(map[string]interface{})
+		if !ok {
+			utils.AviLog.Debugf("VKS capability: supervisor field not found in SupervisorCapability CR %s", obj.GetName())
+			continue
+		}
+		vksCap, ok := supervisor["supports_ako_vks_integration"].(map[string]interface{})
+		if !ok {
+			utils.AviLog.Debugf("VKS capability: supports_ako_vks_integration field not found in SupervisorCapability CR %s", obj.GetName())
+			continue
+		}
+		activated, ok := vksCap["activated"].(bool)
+		if !ok {
+			utils.AviLog.Debugf("VKS capability: activated field not found or not a boolean in SupervisorCapability CR %s", obj.GetName())
+			continue
+		}
+		if activated {
+			utils.AviLog.Infof("VKS capability: found activated=true in SupervisorCapability CR %s", obj.GetName())
+			return true
+		}
+		utils.AviLog.Debugf("VKS capability: found activated=false in SupervisorCapability CR %s", obj.GetName())
+	}
+	utils.AviLog.Debugf("VKS capability: not found or not activated in any SupervisorCapability CR")
 	return false
 }

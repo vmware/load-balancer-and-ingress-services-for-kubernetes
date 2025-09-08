@@ -21,7 +21,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/addon"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/webhook"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -236,6 +238,119 @@ func (c *VCFK8sController) AddAvailabilityZoneCREventHandler(stopCh <-chan struc
 
 func (c *VCFK8sController) AddNetworkInfoEventHandler(stopCh <-chan struct{}) {
 	c.NetHandler.AddNetworkInfoEventHandler(stopCh)
+}
+
+func (c *VCFK8sController) AddVKSCapabilityEventHandler(stopCh <-chan struct{}) {
+	if !lib.GetVPCMode() {
+		utils.AviLog.Infof("Not running in VPC mode, skipping VKS capability event handler")
+		return
+	}
+	capabilityActive := lib.IsVKSCapabilityActivated()
+	utils.AviLog.Infof("VKS capability: informer starting, initial state activated=%t", capabilityActive)
+
+	if capabilityActive {
+		utils.AviLog.Infof("VKS capability already active, starting infrastructure")
+		c.startVKSInfrastructure(stopCh)
+	}
+
+	if !capabilityActive {
+		capabilityEventHandler := cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				utils.AviLog.Infof("SupervisorCapability ADD Event")
+				if lib.IsVKSCapabilityActivated() && !capabilityActive {
+					utils.AviLog.Infof("VKS capability activated")
+					capabilityActive = true
+					c.startVKSInfrastructure(stopCh)
+				}
+			},
+			UpdateFunc: func(old, obj interface{}) {
+				utils.AviLog.Infof("SupervisorCapability UPDATE Event")
+				if lib.IsVKSCapabilityActivated() && !capabilityActive {
+					utils.AviLog.Infof("VKS capability activated")
+					capabilityActive = true
+					c.startVKSInfrastructure(stopCh)
+				}
+			},
+			DeleteFunc: func(obj interface{}) {
+				utils.AviLog.Infof("SupervisorCapability DELETE Event")
+			},
+		}
+
+		c.dynamicInformers.SupervisorCapabilityInformer.Informer().AddEventHandler(capabilityEventHandler)
+		go c.dynamicInformers.SupervisorCapabilityInformer.Informer().Run(stopCh)
+		if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.SupervisorCapabilityInformer.Informer().HasSynced) {
+			runtime.HandleError(fmt.Errorf("timed out waiting for SupervisorCapability caches to sync"))
+		} else {
+			utils.AviLog.Infof("VKS capability: caches synced for SupervisorCapability informer")
+		}
+	}
+}
+
+func (c *VCFK8sController) startVKSInfrastructure(stopCh <-chan struct{}) {
+	go addon.EnsureGlobalAddonInstallWithRetry(stopCh)
+
+	go webhook.StartVKSWebhook(utils.GetInformers().ClientSet, stopCh)
+
+	go StartVKSClusterWatcherWithRetry(stopCh, c.dynamicInformers)
+
+	go func() {
+		c.AddVKSAddonEventHandler(stopCh)
+		// Cleanup on shutdown
+		<-stopCh
+		utils.AviLog.Infof("VKS: AKO shutdown detected, cleaning up VKS resources")
+
+		if err := addon.CleanupGlobalAddonInstall(); err != nil {
+			utils.AviLog.Errorf("VKS: Failed to cleanup global AddonInstall: %v", err)
+		} else {
+			utils.AviLog.Infof("VKS: Successfully cleaned up global AddonInstall")
+		}
+
+		utils.AviLog.Infof("VKS: All cleanup completed successfully")
+	}()
+}
+
+func (c *VCFK8sController) AddVKSAddonEventHandler(stopCh <-chan struct{}) {
+	if !lib.GetVPCMode() {
+		utils.AviLog.Infof("Not running in VPC mode, skipping VKS addon event handler")
+		return
+	}
+
+	utils.AviLog.Infof("VKS addon: starting AddonInstall informer to monitor deletions")
+
+	addonEventHandler := cache.ResourceEventHandlerFuncs{
+		DeleteFunc: func(obj interface{}) {
+			if addonObj, ok := obj.(*unstructured.Unstructured); ok {
+				addonName := addonObj.GetName()
+				namespace := addonObj.GetNamespace()
+
+				// Only handle our global AKO addon
+				if addonName != addon.AKOAddonInstallName || namespace != addon.VKSPublicNamespace {
+					return
+				}
+
+				utils.AviLog.Errorf("VKS addon: Global AKO AddonInstall deleted: %s/%s", namespace, addonName)
+				if lib.IsVKSCapabilityActivated() {
+					go func() {
+						utils.AviLog.Infof("VKS addon: Attempting to recreate global AddonInstall")
+						if err := addon.EnsureGlobalAddonInstall(); err != nil {
+							utils.AviLog.Errorf("VKS addon: Failed to recreate global AddonInstall: %v", err)
+						} else {
+							utils.AviLog.Infof("VKS addon: Successfully recreated global AddonInstall")
+						}
+					}()
+				}
+			}
+		},
+	}
+
+	c.dynamicInformers.AddonInstallInformer.Informer().AddEventHandler(addonEventHandler)
+	go c.dynamicInformers.AddonInstallInformer.Informer().Run(stopCh)
+
+	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.AddonInstallInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("timed out waiting for AddonInstall caches to sync"))
+	} else {
+		utils.AviLog.Infof("VKS addon: caches synced for AddonInstall informer")
+	}
 }
 
 // HandleVCF checks if avi secret used by AKO is already present. If found, then it would try to connect to
