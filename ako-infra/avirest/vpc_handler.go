@@ -93,8 +93,7 @@ func (v *VPCHandler) createInfraSettingAndAnnotateNS(nsToVPCMap, nsToSEGMap map[
 		// so no need to attempt Infrasetting creation
 		// just annotate the namespace with the infrasetting and tenant info
 		if _, ok := processedInfraSettingCRSet[infraSettingName]; ok {
-			lib.AnnotateNamespaceWithInfraSetting(ns, infraSettingName)
-			lib.AnnotateNamespaceWithTenant(ns, tenant)
+			lib.AnnotateNamespaceWithTenantAndInfraSetting(ns, tenant, infraSettingName)
 			continue
 		}
 
@@ -106,8 +105,7 @@ func (v *VPCHandler) createInfraSettingAndAnnotateNS(nsToVPCMap, nsToSEGMap map[
 			utils.AviLog.Errorf("failed to create aviInfraSetting, name: %s, error: %s", infraSettingName, err.Error())
 			continue
 		}
-		lib.AnnotateNamespaceWithInfraSetting(ns, infraSettingName)
-		lib.AnnotateNamespaceWithTenant(ns, tenant)
+		lib.AnnotateNamespaceWithTenantAndInfraSetting(ns, tenant, infraSettingName)
 	}
 
 	for infraSettingName := range staleInfraSettingCRSet {
