@@ -51,7 +51,7 @@ const (
 	VKSManagedLabelValueFalse = "false"
 
 	WebhookName            = "ako-vks-cluster-webhook"
-	WebhookServiceName     = "ako-vks-webhook-service"
+	WebhookServiceName     = "vmware-system-ako-ako-vks-webhook-service"
 	WebhookPath            = "/ako-vks-mutate-cluster-x-k8s-io"
 	WebhookIssuerName      = "ako-vks-webhook-selfsigned-issuer"
 	WebhookCertificateName = "ako-vks-webhook-serving-cert"

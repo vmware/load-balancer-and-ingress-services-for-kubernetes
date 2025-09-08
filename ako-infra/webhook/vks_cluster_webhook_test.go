@@ -1268,8 +1268,8 @@ func TestCreateWebhookCertificate(t *testing.T) {
 		}
 
 		expectedDNSNames := []string{
-			"ako-vks-webhook-service." + namespace + ".svc",
-			"ako-vks-webhook-service." + namespace + ".svc.cluster.local",
+			WebhookServiceName + "." + namespace + ".svc",
+			WebhookServiceName + "." + namespace + ".svc.cluster.local",
 		}
 
 		if len(dnsNames) != len(expectedDNSNames) {
