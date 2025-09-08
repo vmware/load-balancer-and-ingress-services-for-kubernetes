@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/google/uuid"
@@ -41,6 +42,10 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	avisession "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+)
+
+const (
+	routeBackendExtensionControllerName = "routebackendextension-controller"
 )
 
 // RouteBackendExtensionReconciler reconciles a RouteBackendExtension object
@@ -57,6 +62,18 @@ type RouteBackendExtensionReconciler struct {
 // GetLogger returns the logger for the reconciler to implement NamespaceHandler interface
 func (r *RouteBackendExtensionReconciler) GetLogger() *utils.AviLogger {
 	return r.Logger
+}
+
+// UpdateAviClient implements AviClientReconciler to update the AVI client when credentials change
+func (r *RouteBackendExtensionReconciler) UpdateAviClient(client avisession.AviClientInterface) error {
+	r.Logger.Info("Updating AVI client for RouteBackendExtension controller")
+	r.AviClient = client
+	return nil
+}
+
+// GetReconcilerName implements AviClientReconciler to return the reconciler name
+func (r *RouteBackendExtensionReconciler) GetReconcilerName() string {
+	return routeBackendExtensionControllerName
 }
 
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=routebackendextensions,verbs=get;list;watch;create;update;patch;delete
@@ -180,4 +197,35 @@ func (r *RouteBackendExtensionReconciler) SetStatus(rbe *akov1alpha1.RouteBacken
 	}
 	err := r.Status().Update(context.Background(), rbe)
 	return err
+}
+
+// CreateNewRouteBackendExtensionControllerAndSetupWithManager creates a new RouteBackendExtension controller,
+// registers it with the Secret Controller, and sets it up with the manager
+func CreateNewRouteBackendExtensionControllerAndSetupWithManager(
+	mgr manager.Manager,
+	aviClient avisession.AviClientInterface,
+	clusterName string,
+	secretReconciler *SecretReconciler,
+) (*RouteBackendExtensionReconciler, error) {
+	// Create the controller
+	reconciler := &RouteBackendExtensionReconciler{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		AviClient:     aviClient,
+		EventRecorder: mgr.GetEventRecorderFor(routeBackendExtensionControllerName),
+		Logger:        utils.AviLog.WithName("routebackendextension"),
+		ClusterName:   clusterName,
+	}
+
+	// Register with Secret Controller
+	if err := secretReconciler.RegisterReconciler(reconciler); err != nil {
+		return nil, err
+	}
+
+	// Setup with manager
+	if err := reconciler.SetupWithManager(mgr); err != nil {
+		return nil, err
+	}
+
+	return reconciler, nil
 }

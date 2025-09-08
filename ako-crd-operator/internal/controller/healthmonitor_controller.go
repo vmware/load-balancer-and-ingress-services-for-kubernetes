@@ -47,8 +47,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+)
+
+const (
+	healthMonitorControllerName = "healthmonitor-controller"
 )
 
 // HealthMonitorReconciler reconciles a HealthMonitor object
@@ -65,6 +70,18 @@ type HealthMonitorReconciler struct {
 // GetLogger returns the logger for the reconciler to implement NamespaceHandler interface
 func (r *HealthMonitorReconciler) GetLogger() *utils.AviLogger {
 	return r.Logger
+}
+
+// UpdateAviClient implements AviClientReconciler to update the AVI client when credentials change
+func (r *HealthMonitorReconciler) UpdateAviClient(client avisession.AviClientInterface) error {
+	r.Logger.Info("Updating AVI client for HealthMonitor controller")
+	r.AviClient = client
+	return nil
+}
+
+// GetReconcilerName implements AviClientReconciler to return the reconciler name
+func (r *HealthMonitorReconciler) GetReconcilerName() string {
+	return healthMonitorControllerName
 }
 
 type HealthMonitorRequest struct {
@@ -111,12 +128,12 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 	if hm.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(hm, constants.HealthMonitorFinalizer) {
+			patch := client.MergeFrom(hm.DeepCopy())
 			controllerutil.AddFinalizer(hm, constants.HealthMonitorFinalizer)
-			if err := r.Update(ctx, hm); err != nil {
+			if err := r.Patch(ctx, hm, patch); err != nil {
 				log.Error("Failed to add finalizer to HealthMonitor")
 				return ctrl.Result{}, err
 			}
-			return ctrl.Result{}, nil
 		}
 	} else {
 		// The object is being deleted
@@ -125,15 +142,16 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			return ctrl.Result{}, err
 		}
 		if removeFinalizer {
+			patch := client.MergeFrom(hm.DeepCopy())
 			controllerutil.RemoveFinalizer(hm, constants.HealthMonitorFinalizer)
+			if err := r.Patch(ctx, hm, patch); err != nil {
+				return ctrl.Result{}, err
+			}
 		} else {
 			if err := r.Status().Update(ctx, hm); err != nil {
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{RequeueAfter: constants.RequeueInterval}, nil
-		}
-		if err := r.Update(ctx, hm); err != nil {
-			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
 	}
@@ -537,4 +555,37 @@ func (r *HealthMonitorReconciler) resolveSecret(ctx context.Context, namespace s
 	// explicitly set authentication with secretRef to nil to avoid sending it to the controller
 	hmReq.Authentication = nil
 	return secret.ResourceVersion, nil
+}
+
+// CreateNewHealthMonitorControllerAndSetupWithManager creates a new HealthMonitor controller,
+// registers it with the Secret Controller, and sets it up with the manager
+func CreateNewHealthMonitorControllerAndSetupWithManager(
+	mgr manager.Manager,
+	aviClient avisession.AviClientInterface,
+	cache cache.CacheOperation,
+	clusterName string,
+	secretReconciler *SecretReconciler,
+) (*HealthMonitorReconciler, error) {
+	// Create the controller
+	reconciler := &HealthMonitorReconciler{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		AviClient:     aviClient,
+		Cache:         cache,
+		EventRecorder: mgr.GetEventRecorderFor(healthMonitorControllerName),
+		Logger:        utils.AviLog.WithName("healthmonitor"),
+		ClusterName:   clusterName,
+	}
+
+	// Register with Secret Controller
+	if err := secretReconciler.RegisterReconciler(reconciler); err != nil {
+		return nil, err
+	}
+
+	// Setup with manager
+	if err := reconciler.SetupWithManager(mgr); err != nil {
+		return nil, err
+	}
+
+	return reconciler, nil
 }
