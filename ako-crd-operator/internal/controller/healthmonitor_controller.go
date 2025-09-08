@@ -122,8 +122,9 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 	if hm.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(hm, constants.HealthMonitorFinalizer) {
+			patch := client.MergeFrom(hm.DeepCopy())
 			controllerutil.AddFinalizer(hm, constants.HealthMonitorFinalizer)
-			if err := r.Update(ctx, hm); err != nil {
+			if err := r.Patch(ctx, hm, patch); err != nil {
 				log.Error("Failed to add finalizer to HealthMonitor")
 				return ctrl.Result{}, err
 			}
@@ -135,15 +136,16 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			return ctrl.Result{}, err
 		}
 		if removeFinalizer {
+			patch := client.MergeFrom(hm.DeepCopy())
 			controllerutil.RemoveFinalizer(hm, constants.HealthMonitorFinalizer)
+			if err := r.Patch(ctx, hm, patch); err != nil {
+				return ctrl.Result{}, err
+			}
 		} else {
 			if err := r.Status().Update(ctx, hm); err != nil {
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{RequeueAfter: constants.RequeueInterval}, nil
-		}
-		if err := r.Update(ctx, hm); err != nil {
-			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
 	}

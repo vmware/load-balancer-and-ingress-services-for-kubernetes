@@ -112,8 +112,9 @@ func (r *ApplicationProfileReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 	if ap.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(ap, constants.ApplicationProfileFinalizer) {
+			patch := client.MergeFrom(ap.DeepCopy())
 			controllerutil.AddFinalizer(ap, constants.ApplicationProfileFinalizer)
-			if err := r.Update(ctx, ap); err != nil {
+			if err := r.Patch(ctx, ap, patch); err != nil {
 				log.Error("Failed to add finalizer to ApplicationProfile")
 				return ctrl.Result{}, err
 			}
@@ -125,15 +126,16 @@ func (r *ApplicationProfileReconciler) Reconcile(ctx context.Context, req ctrl.R
 			return ctrl.Result{}, err
 		}
 		if removeFinalizer {
+			patch := client.MergeFrom(ap.DeepCopy())
 			controllerutil.RemoveFinalizer(ap, constants.ApplicationProfileFinalizer)
+			if err := r.Patch(ctx, ap, patch); err != nil {
+				return ctrl.Result{}, err
+			}
 		} else {
 			if err := r.Status().Update(ctx, ap); err != nil {
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{RequeueAfter: constants.RequeueInterval}, nil
-		}
-		if err := r.Update(ctx, ap); err != nil {
-			return ctrl.Result{}, err
 		}
 		r.EventRecorder.Event(ap, corev1.EventTypeNormal, "Deleted", "ApplicationProfile deleted successfully from Avi Controller")
 		log.Info("successfully deleted applicationprofile")
