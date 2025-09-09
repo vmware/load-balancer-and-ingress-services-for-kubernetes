@@ -35,6 +35,9 @@ func TestDedicatedGatewayWithHTTPRoute(t *testing.T) {
 	listeners := GetDedicatedListenersV1(ports)
 	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
+	// Wait for dedicated mode annotation to be processed
+	time.Sleep(5 * time.Second)
+
 	g := gomega.NewGomegaWithT(t)
 
 	g.Eventually(func() bool {
@@ -89,7 +92,8 @@ func TestDedicatedGatewayWithHTTPRoute(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(0))
 
 	// HTTPRoute rules should be attached directly to the main VS
-	g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(2))
+	// Should have 1 HTTP policy containing HTTPRoute rules and default-backend-rule
+	g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].PoolGroupRefs).To(gomega.HaveLen(1))
 
@@ -117,6 +121,9 @@ func TestDedicatedGatewayWithMultipleHTTPRouteRules(t *testing.T) {
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	listeners := GetDedicatedListenersV1(ports)
 	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	// Wait for dedicated mode annotation to be processed
+	time.Sleep(5 * time.Second)
 
 	g := gomega.NewGomegaWithT(t)
 
@@ -168,7 +175,7 @@ func TestDedicatedGatewayWithMultipleHTTPRouteRules(t *testing.T) {
 
 		// Check if HTTPRoute has been processed (should have HTTP policies)
 		return len(nodes[0].HttpPolicyRefs) > 0
-	}, 60*time.Second).Should(gomega.Equal(true))
+	}, 30*time.Second).Should(gomega.Equal(true))
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
@@ -185,14 +192,15 @@ func TestDedicatedGatewayWithMultipleHTTPRouteRules(t *testing.T) {
 	g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
 
 	// Should have 5 pools (one for each rule)
-	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(5))
-	g.Expect(nodes[0].PoolGroupRefs).To(gomega.HaveLen(5))
+	g.Eventually(func() bool {
+		return len(nodes[0].PoolRefs) == 5 && len(nodes[0].PoolGroupRefs) == 5
+	}, 30*time.Second).Should(gomega.Equal(true))
 
 	// Verify AVI markers include HTTPRoute information
 	g.Expect(nodes[0].AviMarkers.HTTPRouteName).To(gomega.Equal(httpRouteName))
 	g.Expect(nodes[0].AviMarkers.HTTPRouteNamespace).To(gomega.Equal(DEFAULT_NAMESPACE))
 
-	// Verify HTTP policy has correct number of request rules (5 rules)
+	// Verify HTTP policy has correct number of request rules (5 HTTPRoute rules, no default-backend-rule since we have root path)
 	httpPolicy := nodes[0].HttpPolicyRefs[0]
 	g.Expect(httpPolicy.RequestRules).To(gomega.HaveLen(5))
 
@@ -245,6 +253,9 @@ func TestDedicatedGatewayWithHeaderMatching(t *testing.T) {
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	listeners := GetDedicatedListenersV1(ports)
 	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	// Wait for dedicated mode annotation to be processed
+	time.Sleep(5 * time.Second)
 
 	g := gomega.NewGomegaWithT(t)
 
@@ -308,11 +319,11 @@ func TestDedicatedGatewayWithHeaderMatching(t *testing.T) {
 	g.Expect(nodes[0].AviMarkers.HTTPRouteName).To(gomega.Equal(httpRouteName))
 	g.Expect(nodes[0].AviMarkers.HTTPRouteNamespace).To(gomega.Equal(DEFAULT_NAMESPACE))
 
-	// Verify HTTP policy has correct number of request rules (2 rules)
+	// Verify HTTP policy has correct number of request rules (2 HTTPRoute rules, no default-backend-rule since we have root path)
 	httpPolicy := nodes[0].HttpPolicyRefs[0]
 	g.Expect(httpPolicy.RequestRules).To(gomega.HaveLen(2))
 
-	// Verify header matching is configured in the rules
+	// Verify header matching is configured in the HTTPRoute rules
 	for _, rule := range httpPolicy.RequestRules {
 		g.Expect(rule.Match.Hdrs).ToNot(gomega.BeEmpty())
 		// Each rule should have exactly one header match
@@ -343,6 +354,9 @@ func TestDedicatedGatewayWithRequestFilters(t *testing.T) {
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	listeners := GetDedicatedListenersV1(ports)
 	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	// Wait for dedicated mode annotation to be processed
+	time.Sleep(5 * time.Second)
 
 	g := gomega.NewGomegaWithT(t)
 
@@ -402,8 +416,8 @@ func TestDedicatedGatewayWithRequestFilters(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(0))
 
 	// HTTPRoute rules should be attached directly to the main VS
-	// Should have 2 HTTP policies: one for the HTTPRoute rules and one default backend (since all paths are non-root)
-	g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(2))
+	// Should have 1 HTTP policy containing HTTPRoute rules and default-backend-rule (since all paths are non-root)
+	g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
 
 	// Should have 3 pools (one for each rule)
 	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(3))
@@ -413,9 +427,15 @@ func TestDedicatedGatewayWithRequestFilters(t *testing.T) {
 	g.Expect(nodes[0].AviMarkers.HTTPRouteName).To(gomega.Equal(httpRouteName))
 	g.Expect(nodes[0].AviMarkers.HTTPRouteNamespace).To(gomega.Equal(DEFAULT_NAMESPACE))
 
-	// Verify HTTP policy has correct number of request rules (3 rules)
+	// Verify HTTP policy has correct number of request rules (3 HTTPRoute rules + 1 default-backend-rule)
 	httpPolicy := nodes[0].HttpPolicyRefs[0]
-	g.Expect(httpPolicy.RequestRules).To(gomega.HaveLen(3))
+	g.Expect(httpPolicy.RequestRules).To(gomega.HaveLen(4))
+
+	// Verify the last rule is the default-backend-rule
+	lastRule := httpPolicy.RequestRules[len(httpPolicy.RequestRules)-1]
+	g.Expect(*lastRule.Name).To(gomega.Equal("default-backend-rule"))
+	g.Expect(*lastRule.SwitchingAction.Action).To(gomega.Equal("HTTP_SWITCHING_SELECT_LOCAL"))
+	g.Expect(*lastRule.SwitchingAction.StatusCode).To(gomega.Equal("HTTP_LOCAL_RESPONSE_STATUS_CODE_404"))
 
 	// Verify request filters are applied
 	for _, rule := range httpPolicy.RequestRules {
@@ -458,6 +478,9 @@ func TestDedicatedGatewayWithResponseFilters(t *testing.T) {
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	listeners := GetDedicatedListenersV1(ports)
 	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	// Wait for dedicated mode annotation to be processed
+	time.Sleep(5 * time.Second)
 
 	g := gomega.NewGomegaWithT(t)
 
@@ -517,8 +540,8 @@ func TestDedicatedGatewayWithResponseFilters(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(0))
 
 	// HTTPRoute rules should be attached directly to the main VS
-	// Should have 2 HTTP policies: one for the HTTPRoute rules and one default backend (since path is non-root)
-	g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(2))
+	// Should have 1 HTTP policy containing HTTPRoute rules and default-backend-rule (since path is non-root)
+	g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
 
 	// Should have 1 pool
 	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
@@ -528,10 +551,14 @@ func TestDedicatedGatewayWithResponseFilters(t *testing.T) {
 	g.Expect(nodes[0].AviMarkers.HTTPRouteName).To(gomega.Equal(httpRouteName))
 	g.Expect(nodes[0].AviMarkers.HTTPRouteNamespace).To(gomega.Equal(DEFAULT_NAMESPACE))
 
-	// Verify HTTP policy has response rules
+	// Verify HTTP policy has response rules and default-backend-rule
 	httpPolicy := nodes[0].HttpPolicyRefs[0]
-	g.Expect(httpPolicy.RequestRules).To(gomega.HaveLen(1))
+	g.Expect(httpPolicy.RequestRules).To(gomega.HaveLen(2)) // 1 HTTPRoute rule + 1 default-backend-rule
 	g.Expect(httpPolicy.ResponseRules).To(gomega.HaveLen(1))
+
+	// Verify the last rule is the default-backend-rule
+	lastRule := httpPolicy.RequestRules[len(httpPolicy.RequestRules)-1]
+	g.Expect(*lastRule.Name).To(gomega.Equal("default-backend-rule"))
 
 	// Verify response filters are applied
 	responseRule := httpPolicy.ResponseRules[0]
@@ -558,6 +585,9 @@ func TestDedicatedGatewayWithMultipleBackends(t *testing.T) {
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	listeners := GetDedicatedListenersV1(ports)
 	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	// Wait for dedicated mode annotation to be processed
+	time.Sleep(5 * time.Second)
 
 	g := gomega.NewGomegaWithT(t)
 
@@ -611,8 +641,8 @@ func TestDedicatedGatewayWithMultipleBackends(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(0))
 
 	// HTTPRoute rules should be attached directly to the main VS
-	// Should have 2 HTTP policies: one for the HTTPRoute rules and one default backend (since path is non-root)
-	g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(2))
+	// Should have 1 HTTP policy containing HTTPRoute rules and default-backend-rule (since path is non-root)
+	g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
 
 	// Should have 1 pool (same service referenced multiple times creates only one pool)
 	// AVI optimizes by creating a single pool when the same service is referenced multiple times
@@ -656,6 +686,9 @@ func TestDedicatedGatewayWithRegexPathMatching(t *testing.T) {
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	listeners := GetDedicatedListenersV1(ports)
 	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	// Wait for dedicated mode annotation to be processed
+	time.Sleep(5 * time.Second)
 
 	g := gomega.NewGomegaWithT(t)
 
@@ -715,8 +748,8 @@ func TestDedicatedGatewayWithRegexPathMatching(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(0))
 
 	// HTTPRoute rules should be attached directly to the main VS
-	// Should have 2 HTTP policies: one for the HTTPRoute rules and one default backend (since path is non-root)
-	g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(2))
+	// Should have 1 HTTP policy containing HTTPRoute rules and default-backend-rule (since path is non-root)
+	g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
 
 	// Should have 1 pool
 	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
@@ -726,9 +759,13 @@ func TestDedicatedGatewayWithRegexPathMatching(t *testing.T) {
 	g.Expect(nodes[0].AviMarkers.HTTPRouteName).To(gomega.Equal(httpRouteName))
 	g.Expect(nodes[0].AviMarkers.HTTPRouteNamespace).To(gomega.Equal(DEFAULT_NAMESPACE))
 
-	// Verify HTTP policy has regex matching configured
+	// Verify HTTP policy has regex matching configured and default-backend-rule
 	httpPolicy := nodes[0].HttpPolicyRefs[0]
-	g.Expect(httpPolicy.RequestRules).To(gomega.HaveLen(1))
+	g.Expect(httpPolicy.RequestRules).To(gomega.HaveLen(2)) // 1 HTTPRoute rule + 1 default-backend-rule
+
+	// Verify the last rule is the default-backend-rule
+	lastRule := httpPolicy.RequestRules[len(httpPolicy.RequestRules)-1]
+	g.Expect(*lastRule.Name).To(gomega.Equal("default-backend-rule"))
 
 	// Verify regex path matching is configured
 	requestRule := httpPolicy.RequestRules[0]
@@ -761,6 +798,9 @@ func TestDedicatedGatewayComplexScenario(t *testing.T) {
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	listeners := GetDedicatedListenersV1(ports)
 	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	// Wait for dedicated mode annotation to be processed
+	time.Sleep(5 * time.Second)
 
 	g := gomega.NewGomegaWithT(t)
 
@@ -829,18 +869,17 @@ func TestDedicatedGatewayComplexScenario(t *testing.T) {
 
 	// HTTPRoute rules should be attached directly to the main VS
 	// Should have 1 HTTP policy since one of the paths is "/" (root path doesn't create default backend policy)
-	g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
-
-	// Should have 4 pools (one for each rule, even though rule2 has multiple backend references to same service)
-	// AVI optimizes by creating a single pool when the same service is referenced multiple times
-	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(4))
-	g.Expect(nodes[0].PoolGroupRefs).To(gomega.HaveLen(4))
+	g.Eventually(func() bool {
+		return len(nodes[0].HttpPolicyRefs) == 1 &&
+			len(nodes[0].PoolRefs) == 4 &&
+			len(nodes[0].PoolGroupRefs) == 4
+	}, 30*time.Second).Should(gomega.Equal(true))
 
 	// Verify AVI markers include HTTPRoute information
 	g.Expect(nodes[0].AviMarkers.HTTPRouteName).To(gomega.Equal(httpRouteName))
 	g.Expect(nodes[0].AviMarkers.HTTPRouteNamespace).To(gomega.Equal(DEFAULT_NAMESPACE))
 
-	// Verify HTTP policy has correct number of rules
+	// Verify HTTP policy has correct number of rules (4 HTTPRoute rules, no default-backend-rule since we have root path)
 	httpPolicy := nodes[0].HttpPolicyRefs[0]
 	g.Expect(httpPolicy.RequestRules).To(gomega.HaveLen(4))
 	g.Expect(httpPolicy.ResponseRules).To(gomega.HaveLen(1)) // Only rule2 has response filters
@@ -893,6 +932,9 @@ func TestDedicatedGatewayWithMultipleMatches(t *testing.T) {
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	listeners := GetDedicatedListenersV1(ports)
 	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	// Wait for dedicated mode annotation to be processed
+	time.Sleep(5 * time.Second)
 
 	g := gomega.NewGomegaWithT(t)
 
@@ -953,12 +995,15 @@ func TestDedicatedGatewayWithMultipleMatches(t *testing.T) {
 	g.Expect(nodes[0].EvhNodes).To(gomega.HaveLen(0))
 
 	// HTTPRoute rules should be attached directly to the main VS
-	// Should have 2 HTTP policies (one for default backend, one for HTTPRoute rules)
-	g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(2))
+	// Should have 1 HTTP policy containing HTTPRoute rules and default-backend-rule
+	g.Eventually(func() bool {
+		return len(nodes[0].HttpPolicyRefs) == 1
+	}, 30*time.Second).Should(gomega.Equal(true))
 
 	// Should have 2 pools (one for each rule)
-	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(2))
-	g.Expect(nodes[0].PoolGroupRefs).To(gomega.HaveLen(2))
+	g.Eventually(func() bool {
+		return len(nodes[0].PoolRefs) == 2 && len(nodes[0].PoolGroupRefs) == 2
+	}, 30*time.Second).Should(gomega.Equal(true))
 
 	// Verify AVI markers include HTTPRoute information
 	g.Expect(nodes[0].AviMarkers.HTTPRouteName).To(gomega.Equal(httpRouteName))
@@ -968,35 +1013,24 @@ func TestDedicatedGatewayWithMultipleMatches(t *testing.T) {
 	// Each HTTPRoute rule with multiple matches creates separate AVI request rules
 	// Rule 1: 3 paths × 2 headers = 6 combinations
 	// Rule 2: 3 paths × 2 headers = 6 combinations
-	// Total: 6 combinations distributed across policies
+	// Total: 6 HTTPRoute rules + 1 default-backend-rule = 7 rules
 
-	// First HTTP policy contains the default backend rule
-	httpPolicy1 := nodes[0].HttpPolicyRefs[0]
-	// Second HTTP policy contains the HTTPRoute rules
-	httpPolicy2 := nodes[0].HttpPolicyRefs[1]
+	httpPolicy := nodes[0].HttpPolicyRefs[0]
+	g.Expect(httpPolicy.RequestRules).To(gomega.HaveLen(7)) // 6 HTTPRoute rules + 1 default-backend-rule
 
-	// One policy should have 1 rule (default backend) and the other should have 6 rules (HTTPRoute rules)
-	totalRules := len(httpPolicy1.RequestRules) + len(httpPolicy2.RequestRules)
-	g.Expect(totalRules).To(gomega.Equal(7)) // 1 default + 6 HTTPRoute rules
+	// Verify the last rule is the default-backend-rule
+	lastRule := httpPolicy.RequestRules[len(httpPolicy.RequestRules)-1]
+	g.Expect(*lastRule.Name).To(gomega.Equal("default-backend-rule"))
+	g.Expect(*lastRule.SwitchingAction.Action).To(gomega.Equal("HTTP_SWITCHING_SELECT_LOCAL"))
+	g.Expect(*lastRule.SwitchingAction.StatusCode).To(gomega.Equal("HTTP_LOCAL_RESPONSE_STATUS_CODE_404"))
 
-	// Determine which policy has the default backend and which has the HTTPRoute rules
-	var defaultPolicy, httpRoutePolicy *avinodes.AviHttpPolicySetNode
-	if len(httpPolicy1.RequestRules) == 1 {
-		defaultPolicy = httpPolicy1
-		httpRoutePolicy = httpPolicy2
-	} else {
-		defaultPolicy = httpPolicy2
-		httpRoutePolicy = httpPolicy1
-	}
+	// Verify HTTPRoute rules (first 6 rules)
+	httpRouteRules := httpPolicy.RequestRules[:len(httpPolicy.RequestRules)-1] // All except the last (default) rule
+	g.Expect(len(httpRouteRules)).To(gomega.Equal(6))                          // 6 combinations
 
-	// Verify default policy has 1 rule
-	g.Expect(defaultPolicy.RequestRules).To(gomega.HaveLen(1))
-	// Verify HTTPRoute policy has 6 rules
-	g.Expect(httpRoutePolicy.RequestRules).To(gomega.HaveLen(6))
-
-	// Verify that rules in HTTPRoute policy contain the actual HTTPRoute rules
+	// Verify that HTTPRoute rules contain the actual HTTPRoute rules
 	// The 6 rules should be combinations of paths and headers from both HTTPRoute rules
-	for _, rule := range httpRoutePolicy.RequestRules {
+	for _, rule := range httpRouteRules {
 		// Each rule should have path matching
 		g.Expect(rule.Match.Path.MatchStr).ToNot(gomega.BeEmpty())
 
@@ -1030,7 +1064,7 @@ func TestDedicatedGatewayWithMultipleMatches(t *testing.T) {
 
 	// Verify that multiple path matches are handled correctly
 	allPaths := []string{}
-	for _, rule := range httpRoutePolicy.RequestRules {
+	for _, rule := range httpRouteRules {
 		allPaths = append(allPaths, rule.Match.Path.MatchStr...)
 	}
 

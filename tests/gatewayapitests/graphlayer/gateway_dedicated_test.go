@@ -111,6 +111,9 @@ func TestDedicatedGatewayBasic(t *testing.T) {
 	listeners := GetDedicatedListenersV1(ports)
 	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
+	// Wait for dedicated mode annotation to be processed
+	time.Sleep(5 * time.Second)
+
 	g := gomega.NewGomegaWithT(t)
 
 	g.Eventually(func() bool {
@@ -162,6 +165,9 @@ func TestDedicatedGatewayWithTLS(t *testing.T) {
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	listeners := GetDedicatedListenersV1(ports, secrets...)
 	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	// Wait for dedicated mode annotation to be processed
+	time.Sleep(5 * time.Second)
 
 	g := gomega.NewGomegaWithT(t)
 
@@ -284,6 +290,9 @@ func TestGatewayDedicatedToRegularMode(t *testing.T) {
 	// First create dedicated gateway
 	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
+	// Wait for dedicated mode annotation to be processed
+	time.Sleep(5 * time.Second)
+
 	g := gomega.NewGomegaWithT(t)
 
 	g.Eventually(func() bool {
@@ -360,6 +369,9 @@ func TestDedicatedGatewayDelete(t *testing.T) {
 	listeners := GetDedicatedListenersV1(ports)
 	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
+	// Wait for dedicated mode annotation to be processed
+	time.Sleep(5 * time.Second)
+
 	g := gomega.NewGomegaWithT(t)
 
 	g.Eventually(func() bool {
@@ -402,6 +414,9 @@ func TestDedicatedGatewayWithMultipleListeners(t *testing.T) {
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	listeners := GetDedicatedListenersV1(ports, secrets...)
 	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	// Wait for dedicated mode annotation to be processed
+	time.Sleep(5 * time.Second)
 
 	g := gomega.NewGomegaWithT(t)
 
@@ -450,10 +465,10 @@ func TestDedicatedGatewaySecretCreateDelete(t *testing.T) {
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
 	listeners := GetDedicatedListenersV1(ports, secrets...)
 	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
-
+	// wait for dedicated gateway to be created
+	time.Sleep(5 * time.Second)
 	g := gomega.NewGomegaWithT(t)
 	modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(DEFAULT_NAMESPACE, gatewayName))
-
 	// Initially no model should exist as secret doesn't exist
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)

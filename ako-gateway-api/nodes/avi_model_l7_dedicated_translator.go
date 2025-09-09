@@ -170,19 +170,47 @@ func (o *AviObjectGraph) BuildHTTPPolicySetsForDedicatedMode(key string, vsNode 
 	}
 
 	if !rootPathPresent {
-		o.AddDefaultHTTPPolicySet(key)
-	} else {
-		// remove the default policy ref if present
-		defaultPolicyRefName := akogatewayapilib.GetDefaultHTTPPSName()
-		for i, http := range vsNode.HttpPolicyRefs {
-			if http.Name == defaultPolicyRefName {
-				vsNode.HttpPolicyRefs = append(vsNode.HttpPolicyRefs[:i], vsNode.HttpPolicyRefs[i+1:]...)
-				break
-			}
-		}
+		o.AddDefaultRule(key, policy, &requestRuleIndex)
 	}
 	utils.AviLog.Debugf("key: %s, msg: Built HTTP PolicySets for dedicated mode with %d request rules and %d response rules",
 		key, httpPSName, len(policy.RequestRules), len(policy.ResponseRules))
+}
+
+func (o *AviObjectGraph) AddDefaultRule(key string, policy *nodes.AviHttpPolicySetNode, requestRuleIndex *int32) {
+	// Check if default rule already exists
+	for index, rule := range policy.RequestRules {
+		if *rule.Name == "default-backend-rule" {
+			// Update the index to ensure it's the last rule
+			rule.Index = proto.Int32(*requestRuleIndex)
+			// Move to end if not already there
+			if index != len(policy.RequestRules)-1 {
+				policy.RequestRules = append(policy.RequestRules[:index], policy.RequestRules[index+1:]...)
+				policy.RequestRules = append(policy.RequestRules, rule)
+			}
+			*requestRuleIndex++
+			return
+		}
+	}
+
+	// Create new default rule with the current index
+	defaultRule := &models.HTTPRequestRule{
+		Name:   proto.String("default-backend-rule"),
+		Enable: proto.Bool(true),
+		Index:  proto.Int32(*requestRuleIndex),
+		Match: &models.MatchTarget{
+			Path: &models.PathMatch{
+				MatchCriteria: proto.String("BEGINS_WITH"),
+				MatchStr:      []string{"/"},
+			},
+		},
+		SwitchingAction: &models.HttpswitchingAction{
+			Action:     proto.String("HTTP_SWITCHING_SELECT_LOCAL"),
+			StatusCode: proto.String("HTTP_LOCAL_RESPONSE_STATUS_CODE_404"),
+		},
+	}
+	policy.RequestRules = append(policy.RequestRules, defaultRule)
+	*requestRuleIndex++
+	utils.AviLog.Debugf("key: %s, msg: Added default rule to HTTP PolicySet %s", key, policy.Name)
 }
 
 // getPathTypePriority returns priority value for path match types for LPM sorting
