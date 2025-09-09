@@ -478,3 +478,387 @@ func TestHTTPRouteStatusTransitionFromInvalidToValid(t *testing.T) {
 	integrationtest.DelSVC(t, namespace, svcName)
 	integrationtest.DelEPS(t, namespace, svcName)
 }
+
+// TestHTTPRouteWithInvalidBackendKindInDedicatedMode tests that HTTPRoute with invalid backend kind
+// is properly handled in dedicated mode with appropriate status conditions
+func TestHTTPRouteWithInvalidBackendKindInDedicatedMode(t *testing.T) {
+	gatewayClassName := "gateway-class-dedicated-invalid-backend"
+	gatewayName := "gateway-dedicated-invalid-backend"
+	httpRouteName := "httproute-dedicated-invalid-backend"
+	namespace := DEFAULT_NAMESPACE
+	svcName := "avisvc-dedicated-invalid-backend"
+	ports := []int32{8080}
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	integrationtest.CreateSVC(t, namespace, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPS(t, namespace, svcName, false, false, "1.1.1")
+
+	// Create Gateway with dedicated mode
+	listeners := akogatewayapitests.GetListenersV1(ports, true, false)
+	setupDedicatedGateway(t, gatewayName, namespace, gatewayClassName, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(namespace).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Create HTTPRoute with invalid backend kind
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/"}, []string{},
+		map[string][]string{},
+		[][]string{{svcName, namespace, "8080", "1"}}, nil)
+
+	// Set invalid backend kind
+	invalidKind := gatewayv1.Kind("InvalidKind")
+	rule.BackendRefs[0].BackendRef.Kind = &invalidKind
+	rules := []gatewayv1.HTTPRouteRule{rule}
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, nil, rules)
+
+	// Verify HTTPRoute status shows proper error for invalid backend kind
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			t.Logf("Couldn't get the HTTPRoute, err: %+v", err)
+			return false
+		}
+		if len(httpRoute.Status.Parents) == 0 {
+			return false
+		}
+		// Should be accepted but have unresolved refs due to invalid backend kind
+		acceptedCondition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted))
+		resolvedRefsCondition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return acceptedCondition != nil && acceptedCondition.Status == metav1.ConditionTrue &&
+			resolvedRefsCondition != nil && resolvedRefsCondition.Status == metav1.ConditionFalse &&
+			resolvedRefsCondition.Reason == string(gatewayv1.RouteReasonInvalidKind)
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Verify the error message mentions invalid backend kind
+	httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	g.Expect(httpRoute.Status.Parents).To(gomega.HaveLen(1))
+
+	resolvedRefsCondition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+	g.Expect(resolvedRefsCondition).ToNot(gomega.BeNil())
+	g.Expect(resolvedRefsCondition.Message).To(gomega.ContainSubstring("invalid kind InvalidKind"))
+
+	// Cleanup
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
+	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+	integrationtest.DelSVC(t, namespace, svcName)
+	integrationtest.DelEPS(t, namespace, svcName)
+}
+
+// TestHTTPRouteWithUnsupportedFilterInDedicatedMode tests that HTTPRoute with unsupported filters
+// is properly handled in dedicated mode with appropriate status conditions
+func TestHTTPRouteWithUnsupportedFilterInDedicatedMode(t *testing.T) {
+	gatewayClassName := "gateway-class-dedicated-unsupported-filter"
+	gatewayName := "gateway-dedicated-unsupported-filter"
+	httpRouteName := "httproute-dedicated-unsupported-filter"
+	namespace := DEFAULT_NAMESPACE
+	svcName := "avisvc-dedicated-unsupported-filter"
+	ports := []int32{8080}
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	integrationtest.CreateSVC(t, namespace, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPS(t, namespace, svcName, false, false, "1.1.1")
+
+	// Create Gateway with dedicated mode
+	listeners := akogatewayapitests.GetListenersV1(ports, true, false)
+	setupDedicatedGateway(t, gatewayName, namespace, gatewayClassName, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(namespace).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Create HTTPRoute with unsupported URLRewrite filter (PrefixMatchHTTPPathModifier)
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{"URLRewrite": {}},
+		[][]string{{svcName, namespace, "8080", "1"}}, nil)
+
+	// Set unsupported URLRewrite path type
+	rule.Filters[0].URLRewrite.Path.Type = gatewayv1.PrefixMatchHTTPPathModifier
+	rules := []gatewayv1.HTTPRouteRule{rule}
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, nil, rules)
+
+	// Verify HTTPRoute status shows rejection due to unsupported filter
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			t.Logf("Couldn't get the HTTPRoute, err: %+v", err)
+			return false
+		}
+		if len(httpRoute.Status.Parents) == 0 {
+			return false
+		}
+		// Check for UnsupportedValue condition
+		condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted))
+		return condition != nil && condition.Reason == string(gatewayv1.RouteReasonUnsupportedValue) &&
+			condition.Status == metav1.ConditionFalse
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Verify the error message mentions unsupported URLRewrite path type
+	httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	g.Expect(httpRoute.Status.Parents).To(gomega.HaveLen(1))
+
+	condition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted))
+	g.Expect(condition).ToNot(gomega.BeNil())
+	g.Expect(condition.Message).To(gomega.ContainSubstring("HTTPUrlRewrite PathType has Unsupported value"))
+
+	// Cleanup
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
+	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+	integrationtest.DelSVC(t, namespace, svcName)
+	integrationtest.DelEPS(t, namespace, svcName)
+}
+
+// TestHTTPRouteWithNonExistentServiceInDedicatedMode tests that HTTPRoute with non-existent backend service
+// is properly handled in dedicated mode with appropriate status conditions
+func TestHTTPRouteWithNonExistentServiceInDedicatedMode(t *testing.T) {
+	gatewayClassName := "gateway-class-dedicated-nonexistent-service"
+	gatewayName := "gateway-dedicated-nonexistent-service"
+	httpRouteName := "httproute-dedicated-nonexistent-service"
+	namespace := DEFAULT_NAMESPACE
+	nonExistentSvcName := "nonexistent-service"
+	ports := []int32{8080}
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+
+	// Create Gateway with dedicated mode (no service created intentionally)
+	listeners := akogatewayapitests.GetListenersV1(ports, true, false)
+	setupDedicatedGateway(t, gatewayName, namespace, gatewayClassName, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(namespace).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Create HTTPRoute with reference to non-existent service
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/"}, []string{},
+		map[string][]string{},
+		[][]string{{nonExistentSvcName, namespace, "8080", "1"}}, nil)
+	rules := []gatewayv1.HTTPRouteRule{rule}
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, nil, rules)
+
+	// Verify HTTPRoute status shows proper error for non-existent service
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			t.Logf("Couldn't get the HTTPRoute, err: %+v", err)
+			return false
+		}
+		if len(httpRoute.Status.Parents) == 0 {
+			return false
+		}
+		// Should be accepted but have unresolved refs due to non-existent service
+		acceptedCondition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted))
+		resolvedRefsCondition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return acceptedCondition != nil && acceptedCondition.Status == metav1.ConditionTrue &&
+			resolvedRefsCondition != nil && resolvedRefsCondition.Status == metav1.ConditionFalse &&
+			resolvedRefsCondition.Reason == string(gatewayv1.RouteReasonBackendNotFound)
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Verify the error message mentions the non-existent service
+	httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	g.Expect(httpRoute.Status.Parents).To(gomega.HaveLen(1))
+
+	resolvedRefsCondition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+	g.Expect(resolvedRefsCondition).ToNot(gomega.BeNil())
+	g.Expect(resolvedRefsCondition.Message).To(gomega.ContainSubstring(nonExistentSvcName))
+
+	// Test recovery: Create the service and verify status updates
+	integrationtest.CreateSVC(t, namespace, nonExistentSvcName, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPS(t, namespace, nonExistentSvcName, false, false, "1.1.1")
+
+	// Verify HTTPRoute status transitions to resolved
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) == 0 {
+			return false
+		}
+		resolvedRefsCondition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return resolvedRefsCondition != nil && resolvedRefsCondition.Status == metav1.ConditionTrue
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Cleanup
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
+	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+	integrationtest.DelSVC(t, namespace, nonExistentSvcName)
+	integrationtest.DelEPS(t, namespace, nonExistentSvcName)
+}
+
+// TestHTTPRouteWithCrossNamespaceBackendInDedicatedMode tests that HTTPRoute with cross-namespace backend
+// is properly handled in dedicated mode with appropriate status conditions
+func TestHTTPRouteWithCrossNamespaceBackendInDedicatedMode(t *testing.T) {
+	gatewayClassName := "gateway-class-dedicated-cross-ns-backend"
+	gatewayName := "gateway-dedicated-cross-ns-backend"
+	httpRouteName := "httproute-dedicated-cross-ns-backend"
+	namespace := DEFAULT_NAMESPACE
+	backendNamespace := "backend-namespace"
+	svcName := "avisvc-dedicated-cross-ns-backend"
+	ports := []int32{8080}
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+
+	// Create backend namespace and service
+	integrationtest.AddNamespace(t, backendNamespace, map[string]string{})
+	integrationtest.CreateSVC(t, backendNamespace, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPS(t, backendNamespace, svcName, false, false, "1.1.1")
+
+	// Create Gateway with dedicated mode
+	listeners := akogatewayapitests.GetListenersV1(ports, true, false)
+	setupDedicatedGateway(t, gatewayName, namespace, gatewayClassName, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(namespace).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Create HTTPRoute with cross-namespace backend reference
+	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/"}, []string{},
+		map[string][]string{},
+		[][]string{{svcName, backendNamespace, "8080", "1"}}, nil)
+	rules := []gatewayv1.HTTPRouteRule{rule}
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, parentRefs, nil, rules)
+
+	// Verify HTTPRoute status - cross-namespace backend should work in dedicated mode
+	// (unlike some other cross-namespace references that might be restricted)
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			t.Logf("Couldn't get the HTTPRoute, err: %+v", err)
+			return false
+		}
+		if len(httpRoute.Status.Parents) == 0 {
+			return false
+		}
+		acceptedCondition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted))
+		resolvedRefsCondition := apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionResolvedRefs))
+		return acceptedCondition != nil && acceptedCondition.Status == metav1.ConditionTrue &&
+			resolvedRefsCondition != nil && resolvedRefsCondition.Status == metav1.ConditionTrue
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Verify status conditions are correct for cross-namespace backend
+	conditionMap := make(map[string][]metav1.Condition)
+	conditions := []metav1.Condition{{
+		Type:    string(gatewayv1.RouteConditionAccepted),
+		Reason:  string(gatewayv1.RouteReasonAccepted),
+		Status:  metav1.ConditionTrue,
+		Message: "Parent reference is valid",
+	}, {
+		Type:   string(gatewayv1.RouteConditionResolvedRefs),
+		Reason: string(gatewayv1.RouteReasonResolvedRefs),
+		Status: metav1.ConditionTrue,
+	}}
+	conditionMap[fmt.Sprintf("%s-%d", gatewayName, ports[0])] = conditions
+	expectedRouteStatus := akogatewayapitests.GetRouteStatusV1([]string{gatewayName}, namespace, ports, conditionMap)
+
+	httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+	if err != nil || httpRoute == nil {
+		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
+	}
+	akogatewayapitests.ValidateHTTPRouteStatus(t, &httpRoute.Status, &gatewayv1.HTTPRouteStatus{RouteStatus: *expectedRouteStatus})
+
+	// Cleanup
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
+	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+	integrationtest.DelSVC(t, backendNamespace, svcName)
+	integrationtest.DelEPS(t, backendNamespace, svcName)
+	integrationtest.DeleteNamespace(backendNamespace)
+}
+
+// TestHTTPRouteWithNoParentRefInDedicatedMode tests that HTTPRoute with no parent references
+// behaves correctly in dedicated mode (should have no status entries)
+func TestHTTPRouteWithNoParentRefInDedicatedMode(t *testing.T) {
+	gatewayClassName := "gateway-class-dedicated-no-parent"
+	gatewayName := "gateway-dedicated-no-parent"
+	httpRouteName := "httproute-dedicated-no-parent"
+	namespace := DEFAULT_NAMESPACE
+	svcName := "avisvc-dedicated-no-parent"
+	ports := []int32{8080}
+
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	integrationtest.CreateSVC(t, namespace, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEPS(t, namespace, svcName, false, false, "1.1.1")
+
+	// Create Gateway with dedicated mode
+	listeners := akogatewayapitests.GetListenersV1(ports, true, false)
+	setupDedicatedGateway(t, gatewayName, namespace, gatewayClassName, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(namespace).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Create HTTPRoute with no parent references
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/"}, []string{},
+		map[string][]string{},
+		[][]string{{svcName, namespace, "8080", "1"}}, nil)
+	rules := []gatewayv1.HTTPRouteRule{rule}
+
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, namespace, nil, nil, rules)
+
+	// Verify HTTPRoute has no parent status entries (since no parent refs)
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			t.Logf("Couldn't get the HTTPRoute, err: %+v", err)
+			return false
+		}
+		// HTTPRoute with no parent refs should have no parent status entries
+		return len(httpRoute.Status.Parents) == 0
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Verify the HTTPRoute exists but has empty status
+	httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	g.Expect(httpRoute.Status.Parents).To(gomega.HaveLen(0))
+
+	// Cleanup
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, namespace)
+	akogatewayapitests.TeardownGateway(t, gatewayName, namespace)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+	integrationtest.DelSVC(t, namespace, svcName)
+	integrationtest.DelEPS(t, namespace, svcName)
+}
