@@ -421,6 +421,17 @@ func IsApplicationProfileProcessed(obj interface{}, namespace, name string) bool
 		return false
 	}
 
+	tenant, ok := statusJSON["tenant"]
+	if !ok || tenant == "" {
+		utils.AviLog.Warnf("key:%s/%s, msg: ApplicationProfile CRD tenant not found", namespace, name)
+		return false
+	}
+	namespaceTenant := lib.GetTenantInNamespace(namespace)
+	if tenant != namespaceTenant {
+		utils.AviLog.Warnf("key:%s/%s, msg: ApplicationProfile CRD tenant %s is not same as namespace tenant %s", namespace, name, tenant, namespaceTenant)
+		return false
+	}
+
 	// fetch the backendObjectName
 	backendObjectName, ok := statusJSON["backendObjectName"]
 	if !ok || backendObjectName == "" {
