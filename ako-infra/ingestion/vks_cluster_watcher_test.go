@@ -634,7 +634,7 @@ func TestVKSClusterWatcher_HandleProvisionedCluster(t *testing.T) {
 				if !secretExistsAfter {
 					t.Error("Expected secret to be created but it doesn't exist")
 				} else {
-					expectedFields := []string{"username", "controllerIP", "clusterName"}
+					expectedFields := []string{"username", "controllerHost", "clusterName"}
 					for _, field := range expectedFields {
 						if _, exists := finalSecret.Data[field]; !exists {
 							t.Errorf("Expected field %s not found in created secret", field)
@@ -967,7 +967,7 @@ func TestVKSClusterWatcher_SecretIdempotency(t *testing.T) {
 		t.Fatal("Secret data is nil")
 	}
 
-	expectedFields := []string{"username", "password", "controllerIP", "clusterName"}
+	expectedFields := []string{"username", "password", "controllerHost", "clusterName"}
 	for _, field := range expectedFields {
 		if _, exists := originalSecret.Data[field]; !exists {
 			t.Errorf("Expected field %s not found in secret", field)
@@ -1261,7 +1261,7 @@ func TestVKSClusterWatcher_UpsertAviCredentialsSecret_Comprehensive(t *testing.T
 			expectCreate:         true,
 			expectUpdate:         false,
 			expectError:          false,
-			expectedSecretFields: []string{"username", "password", "controllerIP", "clusterName"},
+			expectedSecretFields: []string{"username", "password", "controllerHost", "clusterName"},
 		},
 		{
 			name:             "Update existing secret with different data",
@@ -1270,13 +1270,13 @@ func TestVKSClusterWatcher_UpsertAviCredentialsSecret_Comprehensive(t *testing.T
 			existingSecretData: map[string][]byte{
 				"username":                 []byte("old-admin"),
 				"password":                 []byte("old-password"),
-				"controllerIP":             []byte("10.10.10.9"), // Different IP
+				"controllerHost":           []byte("10.10.10.9"), // Different IP
 				"certificateAuthorityData": []byte("old-ca-cert"),
 			},
 			expectCreate:         false,
 			expectUpdate:         true,
 			expectError:          false,
-			expectedSecretFields: []string{"username", "password", "controllerIP", "clusterName"},
+			expectedSecretFields: []string{"username", "password", "controllerHost", "clusterName"},
 		},
 		{
 			name:             "No update needed - identical secret",
@@ -1285,13 +1285,13 @@ func TestVKSClusterWatcher_UpsertAviCredentialsSecret_Comprehensive(t *testing.T
 			existingSecretData: map[string][]byte{
 				"username":                 []byte("vks-cluster-test-cluster-nochange-user"),
 				"password":                 []byte("mock-password"),
-				"controllerIP":             []byte("10.10.10.10"),
+				"controllerHost":           []byte("10.10.10.10"),
 				"certificateAuthorityData": []byte("mock-ca-cert"),
 			},
 			expectCreate:         false,
 			expectUpdate:         false,
 			expectError:          false,
-			expectedSecretFields: []string{"username", "password", "controllerIP", "clusterName"},
+			expectedSecretFields: []string{"username", "password", "controllerHost", "clusterName"},
 		},
 	}
 
@@ -1427,7 +1427,7 @@ func TestVKSClusterWatcher_UpsertAviCredentialsSecret_Comprehensive(t *testing.T
 			t.Logf("Test %s completed successfully: secret exists with %d fields", tt.name, len(secret.Data))
 
 			// Verify that core fields are present (exact values may vary based on test scenario)
-			coreFields := []string{"username", "controllerIP", "clusterName"}
+			coreFields := []string{"username", "controllerHost", "clusterName"}
 			for _, field := range coreFields {
 				if _, exists := secret.Data[field]; !exists {
 					t.Errorf("Expected core field %s to be present in secret", field)
