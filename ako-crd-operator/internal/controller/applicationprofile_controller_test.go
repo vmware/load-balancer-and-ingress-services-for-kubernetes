@@ -60,11 +60,34 @@ func TestApplicationProfileController(t *testing.T) {
 					Name: "test",
 				},
 			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				responseUUID := map[string]interface{}{
+					"uuid": "123",
+				}
+				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params interface{}) {
+					if resp, ok := response.(*map[string]interface{}); ok {
+						*resp = responseUUID
+					}
+				}).Return(nil).AnyTimes()
+			},
 			want: &akov1alpha1.ApplicationProfile{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:            "test",
 					Finalizers:      []string{"applicationprofile.ako.vmware.com/finalizer"},
-					ResourceVersion: "1000",
+					ResourceVersion: "1001",
+				},
+				Status: akov1alpha1.ApplicationProfileStatus{
+					UUID:              "123",
+					BackendObjectName: "test-cluster--test",
+					Tenant:            "admin",
+					Conditions: []metav1.Condition{
+						{
+							Type:    "Ready",
+							Status:  metav1.ConditionTrue,
+							Reason:  "Created",
+							Message: "ApplicationProfile created successfully on Avi Controller",
+						},
+					},
 				},
 			},
 			wantErr: false,
@@ -725,7 +748,27 @@ func TestApplicationProfileController(t *testing.T) {
 			if tt.wantErr && tt.want == nil {
 				return
 			}
-			assert.Equal(t, tt.want, ap)
+
+			// Compare everything except dynamic fields like LastUpdated and LastTransitionTime
+			if tt.want != nil {
+				assert.Equal(t, tt.want.ObjectMeta.Name, ap.ObjectMeta.Name)
+				assert.Equal(t, tt.want.ObjectMeta.Finalizers, ap.ObjectMeta.Finalizers)
+				assert.Equal(t, tt.want.ObjectMeta.ResourceVersion, ap.ObjectMeta.ResourceVersion)
+				assert.Equal(t, tt.want.Status.UUID, ap.Status.UUID)
+				assert.Equal(t, tt.want.Status.BackendObjectName, ap.Status.BackendObjectName)
+				assert.Equal(t, tt.want.Status.Tenant, ap.Status.Tenant)
+				if len(tt.want.Status.Conditions) > 0 && len(ap.Status.Conditions) > 0 {
+					assert.Equal(t, tt.want.Status.Conditions[0].Type, ap.Status.Conditions[0].Type)
+					assert.Equal(t, tt.want.Status.Conditions[0].Status, ap.Status.Conditions[0].Status)
+					assert.Equal(t, tt.want.Status.Conditions[0].Reason, ap.Status.Conditions[0].Reason)
+					assert.Equal(t, tt.want.Status.Conditions[0].Message, ap.Status.Conditions[0].Message)
+					// LastTransitionTime and LastUpdated are dynamic, so we just verify they're set
+					assert.NotZero(t, ap.Status.Conditions[0].LastTransitionTime)
+					if tt.want.Status.LastUpdated != nil || ap.Status.LastUpdated != nil {
+						assert.NotNil(t, ap.Status.LastUpdated)
+					}
+				}
+			}
 		})
 	}
 }
@@ -811,7 +854,7 @@ func TestApplicationProfileControllerKubernetesError(t *testing.T) {
 				namespace := createNamespaceWithTenant("default")
 
 				builder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ap, namespace).WithStatusSubresource(ap).WithInterceptorFuncs(interceptor.Funcs{
-					Update: func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
+					Patch: func(ctx context.Context, client client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 						return k8serror.NewInternalError(errors.New("internal server error"))
 					},
 				})
@@ -844,7 +887,7 @@ func TestApplicationProfileControllerKubernetesError(t *testing.T) {
 				namespace := createNamespaceWithTenant("default")
 
 				builder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(ap, namespace).WithStatusSubresource(ap).WithInterceptorFuncs(interceptor.Funcs{
-					Update: func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
+					Patch: func(ctx context.Context, client client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 						return k8serror.NewInternalError(errors.New("internal server error"))
 					},
 				})

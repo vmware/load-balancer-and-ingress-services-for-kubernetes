@@ -14,6 +14,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+var (
+	sessionInstance *Session
+	sessionOnce     sync.Once
+)
+
 //go:generate mockgen -source=session.go -destination=../../test/mock/session_mock.go -package=mock
 type AviRestClientPoolFactory interface {
 	NewAviRestClientPool(numClients int, ctrlIpAddress, ctrlUsername, ctrlPassword, ctrlAuthToken, controllerVersion, ctrlCAData string, tenant string, protocol string, userHeaders map[string]string) (*utils.AviRestClientPool, string, error)
@@ -56,6 +61,30 @@ func NewSession(k8sClient kubernetes.Interface, eventManager *event.EventManager
 		status:                   utils.AVIAPI_INITIATING,
 		eventManager:             eventManager,
 	}
+}
+
+// GetSessionInstance returns the singleton session instance
+// This should be called after InitializeSingletonSession
+func GetSessionInstance() *Session {
+	if sessionInstance == nil {
+		panic("session not initialized. Call InitializeSingletonSession first.")
+	}
+	return sessionInstance
+}
+
+// InitializeSessionInstance initializes the singleton session instance
+// This should be called once from main.go during application startup
+func InitializeSessionInstance(k8sClient kubernetes.Interface, eventManager *event.EventManager) *Session {
+	sessionOnce.Do(func() {
+		sessionInstance = NewSession(k8sClient, eventManager)
+	})
+	return sessionInstance
+}
+
+// ResetSessionInstance resets the singleton for testing purposes
+func ResetSessionInstance() {
+	sessionInstance = nil
+	sessionOnce = sync.Once{}
 }
 
 func (s *Session) PopulateControllerProperties(ctx context.Context) error {

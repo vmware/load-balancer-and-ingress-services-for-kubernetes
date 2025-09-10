@@ -61,11 +61,34 @@ func TestHealthMonitorController(t *testing.T) {
 					Name: "test",
 				},
 			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				responseUUID := map[string]interface{}{
+					"uuid": "123",
+				}
+				mockAviClient.EXPECT().AviSessionPost(constants.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params ...interface{}) {
+					if resp, ok := response.(*map[string]interface{}); ok {
+						*resp = responseUUID
+					}
+				}).Return(nil).AnyTimes()
+			},
 			want: &akov1alpha1.HealthMonitor{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:            "test",
 					Finalizers:      []string{"healthmonitor.ako.vmware.com/finalizer"},
-					ResourceVersion: "1000",
+					ResourceVersion: "1001",
+				},
+				Status: akov1alpha1.HealthMonitorStatus{
+					UUID:              "123",
+					BackendObjectName: "test-cluster--test",
+					Tenant:            "admin",
+					Conditions: []metav1.Condition{
+						{
+							Type:    "Ready",
+							Status:  metav1.ConditionTrue,
+							Reason:  "Created",
+							Message: "HealthMonitor created successfully on Avi Controller",
+						},
+					},
 				},
 			},
 			wantErr: false,
@@ -726,7 +749,27 @@ func TestHealthMonitorController(t *testing.T) {
 			if tt.wantErr && tt.want == nil {
 				return
 			}
-			assert.Equal(t, tt.want, hm)
+
+			// Compare everything except dynamic fields like LastUpdated and LastTransitionTime
+			if tt.want != nil {
+				assert.Equal(t, tt.want.ObjectMeta.Name, hm.ObjectMeta.Name)
+				assert.Equal(t, tt.want.ObjectMeta.Finalizers, hm.ObjectMeta.Finalizers)
+				assert.Equal(t, tt.want.ObjectMeta.ResourceVersion, hm.ObjectMeta.ResourceVersion)
+				assert.Equal(t, tt.want.Status.UUID, hm.Status.UUID)
+				assert.Equal(t, tt.want.Status.BackendObjectName, hm.Status.BackendObjectName)
+				assert.Equal(t, tt.want.Status.Tenant, hm.Status.Tenant)
+				if len(tt.want.Status.Conditions) > 0 && len(hm.Status.Conditions) > 0 {
+					assert.Equal(t, tt.want.Status.Conditions[0].Type, hm.Status.Conditions[0].Type)
+					assert.Equal(t, tt.want.Status.Conditions[0].Status, hm.Status.Conditions[0].Status)
+					assert.Equal(t, tt.want.Status.Conditions[0].Reason, hm.Status.Conditions[0].Reason)
+					assert.Equal(t, tt.want.Status.Conditions[0].Message, hm.Status.Conditions[0].Message)
+					// LastTransitionTime and LastUpdated are dynamic, so we just verify they're set
+					assert.NotZero(t, hm.Status.Conditions[0].LastTransitionTime)
+					if tt.want.Status.LastUpdated != nil || hm.Status.LastUpdated != nil {
+						assert.NotNil(t, hm.Status.LastUpdated)
+					}
+				}
+			}
 		})
 	}
 }
@@ -819,7 +862,7 @@ func TestHealthMonitorControllerKubernetesError(t *testing.T) {
 				namespace := createNamespaceWithTenant("default")
 
 				builder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(hm, namespace).WithStatusSubresource(hm).WithInterceptorFuncs(interceptor.Funcs{
-					Update: func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
+					Patch: func(ctx context.Context, client client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 						return k8serror.NewInternalError(errors.New("internal server error"))
 					},
 				})
@@ -852,7 +895,7 @@ func TestHealthMonitorControllerKubernetesError(t *testing.T) {
 				namespace := createNamespaceWithTenant("default")
 
 				builder := fake.NewClientBuilder().WithScheme(scheme).WithObjects(hm, namespace).WithStatusSubresource(hm).WithInterceptorFuncs(interceptor.Funcs{
-					Update: func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
+					Patch: func(ctx context.Context, client client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 						return k8serror.NewInternalError(errors.New("internal server error"))
 					},
 				})

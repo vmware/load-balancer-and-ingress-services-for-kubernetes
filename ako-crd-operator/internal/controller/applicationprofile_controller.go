@@ -46,7 +46,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+)
+
+const (
+	applicationProfileControllerName = "applicationprofile-controller"
 )
 
 // ApplicationProfileReconciler reconciles a ApplicationProfile object
@@ -63,6 +68,18 @@ type ApplicationProfileReconciler struct {
 // GetLogger returns the logger for the reconciler to implement NamespaceHandler interface
 func (r *ApplicationProfileReconciler) GetLogger() *utils.AviLogger {
 	return r.Logger
+}
+
+// UpdateAviClient implements AviClientReconciler to update the AVI client when credentials change
+func (r *ApplicationProfileReconciler) UpdateAviClient(client avisession.AviClientInterface) error {
+	r.Logger.Info("Updating AVI client for ApplicationProfile controller")
+	r.AviClient = client
+	return nil
+}
+
+// GetReconcilerName implements AviClientReconciler to return the reconciler name
+func (r *ApplicationProfileReconciler) GetReconcilerName() string {
+	return applicationProfileControllerName
 }
 
 type ApplicationProfileRequest struct {
@@ -101,12 +118,12 @@ func (r *ApplicationProfileReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 	if ap.ObjectMeta.DeletionTimestamp.IsZero() {
 		if !controllerutil.ContainsFinalizer(ap, constants.ApplicationProfileFinalizer) {
+			patch := client.MergeFrom(ap.DeepCopy())
 			controllerutil.AddFinalizer(ap, constants.ApplicationProfileFinalizer)
-			if err := r.Update(ctx, ap); err != nil {
+			if err := r.Patch(ctx, ap, patch); err != nil {
 				log.Error("Failed to add finalizer to ApplicationProfile")
 				return ctrl.Result{}, err
 			}
-			return ctrl.Result{}, nil
 		}
 	} else {
 		// The object is being deleted
@@ -115,15 +132,16 @@ func (r *ApplicationProfileReconciler) Reconcile(ctx context.Context, req ctrl.R
 			return ctrl.Result{}, err
 		}
 		if removeFinalizer {
+			patch := client.MergeFrom(ap.DeepCopy())
 			controllerutil.RemoveFinalizer(ap, constants.ApplicationProfileFinalizer)
+			if err := r.Patch(ctx, ap, patch); err != nil {
+				return ctrl.Result{}, err
+			}
 		} else {
 			if err := r.Status().Update(ctx, ap); err != nil {
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{RequeueAfter: constants.RequeueInterval}, nil
-		}
-		if err := r.Update(ctx, ap); err != nil {
-			return ctrl.Result{}, err
 		}
 		r.EventRecorder.Event(ap, corev1.EventTypeNormal, "Deleted", "ApplicationProfile deleted successfully from Avi Controller")
 		log.Info("successfully deleted applicationprofile")
@@ -337,4 +355,37 @@ func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Cont
 	})
 	log.Info("Application profile successfully created")
 	return resp, nil
+}
+
+// CreateNewControllerAndSetupWithManager creates a new ApplicationProfile controller,
+// registers it with the Secret Controller, and sets it up with the manager
+func CreateNewApplicationProfileControllerAndSetupWithManager(
+	mgr manager.Manager,
+	aviClient avisession.AviClientInterface,
+	cache cache.CacheOperation,
+	clusterName string,
+	secretReconciler *SecretReconciler,
+) (*ApplicationProfileReconciler, error) {
+	// Create the controller
+	reconciler := &ApplicationProfileReconciler{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		AviClient:     aviClient,
+		Cache:         cache,
+		EventRecorder: mgr.GetEventRecorderFor(applicationProfileControllerName),
+		Logger:        utils.AviLog.WithName("applicationprofile"),
+		ClusterName:   clusterName,
+	}
+
+	// Register with Secret Controller
+	if err := secretReconciler.RegisterReconciler(reconciler); err != nil {
+		return nil, err
+	}
+
+	// Setup with manager
+	if err := reconciler.SetupWithManager(mgr); err != nil {
+		return nil, err
+	}
+
+	return reconciler, nil
 }

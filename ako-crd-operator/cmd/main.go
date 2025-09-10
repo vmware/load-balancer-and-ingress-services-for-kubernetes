@@ -86,8 +86,9 @@ func main() {
 	// TODO: crd-specific event recorders
 	eventRecorder := utils.NewEventRecorder("ako-crd-operator", kubeClient, false)
 	eventManager := event.NewEventManager(eventRecorder, &v1.Pod{})
-	// setup controller properties
-	sessionManager := session2.NewSession(kubeClient, eventManager)
+
+	// Initialize singleton session
+	sessionManager := session2.InitializeSessionInstance(kubeClient, eventManager)
 	if err := sessionManager.PopulateControllerProperties(ctx); err != nil {
 		setupLog.Fatalf("Error populating controller properties. error: %s", err.Error())
 	}
@@ -105,40 +106,50 @@ func main() {
 	}
 	utils.AviLog.SetLevel(GetEnvOrDefault("LOG_LEVEL", "INFO"))
 
-	hmReconciler := &controller.HealthMonitorReconciler{
-		Client:        mgr.GetClient(),
-		Scheme:        mgr.GetScheme(),
-		AviClient:     session2.NewAviSessionClient(aviClients.AviClient[0]),
-		Cache:         cacheManager,
-		EventRecorder: mgr.GetEventRecorderFor("healthmonitor-controller"),
-		Logger:        utils.AviLog.WithName("healthmonitor"),
-		ClusterName:   clusterName,
+	// Create Secret Controller first
+	secretReconciler := controller.NewSecretReconciler(
+		mgr.GetClient(),
+		mgr.GetScheme(),
+		clusterName,
+	)
+	secretReconciler.EventRecorder = mgr.GetEventRecorderFor(controller.SecretControllerName)
+
+	// Setup Secret Controller with manager
+	if err = secretReconciler.SetupWithManager(mgr); err != nil {
+		setupLog.Fatalf("unable to create Secret Controller. error: %s", err.Error())
 	}
 
-	if err = hmReconciler.SetupWithManager(mgr); err != nil {
-		setupLog.Fatalf("unable to create controller [HealthMonitor]. error: %s", err.Error())
+	// Create controllers using factory methods
+	_, err = controller.CreateNewHealthMonitorControllerAndSetupWithManager(
+		mgr,
+		session2.NewAviSessionClient(aviClients.AviClient[0]),
+		cacheManager,
+		clusterName,
+		secretReconciler,
+	)
+	if err != nil {
+		setupLog.Fatalf("unable to create HealthMonitor controller. error: %s", err.Error())
 	}
-	if err = (&controller.ApplicationProfileReconciler{
-		Client:        mgr.GetClient(),
-		Scheme:        mgr.GetScheme(),
-		AviClient:     session2.NewAviSessionClient(aviClients.AviClient[1]),
-		Cache:         cacheManager,
-		EventRecorder: mgr.GetEventRecorderFor("applicationprofile-controller"),
-		Logger:        utils.AviLog.WithName("applicationprofile"),
-		ClusterName:   clusterName,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Fatalf("unable to create controller [ApplicationProfile]. error: %s", err.Error())
+
+	_, err = controller.CreateNewApplicationProfileControllerAndSetupWithManager(
+		mgr,
+		session2.NewAviSessionClient(aviClients.AviClient[1]),
+		cacheManager,
+		clusterName,
+		secretReconciler,
+	)
+	if err != nil {
+		setupLog.Fatalf("unable to create ApplicationProfile controller. error: %s", err.Error())
 	}
-	if err := (&controller.RouteBackendExtensionReconciler{
-		Client:        mgr.GetClient(),
-		Scheme:        mgr.GetScheme(),
-		AviClient:     session2.NewAviSessionClient(aviClients.AviClient[2]),
-		Cache:         cacheManager,
-		EventRecorder: mgr.GetEventRecorderFor("routebackendextension-controller"),
-		Logger:        utils.AviLog.WithName("routebackendextension"),
-		ClusterName:   clusterName,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Fatalf("unable to create controller [RouteBackendExtension]. error: %s", err.Error())
+
+	_, err = controller.CreateNewRouteBackendExtensionControllerAndSetupWithManager(
+		mgr,
+		session2.NewAviSessionClient(aviClients.AviClient[2]),
+		clusterName,
+		secretReconciler,
+	)
+	if err != nil {
+		setupLog.Fatalf("unable to create RouteBackendExtension controller. error: %s", err.Error())
 	}
 	// +kubebuilder:scaffold:builder
 
