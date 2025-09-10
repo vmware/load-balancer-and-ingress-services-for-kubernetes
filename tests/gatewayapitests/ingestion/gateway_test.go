@@ -746,3 +746,166 @@ func TestGatewayWithValidAllowedRoute(t *testing.T) {
 	akogatewayapitests.TeardownGateway(t, gwName, DEFAULT_NAMESPACE)
 	waitAndverify(t, gwKey)
 }
+
+// Helper function to setup a gateway in dedicated mode for ingestion tests
+func setupDedicatedGateway(t *testing.T, name, namespace, gatewayClass string, listeners []gatewayv1.Listener) *gatewayv1.Gateway {
+	gateway := gatewayv1.Gateway{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "gateway.networking.k8s.io/v1",
+			Kind:       "Gateway",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Annotations: map[string]string{
+				"ako.vmware.com/dedicated-gateway-mode": "true",
+			},
+		},
+		Spec: gatewayv1.GatewaySpec{
+			GatewayClassName: gatewayv1.ObjectName(gatewayClass),
+			Listeners:        listeners,
+		},
+		Status: gatewayv1.GatewayStatus{},
+	}
+	return &gateway
+}
+
+func TestDedicatedGatewayCUD(t *testing.T) {
+	gwName := "dedicated-gw-example-01"
+	gwClassName := "dedicated-gw-class-example-01"
+	gwKey := "Gateway/" + DEFAULT_NAMESPACE + "/" + gwName
+
+	// Create listeners for dedicated gateway
+	listeners := []gatewayv1.Listener{
+		{
+			Name:     "listener-http",
+			Port:     80,
+			Protocol: gatewayv1.HTTPProtocolType,
+		},
+	}
+
+	// Create dedicated gateway
+	gateway := setupDedicatedGateway(t, gwName, DEFAULT_NAMESPACE, gwClassName, listeners)
+	gw, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Create(context.TODO(), gateway, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't create dedicated gateway, err: %+v", err)
+	}
+	t.Logf("Created dedicated gateway %+v", gw.Name)
+	waitAndverify(t, gwKey)
+
+	// Update - add a second listener (valid for dedicated mode)
+	secondListener := gatewayv1.Listener{
+		Name:     "listener-https",
+		Port:     443,
+		Protocol: gatewayv1.HTTPSProtocolType,
+	}
+	gateway.Spec.Listeners = append(gateway.Spec.Listeners, secondListener)
+	gw, err = akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Update(context.TODO(), gateway, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't update dedicated gateway, err: %+v", err)
+	}
+	t.Logf("Updated dedicated gateway %+v", gw.Name)
+	waitAndverify(t, gwKey)
+
+	// Update - change gateway class
+	akogatewayapitests.SetGatewayGatewayClass(gateway, "dedicated-gw-class-new")
+	gw, err = akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Update(context.TODO(), gateway, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't update dedicated gateway class, err: %+v", err)
+	}
+	t.Logf("Updated dedicated gateway class %+v", gw.Name)
+	waitAndverify(t, gwKey)
+
+	// Delete
+	err = akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Delete(context.TODO(), gateway.Name, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't delete dedicated gateway, err: %+v", err)
+	}
+	t.Logf("Deleted dedicated gateway %+v", gw.Name)
+	waitAndverify(t, gwKey)
+}
+
+func TestDedicatedGatewayWithTLS(t *testing.T) {
+	gwName := "dedicated-gw-tls-example"
+	gwClassName := "dedicated-gw-class-tls-example"
+	gwKey := "Gateway/" + DEFAULT_NAMESPACE + "/" + gwName
+	secretName := "dedicated-gw-secret"
+
+	// Create secret for TLS
+	integrationtest.AddSecret(secretName, DEFAULT_NAMESPACE, "cert", "key")
+	waitAndverify(t, "Secret/"+DEFAULT_NAMESPACE+"/"+secretName)
+
+	// Create HTTPS listener with TLS configuration
+	listeners := []gatewayv1.Listener{
+		{
+			Name:     "listener-https",
+			Port:     443,
+			Protocol: gatewayv1.HTTPSProtocolType,
+			TLS: &gatewayv1.GatewayTLSConfig{
+				Mode: func() *gatewayv1.TLSModeType {
+					mode := gatewayv1.TLSModeTerminate
+					return &mode
+				}(),
+				CertificateRefs: []gatewayv1.SecretObjectReference{
+					{
+						Name: gatewayv1.ObjectName(secretName),
+						Kind: func() *gatewayv1.Kind {
+							kind := gatewayv1.Kind("Secret")
+							return &kind
+						}(),
+						Namespace: func() *gatewayv1.Namespace {
+							ns := gatewayv1.Namespace(DEFAULT_NAMESPACE)
+							return &ns
+						}(),
+					},
+				},
+			},
+		},
+	}
+
+	// Create dedicated gateway with TLS
+	gateway := setupDedicatedGateway(t, gwName, DEFAULT_NAMESPACE, gwClassName, listeners)
+	gw, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Create(context.TODO(), gateway, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't create dedicated gateway with TLS, err: %+v", err)
+	}
+	t.Logf("Created dedicated gateway with TLS %+v", gw.Name)
+	waitAndverify(t, gwKey)
+
+	// Update - add HTTP listener alongside HTTPS
+	httpListener := gatewayv1.Listener{
+		Name:     "listener-http",
+		Port:     80,
+		Protocol: gatewayv1.HTTPProtocolType,
+	}
+	gateway.Spec.Listeners = append(gateway.Spec.Listeners, httpListener)
+	gw, err = akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Update(context.TODO(), gateway, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't update dedicated gateway with additional listener, err: %+v", err)
+	}
+	t.Logf("Updated dedicated gateway with additional HTTP listener %+v", gw.Name)
+	waitAndverify(t, gwKey)
+
+	// Update - change TLS mode to Passthrough (this will cause validation error but still generate ingestion event)
+	passthroughMode := gatewayv1.TLSModePassthrough
+	gateway.Spec.Listeners[0].TLS.Mode = &passthroughMode
+	gw, err = akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Update(context.TODO(), gateway, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't update dedicated gateway TLS mode, err: %+v", err)
+	}
+	t.Logf("Updated dedicated gateway TLS mode to passthrough %+v", gw.Name)
+	// This still generates an ingestion event even though the listener becomes invalid
+	waitAndverify(t, gwKey)
+
+	// Delete
+	err = akogatewayapitests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Delete(context.TODO(), gateway.Name, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("Couldn't delete dedicated gateway with TLS, err: %+v", err)
+	}
+	t.Logf("Deleted dedicated gateway with TLS %+v", gw.Name)
+	waitAndverify(t, gwKey)
+
+	// Clean up secret
+	integrationtest.DeleteSecret(secretName, DEFAULT_NAMESPACE)
+	waitAndverify(t, "Secret/"+DEFAULT_NAMESPACE+"/"+secretName)
+}
