@@ -23,6 +23,7 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/addon"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/proxy"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/webhook"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -289,6 +290,8 @@ func (c *VCFK8sController) AddVKSCapabilityEventHandler(stopCh <-chan struct{}) 
 func (c *VCFK8sController) startVKSInfrastructure(stopCh <-chan struct{}) {
 	go addon.EnsureGlobalAddonInstallWithRetry(stopCh)
 
+	go proxy.EnsureGlobalManagementServiceWithRetry(stopCh)
+
 	go webhook.StartVKSWebhook(utils.GetInformers().ClientSet, stopCh)
 
 	go StartVKSClusterWatcherWithRetry(stopCh, c.dynamicInformers)
@@ -303,6 +306,12 @@ func (c *VCFK8sController) startVKSInfrastructure(stopCh <-chan struct{}) {
 			utils.AviLog.Errorf("VKS: Failed to cleanup global AddonInstall: %v", err)
 		} else {
 			utils.AviLog.Infof("VKS: Successfully cleaned up global AddonInstall")
+		}
+
+		if err := proxy.CleanupGlobalManagementService(); err != nil {
+			utils.AviLog.Errorf("VKS: Failed to cleanup global ManagementService: %v", err)
+		} else {
+			utils.AviLog.Infof("VKS: Successfully cleaned up global ManagementService")
 		}
 
 		utils.AviLog.Infof("VKS: All cleanup completed successfully")
