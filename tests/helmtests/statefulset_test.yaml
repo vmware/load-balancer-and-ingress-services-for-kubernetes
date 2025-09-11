@@ -84,3 +84,45 @@ tests:
       - equal:
           path: spec.replicas
           value: 1
+  - it: StatefulSet should contain VPC_MODE in ako statefulset when GatewayAPI is disabled
+    set:
+      featureGates:
+        GatewayAPI: false
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - hasDocuments:
+          count: 1
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:      
+            name: VPC_MODE
+            valueFrom:
+              configMapKeyRef:
+                key: vpcMode
+                name: avi-k8s-config
+  - it: StatefulSet should contain VPC_MODE in both ako and ako-gateway-api statefulset when GatewayAPI is enabled
+    set:
+      featureGates:
+        GatewayAPI: true
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - hasDocuments:
+          count: 1
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:      
+            name: VPC_MODE
+            valueFrom:
+              configMapKeyRef:
+                key: vpcMode
+                name: avi-k8s-config
+      - contains:
+          path: spec.template.spec.containers[1].env
+          content:      
+            name: VPC_MODE
+            valueFrom:
+              configMapKeyRef:
+                key: vpcMode
+                name: avi-k8s-config
