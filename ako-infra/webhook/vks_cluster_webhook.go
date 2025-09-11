@@ -259,7 +259,7 @@ func (w *VKSClusterWebhook) shouldManageCluster(cluster *unstructured.Unstructur
 	}
 
 	// Check if namespace has service engine group configuration
-	hasSEG, err := w.namespaceHasSEG(cluster.GetNamespace())
+	hasSEG, err := internalLib.NamespaceHasSEGByName(cluster.GetNamespace())
 	if err != nil {
 		utils.AviLog.Errorf("VKS webhook: failed to check SEG configuration for namespace %s: %v",
 			cluster.GetNamespace(), err)
@@ -274,22 +274,6 @@ func (w *VKSClusterWebhook) shouldManageCluster(cluster *unstructured.Unstructur
 	utils.AviLog.Infof("VKS webhook: cluster %s/%s eligible for VKS management",
 		cluster.GetNamespace(), cluster.GetName())
 	return true
-}
-
-// namespaceHasSEG checks if a namespace has service engine group configuration
-func (w *VKSClusterWebhook) namespaceHasSEG(namespaceName string) (bool, error) {
-	namespace, err := w.client.CoreV1().Namespaces().Get(context.TODO(), namespaceName, metav1.GetOptions{})
-	if err != nil {
-		return false, fmt.Errorf("failed to get namespace %s: %w", namespaceName, err)
-	}
-
-	if namespace.Annotations != nil {
-		if _, exists := namespace.Annotations[internalLib.WCPSEGroup]; exists {
-			return true, nil
-		}
-	}
-
-	return false, nil
 }
 
 // createVKSLabelPatch creates a JSON patch to add the VKS managed AKO Install label
