@@ -476,6 +476,47 @@ informers_tests:
 	$(GOTEST) -v -mod=vendor $(INFORMERS_PACKAGES)  -failfast -timeout 0 \
 	-coverprofile cover-26.out -coverpkg=./... > informers_tests.log 2>&1 && echo "informers_tests passed") || (echo "informers_tests failed" && cat informers_tests.log && exit 1)
 
+.PHONY: vks_addon_controller_tests
+vks_addon_controller_tests:
+	@> vks_addon_controller_tests.log
+	(sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/ako-infra/addon -failfast -timeout 0 \
+	-coverprofile cover-27.out -coverpkg=./... > vks_addon_controller_tests.log 2>&1 && echo "vks_addon_controller_tests passed") || (echo "vks_addon_controller_tests failed" && cat vks_addon_controller_tests.log && exit 1)
+
+.PHONY: vks_cluster_webhook_tests
+vks_cluster_webhook_tests:
+	@> vks_cluster_webhook_tests.log
+	(sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/ako-infra/webhook -failfast -timeout 0 \
+	-coverprofile cover-28.out -coverpkg=./... > vks_cluster_webhook_tests.log 2>&1 && echo "vks_cluster_webhook_tests passed") || (echo "vks_cluster_webhook_tests failed" && cat vks_cluster_webhook_tests.log && exit 1)
+
+.PHONY: vks_cluster_watcher_tests
+vks_cluster_watcher_tests:
+	@> vks_cluster_watcher_tests.log
+	(sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/ako-infra/ingestion -failfast -timeout 0 \
+	-coverprofile cover-29.out -coverpkg=./... > vks_cluster_watcher_tests.log 2>&1 && echo "vks_cluster_watcher_tests passed") || (echo "vks_cluster_watcher_tests failed" && cat vks_cluster_watcher_tests.log && exit 1)
+
+.PHONY: avi_rbac_tests
+avi_rbac_tests:
+	@> avi_rbac_tests.log
+	(sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/internal/lib -run "Test.*" -failfast -timeout 0 \
+	-coverprofile cover-30.out -coverpkg=./... > avi_rbac_tests.log 2>&1 && echo "avi_rbac_tests passed") || (echo "avi_rbac_tests failed" && cat avi_rbac_tests.log && exit 1)
+
+.PHONY: vks_tests
+vks_tests:
+	@> vks_tests.log
+	(make -j 4 --output-sync=target vks_addon_controller_tests vks_cluster_webhook_tests vks_cluster_watcher_tests avi_rbac_tests > vks_tests.log 2>&1 && echo "vks_tests passed") || (echo "vks_tests failed" && cat vks_tests.log && exit 1)
+
 .PHONY: int_test
 int_test:
 	@> int_test.log
@@ -486,7 +527,7 @@ int_test:
 	dedicatedvstests hatests calicotests ciliumtests \
 	helmtests infratests urltests multitenancytests gatewayapi_ingestiontests gatewayapi_graphlayertests \
 	gatewayapi_statustests gatewayapi_npltests gatewayapi_infrasettingtests gatewayapi_multitenancytests \
-	informers_tests > int_test.log 2>&1 \
+	informers_tests vks_tests > int_test.log 2>&1 \
 	&& echo "int_test succeeded" && buffer -i int_test.log -u 1000 -z 1k) \
 	|| (echo "int_test failed" && (buffer -i int_test.log -u 2000 -z 1b || \
 	echo "Dumping the whole log failed; here are the last 100 lines" && tail -n100 int_test.log ) && exit 1)

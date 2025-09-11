@@ -519,7 +519,7 @@ func TestVKSClusterLifecycleIntegration(t *testing.T) {
 			return false
 		}
 
-		expectedFields := []string{"username", "controllerIP", "password"}
+		expectedFields := []string{"username", "controllerHost", "password"}
 		for _, field := range expectedFields {
 			if _, exists := secret.Data[field]; !exists {
 				t.Logf("Secret missing field: %s", field)
@@ -656,7 +656,7 @@ func TestVKSEndToEndIntegration(t *testing.T) {
 			return false
 		}
 
-		requiredFields := []string{"username", "password", "controllerIP"}
+		requiredFields := []string{"username", "password", "controllerHost"}
 		for _, field := range requiredFields {
 			if _, exists := secret.Data[field]; !exists {
 				t.Logf("Secret missing required field: %s", field)
@@ -908,7 +908,7 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 			return false
 		}
 
-		requiredFields := []string{"username", "password", "controllerIP"}
+		requiredFields := []string{"username", "password", "controllerHost"}
 		for _, field := range requiredFields {
 			if _, exists := secret.Data[field]; !exists {
 				return false

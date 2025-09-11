@@ -55,7 +55,7 @@ const (
 type VKSClusterConfig struct {
 	Username                 string
 	Password                 string
-	ControllerIP             string
+	ControllerHost           string
 	ControllerVersion        string
 	CertificateAuthorityData string
 	VPCMode                  bool
@@ -553,7 +553,7 @@ func (w *VKSClusterWatcher) buildVKSClusterConfig(cluster *unstructured.Unstruct
 	config := &VKSClusterConfig{
 		Username:                 clusterCreds.Username,
 		Password:                 clusterCreds.Password,
-		ControllerIP:             controllerIP,
+		ControllerHost:           controllerIP,
 		ControllerVersion:        lib.GetControllerVersion(),
 		CertificateAuthorityData: certificateAuthorityData,
 		ServiceEngineGroup:       nsConfig.ServiceEngineGroup,
@@ -670,7 +670,7 @@ func (w *VKSClusterWatcher) buildSecretData(config *VKSClusterConfig) map[string
 	secretData := make(map[string][]byte)
 
 	secretData["username"] = []byte(config.Username)
-	secretData["controllerIP"] = []byte(config.ControllerIP)
+	secretData["controllerHost"] = []byte(config.ControllerHost)
 
 	secretData["clusterName"] = []byte(config.ClusterName)
 
