@@ -2728,6 +2728,7 @@ func CreateTCPHealthMonitorCRDWithStatus(t *testing.T, name, namespace, uuid str
 						"message": message,
 					},
 				},
+				"tenant": "admin",
 			},
 		},
 	}

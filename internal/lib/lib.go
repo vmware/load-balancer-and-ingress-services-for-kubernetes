@@ -2423,7 +2423,16 @@ func IsHealthMonitorProcessedWithOptions(key, namespace, name string, clientSet 
 		utils.AviLog.Warnf("key: %s, msg: HealthMonitor %s/%s status not found: %+v", key, namespace, name, err)
 		return false, false, err
 	}
-
+	tenant, ok := statusJSON["tenant"]
+	if !ok || tenant == "" {
+		utils.AviLog.Warnf("key:%s/%s, msg: HealthMonitor CRD tenant not found", namespace, name)
+		return false, false, fmt.Errorf("healthMonitor %s/%s is not processed by AKO CRD Operator", namespace, name)
+	}
+	namespaceTenant := GetTenantInNamespace(namespace)
+	if tenant != namespaceTenant {
+		utils.AviLog.Warnf("key:%s/%s, msg: HealthMonitor CRD tenant %s is not same as namespace tenant %s", namespace, name, tenant, namespaceTenant)
+		return false, false, fmt.Errorf("healthMonitor %s/%s is not processed by AKO CRD Operator", namespace, name)
+	}
 	conditions, ok := statusJSON["conditions"]
 	if !ok || conditions.([]interface{}) == nil || len(conditions.([]interface{})) == 0 {
 		return false, false, fmt.Errorf("healthMonitor %s/%s is not processed by AKO CRD Operator", namespace, name)

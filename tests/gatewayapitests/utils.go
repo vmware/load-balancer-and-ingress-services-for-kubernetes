@@ -813,6 +813,7 @@ func CreateHealthMonitorCRDWithStatus(t *testing.T, name, namespace, uuid string
 						"message": message,
 					},
 				},
+				"tenant": "admin",
 			},
 		},
 	}
@@ -1228,6 +1229,7 @@ func GetFakeApplicationProfile(name string, status *FakeApplicationProfileStatus
 					"message": status.Message,
 				},
 			},
+			"tenant": "admin",
 		}
 	}
 
