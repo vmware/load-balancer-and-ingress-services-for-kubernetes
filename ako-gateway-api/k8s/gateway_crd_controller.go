@@ -29,6 +29,10 @@ import (
 )
 
 func (c *GatewayController) SetupCRDEventHandlers(numWorkers uint32) {
+	// To be removed once the CRDs are merged in Supervisor
+	if utils.IsWCP() {
+		return
+	}
 	if !utils.IsWCP() {
 		c.setupL7CRDEventHandlers(numWorkers)
 	}

@@ -102,15 +102,21 @@ type DynamicInformers struct {
 // NewDynamicInformers initializes the DynamicInformers struct
 func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInformers {
 	informers := &DynamicInformers{}
+	// To be removed once the CRDs are merged in Supervisor
+	if utils.IsWCP() {
+		dynamicInformerInstance = informers
+		return dynamicInformerInstance
+	}
 	f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, 0, v1.NamespaceAll, nil)
 
 	// not applicable in wcp context
 	if !utils.IsWCP() {
 		informers.L7CRDInformer = f.ForResource(L7CRDGVR)
-		informers.RouteBackendExtensionCRDInformer = f.ForResource(RouteBackendExtensionCRDGVR)
 	}
+
 	informers.HealthMonitorInformer = f.ForResource(HealthMonitorGVR)
 	informers.AppProfileCRDInformer = f.ForResource(AppProfileCRDGVR)
+	informers.RouteBackendExtensionCRDInformer = f.ForResource(RouteBackendExtensionCRDGVR)
 
 	dynamicInformerInstance = informers
 	return dynamicInformerInstance
