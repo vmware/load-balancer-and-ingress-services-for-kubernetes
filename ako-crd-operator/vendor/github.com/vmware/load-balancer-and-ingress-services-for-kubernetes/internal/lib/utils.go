@@ -486,13 +486,13 @@ func AnnotateNamespaceWithInfraSetting(namespace, infraSettingName string, retry
 	return nil
 }
 
-func AnnotateNamespaceWithTenant(namespace, tenant string, retryCounter ...int) error {
+func AnnotateNamespaceWithTenantAndInfraSetting(namespace, tenant, infraSettingName string, retryCounter ...int) error {
 	retry := 0
 	if len(retryCounter) > 0 {
 		retry = retryCounter[0]
 	}
 	if retry > 2 {
-		err := fmt.Errorf("maximum limit reached for retrying Tenant annotation on the Namespace, tenant: %s, namespace: %s", tenant, namespace)
+		err := fmt.Errorf("maximum limit reached for retrying Tenant and InfraSetting annotation on the Namespace, tenant: %s, infrasetting: %s, namespace: %s", tenant, infraSettingName, namespace)
 		utils.AviLog.Errorf(err.Error())
 		return err
 	}
@@ -504,19 +504,20 @@ func AnnotateNamespaceWithTenant(namespace, tenant string, retryCounter ...int) 
 	if nsObj.Annotations == nil {
 		nsObj.Annotations = make(map[string]string)
 	}
-	if nsObj.Annotations[TenantAnnotation] == tenant {
+	if nsObj.Annotations[TenantAnnotation] == tenant && nsObj.Annotations[InfraSettingNameAnnotation] == infraSettingName {
 		return nil
 	}
 	nsObj.Annotations[TenantAnnotation] = tenant
+	nsObj.Annotations[InfraSettingNameAnnotation] = infraSettingName
 	_, err = utils.GetInformers().ClientSet.CoreV1().Namespaces().Update(context.TODO(), nsObj, metav1.UpdateOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error occurred while Updating namespace: %s", err.Error())
 		if strings.Contains(err.Error(), ConcurrentUpdateError) {
-			return AnnotateNamespaceWithTenant(namespace, tenant, retry+1)
+			return AnnotateNamespaceWithTenantAndInfraSetting(namespace, tenant, infraSettingName, retry+1)
 		}
 		return err
 	}
-	utils.AviLog.Infof("Annotated Namespace %s with tenant %s", namespace, tenant)
+	utils.AviLog.Infof("Annotated Namespace %s with tenant %s and Infrasetting %s", namespace, tenant, infraSettingName)
 	return nil
 }
 

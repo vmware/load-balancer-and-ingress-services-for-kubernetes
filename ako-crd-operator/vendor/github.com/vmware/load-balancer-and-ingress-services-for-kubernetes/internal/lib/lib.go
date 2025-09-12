@@ -46,9 +46,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	k8net "k8s.io/utils/net"
 
@@ -2391,4 +2394,83 @@ func GetNSToSEGMap() (map[string]string, error) {
 		}
 	}
 	return nsToSEGMap, nil
+}
+
+// IsHealthMonitorProcessedWithOptions checks if HealthMonitor CRD is processed by AKO CRD Operator
+// Returns (processed, ready, error)
+// checkDeleted parameter controls whether to check for deletion state (used by internal lib but not gateway API)
+func IsHealthMonitorProcessedWithOptions(key, namespace, name string, clientSet dynamic.Interface, checkDeleted bool, obj ...*unstructured.Unstructured) (bool, bool, error) {
+	if clientSet == nil {
+		return false, false, fmt.Errorf("internal error in fetching HealthMonitor %s/%s object", namespace, name)
+	}
+
+	var object *unstructured.Unstructured
+	var err error
+	if len(obj) == 0 {
+		object, err = clientSet.Resource(HealthMonitorGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				return false, false, fmt.Errorf("healthMonitor %s/%s not found", namespace, name)
+			}
+			return false, false, err
+		}
+	} else {
+		object = obj[0]
+	}
+
+	statusJSON, found, err := unstructured.NestedMap(object.UnstructuredContent(), "status")
+	if err != nil || !found {
+		utils.AviLog.Warnf("key: %s, msg: HealthMonitor %s/%s status not found: %+v", key, namespace, name, err)
+		return false, false, err
+	}
+	tenant, ok := statusJSON["tenant"]
+	if !ok || tenant == "" {
+		utils.AviLog.Warnf("key:%s/%s, msg: HealthMonitor CRD tenant not found", namespace, name)
+		return false, false, fmt.Errorf("healthMonitor %s/%s is not processed by AKO CRD Operator", namespace, name)
+	}
+	namespaceTenant := GetTenantInNamespace(namespace)
+	if tenant != namespaceTenant {
+		utils.AviLog.Warnf("key:%s/%s, msg: HealthMonitor CRD tenant %s is not same as namespace tenant %s", namespace, name, tenant, namespaceTenant)
+		return false, false, fmt.Errorf("healthMonitor %s/%s is not processed by AKO CRD Operator", namespace, name)
+	}
+	conditions, ok := statusJSON["conditions"]
+	if !ok || conditions.([]interface{}) == nil || len(conditions.([]interface{})) == 0 {
+		return false, false, fmt.Errorf("healthMonitor %s/%s is not processed by AKO CRD Operator", namespace, name)
+	}
+
+	processed, ready := false, false
+	deleted := false
+
+	for _, condition := range conditions.([]interface{}) {
+		conditionMap, ok := condition.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		switch conditionMap["type"] {
+		case "Ready":
+			processed = true
+			if conditionMap["status"] == "True" {
+				ready = true
+			}
+		case "Deleted":
+			if checkDeleted && conditionMap["status"] == "False" {
+				// HealthMonitor is being deleted (finalizer prevents actual deletion)
+				// This indicates the object is marked for deletion but still exists
+				deleted = true
+				utils.AviLog.Debugf("key: %s, msg: HealthMonitor %s/%s is being deleted (Deleted condition status=False)", key, namespace, name)
+			}
+		}
+	}
+
+	// If HealthMonitor is being deleted and we're checking for deletion, treat it as not ready
+	if checkDeleted && deleted {
+		return processed, false, fmt.Errorf("healthMonitor %s/%s is being deleted", namespace, name)
+	}
+
+	if processed {
+		return true, ready, nil
+	}
+
+	return false, false, nil
 }
