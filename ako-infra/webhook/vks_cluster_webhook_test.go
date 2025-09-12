@@ -481,6 +481,51 @@ func TestVKSClusterWebhook_ShouldManageCluster_AlreadyManaged(t *testing.T) {
 	}
 }
 
+// Namespace SEG checking tests
+func TestVKSClusterWebhook_NamespaceHasSEG_WithSEG(t *testing.T) {
+	namespace := createNamespaceWithSEG("test-namespace", "test-seg")
+	kubeClient := k8sfake.NewSimpleClientset(namespace)
+	webhook := NewVKSClusterWebhook(kubeClient)
+
+	hasSEG, err := webhook.namespaceHasSEG("test-namespace")
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	if !hasSEG {
+		t.Errorf("Expected namespace to have SEG, got false")
+	}
+}
+
+func TestVKSClusterWebhook_NamespaceHasSEG_WithoutSEG(t *testing.T) {
+	namespace := createNamespaceWithoutSEG("test-namespace")
+	kubeClient := k8sfake.NewSimpleClientset(namespace)
+	webhook := NewVKSClusterWebhook(kubeClient)
+
+	hasSEG, err := webhook.namespaceHasSEG("test-namespace")
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	if hasSEG {
+		t.Errorf("Expected namespace not to have SEG, got true")
+	}
+}
+
+func TestVKSClusterWebhook_NamespaceHasSEG_NamespaceNotFound(t *testing.T) {
+	kubeClient := k8sfake.NewSimpleClientset()
+	webhook := NewVKSClusterWebhook(kubeClient)
+
+	hasSEG, err := webhook.namespaceHasSEG("nonexistent-namespace")
+	if err == nil {
+		t.Errorf("Expected error for nonexistent namespace, got nil")
+	}
+
+	if hasSEG {
+		t.Errorf("Expected false for nonexistent namespace, got true")
+	}
+}
+
 // Label patch creation tests
 func TestVKSClusterWebhook_CreateVKSLabelPatch_NoExistingLabels(t *testing.T) {
 	webhook := NewVKSClusterWebhook(k8sfake.NewSimpleClientset())

@@ -23,6 +23,8 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
+	corev1 "k8s.io/api/core/v1"
+
 	"gopkg.in/yaml.v2"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -339,4 +341,149 @@ func (c *ManagementServiceController) DeleteManagementServiceGrant(namespace str
 
 	utils.AviLog.Infof("VKS ManagementServiceGrant %s in namespace %s deleted successfully. Response: %v", grantName, namespace, response)
 	return nil
+}
+
+// HandleNamespaceGrantAdd creates a ManagementServiceGrant when a namespace with SEG annotation is added
+func HandleNamespaceGrantAdd(obj interface{}) {
+	if !lib.GetVPCMode() {
+		return
+	}
+	namespace, ok := obj.(*corev1.Namespace)
+	if !ok {
+		utils.AviLog.Warnf("VKS ManagementServiceGrant: expected namespace object, got %T", obj)
+		return
+	}
+
+	if !namespaceHasSEG(namespace) {
+		utils.AviLog.Debugf("VKS ManagementServiceGrant: namespace %s does not have SEG annotation, skipping", namespace.Name)
+		return
+	}
+
+	controller := NewManagementServiceController()
+	if controller == nil {
+		utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to create controller for namespace %s", namespace.Name)
+		return
+	}
+
+	utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s added with SEG annotation, creating grant", namespace.Name)
+	if err := controller.CreateManagementServiceGrant(namespace.Name); err != nil {
+		utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to create grant for namespace %s: %v", namespace.Name, err)
+	}
+}
+
+// HandleNamespaceGrantUpdate manages ManagementServiceGrant when namespace SEG annotation changes
+func HandleNamespaceGrantUpdate(oldObj, newObj interface{}) {
+	if !lib.GetVPCMode() {
+		return
+	}
+	oldNamespace, ok := oldObj.(*corev1.Namespace)
+	if !ok {
+		utils.AviLog.Warnf("VKS ManagementServiceGrant: expected namespace object, got %T", oldObj)
+		return
+	}
+
+	newNamespace, ok := newObj.(*corev1.Namespace)
+	if !ok {
+		utils.AviLog.Warnf("VKS ManagementServiceGrant: expected namespace object, got %T", newObj)
+		return
+	}
+
+	oldHasSEG := namespaceHasSEG(oldNamespace)
+	newHasSEG := namespaceHasSEG(newNamespace)
+
+	if oldHasSEG == newHasSEG {
+		return
+	}
+
+	controller := NewManagementServiceController()
+	if controller == nil {
+		utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to create controller for namespace %s", newNamespace.Name)
+		return
+	}
+
+	if !oldHasSEG && newHasSEG {
+		// SEG annotation was added
+		utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s now has SEG annotation, creating grant", newNamespace.Name)
+		if err := controller.CreateManagementServiceGrant(newNamespace.Name); err != nil {
+			utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to create grant for namespace %s: %v", newNamespace.Name, err)
+		}
+	} else if oldHasSEG && !newHasSEG {
+		// SEG annotation was removed
+		utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s no longer has SEG annotation, deleting grant", newNamespace.Name)
+		if err := controller.DeleteManagementServiceGrant(newNamespace.Name); err != nil {
+			utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to delete grant for namespace %s: %v", newNamespace.Name, err)
+		}
+	}
+}
+
+// HandleNamespaceGrantDelete removes a ManagementServiceGrant when a namespace is deleted
+func HandleNamespaceGrantDelete(obj interface{}) {
+	if !lib.GetVPCMode() {
+		return
+	}
+	namespace, ok := obj.(*corev1.Namespace)
+	if !ok {
+		utils.AviLog.Warnf("VKS ManagementServiceGrant: expected namespace object, got %T", obj)
+		return
+	}
+
+	if !namespaceHasSEG(namespace) {
+		utils.AviLog.Debugf("VKS ManagementServiceGrant: namespace %s did not have SEG annotation, skipping", namespace.Name)
+		return
+	}
+
+	controller := NewManagementServiceController()
+	if controller == nil {
+		utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to create controller for namespace %s", namespace.Name)
+		return
+	}
+
+	utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s deleted, removing grant", namespace.Name)
+	if err := controller.DeleteManagementServiceGrant(namespace.Name); err != nil {
+		utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to delete grant for namespace %s: %v", namespace.Name, err)
+	}
+}
+
+// ReconcileManagementServiceGrants ensures ManagementServiceGrants exist for all namespaces with SEG annotations
+func ReconcileManagementServiceGrants() {
+	if !lib.GetVPCMode() {
+		return
+	}
+
+	utils.AviLog.Debugf("VKS reconciler: reconciling ManagementServiceGrants")
+
+	controller := NewManagementServiceController()
+	if controller == nil {
+		utils.AviLog.Errorf("VKS reconciler: failed to create ManagementServiceController")
+		return
+	}
+
+	// Get all namespaces
+	namespaces, err := utils.GetInformers().NSInformer.Lister().List(nil)
+	if err != nil {
+		utils.AviLog.Errorf("VKS reconciler: failed to list namespaces: %v", err)
+		return
+	}
+
+	grantCount := 0
+	for _, namespace := range namespaces {
+		if namespaceHasSEG(namespace) {
+			if err := controller.CreateManagementServiceGrant(namespace.Name); err != nil {
+				utils.AviLog.Errorf("VKS reconciler: failed to ensure grant for namespace %s: %v", namespace.Name, err)
+			} else {
+				grantCount++
+			}
+		}
+	}
+
+	utils.AviLog.Debugf("VKS reconciler: reconciled %d ManagementServiceGrants", grantCount)
+}
+
+func namespaceHasSEG(namespace *corev1.Namespace) bool {
+	if namespace.Annotations != nil {
+		if _, exists := namespace.Annotations[lib.WCPSEGroup]; exists {
+			return true
+		}
+	}
+	return false
 }

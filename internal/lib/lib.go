@@ -2482,26 +2482,3 @@ func IsHealthMonitorProcessedWithOptions(key, namespace, name string, clientSet 
 
 	return false, false, nil
 }
-
-func NamespaceHasSEG(namespace *corev1.Namespace) bool {
-	if namespace.Annotations != nil {
-		if _, exists := namespace.Annotations[WCPSEGroup]; exists {
-			return true
-		}
-	}
-	return false
-}
-
-func NamespaceHasSEGByName(namespaceName string) (bool, error) {
-	informers := utils.GetInformers()
-	if informers == nil || informers.NSInformer == nil {
-		return false, fmt.Errorf("namespace informer not available")
-	}
-
-	namespace, err := informers.NSInformer.Lister().Get(namespaceName)
-	if err != nil {
-		return false, fmt.Errorf("failed to get namespace %s from cache: %w", namespaceName, err)
-	}
-
-	return NamespaceHasSEG(namespace), nil
-}
