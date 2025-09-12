@@ -41,6 +41,16 @@ spec:
             type: object
           spec:
             properties:
+              domainName:
+                description: |-
+                  List of domain names which will be used to verify the common names or subject alternative names presented by server certificates.
+                  It is performed only when host check (hostCheckEnabled) is enabled.
+                items:
+                  type: string
+                type: array
+              enableBackendSSL:
+                description: EnableBackendSSL enables SSL termination at the backend.
+                type: boolean
               healthMonitor:
                 description: Represents health monitor objects
                 items:
@@ -61,6 +71,11 @@ spec:
                   - name
                   type: object
                 type: array
+              hostCheckEnabled:
+                description: |-
+                  HostCheckEnabled enables hostname verification during TLS handshake with the backend.
+                  When enabled, the certificate presented by the backend must match the hostname.
+                type: boolean
               lbAlgorithm:
                 default: LB_ALGORITHM_LEAST_CONNECTIONS
                 description: Defines LB algorithm on Pool
@@ -102,6 +117,23 @@ spec:
                 - System-Persistence-TLS
                 - System-Persistence-App-Cookie
                 type: string
+              pkiProfile:
+                description: Represents PKI Profile objects
+                properties:
+                  kind:
+                    description: Defines the type of PKIProfile object
+                    enum:
+                    - CRD
+                    type: string
+                  name:
+                    description: Defines the name of PKIProfile object. PKIProfile
+                      object should be in the same namespace as that of RouteBackendExtension
+                      object
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
             type: object
             x-kubernetes-validations:
             - message: lbAlgorithmHash must be set if and only if lbAlgorithm is LB_ALGORITHM_CONSISTENT_HASH
@@ -110,6 +142,19 @@ spec:
                 is LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER
               rule: '!has(self.lbAlgorithmHash) || (self.lbAlgorithmHash == ''LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER'')
                 && has(self.lbAlgorithmConsistentHashHdr)'
+            - message: pkiProfile can only be configured when enableBackendSSL is
+                set to true
+              rule: '!has(self.pkiProfile) || (has(self.enableBackendSSL) && self.enableBackendSSL
+                == true)'
+            - message: hostCheckEnabled can only be configured when enableBackendSSL
+                is set to true
+              rule: '!has(self.hostCheckEnabled) || (has(self.enableBackendSSL) &&
+                self.enableBackendSSL == true)'
+            - message: domainName can only be configured when both enableBackendSSL
+                and hostCheckEnabled are set to true
+              rule: '!has(self.domainName) || (has(self.enableBackendSSL) && self.enableBackendSSL
+                == true && has(self.hostCheckEnabled) && self.hostCheckEnabled ==
+                true)'
           status:
             description: RouteBackendExtensionStatus defines the observed state of
               RouteBackendExtension.

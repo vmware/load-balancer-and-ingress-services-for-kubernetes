@@ -61,6 +61,11 @@ var (
 		Version:  "v1alpha1",
 		Resource: "applicationprofiles",
 	}
+	PKIProfileCRDGVR = schema.GroupVersionResource{
+		Group:    "ako.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "pkiprofiles",
+	}
 )
 
 // NewDynamicClientSet initializes dynamic client set instance
@@ -393,7 +398,38 @@ func ParseRouteBackendExtensionCR(key, namespace, name string, poolNode *nodes.A
 			}
 		}
 	}
+
+	// Parse SSL/TLS related fields
+	if enableBackendSSL, found, err := unstructured.NestedBool(specJSON, "enableBackendSSL"); err == nil && found {
+		if enableBackendSSL {
+			// Set default SSL profile if backend SSL is enabled
+			poolNode.SslProfileRef = proto.String(fmt.Sprintf("/api/sslprofile?name=%s", lib.DefaultPoolSSLProfile))
+		}
+	}
+
+	if hostCheckEnabled, found, err := unstructured.NestedBool(specJSON, "hostCheckEnabled"); err == nil && found {
+		poolNode.HostCheckEnabled = proto.Bool(hostCheckEnabled)
+
+	}
+
+	if domainNames, found, err := unstructured.NestedStringSlice(specJSON, "domainName"); err == nil && found && len(domainNames) > 0 {
+		// Use all domain names from the spec
+		poolNode.DomainName = domainNames
+	}
+
+	// Parse PKIProfile
+	if pkiProfileMap, found, err := unstructured.NestedMap(specJSON, "pkiProfile"); err == nil && found {
+		if pkiProfileKind, found, err := unstructured.NestedString(pkiProfileMap, "kind"); err == nil && found && pkiProfileKind == "CRD" {
+			if pkiProfileName, found, err := unstructured.NestedString(pkiProfileMap, "name"); err == nil && found {
+				// Set PKI profile reference using clustername-namespace-name format - this will be used by the pool node for backend SSL validation
+				pkiProfileFullName := fmt.Sprintf("%s-%s-%s", lib.GetClusterName(), namespace, pkiProfileName)
+				poolNode.PkiProfileRef = proto.String(fmt.Sprintf("/api/pkiprofile?name=%s", pkiProfileFullName))
+			}
+		}
+	}
+
 	return nil
+
 }
 
 // IsApplicationProfileValid checks if the ApplicationProfile CRD is valid as well as ready and processed by AKO CRD Operator.

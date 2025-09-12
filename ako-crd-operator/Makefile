@@ -10,6 +10,18 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+ifdef GOLANG_SRC_REPO
+$(eval BUILD_ARG_GOLANG=--build-arg golang_src_repo=$(GOLANG_SRC_REPO))
+else
+$(eval BUILD_ARG_GOLANG=)
+endif
+
+ifdef PHOTON_SRC_REPO
+$(eval BUILD_ARG_PHOTON=--build-arg photon_src_repo=$(PHOTON_SRC_REPO))
+else
+$(eval BUILD_ARG_PHOTON=)
+endif
+
 # CONTAINER_TOOL defines the container tool to be used for building images.
 # Be aware that the target commands are only tested with Docker which is
 # scaffolded by default. However, you might want to replace it to use other

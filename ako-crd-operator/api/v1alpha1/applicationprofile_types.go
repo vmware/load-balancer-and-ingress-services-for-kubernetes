@@ -152,6 +152,7 @@ type HTTPApplicationProfile struct {
 
 // ApplicationProfileSpec defines the desired state of ApplicationProfile
 // Can be created in BASIC and ESSENTIAL license tiers
+// +kubebuilder:resource:path=applicationprofiles,shortName=ap,singular=applicationprofile,scope=Namespaced
 type ApplicationProfileSpec struct {
 	// Type specifies which application layer proxy is enabled for the virtual service.
 	// +kubebuilder:validation:Required

@@ -93,7 +93,7 @@ func main() {
 		setupLog.Fatalf("Error populating controller properties. error: %s", err.Error())
 	}
 
-	sessionManager.CreateAviClients(ctx, 3)
+	sessionManager.CreateAviClients(ctx, 4)
 	aviClients := sessionManager.GetAviClients()
 	clusterName := os.Getenv("CLUSTER_NAME")
 
@@ -101,7 +101,8 @@ func main() {
 		session2.NewAviSessionClient(aviClients.AviClient[0]),
 		clusterName)
 
-	if err := cacheManager.PopulateCache(ctx, constants.HealthMonitorURL, constants.ApplicationProfileURL); err != nil {
+	if err := cacheManager.PopulateCache(ctx, constants.HealthMonitorURL,
+		constants.ApplicationProfileURL, constants.PKIProfileURL); err != nil {
 		setupLog.Fatalf("unable to populate cacheManager. error: %s", err.Error())
 	}
 	utils.AviLog.SetLevel(GetEnvOrDefault("LOG_LEVEL", "INFO"))
@@ -151,6 +152,17 @@ func main() {
 	if err != nil {
 		setupLog.Fatalf("unable to create RouteBackendExtension controller. error: %s", err.Error())
 	}
+	_, err = controller.CreateNewPKIProfileControllerAndSetupWithManager(
+		mgr,
+		session2.NewAviSessionClient(aviClients.AviClient[3]),
+		cacheManager,
+		clusterName,
+		secretReconciler,
+	)
+	if err != nil {
+		setupLog.Fatalf("unable to create PKIProfile controller. error: %s", err.Error())
+	}
+
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
