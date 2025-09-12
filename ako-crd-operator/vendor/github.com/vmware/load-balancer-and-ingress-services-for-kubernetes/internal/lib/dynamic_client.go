@@ -92,6 +92,25 @@ var (
 		Version:  "v1alpha1",
 		Resource: "capabilities",
 	}
+
+	HealthMonitorGVR = schema.GroupVersionResource{
+		Group:    "ako.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "healthmonitors",
+	}
+
+	AddonInstallGVR = schema.GroupVersionResource{
+		Group:    "addons.kubernetes.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "addoninstalls",
+	}
+
+	// ClusterGVR defines the cluster.x-k8s.io/v1beta2 Cluster resource
+	ClusterGVR = schema.GroupVersionResource{
+		Group:    "cluster.x-k8s.io",
+		Version:  "v1beta2",
+		Resource: "clusters",
+	}
 )
 
 type BootstrapCRData struct {
@@ -100,10 +119,11 @@ type BootstrapCRData struct {
 
 // NewDynamicClientSet initializes dynamic client set instance
 func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
-	// do not instantiate the dynamic client set
-	// 1. if the CNI being used is NOT calico or OpenShift or Cilium and
-	// 2. if it is NOT VCF cluster
-	if !utils.IsVCFCluster() && GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI && GetCNIPlugin() != CILIUM_CNI {
+	// Always instantiate the dynamic client set if:
+	// 1. CNI being used is calico or OpenShift or Cilium, OR
+	// 2. it is VCF cluster, OR
+	// 3. L4Rules are enabled (for HealthMonitor support)
+	if !utils.IsVCFCluster() && GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI && GetCNIPlugin() != CILIUM_CNI && !AKOControlConfig().L4RuleEnabled() {
 		return nil, nil
 	}
 
@@ -144,10 +164,25 @@ type DynamicInformers struct {
 	AvailabilityZoneInformer informers.GenericInformer
 
 	VPCNetworkConfigurationInformer informers.GenericInformer
+
+	// AKO CRD informers
+	HealthMonitorInformer informers.GenericInformer
+
+	SupervisorCapabilityInformer informers.GenericInformer
+
+	AddonInstallInformer informers.GenericInformer
+
+	ClusterInformer informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
 func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInformers {
+	// Return nil if client is nil to avoid nil pointer dereference
+	if client == nil {
+		utils.AviLog.Infof("Dynamic client is nil, skipping dynamic informers initialization")
+		return nil
+	}
+
 	informers := &DynamicInformers{}
 	f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, 0, v1.NamespaceAll, nil)
 
@@ -159,7 +194,7 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 	case CILIUM_CNI:
 		informers.CiliumNodeInformer = f.ForResource(CiliumNodeGVR)
 	default:
-		utils.AviLog.Infof("Skipped initializing dynamic informers for cniPlugin %s", GetCNIPlugin())
+		utils.AviLog.Infof("Skipped initializing CNI-specific dynamic informers for cniPlugin %s", GetCNIPlugin())
 	}
 
 	if utils.IsVCFCluster() && akoInfra {
@@ -167,6 +202,14 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 		informers.VCFClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
 		informers.AvailabilityZoneInformer = f.ForResource(AvailabilityZoneVR)
 		informers.VPCNetworkConfigurationInformer = f.ForResource(VPCNetworkConfigurationGVR)
+		informers.SupervisorCapabilityInformer = f.ForResource(SupervisorCapabilityGVR)
+		informers.AddonInstallInformer = f.ForResource(AddonInstallGVR)
+		informers.ClusterInformer = f.ForResource(ClusterGVR)
+	}
+
+	// Initialize HealthMonitor informer only when L4Rules are enabled
+	if AKOControlConfig().L4RuleEnabled() {
+		informers.HealthMonitorInformer = f.ForResource(HealthMonitorGVR)
 	}
 
 	dynamicInformerInstance = informers
@@ -554,5 +597,51 @@ func IsGatewayAPICapabilityEnabled() bool {
 		}
 		return gatewayAPISupportInSupervisor["activated"].(bool)
 	}
+	return false
+}
+
+func IsVKSCapabilityActivated() bool {
+	clientSet := GetDynamicClientSet()
+	if clientSet == nil {
+		utils.AviLog.Debugf("VKS capability: dynamic client not initialized yet")
+		return false
+	}
+	crList, err := clientSet.Resource(SupervisorCapabilityGVR).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		utils.AviLog.Errorf("VKS capability: error getting SupervisorCapability CR %v", err)
+		return false
+	}
+	if len(crList.Items) == 0 {
+		utils.AviLog.Debugf("VKS capability: no SupervisorCapability CRs found")
+		return false
+	}
+	for _, obj := range crList.Items {
+		status, ok := obj.Object["status"].(map[string]interface{})
+		if !ok {
+			utils.AviLog.Debugf("VKS capability: status field not found in SupervisorCapability CR %s", obj.GetName())
+			continue
+		}
+		supervisor, ok := status["supervisor"].(map[string]interface{})
+		if !ok {
+			utils.AviLog.Debugf("VKS capability: supervisor field not found in SupervisorCapability CR %s", obj.GetName())
+			continue
+		}
+		vksCap, ok := supervisor["supports_ako_vks_integration"].(map[string]interface{})
+		if !ok {
+			utils.AviLog.Debugf("VKS capability: supports_ako_vks_integration field not found in SupervisorCapability CR %s", obj.GetName())
+			continue
+		}
+		activated, ok := vksCap["activated"].(bool)
+		if !ok {
+			utils.AviLog.Debugf("VKS capability: activated field not found or not a boolean in SupervisorCapability CR %s", obj.GetName())
+			continue
+		}
+		if activated {
+			utils.AviLog.Infof("VKS capability: found activated=true in SupervisorCapability CR %s", obj.GetName())
+			return true
+		}
+		utils.AviLog.Debugf("VKS capability: found activated=false in SupervisorCapability CR %s", obj.GetName())
+	}
+	utils.AviLog.Debugf("VKS capability: not found or not activated in any SupervisorCapability CR")
 	return false
 }
