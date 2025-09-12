@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/proxy"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/webhook"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -930,6 +931,9 @@ func (w *VKSClusterWatcher) reconcileAllClusters() {
 
 	// Clean up orphaned AVI objects for deleted VKS clusters
 	orphanedCount := w.cleanupOrphanedAviObjects(activeVKSClusters)
+
+	// Reconcile ManagementServiceGrants for namespaces with SEG annotations
+	proxy.ReconcileManagementServiceGrants()
 
 	if orphanedCount > 0 {
 		utils.AviLog.Infof("VKS reconciler: completed reconciliation cycle - orphaned cleaned: %d",

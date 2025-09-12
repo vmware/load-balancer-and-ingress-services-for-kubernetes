@@ -78,14 +78,14 @@ func (c *VCFK8sController) AddNamespaceEventHandler(stopCh <-chan struct{}) {
 		AddFunc: func(obj interface{}) {
 			utils.AviLog.Infof("Namespace ADD Event")
 			c.handleNamespaceAdd()
-			c.handleNamespaceGrantAdd(obj)
+			proxy.HandleNamespaceGrantAdd(obj)
 		},
 		UpdateFunc: func(old, obj interface{}) {
 			utils.AviLog.Infof("Namespace Update Event")
 			if lib.GetVPCMode() {
 				avirest.ScheduleQuickSync()
 			}
-			c.handleNamespaceGrantUpdate(old, obj)
+			proxy.HandleNamespaceGrantUpdate(old, obj)
 		},
 		DeleteFunc: func(obj interface{}) {
 			utils.AviLog.Infof("Namespace Delete Event")
@@ -99,7 +99,7 @@ func (c *VCFK8sController) AddNamespaceEventHandler(stopCh <-chan struct{}) {
 				}
 			}
 			c.handleNamespaceDelete()
-			c.handleNamespaceGrantDelete(obj)
+			proxy.HandleNamespaceGrantDelete(obj)
 		},
 	}
 	c.informers.NSInformer.Informer().AddEventHandler(namespaceHandler)
@@ -109,8 +109,6 @@ func (c *VCFK8sController) AddNamespaceEventHandler(stopCh <-chan struct{}) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
 		utils.AviLog.Infof("Caches synced for Namespace informer")
-
-		go c.processExistingNamespacesForGrants()
 	}
 }
 
@@ -571,120 +569,4 @@ func (c *VCFK8sController) InitNetworkingHandler() {
 	} else {
 		c.NetHandler = &avirest.T1LRNetworking{}
 	}
-}
-
-func (c *VCFK8sController) handleNamespaceGrantAdd(obj interface{}) {
-	namespace, ok := obj.(*corev1.Namespace)
-	if !ok {
-		utils.AviLog.Warnf("VKS ManagementServiceGrant: expected namespace object, got %T", obj)
-		return
-	}
-
-	if !lib.NamespaceHasSEG(namespace) {
-		utils.AviLog.Debugf("VKS ManagementServiceGrant: namespace %s does not have SEG annotation, skipping", namespace.Name)
-		return
-	}
-
-	controller := proxy.NewManagementServiceController()
-	if controller == nil {
-		utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to create controller for namespace %s", namespace.Name)
-		return
-	}
-
-	utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s added with SEG annotation, creating grant", namespace.Name)
-	if err := controller.CreateManagementServiceGrant(namespace.Name); err != nil {
-		utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to create grant for namespace %s: %v", namespace.Name, err)
-	}
-}
-
-func (c *VCFK8sController) handleNamespaceGrantUpdate(oldObj, newObj interface{}) {
-	oldNamespace, ok := oldObj.(*corev1.Namespace)
-	if !ok {
-		utils.AviLog.Warnf("VKS ManagementServiceGrant: expected namespace object, got %T", oldObj)
-		return
-	}
-
-	newNamespace, ok := newObj.(*corev1.Namespace)
-	if !ok {
-		utils.AviLog.Warnf("VKS ManagementServiceGrant: expected namespace object, got %T", newObj)
-		return
-	}
-
-	oldHasSEG := lib.NamespaceHasSEG(oldNamespace)
-	newHasSEG := lib.NamespaceHasSEG(newNamespace)
-
-	if oldHasSEG == newHasSEG {
-		return
-	}
-
-	controller := proxy.NewManagementServiceController()
-	if controller == nil {
-		utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to create controller for namespace %s", newNamespace.Name)
-		return
-	}
-
-	if !oldHasSEG && newHasSEG {
-		// SEG annotation was added
-		utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s now has SEG annotation, creating grant", newNamespace.Name)
-		if err := controller.CreateManagementServiceGrant(newNamespace.Name); err != nil {
-			utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to create grant for namespace %s: %v", newNamespace.Name, err)
-		}
-	} else if oldHasSEG && !newHasSEG {
-		// SEG annotation was removed
-		utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s no longer has SEG annotation, deleting grant", newNamespace.Name)
-		if err := controller.DeleteManagementServiceGrant(newNamespace.Name); err != nil {
-			utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to delete grant for namespace %s: %v", newNamespace.Name, err)
-		}
-	}
-}
-
-func (c *VCFK8sController) handleNamespaceGrantDelete(obj interface{}) {
-	namespace, ok := obj.(*corev1.Namespace)
-	if !ok {
-		utils.AviLog.Warnf("VKS ManagementServiceGrant: expected namespace object, got %T", obj)
-		return
-	}
-
-	if !lib.NamespaceHasSEG(namespace) {
-		utils.AviLog.Debugf("VKS ManagementServiceGrant: namespace %s did not have SEG annotation, skipping", namespace.Name)
-		return
-	}
-
-	controller := proxy.NewManagementServiceController()
-	if controller == nil {
-		utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to create controller for namespace %s", namespace.Name)
-		return
-	}
-
-	utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s deleted, removing grant", namespace.Name)
-	if err := controller.DeleteManagementServiceGrant(namespace.Name); err != nil {
-		utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to delete grant for namespace %s: %v", namespace.Name, err)
-	}
-}
-
-// processExistingNamespacesForGrants processes existing namespaces with SEG annotations
-// and ensures ManagementServiceGrants exist for them
-func (c *VCFK8sController) processExistingNamespacesForGrants() {
-	controller := proxy.NewManagementServiceController()
-	if controller == nil {
-		utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to create controller for processing existing namespaces")
-		return
-	}
-
-	utils.AviLog.Infof("VKS ManagementServiceGrant: processing existing namespaces with SEG annotations")
-	namespaces, err := c.informers.NSInformer.Lister().List(nil)
-	if err != nil {
-		utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to list namespaces: %v", err)
-		return
-	}
-
-	for _, namespace := range namespaces {
-		if lib.NamespaceHasSEG(namespace) {
-			utils.AviLog.Infof("VKS ManagementServiceGrant: found existing namespace %s with SEG annotation, ensuring grant exists", namespace.Name)
-			if err := controller.CreateManagementServiceGrant(namespace.Name); err != nil {
-				utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to ensure grant for existing namespace %s: %v", namespace.Name, err)
-			}
-		}
-	}
-	utils.AviLog.Infof("VKS ManagementServiceGrant: completed processing existing namespaces")
 }
