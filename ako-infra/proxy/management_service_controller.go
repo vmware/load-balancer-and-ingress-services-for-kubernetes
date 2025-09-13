@@ -28,6 +28,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 const (
@@ -455,7 +456,19 @@ func ReconcileManagementServiceGrants() {
 	}
 
 	// Get all namespaces
-	namespaces, err := utils.GetInformers().NSInformer.Lister().List(nil)
+	informers := utils.GetInformers()
+	if informers == nil || informers.NSInformer == nil {
+		utils.AviLog.Debugf("VKS reconciler: namespace informer not initialized yet, skipping reconciliation")
+		return
+	}
+
+	lister := informers.NSInformer.Lister()
+	if lister == nil {
+		utils.AviLog.Debugf("VKS reconciler: namespace lister not available yet, skipping reconciliation")
+		return
+	}
+
+	namespaces, err := lister.List(labels.Everything())
 	if err != nil {
 		utils.AviLog.Errorf("VKS reconciler: failed to list namespaces: %v", err)
 		return
