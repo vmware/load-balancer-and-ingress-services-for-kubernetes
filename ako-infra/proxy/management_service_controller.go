@@ -345,7 +345,7 @@ func (c *ManagementServiceController) DeleteManagementServiceGrant(namespace str
 
 // HandleNamespaceGrantAdd creates a ManagementServiceGrant when a namespace with SEG annotation is added
 func HandleNamespaceGrantAdd(obj interface{}) {
-	if !lib.GetVPCMode() {
+	if !lib.GetVPCMode() || !lib.IsVKSCapabilityActivated() {
 		return
 	}
 	namespace, ok := obj.(*corev1.Namespace)
@@ -373,7 +373,7 @@ func HandleNamespaceGrantAdd(obj interface{}) {
 
 // HandleNamespaceGrantUpdate manages ManagementServiceGrant when namespace SEG annotation changes
 func HandleNamespaceGrantUpdate(oldObj, newObj interface{}) {
-	if !lib.GetVPCMode() {
+	if !lib.GetVPCMode() || !lib.IsVKSCapabilityActivated() {
 		return
 	}
 	oldNamespace, ok := oldObj.(*corev1.Namespace)
@@ -418,7 +418,7 @@ func HandleNamespaceGrantUpdate(oldObj, newObj interface{}) {
 
 // HandleNamespaceGrantDelete removes a ManagementServiceGrant when a namespace is deleted
 func HandleNamespaceGrantDelete(obj interface{}) {
-	if !lib.GetVPCMode() {
+	if !lib.GetVPCMode() || !lib.IsVKSCapabilityActivated() {
 		return
 	}
 	namespace, ok := obj.(*corev1.Namespace)
@@ -446,10 +446,6 @@ func HandleNamespaceGrantDelete(obj interface{}) {
 
 // ReconcileManagementServiceGrants ensures ManagementServiceGrants exist for all namespaces with SEG annotations
 func ReconcileManagementServiceGrants() {
-	if !lib.GetVPCMode() {
-		return
-	}
-
 	utils.AviLog.Debugf("VKS reconciler: reconciling ManagementServiceGrants")
 
 	controller := NewManagementServiceController()
