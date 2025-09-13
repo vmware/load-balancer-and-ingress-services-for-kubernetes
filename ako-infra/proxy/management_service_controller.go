@@ -31,9 +31,9 @@ import (
 )
 
 const (
-	VKSManagementServiceNamePrefix  = "avi-management-service"
-	VKSManagementServiceGrantPrefix = "avi-management-service-grant"
-	VKSManagementServicePort        = 443
+	VKSManagementServiceName  = "avi-controller-management-service"
+	VKSManagementServiceGrant = "avi-controller-management-service-grant"
+	VKSManagementServicePort  = 443
 
 	ManagementServiceRetryInterval = 10 * time.Second
 
@@ -59,7 +59,7 @@ func NewManagementServiceController() *ManagementServiceController {
 
 	return &ManagementServiceController{
 		supervisorID:  supervisorID,
-		serviceName:   fmt.Sprintf("%s-%s", VKSManagementServiceNamePrefix, supervisorID),
+		serviceName:   VKSManagementServiceName,
 		servicePort:   VKSManagementServicePort,
 		controllerIPs: []string{lib.GetControllerIP()},
 		cloudUUID:     utils.CloudUUID,
@@ -242,7 +242,7 @@ func getClusterConfigValues() (string, string) {
 }
 
 func (c *ManagementServiceController) CreateManagementServiceGrant(namespace string) error {
-	grantName := fmt.Sprintf("%s-%s-%s", VKSManagementServiceGrantPrefix, namespace, c.supervisorID)
+	grantName := fmt.Sprintf("%s-%s", namespace, VKSManagementServiceGrant)
 	_, err := c.GetManagementServiceGrant(namespace)
 	if err == nil {
 		utils.AviLog.Infof("VKS ManagementServiceGrant %s in namespace %s already exists", grantName, namespace)
@@ -283,7 +283,7 @@ func (c *ManagementServiceController) CreateManagementServiceGrant(namespace str
 }
 
 func (c *ManagementServiceController) GetManagementServiceGrant(namespace string) (map[string]interface{}, error) {
-	grantName := fmt.Sprintf("%s-%s-%s", VKSManagementServiceGrantPrefix, namespace, c.supervisorID)
+	grantName := fmt.Sprintf("%s-%s", namespace, VKSManagementServiceGrant)
 	aviClient := avirest.InfraAviClientInstance()
 	if aviClient == nil {
 		return nil, fmt.Errorf("avi Controller client not available")
@@ -315,7 +315,7 @@ func (c *ManagementServiceController) GetManagementServiceGrant(namespace string
 }
 
 func (c *ManagementServiceController) DeleteManagementServiceGrant(namespace string) error {
-	grantName := fmt.Sprintf("%s-%s-%s", VKSManagementServiceGrantPrefix, namespace, c.supervisorID)
+	grantName := fmt.Sprintf("%s-%s", namespace, VKSManagementServiceGrant)
 	aviClient := avirest.InfraAviClientInstance()
 	if aviClient == nil {
 		return fmt.Errorf("avi Controller client not available")
