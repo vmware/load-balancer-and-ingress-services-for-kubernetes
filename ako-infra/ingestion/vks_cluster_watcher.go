@@ -566,7 +566,7 @@ func (w *VKSClusterWatcher) buildVKSClusterConfig(cluster *unstructured.Unstruct
 		ClusterName:              clusterNameWithUID,
 		VPCMode:                  true,
 		DedicatedTenantMode:      true,
-		Managed:                  false, // Will enable this once the proxy feature is ready
+		Managed:                  true,
 	}
 
 	if config.ControllerVersion == "" {
