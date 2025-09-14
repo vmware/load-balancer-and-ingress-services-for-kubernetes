@@ -983,6 +983,13 @@ func buildPoolWithHealthMonitorCrdRefs(key string, poolNode *AviPoolNode, backen
 		return
 	}
 
+	// Check if AKO CRD Operator is enabled and HealthMonitor informer is available
+	dynamicInformers := lib.GetDynamicInformers()
+	if !lib.IsAKOCRDOperatorEnabled() || dynamicInformers == nil || dynamicInformers.HealthMonitorInformer == nil {
+		utils.AviLog.Warnf("key: %s, msg: HealthMonitor CRD references found in L4Rule %s but AKO CRD Operator is not enabled. Skipping HealthMonitor processing.", key, l4RuleName)
+		return
+	}
+
 	healthMonitorRefsSet := sets.NewString()
 	for _, healthMonitorName := range backendProperty.HealthMonitorCrdRefs {
 		if healthMonitorName == "" {
@@ -996,7 +1003,7 @@ func buildPoolWithHealthMonitorCrdRefs(key string, poolNode *AviPoolNode, backen
 		objects.SharedCRDLister().UpdateHealthMonitorToL4RuleMapping(healthMonitorNsName, l4RuleNsName)
 
 		// Get HealthMonitor CRD using dynamic informer
-		obj, err := lib.GetDynamicInformers().HealthMonitorInformer.Lister().ByNamespace(namespace).Get(healthMonitorName)
+		obj, err := dynamicInformers.HealthMonitorInformer.Lister().ByNamespace(namespace).Get(healthMonitorName)
 		if err != nil {
 			utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s not found. err: %s", key, namespace, healthMonitorName, err)
 			continue

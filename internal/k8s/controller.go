@@ -1663,8 +1663,8 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().L4RuleInformer.Informer().HasSynced)
 		}
 
-		// HealthMonitor dynamic informer - runs when L4Rule is enabled since they work together
-		if lib.AKOControlConfig().L4RuleEnabled() && c.dynamicInformers != nil && c.dynamicInformers.HealthMonitorInformer != nil {
+		// HealthMonitor dynamic informer - runs when AKO CRD Operator is enabled and L4Rule is enabled (since L4Rule and HealthMonitor work together)
+		if lib.IsAKOCRDOperatorEnabled() && lib.AKOControlConfig().L4RuleEnabled() && c.dynamicInformers != nil && c.dynamicInformers.HealthMonitorInformer != nil {
 			go c.dynamicInformers.HealthMonitorInformer.Informer().Run(stopCh)
 			informersList = append(informersList, c.dynamicInformers.HealthMonitorInformer.Informer().HasSynced)
 		}

@@ -62,6 +62,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("POD_NAME", "ako-0")
 	os.Setenv("ENABLE_EVH", "true")
+	os.Setenv("AKO_CRD_OPERATOR_ENABLED", "true")
 
 	utils.AviLog.SetLevel("DEBUG")
 	// Set the user with prefix

@@ -736,6 +736,13 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 				return err
 			}
 
+			// Check if AKO CRD Operator is enabled when HealthMonitor CRDs are referenced
+			if !lib.IsAKOCRDOperatorEnabled() {
+				err := fmt.Errorf("HealthMonitor CRD %s/%s referenced but AKO CRD Operator is not enabled", l4Rule.Namespace, healthMonitorName)
+				rejectL4Rule(key, l4Rule, err)
+				return err
+			}
+
 			// Create HealthMonitor to L4Rule mapping (regardless of validation result)
 			// This ensures that even rejected L4Rules can be re-evaluated when HealthMonitors change
 			healthMonitorNsName := l4Rule.Namespace + "/" + healthMonitorName

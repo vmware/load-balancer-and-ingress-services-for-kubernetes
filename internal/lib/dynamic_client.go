@@ -122,8 +122,8 @@ func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
 	// Always instantiate the dynamic client set if:
 	// 1. CNI being used is calico or OpenShift or Cilium, OR
 	// 2. it is VCF cluster, OR
-	// 3. L4Rules are enabled (for HealthMonitor support)
-	if !utils.IsVCFCluster() && GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI && GetCNIPlugin() != CILIUM_CNI && !AKOControlConfig().L4RuleEnabled() {
+	// 3. AKO CRD Operator is enabled and L4Rules are enabled (for HealthMonitor support)
+	if !utils.IsVCFCluster() && GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI && GetCNIPlugin() != CILIUM_CNI && !(IsAKOCRDOperatorEnabled() && AKOControlConfig().L4RuleEnabled()) {
 		return nil, nil
 	}
 
@@ -207,8 +207,8 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 		informers.ClusterInformer = f.ForResource(ClusterGVR)
 	}
 
-	// Initialize HealthMonitor informer only when L4Rules are enabled
-	if AKOControlConfig().L4RuleEnabled() {
+	// Initialize HealthMonitor informer only when L4Rules are enabled AND AKO CRD Operator is enabled
+	if AKOControlConfig().L4RuleEnabled() && IsAKOCRDOperatorEnabled() {
 		informers.HealthMonitorInformer = f.ForResource(HealthMonitorGVR)
 	}
 
