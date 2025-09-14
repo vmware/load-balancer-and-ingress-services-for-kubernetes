@@ -130,12 +130,23 @@ func (c *GatewayController) Start(stopCh <-chan struct{}) {
 		go c.dynamicInformers.L7CRDInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.dynamicInformers.L7CRDInformer.Informer().HasSynced)
 	}
-	go c.dynamicInformers.AppProfileCRDInformer.Informer().Run(stopCh)
-	informersList = append(informersList, c.dynamicInformers.AppProfileCRDInformer.Informer().HasSynced)
-	go c.dynamicInformers.HealthMonitorInformer.Informer().Run(stopCh)
-	informersList = append(informersList, c.dynamicInformers.HealthMonitorInformer.Informer().HasSynced)
-	go c.dynamicInformers.RouteBackendExtensionCRDInformer.Informer().Run(stopCh)
-	informersList = append(informersList, c.dynamicInformers.RouteBackendExtensionCRDInformer.Informer().HasSynced)
+	// Add CRD informers only if AKO CRD Operator is enabled
+	if lib.IsAKOCRDOperatorEnabled() {
+		if c.dynamicInformers.AppProfileCRDInformer != nil {
+			go c.dynamicInformers.AppProfileCRDInformer.Informer().Run(stopCh)
+			informersList = append(informersList, c.dynamicInformers.AppProfileCRDInformer.Informer().HasSynced)
+		}
+		if c.dynamicInformers.HealthMonitorInformer != nil {
+			go c.dynamicInformers.HealthMonitorInformer.Informer().Run(stopCh)
+			informersList = append(informersList, c.dynamicInformers.HealthMonitorInformer.Informer().HasSynced)
+		}
+		if c.dynamicInformers.RouteBackendExtensionCRDInformer != nil {
+			go c.dynamicInformers.RouteBackendExtensionCRDInformer.Informer().Run(stopCh)
+			informersList = append(informersList, c.dynamicInformers.RouteBackendExtensionCRDInformer.Informer().HasSynced)
+		}
+	} else {
+		utils.AviLog.Warnf("Skipping CRD informers setup as AKO CRD Operator is not enabled")
+	}
 
 	if !cache.WaitForCacheSync(stopCh, informersList...) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))

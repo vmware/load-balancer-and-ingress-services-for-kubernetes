@@ -93,6 +93,8 @@ func (s *Session) PopulateControllerProperties(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// Populate the shared controller properties cache for any callbacks that might need it
+	utils.SharedCtrlProp().PopulateCtrlProp(s.ctrlProperties)
 	return nil
 }
 
