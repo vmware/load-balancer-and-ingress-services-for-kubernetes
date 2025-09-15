@@ -935,8 +935,17 @@ type FakeRouteBackendExtension struct {
 	LBAlgorithmConsistentHashHdr string
 	PersistenceProfile           string
 	Hm                           []FakeRouteBackendExtensionHM
+	EnableBackendSSL             *bool
+	HostCheckEnabled             *bool
+	DomainName                   *string
+	PKIProfile                   *FakeRouteBackendExtensionPKIProfile
 	Status                       string
 	Controller                   string
+}
+
+type FakeRouteBackendExtensionPKIProfile struct {
+	Kind string
+	Name string
 }
 
 // GetFakeDefaultRBEObj returns a fake RBE object that will be frequently used for testing.
@@ -957,6 +966,83 @@ func GetFakeDefaultRBEObj(name, namespace string, healthMonitorNames ...string) 
 	return &rbe
 }
 
+// GetFakeRBEObjWithBackendTLS returns a fake RBE object with BackendTLS configuration for testing
+func GetFakeRBEObjWithBackendTLS(name, namespace string, enableBackendSSL bool, hostCheckEnabled *bool, domainName *string, pkiProfileName *string, healthMonitorNames ...string) *FakeRouteBackendExtension {
+	rbe := GetFakeDefaultRBEObj(name, namespace, healthMonitorNames...)
+
+	// Set BackendTLS fields
+	rbe.EnableBackendSSL = &enableBackendSSL
+	rbe.HostCheckEnabled = hostCheckEnabled
+	rbe.DomainName = domainName
+
+	if pkiProfileName != nil {
+		rbe.PKIProfile = &FakeRouteBackendExtensionPKIProfile{
+			Kind: "CRD",
+			Name: *pkiProfileName,
+		}
+	}
+
+	return rbe
+}
+
+// Helper functions to create pointers for optional fields
+func BoolPtr(b bool) *bool {
+	return &b
+}
+
+func StringPtr(s string) *string {
+	return &s
+}
+
+// CreatePKIProfileCR creates a PKIProfile CRD for testing
+func CreatePKIProfileCR(t *testing.T, name, namespace string, caCerts []string) {
+	caCertObjects := make([]interface{}, len(caCerts))
+	for i, cert := range caCerts {
+		caCertObjects[i] = map[string]interface{}{
+			"certificate": cert,
+		}
+	}
+
+	pkiProfile := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "ako.vmware.com/v1alpha1",
+			"kind":       "PKIProfile",
+			"metadata": map[string]interface{}{
+				"name":      name,
+				"namespace": namespace,
+			},
+			"spec": map[string]interface{}{
+				"ca_certs": caCertObjects,
+			},
+			"status": map[string]interface{}{
+				"controller": akogatewayapilib.AKOCRDController,
+				"conditions": []interface{}{
+					map[string]interface{}{
+						"type":   "Ready",
+						"status": "True",
+						"reason": "ValidationSucceeded",
+					},
+				},
+			},
+		},
+	}
+
+	_, err := DynamicClient.Resource(akogatewayapilib.PKIProfileCRDGVR).Namespace(namespace).Create(context.TODO(), pkiProfile, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in creating PKIProfile: %v", err)
+	}
+	t.Logf("Created PKIProfile %s/%s", namespace, name)
+}
+
+// DeletePKIProfileCR deletes a PKIProfile CRD
+func DeletePKIProfileCR(t *testing.T, name, namespace string) {
+	err := DynamicClient.Resource(akogatewayapilib.PKIProfileCRDGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil {
+		t.Fatalf("error in deleting PKIProfile: %v", err)
+	}
+	t.Logf("Deleted PKIProfile %s/%s", namespace, name)
+}
+
 func (rbe *FakeRouteBackendExtension) CreateRouteBackendExtensionCRWithStatus(t *testing.T) {
 	hms := make([]interface{}, len(rbe.Hm))
 	for _, hm := range rbe.Hm {
@@ -966,6 +1052,31 @@ func (rbe *FakeRouteBackendExtension) CreateRouteBackendExtensionCRWithStatus(t 
 		})
 
 	}
+	spec := map[string]interface{}{
+		"lbAlgorithm":                  rbe.LBAlgorithm,
+		"lbAlgorithmHash":              rbe.LBAlgorithmHash,
+		"lbAlgorithmConsistentHashHdr": rbe.LBAlgorithmConsistentHashHdr,
+		"persistenceProfile":           rbe.PersistenceProfile,
+		"healthMonitor":                hms,
+	}
+
+	// Add SSL/TLS related fields if they are set
+	if rbe.EnableBackendSSL != nil {
+		spec["enableBackendSSL"] = *rbe.EnableBackendSSL
+	}
+	if rbe.HostCheckEnabled != nil {
+		spec["hostCheckEnabled"] = *rbe.HostCheckEnabled
+	}
+	if rbe.DomainName != nil {
+		spec["domainName"] = []interface{}{*rbe.DomainName}
+	}
+	if rbe.PKIProfile != nil {
+		spec["pkiProfile"] = map[string]interface{}{
+			"kind": rbe.PKIProfile.Kind,
+			"name": rbe.PKIProfile.Name,
+		}
+	}
+
 	routeBackendExtension := &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "ako.vmware.com/v1alpha1",
@@ -974,13 +1085,7 @@ func (rbe *FakeRouteBackendExtension) CreateRouteBackendExtensionCRWithStatus(t 
 				"name":      rbe.Name,
 				"namespace": rbe.Namespace,
 			},
-			"spec": map[string]interface{}{
-				"lbAlgorithm":                  rbe.LBAlgorithm,
-				"lbAlgorithmHash":              rbe.LBAlgorithmHash,
-				"lbAlgorithmConsistentHashHdr": rbe.LBAlgorithmConsistentHashHdr,
-				"persistenceProfile":           rbe.PersistenceProfile,
-				"healthMonitor":                hms,
-			},
+			"spec": spec,
 			"status": map[string]interface{}{
 				"controller": rbe.Controller,
 				"status":     rbe.Status,
@@ -1023,6 +1128,36 @@ func (rbe *FakeRouteBackendExtension) UpdateRouteBackendExtensionCR(t *testing.T
 		delete(specObj, "persistenceProfile")
 	}
 	specObj["healthMonitor"] = hms
+
+	// Update SSL/TLS related fields
+	if rbe.EnableBackendSSL != nil {
+		specObj["enableBackendSSL"] = *rbe.EnableBackendSSL
+	} else {
+		delete(specObj, "enableBackendSSL")
+	}
+	if rbe.HostCheckEnabled != nil {
+		specObj["hostCheckEnabled"] = *rbe.HostCheckEnabled
+	} else {
+		delete(specObj, "hostCheckEnabled")
+	}
+	if rbe.DomainName != nil {
+		specObj["domainName"] = []interface{}{*rbe.DomainName}
+	} else {
+		delete(specObj, "domainName")
+	}
+	if rbe.PKIProfile != nil {
+		specObj["pkiProfile"] = map[string]interface{}{
+			"kind": rbe.PKIProfile.Kind,
+			"name": rbe.PKIProfile.Name,
+		}
+	} else {
+		delete(specObj, "pkiProfile")
+	}
+
+	// Update the status section
+	statusObj := existingRBE.Object["status"].(map[string]interface{})
+	statusObj["status"] = rbe.Status
+	statusObj["controller"] = rbe.Controller
 
 	_, err = DynamicClient.Resource(akogatewayapilib.RouteBackendExtensionCRDGVR).Namespace(rbe.Namespace).Update(context.TODO(), existingRBE, metav1.UpdateOptions{})
 	if err != nil {

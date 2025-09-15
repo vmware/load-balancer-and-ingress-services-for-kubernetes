@@ -55,6 +55,9 @@ type ResourceWithStatus interface {
 
 // IsRetryableError determines if an error from Avi Controller should be retried
 func IsRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
 	if akoCrdOperatorError, ok := err.(errors.AKOCRDOperatorError); ok {
 		switch akoCrdOperatorError.HttpStatusCode {
 		case 400:

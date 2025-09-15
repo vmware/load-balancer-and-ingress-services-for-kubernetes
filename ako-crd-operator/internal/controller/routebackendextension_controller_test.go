@@ -65,7 +65,7 @@ func TestRouteBackendExtensionController(t *testing.T) {
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
 					HealthMonitor: []akov1alpha1.BackendHealthMonitor{
 						{
-							Kind: akov1alpha1.HealthMonitorKindAVIREF,
+							Kind: akov1alpha1.ObjectKindAviRef,
 							Name: "test-hm",
 						},
 					},
@@ -97,7 +97,7 @@ func TestRouteBackendExtensionController(t *testing.T) {
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
 					HealthMonitor: []akov1alpha1.BackendHealthMonitor{
 						{
-							Kind: akov1alpha1.HealthMonitorKindAVIREF,
+							Kind: akov1alpha1.ObjectKindAviRef,
 							Name: "test-hm",
 						},
 					},
@@ -122,11 +122,11 @@ func TestRouteBackendExtensionController(t *testing.T) {
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
 					HealthMonitor: []akov1alpha1.BackendHealthMonitor{
 						{
-							Kind: akov1alpha1.HealthMonitorKindAVIREF,
+							Kind: akov1alpha1.ObjectKindAviRef,
 							Name: "test-hm-1",
 						},
 						{
-							Kind: akov1alpha1.HealthMonitorKindAVIREF,
+							Kind: akov1alpha1.ObjectKindAviRef,
 							Name: "test-hm-2",
 						},
 					},
@@ -174,11 +174,11 @@ func TestRouteBackendExtensionController(t *testing.T) {
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
 					HealthMonitor: []akov1alpha1.BackendHealthMonitor{
 						{
-							Kind: akov1alpha1.HealthMonitorKindAVIREF,
+							Kind: akov1alpha1.ObjectKindAviRef,
 							Name: "test-hm-1",
 						},
 						{
-							Kind: akov1alpha1.HealthMonitorKindAVIREF,
+							Kind: akov1alpha1.ObjectKindAviRef,
 							Name: "test-hm-2",
 						},
 					},
@@ -236,7 +236,7 @@ func TestRouteBackendExtensionController(t *testing.T) {
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
 					HealthMonitor: []akov1alpha1.BackendHealthMonitor{
 						{
-							Kind: akov1alpha1.HealthMonitorKindAVIREF,
+							Kind: akov1alpha1.ObjectKindAviRef,
 							Name: "test-hm",
 						},
 					},
@@ -253,7 +253,7 @@ func TestRouteBackendExtensionController(t *testing.T) {
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
 					HealthMonitor: []akov1alpha1.BackendHealthMonitor{
 						{
-							Kind: akov1alpha1.HealthMonitorKindAVIREF,
+							Kind: akov1alpha1.ObjectKindAviRef,
 							Name: "test-hm",
 						},
 					},
@@ -273,7 +273,7 @@ func TestRouteBackendExtensionController(t *testing.T) {
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
 					HealthMonitor: []akov1alpha1.BackendHealthMonitor{
 						{
-							Kind: akov1alpha1.HealthMonitorKindAVIREF,
+							Kind: akov1alpha1.ObjectKindAviRef,
 							Name: "nonexistent-hm",
 						},
 					},
@@ -299,7 +299,7 @@ func TestRouteBackendExtensionController(t *testing.T) {
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
 					HealthMonitor: []akov1alpha1.BackendHealthMonitor{
 						{
-							Kind: akov1alpha1.HealthMonitorKindAVIREF,
+							Kind: akov1alpha1.ObjectKindAviRef,
 							Name: "nonexistent-hm",
 						},
 					},
@@ -324,7 +324,7 @@ func TestRouteBackendExtensionController(t *testing.T) {
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
 					HealthMonitor: []akov1alpha1.BackendHealthMonitor{
 						{
-							Kind: akov1alpha1.HealthMonitorKindAVIREF,
+							Kind: akov1alpha1.ObjectKindAviRef,
 							Name: "test-hm",
 						},
 					},
@@ -343,7 +343,7 @@ func TestRouteBackendExtensionController(t *testing.T) {
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
 					HealthMonitor: []akov1alpha1.BackendHealthMonitor{
 						{
-							Kind: akov1alpha1.HealthMonitorKindAVIREF,
+							Kind: akov1alpha1.ObjectKindAviRef,
 							Name: "test-hm",
 						},
 					},
@@ -368,11 +368,11 @@ func TestRouteBackendExtensionController(t *testing.T) {
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
 					HealthMonitor: []akov1alpha1.BackendHealthMonitor{
 						{
-							Kind: akov1alpha1.HealthMonitorKindAVIREF,
+							Kind: akov1alpha1.ObjectKindAviRef,
 							Name: "valid-hm",
 						},
 						{
-							Kind: akov1alpha1.HealthMonitorKindAVIREF,
+							Kind: akov1alpha1.ObjectKindAviRef,
 							Name: "invalid-hm",
 						},
 					},
@@ -414,11 +414,11 @@ func TestRouteBackendExtensionController(t *testing.T) {
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
 					HealthMonitor: []akov1alpha1.BackendHealthMonitor{
 						{
-							Kind: akov1alpha1.HealthMonitorKindAVIREF,
+							Kind: akov1alpha1.ObjectKindAviRef,
 							Name: "valid-hm",
 						},
 						{
-							Kind: akov1alpha1.HealthMonitorKindAVIREF,
+							Kind: akov1alpha1.ObjectKindAviRef,
 							Name: "invalid-hm",
 						},
 					},
@@ -597,7 +597,7 @@ func TestRouteBackendExtensionControllerKubernetesError(t *testing.T) {
 					Spec: akov1alpha1.RouteBackendExtensionSpec{
 						HealthMonitor: []akov1alpha1.BackendHealthMonitor{
 							{
-								Kind: akov1alpha1.HealthMonitorKindAVIREF,
+								Kind: akov1alpha1.ObjectKindAviRef,
 								Name: "test-hm",
 							},
 						},
@@ -695,7 +695,7 @@ func TestRouteBackendExtensionValidatedObject(t *testing.T) {
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
 					HealthMonitor: []akov1alpha1.BackendHealthMonitor{
 						{
-							Kind: akov1alpha1.HealthMonitorKindAVIREF,
+							Kind: akov1alpha1.ObjectKindAviRef,
 							Name: "test-hm",
 						},
 					},
@@ -746,7 +746,7 @@ func TestRouteBackendExtensionValidatedObject(t *testing.T) {
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
 					HealthMonitor: []akov1alpha1.BackendHealthMonitor{
 						{
-							Kind: akov1alpha1.HealthMonitorKindAVIREF,
+							Kind: akov1alpha1.ObjectKindAviRef,
 							Name: "nonexistent-hm",
 						},
 					},
@@ -776,7 +776,7 @@ func TestRouteBackendExtensionValidatedObject(t *testing.T) {
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
 					HealthMonitor: []akov1alpha1.BackendHealthMonitor{
 						{
-							Kind: akov1alpha1.HealthMonitorKindAVIREF,
+							Kind: akov1alpha1.ObjectKindAviRef,
 							Name: "test-hm",
 						},
 					},
@@ -799,7 +799,7 @@ func TestRouteBackendExtensionValidatedObject(t *testing.T) {
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
 					HealthMonitor: []akov1alpha1.BackendHealthMonitor{
 						{
-							Kind: akov1alpha1.HealthMonitorKindAVIREF,
+							Kind: akov1alpha1.ObjectKindAviRef,
 							Name: "test-hm",
 						},
 					},
@@ -860,6 +860,398 @@ func TestRouteBackendExtensionValidatedObject(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, tt.rbe.Status.Status)
 			assert.Equal(t, tt.wantErrorMsg, tt.rbe.Status.Error)
 			assert.Equal(t, constants.AKOCRDController, tt.rbe.Status.Controller)
+		})
+	}
+}
+
+// TestRouteBackendExtensionBackendTLSValidation tests the validateBackendTLS functionality
+func TestRouteBackendExtensionBackendTLSValidation(t *testing.T) {
+	tests := []struct {
+		name         string
+		rbe          *akov1alpha1.RouteBackendExtension
+		pkiProfile   *akov1alpha1.PKIProfile
+		prepare      func(mockAviClient *mock.MockAviClientInterface)
+		wantErr      bool
+		wantStatus   string
+		wantErrorMsg string
+	}{
+		{
+			name: "success: enableBackendSSL with valid PKIProfile",
+			rbe: &akov1alpha1.RouteBackendExtension{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-rbe-ssl",
+					Namespace: "default",
+				},
+				Spec: akov1alpha1.RouteBackendExtensionSpec{
+					EnableBackendSSL: func() *bool { b := true; return &b }(),
+					PKIProfile: &akov1alpha1.BackendPKIProfile{
+						Kind: akov1alpha1.ObjectKindCRD,
+						Name: "test-pki-profile",
+					},
+				},
+			},
+			pkiProfile: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pki-profile",
+					Namespace: "default",
+				},
+				Status: akov1alpha1.PKIProfileStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:   "Ready",
+							Status: "True",
+						},
+					},
+				},
+			},
+			wantErr:      false,
+			wantStatus:   constants.ACCEPTED,
+			wantErrorMsg: "",
+		},
+		{
+			name: "success: enableBackendSSL with hostCheckEnabled and domainName",
+			rbe: &akov1alpha1.RouteBackendExtension{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-rbe-ssl-hostname",
+					Namespace: "default",
+				},
+				Spec: akov1alpha1.RouteBackendExtensionSpec{
+					EnableBackendSSL: func() *bool { b := true; return &b }(),
+					HostCheckEnabled: func() *bool { b := true; return &b }(),
+					DomainName:       []string{"example.com"},
+				},
+			},
+			wantErr:      false,
+			wantStatus:   constants.ACCEPTED,
+			wantErrorMsg: "",
+		},
+		{
+			name: "success: enableBackendSSL only",
+			rbe: &akov1alpha1.RouteBackendExtension{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-rbe-ssl-only",
+					Namespace: "default",
+				},
+				Spec: akov1alpha1.RouteBackendExtensionSpec{
+					EnableBackendSSL: func() *bool { b := true; return &b }(),
+				},
+			},
+			wantErr:      false,
+			wantStatus:   constants.ACCEPTED,
+			wantErrorMsg: "",
+		},
+		{
+			name: "error: PKIProfile without enableBackendSSL",
+			rbe: &akov1alpha1.RouteBackendExtension{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-rbe-pki-no-ssl",
+					Namespace: "default",
+				},
+				Spec: akov1alpha1.RouteBackendExtensionSpec{
+					PKIProfile: &akov1alpha1.BackendPKIProfile{
+						Kind: akov1alpha1.ObjectKindCRD,
+						Name: "test-pki-profile",
+					},
+				},
+			},
+			wantErr:      true,
+			wantStatus:   constants.REJECTED,
+			wantErrorMsg: "PKIProfile test-pki-profile not found in namespace default",
+		},
+		{
+			name: "error: PKIProfile not found",
+			rbe: &akov1alpha1.RouteBackendExtension{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-rbe-pki-not-found",
+					Namespace: "default",
+				},
+				Spec: akov1alpha1.RouteBackendExtensionSpec{
+					EnableBackendSSL: func() *bool { b := true; return &b }(),
+					PKIProfile: &akov1alpha1.BackendPKIProfile{
+						Kind: akov1alpha1.ObjectKindCRD,
+						Name: "nonexistent-pki-profile",
+					},
+				},
+			},
+			wantErr:      true,
+			wantStatus:   constants.REJECTED,
+			wantErrorMsg: "PKIProfile nonexistent-pki-profile not found in namespace default",
+		},
+		{
+			name: "error: PKIProfile not ready",
+			rbe: &akov1alpha1.RouteBackendExtension{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-rbe-pki-not-ready",
+					Namespace: "default",
+				},
+				Spec: akov1alpha1.RouteBackendExtensionSpec{
+					EnableBackendSSL: func() *bool { b := true; return &b }(),
+					PKIProfile: &akov1alpha1.BackendPKIProfile{
+						Kind: akov1alpha1.ObjectKindCRD,
+						Name: "not-ready-pki-profile",
+					},
+				},
+			},
+			pkiProfile: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "not-ready-pki-profile",
+					Namespace: "default",
+				},
+				Status: akov1alpha1.PKIProfileStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:   "Ready",
+							Status: "False",
+						},
+					},
+				},
+			},
+			wantErr:      true,
+			wantStatus:   constants.REJECTED,
+			wantErrorMsg: "RBE is rejected beacause PKIProfile not-ready-pki-profile is not ready in namespace default",
+		},
+		{
+			name: "error: PKIProfile with no conditions",
+			rbe: &akov1alpha1.RouteBackendExtension{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-rbe-pki-no-conditions",
+					Namespace: "default",
+				},
+				Spec: akov1alpha1.RouteBackendExtensionSpec{
+					EnableBackendSSL: func() *bool { b := true; return &b }(),
+					PKIProfile: &akov1alpha1.BackendPKIProfile{
+						Kind: akov1alpha1.ObjectKindCRD,
+						Name: "no-conditions-pki-profile",
+					},
+				},
+			},
+			pkiProfile: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "no-conditions-pki-profile",
+					Namespace: "default",
+				},
+				Status: akov1alpha1.PKIProfileStatus{
+					Conditions: []metav1.Condition{},
+				},
+			},
+			wantErr:      true,
+			wantStatus:   constants.REJECTED,
+			wantErrorMsg: "RBE is rejected beacause PKIProfile no-conditions-pki-profile is not ready in namespace default",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create mock AVI client
+			mockAviClient := mock.NewMockAviClientInterface(gomock.NewController(t))
+			if tt.prepare != nil {
+				tt.prepare(mockAviClient)
+			}
+
+			mockCache := mock.NewMockCacheOperation(gomock.NewController(t))
+			// Create fake k8s client
+			scheme := runtime.NewScheme()
+			_ = akov1alpha1.AddToScheme(scheme)
+			_ = corev1.AddToScheme(scheme)
+
+			// Create namespace object with tenant annotation
+			namespace := createNamespaceWithTenant(tt.rbe.Namespace)
+
+			// Create objects to include in fake client
+			objects := []client.Object{tt.rbe, namespace}
+			if tt.pkiProfile != nil {
+				objects = append(objects, tt.pkiProfile)
+			}
+
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).WithStatusSubresource(tt.rbe).Build()
+
+			// Create reconciler
+			reconciler := &RouteBackendExtensionReconciler{
+				Client:      fakeClient,
+				AviClient:   mockAviClient,
+				Scheme:      scheme,
+				Logger:      utils.AviLog,
+				ClusterName: "test-cluster",
+				Cache:       mockCache,
+			}
+
+			// Test ValidatedObject
+			ctx := context.Background()
+			err := reconciler.ValidatedObject(ctx, tt.rbe)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Equal(t, tt.wantErrorMsg, err.Error())
+			} else {
+				assert.NoError(t, err)
+			}
+
+			// Check status was set correctly
+			assert.Equal(t, tt.wantStatus, tt.rbe.Status.Status)
+			assert.Equal(t, tt.wantErrorMsg, tt.rbe.Status.Error)
+			assert.Equal(t, constants.AKOCRDController, tt.rbe.Status.Controller)
+		})
+	}
+}
+
+// TestRouteBackendExtensionPKIProfileWatching tests PKIProfile change detection
+func TestRouteBackendExtensionPKIProfileWatching(t *testing.T) {
+	tests := []struct {
+		name                      string
+		pkiProfile                *akov1alpha1.PKIProfile
+		routeBackendExtensions    []*akov1alpha1.RouteBackendExtension
+		expectedReconcileRequests int
+	}{
+		{
+			name: "PKIProfile change triggers RouteBackendExtension reconciliation",
+			pkiProfile: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-pki-profile",
+					Namespace: "default",
+				},
+			},
+			routeBackendExtensions: []*akov1alpha1.RouteBackendExtension{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "rbe-with-pki",
+						Namespace: "default",
+					},
+					Spec: akov1alpha1.RouteBackendExtensionSpec{
+						PKIProfile: &akov1alpha1.BackendPKIProfile{
+							Kind: akov1alpha1.ObjectKindCRD,
+							Name: "test-pki-profile",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "rbe-without-pki",
+						Namespace: "default",
+					},
+					Spec: akov1alpha1.RouteBackendExtensionSpec{
+						LBAlgorithm: akov1alpha1.LBAlgorithmRoundRobin,
+					},
+				},
+			},
+			expectedReconcileRequests: 1, // Only the RBE that references the PKIProfile should be reconciled
+		},
+		{
+			name: "PKIProfile change with multiple referencing RBEs",
+			pkiProfile: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "shared-pki-profile",
+					Namespace: "default",
+				},
+			},
+			routeBackendExtensions: []*akov1alpha1.RouteBackendExtension{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "rbe1-with-pki",
+						Namespace: "default",
+					},
+					Spec: akov1alpha1.RouteBackendExtensionSpec{
+						PKIProfile: &akov1alpha1.BackendPKIProfile{
+							Kind: akov1alpha1.ObjectKindCRD,
+							Name: "shared-pki-profile",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "rbe2-with-pki",
+						Namespace: "default",
+					},
+					Spec: akov1alpha1.RouteBackendExtensionSpec{
+						PKIProfile: &akov1alpha1.BackendPKIProfile{
+							Kind: akov1alpha1.ObjectKindCRD,
+							Name: "shared-pki-profile",
+						},
+					},
+				},
+			},
+			expectedReconcileRequests: 2, // Both RBEs should be reconciled
+		},
+		{
+			name: "PKIProfile change with no referencing RBEs",
+			pkiProfile: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "unused-pki-profile",
+					Namespace: "default",
+				},
+			},
+			routeBackendExtensions: []*akov1alpha1.RouteBackendExtension{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "rbe-without-pki",
+						Namespace: "default",
+					},
+					Spec: akov1alpha1.RouteBackendExtensionSpec{
+						LBAlgorithm: akov1alpha1.LBAlgorithmRoundRobin,
+					},
+				},
+			},
+			expectedReconcileRequests: 0, // No RBEs should be reconciled
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create fake k8s client
+			scheme := runtime.NewScheme()
+			_ = akov1alpha1.AddToScheme(scheme)
+			_ = corev1.AddToScheme(scheme)
+
+			// Create namespace object with tenant annotation
+			namespace := createNamespaceWithTenant("default")
+
+			// Create objects to include in fake client
+			objects := []client.Object{tt.pkiProfile, namespace}
+			for _, rbe := range tt.routeBackendExtensions {
+				objects = append(objects, rbe)
+			}
+
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(objects...).
+				WithIndex(&akov1alpha1.RouteBackendExtension{}, PKIProfileIndexKey, func(rawObj client.Object) []string {
+					rbe := rawObj.(*akov1alpha1.RouteBackendExtension)
+					if rbe.Spec.PKIProfile != nil && rbe.Spec.PKIProfile.Kind == akov1alpha1.ObjectKindCRD {
+						return []string{rbe.Spec.PKIProfile.Name}
+					}
+					return nil
+				}).
+				Build()
+
+			// Create reconciler
+			reconciler := &RouteBackendExtensionReconciler{
+				Client:      fakeClient,
+				Scheme:      scheme,
+				Logger:      utils.AviLog,
+				ClusterName: "test-cluster",
+			}
+
+			// Test findRouteBackendExtensionsForPKIProfile
+			ctx := context.Background()
+			requests := reconciler.findRouteBackendExtensionsForPKIProfile(ctx, tt.pkiProfile)
+
+			// Verify the correct number of reconcile requests
+			assert.Equal(t, tt.expectedReconcileRequests, len(requests))
+
+			// Verify that the requests are for the correct RBEs
+			if tt.expectedReconcileRequests > 0 {
+				requestNames := make(map[string]bool)
+				for _, req := range requests {
+					requestNames[req.Name] = true
+				}
+
+				for _, rbe := range tt.routeBackendExtensions {
+					if rbe.Spec.PKIProfile != nil &&
+						rbe.Spec.PKIProfile.Kind == akov1alpha1.ObjectKindCRD &&
+						rbe.Spec.PKIProfile.Name == tt.pkiProfile.Name {
+						assert.True(t, requestNames[rbe.Name], "Expected reconcile request for RBE %s", rbe.Name)
+					}
+				}
+			}
 		})
 	}
 }

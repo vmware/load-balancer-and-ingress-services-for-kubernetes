@@ -104,6 +104,7 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		SslProfileRef:           pool_meta.SslProfileRef,
 		SslKeyAndCertificateRef: pool_meta.SslKeyAndCertificateRef,
 		PkiProfileRef:           pool_meta.PkiProfileRef,
+		HostCheckEnabled:        pool_meta.HostCheckEnabled,
 		PlacementNetworks:       placementNetworks,
 	}
 
@@ -115,6 +116,11 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 
 	if pool_meta.T1Lr != "" {
 		pool.Tier1Lr = &pool_meta.T1Lr
+	}
+
+	// Set domain name for SSL hostname verification if provided
+	if len(pool_meta.DomainName) > 0 {
+		pool.DomainName = pool_meta.DomainName
 	}
 
 	if !pool_meta.AttachedWithSharedVS {

@@ -1,0 +1,31 @@
+apiVersion: ako.vmware.com/v1alpha1
+kind: PKIProfile
+metadata:
+  labels:
+    app.kubernetes.io/name: ako-crd-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: pkiprofile-sample
+spec:
+  # CaCerts is a list of Certificate Authorities (Root and Intermediate) trusted that is used for certificate validation.
+  # Matches AVI SDK PKIProfile.CaCerts structure - only contains certificate data (no private keys)
+  ca_certs:
+    - certificate: |
+        -----BEGIN CERTIFICATE-----
+        MIIDBTCCAe2gAwIBAgIUJcVHBy6lHaUBNPInPTpN52HY0ikwDQYJKoZIhvcNAQEL
+        BQAwEjEQMA4GA1UEAwwHdGVzdC1jYTAeFw0yNTA5MDEyMDQ0NDVaFw0yNjA5MDEy
+        MDQ0NDVaMBIxEDAOBgNVBAMMB3Rlc3QtY2EwggEiMA0GCSqGSIb3DQEBAQUAA4IB
+        DwAwggEKAoIBAQCX5F3IojSUkzzK8eu811mTT7WZT6QthMp9ipTMnsHfQBm4+4tb
+        t2ZSfaJG7QFsb094uZPEZXEBHzgsxPqQAe3YKD5Mtqb87Z1G5yVczF0kqxihYyMK
+        +ds1Gv8LYLueAdsgtI1Ukc78kNLAuOGUYBqfxz0m6/Zwh9mUIwoYhYOqQtLtrwXt
+        WV1UlhR6zroBTQyyQNydBzVKQ2wJK+ocWvJX1GpflNsnelsDCo9et7izsZzDwJI9
+        Xu2Hy4bERHZdbl15JwmUf9/8anF5fhuPA1gV/nKydc8vT/nZNkI/DrRP91jZenOV
+        CpbhEDi/YPVVX++vRMNwup0SJbwWUJFJxfOLAgMBAAGjUzBRMB0GA1UdDgQWBBSu
+        vszq4He7ySDfZ7lUol3coE/1NjAfBgNVHSMEGDAWgBSuvszq4He7ySDfZ7lUol3c
+        oE/1NjAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUAA4IBAQBkwnwA2zMG
+        bVgTckic2tTNCeO3udVYWX2jFKBhqrpEvKesNqHoDPn9MRmY55z262WVmcrgwoLr
+        830V0RxYMNdeyZGjrXfQwx0VQUoVgXTxPhHbH9gv1XzY/VjxrxzTwdSmkScvLuf+
+        gmSvvLFekBmwuJ6djGc+tRd84nwHdGWRAEfDOOIGuyG3c2C2HhOdcCj8ccTm3yY3
+        69lFg4/PBZ3kF2tyou+QkLK8CxJTQTuyVzs+uaD1pouVzZiDaHy8Dv96sWI3WP7D
+        bL/JyB72jbNrCpV5rYIEz2/1/+eNF/UbC4FQIlclBvbPpl6hSrfgD9wMY+axe0cE
+        JpDF9pm/jPjP
+        -----END CERTIFICATE-----
