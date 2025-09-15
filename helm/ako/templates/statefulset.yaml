@@ -417,6 +417,11 @@ spec:
                 name: avi-k8s-config
                 key: nsxtT1LR
           {{ end }}
+          - name: VPC_MODE
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: vpcMode
           {{ if .Values.persistentVolumeClaim }}
           - name: USE_PVC
             value: "true"
