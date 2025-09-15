@@ -137,12 +137,16 @@ func (r *PKIProfileReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, nil
 	}
 
-	result, err := r.ReconcileIfRequired(ctx, pki)
-	if controllerutils.IsRetryableError(err) {
-		log.Infof("Error is retryable, will retry: %v", err)
-		return ctrl.Result{RequeueAfter: constants.RequeueInterval}, err
+	if err := r.ReconcileIfRequired(ctx, pki); err != nil {
+		// Check if the error is retryable
+		if !controllerutils.IsRetryableError(err) {
+			// Update status with non-retryable error condition and don't return error (to avoid requeue)
+			controllerutils.UpdateStatusWithNonRetryableError(ctx, r, pki, err, "PKIProfile")
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
 	}
-	return result, err
+	return ctrl.Result{}, nil
 }
 
 func (r *PKIProfileReconciler) SetStatus(ctx context.Context, pki *akov1alpha1.PKIProfile, conditionType string, reason string, message string) error {
@@ -207,12 +211,12 @@ func (r *PKIProfileReconciler) DeleteObject(ctx context.Context, pki *akov1alpha
 }
 
 // TODO: Make this function generic
-func (r *PKIProfileReconciler) ReconcileIfRequired(ctx context.Context, pki *akov1alpha1.PKIProfile) (ctrl.Result, error) {
+func (r *PKIProfileReconciler) ReconcileIfRequired(ctx context.Context, pki *akov1alpha1.PKIProfile) error {
 	log := utils.LoggerFromContext(ctx)
 	namespaceTenant, err := controllerutils.GetTenantInNamespace(ctx, r.Client, pki.Namespace)
 	if err != nil {
 		log.Errorf("error getting tenant in namespace: %s", err.Error())
-		return ctrl.Result{}, err
+		return err
 	}
 
 	// Check if tenant in status differs from tenant in namespace annotation
@@ -223,7 +227,7 @@ func (r *PKIProfileReconciler) ReconcileIfRequired(ctx context.Context, pki *ako
 		if err != nil {
 			log.Errorf("Failed to delete PKIProfile due to error: %s", err.Error())
 			r.SetStatus(ctx, pki, "Deleted", "DeletionFailed", fmt.Sprintf("Failed to delete PKIProfile due to error: %v", err))
-			return ctrl.Result{}, err
+			return err
 		}
 		// Clear the status to force recreation with correct tenant
 		pki.Status = akov1alpha1.PKIProfileStatus{}
@@ -263,13 +267,13 @@ func (r *PKIProfileReconciler) ReconcileIfRequired(ctx context.Context, pki *ako
 		if err != nil {
 			log.Errorf("error creating pki profile: %s", err.Error())
 			r.SetStatus(ctx, pki, "Ready", "CreationFailed", fmt.Sprintf("Failed to create PKIProfile on Avi Controller: %v", err))
-			return ctrl.Result{}, err
+			return err
 		}
 		uuid, err := extractUUID(resp)
 		if err != nil {
 			log.Errorf("error extracting UUID from pki profile: %s", err.Error())
 			r.SetStatus(ctx, pki, "Ready", "UUIDExtractionFailed", fmt.Sprintf("Failed to extract UUID: %v", err))
-			return ctrl.Result{}, err
+			return err
 		}
 		pki.Status.UUID = uuid
 		pki.Status.BackendObjectName = *pkiReq.Name
@@ -285,7 +289,7 @@ func (r *PKIProfileReconciler) ReconcileIfRequired(ctx context.Context, pki *ako
 				if ok {
 					if dataMap.GetLastModifiedTimeStamp().Before(pki.Status.LastUpdated.Time) {
 						log.Debug("no op for pki profile")
-						return ctrl.Result{}, nil
+						return nil
 					}
 				}
 			}
@@ -295,13 +299,13 @@ func (r *PKIProfileReconciler) ReconcileIfRequired(ctx context.Context, pki *ako
 		if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.PKIProfileURL, pki.Status.UUID)), pkiReq, &resp, session.SetOptTenant(namespaceTenant)); err != nil {
 			log.Errorf("error updating pki profile %s", err.Error())
 			r.SetStatus(ctx, pki, "Ready", "UpdateFailed", fmt.Sprintf("Failed to update PKIProfile on Avi Controller: %v", err))
-			return ctrl.Result{}, err
+			return err
 		}
 		pki.Status.BackendObjectName = *pkiReq.Name
 		pki.Status.Tenant = namespaceTenant
 		r.SetStatus(ctx, pki, "Ready", "Updated", "PKIProfile updated successfully on Avi Controller")
 	}
-	return ctrl.Result{}, nil
+	return nil
 }
 
 // createPKIProfile will attempt to create a PKI profile, if it already exists, it will return an object which contains the uuid
@@ -313,7 +317,7 @@ func (r *PKIProfileReconciler) createPKIProfile(ctx context.Context, pkiReq *mod
 		if aviError, ok := err.(session.AviError); ok {
 			if aviError.HttpStatusCode == http.StatusConflict && strings.Contains(aviError.Error(), "already exists") {
 				log.Info("pki profile already exists. trying to get uuid")
-				err := r.AviClient.AviSessionGet(utils.GetUriEncoded(fmt.Sprintf("%s?name=%s", constants.PKIProfileURL, *pkiReq.Name)), &resp)
+				err := r.AviClient.AviSessionGet(utils.GetUriEncoded(fmt.Sprintf("%s?name=%s", constants.PKIProfileURL, *pkiReq.Name)), &resp, session.SetOptTenant(tenant))
 				if err != nil {
 					log.Errorf("error getting pki profile %s", err.Error())
 					return nil, err

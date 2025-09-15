@@ -135,8 +135,8 @@ func (r *RouteBackendExtensionReconciler) SetupWithManager(mgr ctrl.Manager) err
 	// Add indexer for RouteBackendExtension by PKIProfile reference
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &akov1alpha1.RouteBackendExtension{}, PKIProfileIndexKey, func(rawObj client.Object) []string {
 		rbe := rawObj.(*akov1alpha1.RouteBackendExtension)
-		if rbe.Spec.PKIProfile != nil && rbe.Spec.PKIProfile.Kind == akov1alpha1.ObjectKindCRD {
-			return []string{rbe.Spec.PKIProfile.Name}
+		if rbe.Spec.BackendTLS.PKIProfile != nil && rbe.Spec.BackendTLS.PKIProfile.Kind == akov1alpha1.ObjectKindCRD {
+			return []string{rbe.Spec.BackendTLS.PKIProfile.Name}
 		}
 		return nil
 	}); err != nil {
@@ -236,21 +236,15 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 	}
 
 	// Check PKIProfile if present
-	if rbe.Spec.PKIProfile != nil && rbe.Spec.PKIProfile.Kind == akov1alpha1.ObjectKindCRD {
+	if rbe.Spec.BackendTLS != nil && rbe.Spec.BackendTLS.PKIProfile != nil && rbe.Spec.BackendTLS.PKIProfile.Kind == akov1alpha1.ObjectKindCRD {
 		pkiProfile := &akov1alpha1.PKIProfile{}
 		pkiProfileKey := client.ObjectKey{
 			Namespace: rbe.Namespace,
-			Name:      rbe.Spec.PKIProfile.Name,
+			Name:      rbe.Spec.BackendTLS.PKIProfile.Name,
 		}
 		err := r.Client.Get(ctx, pkiProfileKey, pkiProfile)
 		if err != nil {
-			if k8serror.IsNotFound(err) {
-				log.Errorf("PKIProfile %s not found in namespace %s", rbe.Spec.PKIProfile.Name, rbe.Namespace)
-				err = fmt.Errorf("PKIProfile %s not found in namespace %s", rbe.Spec.PKIProfile.Name, rbe.Namespace)
-				r.SetStatus(rbe, err.Error(), constants.REJECTED)
-				return err
-			}
-			log.Errorf("error getting PKIProfile %s from namespace %s. Err: %s", rbe.Spec.PKIProfile.Name, rbe.Namespace, err.Error())
+			log.Errorf("error getting PKIProfile %s from namespace %s. Err: %s", rbe.Spec.BackendTLS.PKIProfile.Name, rbe.Namespace, err.Error())
 			r.SetStatus(rbe, err.Error(), constants.REJECTED)
 			return err
 		}
@@ -258,9 +252,9 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 		// Validate that the tenant of the PKI profile matches with the namespace tenant
 		if pkiProfile.Status.Tenant != "" && pkiProfile.Status.Tenant != tenant {
 			log.Errorf("PKIProfile %s tenant %s does not match namespace %s tenant %s",
-				rbe.Spec.PKIProfile.Name, pkiProfile.Status.Tenant, rbe.Namespace, tenant)
+				rbe.Spec.BackendTLS.PKIProfile.Name, pkiProfile.Status.Tenant, rbe.Namespace, tenant)
 			err = fmt.Errorf("PKIProfile %s tenant %s does not match namespace %s tenant %s",
-				rbe.Spec.PKIProfile.Name, pkiProfile.Status.Tenant, rbe.Namespace, tenant)
+				rbe.Spec.BackendTLS.PKIProfile.Name, pkiProfile.Status.Tenant, rbe.Namespace, tenant)
 			r.SetStatus(rbe, err.Error(), constants.REJECTED)
 			return err
 		}
@@ -275,8 +269,8 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 		}
 
 		if !isReady {
-			log.Errorf("RBE is rejected beacause PKIProfile %s is not ready in namespace %s", rbe.Spec.PKIProfile.Name, rbe.Namespace)
-			err = fmt.Errorf("RBE is rejected beacause PKIProfile %s is not ready in namespace %s", rbe.Spec.PKIProfile.Name, rbe.Namespace)
+			log.Errorf("RBE is rejected beacause PKIProfile %s is not ready in namespace %s", rbe.Spec.BackendTLS.PKIProfile.Name, rbe.Namespace)
+			err = fmt.Errorf("RBE is rejected beacause PKIProfile %s is not ready in namespace %s", rbe.Spec.BackendTLS.PKIProfile.Name, rbe.Namespace)
 			r.SetStatus(rbe, err.Error(), constants.REJECTED)
 			return err
 		}

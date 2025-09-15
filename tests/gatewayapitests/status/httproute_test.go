@@ -2423,13 +2423,12 @@ func TestHTTPRouteStatusWithRouteBackendExtensionBackendTLSValidation(t *testing
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
 	hostnames := []gatewayv1.Hostname{"foo-8080.com"}
 
-	// Test Case 1: RouteBackendExtension with PKIProfile but enableBackendSSL=false (should be rejected)
+	// Test Case 1: RouteBackendExtension with PKIProfile
 	rbe := akogatewayapitests.GetFakeRBEObjWithBackendTLS(
 		routeBackendExtensionName,
 		DEFAULT_NAMESPACE,
-		false, // enableBackendSSL=false
-		nil,   // hostCheckEnabled
-		nil,   // domainName
+		nil, // hostCheckEnabled
+		nil, // domainName
 		akogatewayapitests.StringPtr("test-pki-profile"), // pkiProfile
 		"thisisaviref-hm1",
 	)
@@ -2468,7 +2467,6 @@ func TestHTTPRouteStatusWithRouteBackendExtensionBackendTLSValidation(t *testing
 	}
 
 	// Test Case 2: Fix the RBE to enable BackendSSL
-	rbe.EnableBackendSSL = akogatewayapitests.BoolPtr(true)
 	rbe.Status = "Accepted"
 	rbe.UpdateRouteBackendExtensionCR(t)
 
@@ -2524,11 +2522,10 @@ func TestHTTPRouteStatusWithRouteBackendExtensionHostCheckValidation(t *testing.
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
 	hostnames := []gatewayv1.Hostname{"foo-8081.com"}
 
-	// Test Case 1: RouteBackendExtension with hostCheckEnabled=true but enableBackendSSL=false (should be rejected)
+	// Test Case 1: RouteBackendExtension with hostCheckEnabled=true
 	rbe := akogatewayapitests.GetFakeRBEObjWithBackendTLS(
 		routeBackendExtensionName,
 		DEFAULT_NAMESPACE,
-		false,                            // enableBackendSSL=false
 		akogatewayapitests.BoolPtr(true), // hostCheckEnabled=true
 		nil,                              // domainName
 		nil,                              // pkiProfile
@@ -2560,7 +2557,6 @@ func TestHTTPRouteStatusWithRouteBackendExtensionHostCheckValidation(t *testing.
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	// Test Case 2: Fix the RBE to enable BackendSSL
-	rbe.EnableBackendSSL = akogatewayapitests.BoolPtr(true)
 	rbe.Status = "Accepted"
 	rbe.UpdateRouteBackendExtensionCR(t)
 
@@ -2616,12 +2612,11 @@ func TestHTTPRouteStatusWithRouteBackendExtensionDomainNameValidation(t *testing
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
 	hostnames := []gatewayv1.Hostname{"foo-8082.com"}
 
-	// Test Case 1: RouteBackendExtension with domainName but enableBackendSSL=false (should be rejected)
+	// Test Case 1: RouteBackendExtension with domainName (should be rejected without hostCheckEnabled)
 	rbe := akogatewayapitests.GetFakeRBEObjWithBackendTLS(
 		routeBackendExtensionName,
 		DEFAULT_NAMESPACE,
-		false, // enableBackendSSL=false
-		nil,   // hostCheckEnabled
+		nil, // hostCheckEnabled
 		akogatewayapitests.StringPtr("backend.example.com"), // domainName
 		nil, // pkiProfile
 		"thisisaviref-hm1",
@@ -2652,7 +2647,6 @@ func TestHTTPRouteStatusWithRouteBackendExtensionDomainNameValidation(t *testing
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	// Test Case 2: Fix enableBackendSSL but leave hostCheckEnabled unset (should still be rejected)
-	rbe.EnableBackendSSL = akogatewayapitests.BoolPtr(true)
 	rbe.UpdateRouteBackendExtensionCR(t)
 
 	// Should still be rejected because domainName requires hostCheckEnabled=true
@@ -2731,8 +2725,7 @@ func TestHTTPRouteStatusWithRouteBackendExtensionPKIProfileLifecycle(t *testing.
 	rbe := akogatewayapitests.GetFakeRBEObjWithBackendTLS(
 		routeBackendExtensionName,
 		DEFAULT_NAMESPACE,
-		true,                             // enableBackendSSL=true
-		akogatewayapitests.BoolPtr(true), // hostCheckEnabled=true
+		akogatewayapitests.BoolPtr(true),                    // hostCheckEnabled=true
 		akogatewayapitests.StringPtr("backend.example.com"), // domainName
 		akogatewayapitests.StringPtr(pkiProfileName),        // pkiProfile (non-existent)
 		"thisisaviref-hm1",
@@ -2898,14 +2891,13 @@ func TestHTTPRouteStatusWithRouteBackendExtensionBackendSSLOnly(t *testing.T) {
 	parentRefs := akogatewayapitests.GetParentReferencesV1([]string{gatewayName}, namespace, ports)
 	hostnames := []gatewayv1.Hostname{"foo-8084.com"}
 
-	// Test Case: RouteBackendExtension with only enableBackendSSL=true (minimal valid config)
+	// Test Case: RouteBackendExtension with minimal BackendTLS config
 	rbe := akogatewayapitests.GetFakeRBEObjWithBackendTLS(
 		routeBackendExtensionName,
 		DEFAULT_NAMESPACE,
-		true, // enableBackendSSL=true
-		nil,  // hostCheckEnabled=nil (default)
-		nil,  // domainName=nil
-		nil,  // pkiProfile=nil
+		nil, // hostCheckEnabled=nil (default)
+		nil, // domainName=nil
+		nil, // pkiProfile=nil
 		"thisisaviref-hm1",
 	)
 	rbe.Status = "Accepted"
