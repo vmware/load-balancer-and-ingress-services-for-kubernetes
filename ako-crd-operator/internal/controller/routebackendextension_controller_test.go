@@ -883,10 +883,11 @@ func TestRouteBackendExtensionBackendTLSValidation(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
-					EnableBackendSSL: func() *bool { b := true; return &b }(),
-					PKIProfile: &akov1alpha1.BackendPKIProfile{
-						Kind: akov1alpha1.ObjectKindCRD,
-						Name: "test-pki-profile",
+					BackendTLS: &akov1alpha1.BackendTLS{
+						PKIProfile: &akov1alpha1.BackendPKIProfile{
+							Kind: akov1alpha1.ObjectKindCRD,
+							Name: "test-pki-profile",
+						},
 					},
 				},
 			},
@@ -916,9 +917,10 @@ func TestRouteBackendExtensionBackendTLSValidation(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
-					EnableBackendSSL: func() *bool { b := true; return &b }(),
-					HostCheckEnabled: func() *bool { b := true; return &b }(),
-					DomainName:       []string{"example.com"},
+					BackendTLS: &akov1alpha1.BackendTLS{
+						HostCheckEnabled: func() *bool { b := true; return &b }(),
+						DomainName:       []string{"example.com"},
+					},
 				},
 			},
 			wantErr:      false,
@@ -933,7 +935,7 @@ func TestRouteBackendExtensionBackendTLSValidation(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
-					EnableBackendSSL: func() *bool { b := true; return &b }(),
+					BackendTLS: &akov1alpha1.BackendTLS{},
 				},
 			},
 			wantErr:      false,
@@ -948,15 +950,17 @@ func TestRouteBackendExtensionBackendTLSValidation(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
-					PKIProfile: &akov1alpha1.BackendPKIProfile{
-						Kind: akov1alpha1.ObjectKindCRD,
-						Name: "test-pki-profile",
+					BackendTLS: &akov1alpha1.BackendTLS{
+						PKIProfile: &akov1alpha1.BackendPKIProfile{
+							Kind: akov1alpha1.ObjectKindCRD,
+							Name: "test-pki-profile",
+						},
 					},
 				},
 			},
 			wantErr:      true,
 			wantStatus:   constants.REJECTED,
-			wantErrorMsg: "PKIProfile test-pki-profile not found in namespace default",
+			wantErrorMsg: "pkiprofiles.ako.vmware.com \"test-pki-profile\" not found",
 		},
 		{
 			name: "error: PKIProfile not found",
@@ -966,16 +970,17 @@ func TestRouteBackendExtensionBackendTLSValidation(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
-					EnableBackendSSL: func() *bool { b := true; return &b }(),
-					PKIProfile: &akov1alpha1.BackendPKIProfile{
-						Kind: akov1alpha1.ObjectKindCRD,
-						Name: "nonexistent-pki-profile",
+					BackendTLS: &akov1alpha1.BackendTLS{
+						PKIProfile: &akov1alpha1.BackendPKIProfile{
+							Kind: akov1alpha1.ObjectKindCRD,
+							Name: "nonexistent-pki-profile",
+						},
 					},
 				},
 			},
 			wantErr:      true,
 			wantStatus:   constants.REJECTED,
-			wantErrorMsg: "PKIProfile nonexistent-pki-profile not found in namespace default",
+			wantErrorMsg: "pkiprofiles.ako.vmware.com \"nonexistent-pki-profile\" not found",
 		},
 		{
 			name: "error: PKIProfile not ready",
@@ -985,10 +990,11 @@ func TestRouteBackendExtensionBackendTLSValidation(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
-					EnableBackendSSL: func() *bool { b := true; return &b }(),
-					PKIProfile: &akov1alpha1.BackendPKIProfile{
-						Kind: akov1alpha1.ObjectKindCRD,
-						Name: "not-ready-pki-profile",
+					BackendTLS: &akov1alpha1.BackendTLS{
+						PKIProfile: &akov1alpha1.BackendPKIProfile{
+							Kind: akov1alpha1.ObjectKindCRD,
+							Name: "not-ready-pki-profile",
+						},
 					},
 				},
 			},
@@ -1018,10 +1024,11 @@ func TestRouteBackendExtensionBackendTLSValidation(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: akov1alpha1.RouteBackendExtensionSpec{
-					EnableBackendSSL: func() *bool { b := true; return &b }(),
-					PKIProfile: &akov1alpha1.BackendPKIProfile{
-						Kind: akov1alpha1.ObjectKindCRD,
-						Name: "no-conditions-pki-profile",
+					BackendTLS: &akov1alpha1.BackendTLS{
+						PKIProfile: &akov1alpha1.BackendPKIProfile{
+							Kind: akov1alpha1.ObjectKindCRD,
+							Name: "no-conditions-pki-profile",
+						},
 					},
 				},
 			},
@@ -1117,9 +1124,11 @@ func TestRouteBackendExtensionPKIProfileWatching(t *testing.T) {
 						Namespace: "default",
 					},
 					Spec: akov1alpha1.RouteBackendExtensionSpec{
-						PKIProfile: &akov1alpha1.BackendPKIProfile{
-							Kind: akov1alpha1.ObjectKindCRD,
-							Name: "test-pki-profile",
+						BackendTLS: &akov1alpha1.BackendTLS{
+							PKIProfile: &akov1alpha1.BackendPKIProfile{
+								Kind: akov1alpha1.ObjectKindCRD,
+								Name: "test-pki-profile",
+							},
 						},
 					},
 				},
@@ -1150,9 +1159,11 @@ func TestRouteBackendExtensionPKIProfileWatching(t *testing.T) {
 						Namespace: "default",
 					},
 					Spec: akov1alpha1.RouteBackendExtensionSpec{
-						PKIProfile: &akov1alpha1.BackendPKIProfile{
-							Kind: akov1alpha1.ObjectKindCRD,
-							Name: "shared-pki-profile",
+						BackendTLS: &akov1alpha1.BackendTLS{
+							PKIProfile: &akov1alpha1.BackendPKIProfile{
+								Kind: akov1alpha1.ObjectKindCRD,
+								Name: "shared-pki-profile",
+							},
 						},
 					},
 				},
@@ -1162,9 +1173,11 @@ func TestRouteBackendExtensionPKIProfileWatching(t *testing.T) {
 						Namespace: "default",
 					},
 					Spec: akov1alpha1.RouteBackendExtensionSpec{
-						PKIProfile: &akov1alpha1.BackendPKIProfile{
-							Kind: akov1alpha1.ObjectKindCRD,
-							Name: "shared-pki-profile",
+						BackendTLS: &akov1alpha1.BackendTLS{
+							PKIProfile: &akov1alpha1.BackendPKIProfile{
+								Kind: akov1alpha1.ObjectKindCRD,
+								Name: "shared-pki-profile",
+							},
 						},
 					},
 				},
@@ -1215,8 +1228,8 @@ func TestRouteBackendExtensionPKIProfileWatching(t *testing.T) {
 				WithObjects(objects...).
 				WithIndex(&akov1alpha1.RouteBackendExtension{}, PKIProfileIndexKey, func(rawObj client.Object) []string {
 					rbe := rawObj.(*akov1alpha1.RouteBackendExtension)
-					if rbe.Spec.PKIProfile != nil && rbe.Spec.PKIProfile.Kind == akov1alpha1.ObjectKindCRD {
-						return []string{rbe.Spec.PKIProfile.Name}
+					if rbe.Spec.BackendTLS != nil && rbe.Spec.BackendTLS.PKIProfile != nil && rbe.Spec.BackendTLS.PKIProfile.Kind == akov1alpha1.ObjectKindCRD {
+						return []string{rbe.Spec.BackendTLS.PKIProfile.Name}
 					}
 					return nil
 				}).
@@ -1245,9 +1258,9 @@ func TestRouteBackendExtensionPKIProfileWatching(t *testing.T) {
 				}
 
 				for _, rbe := range tt.routeBackendExtensions {
-					if rbe.Spec.PKIProfile != nil &&
-						rbe.Spec.PKIProfile.Kind == akov1alpha1.ObjectKindCRD &&
-						rbe.Spec.PKIProfile.Name == tt.pkiProfile.Name {
+					if rbe.Spec.BackendTLS != nil && rbe.Spec.BackendTLS.PKIProfile != nil &&
+						rbe.Spec.BackendTLS.PKIProfile.Kind == akov1alpha1.ObjectKindCRD &&
+						rbe.Spec.BackendTLS.PKIProfile.Name == tt.pkiProfile.Name {
 						assert.True(t, requestNames[rbe.Name], "Expected reconcile request for RBE %s", rbe.Name)
 					}
 				}
