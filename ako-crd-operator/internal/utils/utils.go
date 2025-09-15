@@ -45,6 +45,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+// newAviClientFunc is a variable that holds the function to create AVI clients
+// This allows for easy mocking in unit tests
+var newAviClientFunc = clients.NewAviClient
+
 // StatusUpdater interface defines the methods needed to update status
 type StatusUpdater interface {
 	Status() client.SubResourceWriter
@@ -492,16 +496,12 @@ func validateAviSecret(ctx context.Context, kubeClient kubernetes.Interface, con
 	}
 
 	// Create AVI client and test connection
-	aviClient, err := clients.NewAviClient(controllerIP, username, options...)
+	_, err = newAviClientFunc(controllerIP, username, options...)
 	if err != nil {
 		logger.Errorf("Failed to create AVI client: %v", err)
 		return err
 	}
 
 	logger.Infof("Successfully validated AVI secret and created client connection to controller: %s", controllerIP)
-
-	// The aviClient connection test was successful, we can safely discard it
-	_ = aviClient
-
 	return nil
 }

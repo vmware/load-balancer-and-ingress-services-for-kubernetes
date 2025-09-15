@@ -90,7 +90,6 @@ func ResetSessionInstance() {
 func (s *Session) PopulateControllerProperties(ctx context.Context) error {
 	var err error
 	s.ctrlProperties, err = lib.GetControllerPropertiesFromSecret(s.k8sClient)
-	utils.SharedCtrlProp().PopulateCtrlProp(s.ctrlProperties)
 	if err != nil {
 		return err
 	}

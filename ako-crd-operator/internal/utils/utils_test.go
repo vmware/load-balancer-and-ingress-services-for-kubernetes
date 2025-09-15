@@ -5,11 +5,11 @@ package utils
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -645,6 +645,15 @@ func TestParseAviErrorMessage(t *testing.T) {
 }
 
 func TestWaitForWCPCloudNameAndInitialize_AnnotationExists(t *testing.T) {
+	// Save original function and restore after test
+	originalFunc := newAviClientFunc
+	defer func() { newAviClientFunc = originalFunc }()
+
+	// Mock the function to return success
+	newAviClientFunc = func(host string, username string, options ...func(*session.AviSession) error) (*clients.AviClient, error) {
+		return &clients.AviClient{}, nil
+	}
+
 	// Create a namespace with the WCP cloud name annotation already set
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -692,19 +701,8 @@ func TestWaitForWCPCloudNameAndInitialize_AnnotationExists(t *testing.T) {
 	// Call the function
 	err := WaitForWCPCloudNameAndInitialize(ctx, kubeClient, logger)
 
-	// The test will fail because it tries to create an actual AVI client
-	// In a production test, you would mock the AVI client creation
-	// For now, we expect an error related to connection failure
-	assert.Error(t, err)
-	// Accept any network connection error
-	assert.True(t, strings.Contains(err.Error(), "network is unreachable") ||
-		strings.Contains(err.Error(), "no route to host") ||
-		strings.Contains(err.Error(), "connection refused"),
-		"Expected network connection error, got: %s", err.Error())
-
-	// Verify that cluster ID and controller IP were set
-	// Note: In a real test, you might want to mock these global setters
-	// For now, we just verify the function completed without error
+	// Verify success with mocked AVI client
+	assert.NoError(t, err)
 }
 
 func TestWaitForWCPCloudNameAndInitialize_NamespaceNotFound(t *testing.T) {
@@ -751,6 +749,15 @@ func TestWaitForWCPCloudNameAndInitialize_NoAnnotation(t *testing.T) {
 }
 
 func TestInitializeClusterConfig_Success(t *testing.T) {
+	// Save original function and restore after test
+	originalFunc := newAviClientFunc
+	defer func() { newAviClientFunc = originalFunc }()
+
+	// Mock the function to return success
+	newAviClientFunc = func(host string, username string, options ...func(*session.AviSession) error) (*clients.AviClient, error) {
+		return &clients.AviClient{}, nil
+	}
+
 	// Create a configmap with required data
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -788,15 +795,8 @@ func TestInitializeClusterConfig_Success(t *testing.T) {
 	// Call the function
 	err := initializeClusterConfig(ctx, kubeClient, "test-cloud", logger)
 
-	// Note: This test will fail because it tries to create an actual AVI client
-	// In a production test, you would mock the AVI client creation
-	// For now, we expect an error related to connection failure
-	assert.Error(t, err)
-	// Accept any network connection error
-	assert.True(t, strings.Contains(err.Error(), "network is unreachable") ||
-		strings.Contains(err.Error(), "no route to host") ||
-		strings.Contains(err.Error(), "connection refused"),
-		"Expected network connection error, got: %s", err.Error())
+	// Verify success with mocked AVI client
+	assert.NoError(t, err)
 }
 
 func TestInitializeClusterConfig_ConfigMapNotFound(t *testing.T) {
@@ -948,6 +948,15 @@ func TestValidateAviSecret_MissingCredentials(t *testing.T) {
 }
 
 func TestValidateAviSecret_ValidCredentials(t *testing.T) {
+	// Save original function and restore after test
+	originalFunc := newAviClientFunc
+	defer func() { newAviClientFunc = originalFunc }()
+
+	// Mock the function to return success
+	newAviClientFunc = func(host string, username string, options ...func(*session.AviSession) error) (*clients.AviClient, error) {
+		return &clients.AviClient{}, nil
+	}
+
 	// Create a secret with valid credentials
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -973,13 +982,6 @@ func TestValidateAviSecret_ValidCredentials(t *testing.T) {
 	// Call the function
 	err := validateAviSecret(ctx, kubeClient, "192.168.1.100", logger)
 
-	// Note: This test will fail because it tries to create an actual AVI client
-	// In a production test, you would mock the AVI client creation
-	// For now, we expect an error related to connection failure
-	assert.Error(t, err)
-	// Accept any network connection error
-	assert.True(t, strings.Contains(err.Error(), "network is unreachable") ||
-		strings.Contains(err.Error(), "no route to host") ||
-		strings.Contains(err.Error(), "connection refused"),
-		"Expected network connection error, got: %s", err.Error())
+	// Verify success with mocked AVI client
+	assert.NoError(t, err)
 }
