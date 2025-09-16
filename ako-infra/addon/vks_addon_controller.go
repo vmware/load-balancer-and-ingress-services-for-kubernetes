@@ -98,13 +98,6 @@ func createAddonInstallSpec() *unstructured.Unstructured {
 						},
 					},
 				},
-				"releaseFilter": map[string]interface{}{
-					"selector": map[string]interface{}{
-						"matchLabels": map[string]interface{}{
-							"addon.kubernetes.vmware.com/addon-name": AKOAddonName,
-						},
-					},
-				},
 				"paused": false,
 			},
 		},

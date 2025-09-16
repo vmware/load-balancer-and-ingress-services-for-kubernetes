@@ -110,24 +110,6 @@ func TestCreateAddonInstallSpec(t *testing.T) {
 	if matchLabels[webhook.VKSManagedLabel] != expectedVKSLabel {
 		t.Errorf("Expected VKS label '%s'='%s', got '%s'", webhook.VKSManagedLabel, expectedVKSLabel, matchLabels[webhook.VKSManagedLabel])
 	}
-
-	// Test releaseFilter configuration
-	releaseFilter, found, err := unstructured.NestedMap(addonSpec.Object, "spec", "releaseFilter")
-	if err != nil || !found {
-		t.Fatalf("Failed to get releaseFilter configuration: %v", err)
-	}
-
-	// Note: resolutionRule is not needed - framework automatically selects latest compatible version
-
-	releaseMatchLabels, found, err := unstructured.NestedStringMap(releaseFilter, "selector", "matchLabels")
-	if err != nil || !found {
-		t.Fatalf("Failed to get releaseFilter selector matchLabels: %v", err)
-	}
-
-	expectedAddonLabel := AKOAddonName
-	if releaseMatchLabels["addon.kubernetes.vmware.com/addon-name"] != expectedAddonLabel {
-		t.Errorf("Expected addon label '%s', got '%s'", expectedAddonLabel, releaseMatchLabels["addon.kubernetes.vmware.com/addon-name"])
-	}
 }
 
 // Note: EnsureGlobalAddonInstall() tests are integration tests that require real Kubernetes API
